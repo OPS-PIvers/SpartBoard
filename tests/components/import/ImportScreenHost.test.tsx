@@ -58,6 +58,10 @@ vi.mock('@/hooks/useImportConversionSettings', async () => {
     await import('@/config/importConversion');
   return {
     useImportConversionSettings: () => normalizeImportConversionSettings({}),
+    useImportConversionSettingsState: () => ({
+      settings: normalizeImportConversionSettings({}),
+      loaded: true,
+    }),
   };
 });
 

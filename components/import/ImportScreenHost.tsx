@@ -4,7 +4,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
 import { useImportInbox, type ImportInbox } from '@/hooks/useImportInbox';
 import { useQuizDocumentImportGate } from '@/hooks/useQuizDocumentImportGate';
-import { useImportConversionSettings } from '@/hooks/useImportConversionSettings';
+import { useImportConversionSettingsState } from '@/hooks/useImportConversionSettings';
 import { useViewAsOutward } from '@/hooks/useViewAsOutward';
 import type { ConversionInput } from '@/utils/import/aiConversion';
 import { BoardImportFlow } from './conversion/BoardImportFlow';
@@ -200,7 +200,8 @@ const OpenImportScreen: React.FC<
 }) => {
   const { canAccessWidget, canAccessFeature, ensureGoogleScope } = useAuth();
   const outward = useViewAsOutward();
-  const settings = useImportConversionSettings();
+  const { settings, loaded: settingsLoaded } =
+    useImportConversionSettingsState();
   // AI Conversions: each widget's switch, the AI flag, and never from a read-only view-as tab (the server checks again).
   const aiReady = canAccessFeature('gemini-functions') && !outward.locked;
   const aiOn = (target: ImportTarget): boolean =>
@@ -503,7 +504,9 @@ const OpenImportScreen: React.FC<
           ? undefined
           : onCourse
       }
-      straightToBoard={canAccessFeature(IMPORT_STRAIGHT_TO_BOARD_FEATURE)}
+      straightToBoard={
+        settingsLoaded && canAccessFeature(IMPORT_STRAIGHT_TO_BOARD_FEATURE)
+      }
     />
   );
 };

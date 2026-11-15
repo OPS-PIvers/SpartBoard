@@ -1,4 +1,4 @@
-import React, { useEffect, useEffectEvent, useState } from 'react';
+import React, { useEffect, useEffectEvent, useRef, useState } from 'react';
 import {
   FileText,
   FolderTree,
@@ -175,8 +175,12 @@ export const ImportScreen: React.FC<ImportScreenProps> = ({
     setAutoPick(single);
     if (single === 'embed' && dropped.source.url) setEmbedding(dropped);
   }
+  // StrictMode runs mount effects twice; this keeps the placement to one.
+  const placed = useRef(false);
   const placeSingle = useEffectEvent((target: ImportTarget) => {
-    if (dropped) onContinue(dropped.source, target);
+    if (placed.current || !dropped) return;
+    placed.current = true;
+    onContinue(dropped.source, target);
   });
   useEffect(() => {
     if (autoPick && autoPick !== 'embed') placeSingle(autoPick);

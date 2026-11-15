@@ -435,6 +435,28 @@ describe('ImportScreen', () => {
     expect(onContinue).toHaveBeenCalledOnce();
   });
 
+  it('places a lone widget once under StrictMode', async () => {
+    const photo = file('cat.png', 'image/png');
+    const onContinue = vi.fn();
+    render(
+      <React.StrictMode>
+        <ImportScreen
+          isOpen
+          onClose={vi.fn()}
+          inboxItems={[]}
+          onRemoveInboxItem={vi.fn()}
+          allowed={() => true}
+          onContinue={onContinue}
+          onPlaceReference={vi.fn()}
+          initialSource={{ file: photo }}
+          straightToBoard
+        />
+      </React.StrictMode>
+    );
+    await waitFor(() => expect(onContinue).toHaveBeenCalled());
+    expect(onContinue).toHaveBeenCalledOnce();
+  });
+
   it('keeps the list without the flag, with several widgets, or for AI', () => {
     const photo = file('cat.png', 'image/png');
     const off = renderScreen({ initialSource: { file: photo } });

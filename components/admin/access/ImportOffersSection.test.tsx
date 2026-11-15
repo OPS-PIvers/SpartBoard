@@ -121,7 +121,14 @@ describe('ImportOffersSection', () => {
     fireEvent.blur(wall);
     expect(setDocMock).toHaveBeenLastCalledWith(
       { path: 'admin_settings/import_conversion' },
-      { ai: { activityWall: { dailyLimit: 8 } }, enabled: true },
+      {
+        ai: {
+          flashcards: {},
+          activityWall: { enabled: true, dailyLimit: 8 },
+          board: {},
+        },
+        enabled: true,
+      },
       { merge: true }
     );
     const toggle = docs.getByRole('switch', { name: 'Activity Wall with AI' });
@@ -129,12 +136,34 @@ describe('ImportOffersSection', () => {
     fireEvent.click(toggle);
     expect(setDocMock).toHaveBeenLastCalledWith(
       { path: 'admin_settings/import_conversion' },
-      { ai: { activityWall: { enabled: false } }, enabled: false },
+      {
+        ai: { flashcards: {}, activityWall: { enabled: false }, board: {} },
+        enabled: false,
+      },
       { merge: true }
     );
     expect(
       docs.queryByRole('spinbutton', { name: 'Flashcards with AI daily limit' })
     ).toBeNull();
+  });
+
+  it('pins the other widgets to their current value when one AI switch is turned on', () => {
+    docData.current = { enabled: false };
+    render(<ImportOffersSection editor={editor} />);
+    const docs = open('Document or PDF');
+    fireEvent.click(docs.getByRole('switch', { name: 'Flashcards with AI' }));
+    expect(setDocMock).toHaveBeenLastCalledWith(
+      { path: 'admin_settings/import_conversion' },
+      {
+        ai: {
+          flashcards: { enabled: true },
+          activityWall: { enabled: false },
+          board: { enabled: false },
+        },
+        enabled: true,
+      },
+      { merge: true }
+    );
   });
 
   it('ignores a limit outside 1 to 1000', () => {

@@ -25,6 +25,7 @@ import {
   IMPORT_SOURCE_KINDS,
   IMPORT_SOURCE_TARGETS,
   IMPORT_AI_DAILY_LIMIT_MAX,
+  IMPORT_AI_TARGETS,
   importAiDailyLimit,
   importAiOn,
   importSourceChecked,
@@ -63,7 +64,7 @@ const SOURCES: Record<
   },
   document: {
     label: 'Document or PDF',
-    hint: 'Word, Google Docs or PDF files.',
+    hint: 'Word or PDF files.',
     Icon: FileText,
   },
   picture: { label: 'Picture', hint: 'A photo or image file.', Icon: Image },
@@ -94,6 +95,13 @@ const SOURCES: Record<
   },
   text: { label: 'Pasted text', hint: 'Text pasted on the board.', Icon: Type },
 };
+
+/** A lone widget is placed for the teacher only when it reads without AI and needs no sign-in click. */
+const addsStraight = (kind: ImportSourceKind, target: ImportTarget): boolean =>
+  kind !== 'form' &&
+  target !== 'activityWall' &&
+  target !== 'board' &&
+  (target !== 'flashcards' || kind === 'spreadsheet');
 
 const labelOf = (target: ImportTarget): string =>
   importRoute(target)?.label ?? target;
@@ -176,11 +184,25 @@ const WidgetRow: React.FC<{
   const aiChecked = !!ai && importAiOn(settings, ai);
   const setAi = (patch: { enabled?: boolean; dailyLimit?: number }) => {
     if (!ai) return;
+    // Widgets still on the old switch get their own value first, so the mirrored switch can't turn them on.
+    const pinned = Object.fromEntries(
+      IMPORT_AI_TARGETS.map((t) => [
+        t,
+        {
+          ...(settings.ai[t].enabled === undefined
+            ? { enabled: importAiOn(settings, t) }
+            : {}),
+          ...(t === ai ? patch : {}),
+        },
+      ])
+    ) as Record<ImportAiTarget, { enabled?: boolean; dailyLimit?: number }>;
     const next: ImportConversionSettings = {
       ...settings,
-      ai: { ...settings.ai, [ai]: { ...settings.ai[ai], ...patch } },
+      ai: Object.fromEntries(
+        IMPORT_AI_TARGETS.map((t) => [t, { ...settings.ai[t], ...pinned[t] }])
+      ) as ImportConversionSettings['ai'],
     };
-    void save({ ai: { [ai]: patch }, enabled: legacyAiSwitch(next) });
+    void save({ ai: pinned, enabled: legacyAiSwitch(next) });
   };
   return (
     <div className="py-2">
@@ -210,7 +232,8 @@ const WidgetRow: React.FC<{
           <span className="text-xxs text-amber-700">{tag}</span>
         ) : (
           only &&
-          checked && (
+          checked &&
+          addsStraight(kind, target) && (
             <span className="text-xxs text-slate-500">
               Adds straight to the board
             </span>
