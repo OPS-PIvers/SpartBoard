@@ -1474,11 +1474,26 @@ export const commitRosterPinIndexV1 = onCall(
     const rawData = (request.data ?? {}) as {
       rosterId?: unknown;
       entries?: unknown;
+      rosterDeleted?: unknown;
     };
     const rosterId =
       typeof rawData.rosterId === 'string' ? rawData.rosterId : '';
     if (!rosterId) {
       throw new HttpsError('invalid-argument', 'rosterId is required.');
+    }
+    if (rawData.rosterDeleted === true) {
+      // A deleted roster's retired PINs stop blocking anyone; only valid once the roster doc is gone.
+      const gone = admin
+        .firestore()
+        .collection('users')
+        .doc(request.auth.uid)
+        .collection('rosters')
+        .doc(rosterId);
+      if ((await gone.get()).exists) {
+        throw new HttpsError('failed-precondition', 'Roster still exists.');
+      }
+      await recordRetiredPins(admin.firestore(), gone, [], Date.now(), true);
+      return { wrote: 0, deleted: 0, rosterDeleted: true };
     }
     if (!Array.isArray(rawData.entries)) {
       throw new HttpsError('invalid-argument', 'entries must be an array.');
@@ -1719,19 +1734,53 @@ export async function recordRetiredPins(
       if (pin !== entry.pin) keys.add(retiredPinKey(entry.period, pin));
     }
   }
-  const have = await col.where('rosterId', '==', rosterRef.id).get();
+  // A doc lists every roster that retired the PIN (`rosterIds`; older docs carry one `rosterId`), so rosters sharing a PIN never prune each other's.
+  const id = rosterRef.id;
+  const [modern, legacy] = await Promise.all([
+    col.where('rosterIds', 'array-contains', id).get(),
+    col.where('rosterId', '==', id).get(),
+  ]);
+  const byId = new Map<string, admin.firestore.QueryDocumentSnapshot>();
+  for (const d of [...modern.docs, ...legacy.docs]) byId.set(d.id, d);
+  const listIds = (d: admin.firestore.DocumentSnapshot): string[] => {
+    const raw: unknown = d.get('rosterIds');
+    return Array.isArray(raw)
+      ? raw.filter((x): x is string => typeof x === 'string')
+      : [];
+  };
   const ops: ((b: admin.firestore.WriteBatch) => void)[] = [];
-  const present = new Set(have.docs.map((d) => d.id));
   for (const key of keys) {
-    if (!present.has(key)) {
-      ops.push((b) =>
-        b.set(col.doc(key), { rosterId: rosterRef.id, updatedAt: now })
-      );
-    }
+    const d = byId.get(key);
+    if (d && listIds(d).includes(id)) continue;
+    ops.push((b) =>
+      b.set(
+        col.doc(key),
+        {
+          rosterIds: admin.firestore.FieldValue.arrayUnion(id),
+          ...(d ? {} : { updatedAt: now }),
+        },
+        { merge: true }
+      )
+    );
   }
+  const removal = (d: admin.firestore.DocumentSnapshot) => ({
+    rosterIds: admin.firestore.FieldValue.arrayRemove(id),
+    updatedAt: now,
+    ...(d.get('rosterId') === id
+      ? { rosterId: admin.firestore.FieldValue.delete() }
+      : {}),
+  });
+  const soleDocs: admin.firestore.QueryDocumentSnapshot[] = [];
   if (prune) {
-    for (const d of have.docs) {
-      if (!keys.has(d.id)) ops.push((b) => b.delete(d.ref));
+    for (const d of byId.values()) {
+      if (keys.has(d.id)) continue;
+      const legacyOwner: unknown = d.get('rosterId');
+      const others = new Set(listIds(d));
+      if (typeof legacyOwner === 'string' && legacyOwner)
+        others.add(legacyOwner);
+      others.delete(id);
+      if (others.size === 0) soleDocs.push(d);
+      else ops.push((b) => b.set(d.ref, removal(d), { merge: true }));
     }
   }
   for (let i = 0; i < ops.length; i += 400) {
@@ -1739,7 +1788,20 @@ export async function recordRetiredPins(
     ops.slice(i, i + 400).forEach((op) => op(batch));
     await batch.commit();
   }
-  await stampRetiredPinTimes(rosterRef, keys, have.docs, now, prune);
+  // A sole-roster doc is deleted only if unchanged since the read, so a concurrent roster's arrayUnion survives.
+  await Promise.all(
+    soleDocs.map(async (d) => {
+      try {
+        await d.ref.delete(
+          d.updateTime ? { lastUpdateTime: d.updateTime } : undefined
+        );
+      } catch (err) {
+        if ((err as { code?: number }).code !== 9) throw err;
+        await d.ref.set(removal(d), { merge: true });
+      }
+    })
+  );
+  await stampRetiredPinTimes(rosterRef, keys, [...byId.values()], now, prune);
 }
 
 /** Retired-key doc id → its PIN segment (ids are `${period}__${seg}`, neither half holds `__`). */

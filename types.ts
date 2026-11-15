@@ -11455,7 +11455,8 @@ export type GlobalFeature =
   /** Manual assignments get a due date, and Assign remembers the When step. */
   | 'assign-due-date'
   /** Reopen an ended quiz for selected students only. */
-  | 'reopen-selected-students';
+  | 'reopen-selected-students'
+  | 'share-import-confirm';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

@@ -1800,6 +1800,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'share-import-confirm': {
+    label: 'Share links: confirm import',
+    icon: Link2,
+    description: 'Share links ask before importing and name who shared them.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    category: 'sharing',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
 };
 
 /** Retired global ids the Dock reads until a Widgets-page doc exists (plan D3). */

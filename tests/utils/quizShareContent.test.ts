@@ -148,4 +148,27 @@ describe('restoreSharedQuizContent', () => {
     expect(saveBank).not.toHaveBeenCalled();
     expect(content.bankSlots).toEqual(bankOnlyQuiz.bankSlots);
   });
+
+  it('drops the sharer-supplied owner pin from slots with no inlined bank', async () => {
+    const { content } = await restoreSharedQuizContent(
+      {
+        title: 't',
+        questions: [],
+        bankSlots: [
+          {
+            id: 's',
+            bankId: 'b',
+            bankTitle: 'Evil',
+            mode: 'random',
+            count: 1,
+            syncGroupId: 'attacker-group',
+            syncOwnerUid: 'attacker',
+          },
+        ],
+      },
+      vi.fn()
+    );
+    expect(content.bankSlots?.[0]?.syncGroupId).toBe('attacker-group');
+    expect(content.bankSlots?.[0]).not.toHaveProperty('syncOwnerUid');
+  });
 });

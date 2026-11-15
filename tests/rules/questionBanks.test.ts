@@ -175,6 +175,14 @@ describe('synced_question_banks/{groupId}', () => {
     );
   });
 
+  it('anonymous and studentRole callers cannot create a bank', async () => {
+    const anon = testEnv.authenticatedContext(OWNER_UID, {
+      firebase: { sign_in_provider: 'anonymous' },
+    });
+    await assertFails(setDoc(doc(anon.firestore(), syncedPath), syncedDoc()));
+    await assertFails(setDoc(doc(asStudent(), syncedPath), syncedDoc()));
+  });
+
   it('owner gets by id; a non-staff outsider, student and anonymous cannot; list is closed', async () => {
     // Staff and admin reads are covered in syncedContentReads.test.ts.
     await testEnv.withSecurityRulesDisabled(async (ctx) => {

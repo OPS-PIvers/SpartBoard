@@ -2904,6 +2904,21 @@ export const useQuizAssignments = (
         initialLanguage = canonical.language;
         canonicalVersion = canonical.version;
         canonicalFields = syncedQuizContentFields(canonical);
+        // Bank pins from the canonical doc are only kept for a member of the share's PLC.
+        const pre = shared.assignmentSettings.plc;
+        const preMember =
+          !!pre && !!plcHandling && plcHandling.isMember(pre.id);
+        if (!preMember && canonicalFields.bankSlots) {
+          canonicalFields = {
+            ...canonicalFields,
+            bankSlots: canonicalFields.bankSlots.map((slot) => {
+              // District library banks are readable by all staff and stay linked.
+              if (slot.districtItemId) return slot;
+              const { syncGroupId: _g, syncOwnerUid: _o, ...unbound } = slot;
+              return unbound;
+            }),
+          };
+        }
       }
 
       const now = Date.now();
