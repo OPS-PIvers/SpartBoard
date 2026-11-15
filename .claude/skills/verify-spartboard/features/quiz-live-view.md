@@ -1,13 +1,13 @@
 # Quiz Live view and Student view on an assignment
 
-A teacher opens Student view on a running quiz assignment to see the copy students have, and opens Live view on one in-progress student in Monitor to watch their attempt, redrawn from saved answers, with stats, Tell the student, Nudge and Screenshot.
+A teacher opens Student view on a running quiz assignment to see the copy students have, and opens Live view on one in-progress student in Monitor to watch their attempt, redrawn from saved answers, with stats, Notify student when viewing, Nudge and Screenshot.
 
 ## Sub-features
 
 - `assigned-student-view` opens the assigned copy from an In Progress row's menu.
 - `edited-since-assigned` shows the note on a row whose library quiz was saved after it was assigned.
 - `live-view-open` opens the panel from the eye button on an In progress student.
-- `live-view-controls` shows the stats, Tell the student, the Nudge note select, Nudge and Screenshot.
+- `live-view-controls` shows the stats, Notify student when viewing, the Nudge note select, Nudge and Screenshot. Nudge, the note and Screenshot each sit behind their own preview flag (`quiz-live-view-nudge`, `quiz-live-view-nudge-note`, `quiz-live-view-screenshot`); the note also needs Nudge.
 
 ## How to get to it (user POV)
 
@@ -24,7 +24,7 @@ Preconditions:
 
 - **Row note and menu.** `navigate` to `http://localhost:56320/library-managers-dev?view=quiz`, click the `In Progress` tab. One row reads `Edited since assigned`. Click a row's menu (`[data-tour^="library-shell.archive-menu"]`): it lists `Student view` (`quiz-library.archive-student-view`).
 - **Open Live view.** `navigate` to `http://localhost:56320/session-views-dev?view=quiz-monitor&state=multi-class&full=1`, click `In progress`, then the first `[data-tour^="quiz-monitor.live-view"]`. A dialog named `Live view` opens with the student's name, their question with the saved choice selected, and `Teacher's Live view, not the student's screen`.
-- **Controls.** The side column lists Started, On question, Answered, Tab exits and Input tracking, then `Tell the student` (`quiz-live-view.tell-student`), the `Nudge note` select, `Nudge` and `Screenshot`.
+- **Controls.** The side column lists Started, On question, Answered, Tab exits and Input tracking, then `Notify student when viewing` (`quiz-live-view.tell-student`), the `Nudge note` select, `Nudge`, `Screenshot` and the line `Saves this redrawn view, not the student's screen.`
 - **Next student.** Click `Next` (`quiz-live-view.next`). The name in the header changes.
 - **Proof.** `evidence.mjs new quiz-live-view session-views-dev`; screenshot the roster with the eye buttons and the open panel, and `note` the student name and question shown.
 

@@ -13,6 +13,10 @@ import { AuthProvider } from '@/context/AuthContext';
 import type { UseFoldersResult } from '@/hooks/useFolders';
 import { QuizManager } from '@/components/widgets/QuizWidget/components/QuizManager';
 import type { QuizManagerTab } from '@/components/widgets/QuizWidget/components/QuizManager';
+import {
+  ReopenStudentsDialog,
+  type ReopenStudentOption,
+} from '@/components/widgets/QuizWidget/components/ReopenStudentsDialog';
 import { QuizPreview } from '@/components/widgets/QuizWidget/components/QuizPreview';
 import type { BankSource } from '@/utils/questionBankRecords';
 import type { QuizData } from '@/types';
@@ -60,19 +64,96 @@ const QUIZZES: QuizMetadata[] = range((i) => ({
   updatedAt: NOW - i * 3600_000,
 }));
 
+// Worst-case class names from the SIS: one, five sharing a prefix, five unrelated.
+const SIS_CLASSES: string[][] = [
+  ['Sample - Mock Period 1'],
+  [
+    'MS Science 8 - Ivers - Period 1 (2026-27 S1)',
+    'MS Science 8 - Ivers - Period 2 (2026-27 S1)',
+    'MS Science 8 - Ivers - Period 4 (2026-27 S1)',
+    'MS Science 8 - Ivers - Period 5 (2026-27 S1)',
+    'MS Science 8 - Ivers - Period 6 (2026-27 S1)',
+  ],
+  [
+    'Grade 8 Science - Section 01 - Fall',
+    'Honors Physical Science 9 - Section 03',
+    'Earth and Space Science - Section 02',
+    'STEM Exploration Lab - Section 05',
+    'Advisory / Homeroom 8B',
+  ],
+  [],
+];
+
 const QUIZ_ASSIGNMENTS: QuizAssignment[] = range((i) => ({
   id: `qa-${i}`,
   quizId: `quiz-${i}`,
   quizTitle: `Unit ${i + 1} checkpoint`,
   quizDriveFileId: `drive-quiz-${i}`,
+  periodNames: SIS_CLASSES[i % 4],
   teacherUid: 'mock-user-id',
   code: `AB${String(i).padStart(3, '0')}`,
   sessionMode: 'student',
   sessionOptions: {},
   status: i % 2 === 0 ? 'active' : 'inactive',
+  periodAccess: {
+    'cl-1': {
+      state: 'closed',
+      openAt: null,
+      closeAt: null,
+      bellPeriodId: null,
+      verified: true,
+      label: 'Period 3',
+    },
+  },
   createdAt: NOW - i * 3600_000,
   updatedAt: NOW - i * 3600_000,
 }));
+
+const REOPEN_STUDENTS: ReopenStudentOption[] = [
+  {
+    key: 's1',
+    name: 'Hernandez-Whitfield, Maria',
+    className: 'Period 3',
+    status: 'not-started',
+  },
+  { key: 's2', name: 'Li, Bo', className: 'Period 3', status: 'absent' },
+  {
+    key: 's3',
+    name: 'Okafor, Chidinma',
+    className: 'Period 5',
+    status: 'in-progress',
+  },
+  {
+    key: 's4',
+    name: 'Anders, Kai',
+    className: 'Period 3',
+    status: 'turned-in',
+  },
+  {
+    key: 's5',
+    name: 'Brooks, Ella',
+    className: 'Period 5',
+    status: 'turned-in',
+  },
+  {
+    key: 's6',
+    name: 'Castillo, Mateo',
+    className: 'Period 3',
+    status: 'turned-in',
+  },
+  {
+    key: 's7',
+    name: 'Dunn, Avery',
+    className: 'Period 5',
+    status: 'turned-in',
+  },
+  {
+    key: 's8',
+    name: 'Evans, Noor',
+    className: 'Period 3',
+    status: 'turned-in',
+  },
+];
 
 const BANKS: QuestionBankMetadata[] = range((i) => ({
   id: `bank-${i}`,
@@ -115,6 +196,7 @@ const VA_ASSIGNMENTS: VideoActivityAssignment[] = range((i) => ({
   activityId: `va-${i}`,
   activityTitle: `Video lesson ${i + 1}`,
   activityDriveFileId: `drive-va-${i}`,
+  periodNames: SIS_CLASSES[i % 4],
   teacherUid: 'mock-user-id',
   sessionSettings: VA_SETTINGS,
   status: i % 2 === 0 ? 'active' : 'inactive',
@@ -178,7 +260,7 @@ const FLASHCARD_SETS: FlashcardSet[] = range((i) => ({
 }));
 
 const FC_MODES = ['write', 'speak', 'test', 'flashcards'] as const;
-const FC_PERIODS = [['Period 3'], ['Period 3', 'Period 5'], ['Period 4'], []];
+const FC_PERIODS = SIS_CLASSES;
 const FC_ROSTER_IDS = [
   ['roster-3'],
   ['roster-3', 'roster-5'],
@@ -328,6 +410,7 @@ const districtPreview = (source: BankSource): QuizData => ({
 const QuizView: React.FC<{ variant?: 'quiz' | 'review' }> = ({ variant }) => {
   const [previewing, setPreviewing] = useState<QuizData | null>(null);
   const [tab, setTab] = useState<QuizManagerTab>('library');
+  const [reopening, setReopening] = useState(false);
   const [quizzes, setQuizzes] = useState(QUIZZES);
   const [banks, setBanks] = useState(BANKS);
   const moveBank = (bankId: string, folderId: string | null): Promise<void> => {
@@ -344,85 +427,98 @@ const QuizView: React.FC<{ variant?: 'quiz' | 'review' }> = ({ variant }) => {
     return <QuizPreview quiz={previewing} onBack={() => setPreviewing(null)} />;
   }
   return (
-    <QuizManager
-      variant={variant}
-      userId="mock-user-id"
-      quizzes={quizzes}
-      onReorderQuizzes={reorderQuizzes}
-      loading={false}
-      error={null}
-      onNew={noop}
-      onImport={noop}
-      onEdit={noop}
-      onPreview={noop}
-      onStudentView={noop}
-      onDuplicate={noop}
-      onAssignOnPaper={noop}
-      onReadPaperQuestions={noop}
-      onShareWithPlc={noop}
-      onAssign={noop}
-      onResults={noop}
-      onDelete={noop}
-      onShare={noop}
-      rosters={ROSTERS}
-      periodAccess={PERIOD_ACCESS}
-      config={QUIZ_CONFIG}
-      managerTab={tab}
-      onTabChange={setTab}
-      banks={banks}
-      onMoveBankToLibraryFolder={moveBank}
-      banksLoading={false}
-      sharedBankSources={[]}
-      {...(WITH_DISTRICT
-        ? {
-            districtBankSources: DISTRICT_SOURCES,
-            districtFolders: DISTRICT_FOLDERS,
-            districtItemFolderIds: DISTRICT_FOLDER_IDS,
-            onPreviewBank: (source: BankSource) =>
-              setPreviewing(districtPreview(source)),
-          }
-        : {})}
-      onNewBank={noop}
-      onImportBank={noop}
-      onEditBank={noop}
-      onDuplicateBank={noop}
-      onDeleteBank={noop}
-      assignments={QUIZ_ASSIGNMENTS.map((a, i) =>
-        i === 1
+    <>
+      <QuizManager
+        variant={variant}
+        userId="mock-user-id"
+        quizzes={quizzes}
+        onReorderQuizzes={reorderQuizzes}
+        loading={false}
+        error={null}
+        onNew={noop}
+        onImport={noop}
+        onEdit={noop}
+        onPreview={noop}
+        onStudentView={noop}
+        onDuplicate={noop}
+        onAssignOnPaper={noop}
+        onReadPaperQuestions={noop}
+        onShareWithPlc={noop}
+        onAssign={noop}
+        onResults={noop}
+        onDelete={noop}
+        onShare={noop}
+        rosters={ROSTERS}
+        periodAccess={PERIOD_ACCESS}
+        config={QUIZ_CONFIG}
+        managerTab={tab}
+        onTabChange={setTab}
+        banks={banks}
+        onMoveBankToLibraryFolder={moveBank}
+        banksLoading={false}
+        sharedBankSources={[]}
+        {...(WITH_DISTRICT
           ? {
-              ...a,
-              paper: true,
-              paperBatchId: 'batch-1',
-              hasPaperResponses: true,
-              scoreVisibility: 'score-only' as const,
+              districtBankSources: DISTRICT_SOURCES,
+              districtFolders: DISTRICT_FOLDERS,
+              districtItemFolderIds: DISTRICT_FOLDER_IDS,
+              onPreviewBank: (source: BankSource) =>
+                setPreviewing(districtPreview(source)),
             }
-          : i === 2
-            ? { ...a, sync: { groupId: 'g1', syncedVersion: 1 } }
-            : i === 4
-              ? // Assigned before the quiz's last save: shows "Edited since assigned".
-                { ...a, createdAt: a.createdAt - 7200_000 }
-              : a
-      )}
-      syncedGroups={
-        new Map([['g1', { id: 'g1', version: 2, title: 'Synced' } as never]])
-      }
-      onSyncAssignment={asyncNoop}
-      assignmentsLoading={false}
-      onArchiveResults={asyncNoop}
-      onArchiveMonitor={asyncNoop}
-      onArchiveStudentView={asyncNoop}
-      onArchiveEditSettings={noop}
-      onArchiveShare={asyncNoop}
-      onArchiveSharePlcResults={noop}
-      onArchivePublishScores={asyncNoop}
-      onArchiveUnpublishScores={asyncNoop}
-      onArchivePauseResume={asyncNoop}
-      onArchiveDeactivate={asyncNoop}
-      onArchiveReopen={asyncNoop}
-      onArchiveDelete={asyncNoop}
-      onImportPaperResponses={noop}
-      onReprintPaperSheets={noop}
-    />
+          : {})}
+        onNewBank={noop}
+        onImportBank={noop}
+        onEditBank={noop}
+        onDuplicateBank={noop}
+        onDeleteBank={noop}
+        assignments={QUIZ_ASSIGNMENTS.map((a, i) =>
+          i === 1
+            ? {
+                ...a,
+                paper: true,
+                paperBatchId: 'batch-1',
+                hasPaperResponses: true,
+                scoreVisibility: 'score-only' as const,
+              }
+            : i === 2
+              ? { ...a, sync: { groupId: 'g1', syncedVersion: 1 } }
+              : i === 4
+                ? // Assigned before the quiz's last save: shows "Edited since assigned".
+                  { ...a, createdAt: a.createdAt - 7200_000 }
+                : a
+        )}
+        syncedGroups={
+          new Map([['g1', { id: 'g1', version: 2, title: 'Synced' } as never]])
+        }
+        onSyncAssignment={asyncNoop}
+        assignmentsLoading={false}
+        onArchiveResults={asyncNoop}
+        onArchiveMonitor={asyncNoop}
+        onArchiveStudentView={asyncNoop}
+        onArchiveEditSettings={noop}
+        onArchiveShare={asyncNoop}
+        onArchiveSharePlcResults={noop}
+        onArchivePublishScores={asyncNoop}
+        onArchiveUnpublishScores={asyncNoop}
+        onArchivePauseResume={asyncNoop}
+        onArchiveDeactivate={asyncNoop}
+        onArchiveReopen={asyncNoop}
+        onArchiveReopenStudents={() => setReopening(true)}
+        onArchiveDelete={asyncNoop}
+        onImportPaperResponses={noop}
+        onReprintPaperSheets={noop}
+      />
+      <ReopenStudentsDialog
+        isOpen={reopening}
+        title="Reopen for selected students"
+        students={REOPEN_STUDENTS}
+        onClose={() => setReopening(false)}
+        onConfirm={() => {
+          setReopening(false);
+          return Promise.resolve();
+        }}
+      />
+    </>
   );
 };
 

@@ -231,7 +231,17 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
   <details><summary>Branches to delete (174, checked 2026-11-01)</summary>
 
+claude/project-thread-x7mvut (#5885)
+claude/project-thread-x7mvut-ab112 (this docs PR, delete after it merges)
+claude/project-thread-29pa8f (#5868)
+claude/project-thread-29pa8f-ab112 (this docs PR, delete after it merges)
+claude/project-thread-vubbhb (#5867)
+claude/ab112-toolbar-overlays (this docs PR, delete after it merges)
+claude/project-thread-1h4b12 (#5865)
+claude/ab112-board-menu (this docs PR, delete after it merges)
 claude/project-thread-sqz8of (#5863)
+claude/project-thread-sqz8of-shot (#5871)
+claude/ab112-sqz8of-2 (this docs PR, delete after it merges)
 claude/ab112-sqz8of (this docs PR, delete after it merges)
 claude/project-thread-731sur (#5861; this docs PR reuses it, delete after it merges)
 claude/project-thread-24fjg3 (#5839, #5842, #5853; this docs PR reuses it, delete after it merges)
@@ -427,6 +437,7 @@ git push origin --delete release-fix/stimuli-for-everyone security/b-admin-colle
 git push origin --delete claude/project-thread-ay3n3n security/e-quiz-answer-key-leaks security/d1-quiz-join-pins
 git push origin --delete nightly/unifier-log-2026-11-14 nightly/state-data-2026-11-14 nightly/dashboard-2026-11-14 nightly/admin-config-2026-11-14 nightly/debugger-log-2026-11-14 claude/tour-anchors-2026-11-14
 git push origin --delete claude/project-thread-6hlkkz claude/project-thread-6hlkkz-ab112
+git push origin --delete claude/project-thread-776f0z claude/ab112-776f0z
 ```
 
   </details>

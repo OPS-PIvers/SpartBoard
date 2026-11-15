@@ -59,6 +59,7 @@ import {
 } from '@/components/common/library/assignStepper/VideoRuleStepValues';
 import { getVideoActivityBehavior } from '@/utils/videoActivityBehavior';
 import { AssignmentArchiveCard } from '@/components/common/library/AssignmentArchiveCard';
+import { AssignmentClassNames } from '@/components/common/library/AssignmentClassNames';
 import { ViewCountBadge } from '@/components/common/library/ViewCountBadge';
 import { useSessionViewCount } from '@/hooks/useSessionViewCount';
 import { useAuth } from '@/context/useAuth';
@@ -469,6 +470,12 @@ const VideoActivityArchiveRow: React.FC<VideoActivityArchiveRowProps> = ({
                 {assignment.targetSkippedCount} skipped
               </span>
             )}
+          <AssignmentClassNames
+            names={
+              assignment.periodNames ??
+              (assignment.periodName ? [assignment.periodName] : [])
+            }
+          />
         </>
       }
       primaryAction={

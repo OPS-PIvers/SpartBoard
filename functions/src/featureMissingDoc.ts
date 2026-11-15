@@ -29,6 +29,9 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-student-view',
   'class-student-page',
   'quiz-live-view',
+  'quiz-live-view-nudge',
+  'quiz-live-view-nudge-note',
+  'quiz-live-view-screenshot',
   'quiz-monitor-roster',
   'quiz-score-on-submit',
   'gradebook',
@@ -92,8 +95,10 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'flashcards-missed-cards',
   'flashcards-check-sync',
   'youtube-paste-picker',
+  'board-context-menu',
   'choose-n-pick-counted',
   'assign-due-date',
+  'reopen-selected-students',
 ];
 
 // Mirror of `missingDocPublic: true` flags and their `defaultMinTier` (null = none); config/featureDefaults.test.ts keeps it in sync.
