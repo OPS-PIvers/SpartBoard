@@ -626,6 +626,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Question editor metadata as labeled fields. Admin-only until Paul has tested it in prod.
+  'question-editor-fields': {
+    label: 'Question editor fields',
+    icon: SquareChevronDown,
+    description:
+      'Stimuli, learning targets and DOK use the same field style as Type.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Live tour editing v2 and tour materials. Admin-only until Paul has edited tours with it in prod.
   'live-tour-editing-v2': {
     label: 'Live tour editing v2',
