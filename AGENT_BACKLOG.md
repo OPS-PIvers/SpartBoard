@@ -255,6 +255,7 @@ release-fix/legacy-bank-slots
 docs/release-2026-11-15-followups (this docs PR, delete after it merges)
 claude/project-thread-606z5x (#5896)
 claude/project-thread-606z5x-ab112 (this docs PR, delete after it merges)
+claude/project-thread-wv3l34 (#5906; this docs PR reuses it, delete after it merges)
 claude/project-thread-tmq3fo (#5890)
 hotfix/lunch-count-classic-layout (#5893)
 hotfix/lunch-count-classic-layout-to-dev (#5894)

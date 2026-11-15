@@ -10947,7 +10947,7 @@ export interface UserProfile {
    * Per-teacher account-level preference.
    */
   quizMonitorScoreDisplay?: 'percent' | 'count' | 'hidden';
-  /** Show Sparty the mascot where the `sparty` feature allows; absent means shown. */
+  /** Show Sparty the mascot; absent means shown. */
   spartyEnabled?: boolean;
   /** Alignment guides while moving or resizing widgets; absent means off. */
   alignmentGuidesEnabled?: boolean;
