@@ -54,7 +54,6 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'dashboard-layout',
   'dashboard-sharing',
   'district-library',
-  'district-library-folders',
   'document-camera-pro',
   'drawing-ai',
   'embed-mini-app',
@@ -68,7 +67,6 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'flashcards-term-only',
   'focus-sessions',
   'gemini-functions',
-  'getting-started',
   'google-classroom',
   'google-tasks-sync',
   'gradebook',
@@ -153,7 +151,6 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'share-link-tracking',
   'smart-paste',
   'smart-poll',
-  'sparty',
   'staff-audience',
   'student-gradebook',
   'student-keyboards',
@@ -168,10 +165,11 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'webcam-ai',
   'whiteboard-pro',
   'widget-connections',
-  'youtube-paste-picker',
 ];
 
 export const TOUR_CONDITION_RETIRED_FEATURES: readonly string[] = [
+  'district-library-folders',
+  'getting-started',
   'lunch-count-resend',
   'quiz-import-versions',
   'quiz-ordering-images',
@@ -183,9 +181,11 @@ export const TOUR_CONDITION_RETIRED_FEATURES: readonly string[] = [
   'quiz-review-step',
   'quiz-stimulus-tabs',
   'quiz-submit-for-student',
+  'sparty',
   'spell-check-setting',
   'tour-pacing',
   'tour-steps-view',
   'video-activity-editor-arrows',
   'video-activity-stops',
+  'youtube-paste-picker',
 ];

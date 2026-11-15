@@ -29,6 +29,8 @@ const FEATURE_PREFIX = 'feature:';
 
 /** Retired flags are on for everyone; saved tours may still name them. Add each id you retire. */
 export const RETIRED_TOUR_FEATURES: readonly string[] = [
+  'district-library-folders',
+  'getting-started',
   'lunch-count-resend',
   'quiz-import-versions',
   'quiz-ordering-images',
@@ -40,11 +42,13 @@ export const RETIRED_TOUR_FEATURES: readonly string[] = [
   'quiz-review-step',
   'quiz-stimulus-tabs',
   'quiz-submit-for-student',
+  'sparty',
   'spell-check-setting',
   'tour-pacing',
   'tour-steps-view',
   'video-activity-editor-arrows',
   'video-activity-stops',
+  'youtube-paste-picker',
 ];
 
 /** A fact, or `feature:<id>` for a feature the teacher can use. */

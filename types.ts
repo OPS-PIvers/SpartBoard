@@ -11372,8 +11372,6 @@ export type GlobalFeature =
   | 'ocr'
   /** Transcript and drafted notes from a meeting recording; AND-ed with `gemini-functions`. */
   | 'plc-meeting-ai-notes'
-  /** Sparty the mascot in tours, first-time setup and the Help Center (docs/plans/shipped/SPARTY.md). */
-  | 'sparty'
   /** Group Notes & Docs: embedded Google Docs keep Google's menus and toolbar. */
   | 'plc-docs-toolbar'
   /** Team action items sync to the assignee's Google Tasks (docs/plans/shipped/GOOGLE_TASKS_ACTION_ITEMS.md). */
@@ -11419,12 +11417,8 @@ export type GlobalFeature =
   | 'managed-profile-check'
   /** Assign to Staff: district Google sign-in links with named results (any assignment type). */
   | 'staff-audience'
-  /** New-teacher onboarding as Live tours with a Getting Started page (docs/plans/GETTING_STARTED.md). */
-  | 'getting-started'
   /** District library: admin-published quizzes and banks teachers add as linked copies (docs/plans/QUIZ_MCA_PRACTICE.md M26-M31). */
   | 'district-library'
-  /** Folders in the District library: admin folders with a folder audience, mirrored for teachers. */
-  | 'district-library-folders'
   /** One Import from any file, URL, page Send or paste into SpartBoard (docs/plans/IMPORT.md D29). */
   | 'universal-import'
   /** Per-type Import rollout, each ANDed with universal-import (docs/plans/IMPORT.md). */
@@ -11450,8 +11444,6 @@ export type GlobalFeature =
   | 'schoology-push-due-date'
   /** Set edits reach open Flashcards Checks: fixes to cards they already have. */
   | 'flashcards-check-sync'
-  /** Pasting a YouTube link asks Embed or Video Activity. */
-  | 'youtube-paste-picker'
   /** Right-click menu on the board background. */
   | 'board-context-menu'
   /** Teachers pick which answers count when a student answers more than a section asks. */
