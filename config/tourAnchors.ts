@@ -4629,7 +4629,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'quiz-live-view.tell-student': {
-    label: 'Tell the student switch in Quiz Live view',
+    label: "Show the student I'm viewing switch in Quiz Live view",
     perWidgetType: true,
     persists: true,
     panel: true,
