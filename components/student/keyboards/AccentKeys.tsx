@@ -78,6 +78,8 @@ export const AccentKeysArea: React.FC<{
                 key={key}
                 type="button"
                 aria-label={`Type ${shown}`}
+                // Input signals count a tap here as a key press.
+                data-typing-key=""
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => type(key)}
                 className={`min-w-10 h-10 px-2 rounded-lg border text-lg font-medium ${keyCls}`}
