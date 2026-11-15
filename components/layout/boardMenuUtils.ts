@@ -12,10 +12,10 @@ export const isBoardBackgroundTarget = (
   );
 };
 
-export const modKey = (): string =>
-  /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent)
-    ? '⌘'
-    : 'Ctrl+';
+export const isMacPlatform = (): boolean =>
+  /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+
+export const modKey = (): string => (isMacPlatform() ? '⌘' : 'Ctrl+');
 
 /** Reads the system clipboard and replays it as a paste on the board, so it runs the same handlers as Ctrl+V. */
 export const replayClipboardAsPaste = async (): Promise<'pasted' | 'empty'> => {

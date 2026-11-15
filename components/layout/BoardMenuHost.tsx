@@ -19,6 +19,7 @@ import {
 import { BoardBackgroundMenu, type BoardMenuItem } from './BoardBackgroundMenu';
 import {
   isBoardBackgroundTarget,
+  isMacPlatform,
   modKey,
   replayClipboardAsPaste,
 } from './boardMenuUtils';
@@ -38,6 +39,7 @@ const GEOMETRY_KEYS = ['x', 'y', 'w', 'h'] as const;
 // A deliberate hold: longer than the 600ms widget screenshot press, with a ring that fills while held.
 const LONG_PRESS_MS = 700;
 const MOVE_SLOP_PX = 10;
+const LIFT_CLICK_MS = 400;
 
 export const BoardMenuHost: React.FC = () => {
   const { t } = useTranslation();
@@ -67,6 +69,13 @@ export const BoardMenuHost: React.FC = () => {
   const closeMenu = useCallback(() => setMenuAt(null), []);
 
   const blocked = annotationActive || isActiveBoardReadOnly;
+  // The menu acts on one board, so a board switch or annotation/read-only drops it.
+  const menuScope = `${activeDashboard?.id ?? ''}|${blocked}`;
+  const [shownScope, setShownScope] = useState(menuScope);
+  if (shownScope !== menuScope) {
+    setShownScope(menuScope);
+    setMenuAt(null);
+  }
   useEffect(() => {
     if (blocked) return;
     let press: {
@@ -78,11 +87,15 @@ export const BoardMenuHost: React.FC = () => {
     } | null = null;
     // Lifting the finger that opened the menu can send a mouse click; it must not close the menu.
     let liftOf: number | null = null;
-    let swallowUntil = 0;
+    let lift: { x: number; y: number; until: number } | null = null;
+    // A Mac Ctrl+click may start a box selection, so its menu waits for a release that did not drag.
+    let ctrlClick: { x: number; y: number } | null = null;
     const swallowLiftClick = (e: MouseEvent) => {
-      if (performance.now() > swallowUntil) return;
+      if (!lift || performance.now() > lift.until) return;
+      if (Math.hypot(e.clientX - lift.x, e.clientY - lift.y) > MOVE_SLOP_PX)
+        return;
       e.stopPropagation();
-      if (e.type === 'click') swallowUntil = 0;
+      if (e.type === 'click') lift = null;
     };
     const cancel = () => {
       if (!press) return;
@@ -117,7 +130,20 @@ export const BoardMenuHost: React.FC = () => {
     const onPointerEnd = (e: PointerEvent) => {
       if (liftOf !== null && e.pointerId === liftOf) {
         liftOf = null;
-        swallowUntil = performance.now() + 500;
+        lift = {
+          x: e.clientX,
+          y: e.clientY,
+          until: performance.now() + LIFT_CLICK_MS,
+        };
+      }
+      if (ctrlClick && e.pointerType === 'mouse') {
+        const at = ctrlClick;
+        ctrlClick = null;
+        if (
+          e.type === 'pointerup' &&
+          Math.hypot(e.clientX - at.x, e.clientY - at.y) <= MOVE_SLOP_PX
+        )
+          setMenuAt(at);
       }
       if (!press || e.pointerId !== press.id) return;
       // Chrome can cancel the pointer once it shows its own long-press menu; ours still opens.
@@ -131,6 +157,10 @@ export const BoardMenuHost: React.FC = () => {
       // Touch and pen open it from the long-press timer, so a held finger gets the same delay everywhere.
       if (pointerType === 'touch' || pointerType === 'pen') {
         if (press) press.nativeMenu = true;
+        return;
+      }
+      if (e.ctrlKey && e.button === 0 && isMacPlatform()) {
+        ctrlClick = { x: e.clientX, y: e.clientY };
         return;
       }
       setMenuAt({ x: e.clientX, y: e.clientY });
@@ -277,6 +307,7 @@ export const BoardMenuHost: React.FC = () => {
   };
 
   const onCanvas = widgets.filter((w) => !w.minimized);
+  const tidyable = onCanvas.some((w) => !isFixed(w) && !w.maximized);
   const items: BoardMenuItem[] = [];
   if (canAccessFeature('smart-paste')) {
     items.push({
@@ -313,7 +344,7 @@ export const BoardMenuHost: React.FC = () => {
       label: t('boardMenu.tidy', { defaultValue: 'Tidy up' }),
       icon: LayoutGrid,
       tour: tourAttr('board-menu.tidy'),
-      disabled: onCanvas.length === 0,
+      disabled: !tidyable,
       groupStart: true,
       action: tidyUp,
     }
@@ -392,7 +423,10 @@ export const BoardMenuHost: React.FC = () => {
             isOpen
             initialMode="copy"
             initialUrl={madeUrl}
-            onClose={() => setShareOpen(false)}
+            onClose={() => {
+              setShareOpen(false);
+              setMadeUrl(null);
+            }}
           />
         )}
       </React.Suspense>

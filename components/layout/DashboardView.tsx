@@ -1920,8 +1920,12 @@ export const DashboardView: React.FC = () => {
         >
           <Sidebar />
           {!isActiveBoardReadOnly && <Dock />}
-          {canAccessFeature('board-context-menu') && <BoardMenuHost />}
         </React.Suspense>
+        {canAccessFeature('board-context-menu') && (
+          <React.Suspense fallback={null}>
+            <BoardMenuHost />
+          </React.Suspense>
+        )}
       </LazyChunkErrorBoundary>
       <AnnotationOverlay />
       <ToastContainer />
