@@ -17478,6 +17478,34 @@ export const TOUR_ANCHORS = {
     panel: true,
     persists: true,
   },
+  'quiz-library.archive-reopen-all': {
+    label: 'All students item under Reopen in a quiz Completed row menu',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'quiz-library.archive-reopen-students': {
+    label: 'Select students item under Reopen in a quiz Completed row menu',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-reopen-students.search': {
+    label: 'Search box in the reopen for selected students dialog',
+    panel: true,
+  },
+  'quiz-reopen-students.select-group': {
+    label: 'Select all button for a group in the reopen students dialog',
+    panel: true,
+  },
+  'quiz-reopen-students.cancel': {
+    label: 'Cancel button in the reopen students dialog',
+    panel: true,
+  },
+  'quiz-reopen-students.confirm': {
+    label: 'Reopen button in the reopen students dialog',
+    panel: true,
+    persists: true,
+  },
   'quiz-library.archive-reactivate': {
     label: 'Reactivate item in an ended view-only quiz share row menu',
     perWidgetType: true,
