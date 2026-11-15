@@ -193,6 +193,27 @@ describe('useInputSignals', () => {
     });
   });
 
+  it('counts pressing Enter on an accent key as a key press', () => {
+    const { save, unmount } = setup();
+    const box = document.createElement('textarea');
+    const key = document.createElement('button');
+    key.setAttribute('data-typing-key', '');
+    document.body.append(box, key);
+    key.dispatchEvent(
+      new KeyboardEvent('keydown', { bubbles: true, key: 'Enter' })
+    );
+    box.dispatchEvent(
+      new InputEvent('input', {
+        bubbles: true,
+        inputType: 'insertText',
+        data: 'é'.repeat(20),
+      })
+    );
+    unmount();
+    expect(save.mock.calls[0][1].q1).toMatchObject({ chars: 20 });
+    expect(save.mock.calls[0][1].q1.unkeyedChars).toBeUndefined();
+  });
+
   it('counts a second screen plugged in during the attempt', () => {
     // jsdom's Screen is no event target, so stand one in as Chrome's is.
     const target = new EventTarget();

@@ -283,7 +283,12 @@ describe('useTabAwayTracker', () => {
       vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
         'Mozilla/5.0 (iPad; CPU OS 18_1 like Mac OS X) AppleWebKit/605.1.15'
       );
+      Object.defineProperty(navigator, 'maxTouchPoints', {
+        configurable: true,
+        get: () => 5,
+      });
       const { onLeave } = setup({ fullscreenRequired: true });
+      Reflect.deleteProperty(navigator, 'maxTouchPoints');
       setFullscreen(false);
       await flush();
       expect(onLeave).not.toHaveBeenCalled();

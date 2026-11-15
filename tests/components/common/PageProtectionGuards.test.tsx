@@ -215,6 +215,10 @@ describe('FullscreenCover', () => {
   });
 
   it('skips the pop out on an iPad in a Schoology frame', () => {
+    Object.defineProperty(navigator, 'maxTouchPoints', {
+      configurable: true,
+      get: () => 5,
+    });
     vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
       'Mozilla/5.0 (iPad; CPU OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1'
     );
@@ -227,6 +231,20 @@ describe('FullscreenCover', () => {
     );
     expect(container.innerHTML).toBe('');
     expect(getHandOffState()).toBe('active');
+  });
+
+  it('still asks for fullscreen on a desktop browser claiming to be an iPad', () => {
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+      'Mozilla/5.0 (iPad; CPU OS 18_1 like Mac OS X) AppleWebKit/605.1.15'
+    );
+    Object.defineProperty(navigator, 'maxTouchPoints', {
+      configurable: true,
+      get: () => 0,
+    });
+    render(<PageProtectionGuards protections={{ ...OFF, fullscreen: true }} />);
+    expect(
+      screen.getByRole('dialog', { name: 'This activity uses fullscreen' })
+    ).toBeTruthy();
   });
 
   it('still asks for fullscreen on a Mac without a touchscreen', () => {

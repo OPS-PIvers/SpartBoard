@@ -151,6 +151,13 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
         if (isControl(e.target)) collector.scripted();
         return;
       }
+      if (e.target instanceof Element && e.target.closest('[data-typing-key]'))
+        collector.keyDown({
+          code: '',
+          t: e.timeStamp,
+          field: null,
+          char: false,
+        });
       if (!isAnswerBox(e.target)) return;
       collector.keyDown({
         code: e.code,
