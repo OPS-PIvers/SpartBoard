@@ -231,6 +231,8 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
   <details><summary>Branches to delete (178, checked 2026-11-01)</summary>
 
+claude/project-thread-606z5x (#5896)
+claude/project-thread-606z5x-ab112 (this docs PR, delete after it merges)
 claude/project-thread-tmq3fo (#5890)
 hotfix/lunch-count-classic-layout (#5893)
 hotfix/lunch-count-classic-layout-to-dev (#5894)
