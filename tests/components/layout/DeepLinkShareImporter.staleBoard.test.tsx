@@ -16,7 +16,12 @@ let widgets: WidgetData[] = [];
 let pendingQuizShareId: string | null = 'share-1';
 
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ user: { uid: 'uid-1' } }),
+  useAuth: () => ({
+    user: { uid: 'uid-1' },
+    isAdmin: false,
+    globalPermissionsLoaded: true,
+    canAccessFeature: () => false,
+  }),
 }));
 
 vi.mock('@/context/useDashboard', () => ({

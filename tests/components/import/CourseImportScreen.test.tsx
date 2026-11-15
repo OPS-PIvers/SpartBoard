@@ -72,7 +72,7 @@ const makeApi = (over: Partial<CourseImportApi> = {}): CourseImportApi => ({
   createLinksBoard: vi.fn().mockResolvedValue(true),
   isDuplicate: () => false,
   canUploadPictures: true,
-  access: { target: () => true, ai: true, drive: true },
+  access: { target: () => true, ai: () => true, drive: true },
   ...over,
 });
 

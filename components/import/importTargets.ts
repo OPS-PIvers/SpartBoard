@@ -11,7 +11,14 @@ import {
 } from '@/utils/import/aiConversion';
 import { pageSourceKind } from '@/utils/import/pageImages';
 import { extractYouTubeId } from '@/utils/youtube';
+import type { ImportSourceKind } from '@/config/importConversion';
 import type { PendingSource } from './importHandoff';
+
+/** AI on for every widget, or per widget. */
+export type ImportAiOn = boolean | ((target: ImportTarget) => boolean);
+
+const aiFor = (aiOn: ImportAiOn, target: ImportTarget): boolean =>
+  typeof aiOn === 'function' ? aiOn(target) : aiOn;
 
 export interface ImportRoute {
   label: string;
@@ -209,10 +216,10 @@ export function toGuessSource(source: PendingSource): ImportSource {
 export function usesAi(
   target: ImportTarget,
   source: PendingSource,
-  aiOn: boolean
+  aiOn: ImportAiOn
 ): boolean {
   const route = IMPORT_ROUTES[target];
-  if (!aiOn || !route?.ai?.(source)) return false;
+  if (!aiFor(aiOn, target) || !route?.ai?.(source)) return false;
   if (!route.accepts(source)) return true;
   // A card set a reader found is read exactly, whatever its size.
   if (target === 'flashcards' && source.inboxItem?.cards?.cards.length)
@@ -238,7 +245,7 @@ export function targetChoices(
   source: PendingSource,
   allowed: (target: ImportTarget, source: PendingSource) => boolean = () =>
     true,
-  aiOn = false
+  aiOn: ImportAiOn = false
 ): TargetChoices {
   const { targets: feasible, guess } = guessTargets(toGuessSource(source));
   const targets = feasible.filter((t) => {
@@ -246,7 +253,7 @@ export function targetChoices(
     return (
       !!route &&
       allowed(t, source) &&
-      (route.accepts(source) || (aiOn && !!route.ai?.(source)))
+      (route.accepts(source) || (aiFor(aiOn, t) && !!route.ai?.(source)))
     );
   });
   // .imscc and CSV read as both, but the guess only names the quiz.
@@ -261,4 +268,45 @@ export function targetChoices(
     targets,
     guess: targets.includes(guess) ? guess : (targets[0] ?? null),
   };
+}
+
+const SPREADSHEET = /\.(csv|tsv)$/i;
+const SLIDE_DECK = /\.(pptx?|key|odp)$/i;
+
+const isGoogleSlides = (url: string | undefined): boolean => {
+  try {
+    const u = new URL(url ?? '');
+    return (
+      u.hostname === 'docs.google.com' &&
+      u.pathname.startsWith('/presentation/')
+    );
+  } catch {
+    return false;
+  }
+};
+
+/** Which admin "What each import offers" row a Source falls under. */
+export function importSourceKind(source: PendingSource): ImportSourceKind {
+  const file = source.file;
+  if (file) {
+    const name = file.name;
+    if (/\.(imscc|zip)$/i.test(name)) return 'course';
+    if (/\.(notebook|olf|spartnb)$/i.test(name)) return 'notebook';
+    if (/\.html?$/i.test(name)) return 'webPageFile';
+    if (
+      SPREADSHEET.test(name) ||
+      file.type === 'text/csv' ||
+      file.type === 'text/tab-separated-values'
+    )
+      return 'spreadsheet';
+    if (file.type.startsWith('image/')) return 'picture';
+    if (SLIDE_DECK.test(name)) return 'slides';
+    return 'document';
+  }
+  const item = source.inboxItem;
+  if (item?.form) return 'form';
+  if (item?.video || isYouTubeVideo(source)) return 'youtube';
+  if (isGoogleSlides(source.url ?? item?.url)) return 'slides';
+  if (item || source.url) return 'web';
+  return 'text';
 }

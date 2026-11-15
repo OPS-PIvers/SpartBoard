@@ -1,3 +1,4 @@
+import { useReopenedForAutoEnd } from '@/hooks/useReopenedForAutoEnd';
 import React, {
   lazy,
   Suspense,
@@ -624,6 +625,8 @@ const TeacherQuizWidget: React.FC<{
   } = useFolders(user?.uid, 'question_bank');
   // Bank editor state — ephemeral, mirrors the quiz editor pair below.
   const [editingBank, setEditingBank] = useState<QuestionBankData | null>(null);
+  /** Assignment whose monitor opened to pick students to reopen for. */
+  const [reopenPickFor, setReopenPickFor] = useState<string | null>(null);
   const [bankImportOpen, setBankImportOpen] = useState(false);
   const pendingHandoff = useImportHandoff(widget.id);
   const canImportFromSchoology = canAccessFeature('schoology-quiz-import');
@@ -658,6 +661,7 @@ const TeacherQuizWidget: React.FC<{
     session: liveSession,
     loading: liveSessionLoading,
     responses,
+    responsesLoaded: liveResponsesLoaded,
     advanceQuestion,
     endQuizSession,
     removeStudent,
@@ -690,6 +694,7 @@ const TeacherQuizWidget: React.FC<{
     resumeAssignment,
     deactivateAssignment,
     reopenAssignment,
+    reopenForStudents,
     deleteAssignment,
     updateAssignmentSettings,
     setAssignmentRosters,
@@ -2226,6 +2231,8 @@ const TeacherQuizWidget: React.FC<{
     liveSession,
   ]);
 
+  useReopenedForAutoEnd(assignments, deactivateAssignment);
+
   // Persist a new ordering of quizzes. We write `order` onto each metadata
   // doc in a single batch — the Drive blob is untouched. Declared before the
   // early returns below so the hook runs on every render (rules-of-hooks).
@@ -2252,6 +2259,42 @@ const TeacherQuizWidget: React.FC<{
     },
     [user?.uid, addToast]
   );
+
+  const openArchiveMonitor = async (a: QuizAssignment): Promise<boolean> => {
+    // Look up the library quiz metadata so the monitor can load the full
+    // answer key from Drive. If the quiz was deleted from the library,
+    // we still have the session doc but no way to show the answer key.
+    const meta = quizzes.find((q) => q.id === a.quizId);
+    if (!meta) {
+      addToast(
+        'Quiz is no longer in your library — cannot open monitor.',
+        'error'
+      );
+      return false;
+    }
+    const data = await loadAnswerKeyQuiz(meta, a);
+    if (!data) return false;
+    updateWidget(
+      widget.id,
+      {
+        config: {
+          ...config,
+          view: 'monitor',
+          selectedQuizId: a.quizId,
+          selectedQuizTitle: a.quizTitle,
+          activeAssignmentId: a.id,
+          activeLiveSessionCode: a.code,
+          periodName: a.periodName ?? '',
+          periodNames: a.periodNames ?? [],
+          teacherName: a.teacherName ?? '',
+          plcMode: !!a.plc,
+          plcSheetUrl: a.plc?.sheetUrl ?? '',
+        },
+      },
+      { pickItem: true }
+    );
+    return true;
+  };
 
   // ─── Guard: not signed in ──────────────────────────────────────────────────
   if (!user) {
@@ -3166,6 +3209,30 @@ const TeacherQuizWidget: React.FC<{
     return (
       <>
         <QuizLiveMonitor
+          reopenPicker={
+            reopenPickFor && reopenPickFor === config.activeAssignmentId
+              ? {
+                  onClose: () => {
+                    setReopenPickFor(null);
+                    updateWidget(widget.id, {
+                      config: {
+                        ...config,
+                        view: 'manager',
+                        managerTab: 'archive',
+                      },
+                    });
+                  },
+                  onDone: () => setReopenPickFor(null),
+                  onStart: () => reopenAssignment(reopenPickFor),
+                  onAbort: () => deactivateAssignment(reopenPickFor),
+                  onConfirm: (uids) =>
+                    reopenForStudents(reopenPickFor, {
+                      uids,
+                      letInUids: uids,
+                    }),
+                }
+              : null
+          }
           widgetId={widget.id}
           session={liveSession}
           responses={responses}
@@ -3248,6 +3315,8 @@ const TeacherQuizWidget: React.FC<{
           localizedFibAnswers={
             monitorActiveAssignment?.localizedFibAnswers ?? null
           }
+          rosterTargets={monitorActiveAssignment ?? null}
+          responsesLoaded={liveResponsesLoaded}
           assignmentSettings={
             monitorActiveAssignment &&
             getAssignmentWidgetKind(monitorActiveAssignment) === 'quiz' ? (
@@ -4440,39 +4509,17 @@ const TeacherQuizWidget: React.FC<{
           }
         }}
         onArchiveMonitor={async (a) => {
-          // Look up the library quiz metadata so the monitor can load the full
-          // answer key from Drive. If the quiz was deleted from the library,
-          // we still have the session doc but no way to show the answer key.
-          const meta = quizzes.find((q) => q.id === a.quizId);
-          if (!meta) {
-            addToast(
-              'Quiz is no longer in your library — cannot open monitor.',
-              'error'
-            );
-            return;
-          }
-          const data = await loadAnswerKeyQuiz(meta, a);
-          if (!data) return;
-          updateWidget(
-            widget.id,
-            {
-              config: {
-                ...config,
-                view: 'monitor',
-                selectedQuizId: a.quizId,
-                selectedQuizTitle: a.quizTitle,
-                activeAssignmentId: a.id,
-                activeLiveSessionCode: a.code,
-                periodName: a.periodName ?? '',
-                periodNames: a.periodNames ?? [],
-                teacherName: a.teacherName ?? '',
-                plcMode: !!a.plc,
-                plcSheetUrl: a.plc?.sheetUrl ?? '',
-              },
-            },
-            { pickItem: true }
-          );
+          await openArchiveMonitor(a);
         }}
+        onArchiveReopenStudents={
+          canAccessFeature('reopen-selected-students')
+            ? (a) => {
+                void openArchiveMonitor(a).then((ok) => {
+                  if (ok) setReopenPickFor(a.id);
+                });
+              }
+            : undefined
+        }
         onArchiveStudentView={
           canAccessFeature('quiz-student-view')
             ? async (a) => {

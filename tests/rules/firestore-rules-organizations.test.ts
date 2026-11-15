@@ -27,7 +27,18 @@ import {
   assertFails,
   RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { setDoc, updateDoc, deleteDoc, getDoc, doc } from 'firebase/firestore';
+import {
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  getDoc,
+  getDocs,
+  doc,
+  collection,
+  query,
+  where,
+  limit,
+} from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-organizations-rules-test';
 const ORG_ID = 'orono';
@@ -259,6 +270,19 @@ describe('organizations — reads (Phase 1)', () => {
         doc(asDomainAdmin(), `organizations/${ORG_ID}/members/${MEMBER_EMAIL}`)
       )
     );
+  });
+
+  it('a teacher can look up a staff member by uid (share import sharer line); an outsider cannot', async () => {
+    const byUid = (db: ReturnType<typeof asTeacher>) =>
+      getDocs(
+        query(
+          collection(db, `organizations/${ORG_ID}/members`),
+          where('uid', '==', 'member-uid'),
+          limit(1)
+        )
+      );
+    await assertSucceeds(byUid(asTeacher()));
+    await assertFails(byUid(asOutsider()));
   });
 
   it('super admin (legacy user_roles) can read every org', async () => {

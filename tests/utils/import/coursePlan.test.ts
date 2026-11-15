@@ -28,7 +28,11 @@ const material = (
   ...m,
 });
 
-const ALL: CourseRowAccess = { target: () => true, ai: true, drive: true };
+const ALL: CourseRowAccess = {
+  target: () => true,
+  ai: () => true,
+  drive: true,
+};
 
 describe('planCourseImport', () => {
   it('guesses each kind and roots every path at the course', () => {
@@ -104,7 +108,7 @@ describe('planCourseImport', () => {
         material({ id: 'doc', kind: 'file', fileName: 'Notes.docx' }),
         material({ id: 'zip', kind: 'file', fileName: 'Pack.zip' }),
       ],
-      { target: (t) => t !== 'flashcards', ai: false, drive: false }
+      { target: (t) => t !== 'flashcards', ai: () => false, drive: false }
     );
     for (const row of rows) expect(row.options).toEqual(['skip']);
   });

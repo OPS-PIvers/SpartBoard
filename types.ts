@@ -3935,6 +3935,29 @@ export interface MiniAppSession
   summaryHidden?: true;
   /** v2 only: frozen copy of the app's manifest at assign. */
   manifest?: MiniAppManifest;
+  /** v2 only: what students see of their results, set by publishMiniAppScoresV1. */
+  scoreVisibility?: QuizScoreVisibility;
+  scorePublishedAt?: number;
+}
+
+/** A student's own published copy at `mini_app_sessions/{id}/published/{key}`. */
+export interface PublishedMiniAppResult {
+  studentUid: string;
+  visibility: Exclude<QuizScoreVisibility, 'none'>;
+  publishedAt: number;
+  score?: number;
+  maxScore?: number;
+  gradedBy?: 'server' | 'app';
+  correctCount?: number;
+  gradedCount?: number;
+  items?: {
+    id: string;
+    prompt: string;
+    answer: unknown;
+    correct: boolean | null;
+    correctAnswer?: string;
+  }[];
+  details?: Record<string, unknown>;
 }
 
 /**
@@ -5500,6 +5523,10 @@ export interface PeriodAccessSessionFields {
   studentAccess?: Record<string, number>;
   /** Epoch ms of the last whole-session pause; see `PeriodAccess.pausedAt`. */
   pausedAt?: number;
+  /** Manual due date: every period locks at `dueAt`; a Start or Let in after it is late. */
+  dueLocks?: boolean;
+  /** Reopened after End for these student uids only; cleared on End or a whole reopen. */
+  reopenedFor?: string[];
 }
 
 /** One closed pause, epoch ms; the overall time limit does not run through it. */
@@ -6176,6 +6203,12 @@ export interface InputSignalCounts {
 /** Keyed by completed-attempt count, then by question id. */
 export type InputSignals = Record<string, Record<string, InputSignalCounts>>;
 
+/** The server's own time for a turn-in, vouching for the client time it was written against. */
+export interface TurnInStamp {
+  at: number;
+  claimed: number | null;
+}
+
 /** Fixed Nudge notes (docs/plans/shipped/QUIZ_LIVE_VIEW.md D15); no free text. */
 export type QuizNudgeNoteId = 'see-me' | 'own-work' | 'keep-going';
 
@@ -6192,8 +6225,12 @@ export interface QuizLiveViewStamp {
 /** `responses/{key}/live/state`: the question a watched student is showing. */
 export interface QuizLiveState {
   questionId: string;
-  /** Server-clock ms. */
+  /** Server-clock ms the student reached this question. */
   at: number;
+  /** Server-clock ms of the student's last real click, key or scroll; absent from older clients. */
+  activeAt?: number;
+  /** The red tab warning is on the student's screen. */
+  warning?: boolean;
 }
 
 /** `users/{uid}/quiz_assignments/{id}/live_log/{id}`: what a teacher did in Live view. Never on the response doc. */
@@ -6305,6 +6342,8 @@ export interface QuizResponse extends StaffResponseFields {
    */
   score: number | null;
   submittedAt: number | null;
+  /** Server-written at turn-in (functions/src/quizTurnIn.ts); read through `trustedTurnInMs`. */
+  turnIn?: TurnInStamp;
   /**
    * Tracks how many times the student left the quiz tab or minimized the window.
    * Used for maintaining quiz integrity.
@@ -8239,7 +8278,11 @@ export interface VideoActivityResponse extends StaffResponseFields {
   studentUid: string;
   joinedAt: number;
   answers: VideoActivityAnswer[];
+  /** Answers the check callable recorded, by question id; students can't write it. */
+  checkedAnswers?: Record<string, { answer?: string; attempt?: number }>;
   completedAt: number | null;
+  /** Server-written at completion (functions/src/quizTurnIn.ts); read through `trustedTurnInMs`. */
+  turnIn?: TurnInStamp;
   score: number | null;
   /** Which class period the student selected when joining (multi-class support). */
   classPeriod?: string;
@@ -11285,6 +11328,18 @@ export type GlobalFeature =
   | 'quiz-student-view'
   /** Quiz Monitor Live view: a teacher watches one student's in-progress attempt, redrawn from saved data. */
   | 'quiz-live-view'
+  /** Live view's Nudge button. */
+  | 'quiz-live-view-nudge'
+  /** The note a teacher can add to a Live view Nudge. */
+  | 'quiz-live-view-nudge-note'
+  /** Live view's Screenshot button. */
+  | 'quiz-live-view-screenshot'
+  /** The app's own lists for dropdowns, date and time fields and suggestions, in place of the browser's. */
+  | 'app-pickers'
+  /** Assignment rows in the Quiz, Flashcards and Video Activity libraries show a "N classes" button with the full class list. */
+  | 'assignment-class-list'
+  /** Quiz Monitor lists the whole class roster, with students who haven't joined under Not started. */
+  | 'quiz-monitor-roster'
   /** Quiz setting that shows students their score as soon as they submit. */
   | 'quiz-score-on-submit'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */
@@ -11388,6 +11443,7 @@ export type GlobalFeature =
   | 'import-embed'
   | 'import-link'
   | 'import-schoology-course'
+  | 'import-straight-to-board'
   /** AI questions on a YouTube import (docs/plans/IMPORT.md D35). */
   | 'video-import-ai'
   /** Due date picker in the Push to Schoology dialog. */
@@ -11396,10 +11452,15 @@ export type GlobalFeature =
   | 'flashcards-check-sync'
   /** Pasting a YouTube link asks Embed or Video Activity. */
   | 'youtube-paste-picker'
+  /** Right-click menu on the board background. */
+  | 'board-context-menu'
   /** Teachers pick which answers count when a student answers more than a section asks. */
   | 'choose-n-pick-counted'
   /** Manual assignments get a due date, and Assign remembers the When step. */
-  | 'assign-due-date';
+  | 'assign-due-date'
+  /** Reopen an ended quiz for selected students only. */
+  | 'reopen-selected-students'
+  | 'share-import-confirm';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {
@@ -12485,6 +12546,11 @@ export interface MiniAppAssignment extends PeriodAccessSessionFields {
   targetSkippedCount?: number;
   /** Individually-targeted refs removed via the hub (M17 §5 D3). See `QuizAssignment.removedStudentRefs`. */
   removedStudentRefs?: StudentTargetRef[];
+  /** Mirrors `MiniAppSession.resultsVersion`; only these rows can publish scores. */
+  resultsVersion?: 2;
+  /** Mirrors `MiniAppSession.scoreVisibility`, written by publishMiniAppScoresV1. */
+  scoreVisibility?: QuizScoreVisibility;
+  scorePublishedAt?: number;
 }
 
 // === /MiniApp assignments ===

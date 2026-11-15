@@ -438,7 +438,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                     ? rect.top - TOOLBAR_GAP
                     : rect.bottom + TOOLBAR_GAP,
                   transform: flipAbove ? 'translateY(-100%)' : undefined,
-                  zIndex: Z_INDEX.popover,
+                  zIndex: Z_INDEX.widgetActionBar,
                   opacity: toolbarVisible ? 1 : 0,
                   pointerEvents: toolbarVisible ? 'auto' : 'none',
                   transition: 'opacity 150ms ease',

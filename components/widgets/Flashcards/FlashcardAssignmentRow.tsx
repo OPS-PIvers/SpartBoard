@@ -25,6 +25,8 @@ import {
   flashcardAssignmentSubtitle,
 } from './utils/flashcardAssignmentRow';
 import { AssignmentArchiveCard } from '@/components/common/library';
+import { AssignmentClassNames } from '@/components/common/library/AssignmentClassNames';
+import { useAssignmentClassList } from '@/components/common/library/useAssignmentClassList';
 import type { LibraryMenuAction } from '@/components/common/library';
 
 export interface FlashcardAssignmentRowHandlers {
@@ -65,6 +67,7 @@ export const FlashcardAssignmentRow: React.FC<FlashcardAssignmentRowProps> = ({
   onStopSharingWithPlc,
 }) => {
   const { rosters, addToast } = useDashboard();
+  const classListOn = useAssignmentClassList();
   const perPeriod = mode === 'active' && hasPeriodAccess(a);
   const periods = usePeriodAccess(
     perPeriod ? { ...a, id: a.sessionId } : null,
@@ -232,29 +235,38 @@ export const FlashcardAssignmentRow: React.FC<FlashcardAssignmentRowProps> = ({
           year: 'numeric',
         })}
       </span>
-      {classLabel != null ? (
-        <span
-          className="font-semibold truncate"
-          style={{ maxWidth: 'min(120px, 30cqmin)' }}
-          title={classes.join(', ')}
-        >
-          {classLabel}
-        </span>
-      ) : a.audience === 'staff' ? (
-        <span className="font-semibold">Staff</span>
-      ) : mode === 'active' ? (
-        <span
-          className="font-semibold text-amber-600 truncate"
-          style={{ maxWidth: 'min(120px, 30cqmin)' }}
-        >
-          No classes
-        </span>
-      ) : null}
+      {!classListOn &&
+        (classLabel != null ? (
+          <span
+            className="font-semibold truncate"
+            style={{ maxWidth: 'min(120px, 30cqmin)' }}
+            title={classes.join(', ')}
+          >
+            {classLabel}
+          </span>
+        ) : a.audience === 'staff' ? (
+          <span className="font-semibold">Staff</span>
+        ) : mode === 'active' ? (
+          <span
+            className="font-semibold text-amber-600 truncate"
+            style={{ maxWidth: 'min(120px, 30cqmin)' }}
+          >
+            No classes
+          </span>
+        ) : null)}
       {live && (
         <span className="inline-flex items-center">
           <Radio style={icon} />
         </span>
       )}
+      {classListOn &&
+        (classes.length > 0 ? (
+          <AssignmentClassNames names={classes} />
+        ) : a.audience === 'staff' ? (
+          <span className="font-semibold">Staff</span>
+        ) : mode === 'active' ? (
+          <span className="font-semibold text-amber-600">No classes</span>
+        ) : null)}
     </>
   );
 

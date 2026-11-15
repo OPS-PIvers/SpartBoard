@@ -59,6 +59,22 @@ describe('PeriodAccessStrip', () => {
     expect(screen.getByText('· PIN')).toBeInTheDocument();
   });
 
+  it('labels a live period late after a Manual due', () => {
+    render(
+      <PeriodAccessStrip
+        periodAccess={{ a: period({ label: 'P1', state: 'open' }) }}
+        extendMs={600_000}
+        dueAt={NOW - 60_000}
+        onStart={vi.fn()}
+        onPause={vi.fn()}
+        onExtend={vi.fn()}
+      />
+    );
+    expect(
+      screen.getByRole('button', { name: /Pause P1, now Late/ })
+    ).toBeInTheDocument();
+  });
+
   it('starts a closed period and pauses a live one', async () => {
     const h = renderStrip({
       a: period({ label: 'P1', state: 'open' }),
@@ -121,6 +137,29 @@ describe('PeriodBar', () => {
       target: { value: 'b' },
     });
     expect(h.onSelect).toHaveBeenCalledWith('b');
+  });
+
+  it('marks a class running past a Manual due as late', () => {
+    const closeAt = NOW + 65_000;
+    const clock = new Date(closeAt).toLocaleTimeString(undefined, {
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+    render(
+      <PeriodBar
+        periodAccess={{ a: period({ label: 'P1', state: 'open', closeAt }) }}
+        selected="a"
+        extendMs={600_000}
+        dueAt={NOW - 60_000}
+        onSelect={vi.fn()}
+        onStart={vi.fn()}
+        onPause={vi.fn()}
+        onExtend={vi.fn()}
+      />
+    );
+    expect(
+      screen.getByRole('option', { name: `P1 · Late until ${clock}` })
+    ).toBeInTheDocument();
   });
 
   it('offers More time only while the class has a close time', () => {

@@ -1,5 +1,6 @@
 import type {
   InputSignalCounts,
+  QuizLiveState,
   QuizPublicQuestion,
   QuizResponse,
   QuizSession,
@@ -15,6 +16,11 @@ import { resolveAttemptDeadline, timestampMillis } from '@/utils/quizTimeLimit';
 import { describeTabExit, totalAwayMs } from '@/utils/tabExits';
 
 export const QUIZ_LIVE_VIEW_FEATURE = 'quiz-live-view' as const;
+export const LIVE_VIEW_NUDGE_FEATURE = 'quiz-live-view-nudge' as const;
+export const LIVE_VIEW_NUDGE_NOTE_FEATURE =
+  'quiz-live-view-nudge-note' as const;
+export const LIVE_VIEW_SCREENSHOT_FEATURE =
+  'quiz-live-view-screenshot' as const;
 export const LIVE_VIEW_SESSION_ID = 'live-view-mirror';
 /** How long one stamp keeps the student reporting; the open panel renews it before then. */
 export const LIVE_VIEW_STAMP_MS = 5 * 60_000;
@@ -106,7 +112,7 @@ export interface LiveViewStats {
   questionNumber: number | null;
   questionCount: number;
   answeredCount: number;
-  /** Server time of the last answer write. */
+  /** Server time of the student's last real input or response write, whichever is newer. */
   lastActivityAt: number | null;
   tabExits: number;
   awayMs: number;
@@ -128,12 +134,23 @@ const sumCounts = (
   return total;
 };
 
+/** The newer of the student's reported input and the last response write, never past now. */
+const lastActivity = (
+  activeAt: number | undefined,
+  lastWriteAt: number | null,
+  now: number
+): number | null => {
+  const newest = Math.max(activeAt ?? -Infinity, lastWriteAt ?? -Infinity);
+  return Number.isFinite(newest) ? Math.min(newest, now) : null;
+};
+
 export function liveViewStats(
   session: QuizSession,
   response: QuizResponse,
   questionId: string | null,
   now: number,
-  override?: StudentOverride
+  override?: StudentOverride,
+  reported?: QuizLiveState | null
 ): LiveViewStats {
   const order = studentQuestionOrder(session, response, override);
   const index = questionId ? order.findIndex((q) => q.id === questionId) : -1;
@@ -159,7 +176,11 @@ export function liveViewStats(
       order.map((q) => q.id),
       session.paperWrittenQuestionIds
     ),
-    lastActivityAt: timestampMillis(response.lastWriteAt),
+    lastActivityAt: lastActivity(
+      reported?.activeAt,
+      timestampMillis(response.lastWriteAt),
+      now
+    ),
     tabExits: exits.length,
     awayMs: totalAwayMs(
       exits.map((e) =>

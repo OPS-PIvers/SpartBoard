@@ -40,7 +40,9 @@ export interface AssignAvailability {
 }
 
 export type ManualDue =
-  { kind: 'ended' } | { kind: 'date'; day: string; time: string };
+  /** `time` is the last Date & time pick, so switching back to a date keeps it. */
+  | { kind: 'ended'; time?: string }
+  | { kind: 'date'; day: string; time: string };
 
 /** A saved Manual due date back as a date and time. */
 export function manualDueFromMs(ms: number): ManualDue {
