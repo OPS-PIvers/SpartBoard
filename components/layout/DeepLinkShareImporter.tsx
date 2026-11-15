@@ -42,7 +42,11 @@ import { ShareImportConfirmModal } from './ShareImportConfirmModal';
  * avoid the triple-import race, and surface the same toasts / mode picker.
  */
 export const DeepLinkShareImporter: React.FC = () => {
-  const { user } = useAuth();
+  const { user, isAdmin, globalPermissionsLoaded, canAccessFeature } =
+    useAuth();
+  // Wait for permissions so a teacher never sees a dialog flash and an admin never gets a silent import.
+  const confirmReady = globalPermissionsLoaded && isAdmin !== null;
+  const confirmOn = confirmReady && canAccessFeature('share-import-confirm');
   const {
     activeDashboard,
     addWidget,
@@ -211,13 +215,13 @@ export const DeepLinkShareImporter: React.FC = () => {
   // the user actually sees where the new quiz landed (fixes the "nothing
   // happened" paste UX).
   useEffect(() => {
-    if (!pendingQuizShareId || !user) return;
+    if (!pendingQuizShareId || !user || !confirmReady) return;
     // Sharer line needs the PLC rosters.
-    if (plcsLoading) return;
+    if (confirmOn && plcsLoading) return;
     // Clear before awaiting so effect re-runs can't import the same share twice.
     const shareId = pendingQuizShareId;
     clearPendingQuizShare();
-    requestConfirm('quiz', 'shared_quizzes', shareId, () => {
+    const run = (): void => {
       void importSharedQuiz(shareId, saveBank)
         .then(() => {
           addToast('Shared quiz imported to your library!', 'success');
@@ -237,10 +241,14 @@ export const DeepLinkShareImporter: React.FC = () => {
             'error'
           );
         });
-    });
+    };
+    if (confirmOn) requestConfirm('quiz', 'shared_quizzes', shareId, run);
+    else run();
   }, [
     pendingQuizShareId,
     user,
+    confirmReady,
+    confirmOn,
     plcsLoading,
     importSharedQuiz,
     saveBank,
@@ -252,13 +260,13 @@ export const DeepLinkShareImporter: React.FC = () => {
   // Pending rubric share import. Rubrics have no widget surface of their own,
   // so a toast naming the imported rubric is the whole success affordance.
   useEffect(() => {
-    if (!pendingRubricShareId || !user) return;
+    if (!pendingRubricShareId || !user || !confirmReady) return;
     // Sharer line needs the PLC rosters.
-    if (plcsLoading) return;
+    if (confirmOn && plcsLoading) return;
     // Cleared synchronously before awaiting — see the quiz effect above.
     const shareId = pendingRubricShareId;
     clearPendingRubricShare();
-    requestConfirm('rubric', 'shared_rubrics', shareId, () => {
+    const run = (): void => {
       void importSharedRubric(shareId)
         .then((rubric) => {
           const title = rubric?.title?.trim();
@@ -286,10 +294,14 @@ export const DeepLinkShareImporter: React.FC = () => {
             'error'
           );
         });
-    });
+    };
+    if (confirmOn) requestConfirm('rubric', 'shared_rubrics', shareId, run);
+    else run();
   }, [
     pendingRubricShareId,
     user,
+    confirmReady,
+    confirmOn,
     plcsLoading,
     importSharedRubric,
     clearPendingRubricShare,
@@ -453,6 +465,10 @@ export const DeepLinkShareImporter: React.FC = () => {
             });
             return;
           }
+          if (!confirmOn) {
+            runAssignmentImport(shareId, 'copy');
+            return;
+          }
           setConfirmPrompt({
             kindLabel: 'assignment',
             title: preview.title,
@@ -482,11 +498,11 @@ export const DeepLinkShareImporter: React.FC = () => {
           );
         });
     },
-    [peekSharedAssignment, runAssignmentImport, addToast, plcs, user]
+    [peekSharedAssignment, runAssignmentImport, addToast, plcs, user, confirmOn]
   );
 
   useEffect(() => {
-    if (!pendingAssignmentShareId || !user) return;
+    if (!pendingAssignmentShareId || !user || !confirmReady) return;
     // Wait for /plcs to hydrate before evaluating membership. Without this
     // gate, a deep-link import that fires before the listener populates
     // `plcs` sees `[]`, the `isPlcMember` predicate returns false, and a
@@ -506,6 +522,7 @@ export const DeepLinkShareImporter: React.FC = () => {
     peekAndDispatchImport,
     clearPendingAssignmentShare,
     plcsLoading,
+    confirmReady,
   ]);
 
   // Stable dispatcher for VA share imports — extracted so the failure
@@ -580,10 +597,14 @@ export const DeepLinkShareImporter: React.FC = () => {
   // before dispatching to avoid the triple-import race; the dispatcher's
   // failure toast carries Retry as the recovery path.
   useEffect(() => {
-    if (!pendingVideoActivityShareId || !user) return;
-    if (plcsLoading) return;
+    if (!pendingVideoActivityShareId || !user || !confirmReady) return;
+    if (confirmOn && plcsLoading) return;
     const shareId = pendingVideoActivityShareId;
     clearPendingVideoActivityShare();
+    if (!confirmOn) {
+      runVideoActivityImport(shareId);
+      return;
+    }
     requestConfirm(
       'video activity',
       'shared_video_activity_assignments',
@@ -593,6 +614,8 @@ export const DeepLinkShareImporter: React.FC = () => {
   }, [
     pendingVideoActivityShareId,
     user,
+    confirmReady,
+    confirmOn,
     plcsLoading,
     clearPendingVideoActivityShare,
     runVideoActivityImport,
@@ -623,11 +646,15 @@ export const DeepLinkShareImporter: React.FC = () => {
   return (
     <QuizAssignmentImportModeModal
       quizTitle={importModePrompt.title}
-      originatorName={describeSharer(
-        importModePrompt.originalAuthor,
-        user?.uid ?? '',
-        plcs
-      )}
+      originatorName={
+        confirmOn
+          ? describeSharer(
+              importModePrompt.originalAuthor,
+              user?.uid ?? '',
+              plcs
+            )
+          : undefined
+      }
       onPick={(mode) => {
         const { shareId } = importModePrompt;
         setImportModePrompt(null);

@@ -11437,7 +11437,8 @@ export type GlobalFeature =
   /** Teachers pick which answers count when a student answers more than a section asks. */
   | 'choose-n-pick-counted'
   /** Manual assignments get a due date, and Assign remembers the When step. */
-  | 'assign-due-date';
+  | 'assign-due-date'
+  | 'share-import-confirm';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {
