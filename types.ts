@@ -5525,6 +5525,8 @@ export interface PeriodAccessSessionFields {
   pausedAt?: number;
   /** Manual due date: every period locks at `dueAt`; a Start or Let in after it is late. */
   dueLocks?: boolean;
+  /** Reopened after End for these student uids only; cleared on End or a whole reopen. */
+  reopenedFor?: string[];
 }
 
 /** One closed pause, epoch ms; the overall time limit does not run through it. */
@@ -11439,7 +11441,9 @@ export type GlobalFeature =
   /** Teachers pick which answers count when a student answers more than a section asks. */
   | 'choose-n-pick-counted'
   /** Manual assignments get a due date, and Assign remembers the When step. */
-  | 'assign-due-date';
+  | 'assign-due-date'
+  /** Reopen an ended quiz for selected students only. */
+  | 'reopen-selected-students';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

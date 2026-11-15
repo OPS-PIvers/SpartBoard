@@ -55,6 +55,7 @@ import {
   Cloud,
   CloudOff,
   Users2,
+  UserCheck,
   GraduationCap,
   Combine,
   Target,
@@ -541,6 +542,8 @@ interface QuizManagerProps {
   onArchiveDeactivate?: (assignment: QuizAssignment) => void | Promise<void>;
   /** Reopen an ended assignment back to a paused state. */
   onArchiveReopen?: (assignment: QuizAssignment) => void | Promise<void>;
+  /** Reopens an ended per-class quiz for picked students only. */
+  onArchiveReopenStudents?: (assignment: QuizAssignment) => void;
   onArchiveDelete?: (assignment: QuizAssignment) => void | Promise<void>;
   /** Signed-in teacher's display name; default `teacherName` on new assignments. */
   defaultTeacherName?: string;
@@ -840,6 +843,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onArchivePauseResume,
   onArchiveDeactivate,
   onArchiveReopen,
+  onArchiveReopenStudents,
   onArchiveDelete,
   defaultTeacherName,
   syncedGroups,
@@ -2123,12 +2127,38 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         },
       });
     }
+    const reopenAll = () => void (onArchiveReopen ?? noop)(a);
     secondaries.push({
       id: 'reopen',
       label: 'Reopen',
       icon: RefreshCw,
       anchor: tourTypeAttr('quiz-library.archive-reopen', 'quiz'),
-      onClick: () => void (onArchiveReopen ?? noop)(a),
+      onClick: reopenAll,
+      ...(onArchiveReopenStudents &&
+      a.periodAccess &&
+      a.sessionMode === 'student'
+        ? {
+            submenu: [
+              {
+                id: 'reopen-all',
+                label: 'All students',
+                icon: Users2,
+                anchor: tourTypeAttr('quiz-library.archive-reopen-all', 'quiz'),
+                onClick: reopenAll,
+              },
+              {
+                id: 'reopen-students',
+                label: 'Select students…',
+                icon: UserCheck,
+                anchor: tourTypeAttr(
+                  'quiz-library.archive-reopen-students',
+                  'quiz'
+                ),
+                onClick: () => onArchiveReopenStudents(a),
+              },
+            ],
+          }
+        : {}),
     });
     secondaries.push({
       id: 'delete',
@@ -3857,6 +3887,12 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
               </span>
             );
           })()}
+        {mode === 'active' && (a.reopenedFor?.length ?? 0) > 0 && (
+          <span className="inline-flex items-center font-medium text-slate-500">
+            Open for {a.reopenedFor?.length} student
+            {a.reopenedFor?.length === 1 ? '' : 's'}
+          </span>
+        )}
         {editedSinceAssigned && (
           <span
             title="Students still have the assigned version."
