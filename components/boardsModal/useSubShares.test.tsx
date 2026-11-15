@@ -154,6 +154,24 @@ describe('useSubShares', () => {
     expect(input.sharedRosters).toEqual([]);
   });
 
+  it('keeps the calendars the host ticked on a re-push', async () => {
+    shares = [share({ calendarIds: ['cal-1'] })];
+    const { result } = await load();
+
+    await act(async () => {
+      result.current.updateNow(shares[0]);
+      await Promise.resolve();
+    });
+
+    await waitFor(() =>
+      expect(updateSubstituteCollectionShare).toHaveBeenCalled()
+    );
+    const input = updateSubstituteCollectionShare.mock.calls[0]?.[0] as {
+      calendarIds?: string[];
+    };
+    expect(input.calendarIds).toEqual(['cal-1']);
+  });
+
   it('refuses to re-push a collection whose boards are all gone', async () => {
     collections = [];
     const { result } = await load();

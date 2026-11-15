@@ -1550,6 +1550,7 @@ service cloud.firestore {
         incoming().get('sharedAt', null) == existing().get('sharedAt', null) &&
         incoming().get('intendedMode', null) == existing().get('intendedMode', null) &&
         incoming().get('plcId', null) == existing().get('plcId', null) &&
+        incoming().get('createdNonce', null) == existing().get('createdNonce', null) &&
         incoming().get('linkedCollectionId', null) == existing().get('linkedCollectionId', null);
 
       // Self-join: any signed-in teacher (not anonymous, not a student) may add ONLY their own uid to participants
@@ -1604,7 +1605,9 @@ service cloud.firestore {
           return isDistrictStaff() && d.ownerUid == authUid()
             && (sb.originalAuthor == authUid()
                 || sb.get('participants', {}).get(authUid(), {}).get('role', '') == 'collaborator')
-            && d.keys().hasOnly(['kind', 'itemId', 'ownerUid', 'title', 'version', 'publishedAt', 'payload'])
+            && d.keys().hasOnly(['kind', 'itemId', 'ownerUid', 'title', 'version', 'publishedAt', 'payload', 'shareNonce'])
+            // A no-nonce copy is a previous-release tab's write; accepted for one release (see sbItemNonceOk).
+            && (d.get('shareNonce', null) == sb.get('createdNonce', null) || !('shareNonce' in d))
             && isStr('kind') && isStr('itemId') && itemDocId == d.kind + '_' + authUid() + '_' + d.itemId
             && sbItemCollection(d.kind) != ''
             && isStr('title') && d.title.size() <= 500
@@ -1615,11 +1618,18 @@ service cloud.firestore {
         function sbItemMember(uid) {
           return sbItemShare().originalAuthor == uid || uid in sbItemShare().get('participants', {});
         }
-        // The owner must still belong to the share too, so a share recreated at an old id can't read
-        // copies the deleted share left behind.
+        // This share instance's copy: its createdNonce, or (previous-release tabs, one release only) no nonce
+        // and published after this share was made. Re-tighten to the nonce alone afterwards.
+        function sbItemNonceOk(sb) {
+          return existing().get('shareNonce', null) == sb.get('createdNonce', null)
+            || (!('shareNonce' in existing()) && existing().get('publishedAt', 0) >= sb.get('sharedAt', 0));
+        }
+        // The owner must still belong and the copy must be this instance's, so a share recreated at an
+        // old id can't read copies the deleted share left behind.
         allow get: if staffSignedIn() && isDistrictStaff()
           && sbItemMember(authUid())
-          && (noDoc() || sbItemMember(existing().get('ownerUid', '')));
+          && (noDoc() || (sbItemMember(existing().get('ownerUid', ''))
+              && sbItemNonceOk(sbItemShare())));
         // A first copy needs the owner's own pick, so a co-editor's config edit never publishes it.
         allow create: if signedIn() && sbItemWriteOk()
           && (incoming().kind + '_' + incoming().itemId) in get(/databases/$(database)/documents/users/$(authUid())/board_item_picks/$(shareId)).data.get('items', []);
@@ -1731,7 +1741,8 @@ service cloud.firestore {
             changedOnly([
               'boards', 'boardIds', 'sections', 'collection', 'defaultBoardId',
               'kind', 'subEmails', 'sharedRosters', 'driveGrants',
-              'namesFileId', 'contentVersion', 'updatedAt', 'expiresAt'
+              'namesFileId', 'contentVersion', 'updatedAt', 'expiresAt',
+              'calendarIds'
             ])
             && isNumber('expiresAt')
             && incoming().expiresAt <= nowMs() + 1209600000
@@ -1764,6 +1775,18 @@ service cloud.firestore {
         return signedIn()
           && shareData().get('hostUid', null) == authUid();
       }
+      function canReadKeys() {
+        return signedIn() && (
+          isShareHost()
+          || isAdmin()
+          || (
+            isDistrictStaff()
+            && shareData().get('expiresAt', 0) > nowMs()
+            && tok().get('email', '').lower()
+               in shareData().get('subEmails', [])
+          )
+        );
+      }
 
       // Per-Board snapshots.
       match /boards/{boardId} {
@@ -1774,23 +1797,17 @@ service cloud.firestore {
       // Display content for widgets whose data lives outside the board, so a
       // sub sees the teacher's drawing, notebook or queue rather than their own.
       match /content/{contentId} {
-        allow read: if canReadShared();
+        // Calendar events come from the host's private account: host, admin or named subs only, once
+        // the share carries the host's ticked calendarIds (share-content-safeguards); older shares read as before.
+        allow read: if canReadShared()
+          && (!contentId.matches('calendar_.*') || !('calendarIds' in shareData()) || canReadKeys());
         allow create, update, delete: if isShareHost();
       }
 
       // Answer keys and full activity copies. Narrower than content/: the host,
       // an admin, or a sub this share names by email, and never past expiry.
       match /keys/{keyId} {
-        allow read: if signedIn() && (
-          isShareHost()
-          || isAdmin()
-          || (
-            isDistrictStaff()
-            && shareData().get('expiresAt', 0) > nowMs()
-            && tok().get('email', '').lower()
-               in shareData().get('subEmails', [])
-          )
-        );
+        allow read: if canReadKeys();
         allow create, update, delete: if isShareHost();
       }
     }

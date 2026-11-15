@@ -972,6 +972,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Share content binding (H2): opt-in sub-share calendars, no legacy pick seed. Admin-only until Paul has tested it.
+  'share-content-safeguards': {
+    label: 'Share content safeguards',
+    icon: Share2,
+    description:
+      'Sub shares include only the calendars a teacher ticks; shared items publish only from the owner’s picks.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Quiz overall time limit per attempt. Admin-only until Paul has used it with a class.
   'quiz-time-limit': {
     label: 'Quiz time limit',
