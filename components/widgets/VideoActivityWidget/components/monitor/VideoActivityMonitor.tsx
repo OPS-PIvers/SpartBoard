@@ -29,6 +29,7 @@ import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
 import { deriveRunState } from '@/utils/sessionLifecycle';
 import { buildDistribution } from '@/utils/answerDistribution';
 import { gradeVideoActivityAnswer } from '@/utils/videoActivityGrading';
+import { isLiveVideoActivitySession } from '@/utils/videoActivityLive';
 import { AnswerDistributionBars } from '@/components/common/AnswerDistributionBars';
 import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import {
@@ -215,9 +216,14 @@ export const VideoActivityMonitor: React.FC<VideoActivityLiveMonitorProps> = ({
   const students = useMemo(
     () =>
       filteredResponses.map((r) =>
-        buildVaStudent(r, questions, pickDisplayLabel(r, byStudentUid))
+        buildVaStudent(
+          r,
+          questions,
+          pickDisplayLabel(r, byStudentUid),
+          isLiveVideoActivitySession(session)
+        )
       ),
-    [filteredResponses, questions, byStudentUid]
+    [filteredResponses, questions, byStudentUid, session]
   );
   const byBucket = useMemo(() => {
     const out: Record<BucketKey, VaMonitorStudent[]> = {

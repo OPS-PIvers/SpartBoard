@@ -438,7 +438,8 @@ function checkAnchor(
     POSITIONAL.test(`${ref.key ?? ''}`) &&
     !SHARED_LISTS.has(ref.id.split('.')[0]) &&
     !ctx.sandboxed &&
-    !openedEmpty(ref, ctx.clicked)
+    !openedEmpty(ref, ctx.clicked) &&
+    !followsPickedRow(ref, entry, ctx.clicked)
   )
     warn(
       `"${b.anchor}" points at a position in a list, which differs on each teacher's board; use a tour material so the tour controls what is there.`
@@ -562,6 +563,20 @@ function closeSurfaces(entry: AnchorEntry, by: string, live: LiveState) {
   );
   live.dialogs = live.dialogs.filter((s) => live.visited.has(s));
 }
+
+/** Whether an earlier `#row-*` click on the same list sets the row this step follows. */
+const followsPickedRow = (
+  ref: Ref,
+  entry: AnchorEntry,
+  clicked: readonly Ref[]
+): boolean =>
+  !!entry.row_list &&
+  clicked.some(
+    (c) =>
+      c.key === ROW_WILDCARD &&
+      c.type === ref.type &&
+      ANCHORS.get(c.id)?.row_list === entry.row_list
+  );
 
 /** Whether an earlier click opened this anchor's list empty, so its rows are ones the tour added. */
 const openedEmpty = (ref: Ref, clicked: readonly Ref[]): boolean =>

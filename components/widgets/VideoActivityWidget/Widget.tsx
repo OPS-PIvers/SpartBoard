@@ -1515,7 +1515,11 @@ const TeacherVideoActivityWidget: React.FC<{
                   (uid) => {
                     const r = byUid.get(uid);
                     return r
-                      ? videoActivityLiveRaw(r, result.scoredQuestions)
+                      ? videoActivityLiveRaw(
+                          r,
+                          result.scoredQuestions,
+                          result.live
+                        )
                       : null;
                   },
                   Date.now()
@@ -1538,7 +1542,8 @@ const TeacherVideoActivityWidget: React.FC<{
                         buildVideoActivityGradeEntries(
                           responses,
                           result.scoredQuestions,
-                          mp
+                          mp,
+                          result.live
                         ),
                         responses,
                         mp
@@ -1551,7 +1556,8 @@ const TeacherVideoActivityWidget: React.FC<{
                     buildVideoActivityGradeEntries(
                       responses,
                       result.scoredQuestions,
-                      mp
+                      mp,
+                      result.live
                     ),
                     responses,
                     mp
