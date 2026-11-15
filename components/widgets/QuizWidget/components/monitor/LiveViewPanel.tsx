@@ -47,6 +47,9 @@ import {
   liveViewStats,
   newestAnswerQuestionId,
   liveViewDrawIds,
+  LIVE_VIEW_NUDGE_FEATURE,
+  LIVE_VIEW_NUDGE_NOTE_FEATURE,
+  LIVE_VIEW_SCREENSHOT_FEATURE,
   studentQuestionOrder,
 } from '@/utils/quizLiveView';
 import {
@@ -119,6 +122,11 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
   const showPastedChars =
     auth?.isAdmin === true || isSignShown(signs, 'pasted');
   const showPastes = showPastedChars || isSignShown(signs, 'paste-attempts');
+  const canNudge = auth?.canAccessFeature?.(LIVE_VIEW_NUDGE_FEATURE) === true;
+  const canNudgeNote =
+    canNudge && auth?.canAccessFeature?.(LIVE_VIEW_NUDGE_NOTE_FEATURE) === true;
+  const canScreenshot =
+    auth?.canAccessFeature?.(LIVE_VIEW_SCREENSHOT_FEATURE) === true;
 
   const index = students.findIndex((s) => s.key === studentKey);
   const student = index >= 0 ? students[index] : undefined;
@@ -512,48 +520,59 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
                   quiz&quot;.
                 </p>
               )}
-              <div className="flex items-center gap-2">
-                <select
-                  {...tourTypeAttr('quiz-live-view.nudge-note', 'quiz')}
-                  aria-label="Nudge note"
-                  value={noteId}
-                  onChange={(e) =>
-                    setNoteId(e.target.value as QuizNudgeNoteId | '')
-                  }
-                  className="min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-2 py-2 text-sm text-slate-800"
-                >
-                  <option value="">No note</option>
-                  {NUDGE_NOTE_IDS.map((id) => (
-                    <option key={id} value={id}>
-                      {NUDGE_NOTE_TEXT[id]}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  {...tourTypeAttr('quiz-live-view.nudge', 'quiz')}
-                  onClick={() => void onNudge()}
-                  disabled={nudging}
-                  className="flex min-h-11 items-center gap-1.5 rounded-md bg-brand-blue-primary px-3 font-semibold text-white hover:bg-brand-blue-dark disabled:opacity-60"
-                >
-                  <BellRing className="h-4 w-4" aria-hidden />
-                  Nudge
-                </button>
-              </div>
-              <button
-                type="button"
-                {...tourTypeAttr('quiz-live-view.screenshot', 'quiz')}
-                onClick={() => void onScreenshot()}
-                disabled={shotAt != null}
-                className="flex min-h-11 w-full items-center justify-center gap-1.5 rounded-md border border-slate-300 font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-60"
-              >
-                {shotAt != null ? (
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                ) : (
-                  <Camera className="h-4 w-4" aria-hidden />
-                )}
-                Screenshot
-              </button>
+              {canNudge && (
+                <div className="flex items-center gap-2">
+                  {canNudgeNote && (
+                    <select
+                      {...tourTypeAttr('quiz-live-view.nudge-note', 'quiz')}
+                      aria-label="Nudge note"
+                      value={noteId}
+                      onChange={(e) =>
+                        setNoteId(e.target.value as QuizNudgeNoteId | '')
+                      }
+                      className="min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-2 py-2 text-sm text-slate-800"
+                    >
+                      <option value="">No note</option>
+                      {NUDGE_NOTE_IDS.map((id) => (
+                        <option key={id} value={id}>
+                          {NUDGE_NOTE_TEXT[id]}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  <button
+                    type="button"
+                    {...tourTypeAttr('quiz-live-view.nudge', 'quiz')}
+                    onClick={() => void onNudge()}
+                    disabled={nudging}
+                    className={`flex min-h-11 items-center justify-center gap-1.5 rounded-md bg-brand-blue-primary px-3 font-semibold text-white hover:bg-brand-blue-dark disabled:opacity-60 ${canNudgeNote ? '' : 'flex-1'}`}
+                  >
+                    <BellRing className="h-4 w-4" aria-hidden />
+                    Nudge
+                  </button>
+                </div>
+              )}
+              {canScreenshot && (
+                <>
+                  <button
+                    type="button"
+                    {...tourTypeAttr('quiz-live-view.screenshot', 'quiz')}
+                    onClick={() => void onScreenshot()}
+                    disabled={shotAt != null}
+                    className="flex min-h-11 w-full items-center justify-center gap-1.5 rounded-md border border-slate-300 font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-60"
+                  >
+                    {shotAt != null ? (
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                    ) : (
+                      <Camera className="h-4 w-4" aria-hidden />
+                    )}
+                    Screenshot
+                  </button>
+                  <p className="text-center text-xs text-slate-500">
+                    Saves this redrawn view, not the student&apos;s screen.
+                  </p>
+                </>
+              )}
             </div>
 
             {entries.length > 0 && (
