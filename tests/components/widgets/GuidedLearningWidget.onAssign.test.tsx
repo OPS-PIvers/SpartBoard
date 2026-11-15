@@ -343,9 +343,9 @@ describe('GuidedLearningWidget onAssign — clipboard denied', () => {
     expect(toasts.some((t) => t.tone === 'error')).toBe(false);
     expect(
       toasts.some((t) =>
-        String(t.msg).includes(
-          'https://spartboard.app/guided-learning/session-1'
-        )
+        String(t.msg)
+          .split(/\s+/)
+          .includes('https://spartboard.app/guided-learning/session-1')
       )
     ).toBe(true);
   });
