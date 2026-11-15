@@ -12,6 +12,7 @@ import {
   assembleRow,
   keyQuestions,
   parseSessionMeta,
+  legacyRowId,
   rowId,
   scoreCompletion,
   scoreMiniAppBest,
@@ -323,6 +324,19 @@ async function claimRow(
   return null;
 }
 
+/** A pre-kind row of this same kind and session, which the kind-keyed row replaces. */
+function ownLegacy(
+  data: Doc | undefined,
+  kind: GradeKind,
+  sessionId: string
+): Doc | undefined {
+  return data &&
+    (asString(data.kind) || 'quiz') === kind &&
+    asString(data.sessionId) === sessionId
+    ? data
+    : undefined;
+}
+
 /** Write only when something besides `updatedAt` changed; the row is re-read and claimed in the same transaction. */
 async function writeRow(
   db: Firestore,
@@ -332,12 +346,21 @@ async function writeRow(
   if (sameRow(row, previous)) return false;
   const ref = db
     .collection(GRADE_INDEX)
-    .doc(rowId(row.sessionId, row.studentUid));
+    .doc(rowId(row.kind, row.sessionId, row.studentUid));
+  const legacyRef = db
+    .collection(GRADE_INDEX)
+    .doc(legacyRowId(row.sessionId, row.studentUid));
   return db.runTransaction(async (tx) => {
-    const current = (await tx.get(ref)).data();
-    if (sameRow(row, current)) return false;
+    const snap = await tx.get(ref);
+    const current = snap.data();
+    // A kind-keyed row only exists once its pre-kind row is gone.
+    const stale = snap.exists
+      ? undefined
+      : ownLegacy((await tx.get(legacyRef)).data(), row.kind, row.sessionId);
+    if (sameRow(row, current) && !stale) return false;
     if ((await claimRow(db, row, current)) === null) return false;
     tx.set(ref, row as unknown as Doc);
+    if (stale) tx.delete(legacyRef);
     return true;
   });
 }
@@ -350,15 +373,23 @@ async function writeRowIfNotNewer(
 ): Promise<boolean> {
   const ref = db
     .collection(GRADE_INDEX)
-    .doc(rowId(row.sessionId, row.studentUid));
+    .doc(rowId(row.kind, row.sessionId, row.studentUid));
+  const legacyRef = db
+    .collection(GRADE_INDEX)
+    .doc(legacyRowId(row.sessionId, row.studentUid));
   return db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
     const current = snap.data();
-    if (sameRow(row, current)) return false;
+    // A kind-keyed row only exists once its pre-kind row is gone.
+    const stale = snap.exists
+      ? undefined
+      : ownLegacy((await tx.get(legacyRef)).data(), row.kind, row.sessionId);
+    if (sameRow(row, current) && !stale) return false;
     if ((await claimRow(db, row, current)) === null) return false;
     if (typeof current?.updatedAt === 'number' && current.updatedAt > startedAt)
       return false;
     tx.set(ref, row as unknown as Doc);
+    if (stale) tx.delete(legacyRef);
     return true;
   });
 }
@@ -394,16 +425,16 @@ async function deleteRow(
   sessionId: string,
   studentUid: string
 ): Promise<void> {
-  const ref = db.collection(GRADE_INDEX).doc(rowId(sessionId, studentUid));
+  const ref = db
+    .collection(GRADE_INDEX)
+    .doc(rowId(kind, sessionId, studentUid));
+  const legacyRef = db
+    .collection(GRADE_INDEX)
+    .doc(legacyRowId(sessionId, studentUid));
   await db.runTransaction(async (tx) => {
-    const snap = await tx.get(ref);
-    const data = snap.data();
-    if (
-      snap.exists &&
-      (data?.kind ?? kind) === kind &&
-      (data?.sessionId ?? sessionId) === sessionId
-    )
-      tx.delete(ref);
+    const [snap, legacy] = await Promise.all([tx.get(ref), tx.get(legacyRef)]);
+    if (snap.exists) tx.delete(ref);
+    if (ownLegacy(legacy.data(), kind, sessionId)) tx.delete(legacyRef);
   });
 }
 
@@ -581,8 +612,16 @@ async function previousRow(
 ): Promise<Doc | undefined | null> {
   const snap = await db
     .collection(GRADE_INDEX)
-    .doc(rowId(sessionId, studentUid))
+    .doc(rowId(kind, sessionId, studentUid))
     .get();
+  if (!snap.exists) {
+    // Carry a pre-kind row's attempts and createdAt into its replacement.
+    const legacy = await db
+      .collection(GRADE_INDEX)
+      .doc(legacyRowId(sessionId, studentUid))
+      .get();
+    return ownLegacy(legacy.data(), kind, sessionId);
+  }
   return claimRow(db, { kind, sessionId, studentUid }, snap.data());
 }
 
@@ -670,6 +709,9 @@ export async function recomputeSession(
       .filter((d) => (d.data().kind ?? kind) === kind)
       .map((d) => [d.id, d.data()])
   );
+  const prevOf = (uid: string): Doc | undefined =>
+    existing.get(rowId(kind, sessionId, uid)) ??
+    existing.get(legacyRowId(sessionId, uid));
   const startedAt = now;
   const ctx = await loadSessionContext(db, kind, sessionId);
   const keep = new Set<string>();
@@ -691,14 +733,17 @@ export async function recomputeSession(
           d.id,
           d.data(),
           now,
-          (uid) => Promise.resolve(existing.get(rowId(sessionId, uid))),
+          (uid) => Promise.resolve(prevOf(uid)),
           memberAuthority
         );
         rows.push(...upserts);
         // A member the roster no longer vouches for gets no update, but their existing row is not dropped for that alone.
         for (const uid of denied) {
-          const id = rowId(sessionId, uid);
-          if (existing.has(id)) keep.add(id);
+          for (const id of [
+            rowId(kind, sessionId, uid),
+            legacyRowId(sessionId, uid),
+          ])
+            if (existing.has(id)) keep.add(id);
         }
       }
     } else {
@@ -714,28 +759,22 @@ export async function recomputeSession(
         }
         const score = ctx.score(uid, data);
         if (!score) continue;
-        const prev = existing.get(rowId(sessionId, uid));
-        rows.push(await buildRow(db, ctx, uid, score, prev, now));
+        rows.push(await buildRow(db, ctx, uid, score, prevOf(uid), now));
       }
       for (const [uid, at] of wallFirst) {
         const score = ctx.score(uid, { submittedAt: at });
         if (score)
-          rows.push(
-            await buildRow(
-              db,
-              ctx,
-              uid,
-              score,
-              existing.get(rowId(sessionId, uid)),
-              now
-            )
-          );
+          rows.push(await buildRow(db, ctx, uid, score, prevOf(uid), now));
       }
     }
     for (const row of rows) {
-      const id = rowId(row.sessionId, row.studentUid);
+      const id = rowId(row.kind, row.sessionId, row.studentUid);
       keep.add(id);
-      if (sameRow(row, existing.get(id))) continue;
+      if (
+        sameRow(row, existing.get(id)) &&
+        !existing.has(legacyRowId(row.sessionId, row.studentUid))
+      )
+        continue;
       if (await writeRowIfNotNewer(db, row, startedAt)) written++;
     }
   }

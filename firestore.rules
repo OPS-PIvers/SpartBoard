@@ -355,6 +355,11 @@ service cloud.firestore {
                 ? d.classId in request.auth.token.classIds
                 : s.get('accessMode', '') != 'assessment'));
     }
+    // A studentRole response names no class or one from its own claim (older clients omit it on multi-class sessions).
+    function claimClassOk(d) {
+      return !isStudentRoleUser() || d.get('classId', '') in [null, ''] ||
+             d.classId in tok().get('classIds', []);
+    }
 
     // Per-period content docs: the caller's seat names their response, whose
     // classId picks the period. `coll`/`sid` locate the session.
@@ -4783,7 +4788,7 @@ service cloud.firestore {
           runOpen(sessionData()) &&
           // Block joins before the assignment's open time (M17).
           afterOpen(sessionData()) &&
-          periodJoinOk(sessionData(), incoming()) &&
+          periodJoinOk(sessionData(), incoming()) && claimClassOk(incoming()) &&
           staffJoinOk(sessionData(), incoming()) &&
           joinKeyOk(sessionData(), responseKey) &&
           // The PIN is short text the hourly archive email quotes.
@@ -5636,7 +5641,7 @@ service cloud.firestore {
           runOpen(vaS()) &&
           // Block joins before the assignment's open time (M17).
           afterOpen(vaS()) &&
-          periodJoinOk(vaS(), incoming()) &&
+          periodJoinOk(vaS(), incoming()) && claimClassOk(incoming()) &&
           staffJoinOk(vaS(), incoming()) &&
           joinKeyOk(vaS(), responseDocId) &&
           (responseDocId == authUid() || vaPinOk(vaS(), incoming()));
@@ -5974,7 +5979,7 @@ service cloud.firestore {
           staffJoinOk(glSession(), incoming()) &&
           // Per-student publication is teacher-written only.
           incoming().get('resultsOverride', null) == null &&
-          glClassGate() &&
+          glClassGate() && claimClassOk(incoming()) &&
           // Block submissions on view-only sessions (mode is frozen at creation)
           glSessionMode() == 'submissions' &&
           // Block joins outside the assignment's open/close window (M17).
