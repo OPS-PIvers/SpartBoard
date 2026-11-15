@@ -20,6 +20,7 @@ import {
 vi.mock('../quizMediaArchive', () => ({
   deriveTeacherTier: vi.fn(() => Promise.resolve('internal')),
   isBetaTeacher: vi.fn(() => Promise.resolve(false)),
+  isGlobalFeatureGranted: vi.fn(() => Promise.resolve(false)),
   meetsMinTierServer: () => true,
 }));
 
