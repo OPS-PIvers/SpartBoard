@@ -91,6 +91,8 @@ const ROSTER_DIRECTORY_FIELDS = [
   'createdAt',
 ] as const;
 const ROSTER_OWNER_TTL_MS = 5 * 60 * 1000;
+// A ClassLink blip is re-asked soon, not held for the full TTL.
+const ROSTER_UNAVAILABLE_TTL_MS = 15 * 1000;
 
 // Every owner, staff included, counts only for sections ClassLink says they teach.
 type RosterOwnerKind =
@@ -185,7 +187,11 @@ async function candidateTaughtClasses(
   email: string
 ): Promise<TaughtClasses> {
   const cached = rosterTaughtCache.get(uid);
-  if (cached && Date.now() - cached.at < ROSTER_OWNER_TTL_MS) return cached.ids;
+  const ttl =
+    cached?.ids === 'unavailable'
+      ? ROSTER_UNAVAILABLE_TTL_MS
+      : ROSTER_OWNER_TTL_MS;
+  if (cached && Date.now() - cached.at < ttl) return cached.ids;
   let ids: TaughtClasses = 'unavailable';
   try {
     ids = await loadTeacherClassIds(email, {
@@ -200,13 +206,18 @@ async function candidateTaughtClasses(
   return ids;
 }
 
-/** Roster docs whose owner ClassLink confirms teaches the section, grouped by `classlinkClassId`; `uncertain` when ClassLink could not answer for an owner. */
+/** Roster docs whose owner ClassLink confirms teaches the section, grouped by `classlinkClassId`; `uncertain` when ClassLink could not answer for an owner, and `uncertainIds` the sections that owner had a roster for. */
 async function lookupRostersBySection(
   db: FirebaseFirestore.Firestore,
   ids: readonly string[]
-): Promise<{ matches: Map<string, RosterSnap[]>; uncertain: boolean }> {
+): Promise<{
+  matches: Map<string, RosterSnap[]>;
+  uncertain: boolean;
+  uncertainIds: Set<string>;
+}> {
   const out = new Map<string, RosterSnap[]>();
   let uncertain = false;
+  const uncertainIds = new Set<string>();
   const ownerOf = (doc: RosterSnap): string => doc.ref.parent.parent?.id ?? '';
   // One Auth batch per page; ClassLink is asked about each owner once.
   const prepareOwners = async (docs: readonly RosterSnap[]) => {
@@ -238,6 +249,7 @@ async function lookupRostersBySection(
         ids.has(classId);
       if (!ok) {
         unverified.add(ownerOf(doc));
+        if (ids === 'unavailable') uncertainIds.add(classId);
         continue;
       }
       const value: unknown = doc.get('classlinkClassId');
@@ -261,7 +273,7 @@ async function lookupRostersBySection(
     return after ? q.startAfter(after) : q;
   };
   const classIds = [...new Set(ids)];
-  if (classIds.length === 0) return { matches: out, uncertain };
+  if (classIds.length === 0) return { matches: out, uncertain, uncertainIds };
   const firstPages = await Promise.all(
     classIds.map((classId) => pageQuery(classId).get())
   );
@@ -288,7 +300,27 @@ async function lookupRostersBySection(
       unverified = await keepVerified(classId, page.docs);
     }
   }
-  return { matches: out, uncertain };
+  return { matches: out, uncertain, uncertainIds };
+}
+
+/** The roster classIds this student's last SSO sign-in in this org claimed; empty when unknown. */
+async function readPreviousClaim(
+  db: FirebaseFirestore.Firestore,
+  uid: string,
+  orgId: string
+): Promise<Set<string>> {
+  const snap = await db
+    .doc(`${STUDENT_SECTIONS_COLLECTION}/${uid}`)
+    .get()
+    .catch(() => null);
+  const data = snap?.exists ? snap.data() : undefined;
+  if (!data || data.orgId !== orgId || !Array.isArray(data.classIds))
+    return new Set();
+  return new Set(
+    (data.classIds as unknown[]).filter(
+      (c): c is string => typeof c === 'string' && c.length > 0
+    )
+  );
 }
 
 const rosterUpdatedAt = (doc: RosterSnap): number => {
@@ -493,23 +525,31 @@ export const studentLoginV1 = onCall(
 
     // 4. Keep only sections a teacher has imported as a roster, so homeroom,
     //    lunch and unimported sections never take a slot under the cap.
+    // 5. Compute the stable opaque UID and mint the custom token with
+    //    the classIds claim that gates Firestore reads.
+    const uid = student.uid;
+
     let rosterMatches: Map<string, RosterSnap[]>;
+    let uncertainIds: Set<string>;
+    let previousClaim: Set<string>;
     try {
-      ({ matches: rosterMatches } = await lookupRostersBySection(
-        db,
-        sectionIds
-      ));
+      [{ matches: rosterMatches, uncertainIds }, previousClaim] =
+        await Promise.all([
+          lookupRostersBySection(db, sectionIds),
+          readPreviousClaim(db, uid, orgId),
+        ]);
     } catch (err) {
       console.error('[studentLoginV1] roster lookup failed:', err);
       throw new HttpsError('internal', 'Roster service unavailable.');
     }
+    // A section ClassLink couldn't confirm just now keeps its place from the last sign-in, so a blip never narrows the claim.
     const classIds = sectionIds
-      .filter((id) => rosterMatches.has(id))
+      .filter(
+        (id) =>
+          rosterMatches.has(id) ||
+          (uncertainIds.has(id) && previousClaim.has(id))
+      )
       .slice(0, STUDENT_LOGIN_CLASS_IDS_MAX);
-
-    // 5. Compute the stable opaque UID and mint the custom token with
-    //    the classIds claim that gates Firestore reads.
-    const uid = student.uid;
 
     // Best effort: without this record the directory call can't pick up a
     // section a teacher imports later, but sign-in still works.
@@ -517,6 +557,7 @@ export const studentLoginV1 = onCall(
       await db.doc(`${STUDENT_SECTIONS_COLLECTION}/${uid}`).set({
         orgId,
         sectionIds,
+        classIds,
         updatedAt: Date.now(),
       });
     } catch (err) {

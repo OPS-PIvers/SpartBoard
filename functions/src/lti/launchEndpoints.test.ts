@@ -109,7 +109,17 @@ vi.mock('./stores', () => ({
   putOidcState: vi.fn(),
   consumeOidcState: vi.fn(),
   mintLaunchCode: vi.fn(),
-  consumeLaunchCode: vi.fn(async () => nextLaunch),
+  consumeLaunchCode: vi.fn(
+    async (
+      _db: unknown,
+      _code: string,
+      accept?: (l: NonNullable<typeof nextLaunch>) => boolean
+    ) => {
+      const l = nextLaunch;
+      if (!l) return null;
+      return accept && !accept(l) ? 'refused' : l;
+    }
+  ),
   newOpaqueId: vi.fn(() => 'opaque-id'),
 }));
 
@@ -490,5 +500,59 @@ describe('ltiExchange — browser binding on the launch code', () => {
     nextLaunch = makeLaunch();
     const res = await callExchange(withCookie());
     expect(res.studentRole).toBe(true);
+  });
+
+  const boundDeepLink = (email: string | null = 'T@school.edu') => ({
+    ...makeLaunch({
+      role: 'teacher',
+      email,
+      messageType: 'LtiDeepLinkingRequest',
+    }),
+    bindingHash: hashBindingId(BID),
+  });
+  const staff = (email: string, extra: Record<string, unknown> = {}) => ({
+    uid: 'teacher-uid',
+    token: { email, email_verified: true, ...extra },
+  });
+
+  it("redeems a bound deep-link code top-level (no partitioned cookie) with the launching teacher's ID token", async () => {
+    nextLaunch = boundDeepLink();
+    const res = await callExchange({
+      ...withCookie(),
+      auth: staff('t@school.edu'),
+    });
+    expect(res.isDeepLinking).toBe(true);
+    expect(res.studentRole).toBe(false);
+  });
+
+  it('accepts a staff token on a bound deep-link code whose launch carried no email', async () => {
+    nextLaunch = boundDeepLink(null);
+    const res = await callExchange({
+      ...withCookie(),
+      auth: staff('t@school.edu'),
+    });
+    expect(res.isDeepLinking).toBe(true);
+  });
+
+  it('refuses a bound deep-link code without its cookie for another teacher, a student or no token', async () => {
+    for (const auth of [
+      staff('other@school.edu'),
+      staff('t@school.edu', { studentRole: true }),
+      { uid: 'x', token: { email: 't@school.edu', email_verified: false } },
+      undefined,
+    ]) {
+      nextLaunch = boundDeepLink();
+      await expect(
+        callExchange({ ...withCookie(), auth })
+      ).rejects.toMatchObject({ code: 'permission-denied' });
+    }
+  });
+
+  it('never lets an ID token stand in for the cookie on a learner code', async () => {
+    nextLaunch = bound();
+    await expect(
+      callExchange({ ...withCookie(), auth: staff('t@school.edu') })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(mintedTokens).toHaveLength(0);
   });
 });

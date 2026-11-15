@@ -36,6 +36,7 @@ import {
   consumeLaunchCode,
   newOpaqueId,
 } from './stores';
+import type { StoredLaunch } from './stores';
 import {
   ALLOWED_ORIGINS,
   normalizeEmailDomain,
@@ -414,6 +415,26 @@ async function recordTeacherSection(
   }
 }
 
+/** A bound code needs its browser cookie (sent via the /lti/exchange rewrite), except as below. */
+export function launchBindingAllows(
+  launch: StoredLaunch,
+  auth: { token: unknown } | undefined,
+  cookieHeader: string | undefined
+): boolean {
+  if (!launch.bindingHash) return true;
+  if (checkBinding(launch.bindingHash, cookieHeader) === 'ok') return true;
+  // The picker's top-level fallback loses the partitioned cookie; the signed-in teacher's ID token stands in.
+  if (
+    launch.role !== 'teacher' ||
+    launch.messageType !== MESSAGE_TYPE_DEEP_LINKING
+  )
+    return false;
+  const email = auth ? staffEmailFromToken(auth.token) : null;
+  if (!email) return false;
+  const launchEmail = (launch.email ?? '').trim().toLowerCase();
+  return !launchEmail || launchEmail === email;
+}
+
 // ── ltiExchange ───────────────────────────────────────────────────────────────
 export const ltiExchange = onCall(
   {
@@ -436,23 +457,25 @@ export const ltiExchange = onCall(
     }
 
     const db = admin.firestore();
-    const launch = await consumeLaunchCode(db, code);
+    // Checked inside the consume, so a refused caller leaves the real launcher's code intact.
+    const launch = await consumeLaunchCode(db, code, (l) =>
+      launchBindingAllows(
+        l,
+        request.auth,
+        request.rawRequest?.headers?.cookie
+      )
+    );
+    if (launch === 'refused') {
+      console.warn(
+        '[ltiExchange] launch code presented without its browser binding'
+      );
+      throw new HttpsError('permission-denied', 'Launch validation failed.');
+    }
     if (!launch) {
       throw new HttpsError(
         'unauthenticated',
         'Launch code is invalid or expired.'
       );
-    }
-    // A copied launch URL opened in another browser lacks the binding cookie (sent via the /lti/exchange rewrite).
-    if (
-      launch.bindingHash &&
-      checkBinding(launch.bindingHash, request.rawRequest?.headers?.cookie) !==
-        'ok'
-    ) {
-      console.warn(
-        '[ltiExchange] launch code presented without its browser binding'
-      );
-      throw new HttpsError('permission-denied', 'Launch validation failed.');
     }
 
     // Safe, PII-light context for the SPA to render.

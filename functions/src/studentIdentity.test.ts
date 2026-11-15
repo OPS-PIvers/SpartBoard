@@ -682,6 +682,84 @@ describe('studentLoginV1', () => {
     expect((h.lastCustomToken?.claims as any).classIds).toEqual(['ENG']);
   });
 
+  describe('when ClassLink cannot confirm a teacher', () => {
+    const uid = () => computeStudentUid('SID-1', HMAC);
+    let teacherDown = false;
+    const seed = () => {
+      seedDomain('org-orono', '@orono.k12.mn.us');
+      h.docStore.set('users/real/rosters/r1', { classlinkClassId: 'ENG' });
+      h.docStore.set('users/flaky/rosters/r2', { classlinkClassId: 'BIO' });
+      seedTeacher('real');
+      // 'flaky' is staff whose ClassLink lookup can fail.
+      h.authUsers.set('flaky', {
+        email: 'flaky@orono.k12.mn.us',
+        emailVerified: true,
+      });
+      teacherDown = false;
+      h.axiosGet = async (url: string, cfg?: unknown) => {
+        const filter = (cfg as { params?: { filter?: string } })?.params
+          ?.filter;
+        if (filter === "email='flaky@orono.k12.mn.us'") {
+          if (teacherDown) throw new Error('429');
+          return { data: { users: [{ sourcedId: 'FLK', role: 'teacher' }] } };
+        }
+        if (url.endsWith('/users/FLK/classes'))
+          return { data: { classes: [{ sourcedId: 'BIO' }] } };
+        if (url.endsWith('/users/SID-1/classes'))
+          return {
+            data: { classes: [{ sourcedId: 'ENG' }, { sourcedId: 'BIO' }] },
+          };
+        if (url.endsWith('/users'))
+          return { data: { users: [{ sourcedId: 'SID-1', role: 'student' }] } };
+        throw new Error('unexpected url: ' + url);
+      };
+    };
+    const claim = () => (h.lastCustomToken?.claims as any).classIds;
+
+    it('keeps a section from the last sign-in instead of dropping it', async () => {
+      seed();
+      await callStudentLogin({ data: { idToken: 'x' } });
+      expect(claim()).toEqual(['ENG', 'BIO']);
+      expect(h.docStore.get(`student_sections/${uid()}`)).toMatchObject({
+        classIds: ['ENG', 'BIO'],
+      });
+
+      __resetRosterOwnerCache();
+      teacherDown = true;
+      await callStudentLogin({ data: { idToken: 'x' } });
+      expect(claim()).toEqual(['ENG', 'BIO']);
+    });
+
+    it('never adds a section the last sign-in did not claim', async () => {
+      seed();
+      teacherDown = true;
+      h.docStore.set(`student_sections/${uid()}`, {
+        orgId: 'org-orono',
+        sectionIds: ['ENG', 'BIO'],
+        classIds: ['ENG'],
+      });
+      await callStudentLogin({ data: { idToken: 'x' } });
+      expect(claim()).toEqual(['ENG']);
+    });
+
+    it('asks ClassLink again after a short wait rather than holding the failure for five minutes', async () => {
+      seed();
+      teacherDown = true;
+      const now = Date.now();
+      const spy = vi.spyOn(Date, 'now').mockReturnValue(now);
+      try {
+        await callStudentLogin({ data: { idToken: 'x' } });
+        expect(claim()).toEqual(['ENG']);
+        teacherDown = false;
+        spy.mockReturnValue(now + 20_000);
+        await callStudentLogin({ data: { idToken: 'x' } });
+        expect(claim()).toEqual(['ENG', 'BIO']);
+      } finally {
+        spy.mockRestore();
+      }
+    });
+  });
+
   it('keeps a class whose real roster sorts after a doc flood', async () => {
     seedDomain('org-orono', '@orono.k12.mn.us');
     for (let i = 0; i < 600; i++) {

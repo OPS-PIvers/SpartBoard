@@ -124,6 +124,15 @@ describe('launch-code store', () => {
     expect((await consumeLaunchCode(db, code))?.bindingHash).toBe('hash-1');
   });
 
+  it('keeps the code when the caller is refused, so the real launcher can still redeem it', async () => {
+    const { db } = makeFakeDb();
+    const launch = { ...sampleLaunch(), bindingHash: 'hash-1' };
+    const code = await mintLaunchCode(db, launch);
+    expect(await consumeLaunchCode(db, code, () => false)).toBe('refused');
+    expect(await consumeLaunchCode(db, code, () => true)).toEqual(launch);
+    expect(await consumeLaunchCode(db, code, () => true)).toBeNull();
+  });
+
   it('returns null for an unknown / empty code', async () => {
     const { db } = makeFakeDb();
     expect(await consumeLaunchCode(db, 'missing')).toBeNull();
