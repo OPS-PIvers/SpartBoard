@@ -24,6 +24,20 @@ export function isAttemptSubmitted(
   return response?.status === 'completed';
 }
 
+/** An open timed self-paced attempt with no server clock yet (a paper-scan row, or a limit added mid-assignment); the rules refuse its answers until it is stamped. */
+export function needsAttemptClock(
+  session: Pick<QuizSession, 'sessionMode' | 'timeLimitMinutes'>,
+  response: Pick<QuizResponse, 'status' | 'attemptStartedAt'> | null | undefined
+): boolean {
+  return (
+    session.sessionMode === 'student' &&
+    session.timeLimitMinutes != null &&
+    response != null &&
+    !isAttemptSubmitted(response) &&
+    response.attemptStartedAt == null
+  );
+}
+
 /** Whether the student has begun this attempt (answered anything or moved past joined). */
 export function isAttemptStarted(
   response: Pick<QuizResponse, 'status' | 'answers'> | null | undefined

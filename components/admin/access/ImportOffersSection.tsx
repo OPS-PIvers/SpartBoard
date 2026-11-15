@@ -49,7 +49,7 @@ const SOURCES: Record<
 > = {
   web: {
     label: 'Web link',
-    hint: 'A page address pasted or dropped on the board.',
+    hint: 'A link dropped on the board or sent with the Chrome extension.',
     Icon: Link2,
   },
   youtube: {
@@ -93,7 +93,11 @@ const SOURCES: Record<
     hint: 'A Notebook file.',
     Icon: PenLine,
   },
-  text: { label: 'Pasted text', hint: 'Text pasted on the board.', Icon: Type },
+  text: {
+    label: 'Dropped text',
+    hint: 'Text dragged onto the board.',
+    Icon: Type,
+  },
 };
 
 /** A lone widget is placed for the teacher only when it reads without AI and needs no sign-in click. */

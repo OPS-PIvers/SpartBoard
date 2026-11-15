@@ -21,8 +21,6 @@ vi.mock('firebase-functions/v2/https', () => {
 vi.mock('./functionsInit', () => ({}));
 vi.mock('./classlinkShared', () => ({ ALLOWED_ORIGINS: [] }));
 vi.mock('./viewAsGuard', () => ({ assertViewAsAllowed: vi.fn() }));
-const granted = vi.fn(() => Promise.resolve(true));
-vi.mock('./quizMediaArchive', () => ({ isGlobalFeatureGranted: granted }));
 
 import { checkGrader } from './flashcardCheck';
 import {
@@ -192,7 +190,7 @@ describe('handleRescoreFlashcardCheck', () => {
     ]);
   });
 
-  it('refuses students, other teachers, and teachers without the flag', async () => {
+  it('refuses students and other teachers', async () => {
     const { db } = makeDb(writeCheck, {});
     await expect(
       handleRescoreFlashcardCheck(
@@ -207,10 +205,6 @@ describe('handleRescoreFlashcardCheck', () => {
         { ...teacher, uid: 'other' },
         { assignmentId: 'a1' }
       )
-    ).rejects.toMatchObject({ code: 'permission-denied' });
-    granted.mockResolvedValueOnce(false);
-    await expect(
-      handleRescoreFlashcardCheck(db, teacher, { assignmentId: 'a1' })
     ).rejects.toMatchObject({ code: 'permission-denied' });
   });
 

@@ -27,6 +27,7 @@ import {
   rowsForSession,
 } from './gradeProjection';
 import { GRADE_INDEX } from './gradeIndex';
+import { legacyRowId, rowId } from './gradeRowMath';
 import type { IndexRow, GradeKind } from './types';
 import {
   CLASSLINK_CLIENT_ID,
@@ -38,6 +39,7 @@ import {
   applyAttemptGradeWrite,
   applyAttemptWrite,
 } from '../quizAttemptHistory';
+import { stampTurnIn } from '../quizTurnIn';
 
 type Doc = Record<string, unknown>;
 
@@ -166,13 +168,28 @@ export async function handleQuizResponseWrite(
 ): Promise<void> {
   const { sessionId, docId } = event.params;
   const parsed = event.time ? Date.parse(event.time) : NaN;
+  const eventAt = Number.isFinite(parsed) ? parsed : Date.now();
+  const before = dataOf(event.data?.before);
+  // The turn-in stamp lands first, so both steps below read the server's time; a stale failure is dropped.
+  let after = dataOf(event.data?.after);
+  await failUnlessStale(event.time, async () => {
+    after = await stampTurnIn(
+      admin.firestore(),
+      'quiz',
+      sessionId,
+      docId,
+      before,
+      after,
+      eventAt
+    );
+  });
   const [attempt, index] = await Promise.allSettled([
     applyAttemptWrite(admin.firestore(), {
       sessionId,
       responseKey: docId,
-      before: dataOf(event.data?.before),
-      after: dataOf(event.data?.after),
-      eventAt: Number.isFinite(parsed) ? parsed : Date.now(),
+      before,
+      after,
+      eventAt,
     }),
     handleStudentDocWrite('quiz', event),
   ]);
@@ -214,7 +231,35 @@ export const quizAttemptGradeWrite = onDocumentWritten(
     );
   }
 );
-export const gradeIndexVideoResponse = studentDocTrigger('video-activity');
+/** Video responses get the server's turn-in stamp before the index step. */
+export async function handleVideoResponseWrite(
+  event: WriteEvent
+): Promise<void> {
+  const { sessionId, docId } = event.params;
+  const parsed = event.time ? Date.parse(event.time) : NaN;
+  // A failed stamp retries the event rather than indexing the student's own time.
+  await failUnlessStale(event.time, async () => {
+    await stampTurnIn(
+      admin.firestore(),
+      'video-activity',
+      sessionId,
+      docId,
+      dataOf(event.data?.before),
+      dataOf(event.data?.after),
+      Number.isFinite(parsed) ? parsed : Date.now()
+    );
+    await handleStudentDocWrite('video-activity', event);
+  });
+}
+
+export const gradeIndexVideoResponse = onDocumentWritten(
+  {
+    ...TRIGGER_OPTS,
+    retry: true,
+    document: `${SESSION_COLLECTION['video-activity']}/{sessionId}/${STUDENT_SUBCOLLECTION['video-activity']}/{docId}`,
+  },
+  (event) => handleVideoResponseWrite(event as unknown as WriteEvent)
+);
 export const gradeIndexGuidedLearningResponse =
   studentDocTrigger('guided-learning');
 export const gradeIndexFlashcardProgress = studentDocTrigger('flashcards');
@@ -380,10 +425,27 @@ export async function handleRowWrite(event: WriteEvent): Promise<void> {
   const after = dataOf(event.data?.after) as IndexRow | undefined;
   await guarded('projection', { rowId: event.params.rowId }, async () => {
     const db = admin.firestore();
+    // Deleting a pre-kind row that a kind-keyed row replaced clears only an entry the replacement moved.
+    const replacementId = before
+      ? rowId(before.kind || 'quiz', before.sessionId, before.studentUid)
+      : '';
+    if (!after && before && event.params.rowId !== replacementId) {
+      const replacement = await db
+        .collection(GRADE_INDEX)
+        .doc(replacementId)
+        .get();
+      if (replacement.exists) {
+        await projectRow(db, replacement.data() as IndexRow, before);
+        return;
+      }
+    }
     await projectRow(db, after ?? null, before ?? null);
+    const row = after ?? before;
+    if (!row) return;
     await removeFlagsOnScore(
       db,
-      event.params.rowId,
+      // Marks keep the pre-kind id.
+      legacyRowId(row.sessionId, row.studentUid),
       after ?? null,
       before ?? null
     );
@@ -399,8 +461,19 @@ export async function handleMarkWrite(event: WriteEvent): Promise<void> {
   const { markId } = event.params;
   await guarded('mark', { markId }, async () => {
     const db = admin.firestore();
-    const row = await db.collection(GRADE_INDEX).doc(markId).get();
-    if (row.exists) await projectRow(db, row.data() as IndexRow, null);
+    const mark = dataOf(event.data?.after) ?? dataOf(event.data?.before);
+    const sessionId = typeof mark?.sessionId === 'string' ? mark.sessionId : '';
+    const studentUid =
+      typeof mark?.studentUid === 'string' ? mark.studentUid : '';
+    if (!sessionId || !studentUid) return;
+    // Every kind's row for this session and student; projectRow keeps only the mark owner's.
+    const rows = await db
+      .collection(GRADE_INDEX)
+      .where('sessionId', '==', sessionId)
+      .where('studentUid', '==', studentUid)
+      .get();
+    for (const row of rows.docs)
+      await projectRow(db, row.data() as IndexRow, null);
   });
 }
 

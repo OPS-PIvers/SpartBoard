@@ -417,6 +417,18 @@ describe('computeAssessmentAggregate', () => {
     expect(blank.teamAveragePercent).toBe(38);
   });
 
+  it('ignores a student-written paperTranscript on a multiple-choice answer', () => {
+    const forged = compute([
+      session('s-a', 'teacherA', [
+        response([
+          answer('q1', '', { paperTranscript: 'pending' }),
+          answer('q2', '4'),
+        ]),
+      ]),
+    ]);
+    expect(forged.scoredStudentCount).toBe(1);
+  });
+
   it('withholds a score while a written answer awaits a manual grade', () => {
     const agg = compute([
       session('s-a', 'teacherA', [

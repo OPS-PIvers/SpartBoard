@@ -1374,7 +1374,7 @@ export const useVideoActivitySessionStudent =
               : null;
             const newResponse: VideoActivityResponse = {
               studentUid: currentUser.uid,
-              joinedAt: Date.now(),
+              joinedAt: getServerNow(),
               answers: [],
               completedAt: null,
               score: null,
@@ -1387,15 +1387,18 @@ export const useVideoActivitySessionStudent =
                 : {}),
               ...(periodKey ? { classId: periodKey } : {}),
             };
-            // The seat lands in the same batch so the content rule can find the response.
-            if (periodKey)
-              await writeBatch(db)
-                .set(effectiveResponseRef, newResponse)
-                .set(seatRef(targetSessionId, currentUser.uid), {
-                  responseKey: effectiveResponseRef.id,
-                })
-                .commit();
-            else await setDoc(effectiveResponseRef, newResponse);
+            // The seat lands in the same batch; a denied create re-syncs the clock and restamps `joinedAt`.
+            await retryWithFreshClock(currentUser.uid, () => {
+              const row = { ...newResponse, joinedAt: getServerNow() };
+              return periodKey
+                ? writeBatch(db)
+                    .set(effectiveResponseRef, row)
+                    .set(seatRef(targetSessionId, currentUser.uid), {
+                      responseKey: effectiveResponseRef.id,
+                    })
+                    .commit()
+                : setDoc(effectiveResponseRef, row);
+            });
           }
 
           if (periodKey && existingSnap?.exists()) {

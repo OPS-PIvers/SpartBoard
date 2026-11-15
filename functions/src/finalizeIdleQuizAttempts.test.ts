@@ -555,7 +555,7 @@ describe('runFinalizeIdleQuizAttempts - ended sessions', () => {
   });
 });
 
-describe('runFinalizeIdleQuizAttempts - past the session close', () => {
+describe('runFinalizeIdleQuizAttempts - past a Scheduled close', () => {
   const T = CLOSE_SWEEP_SINCE_MS + 30 * 24 * 60 * MIN;
   const CLOSE_AT = T - 10 * MIN;
   const closedPeriod = {
@@ -590,78 +590,49 @@ describe('runFinalizeIdleQuizAttempts - past the session close', () => {
       },
     });
 
-  it('turns in paused-period and held rows once a due close passes', async () => {
+  // A Scheduled close (no `dueLocks`) keeps main's behavior: frozen and held work waits for End.
+  it('keeps skipping paused-period and held rows past a Scheduled close', async () => {
     const { db, responses } = seed({ status: 'active', closeAt: CLOSE_AT });
     const result = await runFinalizeIdleQuizAttempts(db, T);
-    expect(result.finalized).toBe(2);
-    for (const r of responses) {
-      expect(r.data.status).toBe('completed');
-      expect(r.data.autoSubmitted).toBe(true);
-    }
-  });
-
-  it('turns in a paused session once its close passes', async () => {
-    const { db, responses } = seed(
-      { status: 'paused', closeAt: tsVal(CLOSE_AT) },
-      [{ id: 'live', data: stale({}) }]
-    );
-    const result = await runFinalizeIdleQuizAttempts(db, T);
-    expect(result.finalized).toBe(1);
-    expect(responses[0].data.status).toBe('completed');
-  });
-
-  it('keeps skipping before the close and inside its grace', async () => {
-    for (const closeAt of [T + MIN, T - 60_000]) {
-      const { db, responses } = seed({ status: 'paused', closeAt });
-      const result = await runFinalizeIdleQuizAttempts(db, T);
-      expect(result.finalized).toBe(0);
-      expect(result.skippedPaused).toBe(2);
-      expect(responses[0].data.status).toBe('in-progress');
-    }
-  });
-
-  it('leaves sessions that closed before the fix shipped as they were', async () => {
-    const { db } = seed({
-      status: 'paused',
-      closeAt: CLOSE_SWEEP_SINCE_MS - 1,
-    });
-    const result = await runFinalizeIdleQuizAttempts(db, T);
     expect(result.finalized).toBe(0);
-  });
-
-  it('waits for an attempt the teacher unlocked past the close', async () => {
-    const { db, responses } = seed({ status: 'paused', closeAt: CLOSE_AT }, [
-      {
-        id: 'reopened',
-        data: stale({ unlocked: true, unlockKind: 'reopen' }),
-      },
-      { id: 'unlocked', data: stale({ unlocked: true, classId: 'A' }) },
-    ]);
-    const result = await runFinalizeIdleQuizAttempts(db, T);
-    expect(result.finalized).toBe(0);
+    expect(result.skippedPaused).toBe(2);
     expect(responses.map((r) => r.data.status)).toEqual([
       'in-progress',
       'in-progress',
     ]);
   });
 
-  it('skips a row when the teacher moved the close later during the run', async () => {
-    const { db, responses, sessions } = seed({
-      status: 'paused',
-      closeAt: CLOSE_AT,
-    });
-    const realGetAll = db.getAll.bind(db);
-    (db as unknown as { getAll: typeof db.getAll }).getAll = async (
-      ...refs: Parameters<typeof db.getAll>
-    ) => {
-      const out = await realGetAll(...refs);
-      sessions.sess1 = { ...sessions.sess1, closeAt: T + 60 * MIN };
-      return out;
-    };
+  it('keeps skipping a paused session past a Scheduled close', async () => {
+    const { db, responses } = seed(
+      { status: 'paused', closeAt: tsVal(CLOSE_AT) },
+      [{ id: 'live', data: stale({}) }]
+    );
     const result = await runFinalizeIdleQuizAttempts(db, T);
     expect(result.finalized).toBe(0);
-    expect(result.skippedRaced).toBe(2);
+    expect(result.skippedPaused).toBe(1);
     expect(responses[0].data.status).toBe('in-progress');
+  });
+
+  it('ignores a due date without the Manual due marker', async () => {
+    const { db, responses } = seed({
+      status: 'paused',
+      closeAt: CLOSE_AT,
+      dueAt: CLOSE_AT,
+    });
+    const result = await runFinalizeIdleQuizAttempts(db, T);
+    expect(result.finalized).toBe(0);
+    expect(responses[0].data.status).toBe('in-progress');
+  });
+
+  it('turns in frozen and held rows at End, stamped at the sweep time', async () => {
+    const { db, responses } = seed({
+      status: 'ended',
+      endedAt: T - 5 * MIN,
+      closeAt: CLOSE_AT,
+    });
+    const result = await runFinalizeIdleQuizAttempts(db, T);
+    expect(result.finalized).toBe(2);
+    for (const r of responses) expect(r.data.submittedAt).toBe(T);
   });
 });
 
@@ -715,6 +686,8 @@ describe('runFinalizeIdleQuizAttempts - Manual due date', () => {
     for (const r of responses) {
       expect(r.data.status).toBe('completed');
       expect(r.data.submittedAt).toBe(LAST);
+      // The sweep vouches for its own backdated time, so the turn-in trigger keeps it on time.
+      expect(r.data.turnIn).toEqual({ at: LAST, claimed: LAST });
     }
   });
 
@@ -732,6 +705,15 @@ describe('runFinalizeIdleQuizAttempts - Manual due date', () => {
       'in-progress',
       'in-progress',
     ]);
+  });
+
+  it('turns in a paused session past the due', async () => {
+    const { db, responses } = seed({ status: 'paused' }, [
+      { id: 'b', data: stale({ classId: 'B' }) },
+    ]);
+    const result = await runFinalizeIdleQuizAttempts(db, T);
+    expect(result.finalized).toBe(1);
+    expect(responses[0].data.status).toBe('completed');
   });
 
   it('waits before the due and for unlocked attempts', async () => {

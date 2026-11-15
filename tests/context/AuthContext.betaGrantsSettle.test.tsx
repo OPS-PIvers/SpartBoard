@@ -104,9 +104,9 @@ describe('AuthContext beta grants settle gate', () => {
         (onNext as unknown as SnapCb)({
           forEach: (cb: (d: { id: string; data: () => unknown }) => void) =>
             cb({
-              id: 'getting-started',
+              id: 'app-pickers',
               data: () => ({
-                featureId: 'getting-started',
+                featureId: 'app-pickers',
                 accessLevel: 'beta',
                 betaUsers: [],
                 enabled: true,
@@ -141,10 +141,10 @@ describe('AuthContext beta grants settle gate', () => {
 
     act(() => {
       (grantsCb as unknown as SnapCb)({
-        data: () => ({ features: [], global: ['getting-started'] }),
+        data: () => ({ features: [], global: ['app-pickers'] }),
       });
     });
     await waitFor(() => expect(getCtx().globalPermissionsLoaded).toBe(true));
-    expect(getCtx().canAccessFeature('getting-started')).toBe(true);
+    expect(getCtx().canAccessFeature('app-pickers')).toBe(true);
   });
 });

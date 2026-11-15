@@ -3,16 +3,25 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, waitFor } from '@testing-library/react';
+import { render, waitFor, screen, fireEvent } from '@testing-library/react';
 
 const addToast = vi.fn();
 const clearPendingRubricShare = vi.fn();
 const importSharedRubric = vi.fn();
 
 let pendingRubricShareId: string | null = 'share-abc';
+let confirmFlag = true;
+let permsLoaded = true;
 
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ user: { uid: 'uid-1' } }),
+  useAuth: () => ({
+    user: { uid: 'uid-1' },
+    orgId: 'orono',
+    isAdmin: false,
+    globalPermissionsLoaded: permsLoaded,
+    canAccessFeature: (id: string) =>
+      id === 'share-import-confirm' && confirmFlag,
+  }),
 }));
 
 vi.mock('@/context/useDashboard', () => ({
@@ -69,6 +78,23 @@ vi.mock('@/hooks/useQuestionBanks', () => ({
   useQuestionBanks: () => ({ saveBank: vi.fn() }),
 }));
 
+vi.mock('@/utils/shareImportPeek', () => ({
+  peekShareHeader: () =>
+    Promise.resolve({ title: 'Paragraph', originalAuthor: 'attacker-uid' }),
+  lookupOrgSharer: (orgId: string, uid: string) =>
+    Promise.resolve(
+      orgId === 'orono' && uid === 'attacker-uid'
+        ? { name: 'Sam Rivera', email: 'sam@orono.k12.mn.us' }
+        : null
+    ),
+  describeSharer: (
+    _uid: string,
+    _me: string,
+    _plcs: unknown,
+    org: { name: string } | null
+  ) => (org ? org.name : 'Someone outside your organization'),
+}));
+
 vi.mock('@/hooks/usePlcs', () => ({
   usePlcs: () => ({ plcs: [], loading: false }),
 }));
@@ -81,12 +107,17 @@ describe('DeepLinkShareImporter — rubric deep link', () => {
     clearPendingRubricShare.mockReset();
     importSharedRubric.mockReset();
     pendingRubricShareId = 'share-abc';
+    confirmFlag = true;
+    permsLoaded = true;
   });
 
   it('imports the pending rubric share and toasts its title', async () => {
     importSharedRubric.mockResolvedValue({ id: 'r1', title: 'Paragraph' });
     render(<DeepLinkShareImporter />);
 
+    await screen.findByText('Sam Rivera');
+    expect(importSharedRubric).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Import' }));
     await waitFor(() =>
       expect(importSharedRubric).toHaveBeenCalledWith('share-abc')
     );
@@ -103,12 +134,39 @@ describe('DeepLinkShareImporter — rubric deep link', () => {
     importSharedRubric.mockRejectedValue(new Error('Shared rubric not found'));
     render(<DeepLinkShareImporter />);
 
+    fireEvent.click(await screen.findByRole('button', { name: 'Import' }));
     await waitFor(() =>
       expect(addToast).toHaveBeenCalledWith(
         'Failed to import shared rubric: Shared rubric not found',
         'error'
       )
     );
+  });
+
+  it('imports silently with no dialog when the confirm flag is off', async () => {
+    confirmFlag = false;
+    importSharedRubric.mockResolvedValue({ id: 'r1', title: 'Paragraph' });
+    render(<DeepLinkShareImporter />);
+
+    await waitFor(() =>
+      expect(importSharedRubric).toHaveBeenCalledWith('share-abc')
+    );
+    expect(screen.queryByRole('button', { name: 'Import' })).toBeNull();
+    expect(screen.queryByText('Sam Rivera')).toBeNull();
+  });
+
+  it('neither imports nor shows the dialog until permissions load', async () => {
+    permsLoaded = false;
+    const { rerender } = render(<DeepLinkShareImporter />);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(importSharedRubric).not.toHaveBeenCalled();
+    expect(clearPendingRubricShare).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Import' })).toBeNull();
+
+    permsLoaded = true;
+    rerender(<DeepLinkShareImporter />);
+    await screen.findByRole('button', { name: 'Import' });
+    expect(importSharedRubric).not.toHaveBeenCalled();
   });
 
   it('does nothing when no rubric share is pending', () => {
