@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { installSuggestionLists, isSuggestionListOpen } from './suggestionList';
+import { setAppPickersEnabled } from './pickerPanel';
 
 const RECT = {
   x: 10,
@@ -20,10 +21,12 @@ beforeEach(() => {
     ...RECT,
     toJSON: () => RECT,
   });
+  setAppPickersEnabled(true);
   uninstall = installSuggestionLists();
 });
 afterEach(() => {
   uninstall();
+  setAppPickersEnabled(false);
   vi.restoreAllMocks();
 });
 

@@ -11,6 +11,7 @@ import {
   showPanel,
   touchOnly,
   isChromium,
+  appPickersEnabled,
 } from './pickerPanel';
 
 type Kind = 'date' | 'time' | 'datetime-local';
@@ -110,6 +111,7 @@ const t = (key: string, fallback: string) =>
   i18n.t(`picker.${key}`, { defaultValue: fallback });
 
 const isPickerField = (el: unknown): el is HTMLInputElement =>
+  appPickersEnabled() &&
   el instanceof HTMLInputElement &&
   KINDS.has(el.type) &&
   !el.readOnly &&
@@ -511,7 +513,13 @@ export const openFieldPicker = (
     closedByAnchor = null;
     return;
   }
-  if (!touchOnly() && isChromium() && openDatePicker(input, anchor)) return;
+  if (
+    appPickersEnabled() &&
+    !touchOnly() &&
+    isChromium() &&
+    openDatePicker(input, anchor)
+  )
+    return;
   try {
     input.showPicker();
   } catch {
@@ -699,6 +707,7 @@ export const installDatePickers = (): (() => void) => {
   };
 
   const onMouseDown = (e: MouseEvent) => {
+    if (!appPickersEnabled() && !current) return;
     if (current?.panel.contains(e.target as Node)) return;
     swallowClickOn = null;
     closedByAnchor = current?.anchor?.contains(e.target as Node)
@@ -714,6 +723,7 @@ export const installDatePickers = (): (() => void) => {
   };
 
   const onClick = (e: MouseEvent) => {
+    if (!appPickersEnabled() && !current) return;
     const input = e.target;
     if (!(input instanceof HTMLInputElement) || !KINDS.has(input.type)) return;
     if (swallowClickOn === input) {
@@ -728,6 +738,7 @@ export const installDatePickers = (): (() => void) => {
   };
 
   const onKeyDown = (e: KeyboardEvent) => {
+    if (!appPickersEnabled() && !current) return;
     const p = current;
     if (p) {
       if (e.target === p.owner) onOpenKey(e, p);

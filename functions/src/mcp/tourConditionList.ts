@@ -38,7 +38,9 @@ export const TOUR_CONDITION_DONE_FACTS: readonly string[] = [
 export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'ai-file-context',
   'anonymous-join',
+  'app-pickers',
   'assign-due-date',
+  'assignment-class-list',
   'assignment-modes',
   'blooms-ai',
   'board-context-menu',
