@@ -39,6 +39,8 @@ export const Z_INDEX = {
   annotationChrome: 9970, // Annotation toolbar / text editor (above the ink layer)
   shareChip: 9975, // Live-share status chip (board chrome; under the drawer and every full page)
   drawer: 9980, // Widget settings drawer (above annotation chrome, below every modal)
+  widgetActionBar: 9981, // A widget's own floating action bar (MiniApp, Embed), just under the widget toolbar
+  toolMenu: 9982, // Widget floating toolbar: above board chrome, below every full-screen overlay
   announcementOverlay: 9985, // Windowed announcements
   announcementMaximized: 9990, // Maximized announcements
   snapPreview: 9998, // Drag-to-edge visual preview
@@ -52,7 +54,6 @@ export const Z_INDEX = {
 
   // Floating/Pop-up layers
   popover: 11000, // Popovers, Menus attached to elements
-  toolMenu: 12000, // DraggableWindow specific tool menu
   popoverMenu: 12010, // Menus opened from a popover-level surface (e.g. Notes toolbar); must clear toolMenu
   tooltip: 13000, // Tooltips
   tour: 13500, // Live tour dim (above the expanded dock; below toasts and dialogs)

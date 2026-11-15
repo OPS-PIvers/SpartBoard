@@ -6,7 +6,7 @@
 
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
-import { afterAll, beforeAll, describe, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   initializeTestEnvironment,
   assertSucceeds,
@@ -114,6 +114,36 @@ describe('quiz Live view: live/state', () => {
     );
     await assertSucceeds(
       setDoc(doc(student(STUDENT_UID), STATE), { questionId: 'q2', at: 6 })
+    );
+  });
+
+  it('lets the student add their last activity and the tab warning', async () => {
+    await assertSucceeds(
+      setDoc(doc(student(STUDENT_UID), STATE), {
+        questionId: 'q1',
+        at: 5,
+        activeAt: 7,
+        warning: true,
+      })
+    );
+    const snap = await assertSucceeds(getDoc(doc(staff(TEACHER_UID), STATE)));
+    expect(snap.data()).toMatchObject({ activeAt: 7, warning: true });
+  });
+
+  it('rejects a non-number activeAt or a non-boolean warning', async () => {
+    await assertFails(
+      setDoc(doc(student(STUDENT_UID), STATE), {
+        questionId: 'q1',
+        at: 5,
+        activeAt: 'now',
+      })
+    );
+    await assertFails(
+      setDoc(doc(student(STUDENT_UID), STATE), {
+        questionId: 'q1',
+        at: 5,
+        warning: 'yes',
+      })
     );
   });
 

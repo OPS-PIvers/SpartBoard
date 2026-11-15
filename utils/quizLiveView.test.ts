@@ -161,4 +161,22 @@ describe('liveViewStats', () => {
     expect(stats.input).toBeNull();
     expect(stats.questionNumber).toBeNull();
   });
+
+  it('takes the newer of the student’s report and the response write for Last activity, capped at now', () => {
+    const stamped = {
+      ...RESPONSE,
+      lastWriteAt: { toMillis: () => 9_000 },
+    } as unknown as QuizResponse;
+    const at = (activeAt?: number) =>
+      liveViewStats(SESSION, stamped, 'q1', 10_000, undefined, {
+        questionId: 'q1',
+        at: 5_000,
+        ...(activeAt != null ? { activeAt } : {}),
+      }).lastActivityAt;
+    expect(at()).toBe(9_000);
+    // A report left from an earlier watch never hides a newer answer save.
+    expect(at(6_000)).toBe(9_000);
+    expect(at(9_500)).toBe(9_500);
+    expect(at(99_000)).toBe(10_000);
+  });
 });

@@ -44,6 +44,8 @@ import {
   buildVideoActivityGradeEntries,
   countVideoActivityAnswersToMark,
   isVideoActivityResponseAwaitingGrade,
+  liveScoredResponse,
+  firstVaAnswers,
 } from '@/utils/videoActivityGrading';
 import { VaShortAnswerMarking } from './results/VaShortAnswerMarking';
 import {
@@ -215,6 +217,10 @@ export const Results: React.FC<ResultsProps> = ({
   );
   const totalStudents = responses.length;
   const isLive = isLiveVideoActivitySession(session);
+  const scoredResponses = useMemo(
+    () => (isLive ? responses.map(liveScoredResponse) : responses),
+    [isLive, responses]
+  );
   const notAskedIds = useMemo(
     () => notAskedVideoActivityQuestionIds(session, questions),
     [session, questions]
@@ -265,7 +271,7 @@ export const Results: React.FC<ResultsProps> = ({
       finalOverlay,
       (uid) => {
         const r = byUid.get(uid);
-        return r ? videoActivityLiveRaw(r, scoredQuestions) : null;
+        return r ? videoActivityLiveRaw(r, scoredQuestions, isLive) : null;
       },
       Date.now()
     );
@@ -304,8 +310,13 @@ export const Results: React.FC<ResultsProps> = ({
     return g.isCorrect ? 'correct' : 'incorrect';
   };
 
+  // A live run scores only answers the check callable recorded.
   const getStudentScore = (r: VideoActivityResponse): number =>
-    computeVideoActivityScorePct(scoredQuestions, r.answers, r.grading);
+    computeVideoActivityScorePct(
+      scoredQuestions,
+      (isLive ? liveScoredResponse(r) : r).answers,
+      r.grading
+    );
 
   // Answered short answers still to mark, across completed responses.
   const toMarkCount = useMemo(
@@ -356,7 +367,7 @@ export const Results: React.FC<ResultsProps> = ({
         ) {
           const pct = computeVideoActivityScorePct(
             scoredQuestions,
-            r.answers,
+            (isLive ? liveScoredResponse(r) : r).answers,
             r.grading
           );
           scoreSum += pct;
@@ -375,10 +386,10 @@ export const Results: React.FC<ResultsProps> = ({
       avgScore: scoredCount > 0 ? Math.round(scoreSum / scoredCount) : null,
       scores: scorePcts,
     };
-  }, [responses, scoredQuestions]);
+  }, [responses, scoredQuestions, isLive]);
 
   const getQuestionAccuracy = (question: VideoActivityQuestion): number =>
-    computeQuestionAccuracy(question, responses);
+    computeQuestionAccuracy(question, scoredResponses);
 
   const formatTimestamp = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -409,30 +420,41 @@ export const Results: React.FC<ResultsProps> = ({
       const drive = new QuizDriveService(token);
 
       // Map VideoActivityResponses to QuizResponse shape for reuse
-      const quizResponses = responses.map((r) => ({
-        studentUid: r.studentUid,
-        // Anon responses always carry a PIN; SSO responses don't. Fall back
-        // to empty string so the export shape stays string-typed.
-        pin: r.pin ?? '',
-        joinedAt: r.joinedAt,
-        status: isVaResponseCompleted(r)
-          ? ('completed' as const)
-          : ('in-progress' as const),
-        answers: r.answers.map((a) => ({
-          questionId: a.questionId,
-          answer: a.answer,
-          answeredAt: a.answeredAt,
-          isCorrect: a.isCorrect,
-        })),
-        score: r.score,
-        grading: r.grading,
-        submittedAt: r.completedAt,
-        tabSwitchWarnings: r.tabSwitchWarnings ?? 0,
-        tabExits: r.tabExits,
-        ...(r.staffEmail
-          ? { staffEmail: r.staffEmail, staffName: r.staffName ?? '' }
-          : {}),
-      }));
+      const quizResponses = responses.map((raw) => {
+        // Export the answers the scorers use: live-recorded, first per question.
+        const r = {
+          ...raw,
+          answers: [
+            ...firstVaAnswers(
+              (isLive ? liveScoredResponse(raw) : raw).answers
+            ).values(),
+          ],
+        };
+        return {
+          studentUid: r.studentUid,
+          // Anon responses always carry a PIN; SSO responses don't. Fall back
+          // to empty string so the export shape stays string-typed.
+          pin: r.pin ?? '',
+          joinedAt: r.joinedAt,
+          status: isVaResponseCompleted(r)
+            ? ('completed' as const)
+            : ('in-progress' as const),
+          answers: r.answers.map((a) => ({
+            questionId: a.questionId,
+            answer: a.answer,
+            answeredAt: a.answeredAt,
+            isCorrect: a.isCorrect,
+          })),
+          score: r.score,
+          grading: r.grading,
+          submittedAt: r.completedAt,
+          tabSwitchWarnings: r.tabSwitchWarnings ?? 0,
+          tabExits: r.tabExits,
+          ...(r.staffEmail
+            ? { staffEmail: r.staffEmail, staffName: r.staffName ?? '' }
+            : {}),
+        };
+      });
 
       // Pass `byStudentUid` so SSO `studentRole` rows (no PIN) export with
       // their resolved ClassLink names instead of falling back to the
@@ -516,7 +538,12 @@ export const Results: React.FC<ResultsProps> = ({
     // Unscoreable/incomplete responses are excluded so we never pop a consent
     // dialog for nothing — or PATCH a phantom 0 into the real gradebook.
     const grades = withFinalScores(
-      buildVideoActivityGradeEntries(responses, scoredQuestions, maxPoints),
+      buildVideoActivityGradeEntries(
+        responses,
+        scoredQuestions,
+        maxPoints,
+        isLive
+      ),
       maxPoints
     );
     if (grades.length === 0) {
@@ -589,7 +616,12 @@ export const Results: React.FC<ResultsProps> = ({
     // push and the Publish=Push chaining) so nothing drifts.
     const maxPoints = videoActivityMaxPoints(questions);
     const grades = withFinalScores(
-      buildVideoActivityGradeEntries(responses, scoredQuestions, maxPoints),
+      buildVideoActivityGradeEntries(
+        responses,
+        scoredQuestions,
+        maxPoints,
+        isLive
+      ),
       maxPoints
     );
     if (grades.length === 0) {
@@ -651,7 +683,12 @@ export const Results: React.FC<ResultsProps> = ({
       }
       const maxPoints = videoActivityMaxPoints(questions);
       const scored = withFinalScores(
-        buildVideoActivityGradeEntries(responses, scoredQuestions, maxPoints),
+        buildVideoActivityGradeEntries(
+          responses,
+          scoredQuestions,
+          maxPoints,
+          isLive
+        ),
         maxPoints
       );
       return {
@@ -965,7 +1002,10 @@ export const Results: React.FC<ResultsProps> = ({
                     scoredQuestions,
                     r.answers
                   );
-                  const correct = countCorrectAnswers(r, scoredQuestions);
+                  const correct = countCorrectAnswers(
+                    isLive ? liveScoredResponse(r) : r,
+                    scoredQuestions
+                  );
                   const awaitingMark =
                     isVaResponseCompleted(r) &&
                     isVideoActivityResponseAwaitingGrade(scoredQuestions, r);
@@ -974,7 +1014,7 @@ export const Results: React.FC<ResultsProps> = ({
                       ? finalScoreFor(
                           finalOverlay,
                           r.studentUid,
-                          videoActivityLiveRaw(r, scoredQuestions),
+                          videoActivityLiveRaw(r, scoredQuestions, isLive),
                           overlayNow
                         )
                       : null;

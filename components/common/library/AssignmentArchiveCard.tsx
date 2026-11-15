@@ -133,23 +133,22 @@ export function AssignmentArchiveCard<TAssignment>({
           >
             {title}
           </div>
+          {/* Meta items wrap to a new line instead of being clipped. */}
           <div
-            className={`flex items-center mt-0.5 min-w-0 overflow-hidden ${metaClass}`}
+            className={`flex flex-wrap items-center mt-0.5 min-w-0 whitespace-nowrap ${metaClass}`}
             style={{
-              gap: 'min(8px, 2cqmin)',
+              columnGap: 'min(8px, 2cqmin)',
+              rowGap: 'min(2px, 0.5cqmin)',
               fontSize: 'min(12px, 3.5cqmin)',
             }}
           >
             {subtitle !== undefined && subtitle !== null && (
-              <span className="font-semibold truncate min-w-0">{subtitle}</span>
+              <span className="font-semibold min-w-0 whitespace-normal [overflow-wrap:anywhere]">
+                {subtitle}
+              </span>
             )}
             {meta !== undefined && meta !== null && (
-              <span
-                className="flex items-center min-w-0 overflow-hidden whitespace-nowrap"
-                style={{ gap: 'min(8px, 2cqmin)' }}
-              >
-                {meta}
-              </span>
+              <span className="contents">{meta}</span>
             )}
           </div>
         </div>

@@ -1,5 +1,5 @@
 // Loop guards: the no-regression check (R20), supervised start (R32) and the weekly spot check (R33, R34).
-// node scripts/widget-grader/loop.ts compare --before <card.json> --after <card.json>
+// node scripts/widget-grader/loop.ts compare --before <card.json> --after <card.json> [--auto]
 // node scripts/widget-grader/loop.ts supervision
 // node scripts/widget-grader/loop.ts new-widget --type <widgetType>
 // node scripts/widget-grader/loop.ts spot-sample [--n 8] [--days 14]
@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { rollup } from './rollup.ts';
 import type {
   CriterionId,
+  CriterionScore,
   DimensionId,
   GateId,
   Level,
@@ -72,18 +73,30 @@ export function compareFill(
   return drops;
 }
 
-/** R20: the whole widget is re-graded; any criterion drop or any gate failure rejects the loop. */
+// A Paul grade with no automatic level is unknown here, not a level to compare against.
+const autoLevel = (s: CriterionScore | undefined): Level | null | undefined =>
+  s
+    ? (s.candidates?.script ??
+      s.candidates?.judge ??
+      (s.source === 'paul' ? undefined : s.score))
+    : undefined;
+
+/** R20: the whole widget is re-graded; any criterion drop or any gate failure rejects the loop. `auto` compares script/judge levels so Paul's grades don't hide a gain. */
 export function compareScorecards(
   rubric: Rubric,
   before: Scorecard,
-  after: Scorecard
+  after: Scorecard,
+  opts: { auto?: boolean } = {}
 ): Comparison {
+  const level = (s: CriterionScore | undefined) =>
+    opts.auto ? autoLevel(s) : s?.score;
   const drops: Regression[] = [];
   const gains: Comparison['gains'] = [];
   for (const d of rubric.dimensions) {
     for (const c of d.criteria) {
-      const b = before.criteria[c.id]?.score;
-      const a = after.criteria[c.id]?.score;
+      const b = level(before.criteria[c.id]);
+      const a = level(after.criteria[c.id]);
+      if (opts.auto && before.criteria[c.id] && b === undefined) continue;
       if (typeof b === 'number' && (typeof a !== 'number' || a < b))
         drops.push({ criterionId: c.id, before: b, after: a ?? null });
       else if (typeof a === 'number' && (typeof b !== 'number' || a > b))
@@ -136,6 +149,8 @@ export interface SupervisedLoop {
   dimension: DimensionId;
   openedAt: string;
   outcome: LoopOutcome;
+  /** Paul's reason when he skipped the fix on the weekly page. */
+  note?: string;
   /** Automatic levels the loop changed, so a spot check can tell a real rise from a gamed one. */
   changes?: Partial<
     Record<CriterionId, { before: Level | null; after: Level }>
@@ -344,14 +359,15 @@ function main(argv: string[]): void {
     const after = arg('after');
     if (!before || !after) {
       console.error(
-        'usage: loop.ts compare --before <file> --after <file> [--before-measure <file> --after-measure <file>]'
+        'usage: loop.ts compare --before <file> --after <file> [--auto] [--before-measure <file> --after-measure <file>]'
       );
       process.exit(2);
     }
     const c = compareScorecards(
       rubric,
       readJson<Scorecard>(resolve(root, before), {} as Scorecard),
-      readJson<Scorecard>(resolve(root, after), {} as Scorecard)
+      readJson<Scorecard>(resolve(root, after), {} as Scorecard),
+      { auto: argv.includes('--auto') }
     );
     const bm = arg('before-measure');
     const am = arg('after-measure');

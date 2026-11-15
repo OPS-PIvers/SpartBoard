@@ -41,6 +41,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'assign-due-date',
   'assignment-modes',
   'blooms-ai',
+  'board-context-menu',
   'checklist-small-card',
   'choose-n-pick-counted',
   'class-student-page',
@@ -91,6 +92,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'instructional-routine',
   'live-session',
   'live-tour-editing-v2',
+  'lunch-count-redesign',
   'magic-layout',
   'managed-profile-check',
   'mini-app-ai',
@@ -125,6 +127,9 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'quiz-import-pdf-answer-marks',
   'quiz-import-versions-plain',
   'quiz-live-view',
+  'quiz-live-view-nudge',
+  'quiz-live-view-nudge-note',
+  'quiz-live-view-screenshot',
   'quiz-media-response',
   'quiz-monitor-roster',
   'quiz-read-aloud',
@@ -135,6 +140,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'quiz-translation',
   'quiz-whiteboard-response',
   'remote-control',
+  'reopen-selected-students',
   'roster-groups',
   'routine-guide',
   'schoology-push-due-date',
@@ -163,7 +169,6 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
 ];
 
 export const TOUR_CONDITION_RETIRED_FEATURES: readonly string[] = [
-  'lunch-count-redesign',
   'lunch-count-resend',
   'quiz-import-versions',
   'quiz-ordering-images',
