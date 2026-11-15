@@ -145,6 +145,7 @@ export function useAnchorElement(
   const slot = binding?.slot;
   const boundId = slot === undefined ? undefined : scope.slots?.[slot];
   const scopeKey = (scope.widgetIds ?? []).join(',');
+  const picksKey = scope.picks ? JSON.stringify(scope.picks) : '';
   // An empty anchor goes straight to the role/name fallback.
   const searchable = !!anchor || !!(fallbackRole && fallbackName);
   const anyRow = !!anchor && isRowWildcardRef(anchor);
@@ -153,6 +154,7 @@ export function useAnchorElement(
     fallbackRole,
     fallbackName,
     scopeKey,
+    picksKey,
     boundId,
     attempt,
   ].join('|');
@@ -174,6 +176,9 @@ export function useAnchorElement(
     };
     const widgetIds = scopeKey ? scopeKey.split(',') : [];
     const slots = boundId ? { 0: boundId } : undefined;
+    const picks = picksKey
+      ? (JSON.parse(picksKey) as Record<string, string>)
+      : undefined;
     let cancelled = false;
     let element: HTMLElement | null = null;
     let lastRect: DOMRect | null = null;
@@ -234,6 +239,7 @@ export function useAnchorElement(
           const row = findTourAnchors(target, {
             widgetIds,
             slots,
+            picks,
             accept: shown,
           })[0];
           if (row) {
@@ -279,6 +285,7 @@ export function useAnchorElement(
           ? findTourAnchors(target, {
               widgetIds,
               slots,
+              picks,
               accept: (m) => isAnchorReachable(m) && anchorInView(m) !== 'none',
             })
           : [];
@@ -330,7 +337,7 @@ export function useAnchorElement(
       const accept = fullOnly
         ? (el: Element) => isAnchorReachable(el) && anchorInView(el) === 'full'
         : isAnchorReachable;
-      const opts = { widgetIds, slots, accept };
+      const opts = { widgetIds, slots, accept, picks };
       let found = idOnly ? findTourAnchor(idOnly, opts) : null;
       if (!found && target.fallback) {
         const wait = lastFallback + ANCHOR_SEARCH_THROTTLE_MS - Date.now();
@@ -476,6 +483,7 @@ export function useAnchorElement(
     fallbackRole,
     fallbackName,
     scopeKey,
+    picksKey,
     boundId,
     requestKey,
     anyRow,
