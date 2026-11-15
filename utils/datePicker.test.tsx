@@ -209,8 +209,14 @@ describe('datePicker', () => {
     };
     render(<Hidden />);
     const open = screen.getByRole('button', { name: 'Due date' });
+    open.focus();
     fireEvent.click(open);
     expect(isDatePickerOpen()).toBe(true);
+    expect(document.activeElement).toBe(open);
+    expect(open).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.keyDown(open, { key: 'Escape' });
+    expect(isDatePickerOpen()).toBe(false);
+    fireEvent.click(open);
     fireEvent.mouseDown(open);
     fireEvent.click(open);
     expect(isDatePickerOpen()).toBe(false);

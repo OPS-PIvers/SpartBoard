@@ -45,6 +45,8 @@ interface OpenPicker {
   onInput: () => void;
   onChange: (e: Event) => void;
   anchor: HTMLElement | null;
+  // Holds focus and the combobox attributes: the anchor button when there is one, else the field.
+  owner: HTMLElement;
   // The value when the panel opened; change fires on close, as the browser's picker does.
   openedWith: string;
 }
@@ -381,7 +383,7 @@ const render = (p: OpenPicker) => {
   }
   p.panel.replaceChildren(...children);
   if (p.kind !== 'time')
-    p.input.setAttribute('aria-activedescendant', `${p.panel.id}-${p.active}`);
+    p.owner.setAttribute('aria-activedescendant', `${p.panel.id}-${p.active}`);
   // Keeps the picked hour and minute in view.
   p.panel
     .querySelectorAll<HTMLElement>('[role="listbox"] [aria-selected="true"]')
@@ -473,6 +475,7 @@ export const openDatePicker = (
     frame: 0,
     placedAt: '',
     anchor,
+    owner: anchor ?? input,
     openedWith: input.value,
     onChange: (e) => {
       // Typing fires its own change; only the panel's picks are left for close.
@@ -487,11 +490,12 @@ export const openDatePicker = (
   syncView(p);
   current = p;
   showPanel(panel, status);
-  input.setAttribute('aria-expanded', 'true');
-  input.setAttribute('aria-controls', panel.id);
+  p.owner.setAttribute('aria-expanded', 'true');
+  p.owner.setAttribute('aria-controls', panel.id);
   input.addEventListener('input', p.onInput);
   input.addEventListener('change', p.onChange);
-  if (document.activeElement !== input) input.focus({ preventScroll: true });
+  if (document.activeElement !== p.owner)
+    p.owner.focus({ preventScroll: true });
   render(p);
   follow(p);
   return true;
@@ -524,9 +528,9 @@ export const closeDatePicker = () => {
   p.input.removeEventListener('change', p.onChange);
   p.panel.remove();
   p.status.remove();
-  p.input.removeAttribute('aria-expanded');
-  p.input.removeAttribute('aria-controls');
-  p.input.removeAttribute('aria-activedescendant');
+  p.owner.removeAttribute('aria-expanded');
+  p.owner.removeAttribute('aria-controls');
+  p.owner.removeAttribute('aria-activedescendant');
   if (p.input.value !== p.openedWith)
     p.input.dispatchEvent(new Event('change', { bubbles: true }));
   if (p.anchor?.isConnected && document.activeElement === p.input)
@@ -726,7 +730,7 @@ export const installDatePickers = (): (() => void) => {
   const onKeyDown = (e: KeyboardEvent) => {
     const p = current;
     if (p) {
-      if (e.target === p.input) onOpenKey(e, p);
+      if (e.target === p.owner) onOpenKey(e, p);
       return;
     }
     const input = e.target;
@@ -737,7 +741,7 @@ export const installDatePickers = (): (() => void) => {
   };
 
   const onFocusOut = (e: FocusEvent) => {
-    if (current && e.target === current.input) closeDatePicker();
+    if (current && e.target === current.owner) closeDatePicker();
   };
 
   const onResize = () => closeDatePicker();
