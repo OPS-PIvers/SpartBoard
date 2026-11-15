@@ -1,5 +1,6 @@
 // Keeps scanned paper answers, stored as choice text, matching a teacher's pure rewords.
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import * as logger from 'firebase-functions/logger';
 import * as admin from './firebaseAdmin';
 import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';
@@ -35,6 +36,8 @@ export interface PaperRewordResult {
   answersUpdated: number;
   responsesUpdated: number;
   batchesUpdated: number;
+  /** Responses left as they were because they could not be processed. */
+  responsesSkipped?: number;
 }
 
 interface Slots {
@@ -149,6 +152,10 @@ function rewrite(
 ): { answers: AnswerEntry[]; changes: Array<Record<string, string>> } {
   const changes: Array<Record<string, string>> = [];
   const next = answers.map((entry) => {
+    // Students can write any shape here; leave what is not an entry alone.
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      return entry;
+    }
     const plan =
       typeof entry.questionId === 'string'
         ? slots.get(entry.questionId)
@@ -160,12 +167,15 @@ function rewrite(
     let at = plan.from.findIndex((text) => norm(text) === given);
     if (at < 0 && plan.to.some((text) => norm(text) === given)) return entry;
     // Only wording no list knows comes from a stopped run; a teacher's correction never does.
+    const slot = entry.paperSlot;
     if (
       at < 0 &&
-      typeof entry.paperSlot === 'number' &&
-      entry.paperSlot < plan.to.length
+      typeof slot === 'number' &&
+      Number.isInteger(slot) &&
+      slot >= 0 &&
+      slot < plan.to.length
     ) {
-      at = entry.paperSlot;
+      at = slot;
     }
     if (at < 0 || norm(plan.to[at]) === given) return entry;
     changes.push({
@@ -227,6 +237,8 @@ export async function handlePaperRewordSync(
     batchesUpdated: 0,
   };
   if (plans.size === 0) return result;
+  // A batch with a skipped response keeps its record so the next save retries it.
+  const retryBatches = new Set<string>();
 
   for (const assignment of assignmentSnaps.docs) {
     const sessionRef = db.collection('quiz_sessions').doc(assignment.id);
@@ -236,24 +248,36 @@ export async function handlePaperRewordSync(
     for (const response of responses.docs) {
       const batchId = response.data().paperBatchId as string | undefined;
       if (!batchId || !plans.has(batchId)) continue;
-      const count = await db.runTransaction(async (tx) => {
-        const snap = await tx.get(response.ref);
-        const data = snap.data() ?? {};
-        const slots = plans.get(data.paperBatchId as string);
-        if (!slots || !Array.isArray(data.answers)) return 0;
-        const { answers, changes } = rewrite(
-          data.answers as AnswerEntry[],
-          slots
-        );
-        if (changes.length === 0) return 0;
-        tx.update(response.ref, { answers });
-        // Old values, so a change can be undone.
-        tx.set(response.ref.collection('paper_reword_log').doc(String(now)), {
-          at: now,
-          changes,
+      let count = 0;
+      try {
+        count = await db.runTransaction(async (tx) => {
+          const snap = await tx.get(response.ref);
+          const data = snap.data() ?? {};
+          const slots = plans.get(data.paperBatchId as string);
+          if (!slots || !Array.isArray(data.answers)) return 0;
+          const { answers, changes } = rewrite(
+            data.answers as AnswerEntry[],
+            slots
+          );
+          if (changes.length === 0) return 0;
+          tx.update(response.ref, { answers });
+          // Old values, so a change can be undone.
+          tx.set(response.ref.collection('paper_reword_log').doc(String(now)), {
+            at: now,
+            changes,
+          });
+          return changes.length;
         });
-        return changes.length;
-      });
+      } catch (err) {
+        // One bad response must not block the rest of the quiz.
+        logger.warn('paperRewordSync skipped a response', {
+          responseId: response.id,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        result.responsesSkipped = (result.responsesSkipped ?? 0) + 1;
+        retryBatches.add(batchId);
+        continue;
+      }
       if (count > 0) {
         result.answersUpdated += count;
         result.responsesUpdated += 1;
@@ -264,7 +288,7 @@ export async function handlePaperRewordSync(
   // Last, so a run that stops early is finished by the next save.
   for (const batch of batchSnaps.docs) {
     const slots = plans.get(batch.id);
-    if (!slots) continue;
+    if (!slots || retryBatches.has(batch.id)) continue;
     const fields: Record<string, string[]> = {};
     for (const [questionId, { to, changed, stub }] of slots) {
       if (changed && !stub) fields[`choiceOrder.${questionId}`] = to;

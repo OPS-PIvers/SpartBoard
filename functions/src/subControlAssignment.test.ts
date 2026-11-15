@@ -242,6 +242,7 @@ describe('handleControlSubAssignment — ending a quiz', () => {
     expect(finalized.data).toEqual({
       status: 'completed',
       submittedAt: NOW,
+      turnIn: { at: NOW, claimed: NOW },
       unlocked: false,
       completedAttempts: 2,
       answers: [

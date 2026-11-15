@@ -18,6 +18,10 @@ import {
   type RosterGrantingDrive,
 } from '@/utils/subShareDriveGrants';
 import { logError } from '@/utils/logError';
+import {
+  assertNextUpQueueFile,
+  nextUpSessionId,
+} from '@/components/widgets/NextUp/nextUpDriveFile';
 import type {
   ActivityWallConfig,
   ActivityWallSubmission,
@@ -73,7 +77,8 @@ function liveNextUpWidgets(board: Dashboard): WidgetData[] {
 export async function withSubShareQueues(
   names: SubShareNamesFile,
   boards: Dashboard[],
-  readQueue: ((fileId: string) => Promise<unknown>) | undefined
+  readQueue:
+    ((fileId: string, widgetId: string) => Promise<unknown>) | undefined
 ): Promise<{ names: SubShareNamesFile; unreadable: string[] }> {
   const unreadable = new Set<string>();
   const withQueues: SubShareNamesFile = {
@@ -89,7 +94,7 @@ export async function withSubShareQueues(
       if (!readQueue) return { board, widget, label, queue: null };
       try {
         const queue = parseNextUpQueue(
-          await readQueue(config.activeDriveFileId as string)
+          await readQueue(config.activeDriveFileId as string, widget.id)
         );
         return { board, widget, label, queue };
       } catch (err) {
@@ -345,13 +350,17 @@ export function driveQueueReader(
         ) => Promise<boolean>;
       }
     | null
-    | undefined
-): ((fileId: string) => Promise<unknown>) | undefined {
-  if (!drive) return undefined;
-  return async (fileId) => {
-    // An imported widget can name any app file; only a NextUp queue file is read.
-    if (!(await drive.isInAppFolder(fileId, ['NextUp'])))
-      throw new Error('queue file is not in the NextUp folder');
+    | undefined,
+  teacherUid?: string
+): ((fileId: string, widgetId: string) => Promise<unknown>) | undefined {
+  if (!drive || !teacherUid) return undefined;
+  return async (fileId, widgetId) => {
+    // A co-teacher or import can name any queue file; only the one the owner's session record binds to this widget is read.
+    await assertNextUpQueueFile(
+      drive,
+      fileId,
+      nextUpSessionId(teacherUid, widgetId)
+    );
     const blob = await drive.downloadFile(fileId);
     return JSON.parse(await blob.text()) as unknown;
   };
@@ -361,7 +370,7 @@ export function driveQueueReader(
 export interface SubShareNamesServices {
   write: SubShareNamesWriter;
   /** Reads a Next Up queue file from the teacher's Drive. */
-  readQueue?: (fileId: string) => Promise<unknown>;
+  readQueue?: (fileId: string, widgetId: string) => Promise<unknown>;
   /** Reads an Activity Wall's approved posts from the teacher's session. */
   readWallPosts?: (activityId: string) => Promise<unknown>;
   /** Called with the labels of whatever could not be read. */

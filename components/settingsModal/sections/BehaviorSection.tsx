@@ -28,7 +28,6 @@ export const BehaviorSection: React.FC = () => {
     spellCheckEnabled,
     remoteControlEnabled,
     spartyEnabled,
-    canAccessFeature,
     updateAccountPreferences,
   } = useAuth();
   const spartyLabel = t('sidebar.settings.showSparty', {
@@ -163,32 +162,30 @@ export const BehaviorSection: React.FC = () => {
           </div>
         </Card>
 
-        {canAccessFeature('sparty') && (
-          <Card className="flex items-start gap-4" hoverable>
-            <Sparty
-              pose="idle"
-              size={32}
-              decorative
-              className="shrink-0 mt-0.5"
-            />
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-xs font-bold text-slate-700">
-                  {spartyLabel}
-                </span>
-                <Toggle
-                  size="sm"
-                  label={spartyLabel}
-                  anchor={tourAttr('behavior.sparty-toggle')}
-                  checked={spartyEnabled}
-                  onChange={(checked) =>
-                    void updateAccountPreferences({ spartyEnabled: checked })
-                  }
-                />
-              </div>
+        <Card className="flex items-start gap-4" hoverable>
+          <Sparty
+            pose="idle"
+            size={32}
+            decorative
+            className="shrink-0 mt-0.5"
+          />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs font-bold text-slate-700">
+                {spartyLabel}
+              </span>
+              <Toggle
+                size="sm"
+                label={spartyLabel}
+                anchor={tourAttr('behavior.sparty-toggle')}
+                checked={spartyEnabled}
+                onChange={(checked) =>
+                  void updateAccountPreferences({ spartyEnabled: checked })
+                }
+              />
             </div>
-          </Card>
-        )}
+          </div>
+        </Card>
       </div>
     </div>
   );

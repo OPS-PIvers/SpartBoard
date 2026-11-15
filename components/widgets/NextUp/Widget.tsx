@@ -134,13 +134,13 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
   ]);
 
   const downloadQueue = useCallback(async () => {
-    if (!driveService || !activeDriveFileId) {
+    if (!driveService || !activeDriveFileId || !sessionId) {
       throw new Error('Google Drive is not connected');
     }
-    await assertNextUpQueueFile(driveService, activeDriveFileId);
+    await assertNextUpQueueFile(driveService, activeDriveFileId, sessionId);
     const blob = await driveService.downloadFile(activeDriveFileId);
     return JSON.parse(await blob.text()) as NextUpQueueItem[];
-  }, [driveService, activeDriveFileId]);
+  }, [driveService, activeDriveFileId, sessionId]);
 
   // Sync from Drive when triggered by Firestore
   useEffect(() => {
@@ -175,14 +175,15 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
 
   const writeQueue = useCallback(
     async (fileId: string, updatedQueue: NextUpQueueItem[]) => {
-      if (!driveService) throw new Error('Google Drive is not connected');
-      await assertNextUpQueueFile(driveService, fileId);
+      if (!driveService || !sessionId)
+        throw new Error('Google Drive is not connected');
+      await assertNextUpQueueFile(driveService, fileId, sessionId);
       const blob = new Blob([JSON.stringify(updatedQueue)], {
         type: 'application/json',
       });
       await driveService.updateFileContent(fileId, blob);
     },
-    [driveService]
+    [driveService, sessionId]
   );
 
   // Patch only lastUpdated, so a write finishing after End can't reopen the queue.

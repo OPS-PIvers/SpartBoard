@@ -58,6 +58,7 @@ import {
 import {
   NOW,
   makeQuizSession,
+  makeQuizMonitorRoster,
   makeQuizResponses,
   makeQuizAttemptCopies,
   makeTimedQuizSession,
@@ -348,11 +349,12 @@ const SessionView: React.FC<{
             : makeQuizSession(status);
     return (
       <QuizMonitorDev
-        session={session}
+        session={{ ...session, rosterIds: ['roster-p3'] }}
         assessmentOnly={perPeriod}
         responses={responses}
         quizData={makeQuizData()}
-        rosters={[]}
+        rosters={[makeQuizMonitorRoster()]}
+        rosterTargets={{}}
         onAdvance={noop}
         onEnd={noop}
         onPause={noop}

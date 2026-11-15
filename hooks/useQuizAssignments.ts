@@ -23,6 +23,7 @@ import {
   deleteDoc,
   deleteField,
   doc,
+  FieldPath,
   onSnapshot,
   getDoc,
   getDocs,
@@ -214,6 +215,9 @@ import {
   shouldCheckSyncRemovals,
 } from '@/utils/districtLibraryOrigin';
 
+/** A pass for a student reopened after End runs until the teacher ends the quiz again. */
+const REOPEN_PASS_MS = 365 * 24 * 60 * 60 * 1000;
+
 /** Writes a Pause, Resume, End or Reopen in one transaction, refusing a stale Pause or Resume on a quiz that has ended. */
 async function commitQuizLifecycle(
   userId: string,
@@ -239,9 +243,23 @@ async function commitQuizLifecycle(
       session?.status === 'paused' && event.type === 'resume'
         ? appendPauseSpan(session.pauseSpans, session.pausedAt, now)
         : null;
+    // End and a whole-class Reopen drop a reopen for selected students; End also ends their passes.
+    const clearPicks =
+      event.type === 'end' || event.type === 'reopen'
+        ? { reopenedFor: deleteField() }
+        : {};
+    const clearPasses: Record<string, unknown> =
+      event.type === 'end'
+        ? Object.fromEntries(
+            (session?.reopenedFor ?? []).map((uid) => [
+              `studentAccess.${uid}`,
+              deleteField(),
+            ])
+          )
+        : {};
     tx.update(
       doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
-      patches.assignment
+      { ...patches.assignment, ...clearPicks }
     );
     // A repeat Pause, or a Reopen after a paused End, keeps the open pause's start.
     const sessionPatch = { ...patches.session };
@@ -255,6 +273,8 @@ async function commitQuizLifecycle(
     }
     tx.update(sessionRef, {
       ...sessionPatch,
+      ...clearPicks,
+      ...clearPasses,
       ...(pauseSpans ? { pauseSpans } : {}),
       ...(session && extraSessionPatch ? extraSessionPatch(session) : {}),
     });
@@ -436,6 +456,11 @@ export interface UseQuizAssignmentsResult {
    * explicitly call `resumeAssignment` to start accepting submissions again.
    */
   reopenAssignment: (assignmentId: string) => Promise<void>;
+  /** After `reopenAssignment`, opens the quiz for these students only: classes stay paused, `letInUids` get a pass until End. */
+  reopenForStudents: (
+    assignmentId: string,
+    picks: { uids: string[]; letInUids: string[] }
+  ) => Promise<void>;
   /** Permanently delete assignment + session + all responses. */
   deleteAssignment: (assignmentId: string) => Promise<void>;
   /** Update editable settings (className, PLC fields, session toggles). */
@@ -2254,6 +2279,48 @@ export const useQuizAssignments = (
     [userId]
   );
 
+  const reopenForStudents = useCallback<
+    UseQuizAssignmentsResult['reopenForStudents']
+  >(
+    async (assignmentId, { uids, letInUids }) => {
+      if (!userId) throw new Error('Not authenticated');
+      const live = assignmentsRef.current.find((a) => a.id === assignmentId);
+      const now = Date.now();
+      const until = now + REOPEN_PASS_MS;
+      const rows: unknown[] = [];
+      for (const key of Object.keys(live?.periodAccess ?? {}))
+        rows.push(
+          new FieldPath('periodAccess', key, 'state'),
+          'paused',
+          new FieldPath('periodAccess', key, 'pausedAt'),
+          now
+        );
+      const picks = [new FieldPath('reopenedFor'), uids];
+      const passes = letInUids.flatMap((uid) => [
+        new FieldPath('studentAccess', uid),
+        until,
+      ]);
+      const batch = writeBatch(db);
+      const [f, v, ...rest] = [...picks, ...rows, ...passes];
+      batch.update(
+        doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId),
+        f as FieldPath,
+        v,
+        ...rest
+      );
+      const [af, av, ...arest] = [...picks, ...rows];
+      batch.update(
+        doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
+        af as FieldPath,
+        av,
+        ...arest
+      );
+      await batch.commit();
+      await resumeAssignment(assignmentId);
+    },
+    [userId, resumeAssignment]
+  );
+
   const deleteAssignment = useCallback<
     UseQuizAssignmentsResult['deleteAssignment']
   >(
@@ -2837,6 +2904,21 @@ export const useQuizAssignments = (
         initialLanguage = canonical.language;
         canonicalVersion = canonical.version;
         canonicalFields = syncedQuizContentFields(canonical);
+        // Bank pins from the canonical doc are only kept for a member of the share's PLC.
+        const pre = shared.assignmentSettings.plc;
+        const preMember =
+          !!pre && !!plcHandling && plcHandling.isMember(pre.id);
+        if (!preMember && canonicalFields.bankSlots) {
+          canonicalFields = {
+            ...canonicalFields,
+            bankSlots: canonicalFields.bankSlots.map((slot) => {
+              // District library banks are readable by all staff and stay linked.
+              if (slot.districtItemId) return slot;
+              const { syncGroupId: _g, syncOwnerUid: _o, ...unbound } = slot;
+              return unbound;
+            }),
+          };
+        }
       }
 
       const now = Date.now();
@@ -4215,6 +4297,7 @@ export const useQuizAssignments = (
     resumeAssignment,
     deactivateAssignment,
     reopenAssignment,
+    reopenForStudents,
     deleteAssignment,
     updateAssignmentSettings,
     setAssignmentRosters,

@@ -20,6 +20,7 @@ import {
 } from './subShareAccess';
 import { assertViewAsAllowed } from './viewAsGuard';
 import { buildQuizFinalizeUpdate, sessionQuestionIds } from './quizFinalize';
+import { withServerTurnIn } from './quizTurnIn';
 import { withQuizSessionContent } from './quizSessionContent';
 import {
   ACTIONS,
@@ -131,7 +132,7 @@ export async function finalizeQuizResponses(
           const update = fresh.exists
             ? buildQuizFinalizeUpdate(fresh.data() ?? {}, meta, now)
             : null;
-          if (update) tx.update(doc.ref, update);
+          if (update) tx.update(doc.ref, withServerTurnIn(update, now));
           return update !== null;
         })
       )
