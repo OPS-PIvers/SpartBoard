@@ -478,17 +478,39 @@ export function scoreQuizResponse(
   };
 }
 
+/** First VA entry per question by list position; client answeredAt and takeIndex never pick the graded one. */
+export function firstVaEntries<T extends Record<string, unknown>>(
+  answers: T[]
+): T[] {
+  const seen = new Set<unknown>();
+  return answers.filter(
+    (a) => !seen.has(a.questionId) && !!seen.add(a.questionId)
+  );
+}
+
 /** Video activity: stored `score` after publish, else live from the key or stored correctness. */
 export function scoreVideoResponse(
   session: Doc,
   response: Doc,
   questions: GroupQuestion[]
 ): RowScore {
-  const answers: RawAnswer[] = (
-    Array.isArray(response.answers) ? response.answers : []
+  const checked =
+    session.sessionMode === 'teacher' &&
+    typeof response.checkedAnswers === 'object' &&
+    response.checkedAnswers !== null
+      ? asRecord(response.checkedAnswers)
+      : null;
+  const answers: RawAnswer[] = firstVaEntries(
+    (Array.isArray(response.answers) ? response.answers : [])
+      .map(asRecord)
+      .filter((a) => asString(a.questionId))
   )
-    .map(asRecord)
-    .filter((a) => asString(a.questionId))
+    // A live run scores only what the check callable recorded.
+    .filter(
+      (a) =>
+        !checked ||
+        asRecord(checked[asString(a.questionId)]).answer === a.answer
+    )
     .map((a) => ({
       questionId: asString(a.questionId),
       answer: asString(a.answer),
