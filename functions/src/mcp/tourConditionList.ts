@@ -60,12 +60,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'embed-mini-app',
   'embed-reload',
   'flashcards-ai',
-  'flashcards-check-sync',
-  'flashcards-missed-cards',
   'flashcards-speak',
-  'flashcards-study-settings',
-  'flashcards-swap-sides',
-  'flashcards-term-only',
   'focus-sessions',
   'gemini-functions',
   'getting-started',
@@ -172,6 +167,11 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
 ];
 
 export const TOUR_CONDITION_RETIRED_FEATURES: readonly string[] = [
+  'flashcards-check-sync',
+  'flashcards-missed-cards',
+  'flashcards-study-settings',
+  'flashcards-swap-sides',
+  'flashcards-term-only',
   'lunch-count-resend',
   'quiz-import-versions',
   'quiz-ordering-images',

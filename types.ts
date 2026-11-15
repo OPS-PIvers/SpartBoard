@@ -10097,7 +10097,7 @@ export interface FlashcardSession
   speak?: FlashcardSpeakStudentSettings & { locked: boolean };
   /** The teacher turned Speak off for this assignment, so a set save never stamps it. */
   speakOff?: true;
-  /** Study: students can study just the cards they missed (flag `flashcards-missed-cards`). */
+  /** Study: students can study just the cards they missed. */
   missedCards?: true;
   /** Speak rules picked when assigning; a set save re-stamps with these instead of the set's. */
   speakChoice?: FlashcardSpeakChoice;
@@ -11283,7 +11283,6 @@ export type GlobalFeature =
   | 'quiz-document-ai-reader'
   /** Splits a typed PDF with version headings without AI. */
   | 'quiz-import-versions-plain'
-  | 'flashcards-swap-sides'
   /** Reads a picked Google Doc as its PDF, so figures import as printed; AND-ed with `quiz-document-import`. */
   | 'quiz-import-google-doc-pdf'
   /** A PDF's bold, underlined or highlighted choice comes in as its answer; AND-ed with `quiz-document-import`. */
@@ -11363,10 +11362,6 @@ export type GlobalFeature =
   | 'webcam-ai'
   | 'blooms-ai'
   | 'flashcards-ai'
-  /** Flashcards study resources: the teacher's starting settings, and Study resource as the default. */
-  | 'flashcards-study-settings'
-  /** Flashcards cards can be saved with a term and no definition (e.g. sight words). */
-  | 'flashcards-term-only'
   | 'dashboard-layout'
   | 'instructional-routine'
   | 'ocr'
@@ -11406,8 +11401,6 @@ export type GlobalFeature =
   | 'whiteboard-pro'
   /** Flashcards Speak study mode (docs/multilingual-pronunciation-engine.md F15). Fail-closed for admins too. */
   | 'flashcards-speak'
-  /** Flashcards study: students study just the cards they missed, in every mode. */
-  | 'flashcards-missed-cards'
   /** Teachers add their own YouTube songs to the Music widget's station list. */
   | 'music-my-songs'
   /** Connect button on widget toolbars: Sequences and Follows between widgets (docs/adr/0002). */
@@ -11448,8 +11441,6 @@ export type GlobalFeature =
   | 'video-import-ai'
   /** Due date picker in the Push to Schoology dialog. */
   | 'schoology-push-due-date'
-  /** Set edits reach open Flashcards Checks: fixes to cards they already have. */
-  | 'flashcards-check-sync'
   /** Pasting a YouTube link asks Embed or Video Activity. */
   | 'youtube-paste-picker'
   /** Right-click menu on the board background. */
