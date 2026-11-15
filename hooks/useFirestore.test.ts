@@ -162,6 +162,40 @@ describe('useFirestore – share Connections', () => {
     expect(snap).not.toHaveProperty('shareConnections');
   });
 
+  it('drops malformed Connections a collaborator wrote', async () => {
+    (firestore.getDoc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+      {
+        exists: () => true,
+        id: 'share-1',
+        data: () => ({
+          name: 'B',
+          widgets: [],
+          shareConnections: [
+            null,
+            { id: 'bad', kind: 'sequence', steps: 'bad' },
+            { id: 'ok', kind: 'follow', leaderId: 'a', followerId: 'b' },
+          ],
+        }),
+      }
+    );
+    const { result } = renderHook(() => useFirestore('user-1'));
+    const snap = await result.current.loadSharedDashboard('share-1');
+    expect(snap?.connections?.map((c) => c.id)).toEqual(['ok']);
+  });
+
+  it('drops a non-list legacy connections field', async () => {
+    (firestore.getDoc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+      {
+        exists: () => true,
+        id: 'share-1',
+        data: () => ({ name: 'B', widgets: [], connections: 'bad' }),
+      }
+    );
+    const { result } = renderHook(() => useFirestore('user-1'));
+    const snap = await result.current.loadSharedDashboard('share-1');
+    expect(snap).not.toHaveProperty('connections');
+  });
+
   it('falls back to the legacy field on a doc without shareConnections', async () => {
     (firestore.getDoc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
       {

@@ -30,6 +30,7 @@ import {
   type ActionItemView,
 } from '@/utils/plcActionItemView';
 import { NoteActionItemsToolbar } from './NoteActionItemsToolbar';
+import { openFieldPicker } from '@/utils/datePicker';
 
 interface NoteActionItemsProps {
   items: PlcActionItem[];
@@ -105,13 +106,7 @@ const DueDateText: React.FC<{
           <button
             {...tourAttr('plc-notes.action-due-open')}
             type="button"
-            onClick={() => {
-              try {
-                inputRef.current?.showPicker();
-              } catch {
-                inputRef.current?.focus();
-              }
-            }}
+            onClick={(e) => openFieldPicker(inputRef.current, e.currentTarget)}
             aria-label={label}
             className={`rounded-sm hover:text-slate-800 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${tone}`}
           >

@@ -314,6 +314,78 @@ describe('handlePaperRewordSync', () => {
     expect(result.answersUpdated).toBe(0);
   });
 
+  it('passes malformed student entries through and still updates later responses', async () => {
+    const bad = 'quiz_sessions/s1/responses/r0';
+    const base = seed();
+    const docs: Record<string, Doc> = {};
+    for (const [k, v] of Object.entries(base)) {
+      if (k === R1) {
+        docs[bad] = {
+          paperBatchId: 'b1',
+          answers: [
+            null,
+            7,
+            'x',
+            ['q1'],
+            { questionId: 'q1', answer: 'interim', paperSlot: 0.5 },
+            { questionId: 'q1', answer: 'interim', paperSlot: -1 },
+            { questionId: 'q1', answer: 'interim', paperSlot: Number.NaN },
+            { questionId: 'q1', answer: 'interim', paperSlot: 99 },
+          ],
+        };
+      }
+      docs[k] = v;
+    }
+    const before = docs[bad].answers;
+    const result = await run(docs, ['same', 'lower', 'higher']);
+    expect(result).toEqual({
+      answersUpdated: 1,
+      responsesUpdated: 1,
+      batchesUpdated: 1,
+    });
+    expect(docs[bad].answers).toBe(before);
+    expect((docs[R1].answers as Doc[])[0].answer).toBe('lower');
+  });
+
+  it('contains a failing response and keeps the batch record for a retry', async () => {
+    const bad = 'quiz_sessions/s1/responses/r0';
+    const base = seed();
+    const docs: Record<string, Doc> = {};
+    for (const [k, v] of Object.entries(base)) {
+      if (k === R1) docs[bad] = { ...base[R1] };
+      docs[k] = v;
+    }
+    const db = makeDb(docs) as unknown as {
+      runTransaction: (fn: (tx: unknown) => Promise<number>) => Promise<number>;
+    };
+    const real = db.runTransaction;
+    let call = 0;
+    db.runTransaction = (fn) =>
+      call++ === 0 ? Promise.reject(new Error('boom')) : real(fn);
+    const result = await handlePaperRewordSync(
+      db as unknown as Db,
+      caller,
+      {
+        quizId: 'quiz',
+        questions: [{ questionId: 'q1', choices: ['same', 'lower', 'higher'] }],
+      },
+      1000,
+      granted
+    );
+    expect(result).toEqual({
+      answersUpdated: 1,
+      responsesUpdated: 1,
+      batchesUpdated: 0,
+      responsesSkipped: 1,
+    });
+    expect((docs[R1].answers as Doc[])[0].answer).toBe('lower');
+    expect((docs[BATCH].choiceOrder as Doc).q1).toEqual([
+      'same',
+      'a lower',
+      'higher',
+    ]);
+  });
+
   it('refuses students', async () => {
     await expect(
       handlePaperRewordSync(

@@ -5487,7 +5487,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             namesOutcome.missed = write ? write.failedEmails : subEmails;
             return write;
           },
-          readQueue: driveQueueReader(driveService),
+          readQueue: driveQueueReader(driveService, user?.uid),
           readWallPosts: wallPostsReader(user?.uid),
           onIncomplete: (labels) => {
             namesOutcome.unread = labels;
@@ -5607,7 +5607,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             namesOutcome.missed = write ? write.failedEmails : subEmails;
             return write;
           },
-          readQueue: driveQueueReader(driveService),
+          readQueue: driveQueueReader(driveService, user?.uid),
           readWallPosts: wallPostsReader(user?.uid),
           onIncomplete: (labels) => {
             namesOutcome.unread = labels;

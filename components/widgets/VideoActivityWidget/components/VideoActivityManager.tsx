@@ -59,6 +59,7 @@ import {
 } from '@/components/common/library/assignStepper/VideoRuleStepValues';
 import { getVideoActivityBehavior } from '@/utils/videoActivityBehavior';
 import { AssignmentArchiveCard } from '@/components/common/library/AssignmentArchiveCard';
+import { AssignmentClassNames } from '@/components/common/library/AssignmentClassNames';
 import { ViewCountBadge } from '@/components/common/library/ViewCountBadge';
 import { useSessionViewCount } from '@/hooks/useSessionViewCount';
 import { useAuth } from '@/context/useAuth';
@@ -441,6 +442,7 @@ const VideoActivityArchiveRow: React.FC<VideoActivityArchiveRowProps> = ({
   // aggregation per visible card per dashboard tab-focus, gated behind the
   // `share-link-tracking` global permission.
   const trackingEnabled = canSeeShareTracking();
+  const classList = canAccessFeature('assignment-class-list');
   const { count } = useSessionViewCount(
     'video_activity_sessions',
     assignment.id,
@@ -469,6 +471,14 @@ const VideoActivityArchiveRow: React.FC<VideoActivityArchiveRowProps> = ({
                 {assignment.targetSkippedCount} skipped
               </span>
             )}
+          {classList && (
+            <AssignmentClassNames
+              names={
+                assignment.periodNames ??
+                (assignment.periodName ? [assignment.periodName] : [])
+              }
+            />
+          )}
         </>
       }
       primaryAction={

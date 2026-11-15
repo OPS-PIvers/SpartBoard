@@ -2,6 +2,7 @@ import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import {
   enterFullscreen,
   fullscreenSupported,
+  isAppleTouchDevice,
   isFullscreenNow,
   subscribeFullscreen,
   useClipboardBlock,
@@ -106,7 +107,7 @@ export const FullscreenCover: React.FC<{ required: boolean }> = ({
 
   if (!required || isFullscreen) return null;
   if (!fullscreenSupported())
-    return isSchoologyFrame() ? <PopOutCover /> : null;
+    return isSchoologyFrame() && !isAppleTouchDevice() ? <PopOutCover /> : null;
 
   const enter = () => {
     setFailed(false);

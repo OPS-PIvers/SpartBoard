@@ -192,7 +192,7 @@ describe('whoHasntAnswered', () => {
   it('names a PIN joiner by a replaced PIN', () => {
     const result = whoHasntAnswered(
       'q1',
-      [{ pin: '03', studentUid: 'u3', answers: [] }],
+      [{ pin: '03', studentUid: 'u3', joinedAt: 1000, answers: [] }],
       [
         { firstName: 'Ada', lastName: 'Lovelace', pin: '01' },
         {
@@ -206,6 +206,31 @@ describe('whoHasntAnswered', () => {
     );
     expect(result.notAnswered).toEqual(['Cy Young']);
     expect(result.notJoined).toEqual(['Ada Lovelace']);
+  });
+
+  it('does not name or count a joiner of a replaced PIN who arrived after the re-roll', () => {
+    const cy = {
+      firstName: 'Cy',
+      lastName: 'Young',
+      pin: '482913',
+      formerPins: ['03'],
+      formerPinsAt: 5000,
+    };
+    const late = whoHasntAnswered(
+      'q1',
+      [{ pin: '03', studentUid: 'u3', joinedAt: 6000, answers: [] }],
+      [cy],
+      new Map()
+    );
+    expect(late.notAnswered).toEqual(['PIN 03']);
+    expect(late.notJoined).toEqual(['Cy Young']);
+    const forgedMissing = whoHasntAnswered(
+      'q1',
+      [{ pin: '03', studentUid: 'u3', answers: [] }],
+      [cy],
+      new Map()
+    );
+    expect(forgedMissing.notAnswered).toEqual(['PIN 03']);
   });
 
   it('lists never-asked questions for live sessions only', () => {
@@ -304,10 +329,30 @@ describe('whoHasntAnswered', () => {
       ['r1', 'r2'],
       [
         { studentUid: 'anon-carl', pin: '03', answers: [{ questionId: 'q1' }] },
-        { studentUid: 'anon-bea', pin: '04', answers: [{ questionId: 'q1' }] },
+        {
+          studentUid: 'anon-bea',
+          pin: '04',
+          joinedAt: 1000,
+          answers: [{ questionId: 'q1' }],
+        },
       ],
       new Map()
     );
     expect(refs).toEqual([{ kind: 'classlink', sourcedId: 'sid-alice' }]);
+    // A former-PIN answer joined after the re-roll doesn't count for the student.
+    const late = makeUpTargetStudents(
+      [linked],
+      ['r1'],
+      [
+        {
+          studentUid: 'anon-x',
+          pin: '04',
+          joinedAt: Date.UTC(2027, 0, 1),
+          answers: [{ questionId: 'q1' }],
+        },
+      ],
+      new Map()
+    );
+    expect(late).toContainEqual({ kind: 'classlink', sourcedId: 'sid-bea' });
   });
 });

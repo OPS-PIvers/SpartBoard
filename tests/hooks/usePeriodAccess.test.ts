@@ -280,6 +280,35 @@ describe('usePeriodAccess', () => {
     ]);
   });
 
+  it('leaves Start and Extend uncapped by a Scheduled close, before and after it', async () => {
+    (getDocs as Mock).mockResolvedValue({ docs: [] });
+    for (const closeAt of [at(9, 0), Date.now() - 60_000]) {
+      update.mockClear();
+      const scheduled = { ...session, closeAt, dueAt: closeAt };
+      const { result } = renderHook(() =>
+        usePeriodAccess(scheduled, collections, rosters)
+      );
+      let untimed: string[] = [];
+      await act(async () => {
+        untimed = await result.current.startAll();
+      });
+      expect(untimed).toEqual(['roster:r5']);
+      expect(fieldWrites('quiz_sessions/s1')).toEqual([
+        expect.objectContaining({
+          'periodAccess.cl-1.closeAt': at(9, 5) + BELL_CLOSE_CUSHION_MS,
+        }),
+        expect.objectContaining({ 'periodAccess.roster:r5.closeAt': null }),
+      ]);
+      update.mockClear();
+      await act(async () => {
+        await result.current.extendPeriod('cl-1', null);
+      });
+      expect(fieldWrites('quiz_sessions/s1')[0]).toEqual({
+        'periodAccess.cl-1.closeAt': null,
+      });
+    }
+  });
+
   it('reports an untagged assessment period that opened with no bell', async () => {
     (getDocs as Mock).mockResolvedValue({ docs: [] });
     const { result } = renderHook(() =>

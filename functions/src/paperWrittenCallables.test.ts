@@ -844,3 +844,106 @@ describe('transcribePaperBlankV1', () => {
     );
   });
 });
+
+describe('hybrid responses never take a seat from the student-editable crop path', () => {
+  const forged = (q: string, scan = 'scan1') =>
+    `paper_written_crops/t1/${scan}/4/${q}.webp`;
+  // A hybrid row: no paperSeat, the import's seat in paperWrittenSeat, and paths forged to seat 4.
+  function hybrid(seatFields: StubData = { paperWrittenSeat: 3 }) {
+    const store = seed();
+    const rest = { ...store[RESPONSE] };
+    delete rest.paperSeat;
+    const answers = (rest.answers as StubData[]).map((a) =>
+      Array.isArray(a.artifacts)
+        ? {
+            ...a,
+            artifacts: (a.artifacts as StubData[]).map((art) => ({
+              ...art,
+              storagePath: forged(a.questionId as string),
+            })),
+          }
+        : a
+    );
+    store[RESPONSE] = { ...rest, ...seatFields, answers };
+    store[PRIV('q1')] = {
+      ...store[PRIV('q1')],
+      editedBy: 't1',
+      editedAt: 5,
+      newerScan: { scanId: 'scan2', page: 1, state: 'ink' },
+    };
+    return store;
+  }
+  const both = {
+    [crop('q1', 'scan2')]: { bytes: 'own', contentType: 'image/png' },
+    [forged('q1', 'scan2')]: { bytes: 'classmate', contentType: 'image/png' },
+  };
+
+  it('Use new scan queues the import-recorded seat, not the forged one', async () => {
+    const { deps, stub } = makeDeps(hybrid(), both);
+    await expect(
+      handleApplyPaperNewerScan(deps, TEACHER, target)
+    ).resolves.toMatchObject({ jobId: 'scan2_3_1_0' });
+    expect(stub.get(`${JOBS}/scan2_3_1_0`)).toMatchObject({
+      boxes: [{ questionId: 'q1', storagePath: crop('q1', 'scan2') }],
+    });
+    expect(stub.get(`${JOBS}/scan2_4_1_0`)).toBeUndefined();
+    expect(stub.get(PRIV('q1'))?.seat).toBe(3);
+  });
+
+  it('Use new scan prefers the seat recorded with the newer scan', async () => {
+    const store = hybrid({ paperWrittenSeat: 4 });
+    store[PRIV('q1')] = {
+      ...store[PRIV('q1')],
+      newerScan: { scanId: 'scan2', page: 1, state: 'ink', seat: 3 },
+    };
+    const { deps } = makeDeps(store, both);
+    await expect(
+      handleApplyPaperNewerScan(deps, TEACHER, target)
+    ).resolves.toMatchObject({ jobId: 'scan2_3_1_0' });
+  });
+
+  it('Use new scan refuses when no server-written seat exists', async () => {
+    const { deps, stub } = makeDeps(hybrid({}), both);
+    await expectCode(
+      handleApplyPaperNewerScan(deps, TEACHER, target),
+      'failed-precondition'
+    );
+    expect(stub.get(`${JOBS}/scan2_4_1_0`)).toBeUndefined();
+  });
+
+  it('the newer crop read serves the import-recorded seat', async () => {
+    const { deps } = makeDeps(hybrid(), both);
+    await expect(
+      handleGetPaperWrittenCrop(deps, TEACHER, { ...target, scan: 'newer' })
+    ).resolves.toMatchObject({ status: 'ready', data: b64('own') });
+  });
+
+  it('the current crop read refuses a forged path', async () => {
+    const { deps } = makeDeps(hybrid(), {
+      [forged('q1')]: { bytes: 'classmate', contentType: 'image/png' },
+    });
+    await expect(
+      handleGetPaperWrittenCrop(deps, TEACHER, target)
+    ).resolves.toEqual({ status: 'not-available', reason: 'no-crop' });
+  });
+
+  it('Not blank? Transcribe refuses a forged path and accepts the real one', async () => {
+    const blank = { ...target, questionId: 'q2' };
+    const { deps } = makeDeps(hybrid());
+    await expectCode(
+      handleTranscribePaperBlank(deps, TEACHER, blank),
+      'failed-precondition'
+    );
+    const real = hybrid();
+    real[RESPONSE] = {
+      ...real[RESPONSE],
+      answers: (real[RESPONSE].answers as StubData[]).map((a) =>
+        a.questionId === 'q2' ? written('q2', 'blank') : a
+      ),
+    };
+    const { deps: ok } = makeDeps(real);
+    await expect(
+      handleTranscribePaperBlank(ok, TEACHER, blank)
+    ).resolves.toEqual({ jobId: 'scan1_3_1_1' });
+  });
+});

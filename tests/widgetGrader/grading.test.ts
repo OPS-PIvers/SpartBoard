@@ -362,7 +362,11 @@ describe('write-back', () => {
     const paul = applyPaulGrades(deck, rows, {}, NOW).scorecards;
     const auto = applyAutomaticScores(deck, paul, NOW);
     expect(validate(auto.clock)).toBe(true);
-    expect(auto.clock.criteria.V1?.source).toBe('paul');
+    expect(auto.clock.criteria.V1).toMatchObject({
+      source: 'paul',
+      score: 3,
+      candidates: { judge: 1, paul: 3 },
+    });
     expect(auto.clock.criteria.I2).toMatchObject({
       score: 2,
       source: 'script',

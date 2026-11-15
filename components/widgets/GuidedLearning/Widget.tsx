@@ -24,6 +24,7 @@ import {
   RESULTS_PROTECTION_DEFAULTS,
 } from '@/types';
 import { db, functions } from '@/config/firebase';
+import { copyText } from '@/utils/copyText';
 import { audienceSessionFields } from '@/utils/staffAudience';
 import { useDashboard } from '@/context/useDashboard';
 import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
@@ -1028,13 +1029,21 @@ const TeacherGuidedLearningWidget: React.FC<{
           },
         });
         if (!silent) {
-          await navigator.clipboard.writeText(url);
-          addToast(
-            isViewOnly
-              ? 'Share link copied to clipboard!'
-              : 'Assignment link copied to clipboard!',
-            'success'
-          );
+          if (await copyText(url)) {
+            addToast(
+              isViewOnly
+                ? 'Share link copied to clipboard!'
+                : 'Assignment link copied to clipboard!',
+              'success'
+            );
+          } else {
+            addToast(
+              isViewOnly
+                ? `Share link created! URL: ${url}`
+                : `Assignment created! URL: ${url}`,
+              'info'
+            );
+          }
         }
         return url;
       } catch (err) {
@@ -1222,12 +1231,8 @@ const TeacherGuidedLearningWidget: React.FC<{
     // Path form matches useGuidedLearningSession.createSession() and the
     // student-app route (App.tsx mounts on /guided-learning/:sessionId).
     const url = `${window.location.origin}/guided-learning/${assignment.sessionId}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      addToast('Student link copied!', 'success');
-    } catch {
-      addToast('Could not copy link. Try again.', 'error');
-    }
+    if (await copyText(url)) addToast('Student link copied!', 'success');
+    else addToast(`Could not copy link. Student link: ${url}`, 'info');
   };
 
   const handleAssignmentArchive = async (

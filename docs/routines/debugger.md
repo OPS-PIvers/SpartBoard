@@ -759,6 +759,12 @@
 | 2026-11-14 | State & Data | `titleCaseHandle` used ASCII-only `\b\w`, so `josé.garcía` became "José GarcíA". Now capitalizes any letter not preceded by a letter, mark or digit (`\p{L}` lookbehind). (contained). | [#5804](https://github.com/OPS-PIvers/SpartBoard/pull/5804) |
 | 2026-11-14 | Admin & Config | Admin Announcements Font Size/Width/Height clamped on every keystroke into a controlled input, so values could not be typed. Now `DraftNumberField` with clamp on commit. (contained). | [#5806](https://github.com/OPS-PIvers/SpartBoard/pull/5806) |
 | 2026-11-14 | Build & Tooling | Clean (read-only pass): mp3/webm duration, mail, LTI tool columns, sweeps, scripts, firebase.json, extension schoology fetch; no reproducible bug. | — |
+| 2026-11-15 | Baseline | `pnpm run validate` green on `dev-paul` at `fa24006a` (2415 root files, 25876 tests; 247 functions files). Only a unifier log PR and security/feature PRs open at dispatch. | — |
+| 2026-11-15 | Widgets | Guided Learning `performAssign` ran `clipboard.writeText` inside the outer try after the session existed, so a denied clipboard showed "Failed to create session" and a retry duplicated the assignment. Uses `copyText`; toast shows the URL on failure. (contained). | [#5878](https://github.com/ops-pivers/spartboard/pull/5878) |
+| 2026-11-15 | Dashboard & Layout | `useSortableReorder` reverted a failed commit to a pre-commit snapshot, dropping items that arrived mid-commit and resurrecting deleted ones. Revert re-applies the old order to the latest items. (contained). | [#5879](https://github.com/ops-pivers/spartboard/pull/5879) |
+| 2026-11-15 | State & Data | `mergeSubsetOrder` built its queue from the raw subset, so a repeated id duplicated itself over another id's slot. Queue now deduped. (contained). | [#5880](https://github.com/ops-pivers/spartboard/pull/5880) |
+| 2026-11-15 | Admin & Config | `SpecialistScheduleConfigurationModal` swallowed a failed `getDoc`, so Save wrote defaults over the real config. Now shows an error with Try again and blocks Save (same as #5647/#5742). (contained). | [#5881](https://github.com/ops-pivers/spartboard/pull/5881) |
+| 2026-11-15 | Build & Tooling | Sub End/Resume (`finalizeQuizResponses`, `refreshIdleResponses`) read one `.limit(400)` page of responses, leaving the rest unfinalized/unrefreshed. Now pages by document id. (contained). | [#5882](https://github.com/ops-pivers/spartboard/pull/5882) |
 
 ## Backlog
 
@@ -1236,6 +1242,11 @@
 | Admin & Config | 2026-11-14: grep remaining `Math.max(<min>, parsed)` call sites in admin panels for the same clamp-per-keystroke pattern fixed in #5806 (width/height inputs there have no dedicated test). |
 | Widgets | 2026-11-14: `SpecialistSchedule` sorts unparseable start times (`parseTime` = -1) to the top; `random/groupMaker` `pool.sort` can mutate `buckets` in place; `useTimeTool` syncs a ref via `useEffect`. All latent. |
 | Build & Tooling | 2026-11-14: extension `readItemBankFromSchoology` throws if `breadcrumbs` is not an array; `scripts/checkRulesSize.mjs` reads `sourceCompiled` before its declaration (harmless today). |
+| Widgets | 2026-11-15: `ActivityWall/Widget.tsx` `copyStudentLink` (~L508) says "copy manually" but shows no URL (use `copyText`); `CarRiderPro` L32 case-sensitive `startsWith('https://')`; VA `Widget.tsx` ~L345 title `.slice(0,200)` splits surrogates; Calendar `parseTimeSeconds` returns -1 for colon-less times like "3pm" (low). |
+| Dashboard & Layout | 2026-11-15: `flattenCollections` (`boardNavMenu.ts`) and `buildChildrenByParent` (`collectionTreeUtils.ts`) hide a pure parent cycle (corrupt data only); empty Ctrl-drag marquee is ignored by `DashboardView` by design. `DraggableWindow`, `Dock`, `AnnotationOverlay`, `BoardsModal`, `ImageLightbox` Escape, `useSubShares.extend`, `DeepLinkShareImporter` board-switch check still unread. |
+| State & Data | 2026-11-15: `useSeatedPeriodContent` `setTimeout(delay + 1000)` can exceed 2^31-1 ms and does not reset `content` on `sessionId` change; `context/**` providers still unread in depth; `dueReminders`, `allDayDates`, `startingDueDate`, `parseMeetingCadence` leads not inspected. |
+| Admin & Config | 2026-11-15: `PdfLibraryModal.fetchConfig` (~L128) has the same swallow-then-overwrite class and its save-time `getDoc` (~L265) defaults to public/enabled on a failed read; number-input leads (`First5`, `SmartNotebook`, `ActivityWall` config panels) still unopened. |
+| Build & Tooling | 2026-11-15: other single-page `.limit(...)` sweeps likely share the #5882 pattern (not audited); `tests/liveTourGuideSync.test.ts` failed at suite level under one subagent's `vitest related` run (passes in the full gate, likely environmental). |
 
 ## Notes & Gotchas
 
@@ -1703,3 +1714,6 @@
 - 2026-11-14: three fixes (#5804-#5806), Widgets and Build clean. Subagents ran scoped checks only; I swapped old source back in each worktree to confirm every new test fails before and passes after, then ran one merged-tree `validate` + `build` (green, both exit 0). The Monitor tool expires after 30 min, so re-arm it for the hour-long gate runs.
 
 - Run count: **123** | Last run: **2026-11-14**
+- 2026-11-15: five fixes (#5878-#5882), no area clean. Subagents ran scoped checks only; I swapped each source file back to `HEAD~1` to confirm every new test fails before and passes after, then ran one merged-tree `validate` + `build` (green). A fresh worktree also needs `pnpm install --frozen-lockfile` inside `extension/` (and `functions/`), or type-check fails with TS2688 for `chrome`. `dev-paul` moved by 14 commits during the run (no file overlap), so branches were not rebased. Baseline about 1 h, gate about 1 h.
+
+- Run count: **124** | Last run: **2026-11-15**
