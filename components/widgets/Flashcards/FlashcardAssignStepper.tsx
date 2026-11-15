@@ -174,7 +174,7 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
   const lastUsed = useLastFlashcardAssignSettings(auth?.user?.uid, true);
   const cardCount = set.cards.length;
 
-  // Study settings flag: Study resource opens first and gets its own settings step.
+  // Study resource opens first and gets its own settings step.
   const [kind, setKind] = useState<AssignKind>('resource');
   const [classes, setClasses] = useState<AssignClassesValue>(() => ({
     classIds: initialRosterIds.filter((id) => rosters.some((r) => r.id === id)),
