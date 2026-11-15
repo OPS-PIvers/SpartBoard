@@ -36,6 +36,7 @@ import {
   type MonitorRosterTargets,
   type NotJoinedStudent,
 } from './rosterNotJoined';
+import { getLocalIsoDate } from '@/utils/localDate';
 
 export interface MonitorStudent {
   response: QuizResponse;
@@ -256,6 +257,7 @@ export function useMonitorData(
             byStudentUid,
             targetRefKeyByStudentUid,
             lookupReady: !namesLoading && !namesError,
+            today: getLocalIsoDate(),
             responseName: (r) =>
               resolveResponseDisplayName(r, pinToName, byStudentUid),
           })

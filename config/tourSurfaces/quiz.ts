@@ -415,6 +415,8 @@ export const SURFACES: TourSurfaceMap = {
       'quiz-monitor.open-join-link': 'quiz-monitor.menu-show-join-code',
       'quiz-monitor.question-result': 'quiz-monitor.menu-question-results',
       'quiz-monitor.student-let-in': 'quiz-monitor.roster-row-actions:quiz',
+      'quiz-monitor.student-mark-absent':
+        'quiz-monitor.roster-row-actions:quiz',
       'quiz-monitor.student-unlock-attempt':
         'quiz-monitor.roster-row-actions:quiz',
       'quiz-monitor.student-reopen': 'quiz-monitor.roster-row-actions:quiz',

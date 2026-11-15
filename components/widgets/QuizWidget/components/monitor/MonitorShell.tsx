@@ -71,7 +71,8 @@ import { resolveStimuli } from '@/utils/quizStimuli';
 import { PresentSession } from '@/components/widgets/QuizWidget/components/present/PresentSession';
 import { boardRankRows, rankOrdinal } from '@/utils/reviewLaunch';
 import { useMonitorData } from './useMonitorData';
-import type { MonitorRosterTargets } from './rosterNotJoined';
+import type { MonitorRosterTargets, NotJoinedStudent } from './rosterNotJoined';
+import { getLocalIsoDate } from '@/utils/localDate';
 import { CurrentQuestionCard } from './CurrentQuestionCard';
 import { useGameClockControls } from './useGameClockControls';
 import { GameBoard } from '@/components/widgets/QuizWidget/components/game/GameBoard';
@@ -219,7 +220,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
 
   const { showConfirm, showAlert } = useDialog();
   const outward = useViewAsOutward();
-  const { addToast } = useDashboard();
+  const { addToast, setAbsentStudents } = useDashboard();
   // Read via context so a provider-less (sub portal) mount keeps today's behavior.
   const authContext = useContext(AuthContext);
   const showJoinCode =
@@ -244,6 +245,22 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     responsesLoaded &&
       authContext?.canAccessFeature?.('quiz-monitor-roster') === true
   );
+
+  const absentCount = data.notJoined.filter((s) => s.absent).length;
+  // Writes the roster's absent list for today, the same list Group Maker uses.
+  const markAbsent = (student: NotJoinedStudent, absent: boolean) => {
+    const roster = rosters.find((r) => r.id === student.rosterId);
+    if (!roster || !student.studentId) return;
+    const today = getLocalIsoDate();
+    const current =
+      roster.absent?.date === today ? roster.absent.studentIds : [];
+    const next = absent
+      ? [...new Set([...current, student.studentId])]
+      : current.filter((id) => id !== student.studentId);
+    setAbsentStudents(roster.id, next).catch(() =>
+      addToast('Could not save the absent list. Try again.', 'error')
+    );
+  };
 
   // Live view (QUIZ_LIVE_VIEW.md D3): only the assigning teacher, on a running self-paced quiz.
   const canLiveView =
@@ -971,14 +988,13 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
               <StatusBuckets
                 counts={{
                   ...data.counts,
-                  notStarted: data.counts.notStarted + data.notJoined.length,
+                  notStarted:
+                    data.counts.notStarted +
+                    data.notJoined.length -
+                    absentCount,
                 }}
-                handCount={
-                  session.handRaiseEnabled === true ? data.handCount : 0
-                }
-                idleCount={data.idleCount}
                 notes={
-                  data.notJoined.length > 0
+                  absentCount > 0
                     ? {
                         notStarted: (
                           <span
@@ -988,12 +1004,16 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                               marginTop: 'min(2px, 0.5cqmin)',
                             }}
                           >
-                            {data.notJoined.length} not joined
+                            {absentCount} absent
                           </span>
                         ),
                       }
                     : undefined
                 }
+                handCount={
+                  session.handRaiseEnabled === true ? data.handCount : 0
+                }
+                idleCount={data.idleCount}
                 openBucket={openBucket}
                 onToggle={(key) =>
                   setOpenBucket((cur) => (cur === key ? null : key))
@@ -1006,6 +1026,9 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                 students={data.byBucket[openBucket]}
                 notJoined={
                   openBucket === 'notStarted' ? data.notJoined : undefined
+                }
+                onSetAbsent={
+                  setAbsentStudents && !outward.locked ? markAbsent : undefined
                 }
                 session={session}
                 config={config}

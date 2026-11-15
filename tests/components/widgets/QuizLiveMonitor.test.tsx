@@ -24,6 +24,7 @@ import type {
 
 // ─── Mocks ──────────────────────────────────────────────────────────────────
 const addToast = vi.fn();
+const setAbsentStudents = vi.fn().mockResolvedValue(undefined);
 const showConfirm = vi.fn().mockResolvedValue(false);
 
 vi.mock('@/context/useAuth', () => ({
@@ -31,7 +32,7 @@ vi.mock('@/context/useAuth', () => ({
 }));
 
 vi.mock('@/context/useDashboard', () => ({
-  useDashboard: () => ({ addToast }),
+  useDashboard: () => ({ addToast, setAbsentStudents }),
 }));
 
 // `useDialog` is globally stubbed in tests/setup.ts but its showConfirm
@@ -268,7 +269,6 @@ describe('QuizLiveMonitor roster rows', () => {
         }),
       ],
     });
-    expect(screen.getByText('2 not joined')).toBeInTheDocument();
     const notStarted = screen.getByRole('button', { name: /Not started/ });
     expect(notStarted).toHaveTextContent('3');
     openBucket(/Not started/);
@@ -278,6 +278,35 @@ describe('QuizLiveMonitor roster rows', () => {
     expect(screen.getByText('Cy Oh')).toBeInTheDocument();
     expect(screen.getByText('Dee Fox')).toBeInTheDocument();
     expect(screen.queryByText('Ben Ray')).not.toBeInTheDocument();
+  });
+
+  it('counts absent students apart and marks a student absent from the row menu', () => {
+    const today = new Date();
+    const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const roster: ClassRoster = {
+      ...makeRoster('Period 1'),
+      absent: { date, studentIds: ['s2'] },
+      students: [
+        { id: 's1', firstName: 'Ana', lastName: 'Lee', pin: '1111' },
+        { id: 's2', firstName: 'Ben', lastName: 'Ray', pin: '2222' },
+      ],
+    };
+    renderMonitor({
+      features: ['quiz-monitor-roster'],
+      session: { rosterIds: [roster.id] },
+      rosters: [roster],
+    });
+    expect(screen.getByText('1 absent')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /Not started/ })
+    ).toHaveTextContent('1');
+    openBucket(/Not started/);
+    expect(screen.getByText('Absent')).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Actions for Ana Lee' })
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Mark absent' }));
+    expect(setAbsentStudents).toHaveBeenCalledWith(roster.id, ['s2', 's1']);
   });
 
   it('adds no roster rows when the session names no rosters', () => {
@@ -292,7 +321,7 @@ describe('QuizLiveMonitor roster rows', () => {
         },
       ],
     });
-    expect(screen.queryByText(/not joined/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Not joined')).not.toBeInTheDocument();
   });
 });
 
@@ -309,7 +338,7 @@ it('adds no roster rows without the Class roster preview', () => {
       },
     ],
   });
-  expect(screen.queryByText(/not joined/)).not.toBeInTheDocument();
+  expect(screen.queryByText('Not joined')).not.toBeInTheDocument();
 });
 
 describe('QuizLiveMonitor (rebuilt)', () => {

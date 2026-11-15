@@ -57,6 +57,8 @@ interface RosterListProps {
   students: MonitorStudent[];
   /** Not started only: roster students who haven't opened the quiz, listed after the joined ones. */
   notJoined?: NotJoinedStudent[];
+  /** Marks a student who hasn't joined absent for today, or present again. */
+  onSetAbsent?: (student: NotJoinedStudent, absent: boolean) => void;
   session: QuizSession;
   config: QuizConfig;
   isGamified: boolean;
@@ -226,6 +228,7 @@ export const RosterList: React.FC<RosterListProps> = ({
   bucket,
   students,
   notJoined = [],
+  onSetAbsent,
   session,
   config,
   isGamified,
@@ -254,7 +257,10 @@ export const RosterList: React.FC<RosterListProps> = ({
   const sortBy: MonitorSortBy = config.monitorSortBy ?? 'first';
   const filterBy: MonitorFilterBy = config.monitorFilterBy ?? 'all';
   // Matches the joined rows above, which Not started always sorts by first name.
-  const absent = [...notJoined].sort((a, b) => a.name.localeCompare(b.name));
+  const absent = [...notJoined].sort(
+    (a, b) =>
+      Number(a.absent) - Number(b.absent) || a.name.localeCompare(b.name)
+  );
   const showJoined = absent.length > 0;
 
   // Board view (default): per-student hand/idle flags stay off the projected face; counts live in StatusBuckets.
@@ -588,39 +594,45 @@ export const RosterList: React.FC<RosterListProps> = ({
       })}
 
       {absent.map((s) => {
-        const letIn =
+        const items: RosterMenuItem[] = [];
+        if (
           onLetIn &&
           s.studentUid &&
           s.periodKey &&
           !studentCanEnter(session, [s.periodKey], s.studentUid, now)
-            ? s.studentUid
-            : null;
+        ) {
+          const uid = s.studentUid;
+          items.push({
+            label: 'Let in now',
+            closes: true,
+            tour: tourTypeAttr('quiz-monitor.student-let-in', 'quiz'),
+            onClick: () => onLetIn(uid),
+          });
+        }
+        if (onSetAbsent && s.rosterId && s.studentId)
+          items.push({
+            label: s.absent ? 'Mark present' : 'Mark absent',
+            closes: true,
+            tour: tourTypeAttr('quiz-monitor.student-mark-absent', 'quiz'),
+            onClick: () => onSetAbsent(s, !s.absent),
+          });
         return (
           <RosterRow key={s.key} name={s.name} muted>
             <span
               className="font-sans text-brand-gray-primary"
               style={{ fontSize: 'min(11px, 3.8cqmin)' }}
             >
-              Not joined
+              {s.absent ? 'Absent' : 'Not joined'}
             </span>
-            {letIn && (
-              <RosterRowMenu
-                ariaLabel={`Actions for ${s.name}`}
-                triggerAnchor={tourFieldAttr(
-                  'quiz-monitor.roster-row-actions',
-                  'quiz',
-                  s.key
-                )}
-                items={[
-                  {
-                    label: 'Let in now',
-                    closes: true,
-                    tour: tourTypeAttr('quiz-monitor.student-let-in', 'quiz'),
-                    onClick: () => onLetIn?.(letIn),
-                  },
-                ]}
-              />
-            )}
+            <RosterRowMenu
+              ariaLabel={`Actions for ${s.name}`}
+              triggerAnchor={tourFieldAttr(
+                'quiz-monitor.roster-row-actions',
+                'quiz',
+                s.key
+              )}
+              items={items}
+            />
           </RosterRow>
         );
       })}

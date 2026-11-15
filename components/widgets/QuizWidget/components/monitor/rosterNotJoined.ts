@@ -24,6 +24,11 @@ export interface NotJoinedStudent {
   period: string;
   /** Session `periodAccess` key for the student's class. */
   periodKey: string | null;
+  /** On the roster's absent list for today. */
+  absent: boolean;
+  /** Roster and student ids, for marking absent; null for a targeted student on no roster. */
+  rosterId: string | null;
+  studentId: string | null;
 }
 
 /** The assignment's targeting, from the teacher's own assignment doc. */
@@ -43,6 +48,9 @@ interface Candidate {
   pin: string;
   period: string;
   periodKey: string | null;
+  absent: boolean;
+  rosterId: string | null;
+  studentId: string | null;
 }
 
 /** Roster students who haven't opened the quiz; skipped and untargeted students are left out. */
@@ -64,6 +72,8 @@ export function buildNotJoined(params: {
   lookupReady: boolean;
   /** The name the monitor shows for a response, to catch a PIN or LMS join. */
   responseName: (r: QuizResponse) => string;
+  /** Local date (YYYY-MM-DD); a roster's absent list counts only on its own date. */
+  today: string;
 }): NotJoinedStudent[] {
   const {
     session,
@@ -74,6 +84,7 @@ export function buildNotJoined(params: {
     targetRefKeyByStudentUid,
     lookupReady,
     responseName,
+    today,
   } = params;
   const studentsMode = targets?.targetMode === 'students';
   // A per-student assignment we can't see the targets of would list the whole class.
@@ -107,6 +118,9 @@ export function buildNotJoined(params: {
   const seen = new Set<string>();
   for (const roster of matched) {
     const periodKey = periodKeyForRoster(roster);
+    const absentIds = new Set(
+      roster.absent?.date === today ? roster.absent.studentIds : []
+    );
     for (const student of roster.students) {
       const ref = resolveStudentTargetRef(student, roster);
       const refKey = ref ? studentTargetRefKey(ref) : null;
@@ -129,6 +143,9 @@ export function buildNotJoined(params: {
         pin: student.pin ?? '',
         period: roster.name,
         periodKey,
+        absent: absentIds.has(student.id),
+        rosterId: roster.id,
+        studentId: student.id,
       });
     }
   }
@@ -146,6 +163,9 @@ export function buildNotJoined(params: {
         pin: '',
         period: '',
         periodKey: null,
+        absent: false,
+        rosterId: null,
+        studentId: null,
       });
     }
   }
@@ -194,11 +214,14 @@ export function buildNotJoined(params: {
 
   return candidates
     .filter((c) => !joined.has(c))
-    .map(({ key, uid, name, period, periodKey }) => ({
-      key,
-      name,
-      studentUid: uid,
-      period,
-      periodKey,
+    .map((c) => ({
+      key: c.key,
+      name: c.name,
+      studentUid: c.uid,
+      period: c.period,
+      periodKey: c.periodKey,
+      absent: c.absent,
+      rosterId: c.rosterId,
+      studentId: c.studentId,
     }));
 }

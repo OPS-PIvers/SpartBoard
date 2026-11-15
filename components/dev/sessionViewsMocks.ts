@@ -28,6 +28,7 @@ import {
   VideoActivityResponse,
   VideoActivityQuestion,
 } from '@/types';
+import { getLocalIsoDate } from '@/utils/localDate';
 
 const QUIZ_ID = 'dev-quiz-1';
 const QUIZ_SESSION_ID = 'dev-quiz-session-1';
@@ -1333,6 +1334,7 @@ export function makeQuizMonitorRoster(): ClassRoster {
     driveFileId: null,
     studentCount: names.length,
     createdAt: NOW,
+    absent: { date: getLocalIsoDate(), studentIds: ['s-11', 's-12'] },
     students: names.map(([firstName, lastName], i) => ({
       id: `s-${i + 1}`,
       firstName,

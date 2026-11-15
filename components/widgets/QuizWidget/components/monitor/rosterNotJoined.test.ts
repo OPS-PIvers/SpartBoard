@@ -61,11 +61,27 @@ const base = {
   byStudentUid: names,
   targetRefKeyByStudentUid: refs,
   lookupReady: true,
+  today: '2026-11-15',
   responseName: (r: QuizResponse) =>
     (r as QuizResponse & { name?: string }).name ?? '',
 };
 
 describe('buildNotJoined', () => {
+  it("marks students on today's absent list, not an older one", () => {
+    const run = (date: string) =>
+      buildNotJoined({
+        ...base,
+        rosters: [{ ...cl, absent: { date, studentIds: ['s1'] } }],
+        responses: [],
+      }).map((s) => [s.name, s.absent]);
+    expect(run('2026-11-15')).toEqual([
+      ['Ana Lee', true],
+      ['Ben Lee', false],
+      ['Cy Lee', false],
+    ]);
+    expect(run('2026-11-14')[0]).toEqual(['Ana Lee', false]);
+  });
+
   it('lists roster students with no response, keyed by their uid', () => {
     const out = buildNotJoined({
       ...base,
