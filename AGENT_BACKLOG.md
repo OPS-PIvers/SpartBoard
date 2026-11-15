@@ -151,6 +151,7 @@ Last audited 2026-11-01 (#4974 sweep, then a targeted re-check when this file wa
 
 ### PLC, Schoology and imports
 
+- **AB-53 Import: Canvas and QTI export files** (M). The Wave 2 file route (D25): a Canvas or QTI export file lands in the Quiz and question bank import, reusing the `.imscc` cartridge reader (`functions/src/cartridgeBankImport.ts`), with a fixture test and the reader failure fallback (D18). Wave 3 readers wait until Paul ranks the sites. Plan: `docs/plans/IMPORT.md`.
 - **AB-186 Schoology push due date: check the flag on the server** (S). `ltiPushToolColumnV1` (`functions/src/lti/toolColumnEndpoints.ts`) applies `dueDate` from any caller; only the client hides the picker behind `schoology-push-due-date`. Ignore `dueDate` unless `isGlobalFeatureGranted(db, 'schoology-push-due-date', email, uid)`. Low risk (it only sets the due date on the caller's own new column). Delete with the gate when it retires. From release #5559 review.
 - **AB-24 Schoology columns Phase 6** (M). Score never-launched students on Schoology-attached sessions through NRPS matching. Plan: `docs/plans/shipped/SCHOOLOGY_TOOL_COLUMNS.md`.
 - **AB-25 PLC sync rollback gaps** (M). `docs/PLC_ROADMAP.md` "Still open": the share-write rollback gap and the `detachSyncLinkage` API.
@@ -511,8 +512,6 @@ Each names what unblocks it. When the blocker clears, move the item to Ready.
 - **AB-49 One gate per rollout** (L). Blocked on AB-48. Collapse each rollout switch into its paired flag (ADMIN_ACCESS_PAGES, deferred).
 - **AB-50 PLC rename** (M). Blocked on PT-87. Rename ~188 `plcDashboard.*` strings in en/de/es/fr and the inline fallbacks in `PlcQuizzesBody.tsx`, `PlcQuizLibraryBody.tsx`, `PlcAssessmentsBody.tsx`, `PlcSettingsTab.tsx`; Help Center and changelog; screenshot all four locales. Plan: `docs/plans/PLC_RENAME_QUIZZES_TO_ASSESSMENTS.md`.
 - **AB-51 PLC phases 7-8** (L). Blocked on PT-88. Phase 7 Mini-Apps PLC integration (`useSyncedMiniAppGroups`, `synced_mini_apps` rules, CF join, PLC body and import modal, flag row; widen `assignment_index` so `sheetUrl` is optional for `mini-app` and `guided-learning`). Phase 8 GL PLC sharing (same pattern plus Drive-backed import gating). Spec: `docs/specs/M16-plc-phases-7-8-spec.md`.
-- **AB-52 Nexus connections** (S-L). Blocked on PT-89 (Decision A). Then tracer 1: Checklist → Timer (candidate 2); tracer 2: Webcam/Drawing → GL (1); Scoreboard → Stickers (8); Quiz/Text/GL/Poll spawns (3, 4, 5, 7, 10; new AIGenerationType and promptMap entries); VA → GL (6); Schedule → Catalyst (9). Spec: `docs/specs/LO12-nexus-widget-connections-spec.md`.
-- **AB-53 Import wave 2 and 3 readers** (M each). Blocked on PT-91 samples. Google Forms reader, Canvas/QTI file route, then ranked wave 3. Plan: `docs/plans/IMPORT.md`.
 - **AB-55 Schoology grade import** (L). Blocked on PT-90. Plan: `docs/plans/SCHOOLOGY_GRADE_IMPORT.md`.
 - **AB-56 Web tour list cost** (M). Blocked on firestore.rules size headroom. Store each tour's start host and step count at publish so `webToursListV1` stops reading every step.
 - **AB-57 Starred class PR 4** (S). Blocked on Paul opening the per-widget class flag (after AB-41 PR 2-3). Remove the star UI, `activeRosterId`/`setActiveRoster`, the localStorage key and the Classes widget catalog entry.
@@ -524,23 +523,23 @@ Each names what unblocks it. When the blocker clears, move the item to Ready.
 
 Each stays in `docs/plans/` until built, then moves to `docs/plans/shipped/` and its human leftovers go to PAUL_TODO.md.
 
-| Plan                                                           | State (2026-11-01)                                                                                  | Here         |
-| -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- | ------------ |
-| `docs/plans/IMPORT.md`                                         | Wave 1 and the Edpuzzle, YouTube and Quizlet readers built behind `universal-import` and `import-*` | AB-53, AB-54 |
-| `docs/plans/CHROME_EXTENSION.md`                               | Web tours and Focus FS1-9, FS12 built                                                               | AB-45        |
-| `docs/plans/GRADEBOOK.md`                                      | Phases 1-6 built behind admin flags                                                                 | AB-4, AB-21  |
-| `docs/plans/QUIZ_ROSTER_GRADING_AND_REOPEN.md`                 | Approved, unbuilt                                                                                   | AB-39        |
-| `docs/plans/QUIZ_STRUCTURED_ASSESSMENTS.md`                    | Unbuilt                                                                                             | AB-40        |
-| `docs/plans/SCHOOLOGY_GRADE_IMPORT.md`                         | Unbuilt                                                                                             | AB-55        |
-| `docs/plans/STARRED_CLASS_AUDIT.md`                            | Unbuilt                                                                                             | AB-41, AB-57 |
-| `docs/plans/UNIT_OVERVIEW_WIDGET.md`                           | Unbuilt                                                                                             | AB-43        |
-| `docs/plans/AI_RESPONSIBLE_USE_WIDGET.md`                      | Unbuilt                                                                                             | AB-44        |
-| `docs/plans/ANNOTATION_OVERLAY_PR3.md`                         | Unbuilt                                                                                             | AB-42        |
-| `docs/plans/PLC_RENAME_QUIZZES_TO_ASSESSMENTS.md`              | Waiting on scope                                                                                    | AB-50        |
-| `docs/plans/copy-audit/guided-learning.md`                     | Most verdicts unapplied                                                                             | AB-20        |
-| `docs/specs/M16-plc-phases-7-8-spec.md`, `docs/PLC_ROADMAP.md` | Unbuilt                                                                                             | AB-51, AB-25 |
-| `docs/specs/LO12-nexus-widget-connections-spec.md`             | Unbuilt                                                                                             | AB-52        |
-| `docs/plans/WIDGET_RUBRIC.md`                                  | Living reference for the widget grader; not backlog                                                 |              |
+| Plan                                                           | State (2026-11-01)                                                                                                | Here         |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ------------ |
+| `docs/plans/IMPORT.md`                                         | Wave 1 and the Edpuzzle, YouTube, Quizlet and Google Forms readers built behind `universal-import` and `import-*` | AB-53, AB-54 |
+| `docs/plans/CHROME_EXTENSION.md`                               | Web tours and Focus FS1-9, FS12 built                                                                             | AB-45        |
+| `docs/plans/GRADEBOOK.md`                                      | Phases 1-6 built behind admin flags                                                                               | AB-4, AB-21  |
+| `docs/plans/QUIZ_ROSTER_GRADING_AND_REOPEN.md`                 | Approved, unbuilt                                                                                                 | AB-39        |
+| `docs/plans/QUIZ_STRUCTURED_ASSESSMENTS.md`                    | Unbuilt                                                                                                           | AB-40        |
+| `docs/plans/SCHOOLOGY_GRADE_IMPORT.md`                         | Unbuilt                                                                                                           | AB-55        |
+| `docs/plans/STARRED_CLASS_AUDIT.md`                            | Unbuilt                                                                                                           | AB-41, AB-57 |
+| `docs/plans/UNIT_OVERVIEW_WIDGET.md`                           | Unbuilt                                                                                                           | AB-43        |
+| `docs/plans/AI_RESPONSIBLE_USE_WIDGET.md`                      | Unbuilt                                                                                                           | AB-44        |
+| `docs/plans/ANNOTATION_OVERLAY_PR3.md`                         | Unbuilt                                                                                                           | AB-42        |
+| `docs/plans/PLC_RENAME_QUIZZES_TO_ASSESSMENTS.md`              | Waiting on scope                                                                                                  | AB-50        |
+| `docs/plans/copy-audit/guided-learning.md`                     | Most verdicts unapplied                                                                                           | AB-20        |
+| `docs/specs/M16-plc-phases-7-8-spec.md`, `docs/PLC_ROADMAP.md` | Unbuilt                                                                                                           | AB-51, AB-25 |
+| `docs/specs/LO12-nexus-widget-connections-spec.md`             | Dropped 2026-11-15: superseded by Widget Connections v2 (`config/widgetConnections.ts`)                           |              |
+| `docs/plans/WIDGET_RUBRIC.md`                                  | Living reference for the widget grader; not backlog                                                               |              |
 
 Other references: roadmaps and design docs (`docs/nexus.md`, `docs/wide-distro-plan.md`), runbooks (`docs/admin_settings_widget_configs.md`, `docs/external-availability-*.md`, `docs/assign-from-spartboard-to-lms-feasibility.md`, `docs/ADMIN_SETUP.md`, `docs/DEV_WORKFLOW.md`, `docs/LINTING_SETUP.md`, `docs/DEPLOY_CHECK.md`), and the decision record in `docs/plans/shipped/`.
 
