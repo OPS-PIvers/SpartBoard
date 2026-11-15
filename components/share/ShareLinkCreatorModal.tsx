@@ -32,6 +32,9 @@ interface ShareLinkCreatorModalProps {
   onClose: () => void;
   /** Opens ShareWithSubModal. */
   onShareWithSub?: () => void;
+  initialMode?: SharedBoardImportMode;
+  /** A link already made for this board, shown ready to copy. */
+  initialUrl?: string | null;
 }
 
 export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
@@ -39,20 +42,22 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
   isOpen,
   onClose,
   onShareWithSub,
+  initialMode = 'synced',
+  initialUrl = null,
 }) => {
   const outward = useViewAsOutward();
   const { t } = useTranslation();
   const { shareDashboard, addToast } = useDashboard();
   const { canAccessFeature } = useAuth();
   const { plcs } = usePlcs();
-  const [mode, setMode] = useState<SharedBoardImportMode>('synced');
+  const [mode, setMode] = useState<SharedBoardImportMode>(initialMode);
   // Phase 6 — optional PLC scope. `null` (default) means a plain share
   // link with no PLC affiliation. Picking a PLC tags the resulting share
   // doc with `plcId`, surfacing it on that PLC's Shared Boards tab in
   // addition to whoever the host sends the link to.
   const [plcId, setPlcId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
-  const [createdUrl, setCreatedUrl] = useState<string | null>(null);
+  const [createdUrl, setCreatedUrl] = useState<string | null>(initialUrl);
   const [copied, setCopied] = useState(false);
 
   // Reset modal state every time it opens for a new dashboard. Gated on the
@@ -66,13 +71,13 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
     prevOpenRef.current = isOpen;
     prevDashboardIdRef.current = dashboard?.id;
     if (justOpened || dashboardChanged) {
-      setMode('synced');
+      setMode(initialMode);
       setPlcId(null);
       setCreating(false);
-      setCreatedUrl(null);
+      setCreatedUrl(justOpened ? initialUrl : null);
       setCopied(false);
     }
-  }, [isOpen, dashboard?.id]);
+  }, [isOpen, dashboard?.id, initialMode, initialUrl]);
 
   if (!isOpen || !dashboard) return null;
 
