@@ -27,6 +27,7 @@ import {
   PAPER_WRITTEN_CROP_PREFIX,
   paperCropStoragePath,
   paperTranscriptionJobId,
+  serverSeat,
   type GetPaperPageResponse,
   type PaperPrivateAnswer,
   type PaperTranscriptionJob,
@@ -163,12 +164,10 @@ function isPaperWritten(answer: Rec): boolean {
   );
 }
 
-/** The printed seat: the response's `paperSeat`, else the seat segment of its crop path. */
-function seatOf(response: Rec | undefined, answer: Rec | undefined): number {
-  if (typeof response?.paperSeat === 'number') return response.paperSeat;
-  const path = handwritingArtifactOf(answer)?.storagePath;
-  const seat = typeof path === 'string' ? Number(path.split('/')[3]) : NaN;
-  if (!Number.isInteger(seat) || seat < 1) {
+/** The import-recorded seat; refuses rather than read the student-editable crop path. */
+function seatOf(...candidates: unknown[]): number {
+  const seat = serverSeat(...candidates);
+  if (seat === null) {
     throw new HttpsError('failed-precondition', 'This answer has no seat.');
   }
   return seat;
@@ -483,7 +482,12 @@ export async function handleGetPaperWrittenCrop(
     const path = paperCropStoragePath(
       teacherUid,
       newer.scanId,
-      typeof priv?.seat === 'number' ? priv.seat : seatOf(response, answer),
+      seatOf(
+        newer.seat,
+        priv?.seat,
+        response.paperSeat,
+        response.paperWrittenSeat
+      ),
       target.questionId
     );
     return (await cropFromStorage(deps, path)) ?? missing;
@@ -495,8 +499,11 @@ export async function handleGetPaperWrittenCrop(
   const priv = (
     await privateRefOf(responseRef, target.questionId).get()
   ).data();
-  const seat: unknown =
-    typeof priv?.seat === 'number' ? priv.seat : response.paperSeat;
+  const seat = serverSeat(
+    priv?.seat,
+    response.paperSeat,
+    response.paperWrittenSeat
+  );
   if (
     typeof priv?.scanId !== 'string' ||
     typeof seat !== 'number' ||
@@ -787,10 +794,12 @@ export async function handleApplyPaperNewerScan(
   const page = newer.page;
   const state = newer.state;
   const response = responseSnap.data();
-  const answer = answersOf(response).find(
-    (a) => a.questionId === target.questionId
+  // Server-written only: the newer scan's own seat, else the latest import's.
+  const seat = seatOf(
+    newer.seat,
+    response?.paperSeat,
+    response?.paperWrittenSeat
   );
-  const seat = seatOf(response, answer);
   const storagePath = paperCropStoragePath(
     caller.uid,
     newScanId,
@@ -940,8 +949,11 @@ export async function handleTranscribePaperBlank(
   }
   // The import's own seat for this scan, as the archive core reads it; a re-import can move `paperSeat`.
   const privateSeat: unknown = (await privateRef.get()).data()?.seat;
-  const seat =
-    typeof privateSeat === 'number' ? privateSeat : seatOf(response, answer);
+  const seat = seatOf(
+    privateSeat,
+    response?.paperSeat,
+    response?.paperWrittenSeat
+  );
   // Students can edit their answers, so the crop must be this seat's own.
   if (
     storagePath !==
