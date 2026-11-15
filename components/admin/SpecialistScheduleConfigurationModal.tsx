@@ -94,6 +94,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
       setLoading(false);
       return;
     }
+    setLoading(true);
     setLoadFailed(false);
     try {
       const docRef = doc(db, 'feature_permissions', 'specialist-schedule');
