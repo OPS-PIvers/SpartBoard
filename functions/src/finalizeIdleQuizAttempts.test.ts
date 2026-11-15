@@ -715,6 +715,8 @@ describe('runFinalizeIdleQuizAttempts - Manual due date', () => {
     for (const r of responses) {
       expect(r.data.status).toBe('completed');
       expect(r.data.submittedAt).toBe(LAST);
+      // The sweep vouches for its own backdated time, so the turn-in trigger keeps it on time.
+      expect(r.data.turnIn).toEqual({ at: LAST, claimed: LAST });
     }
   });
 

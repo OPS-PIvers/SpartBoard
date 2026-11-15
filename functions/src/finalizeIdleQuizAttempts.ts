@@ -54,6 +54,7 @@ import {
   withQuizSessionContent,
 } from './quizSessionContent';
 import { buildQuizFinalizeUpdate, sessionQuestionIds } from './quizFinalize';
+import { withServerTurnIn } from './quizTurnIn';
 
 export { resolveUnrespondedQuestionIds } from './quizFinalize';
 
@@ -600,9 +601,14 @@ export async function runFinalizeIdleQuizAttempts(
         if (!update) return 'raced-status' as const;
         // Past the close, count it as turned in at the student's last write, so on-time work isn't Late.
         const lastWriteMs = fresh.lastWriteAt?.toMillis();
-        if (pastDue && lastWriteMs != null)
-          update.submittedAt = Math.min(lastWriteMs, finalizedAt);
-        tx.update(docSnap.ref, { ...update, autoSubmitted: true });
+        const submittedAt =
+          pastDue && lastWriteMs != null
+            ? Math.min(lastWriteMs, finalizedAt)
+            : finalizedAt;
+        tx.update(docSnap.ref, {
+          ...withServerTurnIn(update, submittedAt),
+          autoSubmitted: true,
+        });
         return 'finalized' as const;
       });
       if (result === 'finalized') {

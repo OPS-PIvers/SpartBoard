@@ -4,7 +4,12 @@ import * as logger from 'firebase-functions/logger';
 import * as admin from './firebaseAdmin';
 import { isPeriodFrozen, withQuizSessionContent } from './quizSessionContent';
 import { buildQuizFinalizeUpdate, sessionQuestionIds } from './quizFinalize';
-import { TIME_LIMIT_GRACE_MS, isOverTime } from './quizTurnIn';
+import { toMillis } from './gradebook/gradeRowMath';
+import {
+  TIME_LIMIT_GRACE_MS,
+  overTimeDeadline,
+  withServerTurnIn,
+} from './quizTurnIn';
 
 type Firestore = admin.firestore.Firestore;
 type Doc = Record<string, unknown>;
@@ -96,7 +101,8 @@ export async function runFinalizeExpiredQuizAttempts(
     const response = snap.data();
     if (waitsForStudent(response) || isPeriodFrozen(session, response, now))
       continue;
-    if (!(await isOverTime(db, session, response, now))) continue;
+    const deadline = await overTimeDeadline(db, session, response, now);
+    if (deadline === null) continue;
     try {
       const done = await db.runTransaction(async (tx) => {
         const fresh = (await tx.get(snap.ref)).data();
@@ -121,7 +127,14 @@ export async function runFinalizeExpiredQuizAttempts(
           now
         );
         if (!update) return false;
-        tx.update(snap.ref, { ...update, autoSubmitted: true, timeUp: true });
+        // Turned in when the time ran out (or at the last write before it), so an attempt that expired before the due isn't Late.
+        const lastWriteMs = toMillis(fresh.lastWriteAt);
+        const submittedAt = Math.min(deadline, lastWriteMs ?? deadline, now);
+        tx.update(snap.ref, {
+          ...withServerTurnIn(update, submittedAt),
+          autoSubmitted: true,
+          timeUp: true,
+        });
         return true;
       });
       if (done) finalized++;

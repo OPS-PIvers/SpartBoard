@@ -41,6 +41,30 @@ export function withTurnInStamp(
   return { ...after, turnIn: { at: eventAt, claimed } };
 }
 
+/** A server turn-in vouches for its own time, so the trigger keeps it (a backdated on-time sweep stays on time). */
+export function withServerTurnIn(
+  update: Record<string, unknown>,
+  submittedAt: number
+): Record<string, unknown> {
+  return {
+    ...update,
+    submittedAt,
+    turnIn: { at: submittedAt, claimed: submittedAt },
+  };
+}
+
+/** True when the response already carries a stamp for this exact submission (a server turn-in wrote its own). */
+function alreadyStamped(kind: TurnInKind, after: Doc): boolean {
+  const stamp = after.turnIn as Doc | undefined;
+  const claimed = toMillis(after[CLAIMED[kind]]);
+  return (
+    !!stamp &&
+    typeof stamp.at === 'number' &&
+    claimed !== null &&
+    toMillis(stamp.claimed) === claimed
+  );
+}
+
 /** Mirrors utils/quizTimeLimit.ts clampQuizTimeLimitMinutes. */
 function limitMinutes(raw: unknown): number | null {
   const n = typeof raw === 'number' ? raw : Number.parseInt(String(raw), 10);
@@ -117,11 +141,23 @@ export async function isOverTime(
   response: Doc,
   at: number
 ): Promise<boolean> {
+  return (await overTimeDeadline(db, session, response, at)) !== null;
+}
+
+/** This attempt's deadline when `at` is past it plus grace, else null. */
+export async function overTimeDeadline(
+  db: Firestore,
+  session: Doc,
+  response: Doc,
+  at: number
+): Promise<number | null> {
   const base = quizAttemptDeadline(session, response, 1, at);
-  if (base === null || at <= base + TIME_LIMIT_GRACE_MS) return false;
+  if (base === null || at <= base + TIME_LIMIT_GRACE_MS) return null;
   const multiplier = await readTimeMultiplier(db, session, response.studentUid);
   const deadline = quizAttemptDeadline(session, response, multiplier, at);
-  return deadline !== null && at > deadline + TIME_LIMIT_GRACE_MS;
+  return deadline !== null && at > deadline + TIME_LIMIT_GRACE_MS
+    ? deadline
+    : null;
 }
 
 /** On a turn-in, records the server's time and flags a quiz attempt turned in past its limit; returns the stamped response. */
@@ -135,6 +171,7 @@ export async function stampTurnIn(
   eventAt: number
 ): Promise<Doc | undefined> {
   if (!after || !isTurnInWrite(kind, before, after)) return after;
+  if (alreadyStamped(kind, after)) return after;
   const stamped = withTurnInStamp(kind, after, eventAt);
   try {
     const sessionRef = db.collection(COLLECTION[kind]).doc(sessionId);

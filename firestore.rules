@@ -4630,29 +4630,25 @@ service cloud.firestore {
           let from = e.get('status', '');
           let to = d.get('status', '');
           let done = e.get('completedAttempts', 0);
-          let now = d.get('completedAttempts', 0);
-          return (to == 'in-progress' && now == done && (from != 'completed' || e.get('unlocked', false))) ||
-                 (to == 'completed' && from != 'completed' && now == done + 1 &&
+          return (to == 'in-progress' && (from != 'completed' || e.get('unlocked', false))) ||
+                 (to == 'completed' && from != 'completed' && d.get('completedAttempts', 0) == done + 1 &&
                   nearServerNow(d.get('submittedAt', null)) && d.get('unlocked', false) == false) ||
-                 (to == 'joined' && now == done && from == 'completed' && d.get('answers', []).size() == 0 &&
+                 (to == 'joined' && from == 'completed' && d.get('answers', []).size() == 0 &&
                   (limit == null || (done < limit && limit > 1)));
         }
 
-        // A timed self-paced attempt takes answers only once its server clock has started.
+        // A timed self-paced attempt takes answers only once its server clock has started (cheapest check first).
         function clockOk(s) {
           return s.get('timeLimitMinutes', null) == null || s.get('sessionMode', '') != 'student' ||
                  incoming().get('attemptStartedAt', null) != null;
-        }
-        // Answers are never taken in a review game, or before a timed attempt's clock starts.
-        function answersOk(s) {
-          return s.get('sessionMode', '') != 'game' && clockOk(s);
         }
         // Input signals: only where the session records them, and only the open attempt's entry (earlier ones are kept).
         function signalsOk(s) {
           let n = incoming().inputSignals;
           let o = existing().get('inputSignals', {});
           let k = string(existing().get('completedAttempts', 0));
-          return s.get('inputSignals', false) && n.diff(o).affectedKeys().hasOnly([k]) &&
+          return s.get('inputSignals', false) && (runOpen(s) || existing().get('unlocked', false)) &&
+                 n.diff(o).affectedKeys().hasOnly([k]) &&
                  n[k] is map && n[k].keys().size() <= 500 && n[k].keys().hasAll(o.get(k, {}).keys());
         }
 
@@ -4753,8 +4749,7 @@ service cloud.firestore {
           incoming().get('tabExits', null) == null &&
           incoming().get('partHeld', null) == null &&
           incoming().get('liveView', null) == null &&
-          incoming().get('turnIn', null) == null &&
-          incoming().get('inputSignals', null) == null &&
+          !incoming().keys().hasAny(['turnIn', 'inputSignals']) &&
           incoming().get('partsDone', null) == null &&
           incoming().get('dealtQuestionIds', null) == null &&
           // Per-student publication and the answer key are teacher-written only.
@@ -4789,25 +4784,21 @@ service cloud.firestore {
           // The PIN is short text the hourly archive email quotes.
           incoming().get('pin', '') is string && incoming().get('pin', '').size() <= 10 &&
           (responseKey == authUid() || pinKeyOk(sessionData(), incoming()));
-        // The student branch runs first so a student's write skips the teacher and admin checks.
-        allow update: if signedIn() && (
-          // Students update only their own response (ownership via studentUid, not the key).
-          // Mutable: answers, status, submittedAt, tabSwitchWarnings, completedAttempts,
-          // classPeriod, score (reset to null on rejoin). pin/join metadata immutable.
-          // Monotonic: tabSwitchWarnings, completedAttempts. Students may only write null to score.
-          (authUid() == existing().studentUid &&
-           passesStudentClassGateList(sessionClassIds()) &&
+        // The student's own update; s is the session, k the keys the write affects (computed once: this runs near the 1,000-expression limit).
+        function studentUpdateOk(s, k) {
+          return authUid() == existing().studentUid &&
+           passesStudentClassGateList(s.get('classIds', [])) &&
            // Student writes stop at the session close time (M17) or the run's end.
            // The teacher branch below is unaffected — grading continues after close.
-           (runOpen(sessionData()) ||
-            isResultsProtectionOnlyWrite() ||
+           (runOpen(s) ||
+            k.hasOnly(['resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt']) ||
             existing().get('unlocked', false) == true) &&
            // Pause is enforced here for every session, and per period where set.
-           (frozenWriteOk(sessionData(), existing().get('classId', null)) ||
-            (sessionData().status != 'paused' &&
+           (frozenWriteOk(s, existing().get('classId', null)) ||
+            (s.status != 'paused' &&
              // studentUid is authUid() here and cheaper: a PIN token's authUid() costs more expressions.
-             (periodOpen(sessionData(), existing().get('classId', null)) ||
-              sessionData().get('studentAccess', {}).get(existing().studentUid, 0) > request.time.toMillis()))) &&
+             (periodOpen(s, existing().get('classId', null)) ||
+              s.get('studentAccess', {}).get(existing().studentUid, 0) > request.time.toMillis()))) &&
            unchanged('studentUid') &&
            // SSO studentRole responses omit `pin` entirely, so direct dot-access on
            // `resource.data.pin` would throw a Null-value error and deny the write. Use
@@ -4819,13 +4810,13 @@ service cloud.firestore {
            // write a non-null score they didn't already have - blocks forgery while allowing
            // mid-quiz writes (null on both sides) and post-publish results-protection writes
            // (score unchanged from the graded value).
-           (!changed(['score']) ||
+           (!k.hasAny(['score']) ||
             incoming().score == null) &&
            // Students may only ever write `0` to `preSyncVersion`. The rejoin path resets it to
            // 0 so a previously-tagged response re-enters the untagged pool that
            // syncAssignmentToLatest queries. Arbitrary values would let a student forge a tag
            // to dodge future sync tagging, mirroring the create-time constraint above.
-           (!changed(['preSyncVersion']) ||
+           (!k.hasAny(['preSyncVersion']) ||
             incoming().preSyncVersion == 0) &&
            // NOTE: `grading` (and everything under it) is deliberately ABSENT from this
            // whitelist. The teacher branch above is unrestricted, so teachers write
@@ -4840,36 +4831,36 @@ service cloud.firestore {
            // addedKeys and bypass the whitelist entirely.
            // Review games: answers come only from checkQuizGameAnswerV1 (`game` is off the list below).
            // Turned-in answers are final unless the teacher unlocks the attempt or a retake clears them.
-           // One changed() check for all three: this branch sits near the 1,000-expression limit.
-           (!changed(['answers']) ||
-            (answersOk(sessionData()) &&
+           // One k.hasAny() check for all three: this function sits near the 1,000-expression limit.
+           (!k.hasAny(['answers']) ||
+            (s.get('sessionMode', '') != 'game' && clockOk(s) &&
              (existing().get('status', '') != 'completed' ||
               existing().get('unlocked', false) == true || incoming().get('status', '') == 'joined') &&
              paperKept(existing(), incoming()))) &&
            // submittedAt is near server time (grading trusts the server's turn-in stamp), or cleared for a retake or teacher unlock.
-           (!changed(['submittedAt']) ||
+           (!k.hasAny(['submittedAt']) ||
             (incoming().get('submittedAt', null) == null ?
              (incoming().get('status', '') == 'joined' || existing().get('unlocked', false) == true) :
              nearServerNow(incoming().submittedAt))) &&
            // A PIN-keyed doc keeps the period its key names.
            // shorthands: off (raw uid first: this update runs close to the 1,000-expression limit)
-           (responseKey == request.auth.uid || !changed(['classPeriod']) ||
+           (responseKey == request.auth.uid || !k.hasAny(['classPeriod']) ||
             responseKey.matches('pin-' + keySeg(incoming().get('classPeriod', '')) + '-.*')) &&
            // shorthands: on
-           changedOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt', 'stimulusPlays', 'stimulusErrors', 'servedQuestionIds', 'recordingNoticeAckedAt', 'tabExits', 'attemptStartedAt', 'timeUp', 'partsDone', 'partHeld']) &&
+           k.hasOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt', 'stimulusPlays', 'stimulusErrors', 'servedQuestionIds', 'recordingNoticeAckedAt', 'tabExits', 'attemptStartedAt', 'timeUp', 'partsDone', 'partHeld']) &&
            tabExitsOk() &&
            // Stop checkpoints: a part count, and a held flag that is true or cleared.
-           (!changed(['partsDone']) || incoming().get('partsDone', 0) is int) &&
-           (!changed(['partHeld']) || incoming().get('partHeld', null) in [true, null]) &&
+           (!k.hasAny(['partsDone']) || incoming().get('partsDone', 0) is int) &&
+           (!k.hasAny(['partHeld']) || incoming().get('partHeld', null) in [true, null]) &&
            // Time-limit clock: server-stamped, and only restarted by a new attempt
            // (completed -> joined) or stamped where none exists yet.
-           (!changed(['attemptStartedAt']) ||
+           (!k.hasAny(['attemptStartedAt']) ||
             (incoming().attemptStartedAt == request.time &&
              (existing().get('attemptStartedAt', null) == null ||
               (existing().get('status', '') == 'completed' &&
                incoming().get('status', '') == 'joined')))) &&
            // `timeUp` is set only on the submit itself, and cleared by a new attempt.
-           (!changed(['timeUp']) ||
+           (!k.hasAny(['timeUp']) ||
             (incoming().get('timeUp', null) == true &&
              incoming().get('status', '') == 'completed' &&
              existing().get('status', '') != 'completed') ||
@@ -4886,33 +4877,26 @@ service cloud.firestore {
            // count) - a client can pick which pool questions it sees but never
            // shrink the scoring denominator.
            // Bank-slot draws are written only by drawQuizBankQuestionsV1; a student clears one only for a retake.
-           (!changed(['servedQuestionIds']) ||
+           (!k.hasAny(['servedQuestionIds']) ||
             (incoming().get('servedQuestionIds', null) == null &&
-             (sessionData().get('bankSlots', null) == null ||
+             (s.get('bankSlots', null) == null ||
               (existing().get('status', '') == 'completed' && incoming().get('status', '') == 'joined'))) ||
-            (sessionData().get('bankSlots', null) == null &&
-             sessionData().get('assignmentId', '') != '' &&
-             servedPointerOk(get(/databases/$(database)/documents/student_assignments/$(existing().studentUid)/items/$(sessionData().assignmentId)).data)) ||
-            // Until 2026-11-10 only: a tab still on the previous app rolls its own first draw (AB-98).
-            (request.time < timestamp.date(2026, 11, 10) &&
-             sessionData().get('bankSlots', null) != null &&
-             existing().get('servedQuestionIds', null) == null &&
-             existing().get('status', '') != 'completed' &&
-             isList('servedQuestionIds') &&
-             incoming().servedQuestionIds.size() == sessionData().totalQuestions)) &&
+            (s.get('bankSlots', null) == null &&
+             s.get('assignmentId', '') != '' &&
+             servedPointerOk(get(/databases/$(database)/documents/student_assignments/$(existing().studentUid)/items/$(s.assignmentId)).data))) &&
            // Stimulus telemetry maps (per-attempt play + load-failure counters). Truthfulness
            // is client-enforced diagnostics, not a security boundary - but size is: the teacher
            // monitor reads every response doc in the session, so cap the key count to stop a
            // student inflating their doc toward the 1 MB limit with junk keys.
-           (!changed(['stimulusPlays']) ||
+           (!k.hasAny(['stimulusPlays']) ||
             (isMap('stimulusPlays') &&
              incoming().stimulusPlays.keys().size() <= 200)) &&
-           (!changed(['stimulusErrors']) ||
+           (!k.hasAny(['stimulusErrors']) ||
             (isMap('stimulusErrors') &&
              incoming().stimulusErrors.keys().size() <= 100)) &&
            // `handRaisedAt` must be server-stamped when raising, or null when
            // the student lowers their own hand — never a client timestamp.
-           (!changed(['handRaisedAt']) ||
+           (!k.hasAny(['handRaisedAt']) ||
             incoming().handRaisedAt == request.time ||
             incoming().handRaisedAt == null) &&
            // `recordingNoticeAckedAt` (Tennessen notice ack, #2737) is a
@@ -4921,7 +4905,7 @@ service cloud.firestore {
            // still be a real positive timestamp, not an arbitrary
            // string/map/sentinel a student could smuggle into a doc the
            // teacher monitor reads for every response in the session.
-           (!changed(['recordingNoticeAckedAt']) ||
+           (!k.hasAny(['recordingNoticeAckedAt']) ||
             (isInt('recordingNoticeAckedAt') &&
              incoming().recordingNoticeAckedAt > 0)) &&
            // `lastWriteAt` is the idle-auto-submit cutoff and must be server-stamped
@@ -4929,13 +4913,13 @@ service cloud.firestore {
            // Date.now(). Equality with request.time enforces that: a raw Timestamp or number is
            // rejected. Closes the clock-skew failure modes - past-clock devices can't be
            // force-finalized early, future-clock devices can't evade idle auto-submit.
-           (!changed(['lastWriteAt']) ||
+           (!k.hasAny(['lastWriteAt']) ||
             incoming().lastWriteAt == request.time) &&
            // Students may only ever CLEAR the unlock flag (write `false`)
            // — never set it to true. The teacher's unlock action sets
            // `unlocked: true`; `completeQuiz` clears it back to false
            // when the resumed attempt is finalized.
-           (!changed(['unlocked']) ||
+           (!k.hasAny(['unlocked']) ||
             incoming().get('unlocked', false) == false) &&
            notDecreased('tabSwitchWarnings') &&
            // Results-view screenshot-protection guards. useResultsTabWarnings increments
@@ -4945,20 +4929,27 @@ service cloud.firestore {
            notDecreased('resultsTabWarnings') &&
            // `resultsLockedOut` may only stay the same OR transition false→true.
            // A student-side write of `true→false` (self-unlock) is rejected.
-           (!changed(['resultsLockedOut']) ||
+           (!k.hasAny(['resultsLockedOut']) ||
             (existing().get('resultsLockedOut', false) == false ||
              incoming().get('resultsLockedOut', false) == true)) &&
            // Attempt-cap: completedAttempts ≤ attemptLimit (null = unlimited),
            // else a hostile client could increment past the cap.
-           (sessionAttemptLimit() == null ||
-            incoming().get('completedAttempts', 0) <= sessionAttemptLimit()) &&
-           // The attempt count moves only with a status move (statusMoveOk: the turn-in, by one).
-           (!changed(['status']) || statusMoveOk(existing(), incoming(), sessionAttemptLimit())) &&
-           (!changed(['completedAttempts']) || changed(['status']))) ||
+           (s.get('attemptLimit', null) == null ||
+            incoming().get('completedAttempts', 0) <= s.get('attemptLimit', null)) &&
+           (!k.hasAny(['status']) || statusMoveOk(existing(), incoming(), s.get('attemptLimit', null))) &&
+           // Only the turn-in (statusMoveOk: by one) moves the attempt count.
+           (!k.hasAny(['completedAttempts']) || (k.hasAny(['status']) && incoming().status == 'completed'));
+        }
+
+        // The student branch runs first so a student's write skips the teacher and admin checks.
+        allow update: if signedIn() && (
+          // Students update only their own response (ownership via studentUid, not the key).
+          // Mutable: answers, status, submittedAt, tabSwitchWarnings, completedAttempts,
+          // classPeriod, score (reset to null on rejoin). pin/join metadata immutable.
+          // Monotonic: tabSwitchWarnings, completedAttempts. Students may only write null to score.
+          studentUpdateOk(sessionData(), incoming().diff(existing()).affectedKeys()) ||
           // Input-signal saves come alone, after the main branch so its costliest path doesn't pay for them.
-          (authUid() == existing().studentUid && changedOnly(['inputSignals']) &&
-           (runOpen(sessionData()) || existing().get('unlocked', false)) &&
-           signalsOk(sessionData())) ||
+          (authUid() == existing().studentUid && changedOnly(['inputSignals']) && signalsOk(sessionData())) ||
           // The teacher can update any field; another admin can't touch identity or the server-written archive, override and paper fields.
           liveUid(sessionTeacherUid()) ||
           (isSiteAdmin() && !changed(['studentUid', 'artifactArchive', 'hasStuckArchive', 'resultsOverride', 'paperSeat', 'paperBatchId', 'paperWrittenBatchId', 'paperWrittenSeat', 'backTranslations', 'liveView']))

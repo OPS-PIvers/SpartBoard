@@ -25,6 +25,7 @@ import {
 } from './quizTurnIn';
 import { runFinalizeExpiredQuizAttempts } from './finalizeExpiredQuizAttempts';
 import { makeStubFirestore, type StubData } from './testing/stubFirestore';
+import { trustedTurnInMs } from './gradebook/gradeRowMath';
 
 type Db = Parameters<typeof stampTurnIn>[0];
 const T = 1_700_000_000_000;
@@ -173,6 +174,50 @@ describe('stampTurnIn', () => {
     ).rejects.toThrow('boom');
   });
 
+  it("keeps a server turn-in's own stamp, so a sweep's on-time backdate stays on time", async () => {
+    const after = turnedIn({
+      submittedAt: T + 5 * MIN,
+      turnIn: { at: T + 5 * MIN, claimed: T + 5 * MIN },
+    });
+    const stub = makeStubFirestore({ [SESSION]: timed, [RESPONSE]: after });
+    const out = await stampTurnIn(
+      stub.db as unknown as Db,
+      'quiz',
+      'qs1',
+      'u1',
+      inProgress(),
+      after,
+      T + 90 * MIN
+    );
+    expect(stub.get(RESPONSE)?.turnIn).toEqual({
+      at: T + 5 * MIN,
+      claimed: T + 5 * MIN,
+    });
+    expect(stub.get(RESPONSE)?.timeUp).toBeUndefined();
+    expect(trustedTurnInMs(out ?? {}, 'submittedAt')).toBe(T + 5 * MIN);
+  });
+
+  it("re-stamps a student turn-in that carries an earlier attempt's stamp", async () => {
+    const after = turnedIn({
+      submittedAt: T + 5 * MIN,
+      turnIn: { at: T - 60 * MIN, claimed: T - 60 * MIN },
+    });
+    const stub = makeStubFirestore({ [SESSION]: timed, [RESPONSE]: after });
+    await stampTurnIn(
+      stub.db as unknown as Db,
+      'quiz',
+      'qs1',
+      'u1',
+      inProgress(),
+      after,
+      T + 5 * MIN
+    );
+    expect(stub.get(RESPONSE)?.turnIn).toEqual({
+      at: T + 5 * MIN,
+      claimed: T + 5 * MIN,
+    });
+  });
+
   it('does not stamp a later attempt on a retried event', async () => {
     const after = turnedIn();
     const stub = makeStubFirestore({
@@ -209,6 +254,39 @@ describe('runFinalizeExpiredQuizAttempts', () => {
       timeUp: true,
       completedAttempts: 1,
     });
+  });
+
+  it('dates the turn-in at the deadline, or the last write before it, and the stamp keeps that time', async () => {
+    const stub = makeStubFirestore({
+      [SESSION]: timed,
+      [RESPONSE]: inProgress({ lastWriteAt: T + 30 * MIN }),
+      'quiz_sessions/qs1/responses/u2': inProgress({
+        studentUid: 'u2',
+        lastWriteAt: T + 4 * MIN,
+      }),
+    });
+    await runFinalizeExpiredQuizAttempts(
+      stub.db as unknown as Db,
+      T + 60 * MIN
+    );
+    const late = stub.get(RESPONSE) ?? {};
+    expect(late.submittedAt).toBe(T + 10 * MIN);
+    expect(late.turnIn).toEqual({ at: T + 10 * MIN, claimed: T + 10 * MIN });
+    const quiet = stub.get('quiz_sessions/qs1/responses/u2') ?? {};
+    expect(quiet.submittedAt).toBe(T + 4 * MIN);
+    // The trigger leaves the server's own stamp alone.
+    await stampTurnIn(
+      stub.db as unknown as Db,
+      'quiz',
+      'qs1',
+      'u1',
+      inProgress(),
+      late,
+      T + 61 * MIN
+    );
+    expect(trustedTurnInMs(stub.get(RESPONSE) ?? {}, 'submittedAt')).toBe(
+      T + 10 * MIN
+    );
   });
 
   it('leaves running clocks, paused sessions and untimed sessions alone', async () => {
