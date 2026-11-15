@@ -469,7 +469,7 @@ export function useSandboxedQuizAssignments(
         pauseAssignment: statusPatch('paused'),
         resumeAssignment: statusPatch('active'),
         deactivateAssignment: statusPatch('inactive'),
-        reopenAssignment: statusPatch('active'),
+        reopenAssignment: statusPatch('paused'),
         publishAssignmentScores: publishPatch,
         unpublishAssignmentScores: unpublishPatch,
       }
