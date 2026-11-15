@@ -11,7 +11,6 @@ import {
   Bot,
   Building2,
   Cast,
-  Keyboard,
   ClipboardCheck,
   Highlighter,
   ScanLine,
@@ -509,30 +508,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Google Docs read as their PDF, not as Word. Admin-only until Paul has imported with it.
-  'quiz-import-google-doc-pdf': {
-    label: 'Read Google Docs as printed',
-    icon: FileText,
-    description:
-      'Imports a Google Doc test from its PDF, keeping figures and their labels.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Bold, underlined or highlighted choices in a PDF read as answers. Admin-only until Paul has imported with it.
-  'quiz-import-pdf-answer-marks': {
-    label: 'Read marked answers in PDFs',
-    icon: FileText,
-    description:
-      'Takes a bold, underlined or highlighted choice in a PDF test as its answer.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Fractions, powers and roots in imported question text become drawn equations. Admin-only until Paul has imported with it.
   'quiz-import-equations': {
     label: 'Draw math in imported tests',
@@ -640,19 +615,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Student math keyboard and accent keys. Admin-only until Paul has tested it in prod.
-  'student-keyboards': {
-    label: 'Student keyboards',
-    icon: Keyboard,
-    description:
-      'Teachers turn on a math keyboard or accent keys for a quiz question.',
-    stage: 'preview',
-    afterLaunch: 'keep',
-    category: 'students',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Live tour editing v2 and tour materials. Admin-only until Paul has edited tours with it in prod.
   'live-tour-editing-v2': {
     label: 'Live tour editing v2',
@@ -727,7 +689,7 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: TextCursorInput,
     description:
       'When a teacher rewords a choice on a scanned paper test, saved student answers follow the new wording.',
-    stage: 'preview',
+    stage: 'permanent',
     afterLaunch: 'keep',
     widget: 'quiz',
     modalLabel: 'Keep scanned answers when rewording',
@@ -1210,41 +1172,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Dropdown and Drag blank types. Admin-only until Paul has tested it in prod.
+  // Dropdown and Drag blank types.
   'quiz-blank-types': {
     label: 'Fill in the blank: dropdown and drag',
     icon: SquareChevronDown,
     description:
       'Blanks can be a dropdown list or a word bank students drag words from, as well as typed.',
-    stage: 'preview',
-    afterLaunch: 'retire',
+    stage: 'permanent',
+    afterLaunch: 'keep',
     widget: 'quiz',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Explanations on questions and answers. Admin-only until Paul has tested it in prod.
-  'quiz-explanations': {
-    label: 'Quiz explanations',
-    icon: FileText,
-    description:
-      'Add an explanation to any question or answer. Students see them under their published results when Show explanations is on.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'quiz',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // DOK levels on questions. Admin-only until Paul has tested it in prod.
-  'quiz-dok': {
-    label: 'Quiz DOK levels',
-    icon: Gauge,
-    description:
-      'Tag questions with a DOK level, group results by DOK, and draw bank questions by DOK.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'quiz',
+    modalLabel: 'Dropdown and drag blanks',
+    group: 'questions',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -1702,17 +1640,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     widget: 'video-activity',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'schoology-push-due-date': {
-    label: 'Schoology push: due date',
-    icon: Send,
-    description:
-      'Lets teachers pick the Schoology due date when a push makes a new gradebook column.',
-    stage: 'preview',
-    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,

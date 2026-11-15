@@ -1,6 +1,53 @@
 {
   "entries": [
     {
+      "version": "2026.11.15.3",
+      "date": "2026-11-15",
+      "title": "Quiz explanations, DOK levels and new blank types",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Quiz",
+          "items": [
+            {
+              "text": "Add an explanation to any question or answer choice. Turn on Show explanations when you assign, and students see them with their published results."
+            },
+            {
+              "text": "Tag each question with a DOK level. Results can group by DOK, and a bank draw can pick questions at one DOK level."
+            },
+            {
+              "text": "Fill in the blank questions can use a dropdown list or a word bank students drag words from, as well as a typed answer."
+            },
+            {
+              "text": "Fill in the blank and written answer questions can give students a math keyboard or accent keys."
+            }
+          ]
+        },
+        {
+          "type": "feature",
+          "subtitle": "Importing tests",
+          "items": [
+            {
+              "text": "A Google Doc test now comes in as printed, with its figures and their labels."
+            },
+            {
+              "text": "In a PDF test, a bold, underlined or highlighted choice comes in as the answer."
+            }
+          ]
+        },
+        {
+          "type": "feature",
+          "subtitle": "Schoology",
+          "items": [
+            {
+              "text": "When Push to Schoology makes a new gradebook column, you can pick its due date."
+            }
+          ]
+        }
+      ],
+      "details": []
+    },
+    {
       "version": "2026.11.15.2",
       "date": "2026-11-15",
       "title": "Sparty, Getting Started and the District library",
@@ -2712,6 +2759,30 @@
     }
   ],
   "widgetNotes": [
+    {
+      "id": "quiz-answer-keyboards-2026-11-15",
+      "widget": "quiz",
+      "date": "2026-11-15",
+      "text": "Turn on Math or Accents beside a typed answer to give students a math keyboard or accent keys."
+    },
+    {
+      "id": "quiz-paper-reword-2026-11-15",
+      "widget": "quiz",
+      "date": "2026-11-15",
+      "text": "When you reword a choice on a scanned paper test, students' saved answers follow the new wording."
+    },
+    {
+      "id": "quiz-schoology-due-date-2026-11-15",
+      "widget": "quiz",
+      "date": "2026-11-15",
+      "text": "Push to Schoology lets you pick the due date for a new gradebook column."
+    },
+    {
+      "id": "video-activity-schoology-due-date-2026-11-15",
+      "widget": "video-activity",
+      "date": "2026-11-15",
+      "text": "Push to Schoology lets you pick the due date for a new gradebook column."
+    },
     {
       "id": "flashcards-missed-cards-2026-11-15",
       "widget": "flashcards",
