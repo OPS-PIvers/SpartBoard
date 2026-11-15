@@ -9,10 +9,13 @@ import {
 } from '@testing-library/react';
 import type { GlobalFeature, GlobalFeaturePermission } from '@/types';
 
-const { setDocMock, docData } = vi.hoisted(() => ({
-  setDocMock: vi.fn((..._args: unknown[]) => Promise.resolve()),
-  docData: { current: undefined },
-}));
+const { setDocMock, docData } = vi.hoisted(() => {
+  const data: { current: unknown } = { current: undefined };
+  return {
+    setDocMock: vi.fn((..._args: unknown[]) => Promise.resolve()),
+    docData: data,
+  };
+});
 vi.mock('@/config/firebase', () => ({ db: {} }));
 vi.mock('firebase/firestore', () => ({
   doc: (_db: unknown, collection: string, id: string) => ({
