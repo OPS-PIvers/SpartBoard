@@ -62,6 +62,7 @@ export function buildNotJoined(params: {
     | 'classIds'
     | 'classId'
     | 'classPeriodByClassId'
+    | 'periodNames'
   >;
   rosters: ClassRoster[];
   responses: QuizResponse[];
@@ -72,7 +73,7 @@ export function buildNotJoined(params: {
   lookupReady: boolean;
   /** The name the monitor shows for a response, to catch a PIN or LMS join. */
   responseName: (r: QuizResponse) => string;
-  /** Local date (YYYY-MM-DD); a roster's absent list counts only on its own date. */
+  /** Local date (YYYY-MM-DD); a roster's absent list counts only on its own date. '' ignores absences. */
   today: string;
 }): NotJoinedStudent[] {
   const {
@@ -87,8 +88,8 @@ export function buildNotJoined(params: {
     today,
   } = params;
   const studentsMode = targets?.targetMode === 'students';
-  // A per-student assignment we can't see the targets of would list the whole class.
-  if (session.individualTargeting && !studentsMode) return [];
+  // Without the assignment's targeting, skipped or untargeted students would show.
+  if (!targets || (session.individualTargeting && !studentsMode)) return [];
 
   // Only the assigning teacher's own rosters match by id; name matching could pick a co-teacher's class.
   const matched = (session.rosterIds ?? [])
@@ -116,10 +117,20 @@ export function buildNotJoined(params: {
 
   const candidates: Candidate[] = [];
   const seen = new Set<string>();
+  // Responses carry the class name saved at assign time, which a later rename doesn't change.
+  const rosterIds = session.rosterIds ?? [];
+  const savedNames = session.periodNames ?? [];
+  const savedPeriod = (roster: ClassRoster, periodKey: string): string =>
+    session.classPeriodByClassId?.[periodKey] ??
+    (savedNames.length === rosterIds.length
+      ? savedNames[rosterIds.indexOf(roster.id)]
+      : undefined) ??
+    roster.name;
   for (const roster of matched) {
     const periodKey = periodKeyForRoster(roster);
+    const period = savedPeriod(roster, periodKey);
     const absentIds = new Set(
-      roster.absent?.date === today ? roster.absent.studentIds : []
+      today && roster.absent?.date === today ? roster.absent.studentIds : []
     );
     for (const student of roster.students) {
       const ref = resolveStudentTargetRef(student, roster);
@@ -141,7 +152,7 @@ export function buildNotJoined(params: {
           `${student.firstName} ${student.lastName}`.trim() ||
           'Student',
         pin: student.pin ?? '',
-        period: roster.name,
+        period,
         periodKey,
         absent: absentIds.has(student.id),
         rosterId: roster.id,

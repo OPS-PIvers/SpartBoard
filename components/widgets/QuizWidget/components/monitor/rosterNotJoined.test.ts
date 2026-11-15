@@ -57,7 +57,7 @@ const refs = new Map([
 const base = {
   session: { rosterIds: ['r1'], classIds: ['class-1'] },
   rosters: [cl],
-  targets: null,
+  targets: {},
   byStudentUid: names,
   targetRefKeyByStudentUid: refs,
   lookupReady: true,
@@ -134,6 +134,37 @@ describe('buildNotJoined', () => {
       },
     });
     expect(out.map((s) => s.name)).toEqual(['Ben Lee']);
+  });
+
+  it('shows nobody until the assignment targeting is known', () => {
+    expect(buildNotJoined({ ...base, targets: null, responses: [] })).toEqual(
+      []
+    );
+  });
+
+  it('matches by the class name saved at assign time after a rename', () => {
+    const local = roster('r8', [student('p1', 'Dee', { pin: '01' })], {
+      name: 'Renamed',
+    });
+    const out = buildNotJoined({
+      ...base,
+      session: { rosterIds: ['r8'], periodNames: ['Period 3'] },
+      rosters: [local, roster('r9', [])],
+      responses: [
+        response({ studentUid: 'anon', pin: '01', classPeriod: 'Period 3' }),
+      ],
+    });
+    expect(out).toEqual([]);
+  });
+
+  it('ignores absences when no date is given', () => {
+    const out = buildNotJoined({
+      ...base,
+      today: '',
+      rosters: [{ ...cl, absent: { date: '', studentIds: ['s1'] } }],
+      responses: [],
+    });
+    expect(out.every((s) => !s.absent)).toBe(true);
   });
 
   it('shows nobody for a per-student assignment whose targets are unknown', () => {

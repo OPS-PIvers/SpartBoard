@@ -354,6 +354,7 @@ const SessionView: React.FC<{
         responses={responses}
         quizData={makeQuizData()}
         rosters={[makeQuizMonitorRoster()]}
+        rosterTargets={{}}
         onAdvance={noop}
         onEnd={noop}
         onPause={noop}

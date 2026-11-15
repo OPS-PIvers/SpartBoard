@@ -257,7 +257,8 @@ export function useMonitorData(
             byStudentUid,
             targetRefKeyByStudentUid,
             lookupReady: !namesLoading && !namesError,
-            today: getLocalIsoDate(),
+            // An ended quiz may be from another day, so today's absences don't apply.
+            today: session.status === 'ended' ? '' : getLocalIsoDate(),
             responseName: (r) =>
               resolveResponseDisplayName(r, pinToName, byStudentUid),
           })

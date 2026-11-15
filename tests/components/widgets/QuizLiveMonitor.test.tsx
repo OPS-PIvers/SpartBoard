@@ -214,6 +214,7 @@ function renderMonitor(opts: RenderOpts = {}) {
       onClearHand={opts.onClearHand}
       assessmentOnly={opts.assessmentOnly}
       hideLiveScoreboard={opts.hideLiveScoreboard}
+      rosterTargets={{}}
     />,
     opts.features
       ? {
