@@ -995,6 +995,8 @@ const TeacherQuizWidget: React.FC<{
       if ((res.data?.responsesSkipped ?? 0) > 0) throw new Error('skipped');
       lastRewordSync.current.set(quizId, payload);
     } catch {
+      // A partial run may have moved some answers, so the next save always syncs.
+      lastRewordSync.current.delete(quizId);
       // Autosave retries as a teacher types, so don't repeat the message.
       if (Date.now() - lastRewordErrorAt.current < 60_000) return;
       lastRewordErrorAt.current = Date.now();
