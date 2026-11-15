@@ -1587,12 +1587,12 @@ export const useQuizAssignments = (
       if (!userId) throw new Error('Not authenticated');
       const perPeriod =
         !!accessMode && !!periodAccess && Object.keys(periodAccess).length > 0;
-      // A Manual due date (close equal to due) closes every period at once, so it stays shared.
-      const keepCloseAt =
-        !perPeriod ||
-        (accessMode === 'assessment' &&
-          closeAt != null &&
-          closeAt === settings.dueAt);
+      // A Manual due date (close equal to due) locks each period at the due instead of the whole run.
+      const dueLocks =
+        perPeriod &&
+        accessMode === 'assessment' &&
+        closeAt != null &&
+        closeAt === settings.dueAt;
       const hasBankSlots = !!bankSlots && bankSlots.length > 0;
       // Review games draw per student too (plan D17).
       if (
@@ -1697,7 +1697,8 @@ export const useQuizAssignments = (
           : {}),
         // Per-period sessions carry each period's window instead of a shared one.
         ...(openAt != null && !perPeriod ? { openAt } : {}),
-        ...(closeAt != null && keepCloseAt ? { closeAt } : {}),
+        ...(closeAt != null && !perPeriod ? { closeAt } : {}),
+        ...(dueLocks ? { dueLocks: true } : {}),
         ...(settings.resolvedDriveFileId
           ? { resolvedDriveFileId: settings.resolvedDriveFileId }
           : {}),
@@ -1887,7 +1888,8 @@ export const useQuizAssignments = (
         // M17 window (spec §5 A1/B3). `individualTargeting` is written only
         // by `setAssignmentTargetsV1` (§2a ordering guarantee), never here.
         ...(openAt != null && !perPeriod ? { openAt } : {}),
-        ...(closeAt != null && keepCloseAt ? { closeAt } : {}),
+        ...(closeAt != null && !perPeriod ? { closeAt } : {}),
+        ...(dueLocks ? { dueLocks: true } : {}),
         ...(workKind ? { workKind } : {}),
         ...(paperWritten && !paperBatchId
           ? { paperWrittenQuestionIds: paperWritten.questionIds }
