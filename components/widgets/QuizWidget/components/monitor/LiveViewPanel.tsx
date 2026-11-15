@@ -148,9 +148,9 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
   const stats = useMemo(
     () =>
       response
-        ? liveViewStats(session, response, questionId, now, override)
+        ? liveViewStats(session, response, questionId, now, override, reported)
         : null,
-    [session, response, questionId, now, override]
+    [session, response, questionId, now, override, reported]
   );
 
   const record = useCallback(
@@ -208,6 +208,8 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
   // The stamp tells this one student's page to report its question; clearing it on close stops that.
   useEffect(() => {
     if (!watching) return;
+    // Drop any report left from an earlier watch (or a closed tab) before asking for a fresh one.
+    deleteLiveState(sessionId, studentKey).catch(() => undefined);
     stamp();
     const renew = window.setInterval(stamp, LIVE_VIEW_RENEW_MS);
     const stop = watchLiveState(sessionId, studentKey, (state) =>
@@ -426,12 +428,13 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
                       reportTabSwitch={noTabSwitch}
                       onSetHandRaised={noop}
                       handRaised={false}
-                      warningCount={0}
+                      warningCount={response?.tabSwitchWarnings ?? 0}
                       onRecordStimulusPlay={noop}
                       onReportStimulusError={noop}
                       override={override}
                       drawIds={liveViewDrawIds(session, response)}
                       watchQuestionId={questionId ?? firstQuestionId}
+                      watchTabWarning={reported?.warning === true}
                     />
                   </RecordingNoticeDrawingContext.Provider>
                 </div>
