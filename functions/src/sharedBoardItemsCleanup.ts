@@ -42,15 +42,11 @@ export async function cleanupSharedBoardItems(
     .collection(SHARED_BOARD_ITEMS);
   const now = (await db.collection('shared_boards').doc(shareId).get()).data();
   if (plan.all && now) {
-    // Re-created at the same id: keep only the new instance's copies (same nonce) owned by its members.
+    // Re-created at the same id: keep only copies owned by the new share's members.
     const keep = new Set(participantUids(now));
     if (typeof now.originalAuthor === 'string') keep.add(now.originalAuthor);
     const snap = await items.get();
-    const gone = snap.docs.filter(
-      (d) =>
-        !keep.has(String(d.get('ownerUid'))) ||
-        (d.get('shareNonce') ?? null) !== (now.createdNonce ?? null)
-    );
+    const gone = snap.docs.filter((d) => !keep.has(String(d.get('ownerUid'))));
     await Promise.all(gone.map((d) => d.ref.delete()));
     return gone.length;
   }

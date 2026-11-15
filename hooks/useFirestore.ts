@@ -750,8 +750,6 @@ export const useFirestore = (userId: string | null) => {
         ...data,
         ...shareConnectionFields(data),
         sharedAt: Date.now(),
-        // Binds item copies to this share instance, so a re-created id can't read an old one's.
-        createdNonce: crypto.randomUUID(),
         originalAuthor: userId,
         ...(hostDisplayName ? { originalAuthorName: hostDisplayName } : {}),
         ...(intendedMode ? { intendedMode } : {}),

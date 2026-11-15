@@ -37,8 +37,6 @@ export interface SharedBoardItemDoc<T = unknown> {
   title: string;
   /** Publisher-chosen; a write is skipped while the stored version matches. */
   version: string;
-  /** The share's `createdNonce` when written; absent on copies from before it existed. */
-  shareNonce?: string;
   publishedAt: number;
   payload: T;
 }
@@ -125,13 +123,9 @@ export async function publishSharedBoardItem<T>(
 ): Promise<SharedBoardPublishResult> {
   const ref = itemRef(shareId, item.kind, item.ownerUid, item.itemId);
   const existing = await getDoc(ref);
-  const shareSnap = await getDoc(doc(db, 'shared_boards', shareId));
-  const nonce: unknown = shareSnap.data()?.createdNonce;
-  const shareNonce = typeof nonce === 'string' ? nonce : undefined;
   if (
     existing.exists() &&
-    (existing.data() as Partial<SharedBoardItemDoc>).version === item.version &&
-    (existing.data() as Partial<SharedBoardItemDoc>).shareNonce === shareNonce
+    (existing.data() as Partial<SharedBoardItemDoc>).version === item.version
   ) {
     return 'current';
   }
@@ -147,7 +141,6 @@ export async function publishSharedBoardItem<T>(
   const payload = await buildPayload();
   const next: SharedBoardItemDoc<T> = {
     ...item,
-    ...(shareNonce ? { shareNonce } : {}),
     publishedAt: Date.now(),
     payload,
   };

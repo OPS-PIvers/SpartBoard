@@ -19,19 +19,14 @@ import {
   orphanedCopies,
 } from './sharedBoardItemsCleanup';
 
-type Item = { id: string; ownerUid: string; shareNonce?: string };
+type Item = { id: string; ownerUid: string };
 
 function fakeDb(items: Item[], current?: Record<string, unknown>) {
   const store = new Map(items.map((i) => [i.id, i]));
   const docs = (list: Item[]) =>
     list.map((i) => ({
       id: i.id,
-      get: (f: string) =>
-        f === 'ownerUid'
-          ? i.ownerUid
-          : f === 'shareNonce'
-            ? i.shareNonce
-            : undefined,
+      get: (f: string) => (f === 'ownerUid' ? i.ownerUid : undefined),
       ref: { delete: vi.fn(() => Promise.resolve(store.delete(i.id))) },
     }));
   const itemsCol = {
@@ -156,23 +151,5 @@ describe('cleanupSharedBoardItems', () => {
     expect(n).toBe(1);
     expect([...store.keys()].sort()).toEqual(['quiz_a_q2', 'quiz_host_q1']);
     expect(db.recursiveDelete).not.toHaveBeenCalled();
-  });
-
-  it('drops a kept member’s copies from the old share instance when the id is re-created', async () => {
-    const stamped = [
-      { id: 'quiz_a_old', ownerUid: 'a', shareNonce: 'old' },
-      { id: 'quiz_a_new', ownerUid: 'a', shareNonce: 'new' },
-      { id: 'quiz_a_legacy', ownerUid: 'a' },
-    ];
-    const now = { ...share({ a: {} }), createdNonce: 'new' };
-    const { db, store } = fakeDb(stamped, now);
-    const n = await cleanupSharedBoardItems(
-      db as never,
-      's1',
-      share({ a: {} }),
-      undefined
-    );
-    expect(n).toBe(2);
-    expect([...store.keys()]).toEqual(['quiz_a_new']);
   });
 });
