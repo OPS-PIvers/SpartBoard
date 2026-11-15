@@ -38,6 +38,10 @@ Controls the sweep looked at and left for Paul, so later runs don't retry them. 
 | components/admin/HelpCenter/HelpItemForm.tsx:237 | Keep current and Change buttons in the Help item link field | Two states of one link control shared by embed and activity kinds; unclear which existing `admin.help-center.*` id a tour would want. |
 | components/admin/PermissionBuildingMultiSelect.tsx:65 | Building chips | Shared by many admin panels and generated per building; needs a caller-supplied anchor prop. |
 | components/common/library/assignStepper/MiniAppEditor.dev.tsx:19 | Inputs and button inside the sample HTML string | False positives from a template literal; nothing to tag. |
+| components/announcements/AnnouncementOverlay.tsx:293 | Dismiss announcement button | Real board control, but the overlay has no tour surface and an admin announcement may never be showing; unclear a tour would point at it. |
+| components/groupReminders/GroupReminderCard.tsx:92 | Dismiss and Snooze buttons | Appears only when a scheduled group reminder fires; needs a tour surface and an opener first. |
+| components/assignmentsHub/AssignmentFilterSelect.tsx:102 | Filter listbox options | One shared select used for several filters and generated per option; needs a caller-supplied anchor prop. |
+| components/gradebook/settings/ChecklistSelect.tsx:81 | Search box and checklist options | Shared multi-select, options generated per checklist; needs a caller-supplied anchor prop. |
 
 ## Run log
 
@@ -71,3 +75,4 @@ Controls the sweep looked at and left for Paul, so later runs don't retry them. 
 | 2026-11-11 | claude/tour-anchors-2026-11-11 | Outside the board (auth screens, substitute portal) | 0 | 34 | 0 | 212 in 76 files |
 | 2026-11-12 | claude/tour-anchors-2026-11-12 | Outside the board (phone remote: mobile view, widget card, activity wall, breathing, checklist, clock, dice, embed, expectations, music, next up controls) | 0 | 32 | 0 | 179 in 64 files |
 | 2026-11-13 | claude/tour-anchors-2026-11-13 | Outside the board (phone remote Poll, Quiz, Random, Schedule, Scoreboard, Sound, Timer, Traffic light and Webcam controls; View as banner, unlock dialog, pending changes panel) | 0 | 40 | 0 | 137 in 51 files |
+| 2026-11-14 | claude/tour-anchors-2026-11-14 | Outside the board / other (Claude connector page, file converter page) | 0 | 10 | 7 | 127 in 49 files |

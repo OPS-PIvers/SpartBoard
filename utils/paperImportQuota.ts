@@ -27,8 +27,8 @@ export async function readPaperImportQuota(
   opts: { uid: string; isAdmin: boolean; nowMs: number }
 ): Promise<PaperImportQuota> {
   const [gemini, perm, usage] = await Promise.all([
-    read('global_permissions', 'gemini-functions'),
-    read('global_permissions', PAPER_HANDWRITTEN_FEATURE),
+    read('global_permissions_public', 'gemini-functions'),
+    read('global_permissions_public', PAPER_HANDWRITTEN_FEATURE),
     read(
       'ai_usage',
       `${opts.uid}_${PAPER_HANDWRITTEN_FEATURE}_${paperQuotaDay(opts.nowMs)}`

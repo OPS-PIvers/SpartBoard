@@ -156,6 +156,19 @@ describe('reading the View as log', () => {
     await assertFails(getDocs(logQuery(asAdmin())));
   });
 
+  it('other admins cannot list the log unfiltered or with orderBy only', async () => {
+    const col = collection(asAdmin().firestore(), 'admin_audit_log');
+    await assertFails(getDocs(col));
+    await assertFails(getDocs(query(col, orderBy('timestamp', 'desc'))));
+  });
+
+  it('other admins can list a pinned non-view-as action', async () => {
+    const col = collection(asAdmin().firestore(), 'admin_audit_log');
+    await assertSucceeds(
+      getDocs(query(col, where('action', '==', 'user_account_deleted')))
+    );
+  });
+
   it('teachers and view-as tabs read nothing', async () => {
     await assertFails(
       getDoc(doc(asTeacher().firestore(), 'admin_audit_log/other'))

@@ -115,13 +115,12 @@ describe('StartReviewModal', () => {
     expect(screen.getByRole('button', { name: /^Start$/ })).toBeDisabled();
   });
 
-  it('picks classes from the class menu', async () => {
+  it('picks classes from the class list', async () => {
     const { onStart } = renderModal({
       rosters: SAMPLE_ROSTERS,
       initialRosterIds: ['c1'],
     });
     expect(screen.queryByText('Assign to classes')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Sample 1' }));
     fireEvent.click(screen.getByRole('checkbox', { name: /Sample 2/ }));
     fireEvent.click(screen.getByRole('button', { name: /^Start$/ }));
     await waitFor(() => expect(onStart).toHaveBeenCalled());

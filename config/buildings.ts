@@ -28,8 +28,8 @@ export interface Building {
  * `/organizations/{orgId}/buildings/{id}` so user-profile selections,
  * member role assignments (`members.buildingIds`), and feature-permission
  * filtering all line up. Legacy long-form IDs (e.g. `orono-high-school`)
- * are handled via {@link BUILDING_ID_ALIASES} so existing stored data
- * continues to work.
+ * are handled client-side via {@link BUILDING_ID_ALIASES}; firestore.rules
+ * compares raw ids (prod has none left, PT-175).
  *
  * @deprecated Prefer the `useAdminBuildings()` hook in any component that
  * reads buildings. These constants remain only to support non-React callers

@@ -265,6 +265,21 @@ describe('useRosters — subscription', () => {
     expect(result.current.rosters[0].studentCount).toBe(3);
   });
 
+  it('carries numeric retiredPinsAt stamps from the roster doc', async () => {
+    currentDriveService = null;
+    const { result } = renderHook(() => useRosters(mockUser));
+    emitSnapshot(0, [
+      metaDoc('r1', {
+        retiredPinsAt: { '01': 1234, '07': 'bad' } as unknown as Record<
+          string,
+          number
+        >,
+      }),
+    ]);
+    await waitFor(() => expect(result.current.rosters).toHaveLength(1));
+    expect(result.current.rosters[0].retiredPinsAt).toEqual({ '01': 1234 });
+  });
+
   it('merges Drive students into roster metadata and caches on success', async () => {
     currentDriveService = makeDriveService({
       downloadFile: vi.fn().mockResolvedValue(
@@ -560,6 +575,31 @@ describe('useRosters — addRoster', () => {
     expect(payload.entries).toEqual([
       { period: 'CL', pin: '100001', classlinkSourcedId: 'cl-a' },
     ]);
+    expect(payload).toMatchObject({ retiredPinsComplete: true });
+  });
+
+  it("sends a linked student's retired PINs with the pin-index sync", async () => {
+    const { result } = renderHook(() => useRosters(mockUser));
+    await act(async () => {
+      await result.current.addRoster('CL', [
+        student({
+          id: 's1',
+          pin: '100001',
+          classLinkSourcedId: 'cl-a',
+          formerPins: ['01'],
+        }),
+      ]);
+    });
+    expect(lastCallablePayload).toMatchObject({
+      entries: [
+        {
+          period: 'CL',
+          pin: '100001',
+          classlinkSourcedId: 'cl-a',
+          formerPins: ['01'],
+        },
+      ],
+    });
   });
 
   it('skips the pin-index round-trip for a purely local roster', async () => {

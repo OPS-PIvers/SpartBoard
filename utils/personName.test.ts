@@ -9,6 +9,17 @@ describe('personName', () => {
     expect(personName({ displayName: 'bailey.nett' })).toBe('Bailey Nett');
   });
 
+  it('title-cases handles with accented letters', () => {
+    expect(personName({ displayName: 'josé.garcía' })).toBe('José García');
+    expect(personName({ email: 'élodie.durand@x.org' })).toBe('Élodie Durand');
+  });
+
+  it('starts a word after any non-letter separator', () => {
+    expect(personName({ displayName: 'o’brien.k' })).toBe('O’Brien K');
+    expect(personName({ email: 'paul+plc@x.org' })).toBe('Paul+Plc');
+    expect(personName({ email: 'john2smith@x.org' })).toBe('John2smith');
+  });
+
   it('keeps a real name', () => {
     expect(
       personName({ displayName: 'Paul Ivers', email: 'paul.ivers@x.org' })

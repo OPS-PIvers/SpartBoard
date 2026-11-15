@@ -105,7 +105,11 @@ interface CollectionRef {
 function deliverGlobalPermissions(perms: GlobalFeaturePermission[]): void {
   vi.mocked(firestore.onSnapshot).mockImplementation((ref, onNext) => {
     const path = (ref as unknown as CollectionRef).__path ?? '';
-    if (path === 'global_permissions') {
+    if (path.startsWith('beta_grants/')) {
+      (onNext as unknown as (s: unknown) => void)({ data: () => undefined });
+      return () => undefined;
+    }
+    if (path === 'global_permissions_public') {
       const snapshot = {
         forEach: (cb: (doc: { id: string; data: () => unknown }) => void) => {
           perms.forEach((p) => {
@@ -167,7 +171,8 @@ describe('AuthContext — getAssignmentMode', () => {
 
     expect(getCtx().getAssignmentMode('quiz')).toBe('submissions');
     expect(getCtx().getAssignmentMode('videoActivity')).toBe('submissions');
-    expect(getCtx().getAssignmentMode('miniApp')).toBe('submissions');
+    // Mini App submissions also need the Mini App submissions preview.
+    expect(getCtx().getAssignmentMode('miniApp')).toBe('view-only');
     expect(getCtx().getAssignmentMode('guidedLearning')).toBe('submissions');
   });
 
@@ -182,6 +187,26 @@ describe('AuthContext — getAssignmentMode', () => {
     ]);
 
     expect(getCtx().getAssignmentMode('quiz')).toBe('submissions');
+    expect(getCtx().getAssignmentMode('miniApp')).toBe('view-only');
+  });
+
+  it('gives Mini App submissions to a teacher the preview covers', async () => {
+    await mountWithPerms([
+      {
+        featureId: 'assignment-modes',
+        accessLevel: 'public',
+        betaUsers: [],
+        enabled: true,
+        config: { miniApp: 'submissions' },
+      },
+      {
+        featureId: 'mini-app-results',
+        accessLevel: 'public',
+        betaUsers: [],
+        enabled: true,
+      },
+    ]);
+
     expect(getCtx().getAssignmentMode('miniApp')).toBe('submissions');
   });
 

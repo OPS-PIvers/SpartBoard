@@ -141,12 +141,19 @@ import {
   ReviewMarksCleanup,
   ReviewSwap,
 } from './QuizReviewScreen';
-import { reviewRows, reviewStepActive } from '@/utils/quizReviewStep';
+import {
+  reviewCounts,
+  reviewRows,
+  reviewStepActive,
+} from '@/utils/quizReviewStep';
+import { resumeQuestionIndex } from '@/utils/quizResume';
 import { useResetOnChange } from '@/hooks/useResetOnChange';
 import {
   clearReviewState,
+  loadResumeQuestion,
   loadReviewState,
   reviewStateKey,
+  saveResumeQuestion,
   saveReviewState,
 } from '@/utils/quizReviewMarksStore';
 import {
@@ -164,6 +171,7 @@ import {
   StudentOverride,
   TabExit,
   InputSignalCounts,
+  QuizLiveState,
   QuizStimulus,
   isFreeResponseType,
   isAnswerSubmitted,
@@ -264,6 +272,7 @@ import {
 } from '@/hooks/useQuizResponseAttempts';
 import { useTabAwayTracker } from '@/hooks/useTabAwayTracker';
 import { useInputSignals } from '@/hooks/useInputSignals';
+import { useLiveViewReport } from '@/hooks/useLiveViewReport';
 import { isHandedOff } from '@/utils/attemptHandOff';
 import { getEffectiveTabAwayRule } from '@/utils/tabAwayLimit';
 import { TabAwayClock } from '@/components/common/TabAwayClock';
@@ -300,6 +309,7 @@ import {
 } from '@/utils/quizFibBlanks';
 import { FibMultiBlankInput } from './FibMultiBlankInput';
 import { QuestionPrompt } from './QuestionPrompt';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { FibChoiceBlanksInput } from './FibChoiceBlanksInput';
 import { hasChoiceBlanks } from '@/utils/quizBlankTypes';
 import { AccentKeysArea } from '@/components/student/keyboards/AccentKeys';
@@ -387,6 +397,7 @@ export const QuizStudentApp: React.FC<QuizStudentAppProps> = ({
 }) => {
   // preview mode — see hooks/usePreviewMode
   const previewMode = usePreviewMode();
+  const { t } = useTranslation();
 
   const [authReady, setAuthReady] = useState(false);
   const [authFailed, setAuthFailed] = useState(false);
@@ -439,7 +450,7 @@ export const QuizStudentApp: React.FC<QuizStudentAppProps> = ({
   }
 
   if (!authReady) {
-    return <FullPageLoader message="Loading…" />;
+    return <FullPageLoader message={t('quizStudent.common.loading')} />;
   }
 
   if (authFailed || !auth.currentUser) {
@@ -447,8 +458,9 @@ export const QuizStudentApp: React.FC<QuizStudentAppProps> = ({
       <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center gap-4 p-6">
         <AlertCircle className="w-10 h-10 text-red-400" />
         <p className="text-slate-300 text-sm text-center">
-          Unable to connect. Please refresh the page and try again.
+          {t('quizStudent.join.unableToConnect')}
         </p>
+        <ReloadButton dark />
       </div>
     );
   }
@@ -469,6 +481,7 @@ export const QuizStudentApp: React.FC<QuizStudentAppProps> = ({
  * verify what students will see without their Firebase Auth session being
  * touched by `signInAnonymously` or the SSO auto-join path. */
 const QuizPreviewLobby: React.FC = () => {
+  const { t } = useTranslation();
   const urlCode =
     typeof window === 'undefined'
       ? ''
@@ -482,15 +495,15 @@ const QuizPreviewLobby: React.FC = () => {
           <div className="flex items-center justify-center mb-8">
             <ClipboardList className="w-5 h-5 text-violet-400 mr-2" />
             <span className="text-sm text-slate-300 font-semibold">
-              Student Quiz
+              {t('quizStudent.join.studentQuiz')}
             </span>
           </div>
 
           <h1 className="text-2xl font-black text-white mb-2 text-center">
-            Join Quiz
+            {t('quizStudent.join.title')}
           </h1>
           <p className="text-slate-400 text-sm text-center mb-6">
-            Enter the code and your PIN from your teacher.
+            {t('quizStudent.join.intro')}
           </p>
 
           <div className="space-y-4" aria-hidden="true">
@@ -499,14 +512,14 @@ const QuizPreviewLobby: React.FC = () => {
               value={urlCode}
               readOnly
               tabIndex={-1}
-              placeholder="Quiz Code (XXXXXX)"
+              placeholder={t('quizStudent.join.codePlaceholder')}
               className="w-full px-4 py-4 bg-slate-800 border border-slate-700 rounded-xl text-white text-xl font-black font-mono tracking-widest text-center uppercase placeholder-slate-600 focus:outline-hidden cursor-default"
             />
             <input
               type="text"
               readOnly
               tabIndex={-1}
-              placeholder="Your PIN"
+              placeholder={t('quizStudent.join.pinPlaceholder')}
               className="w-full px-4 py-4 bg-slate-800 border border-slate-700 rounded-xl text-white text-xl font-black font-mono tracking-widest text-center placeholder-slate-600 focus:outline-hidden cursor-default"
             />
             <button
@@ -515,7 +528,7 @@ const QuizPreviewLobby: React.FC = () => {
               tabIndex={-1}
               className="w-full py-4 bg-violet-600 disabled:opacity-50 text-white font-bold text-lg rounded-xl flex items-center justify-center gap-2 cursor-not-allowed"
             >
-              Join <ArrowRight className="w-5 h-5" />
+              {t('quizStudent.join.join')} <ArrowRight className="w-5 h-5" />
             </button>
           </div>
         </div>
@@ -531,6 +544,7 @@ const QuizJoinFlow: React.FC<{
   embedded: boolean;
   watermarkNameOverride?: string;
 }> = ({ isStudentRole, embedded, watermarkNameOverride }) => {
+  const { t } = useTranslation();
   const params = new URLSearchParams(window.location.search);
   const urlCode = params.get('code') ?? '';
   // A Schoology launch names the teacher who added the quiz; join only their session.
@@ -724,7 +738,9 @@ const QuizJoinFlow: React.FC<{
             dispatchFlow({
               type: 'reviewUnavailable',
               message:
-                err instanceof Error ? err.message : 'This quiz is closed.',
+                err instanceof Error
+                  ? err.message
+                  : t('quizStudent.join.closed'),
             });
             return;
           }
@@ -734,9 +750,7 @@ const QuizJoinFlow: React.FC<{
         // also be populated, and the render branch below prefers that more
         // detailed message when available.
         const message =
-          err instanceof Error
-            ? err.message
-            : "We couldn't load your quiz. Please refresh and try again.";
+          err instanceof Error ? err.message : t('quizStudent.join.loadFailed');
         dispatchFlow({ type: 'autoJoinFailed', message });
         // Re-arm so a retry button (if added later) can re-trigger.
         ssoAutoJoinStartedRef.current = false;
@@ -751,6 +765,7 @@ const QuizJoinFlow: React.FC<{
     joinQuizSession,
     subscribeForReview,
     lookupSession,
+    t,
   ]);
 
   useEffect(() => {
@@ -1286,15 +1301,15 @@ const QuizJoinFlow: React.FC<{
             <div className="flex items-center justify-center mb-8">
               <ClipboardList className="w-5 h-5 text-violet-400 mr-2" />
               <span className="text-sm text-slate-300 font-semibold">
-                Student Quiz
+                {t('quizStudent.join.studentQuiz')}
               </span>
             </div>
 
             <h1 className="text-2xl font-black text-white mb-2 text-center">
-              Select Your Class
+              {t('quizStudent.join.periodTitle')}
             </h1>
             <p className="text-slate-400 text-sm text-center mb-6">
-              Which class period are you in?
+              {t('quizStudent.join.periodIntro')}
             </p>
 
             {error && (
@@ -1337,7 +1352,8 @@ const QuizJoinFlow: React.FC<{
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
                 <>
-                  Continue <ArrowRight className="w-5 h-5" />
+                  {t('quizStudent.join.continue')}{' '}
+                  <ArrowRight className="w-5 h-5" />
                 </>
               )}
             </button>
@@ -1348,7 +1364,7 @@ const QuizJoinFlow: React.FC<{
               }}
               className="w-full mt-3 py-2 text-slate-500 hover:text-slate-300 text-sm font-medium transition-colors"
             >
-              Go Back
+              {t('quizStudent.join.goBack')}
             </button>
           </div>
         </div>
@@ -1369,7 +1385,8 @@ const QuizJoinFlow: React.FC<{
     // Otherwise prefer the hook `error` (e.g. the friendly "ask your teacher to
     // enroll you" hint on a class-gate denial), then the auto-join error (which
     // captures lookupSession failures the hook never sees).
-    if (previewSessionId) return <FullPageLoader message="Loading…" />;
+    if (previewSessionId)
+      return <FullPageLoader message={t('quizStudent.common.loading')} />;
     if (staffGate.screen) return staffGate.screen;
     if (autoJoin) {
       const ssoError = flow.terminalError ?? error ?? flow.autoJoinError;
@@ -1382,14 +1399,15 @@ const QuizJoinFlow: React.FC<{
             <p className="text-slate-600 text-sm text-center max-w-sm">
               {ssoError}
             </p>
+            <ReloadButton />
           </div>
         );
       }
-      return <FullPageLoader message="Joining quiz…" light />;
+      return <FullPageLoader message={t('quizStudent.join.joining')} light />;
     }
     // SSO gate is still deciding whether this is a ClassLink session.
     if (ssoGate === 'pending') {
-      return <FullPageLoader message="Loading…" />;
+      return <FullPageLoader message={t('quizStudent.common.loading')} />;
     }
     if (ssoGate === 'blocked') {
       return (
@@ -1411,15 +1429,15 @@ const QuizJoinFlow: React.FC<{
             <div className="flex items-center justify-center mb-8">
               <ClipboardList className="w-5 h-5 text-violet-400 mr-2" />
               <span className="text-sm text-slate-300 font-semibold">
-                Student Quiz
+                {t('quizStudent.join.studentQuiz')}
               </span>
             </div>
 
             <h1 className="text-2xl font-black text-white mb-2 text-center">
-              Sign in to join
+              {t('quizStudent.join.signInTitle')}
             </h1>
             <p className="text-slate-400 text-sm text-center mb-6">
-              Use your school Google account.
+              {t('quizStudent.join.signInIntro')}
             </p>
 
             <button
@@ -1430,14 +1448,15 @@ const QuizJoinFlow: React.FC<{
               }
               className="w-full py-4 bg-violet-600 hover:bg-violet-500 text-white font-bold text-lg rounded-xl flex items-center justify-center gap-2 transition-colors"
             >
-              Sign in with Google <ArrowRight className="w-5 h-5" />
+              {t('quizStudent.join.signInGoogle')}{' '}
+              <ArrowRight className="w-5 h-5" />
             </button>
 
             <button
               onClick={() => dispatchFlow({ type: 'usePin' })}
               className="w-full mt-3 py-2 text-slate-500 hover:text-slate-300 text-sm font-medium transition-colors"
             >
-              Can&rsquo;t sign in? Use a PIN instead
+              {t('quizStudent.join.usePin')}
             </button>
           </div>
         </div>
@@ -1449,15 +1468,15 @@ const QuizJoinFlow: React.FC<{
           <div className="flex items-center justify-center mb-8">
             <ClipboardList className="w-5 h-5 text-violet-400 mr-2" />
             <span className="text-sm text-slate-300 font-semibold">
-              Student Quiz
+              {t('quizStudent.join.studentQuiz')}
             </span>
           </div>
 
           <h1 className="text-2xl font-black text-white mb-2 text-center">
-            Join Quiz
+            {t('quizStudent.join.title')}
           </h1>
           <p className="text-slate-400 text-sm text-center mb-6">
-            Enter the code and your PIN from your teacher.
+            {t('quizStudent.join.intro')}
           </p>
 
           {error && (
@@ -1484,7 +1503,7 @@ const QuizJoinFlow: React.FC<{
               type="text"
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
-              placeholder="Quiz Code (XXXXXX)"
+              placeholder={t('quizStudent.join.codePlaceholder')}
               maxLength={8}
               className="w-full px-4 py-4 bg-slate-800 border border-slate-700 rounded-xl text-white text-xl font-black font-mono tracking-widest text-center uppercase placeholder-slate-600 focus:outline-hidden focus:ring-2 focus:ring-violet-500"
               required
@@ -1493,7 +1512,7 @@ const QuizJoinFlow: React.FC<{
               type="text"
               value={pin}
               onChange={(e) => setPin(e.target.value)}
-              placeholder="Your PIN"
+              placeholder={t('quizStudent.join.pinPlaceholder')}
               maxLength={10}
               className="w-full px-4 py-4 bg-slate-800 border border-slate-700 rounded-xl text-white text-xl font-black font-mono tracking-widest text-center placeholder-slate-600 focus:outline-hidden focus:ring-2 focus:ring-violet-500"
               required
@@ -1507,7 +1526,8 @@ const QuizJoinFlow: React.FC<{
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
                 <>
-                  Join <ArrowRight className="w-5 h-5" />
+                  {t('quizStudent.join.join')}{' '}
+                  <ArrowRight className="w-5 h-5" />
                 </>
               )}
             </button>
@@ -1569,6 +1589,7 @@ const QuizJoinFlow: React.FC<{
             >
               {error}
             </p>
+            <ReloadButton dark={!light} />
           </div>
         );
       }
@@ -1591,12 +1612,15 @@ const QuizJoinFlow: React.FC<{
           <div className="min-h-screen bg-brand-blue-dark flex flex-col items-center justify-center gap-4 p-6">
             <Loader2
               className="w-8 h-8 text-white/70 animate-spin"
-              aria-label="Loading questions"
+              aria-label={t('quizStudent.common.loadingQuestions')}
             />
             {dealPending && drawStalledKey === drawKey && (
-              <p className="text-sm text-center text-white/80 max-w-sm">
-                Lost connection to the quiz. Please refresh.
-              </p>
+              <>
+                <p className="text-sm text-center text-white/80 max-w-sm">
+                  {t('quizStudent.common.lostConnection')}
+                </p>
+                <ReloadButton dark />
+              </>
             )}
           </div>
         );
@@ -1605,7 +1629,9 @@ const QuizJoinFlow: React.FC<{
       case 'game':
         return (
           <React.Suspense
-            fallback={<FullPageLoader message="Loading…" light />}
+            fallback={
+              <FullPageLoader message={t('quizStudent.common.loading')} light />
+            }
           >
             <QuizGamePlay
               session={session}
@@ -1692,11 +1718,10 @@ const QuizJoinFlow: React.FC<{
               aria-hidden="true"
             />
             <h1 className="text-xl font-bold text-slate-800">
-              You were removed from this quiz
+              {t('quizStudent.removed.title')}
             </h1>
             <p className="max-w-md text-sm text-slate-600">
-              Your teacher removed you from this assignment. Ask your teacher if
-              you believe this was a mistake.
+              {t('quizStudent.removed.body')}
             </p>
           </div>
         );
@@ -1722,7 +1747,7 @@ const QuizJoinFlow: React.FC<{
             <p
               className={`text-sm ${lightLoad ? 'text-slate-500' : 'text-slate-400'}`}
             >
-              Loading your quiz…
+              {t('quizStudent.common.loadingQuiz')}
             </p>
           </div>
         );
@@ -1862,30 +1887,35 @@ const WaitingRoom: React.FC<{
   totalQuestions?: number;
   /** This student's assigned locale, when the session serves one. */
   locale?: string;
-}> = ({ session, pin, totalQuestions, locale }) => (
-  <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-center">
-    <div className="w-16 h-16 bg-violet-600/20 border border-violet-500/30 rounded-2xl flex items-center justify-center mb-6 animate-pulse">
-      <ClipboardList className="w-8 h-8 text-violet-400" />
-    </div>
-    <h1 className="text-2xl font-black text-white mb-2">
-      {localizedQuizTitle(session, locale)}
-    </h1>
-    <p className="text-slate-400 text-sm mb-2">
-      Waiting for your teacher to start…
-    </p>
-    <p className="text-slate-500 text-xs mb-8">
-      {totalQuestions ?? session.totalQuestions} questions
-    </p>
-    {pin && (
-      <div className="p-4 bg-slate-800 rounded-xl">
-        <p className="text-slate-300 text-sm">
-          Joined as PIN{' '}
-          <span className="font-semibold text-white font-mono">{pin}</span>
-        </p>
+}> = ({ session, pin, totalQuestions, locale }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-center">
+      <div className="w-16 h-16 bg-violet-600/20 border border-violet-500/30 rounded-2xl flex items-center justify-center mb-6 animate-pulse">
+        <ClipboardList className="w-8 h-8 text-violet-400" />
       </div>
-    )}
-  </div>
-);
+      <h1 className="text-2xl font-black text-white mb-2">
+        {localizedQuizTitle(session, locale)}
+      </h1>
+      <p className="text-slate-400 text-sm mb-2">
+        {t('quizStudent.waiting.title')}
+      </p>
+      <p className="text-slate-500 text-xs mb-8">
+        {t('quizStudent.waiting.questionCount', {
+          count: totalQuestions ?? session.totalQuestions,
+        })}
+      </p>
+      {pin && (
+        <div className="p-4 bg-slate-800 rounded-xl">
+          <p className="text-slate-300 text-sm">
+            {t('quizStudent.common.joinedAs')}{' '}
+            <span className="font-semibold text-white font-mono">{pin}</span>
+          </p>
+        </div>
+      )}
+    </div>
+  );
+};
 
 // ─── Success pill (post-submit / complete acknowledgement) ───────────────────
 //
@@ -1988,8 +2018,10 @@ export const ActiveQuiz: React.FC<{
   fullscreenRequired?: boolean;
   /** Teacher's Live view: follow this question and mirror saved answers; null until one is known. */
   watchQuestionId?: string | null;
+  /** Teacher's Live view: the student has the red tab warning up. */
+  watchTabWarning?: boolean;
   /** Reports the question on screen while the teacher has Live view open. */
-  onReportLivePosition?: (questionId: string, at?: number) => Promise<void>;
+  onReportLivePosition?: (state: QuizLiveState) => Promise<void>;
 }> = ({
   session,
   currentQuestion: sessionQuestion,
@@ -2022,11 +2054,16 @@ export const ActiveQuiz: React.FC<{
   readAloudRequested,
   fullscreenRequired = false,
   watchQuestionId,
+  watchTabWarning,
   onReportLivePosition,
 }) => {
   const watching = watchQuestionId !== undefined;
   const { showAlert, showConfirm } = useDialog();
   const { t } = useTranslation();
+  const tRef = useRef(t);
+  useLayoutEffect(() => {
+    tRef.current = t;
+  }, [t]);
   const [showCheatWarning, setShowCheatWarning] = useState(false);
   const [submitBlocked, setSubmitBlocked] = useState(false);
   // Review before submit: this tab's sessionStorage only, so teachers never see marks.
@@ -2118,8 +2155,8 @@ export const ActiveQuiz: React.FC<{
     async (reason: 'three-strikes' | 'post-unlock' = 'three-strikes') => {
       const message =
         reason === 'post-unlock'
-          ? 'Your unlocked attempt has been submitted.'
-          : 'You left the page too many times. Your assignment has been submitted. Ask your teacher if you believe this happened by mistake.';
+          ? t('quizStudent.autoSubmit.unlocked')
+          : t('quizStudent.autoSubmit.strikes');
       // Ask the inner question view to flush any pending written-response
       // autosave before we mark the response complete. Listened for in
       // `StudentQuestionView`'s flush handler. Without this, a strike-3
@@ -2136,11 +2173,11 @@ export const ActiveQuiz: React.FC<{
         return;
       }
       await showAlert(message, {
-        title: 'Quiz Auto-Submitted',
+        title: t('quizStudent.autoSubmit.title'),
         variant: 'warning',
       });
     },
-    [showAlert, onComplete]
+    [showAlert, onComplete, t]
   );
 
   // M17 C2 (§3a-D) — mid-attempt window close: when `closeAt` passes while
@@ -2305,6 +2342,7 @@ export const ActiveQuiz: React.FC<{
 
   // For student-paced mode, the student maintains their own local index
   const [localIndex, setLocalIndex] = useState(0);
+  const [resumedKey, setResumedKey] = useState<string | null>(null);
 
   const isStudentPaced = session.sessionMode === 'student';
   const reviewOn = reviewStepActive(session);
@@ -2364,10 +2402,10 @@ export const ActiveQuiz: React.FC<{
       void commitActiveTake()
         .then(() => onComplete())
         .then(() =>
-          showAlert(
-            'You were away from the quiz too long, so it was submitted.',
-            { title: 'Quiz Auto-Submitted', variant: 'warning' }
-          )
+          showAlert(t('quizStudent.autoSubmit.awayTooLong'), {
+            title: t('quizStudent.autoSubmit.title'),
+            variant: 'warning',
+          })
         )
         .catch((err: unknown) =>
           console.error('[QuizStudentApp] away auto-submit failed:', err)
@@ -2463,6 +2501,23 @@ export const ActiveQuiz: React.FC<{
   const partOf = (q: { id: string } | undefined): number =>
     hasStops && q ? partOfQuestion(session.sections, q.id) : 1;
   const partsDone = hasStops && myResponse ? partsDoneOf(myResponse) : 0;
+  // A reload or a pause remounts this screen; pick up where this tab left off.
+  if (
+    isStudentPaced &&
+    !watching &&
+    !reviewAttemptSubmitted &&
+    reviewStoreKey &&
+    resumedKey !== reviewStoreKey &&
+    orderedPublicQuestions.length > 0
+  ) {
+    setResumedKey(reviewStoreKey);
+    const at = resumeQuestionIndex(
+      orderedPublicQuestions.map((q) => q.id),
+      loadResumeQuestion(reviewStoreKey),
+      myResponse?.answers ?? []
+    );
+    if (at !== localIndex) setLocalIndex(at);
+  }
   // A rejoin or a just-submitted part lands on the first open question.
   const watchIndex = watchQuestionId
     ? orderedPublicQuestions.findIndex((q) => q.id === watchQuestionId)
@@ -2479,6 +2534,15 @@ export const ActiveQuiz: React.FC<{
     );
     if (firstOpen > localIndex) setLocalIndex(firstOpen);
   }
+  const resumeId =
+    isStudentPaced && !watching
+      ? orderedPublicQuestions[localIndex]?.id
+      : undefined;
+  useEffect(() => {
+    if (!reviewStoreKey || !resumeId || resumedKey !== reviewStoreKey) return;
+    if (reviewAttemptSubmitted) return;
+    saveResumeQuestion(reviewStoreKey, resumeId);
+  }, [reviewStoreKey, resumeId, resumedKey, reviewAttemptSubmitted]);
   const canGoBack =
     localIndex > 0 &&
     partOf(orderedPublicQuestions[localIndex - 1]) > partsDone;
@@ -2507,24 +2571,12 @@ export const ActiveQuiz: React.FC<{
   // Live view (QUIZ_LIVE_VIEW.md D12): position is reported only while the teacher's stamp is ahead.
   const liveView = watching ? null : myResponse?.liveView;
   const liveViewUntil = liveView?.until ?? 0;
-  const arrivalRef = useRef<{ id: string; at: number } | null>(null);
-  const reportLivePosition = useEffectEvent((questionId: string) => {
-    if (!onReportLivePosition || liveViewUntil <= getServerNow()) return;
-    const at = arrivalRef.current?.at ?? getServerNow();
-    onReportLivePosition(questionId, at).catch((err: unknown) =>
-      console.error('[ActiveQuiz] live position report failed:', err)
-    );
+  useLiveViewReport({
+    until: liveViewUntil,
+    questionId: currentQuestion?.id,
+    warning: showCheatWarning,
+    report: onReportLivePosition,
   });
-  const livePositionId = currentQuestion?.id;
-  // Arrival time stays fixed across renewals so "time on this question" doesn't reset.
-  useLayoutEffect(() => {
-    if (livePositionId && arrivalRef.current?.id !== livePositionId)
-      arrivalRef.current = { id: livePositionId, at: getServerNow() };
-  }, [livePositionId]);
-  // Each renewal re-reports, so a reopened panel never starts from a stale place.
-  useEffect(() => {
-    if (liveViewUntil > 0 && livePositionId) reportLivePosition(livePositionId);
-  }, [liveViewUntil, livePositionId]);
   // Unusual-input counters; stamped on the session only with the input-signals flag.
   useInputSignals({
     enabled:
@@ -2948,6 +3000,17 @@ export const ActiveQuiz: React.FC<{
   // same commit (visibility flush, structured input change) would see
   // the previous render's value.
   const currentQuestionRef = useRef(currentQuestion);
+  const online = useOnlineStatus();
+  const promptWrapRef = useRef<HTMLDivElement | null>(null);
+  const promptFocusSkippedRef = useRef(false);
+  const currentQuestionId = currentQuestion?.id;
+  useEffect(() => {
+    if (!promptFocusSkippedRef.current) {
+      promptFocusSkippedRef.current = true;
+      return;
+    }
+    promptWrapRef.current?.focus({ preventScroll: true });
+  }, [currentQuestionId]);
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   currentQuestionRef.current = currentQuestion;
   const selectedAnswerRef = useRef(selectedAnswer);
@@ -2990,8 +3053,18 @@ export const ActiveQuiz: React.FC<{
   // paths (flush handler, structured-input change callbacks) that can't
   // read state directly.
   const submittedRef = useRef(false);
+  // A self-paced revisit of a saved answer stays editable, so its changes autosave like a first answer.
+  const draftLocked =
+    submitted &&
+    !(
+      isStudentPaced &&
+      step.alreadyAnswered &&
+      step.timedOutFor !== currentQuestion?.id
+    );
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
-  submittedRef.current = submitted;
+  submittedRef.current = draftLocked;
+  // A revisit over the word limit keeps its saved answer on every draft path, as Next does.
+  const overLimitRevisitRef = useRef(false);
   // Pending draft tracker for question-change flushes. The state-driven
   // autosave effect populates this when it schedules a write; a watcher
   // on `currentQuestion?.id` calls `write()` synchronously when the
@@ -3106,7 +3179,7 @@ export const ActiveQuiz: React.FC<{
           } catch (err) {
             console.error('[QuizStudentApp] onComplete failed:', err);
             dispatchStep({ type: 'submitFailed' });
-            setSaveError("Couldn't submit your quiz. Tap to try again.");
+            setSaveError(tRef.current('quizStudent.errors.submitQuiz'));
           }
         },
         (err: unknown) => {
@@ -3114,7 +3187,7 @@ export const ActiveQuiz: React.FC<{
           // Mid-quiz, stay submitted so NEXT QUESTION still moves on.
           if (!finishesQuiz) return;
           dispatchStep({ type: 'submitFailed' });
-          setSaveError("Couldn't save your answer. Tap to try again.");
+          setSaveError(tRef.current('quizStudent.errors.saveAnswer'));
         }
       );
   }, [autoSubmitTriggeredFor]);
@@ -3173,6 +3246,8 @@ export const ActiveQuiz: React.FC<{
       ? wordLimitStatus(countWords(liveAnswer ?? ''), currentQuestion)
       : null;
   const wordLimitBlocked = writtenLimit?.blocked === true;
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
+  overLimitRevisitRef.current = submitted && wordLimitBlocked;
   // Convenience cache writer for the editor / input onChange handlers.
   // Updates the cache for the current question; no-ops if there's no
   // current question (impossible in practice during render of an
@@ -3193,7 +3268,9 @@ export const ActiveQuiz: React.FC<{
     const qid = currentQid;
     const type = currentQuestion?.type;
     if (!qid || !type) return;
-    if (submitted) return;
+    if (draftLocked) return;
+    // A revisit over the word limit keeps its saved answer, as Next does.
+    if (submitted && wordLimitBlocked) return;
     // Cache miss — student hasn't touched this question this session
     // and there's no saved value either. Nothing to write.
     if (cachedDraft === null) return;
@@ -3209,10 +3286,7 @@ export const ActiveQuiz: React.FC<{
     // with the explicit Submit/Next button still bypasses the guard
     // and lets them persist an empty answer if that's really intended.
     if (cachedDraft === '' && (savedAnswerForCurrent ?? '') !== '') {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- guard message for the debounced draft flush
-      setSaveError(
-        'Your previously-saved answer is still on file. Click Submit to clear it.'
-      );
+      setSaveError(tRef.current('quizStudent.errors.draftStillSaved'));
       return;
     }
 
@@ -3233,7 +3307,7 @@ export const ActiveQuiz: React.FC<{
           // land here too. Without this setter the student silently
           // loses keystrokes until the idle-finalize cron sweeps
           // their last successfully persisted value.
-          setSaveError("Couldn't save your answer. Tap to try again.");
+          setSaveError(tRef.current('quizStudent.errors.saveAnswer'));
         });
     };
 
@@ -3261,7 +3335,9 @@ export const ActiveQuiz: React.FC<{
     cachedDraft,
     currentQid,
     currentQuestion?.type,
+    draftLocked,
     submitted,
+    wordLimitBlocked,
     savedAnswerForCurrent,
   ]);
 
@@ -3303,7 +3379,7 @@ export const ActiveQuiz: React.FC<{
       // bail-out below would otherwise fail and re-write the answer as
       // a draft — downgrading the just-submitted answer.
       if (myResponseStatusRef.current === 'completed') return;
-      if (submittedRef.current) return;
+      if (submittedRef.current || overLimitRevisitRef.current) return;
       const qid = currentQuestionRef.current?.id;
       const type = currentQuestionRef.current?.type;
       if (!qid || !type) return;
@@ -3345,7 +3421,7 @@ export const ActiveQuiz: React.FC<{
           // the visibilitychange-hidden path matters: when the student
           // tabs back in, they see the SaveErrorBanner instead of
           // silently believing their pre-switch keystrokes saved.
-          setSaveError("Couldn't save your answer. Tap to try again.");
+          setSaveError(tRef.current('quizStudent.errors.saveAnswer'));
         });
     };
     const onVisibilityChange = () => {
@@ -3493,7 +3569,7 @@ export const ActiveQuiz: React.FC<{
     } catch (err) {
       console.error('[QuizStudentApp] onAnswer failed:', err);
       dispatchStep({ type: 'submitFailed' });
-      setSaveError("Couldn't save your answer. Tap to try again.");
+      setSaveError(t('quizStudent.errors.saveAnswer'));
       setSubmitting(false);
       return;
     }
@@ -3554,7 +3630,7 @@ export const ActiveQuiz: React.FC<{
       } catch (err) {
         console.error('[QuizStudentApp] onComplete failed:', err);
         dispatchStep({ type: 'submitFailed' });
-        setSaveError("Couldn't submit your quiz. Tap to try again.");
+        setSaveError(t('quizStudent.errors.submitQuiz'));
       }
     }
   };
@@ -3677,7 +3753,7 @@ export const ActiveQuiz: React.FC<{
             currentQuestion.id,
             err
           );
-          setSaveError("Couldn't save your answer. Tap to try again.");
+          setSaveError(t('quizStudent.errors.saveAnswer'));
           return;
         }
       }
@@ -3691,6 +3767,19 @@ export const ActiveQuiz: React.FC<{
           setSubmitBlocked(true);
           return;
         }
+        if (isStudentPaced && !isAttemptSubmitted(myResponse)) {
+          const blank = reviewCounts(currentReviewRows()).unanswered;
+          const ok = await showConfirm(
+            blank > 0
+              ? t('quizSubmit.confirmBlank', { count: blank })
+              : t('quizSubmit.confirmBody'),
+            {
+              title: t('quizSubmit.confirmTitle'),
+              confirmLabel: t('quizSubmit.confirmSubmit'),
+            }
+          );
+          if (!ok) return;
+        }
         setSelectedAnswer(answer);
         dispatchStep({ type: 'submit' });
         if (!isAttemptSubmitted(myResponse)) {
@@ -3699,7 +3788,7 @@ export const ActiveQuiz: React.FC<{
           } catch (err) {
             console.error('[QuizStudentApp] onComplete failed:', err);
             dispatchStep({ type: 'submitFailed' });
-            setSaveError("Couldn't submit your quiz. Tap to try again.");
+            setSaveError(t('quizStudent.errors.submitQuiz'));
           }
         }
       } else if (
@@ -3749,7 +3838,7 @@ export const ActiveQuiz: React.FC<{
       await onSubmitPart(part, opened <= part);
     } catch (err) {
       console.error('[QuizStudentApp] submitPart failed:', err);
-      setSaveError("Couldn't submit this part. Tap to try again.");
+      setSaveError(t('quizStudent.errors.submitPart'));
     }
   };
 
@@ -3818,7 +3907,7 @@ export const ActiveQuiz: React.FC<{
       await onComplete();
     } catch (err) {
       console.error('[QuizStudentApp] onComplete failed:', err);
-      setSaveError("Couldn't submit your quiz. Tap to try again.");
+      setSaveError(t('quizStudent.errors.submitQuiz'));
     }
   };
 
@@ -3855,7 +3944,7 @@ export const ActiveQuiz: React.FC<{
     } catch (err) {
       console.error('[QuizStudentApp] onComplete failed:', err);
       dispatchStep({ type: 'submitFailed' });
-      setSaveError("Couldn't submit your quiz. Tap to try again.");
+      setSaveError(t('quizStudent.errors.submitQuiz'));
     } finally {
       setSubmitting(false);
       advancingRef.current = false;
@@ -3939,7 +4028,7 @@ export const ActiveQuiz: React.FC<{
   const atLastStep =
     currentIndex >= effectiveTotalQuestions - 1 || (reviewOn && returnToReview);
   const reviewLabel = t('quizReview.reviewButton', 'REVIEW');
-  const finishLabel = reviewOn ? reviewLabel : 'SUBMIT';
+  const finishLabel = reviewOn ? reviewLabel : t('quizStudent.nav.submit');
   const handBesideNext =
     !!whiteboardConfig && isStudentPaced && !(sectionLocked && sectionState);
   const raiseHandButton =
@@ -3955,7 +4044,9 @@ export const ActiveQuiz: React.FC<{
         }`}
       >
         <Hand className="w-4 h-4" aria-hidden />
-        {handRaised ? 'Hand raised — help is coming' : 'Raise hand'}
+        {handRaised
+          ? t('quizStudent.hand.raised')
+          : t('quizStudent.hand.raise')}
       </button>
     ) : null;
   const canClearSectionAnswer =
@@ -3984,7 +4075,7 @@ export const ActiveQuiz: React.FC<{
       await onAnswerRef.current(currentQuestion.id, '');
     } catch (err) {
       console.error('[QuizStudentApp] clearing an answer failed:', err);
-      setSaveError("Couldn't clear your answer. Tap to try again.");
+      setSaveError(t('quizStudent.errors.clearAnswer'));
     } finally {
       setClearingAnswer(false);
     }
@@ -3994,7 +4085,7 @@ export const ActiveQuiz: React.FC<{
     : 'bg-slate-900';
   const headingText = light ? 'text-slate-900' : 'text-white';
   const backBtnCls = light
-    ? 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
+    ? 'text-slate-600 hover:text-slate-700 hover:bg-slate-100'
     : 'text-slate-400 hover:text-white hover:bg-slate-800';
   const progressTrack = light ? 'bg-slate-200' : 'bg-slate-800';
   const progressFill = light ? 'bg-brand-blue-primary' : 'bg-violet-500';
@@ -4048,27 +4139,30 @@ export const ActiveQuiz: React.FC<{
               ? 'bg-indigo-500/20 text-indigo-400'
               : 'bg-rose-500/20 text-rose-400';
 
+  const isReviewLocked = (id: string): boolean =>
+    partOf(orderedPublicQuestions.find((q) => q.id === id)) <= partsDone ||
+    isLockedByChooseCount(
+      session.sections,
+      sectionAnswers,
+      id,
+      sectionServedIds
+    );
+  const currentReviewRows = () =>
+    reviewRows(
+      orderedPublicQuestions.map((q) =>
+        applyLocalizedStrings(q, serveLocalizedQuestion(q, assignedLocale))
+      ),
+      myResponse?.answers ?? [],
+      answerCache,
+      markedIds,
+      isReviewLocked
+    );
+
   const reviewScreen =
     reviewOn && reviewOpen && !quizDone ? (
       <QuizReviewScreen
         title={localizedQuizTitle(session, assignedLocale)}
-        rows={reviewRows(
-          orderedPublicQuestions.map((q) =>
-            applyLocalizedStrings(q, serveLocalizedQuestion(q, assignedLocale))
-          ),
-          myResponse?.answers ?? [],
-          answerCache,
-          markedIds,
-          (id) =>
-            partOf(orderedPublicQuestions.find((q) => q.id === id)) <=
-              partsDone ||
-            isLockedByChooseCount(
-              session.sections,
-              sectionAnswers,
-              id,
-              sectionServedIds
-            )
-        )}
+        rows={currentReviewRows()}
         onJump={(index) => {
           setReviewOpen(false);
           setReturnToReview(true);
@@ -4115,20 +4209,21 @@ export const ActiveQuiz: React.FC<{
         <div className="fixed inset-0 z-quiz-lock bg-emerald-900/95 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center">
           <UnlockIcon className="w-20 h-20 text-emerald-300 mb-6" />
           <h2 className="text-4xl font-black text-white mb-4">
-            {reopened ? 'Your teacher reopened your quiz' : 'Attempt Unlocked'}
+            {reopened
+              ? t('quizStudent.unlock.reopenedTitle')
+              : t('quizStudent.unlock.title')}
           </h2>
           {reopened ? (
             <p className="text-emerald-100 text-lg max-w-md mb-8">
-              Your answers are saved. Make your changes and submit again.
+              {t('quizStudent.unlock.reopenedBody')}
             </p>
           ) : (
             <>
               <p className="text-emerald-100 text-lg max-w-md mb-2">
-                Your answers are still here.
+                {t('quizStudent.unlock.stillHere')}
               </p>
               <p className="text-amber-200 text-sm max-w-md mb-8">
-                ⚠ Leave this tab or open the quiz in another window and your
-                quiz submits right away.
+                {t('quizStudent.unlock.warning')}
               </p>
             </>
           )}
@@ -4136,7 +4231,9 @@ export const ActiveQuiz: React.FC<{
             onClick={() => setShowResumeModal(false)}
             className="px-8 py-4 bg-white text-emerald-900 font-bold rounded-xl active:scale-95 transition-transform"
           >
-            {reopened ? 'Keep working' : 'Resume Quiz'}
+            {reopened
+              ? t('quizStudent.unlock.keepWorking')
+              : t('quizStudent.unlock.resume')}
           </button>
         </div>
       )}
@@ -4150,7 +4247,7 @@ export const ActiveQuiz: React.FC<{
           className={`sticky top-0 z-10 flex items-start gap-2 px-4 py-2 border-b text-xs ${unlockedBannerCls}`}
         >
           <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
-          <span>This assignment closed. Your answers were submitted.</span>
+          <span>{t('quizStudent.closed.submitted')}</span>
         </div>
       )}
 
@@ -4179,10 +4276,7 @@ export const ActiveQuiz: React.FC<{
           className="sticky top-0 z-10 flex items-start gap-2 px-4 py-2 border-b border-red-500/40 bg-red-500/10 text-red-200 text-xs"
         >
           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-          <span className="flex-1">
-            Couldn&apos;t submit. Check your connection and try again, or ask
-            your teacher for an extension.
-          </span>
+          <span className="flex-1">{t('quizStudent.closed.submitFailed')}</span>
           <button
             type="button"
             onClick={() =>
@@ -4193,7 +4287,9 @@ export const ActiveQuiz: React.FC<{
             disabled={closeAutoSubmitInFlight || timeUpInFlight}
             className="shrink-0 px-2 py-1 rounded-sm bg-red-500/20 hover:bg-red-500/30 disabled:opacity-50 font-semibold"
           >
-            {closeAutoSubmitInFlight || timeUpInFlight ? 'Retrying…' : 'Retry'}
+            {closeAutoSubmitInFlight || timeUpInFlight
+              ? t('quizStudent.nav.retrying')
+              : t('quizStudent.nav.retry')}
           </button>
         </div>
       )}
@@ -4206,18 +4302,18 @@ export const ActiveQuiz: React.FC<{
         >
           <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
           <span>
-            Your teacher unlocked your attempt.{' '}
-            <strong>Leaving this tab once more will submit your quiz.</strong>
+            {t('quizStudent.unlock.banner')}{' '}
+            <strong>{t('quizStudent.unlock.bannerStrong')}</strong>
           </span>
         </div>
       )}
 
       {/* 🔴 The Cheating Warning Modal */}
-      {showCheatWarning && (
+      {(watching ? watchTabWarning === true : showCheatWarning) && (
         <div className="fixed inset-0 z-quiz-lock bg-red-900/90 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center">
           <AlertCircle className="w-20 h-20 text-red-500 mb-6 animate-pulse" />
           <h2 className="text-4xl font-black text-white mb-4">
-            TAB SWITCH DETECTED
+            {t('quizStudent.tabWarning.title')}
           </h2>
           {tabAwayRule && tabTracker.away && (
             <TabAwayClock
@@ -4227,12 +4323,14 @@ export const ActiveQuiz: React.FC<{
             />
           )}
           <p className="text-red-200 text-lg max-w-md mb-8">
-            You navigated away from the quiz. This incident has been logged.
+            {t('quizStudent.tabWarning.body')}
             <br />
             <br />
-            <strong>Warning {warningCount}.</strong>{' '}
+            <strong>
+              {t('quizStudent.tabWarning.warningN', { n: warningCount })}
+            </strong>{' '}
             {effectiveTabWarningThreshold !== 'off' &&
-              'Repeated tab switches will automatically submit your quiz.'}
+              t('quizStudent.tabWarning.autoSubmit')}
           </p>
           <button
             onClick={() => {
@@ -4241,7 +4339,7 @@ export const ActiveQuiz: React.FC<{
             }}
             className="px-8 py-4 bg-white text-red-900 font-bold rounded-xl active:scale-95 transition-transform"
           >
-            I Understand, Return to Quiz
+            {t('quizStudent.tabWarning.dismiss')}
           </button>
         </div>
       )}
@@ -4379,9 +4477,21 @@ export const ActiveQuiz: React.FC<{
                     : 'max-w-2xl'
           }`}
         >
+          {!online && !isAttemptSubmitted(myResponse) && (
+            <div
+              role="status"
+              className={`mb-4 rounded-xl border px-4 py-3 text-sm font-semibold ${
+                light
+                  ? 'border-amber-300 bg-amber-50 text-amber-900'
+                  : 'border-amber-400/40 bg-amber-500/10 text-amber-200'
+              }`}
+            >
+              {t('quizSubmit.offline')}
+            </div>
+          )}
           {/* Header */}
           <div
-            className={`flex items-center justify-between ${whiteboardConfig ? 'mb-3' : 'mb-6'}`}
+            className={`flex min-h-11 items-center justify-between ${whiteboardConfig ? 'mb-3' : 'mb-6'}`}
           >
             <div className="flex items-center gap-2">
               {isStudentPaced &&
@@ -4390,13 +4500,15 @@ export const ActiveQuiz: React.FC<{
                   <button
                     type="button"
                     onClick={handleBack}
-                    aria-label="Previous question"
-                    className={`p-1 -ml-1 rounded-sm transition-colors ${backBtnCls}`}
+                    aria-label={t('quizStudent.nav.previous')}
+                    className={`inline-flex h-11 w-11 -ml-3 items-center justify-center rounded-lg transition-colors ${backBtnCls}`}
                   >
-                    <ChevronLeft className="w-4 h-4" />
+                    <ChevronLeft className="w-5 h-5" />
                   </button>
                 )}
-              <span className="text-xs text-slate-500">
+              <span
+                className={`text-sm font-semibold ${light ? 'text-slate-600' : 'text-slate-300'}`}
+              >
                 {currentIndex + 1} / {effectiveTotalQuestions}
               </span>
               {attemptDeadline != null && !isAttemptSubmitted(myResponse) && (
@@ -4411,6 +4523,10 @@ export const ActiveQuiz: React.FC<{
             </div>
             {timeLeft !== null && !submitted && (
               <div
+                role="timer"
+                aria-label={t('quizStudent.timer.secondsLeft', {
+                  count: timeLeft,
+                })}
                 className={`flex items-center gap-1.5 text-sm font-bold ${
                   timeLeft <= 5
                     ? light
@@ -4421,24 +4537,31 @@ export const ActiveQuiz: React.FC<{
                       : 'text-amber-400'
                 }`}
               >
-                <Timer className="w-4 h-4" />
+                <Timer className="w-4 h-4" aria-hidden="true" />
                 {timeLeft}s
+                <span className="sr-only" aria-live="assertive">
+                  {timeLeft === 10
+                    ? t('quizStudent.timer.secondsLeft', { count: 10 })
+                    : timeLeft === 0
+                      ? t('quizStudent.timer.timeUp')
+                      : ''}
+                </span>
               </div>
             )}
             <span
               className={`text-xs px-2 py-0.5 rounded-sm font-medium ${typeBadgeCls}`}
             >
               {currentQuestion.type === 'MC'
-                ? 'Multiple Choice'
+                ? t('quizStudent.type.multipleChoice')
                 : currentQuestion.type === 'FIB'
-                  ? 'Fill in the Blank'
+                  ? t('quizStudent.type.fillBlank')
                   : currentQuestion.type === 'Matching'
-                    ? 'Matching'
+                    ? t('quizStudent.type.matching')
                     : currentQuestion.type === 'Ordering'
-                      ? 'Ordering'
+                      ? t('quizStudent.type.ordering')
                       : currentQuestion.type === 'MA'
-                        ? 'Choose All That Apply'
-                        : 'Free Response'}
+                        ? t('quizStudent.type.chooseAll')
+                        : t('quizStudent.type.freeResponse')}
             </span>
           </div>
 
@@ -4494,7 +4617,9 @@ export const ActiveQuiz: React.FC<{
           {/* Question */}
           {readAloudOn ? (
             <div
-              className={`${questionGap} flex items-start gap-3 rounded-2xl transition-colors ${highlightClass({ kind: 'question' }, readAloud.highlightedPart)}`}
+              ref={promptWrapRef}
+              tabIndex={-1}
+              className={`${questionGap} flex items-start gap-3 rounded-2xl transition-colors focus:outline-hidden ${highlightClass({ kind: 'question' }, readAloud.highlightedPart)}`}
             >
               <QuestionPrompt
                 text={displayQuestion.text}
@@ -4511,12 +4636,18 @@ export const ActiveQuiz: React.FC<{
               />
             </div>
           ) : (
-            <QuestionPrompt
-              text={displayQuestion.text}
-              blankCount={currentQuestion.blankCount}
-              light={light}
-              className={`${questionGap} ${headingText}`}
-            />
+            <div
+              ref={promptWrapRef}
+              tabIndex={-1}
+              className={`${questionGap} focus:outline-hidden`}
+            >
+              <QuestionPrompt
+                text={displayQuestion.text}
+                blankCount={currentQuestion.blankCount}
+                light={light}
+                className={headingText}
+              />
+            </div>
           )}
 
           {/* Answer area */}
@@ -4662,7 +4793,7 @@ export const ActiveQuiz: React.FC<{
                         >
                           {currentIndex >= effectiveTotalQuestions - 1
                             ? saveError
-                              ? 'Retry Submit'
+                              ? t('quizStudent.nav.retrySubmit')
                               : reviewOn
                                 ? t('quizReview.reviewLink', 'Review')
                                 : t('quizMediaResponse.capture.submitQuiz')
@@ -4683,7 +4814,7 @@ export const ActiveQuiz: React.FC<{
                         id={`ma-hint-${currentQuestion.id}`}
                         className={`text-sm font-semibold ${light ? 'text-slate-500' : 'text-slate-300'}`}
                       >
-                        Choose all that apply
+                        {t('quizStudent.answer.chooseAll')}
                       </p>
                     )}
                     {options.map((opt) => {
@@ -4898,7 +5029,7 @@ export const ActiveQuiz: React.FC<{
                         currentIndex >= effectiveTotalQuestions - 1 &&
                         (!reviewOn || quizDone) ? (
                           <SuccessPill light={light}>
-                            Quiz complete!
+                            {t('quizStudent.common.quizComplete')}
                           </SuccessPill>
                         ) : submitted &&
                           autoSubmitTriggeredFor === currentQuestion.id ? (
@@ -4912,7 +5043,7 @@ export const ActiveQuiz: React.FC<{
                           >
                             {reviewOn && atLastStep
                               ? reviewLabel
-                              : 'NEXT QUESTION'}{' '}
+                              : t('quizStudent.nav.nextQuestion')}{' '}
                             <ArrowRight className="w-5 h-5" />
                           </button>
                         ) : (
@@ -4932,12 +5063,16 @@ export const ActiveQuiz: React.FC<{
                                 <Loader2 className="w-5 h-5 animate-spin" />
                               ) : atLastStep ? (
                                 <>
-                                  {saveError ? 'Retry Submit' : finishLabel}{' '}
+                                  {saveError
+                                    ? t('quizStudent.nav.retrySubmit')
+                                    : finishLabel}{' '}
                                   <CheckCircle2 className="w-5 h-5" />
                                 </>
                               ) : (
                                 <>
-                                  {saveError ? 'Retry' : 'NEXT'}{' '}
+                                  {saveError
+                                    ? t('quizStudent.nav.retry')
+                                    : t('quizStudent.nav.next')}{' '}
                                   <ArrowRight className="w-5 h-5" />
                                 </>
                               )}
@@ -4956,7 +5091,7 @@ export const ActiveQuiz: React.FC<{
                           {submitting ? (
                             <Loader2 className="w-5 h-5 animate-spin" />
                           ) : (
-                            'Submit Answer'
+                            t('quizStudent.nav.submitAnswer')
                           )}
                         </button>
                       ) : (
@@ -4971,8 +5106,8 @@ export const ActiveQuiz: React.FC<{
                           />
                           <SuccessPill light={light}>
                             {currentIndex < effectiveTotalQuestions - 1
-                              ? 'Waiting for teacher…'
-                              : 'Quiz complete!'}
+                              ? t('quizStudent.common.waitingForTeacher')
+                              : t('quizStudent.common.quizComplete')}
                           </SuccessPill>
                         </div>
                       )}
@@ -5027,7 +5162,7 @@ export const ActiveQuiz: React.FC<{
                           value={liveAnswer ?? ''}
                           onChange={(plain) => setCacheForCurrent(plain)}
                           disabled={submitted && !isStudentPaced}
-                          ariaLabel="Your answer"
+                          ariaLabel={t('quizStudent.answer.label')}
                           className={fibInputCls}
                           onEnter={() => {
                             const trimmed = cleanBlankAnswer(
@@ -5048,8 +5183,8 @@ export const ActiveQuiz: React.FC<{
                         value={liveAnswer ?? ''}
                         onChange={(e) => setCacheForCurrent(e.target.value)}
                         disabled={submitted && !isStudentPaced}
-                        placeholder="Type your answer…"
-                        className={`w-full px-5 py-4 border-2 rounded-2xl text-sm focus:outline-hidden focus:ring-0 disabled:opacity-50 ${fibInputCls}`}
+                        placeholder={t('quizStudent.answer.placeholder')}
+                        className={`w-full px-5 py-4 border-2 rounded-2xl text-base focus:outline-hidden focus:ring-0 disabled:opacity-50 ${fibInputCls}`}
                         onKeyDown={(e) => {
                           if (e.key !== 'Enter') return;
                           const trimmed = cleanBlankAnswer(
@@ -5070,7 +5205,9 @@ export const ActiveQuiz: React.FC<{
                       submitted &&
                       currentIndex >= effectiveTotalQuestions - 1 &&
                       (!reviewOn || quizDone) ? (
-                        <SuccessPill light={light}>Quiz complete!</SuccessPill>
+                        <SuccessPill light={light}>
+                          {t('quizStudent.common.quizComplete')}
+                        </SuccessPill>
                       ) : submitted &&
                         autoSubmitTriggeredFor === currentQuestion.id ? (
                         <button
@@ -5079,7 +5216,7 @@ export const ActiveQuiz: React.FC<{
                         >
                           {reviewOn && atLastStep
                             ? reviewLabel
-                            : 'NEXT QUESTION'}{' '}
+                            : t('quizStudent.nav.nextQuestion')}{' '}
                           <ArrowRight className="w-5 h-5" />
                         </button>
                       ) : (
@@ -5102,12 +5239,16 @@ export const ActiveQuiz: React.FC<{
                               <Loader2 className="w-5 h-5 animate-spin" />
                             ) : atLastStep ? (
                               <>
-                                {saveError ? 'Retry Submit' : finishLabel}{' '}
+                                {saveError
+                                  ? t('quizStudent.nav.retrySubmit')
+                                  : finishLabel}{' '}
                                 <CheckCircle2 className="w-5 h-5" />
                               </>
                             ) : (
                               <>
-                                {saveError ? 'Retry' : 'NEXT'}{' '}
+                                {saveError
+                                  ? t('quizStudent.nav.retry')
+                                  : t('quizStudent.nav.next')}{' '}
                                 <ArrowRight className="w-5 h-5" />
                               </>
                             )}
@@ -5131,7 +5272,7 @@ export const ActiveQuiz: React.FC<{
                         {submitting ? (
                           <Loader2 className="w-5 h-5 animate-spin" />
                         ) : (
-                          'Submit Answer'
+                          t('quizStudent.nav.submitAnswer')
                         )}
                       </button>
                     ) : (
@@ -5146,8 +5287,8 @@ export const ActiveQuiz: React.FC<{
                         />
                         <SuccessPill light={light}>
                           {currentIndex < effectiveTotalQuestions - 1
-                            ? 'Waiting for teacher…'
-                            : 'Quiz complete!'}
+                            ? t('quizStudent.common.waitingForTeacher')
+                            : t('quizStudent.common.quizComplete')}
                         </SuccessPill>
                       </div>
                     )}
@@ -5365,12 +5506,16 @@ export const ActiveQuiz: React.FC<{
                               <Loader2 className="w-5 h-5 animate-spin" />
                             ) : atLastStep ? (
                               <>
-                                {saveError ? 'Retry Submit' : finishLabel}{' '}
+                                {saveError
+                                  ? t('quizStudent.nav.retrySubmit')
+                                  : finishLabel}{' '}
                                 <CheckCircle2 className="w-5 h-5" />
                               </>
                             ) : (
                               <>
-                                {saveError ? 'Retry' : 'NEXT'}{' '}
+                                {saveError
+                                  ? t('quizStudent.nav.retry')
+                                  : t('quizStudent.nav.next')}{' '}
                                 <ArrowRight className="w-5 h-5" />
                               </>
                             )}
@@ -5416,7 +5561,7 @@ export const ActiveQuiz: React.FC<{
                           {submitting ? (
                             <Loader2 className="w-5 h-5 animate-spin" />
                           ) : (
-                            'Submit Response'
+                            t('quizStudent.nav.submitResponse')
                           )}
                         </button>
                         {writtenLimit?.message && (
@@ -5503,9 +5648,11 @@ const StructuredQuestionInput: React.FC<{
   saveError,
   readAloud,
   orderingList,
-  finishLabel = 'SUBMIT',
+  finishLabel,
   reviewPending = false,
 }) => {
+  const { t } = useTranslation();
+  const finishText = finishLabel ?? t('quizStudent.nav.submit');
   const isMatching = question.type === 'Matching';
   const isList = !isMatching && orderingList === true;
 
@@ -5631,17 +5778,19 @@ const StructuredQuestionInput: React.FC<{
             ) : isStudentPaced ? (
               isLastQuestion ? (
                 <>
-                  {saveError ? 'Retry Submit' : finishLabel}{' '}
+                  {saveError ? t('quizStudent.nav.retrySubmit') : finishText}{' '}
                   <CheckCircle2 className="w-5 h-5" />
                 </>
               ) : (
                 <>
-                  {saveError ? 'Retry' : 'NEXT'}{' '}
+                  {saveError
+                    ? t('quizStudent.nav.retry')
+                    : t('quizStudent.nav.next')}{' '}
                   <ArrowRight className="w-5 h-5" />
                 </>
               )
             ) : (
-              'Submit Answer'
+              t('quizStudent.nav.submitAnswer')
             )}
           </button>
         </>
@@ -5656,12 +5805,16 @@ const StructuredQuestionInput: React.FC<{
               onClick={onNext}
               className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
             >
-              {reviewPending && isLastQuestion ? finishLabel : 'NEXT QUESTION'}{' '}
+              {reviewPending && isLastQuestion
+                ? finishText
+                : t('quizStudent.nav.nextQuestion')}{' '}
               <ArrowRight className="w-5 h-5" />
             </button>
           ) : (
             <SuccessPill light={isStudentPaced}>
-              {!isLastQuestion ? 'Waiting for teacher…' : 'Quiz complete!'}
+              {!isLastQuestion
+                ? t('quizStudent.common.waitingForTeacher')
+                : t('quizStudent.common.quizComplete')}
             </SuccessPill>
           )}
         </div>
@@ -5691,23 +5844,29 @@ const SaveErrorBanner: React.FC<{ message: string }> = ({ message }) => (
 
 const WrittenSubmittedCard: React.FC<{ isWaiting: boolean }> = ({
   isWaiting,
-}) => (
-  <div className="flex flex-col gap-3">
-    <SuccessPill light={false}>
-      {isWaiting
-        ? 'Waiting for teacher…'
-        : 'Response submitted — your teacher will grade this.'}
-    </SuccessPill>
-    {!isWaiting && <ReturnToAssignmentsButton />}
-  </div>
-);
+}) => {
+  const { t } = useTranslation();
+  return (
+    <div className="flex flex-col gap-3">
+      <SuccessPill light={false}>
+        {isWaiting
+          ? t('quizStudent.common.waitingForTeacher')
+          : t('quizStudent.common.responseSubmitted')}
+      </SuccessPill>
+      {!isWaiting && <ReturnToAssignmentsButton />}
+    </div>
+  );
+};
 
-const QuizCompleteCard: React.FC = () => (
-  <div className="flex flex-col gap-3">
-    <SuccessPill light>Quiz complete!</SuccessPill>
-    <ReturnToAssignmentsButton />
-  </div>
-);
+const QuizCompleteCard: React.FC = () => {
+  const { t } = useTranslation();
+  return (
+    <div className="flex flex-col gap-3">
+      <SuccessPill light>{t('quizStudent.common.quizComplete')}</SuccessPill>
+      <ReturnToAssignmentsButton />
+    </div>
+  );
+};
 
 /**
  * Inline CTA used after submission. `variant="card"` matches the existing
@@ -5718,21 +5877,43 @@ const QuizCompleteCard: React.FC = () => (
  */
 const ReturnToAssignmentsButton: React.FC<{
   variant?: 'card' | 'standalone';
-}> = ({ variant = 'card' }) => (
-  <button
-    type="button"
-    onClick={() => {
-      window.location.assign('/my-assignments');
-    }}
-    className={
-      variant === 'standalone'
-        ? 'inline-flex items-center gap-2 px-5 py-2.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-full transition-colors'
-        : 'w-full py-3 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors shadow-xs shadow-brand-blue-primary/20'
-    }
-  >
-    Back to my assignments <ArrowRight className="w-4 h-4" />
-  </button>
-);
+}> = ({ variant = 'card' }) => {
+  const { t } = useTranslation();
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        window.location.assign('/my-assignments');
+      }}
+      className={
+        variant === 'standalone'
+          ? 'inline-flex items-center gap-2 px-5 py-2.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-full transition-colors'
+          : 'w-full py-3 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors shadow-xs shadow-brand-blue-primary/20'
+      }
+    >
+      {t('quizStudent.common.backToAssignments')}{' '}
+      <ArrowRight className="w-4 h-4" />
+    </button>
+  );
+};
+
+const ReloadButton: React.FC<{ dark?: boolean }> = ({ dark = false }) => {
+  const { t } = useTranslation();
+  return (
+    // no-tour-anchor: student error screen; live tours walk teachers.
+    <button
+      type="button"
+      onClick={() => window.location.reload()}
+      className={`inline-flex min-h-[44px] items-center px-5 py-2.5 text-sm font-bold rounded-full transition-colors ${
+        dark
+          ? 'bg-white text-slate-900 hover:bg-slate-100'
+          : 'bg-brand-blue-primary text-white hover:bg-brand-blue-dark'
+      }`}
+    >
+      {t('quizSubmit.tryAgain')}
+    </button>
+  );
+};
 
 // ─── Answer feedback banner ──────────────────────────────────────────────────
 
@@ -5751,6 +5932,7 @@ const AnswerFeedbackBanner: React.FC<{
   streakCount,
   streakEnabled,
 }) => {
+  const { t } = useTranslation();
   if (!feedback && !speedBonus && !(streakEnabled && streakCount >= 2))
     return null;
 
@@ -5759,18 +5941,22 @@ const AnswerFeedbackBanner: React.FC<{
       {feedback === 'correct' && (
         <div className="p-3 bg-emerald-500/20 border border-emerald-500/40 rounded-2xl flex items-center gap-3">
           <Check className="w-6 h-6 text-emerald-400 shrink-0" />
-          <p className="text-emerald-300 font-bold text-sm">Correct!</p>
+          <p className="text-emerald-300 font-bold text-sm">
+            {t('quizStudent.feedback.correct')}
+          </p>
         </div>
       )}
       {feedback === 'incorrect' && (
         <div className="p-3 bg-red-500/20 border border-red-500/40 rounded-2xl">
           <div className="flex items-center gap-3">
             <XIcon className="w-6 h-6 text-red-400 shrink-0" />
-            <p className="text-red-300 font-bold text-sm">Incorrect</p>
+            <p className="text-red-300 font-bold text-sm">
+              {t('quizStudent.feedback.incorrect')}
+            </p>
           </div>
           {revealedAnswer && (
             <p className="text-slate-400 text-xs mt-2 ml-9">
-              Correct answer:{' '}
+              {t('quizStudent.feedback.correctAnswer')}{' '}
               <span className="text-emerald-400 font-semibold">
                 {pictures ? (
                   <AnswerPictureText
@@ -5788,15 +5974,19 @@ const AnswerFeedbackBanner: React.FC<{
       {speedBonus !== null && speedBonus > 0 && (
         <div className="flex items-center gap-2 text-amber-400">
           <Zap className="w-4 h-4" />
-          <span className="text-xs font-bold">+{speedBonus}% speed bonus!</span>
+          <span className="text-xs font-bold">
+            {t('quizStudent.feedback.speedBonus', { n: speedBonus })}
+          </span>
         </div>
       )}
       {streakEnabled && streakCount >= 2 && (
         <div className="flex items-center gap-2 text-orange-400">
           <Flame className="w-4 h-4" />
           <span className="text-xs font-bold">
-            {streakCount} in a row! {streakCount >= 3 ? '2x' : '1.5x'}{' '}
-            multiplier
+            {t('quizStudent.feedback.streak', {
+              n: streakCount,
+              multiplier: streakCount >= 3 ? '2x' : '1.5x',
+            })}
           </span>
         </div>
       )}
@@ -5823,6 +6013,7 @@ const ReviewPhase: React.FC<{
   totalQuestions,
   servedLocale,
 }) => {
+  const { t } = useTranslation();
   const gamificationEnabled = isGamificationActive(session);
   const revealed = session.revealedAnswers?.[currentQuestion.id];
   const myAnswer = myResponse?.answers.find(
@@ -5847,8 +6038,10 @@ const ReviewPhase: React.FC<{
       <div className="min-h-full flex flex-col items-center justify-center p-6 text-center">
         {/* Question recap */}
         <p className="text-slate-400 text-xs uppercase tracking-widest mb-3">
-          Question {session.currentQuestionIndex + 1} of{' '}
-          {totalQuestions ?? session.totalQuestions}
+          {t('quizStudent.review.progress', {
+            current: session.currentQuestionIndex + 1,
+            total: totalQuestions ?? session.totalQuestions,
+          })}
         </p>
         <h2 className="text-lg font-bold text-white mb-6 leading-snug max-w-md whitespace-pre-line">
           <PromptText text={currentQuestion.text} />
@@ -5874,12 +6067,12 @@ const ReviewPhase: React.FC<{
             {isCorrect ? (
               <>
                 <CheckCircle2 className="w-5 h-5 inline-block mr-1 -mt-0.5" />{' '}
-                You got it right!
+                {t('quizStudent.review.right')}
               </>
             ) : (
               <>
-                <XIcon className="w-5 h-5 inline-block mr-1 -mt-0.5" /> Better
-                luck next time!
+                <XIcon className="w-5 h-5 inline-block mr-1 -mt-0.5" />{' '}
+                {t('quizStudent.review.wrong')}
               </>
             )}
           </div>
@@ -5895,13 +6088,13 @@ const ReviewPhase: React.FC<{
             />
             <div className="flex items-center gap-2 text-slate-500 text-sm">
               <Loader2 className="w-4 h-4 animate-spin" />
-              Waiting for teacher to continue...
+              {t('quizStudent.review.waiting')}
             </div>
           </div>
         ) : (
           <div className="flex items-center gap-2 text-slate-500 text-sm">
             <Loader2 className="w-4 h-4 animate-spin" />
-            Waiting for teacher to continue...
+            {t('quizStudent.review.waiting')}
           </div>
         )}
       </div>
@@ -5936,6 +6129,7 @@ const ResultsScreen: React.FC<{
   override,
   drawIds,
 }) => {
+  const { t } = useTranslation();
   const published = resolveResultsVisibility(session, myResponse);
   const showReview = published.visibility !== 'none' && !!myResponse;
 
@@ -5963,28 +6157,29 @@ const ResultsScreen: React.FC<{
     <div className="h-screen h-dvh overflow-y-auto bg-slate-900">
       <div className="min-h-full flex flex-col items-center justify-center p-6 text-center">
         <Trophy className="w-16 h-16 text-amber-400 mb-6" />
-        <h1 className="text-3xl font-black text-white mb-2">Quiz Complete!</h1>
+        <h1 className="text-3xl font-black text-white mb-2">
+          {t('quizStudent.results.complete')}
+        </h1>
         <p className="text-slate-400 text-sm mb-8">
           {pin ? (
             <>
-              Great job, PIN{' '}
+              {t('quizStudent.results.greatJobPin')}{' '}
               <span className="font-mono font-bold text-white">{pin}</span>!
             </>
           ) : (
-            'Great job!'
+            t('quizStudent.results.greatJob')
           )}
         </p>
 
         <div className="mb-8 p-6 bg-slate-800 rounded-2xl">
           <p className="text-5xl font-black text-white mb-2">{answeredCount}</p>
           <p className="text-slate-400 text-sm">
-            of {totalQuestions} questions answered
+            {t('quizStudent.results.answeredOf', { total: totalQuestions })}
           </p>
         </div>
 
         <p className="text-slate-500 text-sm max-w-xs">
-          Your answers have been submitted. Ask your teacher to see your
-          results.
+          {t('quizStudent.results.submitted')}
         </p>
 
         {isGamificationActive(session) && session.liveLeaderboard && (
@@ -6362,11 +6557,10 @@ export const PublishedScoreReview: React.FC<{
             aria-hidden="true"
           />
           <h1 className={`text-2xl font-black ${headingText}`}>
-            Results locked
+            {t('quizStudent.results.lockedTitle')}
           </h1>
           <p className={`max-w-sm text-sm ${subtleText}`}>
-            You left the results page too many times, so it&rsquo;s locked. Ask
-            your teacher to unlock your results.
+            {t('quizStudent.results.lockedBody')}
           </p>
         </div>
       </div>
@@ -6401,24 +6595,27 @@ export const PublishedScoreReview: React.FC<{
         <header className="mb-6 flex flex-col items-center text-center">
           <Trophy className={`mb-4 h-12 w-12 ${trophyCls}`} />
           <h1 className={`text-2xl font-black sm:text-3xl ${headingText}`}>
-            Your Results
+            {t('quizStudent.results.title')}
           </h1>
           <p className={`mt-1 text-sm ${subtleText}`}>
             {localizedQuizTitle(session, override?.language)}
           </p>
           {pin && (
             <p className={`mt-1 text-xs ${faintText}`}>
-              PIN <span className={`font-mono ${prepText}`}>{pin}</span>
+              {t('quizStudent.common.pin')}{' '}
+              <span className={`font-mono ${prepText}`}>{pin}</span>
             </p>
           )}
         </header>
 
         {attemptOptions.length > 0 && (
           <div className="mb-3 flex flex-wrap items-center justify-center gap-2">
-            <span className={`text-sm font-semibold ${prepText}`}>Attempt</span>
+            <span className={`text-sm font-semibold ${prepText}`}>
+              {t('quizStudent.results.attempt')}
+            </span>
             <div
               role="group"
-              aria-label="Attempt"
+              aria-label={t('quizStudent.results.attempt')}
               className={`inline-flex overflow-hidden rounded-lg border ${neutralBorder}`}
             >
               {attemptOptions.map((opt, i) => {
@@ -6469,7 +6666,10 @@ export const PublishedScoreReview: React.FC<{
               {autoGradedCount > 0 &&
                 (picked ? !!picked.answers : hasVerdicts) && (
                   <p className={`mt-2 text-sm ${subtleText}`}>
-                    {correctCount} of {autoGradedCount} fully correct
+                    {t('quizStudent.results.fullyCorrect', {
+                      correct: correctCount,
+                      total: autoGradedCount,
+                    })}
                   </p>
                 )}
               {(awaitingGrade || recordingAwaitingGrade) && (
@@ -6485,7 +6685,7 @@ export const PublishedScoreReview: React.FC<{
           ) : (
             <p className={`text-sm ${prepText}`}>
               {awaitingGrade
-                ? 'Your written response is still being graded. Check back soon.'
+                ? t('quizStudent.results.writtenPending')
                 : recordingAwaitingGrade
                   ? t('quizMediaResponse.playback.provisionalScore')
                   : t('quizMediaResponse.playback.scorePending')}
@@ -6498,7 +6698,7 @@ export const PublishedScoreReview: React.FC<{
             <h2
               className={`mb-3 text-xs font-bold uppercase tracking-[0.14em] ${subtleText}`}
             >
-              Your Answers
+              {t('quizStudent.results.yourAnswers')}
             </h2>
             <div className="flex flex-col gap-3">
               {reviewGroups.map((group) => (
@@ -6534,7 +6734,7 @@ export const PublishedScoreReview: React.FC<{
                         ))
                       ) : (
                         <span className="text-xs font-bold">
-                          Other questions
+                          {t('quizStudent.results.otherQuestions')}
                         </span>
                       )}
                     </div>
@@ -6656,7 +6856,7 @@ export const PublishedScoreReview: React.FC<{
                             <>
                               {(studentAnswer || !hasRecordedTake) && (
                                 <p className={`text-xs ${subtleText}`}>
-                                  Your answer:{' '}
+                                  {t('quizStudent.results.yourAnswer')}{' '}
                                   <span
                                     className={`font-mono ${
                                       isCorrect
@@ -6679,14 +6879,14 @@ export const PublishedScoreReview: React.FC<{
                                         pictures={publicImageOnlyPictures(q)}
                                       />
                                     ) : (
-                                      '— no response'
+                                      t('quizStudent.results.noResponse')
                                     )}
                                   </span>
                                 </p>
                               )}
                               {showAnswers && correctAnswer && (
                                 <p className={`text-xs ${subtleText}`}>
-                                  Correct answer:{' '}
+                                  {t('quizStudent.feedback.correctAnswer')}{' '}
                                   <span
                                     className={`font-mono ${answerCorrectText}`}
                                   >
@@ -6754,8 +6954,7 @@ export const PublishedScoreReview: React.FC<{
 
         {!showResponses && (
           <p className={`text-center text-xs ${faintText}`}>
-            Your teacher published your score. Detailed responses aren&apos;t
-            shared for this assignment.
+            {t('quizStudent.results.scoreOnly')}
           </p>
         )}
       </div>
@@ -6784,6 +6983,7 @@ export const CollapsibleRubric: React.FC<{
   rubric: Rubric;
   light?: boolean;
 }> = ({ rubric, light = false }) => {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const cardCls = light
     ? 'border-slate-200 bg-slate-50'
@@ -6809,7 +7009,7 @@ export const CollapsibleRubric: React.FC<{
           <ChevronRight className="w-3.5 h-3.5" aria-hidden />
         )}
         <ListChecks className="w-3.5 h-3.5" aria-hidden />
-        {rubric.title || 'Scoring rubric'}
+        {rubric.title || t('quizStudent.rubric.fallbackTitle')}
       </button>
       {open && (
         <div className="space-y-3 px-3 pb-3">
@@ -6832,8 +7032,11 @@ export const CollapsibleRubric: React.FC<{
                       className={`flex items-baseline gap-2 text-xs ${bodyCls}`}
                     >
                       <span className={`font-bold ${headingCls}`}>
-                        {level.label} ({level.points} pt
-                        {level.points === 1 ? '' : 's'})
+                        {level.label} (
+                        {t('quizStudent.rubric.points', {
+                          count: level.points,
+                        })}
+                        )
                       </span>
                       {level.description && <span>{level.description}</span>}
                     </li>
@@ -6857,6 +7060,7 @@ const ScoredRubricDisplay: React.FC<{
   examples?: Record<string, string[]>;
   light?: boolean;
 }> = ({ rubric, scores, examples, light = false }) => {
+  const { t } = useTranslation();
   const headingCls = light ? 'text-slate-900' : 'text-slate-100';
   const bodyCls = light ? 'text-slate-600' : 'text-slate-300';
   const labelCls = light ? 'text-slate-500' : 'text-slate-300';
@@ -6873,10 +7077,10 @@ const ScoredRubricDisplay: React.FC<{
         <p
           className={`text-[10px] font-bold uppercase tracking-wider ${labelCls}`}
         >
-          Rubric
+          {t('quizStudent.rubric.label')}
         </p>
         <p className={`text-xs italic ${bodyCls}`}>
-          Scored with an earlier version of this rubric.
+          {t('quizStudent.rubric.stale')}
         </p>
       </div>
     );
@@ -6886,7 +7090,7 @@ const ScoredRubricDisplay: React.FC<{
       <p
         className={`text-[10px] font-bold uppercase tracking-wider ${labelCls}`}
       >
-        Rubric
+        {t('quizStudent.rubric.label')}
       </p>
       {rubric.criteria.map((criterion) => {
         const score = scoresByCriterion.get(criterion.id);
@@ -6899,9 +7103,11 @@ const ScoredRubricDisplay: React.FC<{
               <span className={bodyCls}>{criterion.name}</span>
               <span className={`font-mono font-semibold ${headingCls}`}>
                 {level && score ? (
-                  `${level.label} — ${score.points} pt${score.points === 1 ? '' : 's'}`
+                  `${level.label} — ${t('quizStudent.rubric.points', { count: score.points })}`
                 ) : (
-                  <span className={`italic ${bodyCls}`}>not yet scored</span>
+                  <span className={`italic ${bodyCls}`}>
+                    {t('quizStudent.rubric.notScored')}
+                  </span>
                 )}
               </span>
             </div>
@@ -7040,6 +7246,7 @@ export const WrittenAnswerReview: React.FC<{
   hideEmptyResponse = false,
   paper,
 }) => {
+  const { t } = useTranslation();
   if (!showResponse) {
     return null;
   }
@@ -7079,7 +7286,9 @@ export const WrittenAnswerReview: React.FC<{
           light={light}
         />
       ) : hideEmptyResponse ? null : (
-        <p className="text-xs text-slate-500 italic">— no response</p>
+        <p className="text-xs text-slate-500 italic">
+          {t('quizStudent.results.noResponse')}
+        </p>
       )}
       {hasGrade && (
         <>
@@ -7100,7 +7309,7 @@ export const WrittenAnswerReview: React.FC<{
                   light ? 'text-brand-blue-primary' : 'text-violet-300'
                 }`}
               >
-                Teacher Comment
+                {t('quizStudent.written.teacherComment')}
               </p>
               <p
                 className={`text-sm leading-relaxed whitespace-pre-wrap ${
@@ -7131,7 +7340,7 @@ export const WrittenAnswerReview: React.FC<{
                 light ? 'text-slate-500' : 'text-slate-300'
               }`}
             >
-              Score
+              {t('quizStudent.written.score')}
             </span>
             <span
               className={`font-mono text-base font-black ${
@@ -7150,7 +7359,7 @@ export const WrittenAnswerReview: React.FC<{
               light ? 'text-slate-500' : 'text-slate-300'
             }`}
           >
-            Not yet graded
+            {t('quizStudent.written.notGraded')}
           </p>
         ) : (
           <p
@@ -7158,7 +7367,7 @@ export const WrittenAnswerReview: React.FC<{
               light ? 'text-slate-500' : 'text-slate-300'
             }`}
           >
-            Not yet graded by your teacher.
+            {t('quizStudent.written.notGradedByTeacher')}
           </p>
         ))}
     </div>
@@ -7254,6 +7463,7 @@ export const QuizSubmittedWaitScreen: React.FC<{
   pointerTabWarningThreshold,
   hideReturnButton = false,
 }) => {
+  const { t } = useTranslation();
   // Local variable name avoids shadowing `QuizResponse.autoSubmitted`
   // (the cron-set flag for idle-finalized responses). This banner is
   // tab-switch-specific; the cron-finalized case has no banner yet
@@ -7271,28 +7481,32 @@ export const QuizSubmittedWaitScreen: React.FC<{
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-center">
       <CheckCircle2 className="w-16 h-16 text-emerald-400 mb-6" />
-      <h1 className="text-3xl font-black text-white mb-2">Quiz Submitted!</h1>
+      <h1 className="text-3xl font-black text-white mb-2">
+        {t('quizStudent.submitted.title')}
+      </h1>
       <p className="text-slate-400 text-sm mb-6">
         {pin ? (
           <>
-            Great work, PIN{' '}
+            {t('quizStudent.submitted.greatWorkPin')}{' '}
             <span className="font-mono font-bold text-white">{pin}</span>.
           </>
         ) : (
-          'Great work.'
+          t('quizStudent.submitted.greatWork')
         )}
       </p>
 
       <div className="mb-6 p-5 bg-slate-800 rounded-2xl">
         <p className="text-4xl font-black text-white mb-2">{answeredCount}</p>
         <p className="text-slate-400 text-sm">
-          of {totalQuestions ?? session.totalQuestions} questions answered
+          {t('quizStudent.results.answeredOf', {
+            total: totalQuestions ?? session.totalQuestions,
+          })}
         </p>
       </div>
 
       {tabSwitchAutoSubmitted && (
         <div className="max-w-sm mb-6 p-3 bg-amber-500/20 border border-amber-500/40 rounded-xl text-amber-200 text-sm">
-          Auto-submitted because you left the quiz tab too many times.
+          {t('quizStudent.submitted.autoSubmitted')}
         </div>
       )}
 
@@ -7309,7 +7523,7 @@ export const QuizSubmittedWaitScreen: React.FC<{
 
       <div className="flex items-center gap-2 text-slate-500 text-sm">
         <Loader2 className="w-4 h-4 animate-spin" />
-        Waiting for final results…
+        {t('quizStudent.submitted.waitingFinal')}
       </div>
 
       {/*

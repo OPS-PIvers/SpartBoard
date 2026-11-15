@@ -105,6 +105,8 @@ export interface Student {
   pin: string;
   /** PINs this student used to have, kept so older responses still show their name. Never signs anyone in. */
   formerPins?: string[];
+  /** When `formerPins` last grew (ms); a former PIN names the student only on responses joined before it. */
+  formerPinsAt?: number;
   /**
    * Stable ClassLink link, stamped when the student is imported or merged from
    * ClassLink. Enables re-sync without duplicating rows even if the student's
@@ -219,6 +221,8 @@ export interface ClassRosterMeta {
   ltiContextId?: string;
   /** The building bell period this class meets in, for per-period assignment windows; null once cleared. */
   bellPeriod?: RosterBellPeriod | null;
+  /** Server-stamped first time each former PIN was retired (ms), keyed by `quizPinKeySegment`. */
+  retiredPinsAt?: Record<string, number>;
 }
 
 export interface RosterBellPeriod {
@@ -3931,6 +3935,29 @@ export interface MiniAppSession
   summaryHidden?: true;
   /** v2 only: frozen copy of the app's manifest at assign. */
   manifest?: MiniAppManifest;
+  /** v2 only: what students see of their results, set by publishMiniAppScoresV1. */
+  scoreVisibility?: QuizScoreVisibility;
+  scorePublishedAt?: number;
+}
+
+/** A student's own published copy at `mini_app_sessions/{id}/published/{key}`. */
+export interface PublishedMiniAppResult {
+  studentUid: string;
+  visibility: Exclude<QuizScoreVisibility, 'none'>;
+  publishedAt: number;
+  score?: number;
+  maxScore?: number;
+  gradedBy?: 'server' | 'app';
+  correctCount?: number;
+  gradedCount?: number;
+  items?: {
+    id: string;
+    prompt: string;
+    answer: unknown;
+    correct: boolean | null;
+    correctAnswer?: string;
+  }[];
+  details?: Record<string, unknown>;
 }
 
 /**
@@ -5496,6 +5523,8 @@ export interface PeriodAccessSessionFields {
   studentAccess?: Record<string, number>;
   /** Epoch ms of the last whole-session pause; see `PeriodAccess.pausedAt`. */
   pausedAt?: number;
+  /** Manual due date: every period locks at `dueAt`; a Start or Let in after it is late. */
+  dueLocks?: boolean;
 }
 
 /** One closed pause, epoch ms; the overall time limit does not run through it. */
@@ -5631,7 +5660,7 @@ export interface QuizSession
   inputSignals?: boolean;
   /** Stamped on every new assignment; Ordering shows one list to drag into order (absent on older sessions = slots and word bank). */
   orderingList?: boolean;
-  /** Stamped only with the quiz-stimulus-tabs flag; stimuli show as tabs beside the question. */
+  /** Stamped on every session since the tabbed layout went public; older sessions keep the stacked layout. */
   stimulusTabs?: boolean;
   /** Stamped on every new self-paced assignment; ends on a review screen (absent on older sessions = no review screen). */
   reviewStep?: boolean;
@@ -6188,8 +6217,12 @@ export interface QuizLiveViewStamp {
 /** `responses/{key}/live/state`: the question a watched student is showing. */
 export interface QuizLiveState {
   questionId: string;
-  /** Server-clock ms. */
+  /** Server-clock ms the student reached this question. */
   at: number;
+  /** Server-clock ms of the student's last real click, key or scroll; absent from older clients. */
+  activeAt?: number;
+  /** The red tab warning is on the student's screen. */
+  warning?: boolean;
 }
 
 /** `users/{uid}/quiz_assignments/{id}/live_log/{id}`: what a teacher did in Live view. Never on the response doc. */
@@ -11281,6 +11314,8 @@ export type GlobalFeature =
   | 'quiz-student-view'
   /** Quiz Monitor Live view: a teacher watches one student's in-progress attempt, redrawn from saved data. */
   | 'quiz-live-view'
+  /** Quiz Monitor lists the whole class roster, with students who haven't joined under Not started. */
+  | 'quiz-monitor-roster'
   /** Quiz setting that shows students their score as soon as they submit. */
   | 'quiz-score-on-submit'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */
@@ -11293,6 +11328,8 @@ export type GlobalFeature =
   | 'routine-guide'
   /** Class groups with a weekly schedule that pop a reminder on the open board. */
   | 'group-reminders'
+  /** My Classes "View Student Page": a class's student page, read from the teacher's own sessions. */
+  | 'class-student-page'
   /** Per-widget AI switches; ids match the server's `global_permissions` quota docs. */
   | 'quiz'
   | 'video-activity-ai'
@@ -11329,8 +11366,6 @@ export type GlobalFeature =
   | 'quiz-dok'
   /** Fill in the blank: Dropdown and Drag blank types beside Typed (docs/plans/QUIZ_MCA_PRACTICE.md M6). */
   | 'quiz-blank-types'
-  /** Quiz stimuli as named tabs in the panel beside the question (M11). */
-  | 'quiz-stimulus-tabs'
   /** Weather: a details panel (dew point, humidity, wind and more) in buildings the admin allows. */
   | 'weather-details'
   /** Checklist empty state with an Add button, larger footer buttons hidden on small cards. */
@@ -11382,6 +11417,7 @@ export type GlobalFeature =
   | 'import-embed'
   | 'import-link'
   | 'import-schoology-course'
+  | 'import-straight-to-board'
   /** AI questions on a YouTube import (docs/plans/IMPORT.md D35). */
   | 'video-import-ai'
   /** Due date picker in the Push to Schoology dialog. */
@@ -11390,8 +11426,12 @@ export type GlobalFeature =
   | 'flashcards-check-sync'
   /** Pasting a YouTube link asks Embed or Video Activity. */
   | 'youtube-paste-picker'
+  /** Right-click menu on the board background. */
+  | 'board-context-menu'
   /** Teachers pick which answers count when a student answers more than a section asks. */
-  | 'choose-n-pick-counted';
+  | 'choose-n-pick-counted'
+  /** Manual assignments get a due date, and Assign remembers the When step. */
+  | 'assign-due-date';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {
@@ -12477,6 +12517,11 @@ export interface MiniAppAssignment extends PeriodAccessSessionFields {
   targetSkippedCount?: number;
   /** Individually-targeted refs removed via the hub (M17 §5 D3). See `QuizAssignment.removedStudentRefs`. */
   removedStudentRefs?: StudentTargetRef[];
+  /** Mirrors `MiniAppSession.resultsVersion`; only these rows can publish scores. */
+  resultsVersion?: 2;
+  /** Mirrors `MiniAppSession.scoreVisibility`, written by publishMiniAppScoresV1. */
+  scoreVisibility?: QuizScoreVisibility;
+  scorePublishedAt?: number;
 }
 
 // === /MiniApp assignments ===

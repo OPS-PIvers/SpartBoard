@@ -306,11 +306,14 @@ export const InputSignsEditor: React.FC<{
                 key={id}
                 className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2"
               >
-                <span title="Off hides this sign from teachers but keeps recording it.">
+                <span
+                  className="flex shrink-0"
+                  title="Off hides this sign from teachers but keeps recording it."
+                >
                   <Toggle
                     checked={s.off !== true}
                     onChange={(checked) => update(id, { ...s, off: !checked })}
-                    size="xs"
+                    size="sm"
                     label={`${label} shown to teachers`}
                     anchor={tourFieldAttr(
                       'admin.features.input-sign-toggle',
@@ -319,7 +322,7 @@ export const InputSignsEditor: React.FC<{
                     )}
                   />
                 </span>
-                <span className="w-56 shrink-0 text-sm text-slate-700">
+                <span className="w-64 shrink-0 text-sm text-slate-700">
                   {label}
                 </span>
                 {causes !== null && (
@@ -381,6 +384,10 @@ interface AccessFeatureRowProps {
   status?: React.ReactNode;
   /** Extra expanded content. */
   children?: React.ReactNode;
+  /** Shorter name shown on the row, e.g. inside a group. */
+  displayLabel?: string;
+  /** Start expanded, e.g. when a search matched a nested row. */
+  defaultExpanded?: boolean;
 }
 
 /** One collapsed line per feature; expands for targeting and limits (plan D8). */
@@ -397,8 +404,15 @@ export const AccessFeatureRow: React.FC<AccessFeatureRowProps> = ({
   extraChips = [],
   status,
   children,
+  displayLabel,
+  defaultExpanded = false,
 }) => {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(defaultExpanded);
+  const [prevDefault, setPrevDefault] = useState(defaultExpanded);
+  if (prevDefault !== defaultExpanded) {
+    setPrevDefault(defaultExpanded);
+    if (defaultExpanded) setExpanded(true);
+  }
   const def = FEATURE_DEFAULTS[featureId];
   const Icon = def.icon;
   const panelId = `access-row-${featureId}`;
@@ -419,7 +433,7 @@ export const AccessFeatureRow: React.FC<AccessFeatureRowProps> = ({
           <span className="min-w-0 flex-1">
             <span className="flex items-center gap-1.5 flex-wrap">
               <span className="font-bold text-slate-800 text-sm">
-                {def.label}
+                {displayLabel ?? def.label}
               </span>
               {permissionChips(featureId, permission, isSaved)}
               {extraChips}

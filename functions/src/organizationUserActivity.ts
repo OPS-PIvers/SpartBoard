@@ -17,6 +17,10 @@ import * as admin from './firebaseAdmin';
 import { type MemberRecord } from './organizationInvites';
 import { isRevokedMemberStatus } from './authz';
 import { assertViewAsAllowed } from './viewAsGuard';
+import {
+  isEmailOnDomains,
+  loadExclusiveOrgDomains,
+} from './orgDomainOwnership';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -100,17 +104,42 @@ async function assertCallerIsAdminMember(
   }
 }
 
-async function listMemberEmails(
+interface MemberRow {
+  email: string;
+  uid?: string;
+}
+
+async function listMembers(
   db: admin.firestore.Firestore,
   orgId: string
-): Promise<string[]> {
+): Promise<MemberRow[]> {
   const snap = await db
     .collection('organizations')
     .doc(orgId)
     .collection('members')
-    .select() // doc ids only — we don't need the member body here
+    .select('uid')
     .get();
-  return snap.docs.map((d) => d.id);
+  return snap.docs.map((d) => {
+    const uid: unknown = d.get('uid');
+    return typeof uid === 'string' && uid
+      ? { email: d.id, uid }
+      : { email: d.id };
+  });
+}
+
+/** Auth lookups the org may make: a linked uid, else an address on a domain verified for this org alone (planted foreign rows stay null). */
+export function activityIdentifiers(
+  members: MemberRow[],
+  exclusiveDomains: ReadonlySet<string>
+): Array<{ email: string; id: admin.auth.UserIdentifier }> {
+  const out: Array<{ email: string; id: admin.auth.UserIdentifier }> = [];
+  for (const m of members) {
+    if (m.uid) out.push({ email: m.email, id: { uid: m.uid } });
+    else if (isEmailOnDomains(m.email, exclusiveDomains)) {
+      out.push({ email: m.email, id: { email: m.email } });
+    }
+  }
+  return out;
 }
 
 function chunk<T>(items: T[], size: number): T[][] {
@@ -160,9 +189,20 @@ export const getOrgUserActivity = onCall<OrgUserActivityPayload>(
 
     await assertCallerIsAdminMember(db, orgId, callerEmailLower);
 
-    const emails = await listMemberEmails(db, orgId);
-    if (emails.length === 0) {
+    const members = await listMembers(db, orgId);
+    if (members.length === 0) {
       return { activity: [], partial: false, failedBatchCount: 0 };
+    }
+    const emails = members.map((m) => m.email);
+    const lookups = activityIdentifiers(
+      members,
+      await loadExclusiveOrgDomains(db, orgId)
+    );
+    const emailByUid = new Map<string, string>();
+    const emailLookups = new Set<string>();
+    for (const l of lookups) {
+      if ('uid' in l.id) emailByUid.set(l.id.uid, l.email);
+      else emailLookups.add(l.email);
     }
 
     // Populate from Auth in parallel batches. Each getUsers call returns only
@@ -171,7 +211,7 @@ export const getOrgUserActivity = onCall<OrgUserActivityPayload>(
     const lastActive = new Map<string, number | null>();
     for (const email of emails) lastActive.set(email, null);
 
-    const batches = chunk(emails, AUTH_LOOKUP_BATCH);
+    const batches = chunk(lookups, AUTH_LOOKUP_BATCH);
     // Track per-batch failures so we can surface `partial: true` to the caller
     // instead of silently masking an Auth outage as "everyone is inactive".
     type BatchOutcome =
@@ -181,7 +221,7 @@ export const getOrgUserActivity = onCall<OrgUserActivityPayload>(
       batches.map((batch) =>
         admin
           .auth()
-          .getUsers(batch.map((email) => ({ email })))
+          .getUsers(batch.map((l) => l.id))
           .then<BatchOutcome>((result) => ({ ok: true, result }))
           .catch<BatchOutcome>((error: unknown) => ({ ok: false, error }))
       )
@@ -193,9 +233,11 @@ export const getOrgUserActivity = onCall<OrgUserActivityPayload>(
     for (const outcome of outcomes) {
       if (outcome.ok) {
         for (const user of outcome.result.users) {
-          const email = user.email?.toLowerCase();
+          const byEmail = user.email?.toLowerCase() ?? '';
+          const email =
+            emailByUid.get(user.uid) ??
+            (emailLookups.has(byEmail) ? byEmail : undefined);
           if (!email) continue;
-          if (!lastActive.has(email)) continue;
           lastActive.set(email, parseLastSignIn(user.metadata));
         }
       } else {

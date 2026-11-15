@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   findDuplicateResponseIds,
   resolveResponseExportName,
+  responseDuplicateKey,
   responseTeamId,
 } from './resolveDisplayName';
 import { buildPinToExportNameMap, buildPinToNameMap } from './quizScoreboard';
@@ -96,6 +97,34 @@ describe('findDuplicateResponseIds', () => {
       undefined
     );
     expect(dup.size).toBe(0);
+  });
+
+  it('flags two docs that share one PIN under different response keys', () => {
+    const roster: ClassRoster = {
+      id: 'r1',
+      name: 'Period 1',
+      driveFileId: null,
+      studentCount: 1,
+      createdAt: 0,
+      students: [{ id: 's1', firstName: 'Kya', lastName: 'Newell', pin: '21' }],
+    };
+    const a = resp({
+      ...pinResp('21', 'Period 1'),
+      _responseKey: 'pin-period_1-21',
+    });
+    const b = resp({
+      ...pinResp('21', 'Period 1'),
+      _responseKey: 'pin-period_2-21',
+    });
+    const dup = findDuplicateResponseIds(
+      [a, b],
+      buildPinToNameMap([roster], ['Period 1']),
+      undefined
+    );
+    expect(dup).toEqual(
+      new Set([responseDuplicateKey(a), responseDuplicateKey(b)])
+    );
+    expect(dup.size).toBe(2);
   });
 });
 

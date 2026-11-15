@@ -2946,6 +2946,7 @@ describe('useQuizAssignments - publishAssignmentScores', () => {
           ref,
           data: () => ({
             studentUid: 's1',
+            status: 'completed',
             answers: [
               { questionId: 'q0', answer: 'a', answeredAt: 1 },
               { questionId: 'q1', answer: 'wrong', answeredAt: 2 },
@@ -2983,6 +2984,7 @@ describe('useQuizAssignments - publishAssignmentScores', () => {
           ref: shown,
           data: () => ({
             studentUid: 's1',
+            status: 'completed',
             answers,
             resultsOverride: {
               mode: 'shown',
@@ -2992,7 +2994,10 @@ describe('useQuizAssignments - publishAssignmentScores', () => {
             },
           }),
         },
-        { ref: follows, data: () => ({ studentUid: 's2', answers }) },
+        {
+          ref: follows,
+          data: () => ({ studentUid: 's2', status: 'completed', answers }),
+        },
       ],
     });
 
@@ -3017,8 +3022,22 @@ describe('useQuizAssignments - publishAssignmentScores', () => {
 
   it('writes the answer key to each response, not the session, on score-responses-and-answers publish', async () => {
     const ref = { id: 'r1' };
+    const openRef = { id: 'r-open' };
     mockGetDocs.mockResolvedValueOnce({
-      docs: [{ ref, data: () => ({ studentUid: 's1', answers: [] }) }],
+      docs: [
+        {
+          ref,
+          data: () => ({ studentUid: 's1', status: 'completed', answers: [] }),
+        },
+        {
+          ref: openRef,
+          data: () => ({
+            studentUid: 's2',
+            status: 'in-progress',
+            answers: [],
+          }),
+        },
+      ],
     });
 
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
@@ -3041,6 +3060,9 @@ describe('useQuizAssignments - publishAssignmentScores', () => {
     expect(batchUpdate.mock.calls.find(([r]) => r === ref)?.[1]).toMatchObject({
       revealedAnswers: { q0: 'a', q1: 'b' },
     });
+    expect(
+      batchUpdate.mock.calls.find(([r]) => r === openRef)?.[1]
+    ).toMatchObject({ revealedAnswers: DELETE_FIELD_SENTINEL });
   });
 
   it('chunks response writes across multiple batches when there are more than 398 responses', async () => {
@@ -3492,9 +3514,9 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
       })
     );
 
-  it('stamps stimulus tabs with the flag, and one-list Ordering and the review step on every self-paced session', async () => {
+  it('stamps stimulus tabs, one-list Ordering and the review step on every self-paced session', async () => {
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID), {
-      wrapper: mcaWrapper(['quiz-stimulus-tabs']),
+      wrapper: mcaWrapper([]),
     });
     await act(async () => {
       await result.current.createAssignment(QUIZ, {
@@ -3521,20 +3543,6 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
     });
     expect(findSessionSet()).not.toHaveProperty('reviewStep');
     expect(findSessionSet()).toMatchObject({ orderingList: true });
-  });
-
-  it('leaves stimulus tabs off without the flag, but still stamps the review step', async () => {
-    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID), {
-      wrapper: mcaWrapper([]),
-    });
-    await act(async () => {
-      await result.current.createAssignment(QUIZ, {
-        sessionMode: 'student',
-        sessionOptions: {},
-      });
-    });
-    expect(findSessionSet()).not.toHaveProperty('stimulusTabs');
-    expect(findSessionSet()).toMatchObject({ reviewStep: true });
   });
 
   it('mirrors showLearningTargets and only projects tags when it is enabled', async () => {

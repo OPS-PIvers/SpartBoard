@@ -118,7 +118,11 @@ function setupGetDoc(opts: {
 function deliverFeaturePermissions(perms: FeaturePermission[]): void {
   vi.mocked(firestore.onSnapshot).mockImplementation((ref, onNext) => {
     const path = (ref as unknown as CollectionRef).__path ?? '';
-    if (path === 'feature_permissions') {
+    if (path.startsWith('beta_grants/')) {
+      (onNext as unknown as (s: unknown) => void)({ data: () => undefined });
+      return () => undefined;
+    }
+    if (path === 'feature_permissions_public') {
       const snapshot = {
         forEach: (cb: (doc: { data: () => unknown }) => void) => {
           perms.forEach((p) => cb({ data: () => p }));

@@ -121,13 +121,24 @@ export function buildPeriodGate({
   const resolved: PeriodPlan = manualStart
     ? { mode: 'assessment' }
     : (plan ?? DEFAULT_PERIOD_PLAN);
-  const periodAccess = buildPeriodAccess({
+  const built = buildPeriodAccess({
     plan: resolved,
     rosters,
     sharedWindow,
     bellWindow: (roster) =>
       bellWindow?.(roster, new Date(sharedWindow.openAt ?? Date.now())) ?? null,
   });
+  // A Manual due date locks each period, so a Start or Let in after it still works.
+  const dueAt = manualStart ? (sharedWindow.closeAt ?? null) : null;
+  const periodAccess =
+    dueAt == null
+      ? built
+      : Object.fromEntries(
+          Object.entries(built).map(([k, row]) => [
+            k,
+            { ...row, closeAt: dueAt },
+          ])
+        );
   // Two rosters on one class id share a gate, so they are one period.
   return Object.keys(periodAccess).length >= minPeriods
     ? { accessMode: resolved.mode, periodAccess }
@@ -150,6 +161,8 @@ export function periodAccessClassEdits({
     openAt?: number;
     closeAt?: number;
     periodPlan?: PeriodPlan;
+    /** A Manual due date, which a new class locks at too. */
+    dueLockAt?: number | null;
   };
 }): Record<string, PeriodAccess | null> {
   // A row matches by its roster first: a roster linked to ClassLink after assign changes its key.
@@ -164,13 +177,13 @@ export function periodAccessClassEdits({
     (r) => !rows.some(([key, row]) => matches(key, row, r))
   );
   // A Manual class starts closed like the others; the teacher starts it.
-  return {
-    ...out,
-    ...buildPeriodAccess({
-      plan: { mode: accessMode, rows: window.periodPlan?.rows },
-      rosters: added,
-      sharedWindow: { openAt: window.openAt, closeAt: window.closeAt },
-      bellWindow: () => null,
-    }),
-  };
+  const built = buildPeriodAccess({
+    plan: { mode: accessMode, rows: window.periodPlan?.rows },
+    rosters: added,
+    sharedWindow: { openAt: window.openAt, closeAt: window.closeAt },
+    bellWindow: () => null,
+  });
+  const lock = accessMode === 'assessment' ? window.dueLockAt : null;
+  if (lock != null) for (const row of Object.values(built)) row.closeAt = lock;
+  return { ...out, ...built };
 }

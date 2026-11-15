@@ -10,6 +10,7 @@ import {
   DEFAULT_MINI_APP_RESULTS,
   loadMiniAppKey,
   miniAppResultsOn,
+  publishMiniAppScores,
   type MiniAppResultsChoice,
 } from '@/utils/miniAppResults';
 import { createPortal } from 'react-dom';
@@ -93,6 +94,7 @@ import {
 import { AssignmentsModal } from './components/AssignmentsModal';
 import { MiniAppManager } from './components/MiniAppManager';
 import { AssignmentClassesModal } from '@/components/common/library/AssignmentClassesModal';
+import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
 import { SaveAsWidgetModal } from './components/SaveAsWidgetModal';
 import { useMiniAppSync } from './hooks/useMiniAppSync';
 import { useDialog } from '@/context/useDialog';
@@ -515,7 +517,13 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     setTargetSkippedCount,
     setAssignmentClasses,
   } = useMiniAppAssignments(inShare ? undefined : user?.uid);
+  // Older submissions assignments stay reachable after Mini Apps turn view-only.
+  const activeAppHasSubmissions =
+    !!activeApp &&
+    assignments.some((a) => a.appId === activeApp.id && a.mode !== 'view-only');
   const [editingClasses, setEditingClasses] =
+    useState<MiniAppAssignment | null>(null);
+  const [publishingScores, setPublishingScores] =
     useState<MiniAppAssignment | null>(null);
 
   // Assign flow state
@@ -689,6 +697,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
           assignmentName,
           rosterIds: derived.rosterIds,
           mode: assignmentMode,
+          ...(results ? { resultsVersion: 2 as const } : {}),
           targetMode: expandedTargeting.targetMode,
           targetGroupIds: expandedTargeting.targetGroupIds,
           overridesBySourcedId: expandedTargeting.overridesByKey,
@@ -1484,10 +1493,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               // toolbar while this widget is the selected one. Avoids leaving
               // an orphaned action bar floating below an unfocused widget.
               selectedWidgetId === widget.id &&
-              // The toolbar lives at Z_INDEX.popover (11000), which is above
-              // the running-mode modals (z-overlay = 9910). Hide it whenever
-              // one of those modals is open so it doesn't float on top of the
-              // dialog the teacher is interacting with.
+              // Hide the action bar while a running-mode dialog is open over the widget.
               !assigningApp &&
               !assignmentsForApp &&
               !showSaveAsWidget &&
@@ -1574,7 +1580,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                           ? widgetRect.top - TOOLBAR_GAP
                           : widgetRect.bottom + TOOLBAR_GAP,
                         transform: flipAbove ? 'translateY(-100%)' : undefined,
-                        zIndex: Z_INDEX.popover,
+                        zIndex: Z_INDEX.widgetActionBar,
                         display: 'flex',
                         justifyContent: 'center',
                         pointerEvents: 'none',
@@ -1596,22 +1602,25 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                             flows that don't apply), and on a read-only board,
                             where a substitute or viewer pressing Assign would
                             open a session under their own account (D8). */}
-                        {assignmentMode !== 'view-only' &&
+                        {(assignmentMode !== 'view-only' ||
+                          activeAppHasSubmissions) &&
                           !isActiveBoardReadOnly && (
                             <>
-                              <button
-                                onClick={() => handleOpenAssign(activeApp)}
-                                className="bg-indigo-600 hover:bg-indigo-500 text-white flex items-center font-black uppercase tracking-widest transition-colors rounded-lg shadow-xs"
-                                style={buttonBaseStyle}
-                                title="Assign (copy student link)"
-                                {...tourTypeAttr(
-                                  'mini-app.toolbar-student-link',
-                                  'miniApp'
-                                )}
-                              >
-                                <Link2 style={iconStyle} />
-                                <span style={labelStyle}>Assign</span>
-                              </button>
+                              {assignmentMode !== 'view-only' && (
+                                <button
+                                  onClick={() => handleOpenAssign(activeApp)}
+                                  className="bg-indigo-600 hover:bg-indigo-500 text-white flex items-center font-black uppercase tracking-widest transition-colors rounded-lg shadow-xs"
+                                  style={buttonBaseStyle}
+                                  title="Assign (copy student link)"
+                                  {...tourTypeAttr(
+                                    'mini-app.toolbar-student-link',
+                                    'miniApp'
+                                  )}
+                                >
+                                  <Link2 style={iconStyle} />
+                                  <span style={labelStyle}>Assign</span>
+                                </button>
+                              )}
                               <button
                                 onClick={() => handleOpenAssignments(activeApp)}
                                 className="bg-white hover:bg-slate-50 text-slate-700 flex items-center font-black uppercase tracking-widest transition-colors rounded-lg shadow-xs border border-slate-200/60"
@@ -1973,11 +1982,49 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               onArchiveReactivate={(a) => void handleArchiveReactivate(a)}
               onArchiveDelete={(a) => void handleArchiveDelete(a)}
               onArchiveEditClasses={setEditingClasses}
+              onArchivePublishScores={
+                canAccessFeature('mini-app-results')
+                  ? setPublishingScores
+                  : undefined
+              }
               assignmentMode={assignmentMode}
               readOnly={isActiveBoardReadOnly}
             />
             {/* Assign modal */}
             {assignDialog}
+            {publishingScores && (
+              <PublishScoresModal
+                assignmentTitle={publishingScores.assignmentName}
+                currentVisibility={publishingScores.scoreVisibility}
+                onClose={() => setPublishingScores(null)}
+                onConfirm={async (visibility) => {
+                  const target = publishingScores;
+                  try {
+                    const { published } = await publishMiniAppScores(
+                      target.sessionId,
+                      visibility
+                    );
+                    addToast(
+                      visibility === 'none'
+                        ? 'Scores unpublished.'
+                        : `Scores published to ${published} student${published === 1 ? '' : 's'}.`,
+                      'success'
+                    );
+                    setPublishingScores(null);
+                  } catch (err) {
+                    logError('MiniAppWidget.publishScores', err, {
+                      assignmentId: target.id,
+                    });
+                    addToast(
+                      err instanceof Error && err.message
+                        ? err.message
+                        : "Couldn't publish scores.",
+                      'error'
+                    );
+                  }
+                }}
+              />
+            )}
             {editingClasses && (
               <AssignmentClassesModal
                 rosters={rosters}

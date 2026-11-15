@@ -431,6 +431,11 @@ export type InputFindingId =
   | 'extra-screen'
   | 'unmanaged-profile';
 
+/** Signs about the student's device rather than how answers were entered; shown in a neutral tone when they are all there is. */
+export const DEVICE_FINDINGS: ReadonlySet<InputFindingId> = new Set([
+  'extra-screen',
+]);
+
 /** What else could explain each finding, before any admin rewording. */
 export const DEFAULT_OTHER_CAUSES: Record<InputFindingId, string> = {
   'jump-clicks':
@@ -588,7 +593,7 @@ export function describeInputSignals(
       otherCauses: DEFAULT_OTHER_CAUSES['unkeyed-text'],
     });
   }
-  if (total.pastedChars > 0) {
+  if (total.pastedChars > 0 && !hidden?.has('pasted')) {
     out.push({
       id: 'pasted',
       text: `Pasted ${plural(total.pastedChars, 'character')} into answer boxes.`,

@@ -185,7 +185,7 @@ export const ConnectPage: React.FC = () => {
   };
 
   const switchAccount = (
-    <button
+    <button /* no-tour-anchor: standalone /connect page, never on the board */
       onClick={() => {
         void signOut();
       }}
@@ -220,7 +220,7 @@ export const ConnectPage: React.FC = () => {
           <p className="text-slate-600 mb-7 text-sm sm:text-base leading-relaxed">
             Sign in with your school Google account to continue.
           </p>
-          <button
+          <button /* no-tour-anchor: standalone /connect page, never on the board */
             onClick={() => {
               setBusy('signin');
               signInWithGoogle().catch(() => setBusy(null));
@@ -304,7 +304,7 @@ export const ConnectPage: React.FC = () => {
               Quizzes and video activities are saved in your Google Drive. Allow
               Drive access so Claude can work with them.
             </p>
-            <button
+            <button /* no-tour-anchor: standalone /connect page, never on the board */
               onClick={() => {
                 setDrive('granting');
                 captureOfflineGrant()
@@ -326,7 +326,7 @@ export const ConnectPage: React.FC = () => {
         </p>
       </div>
       <div className="flex flex-col gap-3">
-        <button
+        <button /* no-tour-anchor: standalone /connect page, never on the board */
           onClick={() => {
             void decide('approve');
           }}
@@ -339,7 +339,7 @@ export const ConnectPage: React.FC = () => {
             'Allow'
           )}
         </button>
-        <button
+        <button /* no-tour-anchor: standalone /connect page, never on the board */
           onClick={() => {
             void decide('deny');
           }}

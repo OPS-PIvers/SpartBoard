@@ -82,6 +82,7 @@ export const PlcQuizSessionContent: React.FC<PlcQuizSessionContentProps> = ({
   const {
     session,
     responses,
+    responsesLoaded,
     advanceQuestion,
     endQuizSession,
     removeStudent,
@@ -268,6 +269,8 @@ export const PlcQuizSessionContent: React.FC<PlcQuizSessionContentProps> = ({
         quizData={quizData}
         config={config}
         rosters={rosters}
+        rosterTargets={assignment}
+        responsesLoaded={responsesLoaded}
         hideLiveScoreboard
         onAdvance={async () => {
           await advanceQuestion();
@@ -341,7 +344,14 @@ export const PlcQuizSessionContent: React.FC<PlcQuizSessionContentProps> = ({
           );
         },
         hide: (keys) => hideResultsForStudents(assignment.id, keys),
-        clear: (keys) => clearResultsOverride(assignment.id, keys),
+        clear: async (keys) => {
+          const answerKey =
+            assignment.resolvedDriveFileId &&
+            assignment.resolvedDriveFileId !== assignment.quizDriveFileId
+              ? await loadQuizData(assignment.resolvedDriveFileId)
+              : quizData;
+          return clearResultsOverride(assignment.id, keys, answerKey);
+        },
       }}
       onPlcSheetUrlReplaced={async (newUrl) => {
         if (assignment.plc) {

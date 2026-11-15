@@ -39,8 +39,8 @@ export interface CourseRow {
 export interface CourseRowAccess {
   /** Widgets this teacher may use, by import target. */
   target: (target: Exclude<CourseRowTarget, 'skip'>) => boolean;
-  /** AI Conversion is on for this teacher (the flag and the admin switch). */
-  ai: boolean;
+  /** AI Conversion is on for this teacher and widget (the flags and the widget's admin switch). */
+  ai: (target: 'flashcards' | 'activityWall') => boolean;
   /** Drive is connected, so Word, PowerPoint and Excel files can be shown in the PDF viewer. */
   drive: boolean;
 }
@@ -80,8 +80,12 @@ function optionsFor(
       return ['skip'];
     }
     case 'page':
-      return access.ai && item.material?.text?.trim()
-        ? offered(['flashcards', 'activityWall'])
+      return item.material?.text?.trim()
+        ? offered(
+            (['flashcards', 'activityWall'] as const).filter((t) =>
+              access.ai(t)
+            )
+          )
         : ['skip'];
   }
 }

@@ -98,7 +98,13 @@ import {
   type ImportTarget,
 } from '@/utils/import/contract';
 import { ImportScreenHost } from '@/components/import/ImportScreenHost';
-import { importTypeOn, targetChoices } from '@/components/import/importTargets';
+import {
+  importSourceKind,
+  importTypeOn,
+  targetChoices,
+} from '@/components/import/importTargets';
+import { importSourceOffers } from '@/config/importConversion';
+import { useImportConversionSettings } from '@/hooks/useImportConversionSettings';
 import {
   openImportScreen,
   type ImportDropPoint,
@@ -136,6 +142,9 @@ const WebTourEditorHost = React.lazy(() =>
   import('@/components/tours/web/WebTourEditorHost').then((m) => ({
     default: m.WebTourEditorHost,
   }))
+);
+const BoardMenuHost = React.lazy(() =>
+  import('./BoardMenuHost').then((m) => ({ default: m.BoardMenuHost }))
 );
 const opensWebTour = () =>
   new URLSearchParams(window.location.search).has(EDIT_WEB_TOUR_PARAM);
@@ -538,8 +547,13 @@ export const DashboardView: React.FC = () => {
   const { canAccessFeature, isAdmin } = useAuth();
   const universalImport = canAccessFeature(UNIVERSAL_IMPORT_FEATURE);
   const importOnDrop = universalImport && canAccessFeature(IMPORT_DROP_FEATURE);
-  const importTypeAllowed = (target: ImportTarget): boolean =>
-    importTypeOn(target, canAccessFeature);
+  const importSettings = useImportConversionSettings(universalImport);
+  const importTypeAllowed = (
+    target: ImportTarget,
+    source: PendingSource
+  ): boolean =>
+    importTypeOn(target, canAccessFeature) &&
+    importSourceOffers(importSettings, importSourceKind(source), target);
   const boxSelectEnabled =
     !annotationActive && !isActiveBoardReadOnly && !groupBuildMode;
   const marqueeRect = useBoardMarqueeSelect({
@@ -1407,7 +1421,9 @@ export const DashboardView: React.FC = () => {
     const files = Array.from(dt.files ?? []);
     const offered = (f: File) =>
       targetChoices({ file: f }, importTypeAllowed).targets.length > 0 ||
-      (/\.imscc$/i.test(f.name) && canAccessFeature('import-schoology-course'));
+      (/\.imscc$/i.test(f.name) &&
+        canAccessFeature('import-schoology-course') &&
+        importSettings.sources.course.enabled);
     // A file no Import type is open for keeps the old drop (a PDF or notebook lands as before).
     if (
       !files.some(offered) &&
@@ -1906,6 +1922,13 @@ export const DashboardView: React.FC = () => {
           {!isActiveBoardReadOnly && <Dock />}
         </React.Suspense>
       </LazyChunkErrorBoundary>
+      {canAccessFeature('board-context-menu') && (
+        <LazyChunkErrorBoundary fallback={() => null}>
+          <React.Suspense fallback={null}>
+            <BoardMenuHost />
+          </React.Suspense>
+        </LazyChunkErrorBoundary>
+      )}
       <AnnotationOverlay />
       <ToastContainer />
       <AnnouncementOverlay />

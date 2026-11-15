@@ -138,7 +138,11 @@ function deliverSnapshots(opts: {
     const path = (ref as unknown as PathRef).__path ?? '';
     const fire = (snapshot: unknown) =>
       (onNext as unknown as (s: unknown) => void)(snapshot);
-    if (path === 'global_permissions') {
+    if (path.startsWith('beta_grants/')) {
+      (onNext as unknown as (s: unknown) => void)({ data: () => undefined });
+      return () => undefined;
+    }
+    if (path === 'global_permissions_public') {
       fire({
         forEach: (cb: (doc: { id: string; data: () => unknown }) => void) => {
           opts.globalPerms.forEach((p) =>
@@ -146,7 +150,7 @@ function deliverSnapshots(opts: {
           );
         },
       });
-    } else if (path === 'feature_permissions') {
+    } else if (path === 'feature_permissions_public') {
       fire({
         forEach: (cb: (doc: { id: string; data: () => unknown }) => void) => {
           opts.featurePerms.forEach((p) =>
@@ -507,6 +511,56 @@ describe('AuthContext — roster students without a member doc', () => {
       expect(getCtx().roleResolved).toBe(true);
     });
     expect(getCtx().roleId).not.toBe('student');
+  });
+
+  it('force-refreshes the ID token when the resolver cleared a stale deactivation claim', async () => {
+    httpsCallableImpl = () =>
+      Promise.resolve({
+        data: { orgId: 'orono', claimCleared: true } as {
+          orgId: string | null;
+        },
+      });
+    await mountAs({ email: 'reinstated@orono.k12.mn.us', isOrgMember: true });
+    const user = auth.currentUser as unknown as {
+      getIdToken: ReturnType<typeof vi.fn>;
+    };
+    await waitFor(() => {
+      expect(user.getIdToken).toHaveBeenCalledWith(true);
+    });
+  });
+
+  it('skips the cached org and refreshes when the token still carries the deactivation claim', async () => {
+    const email = 'cached-reinstated@orono.k12.mn.us';
+    sessionStorage.setItem('spart_resolved_org:v2:' + email, 'orono');
+    const callable = vi.fn(() =>
+      Promise.resolve({
+        data: { orgId: 'orono', claimCleared: true } as {
+          orgId: string | null;
+        },
+      })
+    );
+    httpsCallableImpl = callable;
+    await mountAs({ email, isOrgMember: true, claims: { deactivated: true } });
+    const user = auth.currentUser as unknown as {
+      getIdToken: ReturnType<typeof vi.fn>;
+    };
+    await waitFor(() => {
+      expect(user.getIdToken).toHaveBeenCalledWith(true);
+    });
+    expect(callable).toHaveBeenCalled();
+    sessionStorage.removeItem('spart_resolved_org:v2:' + email);
+  });
+
+  it('does not force a token refresh when no claim was cleared', async () => {
+    httpsCallableImpl = () => Promise.resolve({ data: { orgId: 'orono' } });
+    await mountAs({ email: 'still-active@orono.k12.mn.us', isOrgMember: true });
+    await waitFor(() => {
+      expect(getCtx().roleResolved).toBe(true);
+    });
+    const user = auth.currentUser as unknown as {
+      getIdToken: ReturnType<typeof vi.fn>;
+    };
+    expect(user.getIdToken).not.toHaveBeenCalledWith(true);
   });
 });
 

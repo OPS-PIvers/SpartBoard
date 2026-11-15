@@ -145,3 +145,11 @@ describe('TestMode question bar', () => {
     expect(screen.getByText('Question 1 of 6')).toBeTruthy();
   });
 });
+
+describe('TestMode fill-in input', () => {
+  it('uses 16px text so iPhones do not zoom', () => {
+    renderTest(false, ['fib']);
+    const input = document.querySelector('section input') as HTMLInputElement;
+    expect(input.style.fontSize).toBe('16px');
+  });
+});

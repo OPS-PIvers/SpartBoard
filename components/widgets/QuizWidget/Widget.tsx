@@ -166,6 +166,7 @@ import type { FibGradingContext } from '@/utils/quizFibAnswers';
 import { getClassroomAttachments } from '@/utils/classroomAttachments';
 import { hasValidMaxPoints } from '@/utils/runClassroomGradePush';
 import { quizMaxPoints } from '@/utils/quizMaxPoints';
+import { autoRevealCount } from '@/utils/quizSessionPhase';
 import { sessionSectionsFor } from '@/utils/quizSections';
 import {
   applySectionCounts,
@@ -657,6 +658,7 @@ const TeacherQuizWidget: React.FC<{
     session: liveSession,
     loading: liveSessionLoading,
     responses,
+    responsesLoaded: liveResponsesLoaded,
     advanceQuestion,
     endQuizSession,
     removeStudent,
@@ -2207,13 +2209,8 @@ const TeacherQuizWidget: React.FC<{
 
     const questions = loadedQuizData.questions;
     // Reveal past questions + current question during review phase or when quiz ended
-    const upTo =
-      liveSession.status === 'ended'
-        ? questions.length
-        : liveSession.questionPhase === 'reviewing'
-          ? liveSession.currentQuestionIndex + 1
-          : liveSession.currentQuestionIndex;
-    for (let i = 0; i < upTo && i < questions.length; i++) {
+    const upTo = autoRevealCount(liveSession, questions.length);
+    for (let i = 0; i < upTo; i++) {
       const q = questions[i];
       if (!liveSession.revealedAnswers?.[q.id]) {
         void revealAnswer(q.id, revealValueFor(q));
@@ -2942,7 +2939,11 @@ const TeacherQuizWidget: React.FC<{
                   hide: (keys) =>
                     hideResultsForStudents(activeAssignmentId, keys),
                   clear: (keys) =>
-                    clearResultsOverride(activeAssignmentId, keys),
+                    clearResultsOverride(
+                      activeAssignmentId,
+                      keys,
+                      loadedQuizData
+                    ),
                 }
               : undefined
           }
@@ -3248,6 +3249,8 @@ const TeacherQuizWidget: React.FC<{
           localizedFibAnswers={
             monitorActiveAssignment?.localizedFibAnswers ?? null
           }
+          rosterTargets={monitorActiveAssignment ?? null}
+          responsesLoaded={liveResponsesLoaded}
           assignmentSettings={
             monitorActiveAssignment &&
             getAssignmentWidgetKind(monitorActiveAssignment) === 'quiz' ? (
@@ -3274,7 +3277,6 @@ const TeacherQuizWidget: React.FC<{
               : {
                   quiz: studentView.quiz,
                   behavior: studentView.behavior,
-                  stimulusTabsOn: canAccessFeature('quiz-stimulus-tabs'),
                   crossOutOn: canAccessFeature('quiz-cross-out'),
                 })}
             tabAwayTimerOn={canAccessFeature('tab-away-timer')}

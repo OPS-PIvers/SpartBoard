@@ -78,6 +78,8 @@ export interface ExportableResponse extends StaffResponseFields {
   pin?: string;
   studentUid: string;
   classPeriod?: string;
+  /** Join time; a retired roster PIN names its student only on earlier joins. */
+  joinedAt?: number;
   answers: {
     questionId: string;
     answer: string;
@@ -273,7 +275,7 @@ export function buildResultsSheetData<
     const sso = lastFirstName(byStudentUid?.get(r.studentUid));
     if (sso) return sso;
     if (r.pin) {
-      const name = resolvePinName(pinToName, r.classPeriod, r.pin);
+      const name = resolvePinName(pinToName, r.classPeriod, r.pin, r.joinedAt);
       return name ?? `Student (PIN: ${r.pin})`;
     }
     unresolvedAnonymousCount++;

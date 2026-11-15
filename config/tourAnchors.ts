@@ -361,6 +361,42 @@ export const TOUR_ANCHORS = {
   'board-nav.manage-boards': { label: 'Manage all boards item', panel: true },
 
   'board.whole': { label: 'The whole board, for opening and closing steps' },
+  'board-menu.paste': {
+    label: 'Paste in the board right-click menu',
+    panel: true,
+  },
+  'board-menu.undo': {
+    label: 'Undo in the board right-click menu',
+    panel: true,
+  },
+  'board-menu.redo': {
+    label: 'Redo in the board right-click menu',
+    panel: true,
+  },
+  'board-menu.tidy': {
+    label: 'Tidy up in the board right-click menu',
+    panel: true,
+  },
+  'board-menu.minimize-all': {
+    label: 'Minimize all in the board right-click menu',
+    panel: true,
+  },
+  'board-menu.restore-all': {
+    label: 'Restore all in the board right-click menu',
+    panel: true,
+  },
+  'board-menu.background': {
+    label: 'Change background in the board right-click menu',
+    panel: true,
+  },
+  'board-menu.draw': {
+    label: 'Draw on board in the board right-click menu',
+    panel: true,
+  },
+  'board-menu.copy-link': {
+    label: 'Copy board link in the board right-click menu',
+    panel: true,
+  },
   'board.claude-editing-show': {
     label: 'Show button on the "Claude is editing" notice',
     panel: true,
@@ -1257,27 +1293,32 @@ export const TOUR_ANCHORS = {
     label: 'Allow submissions after close switch in the Assign dialog',
     panel: true,
   },
+  'assign-when.due': {
+    label:
+      'Due choice (When ended or Date and time) for Manual in the Assign dialog',
+    panel: true,
+  },
   'assign-when.window': {
     label: 'Schedule switch in the Assign dialog',
     panel: true,
   },
   'assign-classes.trigger': {
-    label: 'Classes menu button in the Assign dialog',
+    label: 'Class list in the Assign dialog',
     panel: true,
   },
   'assign-classes.option': {
-    label: 'Class checkbox in the Assign dialog classes menu',
+    label: 'Class checkbox in the Assign dialog class list',
     perField: true,
     keyPattern: 'assign#row-[1-9]\\d*',
     keyHint: 'assign#row-1 for the first row',
     panel: true,
   },
   'assign-classes.select-all': {
-    label: 'Select all button in the Assign dialog classes menu',
+    label: 'Select all button in the Assign dialog class list',
     panel: true,
   },
   'assign-classes.clear': {
-    label: 'Clear button in the Assign dialog classes menu',
+    label: 'Clear button in the Assign dialog class list',
     panel: true,
   },
   'assign-students.trigger': {
@@ -2218,6 +2259,21 @@ export const TOUR_ANCHORS = {
     perField: true,
     destructive: true,
     panel: true,
+  },
+  'quiz-editor.option-explanation': {
+    label: 'Show or hide an answer option explanation in the Quiz editor',
+    perField: true,
+    panel: true,
+    keyPattern: 'quiz#[a-l]',
+    keyHint: "quiz#a for option A's explanation button; lowercase letters",
+  },
+  'quiz-editor.option-explanation-text': {
+    label: 'Answer option explanation in the Quiz editor',
+    perField: true,
+    panel: true,
+    keyPattern: 'quiz#[a-l]',
+    keyHint:
+      "quiz#a for option A's explanation box (open it first); lowercase letters",
   },
   'quiz-editor.answer-image-description': {
     label:
@@ -4542,6 +4598,12 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'quiz-monitor.student-mark-absent': {
+    label:
+      'Absent button on a student who has not joined, in the Quiz monitor roster',
+    perField: true,
+    persists: true,
+  },
   'quiz-monitor.student-unlock-attempt': {
     label: 'Unlock attempt item in the Quiz monitor student menu',
     perWidgetType: true,
@@ -6276,6 +6338,12 @@ export const TOUR_ANCHORS = {
   },
   'classes.link-classroom': {
     label: 'Link to Google Classroom button in My Classes',
+    perField: true,
+    panel: true,
+    rows: true,
+  },
+  'classes.view-student-page': {
+    label: 'View Student Page button in My Classes',
     perField: true,
     panel: true,
     rows: true,
@@ -9238,6 +9306,35 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'admin.previews.import-source': {
+    label: 'An import kind in What each import offers (opens its widget list)',
+    perField: true,
+    panel: true,
+  },
+  'admin.previews.import-source-switch': {
+    label: 'On/off switch for an import kind in What each import offers',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.previews.import-widget': {
+    label: 'Widget checkbox under an import kind in What each import offers',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.previews.import-ai-switch': {
+    label: 'With AI switch for a widget in What each import offers',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.previews.import-ai-limit': {
+    label: 'Daily limit field for a widget with AI in What each import offers',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
   'admin.previews.focus-hours-start': {
     label: 'Start time field in Focus session hours',
     panel: true,
@@ -10244,18 +10341,18 @@ export const TOUR_ANCHORS = {
   },
   'admin.org.mode-submissions': {
     label:
-      'Submissions mode button for an assignment type in Organization app settings',
+      'Submissions mode button for an assignment type in Admin Settings Features',
     perField: true,
     panel: true,
   },
   'admin.org.mode-view-only': {
     label:
-      'View only mode button for an assignment type in Organization app settings',
+      'View only mode button for an assignment type in Admin Settings Features',
     perField: true,
     panel: true,
   },
   'admin.org.assignment-modes-save': {
-    label: 'Save button for assignment modes in Organization app settings',
+    label: 'Save button for assignment modes in Admin Settings Features',
     persists: true,
     panel: true,
   },
@@ -11720,6 +11817,12 @@ export const TOUR_ANCHORS = {
     label: 'Back button in the Mini App results view',
     perWidgetType: true,
     panel: true,
+  },
+  'mini-app.archive-publish-scores': {
+    label: 'Publish scores item in a Mini App Completed assignment row menu',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
   },
   'mini-app.results-hide-names': {
     label: 'Hide student names button in the Mini App results view',
@@ -15514,12 +15617,12 @@ export const TOUR_ANCHORS = {
   },
   // Flashcards and Mini Apps shared-prop controls.
   'flashcards.stepper-class-picker': {
-    label: 'Class picker in the Flashcards assign dialog',
+    label: 'Class list in the Flashcards assign dialog',
     perWidgetType: true,
     panel: true,
   },
   'flashcards.stepper-class-row': {
-    label: 'Class checkbox in the Flashcards assign dialog class picker',
+    label: 'Class checkbox in the Flashcards assign dialog class list',
     perField: true,
     panel: true,
   },
@@ -15762,12 +15865,12 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'mini-app.stepper-class-picker': {
-    label: 'Class picker in the Mini App assign dialog',
+    label: 'Class list in the Mini App assign dialog',
     perWidgetType: true,
     panel: true,
   },
   'mini-app.stepper-class-row': {
-    label: 'Class checkbox in the Mini App assign dialog class picker',
+    label: 'Class checkbox in the Mini App assign dialog class list',
     perField: true,
     panel: true,
   },

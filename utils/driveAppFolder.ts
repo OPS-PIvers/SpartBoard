@@ -6,6 +6,7 @@ export interface DriveParentMeta {
   name?: string;
   parents?: string[];
   trashed?: boolean;
+  appProperties?: Record<string, string>;
 }
 
 export type GetDriveParentMeta = (
@@ -15,6 +16,10 @@ export type GetDriveParentMeta = (
 const APP_FOLDER_NAMES = new Set([APP_NAME, DRIVE_APP_FOLDER, 'SPART Board']);
 const DRIVE_ID = /^[A-Za-z0-9_-]{10,200}$/;
 
+/** appProperties key set on every Guided Learning slide upload; only marked files are released. */
+export const GL_SLIDE_APP_PROPERTY = 'spartboardGlSlide';
+export const GL_SLIDE_APP_PROPERTIES = { [GL_SLIDE_APP_PROPERTY]: '1' };
+
 /** True for a string shaped like a Drive file id, so it can't reach another API path. */
 export const isDriveFileId = (id: string): boolean => DRIVE_ID.test(id);
 
@@ -22,12 +27,15 @@ export const isDriveFileId = (id: string): boolean => DRIVE_ID.test(id);
 export async function isInAppFolder(
   fileId: string,
   folderPaths: readonly string[],
-  getMeta: GetDriveParentMeta
+  getMeta: GetDriveParentMeta,
+  marker?: string
 ): Promise<boolean> {
   if (!isDriveFileId(fileId)) return false;
   const wanted = folderPaths.map((p) => p.split('/').filter(Boolean));
   try {
     const file = await getMeta(fileId);
+    // A marked upload only: the folder is shared with Hotspot images an imported URL could name.
+    if (marker && file?.appProperties?.[marker] !== '1') return false;
     for (const parentId of file?.parents ?? []) {
       // Walk up from the parent, matching folder names back to the app folder.
       const chain: string[] = [];

@@ -49,9 +49,30 @@ export function saveReviewState(key: string, state: ReviewState): void {
   }
 }
 
+const resumeKey = (key: string): string => `${key}:at`;
+
 export function clearReviewState(key: string): void {
   try {
     window.sessionStorage.removeItem(key);
+    window.sessionStorage.removeItem(resumeKey(key));
+  } catch {
+    /* storage blocked */
+  }
+}
+
+/** The question this tab was last on for one attempt; null when none is saved. */
+export function loadResumeQuestion(key: string | null): string | null {
+  if (!key) return null;
+  try {
+    return window.sessionStorage.getItem(resumeKey(key));
+  } catch {
+    return null;
+  }
+}
+
+export function saveResumeQuestion(key: string, questionId: string): void {
+  try {
+    window.sessionStorage.setItem(resumeKey(key), questionId);
   } catch {
     /* storage blocked */
   }

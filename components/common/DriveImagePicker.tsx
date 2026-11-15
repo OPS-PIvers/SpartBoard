@@ -19,6 +19,8 @@ interface DriveImagePickerProps {
   className?: string;
   label?: string;
   variant?: 'light' | 'dark';
+  /** Uploads the picked file and returns its URL; defaults to the Hotspot image upload. */
+  upload?: (file: File) => Promise<string>;
 }
 
 /**
@@ -34,6 +36,7 @@ export const DriveImagePicker: React.FC<DriveImagePickerProps> = ({
   className = '',
   label = 'Add image from Drive',
   variant = 'light',
+  upload,
 }) => {
   const { user } = useAuth();
   const { openPicker, isConnected } = useGooglePicker();
@@ -69,7 +72,7 @@ export const DriveImagePicker: React.FC<DriveImagePickerProps> = ({
         });
 
         const [url, base64] = await Promise.all([
-          uploadHotspotImage(user.uid, file),
+          upload ? upload(file) : uploadHotspotImage(user.uid, file),
           blobToBase64(downloaded.blob),
         ]);
 
@@ -94,6 +97,7 @@ export const DriveImagePicker: React.FC<DriveImagePickerProps> = ({
       openPicker,
       getDriveFileAsBlob,
       uploadHotspotImage,
+      upload,
       onImageAdded,
     ]
   );

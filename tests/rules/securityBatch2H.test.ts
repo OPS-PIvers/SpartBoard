@@ -1,4 +1,4 @@
-// Security batch 2H: a tour draft carrying sample copies (answer keys) in tourSetup.materials reads for staff only.
+// Security batch 2H: building sets (tour samples and question keys) read for staff only.
 //
 // Requires a running Firestore emulator — invoke via `pnpm run test:rules`.
 
@@ -41,7 +41,7 @@ const asAdmin = () =>
 const asTeacher = () =>
   testEnv
     .authenticatedContext('teacher-uid', {
-      email: 'teacher@example.com',
+      email: 'teacher@orono.k12.mn.us',
       email_verified: true,
       firebase: { sign_in_provider: 'google.com' },
     })
@@ -60,6 +60,22 @@ const asStudentRole = () =>
       studentRole: true,
       classIds: ['class-1'],
       firebase: { sign_in_provider: 'custom' },
+    })
+    .firestore();
+const asSelfRegistered = () =>
+  testEnv
+    .authenticatedContext('self-uid', {
+      email: 'kid@orono.k12.mn.us',
+      email_verified: true,
+      firebase: { sign_in_provider: 'password' },
+    })
+    .firestore();
+const asOtherGoogle = () =>
+  testEnv
+    .authenticatedContext('other-uid', {
+      email: 'someone@gmail.com',
+      email_verified: true,
+      firebase: { sign_in_provider: 'google.com' },
     })
     .firestore();
 const asSignedOut = () => testEnv.unauthenticatedContext().firestore();
@@ -111,6 +127,20 @@ const modeTour = {
   mode: 'tour',
 };
 
+// A personal set moved to the Help Center keeps its question keys.
+const helpCenterCopy = {
+  id: 'help-keys',
+  title: 'Moved lesson',
+  helpCenter: true,
+  imageUrls: [],
+  steps: [
+    {
+      id: 'q1',
+      question: { type: 'multiple-choice', correctAnswer: 'B' },
+    },
+  ],
+};
+
 beforeAll(async () => {
   testEnv = await initializeTestEnvironment({
     projectId: PROJECT_ID,
@@ -133,11 +163,18 @@ beforeEach(async () => {
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();
     await setDoc(doc(db, `admins/${ADMIN_EMAIL}`), { addedAt: 1 });
+    await setDoc(
+      doc(db, 'organizations/orono/members/teacher@orono.k12.mn.us'),
+      {
+        status: 'active',
+      }
+    );
     await setDoc(doc(db, `${SETS}/lesson`), lesson);
     await setDoc(doc(db, `${SETS}/tour`), tourDraft);
     await setDoc(doc(db, `${SETS}/emptied`), emptiedTour);
     await setDoc(doc(db, `${SETS}/flagged`), flaggedTour);
     await setDoc(doc(db, `${SETS}/mode`), modeTour);
+    await setDoc(doc(db, `${SETS}/help-keys`), helpCenterCopy);
   });
 });
 
@@ -160,10 +197,20 @@ describe('tour draft sample copies', () => {
     }
   });
 
-  it('still lets a signed-in session read a set without samples, or one that is missing', async () => {
+  it('denies anonymous and student-role sessions every set, answer keys included', async () => {
     for (const db of [asAnonStudent(), asStudentRole()]) {
-      await assertSucceeds(getDoc(doc(db, `${SETS}/lesson`)));
-      await assertSucceeds(getDoc(doc(db, `${SETS}/missing`)));
+      await assertFails(getDoc(doc(db, `${SETS}/lesson`)));
+      await assertFails(getDoc(doc(db, `${SETS}/help-keys`)));
+      await assertFails(getDoc(doc(db, `${SETS}/missing`)));
+    }
+    await assertSucceeds(getDoc(doc(asTeacher(), `${SETS}/help-keys`)));
+  });
+
+  it('denies password-provider and non-district Google tokens every set and any list', async () => {
+    for (const db of [asSelfRegistered(), asOtherGoogle()]) {
+      await assertFails(getDoc(doc(db, `${SETS}/lesson`)));
+      await assertFails(getDoc(doc(db, `${SETS}/help-keys`)));
+      await assertFails(getDocs(collection(db, SETS)));
     }
   });
 

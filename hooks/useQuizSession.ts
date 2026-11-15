@@ -40,7 +40,10 @@ import {
   type DocumentSnapshot,
   type FieldValue,
 } from 'firebase/firestore';
-import { encodeResponseKeySegment } from '@/utils/quizResponseKey';
+import {
+  encodeResponseKeySegment,
+  quizPinKeySegment,
+} from '@/utils/quizResponseKey';
 import {
   LIVE_LEADERBOARD_COLLECTION,
   LIVE_LEADERBOARD_DOC,
@@ -362,8 +365,8 @@ export function isWriteAtAfter(a: unknown, b: unknown): boolean {
 }
 
 /**
- * Defensive predicate: refuse a draft autosave that would downgrade an
- * already-submitted answer's status to 'draft'. The cache-driven
+ * Defensive predicate: a draft autosave over an already-submitted answer
+ * must not downgrade its status to 'draft' (the write keeps 'submitted'). The cache-driven
  * autosave path can re-fire for the same question during the SSO
  * listener-fast race window (back-nav before the response listener
  * echoes the just-submitted answer back, so the local `submitted` state
@@ -1154,6 +1157,17 @@ export function computeResponseKey(
   return `pin-${encodeResponseKeySegment(classPeriod)}-${encodeResponseKeySegment(pin)}`;
 }
 
+/** Quiz response key: like `computeResponseKey`, with the PIN in its canonical `quizPinKeySegment` form. */
+export function computeQuizResponseKey(
+  authUid: string,
+  isAnonymous: boolean,
+  pin: string,
+  classPeriod: string | undefined
+): string {
+  if (!isAnonymous) return authUid;
+  return `pin-${encodeResponseKeySegment(classPeriod)}-${quizPinKeySegment(pin)}`;
+}
+
 /**
  * Branded type for the deterministic response-doc key (computed by
  * `computeResponseKey` / read off `_responseKey`). Pure type-level brand —
@@ -1228,7 +1242,9 @@ async function findExistingResponseDoc(
   sessionId: string,
   authUid: string,
   isAnonymous: boolean,
-  deterministicKey: string
+  deterministicKey: string,
+  // Pre-canonical key (leading zeros kept): a doc this device made before the change still resumes.
+  paddedKey: string = deterministicKey
 ): Promise<{ key: string; snap: DocumentSnapshot | null }> {
   // Probe the deterministic key. For anonymous joiners, `permission-denied`
   // here means either no doc yet or a doc written by a different anon UID
@@ -1258,6 +1274,22 @@ async function findExistingResponseDoc(
   }
   if (deterministicSnap?.exists()) {
     return { key: deterministicKey, snap: deterministicSnap };
+  }
+  if (isAnonymous && paddedKey !== deterministicKey) {
+    try {
+      const paddedSnap = await getDoc(
+        doc(
+          db,
+          QUIZ_SESSIONS_COLLECTION,
+          sessionId,
+          RESPONSES_COLLECTION,
+          paddedKey
+        )
+      );
+      if (paddedSnap.exists()) return { key: paddedKey, snap: paddedSnap };
+    } catch (err) {
+      if (getErrorCode(err) !== 'permission-denied') throw err;
+    }
   }
   if (isAnonymous && deterministicKey !== authUid) {
     // Probe the legacy authUid-keyed slot. The doc, if it exists, was created
@@ -1295,6 +1327,8 @@ async function findExistingResponseDoc(
 export interface UseQuizSessionTeacherResult {
   session: QuizSession | null;
   responses: QuizResponse[];
+  /** The responses listener has delivered its first snapshot. */
+  responsesLoaded: boolean;
   loading: boolean;
   advanceQuestion: () => Promise<void>;
   /**
@@ -1795,6 +1829,16 @@ export const useQuizSessionTeacher = (
       const refundedAttempts = Math.max(0, currentAttempts - 1);
       // Answers the student passed but the teacher counted go back to passed.
       const restoredAnswers = restorePassedAnswers(target);
+      // A reopened attempt must not carry the published key or verdicts (#5811).
+      const baseAnswers = restoredAnswers ?? target.answers ?? [];
+      const answersPatch =
+        restoredAnswers || baseAnswers.some((a) => a.isCorrect !== undefined)
+          ? {
+              answers: baseAnswers.map(
+                ({ isCorrect: _verdict, ...rest }) => rest
+              ),
+            }
+          : {};
 
       // Probe the ledger BEFORE the batch so we don't blindly create a
       // partial doc via `set(merge:true)` on a missing ledger entry
@@ -1812,7 +1856,13 @@ export const useQuizSessionTeacher = (
         scoredOnSubmitAttempt: deleteField(),
         // A reopened attempt can change its answers, so the teacher picks again.
         countedChoices: deleteField(),
-        ...(restoredAnswers ? { answers: restoredAnswers } : {}),
+        ...answersPatch,
+        revealedAnswers: deleteField(),
+        revealedRubricExamples: deleteField(),
+        revealedExplanations: deleteField(),
+        'resultsOverride.revealedAnswers': deleteField(),
+        'resultsOverride.revealedRubricExamples': deleteField(),
+        'resultsOverride.revealedExplanations': deleteField(),
         unlocked: true,
         unlockedAt: Date.now(),
         unlockKind: reopen ? 'reopen' : deleteField(),
@@ -2039,6 +2089,7 @@ export const useQuizSessionTeacher = (
   return {
     session,
     responses,
+    responsesLoaded: state.responsesLoaded,
     // A per-period session's questions arrive on their own read.
     loading: loading || (inContent && !contentLoaded),
     advanceQuestion,
@@ -2164,7 +2215,7 @@ export interface UseQuizSessionStudentResult {
   /** Writes the whole tab-away exit log; rules allow one append or one close per write. */
   saveTabExits: (exits: TabExit[]) => Promise<void>;
   /** Writes the question on screen to `live/state` while the teacher watches. */
-  reportLivePosition: (questionId: string, at?: number) => Promise<void>;
+  reportLivePosition: (state: QuizLiveState) => Promise<void>;
   /** Writes one attempt's input counters (utils/inputSignals.ts). */
   saveInputSignals: (
     attempt: number,
@@ -2836,7 +2887,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         // device. studentRole users still key by their auth uid (stable per
         // user already). The helper also handles the legacy-key fallback
         // for anonymous students rejoining pre-deterministic-keying sessions.
-        const deterministicKey = computeResponseKey(
+        const deterministicKey = computeQuizResponseKey(
           studentUid,
           isAnonymous,
           sanitizedPin,
@@ -2847,7 +2898,13 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
             sessionDoc.id,
             studentUid,
             isAnonymous,
-            deterministicKey
+            deterministicKey,
+            computeResponseKey(
+              studentUid,
+              isAnonymous,
+              sanitizedPin,
+              classPeriod
+            )
           );
 
         sessionIdRef.current = sessionDoc.id;
@@ -3444,12 +3501,9 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
             ? { priorEntry, now }
             : null;
 
-        // Status-downgrade guard — see `isUnsafeStatusDowngrade` doc.
-        // Stops the back-nav listener-lag race from silently flipping a
-        // 'submitted' answer back to 'draft' status. Runs AFTER the
-        // history snapshot so the rejected attempt is still recorded
-        // (the decision already made above is returned as-is).
-        if (isUnsafeStatusDowngrade(isDraft, priorEntry)) {
+        // A draft over a submitted answer keeps it submitted: an unchanged one is skipped, a changed one saves.
+        const keepSubmitted = isUnsafeStatusDowngrade(isDraft, priorEntry);
+        if (keepSubmitted && priorEntry?.answer === answer) {
           return { skip: true, snapshot };
         }
 
@@ -3465,7 +3519,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           questionId,
           answer,
           answeredAt: Date.now(),
-          status: isDraft ? 'draft' : 'submitted',
+          status: isDraft && !keepSubmitted ? 'draft' : 'submitted',
         };
         delete newAnswer.speedBonus;
         delete newAnswer.isCorrect;
@@ -4259,11 +4313,10 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
 
   // Live view position goes to its own small doc, so the response triggers stay asleep.
   const reportLivePosition = useCallback(
-    async (questionId: string, at?: number): Promise<void> => {
+    async (state: QuizLiveState): Promise<void> => {
       const sessionId = sessionIdRef.current;
       const responseKey = responseKeyRef.current;
       if (!sessionId || !responseKey || studentPreviewBlocksWrite()) return;
-      const state: QuizLiveState = { questionId, at: at ?? getServerNow() };
       await setDoc(
         doc(
           db,

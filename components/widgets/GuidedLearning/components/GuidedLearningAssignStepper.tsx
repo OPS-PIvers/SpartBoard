@@ -1,4 +1,5 @@
 // Guided Learning's assign dialog on the stepper (docs/plans/shipped/ASSIGN_STEPPER.md D2, D4).
+import { useAssignWhen } from '@/hooks/useLastAssignWhen';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AssignmentAudience, ClassRoster } from '@/types';
@@ -12,7 +13,7 @@ import {
   type AssignKind,
   type AssignStepDef,
 } from '@/components/common/library/assignStepper/assignSteps';
-import { ClassPickerMenu } from '@/components/common/library/assignStepper/ClassPickerMenu';
+import { ClassChecklist } from '@/components/common/library/assignStepper/ClassChecklist';
 import { StudentPickMenu } from '@/components/common/library/assignStepper/StudentPickMenu';
 import {
   formatClassesValue,
@@ -31,7 +32,6 @@ import {
   defaultWhenValue,
   formatWhenValue,
   whenBackwards,
-  type AssignWhenValue,
 } from '@/components/common/library/assignStepper/assignWhenValue';
 import type { AssignPeriodAccessContext } from '@/components/common/library/AssignPeriodAccessSection';
 import { applyWhen } from '@/utils/assignAvailability';
@@ -84,7 +84,11 @@ export const GuidedLearningAssignStepper: React.FC<{
     EMPTY_ASSIGN_TARGETING_VALUE
   );
   const bellWindow = periodAccess?.bellWindow;
-  const [when, setWhen] = useState<AssignWhenValue>(() =>
+  const {
+    when,
+    setWhen,
+    remember: rememberWhen,
+  } = useAssignWhen('gl', () =>
     defaultWhenValue({
       activity: 'gl',
       bellAvailable: !!bellWindow,
@@ -113,6 +117,7 @@ export const GuidedLearningAssignStepper: React.FC<{
         workKind: { default: kind, locked: true },
       }
     );
+    if (!staff && kind === 'work') rememberWhen(when);
     await onAssign({
       classes: staff ? { classIds: [], studentsByClass: {} } : classes,
       targeting: staff ? { ...resolved, periodPlan: undefined } : resolved,
@@ -131,7 +136,7 @@ export const GuidedLearningAssignStepper: React.FC<{
           value: formatClassesValue(classes, visibleRosters),
           body: (
             <div className="space-y-3">
-              <ClassPickerMenu
+              <ClassChecklist
                 rosters={visibleRosters}
                 value={classes}
                 onChange={setClasses}

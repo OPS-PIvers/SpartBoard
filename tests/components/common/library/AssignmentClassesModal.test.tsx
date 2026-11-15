@@ -18,14 +18,8 @@ const row: PeriodAccess = {
   rosterId: '1',
 };
 
-const toggle = (name: string) => {
-  const trigger = document.querySelector(
-    '[data-tour="assign-classes.trigger"]'
-  );
-  if (!(trigger instanceof HTMLElement)) throw new Error('no classes trigger');
-  fireEvent.click(trigger);
+const toggle = (name: string) =>
   fireEvent.click(screen.getByRole('checkbox', { name }));
-};
 
 describe('AssignmentClassesModal', () => {
   it('saves the checked classes and closes', async () => {

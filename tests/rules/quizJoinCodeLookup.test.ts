@@ -350,8 +350,7 @@ describe('a code has one owner', () => {
     );
   });
 
-  // Transitional, for a tab on the previous client, which writes no owner record.
-  it('lets staff use a code nobody has claimed yet', async () => {
+  it('refuses a code nobody has claimed (owner records are backfilled)', async () => {
     const db = asTeacher();
     const batch = writeBatch(db);
     batch.set(pointerRef(db, 'UNCLAIMED', 'unclaimed'), {
@@ -364,7 +363,7 @@ describe('a code has one owner', () => {
       code: 'UNCLAIMED',
       status: 'active',
     });
-    await assertSucceeds(batch.commit());
+    await assertFails(batch.commit());
   });
 
   it('lets staff create a session with no code', async () => {

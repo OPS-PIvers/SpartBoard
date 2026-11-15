@@ -137,6 +137,7 @@ describe('useQuizAssignments — publishAssignmentScores duplicate question id (
           ref: refStudent,
           data: () => ({
             studentUid: 's1',
+            status: 'completed',
             answers: [
               { questionId: 'q0', answer: 'a', answeredAt: 1 },
               { questionId: 'q1', answer: 'wrong', answeredAt: 2 },
@@ -178,6 +179,7 @@ describe('useQuizAssignments — publishAssignmentScores duplicate question id (
           ref: refStudent,
           data: () => ({
             studentUid: 's1',
+            status: 'completed',
             answers: [
               { questionId: 'q0', answer: 'a', answeredAt: 1 },
               { questionId: 'q1', answer: 'wrong', answeredAt: 2 },

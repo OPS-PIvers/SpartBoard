@@ -54,6 +54,7 @@ import { dropPinLogin } from '@/utils/pinLoginScope';
 import {
   MiniAppSession,
   MiniAppSubmission,
+  PublishedMiniAppResult,
   StudentAssignmentPointer,
 } from '@/types';
 import { useSeatedPeriodContent } from '@/hooks/useSeatedPeriodContent';
@@ -78,6 +79,7 @@ import {
   MiniAppPeriodLockedScreen,
   MiniAppPeriodPausedOverlay,
 } from './MiniAppPeriodLockedScreen';
+import { MiniAppPublishedResults } from './MiniAppPublishedResults';
 import {
   MSG_BLOCK_CONTEXT_MENU,
   MSG_INIT,
@@ -94,6 +96,7 @@ import {
 } from '@/hooks/useStudentContextMenuBlock';
 import {
   readOwnMiniAppSubmission,
+  readPublishedMiniAppResult,
   submitErrorCode,
   submitMiniAppResult,
 } from '@/utils/miniAppResults';
@@ -208,7 +211,11 @@ const SessionLoader: React.FC = () => {
   if (staffGate.screen) return staffGate.screen;
 
   if (session.status === 'ended') {
-    return <EndedScreen appTitle={session.appTitle} />;
+    return isPublished(session) ? (
+      <EndedWithResults session={session} />
+    ) : (
+      <EndedScreen appTitle={session.appTitle} />
+    );
   }
 
   if (hasPeriodAccess(session) && session.mode !== 'view-only') {
@@ -216,6 +223,66 @@ const SessionLoader: React.FC = () => {
   }
 
   return <AppViewer session={session} />;
+};
+
+const isPublished = (session: MiniAppSession): boolean =>
+  typeof session.scoreVisibility === 'string' &&
+  session.scoreVisibility !== 'none' &&
+  typeof session.scorePublishedAt === 'number';
+
+/** An ended assignment whose results are published: the student's own copy, or the ended screen when they have none. */
+const EndedWithResults: React.FC<{ session: MiniAppSession }> = ({
+  session,
+}) => {
+  const [state, setState] = useState<
+    | { key: string; kind: 'loading' }
+    | { key: string; kind: 'none' }
+    | { key: string; kind: 'ready'; result: PublishedMiniAppResult }
+  >({ key: '', kind: 'loading' });
+  const loadKey = `${session.id}:${session.scoreVisibility}:${session.scorePublishedAt}`;
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const currentUser = auth.currentUser;
+      if (!currentUser) return null;
+      const token = await currentUser.getIdTokenResult();
+      const docId =
+        token.claims?.studentRole === true
+          ? await getCachedPseudonym(session.id, currentUser.uid)
+          : currentUser.uid;
+      return readPublishedMiniAppResult(session.id, docId);
+    };
+    load().then(
+      (result) => {
+        if (cancelled) return;
+        setState(
+          result
+            ? { key: loadKey, kind: 'ready', result }
+            : { key: loadKey, kind: 'none' }
+        );
+      },
+      (err: unknown) => {
+        logError('MiniAppStudentApp.publishedResults', err, {
+          sessionId: session.id,
+        });
+        if (!cancelled) setState({ key: loadKey, kind: 'none' });
+      }
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [session.id, loadKey]);
+
+  if (state.key !== loadKey || state.kind === 'loading')
+    return <FullPageLoader message="Loading…" />;
+  if (state.kind === 'none') return <EndedScreen appTitle={session.appTitle} />;
+  return (
+    <MiniAppPublishedResults
+      appTitle={session.appTitle}
+      result={state.result}
+    />
+  );
 };
 
 // ─── Per-period gate ───────────────────────────────────────────────────────────

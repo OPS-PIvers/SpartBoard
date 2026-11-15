@@ -108,7 +108,11 @@ function setupGetDoc(opts: { adminEmail: string | null }): void {
 function deliverGlobalPermissions(perms: GlobalFeaturePermission[]): void {
   vi.mocked(firestore.onSnapshot).mockImplementation((ref, onNext) => {
     const path = (ref as unknown as CollectionRef).__path ?? '';
-    if (path === 'global_permissions') {
+    if (path.startsWith('beta_grants/')) {
+      (onNext as unknown as (s: unknown) => void)({ data: () => undefined });
+      return () => undefined;
+    }
+    if (path === 'global_permissions_public') {
       const snapshot = {
         forEach: (cb: (doc: { id: string; data: () => unknown }) => void) => {
           perms.forEach((p) => cb({ id: p.featureId, data: () => p }));

@@ -68,9 +68,31 @@ export async function isStrictSuperAdmin(
     db.doc(`organizations/${OPERATOR_ORG_ID}/members/${emailLower}`).get(),
     db.doc('admin_settings/user_roles').get(),
   ]);
-  if (operatorSnap.exists) {
-    const roleId: unknown = operatorSnap.get('roleId');
-    const status: unknown = operatorSnap.get('status');
+  return isStrictSuperAdminData(
+    emailLower,
+    operatorSnap.exists
+      ? {
+          roleId: operatorSnap.get('roleId') as unknown,
+          status: operatorSnap.get('status') as unknown,
+        }
+      : undefined,
+    legacySnap.exists
+      ? { superAdmins: legacySnap.get('superAdmins') as unknown }
+      : undefined,
+    opts
+  );
+}
+
+/** isStrictSuperAdmin over docs the caller already read (e.g. inside a transaction). */
+export function isStrictSuperAdminData(
+  emailLower: string,
+  operator: Record<string, unknown> | undefined,
+  legacyRoles: Record<string, unknown> | undefined,
+  opts: { includeRevoked?: boolean } = {}
+): boolean {
+  if (operator) {
+    const roleId = operator.roleId;
+    const status = operator.status;
     if (
       typeof roleId === 'string' &&
       STRICT_SUPER_ADMIN_ROLE_IDS.includes(roleId) &&
@@ -79,14 +101,26 @@ export async function isStrictSuperAdmin(
       return true;
     }
   }
-  if (!legacySnap.exists) return false;
+  if (!legacyRoles) return false;
   if (
     !opts.includeRevoked &&
-    operatorSnap.exists &&
-    isRevokedMemberStatus(operatorSnap.get('status'))
+    operator &&
+    isRevokedMemberStatus(operator.status)
   ) {
     return false;
   }
-  const legacy: unknown = legacySnap.get('superAdmins');
+  const legacy: unknown = legacyRoles.superAdmins;
   return Array.isArray(legacy) && legacy.includes(emailLower);
+}
+
+/** Custom claim set on a deactivated operator-org member's Auth account, so the uid stays revoked whatever its email claim. */
+export const DEACTIVATED_CLAIM = 'deactivated';
+
+/** True when an ID token carries the deactivation claim. */
+export function hasDeactivatedClaim(token: unknown): boolean {
+  return (
+    !!token &&
+    typeof token === 'object' &&
+    (token as Record<string, unknown>)[DEACTIVATED_CLAIM] === true
+  );
 }

@@ -15,7 +15,7 @@ describe('readPaperImportQuota', () => {
   it('subtracts today’s pages from the configured limit', async () => {
     const quota = await readPaperImportQuota(
       reader({
-        'global_permissions/paper-handwritten-responses': {
+        'global_permissions_public/paper-handwritten-responses': {
           config: { dailyLimit: 50 },
         },
         'ai_usage/u1_paper-handwritten-responses_2026-09-25': { count: 45 },
@@ -52,7 +52,7 @@ describe('readPaperImportQuota', () => {
     expect(admin.remaining).toBe(Infinity);
     const off = await readPaperImportQuota(
       reader({
-        'global_permissions/paper-handwritten-responses': {
+        'global_permissions_public/paper-handwritten-responses': {
           config: { dailyLimit: 10, dailyLimitEnabled: false },
         },
       }),
@@ -63,7 +63,9 @@ describe('readPaperImportQuota', () => {
 
   it('reports the Gemini kill switch', async () => {
     const quota = await readPaperImportQuota(
-      reader({ 'global_permissions/gemini-functions': { enabled: false } }),
+      reader({
+        'global_permissions_public/gemini-functions': { enabled: false },
+      }),
       { uid: 'u1', isAdmin: true, nowMs: NOW }
     );
     expect(quota.disabled).toBe(true);

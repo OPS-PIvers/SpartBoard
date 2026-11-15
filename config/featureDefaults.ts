@@ -4,6 +4,7 @@ import {
   ClipboardList,
   FolderTree,
   MonitorPlay,
+  Users,
   ArrowLeftRight,
   Camera,
   PenLine,
@@ -58,7 +59,7 @@ import {
   CloudSun,
   Workflow,
   SquareChevronDown,
-  PanelLeft,
+  CalendarClock,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -902,6 +903,21 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Quiz Monitor roster: students who haven't joined show under Not started.
+  'quiz-monitor-roster': {
+    label: 'Quiz Monitor class roster',
+    icon: Users,
+    description:
+      "Monitor lists every student in the class, including those who haven't joined.",
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    modalLabel: 'Class roster',
+    group: 'assigning',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Quiz "Show score on submit" setting. Admin-only until Paul has used it with a class.
   'quiz-score-on-submit': {
     label: 'Quiz score on submit',
@@ -935,6 +951,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     description: 'Students see their published scores in My Assignments.',
     stage: 'preview',
     afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // My Classes "View Student Page". Admin-only until Paul has used it in prod.
+  'class-student-page': {
+    label: 'View Student Page',
+    icon: Eye,
+    description: "Teachers open a class's student page from My Classes.",
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'students',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -1170,11 +1198,12 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Inert while Mini App assignments are view-only in Organization settings.
+  // Who gets Mini App submissions; Assignment modes must also allow them.
   'mini-app-results': {
-    label: 'Mini App results',
+    label: 'Mini App submissions',
     icon: ListChecks,
-    description: 'Graded mini app submissions with attempt limits.',
+    description:
+      'Lets these teachers collect Mini App submissions. Needs Submissions in Assignment modes.',
     stage: 'preview',
     afterLaunch: 'retire',
     widget: 'miniApp',
@@ -1188,19 +1217,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: SquareChevronDown,
     description:
       'Blanks can be a dropdown list or a word bank students drag words from, as well as typed.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'quiz',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Stimuli as tabs beside the question. Admin-only until Paul has tested it in prod.
-  'quiz-stimulus-tabs': {
-    label: 'Stimulus tabs',
-    icon: PanelLeft,
-    description:
-      'Questions with two or more stimuli show them as named tabs beside the question, with the calculator last.',
     stage: 'preview',
     afterLaunch: 'retire',
     widget: 'quiz',
@@ -1627,6 +1643,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'import-straight-to-board': {
+    label: 'Import: add straight to the board',
+    icon: Zap,
+    description:
+      'A dropped file or link that offers one widget skips Add to board and goes straight onto the board.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    requires: 'universal-import',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'youtube-paste-picker': {
     label: 'Paste a YouTube link: pick a widget',
     icon: Video,
@@ -1638,11 +1666,33 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'board-context-menu': {
+    label: 'Board right-click menu',
+    icon: MousePointerClick,
+    description:
+      'Right-click the board background to paste, tidy up, change the background or copy a link to the board.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'choose-n-pick-counted': {
     label: 'Quiz: pick which answers count',
     icon: ListChecks,
     description:
       'When a student answers more questions than a section asks for, the teacher picks which answers count.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'assign-due-date': {
+    label: 'Assign: due date for Manual',
+    icon: CalendarClock,
+    description:
+      "Manual assignments are due when ended or at a set date and time, which closes them. Assign remembers each teacher's When choices.",
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

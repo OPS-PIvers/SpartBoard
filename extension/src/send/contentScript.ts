@@ -266,16 +266,16 @@ async function sendGoogleForm(page: FormPage): Promise<SendNote> {
     }).catch(() => undefined);
     return sendNote({ kind: 'reply', reply, fellBack: GOOGLE_FORMS_PLATFORM });
   }
+  // The page text and pictures go too, for a teacher who imports it as a plain page.
+  const pageRead = readPage(window);
   progress('Sending…');
   const reply = await ask<SendReply>({
     type: 'send/page',
     request: {
-      url: pageUrl(location.href),
+      ...pageRead,
       title: read.title,
       platform: GOOGLE_FORMS_PLATFORM,
       selectionOnly: false,
-      blocks: read.blocks,
-      images: [],
       form: read.form,
     },
   }).catch(() => undefined);

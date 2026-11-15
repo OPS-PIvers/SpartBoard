@@ -2506,6 +2506,60 @@ describe('useQuizSessionStudent — submitAnswer field ownership (RR-08 sd-9)', 
     });
   });
 
+  it('saves a changed answer on a revisited submitted question and keeps it submitted', async () => {
+    // Live view bug: a student who went back and changed an answered question wrote nothing until Next.
+    const result = await joinAndSeedPrior({
+      questionId: 'q1',
+      answer: 'Wrong',
+      answeredAt: 100,
+      status: 'submitted',
+    });
+    const updateMock = firestore.updateDoc as unknown as ReturnType<
+      typeof vi.fn
+    >;
+    updateMock.mockClear();
+
+    await act(async () => {
+      await result.current.submitAnswer('q1', 'Right', undefined, {
+        isDraft: true,
+      });
+    });
+
+    expect(updateMock).toHaveBeenCalledTimes(1);
+    const payload = updateMock.mock.calls[0][1] as {
+      answers: Record<string, unknown>[];
+      lastWriteAt: unknown;
+    };
+    expect(payload.answers[0]).toMatchObject({
+      questionId: 'q1',
+      answer: 'Right',
+      status: 'submitted',
+    });
+    expect(payload.answers[0].answeredAt).toBeGreaterThan(100);
+    expect(payload).toHaveProperty('lastWriteAt');
+  });
+
+  it('skips a draft that repeats a submitted answer', async () => {
+    const result = await joinAndSeedPrior({
+      questionId: 'q1',
+      answer: 'Right',
+      answeredAt: 100,
+      status: 'submitted',
+    });
+    const updateMock = firestore.updateDoc as unknown as ReturnType<
+      typeof vi.fn
+    >;
+    updateMock.mockClear();
+
+    await act(async () => {
+      await result.current.submitAnswer('q1', 'Right', undefined, {
+        isDraft: true,
+      });
+    });
+
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
   it('writes only the freshly-earned speedBonus, clamped to [0, 50]', async () => {
     const result = await joinAndSeedPrior({
       questionId: 'q1',
@@ -4868,6 +4922,45 @@ describe('useQuizSessionTeacher — reopenStudentAttempt vs unlockStudentAttempt
     });
     expect(patch).not.toHaveProperty('answers');
     expect(env.batch.commit).toHaveBeenCalledTimes(1);
+  });
+
+  it('reopen strips the published key and right/wrong marks from the attempt', async () => {
+    const hook = renderHook(() => useQuizSessionTeacher('sess-1'));
+    act(() => {
+      env.sessionCallback?.({
+        exists: () => true,
+        data: () => buildSession({ status: 'active' }),
+      });
+    });
+    act(() => {
+      env.responsesCallback?.({
+        docs: buildResponseDocs([
+          {
+            id: 'stu-1',
+            data: {
+              studentUid: 'stu-1',
+              status: 'completed',
+              answers: [{ questionId: 'q1', answer: 'a', isCorrect: true }],
+              revealedAnswers: { q1: 'a' },
+              completedAttempts: 1,
+            } as unknown as QuizResponse,
+          },
+        ]),
+      });
+    });
+    await act(async () => {
+      await hook.result.current.reopenStudentAttempt('stu-1');
+    });
+    const patch = env.batch.update.mock.calls[0][1] as Record<string, unknown>;
+    expect(patch).toMatchObject({
+      revealedAnswers: DELETE_FIELD_SENTINEL,
+      revealedRubricExamples: DELETE_FIELD_SENTINEL,
+      revealedExplanations: DELETE_FIELD_SENTINEL,
+      'resultsOverride.revealedAnswers': DELETE_FIELD_SENTINEL,
+      'resultsOverride.revealedRubricExamples': DELETE_FIELD_SENTINEL,
+      'resultsOverride.revealedExplanations': DELETE_FIELD_SENTINEL,
+      answers: [{ questionId: 'q1', answer: 'a' }],
+    });
   });
 
   it('unlock clears a leftover reopen marker so the one-exit rule applies', async () => {

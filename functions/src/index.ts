@@ -167,6 +167,7 @@ export {
   reopenFlashcardCheckV1,
 } from './flashcardCheck';
 export { submitMiniAppResultV1 } from './miniAppResults';
+export { publishMiniAppScoresV1 } from './miniAppPublish';
 export { resolveFlashcardFlagV1 } from './flashcardFlags';
 export { rescoreFlashcardCheckV1 } from './flashcardRescore';
 
@@ -196,6 +197,10 @@ export {
 } from './organizationInvites';
 export { resolveOrgForUser } from './resolveOrgForUser';
 export { organizationMembersSync } from './organizationMembersSync';
+export {
+  featurePermissionsMirror,
+  globalPermissionsMirror,
+} from './permissionMirrors';
 export { organizationMemberCounters } from './organizationMemberCounters';
 export { organizationBuildingCounters } from './organizationBuildingCounters';
 export { resetOrganizationUserPassword } from './organizationResetPassword';

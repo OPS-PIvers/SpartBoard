@@ -9,14 +9,19 @@ import type {
   VideoActivitySession,
 } from '@/types';
 
-const { mockAuth, hookState, completeActivity } = vi.hoisted(() => ({
+const { mockAuth, hookState, completeActivity, roleState } = vi.hoisted(() => ({
+  roleState: { studentRole: true },
   mockAuth: {
     authStateReady: vi.fn().mockResolvedValue(undefined),
     currentUser: {
       uid: 'sso-uid-1',
       isAnonymous: false,
       getIdTokenResult: () =>
-        Promise.resolve({ claims: { studentRole: true, classIds: ['A'] } }),
+        Promise.resolve({
+          claims: roleState.studentRole
+            ? { studentRole: true, classIds: ['A'] }
+            : {},
+        }),
     },
   },
   hookState: {
@@ -116,6 +121,7 @@ const response = (): VideoActivityResponse => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  roleState.studentRole = true;
   hookState.session = session();
   hookState.myResponse = response();
   window.history.replaceState({}, '', '/activity/session-1');
@@ -144,5 +150,49 @@ describe('VideoActivityStudentApp: failed completion', () => {
     fireEvent.click(await screen.findByText('End video'));
     expect(await screen.findByText('Activity Complete!')).toBeInTheDocument();
     expect(screen.queryByText('Finish activity')).toBeNull();
+  });
+
+  it('says submitting while the write is pending, then submitted', async () => {
+    let resolve!: () => void;
+    completeActivity.mockReturnValueOnce(
+      new Promise<void>((r) => {
+        resolve = r;
+      })
+    );
+    render(<VideoActivityStudentApp />);
+    fireEvent.click(await screen.findByText('End video'));
+    expect(
+      await screen.findByText(/Submitting your results/)
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Results submitted to your teacher')).toBeNull();
+    resolve();
+    expect(
+      await screen.findByText('Results submitted to your teacher')
+    ).toBeInTheDocument();
+  });
+
+  it('explains the failure above Finish activity', async () => {
+    completeActivity.mockRejectedValueOnce(new Error('offline'));
+    render(<VideoActivityStudentApp />);
+    fireEvent.click(await screen.findByText('End video'));
+    expect(await screen.findByText(/Couldn.t submit/)).toBeInTheDocument();
+    expect(screen.getByText('Finish activity')).toBeInTheDocument();
+  });
+
+  it('links signed-in students back to their assignments', async () => {
+    completeActivity.mockResolvedValueOnce(undefined);
+    render(<VideoActivityStudentApp />);
+    fireEvent.click(await screen.findByText('End video'));
+    const link = await screen.findByText('Back to my assignments');
+    expect(link.closest('a')).toHaveAttribute('href', '/my-assignments');
+  });
+
+  it('shows no assignments link for PIN joins', async () => {
+    roleState.studentRole = false;
+    completeActivity.mockResolvedValueOnce(undefined);
+    render(<VideoActivityStudentApp />);
+    fireEvent.click(await screen.findByText('End video'));
+    expect(await screen.findByText('Activity Complete!')).toBeInTheDocument();
+    expect(screen.queryByText('Back to my assignments')).toBeNull();
   });
 });

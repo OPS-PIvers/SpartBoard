@@ -181,3 +181,31 @@ describe('FibChoiceBlanksInput', () => {
     ).toBeInTheDocument();
   });
 });
+
+describe('FibChoiceBlanksInput undo reset', () => {
+  it('Undo restores the answer from before Reset', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const original = joinBlanks(['heat', '']);
+    const props = {
+      question: drag,
+      onChange,
+      disabled: false,
+      light: true,
+    };
+    const { rerender } = render(
+      <FibChoiceBlanksInput {...props} value={original} />
+    );
+    await user.click(screen.getByRole('button', { name: 'Clear all blanks' }));
+    expect(onChange).toHaveBeenLastCalledWith(joinBlanks(['', '']));
+    rerender(<FibChoiceBlanksInput {...props} value="" />);
+    const undoBtn = screen.getByRole('button', { name: 'Undo' });
+    expect(undoBtn).toBeEnabled();
+    await user.click(undoBtn);
+    expect(onChange).toHaveBeenLastCalledWith(original);
+    rerender(<FibChoiceBlanksInput {...props} value={original} />);
+    expect(
+      screen.queryByRole('button', { name: 'Undo' })
+    ).not.toBeInTheDocument();
+  });
+});
