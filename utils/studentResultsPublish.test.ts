@@ -40,7 +40,6 @@ import {
   publishGuidedLearningResultsForStudents,
   publishVideoActivityResultsForStudents,
   unlockResultsForStudent,
-  vaPublishedAnswers,
 } from './studentResultsPublish';
 
 const vaQ = (id: string, correctAnswer: string, points = 1) =>
@@ -190,122 +189,6 @@ describe('VA graded entry is the first by list position', () => {
       true
     );
     expect(recorded.score).toBe(100);
-  });
-});
-
-describe('VA score-only publish keeps right/wrong off responses', () => {
-  const graded = [
-    { questionId: 'q1', answer: 'a', answeredAt: 1, isCorrect: true },
-  ];
-
-  it('strips verdicts at score-only on a results-hidden session', () => {
-    expect(
-      vaPublishedAnswers(
-        { answers: [], completedAt: 5 },
-        graded,
-        'score-only',
-        1,
-        false
-      )
-    ).toEqual([{ questionId: 'q1', answer: 'a', answeredAt: 1 }]);
-  });
-
-  it('keeps them when responses are shown, by class or override', () => {
-    expect(
-      vaPublishedAnswers(
-        { answers: [], completedAt: 5 },
-        graded,
-        'score-and-responses',
-        1,
-        false
-      )
-    ).toEqual(graded);
-    expect(
-      vaPublishedAnswers(
-        {
-          answers: [],
-          completedAt: 5,
-          resultsOverride: {
-            mode: 'shown',
-            visibility: 'score-and-responses',
-            publishedAt: 1,
-            expiresAt: null,
-          },
-        } as unknown as VideoActivityResponse,
-        graded,
-        'score-only',
-        1,
-        false
-      )
-    ).toEqual(graded);
-  });
-
-  it('gives an open attempt no new verdicts', () => {
-    expect(
-      vaPublishedAnswers(
-        {
-          answers: [{ questionId: 'q1', answer: 'a', answeredAt: 1 }],
-          completedAt: null,
-        },
-        graded,
-        'score-and-responses',
-        1,
-        true
-      )
-    ).toEqual([{ questionId: 'q1', answer: 'a', answeredAt: 1 }]);
-  });
-
-  it('keeps session-shown verdicts for a uid-keyed self-paced response only', () => {
-    const done = { answers: [], completedAt: 5 };
-    expect(
-      vaPublishedAnswers(done, graded, 'score-only', 1, true, 'u1', 'u1')
-    ).toEqual(graded);
-    expect(
-      vaPublishedAnswers(done, graded, 'score-only', 1, true, 'pin-p-01', 'u1')
-    ).toEqual([{ questionId: 'q1', answer: 'a', answeredAt: 1 }]);
-  });
-
-  it('writes no verdicts for an unrevealed live question at score-only', async () => {
-    docs.set('video_activity_sessions/live1', {
-      sessionMode: 'teacher',
-      sessionOptions: { answerRulesSet: true, showResultToStudent: true },
-    });
-    docs.set('video_activity_sessions/live1/responses/u1', {
-      studentUid: 'u1',
-      completedAt: 5,
-      answers: [{ questionId: 'q1', answer: 'a' }],
-    });
-    await publishVideoActivityResultsForStudents(
-      'live1',
-      [vaQ('q1', 'a')],
-      ['u1'],
-      'score-only',
-      null
-    );
-    expect(writes[0].patch.answers).toEqual([
-      { questionId: 'q1', answer: 'a' },
-    ]);
-  });
-
-  it('writes no isCorrect in a per-student score-only publish', async () => {
-    docs.set('video_activity_sessions/s2', {
-      sessionOptions: { answerRulesSet: true, showResultToStudent: false },
-    });
-    docs.set('video_activity_sessions/s2/responses/done', {
-      completedAt: 5,
-      answers: [{ questionId: 'q1', answer: 'a' }],
-    });
-    await publishVideoActivityResultsForStudents(
-      's2',
-      [vaQ('q1', 'a')],
-      ['done'],
-      'score-only',
-      null
-    );
-    expect(writes[0].patch.score).toBe(100);
-    expect(writes[0].patch.answers).toEqual([
-      { questionId: 'q1', answer: 'a' },
-    ]);
   });
 });
 

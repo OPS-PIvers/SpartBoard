@@ -43,11 +43,7 @@ import {
   pullSyncedVideoActivityContent,
 } from './useSyncedVideoActivityGroups';
 import { logError } from '@/utils/logError';
-import {
-  gradeVideoActivityResponseForPublish,
-  vaPublishedAnswers,
-  vaSessionShowsResults,
-} from '@/utils/studentResultsPublish';
+import { gradeVideoActivityResponseForPublish } from '@/utils/studentResultsPublish';
 import {
   isLiveVideoActivitySession,
   scoredVideoActivityQuestions,
@@ -1196,10 +1192,7 @@ export const useVideoActivityAssignments = (
         dedupeQuestionsById(activityData.questions)
       );
       const questionsById = new Map(scoredQuestions.map((q) => [q.id, q]));
-      const sessionData = sessionSnap.data() as
-        Partial<VideoActivitySession> | undefined;
-      const live = isLiveVideoActivitySession(sessionData);
-      const showsResults = vaSessionShowsResults(sessionData);
+      const live = isLiveVideoActivitySession(sessionSnap.data());
 
       // Read responses in bounded pages (limit + documentId cursor) rather
       // than one unbounded `getDocs` so a PLC-shared assignment with
@@ -1226,18 +1219,7 @@ export const useVideoActivityAssignments = (
           gradeVideoActivityResponseForPublish(data, questionsById, live);
         updates.push({
           ref: d.ref,
-          patch: {
-            score,
-            answers: vaPublishedAnswers(
-              data,
-              gradedAnswers,
-              visibility,
-              now,
-              showsResults,
-              d.id,
-              data.studentUid
-            ),
-          },
+          patch: { score, answers: gradedAnswers },
         });
       }
 
