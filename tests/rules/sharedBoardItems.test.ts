@@ -263,6 +263,17 @@ describe('a share re-created at an old id', () => {
     await assertSucceeds(getDoc(doc(asTeacher(VIEWER_UID), ITEM_PATH)));
   });
 
+  it('a copy with an unknown key is denied', async () => {
+    await seed();
+    await nonceShare();
+    await assertFails(
+      setDoc(
+        doc(asTeacher(HOST_UID), ITEM_PATH),
+        item(HOST_UID, { shareNonce: 'n1', extra: true })
+      )
+    );
+  });
+
   it('a previous-release tab writes a no-nonce copy, and a member reads it', async () => {
     await seed();
     await nonceShare();

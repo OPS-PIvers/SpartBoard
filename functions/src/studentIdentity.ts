@@ -107,11 +107,13 @@ const rosterTaughtCache = new BoundedLruMap<
   string,
   { ids: TaughtClasses; at: number }
 >(2000);
+const rosterTaughtInFlight = new Map<string, Promise<TaughtClasses>>();
 
 /** Test-only: forget cached roster-owner checks. */
 export function __resetRosterOwnerCache(): void {
   rosterOwnerCache.clear();
   rosterTaughtCache.clear();
+  rosterTaughtInFlight.clear();
 }
 
 /** Each owner's standing, with Auth read 100 at a time. An Auth outage throws; it must not read as "not a teacher". */
@@ -192,18 +194,25 @@ async function candidateTaughtClasses(
       ? ROSTER_UNAVAILABLE_TTL_MS
       : ROSTER_OWNER_TTL_MS;
   if (cached && Date.now() - cached.at < ttl) return cached.ids;
-  let ids: TaughtClasses = 'unavailable';
-  try {
-    ids = await loadTeacherClassIds(email, {
-      classlinkClientId: CLASSLINK_CLIENT_ID.value(),
-      classlinkClientSecret: CLASSLINK_CLIENT_SECRET.value(),
-      tenantUrl: CLASSLINK_TENANT_URL.value(),
-    });
-  } catch {
-    // Already logged by the ClassLink helper; an unconfirmed owner is rejected.
-  }
-  rosterTaughtCache.set(uid, { ids, at: Date.now() });
-  return ids;
+  // A class signing in at once shares one ClassLink lookup per owner.
+  const pending = rosterTaughtInFlight.get(uid);
+  if (pending) return pending;
+  const lookup = (async (): Promise<TaughtClasses> => {
+    let ids: TaughtClasses = 'unavailable';
+    try {
+      ids = await loadTeacherClassIds(email, {
+        classlinkClientId: CLASSLINK_CLIENT_ID.value(),
+        classlinkClientSecret: CLASSLINK_CLIENT_SECRET.value(),
+        tenantUrl: CLASSLINK_TENANT_URL.value(),
+      });
+    } catch {
+      // Already logged by the ClassLink helper; an unconfirmed owner is rejected.
+    }
+    rosterTaughtCache.set(uid, { ids, at: Date.now() });
+    return ids;
+  })().finally(() => rosterTaughtInFlight.delete(uid));
+  rosterTaughtInFlight.set(uid, lookup);
+  return lookup;
 }
 
 /** Roster docs whose owner ClassLink confirms teaches the section, grouped by `classlinkClassId`; `uncertain` when ClassLink could not answer for an owner, and `uncertainIds` the sections that owner had a roster for. */
