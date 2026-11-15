@@ -84,7 +84,7 @@ import { PeriodAccessStrip } from './PeriodAccessStrip';
 import { ClassPicker, PeriodBar } from './PeriodBar';
 import { joinCodesAllowedForBuildings } from './monitorUtils';
 import { EXTEND_MS, usePeriodAccess } from '@/hooks/usePeriodAccess';
-import { hasPeriodAccess } from '@/utils/periodAccess';
+import { dueLockAt, hasPeriodAccess } from '@/utils/periodAccess';
 import { QuestionResults, QuestionDetail } from './QuestionResults';
 import { JoinCodeScreen } from './JoinCodeScreen';
 import {
@@ -325,6 +325,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
   const periodBar = chipsFilter &&
     session.periodAccess && {
       periodAccess: session.periodAccess,
+      dueAt: dueLockAt(session),
       selected:
         data.selectedPeriods.length === 1
           ? (Object.keys(session.periodAccess).find(
@@ -560,13 +561,32 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
       if (!ok) return;
       try {
         await onReopenStudent?.(key);
+        // Past a Manual due every class is locked, so a reopened student also gets a Let in pass.
+        const due = dueLockAt(session);
+        const uid = responses.find(
+          (r) => (r._responseKey ?? r.studentUid) === key
+        )?.studentUid;
+        if (perPeriod && due != null && due <= Date.now() && uid)
+          await periodActions
+            .letIn(uid)
+            .catch((err: unknown) => logError('QuizLiveMonitor.letIn', err));
         addToast('Quiz reopened.', 'success');
       } catch (err) {
         logError('QuizLiveMonitor.reopen', err);
         addToast('Could not reopen the quiz. Try again.', 'error');
       }
     },
-    [sessionEnded, onReopenStudent, showAlert, showConfirm, addToast]
+    [
+      sessionEnded,
+      onReopenStudent,
+      showAlert,
+      showConfirm,
+      addToast,
+      session,
+      responses,
+      perPeriod,
+      periodActions,
+    ]
   );
 
   const handleSubmitForStudent = useCallback(
@@ -823,6 +843,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
               <PeriodAccessStrip
                 periodAccess={session.periodAccess}
                 extendMs={EXTEND_MS}
+                dueAt={dueLockAt(session)}
                 onStart={(key) =>
                   startPeriods(() => periodActions.startPeriod(key))
                 }

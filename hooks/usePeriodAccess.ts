@@ -25,6 +25,7 @@ import {
   resolveBellWindow,
 } from '@/utils/bellSchedule';
 import { BELL_CLOSE_CUSHION_MS } from '@/utils/periodPlan';
+import { dueLockAt } from '@/utils/periodAccess';
 
 /** Stale in-progress responses get a fresh `lastWriteAt` on start, inside the idle finalizer's 90-minute window. */
 const IDLE_REFRESH_CUTOFF_MS = 80 * 60 * 1000;
@@ -45,18 +46,22 @@ export interface PeriodAccessCollections {
 type PeriodSession = PeriodAccessSessionFields & {
   id: string;
   teacherUid: string;
-  /** A shared close (a Manual due date) that no period can run past. */
+  dueAt?: number | null;
   closeAt?: number | null;
 };
 
-/** A period's close, held to the session's shared close while that is ahead; past it, only reopened students get in. */
-export function capAtSessionClose(
+/** Where a period's close is held: the Manual due, or an older session's shared close. */
+const lockAt = (session: PeriodSession | null): number | null =>
+  session ? (dueLockAt(session) ?? session.closeAt ?? null) : null;
+
+/** A period's close, held to the due while it is ahead; after it, a Start runs late to the bell. */
+export function capAtDue(
   closeAt: number | null,
-  sessionCloseAt: number | null | undefined,
+  dueAt: number | null,
   nowMs: number
 ): number | null {
-  if (sessionCloseAt == null || sessionCloseAt <= nowMs) return closeAt;
-  return closeAt == null ? sessionCloseAt : Math.min(closeAt, sessionCloseAt);
+  if (dueAt == null || dueAt <= nowMs) return closeAt;
+  return closeAt == null ? dueAt : Math.min(closeAt, dueAt);
 }
 
 type BellRoster = Pick<ClassRoster, 'id' | 'bellPeriod'>;
@@ -221,15 +226,15 @@ export function usePeriodAccess(
         if (
           session.accessMode === 'assessment' &&
           bell == null &&
-          (session.closeAt == null || session.closeAt <= now)
+          (lockAt(session) ?? now) <= now
         )
           untimed.push(key);
         stage(batch, key, {
           state: 'open',
           openAt: null,
-          closeAt: capAtSessionClose(
+          closeAt: capAtDue(
             startCloseAt(session, access, bell, now),
-            session.closeAt,
+            lockAt(session),
             now
           ),
         });
@@ -266,17 +271,17 @@ export function usePeriodAccess(
       if (!access) return;
       const batch = writeBatch(db);
       stage(batch, key, {
-        closeAt: capAtSessionClose(
+        closeAt: capAtDue(
           by == null
             ? null
             : Math.max(access.closeAt ?? Date.now(), Date.now()) + by,
-          session?.closeAt,
+          lockAt(session),
           Date.now()
         ),
       });
       await batch.commit();
     },
-    [periodAccess, stage, session?.closeAt]
+    [periodAccess, stage, session]
   );
 
   const letIn = useCallback(

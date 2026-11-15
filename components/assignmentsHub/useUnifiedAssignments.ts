@@ -34,6 +34,8 @@ export interface UnifiedAssignmentRow {
   closeAt?: number | null;
   /** Quiz rows only: the shared due date. */
   dueAt?: number | null;
+  /** Quiz rows only: a Manual due date that locks each class row. */
+  dueLocks?: boolean;
   createdAt: number;
   /** Paired session doc id — always `id` (1:1 shared UUID, spec §1). D2 name/status resolution. */
   sessionId: string;
@@ -117,6 +119,7 @@ export const useUnifiedAssignments = (
       openAt: a.openAt,
       closeAt: a.closeAt,
       dueAt: a.dueAt,
+      ...(a.dueLocks ? { dueLocks: true } : {}),
       createdAt: a.createdAt,
       sessionId: a.id,
       rosterIds: a.rosterIds,
