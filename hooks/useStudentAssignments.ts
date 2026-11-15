@@ -175,7 +175,6 @@ export interface KindConfig {
  * called per assignment per snapshot.
  */
 const warnedPublicationKeys = new Set<string>();
-/** @internal — exported only for the test harness. */
 /** A Manual due locks each class at the due; a class started late closes at its own end. */
 export function dueLockClose(
   record: Record<string, unknown>,
@@ -196,6 +195,7 @@ export function dueLockClose(
   return close;
 }
 
+/** @internal — exported only for the test harness. */
 export function parsePublicationFields(
   kind: string,
   data: DocumentData
