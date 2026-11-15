@@ -9,13 +9,38 @@ export const stripConnectionRuns = (
     c.kind === 'sequence' && c.run ? { ...c, run: null } : c
   );
 
-/** `{ connections }` (runs cleared) when a share snapshot has any, else `{}` so the board is unchanged. */
+const isObj = (v: unknown): v is Record<string, unknown> =>
+  typeof v === 'object' && v !== null;
+
+/** True when `c` has the WidgetConnection shape the engine and badge rely on. */
+export const isValidConnection = (c: unknown): c is WidgetConnection => {
+  if (!isObj(c) || typeof c.id !== 'string') return false;
+  if (c.kind === 'follow')
+    return typeof c.leaderId === 'string' && typeof c.followerId === 'string';
+  if (c.kind !== 'sequence' || !Array.isArray(c.steps)) return false;
+  return c.steps.every(
+    (s) =>
+      isObj(s) &&
+      typeof s.id === 'string' &&
+      Array.isArray(s.actions) &&
+      s.actions.every(
+        (a) =>
+          isObj(a) &&
+          typeof a.widgetId === 'string' &&
+          typeof a.action === 'string'
+      )
+  );
+};
+
+/** `{ connections }` (valid only, runs cleared) when a share snapshot has any, else `{}` so the board is unchanged. */
 export const importedConnections = (
   connections: unknown
-): { connections?: WidgetConnection[] } =>
-  Array.isArray(connections) && connections.length > 0
-    ? { connections: stripConnectionRuns(connections as WidgetConnection[]) }
-    : {};
+): { connections?: WidgetConnection[] } => {
+  const valid = Array.isArray(connections)
+    ? connections.filter(isValidConnection)
+    : [];
+  return valid.length > 0 ? { connections: stripConnectionRuns(valid) } : {};
+};
 
 /**
  * Strip host-specific fields from a Dashboard before snapshotting into

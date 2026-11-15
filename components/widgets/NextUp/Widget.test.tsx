@@ -30,6 +30,8 @@ import { subShareContextValue } from '@/tests/helpers/subShareContext';
 
 const mockUpdateWidget = vi.fn();
 const mockUpdateDoc = vi.fn((..._args: unknown[]) => Promise.resolve());
+// The file the owner's session record binds to every widget here; 'queue-file' unless a test says otherwise.
+let sessionFile = 'queue-file';
 
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({
@@ -65,6 +67,11 @@ vi.mock('firebase/firestore', () => ({
   limit: () => ({}),
   deleteDoc: (...args: unknown[]) => mockDeleteDoc(...args),
   doc: (_db: unknown, ...path: string[]) => ({ path: path.join('/') }),
+  getDoc: () =>
+    Promise.resolve({
+      exists: () => true,
+      data: () => ({ activeDriveFileId: sessionFile }),
+    }),
   updateDoc: (...args: unknown[]) => mockUpdateDoc(...args),
   deleteField: () => 'deleteField',
   getDocsFromServer: () => Promise.resolve({ docs: [] }),
@@ -106,6 +113,7 @@ const buildWidget = (config: Partial<NextUpConfig>): WidgetData => ({
 
 describe('NextUpWidget auto-expiry', () => {
   beforeEach(() => {
+    sessionFile = 'queue-file';
     mockUpdateWidget.mockClear();
     mockUpdateDoc.mockClear();
     vi.useFakeTimers();
@@ -320,6 +328,7 @@ describe('NextUpWidget taking in student joins', () => {
 
   it('never reads or writes a queue file outside the NextUp folder', async () => {
     downloadFile.mockClear();
+    sessionFile = 'foreign-file-1';
     render(
       <NextUpWidget
         widget={{
@@ -338,6 +347,31 @@ describe('NextUpWidget taking in student joins', () => {
     });
 
     expect(isInAppFolder).toHaveBeenCalledWith('foreign-file-1', ['NextUp']);
+    expect(downloadFile).not.toHaveBeenCalled();
+    expect(updateFileContent).not.toHaveBeenCalled();
+  });
+
+  it('never reads or writes a queue file the session record does not bind to the widget', async () => {
+    downloadFile.mockClear();
+    updateFileContent.mockClear();
+    sessionFile = 'queue-file';
+    render(
+      <NextUpWidget
+        widget={{
+          ...buildWidget({
+            isActive: true,
+            activeDriveFileId: 'other-queue-file',
+            createdAt: Date.now(),
+          }),
+          id: 'nextup-retargeted',
+        }}
+      />
+    );
+    await act(async () => {
+      entriesListener?.(entrySnap('a'));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
     expect(downloadFile).not.toHaveBeenCalled();
     expect(updateFileContent).not.toHaveBeenCalled();
   });
