@@ -88,7 +88,7 @@ describe('buildGroupAlertEmail', () => {
 describe('runGroupReminderEmails', () => {
   const alertSnap = (
     path = 'users/teacher-1/group_email_alerts/r1_g1',
-    data: Record<string, unknown> = alertDoc()
+    data: object = alertDoc()
   ) => ({ id: path.split('/').pop(), ref: { path }, data: () => data });
   const stubDb = (
     enabled: boolean,
