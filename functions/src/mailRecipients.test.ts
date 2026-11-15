@@ -25,6 +25,7 @@ import {
   createOrgEmailChecker,
   isWellFormedEmail,
   provenGoogleEmail,
+  provenGoogleEmailForUid,
   resolveStaffEmailsForUids,
 } from './mailRecipients';
 
@@ -86,6 +87,29 @@ describe('provenGoogleEmail', () => {
       provenGoogleEmail(user({ customClaims: { pinLogin: true } }))
     ).toBeNull();
     expect(provenGoogleEmail(null)).toBeNull();
+  });
+});
+
+describe('provenGoogleEmailForUid', () => {
+  it('returns the proven address, and null for an unproven or missing account', async () => {
+    const auth = (u: unknown) => ({ getUser: () => Promise.resolve(u) });
+    expect(await provenGoogleEmailForUid(auth(user()) as never, 'u1')).toBe(
+      'teacher@orono.k12.mn.us'
+    );
+    expect(
+      await provenGoogleEmailForUid(
+        auth(user({ providerData: [{ providerId: 'password' }] })) as never,
+        'u1'
+      )
+    ).toBeNull();
+    expect(
+      await provenGoogleEmailForUid(
+        auth(user({ emailVerified: false })) as never,
+        'u1'
+      )
+    ).toBeNull();
+    const missing = { getUser: () => Promise.reject(new Error('not found')) };
+    expect(await provenGoogleEmailForUid(missing as never, 'u1')).toBeNull();
   });
 });
 

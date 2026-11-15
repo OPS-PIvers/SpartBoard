@@ -10,6 +10,7 @@ import { META } from '@/components/plc/redesignMockup/ui';
 import { MAX_ACTION_ITEMS, newActionItem } from '@/utils/plcActionItems';
 import { formatShortDate, fromDateInput, toDateInput } from './noteFormat';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { openFieldPicker } from '@/utils/datePicker';
 
 const DueControl: React.FC<{
   itemId: string;
@@ -34,13 +35,7 @@ const DueControl: React.FC<{
       <button
         type="button"
         {...tourFieldAttr('teams.actions.due-date', 'teams-notes', itemId)}
-        onClick={() => {
-          try {
-            ref.current?.showPicker();
-          } catch {
-            ref.current?.focus();
-          }
-        }}
+        onClick={(e) => openFieldPicker(ref.current, e.currentTarget)}
         className={`rounded hover:text-slate-800 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${dueAt == null ? 'text-slate-400' : ''}`}
       >
         {text}

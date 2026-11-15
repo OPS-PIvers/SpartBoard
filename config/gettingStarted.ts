@@ -1,4 +1,4 @@
-/** Admin-curated `admin_settings/getting_started`: the tours on the Getting Started page and the sidebar switch (docs/plans/GETTING_STARTED.md D17, D28). */
+/** Admin-curated `admin_settings/getting_started`: the tours on the Getting Started page and the sidebar switch (docs/plans/shipped/GETTING_STARTED.md D17, D28). */
 
 export const GETTING_STARTED_SETTINGS_DOC = 'getting_started';
 export const GETTING_STARTED_PATH = '/getting-started';

@@ -121,6 +121,7 @@ import {
 import { isBetaUser as isBetaUserShared } from '@/utils/betaAccess';
 import { OPERATOR_ORG_ID } from '@/config/organization';
 import { normalizePenColors } from '@/utils/penColors';
+import { AppPickersSwitch } from '@/components/common/AppPickersSwitch';
 
 // The operator's own organization. Two narrow uses remain after dynamic
 // org resolution shipped:
@@ -3801,5 +3802,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     ]
   );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      <AppPickersSwitch
+        canAccessFeature={canAccessFeature}
+        isStudentRole={isStudentRole}
+      />
+      {children}
+    </AuthContext.Provider>
+  );
 };

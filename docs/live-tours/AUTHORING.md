@@ -84,7 +84,7 @@ The result lists it in `inserted_steps`, with the id of the step it went before.
 
 **Positions in a list.** A row in the teacher's own library (`#row-1`) points at whatever sits there on their board, so use it only in a tour with materials. Menu items (`#item-2`) and Help Center rows are the same for everyone.
 
-**Whichever row the teacher picks.** An anchor with `row_wildcard` also takes `#row-*`, such as `plcs.open-plc:plcs#row-*`: the step lights every row and moves on when the teacher clicks any of them, so the tour works on their own teams, classes or library items without materials. That click opens the row's panel for later steps, Autopilot clicks the first row, and a click that `persists` stays with the teacher. A teacher whose list is empty skips the step. The text can't know which row they'll pick, so word it and every step after it generically: "Click one of your teams.", not "Click **Grade 6 Math**." Destructive anchors never take `#row-*`.
+**Whichever row the teacher picks.** An anchor with `row_wildcard` also takes `#row-*`, such as `plcs.open-plc:plcs#row-*`: the step lights every row and moves on when the teacher clicks any of them, so the tour works on their own teams, classes or library items without materials. That click opens the row's panel for later steps, and later steps on the same list (`row_list`), such as a menu item keyed `#row-1-item-2`, follow the row the teacher picked. Autopilot clicks the first row, and a click that `persists` stays with the teacher. A teacher whose list is empty skips the step. The text can't know which row they'll pick, so word it and every step after it generically: "Click one of your teams.", not "Click **Grade 6 Math**." Destructive anchors never take `#row-*`.
 
 ## Staging
 

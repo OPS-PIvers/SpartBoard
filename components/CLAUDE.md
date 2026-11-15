@@ -56,7 +56,7 @@ Permanent helper text was cut across the app in September 2026 (`docs/plans/ship
 
 ## Picking from a list
 
-- One choice is a native `<select>`, or a segmented control when there are two or three short options that should stay visible.
+- One choice is a native `<select>`, or a segmented control when there are two or three short options that should stay visible. Every select opens the app's own list (`utils/selectMenu.ts`), date and time fields the app's calendar and time columns (`utils/datePicker.ts`), and a `<datalist>` the app's suggestion list (`utils/suggestionList.ts`), all installed in `index.tsx`. Keep the native control, don't hand-roll a dropdown or date picker, and never call `showPicker()` (use `openSelectMenu` or `openFieldPicker`); `tests/browserPickers.static.test.ts` guards this.
 - Several choices are a select-style button that shows the picks as plain text and opens a checklist menu (a check per row, the menu stays open while picking). A long list, like standards, adds a search box at the top of the menu.
 - The exception is a short list the step is about, like a teacher's classes in the Assign dialog: an inline checklist that scrolls after about six rows, so no menu covers the buttons below it.
 - Never lay out options as a wrapping row of pills or chips, for picking or for showing active filters: it reads as clutter and misaligns the form. Pills are only for read-only status badges.

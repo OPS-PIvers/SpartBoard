@@ -44,7 +44,10 @@ import {
 } from './useSyncedVideoActivityGroups';
 import { logError } from '@/utils/logError';
 import { gradeVideoActivityResponseForPublish } from '@/utils/studentResultsPublish';
-import { scoredVideoActivityQuestions } from '@/utils/videoActivityLive';
+import {
+  isLiveVideoActivitySession,
+  scoredVideoActivityQuestions,
+} from '@/utils/videoActivityLive';
 import {
   mirrorPlcAssignmentStatus,
   writePlcAssignmentIndexEntry,
@@ -257,6 +260,8 @@ export interface UseVideoActivityAssignmentsResult {
     responsesUpdated: number;
     /** The questions scores were computed over (asked ones only in a live session). */
     scoredQuestions: VideoActivityQuestion[];
+    /** Teacher-paced run: pushes score only answers the check callable recorded. */
+    live: boolean;
   }>;
   /**
    * Revoke published score visibility for an assignment. Clears
@@ -287,6 +292,8 @@ export interface ImportSharedAssignmentOptions {
     activityId: string,
     linkage: VideoActivityMetadataSyncLinkage
   ) => Promise<void>;
+  /** True when the importer belongs to this PLC (checked against their own PLC list). */
+  isPlcMember?: (plcId: string) => boolean;
 }
 
 export const useVideoActivityAssignments = (
@@ -1069,9 +1076,8 @@ export const useVideoActivityAssignments = (
 
         // 3) Create the local assignment, paused. Originator-only fields
         // cleared: teacherName + periodName (which encode the original
-        // author's identity / single-class targeting). PLC linkage is
-        // preserved so the importer's results flow through the same
-        // sheet for PLC peers.
+        // author's identity / single-class targeting). PLC linkage is kept
+        // only for a verified member of that PLC.
         const sourceSettings = sharedDoc.assignmentSettings;
         const importedSettings: VideoActivityAssignmentSettings = {
           className: sourceSettings.className,
@@ -1086,7 +1092,9 @@ export const useVideoActivityAssignments = (
           sourceSettings.periodNames.length > 0
             ? { periodNames: sourceSettings.periodNames }
             : {}),
-          ...(sourceSettings.plc ? { plc: sourceSettings.plc } : {}),
+          ...(sourceSettings.plc && options.isPlcMember?.(sourceSettings.plc.id)
+            ? { plc: sourceSettings.plc }
+            : {}),
           ...(syncedFromLinkage ? { sync: syncedFromLinkage } : {}),
         };
         const created = await createAssignment(
@@ -1187,6 +1195,7 @@ export const useVideoActivityAssignments = (
         dedupeQuestionsById(activityData.questions)
       );
       const questionsById = new Map(scoredQuestions.map((q) => [q.id, q]));
+      const live = isLiveVideoActivitySession(sessionSnap.data());
 
       // Read responses in bounded pages (limit + documentId cursor) rather
       // than one unbounded `getDocs` so a PLC-shared assignment with
@@ -1210,7 +1219,7 @@ export const useVideoActivityAssignments = (
       for (const d of responseDocs) {
         const data = d.data() as VideoActivityResponse;
         const { score, answers: gradedAnswers } =
-          gradeVideoActivityResponseForPublish(data, questionsById);
+          gradeVideoActivityResponseForPublish(data, questionsById, live);
         updates.push({
           ref: d.ref,
           patch: { score, answers: gradedAnswers },
@@ -1269,7 +1278,7 @@ export const useVideoActivityAssignments = (
         );
       }
 
-      return { responsesUpdated: updates.length, scoredQuestions };
+      return { responsesUpdated: updates.length, scoredQuestions, live };
     },
     [userId]
   );

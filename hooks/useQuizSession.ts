@@ -14,6 +14,11 @@ import {
   publicImageOnlyAnswers,
 } from '@/utils/quizAnswerImages';
 import { stripRubricExamples } from '@/utils/rubricGuide';
+import { needsAttemptClock } from '@/utils/quizStudentPhase';
+import {
+  INPUT_SIGNALS_FLUSH_EVENT,
+  type InputSignalsFlushDetail,
+} from '@/utils/inputSignals';
 import {
   useState,
   useEffect,
@@ -1327,6 +1332,8 @@ async function findExistingResponseDoc(
 export interface UseQuizSessionTeacherResult {
   session: QuizSession | null;
   responses: QuizResponse[];
+  /** The responses listener has delivered its first snapshot. */
+  responsesLoaded: boolean;
   loading: boolean;
   advanceQuestion: () => Promise<void>;
   /**
@@ -2087,6 +2094,7 @@ export const useQuizSessionTeacher = (
   return {
     session,
     responses,
+    responsesLoaded: state.responsesLoaded,
     // A per-period session's questions arrive on their own read.
     loading: loading || (inContent && !contentLoaded),
     advanceQuestion,
@@ -2180,6 +2188,8 @@ export interface UseQuizSessionStudentResult {
       isDraft?: boolean;
       timedOutUnderMinimum?: boolean;
       locale?: string;
+      /** A revisit draft while Live view watches: a changed one saves over the submitted answer. */
+      liveRevisit?: boolean;
     }
   ) => Promise<void>;
   /**
@@ -2212,7 +2222,7 @@ export interface UseQuizSessionStudentResult {
   /** Writes the whole tab-away exit log; rules allow one append or one close per write. */
   saveTabExits: (exits: TabExit[]) => Promise<void>;
   /** Writes the question on screen to `live/state` while the teacher watches. */
-  reportLivePosition: (questionId: string, at?: number) => Promise<void>;
+  reportLivePosition: (state: QuizLiveState) => Promise<void>;
   /** Writes one attempt's input counters (utils/inputSignals.ts). */
   saveInputSignals: (
     attempt: number,
@@ -3077,15 +3087,23 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
                 hasClassPeriod: !!classPeriod,
               })
             );
-          } else if (classPeriod && existing.classPeriod !== classPeriod) {
+          } else if (
+            (classPeriod && existing.classPeriod !== classPeriod) ||
+            needsAttemptClock(sessionData, existing)
+          ) {
             // Backfill classPeriod on an in-flight response (e.g. student
             // joined before periods were configured or reloaded after a
             // change). Treat this as activity — refresh lastWriteAt so
             // a long-running session doesn't trip the idle auto-submit
             // on the next sweep just because of a backfill touch.
+            // An open timed row with no clock (a paper scan made it) starts it here, or its answers are refused.
             await updateDoc(responseRef, {
-              classPeriod,
-              lastWriteAt: serverTimestamp(),
+              ...(classPeriod && existing.classPeriod !== classPeriod
+                ? { classPeriod, lastWriteAt: serverTimestamp() }
+                : {}),
+              ...(needsAttemptClock(sessionData, existing)
+                ? { attemptStartedAt: serverTimestamp() }
+                : {}),
             }).catch((err: unknown) =>
               logQuizJoinFirestoreError('update-backfill-period', err, {
                 sessionId: sessionDoc.id,
@@ -3248,7 +3266,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
             attemptStartedAt?: FieldValue;
           } = {
             studentUid,
-            joinedAt: Date.now(),
+            joinedAt: getServerNow(),
             // Seed `lastWriteAt` at join so a student who joins but
             // never answers still ages into the idle auto-submit query.
             // Server-stamped (not Date.now()) so a Chromebook with a
@@ -3277,13 +3295,17 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
             ...(resolvedClassId ? { classId: resolvedClassId } : {}),
             ...staffResponseFields(staffIdentity),
           };
-          const created = periodKey
-            ? writeBatch(db)
-                .set(responseRef, newResponse)
-                .set(seatRef(sessionDoc.id, studentUid), { responseKey })
-                .commit()
-            : setDoc(responseRef, newResponse);
-          await created.catch((err: unknown) =>
+          // A denied create re-syncs the clock and restamps `joinedAt`, which the rules hold to server time.
+          const create = () => {
+            const row = { ...newResponse, joinedAt: getServerNow() };
+            return periodKey
+              ? writeBatch(db)
+                  .set(responseRef, row)
+                  .set(seatRef(sessionDoc.id, studentUid), { responseKey })
+                  .commit()
+              : setDoc(responseRef, row);
+          };
+          await retryWithFreshClock(studentUid, create).catch((err: unknown) =>
             logQuizJoinFirestoreError('create-response', err, {
               sessionId: sessionDoc.id,
               responseKey,
@@ -3423,6 +3445,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         isDraft?: boolean;
         timedOutUnderMinimum?: boolean;
         locale?: string;
+        liveRevisit?: boolean;
       }
     ) => {
       const sessionId = sessionIdRef.current;
@@ -3498,12 +3521,12 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
             ? { priorEntry, now }
             : null;
 
-        // Status-downgrade guard — see `isUnsafeStatusDowngrade` doc.
-        // Stops the back-nav listener-lag race from silently flipping a
-        // 'submitted' answer back to 'draft' status. Runs AFTER the
-        // history snapshot so the rejected attempt is still recorded
-        // (the decision already made above is returned as-is).
-        if (isUnsafeStatusDowngrade(isDraft, priorEntry)) {
+        // A draft over a submitted answer is skipped, except a changed Live view revisit, which stays submitted.
+        const keepSubmitted = isUnsafeStatusDowngrade(isDraft, priorEntry);
+        if (
+          keepSubmitted &&
+          (opts?.liveRevisit !== true || priorEntry?.answer === answer)
+        ) {
           return { skip: true, snapshot };
         }
 
@@ -3519,7 +3542,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           questionId,
           answer,
           answeredAt: Date.now(),
-          status: isDraft ? 'draft' : 'submitted',
+          status: isDraft && !keepSubmitted ? 'draft' : 'submitted',
         };
         delete newAnswer.speedBonus;
         delete newAnswer.isCorrect;
@@ -3978,6 +4001,14 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     const quizId = quizIdRef.current;
     const teacherUid = teacherUidRef.current;
     if (!sessionId || !responseKey) return;
+    const signalSaves: Promise<void>[] = [];
+    document.dispatchEvent(
+      new CustomEvent<InputSignalsFlushDetail>(INPUT_SIGNALS_FLUSH_EVENT, {
+        detail: { saves: signalSaves },
+      })
+    );
+    // Land the final counters before the turn-in locks them.
+    await settleDraftsWithin(signalSaves, DRAFT_SETTLE_MS);
     // Let a just-flushed draft land first: once turned in, the rules lock the answers.
     await settleDraftsWithin(inFlightDraftsRef.current, DRAFT_SETTLE_MS);
     await settleDraftsWithin(inFlightTxRef.current, DRAFT_SETTLE_MS);
@@ -4313,11 +4344,10 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
 
   // Live view position goes to its own small doc, so the response triggers stay asleep.
   const reportLivePosition = useCallback(
-    async (questionId: string, at?: number): Promise<void> => {
+    async (state: QuizLiveState): Promise<void> => {
       const sessionId = sessionIdRef.current;
       const responseKey = responseKeyRef.current;
       if (!sessionId || !responseKey || studentPreviewBlocksWrite()) return;
-      const state: QuizLiveState = { questionId, at: at ?? getServerNow() };
       await setDoc(
         doc(
           db,

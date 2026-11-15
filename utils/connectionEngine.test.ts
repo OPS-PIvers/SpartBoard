@@ -432,3 +432,11 @@ describe('a widget Follows one leader per slot', () => {
     ).toBe(true);
   });
 });
+
+describe('liveConnections with a malformed stored connection', () => {
+  it('skips elements that do not match the shape instead of throwing', () => {
+    const widgets = [timer('a', 60), timer('b', 60)];
+    const bad = [{ kind: 'sequence' }, 1, null] as never;
+    expect(liveConnections(bad, widgets)).toEqual([]);
+  });
+});

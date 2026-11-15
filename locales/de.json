@@ -3216,6 +3216,10 @@
     "tourField": "Welche Einstellung",
     "tourFieldPick": "Einstellung wählen",
     "tourFieldPlaceholder": "Einstellungsschlüssel",
+    "tourRow": "Welche Zeile",
+    "tourRowFirst": "Erste Zeile",
+    "tourRowAny": "Beliebige Zeile",
+    "tourRowN": "Zeile {{n}}",
     "tourAction_click": "Auf den Klick warten",
     "tourAction_observe": "Zeigen, dann Weiter",
     "tourAction_toggle": "Auf den Schalter warten",
@@ -5081,5 +5085,14 @@
   "quizAnswerPicture": {
     "name": "Bild {{n}}",
     "nameWithAlt": "Bild {{n}}: {{alt}}"
+  },
+  "picker": {
+    "clear": "Löschen",
+    "today": "Heute",
+    "previousMonth": "Vorheriger Monat",
+    "nextMonth": "Nächster Monat",
+    "hour": "Stunde",
+    "minute": "Minute",
+    "period": "Vormittag oder Nachmittag"
   }
 }
