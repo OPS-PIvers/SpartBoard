@@ -6,6 +6,7 @@ import {
 } from '../classlinkShared';
 import { CONNECTOR_FEATURE_ID } from './config';
 import { OPERATOR_ORG_ID, isRevokedMemberStatus } from '../authz';
+import { isStaffMemberData } from '../districtStaff';
 
 type Firestore = admin.firestore.Firestore;
 
@@ -28,7 +29,7 @@ export async function isDeactivatedOperatorMember(
   return member.exists && isRevokedMemberStatus(member.get('status'));
 }
 
-/** Active org member via the email's verified domain, or a SpartBoard admin who is not deactivated. */
+/** Active staff member via the email's verified domain, or a SpartBoard admin who is not deactivated. */
 export async function isActiveOrgMemberOrAdmin(
   db: Firestore,
   email: string
@@ -44,8 +45,7 @@ export async function isActiveOrgMemberOrAdmin(
   if (adminDoc.exists) return { ok: true, orgId };
   if (!orgId) return { ok: false, orgId: null };
   const member = await db.doc(`organizations/${orgId}/members/${lower}`).get();
-  const status: unknown = member.exists ? member.get('status') : undefined;
-  return { ok: member.exists && !isRevokedMemberStatus(status), orgId };
+  return { ok: isStaffMemberData(member.data()), orgId };
 }
 
 export async function isConnectorFeatureGranted(
