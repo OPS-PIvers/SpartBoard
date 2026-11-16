@@ -5129,3 +5129,13 @@ rather than "no data") is also still open.
   - Ready with minor notes: #5882, #5879, #5878, #5888, #5887 (login-path ClassLink outage drops sections; `'unavailable'` cached 5 min), #5884, #5816 (server-written turn-ins skip `isOverTime`), #5817 (once CI is green; app-graded Mini App marks need a column max to count).
   - Needs changes: #5889 (a stale-nonce copy blocks its owner's republish; old-client nonce tolerance; stale base).
 - Notes: GitHub access went through MCP. Reviews were drafted by four parallel read-only subagents and the docs PRs reviewed inline. The #5817 fix passed functions `tsc --noEmit` and the pre-commit lint hook. No test covers that file. I didn't run full lint or full test, per CLAUDE.md.
+
+## 2026-11-16
+
+- PRs reviewed (8): #5939 docs: debugger run 125 log; #5938 fix(functions): cap CIMD metadata fetch by bytes while streaming; #5937 fix(admin): PDF library settings no longer overwrite saved config after a failed load; #5936 fix(layout): surface collections stuck in a parent cycle; #5935 fix(widgets): Activity Wall copy-link failure toast shows the link; #5934 unifier: run 148 log; #5924 docs: Course and Agenda plan, Writing assignment plan, glossary terms and ADRs; #5918 docs: AB-112 add claude/project-thread-r2540g
+- Comments processed: 2 total, 0 fixed, 2 explained. Both open optional threads on #5924 (one Class page link per Course; Family link exposing the whole deck) were already addressed by d91b1ef6; replied and resolved. The only other bot note (#5938) found no issues.
+- Fixes pushed: none
+- Reviews posted: 8
+  - Ready: #5938, #5935, #5939, #5934, #5924.
+  - Ready with minor notes: #5937 (settings panel stays editable while the load has failed), #5936 (no cycle test for `flattenCollections`), #5918 (the "Branches to delete" summary count is stale).
+- Notes: GitHub access went through MCP. All diffs were reviewed inline, with no subagents. No local lint, type-check or test runs were needed because nothing was changed.
