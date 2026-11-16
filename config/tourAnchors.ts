@@ -11472,6 +11472,17 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'flashcards.card-term-alternate': {
+    label: 'Add accepted answer button on a term in the Flashcards editor',
+    perField: true,
+    panel: true,
+  },
+  'flashcards.card-definition-alternate': {
+    label:
+      'Add accepted answer button on a definition in the Flashcards editor',
+    perField: true,
+    panel: true,
+  },
   'flashcards.card-insert': {
     label: 'Add card button between cards in the Flashcards editor',
     perField: true,

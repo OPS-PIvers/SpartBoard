@@ -59,6 +59,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'embed-block-new-tabs',
   'embed-mini-app',
   'embed-reload',
+  'flashcard-answer-rows',
   'flashcards-ai',
   'flashcards-speak',
   'focus-sessions',

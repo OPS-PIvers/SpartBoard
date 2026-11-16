@@ -54,6 +54,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-calculator-stimulus',
   'quiz-stimulus-preview',
   'question-editor-fields',
+  'flashcard-answer-rows',
   'lunch-count-redesign',
   'weather-details',
   'checklist-small-card',

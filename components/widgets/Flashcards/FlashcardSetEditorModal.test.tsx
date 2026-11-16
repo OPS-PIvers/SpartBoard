@@ -13,7 +13,10 @@ import type { AuthContextType } from '@/context/AuthContextValue';
 import type { FlashcardCardSpeak, FlashcardSet } from '@/types';
 import { defaultFlashcardsSpeakAdminConfig } from '@/config/flashcardsSpeakAdmin';
 import { FlashcardSetEditorModal } from './FlashcardSetEditorModal';
-import { flashcardSetIncompleteReason } from './useFlashcardEditorState';
+import {
+  cleanFlashcards,
+  flashcardSetIncompleteReason,
+} from './useFlashcardEditorState';
 import type { SpeakLookupCall } from './speak/lookupSpeakReferences';
 
 const showConfirm = vi.hoisted(() =>
@@ -53,9 +56,11 @@ const baseSet = (overrides: Partial<FlashcardSet> = {}): FlashcardSet => ({
   ...overrides,
 });
 
-const auth = (speak: boolean) =>
+const auth = (speak: boolean, answerRows = false) =>
   ({
-    canAccessFeature: (id: string) => speak && id === 'flashcards-speak',
+    canAccessFeature: (id: string) =>
+      (speak && id === 'flashcards-speak') ||
+      (answerRows && id === 'flashcard-answer-rows'),
   }) as unknown as AuthContextType;
 
 const lookup = vi.fn<SpeakLookupCall>((input) =>
@@ -71,13 +76,16 @@ const renderModal = (opts: {
   set?: FlashcardSet;
   isNew?: boolean;
   speak?: boolean;
+  answerRows?: boolean;
 }) => {
   const onPersist = vi.fn<
     (set: FlashcardSet, o: { final: boolean }) => Promise<void>
   >(() => Promise.resolve());
   const onClose = vi.fn();
   render(
-    <AuthContext.Provider value={auth(opts.speak ?? false)}>
+    <AuthContext.Provider
+      value={auth(opts.speak ?? false, opts.answerRows ?? false)}
+    >
       <FlashcardSetEditorModal
         set={opts.set ?? baseSet()}
         isNew={opts.isNew ?? false}
@@ -269,6 +277,42 @@ describe('FlashcardSetEditorModal', () => {
     fireEvent.click(screen.getByLabelText('Add card after card 1'));
     expect(screen.getByLabelText('Term 2')).toHaveProperty('value', '');
     expect(screen.getAllByPlaceholderText('Term')).toHaveLength(4);
+  });
+
+  it('spells slash shorthand out into accepted-answer rows on blur', () => {
+    renderModal({ answerRows: true });
+    const term = screen.getByLabelText('Term 1');
+    fireEvent.change(term, { target: { value: 'el/la doctor/a' } });
+    expect(screen.queryByLabelText('Term 1, accepted answer B')).toBeNull();
+    fireEvent.blur(term);
+    expect(screen.getByLabelText('Term 1')).toHaveProperty(
+      'value',
+      'el doctor'
+    );
+    expect(screen.getByLabelText('Term 1, accepted answer B')).toHaveProperty(
+      'value',
+      'la doctora'
+    );
+    fireEvent.click(
+      screen.getByLabelText('Remove accepted answer B from Term 1')
+    );
+    expect(screen.queryByLabelText('Term 1, accepted answer B')).toBeNull();
+  });
+
+  it('drops blank accepted-answer rows from the saved text', () => {
+    const [card] = cleanFlashcards([
+      { id: 'c', term: 'el doctor /  / la doctora / ', definition: ' / ' },
+    ]);
+    expect(card.term).toBe('el doctor / la doctora');
+    expect(card.definition).toBe('');
+  });
+
+  it('leaves text without blank rows as typed', () => {
+    const [card] = cleanFlashcards([
+      { id: 'c', term: ' a /  b ', definition: 'km/h' },
+    ]);
+    expect(card.term).toBe('a /  b');
+    expect(card.definition).toBe('km/h');
   });
 
   it('swaps terms, definitions and languages, and swaps back on a second click', () => {

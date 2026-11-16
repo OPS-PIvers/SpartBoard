@@ -1,4 +1,11 @@
-import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
+import React, {
+  useContext,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DndContext,
@@ -23,7 +30,9 @@ import {
   Trash2,
   Wand2,
 } from 'lucide-react';
-import type { FlashcardSet } from '@/types';
+import type { FlashcardCard, FlashcardSet } from '@/types';
+import { AuthContext } from '@/context/AuthContextValue';
+import { expandAnswerRows, joinAnswerRows } from '@/utils/flashcardAnswerRows';
 import { EditorModalShell } from '@/components/common/EditorModalShell';
 import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 import { ImportAttributionLine } from '@/components/import/ImportAttributionLine';
@@ -104,6 +113,20 @@ export const FlashcardSetEditorModal: React.FC<
     lookupReferences,
     composeSet,
   } = state;
+  const answerRows =
+    useContext(AuthContext)?.canAccessFeature('flashcard-answer-rows') ?? false;
+  const importCards = (incoming: FlashcardCard[]): void =>
+    appendCards(
+      answerRows
+        ? incoming.map((card) => ({
+            ...card,
+            term: joinAnswerRows(expandAnswerRows(card.term, termLanguage)),
+            definition: joinAnswerRows(
+              expandAnswerRows(card.definition, definitionLanguage)
+            ),
+          }))
+        : incoming
+    );
   // A column is guessed at most once, and never after the teacher picks its language.
   const [settledLanguage, setSettledLanguage] = useState({
     term: false,
@@ -488,6 +511,9 @@ export const FlashcardSetEditorModal: React.FC<
                   onRemove={removeCard}
                   onAddAfter={addCardAfter}
                   speak={speakRow}
+                  answerRows={answerRows}
+                  termLanguage={termLanguage}
+                  definitionLanguage={definitionLanguage}
                 />
               ))}
             </div>
@@ -525,7 +551,7 @@ export const FlashcardSetEditorModal: React.FC<
       {pasteOpen && (
         <PasteImportDrawer
           onClose={() => setPasteOpen(false)}
-          onImport={appendCards}
+          onImport={importCards}
           termOnly
         />
       )}

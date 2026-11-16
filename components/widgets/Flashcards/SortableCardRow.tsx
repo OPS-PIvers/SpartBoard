@@ -7,6 +7,12 @@ import { tourFieldAttr } from '@/config/tourAnchors';
 import { SpeakCardRow } from './speak/SpeakCardStatus';
 import { ipaDraftFor } from './speak/speakEditorState';
 import type { SpeakRowProps } from './useFlashcardEditorState';
+import { AnswerAltFields, AnswerMainField } from './AnswerRowFields';
+import {
+  ANSWER_FIELD_CLASS,
+  answerFieldStyle,
+  useAnswerRows,
+} from './useAnswerRows';
 
 interface SortableCardRowProps {
   card: FlashcardCard;
@@ -16,6 +22,10 @@ interface SortableCardRowProps {
   onRemove: (id: string) => void;
   onAddAfter: (index: number) => void;
   speak: SpeakRowProps | null;
+  /** Accepted answers as rows (flag flashcard-answer-rows). */
+  answerRows: boolean;
+  termLanguage: string;
+  definitionLanguage: string;
 }
 
 export const SortableCardRow: React.FC<SortableCardRowProps> = ({
@@ -26,7 +36,41 @@ export const SortableCardRow: React.FC<SortableCardRowProps> = ({
   onRemove,
   onAddAfter,
   speak,
+  answerRows,
+  termLanguage,
+  definitionLanguage,
 }) => {
+  const fieldKey = `row-${index + 1}`;
+  const termRows = useAnswerRows(
+    card.id,
+    'term',
+    card.term,
+    termLanguage,
+    (term) => onChange(card.id, { term })
+  );
+  const definitionRows = useAnswerRows(
+    card.id,
+    'definition',
+    card.definition,
+    definitionLanguage,
+    (definition) => onChange(card.id, { definition })
+  );
+  const addOnEnterOrTabOut = (
+    event: React.KeyboardEvent<HTMLTextAreaElement>
+  ): void => {
+    if (event.shiftKey || event.nativeEvent.isComposing) return;
+    const tabOut =
+      event.key === 'Tab' &&
+      isLast &&
+      (card.term.trim() !== '' || card.definition.trim() !== '');
+    if (event.key === 'Enter' || tabOut) {
+      event.preventDefault();
+      onAddAfter(index);
+    }
+  };
+  const hasAlternates =
+    answerRows && (termRows.rows.length > 1 || definitionRows.rows.length > 1);
+
   const {
     attributes,
     listeners,
@@ -76,59 +120,83 @@ export const SortableCardRow: React.FC<SortableCardRowProps> = ({
       >
         {index + 1}
       </span>
-      <label className="min-w-0">
-        <span className="sr-only">Term {index + 1}</span>
-        <textarea
-          value={card.term}
-          onChange={(event) => onChange(card.id, { term: event.target.value })}
-          maxLength={500}
-          rows={1}
-          className="block w-full resize-none rounded-xl border border-slate-200 bg-white leading-snug [field-sizing:content] text-slate-800 outline-hidden focus:border-rose-400 focus:ring-2 focus:ring-rose-500/20"
-          style={{
-            padding: 'min(10px, 2.5cqmin) min(14px, 3.5cqmin)',
-            fontSize: 'min(13px, 4cqmin)',
-          }}
-          placeholder="Term"
-          {...tourFieldAttr(
-            'flashcards.card-term',
-            'flashcards',
-            `row-${index + 1}`
-          )}
-        />
-      </label>
-      <label className="min-w-0">
-        <span className="sr-only">Definition {index + 1}</span>
-        <textarea
-          value={card.definition}
-          onChange={(event) =>
-            onChange(card.id, { definition: event.target.value })
-          }
-          onKeyDown={(event) => {
-            if (event.shiftKey || event.nativeEvent.isComposing) return;
-            const tabOut =
-              event.key === 'Tab' &&
-              isLast &&
-              (card.term.trim() !== '' || card.definition.trim() !== '');
-            if (event.key === 'Enter' || tabOut) {
-              event.preventDefault();
-              onAddAfter(index);
+      {answerRows ? (
+        <>
+          <AnswerMainField
+            answers={termRows}
+            cardId={card.id}
+            side="term"
+            label={`Term ${index + 1}`}
+            placeholder="Term"
+            maxLength={500}
+            fieldKey={fieldKey}
+            textareaAnchor={tourFieldAttr(
+              'flashcards.card-term',
+              'flashcards',
+              fieldKey
+            )}
+          />
+          <AnswerMainField
+            answers={definitionRows}
+            cardId={card.id}
+            side="definition"
+            label={`Definition ${index + 1}`}
+            placeholder="Definition"
+            maxLength={1000}
+            fieldKey={fieldKey}
+            onKeyDown={
+              definitionRows.rows.length > 1
+                ? (event) => {
+                    if (event.key === 'Enter') addOnEnterOrTabOut(event);
+                  }
+                : addOnEnterOrTabOut
             }
-          }}
-          maxLength={1000}
-          rows={1}
-          className="block w-full resize-none rounded-xl border border-slate-200 bg-white leading-snug [field-sizing:content] text-slate-800 outline-hidden focus:border-rose-400 focus:ring-2 focus:ring-rose-500/20"
-          style={{
-            padding: 'min(10px, 2.5cqmin) min(14px, 3.5cqmin)',
-            fontSize: 'min(13px, 4cqmin)',
-          }}
-          placeholder="Definition"
-          {...tourFieldAttr(
-            'flashcards.card-definition',
-            'flashcards',
-            `row-${index + 1}`
-          )}
-        />
-      </label>
+            textareaAnchor={tourFieldAttr(
+              'flashcards.card-definition',
+              'flashcards',
+              fieldKey
+            )}
+          />
+        </>
+      ) : (
+        <>
+          <label className="min-w-0">
+            <span className="sr-only">Term {index + 1}</span>
+            <textarea
+              value={card.term}
+              onChange={(event) =>
+                onChange(card.id, { term: event.target.value })
+              }
+              maxLength={500}
+              rows={1}
+              className={ANSWER_FIELD_CLASS}
+              style={answerFieldStyle()}
+              placeholder="Term"
+              {...tourFieldAttr('flashcards.card-term', 'flashcards', fieldKey)}
+            />
+          </label>
+          <label className="min-w-0">
+            <span className="sr-only">Definition {index + 1}</span>
+            <textarea
+              value={card.definition}
+              onChange={(event) =>
+                onChange(card.id, { definition: event.target.value })
+              }
+              onKeyDown={addOnEnterOrTabOut}
+              maxLength={1000}
+              rows={1}
+              className={ANSWER_FIELD_CLASS}
+              style={answerFieldStyle()}
+              placeholder="Definition"
+              {...tourFieldAttr(
+                'flashcards.card-definition',
+                'flashcards',
+                fieldKey
+              )}
+            />
+          </label>
+        </>
+      )}
       <button
         type="button"
         onClick={() => onRemove(card.id)}
@@ -179,6 +247,27 @@ export const SortableCardRow: React.FC<SortableCardRowProps> = ({
               }}
             />
           </button>
+        </>
+      )}
+      {hasAlternates && (
+        <>
+          <AnswerAltFields
+            answers={termRows}
+            cardId={card.id}
+            side="term"
+            label={`Term ${index + 1}`}
+            maxLength={500}
+            className="col-start-3"
+          />
+          <AnswerAltFields
+            answers={definitionRows}
+            cardId={card.id}
+            side="definition"
+            label={`Definition ${index + 1}`}
+            maxLength={1000}
+            className="col-start-4"
+            onLastKeyDown={addOnEnterOrTabOut}
+          />
         </>
       )}
       {speak && (
