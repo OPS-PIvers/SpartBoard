@@ -35,19 +35,23 @@ const CLIENT_SDK_WRITES: Record<string, number> = {
   'utils/quizMediaUpload.ts': 1,
 };
 
-// Calls to useStorage's raw Storage helpers (uploadFile, uploadFileWithProgress, uploadGuidedLearningMedia), per file.
+// References to useStorage's raw Storage helpers and uploadParsedNotebook, in files that import them, per file.
 const STORAGE_HELPER_CALLS: Record<string, number> = {
+  // A Drive uploader's uploadFile property, not Storage.
+  'components/import/course/CourseImportHost.tsx': 1,
+  // Smart Notebook import by dropping a file on the board.
+  'components/layout/DashboardView.tsx': 4,
   // Guided Learning video and audio (lh3 Drive links can't stream) and district set images.
-  'components/widgets/GuidedLearning/Widget.tsx': 1,
-  'components/widgets/GuidedLearning/components/GuidedLearningStepEditor.tsx': 1,
-  'components/widgets/GuidedLearning/components/studio/StudioStepFields.tsx': 1,
-  'components/widgets/GuidedLearning/components/useGuidedLearningEditorState.ts': 2,
+  'components/widgets/GuidedLearning/Widget.tsx': 2,
+  'components/widgets/GuidedLearning/components/GuidedLearningStepEditor.tsx': 2,
+  'components/widgets/GuidedLearning/components/studio/StudioStepFields.tsx': 2,
+  'components/widgets/GuidedLearning/components/useGuidedLearningEditorState.ts': 5,
   // Smart Notebook pages and assets (teacher content still on Storage; listed for Paul).
-  'components/widgets/SmartNotebook/Widget.tsx': 2,
-  'hooks/useNotebookSharing.ts': 1,
-  'utils/notebookUpload.ts': 1,
+  'components/widgets/SmartNotebook/Widget.tsx': 9,
+  'hooks/useNotebookSharing.ts': 3,
+  'utils/notebookUpload.ts': 3,
   // No-Drive fallbacks, admin assets and GL media inside the hook itself.
-  'hooks/useStorage.ts': 14,
+  'hooks/useStorage.ts': 20,
 };
 
 // Admin SDK writes (.save, .upload, createWriteStream) in server files that touch a bucket, per file.
@@ -105,8 +109,9 @@ const WRITABLE_RULE_PATHS = [
 
 const CLIENT_SDK_WRITE =
   /\b(?:uploadBytes|uploadBytesResumable|uploadString)\(/g;
+// Any reference, so a helper passed by value or renamed on destructure still counts.
 const STORAGE_HELPER_CALL =
-  /(?<![Dd]rive\w*\??\.|async\s)\b(?:uploadFile|uploadFileWithProgress|uploadGuidedLearningMedia)\(/g;
+  /(?<![Dd]rive\w*\??\.|async\s)\b(?:uploadFile|uploadFileWithProgress|uploadGuidedLearningMedia|uploadParsedNotebook)\b/g;
 const SERVER_WRITE = /\.save\(|\.upload\(|createWriteStream\(/g;
 
 // Tracked and new untracked source files, so a fresh draft is caught before its first commit.
@@ -159,7 +164,8 @@ const CODE = ['*.ts', '*.tsx', '*.js', '*.mjs', '*.cjs'];
 
 const writableRulePaths = (rules: string): string[] => {
   const text = rules.replace(/\/\/[^\n]*/g, '');
-  const token = /match\s+(\S+)\s*\{|\{|\}|allow\s+([\w\s,]+):\s*if\s+([^;]*);/g;
+  const token =
+    /match\s+(\S+)\s*\{|\{|\}|allow\s+([\w\s,]+?)\s*(?::\s*if\s+([^;]*))?;/g;
   const stack: (string | null)[] = [];
   const paths = new Set<string>();
   for (const m of text.matchAll(token)) {
@@ -168,7 +174,7 @@ const writableRulePaths = (rules: string): string[] => {
     else if (m[0] === '}') stack.pop();
     else if (
       /\b(write|create|update)\b/.test(m[2]) &&
-      m[3].trim() !== 'false'
+      (m[3] ?? '').trim() !== 'false'
     ) {
       const path = [...stack].reverse().find((p) => p !== null);
       if (path) paths.add(path);
@@ -191,9 +197,13 @@ describe('Firebase Storage upload guard', () => {
         sourceFiles(['*.ts', '*.tsx']).filter(
           (f) => !f.startsWith('functions/')
         ),
-        STORAGE_HELPER_CALL
+        STORAGE_HELPER_CALL,
+        (text) =>
+          /from '[^']*(?:hooks\/useStorage|notebookUpload)'|const useStorage =|interface NotebookStorage/.test(
+            text
+          )
       ),
-      `New uploadFile/uploadFileWithProgress/uploadGuidedLearningMedia call (they write Firebase Storage).\n${FIX}`
+      `New use of uploadFile/uploadFileWithProgress/uploadGuidedLearningMedia/uploadParsedNotebook (they write Firebase Storage).\n${FIX}`
     ).toEqual(sorted(STORAGE_HELPER_CALLS));
   });
 
@@ -224,8 +234,9 @@ describe('Firebase Storage upload guard', () => {
         match /a/{x} { function f() { return true; } allow create, update: if f(); }
         match /b/{x} { allow write: if false; }
         match /c/{x} { allow read: if true; }
+        match /d/{x} { allow read, write; }
       }`)
-    ).toEqual(['/a/{x}']);
+    ).toEqual(['/a/{x}', '/d/{x}']);
     expect('uploadBytes(ref(s, p), b)'.match(CLIENT_SDK_WRITE)).toHaveLength(1);
     expect(
       'driveService.uploadFile(b); drive?.uploadFile(b); async uploadFile(b) {}'.match(
@@ -233,9 +244,9 @@ describe('Firebase Storage upload guard', () => {
       )
     ).toBeNull();
     expect(
-      'storage.uploadFile(p, f); await uploadFile(p, f)'.match(
+      'storage.uploadFile(p, f); await uploadFile(p, f); go({ uploadFile }); uploadParsedNotebook(u, p, s)'.match(
         STORAGE_HELPER_CALL
       )
-    ).toHaveLength(2);
+    ).toHaveLength(4);
   });
 });
