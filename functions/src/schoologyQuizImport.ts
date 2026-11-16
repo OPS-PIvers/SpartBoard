@@ -11,11 +11,10 @@ import {
   ExtensionCallError,
   bearerToken,
   fetchTokenInfo,
-  trustedUidForEmail,
   verifiedTokenEmail,
   type TokenInfo,
 } from './webTourExtension';
-export { trustedSignInUid } from './webTourExtension';
+import { trustedUidForEmail } from './trustedSignIn';
 
 type Firestore = admin.firestore.Firestore;
 
