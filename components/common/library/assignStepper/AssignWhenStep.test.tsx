@@ -185,6 +185,29 @@ describe('formatWhenValue', () => {
     expect(fmt(each, 'when', 1)).toMatch(/^Open Oct 8/);
   });
 
+  it('notes late work on a Scheduled close and a Manual date due only', () => {
+    const late = { ...BELL.availability, allowLate: true };
+    expect(fmt({ ...BELL, availability: late })).toMatch(/, late allowed$/);
+    expect(
+      fmt({
+        mode: 'manual',
+        availability: {
+          ...late,
+          manualDue: { kind: 'date', day: '2026-10-09', time: '23:59' },
+        },
+      })
+    ).toMatch(/^Manual, due .*, late allowed$/);
+    expect(
+      fmt({
+        mode: 'manual',
+        availability: { ...late, manualDue: { kind: 'ended' } },
+      })
+    ).toBe('Manual, due when ended');
+    expect(fmt({ ...BELL, availability: late }, 'available')).not.toMatch(
+      /late allowed/
+    );
+  });
+
   it('reads live as started from the board', () => {
     expect(fmt(BELL, 'live')).toBe('You start it from the board');
   });
@@ -345,6 +368,19 @@ describe('Manual due date', () => {
     expect(
       (onValue.mock.calls.at(-1)?.[0] as AssignWhenValue).availability.manualDue
     ).toEqual({ kind: 'ended', time: '23:59' });
+  });
+
+  it('offers late work only with a set date and time', () => {
+    const onValue = vi.fn<(v: AssignWhenValue) => void>();
+    render(<Harness initial={MANUAL} onValue={onValue} />);
+    expect(screen.queryByText('Allow submissions after close')).toBeNull();
+    fireEvent.change(screen.getByLabelText('Due'), {
+      target: { value: 'date' },
+    });
+    fireEvent.click(
+      screen.getByRole('switch', { name: 'Allow submissions after close' })
+    );
+    expect(onValue.mock.lastCall?.[0].availability.allowLate).toBe(true);
   });
 
   it('switches to Date & time at the remembered time', () => {

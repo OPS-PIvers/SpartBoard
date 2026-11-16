@@ -3979,6 +3979,11 @@ const TeacherQuizWidget: React.FC<{
                 overridesBySourcedId: resolvedTargeting.overridesByKey,
                 openAt: resolvedTargeting.openAt ?? null,
                 closeAt: resolvedTargeting.closeAt ?? null,
+                ...(stepper?.manualStart &&
+                resolvedTargeting.closeAt == null &&
+                dueAt != null
+                  ? { manualLate: true }
+                  : {}),
                 ...(resolvedTargeting.workKind
                   ? { workKind: resolvedTargeting.workKind }
                   : {}),

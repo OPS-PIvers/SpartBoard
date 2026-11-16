@@ -800,6 +800,24 @@ describe('Manual due date', () => {
     expect(targeting.periodPlan).toEqual({ mode: 'assessment' });
   });
 
+  it('saves only the due date when late work is allowed, so the class stays open', () => {
+    const at = new Date(2026, 9, 9, 23, 59).getTime();
+    const { targeting } = applyWhen(
+      {
+        ...base,
+        availability: {
+          ...base.availability,
+          allowLate: true,
+          manualDue: { kind: 'date', day: '2026-10-09', time: '23:59' },
+        },
+      },
+      { mode: 'manual', manualAvailable: true, rosters: [p3], bellWindow }
+    );
+    expect(targeting.dueAt).toBe(at);
+    expect(targeting.closeAt).toBeUndefined();
+    expect(targeting.periodPlan).toEqual({ mode: 'assessment' });
+  });
+
   it('saves no due date or close when due when ended', () => {
     const targeting = manual({ kind: 'ended' });
     expect(targeting.dueAt).toBeUndefined();

@@ -307,11 +307,11 @@ export const QuizAssignmentSettingsModal: React.FC<
       Object.keys(assignment.periodAccess ?? {}).length > 0 &&
       assignment.openAt == null &&
       ((assignment.closeAt == null &&
-        (assignment.dueAt == null || assignment.dueLocks === true)) ||
+        (assignment.dueAt == null || assignment.dueLocks != null)) ||
         assignment.closeAt === assignment.dueAt);
-    // A Manual due date locks each class at the due (`dueLocks`).
+    // A Manual due date locks each class at the due (`dueLocks`), or `false` when late work is allowed.
     const manualDue =
-      manualStart && assignment.dueLocks === true && assignment.dueAt != null
+      manualStart && assignment.dueLocks != null && assignment.dueAt != null
         ? manualDueFromMs(assignment.dueAt)
         : undefined;
     const whenStep: AssignStepDef = {

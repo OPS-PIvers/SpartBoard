@@ -22,6 +22,8 @@ export const DEFAULT_DUE_TIME = '23:59';
 export interface LastAssignWhen {
   mode: 'manual' | 'scheduled';
   allowLate: boolean;
+  /** Late work on a Manual due, kept apart so a Scheduled choice never unlocks a Manual due. */
+  manualLate: boolean;
   /** Scheduled opens when assigned, or at a set date. */
   opens: 'now' | 'date';
   due: 'ended' | 'date';
@@ -37,6 +39,7 @@ export function parseLastAssignWhen(raw: unknown): LastAssignWhen | null {
   return {
     mode: r.mode,
     allowLate: r.allowLate === true,
+    manualLate: r.manualLate === true,
     opens: r.opens === 'date' ? 'date' : 'now',
     due: r.due === 'date' ? 'date' : 'ended',
     dueTime:
@@ -100,7 +103,11 @@ export function withRememberedWhen(
     mode: last?.mode ?? seed.mode,
     availability: {
       ...seed.availability,
-      allowLate: last?.allowLate ?? seed.availability.allowLate,
+      allowLate: !last
+        ? seed.availability.allowLate
+        : last.mode === 'manual'
+          ? last.manualLate
+          : last.allowLate,
       opensOnAssign: (last?.opens ?? 'now') === 'now',
       manualDue: !manualDue
         ? undefined
@@ -117,9 +124,12 @@ export function lastWhenFrom(
   previous: LastAssignWhen | null
 ): LastAssignWhen {
   const due = value.availability.manualDue;
+  const manual = value.mode === 'manual';
+  const late = value.availability.allowLate;
   return {
     mode: value.mode,
-    allowLate: value.availability.allowLate,
+    allowLate: manual ? (previous?.allowLate ?? false) : late,
+    manualLate: manual ? late : (previous?.manualLate ?? false),
     opens: value.availability.opensOnAssign === false ? 'date' : 'now',
     due: due?.kind ?? previous?.due ?? 'ended',
     dueTime: due?.time ?? previous?.dueTime ?? DEFAULT_DUE_TIME,
