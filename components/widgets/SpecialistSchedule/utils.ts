@@ -4,7 +4,9 @@ import {
 } from '@/config/buildings';
 import type {
   SpecialistScheduleBuildingConfig,
+  SpecialistScheduleConfig,
   SpecialistScheduleGlobalConfig,
+  SpecialistScheduleItem,
 } from '@/types';
 
 /** A building's admin config, whichever form of its id the widget and the saved record use. */
@@ -186,4 +188,41 @@ export const formatRotationDayLabel = (
   if (custom !== undefined && custom !== '') return custom;
   const label = dayLabel !== undefined && dayLabel !== '' ? dayLabel : 'Day';
   return `${label} ${dayNumber}`;
+};
+
+/** Rotation-day, daily and weekly items for one day, sorted by start time. */
+export const mergeSpecialistItems = (
+  config: Pick<SpecialistScheduleConfig, 'cycleDays' | 'recurringItems'>,
+  rotationDayNumber: number | null,
+  dayOfWeek: number
+): SpecialistScheduleItem[] => {
+  const recurring = config.recurringItems ?? [];
+  const rotation =
+    rotationDayNumber === null
+      ? []
+      : ((config.cycleDays ?? []).find((d) => d.dayNumber === rotationDayNumber)
+          ?.items ?? []);
+  const merged = [
+    ...rotation,
+    ...recurring.filter((ri) => ri.type === 'daily'),
+    ...recurring.filter(
+      (ri) => ri.type === 'weekly' && ri.dayOfWeek === dayOfWeek
+    ),
+  ];
+  return merged.sort((a, b) => parseTime(a.startTime) - parseTime(b.startTime));
+};
+
+const localDateStr = (d: Date): string =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+/** Today's items as the widget shows them, for code that runs outside the widget. */
+export const specialistItemsForDate = (
+  config: Pick<SpecialistScheduleConfig, 'cycleDays' | 'recurringItems'>,
+  building: SpecialistScheduleBuildingConfig | undefined,
+  date: Date
+): SpecialistScheduleItem[] => {
+  const rotationDay = building
+    ? resolveRotationDayNumber(building, localDateStr(date))
+    : null;
+  return mergeSpecialistItems(config, rotationDay, date.getDay());
 };

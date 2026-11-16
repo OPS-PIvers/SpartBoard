@@ -1180,6 +1180,12 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'widget-settings.specialist-schedule.end-time': [
       'widgets.specialist-schedule.settings',
     ],
+    'widget-settings.specialist-schedule.warn-minutes': [
+      'widgets.specialist-schedule.face',
+    ],
+    'widget-settings.specialist-schedule.warn-sound': [
+      'widgets.specialist-schedule.face',
+    ],
     'widget-settings.specialist-schedule.save-item': [
       'widgets.specialist-schedule.settings',
     ],
@@ -3677,6 +3683,13 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'widget-settings.schedule.event-mode': ['widgets.schedule.settings'],
     'widget-settings.schedule.event-auto-launch': ['widgets.schedule.settings'],
     'widget-settings.schedule.event-auto-launch-widget': [
+      'widgets.schedule.settings',
+    ],
+    'widget-settings.schedule.event-warning': ['widgets.schedule.settings'],
+    'widget-settings.schedule.event-warning-minutes': [
+      'widgets.schedule.settings',
+    ],
+    'widget-settings.schedule.event-warning-sound': [
       'widgets.schedule.settings',
     ],
     'override-row.extended-time': ['library.override-row'],

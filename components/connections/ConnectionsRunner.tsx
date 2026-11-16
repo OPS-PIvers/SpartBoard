@@ -6,18 +6,33 @@ import type { DashboardContextValue } from '@/context/DashboardContextValue';
 import type {
   ChecklistConfig,
   Dashboard,
+  FeaturePermission,
+  ScheduleConfig,
   SequenceConnection,
+  SpecialistScheduleConfig,
+  SpecialistScheduleGlobalConfig,
   WidgetConnection,
+  WidgetData,
 } from '@/types';
+import {
+  findDueWarning,
+  markWarningFired,
+  type DueWarning,
+} from '@/components/widgets/Schedule/blockWarning';
+import { findDueSpecialistWarning } from '@/components/widgets/SpecialistSchedule/blockWarning';
+import { resolveBuildingConfig } from '@/components/widgets/SpecialistSchedule/utils';
+import { resolveWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
 import { useRosterGroupsIntegrationSettingsState } from '@/hooks/useRosterGroupsIntegrationSettings';
 import { checklistUsesClassRoster } from '@/utils/checklistCurrent';
 import { engineWidgets } from '@/utils/connectionRosterView';
 import {
   advanceRun,
   isStepFinished,
+  runOutlivedBlock,
   startRun,
   joinRunByHand,
   liveSteps,
+  warningScheduleOf,
   type WidgetPatches,
 } from '@/utils/connectionEngine';
 import {
@@ -35,6 +50,8 @@ const TICK_MS = 250;
 const TAKEOVER_MS = 5000;
 // A Run this page finds already finished and this old was left behind by a closed page, so it stops instead of going on.
 const STALE_RUN_MS = 10 * 60 * 1000;
+// The longest a page waits before starting a block warning, so one of several open pages starts it.
+const WARN_JITTER_MS = 1500;
 
 // Runs move on their own, so they're left out of the comparison.
 const sameConnections = (a: WidgetConnection[], b: WidgetConnection[]) => {
@@ -67,6 +84,29 @@ const write = (
     (c) => updated.get(c.id) ?? c
   );
   apply?.(board.id, patches, connections);
+};
+
+// A Daily Schedule's block times come from its building's rotation, so that config is read here too.
+const dueWarningFor = (
+  w: WidgetData,
+  now: number,
+  permissions: FeaturePermission[],
+  selectedBuildings: string[]
+): DueWarning | null => {
+  if (w.type !== 'specialist-schedule') {
+    return findDueWarning(w.config as unknown as ScheduleConfig, now);
+  }
+  const global = permissions.find((p) => p.widgetType === w.type)?.config as
+    SpecialistScheduleGlobalConfig | undefined;
+  const building = resolveBuildingConfig(
+    global,
+    resolveWidgetBuildingId(w, selectedBuildings)
+  );
+  return findDueSpecialistWarning(
+    w.config as unknown as SpecialistScheduleConfig,
+    building,
+    now
+  );
 };
 
 // Reads the saved-groups gate only while some Connection needs it, so most boards open no extra listener.
@@ -106,7 +146,7 @@ export const ConnectionsRunner: React.FC = () => {
     rosters,
     activeRosterId,
   } = useDashboard();
-  const { canAccessFeature } = useAuth();
+  const { canAccessFeature, featurePermissions, selectedBuildings } = useAuth();
   const enabled = canAccessFeature('widget-connections');
   const [gate, setGate] = useState({ enabled: false, ready: false });
   const groupsEnabled = gate.enabled;
@@ -119,6 +159,8 @@ export const ConnectionsRunner: React.FC = () => {
     addToast,
     t,
     roster: { rosters, activeRosterId, groupsEnabled, groupsReady },
+    featurePermissions,
+    selectedBuildings,
   });
   useLayoutEffect(() => {
     latest.current = {
@@ -128,6 +170,8 @@ export const ConnectionsRunner: React.FC = () => {
       addToast,
       t,
       roster: { rosters, activeRosterId, groupsEnabled, groupsReady },
+      featurePermissions,
+      selectedBuildings,
     };
   });
 
@@ -347,6 +391,7 @@ export const ConnectionsRunner: React.FC = () => {
   const overdueSince = useRef(new Map<string, number>());
   const advancedAt = useRef(new Map<string, number>());
   const seenSteps = useRef(new Set<string>());
+  const warnEligibleAt = useRef(new Map<string, number>());
   const staleSteps = useRef(new Set<string>());
 
   useEffect(() => {
@@ -372,6 +417,11 @@ export const ConnectionsRunner: React.FC = () => {
           if (now - (advancedAt.current.get(key) ?? 0) < TICK_MS * 2) continue;
           const seq: SequenceConnection = c;
           const run = c.run;
+          if (runOutlivedBlock(run, now)) {
+            advancedAt.current.set(key, now);
+            updated.set(c.id, { ...seq, run: null });
+            continue;
+          }
           const stepKey = `${key}:${run.stepIndex}:${run.stepStartedAt}`;
           const firstLook = !seenSteps.current.has(stepKey);
           seenSteps.current.add(stepKey);
@@ -405,7 +455,7 @@ export const ConnectionsRunner: React.FC = () => {
           const r = advanceRun(seq, widgets, now, CONNECTION_DEVICE_ID);
           updated.set(c.id, r.sequence);
           Object.assign(patches, r.patches);
-          if (r.finished) finishedAny = true;
+          if (r.finished && !run.block) finishedAny = true;
         }
         if (updated.size === 0) continue;
         write(latest.current.applyConnectionChanges, board, patches, updated);
@@ -420,6 +470,92 @@ export const ConnectionsRunner: React.FC = () => {
     const id = window.setInterval(tick, TICK_MS);
     return () => window.clearInterval(id);
   }, [anyRun]);
+
+  // A Sequence that starts with Schedule's block warning begins itself when a block is about to end.
+  const watchWarnings =
+    enabled &&
+    !!activeDashboard?.connections?.some(
+      (c) =>
+        c.kind === 'sequence' && !!warningScheduleOf(c, activeDashboard.widgets)
+    );
+
+  useEffect(() => {
+    if (!watchWarnings) return;
+    const tick = () => {
+      const board = latest.current.activeDashboard;
+      if (!board) return;
+      if (board.linkedShareRole === 'viewer' && !board.linkedShareEnded) return;
+      const widgets = engineWidgets(board, latest.current.roster);
+      if (!widgets) return;
+      const now = Date.now();
+      const patches: WidgetPatches = {};
+      const updated = new Map<string, WidgetConnection>();
+      const due = new Map<string, DueWarning | null>();
+      const fired = new Set<string>();
+      for (const c of board.connections ?? []) {
+        if (c.kind !== 'sequence' || c.run) continue;
+        const schedule = warningScheduleOf(c, widgets);
+        if (!schedule) continue;
+        if (!due.has(schedule.id)) {
+          due.set(
+            schedule.id,
+            dueWarningFor(
+              schedule,
+              now,
+              latest.current.featurePermissions,
+              latest.current.selectedBuildings
+            )
+          );
+        }
+        const warning = due.get(schedule.id);
+        if (!warning) continue;
+        // Every open page sees a warning come due at once, so each waits a random moment and re-checks the synced board first.
+        const waitKey = `${board.id}:${c.id}:${warning.key}:${new Date(now).toDateString()}`;
+        const eligibleAt = warnEligibleAt.current.get(waitKey);
+        if (eligibleAt === undefined) {
+          warnEligibleAt.current.set(
+            waitKey,
+            now + Math.random() * WARN_JITTER_MS
+          );
+          continue;
+        }
+        if (now < eligibleAt) continue;
+        const started = startRun(
+          c,
+          widgets,
+          now,
+          CONNECTION_DEVICE_ID,
+          warning.block
+        );
+        // A warning that can't start today isn't retried every moment; the day in the key lets it try again tomorrow.
+        warnEligibleAt.current.set(waitKey, Infinity);
+        if (!started) continue;
+        updated.set(c.id, started.sequence);
+        for (const [id, p] of Object.entries(started.patches)) {
+          patches[id] = { ...(patches[id] ?? {}), ...p };
+        }
+        fired.add(schedule.id);
+      }
+      if (updated.size === 0) return;
+      for (const id of fired) {
+        const schedule = widgets.find((w) => w.id === id);
+        const warning = due.get(id);
+        if (!schedule || !warning) continue;
+        patches[id] = {
+          ...(patches[id] ?? {}),
+          warningsFired: markWarningFired(
+            schedule.config as unknown as ScheduleConfig,
+            warning.key,
+            now
+          ),
+        };
+      }
+      write(latest.current.applyConnectionChanges, board, patches, updated);
+    };
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, [watchWarnings]);
 
   return enabled && needsRosterGroups(dashboards) ? (
     <RosterGroupsGateReader onChange={setGate} />

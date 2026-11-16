@@ -22425,6 +22425,40 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "widget-settings.specialist-schedule.warn-minutes",
+    "label": "Warn before the end choice in Specialist Schedule settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.specialist-schedule.face",
+        "kind": "widget",
+        "widget_type": "specialist-schedule",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.specialist-schedule.warn-sound",
+    "label": "Warning sound choice in Specialist Schedule settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.specialist-schedule.face",
+        "kind": "widget",
+        "widget_type": "specialist-schedule",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "widget-settings.specialist-schedule.save-item",
     "label": "Save item button in Specialist Schedule settings",
     "scope": "widget",
@@ -68347,6 +68381,69 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "key_pattern": "[a-z][\\w-]*#event-[1-9]\\d*-[\\w-]+",
     "key_hint": "schedule#event-1-timer for the Timer choice on the first event",
+    "routes": [
+      {
+        "surface": "widgets.schedule.settings",
+        "kind": "settings-drawer",
+        "widget_type": "schedule",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.schedule.event-warning",
+    "label": "Warn before this ends toggle for an event in Schedule settings, by event row",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "[a-z][\\w-]*#event-[1-9]\\d*",
+    "key_hint": "schedule#event-1 for the first event",
+    "routes": [
+      {
+        "surface": "widgets.schedule.settings",
+        "kind": "settings-drawer",
+        "widget_type": "schedule",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.schedule.event-warning-minutes",
+    "label": "Minutes-before-end choice for an event warning in Schedule settings, by event row",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "[a-z][\\w-]*#event-[1-9]\\d*",
+    "key_hint": "schedule#event-1 for the first event",
+    "routes": [
+      {
+        "surface": "widgets.schedule.settings",
+        "kind": "settings-drawer",
+        "widget_type": "schedule",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.schedule.event-warning-sound",
+    "label": "Warning sound choice for an event in Schedule settings, by event row",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "[a-z][\\w-]*#event-[1-9]\\d*",
+    "key_hint": "schedule#event-1 for the first event",
     "routes": [
       {
         "surface": "widgets.schedule.settings",

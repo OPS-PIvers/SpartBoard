@@ -1,6 +1,7 @@
 // What each widget can do inside a Connection (docs/adr/0002). A widget type absent here can't be connected.
 import type {
   ChecklistConfig,
+  ConnectionBlock,
   RandomConfig,
   ScheduleConfig,
   TimeToolConfig,
@@ -9,6 +10,7 @@ import type {
 import {
   clockStateOf,
   secondsAt,
+  startFreshClock,
   timeToolClockPatch,
 } from '@/utils/timeToolClock';
 import { currentShuffleName } from '@/utils/randomCurrentName';
@@ -34,7 +36,8 @@ export interface ConnectionActionDef {
   apply: (
     config: Config,
     now: number,
-    params?: Record<string, unknown>
+    params?: Record<string, unknown>,
+    block?: ConnectionBlock
   ) => ConnectionActionResult | null;
   /** Present when the step waits for this widget: true once it has finished. */
   isFinished?: (config: Config, now: number, stepStartedAt: number) => boolean;
@@ -167,6 +170,28 @@ const nextBlockStarted = (c: Config, now: number, startedAt: number) => {
   return secondsOfDay(now) >= Math.min(...starts);
 };
 
+// Plays the sound and shows the banner for the block that started this Run; its widget's own settings say when.
+const blockWarn: ConnectionActionDef = {
+  id: 'warn',
+  label: 'Warn when a block is ending',
+  apply: (_c, now, _params, block) =>
+    block
+      ? {
+          patch: {
+            warningAlert: {
+              // Same id from every open page, so a second page's copy of this warning is not shown again.
+              id: `${block.endsAt}:${block.task}`,
+              at: now,
+              task: block.task,
+              // The time actually left, so a late warning doesn't say "5 min" beside a shorter Timer.
+              minutes: Math.max(1, Math.ceil((block.endsAt - now) / 60000)),
+              sound: block.sound,
+            },
+          },
+        }
+      : { patch: {} },
+};
+
 export const WIDGET_CONNECTIONS: Partial<
   Record<WidgetType, WidgetConnectionDef>
 > = {
@@ -177,6 +202,18 @@ export const WIDGET_CONNECTIONS: Partial<
       timerAction('start', 'Resume', 'start', true),
       timerAction('pause', 'Pause', 'pause', false),
       timerAction('reset', 'Reset', 'reset', false),
+      {
+        id: 'start-to-block-end',
+        label: 'Start until the block ends',
+        apply: (_c, now, _params, block) => {
+          // Started by hand there is no block to count to, so the Run stops here instead of waiting on an idle Timer.
+          if (!block) return null;
+          const seconds = Math.max(1, Math.round((block.endsAt - now) / 1000));
+          return { patch: { ...startFreshClock(seconds, now) } };
+        },
+        waitsFor: 'end',
+        isFinished: timerFinished,
+      },
     ],
   },
   random: {
@@ -229,8 +266,10 @@ export const WIDGET_CONNECTIONS: Partial<
         isFinished: nextBlockStarted,
         waitsFor: 'next-block',
       },
+      blockWarn,
     ],
   },
+  'specialist-schedule': { defaultAction: 'warn', actions: [blockWarn] },
   'work-symbols': {
     defaultAction: 'show',
     actions: [

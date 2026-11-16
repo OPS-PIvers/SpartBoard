@@ -1,6 +1,19 @@
 import React, { useEffect, useRef } from 'react';
 import { ScheduleItem, WidgetType } from '@/types';
-import { GripVertical, Trash2, Timer, Link, CheckCircle2 } from 'lucide-react';
+import {
+  GripVertical,
+  Trash2,
+  Timer,
+  Link,
+  CheckCircle2,
+  Bell,
+} from 'lucide-react';
+import {
+  DEFAULT_WARNING,
+  WARNING_MINUTES,
+  WARNING_SOUNDS,
+} from '@/components/widgets/Schedule/blockWarning';
+import { playTimerAlert, resumeAudio } from '@/utils/timeToolAudio';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
@@ -47,6 +60,8 @@ interface SortableScheduleItemProps {
   onToggleExpand: (itemId: string) => void;
   /** Focus this row's task field on mount — set for a just-added event. */
   autoFocus?: boolean;
+  /** Show the block-warning controls (the Connections preview is on). */
+  showWarning?: boolean;
 }
 
 export const SortableScheduleItem: React.FC<SortableScheduleItemProps> =
@@ -90,6 +105,8 @@ export const SortableScheduleItem: React.FC<SortableScheduleItemProps> =
       zIndex: isDragging ? Z_INDEX.itemDragging : undefined,
     };
 
+    const showWarning = props.showWarning ?? false;
+    const warning = item.warning;
     const hasLinked = (item.linkedWidgets ?? []).length > 0;
     const todayStr = getTodayStr();
     const isOneOff = !!item.oneOffDate;
@@ -333,6 +350,34 @@ export const SortableScheduleItem: React.FC<SortableScheduleItemProps> =
           >
             <Timer className="w-3.5 h-3.5" />
           </button>
+          {showWarning && (
+            <button
+              type="button"
+              onClick={() =>
+                onUpdate(item.id, {
+                  warning: warning ? undefined : { ...DEFAULT_WARNING },
+                })
+              }
+              className={`p-1.5 rounded transition-colors shrink-0 ${
+                warning
+                  ? 'text-amber-600 bg-amber-50'
+                  : 'text-slate-300 hover:text-slate-500 hover:bg-slate-100'
+              }`}
+              title="Warn before this ends"
+              aria-label="Warn before this ends"
+              aria-pressed={!!warning}
+              {...(widgetType
+                ? tourFieldAttr(
+                    'widget-settings.schedule.event-warning',
+                    widgetType,
+                    `event-${(rowIndex ?? 0) + 1}`
+                  )
+                : {})}
+              data-tour-widget={widgetId}
+            >
+              <Bell className="w-3.5 h-3.5" />
+            </button>
+          )}
           <button
             type="button"
             onClick={() => onToggleExpand(item.id)}
@@ -355,6 +400,59 @@ export const SortableScheduleItem: React.FC<SortableScheduleItemProps> =
             <Link className="w-3.5 h-3.5" />
           </button>
         </div>
+
+        {showWarning && warning && (
+          <div className="flex items-center gap-1.5 px-2 pb-2 pl-9 text-xs text-slate-600">
+            <select
+              value={warning.minutes}
+              onChange={(e) =>
+                onUpdate(item.id, {
+                  warning: { ...warning, minutes: Number(e.target.value) },
+                })
+              }
+              aria-label="Minutes before the end"
+              {...(widgetType
+                ? tourFieldAttr(
+                    'widget-settings.schedule.event-warning-minutes',
+                    widgetType,
+                    `event-${(rowIndex ?? 0) + 1}`
+                  )
+                : {})}
+              data-tour-widget={widgetId}
+              className="min-w-0 flex-1 px-1.5 py-1 border border-slate-200 rounded-sm outline-hidden"
+            >
+              {WARNING_MINUTES.map((m) => (
+                <option key={m} value={m}>
+                  {m} min before end
+                </option>
+              ))}
+            </select>
+            <select
+              value={warning.sound ?? DEFAULT_WARNING.sound}
+              onChange={(e) => {
+                const sound = e.target.value;
+                onUpdate(item.id, { warning: { ...warning, sound } });
+                void resumeAudio().then(() => playTimerAlert(sound));
+              }}
+              aria-label="Warning sound"
+              {...(widgetType
+                ? tourFieldAttr(
+                    'widget-settings.schedule.event-warning-sound',
+                    widgetType,
+                    `event-${(rowIndex ?? 0) + 1}`
+                  )
+                : {})}
+              data-tour-widget={widgetId}
+              className="min-w-0 flex-1 px-1.5 py-1 border border-slate-200 rounded-sm outline-hidden"
+            >
+              {WARNING_SOUNDS.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Auto-launch expanded section */}
         {isExpanded && (
