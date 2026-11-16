@@ -26033,6 +26033,128 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "classes.family-link-toggle",
+    "label": "Family link switch for a Course in My Classes",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes"
+        ],
+        "opened_by": [
+          "classes.new-class",
+          "classes.new-class-empty"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.family-link-copy",
+    "label": "Copy family link button for a Course in My Classes",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes"
+        ],
+        "opened_by": [
+          "classes.new-class",
+          "classes.new-class-empty"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.family-link-deck-private",
+    "label": "Stop sharing the deck outside Orono checkbox when turning off a family link",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes"
+        ],
+        "opened_by": [
+          "classes.new-class",
+          "classes.new-class-empty"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.family-link-cancel",
+    "label": "Cancel button in the family link confirm",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes"
+        ],
+        "opened_by": [
+          "classes.new-class",
+          "classes.new-class-empty"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.family-link-confirm",
+    "label": "Turn on or off button in the family link confirm",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes"
+        ],
+        "opened_by": [
+          "classes.new-class",
+          "classes.new-class-empty"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
     "id": "classes.edit-roster",
     "label": "Edit class button in My Classes",
     "scope": "field",

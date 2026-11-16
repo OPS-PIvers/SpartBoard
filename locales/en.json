@@ -6448,6 +6448,40 @@
     "linking": {
       "sectionCount_one": "{{count}} section",
       "sectionCount_other": "{{count}} sections"
+    },
+    "family": {
+      "label": "Family link",
+      "copy": "Copy link",
+      "copied": "Copied",
+      "saving": "Saving",
+      "cancel": "Cancel",
+      "confirmOn": {
+        "title": "Turn on the family link?",
+        "body": "Anyone with the link can see this course's agenda and links without signing in.",
+        "deck": "Every slide in the agenda deck, past days included, becomes public.",
+        "action": "Turn on"
+      },
+      "confirmOff": {
+        "title": "Turn off the family link?",
+        "body": "The link stops working until you turn it on again. The address stays the same.",
+        "unshare": "Also stop sharing the deck outside Orono",
+        "action": "Turn off"
+      },
+      "problem": {
+        "noDrive": "Sign in to Google Drive again, then turn it on.",
+        "shareFailed": "Google didn't allow sharing the deck outside Orono. The link is still off.",
+        "stale": "This course changed in another tab. Try again.",
+        "saveFailed": "Couldn't save. Try again.",
+        "stillPublic": "The link is off, but the deck is still public. Change its sharing in Google Slides.",
+        "unshareFailed": "The link is off, but the deck's sharing didn't change. Change it in Google Slides."
+      },
+      "page": {
+        "agenda": "Agenda",
+        "links": "Links",
+        "openInSlides": "Open in Google Slides",
+        "loading": "Loading",
+        "unavailable": "This page isn't available right now"
+      }
     }
   }
 }
