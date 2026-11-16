@@ -30,10 +30,10 @@ import {
   parseRun,
   parseSetId,
   startHostOf,
-  trustedUidForEmail,
   verifyCaller,
   type ExtensionDeps,
 } from './webTourExtension';
+import { trustedUidForEmail } from './trustedSignIn';
 
 const CLIENT = 'client-123.apps.googleusercontent.com';
 
@@ -167,36 +167,23 @@ describe('verifyCaller', () => {
     );
     expect(caller.uid).toBeNull();
   });
-});
 
-describe('trustedUidForEmail', () => {
-  const EMAIL = 'teacher@orono.k12.mn.us';
-  const lookup = (user: object | Error) =>
+  it('gives a password-only account registered with the address no uid', async () => {
     vi.mocked(firebaseAdmin.auth).mockReturnValue({
       getUserByEmail: () =>
-        user instanceof Error ? Promise.reject(user) : Promise.resolve(user),
+        Promise.resolve({
+          uid: 'attacker',
+          emailVerified: true,
+          providerData: [
+            { providerId: 'password', email: 'teacher@orono.k12.mn.us' },
+          ],
+        }),
     } as never);
-  const google = [{ providerId: 'google.com', email: EMAIL }];
-
-  it('returns the uid only for an enabled, verified Google account at that address', async () => {
-    lookup({ uid: 'u1', emailVerified: true, providerData: google });
-    expect(await trustedUidForEmail(EMAIL)).toBe('u1');
-  });
-
-  it('ignores password-only, unverified, disabled and missing accounts', async () => {
-    for (const user of [
-      {
-        uid: 'x',
-        emailVerified: true,
-        providerData: [{ providerId: 'password', email: EMAIL }],
-      },
-      { uid: 'x', emailVerified: false, providerData: google },
-      { uid: 'x', emailVerified: true, disabled: true, providerData: google },
-      new Error('user-not-found'),
-    ]) {
-      lookup(user);
-      expect(await trustedUidForEmail(EMAIL)).toBeNull();
-    }
+    const caller = await verifyCaller(
+      't',
+      deps({ uidForEmail: trustedUidForEmail })
+    );
+    expect(caller.uid).toBeNull();
   });
 });
 

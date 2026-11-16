@@ -15,7 +15,7 @@
  *   needs the Admin SDK. `recursiveDelete` also has no client equivalent.
  *
  * WHAT IT DELETES
- *   `/users/{uid}` and all 31 subcollections, Storage under `users/{uid}/`,
+ *   `/users/{uid}` and all 31 subcollections, `/verified_classes/{uid}`, Storage under `users/{uid}/`,
  *   `/admins/{email}`, the Firebase Auth record, and the member doc (last, so
  *   a retry after a partial failure still resolves its target).
  *
@@ -347,6 +347,7 @@ export const deleteOrganizationUser = onCall(
 
     if (uid) {
       await db.recursiveDelete(db.doc(`users/${uid}`));
+      await db.doc(`verified_classes/${uid}`).delete();
       try {
         await admin
           .storage()
