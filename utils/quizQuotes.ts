@@ -26,3 +26,7 @@ export function buildQuoteNodes(
   span.textContent = quote.text;
   return [doc.createTextNode('“'), span, doc.createTextNode('” ')];
 }
+
+/** True when a response snapshot contains a passage quote. */
+export const hasPassageQuotes = (snapshot: string): boolean =>
+  snapshot.includes(`${QUOTE_ATTR}=`);
