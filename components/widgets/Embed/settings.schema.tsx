@@ -42,9 +42,7 @@ const schema = defineSettings<EmbedConfig>({
           type: 'toggle',
           label: 'blockNewTabsLabel',
           help: 'blockNewTabsHelp',
-          visibleWhen: (ctx) =>
-            ctx.config.mode !== 'code' &&
-            ctx.canAccessFeature('embed-block-new-tabs'),
+          visibleWhen: (ctx) => ctx.canAccessFeature('embed-block-new-tabs'),
         },
       ],
     },

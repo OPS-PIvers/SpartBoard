@@ -275,6 +275,36 @@ describe('EmbedWidget', () => {
     expect(sandbox).toContain('allow-same-origin');
   });
 
+  it('reloads the frame with the new sandbox when Block new tabs flips', () => {
+    const { rerender } = render(<EmbedWidget widget={baseWidget} />);
+    const before = screen.getByTitle('Embed Content');
+    rerender(
+      <EmbedWidget
+        widget={{
+          ...baseWidget,
+          config: { ...baseWidget.config, blockNewTabs: true },
+        }}
+      />
+    );
+    const after = screen.getByTitle('Embed Content');
+    expect(after).not.toBe(before);
+    expect(after.getAttribute('sandbox')).not.toContain('allow-popups');
+  });
+
+  it('drops allow-popups from custom code when Block new tabs is on', () => {
+    render(
+      <EmbedWidget
+        widget={{
+          ...baseWidget,
+          config: { mode: 'code', html: '<p>x</p>', blockNewTabs: true },
+        }}
+      />
+    );
+    expect(screen.getByTitle('Embed Content').getAttribute('sandbox')).toBe(
+      'allow-scripts allow-forms'
+    );
+  });
+
   it('ignores Block new tabs when its preview flag is off', () => {
     const original = vi.mocked(useAuth).getMockImplementation();
     const auth = vi.mocked(useAuth)();
