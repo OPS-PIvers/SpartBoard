@@ -987,7 +987,10 @@ describe('linkClassroomCourse (course-squatting fix)', () => {
       status: 200,
       isTeacher: true,
     });
-    gradeSyncDocs.set('verified_classes/teacher-1', { ids: [], classlinkAt: 1 });
+    gradeSyncDocs.set('verified_classes/teacher-1', {
+      ids: [],
+      classlinkAt: 1,
+    });
 
     await callLink({
       data: { ...linkData, classlinkClassId: undefined },
