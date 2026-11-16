@@ -28,6 +28,7 @@ import { engineWidgets } from '@/utils/connectionRosterView';
 import {
   advanceRun,
   isStepFinished,
+  runOutlivedBlock,
   startRun,
   joinRunByHand,
   liveSteps,
@@ -416,6 +417,11 @@ export const ConnectionsRunner: React.FC = () => {
           if (now - (advancedAt.current.get(key) ?? 0) < TICK_MS * 2) continue;
           const seq: SequenceConnection = c;
           const run = c.run;
+          if (runOutlivedBlock(run, now)) {
+            advancedAt.current.set(key, now);
+            updated.set(c.id, { ...seq, run: null });
+            continue;
+          }
           const stepKey = `${key}:${run.stepIndex}:${run.stepStartedAt}`;
           const firstLook = !seenSteps.current.has(stepKey);
           seenSteps.current.add(stepKey);

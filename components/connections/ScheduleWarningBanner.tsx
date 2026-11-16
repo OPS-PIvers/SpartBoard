@@ -70,8 +70,12 @@ export const ScheduleWarningBanner: React.FC = () => {
   const shownId = shown?.id;
 
   useEffect(() => {
-    if (!shownId || soundBlocked) return;
-    const id = window.setTimeout(() => setShown(null), SHOW_MS);
+    if (!shownId) return;
+    // A blocked sound keeps the banner up longer so someone can enable it, but an unattended board still clears.
+    const id = window.setTimeout(
+      () => setShown(null),
+      soundBlocked ? SHOW_MS * 6 : SHOW_MS
+    );
     return () => window.clearTimeout(id);
   }, [shownId, soundBlocked]);
 

@@ -9,6 +9,7 @@ import {
   isStepFinished,
   joinRunByHand,
   liveConnections,
+  runOutlivedBlock,
   sharesFollowSlot,
   startRun,
   warningScheduleOf,
@@ -493,6 +494,25 @@ describe('block warning Sequence', () => {
       startTime: 1_000_000,
     });
     expect(started?.sequence.run?.block).toEqual(block);
+  });
+
+  it('gives the alert the same id on every open page', () => {
+    const widgets = [schedule, timer('t', 60)];
+    const a = startRun(seq(), widgets, 1_000_000, 'dev-a', block);
+    const b = startRun(seq(), widgets, 1_000_700, 'dev-b', block);
+    const idOf = (r: typeof a) =>
+      (r?.patches.s as { warningAlert?: { id: string } }).warningAlert?.id;
+    expect(idOf(a)).toBeDefined();
+    expect(idOf(a)).toBe(idOf(b));
+  });
+
+  it('ends a Run once its block is over, even if the Timer was paused', () => {
+    const widgets = [schedule, timer('t', 60)];
+    const started = startRun(seq(), widgets, 1_000_000, 'dev', block);
+    const run = started?.sequence.run;
+    expect(runOutlivedBlock(run, block.endsAt - 1000)).toBe(false);
+    expect(runOutlivedBlock(run, block.endsAt + 10_000)).toBe(true);
+    expect(runOutlivedBlock({ stepIndex: 0 } as never, 9e15)).toBe(false);
   });
 
   it('never loops back to the start, even when set to repeat', () => {

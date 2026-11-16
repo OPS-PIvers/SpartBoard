@@ -179,7 +179,8 @@ const blockWarn: ConnectionActionDef = {
       ? {
           patch: {
             warningAlert: {
-              id: `${now}`,
+              // Same id from every open page, so a second page's copy of this warning is not shown again.
+              id: `${block.endsAt}:${block.task}`,
               at: now,
               task: block.task,
               // The time actually left, so a late warning doesn't say "5 min" beside a shorter Timer.

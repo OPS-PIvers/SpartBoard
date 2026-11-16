@@ -113,6 +113,14 @@ export const applyStep = (
   return { patches, blocked: false, ends };
 };
 
+const BLOCK_END_GRACE_MS = 5000;
+
+// A paused or removed Timer never finishes, so a Run started by a block ends with the block.
+export const runOutlivedBlock = (
+  run: { block?: { endsAt: number } } | null | undefined,
+  now: number
+): boolean => !!run?.block && now >= run.block.endsAt + BLOCK_END_GRACE_MS;
+
 export const isStepFinished = (
   step: ConnectionStep,
   widgets: WidgetData[],
