@@ -11,6 +11,8 @@ const course = (id: string, rosterIds: string[]): Course => ({
   familyLink: null,
   teacherName: 'T',
   linkId: `link-${id}`,
+  formerLinkIds: [],
+  formerShareIds: [],
   rosterClassIds: {},
   deckCheck: null,
   createdAt: 0,
