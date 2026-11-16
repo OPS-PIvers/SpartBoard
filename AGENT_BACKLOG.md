@@ -236,6 +236,15 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
   <details><summary>Branches to delete (178, checked 2026-11-01)</summary>
 
+nightly/debugger-log-2026-11-16 (#5939)
+nightly/build-2026-11-16 (#5938)
+nightly/admin-2026-11-16 (#5937)
+nightly/dashboard-2026-11-16 (#5936)
+nightly/widgets-2026-11-16 (#5935)
+nightly/unifier-log-2026-11-16 (#5934)
+claude/spartboard-feature-gaps-ki7ih8 (#5924)
+feat/schedule-block-warnings (#5955)
+claude/project-thread-gq0s35 (PR sweep 2026-11-16 docs PR, delete after it merges)
 claude/project-thread-tnwgwz (#5956)
 claude/project-thread-tnwgwz-ab112 (this docs PR, delete after it merges)
 claude/project-thread-djnott (#5949; this docs PR reuses it, delete after it merges)
