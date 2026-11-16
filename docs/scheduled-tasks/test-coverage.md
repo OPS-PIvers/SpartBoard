@@ -3,8 +3,10 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Monday_
-_Last audited: 2026-11-11_
+_Last audited: 2026-11-16_
 _Last action: 2026-10-19 — Claude MCP connector: added `functions/src/mcp/tools.test.ts` (34 tests); the HIGH item is resolved and moved to Completed. Prior: 2026-10-12 — `quizTools.test.ts`; 2026-10-05 — `videoTools.test.ts`; 2026-09-28 — auth gate, write-budget/revision infra._
+
+_2026-11-16: Weekly audit (Monday). `pnpm test --run` hit the 590s sandbox timeout; 979 test files had reported pass and no failure lines appeared before the cut-off, so no HIGH failure confirmed (run incomplete). Approximately 201 files in utils/ and hooks/ have no matching test file by name; the existing Open items already track the main gaps. 0 new issues._
 
 _2026-11-11: Weekly audit (Wednesday). `pnpm test`: 2327 files, 25007 passed, 5 skipped, 0 failures. Gaps fall under existing Open families. 0 new issues._
 

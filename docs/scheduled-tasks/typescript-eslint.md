@@ -3,8 +3,10 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-11-15_
+_Last audited: 2026-11-16_
 _Last action: never_
+
+_2026-11-16: Daily audit (Monday). `pnpm type-check` exit 0 with no errors. `pnpm lint`: `lint:app` completed cleanly; `lint:functions` hit the 590s sandbox timeout so `lint:extension` did not run. Lint result for functions/extension is therefore unverified this run. 0 new issues._
 
 _2026-11-15: Daily audit (Sunday). After merging `origin/dev-paul`: `pnpm type-check` exit 0; `pnpm lint` (app, functions, extension) exit 0 with `--max-warnings 0`. 0 new issues._
 

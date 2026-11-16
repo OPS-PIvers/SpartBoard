@@ -3,8 +3,10 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-11-13_
+_Last audited: 2026-11-16_
 _Last action: 2026-05-01_
+
+_2026-11-16: Weekly audit (Monday). `Object.assign({}, defaults.config` no longer appears in DashboardContext.tsx (0 matches). `as unknown as` count across components/context/hooks/utils (non-test) is 234 and `as WidgetConfig` is 11; classification not redone this run. 0 new issues._
 
 _2026-11-11: Weekly audit (Wednesday, light pass). `Object.assign` defaults pattern in `DashboardContext.tsx`: 0 (extracted to `utils/adminBuildingConfig.ts`). `as unknown as` across components/context/hooks/utils: 1138. Existing Open items unchanged. 0 new issues._
 

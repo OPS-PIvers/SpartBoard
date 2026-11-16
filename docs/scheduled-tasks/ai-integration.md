@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-11-13_
+_Last audited: 2026-11-16_
 _Last action: 2026-10-30 — MEDIUM `transcribeVideoWithGemini` kill-switch gap verified already fixed in code; moved to Completed (journal only). Prior: 2026-09-18 — MEDIUM per-feature AI permission enforcement gap resolved: `generateWithAI`'s `specificFeatureId` branch now enforces `enabled`/`accessLevel`/`betaUsers` server-side, mirroring the existing global `gemini-functions` check, so a disabled/admin-only/beta-restricted feature (e.g. `embed-mini-app`) can no longer be reached by calling the Cloud Function directly. Moved to Completed._
 
 ---
@@ -25,6 +25,8 @@ _Last action: 2026-10-30 — MEDIUM `transcribeVideoWithGemini` kill-switch gap 
 | `transcription`            | `transcribeVideoWithGemini` | utils/ai.ts `transcribeVideoWithGemini`             | per-function rate limit                    | ✓                  | ✓                  | feature perm checked                                                                           |
 | `guided-learning`          | `generateGuidedLearning`    | GuidedLearning/components/GuidedLearningAIGenerator | None — admin-exempt by design (documented) | ✓                  | ✓                  | `isAdmin` check in Widget.tsx (not perm)                                                       |
 | `video-activity-recommend` | `generateWithAI`            | utils/ai.ts `recommendVideoForActivity`             | global only                                | ✓                  | ✓                  | ✗ **AIData interface gap (see LOW item)**                                                      |
+
+_2026-11-16: Weekly audit (Monday). Light check only. Gemini model strings in functions/src include `gemini-3.5-flash-lite`, `gemini-3.7-flash`, `gemini-3.8-flash` and `gemini-2.5-*`; the grep also hits comments and test fixtures, so a per-generation-type consistency check was not completed. 0 new issues._
 
 _2026-11-09: Weekly audit (Monday), light pass. No hard-coded model strings in `functions/src` outside `aiModels.ts`/`aiModelConfig.ts`; 24 integration entries in `aiIntegrations.ts`; no widget Settings hand-parse AI responses. Tracked Open items not re-verified. 0 new issues._
 
