@@ -183,7 +183,7 @@ export const StudentLandingLayout: React.FC<StudentLandingLayoutProps> = ({
 
       <div className="relative flex min-h-0 flex-1">
         <StudentBrandBackdrop fixed={false} />
-        <aside className="relative hidden w-64 shrink-0 overflow-y-auto border-r border-slate-200 bg-white p-3 pb-6 min-[896px]:block">
+        <aside className="relative hidden w-64 shrink-0 overflow-y-auto border-r border-slate-200 bg-white/60 p-3 pb-6 min-[896px]:block">
           {classList}
         </aside>
         <main

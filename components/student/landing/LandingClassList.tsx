@@ -24,7 +24,7 @@ const TONE: Record<'now' | 'missing' | 'plain', string> = {
 
 const rowClass = (active: boolean): string =>
   `flex w-full min-h-[48px] items-center gap-3 rounded-xl px-2.5 py-2 text-left transition focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
-    active ? 'bg-slate-100' : 'hover:bg-slate-50'
+    active ? 'bg-brand-blue-lighter' : 'hover:bg-slate-900/5'
   }`;
 
 /** D21: a class-colour square with the period, the name, and one plain line. */
