@@ -2248,6 +2248,8 @@
       "refresh5Min": "Every 5 Minutes",
       "refreshDisabled": "Disabled",
       "refreshIntervalLabel": "Auto-Refresh",
+      "blockNewTabsLabel": "Block new tabs",
+      "blockNewTabsHelp": "Links inside the page stop working.",
       "urlLabel": "Target URL",
       "verifyBlockedFallback": "Embedding is blocked by this site.",
       "verifyBlockedFallbackNote": "It will open in a new tab.",

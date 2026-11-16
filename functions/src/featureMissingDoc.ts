@@ -61,6 +61,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'document-camera-pro',
   'whiteboard-pro',
   'music-my-songs',
+  'embed-block-new-tabs',
   'widget-connections',
   'focus-sessions',
   'input-signals',
