@@ -9,6 +9,7 @@ import type {
 } from '@/types';
 import { EditorWorkspace } from '@/components/common/EditorWorkspace';
 import { FolderSelectField } from '@/components/common/library/FolderSelectField';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { tourAttr } from '@/config/tourAnchors';
 import { rubricMaxPoints } from '@/utils/rubricPoints';
@@ -306,6 +307,7 @@ export const WritingEditorModal: React.FC<WritingEditorModalProps> = ({
       titlePlaceholder="Writing assignment title"
       tourScope="writing"
       saveAnchor={tourAttr('writing-editor.save')}
+      headerAccent={LIBRARY_HEADER_ACCENTS.writing}
       headerExtras={
         <FolderSelectField
           variant="header"
