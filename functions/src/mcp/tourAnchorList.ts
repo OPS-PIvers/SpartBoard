@@ -50136,13 +50136,37 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "flashcards.card-term",
     "label": "Term box on a card in the Flashcards editor",
     "scope": "field",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
   },
   {
     "id": "flashcards.card-definition",
     "label": "Definition box on a card in the Flashcards editor",
     "scope": "field",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
   },
   {
     "id": "flashcards.card-term-alternate",
@@ -50184,13 +50208,37 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "flashcards.card-term-image",
     "label": "Add image button on a term in the Flashcards editor",
     "scope": "field",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
   },
   {
     "id": "flashcards.card-definition-image",
     "label": "Add image button on a definition in the Flashcards editor",
     "scope": "field",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
   },
   {
     "id": "flashcards.card-insert",
