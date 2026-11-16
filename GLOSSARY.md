@@ -61,7 +61,7 @@ How students fill the blanks of a fill-in-the-blank question: Typed, Dropdown (p
 _Avoid_: choice blank, cloze, inline choice, gap match
 
 **Stimulus tab**:
-One named source (a reading, picture, PDF or calculator) in the panel beside a question, shown as a tab when the question has two or more.
+One named source (a reading, picture, PDF or calculator) in the panel beside a question or a Writing assignment, shown as a tab when there are two or more.
 _Avoid_: source tab, passage tab
 
 **Explanation**:
@@ -77,11 +77,11 @@ A teacher trying a quiz themselves as a student would see it. Nothing they do is
 _Avoid_: preview (alone), test mode
 
 **Live view**:
-A teacher looking at one student's in-progress attempt as it happens, redrawn from what the student has saved rather than a picture of their screen. The teacher can't change anything, and the student isn't told unless the teacher or the district chooses.
+A teacher looking at one student's in-progress quiz attempt or Writing assignment as it happens, redrawn from what the student has saved rather than a picture of their screen. The teacher can't change anything, and the student isn't told unless the teacher or the district chooses.
 _Avoid_: watch, observe, screen share, mirror, View as student (that is the admin tool)
 
 **Nudge**:
-A brief colored border on a student's quiz, sent by the teacher from Live view to get their attention, with an optional short note from a fixed list.
+A brief colored border on a student's quiz or Writing assignment, sent by the teacher from Live view to get their attention, with an optional short note from a fixed list.
 _Avoid_: ping, alert, message, buzz
 
 **Package file**:
@@ -113,8 +113,24 @@ A piece of writing a teacher assigns that students write in SpartBoard, over one
 _Avoid_: writing task, essay, Google assignment (that is a Drive file copied per student)
 
 **Writing record**:
-What SpartBoard keeps about how a piece was written: every edit, so it can be played back, and a summary of time spent, sittings, pastes and time away from the tab. It states facts and never judges the student.
+What SpartBoard keeps about how a piece was written: every edit, so it can be played back, and a summary of time spent, Writing sessions, pastes, text added without typing and time away from the tab. It states facts and never judges the student.
 _Avoid_: keystroke log, input signals, integrity report, surveillance
+
+**Writing session**:
+One stretch of writing on a piece with no gap longer than 15 minutes. A Writing record counts them.
+_Avoid_: sitting, session (alone; that is a student activity)
+
+**Turn in**:
+A student handing a Writing assignment to the teacher, which locks it. Quizzes and Projects are submitted, not turned in.
+_Avoid_: submit (for writing), hand in
+
+**Take back**:
+A student unlocking their own turned-in Writing assignment to keep writing, allowed until the due date passes or the teacher has left feedback.
+_Avoid_: unsubmit, withdraw
+
+**Return**:
+A teacher giving turned-in writing back with its feedback and grade. Return keeps it locked; Return for revision unlocks it for another draft.
+_Avoid_: reopen (that is Projects and quizzes), send back
 
 **Focus mode**:
 The protections a teacher can switch on for an assigned activity: blocking copy and paste, and counting time away from the tab. It never means the Writing record.
