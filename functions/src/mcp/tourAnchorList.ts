@@ -813,6 +813,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "countdown#countToday",
       "countdown#includeWeekends",
       "drawing#shapeFill",
+      "embed#blockNewTabs",
       "flashcards#presentShuffle",
       "focus#hideNames",
       "lunchCount#isManualMode",

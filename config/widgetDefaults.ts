@@ -193,7 +193,13 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
   embed: {
     w: 640,
     h: 480,
-    config: { url: '', mode: 'url', html: '', refreshInterval: 0 },
+    config: {
+      url: '',
+      mode: 'url',
+      html: '',
+      refreshInterval: 0,
+      blockNewTabs: false,
+    },
   },
   poll: {
     w: 320,

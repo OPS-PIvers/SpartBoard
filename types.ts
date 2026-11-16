@@ -2387,6 +2387,8 @@ export interface EmbedConfig {
   autoplay?: boolean;
   /** Start playback at this offset (seconds). YouTube only — Drive's /preview iframe ignores it. */
   startAtSeconds?: number;
+  /** Drops `allow-popups` from the iframe sandbox so taps can't open new tabs. */
+  blockNewTabs?: boolean;
 }
 
 export interface BuildingPollDefaults {
@@ -11397,6 +11399,8 @@ export type GlobalFeature =
   | 'flashcards-speak'
   /** Teachers add their own YouTube songs to the Music widget's station list. */
   | 'music-my-songs'
+  /** Embed widget setting that stops the embedded page from opening new tabs. */
+  | 'embed-block-new-tabs'
   /** Connect button on widget toolbars: Sequences and Follows between widgets (docs/adr/0002). */
   | 'widget-connections'
   /** Copy, paste and print blocking and fullscreen on quiz and video activity pages (CHROME_EXTENSION.md F14). */
