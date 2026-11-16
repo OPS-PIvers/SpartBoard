@@ -90,6 +90,7 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'shared',
     files: [
       'components/common/library/PublishScoresModal.tsx',
+      'components/common/library/PublishInProgressDialog.tsx',
       'components/common/library/ResultsProtectionFieldset.tsx',
     ],
   },

@@ -14124,6 +14124,18 @@ export const TOUR_ANCHORS = {
     panel: true,
     persists: true,
   },
+  'publish-in-progress.cancel': {
+    label: 'Cancel button in the in-progress publish check',
+    panel: true,
+  },
+  'publish-in-progress.end-and-publish': {
+    label: 'End and publish button in the in-progress publish check',
+    panel: true,
+  },
+  'publish-in-progress.confirm': {
+    label: 'Confirm button in the in-progress publish check',
+    panel: true,
+  },
   'override-row.toggle': {
     label: 'Student row header in the override editor',
     panel: true,
