@@ -21,6 +21,7 @@ import {
 } from '@/types';
 import { gradeAnswer, paperTranscriptFor } from '@/hooks/useQuizSession';
 import { DRIVE_APP_FOLDER } from '@/config/devProject';
+import { DevProdDriveWriteError } from './devDriveWriteGuard';
 import { authError } from './driveAuthErrors';
 import {
   buildResultsSheetData as buildResultsSheetDataShared,
@@ -232,6 +233,27 @@ export class QuizDriveService {
     return this.getOrCreateFolder(QUIZ_FOLDER_NAME, appFolderId);
   }
 
+  // On dev, a file synced from the live site can't be written, so the save makes a dev copy and the caller repoints to it.
+  private async patchExisting(
+    fileId: string,
+    content: string
+  ): Promise<boolean> {
+    try {
+      const res = await fetch(
+        `${UPLOAD_API_URL}/files/${fileId}?uploadType=media`,
+        {
+          method: 'PATCH',
+          headers: { ...this.authHeaders, 'Content-Type': 'application/json' },
+          body: content,
+        }
+      );
+      return res.ok;
+    } catch (err) {
+      if (err instanceof DevProdDriveWriteError) return false;
+      throw err;
+    }
+  }
+
   // ─── Quiz CRUD ──────────────────────────────────────────────────────────────
 
   /**
@@ -251,15 +273,8 @@ export class QuizDriveService {
 
     // Try to update existing file
     if (existingFileId) {
-      const updateRes = await fetch(
-        `${UPLOAD_API_URL}/files/${existingFileId}?uploadType=media`,
-        {
-          method: 'PATCH',
-          headers: { ...this.authHeaders, 'Content-Type': 'application/json' },
-          body: content,
-        }
-      );
-      if (updateRes.ok) return existingFileId;
+      const updated = await this.patchExisting(existingFileId, content);
+      if (updated) return existingFileId;
       // Fall through to create if update fails (e.g., file deleted from Drive)
     }
 
@@ -370,15 +385,8 @@ export class QuizDriveService {
     const content = JSON.stringify(payload, null, 2);
 
     if (existingFileId) {
-      const updateRes = await fetch(
-        `${UPLOAD_API_URL}/files/${existingFileId}?uploadType=media`,
-        {
-          method: 'PATCH',
-          headers: { ...this.authHeaders, 'Content-Type': 'application/json' },
-          body: content,
-        }
-      );
-      if (updateRes.ok) return existingFileId;
+      const updated = await this.patchExisting(existingFileId, content);
+      if (updated) return existingFileId;
     }
 
     const existingRes = await fetch(

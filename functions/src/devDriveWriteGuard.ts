@@ -55,6 +55,14 @@ export class DevProdDriveWriteError extends Error {
   }
 }
 
+// Drive couldn't say where the file is, so the write is refused without claiming it is a prod file.
+export class DevDriveCheckError extends Error {
+  constructor() {
+    super('Could not check this Drive file. Try again.');
+    this.name = 'DevDriveCheckError';
+  }
+}
+
 function hrefOf(input: string | URL | Request): string {
   if (typeof input === 'string') return input;
   return input instanceof URL ? input.href : input.url;
@@ -230,13 +238,13 @@ export function installDevDriveWriteGuard(
       await rememberNewFile(res, authHeader(input, init));
       return res;
     }
-    let ok = false;
+    let ok: boolean;
     try {
       ok = await canWrite(fileId, authHeader(input, init));
     } catch (err) {
       // An expired token fails the write itself too, and the caller's refresh-on-401 needs to see it.
       if (err instanceof MetadataAuthError) return original(input, init);
-      ok = false;
+      throw new DevDriveCheckError();
     }
     if (!ok) throw new DevProdDriveWriteError();
     return original(input, init);
