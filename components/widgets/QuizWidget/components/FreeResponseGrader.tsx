@@ -1376,7 +1376,6 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   }, [advance]);
 
   const handlePointsKeyDown = useCallback(
-    // eslint-disable-next-line react-hooks/preserve-manual-memoization -- deps kept as written
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key !== 'Enter') return;
       e.preventDefault();
@@ -1389,10 +1388,10 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
       commitDraft(false);
       arm();
     },
-    // eslint-disable-next-line react-hooks/preserve-manual-memoization -- deps kept as written
     [cancelPendingWrite, complete, commitDraft, arm]
   );
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- deps kept as written
   const handleUndoExcuse = useCallback(async () => {
     if (!onClearGrade || !target || !responseKey) return;
     setClearing(true);
@@ -2137,51 +2136,6 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                         {tg('timedOutUnderMinimum')}
                       </span>
                     )}
-                    <div className="ml-auto flex items-center gap-1 self-center">
-                      {studentAnswer &&
-                        !showPlayback &&
-                        hasPassageQuotes(snapshotForList) && (
-                          <ShowQuotesButton
-                            pressed={showQuotes}
-                            onToggle={() => setShowQuotes((v) => !v)}
-                          />
-                        )}
-                      {writingPlayback && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setPlaybackOpenKey(showPlayback ? null : targetKey)
-                          }
-                          aria-pressed={showPlayback}
-                          title="Replay how this answer was written"
-                          {...tourTypeAttr(
-                            'quiz-grading.writing-playback',
-                            'quiz'
-                          )}
-                          className={`touch-target-expand relative inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-xs font-semibold transition-colors ${
-                            showPlayback
-                              ? 'bg-brand-blue-primary/10 text-brand-blue-dark'
-                              : 'text-brand-blue-primary hover:bg-slate-200 hover:text-brand-blue-dark'
-                          }`}
-                        >
-                          <History aria-hidden className="h-3.5 w-3.5" />
-                          {showPlayback ? 'Back to answer' : 'Playback'}
-                        </button>
-                      )}
-                      {studentAnswer && (
-                        <CopyTextButton
-                          html={snapshotForList}
-                          label={tg('copyResponse')}
-                          copiedLabel={tg('copied')}
-                          caption={tg('copy')}
-                          anchor={tourTypeAttr(
-                            'quiz-grading.copy-response',
-                            'quiz'
-                          )}
-                          className="touch-target-expand relative inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-xs font-semibold text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-700 disabled:opacity-30"
-                        />
-                      )}
-                    </div>
                   </div>
                 )}
                 {showPlayback && writingPlayback ? (
@@ -2207,6 +2161,55 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                 ) : isPaperAnswer ? null : (
                   <div className="rounded-lg border border-slate-200 bg-white p-5 text-sm italic text-slate-500">
                     {tg('noTextAnswer')}
+                  </div>
+                )}
+                {(studentAnswer || writingPlayback) && (
+                  <div className="-mt-2 flex flex-wrap items-center justify-end gap-1">
+                    {studentAnswer &&
+                      !showPlayback &&
+                      hasPassageQuotes(snapshotForList) && (
+                        <ShowQuotesButton
+                          pressed={showQuotes}
+                          onToggle={() => setShowQuotes((v) => !v)}
+                        />
+                      )}
+                    {writingPlayback && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPlaybackOpenKey(showPlayback ? null : targetKey)
+                        }
+                        aria-pressed={showPlayback}
+                        title={tg('writingPlaybackHint')}
+                        {...tourTypeAttr(
+                          'quiz-grading.writing-playback',
+                          'quiz'
+                        )}
+                        className={`touch-target-expand relative inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-xs font-semibold transition-colors ${
+                          showPlayback
+                            ? 'bg-brand-blue-primary/10 text-brand-blue-dark'
+                            : 'text-brand-blue-primary hover:bg-slate-200 hover:text-brand-blue-dark'
+                        }`}
+                      >
+                        <History aria-hidden className="h-3.5 w-3.5" />
+                        {showPlayback
+                          ? tg('backToAnswer')
+                          : tg('writingPlayback')}
+                      </button>
+                    )}
+                    {studentAnswer && (
+                      <CopyTextButton
+                        html={snapshotForList}
+                        label={tg('copyResponse')}
+                        copiedLabel={tg('copied')}
+                        caption={tg('copy')}
+                        anchor={tourTypeAttr(
+                          'quiz-grading.copy-response',
+                          'quiz'
+                        )}
+                        className="touch-target-expand relative inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-xs font-semibold text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-700 disabled:opacity-30"
+                      />
+                    )}
                   </div>
                 )}
                 {showBackTranslation && (

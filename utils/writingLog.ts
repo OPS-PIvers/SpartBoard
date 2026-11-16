@@ -1,3 +1,5 @@
+const oneBreak = (s: string) => s.replace(/\n+/g, '\n');
+
 /** All the edit logs on one response share this many bytes, about 6,000 words of typing. */
 export const WRITING_LOG_BUDGET = 200_000;
 /** One answer's log can use the whole budget. */
@@ -8,7 +10,8 @@ const encoder = new TextEncoder();
 export const utf8Length = (s: string): number => encoder.encode(s).length;
 const END_MARK = '!';
 
-export type WritingEditKind = 'typed' | 'pasted' | 'sync' | 'restored';
+export type WritingEditKind =
+  'typed' | 'pasted' | 'sync' | 'restored' | 'format';
 
 export interface WritingEdit {
   /** Ms since the edit before it. */
@@ -18,7 +21,7 @@ export interface WritingEdit {
   del: number;
   /** Text put in at `pos`. */
   ins: string;
-  /** `restored` is text already in the box when the page loaded; `sync` is text that changed mid-page with no typing or paste event. */
+  /** `restored` is text already in the box when the page loaded; `sync` is text that changed mid-page with no typing or paste event; `format` re-spaces line breaks from an older recorder. */
   kind: WritingEditKind;
 }
 
@@ -57,6 +60,7 @@ const KIND_MARK: Record<WritingEditKind, string> = {
   pasted: 'P',
   sync: 'S',
   restored: 'R',
+  format: 'F',
 };
 const escapeText = (s: string) =>
   s.replace(
@@ -126,7 +130,9 @@ export function parseWritingLog(log: unknown): ParsedWritingLog {
           ? 'sync'
           : token[0] === 'R'
             ? 'restored'
-            : 'typed';
+            : token[0] === 'F'
+              ? 'format'
+              : 'typed';
     const body = kind === 'typed' ? token : token.slice(1);
     const short = /^([0-9a-z]+):(.*)$/s.exec(body);
     const parts = short ? [short[1], '', '', short[2]] : body.split(',');
@@ -194,11 +200,14 @@ export class WritingLogWriter {
   private log: string;
   private bytes: number;
   private started = false;
+  /** The base log came from the recorder that doubled paragraph breaks. */
+  private legacy: boolean;
 
   constructor(base: string | undefined) {
     const parsed = parseWritingLog(base);
     this.log = parsed.edits.length > 0 && base ? base : '';
     this.closed = parsed.cutOff;
+    this.legacy = parsed.edits.length > 0 && parsed.stamps.length === 0;
     this.bytes = utf8Length(this.log);
     this.text = textAfter(parsed.edits, parsed.edits.length);
     const last = parsed.edits[parsed.edits.length - 1];
@@ -232,7 +241,16 @@ export class WritingLogWriter {
     this.lastWall = wall;
     // The box held something the log never saw: edits lost to a reload, or text set by a script.
     if (this.text !== prev)
-      this.push(this.text, prev, 0, this.started ? 'sync' : 'restored');
+      this.push(
+        this.text,
+        prev,
+        0,
+        this.started
+          ? 'sync'
+          : this.legacy && oneBreak(this.text) === oneBreak(prev)
+            ? 'format'
+            : 'restored'
+      );
     this.started = true;
     this.push(prev, next, dt, kind);
     this.lastT = t;
@@ -357,10 +375,11 @@ export function summarizeWriting(edits: WritingEdit[]): WritingSummary {
   };
   for (const e of edits) {
     const before = s.finalText;
-    if (e.kind === 'sync' || e.kind === 'restored') {
+    if (e.kind === 'sync' || e.kind === 'restored' || e.kind === 'format') {
       closeBurst();
       s.finalText = applyEdit(before, e);
-      s[e.kind === 'sync' ? 'syncChars' : 'restoredChars'] += e.ins.length;
+      if (e.kind !== 'format')
+        s[e.kind === 'sync' ? 'syncChars' : 'restoredChars'] += e.ins.length;
       continue;
     }
     const continues =
@@ -398,6 +417,8 @@ export function writingSessions(
   stamps: WritingStamp[]
 ): WritingSession[] {
   const out: WritingSession[] = [];
+  // Writing from before stamps has no clock time, so sessions would misdate it.
+  if (stamps.length === 0 || stamps[0].at > 0) return out;
   stamps.forEach((stamp, i) => {
     const until = stamps[i + 1]?.at ?? edits.length;
     let end = stamp.time;

@@ -52,6 +52,7 @@ const EDIT_LABEL: Record<WritingEdit['kind'], string | null> = {
   pasted: 'Pasted',
   sync: 'Appeared without typing',
   restored: 'Already here after a page reload',
+  format: null,
 };
 
 /** Replays one written answer edit by edit; `hidePasted` and `hideUnkeyed` follow signs an admin switched off. */
@@ -59,7 +60,9 @@ export const WritingPlayer: React.FC<{
   log: string;
   hidePasted?: boolean;
   hideUnkeyed?: boolean;
-}> = ({ log, hidePasted = false, hideUnkeyed = false }) => {
+  /** Height of the replayed text box. */
+  boxHeight?: string;
+}> = ({ log, hidePasted = false, hideUnkeyed = false, boxHeight = 'h-64' }) => {
   const { edits, stamps, cutOff } = useMemo(() => parseWritingLog(log), [log]);
   const summary = useMemo(() => summarizeWriting(edits), [edits]);
   const sessions = useMemo(
@@ -100,7 +103,12 @@ export const WritingPlayer: React.FC<{
   const shownKind = (kind: WritingEdit['kind']) =>
     !((kind === 'pasted' && hidePasted) || (kind === 'sync' && hideUnkeyed));
   const marked =
-    last && last.kind !== 'typed' && shownKind(last.kind) ? last.ins.length : 0;
+    last &&
+    last.kind !== 'typed' &&
+    last.kind !== 'format' &&
+    shownKind(last.kind)
+      ? last.ins.length
+      : 0;
   const next = atEnd ? undefined : edits[index];
   const nextSession = sessionAt.get(index);
   const inPause =
@@ -180,7 +188,7 @@ export const WritingPlayer: React.FC<{
       )}
       <div
         aria-live="off"
-        className="h-64 overflow-y-auto whitespace-pre-wrap break-words rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-900"
+        className={`${boxHeight} overflow-y-auto whitespace-pre-wrap break-words rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-900`}
       >
         {text.slice(0, caret - marked)}
         <mark className="bg-amber-200">
@@ -226,7 +234,7 @@ export const WritingPlayer: React.FC<{
             <Play aria-hidden className="h-4 w-4" />
           )}
         </button>
-        <div className="relative min-w-0 flex-1 pb-3">
+        <div className="min-w-0 flex-1">
           {/* no-tour-anchor: playback of one student's answer, nothing a tour walks to */}
           <input
             type="range"
@@ -239,42 +247,49 @@ export const WritingPlayer: React.FC<{
             }}
             aria-label="Position in the writing"
             aria-valuetext={`Edit ${index} of ${edits.length}`}
-            className="w-full accent-brand-blue-primary"
+            className="block w-full accent-brand-blue-primary"
           />
-          {sessions.slice(1).map((x, i) => (
-            // no-tour-anchor: one session in one student's answer, nothing a tour walks to
-            <button
-              key={`s${x.at}`}
-              type="button"
-              onClick={() => {
-                setPlaying(false);
-                setIndex(x.at);
-              }}
-              title={`Session ${i + 2}: ${formatWhen(x.start)}`}
-              aria-label={`Jump to session ${i + 2}`}
-              style={{
-                left: `calc(8px + (100% - 16px) * ${x.at / Math.max(edits.length, 1)})`,
-              }}
-              className="touch-target-expand absolute bottom-0 h-3 w-1 -translate-x-1/2 rounded-full bg-brand-blue-primary hover:bg-brand-blue-dark focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
-            />
-          ))}
-          {pauses.map((p) => (
-            // no-tour-anchor: one pause in one student's answer, nothing a tour walks to
-            <button
-              key={p.at}
-              type="button"
-              onClick={() => {
-                setPlaying(false);
-                setIndex(p.at);
-              }}
-              title={`Paused ${formatSpan(p.ms)}`}
-              aria-label={`Jump to the ${formatSpan(p.ms)} pause`}
-              style={{
-                left: `calc(8px + (100% - 16px) * ${p.at / Math.max(edits.length, 1)})`,
-              }}
-              className="touch-target-expand absolute bottom-0 h-2.5 w-1 -translate-x-1/2 rounded-full bg-amber-500 hover:bg-amber-600 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
-            />
-          ))}
+          {/* Markers get their own row so they never take clicks meant for the slider. */}
+          <div className="relative h-5">
+            {sessions.slice(1).map((x, i) => (
+              // no-tour-anchor: one session in one student's answer, nothing a tour walks to
+              <button
+                key={`s${x.at}`}
+                type="button"
+                onClick={() => {
+                  setPlaying(false);
+                  setIndex(x.at);
+                }}
+                title={`Session ${i + 2}: ${formatWhen(x.start)}`}
+                aria-label={`Jump to session ${i + 2}`}
+                style={{
+                  left: `calc(8px + (100% - 16px) * ${x.at / Math.max(edits.length, 1)})`,
+                }}
+                className="group absolute inset-y-0 flex w-4 -translate-x-1/2 justify-center pt-0.5 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+              >
+                <span className="h-3 w-1 rounded-full bg-brand-blue-primary group-hover:bg-brand-blue-dark" />
+              </button>
+            ))}
+            {pauses.map((p) => (
+              // no-tour-anchor: one pause in one student's answer, nothing a tour walks to
+              <button
+                key={p.at}
+                type="button"
+                onClick={() => {
+                  setPlaying(false);
+                  setIndex(p.at);
+                }}
+                title={`Paused ${formatSpan(p.ms)}`}
+                aria-label={`Jump to the ${formatSpan(p.ms)} pause`}
+                style={{
+                  left: `calc(8px + (100% - 16px) * ${p.at / Math.max(edits.length, 1)})`,
+                }}
+                className="group absolute inset-y-0 flex w-4 -translate-x-1/2 justify-center pt-0.5 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+              >
+                <span className="h-2.5 w-1 rounded-full bg-amber-500 group-hover:bg-amber-600" />
+              </button>
+            ))}
+          </div>
         </div>
         {/* no-tour-anchor: playback of one student's answer, nothing a tour walks to */}
         <select
@@ -324,6 +339,7 @@ export const AnswerWritingPlayback: React.FC<{
       log={playback.log}
       hidePasted={playback.hidePasted}
       hideUnkeyed={playback.hideUnkeyed}
+      boxHeight="h-40"
     />
   </div>
 );

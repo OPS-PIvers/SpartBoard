@@ -222,3 +222,33 @@ describe('writing sessions', () => {
     expect(writingSessions(edits, stamps)).toEqual([]);
   });
 });
+
+describe('logs from the recorder that doubled paragraph breaks', () => {
+  it('re-spaces breaks after a reload without calling it lost typing', () => {
+    // An old log: innerText gave each paragraph break as two newlines, and no clock stamps.
+    const old = '0:a;64:\n;64:\n;64:b';
+    const w = new WritingLogWriter(old);
+    w.write('a\nb', 'a\nbc', 0, 'typed', 1e6);
+    const { edits, stamps } = parseWritingLog(w.value);
+    expect(edits.map((e) => e.kind)).toEqual([
+      'typed',
+      'typed',
+      'typed',
+      'typed',
+      'format',
+      'typed',
+    ]);
+    const s = summarizeWriting(edits);
+    expect(s.restoredChars).toBe(0);
+    expect(s.finalText).toBe('a\nbc');
+    // The old part has no clock time, so no sessions are shown.
+    expect(writingSessions(edits, stamps)).toEqual([]);
+  });
+
+  it('still reports text lost to a reload', () => {
+    const w = new WritingLogWriter('0:a;64:\n;64:\n;64:b');
+    w.write('a\nb lost', 'a\nb lost!', 0, 'typed', 1e6);
+    const s = summarizeWriting(parseWritingLog(w.value).edits);
+    expect(s.restoredChars).toBeGreaterThan(0);
+  });
+});
