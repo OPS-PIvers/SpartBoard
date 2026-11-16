@@ -51722,6 +51722,20 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "keys": [
       "miniApp"
+    ],
+    "routes": [
+      {
+        "surface": "library.mini-app",
+        "kind": "widget",
+        "widget_type": "miniApp",
+        "path": [
+          "library-shell.archive-menu:miniApp#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:miniApp#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
     ]
   },
   {
