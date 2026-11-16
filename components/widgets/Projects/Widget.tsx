@@ -146,13 +146,14 @@ const SetupGroupsHost: React.FC<{
   onClose: () => void;
 }> = ({ widget, projectId, onDone, onClose }) => {
   const config = widget.config as ProjectsConfig;
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
   const { updateWidget, addToast, rosters, activeRosterId } = useDashboard();
   const { projects } = useProjectLibrary(user?.uid);
   const { groups, ensureRun, importGroups } = useProjectRun(
     user?.uid,
     projectId,
-    user?.uid
+    user?.uid,
+    canAccessFeature('project-submit')
   );
 
   const project = projects.find((p) => p.id === projectId);
@@ -205,13 +206,14 @@ const GroupsManagerHost: React.FC<{
   onSaved: (projectId: string, classId: string) => void;
 }> = ({ widget, projectId, onClose, onSaved }) => {
   const config = widget.config as ProjectsConfig;
-  const { user, orgId } = useAuth();
+  const { user, orgId, canAccessFeature } = useAuth();
   const { rosters, activeRosterId, addToast } = useDashboard();
   const { projects } = useProjectLibrary(user?.uid);
   const { run, groups, loading, ensureRun, importGroups } = useProjectRun(
     user?.uid,
     projectId,
-    user?.uid
+    user?.uid,
+    canAccessFeature('project-submit')
   );
   const project = projects.find((p) => p.id === projectId);
   const title = run?.title ?? project?.title;

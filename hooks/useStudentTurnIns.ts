@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   applyResultsOverride,
-  isClosedProjectRun,
+  isClosedUnsubmittableRun,
   type AssignmentSummary,
 } from '@/hooks/useStudentAssignments';
 import type { QuizResultsOverride } from '@/types';
 import { readTurnInState, type TurnInState } from '@/utils/studentTurnIn';
 import {
   OVERRIDE_KINDS,
-  hasResponseDoc,
   readStudentResponseDoc,
+  readsTurnIn,
 } from '@/utils/studentResponseDoc';
 
 /** One student's standing on one session, read from their own response doc. */
@@ -85,8 +85,8 @@ export function useStudentTurnIns(
     const pending = assignments.filter(
       (a) =>
         a.workKind === 'work' &&
-        !isClosedProjectRun(a) &&
-        hasResponseDoc(a.kind) &&
+        !isClosedUnsubmittableRun(a) &&
+        readsTurnIn(a) &&
         !ids.has(a.compositeId)
     );
     for (const a of pending) {
@@ -106,7 +106,7 @@ export function useStudentTurnIns(
 
   const recheck = useCallback(
     async (a: AssignmentSummary) => {
-      if (!pseudonymUid || !hasResponseDoc(a.kind)) return;
+      if (!pseudonymUid || !readsTurnIn(a)) return;
       const data = await readStudentResponseDoc(a, pseudonymUid);
       setChecks((prev) => ({ ...prev, [a.compositeId]: toCheck(a, data) }));
     },
@@ -118,8 +118,8 @@ export function useStudentTurnIns(
     assignments.every(
       (a) =>
         a.workKind !== 'work' ||
-        isClosedProjectRun(a) ||
-        !hasResponseDoc(a.kind) ||
+        isClosedUnsubmittableRun(a) ||
+        !readsTurnIn(a) ||
         a.compositeId in checks ||
         failed.has(a.compositeId)
     );

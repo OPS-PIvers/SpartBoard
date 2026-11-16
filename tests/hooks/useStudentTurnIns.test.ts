@@ -5,12 +5,12 @@ import type { AssignmentSummary } from '@/hooks/useStudentAssignments';
 const readMock = vi.fn();
 
 vi.mock('@/hooks/useStudentAssignments', () => ({
-  isClosedProjectRun: () => false,
+  isClosedUnsubmittableRun: () => false,
   applyResultsOverride: (state: string) => state,
 }));
 vi.mock('@/utils/studentResponseDoc', () => ({
   OVERRIDE_KINDS: new Set(['quiz']),
-  hasResponseDoc: (kind: string) => kind === 'quiz',
+  readsTurnIn: (a: { kind: string }) => a.kind === 'quiz',
   readStudentResponseDoc: (...args: unknown[]): Promise<unknown> =>
     readMock(...args) as Promise<unknown>,
 }));

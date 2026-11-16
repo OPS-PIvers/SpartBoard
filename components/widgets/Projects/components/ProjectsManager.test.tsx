@@ -123,6 +123,7 @@ describe('ProjectsManager', () => {
     (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       user: { uid: 'teacher-1' },
       orgId: 'orono',
+      canAccessFeature: (id: string) => id === 'project-submit',
     });
     (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       updateWidget: vi.fn(),
@@ -229,7 +230,8 @@ describe('ProjectsManager', () => {
     expect(syncRunFromProject).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ id: 'teacher-1_project-a' }),
-      expect.objectContaining({ title: 'Renamed' })
+      expect.objectContaining({ title: 'Renamed' }),
+      true
     );
   });
 

@@ -48908,6 +48908,31 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "projects.group-reopen",
+    "label": "Reopen a submitted group on the Projects board",
+    "scope": "widget type",
+    "persists": true,
+    "requires": "widget-restored",
+    "keys": [
+      "projects"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.projects.board",
+        "kind": "panel",
+        "widget_type": "projects",
+        "path": [
+          "library-shell.card-primary-action:projects#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "class",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "projects.step-cell",
     "label": "Step status cell on the Projects board",
     "scope": "widget type",

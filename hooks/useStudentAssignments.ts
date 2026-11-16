@@ -115,6 +115,8 @@ export interface AssignmentSummary {
   latestShareCode?: string;
   /** Flashcards only: whether the assignment collects a submission. */
   flashcardKind?: 'check' | 'study';
+  /** Projects only: the run takes group submissions, read from the student's own group. */
+  studentSubmit?: true;
   /** Work is turned in; a Resource is only there to study (the session field, else the kind default). */
   workKind: WorkKind;
   /** A teacher-paced quiz or video activity running now; the student joins it live. */
@@ -410,6 +412,11 @@ export const isClosedProjectRun = (
   a: Pick<AssignmentSummary, 'kind' | 'acceptingResponses'>
 ): boolean => a.kind === 'projects' && a.acceptingResponses === false;
 
+/** A closed run with no submissions counts as turned in; one that takes them waits for the group's own state. */
+export const isClosedUnsubmittableRun = (
+  a: Pick<AssignmentSummary, 'kind' | 'acceptingResponses' | 'studentSubmit'>
+): boolean => isClosedProjectRun(a) && a.studentSubmit !== true;
+
 /**
  * Build an `AssignmentSummary` from a session doc. Hoisted to module scope
  * (rather than a closure inside the subscription effect) so the fan-out
@@ -499,6 +506,8 @@ export function buildAssignmentSummary(
       (record.kind === 'check' || record.kind === 'study')
         ? record.kind
         : undefined,
+    studentSubmit:
+      kind === 'projects' && record.studentSubmit === true ? true : undefined,
     workKind: resolveWorkKind(kind, record),
     live: isLiveSession(kind, channel, record) ? true : undefined,
     periodGate: hasPeriodAccess(record)
