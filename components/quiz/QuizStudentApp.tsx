@@ -6233,6 +6233,7 @@ export const ResultsScreen: React.FC<{
           answeredCount={answeredCount}
           total={totalQuestions}
           className="mb-8"
+          size="lg"
         />
 
         <p className="text-slate-500 text-sm max-w-xs">
@@ -6248,6 +6249,7 @@ export const ResultsScreen: React.FC<{
                 myPin={pin}
                 myStudentUid={myStudentUid}
                 scoreSuffix={getScoreSuffix(session)}
+                light={light}
               />
             </div>
           )}
@@ -7585,12 +7587,12 @@ export const QuizSubmittedWaitScreen: React.FC<{
 
   return (
     <div
-      className={`relative min-h-screen flex flex-col items-center justify-center p-6 text-center ${
+      className={`relative h-screen h-dvh overflow-y-auto ${
         light ? 'bg-slate-50' : 'bg-slate-900'
       }`}
     >
       {light && <StudentBrandBackdrop fixed={false} />}
-      <div className="relative flex flex-col items-center">
+      <div className="relative min-h-full w-full flex flex-col items-center justify-center p-6 text-center">
         <SubmittedMark light={light} />
         <h1
           className={`text-3xl font-black mb-2 ${light ? 'text-slate-800' : 'text-white'}`}
@@ -7643,6 +7645,7 @@ export const QuizSubmittedWaitScreen: React.FC<{
                 myPin={pin}
                 myStudentUid={myResponse.studentUid}
                 scoreSuffix={scoreSuffix}
+                light={light}
               />
             </div>
           )}
@@ -7692,18 +7695,19 @@ const AnsweredCountCard: React.FC<{
   answeredCount: number;
   total: number;
   className?: string;
-}> = ({ light, answeredCount, total, className = '' }) => {
+  size?: 'md' | 'lg';
+}> = ({ light, answeredCount, total, className = '', size = 'md' }) => {
   const { t } = useTranslation();
   return (
     <div
-      className={`p-5 rounded-2xl ${
+      className={`${size === 'lg' ? 'p-6' : 'p-5'} rounded-2xl ${
         light
           ? 'min-w-[200px] bg-white border border-slate-200 shadow-xs'
           : 'bg-slate-800'
       } ${className}`}
     >
       <p
-        className={`text-4xl font-black mb-2 tabular-nums ${light ? 'text-brand-blue-primary' : 'text-white'}`}
+        className={`${size === 'lg' ? 'text-5xl' : 'text-4xl'} font-black mb-2 tabular-nums ${light ? 'text-brand-blue-primary' : 'text-white'}`}
       >
         {answeredCount}
       </p>
