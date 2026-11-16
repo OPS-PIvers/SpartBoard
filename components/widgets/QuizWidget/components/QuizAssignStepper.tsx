@@ -170,7 +170,7 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
       : modifications?.hasQuestionTimeLimits
         ? 'Standard'
         : undefined;
-  // Without a time limit the time rule does nothing, so it drops out of the summary and overrides.
+  // Without a time limit the time rule does nothing, so the summary leaves it out; the override stays for when one is set.
   const withTime = (list: ModificationGroup[]) =>
     timeLimitLabel
       ? list
@@ -183,7 +183,7 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
     modifications.onTargetingChange({
       ...modifications.targeting,
       overridesByKey: overridesFromGroups(
-        withTime(next),
+        next,
         allRows,
         modifications.quizContext.questions
       ),
