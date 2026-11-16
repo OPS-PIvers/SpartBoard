@@ -302,6 +302,7 @@ claude/project-thread-r2540g (#5917; this docs PR reuses it, delete after it mer
 security/k2-scheduled-mailers (#5884)
 security/m-classlink-student-identity (#5887)
 security/p-paper-import (#5888)
+claude/project-thread-qt0byr (#5980, #5982, #5986; this docs PR reuses it, delete after it merges)
 security/h2-calendar-and-seed (#5889)
 nightly/widgets-2026-11-15 (#5878)
 nightly/layout-2026-11-15 (#5879)
