@@ -479,20 +479,18 @@ async function saveOnce(
     const formerShareIds = keepFormer(
       [
         ...(prev?.formerShareIds ?? []),
-        ...merged.flatMap((c) => [
-          ...(c.familyLink ? [c.familyLink.shareId] : []),
-          ...c.formerShareIds,
-        ]),
+        // A switched-off address stays off: it is dropped rather than republished under this Course.
+        ...merged.flatMap((c) =>
+          c.familyLink?.on ? [c.familyLink.shareId, ...c.formerShareIds] : []
+        ),
       ],
       familyShareId
     );
+    // D10: only an explicit familyLinkOn makes content public; a merge never switches it on.
     const famOn =
       typeof input.familyLinkOn === 'boolean'
         ? input.familyLinkOn
-        : prev
-          ? prev.familyLink?.on === true ||
-            merged.some((c) => c.familyLink?.on === true)
-          : merged.some((c) => c.familyLink?.on === true);
+        : prev?.familyLink?.on === true;
     const agenda =
       input.agenda !== undefined
         ? cleanCourseAgenda(input.agenda)
