@@ -10,6 +10,7 @@ import {
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useAuth } from '@/context/useAuth';
 import {
+  __resetDriveAuthErrorsForTests,
   isDriveAuthError,
   setDriveAuthErrorHandler,
 } from '@/utils/driveAuthErrors';
@@ -65,6 +66,7 @@ describe('useStorage', () => {
     // Default: Drive not connected
     mockUseGoogleDrive.mockReturnValue({ driveService: null });
     driveOnly = false;
+    __resetDriveAuthErrorsForTests();
     (useAuth as Mock).mockReturnValue({
       canAccessFeature: (id: string) =>
         id === 'drive-only-uploads' && driveOnly,
@@ -437,17 +439,38 @@ describe('useStorage', () => {
       }
     );
 
-    it('asks again on every try, so a dismissed prompt comes back', async () => {
+    it('shows one prompt for a batch, and again once the toast has gone', async () => {
       driveOnly = true;
       const prompt = vi.fn();
       setDriveAuthErrorHandler(prompt);
+      const now = vi.spyOn(Date, 'now').mockReturnValue(100_000);
       const { result } = renderHook(() => useStorage());
       await act(async () => {
         await result.current.uploadSticker('u', mockFile).catch(() => null);
         await result.current.uploadSticker('u', mockFile).catch(() => null);
       });
+      expect(prompt).toHaveBeenCalledTimes(1);
+      now.mockReturnValue(111_000);
+      await act(async () => {
+        await result.current.uploadSticker('u', mockFile).catch(() => null);
+      });
       expect(prompt).toHaveBeenCalledTimes(2);
+      now.mockRestore();
       setDriveAuthErrorHandler(null);
+    });
+
+    it('lets an admin district image fall back to Storage', async () => {
+      driveOnly = true;
+      mockUploadBytes.mockResolvedValue({ ref: 'r' });
+      mockGetDownloadURL.mockResolvedValue('https://firebase.storage/url');
+      const { result } = renderHook(() => useStorage());
+      let url: string | undefined;
+      await act(async () => {
+        url = await result.current.uploadDisplayImage('u', mockFile, {
+          districtAsset: true,
+        });
+      });
+      expect(url).toBe('https://firebase.storage/url');
     });
 
     it('screenshots also need Drive', async () => {

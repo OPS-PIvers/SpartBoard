@@ -43,6 +43,11 @@ export const DRIVE_UPLOAD_FOLDERS = [
 /** Personal sets keep slides on the teacher's Drive; district sets on Firebase Storage. */
 export type GuidedLearningMediaHome = 'drive' | 'storage';
 
+/** districtAsset: an admin's district-wide image, which may still fall back to Storage without Drive. */
+export interface UploadOptions {
+  districtAsset?: boolean;
+}
+
 export interface GuidedLearningImageUpload {
   url: string;
   storagePath: string;
@@ -113,7 +118,11 @@ export const useStorage = () => {
     );
   };
 
-  const uploadSticker = async (userId: string, file: File): Promise<string> => {
+  const uploadSticker = async (
+    userId: string,
+    file: File,
+    opts: UploadOptions = {}
+  ): Promise<string> => {
     if (driveService) {
       beginUpload();
       try {
@@ -129,7 +138,7 @@ export const useStorage = () => {
       }
     }
 
-    requireDriveForTeacherUpload();
+    if (!opts.districtAsset) requireDriveForTeacherUpload();
     const timestamp = Date.now();
     return uploadFile(
       `users/${userId}/stickers/${timestamp}-${file.name}`,
@@ -139,7 +148,8 @@ export const useStorage = () => {
 
   const uploadDisplayImage = async (
     userId: string,
-    file: File
+    file: File,
+    opts: UploadOptions = {}
   ): Promise<string> => {
     if (driveService) {
       beginUpload();
@@ -156,7 +166,7 @@ export const useStorage = () => {
       }
     }
 
-    requireDriveForTeacherUpload();
+    if (!opts.districtAsset) requireDriveForTeacherUpload();
     const timestamp = Date.now();
     return uploadFile(
       `users/${userId}/display_images/${timestamp}-${file.name}`,
