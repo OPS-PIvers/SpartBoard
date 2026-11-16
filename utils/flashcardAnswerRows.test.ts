@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  answerDisplayLines,
   expandAnswerRows,
   hasAnswerShorthand,
   joinAnswerRows,
@@ -52,5 +53,30 @@ describe('flashcard answer rows', () => {
           .result
       ).toBe('exact');
     }
+  });
+});
+
+describe('answerDisplayLines', () => {
+  it('puts each accepted answer on its own line', () => {
+    expect(answerDisplayLines('el doctor / la doctora / el médico')).toEqual([
+      'el doctor',
+      'la doctora',
+      'el médico',
+    ]);
+    expect(answerDisplayLines('to start / to begin')).toEqual([
+      'to start',
+      'to begin',
+    ]);
+  });
+
+  it('keeps shared-phrase swaps, compact slashes and plain text on one line', () => {
+    expect(answerDisplayLines('sacar una buena / mala nota')).toEqual([
+      'sacar una buena / mala nota',
+    ]);
+    expect(answerDisplayLines('to start / begin')).toEqual([
+      'to start / begin',
+    ]);
+    expect(answerDisplayLines('el/la doctor/a')).toEqual(['el/la doctor/a']);
+    expect(answerDisplayLines('the doctor')).toEqual(['the doctor']);
   });
 });

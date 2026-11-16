@@ -48,3 +48,15 @@ export const expandAnswerRows = (text: string, language: string): string[] => {
 /** True when the text holds shorthand ("el/la doctor/a", "a; b", "a / b") that spells out into more rows. */
 export const hasAnswerShorthand = (text: string, language: string): boolean =>
   expandAnswerRows(text, language).length > 1;
+
+/** Study-card lines: one per accepted answer, but a shared-phrase swap like "buena / mala nota" stays whole. */
+export const answerDisplayLines = (text: string): string[] => {
+  if (!ROW_SEPARATOR.test(text) || spacedSlashSwapVariants(text).length > 0) {
+    return [text];
+  }
+  const lines = text
+    .split(ROW_SEPARATOR)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  return lines.length > 0 ? lines : [text];
+};

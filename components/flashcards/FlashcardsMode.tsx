@@ -12,6 +12,7 @@ import {
 import type { FlashcardCard, FlashcardSide } from '@/types';
 import { tourAttr } from '@/config/tourAnchors';
 import { RoundSummary, type RoundSummaryMissed } from './PlayerPrimitives';
+import { answerDisplayLines } from '@/utils/flashcardAnswerRows';
 import { cx, getFlashcardSides } from './playerUtils';
 
 interface FlashcardsModeProps {
@@ -28,6 +29,16 @@ interface FlashcardsModeProps {
   onNextRound: () => void;
   onRestart?: () => void;
 }
+
+const CardLines: React.FC<{ text: string }> = ({ text }) => {
+  const lines = answerDisplayLines(text);
+  if (lines.length === 1) return <>{text}</>;
+  return lines.map((line, index) => (
+    <span key={index} className="block">
+      {line}
+    </span>
+  ));
+};
 
 export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
   cards,
@@ -211,7 +222,7 @@ export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
                 className="max-w-[22ch] text-center font-black leading-tight text-balance"
                 style={{ fontSize: 'clamp(22px, 10cqmin, 58px)' }}
               >
-                {sides.prompt}
+                <CardLines text={sides.prompt} />
               </span>
             </div>
             {canFlip && (
@@ -262,7 +273,7 @@ export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
                 className="max-w-[26ch] text-center font-black leading-tight text-balance"
                 style={{ fontSize: 'clamp(20px, 8cqmin, 48px)' }}
               >
-                {sides.answer}
+                <CardLines text={sides.answer} />
               </span>
             </div>
           </div>
