@@ -62,6 +62,9 @@ export function landingRowState(
   const checkable = readsTurnIn(a);
   const turnIn: TurnInState | undefined = check?.turnIn;
   if (isClosedUnsubmittableRun(a) || turnIn === 'turned-in') return 'turned-in';
+  // In no group yet, so nothing to submit: never Missing.
+  if (a.kind === 'projects' && turnIn === 'not-started')
+    return isClosedProjectRun(a) ? 'turned-in' : 'open';
 
   if (isClosed(a, nowMs) || isClosedProjectRun(a)) {
     if (check?.reopened && a.channel !== 'ended' && a.endedAt === undefined)

@@ -7153,7 +7153,8 @@ service cloud.firestore {
                         && incoming().kind in [
                              'stepState', 'workLink', 'upload', 'membership', 'submission'
                            ]
-                        && (pjIsRunTeacher() || pjGroupMember());
+                        && (pjIsRunTeacher()
+                            || (incoming().kind != 'submission' && pjGroupMember()));
         }
 
         // D40: work links are the group's own, like uploads. One doc, `work`.

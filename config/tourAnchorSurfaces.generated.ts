@@ -2613,6 +2613,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'projects.status-option': ['widgets.projects.status-popover'],
     'projects.group-student-view': ['widgets.projects.board'],
     'projects.group-expand': ['widgets.projects.board'],
+    'projects.group-reopen': ['widgets.projects.board'],
     'projects.step-cell': ['widgets.projects.board'],
     'projects-editor.description': ['widgets.projects.editor'],
     'projects-editor.due': ['widgets.projects.editor'],

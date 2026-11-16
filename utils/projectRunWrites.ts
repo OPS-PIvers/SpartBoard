@@ -167,7 +167,8 @@ export async function syncRunFromProject(
 
   if (project.dueAt !== undefined) payload.dueAt = project.dueAt;
   else if (run.dueAt !== undefined) payload.dueAt = deleteField();
-  if (studentSubmit) payload.studentSubmit = true;
+  // A closed run never gains submissions, so its groups stay Turned in rather than Missing.
+  if (studentSubmit && run.acceptingUpdates) payload.studentSubmit = true;
 
   await updateDoc(doc(db, RUNS_COLLECTION, run.id), payload);
 }

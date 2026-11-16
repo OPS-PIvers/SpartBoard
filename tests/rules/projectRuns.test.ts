@@ -1020,25 +1020,31 @@ describe('a submitted group', () => {
     );
   });
 
-  it('accepts a submission event from a member, never on someone else', async () => {
+  it('takes a submission event from the run teacher only, never a member', async () => {
     await seed();
-    const db = asStudent(MEMBER_UID, [CLASS_ID]);
-    const event = (actorUid: string) => ({
+    const event = (actorUid: string, actorRole: string) => ({
       at: 1,
       actorUid,
-      actorRole: 'student',
+      actorRole,
       kind: 'submission',
+      detail: 'reopened',
     });
-    await assertSucceeds(
-      setDoc(doc(db, `${GROUP_PATH}/events/e1`), event(MEMBER_UID))
-    );
     await assertFails(
-      setDoc(doc(db, `${GROUP_PATH}/events/e2`), event(OUTSIDER_UID))
+      setDoc(
+        doc(asStudent(MEMBER_UID, [CLASS_ID]), `${GROUP_PATH}/events/e1`),
+        event(MEMBER_UID, 'student')
+      )
+    );
+    await assertSucceeds(
+      setDoc(
+        doc(asTeacher(TEACHER_UID), `${GROUP_PATH}/events/e2`),
+        event(TEACHER_UID, 'teacher')
+      )
     );
     await assertFails(
       setDoc(
-        doc(asStudent(OUTSIDER_UID, [CLASS_ID]), `${GROUP_PATH}/events/e3`),
-        event(OUTSIDER_UID)
+        doc(asTeacher(OTHER_TEACHER_UID), `${GROUP_PATH}/events/e3`),
+        event(OTHER_TEACHER_UID, 'teacher')
       )
     );
   });

@@ -133,6 +133,21 @@ describe('landingRowState for projects', () => {
     );
   });
 
+  it('never marks a student in no group Missing', () => {
+    const open = project({ studentSubmit: true, dueAt: NOW - DAY });
+    expect(landingRowState(open, checked(open, 'not-started'), NOW)).toBe(
+      'open'
+    );
+    const closed = project({
+      studentSubmit: true,
+      dueAt: NOW - DAY,
+      acceptingResponses: false,
+    });
+    expect(landingRowState(closed, checked(closed, 'not-started'), NOW)).toBe(
+      'turned-in'
+    );
+  });
+
   it('shows Missing past due, open or closed', () => {
     const open = project({ studentSubmit: true, dueAt: NOW - DAY });
     expect(landingRowState(open, checked(open, 'in-progress'), NOW)).toBe(
