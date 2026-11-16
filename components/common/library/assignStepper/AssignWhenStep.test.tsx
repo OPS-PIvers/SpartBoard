@@ -347,6 +347,19 @@ describe('Manual due date', () => {
     ).toEqual({ kind: 'ended', time: '23:59' });
   });
 
+  it('offers late work only with a set date and time', () => {
+    const onValue = vi.fn<(v: AssignWhenValue) => void>();
+    render(<Harness initial={MANUAL} onValue={onValue} />);
+    expect(screen.queryByText('Allow submissions after close')).toBeNull();
+    fireEvent.change(screen.getByLabelText('Due'), {
+      target: { value: 'date' },
+    });
+    fireEvent.click(
+      screen.getByRole('switch', { name: 'Allow submissions after close' })
+    );
+    expect(onValue.mock.lastCall?.[0].availability.allowLate).toBe(true);
+  });
+
   it('switches to Date & time at the remembered time', () => {
     const onValue = vi.fn();
     render(
