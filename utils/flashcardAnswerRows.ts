@@ -4,15 +4,17 @@ import {
 } from './flashcardMatch';
 
 const ROW_SEPARATOR = /\s+\/\s+/u;
+// Exactly one space each side, so blank and space-ending rows round-trip.
+const ROWS_JOINER = ' / ';
 const COMPACT_SLASH = /\p{L}\/\p{L}/u;
 
 /** A card side's accepted answers, one per row; the first is the one students see first. */
 export const splitAnswerRows = (text: string): string[] =>
-  text.split(ROW_SEPARATOR);
+  text.split(ROWS_JOINER);
 
 /** Rows back into the stored side text, which grading already reads as a list of answers. */
 export const joinAnswerRows = (rows: readonly string[]): string =>
-  rows.join(' / ');
+  rows.join(ROWS_JOINER);
 
 const expandPart = (part: string, language: string): string[] => {
   const swaps = spacedSlashSwapVariants(part);

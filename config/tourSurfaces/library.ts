@@ -248,6 +248,7 @@ export const SURFACES: TourSurfaceMap = {
     files: [
       'components/widgets/Flashcards/FlashcardSetEditorModal.tsx',
       'components/widgets/Flashcards/SortableCardRow.tsx',
+      'components/widgets/Flashcards/AnswerRowFields.tsx',
       'components/widgets/Flashcards/FlashcardAiOverlay.tsx',
       'components/widgets/Flashcards/FlashcardLanguageField.tsx',
       'components/widgets/Flashcards/speak/SpeakCardStatus.tsx',

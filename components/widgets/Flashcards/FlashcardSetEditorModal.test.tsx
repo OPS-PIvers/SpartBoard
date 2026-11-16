@@ -13,7 +13,10 @@ import type { AuthContextType } from '@/context/AuthContextValue';
 import type { FlashcardCardSpeak, FlashcardSet } from '@/types';
 import { defaultFlashcardsSpeakAdminConfig } from '@/config/flashcardsSpeakAdmin';
 import { FlashcardSetEditorModal } from './FlashcardSetEditorModal';
-import { flashcardSetIncompleteReason } from './useFlashcardEditorState';
+import {
+  cleanFlashcards,
+  flashcardSetIncompleteReason,
+} from './useFlashcardEditorState';
 import type { SpeakLookupCall } from './speak/lookupSpeakReferences';
 
 const showConfirm = vi.hoisted(() =>
@@ -294,6 +297,14 @@ describe('FlashcardSetEditorModal', () => {
       screen.getByLabelText('Remove accepted answer B from Term 1')
     );
     expect(screen.queryByLabelText('Term 1, accepted answer B')).toBeNull();
+  });
+
+  it('drops blank accepted-answer rows from the saved text', () => {
+    const [card] = cleanFlashcards([
+      { id: 'c', term: 'el doctor /  / la doctora / ', definition: ' / ' },
+    ]);
+    expect(card.term).toBe('el doctor / la doctora');
+    expect(card.definition).toBe('');
   });
 
   it('swaps terms, definitions and languages, and swaps back on a second click', () => {

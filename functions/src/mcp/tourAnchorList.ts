@@ -50175,10 +50175,11 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "routes": [
       {
-        "surface": "library.flashcards",
-        "kind": "widget",
-        "widget_type": "flashcards",
-        "path": [],
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
         "needs": [
           "widget-on-stage"
         ]
@@ -50192,10 +50193,11 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "routes": [
       {
-        "surface": "library.flashcards",
-        "kind": "widget",
-        "widget_type": "flashcards",
-        "path": [],
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
         "needs": [
           "widget-on-stage"
         ]

@@ -37,6 +37,11 @@ describe('flashcard answer rows', () => {
     ]);
   });
 
+  it('round-trips blank rows and rows still being typed', () => {
+    const rows = ['el ', '', 'la doctora'];
+    expect(splitAnswerRows(joinAnswerRows(rows))).toEqual(rows);
+  });
+
   it('round-trips rows through the stored text that grading reads', () => {
     const rows = expandAnswerRows('el/la doctor/a; el/la médico/a', 'es');
     const stored = joinAnswerRows(rows);

@@ -1,4 +1,5 @@
 import { useContext, useEffect, useState } from 'react';
+import { joinAnswerRows, splitAnswerRows } from '@/utils/flashcardAnswerRows';
 import type {
   FlashcardCard,
   FlashcardSet,
@@ -40,11 +41,23 @@ export const newFlashcard = (): FlashcardCard => ({
 });
 
 /** Trimmed cards with stale references dropped and fully empty rows left out. */
+// A blank accepted-answer row is editor-only; it never reaches the saved text.
+const withoutEmptyAnswerRows = (text: string): string =>
+  joinAnswerRows(
+    splitAnswerRows(text)
+      .map((row) => row.trim())
+      .filter(Boolean)
+  );
+
 export const cleanFlashcards = (cards: FlashcardCard[]): FlashcardCard[] =>
   cards
     .map((card) => {
-      const term = card.term.trim();
-      const next = { ...card, term, definition: card.definition.trim() };
+      const term = withoutEmptyAnswerRows(card.term);
+      const next = {
+        ...card,
+        term,
+        definition: withoutEmptyAnswerRows(card.definition),
+      };
       // References belong to the term they were computed for.
       if (next.speak && next.speak.term !== term) delete next.speak;
       return next;
