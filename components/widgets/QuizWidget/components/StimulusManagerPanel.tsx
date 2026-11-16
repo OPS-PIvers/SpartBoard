@@ -1072,6 +1072,7 @@ const AttachStimulusSection: React.FC<{
   }, intake.busy);
   const attachedCount = attachedIds?.length ?? 0;
   const [previewId, setPreviewId] = useState<string | null>(null);
+  const rowIdPrefix = useId();
   const [previewOwner, setPreviewOwner] = useState(ownerId);
   if (previewOwner !== ownerId) {
     setPreviewOwner(ownerId);
@@ -1112,38 +1113,53 @@ const AttachStimulusSection: React.FC<{
             const name = previewAvailable
               ? stimulusDisplayName(s)
               : s.label || s.url;
-            const row = (
-              <label
-                className={`flex ${previewAvailable ? 'flex-1 min-w-0 ' : ''}items-center gap-2 text-xs text-slate-700 cursor-pointer select-none rounded-sm px-1.5 py-1 hover:bg-slate-50`}
-              >
-                <input
-                  type="checkbox"
-                  checked={attachedIds?.includes(s.id) ?? false}
-                  onChange={() => onToggle(s.id)}
-                  {...tourFieldAttr(
-                    'quiz-stimuli.attach-stimulus',
-                    'quiz',
-                    String(stimulusIndex + 1)
-                  )}
-                  className="w-3.5 h-3.5 accent-brand-blue-primary"
-                />
-                <span
-                  className={`shrink-0 px-1.5 py-0.5 rounded-sm text-xxs font-bold uppercase tracking-wider ${TYPE_BADGE[s.type]}`}
-                >
-                  {STIMULUS_TYPE_LABELS[s.type]}
-                </span>
-                <span className="flex-1 truncate">{name}</span>
-                <span className="shrink-0 max-w-[40%] truncate text-xxs text-slate-400 tabular-nums">
-                  {usedOn.length > 0 ? `on ${usedOn.join(', ')}` : 'unused'}
-                </span>
-              </label>
+            const checkboxId = `${rowIdPrefix}-attach-${s.id}`;
+            const checkbox = (
+              <input
+                id={checkboxId}
+                type="checkbox"
+                checked={attachedIds?.includes(s.id) ?? false}
+                onChange={() => onToggle(s.id)}
+                {...tourFieldAttr(
+                  'quiz-stimuli.attach-stimulus',
+                  'quiz',
+                  String(stimulusIndex + 1)
+                )}
+                className="w-3.5 h-3.5 accent-brand-blue-primary"
+              />
             );
-            if (!previewAvailable) return <li key={s.id}>{row}</li>;
+            const badge = (
+              <span
+                className={`shrink-0 px-1.5 py-0.5 rounded-sm text-xxs font-bold uppercase tracking-wider ${TYPE_BADGE[s.type]}`}
+              >
+                {STIMULUS_TYPE_LABELS[s.type]}
+              </span>
+            );
+            const usedOnText =
+              usedOn.length > 0 ? `on ${usedOn.join(', ')}` : 'unused';
+            if (!previewAvailable) {
+              return (
+                <li key={s.id}>
+                  <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none rounded-sm px-1.5 py-1 hover:bg-slate-50">
+                    {checkbox}
+                    {badge}
+                    <span className="flex-1 truncate">{name}</span>
+                    <span className="shrink-0 max-w-[40%] truncate text-xxs text-slate-400 tabular-nums">
+                      {usedOnText}
+                    </span>
+                  </label>
+                </li>
+              );
+            }
             const previewDomId = `attach-preview-${s.id}`;
             return (
               <li key={s.id}>
-                <div className="flex items-center gap-1">
-                  {row}
+                <div className="flex items-center gap-1 rounded-sm px-1.5 hover:bg-slate-50 text-xs text-slate-700">
+                  <label className="flex min-w-0 items-center gap-2 cursor-pointer select-none py-1">
+                    {checkbox}
+                    {badge}
+                    <span className="truncate">{name}</span>
+                  </label>
                   {s.type !== 'calculator' && (
                     <button
                       type="button"
@@ -1164,7 +1180,7 @@ const AttachStimulusSection: React.FC<{
                       className={`shrink-0 rounded-sm p-1 transition-colors touch-target-expand ${
                         previewing
                           ? 'text-brand-blue-primary bg-brand-blue-lighter'
-                          : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
+                          : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
                       }`}
                     >
                       {previewing ? (
@@ -1174,6 +1190,12 @@ const AttachStimulusSection: React.FC<{
                       )}
                     </button>
                   )}
+                  <label
+                    htmlFor={checkboxId}
+                    className="flex-1 min-w-[25%] self-stretch flex items-center justify-end cursor-pointer select-none py-1 text-right text-xxs text-slate-400 tabular-nums"
+                  >
+                    <span className="truncate">{usedOnText}</span>
+                  </label>
                 </div>
                 {previewing && (
                   <div
