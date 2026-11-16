@@ -4,6 +4,7 @@ import type { ClassDirectoryEntry } from '@/hooks/useStudentClassDirectory';
 import type { TurnInMap } from '@/hooks/useStudentTurnIns';
 import { useStudentGrades } from '@/hooks/useStudentGrades';
 import { useServerNow } from '@/hooks/useServerNow';
+import { useClassPageAgendas } from '@/hooks/useClassPageAgendas';
 import { useDialog } from '@/context/useDialog';
 import { logError } from '@/utils/logError';
 import { getClassColor } from '@/utils/studentClassColors';
@@ -19,6 +20,7 @@ import {
 } from '@/utils/studentLanding';
 import { readStudentResponseDoc } from '@/utils/studentResponseDoc';
 import { resolveStudentOpenHref } from '@/utils/studentOpenHref';
+import { ClassPageAgenda } from './ClassPageAgenda';
 import { StudentLandingLayout } from './StudentLandingLayout';
 import type { LandingClass, LandingTab } from './types';
 
@@ -64,6 +66,7 @@ export const StudentLandingV2: React.FC<StudentLandingV2Props> = ({
   const { showAlert } = useDialog();
   const gradesOn = gradesEnabled && !!pseudonymUid;
   const grades = useStudentGrades(pseudonymUid, selectedClassId, gradesOn);
+  const classPage = useClassPageAgendas(selectedClassId);
 
   const landingClasses = useMemo<LandingClass[]>(
     () =>
@@ -152,6 +155,7 @@ export const StudentLandingV2: React.FC<StudentLandingV2Props> = ({
       onLockedClick={onLockedClick}
       onOpenGradeOnly={onOpenGradeOnly}
       notice={notice}
+      classTop={<ClassPageAgenda view={classPage} />}
     />
   );
 };

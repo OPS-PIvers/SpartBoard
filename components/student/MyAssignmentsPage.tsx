@@ -15,6 +15,7 @@ import {
   sortClassesByBell,
 } from '@/utils/studentClassOrder';
 import { useStudentTurnIns } from '@/hooks/useStudentTurnIns';
+import { useCourseLinkClass } from '@/hooks/useCourseLinkClass';
 import { useProjectsWidgetSettings } from '@/hooks/useProjectsWidgetSettings';
 import { getServerNow, syncServerTime } from '@/utils/serverTime';
 import { StudentPageShell } from './StudentPageShell';
@@ -35,6 +36,13 @@ const MyAssignmentsPage: React.FC = () => {
   const { classIds, pseudonymUid, firstName, signOut, pinLogin } =
     useStudentAuth();
 
+  const [initialPath] = useState(() =>
+    typeof window === 'undefined'
+      ? parseMyAssignmentsPath('')
+      : parseMyAssignmentsPath(window.location.pathname)
+  );
+  // D18: a Course link opens the student's own class in that Course.
+  const courseLink = useCourseLinkClass(initialPath.courseLinkId, classIds);
   const directory = useStudentClassDirectory({ classIds, pseudonymUid });
   const bell = useStudentBellSchedules(true);
   const classes = useMemo(
@@ -68,6 +76,7 @@ const MyAssignmentsPage: React.FC = () => {
   const turnIns = useStudentTurnIns(assignments, pseudonymUid);
   const [checksReady, setChecksReady] = useState(false);
   const loaded =
+    courseLink.status !== 'loading' &&
     loadState !== 'loading' &&
     directory.status !== 'loading' &&
     bell.status !== 'loading';
@@ -86,11 +95,6 @@ const MyAssignmentsPage: React.FC = () => {
 
   // Rules deny grade reads to a PIN sign-in token.
   const gradesEnabled = useStudentGradebookEnabled() && !pinLogin;
-  const [initialPath] = useState(() =>
-    typeof window === 'undefined'
-      ? parseMyAssignmentsPath('')
-      : parseMyAssignmentsPath(window.location.pathname)
-  );
 
   // Active class selection — null = "All classes" overview.
   const [activeClassId, setActiveClassId] = useState<string | null>(
@@ -100,11 +104,33 @@ const MyAssignmentsPage: React.FC = () => {
     initialPath.tab === 'grades' ? 'completed' : 'assignments'
   );
 
+  const [courseLinkDone, setCourseLinkDone] = useState(
+    initialPath.courseLinkId === null
+  );
+
   // A class from the URL or a tap is the student's pick; auto-select never overrides it.
   const [picked, setPicked] = useState(initialPath.classId !== null);
+  if (!courseLinkDone && courseLink.status !== 'loading') {
+    setCourseLinkDone(true);
+    if (courseLink.status === 'found') {
+      setPicked(true);
+      setActiveClassId(courseLink.classId);
+    }
+  }
+  const courseLinkClassId =
+    courseLink.status === 'found' ? courseLink.classId : null;
+  const courseLinkMissing = courseLink.status === 'missing';
+  useEffect(() => {
+    if (!courseLinkClassId && !courseLinkMissing) return;
+    window.history.replaceState(
+      null,
+      '',
+      myAssignmentsPath(courseLinkClassId, 'assignments')
+    );
+  }, [courseLinkClassId, courseLinkMissing]);
   const [autoSelectDone, setAutoSelectDone] = useState(false);
   const autoSelectReady =
-    directory.status === 'ready' && bell.status !== 'loading';
+    directory.status === 'ready' && bell.status !== 'loading' && courseLinkDone;
   if (autoSelectReady && !autoSelectDone) {
     setAutoSelectDone(true);
     if (!picked) {

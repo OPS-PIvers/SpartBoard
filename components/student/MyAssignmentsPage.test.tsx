@@ -51,6 +51,21 @@ vi.mock('@/hooks/useStudentGrades', () => ({
   useStudentGrades: () => ({ status: 'loading' }),
 }));
 
+const courseLink: {
+  value: import('@/hooks/useCourseLinkClass').CourseLinkClass;
+} = { value: { status: 'none' } };
+const courseLinkArgs: unknown[][] = [];
+vi.mock('@/hooks/useCourseLinkClass', () => ({
+  useCourseLinkClass: (...args: unknown[]) => {
+    courseLinkArgs.push(args);
+    return courseLink.value;
+  },
+}));
+
+vi.mock('@/hooks/useClassPageAgendas', () => ({
+  useClassPageAgendas: () => ({ agendas: [], links: [] }),
+}));
+
 const clock = { now: 0 };
 const OMS: BuildingScheduleDefaults = {
   buildingId: 'oms',
@@ -102,6 +117,8 @@ beforeEach(() => {
   turnIns.settled = true;
   clock.now = at(8, 30);
   window.history.replaceState(null, '', '/my-assignments');
+  courseLink.value = { status: 'none' };
+  courseLinkArgs.length = 0;
 });
 
 describe('MyAssignmentsPage class list', () => {
@@ -216,6 +233,28 @@ describe('MyAssignmentsPage bell period', () => {
     clock.now = at(9, 20);
     away(5 * 60 * 1000);
     expect(heading()).toBe('Biology');
+  });
+
+  it("opens a Course link on the student's own class in it", () => {
+    setClasses();
+    window.history.replaceState(null, '', '/my-assignments/course/link-1');
+    courseLink.value = { status: 'found', classId: 'ART' };
+    render(<MyAssignmentsPage />);
+    expect(courseLinkArgs[0]?.[0]).toBe('link-1');
+    expect(heading()).toBe('Art');
+    expect(window.location.pathname).toBe('/my-assignments/ART');
+  });
+
+  it('waits on a Course link, then falls back to the class in session', () => {
+    setClasses();
+    window.history.replaceState(null, '', '/my-assignments/course/link-1');
+    courseLink.value = { status: 'loading' };
+    const { rerender } = render(<MyAssignmentsPage />);
+    expect(screen.getByText('Loading your assignments…')).toBeTruthy();
+    courseLink.value = { status: 'missing' };
+    rerender(<MyAssignmentsPage />);
+    expect(heading()).toBe('Biology');
+    expect(window.location.pathname).toBe('/my-assignments');
   });
 
   it('never switches once the student has picked a class', () => {
