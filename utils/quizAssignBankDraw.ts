@@ -215,3 +215,24 @@ export async function withCurrentAnswerKeys(
     return frozen;
   }
 }
+
+/** Loads the quiz an assignment grades against: its frozen copy with current keys, or the library quiz. */
+export async function loadAssignmentAnswerKeyQuiz(
+  libraryDriveFileId: string,
+  frozenDriveFileId: string | undefined,
+  deps: {
+    loadQuizData: (driveFileId: string) => Promise<QuizData>;
+    loadBankContentsForQuiz: (
+      quiz: Pick<QuizData, 'bankSlots'>
+    ) => Promise<Map<string, BankContent>>;
+  }
+): Promise<QuizData> {
+  if (!frozenDriveFileId || frozenDriveFileId === libraryDriveFileId) {
+    return deps.loadQuizData(libraryDriveFileId);
+  }
+  return withCurrentAnswerKeys(
+    await deps.loadQuizData(frozenDriveFileId),
+    libraryDriveFileId,
+    deps
+  );
+}

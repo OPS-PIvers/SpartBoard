@@ -68,7 +68,10 @@ import {
   resolveQuizAssignment,
   sampleQuizDraw,
 } from '@/utils/questionBanks';
-import { withCurrentAnswerKeys } from '@/utils/quizAssignBankDraw';
+import {
+  loadAssignmentAnswerKeyQuiz,
+  withCurrentAnswerKeys,
+} from '@/utils/quizAssignBankDraw';
 import {
   reconcileBankSlotsForPlcShare,
   unsharedBanksMessage,
@@ -143,6 +146,7 @@ import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { ViewAsDriveEmptyState } from '@/components/viewAs/ViewAsDriveEmptyState';
 import { useViewAsDriveStatus } from '@/hooks/useViewAsDriveStatus';
 import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
+import { PublishInProgressDialog } from '@/components/common/library/PublishInProgressDialog';
 import { AssignToClassroomModal } from '@/components/classroomAddon/AssignToClassroomModal';
 import { requestClassroomFinalGradeToken } from '@/components/classroomAddon/gisOAuth';
 import { doc, getDoc, writeBatch } from 'firebase/firestore';
@@ -837,6 +841,15 @@ const TeacherQuizWidget: React.FC<{
   // Ephemeral modal state for the per-assignment "Publish Scores" picker.
   const [publishingAssignment, setPublishingAssignment] =
     useState<QuizAssignment | null>(null);
+  // In-progress check before the picker; set when the teacher picked End & Publish.
+  const [publishInProgressFor, setPublishInProgressFor] =
+    useState<QuizAssignment | null>(null);
+  const [publishEndsAssignment, setPublishEndsAssignment] = useState(false);
+  const requestPublishScores = (a: QuizAssignment) => {
+    setPublishEndsAssignment(false);
+    if (a.status === 'inactive') setPublishingAssignment(a);
+    else setPublishInProgressFor(a);
+  };
   // Stable per target so the modal's pending-transcript read runs once.
   const publishWrittenReturn = useMemo(
     () =>
@@ -1262,6 +1275,29 @@ const TeacherQuizWidget: React.FC<{
       );
     },
     [loadQuiz, loadQuizData, loadBankContentsForQuiz]
+  );
+
+  // Publish reads the key without the loading pane, which would unmount the open Publish dialog.
+  const loadAnswerKeyQuizQuietly = useCallback(
+    async (
+      meta: QuizMetadata,
+      assignment: Pick<QuizAssignment, 'resolvedDriveFileId'>
+    ): Promise<QuizData | null> => {
+      try {
+        return await loadAssignmentAnswerKeyQuiz(
+          meta.driveFileId,
+          assignment.resolvedDriveFileId,
+          { loadQuizData, loadBankContentsForQuiz }
+        );
+      } catch (err) {
+        addToast(
+          err instanceof Error ? err.message : 'Failed to load quiz',
+          'error'
+        );
+        return null;
+      }
+    },
+    [loadQuizData, loadBankContentsForQuiz, addToast]
   );
 
   // Quiet fetch for the assign modal's lazy question load — must not touch
@@ -2630,6 +2666,22 @@ const TeacherQuizWidget: React.FC<{
     );
   }
 
+  const publishInProgressDialog = publishInProgressFor ? (
+    <PublishInProgressDialog
+      message="The quiz is currently in progress. Publish scores anyway?"
+      onCancel={() => setPublishInProgressFor(null)}
+      onConfirm={() => {
+        setPublishingAssignment(publishInProgressFor);
+        setPublishInProgressFor(null);
+      }}
+      onEndAndPublish={() => {
+        setPublishEndsAssignment(true);
+        setPublishingAssignment(publishInProgressFor);
+        setPublishInProgressFor(null);
+      }}
+    />
+  ) : null;
+
   const publishScoresModal = publishingAssignment ? (
     <PublishScoresModal
       assignmentTitle={publishingAssignment.quizTitle}
@@ -2695,8 +2747,11 @@ const TeacherQuizWidget: React.FC<{
             );
             return;
           }
-          const data = await loadAnswerKeyQuiz(meta, target);
+          const data = await loadAnswerKeyQuizQuietly(meta, target);
           if (!data) return;
+          if (publishEndsAssignment && target.status !== 'inactive') {
+            await deactivateAssignment(target.id);
+          }
           const result = await publishAssignmentScores(
             target.id,
             data,
@@ -2985,10 +3040,11 @@ const TeacherQuizWidget: React.FC<{
           }
           onPublishScores={
             activeAssignment && !isReview
-              ? () => setPublishingAssignment(activeAssignment)
+              ? () => requestPublishScores(activeAssignment)
               : undefined
           }
         />
+        {publishInProgressDialog}
         {publishScoresModal}
       </>
     );
@@ -4672,9 +4728,7 @@ const TeacherQuizWidget: React.FC<{
             );
           }
         }}
-        onArchivePublishScores={(a) => {
-          setPublishingAssignment(a);
-        }}
+        onArchivePublishScores={requestPublishScores}
         onArchiveUnpublishScores={async (a) => {
           // One-click unpublish — `unpublishAssignmentScores` is a
           // cheap two-write batch (no Drive lookup, no grading).
@@ -5031,6 +5085,7 @@ const TeacherQuizWidget: React.FC<{
         />
       )}
       {assignmentSettingsModal}
+      {publishInProgressDialog}
       {publishScoresModal}
       {canAssignToClassroom && assigningToClassroom && (
         <AssignToClassroomModal
