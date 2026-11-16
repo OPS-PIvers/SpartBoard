@@ -444,6 +444,7 @@ describe('deleteOrganizationUser — preflight and execution', () => {
       docs: {
         ...baseDocs,
         'users/uid9': {},
+        'verified_classes/uid9': { ids: ['c1'] },
         'admins/teacher@orono.k12.mn.us': { roleId: 'building_admin' },
       },
       counts: { quiz_sessions: 4 },
@@ -463,6 +464,7 @@ describe('deleteOrganizationUser — preflight and execution', () => {
       authAccountRemoved: true,
       quizSessionsPreserved: 4,
     });
+    expect(deleted).toContain('verified_classes/uid9');
     // The member doc is the authorization anchor for a retry, so it goes last.
     expect(deleted[deleted.length - 1]).toBe(
       'organizations/orono/members/teacher@orono.k12.mn.us'
