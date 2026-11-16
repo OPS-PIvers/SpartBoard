@@ -10,10 +10,10 @@ import {
   ExtensionCallError,
   bearerToken,
   fetchTokenInfo,
-  trustedUidForEmail,
   verifiedTokenEmail,
   type TokenInfo,
 } from './webTourExtension';
+import { trustedUidForEmail } from './trustedSignIn';
 import {
   IMPORT_INBOX_COLLECTION,
   IMPORT_INBOX_TTL_MS,

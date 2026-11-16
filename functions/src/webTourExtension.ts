@@ -3,6 +3,7 @@ import './functionsInit';
 import { onRequest } from 'firebase-functions/v2/https';
 import * as admin from './firebaseAdmin';
 import { isDistrictStaffEmail } from './districtStaff';
+import { trustedUidForEmail } from './trustedSignIn';
 import { GL_TOURS_COLLECTION } from './glTours';
 import { WEB_TOURS_FEATURE_ID, isWebTourPicturePath } from './mcp/webTourTools';
 import { isWebTourSnapshot } from './mcp/webTours';
@@ -551,37 +552,6 @@ export async function fetchTokenInfo(token: string): Promise<TokenInfo | null> {
     body: new URLSearchParams({ access_token: token }).toString(),
   });
   return res.ok ? ((await res.json()) as TokenInfo) : null;
-}
-
-/** The account's uid only when a Google sign-in proved it owns the address; anyone can register an unverified password account. */
-export function trustedSignInUid(
-  user: {
-    uid: string;
-    emailVerified?: boolean;
-    disabled?: boolean;
-    providerData?: ReadonlyArray<{ providerId?: string; email?: string }>;
-  },
-  email: string
-): string | null {
-  if (user.disabled === true || user.emailVerified !== true) return null;
-  const want = email.trim().toLowerCase();
-  const google = (user.providerData ?? []).some(
-    (p) =>
-      p?.providerId === 'google.com' &&
-      (p.email ?? '').trim().toLowerCase() === want
-  );
-  return google ? user.uid : null;
-}
-
-/** The Firebase uid that a Google sign-in proved owns this address, else null. */
-export async function trustedUidForEmail(
-  email: string
-): Promise<string | null> {
-  try {
-    return trustedSignInUid(await admin.auth().getUserByEmail(email), email);
-  } catch {
-    return null;
-  }
 }
 
 function defaultDeps(db: Firestore): ExtensionDeps {

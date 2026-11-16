@@ -49,6 +49,7 @@ import {
   MISSING_LIST_ALLOWS,
   addVerifiedLmsClasses,
   loadVerifiedClassIds,
+  unverifiedClassIds,
 } from './verifiedClassList';
 
 // Same named secrets as index.ts; Firebase params dedupes by name. The
@@ -1583,7 +1584,7 @@ export const assignToClassroomV1 = onCall(
         !id.startsWith('classroom:') &&
         !id.startsWith('schoology:')
     );
-    const linkClasslinkClassId =
+    const sessionClasslinkClassId =
       realClasslinkClassIds.length === 1 ? realClasslinkClassIds[0] : null;
 
     // GATE 2 — the caller teaches the Google course. Fail CLOSED on any
@@ -1705,6 +1706,16 @@ export const assignToClassroomV1 = onCall(
     // never overwritten (a Sidebar-established roster link wins — we only fill
     // the gap when it's missing) so assign can't silently re-route a course.
     if (mode === 'addon') {
+      // Capture the session's class only when it is on the caller's own verified list.
+      // A failed list read keeps the assign (the courseWork already exists) and drops the class.
+      const classIsVerified = sessionClasslinkClassId
+        ? await unverifiedClassIds(db, callerUid, [sessionClasslinkClassId])
+            .then((ids) => ids.length === 0)
+            .catch(() => false)
+        : false;
+      const linkClasslinkClassId = classIsVerified
+        ? sessionClasslinkClassId
+        : null;
       const ref = db.doc(`classroom_course_links/${courseId}`);
       await db.runTransaction(async (tx) => {
         const existing = await tx.get(ref);
@@ -1847,6 +1858,15 @@ export const linkClassroomCourse = onCall(
     }
 
     const db = admin.firestore();
+    if (
+      classlinkClassId &&
+      (await unverifiedClassIds(db, callerUid, [classlinkClassId])).length > 0
+    ) {
+      throw new HttpsError(
+        'permission-denied',
+        'You can only link a class you teach in ClassLink.'
+      );
+    }
     const ref = db.doc(`classroom_course_links/${courseId}`);
 
     // TOCTOU FIX: run the no-hijack check + write inside a single transaction.
