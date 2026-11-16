@@ -45,10 +45,14 @@ export const ProjectStepStatePicker: React.FC<ProjectStepStatePickerProps> = ({
     const width = Math.max(rect.width, 192);
     const height = panelRef.current?.offsetHeight ?? 200;
     const below = rect.bottom + 6;
-    const top =
+    const preferred =
       below + height > window.innerHeight && rect.top - height - 6 > 0
         ? rect.top - height - 6
         : below;
+    const top = Math.max(
+      8,
+      Math.min(preferred, window.innerHeight - height - 8)
+    );
     const left = Math.min(
       Math.max(8, rect.left),
       window.innerWidth - width - 8
@@ -65,6 +69,15 @@ export const ProjectStepStatePicker: React.FC<ProjectStepStatePickerProps> = ({
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
+        event.preventDefault();
+        onClose(true);
+        return;
+      }
+      // Portalled to <body>: Tab returns to the step instead of leaving the page.
+      if (
+        event.key === 'Tab' &&
+        panelRef.current?.contains(document.activeElement)
+      ) {
         event.preventDefault();
         onClose(true);
       }

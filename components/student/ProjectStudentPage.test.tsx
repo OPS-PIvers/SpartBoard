@@ -121,6 +121,15 @@ describe('ProjectStudentPage', () => {
     );
   });
 
+  it('sends Tab from the picker back to its step', () => {
+    render(<ProjectStudentPage />);
+    fireEvent.click(cell(/Build: Not started/));
+    const picker = screen.getByRole('dialog', { name: 'Set Build' });
+    fireEvent.keyDown(document.activeElement ?? picker, { key: 'Tab' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(cell(/Build: Not started/)).toHaveFocus();
+  });
+
   it('writes the picked state in one tap', () => {
     render(<ProjectStudentPage />);
     fireEvent.click(cell(/Build: Not started/));

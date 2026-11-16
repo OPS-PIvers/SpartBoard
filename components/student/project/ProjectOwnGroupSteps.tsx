@@ -126,15 +126,18 @@ export const ProjectOwnGroupSteps: React.FC<ProjectOwnGroupStepsProps> = ({
 }) => {
   const color = resolveGroupColor(group.color, group.order);
   const listRef = useRef<HTMLOListElement>(null);
+  const centeredRef = useRef(false);
   const currentIndex = steps.findIndex(
     (step) => stepStateOf(group, step.id) !== 'done'
   );
 
-  // Bring the first unfinished step into view once the strip overflows.
+  // Bring the first unfinished step into view once, so live updates never move the strip.
   useEffect(() => {
     const list = listRef.current;
     const item = list?.children[currentIndex] as HTMLElement | undefined;
-    if (!list || !item || list.scrollWidth <= list.clientWidth) return;
+    if (centeredRef.current || !list || !item) return;
+    centeredRef.current = true;
+    if (list.scrollWidth <= list.clientWidth) return;
     const listRect = list.getBoundingClientRect();
     const itemRect = item.getBoundingClientRect();
     list.scrollLeft +=
@@ -166,7 +169,7 @@ export const ProjectOwnGroupSteps: React.FC<ProjectOwnGroupStepsProps> = ({
         <ol
           ref={listRef}
           aria-label="Your steps"
-          className="custom-scrollbar mt-3 flex flex-col gap-2 sm:flex-row sm:overflow-x-auto sm:pb-1.5"
+          className="custom-scrollbar mt-3 flex flex-col gap-2 sm:-mx-0.5 sm:flex-row sm:overflow-x-auto sm:px-0.5 sm:pb-1.5 sm:pt-0.5"
         >
           {steps.map((step, index) => (
             <StepCell
