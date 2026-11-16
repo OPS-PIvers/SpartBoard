@@ -21,7 +21,7 @@ export function useWatermarkStudentName(
     override?.trim() ?? '',
     tokenFirstName,
     user?.displayName?.trim() ?? '',
-    user ? readSessionFirstName() : '',
+    user && !user.isAnonymous ? readSessionFirstName() : '',
   ];
   const name = candidates.find((c) => c.length > 0);
   if (name) return name;
