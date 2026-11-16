@@ -1,3 +1,5 @@
+const oneBreak = (s: string) => s.replace(/\n+/g, '\n');
+
 /** All the edit logs on one response share this many bytes, about 6,000 words of typing. */
 export const WRITING_LOG_BUDGET = 200_000;
 /** One answer's log can use the whole budget. */
@@ -8,7 +10,8 @@ const encoder = new TextEncoder();
 export const utf8Length = (s: string): number => encoder.encode(s).length;
 const END_MARK = '!';
 
-export type WritingEditKind = 'typed' | 'pasted' | 'sync' | 'restored';
+export type WritingEditKind =
+  'typed' | 'pasted' | 'sync' | 'restored' | 'format';
 
 export interface WritingEdit {
   /** Ms since the edit before it. */
@@ -18,7 +21,7 @@ export interface WritingEdit {
   del: number;
   /** Text put in at `pos`. */
   ins: string;
-  /** `restored` is text already in the box when the page loaded; `sync` is text that changed mid-page with no typing or paste event. */
+  /** `restored` is text already in the box when the page loaded; `sync` is text that changed mid-page with no typing or paste event; `format` re-spaces line breaks from an older recorder. */
   kind: WritingEditKind;
 }
 
@@ -57,6 +60,7 @@ const KIND_MARK: Record<WritingEditKind, string> = {
   pasted: 'P',
   sync: 'S',
   restored: 'R',
+  format: 'F',
 };
 const escapeText = (s: string) =>
   s.replace(
@@ -79,8 +83,20 @@ export function encodeEdit(e: WritingEdit, cursor: number): string {
   return `${KIND_MARK[e.kind]}${dt},${pos},${del},${escapeText(e.ins)}`;
 }
 
+/** Clock time the student was writing at, logged when writing starts or resumes. */
+export interface WritingStamp {
+  /** Edits before the stamp. */
+  at: number;
+  /** Epoch ms, to the second. */
+  time: number;
+}
+
+/** No typing for this long starts a new writing session. */
+export const SESSION_GAP_MS = 15 * 60_000;
+
 export interface ParsedWritingLog {
   edits: WritingEdit[];
+  stamps: WritingStamp[];
   /** Recording stopped at the size limit, so the log ends before the answer does. */
   cutOff: boolean;
 }
@@ -92,7 +108,7 @@ const fromBase36 = (s: string): number | null => {
 
 /** Reads a log a student's browser wrote; anything malformed is skipped. */
 export function parseWritingLog(log: unknown): ParsedWritingLog {
-  const out: ParsedWritingLog = { edits: [], cutOff: false };
+  const out: ParsedWritingLog = { edits: [], stamps: [], cutOff: false };
   if (typeof log !== 'string' || log.length > WRITING_LOG_MAX + 64) return out;
   let cursor = 0;
   let length = 0;
@@ -101,6 +117,12 @@ export function parseWritingLog(log: unknown): ParsedWritingLog {
       out.cutOff = true;
       break;
     }
+    if (token[0] === 'T') {
+      const sec = fromBase36(token.slice(1));
+      if (sec !== null)
+        out.stamps.push({ at: out.edits.length, time: sec * 1000 });
+      continue;
+    }
     const kind: WritingEditKind =
       token[0] === 'P'
         ? 'pasted'
@@ -108,7 +130,9 @@ export function parseWritingLog(log: unknown): ParsedWritingLog {
           ? 'sync'
           : token[0] === 'R'
             ? 'restored'
-            : 'typed';
+            : token[0] === 'F'
+              ? 'format'
+              : 'typed';
     const body = kind === 'typed' ? token : token.slice(1);
     const short = /^([0-9a-z]+):(.*)$/s.exec(body);
     const parts = short ? [short[1], '', '', short[2]] : body.split(',');
@@ -171,15 +195,19 @@ export class WritingLogWriter {
   private text: string;
   private cursor: number;
   private lastT: number | null = null;
+  private lastWall: number | null = null;
   private closed: boolean;
   private log: string;
   private bytes: number;
   private started = false;
+  /** The base log came from the recorder that doubled paragraph breaks. */
+  private legacy: boolean;
 
   constructor(base: string | undefined) {
     const parsed = parseWritingLog(base);
     this.log = parsed.edits.length > 0 && base ? base : '';
     this.closed = parsed.cutOff;
+    this.legacy = parsed.edits.length > 0 && parsed.stamps.length === 0;
     this.bytes = utf8Length(this.log);
     this.text = textAfter(parsed.edits, parsed.edits.length);
     const last = parsed.edits[parsed.edits.length - 1];
@@ -200,15 +228,29 @@ export class WritingLogWriter {
     next: string,
     t: number,
     kind: WritingEditKind,
-    room: number
+    room: number,
+    wall = Date.now()
   ): number {
     if (this.closed) return 0;
     const before = this.bytes;
     const beforeLog = this.log;
     const dt = this.lastT === null ? 0 : Math.min(t - this.lastT, 86_400_000);
+    // Clock time on each page load and after a long break, so sessions survive a tab left open or a sleeping laptop.
+    if (this.lastWall === null || wall - this.lastWall >= SESSION_GAP_MS)
+      this.append(`T${Math.floor(wall / 1000).toString(36)}`);
+    this.lastWall = wall;
     // The box held something the log never saw: edits lost to a reload, or text set by a script.
     if (this.text !== prev)
-      this.push(this.text, prev, 0, this.started ? 'sync' : 'restored');
+      this.push(
+        this.text,
+        prev,
+        0,
+        this.started
+          ? 'sync'
+          : this.legacy && oneBreak(this.text) === oneBreak(prev)
+            ? 'format'
+            : 'restored'
+      );
     this.started = true;
     this.push(prev, next, dt, kind);
     this.lastT = t;
@@ -248,8 +290,8 @@ export interface WritingSummary {
   /** Edits that removed text. */
   deletions: number;
   deletedChars: number;
-  /** Edits that added text somewhere other than the end. */
-  insertsInside: number;
+  /** Whole words swapped for a different word earlier in the text; typo fixes and plain additions or cuts don't count. */
+  wordsReplaced: number;
   pastedChars: number;
   /** Characters that appeared mid-page with no typing or paste event. */
   syncChars: number;
@@ -263,34 +305,129 @@ export interface WritingSummary {
 /** Pauses longer than this count as this long, in the summary and in playback. */
 export const PAUSE_CAP_MS = 2000;
 
+/** A gap this long ends one stretch of editing. */
+const BURST_GAP_MS = 30_000;
+
+const wordsOf = (text: string): string[] =>
+  text.toLowerCase().match(/[\p{L}\p{N}']+/gu) ?? [];
+
+/** Single-letter adds, cuts, changes and swapped neighbours between two words. */
+function editDistance(a: string, b: string): number {
+  const d = Array.from({ length: a.length + 1 }, (_, i) =>
+    Array.from({ length: b.length + 1 }, (_, j) =>
+      i === 0 ? j : j === 0 ? i : 0
+    )
+  );
+  for (let i = 1; i <= a.length; i += 1)
+    for (let j = 1; j <= b.length; j += 1) {
+      d[i][j] = Math.min(
+        d[i - 1][j] + 1,
+        d[i][j - 1] + 1,
+        d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+      );
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1])
+        d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+    }
+  return d[a.length][b.length];
+}
+
+/** A typo fix: 1 letter off, or 2 in a word of 6 or more. */
+const isTypoFix = (a: string, b: string) =>
+  editDistance(a, b) <= (Math.max(a.length, b.length) >= 6 ? 2 : 1);
+
+/** Words in `before` swapped for a different word in `after`, leaving out typo fixes. */
+export function replacedWords(before: string, after: string): number {
+  const left = new Map<string, number>();
+  for (const w of wordsOf(before)) left.set(w, (left.get(w) ?? 0) + 1);
+  const added: string[] = [];
+  for (const w of wordsOf(after)) {
+    const n = left.get(w) ?? 0;
+    if (n > 0) left.set(w, n - 1);
+    else added.push(w);
+  }
+  const removed = [...left].flatMap(([w, n]) => Array<string>(n).fill(w));
+  const fresh = added.filter((w) => {
+    const typo = removed.findIndex((r) => isTypoFix(r, w));
+    if (typo === -1) return true;
+    removed.splice(typo, 1);
+    return false;
+  });
+  return Math.min(fresh.length, removed.length);
+}
+
 export function summarizeWriting(edits: WritingEdit[]): WritingSummary {
   const s: WritingSummary = {
     edits: 0,
     deletions: 0,
     deletedChars: 0,
-    insertsInside: 0,
+    wordsReplaced: 0,
     pastedChars: 0,
     syncChars: 0,
     restoredChars: 0,
     writingMs: 0,
     finalText: '',
   };
+  // One stretch of editing earlier in the text: where it started and the text before it.
+  let burst: { before: string; caret: number } | null = null;
+  const closeBurst = () => {
+    if (burst) s.wordsReplaced += replacedWords(burst.before, s.finalText);
+    burst = null;
+  };
   for (const e of edits) {
     const before = s.finalText;
-    s.finalText = applyEdit(before, e);
-    if (e.kind === 'sync' || e.kind === 'restored') {
-      s[e.kind === 'sync' ? 'syncChars' : 'restoredChars'] += e.ins.length;
+    if (e.kind === 'sync' || e.kind === 'restored' || e.kind === 'format') {
+      closeBurst();
+      s.finalText = applyEdit(before, e);
+      if (e.kind !== 'format')
+        s[e.kind === 'sync' ? 'syncChars' : 'restoredChars'] += e.ins.length;
       continue;
     }
+    const continues =
+      burst !== null &&
+      e.dt < BURST_GAP_MS &&
+      (e.pos === burst.caret || e.pos + e.del === burst.caret);
+    if (!continues) {
+      closeBurst();
+      if (e.pos + e.del < before.trimEnd().length) burst = { before, caret: 0 };
+    }
+    s.finalText = applyEdit(before, e);
+    if (burst) burst.caret = e.pos + e.ins.length;
     s.edits += 1;
     s.writingMs += Math.min(e.dt, PAUSE_CAP_MS);
     if (e.kind === 'pasted') s.pastedChars += e.ins.length;
     if (e.del > 0) {
       s.deletions += 1;
       s.deletedChars += e.del;
-    } else if (e.pos < before.trimEnd().length) {
-      s.insertsInside += 1;
     }
   }
+  closeBurst();
   return s;
+}
+
+export interface WritingSession {
+  /** Index of the session's first edit. */
+  at: number;
+  start: number;
+  end: number;
+}
+
+/** Writing sessions from a log's clock stamps; a reload within `SESSION_GAP_MS` continues the session. Empty for logs with no stamps. */
+export function writingSessions(
+  edits: WritingEdit[],
+  stamps: WritingStamp[]
+): WritingSession[] {
+  const out: WritingSession[] = [];
+  // Writing from before stamps has no clock time, so sessions would misdate it.
+  if (stamps.length === 0 || stamps[0].at > 0) return out;
+  stamps.forEach((stamp, i) => {
+    const until = stamps[i + 1]?.at ?? edits.length;
+    let end = stamp.time;
+    for (let k = stamp.at + 1; k < until; k += 1) end += edits[k].dt;
+    const last = out[out.length - 1];
+    if (last && stamp.time - last.end < SESSION_GAP_MS)
+      last.end = Math.max(last.end, end);
+    else if (stamp.at < edits.length || !last)
+      out.push({ at: stamp.at, start: stamp.time, end });
+  });
+  return out;
 }

@@ -57,4 +57,36 @@ describe('WritingPlayer', () => {
     act(() => void vi.advanceTimersByTime(1000));
     expect(slider).toHaveValue('2');
   });
+
+  it('marks long pauses on the timeline and skips them', () => {
+    const w = new WritingLogWriter(undefined);
+    w.write('', 'a', 0, 'typed', 1e6);
+    w.write('a', 'ab', 100, 'typed', 1e6);
+    w.write('ab', 'abc', 30_100, 'typed', 1e6);
+    render(<WritingPlayer log={w.value} />);
+    expect(screen.queryByText(/shortened/)).toBeNull();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Jump to the 30 sec pause' })
+    );
+    expect(screen.getByRole('slider')).toHaveValue('2');
+    expect(screen.getByText('Paused for 30 sec here')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Skip pause' }));
+    expect(screen.getByRole('slider')).toHaveValue('3');
+    expect(screen.queryByRole('button', { name: 'Skip pause' })).toBeNull();
+  });
+
+  it('lists writing sessions and jumps to where one starts', () => {
+    const day = Date.UTC(2026, 10, 16, 15);
+    const w = new WritingLogWriter(undefined);
+    w.write('', 'a', 0, 'typed', 1e6, day);
+    w.write('a', 'ab', 100, 'typed', 1e6, day + 100);
+    w.write('ab', 'abc', 200, 'typed', 1e6, day + 86_400_000);
+    render(<WritingPlayer log={w.value} />);
+    expect(screen.getByText('Sessions')).toBeInTheDocument();
+    expect(screen.getByText('Session 2:')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Jump to session 2' }));
+    expect(screen.getByRole('slider')).toHaveValue('2');
+    expect(screen.getByText(/^Session 2 starts /)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Skip pause' })).toBeNull();
+  });
 });
