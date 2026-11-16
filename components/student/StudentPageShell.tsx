@@ -1,5 +1,5 @@
 import React from 'react';
-import { GraduationCap, LogOut } from 'lucide-react';
+import { ArrowLeft, GraduationCap, LogOut } from 'lucide-react';
 import { APP_NAME } from '@/config/constants';
 
 /**
@@ -9,11 +9,14 @@ import { APP_NAME } from '@/config/constants';
  */
 interface PageShellProps {
   onDone: () => void;
+  /** `signOut` on `/my-assignments`; `back` on pages opened from it, so Done keeps the student signed in. */
+  doneAction?: 'signOut' | 'back';
   children: React.ReactNode;
 }
 
 export const StudentPageShell: React.FC<PageShellProps> = ({
   onDone,
+  doneAction = 'signOut',
   children,
 }) => (
   <div className="relative h-screen h-dvh w-screen overflow-y-auto overflow-x-hidden bg-slate-50 font-sans">
@@ -36,10 +39,18 @@ export const StudentPageShell: React.FC<PageShellProps> = ({
         <button
           type="button"
           onClick={onDone}
-          aria-label="Done — sign out"
+          aria-label={
+            doneAction === 'back'
+              ? 'Done, back to my assignments'
+              : 'Done, sign out'
+          }
           className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white shadow-xs transition hover:border-white/30 hover:bg-white/20 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-blue-primary"
         >
-          <LogOut className="h-4 w-4" strokeWidth={2.25} />
+          {doneAction === 'back' ? (
+            <ArrowLeft className="h-4 w-4" strokeWidth={2.25} />
+          ) : (
+            <LogOut className="h-4 w-4" strokeWidth={2.25} />
+          )}
           <span>Done</span>
         </button>
       </header>

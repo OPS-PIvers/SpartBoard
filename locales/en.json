@@ -3492,6 +3492,7 @@
     "optionLabel": "Explanation for {{option}}"
   },
   "quizDok": {
+    "fieldNone": "None",
     "level": "DOK level",
     "none": "No DOK",
     "any": "Any DOK",

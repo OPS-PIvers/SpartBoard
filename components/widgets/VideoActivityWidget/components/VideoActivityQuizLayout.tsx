@@ -28,6 +28,7 @@ import {
   vaToQuizQuestion,
 } from '@/utils/vaQuestionAdapter';
 import { TargetPicker } from '@/components/quiz/targets/TargetPicker';
+import { useAuth } from '@/context/useAuth';
 import { useStandardsFromPrompt } from '@/components/quiz/targets/useStandardsFromPrompt';
 import { ChoiceOptionsEditor } from '@/components/widgets/QuizWidget/components/ChoiceOptionsEditor';
 import { DraftNumberInput } from '@/components/widgets/QuizWidget/components/DraftNumberInput';
@@ -293,6 +294,7 @@ export const VideoActivityQuizDetailPane = React.memo(
       duplicateQuestion,
     } = state;
     const [pickerOpen, setPickerOpen] = useState(false);
+    const metaList = useAuth().canAccessFeature('question-editor-fields');
     const promptRef = useRef<HTMLTextAreaElement>(null);
     const promptTextRef = useRef(selectedQuestion?.text);
     // The formatted prompt box has no textarea, so fall back to the saved text.
@@ -462,14 +464,19 @@ export const VideoActivityQuizDetailPane = React.memo(
             onRemove={() => updateQuestion(id, { imageDriveFileId: undefined })}
           />
 
-          <QuestionTargetsField
-            question={q}
-            onChange={(targets) => updateQuestion(id, { targets })}
-            promptStandards={promptStandards}
-            pickerOpen={pickerOpen}
-            onPickerOpenChange={setPickerOpen}
-            editAnchor={tourAttr('video-activity.editor-targets-edit')}
-          />
+          <div
+            className={metaList ? 'border-y border-slate-200 py-1' : undefined}
+          >
+            <QuestionTargetsField
+              question={q}
+              onChange={(targets) => updateQuestion(id, { targets })}
+              promptStandards={promptStandards}
+              pickerOpen={pickerOpen}
+              onPickerOpenChange={setPickerOpen}
+              editAnchor={tourAttr('video-activity.editor-targets-edit')}
+              metaList={metaList}
+            />
+          </div>
 
           <div className="grid grid-cols-3 gap-3">
             <div>

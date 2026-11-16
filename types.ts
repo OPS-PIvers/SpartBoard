@@ -11297,6 +11297,8 @@ export type GlobalFeature =
   | 'quiz-calculator-stimulus'
   /** Quiz editor: preview a stimulus from the question's attach list. */
   | 'quiz-stimulus-preview'
+  /** Question editor metadata (stimuli, targets, DOK) as labeled fields like Type and Points. */
+  | 'question-editor-fields'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
   | 'live-tour-editing-v2'
   /** Handwritten free-response boxes on paper answer sheets, transcribed for grading. */

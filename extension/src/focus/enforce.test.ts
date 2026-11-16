@@ -49,6 +49,7 @@ const tab = (
   url,
   active: false,
   lastAccessed: id,
+  opened: false,
   ...over,
 });
 
@@ -101,9 +102,11 @@ describe('parked pages', () => {
       tab(8, BASE),
       tab(9, 'file:///home/kid/page.html'),
       tab(10, ''),
+      tab(11, 'about:blank'),
+      tab(12, 'about:blank', { opened: true }),
     ];
     expect(tabsToPark(tabs, state(), ORIGINS, OWN).map((t) => t.id)).toEqual([
-      2, 5, 7, 9,
+      2, 5, 7, 9, 11,
     ]);
   });
 

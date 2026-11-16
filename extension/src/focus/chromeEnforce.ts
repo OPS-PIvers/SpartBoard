@@ -31,6 +31,8 @@ const LOCK_KEY = 'focusLock';
 const SAME_TRY_MS = 3_000;
 /** Per tab, the last allowed address it showed while blocking; survives a worker restart, cleared at the end. */
 const TAB_KEY_PREFIX = 'focusTab:';
+/** Per tab, a marker that another page opened it; survives a worker restart, cleared when the tab closes. */
+const OPENED_KEY_PREFIX = 'focusOpened:';
 /** A tab the worker is restoring is left alone for this long, so its way back isn't read as a try. */
 const RESTORING_MS = 10_000;
 
@@ -78,8 +80,31 @@ export async function topFrameUrl(tabId: number): Promise<string> {
   }
 }
 
+/** Tabs marked as opened by another page (see OPENED_KEY_PREFIX). */
+async function openedTabIds(): Promise<Set<number>> {
+  const all = await chrome.storage.session.get(null).catch(() => ({}));
+  return new Set(
+    Object.keys(all)
+      .filter((k) => k.startsWith(OPENED_KEY_PREFIX))
+      .map((k) => Number(k.slice(OPENED_KEY_PREFIX.length)))
+  );
+}
+
+// Only a page or an extension can make a popup window, so a blank tab there counts as opened.
+const isPopupWindow = (windowId: number | undefined) =>
+  windowId === undefined
+    ? Promise.resolve(false)
+    : chrome.windows
+        .get(windowId)
+        .then((w) => w.type === chrome.windows.WindowType.POPUP)
+        .catch(() => false);
+
 const allTabs = async (): Promise<TabInfo[]> => {
-  const [tabs, own] = await Promise.all([chrome.tabs.query({}), ownPageUrls()]);
+  const [tabs, own, opened] = await Promise.all([
+    chrome.tabs.query({}),
+    ownPageUrls(),
+    openedTabIds(),
+  ]);
   const out = await Promise.all(
     tabs.map(async (t): Promise<TabInfo | null> => {
       if (t.id === undefined || t.id === chrome.tabs.TAB_ID_NONE) return null;
@@ -90,6 +115,10 @@ const allTabs = async (): Promise<TabInfo[]> => {
           t.pendingUrl || t.url || own.get(t.id) || (await topFrameUrl(t.id)),
         active: t.active,
         lastAccessed: t.lastAccessed ?? 0,
+        opened:
+          t.openerTabId !== undefined ||
+          opened.has(t.id) ||
+          (await isPopupWindow(t.windowId)),
       };
     })
   );
@@ -183,6 +212,18 @@ export function createChromeEnforcer(deps: {
   };
   const recent = new Map<number, { url: string; at: number }>();
   const restoring = new Map<number, number>();
+
+  // Set synchronously when the tab is made, so its first navigation already sees it.
+  const openedNow = new Set<number>();
+  const hasOpener = async (tabId: number) => {
+    if (openedNow.has(tabId)) return true;
+    const key = `${OPENED_KEY_PREFIX}${tabId}`;
+    if ((await chrome.storage.session.get(key))[key]) return true;
+    const tab = await chrome.tabs.get(tabId).catch(() => undefined);
+    return (
+      tab?.openerTabId !== undefined || (await isPopupWindow(tab?.windowId))
+    );
+  };
 
   const rememberTab = (tabId: number, url: string) =>
     chrome.storage.session.set({ [`${TAB_KEY_PREFIX}${tabId}`]: url });
@@ -353,7 +394,8 @@ export function createChromeEnforcer(deps: {
     if (!isBlocking(state, now)) return false;
     const since = restoring.get(tabId);
     if (since !== undefined && now - since < RESTORING_MS) return false;
-    if (!isBlockedUrl(url, state, deps.origins, ownPages)) {
+    const opened = /^about:blank/i.test(url) && (await hasOpener(tabId));
+    if (!isBlockedUrl(url, state, deps.origins, ownPages, opened)) {
       // Remember where an allowed tab is, so a late event can still send it back there rather than close it.
       // Only a page the tab actually showed, so a redirecting address can't become the way back.
       if (committed && /^https?:/i.test(url)) await rememberTab(tabId, url);
@@ -424,8 +466,19 @@ export function createChromeEnforcer(deps: {
       await serial(cover);
     },
     windowChanged: () => serial(cover),
+    /** Another page opened this tab (webNavigation.onCreatedNavigationTarget). */
+    opened: (tabId: number) => {
+      openedNow.add(tabId);
+      void chrome.storage.session
+        .set({ [`${OPENED_KEY_PREFIX}${tabId}`]: true })
+        .catch(() => undefined);
+    },
     tabClosed: (tabId: number) => {
       noticeOnLoad.delete(tabId);
+      openedNow.delete(tabId);
+      void chrome.storage.session
+        .remove(`${OPENED_KEY_PREFIX}${tabId}`)
+        .catch(() => undefined);
       recent.delete(tabId);
       restoring.delete(tabId);
       void chrome.storage.session
@@ -443,6 +496,14 @@ export function createChromeEnforcer(deps: {
         };
         await fullscreen(windowId, lock);
       }),
+    /** Whether another page opened the active tab, so a blank page there counts as on task. */
+    activeOpened: async () => {
+      const [tab] = await chrome.tabs.query({
+        active: true,
+        lastFocusedWindow: true,
+      });
+      return tab?.id !== undefined && (await hasOpener(tab.id));
+    },
     /** Whether the student's window is fullscreen; Lock counts time outside it as away (F2). */
     activeFullscreen: async () => {
       const win = await lastNormalWindow();

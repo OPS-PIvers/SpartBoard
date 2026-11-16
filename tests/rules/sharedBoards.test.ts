@@ -400,6 +400,16 @@ describe('shared_boards — collaborator update', () => {
       })
     );
   });
+
+  it('collaborator CANNOT set or change createdNonce', async () => {
+    await assertFails(
+      updateDoc(doc(asCollab(), `shared_boards/${SHARE_ID}`), {
+        createdNonce: 'forged',
+        updatedAt: 2000,
+        updatedBy: COLLAB_UID,
+      })
+    );
+  });
 });
 
 describe('shared_boards — viewer (read-only)', () => {
