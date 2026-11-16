@@ -37,6 +37,13 @@ const schema = defineSettings<EmbedConfig>({
             { value: 60, label: 'refresh1Hour' },
           ],
         },
+        {
+          key: 'blockNewTabs',
+          type: 'toggle',
+          label: 'blockNewTabsLabel',
+          help: 'blockNewTabsHelp',
+          visibleWhen: (ctx) => ctx.canAccessFeature('embed-block-new-tabs'),
+        },
       ],
     },
   ],

@@ -56,6 +56,8 @@ export interface FocusClientDeps {
   saveRefused(refused: ProfileRefused | null): Promise<void>;
   /** The address of the active tab in the last focused window. */
   activeUrl(): Promise<string | undefined>;
+  /** Whether another page opened that tab; a blank page counts as on task only then. */
+  activeOpened(): Promise<boolean>;
   /** Whether the student's window is fullscreen; Lock counts time outside it as away. */
   activeFullscreen(): Promise<boolean>;
   /** Redirect and Lock (FS7): parks and restores tabs, sets the Lock rules and fullscreen to match the state. */
@@ -116,12 +118,14 @@ export function createFocusClient(deps: FocusClientDeps) {
     const fullscreen =
       state.session.level !== 'lock' ||
       (await deps.activeFullscreen().catch(() => true));
+    const opened = await deps.activeOpened().catch(() => false);
     const status = statusFor(
       url,
       state.session,
       deps.origins,
       deps.ownPages,
-      fullscreen
+      fullscreen,
+      opened
     );
     const host = liveHostFor(url, state.session);
     // A few seconds' slack, so the once-a-minute alarm doesn't skip every other report.

@@ -150,13 +150,24 @@ describe('statusFor', () => {
       'chrome://newtab/',
       'chrome://new-tab-page/',
       'chrome-search://local-ntp/local-ntp.html',
-      'about:blank',
       'chrome-error://chromewebdata/',
       'blob:https://www.desmos.com/uuid',
       'blob:https://spartboard.web.app/uuid',
       'filesystem:https://desmos.com/temporary/x',
     ])
       expect(statusFor(url, session, origins, OWN), url).toBe('on-task');
+  });
+
+  it('allows about:blank only in a tab another page opened', () => {
+    for (const url of ['about:blank', 'about:blank#x', 'ABOUT:BLANK']) {
+      expect(statusFor(url, session, origins, OWN), url).toBe('away');
+      expect(statusFor(url, session, origins, OWN, true, true), url).toBe(
+        'on-task'
+      );
+    }
+    expect(statusFor('about:srcdoc', session, origins, OWN, true, true)).toBe(
+      'away'
+    );
   });
 });
 
