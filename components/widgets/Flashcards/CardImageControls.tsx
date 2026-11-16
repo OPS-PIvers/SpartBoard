@@ -27,13 +27,14 @@ export const CardImageButton: React.FC<ButtonProps> = ({
 }) => {
   const input = useRef<HTMLInputElement>(null);
   const [previewing, setPreviewing] = useState(false);
-  const anchor = tourFieldAttr(
+  const anchor =
     side === 'term'
-      ? 'flashcards.card-term-image'
-      : 'flashcards.card-definition-image',
-    'flashcards',
-    fieldKey
-  );
+      ? tourFieldAttr('flashcards.card-term-image', 'flashcards', fieldKey)
+      : tourFieldAttr(
+          'flashcards.card-definition-image',
+          'flashcards',
+          fieldKey
+        );
   if (url && !image.uploading) {
     return (
       <>

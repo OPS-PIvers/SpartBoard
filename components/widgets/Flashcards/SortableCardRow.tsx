@@ -87,11 +87,9 @@ export const SortableCardRow: React.FC<SortableCardRowProps> = ({
     const image = isTerm ? termImage : definitionImage;
     const imageUrl = isTerm ? card.termImageUrl : card.definitionImageUrl;
     const maxLength = isTerm ? 500 : 1000;
-    const textareaAnchor = tourFieldAttr(
-      isTerm ? 'flashcards.card-term' : 'flashcards.card-definition',
-      'flashcards',
-      fieldKey
-    );
+    const textareaAnchor = isTerm
+      ? tourFieldAttr('flashcards.card-term', 'flashcards', fieldKey)
+      : tourFieldAttr('flashcards.card-definition', 'flashcards', fieldKey);
     const imageButton =
       uploadImage || imageUrl ? (
         <CardImageButton

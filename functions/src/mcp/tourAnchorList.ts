@@ -50136,37 +50136,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "flashcards.card-term",
     "label": "Term box on a card in the Flashcards editor",
     "scope": "field",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.flashcards.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:flashcards"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
+    "panel": true
   },
   {
     "id": "flashcards.card-definition",
     "label": "Definition box on a card in the Flashcards editor",
     "scope": "field",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.flashcards.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:flashcards"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
+    "panel": true
   },
   {
     "id": "flashcards.card-term-alternate",
