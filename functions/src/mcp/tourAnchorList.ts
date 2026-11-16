@@ -4586,6 +4586,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "needs": [
           "widget-on-stage"
         ]
+      },
+      {
+        "surface": "library.flashcards",
+        "kind": "widget",
+        "widget_type": "flashcards",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -50219,7 +50228,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "flashcards-editor.draft-ai",
-    "label": "Draft with AI under the card list in the Flashcards set editor",
+    "label": "Draft with AI in the Flashcards set editor",
     "scope": "widget type",
     "panel": true,
     "keys": [
@@ -50555,27 +50564,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Remove pronunciation button in the Flashcards editor",
     "scope": "field",
     "panel": true,
-    "routes": [
-      {
-        "surface": "library.flashcards.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:flashcards"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards.add-card",
-    "label": "Add card button in the Flashcards editor",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
     "routes": [
       {
         "surface": "library.flashcards.editor",

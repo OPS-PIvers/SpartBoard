@@ -11489,7 +11489,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'flashcards-editor.draft-ai': {
-    label: 'Draft with AI under the card list in the Flashcards set editor',
+    label: 'Draft with AI in the Flashcards set editor',
     perWidgetType: true,
     panel: true,
   },
@@ -11576,11 +11576,6 @@ export const TOUR_ANCHORS = {
   'flashcards-speak-editor.ipa-remove': {
     label: 'Remove pronunciation button in the Flashcards editor',
     perField: true,
-    panel: true,
-  },
-  'flashcards.add-card': {
-    label: 'Add card button in the Flashcards editor',
-    perWidgetType: true,
     panel: true,
   },
   'flashcards.language-select': {

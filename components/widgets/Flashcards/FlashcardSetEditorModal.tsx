@@ -20,7 +20,6 @@ import {
   ArrowLeftRight,
   ClipboardPaste,
   GripVertical,
-  Plus,
   Trash2,
   Wand2,
 } from 'lucide-react';
@@ -43,7 +42,6 @@ import { SpeakReviewList } from './speak/SpeakReviewList';
 import { SortableCardRow } from './SortableCardRow';
 import type { SpeakLookupCall } from './speak/lookupSpeakReferences';
 import {
-  MAX_FLASHCARDS_PER_SET,
   cleanFlashcards,
   flashcardSetIncompleteReason,
   useFlashcardEditorState,
@@ -331,44 +329,34 @@ export const FlashcardSetEditorModal: React.FC<
   );
 
   const quietButton =
-    'inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-100 hover:text-brand-blue-primary disabled:opacity-50';
+    'inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm text-slate-700 transition-colors hover:bg-slate-100 hover:text-brand-blue-primary disabled:opacity-50';
 
-  const addRow = (
-    <div
-      className="flex flex-wrap items-center"
-      style={{ gap: 'min(4px, 1cqmin)', paddingTop: 'min(8px, 2cqmin)' }}
-    >
-      <button
-        type="button"
-        onClick={() => addCardAfter(cards.length - 1)}
-        disabled={cards.length >= MAX_FLASHCARDS_PER_SET}
-        className={`${quietButton} text-brand-blue-primary`}
-        {...tourTypeAttr('flashcards.add-card', 'flashcards')}
-      >
-        <Plus className="h-3.5 w-3.5" aria-hidden />
-        Add card
-      </button>
-      <button
-        type="button"
-        onClick={() => setPasteOpen(true)}
-        className={quietButton}
-        {...tourTypeAttr('flashcards.editor-paste', 'flashcards')}
-      >
-        <ClipboardPaste className="h-3.5 w-3.5" aria-hidden />
-        Paste cards
-      </button>
-      {aiEnabled && (
+  const cardSources = (
+    <div className="flex min-h-8 items-center gap-3">
+      <span className={`${metaLabelClass} w-36`}>Cards</span>
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
         <button
           type="button"
-          onClick={() => ai.setOpen(true)}
+          onClick={() => setPasteOpen(true)}
           className={quietButton}
-          title="Generate cards with AI"
-          {...tourTypeAttr('flashcards-editor.draft-ai', 'flashcards')}
+          {...tourTypeAttr('flashcards.editor-paste', 'flashcards')}
         >
-          <Wand2 className="h-3.5 w-3.5" aria-hidden />
-          Draft with AI
+          <ClipboardPaste className="h-3.5 w-3.5" aria-hidden />
+          Paste cards
         </button>
-      )}
+        {aiEnabled && (
+          <button
+            type="button"
+            onClick={() => ai.setOpen(true)}
+            className={quietButton}
+            title="Generate cards with AI"
+            {...tourTypeAttr('flashcards-editor.draft-ai', 'flashcards')}
+          >
+            <Wand2 className="h-3.5 w-3.5" aria-hidden />
+            Draft with AI
+          </button>
+        )}
+      </div>
     </div>
   );
 
@@ -391,6 +379,7 @@ export const FlashcardSetEditorModal: React.FC<
           />
         </div>
         <FlashcardSetTargetsField targets={targets} onChange={setTargets} />
+        {cardSources}
       </div>
       {set.importedFrom && (
         <ImportAttributionLine
@@ -407,7 +396,6 @@ export const FlashcardSetEditorModal: React.FC<
         />
       )}
       <div>
-        <h4 className={`${metaLabelClass} mb-2`}>Cards ({cards.length})</h4>
         <div
           className="grid grid-cols-[auto_auto_minmax(0,1fr)_minmax(0,1fr)_auto] items-center"
           style={{
@@ -505,7 +493,6 @@ export const FlashcardSetEditorModal: React.FC<
             </div>
           </SortableContext>
         </DndContext>
-        {addRow}
       </div>
     </div>
   );

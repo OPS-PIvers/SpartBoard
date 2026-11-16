@@ -2698,7 +2698,6 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'flashcards-speak-editor.ipa-hear-it': ['library.flashcards.editor'],
     'flashcards-speak-editor.ipa-add': ['library.flashcards.editor'],
     'flashcards-speak-editor.ipa-remove': ['library.flashcards.editor'],
-    'flashcards.add-card': ['library.flashcards.editor'],
     'flashcards.language-select': ['library.flashcards.editor'],
     'flashcards.swap-sides': ['library.flashcards.editor'],
     'flashcards.language-code': ['library.flashcards.editor'],
