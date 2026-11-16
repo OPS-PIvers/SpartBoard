@@ -14,6 +14,7 @@ import {
   type DoneItem,
   type LandingPartition,
 } from '@/utils/studentLanding';
+import { StudentBrandBackdrop } from '../StudentBrandBackdrop';
 import { LandingClassList } from './LandingClassList';
 import { LandingClassView } from './LandingClassView';
 import { landingTabs, panelId } from './tabs';
@@ -180,13 +181,14 @@ export const StudentLandingLayout: React.FC<StudentLandingLayoutProps> = ({
         </span>
       </header>
 
-      <div className="flex min-h-0 flex-1">
-        <aside className="hidden w-64 shrink-0 overflow-y-auto border-r border-slate-200 bg-white p-3 pb-6 min-[896px]:block">
+      <div className="relative flex min-h-0 flex-1">
+        <StudentBrandBackdrop fixed={false} />
+        <aside className="relative hidden w-64 shrink-0 overflow-y-auto border-r border-slate-200 bg-white p-3 pb-6 min-[896px]:block">
           {classList}
         </aside>
         <main
           ref={mainRef}
-          className="min-w-0 flex-1 overflow-y-auto px-4 pb-10 pt-5 min-[896px]:px-8 min-[896px]:pt-7"
+          className="relative min-w-0 flex-1 overflow-y-auto px-4 pb-10 pt-5 min-[896px]:px-8 min-[896px]:pt-7"
         >
           <div className="mx-auto max-w-3xl">
             {notice}
