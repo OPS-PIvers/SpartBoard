@@ -9,7 +9,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
 - **Release review findings.** Fix small (S) findings inside the release as `release fix:` PRs. File an item here only for work that is M or larger, needs a flag or rules design, or can't ship in that release.
 - **Agent-only means agent-only.** An item in Ready needs nothing from Paul. When an item needs new wording, the agent builds it and asks Paul with a screenshot and a decision card in its thread; when it needs a real decision, it goes to PAUL_TODO.md and the item moves to Blocked.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-248**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-249**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -108,6 +108,7 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
 ### Quiz, Video Activity and Guided Learning
 
+- **AB-248 Earlier-attempt results use the live choose-N pick** (S). From the #5953/#5954 hotfix review: on a retake, a student opening an earlier attempt in `PublishedScoreReview` (`components/quiz/QuizStudentApp.tsx`) gets `notChosenQuestionIds` from the live response, because `myAttemptAsResponse` (`hooks/useQuizResponseAttempts.ts`) spreads `countedChoices` and `completedAttempts` from the live doc. If the teacher picked a later answer on that attempt, the page can show "Provisional" or "still being graded" for it. Return each copy's `countedChoices` from `getMyQuizAttemptsV1` and `MyQuizAttempt`, and build the earlier attempt with its own pick and `completedAttempts: attempt.n`, as the teacher-side `attemptAsResponse` does. Test it in `tests/components/quiz/QuizStudentApp.publishedResults.test.tsx`.
 - **AB-225 Sub share needs no member doc** (S). From #5800: building Guided Learning sets now need a live district member doc, so a substitute without one sees an empty sub share. Serve the shared sets through the sub-share bundle (`utils/bundleSubShareContent.ts`) or a callable instead of a direct `building_guided_learning` read.
 - **AB-226 Padded-seat gap in quiz join PINs** (S). Minor #5810 finding from the release 2026.11.14c review (see the review log on #5847): canonical seats can leave a padded-seat gap. Reproduce it in a test, then fix or close with a note.
 - **AB-229 Video Activity student update hits the 1,000-expression limit** (S, rules, low urgency: PINs are off at the org). In `firestore.rules`, the Video Activity student `allow update` (about line 5673) can exceed the limit for a pinLogin student let in after their period closed, on a session with `periodAccess`, `studentAccess`, a future `closeAt` and `attemptLimit`. Add a Video Activity update expression budget test like `tests/rules/quizResponseExpressionBudget.test.ts`, then factor the checks into shared helpers until it passes.
@@ -235,6 +236,9 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
   <details><summary>Branches to delete (178, checked 2026-11-01)</summary>
 
+claude/project-thread-g6k4z7 (#5953)
+hotfix/choose-n-extra-score (#5954)
+claude/project-thread-g6k4z7-docs (this docs PR, delete after it merges)
 claude/project-thread-f3gyyo (#5947)
 claude/ab112-5947 (this docs PR, delete after it merges)
 claude/project-thread-ljeqkl (#5946)
