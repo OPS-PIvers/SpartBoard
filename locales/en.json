@@ -1557,7 +1557,6 @@
       "selectStation": "Select a station",
       "loadingStations": "Loading stations…",
       "noStations": "No stations are available. An admin needs to add them in Admin Settings.",
-      "mySongs": "My songs",
       "mySongsLinkPlaceholder": "Paste a YouTube link",
       "mySongsAdd": "Add",
       "mySongsRemove": "Remove song",
