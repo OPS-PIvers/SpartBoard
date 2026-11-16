@@ -307,6 +307,14 @@ describe('FlashcardSetEditorModal', () => {
     expect(card.definition).toBe('');
   });
 
+  it('leaves text without blank rows as typed', () => {
+    const [card] = cleanFlashcards([
+      { id: 'c', term: ' a /  b ', definition: 'km/h' },
+    ]);
+    expect(card.term).toBe('a /  b');
+    expect(card.definition).toBe('km/h');
+  });
+
   it('swaps terms, definitions and languages, and swaps back on a second click', () => {
     renderModal({ set: baseSet({ termLanguage: 'it-IT' }) });
     fireEvent.click(screen.getByLabelText('Swap terms and definitions'));

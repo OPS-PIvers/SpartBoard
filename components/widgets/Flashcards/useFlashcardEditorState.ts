@@ -42,12 +42,12 @@ export const newFlashcard = (): FlashcardCard => ({
 
 /** Trimmed cards with stale references dropped and fully empty rows left out. */
 // A blank accepted-answer row is editor-only; it never reaches the saved text.
-const withoutEmptyAnswerRows = (text: string): string =>
-  joinAnswerRows(
-    splitAnswerRows(text)
-      .map((row) => row.trim())
-      .filter(Boolean)
-  );
+const withoutEmptyAnswerRows = (text: string): string => {
+  const rows = splitAnswerRows(text);
+  if (rows.every((row) => row.trim() !== '')) return text.trim();
+  const kept = rows.map((row) => row.trim()).filter(Boolean);
+  return joinAnswerRows(kept);
+};
 
 export const cleanFlashcards = (cards: FlashcardCard[]): FlashcardCard[] =>
   cards
