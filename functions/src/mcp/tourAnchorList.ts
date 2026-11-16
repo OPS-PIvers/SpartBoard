@@ -26040,19 +26040,11 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "persists": true,
     "routes": [
       {
-        "surface": "board.roster-editor",
-        "kind": "modal",
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
         "path": [
           "sidebar.open-menu",
-          "sidebar.classes",
-          "classes.edit-roster:classes"
-        ],
-        "opened_by": [
-          "classes.new-class",
-          "classes.new-class-empty"
-        ],
-        "needs": [
-          "class"
+          "sidebar.classes"
         ]
       }
     ]
@@ -26064,19 +26056,11 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "routes": [
       {
-        "surface": "board.roster-editor",
-        "kind": "modal",
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
         "path": [
           "sidebar.open-menu",
-          "sidebar.classes",
-          "classes.edit-roster:classes"
-        ],
-        "opened_by": [
-          "classes.new-class",
-          "classes.new-class-empty"
-        ],
-        "needs": [
-          "class"
+          "sidebar.classes"
         ]
       }
     ]
@@ -26088,20 +26072,14 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "routes": [
       {
-        "surface": "board.roster-editor",
-        "kind": "modal",
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster:classes"
+          "classes.family-link-toggle"
         ],
-        "opened_by": [
-          "classes.new-class",
-          "classes.new-class-empty"
-        ],
-        "needs": [
-          "class"
-        ]
+        "reveal": "classes.family-link-toggle"
       }
     ]
   },
@@ -26112,20 +26090,14 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "routes": [
       {
-        "surface": "board.roster-editor",
-        "kind": "modal",
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster:classes"
+          "classes.family-link-toggle"
         ],
-        "opened_by": [
-          "classes.new-class",
-          "classes.new-class-empty"
-        ],
-        "needs": [
-          "class"
-        ]
+        "reveal": "classes.family-link-toggle"
       }
     ]
   },
@@ -26137,20 +26109,14 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "persists": true,
     "routes": [
       {
-        "surface": "board.roster-editor",
-        "kind": "modal",
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster:classes"
+          "classes.family-link-toggle"
         ],
-        "opened_by": [
-          "classes.new-class",
-          "classes.new-class-empty"
-        ],
-        "needs": [
-          "class"
-        ]
+        "reveal": "classes.family-link-toggle"
       }
     ]
   },
