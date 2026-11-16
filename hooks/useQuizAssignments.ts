@@ -1275,7 +1275,11 @@ export function gradeResponseForPublish(
   return {
     score,
     answers: gradedAnswers,
-    points: { earned: pointsEarned, possible: pointsMax },
+    points: {
+      earned: pointsEarned,
+      possible: pointsMax,
+      attempt: data.completedAttempts ?? 0,
+    },
   };
 }
 

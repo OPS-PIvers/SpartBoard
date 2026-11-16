@@ -633,7 +633,7 @@ describe('QuizStudentApp — published points', () => {
     hookState.session = buildSession({ scoreVisibility: 'score-only' });
     hookState.myResponse = buildResponse({
       score: 75,
-      scorePoints: { earned: 18, possible: 24 },
+      scorePoints: { earned: 18, possible: 24, attempt: 1 },
     });
 
     render(<QuizStudentApp />);
@@ -646,7 +646,7 @@ describe('QuizStudentApp — published points', () => {
     hookState.session = buildSession({ scoreVisibility: 'score-only' });
     hookState.myResponse = buildResponse({
       score: 80,
-      scorePoints: { earned: 18, possible: 24 },
+      scorePoints: { earned: 18, possible: 24, attempt: 1 },
     });
 
     render(<QuizStudentApp />);
