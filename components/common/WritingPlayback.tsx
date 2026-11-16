@@ -12,6 +12,7 @@ import {
   buildCheckpoints,
   textAt,
   writingSessions,
+  SESSION_GAP_MS,
   type WritingEdit,
 } from '@/utils/writingLog';
 import { BadgePopover } from './BadgePopover';
@@ -77,7 +78,11 @@ export const WritingPlayer: React.FC<{
   const atEnd = index >= edits.length;
   useEffect(() => {
     if (!playing || atEnd) return;
-    const wait = sessionAt.has(index) ? 600 : edits[index].dt / speed;
+    // A break of a session or longer (or one in a log from before session stamps) passes in a beat.
+    const wait =
+      sessionAt.has(index) || edits[index].dt >= SESSION_GAP_MS
+        ? 600
+        : edits[index].dt / speed;
     const id = window.setTimeout(
       () => setIndex((i) => Math.min(i + 1, edits.length)),
       Math.max(wait, 10)
