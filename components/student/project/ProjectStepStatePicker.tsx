@@ -73,11 +73,22 @@ export const ProjectStepStatePicker: React.FC<ProjectStepStatePickerProps> = ({
         onClose(true);
         return;
       }
-      // Portalled to <body>: Tab returns to the step instead of leaving the page.
-      if (
-        event.key === 'Tab' &&
-        panelRef.current?.contains(document.activeElement)
-      ) {
+      const buttons = Array.from(
+        panelRef.current?.querySelectorAll<HTMLButtonElement>('button') ?? []
+      );
+      const index = buttons.indexOf(
+        document.activeElement as HTMLButtonElement
+      );
+      if (index === -1) return;
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        const step = event.key === 'ArrowDown' ? 1 : -1;
+        buttons[(index + step + buttons.length) % buttons.length]?.focus();
+        return;
+      }
+      // Portalled to <body>: tabbing off either end returns to the step instead of leaving the page.
+      const atEnd = event.shiftKey ? index === 0 : index === buttons.length - 1;
+      if (event.key === 'Tab' && atEnd) {
         event.preventDefault();
         onClose(true);
       }

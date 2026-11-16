@@ -125,6 +125,9 @@ describe('ProjectStudentPage', () => {
     render(<ProjectStudentPage />);
     fireEvent.click(cell(/Build: Not started/));
     const picker = screen.getByRole('dialog', { name: 'Set Build' });
+    const options = within(picker).getAllByRole('button');
+    fireEvent.keyDown(document.activeElement ?? picker, { key: 'ArrowUp' });
+    expect(options[options.length - 1]).toHaveFocus();
     fireEvent.keyDown(document.activeElement ?? picker, { key: 'Tab' });
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(cell(/Build: Not started/)).toHaveFocus();
