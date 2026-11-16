@@ -549,6 +549,7 @@ git push origin --delete claude/project-thread-ay3n3n security/e-quiz-answer-key
 git push origin --delete nightly/unifier-log-2026-11-14 nightly/state-data-2026-11-14 nightly/dashboard-2026-11-14 nightly/admin-config-2026-11-14 nightly/debugger-log-2026-11-14 claude/tour-anchors-2026-11-14
 git push origin --delete claude/project-thread-6hlkkz claude/project-thread-6hlkkz-ab112
 git push origin --delete claude/project-thread-776f0z claude/ab112-776f0z
+git push origin --delete claude/project-thread-hnyuke claude/project-thread-hnyuke-ab112
 ```
 
   </details>
