@@ -82,10 +82,10 @@ export const SortableCardRow: React.FC<SortableCardRowProps> = ({
           value={card.term}
           onChange={(event) => onChange(card.id, { term: event.target.value })}
           maxLength={500}
-          rows={2}
-          className="w-full resize-none rounded-xl border border-slate-200 bg-white text-slate-800 outline-hidden focus:border-rose-400 focus:ring-2 focus:ring-rose-500/20"
+          rows={1}
+          className="block w-full resize-none rounded-xl border border-slate-200 bg-white leading-snug [field-sizing:content] text-slate-800 outline-hidden focus:border-rose-400 focus:ring-2 focus:ring-rose-500/20"
           style={{
-            padding: 'min(8px, 2cqmin)',
+            padding: 'min(10px, 2.5cqmin) min(14px, 3.5cqmin)',
             fontSize: 'min(13px, 4cqmin)',
           }}
           placeholder="Term"
@@ -115,10 +115,10 @@ export const SortableCardRow: React.FC<SortableCardRowProps> = ({
             }
           }}
           maxLength={1000}
-          rows={2}
-          className="w-full resize-none rounded-xl border border-slate-200 bg-white text-slate-800 outline-hidden focus:border-rose-400 focus:ring-2 focus:ring-rose-500/20"
+          rows={1}
+          className="block w-full resize-none rounded-xl border border-slate-200 bg-white leading-snug [field-sizing:content] text-slate-800 outline-hidden focus:border-rose-400 focus:ring-2 focus:ring-rose-500/20"
           style={{
-            padding: 'min(8px, 2cqmin)',
+            padding: 'min(10px, 2.5cqmin) min(14px, 3.5cqmin)',
             fontSize: 'min(13px, 4cqmin)',
           }}
           placeholder="Definition"
@@ -149,22 +149,20 @@ export const SortableCardRow: React.FC<SortableCardRowProps> = ({
         />
       </button>
       {!isLast && !isDragging && (
-        <div
-          className="group/insert absolute inset-x-0 -bottom-2 z-10 grid h-4 grid-cols-[auto_auto_minmax(0,1fr)_minmax(0,1fr)_auto] items-center"
-          style={{
-            columnGap: 'min(8px, 2cqmin)',
-            padding: '0 min(4px, 1cqmin)',
-          }}
-        >
+        <>
+          <div
+            aria-hidden
+            className="peer absolute inset-x-0 -bottom-2 z-10 h-4"
+          />
           <button
             type="button"
             tabIndex={-1}
             onClick={() => onAddAfter(index)}
-            className="col-start-4 flex items-center justify-center justify-self-start rounded-full border border-slate-300 bg-white text-slate-500 opacity-0 shadow-xs transition-opacity group-hover/insert:opacity-100 hover:border-slate-400 hover:text-slate-800 touch:opacity-100"
+            className="absolute bottom-0 left-0 z-10 col-start-4 flex items-center justify-center rounded-full border border-slate-300 bg-white text-slate-500 opacity-0 shadow-xs transition-opacity peer-hover:opacity-100 hover:opacity-100 hover:border-slate-400 hover:text-slate-800 touch:opacity-100"
             style={{
               width: 'min(20px, 5cqmin)',
               height: 'min(20px, 5cqmin)',
-              transform: 'translateX(calc(-50% - min(4px, 1cqmin)))',
+              transform: 'translate(calc(-50% - min(4px, 1cqmin)), 50%)',
             }}
             aria-label={`Add card after card ${index + 1}`}
             title="Add card here"
@@ -181,7 +179,7 @@ export const SortableCardRow: React.FC<SortableCardRowProps> = ({
               }}
             />
           </button>
-        </div>
+        </>
       )}
       {speak && (
         <SpeakCardRow
