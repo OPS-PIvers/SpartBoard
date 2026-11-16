@@ -508,7 +508,9 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     if (await copyText(studentUrl)) {
       addToast('Student link copied!', 'success');
     } else {
-      addToast(`Could not copy. Student link: ${studentUrl}`, 'error');
+      // Open Share so the link stays on screen to select; a toast closes in 3s.
+      addToast('Could not copy link. Please copy manually.', 'error');
+      setShareOpen(true);
     }
   }, [addToast, studentUrl]);
 

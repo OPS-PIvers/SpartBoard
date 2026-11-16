@@ -518,7 +518,7 @@ describe('ActivityWallWidget', () => {
     });
   });
 
-  it('puts the student link in the failure toast when the clipboard refuses', async () => {
+  it('opens Share with the student link when the clipboard refuses', async () => {
     const writeText = vi.fn().mockRejectedValue(new Error('denied'));
     Object.defineProperty(navigator, 'clipboard', {
       value: { writeText },
@@ -528,16 +528,18 @@ describe('ActivityWallWidget', () => {
     await waitFor(() =>
       expect(getWidgetShareLink('widget-1')).toContain('teacher-1_wall-1')
     );
-    await userEvent.click(await screen.findByRole('button', { name: 'Share' }));
+    expect(screen.queryByLabelText('Student link URL')).toBeNull();
     const [copy] = await screen.findAllByRole('button', {
       name: 'Copy student link',
     });
     await userEvent.click(copy);
     await waitFor(() => expect(writeText).toHaveBeenCalled());
     expect(mockAddToast).toHaveBeenLastCalledWith(
-      expect.stringContaining('teacher-1_wall-1'),
+      'Could not copy link. Please copy manually.',
       'error'
     );
+    const field = await screen.findByLabelText('Student link URL');
+    expect((field as HTMLInputElement).value).toContain('teacher-1_wall-1');
   });
 
   it('shows the empty state and opens the library when no wall is active', async () => {
