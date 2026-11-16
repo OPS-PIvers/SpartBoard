@@ -450,10 +450,10 @@ export const FlashcardSetEditorModal: React.FC<
       <div>
         {listHeader}
         <div
-          className="grid grid-cols-[auto_auto_minmax(0,1fr)_minmax(0,1.25fr)_auto] items-start border border-transparent"
+          className="grid grid-cols-[auto_auto_minmax(0,1fr)_minmax(0,1.25fr)_auto] items-start"
           style={{
             gap: 'min(8px, 2cqmin)',
-            padding: '0 min(10px, 2.5cqmin) min(6px, 1.5cqmin)',
+            padding: '0 min(4px, 1cqmin) min(6px, 1.5cqmin)',
           }}
         >
           <span
@@ -525,12 +525,13 @@ export const FlashcardSetEditorModal: React.FC<
             items={cards.map((card) => card.id)}
             strategy={verticalListSortingStrategy}
           >
-            <div className="grid gap-2">
+            <div className="divide-y divide-slate-200 border-y border-slate-200">
               {cards.map((card, index) => (
                 <SortableCardRow
                   key={card.id}
                   card={card}
                   index={index}
+                  isLast={index === cards.length - 1}
                   onChange={updateCard}
                   onRemove={removeCard}
                   onAddAfter={addCardAfter}

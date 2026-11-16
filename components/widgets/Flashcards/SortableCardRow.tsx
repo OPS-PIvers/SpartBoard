@@ -1,7 +1,7 @@
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Trash2 } from 'lucide-react';
+import { GripVertical, Plus, Trash2 } from 'lucide-react';
 import type { FlashcardCard } from '@/types';
 import { tourFieldAttr } from '@/config/tourAnchors';
 import { SpeakCardRow } from './speak/SpeakCardStatus';
@@ -11,6 +11,7 @@ import type { SpeakRowProps } from './useFlashcardEditorState';
 interface SortableCardRowProps {
   card: FlashcardCard;
   index: number;
+  isLast: boolean;
   onChange: (id: string, updates: Partial<FlashcardCard>) => void;
   onRemove: (id: string) => void;
   onAddAfter: (index: number) => void;
@@ -20,6 +21,7 @@ interface SortableCardRowProps {
 export const SortableCardRow: React.FC<SortableCardRowProps> = ({
   card,
   index,
+  isLast,
   onChange,
   onRemove,
   onAddAfter,
@@ -38,14 +40,14 @@ export const SortableCardRow: React.FC<SortableCardRowProps> = ({
     <div
       ref={setNodeRef}
       data-card-id={card.id}
-      className={`grid grid-cols-[auto_auto_minmax(0,1fr)_minmax(0,1.25fr)_auto] items-start rounded-2xl border bg-white shadow-xs ${
-        isDragging ? 'z-10 border-rose-300 opacity-70' : 'border-slate-200'
+      className={`relative grid grid-cols-[auto_auto_minmax(0,1fr)_minmax(0,1.25fr)_auto] items-start ${
+        isDragging ? 'z-10 bg-white opacity-80 shadow-lg' : ''
       }`}
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
         gap: 'min(8px, 2cqmin)',
-        padding: 'min(10px, 2.5cqmin)',
+        padding: 'min(12px, 3cqmin) min(4px, 1cqmin)',
       }}
     >
       <button
@@ -81,7 +83,7 @@ export const SortableCardRow: React.FC<SortableCardRowProps> = ({
           onChange={(event) => onChange(card.id, { term: event.target.value })}
           maxLength={500}
           rows={2}
-          className="w-full resize-none rounded-xl border border-slate-200 text-slate-800 outline-hidden focus:border-rose-400 focus:ring-2 focus:ring-rose-500/20"
+          className="w-full resize-none rounded-xl border border-slate-200 bg-white text-slate-800 outline-hidden focus:border-rose-400 focus:ring-2 focus:ring-rose-500/20"
           style={{
             padding: 'min(8px, 2cqmin)',
             fontSize: 'min(13px, 4cqmin)',
@@ -102,18 +104,19 @@ export const SortableCardRow: React.FC<SortableCardRowProps> = ({
             onChange(card.id, { definition: event.target.value })
           }
           onKeyDown={(event) => {
-            if (
-              event.key === 'Enter' &&
-              !event.shiftKey &&
-              !event.nativeEvent.isComposing
-            ) {
+            if (event.shiftKey || event.nativeEvent.isComposing) return;
+            const tabOut =
+              event.key === 'Tab' &&
+              isLast &&
+              (card.term.trim() !== '' || card.definition.trim() !== '');
+            if (event.key === 'Enter' || tabOut) {
               event.preventDefault();
               onAddAfter(index);
             }
           }}
           maxLength={1000}
           rows={2}
-          className="w-full resize-none rounded-xl border border-slate-200 text-slate-800 outline-hidden focus:border-rose-400 focus:ring-2 focus:ring-rose-500/20"
+          className="w-full resize-none rounded-xl border border-slate-200 bg-white text-slate-800 outline-hidden focus:border-rose-400 focus:ring-2 focus:ring-rose-500/20"
           style={{
             padding: 'min(8px, 2cqmin)',
             fontSize: 'min(13px, 4cqmin)',
@@ -145,6 +148,34 @@ export const SortableCardRow: React.FC<SortableCardRowProps> = ({
           }}
         />
       </button>
+      {!isLast && !isDragging && (
+        <div className="group/insert absolute inset-x-0 -bottom-2 z-10 flex h-4 items-center justify-center">
+          <button
+            type="button"
+            tabIndex={-1}
+            onClick={() => onAddAfter(index)}
+            className="flex items-center justify-center rounded-full border border-slate-300 bg-white text-slate-500 opacity-0 shadow-xs transition-opacity group-hover/insert:opacity-100 hover:border-slate-400 hover:text-slate-800 touch:opacity-100"
+            style={{
+              width: 'min(20px, 5cqmin)',
+              height: 'min(20px, 5cqmin)',
+            }}
+            aria-label={`Add card after card ${index + 1}`}
+            title="Add card here"
+            {...tourFieldAttr(
+              'flashcards.card-insert',
+              'flashcards',
+              `row-${index + 1}`
+            )}
+          >
+            <Plus
+              style={{
+                width: 'min(13px, 3.5cqmin)',
+                height: 'min(13px, 3.5cqmin)',
+              }}
+            />
+          </button>
+        </div>
+      )}
       {speak && (
         <SpeakCardRow
           card={card}

@@ -247,6 +247,31 @@ describe('FlashcardSetEditorModal', () => {
     expect(screen.getByLabelText('Term 2')).toHaveProperty('value', '');
   });
 
+  it('adds a card on Tab only from the last filled Definition', () => {
+    renderModal({});
+    fireEvent.keyDown(screen.getByLabelText('Definition 1'), { key: 'Tab' });
+    expect(screen.getAllByPlaceholderText('Term')).toHaveLength(2);
+    fireEvent.keyDown(screen.getByLabelText('Definition 2'), {
+      key: 'Tab',
+      shiftKey: true,
+    });
+    expect(screen.getAllByPlaceholderText('Term')).toHaveLength(2);
+    fireEvent.keyDown(screen.getByLabelText('Definition 2'), { key: 'Tab' });
+    expect(screen.getAllByPlaceholderText('Term')).toHaveLength(3);
+    fireEvent.keyDown(screen.getByLabelText('Definition 3'), { key: 'Tab' });
+    expect(screen.getAllByPlaceholderText('Term')).toHaveLength(3);
+  });
+
+  it('inserts a card between rows from the plus button', () => {
+    renderModal({});
+    expect(
+      screen.queryByLabelText('Add card after card 2')
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Add card after card 1'));
+    expect(screen.getByLabelText('Term 2')).toHaveProperty('value', '');
+    expect(screen.getAllByPlaceholderText('Term')).toHaveLength(3);
+  });
+
   it('swaps terms, definitions and languages, and swaps back on a second click', () => {
     renderModal({ set: baseSet({ termLanguage: 'it-IT' }) });
     fireEvent.click(screen.getByLabelText('Swap terms and definitions'));

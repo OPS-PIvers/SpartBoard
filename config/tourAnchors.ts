@@ -11472,6 +11472,11 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'flashcards.card-insert': {
+    label: 'Add card button between cards in the Flashcards editor',
+    perField: true,
+    panel: true,
+  },
   'flashcards.card-delete': {
     label: 'Delete button on a card in the Flashcards editor',
     perField: true,
