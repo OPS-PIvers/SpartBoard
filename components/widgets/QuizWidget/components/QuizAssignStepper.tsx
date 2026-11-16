@@ -1,5 +1,5 @@
 // Quiz assign on the accordion stepper (docs/plans/shipped/ASSIGN_STEPPER.md PR 3).
-import React, { useState } from 'react';
+import React, { useContext, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ClassRoster, Plc, QuizBehaviorSettings } from '@/types';
 import type { AssignTargetingValue } from '@/utils/studentTargetRef';
@@ -34,6 +34,21 @@ import { SharingStep } from '@/components/common/library/assignStepper/SharingSt
 import { WrittenAnswersStep } from '@/components/common/library/assignStepper/WrittenAnswersStep';
 import { formatWrittenAnswersValue } from '@/components/common/library/assignStepper/WrittenAnswersStep.format';
 import { Printer } from 'lucide-react';
+import { AuthContext } from '@/context/AuthContextValue';
+import { clampQuizTimeLimitMinutes } from '@/utils/quizTimeLimit';
+import { languageNativeLabel } from '@/utils/languageNativeLabel';
+import {
+  countUnresolvableStudents,
+  modificationRows,
+} from '@/components/common/library/assignStepper/ModificationsView.helpers';
+import { ModificationGroupsStep } from '@/components/common/library/assignStepper/ModificationGroupsStep';
+import {
+  formatModificationGroupsValue,
+  newModificationGroup,
+  overridesFromGroups,
+  rowsInClasses,
+  type ModificationGroup,
+} from '@/components/common/library/assignStepper/modificationGroups';
 import { tourTypeAttr } from '@/config/tourAnchors';
 import {
   withAudienceSwitch,
@@ -62,6 +77,8 @@ export interface QuizAssignStepperProps {
     targeting: AssignTargetingValue;
     onTargetingChange: (next: AssignTargetingValue) => void;
     quizContext: ModificationsQuizContext;
+    /** Any question carries its own time limit, so the time rule applies without a quiz-wide one. */
+    hasQuestionTimeLimits?: boolean;
   };
   /** Omit when sharing is fixed (PLC quiz assign, D21): no Sharing step. */
   sharing?: {
@@ -107,6 +124,12 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   const { t } = useTranslation();
   const gates = useQuizRuleGates();
   const [modsOpen, setModsOpen] = useState(false);
+  const auth = useContext(AuthContext);
+  const groupsOn =
+    !!modifications && auth?.canAccessFeature?.('modification-groups') === true;
+  const [groups, setGroups] = useState<ModificationGroup[]>(() => [
+    newModificationGroup(),
+  ]);
   const usable = rosters.filter((r) => !r.loadError);
   const staff = audience?.audience === 'staff';
   const picked = staff
@@ -128,6 +151,38 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
     periodAccess?.bellWindow
   );
 
+  const groupRows =
+    groupsOn && !staff
+      ? rowsInClasses(
+          modificationRows({
+            rosters: usable,
+            selectedRosterIds: classes.classIds,
+          }),
+          classes
+        )
+      : [];
+  const sessionMinutes = gates.timeLimitOn
+    ? clampQuizTimeLimitMinutes(behavior.sessionOptions.timeLimitMinutes)
+    : null;
+  const timeLimitLabel =
+    sessionMinutes != null
+      ? `${sessionMinutes} min`
+      : modifications?.hasQuestionTimeLimits
+        ? 'Standard'
+        : undefined;
+  const applyGroups = (next: ModificationGroup[]) => {
+    setGroups(next);
+    if (!modifications) return;
+    modifications.onTargetingChange({
+      ...modifications.targeting,
+      overridesByKey: overridesFromGroups(
+        next,
+        groupRows,
+        modifications.quizContext.questions
+      ),
+    });
+  };
+
   const bodies: Record<string, Omit<AssignStepDef, 'id' | 'title'>> = {
     classes: {
       value: formatClassesValue(classes, rosters),
@@ -143,7 +198,7 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
             value={classes}
             onChange={onClassesChange}
           />
-          {modifications && picked.length > 0 && (
+          {modifications && !groupsOn && picked.length > 0 && (
             <ModificationsLink
               rosters={usable}
               selectedRosterIds={classes.classIds}
@@ -203,6 +258,30 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   );
 
   const stepIds = getAssignSteps('quiz', ctx);
+  if (groupsOn && modifications && !staff && picked.length > 0) {
+    stepIds.splice(stepIds.indexOf('classes') + 1, 0, 'modifications');
+    bodies.modifications = {
+      value: formatModificationGroupsValue(
+        groups,
+        new Set(groupRows.map((row) => row.key)),
+        languageNativeLabel
+      ),
+      body: (
+        <ModificationGroupsStep
+          groups={groups}
+          onChange={applyGroups}
+          rows={groupRows}
+          unresolvableCount={countUnresolvableStudents({
+            rosters: usable,
+            selectedRosterIds: classes.classIds,
+          })}
+          quizContext={modifications.quizContext}
+          timeLimitLabel={timeLimitLabel}
+          overridesByKey={modifications.targeting.overridesByKey}
+        />
+      ),
+    };
+  }
   if (written) {
     stepIds.splice(stepIds.indexOf('when') + 1, 0, 'written');
     bodies.written = {

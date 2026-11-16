@@ -28,6 +28,7 @@ const TITLES: Record<AssignActivity, string> = {
 
 const VALUES: Record<AssignStepId, string> = {
   classes: 'All 3 classes',
+  modifications: 'None',
   when: 'Manual',
   attempts: '1 attempt',
   integrity: 'Off',

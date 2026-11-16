@@ -61,6 +61,7 @@ import {
   ImagePlus,
   CalendarClock,
   MessageSquare,
+  SlidersHorizontal,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -968,6 +969,21 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     afterLaunch: 'keep',
     widget: 'quiz',
     modalLabel: 'Score on submit',
+    group: 'assigning',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Assign "Modifications" step: student groups with shared rules instead of per-question edits.
+  'modification-groups': {
+    label: 'Modification groups',
+    icon: SlidersHorizontal,
+    description:
+      'Quiz assign gets a Modifications step: pick students, then set shared changes like extra time or fewer answer choices.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    modalLabel: 'Modification groups',
     group: 'assigning',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,

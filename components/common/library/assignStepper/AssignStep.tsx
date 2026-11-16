@@ -6,6 +6,7 @@ import type { AssignStepId } from './assignSteps';
 
 const STEP_TOUR: Record<AssignStepId, ReturnType<typeof tourAttr>> = {
   classes: tourAttr('assign-step.classes'),
+  modifications: tourAttr('assign-step.modifications'),
   when: tourAttr('assign-step.when'),
   attempts: tourAttr('assign-step.attempts'),
   integrity: tourAttr('assign-step.integrity'),

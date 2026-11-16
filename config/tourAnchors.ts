@@ -1161,6 +1161,10 @@ export const TOUR_ANCHORS = {
     label: 'Classes step header in the Assign dialog',
     panel: true,
   },
+  'assign-step.modifications': {
+    label: 'Modifications step header in the Assign dialog',
+    panel: true,
+  },
   'assign-step.when': {
     label: 'When step header in the Assign dialog',
     panel: true,
@@ -1466,6 +1470,49 @@ export const TOUR_ANCHORS = {
   },
   'flashcards-cards.list': {
     label: 'Card list in the Flashcards assign Cards step',
+    panel: true,
+  },
+  'assign-mods.students': {
+    label: 'Students menu for a modification group in the Assign dialog',
+    panel: true,
+  },
+  'assign-mods.students-search': {
+    label: 'Search box in the modification group Students menu',
+    panel: true,
+  },
+  'assign-mods.student': {
+    label: 'Student checkbox in the modification group Students menu',
+    perField: true,
+    panel: true,
+  },
+  'assign-mods.answer-choices': {
+    label: 'Answer choices rule for a modification group',
+    panel: true,
+  },
+  'assign-mods.time': {
+    label: 'Time limit rule for a modification group',
+    panel: true,
+  },
+  'assign-mods.read-aloud': {
+    label: 'Read aloud switch for a modification group',
+    panel: true,
+  },
+  'assign-mods.language': {
+    label: 'Language dropdown for a modification group',
+    panel: true,
+  },
+  'assign-mods.group': {
+    label: 'Closed modification group row in the Assign dialog',
+    perField: true,
+    panel: true,
+  },
+  'assign-mods.add-group': {
+    label: 'Another group with different changes button in the Assign dialog',
+    panel: true,
+  },
+  'assign-mods.remove-group': {
+    label: 'Remove group button in the Assign dialog Modifications step',
+    destructive: true,
     panel: true,
   },
   'assign-mods.open': {
