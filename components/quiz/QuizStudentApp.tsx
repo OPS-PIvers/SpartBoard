@@ -46,6 +46,7 @@ import {
 import {
   isLockedByChooseCount,
   isSectionAnswered,
+  notChosenQuestionIds,
   sectionOfQuestion,
   sectionProgress,
   shuffleWithinSections,
@@ -6421,10 +6422,13 @@ export const PublishedScoreReview: React.FC<{
       .filter((q) => isFreeResponseType(q.type))
       .map((q) => [q.id, q] as const)
   );
+  // An extra answer in a choose-N section is not scored, so it is never owed a grade.
+  const notChosen = new Set(notChosenQuestionIds(myResponse, session.sections));
   const awaitingGrade = myResponse.answers.some((a) => {
     const q = writtenQuestionsById.get(a.questionId);
     return (
       q !== undefined &&
+      !notChosen.has(a.questionId) &&
       isWrittenAnswerAwaitingGrade(
         q,
         a.answer ?? '',
@@ -6443,7 +6447,7 @@ export const PublishedScoreReview: React.FC<{
     hasUngradedRecording(
       myResponse.answers,
       myResponse.grading,
-      publicQuestions.map((q) => q.id),
+      publicQuestions.map((q) => q.id).filter((id) => !notChosen.has(id)),
       myResponse.artifactArchive
     );
 
