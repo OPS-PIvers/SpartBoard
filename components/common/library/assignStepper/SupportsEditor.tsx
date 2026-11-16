@@ -218,9 +218,14 @@ export const SupportsEditor: React.FC<{
                 </span>
                 <button
                   type="button"
-                  onClick={() =>
-                    onChange((prev) => prev.filter((_, j) => j !== i))
-                  }
+                  onClick={() => {
+                    onChange((prev) => prev.filter((_, j) => j !== i));
+                    // The Drive file is our own shared copy, so it goes too.
+                    if (s.kind === 'drive')
+                      void driveService
+                        ?.deleteFile(s.fileId)
+                        .catch(() => undefined);
+                  }}
                   aria-label={`Remove ${s.title}`}
                   {...tourFieldAttr(
                     'assign-mods.support-remove',
