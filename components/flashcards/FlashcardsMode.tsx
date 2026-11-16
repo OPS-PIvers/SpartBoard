@@ -33,11 +33,22 @@ interface FlashcardsModeProps {
 const CardLines: React.FC<{ text: string }> = ({ text }) => {
   const lines = answerDisplayLines(text);
   if (lines.length === 1) return <>{text}</>;
-  return lines.map((line, index) => (
-    <span key={index} className="block">
-      {line}
-    </span>
-  ));
+  const [first, ...others] = lines;
+  return (
+    <>
+      <span className="block">{first}</span>
+      <span
+        className="block font-bold opacity-60"
+        style={{ fontSize: '0.42em', marginTop: '0.5em' }}
+      >
+        {others.map((line, index) => (
+          <span key={index} className="block">
+            {line}
+          </span>
+        ))}
+      </span>
+    </>
+  );
 };
 
 export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
