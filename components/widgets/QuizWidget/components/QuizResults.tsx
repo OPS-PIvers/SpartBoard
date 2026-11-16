@@ -857,16 +857,17 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   // Build a display-name lookup keyed by the response's deterministic
   // doc key so the grader can show a real student name in its header
   // rather than the raw uid/pin.
-  const displayNameByResponseKey = useMemo(() => {
+  // The grader lists students "Last, First", like the exports.
+  const graderNameByResponseKey = useMemo(() => {
     const m = new Map<string, string>();
     responses.forEach((r) => {
       const key = r._responseKey ?? r.studentUid;
       if (!key) return;
-      const name = resolveResponseDisplayName(r, pinToName, byStudentUid);
+      const name = resolveTargetExportName(r);
       if (name) m.set(key, name);
     });
     return m;
-  }, [responses, pinToName, byStudentUid]);
+  }, [responses, resolveTargetExportName]);
 
   // Save a manual grade for a single response/question pair. Uses
   // Firestore's dotted-field-path syntax so concurrent grades on
@@ -3057,7 +3058,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
               : undefined
           }
           displayNameByResponseKey={
-            hideNames ? maskedNameByResponseKey : displayNameByResponseKey
+            hideNames ? maskedNameByResponseKey : graderNameByResponseKey
           }
           initialTarget={graderTarget}
           renderNormingFlag={
