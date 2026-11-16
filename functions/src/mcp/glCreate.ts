@@ -10,7 +10,13 @@ import {
   type ToolContext,
   REVIEW_MARK,
 } from './activity';
-import { createGuidedLearningJson, driveTokenFor } from './drive';
+import {
+  createGuidedLearningJson,
+  driveTokenFor,
+  slideImageFolder,
+  trashDriveFile,
+  uploadSlideImage,
+} from './drive';
 import {
   BUILDING,
   MAX_DOC_BYTES,
@@ -183,11 +189,12 @@ export function buildNewSet(
   return set;
 }
 
-/** Copies each slide into the creator's Guided Learning uploads, marked so the sweep reclaims it if the save fails. */
+/** Copies each slide into the creator's uploads: the teacher's Drive for their own sets, Storage (swept if the save fails) for building sets. */
 async function uploadSlides(
   ctx: ToolContext,
-  urls: readonly string[]
-): Promise<{ urls: string[]; paths: string[] }> {
+  urls: readonly string[],
+  driveToken: string | null
+): Promise<{ urls: string[]; paths: string[]; driveIds: string[] }> {
   const { downloadPublicImage } = await import('../fetchImportImage');
   const images = await Promise.all(
     urls.map(async (url, i) => {
@@ -199,8 +206,35 @@ async function uploadSlides(
       }
     })
   );
-  const bucket = admin.storage().bucket();
   const stamp = Date.now();
+  if (driveToken) {
+    const folderId = await slideImageFolder(driveToken);
+    const results = await Promise.allSettled(
+      images.map(({ contentType, body }, i) =>
+        uploadSlideImage(
+          driveToken,
+          folderId,
+          body,
+          contentType,
+          `hotspot-${stamp}-claude-${i + 1}.${EXTENSIONS[contentType]}`
+        )
+      )
+    );
+    const ids = results.flatMap((r) =>
+      r.status === 'fulfilled' ? [r.value] : []
+    );
+    const failed = results.find((r) => r.status === 'rejected');
+    if (failed) {
+      await Promise.all(ids.map((id) => trashDriveFile(driveToken, id)));
+      throw failed.reason;
+    }
+    return {
+      urls: ids.map((id) => `https://lh3.googleusercontent.com/d/${id}`),
+      paths: [],
+      driveIds: ids,
+    };
+  }
+  const bucket = admin.storage().bucket();
   const saved = await Promise.all(
     images.map(async ({ contentType, body }, i) => {
       const path = `users/${ctx.uid}/hotspot_images/${stamp}-claude-${i + 1}.${EXTENSIONS[contentType]}`;
@@ -218,7 +252,11 @@ async function uploadSlides(
       };
     })
   );
-  return { urls: saved.map((s) => s.url), paths: saved.map((s) => s.path) };
+  return {
+    urls: saved.map((s) => s.url),
+    paths: saved.map((s) => s.path),
+    driveIds: [],
+  };
 }
 
 const WHERE = {
@@ -264,55 +302,72 @@ export async function saveNewSet(
   }
   const token = source === 'mine' ? await driveTokenFor(ctx.uid) : null;
   await reserveWrite(ctx);
-  const slides = await uploadSlides(ctx, input.slide_urls ?? []);
-  const now = Date.now();
-  const set = buildNewSet(
-    input,
-    { id: randomUUID(), uid: ctx.uid, now },
-    source,
-    planned,
-    slides
-  );
-  if (Buffer.byteLength(JSON.stringify(set)) > MAX_DOC_BYTES)
-    throw new ToolError('The set is too large to save.');
-  const batch = ctx.db.batch();
-  logActivity(ctx, batch, {
-    action: 'create',
-    itemType: 'guided_learning',
-    itemId: set.id,
-    title: set.title,
-  });
-  let anchorsRequested = 0;
-  if (source === 'building') {
-    anchorsRequested = await queueAnchorRequests(
-      ctx.db,
-      batch,
-      set.id,
-      requests
+  const slides = await uploadSlides(ctx, input.slide_urls ?? [], token);
+  const setId = randomUUID();
+  try {
+    const now = Date.now();
+    const set = buildNewSet(
+      input,
+      { id: setId, uid: ctx.uid, now },
+      source,
+      planned,
+      slides
     );
-    batch.create(ctx.db.doc(`${BUILDING}/${set.id}`), set);
-  } else {
-    const driveFileId = await createGuidedLearningJson(token as string, set);
-    batch.create(ctx.db.doc(`users/${ctx.uid}/${PERSONAL}/${set.id}`), {
-      id: set.id,
+    if (Buffer.byteLength(JSON.stringify(set)) > MAX_DOC_BYTES)
+      throw new ToolError('The set is too large to save.');
+    const batch = ctx.db.batch();
+    logActivity(ctx, batch, {
+      action: 'create',
+      itemType: 'guided_learning',
+      itemId: set.id,
       title: set.title,
-      ...(set.description ? { description: set.description } : {}),
-      stepCount: set.steps.length,
-      mode: set.mode,
-      imageUrl: set.imageUrls[0] ?? '',
-      driveFileId,
-      createdAt: now,
-      updatedAt: now,
-      claudeCreatedAt: now,
-      [REVIEW_MARK]: now,
-      ...(slides.paths.length > 0 ? { imagePaths: slides.paths } : {}),
-      ...(input.folder_id ? { folderId: input.folder_id } : {}),
-      driveFileIds: [],
     });
+    let anchorsRequested = 0;
+    if (source === 'building') {
+      anchorsRequested = await queueAnchorRequests(
+        ctx.db,
+        batch,
+        set.id,
+        requests
+      );
+      batch.create(ctx.db.doc(`${BUILDING}/${set.id}`), set);
+    } else {
+      const driveFileId = await createGuidedLearningJson(token as string, set);
+      batch.create(ctx.db.doc(`users/${ctx.uid}/${PERSONAL}/${set.id}`), {
+        id: set.id,
+        title: set.title,
+        ...(set.description ? { description: set.description } : {}),
+        stepCount: set.steps.length,
+        mode: set.mode,
+        imageUrl: set.imageUrls[0] ?? '',
+        driveFileId,
+        createdAt: now,
+        updatedAt: now,
+        claudeCreatedAt: now,
+        [REVIEW_MARK]: now,
+        ...(slides.paths.length > 0 ? { imagePaths: slides.paths } : {}),
+        ...(input.folder_id ? { folderId: input.folder_id } : {}),
+        driveFileIds: slides.driveIds,
+      });
+    }
+    await stage?.(batch, set);
+    await batch.commit();
+    return { set, source, anchorsRequested };
+  } catch (err) {
+    // A commit can fail after landing, so slides are trashed only when the set really didn't save.
+    if (token && slides.driveIds.length > 0) {
+      const saved = await ctx.db
+        .doc(`users/${ctx.uid}/${PERSONAL}/${setId}`)
+        .get()
+        .then((snap) => snap.exists)
+        .catch(() => true);
+      if (!saved)
+        await Promise.all(
+          slides.driveIds.map((id) => trashDriveFile(token, id))
+        );
+    }
+    throw err;
   }
-  await stage?.(batch, set);
-  await batch.commit();
-  return { set, source, anchorsRequested };
 }
 
 /** The result fields both create tools return. */

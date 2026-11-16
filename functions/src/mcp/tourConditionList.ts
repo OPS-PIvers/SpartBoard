@@ -57,6 +57,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'district-library',
   'document-camera-pro',
   'drawing-ai',
+  'drive-only-uploads',
   'embed-block-new-tabs',
   'embed-mini-app',
   'embed-reload',

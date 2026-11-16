@@ -13,6 +13,9 @@ vi.mock('@/config/firebase', () => ({
   db: {},
   auth: { currentUser: { uid: 'teacher-uid' } },
 }));
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({ canAccessFeature: () => false }),
+}));
 vi.mock('./useGoogleDrive', () => ({
   useGoogleDrive: () => ({ driveService: drive, userDomain: '' }),
 }));

@@ -31,6 +31,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-live-view-screenshot',
   'quiz-monitor-roster',
   'app-pickers',
+  'drive-only-uploads',
   'assignment-class-list',
   'quiz-score-on-submit',
   'project-submit',

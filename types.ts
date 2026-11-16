@@ -11395,6 +11395,8 @@ export type GlobalFeature =
   | 'quiz-live-view-screenshot'
   /** The app's own lists for dropdowns, date and time fields and suggestions, in place of the browser's. */
   | 'app-pickers'
+  /** Teacher picture and PDF uploads need Google Drive; without it they ask to reconnect instead of saving to Firebase Storage. */
+  | 'drive-only-uploads'
   /** Assignment rows in the Quiz, Flashcards and Video Activity libraries show a "N classes" button with the full class list. */
   | 'assignment-class-list'
   /** Quiz Monitor lists the whole class roster, with students who haven't joined under Not started. */
