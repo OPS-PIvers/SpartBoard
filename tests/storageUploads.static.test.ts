@@ -46,7 +46,7 @@ const STORAGE_HELPER_CALLS: Record<string, number> = {
   'components/widgets/GuidedLearning/components/GuidedLearningStepEditor.tsx': 2,
   'components/widgets/GuidedLearning/components/studio/StudioStepFields.tsx': 2,
   'components/widgets/GuidedLearning/components/useGuidedLearningEditorState.ts': 5,
-  // Smart Notebook pages and assets (teacher content still on Storage; listed for Paul).
+  // Smart Notebook pages: Drive serves an SVG as a 1024px PNG, so they stay on Storage (Paul, 2026-11-16).
   'components/widgets/SmartNotebook/Widget.tsx': 9,
   'hooks/useNotebookSharing.ts': 3,
   'utils/notebookUpload.ts': 3,
@@ -56,7 +56,7 @@ const STORAGE_HELPER_CALLS: Record<string, number> = {
 
 // Admin SDK writes (.save, .upload, createWriteStream) in server files that touch a bucket, per file.
 const SERVER_WRITES: Record<string, number> = {
-  // Guided Learning sets made through the Claude connector (teacher content still on Storage; listed for Paul).
+  // Building Guided Learning sets made through the Claude connector (district-owned); teachers' own go to Drive.
   'functions/src/mcp/glCreate.ts': 1,
   // Admin live tour pictures.
   'functions/src/mcp/tourPictures.ts': 1,
@@ -76,13 +76,12 @@ const SERVER_WRITES: Record<string, number> = {
 
 // storage.rules paths a client may write.
 const WRITABLE_RULE_PATHS = [
-  // Teacher uploads kept only as the no-Drive fallback, plus GL media and notebooks (listed for Paul).
+  // Teacher uploads kept only as the no-Drive fallback, plus GL media and Smart Notebook pages.
   '/users/{userId}/backgrounds/{allPaths=**}',
   '/users/{userId}/screenshots/{allPaths=**}',
   '/users/{userId}/stickers/{allPaths=**}',
   '/users/{userId}/display_images/{allPaths=**}',
   '/users/{userId}/hotspot_images/{allPaths=**}',
-  '/users/{userId}/instructional/{allPaths=**}',
   '/users/{userId}/notebooks/{allPaths=**}',
   '/users/{userId}/pdfs/{allPaths=**}',
   // Admin and district assets.
