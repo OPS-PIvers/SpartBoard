@@ -64,7 +64,7 @@ export function useGradebookLmsPush(
   onToolColumnDone?: (outcome: GradebookPushOutcome) => void
 ): GradebookLmsPush {
   const { user, canAccessFeature } = useAuth();
-  const { rosters } = useDashboard();
+  const { rosters, addToast } = useDashboard();
   const linkedTargets = useMemo(
     () => schoologyLinkedTargets(rosters),
     [rosters]
@@ -142,7 +142,14 @@ export function useGradebookLmsPush(
             }
           : null
       ),
-    onDone: (message, ok) => onToolColumnDone?.({ ok, message }),
+    onDone: (message, ok, retry) =>
+      retry
+        ? addToast(message, 'error', {
+            label: 'Retry',
+            onClick: retry,
+            persist: true,
+          })
+        : onToolColumnDone?.({ ok, message }),
   });
 
   const push = async (): Promise<GradebookPushOutcome | null> => {

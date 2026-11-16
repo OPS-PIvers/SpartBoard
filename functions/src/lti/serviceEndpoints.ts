@@ -29,7 +29,11 @@ import {
   buildDeepLinkResponseClaims,
   isSchoologyReturnUrl,
 } from './deepLink';
-import { getAgsAccessToken, postScore } from './ags';
+import {
+  getAgsAccessToken,
+  pacedScorePoster,
+  postScore as postOnce,
+} from './ags';
 import { fetchNrpsMembers } from './nrps';
 import { ltiStudentUid } from './identity';
 import { LTI_IDENTITY_BRIDGE_COLLECTION } from './classlinkBridge';
@@ -172,6 +176,7 @@ export const ltiPushGradesForAssignmentV1 = onCall(
     invoker: 'public',
     cors: ALLOWED_ORIGINS,
     secrets: [LTI_TOOL_PRIVATE_KEY],
+    timeoutSeconds: 180,
   },
   async (request) => {
     await assertViewAsAllowed(request, { outward: true });
@@ -268,6 +273,10 @@ export const ltiPushGradesForAssignmentV1 = onCall(
       );
     }
     const timestamp = new Date().toISOString();
+    const postScore = pacedScorePoster({
+      deadline: Date.now() + 120_000,
+      post: postOnce,
+    });
 
     // Resolve each student's OWN line item (per-section for linked/merged courses)
     // from the grade-sync key written at their launch, then POST the score.

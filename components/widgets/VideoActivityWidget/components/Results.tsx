@@ -709,7 +709,12 @@ export const Results: React.FC<ResultsProps> = ({
         }),
       };
     },
-    onDone: (message, ok) => addToast(message, ok ? 'success' : 'error'),
+    onDone: (message, ok, retry) =>
+      addToast(
+        message,
+        ok ? 'success' : 'error',
+        retry ? { label: 'Retry', onClick: retry, persist: true } : undefined
+      ),
   });
   const showSchoologyPush = !!ltiAttachment || toolColumnMode;
 

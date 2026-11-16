@@ -52,7 +52,8 @@ interface Options {
   endedAt?: number | null;
   /** Builds the scores (and Missing entries) at click time; null stops quietly after the caller explains why. */
   buildPayload: () => Promise<ToolColumnPayload | null>;
-  onDone: (message: string, ok: boolean) => void;
+  /** `retry` resends only the grades that didn't go through; the caller keeps the message up until dismissed. */
+  onDone: (message: string, ok: boolean, retry?: () => void) => void;
 }
 
 /** Explicit "Push to Schoology" for a tool column: confirm and pick categories when needed, then push. */
@@ -95,23 +96,34 @@ export function useSchoologyToolColumnPush({
         categories,
         ...(dueDate ? { dueDate } : {}),
       });
-      const { message, failed } = formatToolColumnPushToast(data);
-      onDone(message, failed === 0);
+      const { message, failed, failedUids } = formatToolColumnPushToast(data);
+      const resend = new Set(failedUids);
+      const retryGrades = payload.grades.filter((g) =>
+        resend.has(g.pseudonymUid)
+      );
+      onDone(
+        message,
+        failed === 0,
+        retryGrades.length > 0
+          ? () => void prepare({ ...payload, grades: retryGrades })
+          : undefined
+      );
     } catch (err) {
       logError('schoologyToolColumn.push', err, { sessionId });
-      onDone(ltiPushErrorMessage(err), false);
+      onDone(ltiPushErrorMessage(err), false, () => void prepare(payload));
     } finally {
       setBusy(false);
     }
   };
 
-  const start = async () => {
-    if (!sessionId || busy) return;
+  // `retryPayload` is a Retry of the grades that failed last time; otherwise the scores are built now.
+  const prepare = async (retryPayload?: ToolColumnPayload) => {
+    if (!sessionId) return;
     setBusy(true);
     let payload: ToolColumnPayload | null;
     let data: ToolColumnCategoriesData;
     try {
-      payload = await buildPayload();
+      payload = retryPayload ?? (await buildPayload());
       if (!payload || payload.grades.length === 0) {
         if (payload) onDone('No scores to push yet.', true);
         setBusy(false);
@@ -139,6 +151,11 @@ export function useSchoologyToolColumnPush({
       return;
     }
     await run(payload, {});
+  };
+
+  const start = async () => {
+    if (!sessionId || busy) return;
+    await prepare();
   };
 
   const dialog =

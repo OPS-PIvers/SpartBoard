@@ -261,13 +261,18 @@ const plural = (n: number, one: string, many: string): string =>
 export function formatToolColumnPushToast(data: ToolColumnPushData): {
   message: string;
   failed: number;
+  /** Students whose grade didn't reach Schoology and is worth sending again. */
+  failedUids: string[];
 } {
   const ok = data.results.filter((r) => r.ok);
   const count = (reason: string) =>
     data.results.filter((r) => !r.ok && r.reason === reason).length;
-  const failed = data.results.filter(
-    (r) => !r.ok && !(r.reason && TOOL_COLUMN_BENIGN_REASONS.has(r.reason))
-  ).length;
+  const failedUids = data.results
+    .filter(
+      (r) => !r.ok && !(r.reason && TOOL_COLUMN_BENIGN_REASONS.has(r.reason))
+    )
+    .map((r) => r.pseudonymUid);
+  const failed = failedUids.length;
   const missing = ok.filter((r) => r.missing).length;
   const parts = [
     `Pushed ${plural(ok.length - missing, 'grade', 'grades')} to Schoology${
@@ -319,9 +324,9 @@ export function formatToolColumnPushToast(data: ToolColumnPushData): {
     parts.push('Some Missing marks were added as comments.');
   }
   if (failed > 0) {
-    parts.push(`${failed} failed to push. Try again.`);
+    parts.push(`${failed} not sent.`);
   }
-  return { message: parts.join(' '), failed };
+  return { message: parts.join(' '), failed, failedUids };
 }
 
 /** True when SpartBoard made a Schoology column for this session; read before the session is deleted. */

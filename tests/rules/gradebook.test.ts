@@ -3,7 +3,7 @@
 
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
-import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   initializeTestEnvironment,
   assertSucceeds,
@@ -417,6 +417,17 @@ describe('gradebook_columns', () => {
         )
       )
     );
+  });
+
+  it('reads a column not set up yet as missing instead of failing', async () => {
+    const snap = await assertSucceeds(
+      getDoc(doc(teacherDb(), `gradebook_columns/${SESSION}`))
+    );
+    expect(snap.exists()).toBe(false);
+    await assertSucceeds(
+      setDoc(doc(teacherDb(), `gradebook_columns/${SESSION}`), column())
+    );
+    await assertFails(getDoc(doc(otherDb(), `gradebook_columns/${SESSION}`)));
   });
 
   it("refuses another teacher's session, bad values and outside reads", async () => {

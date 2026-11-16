@@ -11250,6 +11250,8 @@ export interface Toast {
     secondary?: { label: string; onClick: () => void };
     /** Live-tour anchor id for the action button. */
     tourId?: string;
+    /** Keeps the toast until the teacher dismisses it or takes the action. */
+    persist?: boolean;
   };
 }
 
