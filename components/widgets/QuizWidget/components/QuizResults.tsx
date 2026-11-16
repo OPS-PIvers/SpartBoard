@@ -3043,6 +3043,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
         <FreeResponseGrader
           quiz={quiz}
           responses={graderResponses}
+          attemptNumber={graderAttempt ?? undefined}
           countedChoices={
             saveCountedChoicesFor && graderAttempt === null && session?.sections
               ? { sections: session.sections, onSave: saveCountedChoicesFor }

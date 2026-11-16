@@ -1,18 +1,12 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
-import { History, Pause, Play, RotateCcw } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { History, Pause, Play, RotateCcw, SkipForward } from 'lucide-react';
 import type { InputSignals } from '@/types';
-import { AuthContext } from '@/context/AuthContextValue';
+import { writingLogs, type WrittenAnswerLog } from '@/utils/inputSignals';
 import {
-  INPUT_SIGNALS_FEATURE,
-  writingLogs,
-  type WrittenAnswerLog,
-} from '@/utils/inputSignals';
+  useWritingPlaybackAccess,
+  type AnswerWritingLog,
+} from '@/hooks/useWritingPlayback';
 import {
-  isSignShown,
-  readInputSignSettings,
-} from '@/utils/inputSignalSettings';
-import {
-  PAUSE_CAP_MS,
   parseWritingLog,
   summarizeWriting,
   buildCheckpoints,
@@ -23,7 +17,7 @@ import { BadgePopover } from './BadgePopover';
 import { Modal } from './Modal';
 
 const SPEEDS = [1, 2, 5, 10] as const;
-/** A pause this long is called out during playback. */
+/** A pause this long gets a timeline marker and a Skip pause button. */
 const LONG_PAUSE_MS = 10_000;
 
 const formatSpan = (ms: number): string => {
@@ -58,7 +52,7 @@ export const WritingPlayer: React.FC<{
   const atEnd = index >= edits.length;
   useEffect(() => {
     if (!playing || atEnd) return;
-    const wait = Math.min(edits[index].dt, PAUSE_CAP_MS) / speed;
+    const wait = edits[index].dt / speed;
     const id = window.setTimeout(
       () => setIndex((i) => Math.min(i + 1, edits.length)),
       Math.max(wait, 10)
@@ -83,6 +77,15 @@ export const WritingPlayer: React.FC<{
     (next && next.dt >= LONG_PAUSE_MS
       ? `Paused for ${formatSpan(next.dt)} here`
       : null);
+
+  const pauses = useMemo(
+    () =>
+      edits.flatMap((e, i) =>
+        e.dt >= LONG_PAUSE_MS ? [{ at: i, ms: e.dt }] : []
+      ),
+    [edits]
+  );
+  const inPause = !!next && next.dt >= LONG_PAUSE_MS;
 
   const toggle = () => {
     if (atEnd) setIndex(0);
@@ -143,7 +146,20 @@ export const WritingPlayer: React.FC<{
         />
         {text.slice(caret)}
       </div>
-      <p className="h-5 text-xs font-semibold text-amber-700">{note}</p>
+      <div className="flex h-6 items-center gap-2">
+        <p className="text-xs font-semibold text-amber-700">{note}</p>
+        {inPause && (
+          // no-tour-anchor: playback of one student's answer, nothing a tour walks to
+          <button
+            type="button"
+            onClick={() => setIndex((i) => Math.min(i + 1, edits.length))}
+            className="touch-target-expand relative inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-xs font-semibold text-brand-blue-primary hover:bg-slate-100 hover:text-brand-blue-dark focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+          >
+            <SkipForward aria-hidden className="h-3.5 w-3.5" />
+            Skip pause
+          </button>
+        )}
+      </div>
       <div className="flex items-center gap-3">
         {/* no-tour-anchor: playback of one student's answer, nothing a tour walks to */}
         <button
@@ -160,20 +176,39 @@ export const WritingPlayer: React.FC<{
             <Play aria-hidden className="h-4 w-4" />
           )}
         </button>
-        {/* no-tour-anchor: playback of one student's answer, nothing a tour walks to */}
-        <input
-          type="range"
-          min={0}
-          max={edits.length}
-          value={index}
-          onChange={(e) => {
-            setPlaying(false);
-            setIndex(Number(e.target.value));
-          }}
-          aria-label="Position in the writing"
-          aria-valuetext={`Edit ${index} of ${edits.length}`}
-          className="min-w-0 flex-1 accent-brand-blue-primary"
-        />
+        <div className="relative min-w-0 flex-1 pb-3">
+          {/* no-tour-anchor: playback of one student's answer, nothing a tour walks to */}
+          <input
+            type="range"
+            min={0}
+            max={edits.length}
+            value={index}
+            onChange={(e) => {
+              setPlaying(false);
+              setIndex(Number(e.target.value));
+            }}
+            aria-label="Position in the writing"
+            aria-valuetext={`Edit ${index} of ${edits.length}`}
+            className="w-full accent-brand-blue-primary"
+          />
+          {pauses.map((p) => (
+            // no-tour-anchor: one pause in one student's answer, nothing a tour walks to
+            <button
+              key={p.at}
+              type="button"
+              onClick={() => {
+                setPlaying(false);
+                setIndex(p.at);
+              }}
+              title={`Paused ${formatSpan(p.ms)}`}
+              aria-label={`Jump to the ${formatSpan(p.ms)} pause`}
+              style={{
+                left: `calc(8px + (100% - 16px) * ${p.at / Math.max(edits.length, 1)})`,
+              }}
+              className="touch-target-expand absolute bottom-0 h-2.5 w-1 -translate-x-1/2 rounded-full bg-amber-500 hover:bg-amber-600 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+            />
+          ))}
+        </div>
         {/* no-tour-anchor: playback of one student's answer, nothing a tour walks to */}
         <select
           value={speed}
@@ -190,10 +225,11 @@ export const WritingPlayer: React.FC<{
           ))}
         </select>
       </div>
-      <p className="text-xs text-slate-600">
-        Pauses longer than {PAUSE_CAP_MS / 1000} seconds are shortened.
-        {cutOff && ' Recording stopped at its size limit before the end.'}
-      </p>
+      {cutOff && (
+        <p className="text-xs text-slate-600">
+          Recording stopped at its size limit before the end.
+        </p>
+      )}
     </div>
   );
 };
@@ -207,6 +243,24 @@ interface WritingPlaybackBadgeProps {
   children: (count: number) => React.ReactNode;
 }
 
+/** The grader's inline playback of the answer being graded. */
+export const AnswerWritingPlayback: React.FC<{
+  playback: AnswerWritingLog;
+}> = ({ playback }) => (
+  <div>
+    {playback.hidden && (
+      <p className="mb-2 text-xs font-semibold text-slate-500">
+        Hidden from teachers
+      </p>
+    )}
+    <WritingPlayer
+      log={playback.log}
+      hidePasted={playback.hidePasted}
+      hideUnkeyed={playback.hideUnkeyed}
+    />
+  </div>
+);
+
 /** A badge that lists a student's written answers and replays how each was written; nothing without the flag or a log. */
 export const WritingPlaybackBadge: React.FC<WritingPlaybackBadgeProps> = ({
   signals,
@@ -214,15 +268,8 @@ export const WritingPlaybackBadge: React.FC<WritingPlaybackBadgeProps> = ({
   questionOrder,
   children,
 }) => {
-  const auth = useContext(AuthContext);
-  const signs = readInputSignSettings(auth?.globalPermissions);
-  const isAdmin = auth?.isAdmin === true;
-  const hidden = !isSignShown(signs, 'writing-playback');
-  const hidePasted = !isAdmin && !isSignShown(signs, 'pasted');
-  const hideUnkeyed = !isAdmin && !isSignShown(signs, 'unkeyed-text');
-  const enabled =
-    auth?.canAccessFeature?.(INPUT_SIGNALS_FEATURE) === true &&
-    (!hidden || isAdmin);
+  const { enabled, hidden, hidePasted, hideUnkeyed } =
+    useWritingPlaybackAccess();
   const answers = useMemo(
     () => (enabled ? writingLogs(signals) : []),
     [enabled, signals]

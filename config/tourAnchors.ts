@@ -4325,6 +4325,11 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-grading.writing-playback': {
+    label: 'Replay how the student wrote their answer in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-grading.comment': {
     label: 'Teacher comment box in the Quiz grader',
     perWidgetType: true,

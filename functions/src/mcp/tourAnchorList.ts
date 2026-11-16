@@ -18043,6 +18043,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-grading.writing-playback",
+    "label": "Replay how the student wrote their answer in the Quiz grader",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ]
+  },
+  {
     "id": "quiz-grading.comment",
     "label": "Teacher comment box in the Quiz grader",
     "scope": "widget type",

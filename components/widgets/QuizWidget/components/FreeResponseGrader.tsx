@@ -30,6 +30,7 @@ import {
   ChevronRight,
   Clock,
   FileScan,
+  History,
   Loader2,
   Mic,
   MicOff,
@@ -112,6 +113,8 @@ import { useGradeWriteQueue } from '@/hooks/useGradeWriteQueue';
 import { isBackTranslatableLocale } from '@/utils/backTranslationHash';
 import { AnnotatedResponseView } from './AnnotatedResponseView';
 import { CopyTextButton } from './CopyTextButton';
+import { AnswerWritingPlayback } from '@/components/common/WritingPlayback';
+import { useAnswerWritingLog } from '@/hooks/useWritingPlayback';
 import { BackTranslationPanel } from './BackTranslationPanel';
 import { AudioAnnotatedResponseView } from './AudioAnnotatedResponseView';
 import { WhiteboardAnnotatedResponseView } from './WhiteboardAnnotatedResponseView';
@@ -231,6 +234,8 @@ export interface FreeResponseGraderProps {
     sections: readonly QuizSessionSection[];
     onSave: SaveCountedChoices;
   };
+  /** Earlier attempt being graded (its saved copy's number); reads that attempt's writing playback. */
+  attemptNumber?: number;
   onClose: () => void;
 }
 
@@ -531,6 +536,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   classOptions = [],
   onClassFilterChange,
   countedChoices,
+  attemptNumber,
   onClose,
 }) => {
   const { t } = useTranslation();
@@ -672,6 +678,21 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     targets[0];
   const slot = target?.kind === 'media' ? target.slot : undefined;
   const textEntry = target?.kind === 'text' ? target.entry : undefined;
+  // Signals are keyed by completed attempts before the one graded; a submit has already bumped the count.
+  const signalsAttempt =
+    attemptNumber !== undefined
+      ? attemptNumber - 1
+      : Math.max(
+          0,
+          (response?.completedAttempts ?? 0) -
+            (response?.status === 'completed' ? 1 : 0)
+        );
+  const writingPlayback = useAnswerWritingLog(
+    response?.inputSignals,
+    signalsAttempt,
+    textEntry ? question?.id : undefined
+  );
+  const [playbackOpenKey, setPlaybackOpenKey] = useState<string | null>(null);
   const savedGrade = target ? targetGrade(target) : undefined;
   const position = findPosition(
     traversal,
@@ -798,6 +819,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     : null;
 
   const targetKey = `${responseKey ?? ''}::${target?.key ?? ''}`;
+  const showPlayback = !!writingPlayback && playbackOpenKey === targetKey;
   const isPaperAnswer = !!textEntry && isPaperWrittenAnswer(textEntry);
   // A landed or edited transcript rewrites the snapshot server-side; rehydrate so stale highlights never save back.
   const hydrateKey = isPaperAnswer
@@ -2112,6 +2134,28 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                         {tg('timedOutUnderMinimum')}
                       </span>
                     )}
+                    {writingPlayback && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPlaybackOpenKey(showPlayback ? null : targetKey)
+                        }
+                        aria-pressed={showPlayback}
+                        title="Replay how this answer was written"
+                        {...tourTypeAttr(
+                          'quiz-grading.writing-playback',
+                          'quiz'
+                        )}
+                        className={`touch-target-expand relative ml-auto inline-flex items-center gap-1 self-center rounded-sm px-1.5 py-0.5 text-xs font-semibold transition-colors ${
+                          showPlayback
+                            ? 'bg-brand-blue-primary/10 text-brand-blue-dark'
+                            : 'text-brand-blue-primary hover:bg-slate-200 hover:text-brand-blue-dark'
+                        }`}
+                      >
+                        <History aria-hidden className="h-3.5 w-3.5" />
+                        {showPlayback ? 'Back to answer' : 'Playback'}
+                      </button>
+                    )}
                     {studentAnswer && (
                       <CopyTextButton
                         html={snapshotForList}
@@ -2122,12 +2166,17 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                           'quiz-grading.copy-response',
                           'quiz'
                         )}
-                        className="touch-target-expand relative ml-auto inline-flex items-center gap-1 self-center rounded-sm px-1.5 py-0.5 text-xs font-semibold text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-700 disabled:opacity-30"
+                        className={`touch-target-expand relative ${writingPlayback ? '' : 'ml-auto '}inline-flex items-center gap-1 self-center rounded-sm px-1.5 py-0.5 text-xs font-semibold text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-700 disabled:opacity-30`}
                       />
                     )}
                   </div>
                 )}
-                {studentAnswer ? (
+                {showPlayback && writingPlayback ? (
+                  <AnswerWritingPlayback
+                    key={targetKey}
+                    playback={writingPlayback}
+                  />
+                ) : studentAnswer ? (
                   <ResponseQuotesFrame snapshot={snapshotForList}>
                     <AnnotatedResponseView
                       key={hydrateKey}

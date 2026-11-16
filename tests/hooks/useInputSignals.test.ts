@@ -4,6 +4,7 @@ import type { InputSignalCounts } from '@/types';
 import { parseWritingLog, textAfter } from '@/utils/writingLog';
 import { INPUT_SIGNALS_FLUSH_EVENT } from '@/utils/inputSignals';
 import {
+  editorPlainText,
   useInputSignals,
   type UseInputSignalsArgs,
 } from '@/hooks/useInputSignals';
@@ -267,5 +268,31 @@ describe('useInputSignals', () => {
     expect(save).toHaveBeenCalledExactlyOnceWith(0, {
       _: { browser: 'Firefox 131, Windows', profile: 'no-extension' },
     });
+  });
+});
+
+describe('editorPlainText', () => {
+  const textOf = (html: string) => {
+    const el = document.createElement('div');
+    el.innerHTML = html;
+    return editorPlainText(el);
+  };
+
+  it('gives one newline per Enter and two around a blank line', () => {
+    expect(textOf('<p>a</p><p>b</p>')).toBe('a\nb');
+    expect(textOf('<p>a</p><p><br></p><p>b</p>')).toBe('a\n\nb');
+    expect(textOf('a<div>b</div><div><br></div><div>c</div>')).toBe(
+      'a\nb\n\nc'
+    );
+  });
+
+  it('keeps a line break inside a paragraph and drops a closing one', () => {
+    expect(textOf('<p>a<br>b</p>')).toBe('a\nb');
+    expect(textOf('<p>a<br><br></p>')).toBe('a\n');
+    expect(textOf('<p>a</p><p><br></p>')).toBe('a\n');
+  });
+
+  it('puts list items on their own lines', () => {
+    expect(textOf('<ul><li>x</li><li>y</li></ul><p>z</p>')).toBe('x\ny\nz');
   });
 });
