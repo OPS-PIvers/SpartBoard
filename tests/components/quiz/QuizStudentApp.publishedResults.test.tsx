@@ -628,6 +628,36 @@ describe('QuizStudentApp — choose-N section with an extra written answer', () 
   });
 });
 
+describe('QuizStudentApp — published points', () => {
+  it('leads with points earned of points possible, percent underneath', async () => {
+    hookState.session = buildSession({ scoreVisibility: 'score-only' });
+    hookState.myResponse = buildResponse({
+      score: 75,
+      scorePoints: { earned: 18, possible: 24 },
+    });
+
+    render(<QuizStudentApp />);
+
+    expect(
+      await screen.findByLabelText('18 out of 24 points')
+    ).toBeInTheDocument();
+    expect(screen.getByText('75%')).toBeInTheDocument();
+  });
+
+  it('falls back to the percent when the points no longer match the score', async () => {
+    hookState.session = buildSession({ scoreVisibility: 'score-only' });
+    hookState.myResponse = buildResponse({
+      score: 80,
+      scorePoints: { earned: 18, possible: 24 },
+    });
+
+    render(<QuizStudentApp />);
+
+    expect(await screen.findByText('80%')).toBeInTheDocument();
+    expect(screen.queryByLabelText(/out of 24 points/)).toBeNull();
+  });
+});
+
 describe('QuizStudentApp — per-student results override', () => {
   const wrongAnswer = [
     { questionId: 'q1', answer: '3', answeredAt: 3, isCorrect: false },

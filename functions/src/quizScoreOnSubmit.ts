@@ -107,7 +107,11 @@ export function withoutVerdicts(
 export function scoreAttempt(
   response: Record<string, unknown>,
   ctx: ScoreContext
-): { score: number; answers: ScoreOnSubmitAnswer[] } | null {
+): {
+  score: number;
+  answers: ScoreOnSubmitAnswer[];
+  points: { earned: number; possible: number };
+} | null {
   const answers = (
     Array.isArray(response.answers) ? response.answers : []
   ).filter(
@@ -170,6 +174,10 @@ export function scoreAttempt(
   return {
     score: max === 0 ? 0 : Math.round((earned / max) * 100),
     answers: graded,
+    points: {
+      earned: Math.round(earned * 100) / 100,
+      possible: Math.round(max * 100) / 100,
+    },
   };
 }
 
@@ -274,6 +282,7 @@ export async function handleScoreQuizOnSubmit(
     );
     tx.update(responseRef, {
       score: result.score,
+      scorePoints: result.points,
       answers: visibilityIncludesResponses(visibility)
         ? result.answers
         : withoutVerdicts(result.answers),

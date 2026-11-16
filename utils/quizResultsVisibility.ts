@@ -171,3 +171,22 @@ export const resultsExpiryFromPreset = (
       return now + 7 * DAY;
   }
 };
+
+/** Points behind a published score, or null when absent or stale (a path rewrote `score` alone). */
+export function publishedScorePoints(
+  response: Partial<Pick<QuizResponse, 'score' | 'scorePoints'>>
+): { earned: number; possible: number } | null {
+  const points = response.scorePoints;
+  if (typeof response.score !== 'number' || !points) return null;
+  const { earned, possible } = points;
+  if (typeof earned !== 'number' || typeof possible !== 'number') return null;
+  if (!(possible > 0) || earned < 0 || earned > possible) return null;
+  return Math.round((earned / possible) * 100) === response.score
+    ? { earned, possible }
+    : null;
+}
+
+/** A point total as students read it: whole numbers plain, partial credit to two places at most. */
+export function formatScorePoints(value: number): string {
+  return String(Math.round(value * 100) / 100);
+}
