@@ -10,11 +10,14 @@
  */
 
 import { PromptText } from '@/components/common/PromptText';
+import { TabExitsPopover } from '@/components/common/TabExitsPopover';
+import { InputSignalsBadge } from '@/components/common/InputSignalsPopover';
 import React, {
   useCallback,
   useContext,
   useEffect,
   useMemo,
+  useLayoutEffect,
   useRef,
   useState,
 } from 'react';
@@ -35,6 +38,8 @@ import {
   Loader2,
   Mic,
   MicOff,
+  Monitor,
+  MousePointerClick,
   PanelLeftClose,
   PanelLeftOpen,
   Pencil,
@@ -142,6 +147,14 @@ import {
   markupItemsEqual,
 } from '@/components/quiz/paper/markup/markupGeometry';
 import { useSavedMarkupComments } from '@/components/quiz/paper/markup/useSavedMarkupComments';
+
+// brand-blue-primary, as a value for the shell's inline header style.
+const BRAND_BLUE_HEADER = '#2d3f89';
+
+const RAIL_NAME_COLLATOR = new Intl.Collator(undefined, {
+  sensitivity: 'base',
+  numeric: true,
+});
 
 export const ADVANCE_DELAY_MS = 900;
 export const POINTS_IDLE_MS = 1500;
@@ -271,6 +284,33 @@ const readRailCollapsed = (): boolean => {
     return window.localStorage.getItem(RAIL_COLLAPSED_KEY) === '1';
   } catch {
     return false;
+  }
+};
+
+const PANE_WIDTHS_KEY = 'spart:freeResponseGrader:paneWidths';
+const MIN_PANE_PX = 180;
+const PANE_KEY_STEP_PX = 16;
+
+type PaneWidths = { list: number | null; score: number | null };
+
+const readPaneWidths = (): PaneWidths => {
+  try {
+    const raw = JSON.parse(
+      window.localStorage.getItem(PANE_WIDTHS_KEY) ?? '{}'
+    ) as Partial<PaneWidths>;
+    const ok = (v: unknown) =>
+      typeof v === 'number' && Number.isFinite(v) ? v : null;
+    return { list: ok(raw.list), score: ok(raw.score) };
+  } catch {
+    return { list: null, score: null };
+  }
+};
+
+const writePaneWidths = (widths: PaneWidths): void => {
+  try {
+    window.localStorage.setItem(PANE_WIDTHS_KEY, JSON.stringify(widths));
+  } catch {
+    // Storage blocked; the widths just won't be remembered.
   }
 };
 
@@ -548,6 +588,89 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     : false;
   const [railCollapsedPref, setRailCollapsedPref] = useState(readRailCollapsed);
   const railCollapsed = railCollapsedPref;
+  const [paneWidths, setPaneWidths] = useState(readPaneWidths);
+  const paneWidthsRef = useRef(paneWidths);
+  useLayoutEffect(() => {
+    paneWidthsRef.current = paneWidths;
+  }, [paneWidths]);
+  const paneDragRef = useRef<{
+    pane: keyof PaneWidths;
+    startX: number;
+    startWidth: number;
+    maxWidth: number;
+  } | null>(null);
+  const resizePane = (pane: keyof PaneWidths, width: number, max: number) => {
+    const next = Math.round(Math.min(Math.max(width, MIN_PANE_PX), max));
+    setPaneWidths((prev) => ({ ...prev, [pane]: next }));
+  };
+  const startPaneDrag = (
+    e: React.PointerEvent<HTMLDivElement>,
+    pane: keyof PaneWidths
+  ) => {
+    const handle = e.currentTarget;
+    const paneEl =
+      pane === 'list'
+        ? handle.previousElementSibling
+        : handle.nextElementSibling;
+    const grid = handle.parentElement;
+    if (!paneEl || !grid) return;
+    handle.setPointerCapture(e.pointerId);
+    paneDragRef.current = {
+      pane,
+      startX: e.clientX,
+      startWidth: paneEl.getBoundingClientRect().width,
+      maxWidth: grid.getBoundingClientRect().width * 0.45,
+    };
+  };
+  const movePaneDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = paneDragRef.current;
+    if (!drag) return;
+    const dx = e.clientX - drag.startX;
+    resizePane(
+      drag.pane,
+      drag.pane === 'list' ? drag.startWidth + dx : drag.startWidth - dx,
+      drag.maxWidth
+    );
+  };
+  const endPaneDrag = () => {
+    if (!paneDragRef.current) return;
+    paneDragRef.current = null;
+    writePaneWidths(paneWidthsRef.current);
+  };
+  const paneKeyDown = (
+    e: React.KeyboardEvent<HTMLDivElement>,
+    pane: keyof PaneWidths
+  ) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    e.preventDefault();
+    e.stopPropagation();
+    const handle = e.currentTarget;
+    const paneEl =
+      pane === 'list'
+        ? handle.previousElementSibling
+        : handle.nextElementSibling;
+    const grid = handle.parentElement;
+    if (!paneEl || !grid) return;
+    const grow = (e.key === 'ArrowRight') === (pane === 'list');
+    const next = Math.round(
+      Math.min(
+        Math.max(
+          paneEl.getBoundingClientRect().width +
+            (grow ? PANE_KEY_STEP_PX : -PANE_KEY_STEP_PX),
+          MIN_PANE_PX
+        ),
+        grid.getBoundingClientRect().width * 0.45
+      )
+    );
+    const updated = { ...paneWidthsRef.current, [pane]: next };
+    setPaneWidths(updated);
+    writePaneWidths(updated);
+  };
+  const resetPane = (pane: keyof PaneWidths) => {
+    const updated = { ...paneWidthsRef.current, [pane]: null };
+    setPaneWidths(updated);
+    writePaneWidths(updated);
+  };
   const toggleRail = () => {
     const next = !railCollapsedPref;
     setRailCollapsedPref(next);
@@ -563,13 +686,20 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   // A class whose last response is gone falls back to every class.
   const activeClass =
     showClassFilter && classOptions.includes(classFilter) ? classFilter : 'all';
-  const responses = useMemo(
-    () =>
+  // The rail and Next both walk students in name order (callers pass "Last, First").
+  const responses = useMemo(() => {
+    const inClass =
       activeClass !== 'all'
         ? allResponses.filter((r) => r.classPeriod === activeClass)
-        : allResponses,
-    [allResponses, activeClass]
-  );
+        : allResponses;
+    const nameOf = (r: QuizResponse) => {
+      const key = responseKeyOf(r);
+      return (key && displayNameByResponseKey?.get(key)) ?? '';
+    };
+    return [...inClass].sort((a, b) =>
+      RAIL_NAME_COLLATOR.compare(nameOf(a), nameOf(b))
+    );
+  }, [allResponses, activeClass, displayNameByResponseKey]);
 
   const mediaEnabled = !!resolveTakeUrl;
   const questions = useMemo(
@@ -1283,14 +1413,6 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     };
   });
 
-  const goPrevStudent = useCallback(() => {
-    leaveTarget();
-    setStudentIdx((i) => Math.max(0, i - 1));
-  }, [leaveTarget]);
-  const goNextStudent = useCallback(() => {
-    leaveTarget();
-    setStudentIdx((i) => Math.min(Math.max(0, students.length - 1), i + 1));
-  }, [leaveTarget, students.length]);
   const goPrevQuestion = useCallback(() => {
     leaveTarget();
     setQuestionIdx((i) => Math.max(0, i - 1));
@@ -1553,6 +1675,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   const mediaTargets = targets.filter((x) => x.kind === 'media');
   const showAllGraded = allGradedUntil > 0;
 
+  // Spoken position only; the rail, the question stepper and the graded count show it on screen.
   const subtitle = (
     <span className="flex flex-wrap items-center gap-2">
       <span>
@@ -1581,36 +1704,54 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   const stepperButton =
     'rounded-sm p-1 text-slate-500 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-30';
 
-  // The current target's state (and, with the list collapsed, tab switches); the rail shows the name.
-  const studentStatusRow = response && (
-    <div className="flex flex-wrap items-center gap-2">
-      <span
-        className={`inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-xxs uppercase tracking-wider ${headerVocabulary.chip}`}
-      >
-        {headerVocabulary.key.endsWith('.scored') && !slotExcused && (
-          <CheckCircle2 aria-hidden className="h-3 w-3" />
-        )}
-        {t(headerVocabulary.key)}
-      </span>
-      {isPaperAnswer && paperBadge}
-      {railCollapsed && tabSwitches > 0 && (
-        <span
-          className="inline-flex items-center gap-1 rounded-sm bg-amber-100 px-1.5 py-0.5 text-xxs uppercase tracking-wider text-amber-700"
-          title={tg('tabSwitchesTitle', { count: tabSwitches })}
-        >
-          <ShieldAlert aria-hidden className="h-3 w-3" />
-          {tg('tabSwitches', { count: tabSwitches })}
-        </span>
-      )}
-    </div>
+  // Graded shows beside the score and ungraded shows nothing; other states (excused, transcribing) stay here.
+  const headerScored =
+    headerVocabulary.key.endsWith('.scored') &&
+    !slotExcused &&
+    !!target &&
+    showPoints;
+  const responseRowShown =
+    target?.kind === 'text' && (!!studentAnswer || !isPaperAnswer);
+  const gradedChip = headerScored && (
+    <span className="ml-auto inline-flex shrink-0 items-center gap-1 self-center rounded-sm bg-emerald-100 px-1.5 py-0.5 text-xxs uppercase tracking-wider text-emerald-700">
+      <CheckCircle2 aria-hidden className="h-3 w-3" />
+      {t(headerVocabulary.key)}
+    </span>
   );
+  const showStateChip =
+    !headerScored && !headerVocabulary.key.endsWith('.awaiting-grade');
+  const showTabChip = railCollapsed && tabSwitches > 0;
+  const statusRowChip = !responseRowShown && gradedChip;
+  const studentStatusRow = response &&
+    (showStateChip || isPaperAnswer || showTabChip || statusRowChip) && (
+      <div className="flex flex-wrap items-center gap-2">
+        {showStateChip && (
+          <span
+            className={`inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-xxs uppercase tracking-wider ${headerVocabulary.chip}`}
+          >
+            {t(headerVocabulary.key)}
+          </span>
+        )}
+        {isPaperAnswer && paperBadge}
+        {showTabChip && (
+          <span
+            className="inline-flex items-center gap-1 rounded-sm bg-amber-100 px-1.5 py-0.5 text-xxs uppercase tracking-wider text-amber-700"
+            title={tg('tabSwitchesTitle', { count: tabSwitches })}
+          >
+            <ShieldAlert aria-hidden className="h-3 w-3" />
+            {tg('tabSwitches', { count: tabSwitches })}
+          </span>
+        )}
+        {statusRowChip}
+      </div>
+    );
 
   const status = writeQueue.status;
   const statusChip =
     status === 'saving' ? (
       <span
         role="status"
-        className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500"
+        className="inline-flex items-center gap-1 text-xs font-semibold text-white/80"
       >
         <Loader2 aria-hidden className="h-3.5 w-3.5 animate-spin" />
         {tg('status.saving')}
@@ -1618,7 +1759,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     ) : status === 'saved' ? (
       <span
         role="status"
-        className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700"
+        className="inline-flex items-center gap-1 text-xs font-semibold text-white/80"
       >
         <Check aria-hidden className="h-3.5 w-3.5" />
         {tg('status.saved')}
@@ -1630,7 +1771,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
           onClick={writeQueue.retryAll}
           {...tourTypeAttr('quiz-grading.retry-save', 'quiz')}
           title={failedWrites.map((f) => f.studentName).join(', ')}
-          className="inline-flex items-center gap-1 rounded-lg bg-brand-red-lighter/50 px-2 py-1 text-xs font-bold text-brand-red-dark transition-colors hover:bg-brand-red-lighter"
+          className="inline-flex items-center gap-1 rounded-lg bg-white px-2 py-1 text-xs font-bold text-brand-red-dark transition-colors hover:bg-brand-red-lighter"
         >
           <AlertCircle aria-hidden className="h-3.5 w-3.5" />
           {tg('status.failed')}
@@ -1642,54 +1783,66 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
       </span>
     ) : null;
 
+  const modeToggle = (onAccent: boolean) => (
+    <div
+      role="group"
+      aria-label={tg('mode.label')}
+      className={`flex items-center rounded-lg p-0.5 text-xs font-bold ${
+        onAccent ? 'bg-white/15' : 'bg-slate-200/70'
+      }`}
+    >
+      {(['question', 'student'] as const).map((m) => (
+        <button
+          key={m}
+          type="button"
+          onClick={() => changeMode(m)}
+          {...tourFieldAttr('quiz-grading.mode-toggle', 'quiz', m)}
+          aria-pressed={mode === m}
+          className={`flex-1 rounded-md px-1.5 py-1 transition-colors ${
+            mode === m
+              ? 'bg-white text-brand-blue-dark shadow-xs'
+              : onAccent
+                ? 'text-white/85 hover:bg-white/10 hover:text-white'
+                : 'text-slate-600 hover:bg-white/60'
+          }`}
+        >
+          {tg(`mode.${m}`)}
+        </button>
+      ))}
+    </div>
+  );
+
+  // The mode toggle lives in the student list; the header holds it only while the list is collapsed.
   const headerExtras = (
     <>
       {statusChip}
-      <div
-        role="group"
-        aria-label={tg('mode.label')}
-        className="flex items-center rounded-lg bg-slate-100 p-0.5 text-xs font-bold"
-      >
-        {(['question', 'student'] as const).map((m) => (
-          <button
-            key={m}
-            type="button"
-            onClick={() => changeMode(m)}
-            {...tourFieldAttr('quiz-grading.mode-toggle', 'quiz', m)}
-            aria-pressed={mode === m}
-            className={`rounded-md px-2.5 py-1 transition-colors ${
-              mode === m
-                ? 'bg-white text-brand-blue-dark shadow-xs'
-                : 'text-slate-600 hover:bg-white/60'
-            }`}
-          >
-            {tg(`mode.${m}`)}
-          </button>
-        ))}
-      </div>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={autoAdvanceOn}
-        onClick={toggleAutoAdvance}
-        {...tourTypeAttr('quiz-grading.auto-advance', 'quiz')}
-        className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-100"
+      {railCollapsed && modeToggle(true)}
+    </>
+  );
+
+  const autoAdvanceSwitch = (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={autoAdvanceOn}
+      onClick={toggleAutoAdvance}
+      {...tourTypeAttr('quiz-grading.auto-advance', 'quiz')}
+      className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-100"
+    >
+      <span
+        aria-hidden
+        className={`relative inline-block h-4 w-7 rounded-full transition-colors ${
+          autoAdvanceOn ? 'bg-brand-blue-primary' : 'bg-slate-300'
+        }`}
       >
         <span
-          aria-hidden
-          className={`relative inline-block h-4 w-7 rounded-full transition-colors ${
-            autoAdvanceOn ? 'bg-brand-blue-primary' : 'bg-slate-300'
+          className={`absolute left-0 top-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${
+            autoAdvanceOn ? 'translate-x-3.5' : 'translate-x-0.5'
           }`}
-        >
-          <span
-            className={`absolute left-0 top-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${
-              autoAdvanceOn ? 'translate-x-3.5' : 'translate-x-0.5'
-            }`}
-          />
-        </span>
-        {tg('autoAdvance')}
-      </button>
-    </>
+        />
+      </span>
+      {tg('autoAdvance')}
+    </button>
   );
 
   const footerNav = (
@@ -1703,6 +1856,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
           {tg('allGraded')}
         </span>
       )}
+      {autoAdvanceSwitch}
       <button
         type="button"
         onClick={() => advance(-1)}
@@ -1784,28 +1938,40 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     <EditorModalShell
       isOpen
       title={tg('title')}
-      subtitle={subtitle}
       headerExtras={headerExtras}
       isDirty={false}
       hideSaveButton
       hideHeaderClose
+      headerAccent={BRAND_BLUE_HEADER}
       footerEnd={footerNav}
       onSave={() => undefined}
       onClose={handleClose}
       bodyClassName="p-0! overflow-hidden!"
       saveErrorMessage={false}
     >
+      <p className="sr-only" aria-live="polite">
+        {subtitle}
+      </p>
       <div
-        className={`grid h-full min-h-0 ${
-          railCollapsed
-            ? 'grid-cols-[3rem_2.4fr_1.2fr]'
-            : 'grid-cols-[minmax(180px,1fr)_2.4fr_1.2fr]'
-        }`}
+        className="grid h-full min-h-0"
+        style={{
+          gridTemplateColumns: `${
+            railCollapsed
+              ? '3rem'
+              : paneWidths.list !== null
+                ? `clamp(${MIN_PANE_PX}px, ${paneWidths.list}px, 45%)`
+                : 'minmax(180px, 1fr)'
+          } 0px minmax(0, 2.4fr) 0px ${
+            paneWidths.score !== null
+              ? `clamp(${MIN_PANE_PX}px, ${paneWidths.score}px, 45%)`
+              : 'minmax(0, 1.2fr)'
+          }`,
+        }}
       >
         {railCollapsed ? (
           <nav
             aria-label={tg('queueLabel')}
-            className="flex flex-col items-center gap-2 border-r border-slate-200 bg-slate-50 py-2"
+            className="flex flex-col items-center gap-2 border-r border-slate-200 bg-slate-100 py-2"
           >
             <button
               type="button"
@@ -1835,10 +2001,12 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
           /* Left rail — the student queue. */
           <nav
             aria-label={tg('queueLabel')}
-            className="overflow-y-auto border-r border-slate-200 bg-slate-50 pb-2"
+            className="overflow-y-auto border-r border-slate-200 bg-slate-100 pb-2"
           >
-            <div className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 backdrop-blur-sm">
-              <div className="flex items-center gap-1 py-1.5 pl-4 pr-2">
+            <div className="sticky top-0 z-10 flex flex-col gap-2 border-b border-slate-200 bg-slate-100/95 px-3 pb-2 pt-3 backdrop-blur-sm">
+              {showClassFilter && classFilterSelect}
+              {modeToggle(false)}
+              <div className="flex items-center gap-1">
                 <button
                   type="button"
                   onClick={toggleRail}
@@ -1846,7 +2014,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                   {...tourTypeAttr('quiz-grading.rail-collapse', 'quiz')}
                   title={tg('collapseList')}
                   aria-expanded
-                  className={`${stepperButton} -ml-2`}
+                  className={stepperButton}
                 >
                   <PanelLeftClose aria-hidden className="h-4 w-4" />
                 </button>
@@ -1858,38 +2026,20 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                     })}
                   </span>
                 </p>
-                <button
-                  type="button"
-                  onClick={goPrevStudent}
-                  disabled={studentIdx === 0}
-                  aria-label={tg('prevStudent')}
-                  {...tourTypeAttr('quiz-grading.student-prev', 'quiz')}
-                  title={tg('prevStudent')}
-                  className={stepperButton}
-                >
-                  <ChevronLeft aria-hidden className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={goNextStudent}
-                  disabled={studentIdx >= students.length - 1}
-                  aria-label={tg('nextStudent')}
-                  {...tourTypeAttr('quiz-grading.student-next', 'quiz')}
-                  title={tg('nextStudent')}
-                  className={stepperButton}
-                >
-                  <ChevronRight aria-hidden className="h-4 w-4" />
-                </button>
               </div>
-              {showClassFilter && (
-                <div className="px-2 pb-1.5">{classFilterSelect}</div>
-              )}
             </div>
             <ul>
               {railRows.map(({ entry, paper, vocabulary }, idx) => {
                 const entryTabSwitches = entry.response.tabSwitchWarnings ?? 0;
                 return (
-                  <li key={entry.responseKey ?? idx}>
+                  <li
+                    key={entry.responseKey ?? idx}
+                    className={`flex items-center gap-2 pr-4 text-sm transition-colors ${
+                      idx === studentIdx
+                        ? 'bg-brand-blue-primary font-bold text-white'
+                        : 'text-slate-700 hover:bg-slate-200/60'
+                    }`}
+                  >
                     <button
                       type="button"
                       onClick={() => selectStudent(idx)}
@@ -1899,13 +2049,9 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                         String(idx)
                       )}
                       aria-current={idx === studentIdx ? 'true' : undefined}
-                      className={`flex w-full items-center gap-2 px-4 py-2 text-left text-sm transition-colors ${
-                        idx === studentIdx
-                          ? 'bg-white font-bold text-brand-blue-dark'
-                          : 'text-slate-600 hover:bg-slate-100'
-                      }`}
+                      className="flex min-w-0 flex-1 items-center gap-2 py-2 pl-4 text-left"
                     >
-                      <span className="min-w-0 flex-1 truncate">
+                      <span className="min-w-0 flex-1 break-words">
                         {nameFor(entry.response)}
                       </span>
                       {unsavedRows.has(entry.responseKey ?? '') && (
@@ -1919,27 +2065,76 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                           </span>
                         </span>
                       )}
-                      {entryTabSwitches > 0 && (
+                      {paper && paperBadge}
+                      {vocabulary.key.endsWith('.scored') ? (
                         <span
-                          className="inline-flex shrink-0 items-center gap-0.5 rounded-sm bg-amber-100 px-1 py-0.5 text-xxs font-bold text-amber-700"
-                          title={tg('tabSwitchesTitle', {
-                            count: entryTabSwitches,
-                          })}
+                          className={`shrink-0 ${idx === studentIdx ? 'text-white' : 'text-emerald-600'}`}
+                          title={t(vocabulary.key)}
                         >
-                          <ShieldAlert aria-hidden className="h-3 w-3" />
-                          <span aria-hidden>{entryTabSwitches}</span>
-                          <span className="sr-only">
-                            {tg('tabSwitches', { count: entryTabSwitches })}
-                          </span>
+                          <CheckCircle2 aria-hidden className="h-4 w-4" />
+                          <span className="sr-only">{t(vocabulary.key)}</span>
+                        </span>
+                      ) : vocabulary.key.endsWith('.awaiting-grade') ? (
+                        <span className="sr-only">{t(vocabulary.key)}</span>
+                      ) : (
+                        <span
+                          className={`shrink-0 rounded-sm px-1.5 py-0.5 text-xxs uppercase tracking-wider ${vocabulary.chip}`}
+                        >
+                          {t(vocabulary.key)}
                         </span>
                       )}
-                      {paper && paperBadge}
-                      <span
-                        className={`shrink-0 rounded-sm px-1.5 py-0.5 text-xxs uppercase tracking-wider ${vocabulary.chip}`}
-                      >
-                        {t(vocabulary.key)}
-                      </span>
                     </button>
+                    {/* Badges with their own popover sit outside the row button. */}
+                    {entryTabSwitches > 0 && (
+                      <span className="inline-flex shrink-0">
+                        <TabExitsPopover
+                          exits={entry.response.tabExits}
+                          warnings={entryTabSwitches}
+                          studentName={nameFor(entry.response)}
+                          completed={entry.response.status === 'completed'}
+                          sessionEnded={false}
+                        >
+                          <span
+                            className="inline-flex items-center gap-0.5 rounded-sm bg-amber-100 px-1 py-0.5 text-xxs font-bold text-amber-700"
+                            title={tg('tabSwitchesTitle', {
+                              count: entryTabSwitches,
+                            })}
+                          >
+                            <ShieldAlert aria-hidden className="h-3 w-3" />
+                            <span aria-hidden>{entryTabSwitches}</span>
+                            <span className="sr-only">
+                              {tg('tabSwitches', { count: entryTabSwitches })}
+                            </span>
+                          </span>
+                        </TabExitsPopover>
+                      </span>
+                    )}
+                    <span className="inline-flex shrink-0 empty:hidden">
+                      <InputSignalsBadge
+                        signals={entry.response.inputSignals}
+                        completedAttempts={entry.response.completedAttempts}
+                        completed={entry.response.status === 'completed'}
+                        studentName={nameFor(entry.response)}
+                      >
+                        {(count, deviceOnly) => {
+                          const SignIcon = deviceOnly
+                            ? Monitor
+                            : MousePointerClick;
+                          return (
+                            <span
+                              className={`inline-flex items-center gap-0.5 rounded-sm px-1 py-0.5 text-xxs font-bold ${
+                                deviceOnly
+                                  ? 'bg-slate-200 text-slate-700'
+                                  : 'bg-amber-100 text-amber-700'
+                              }`}
+                            >
+                              <SignIcon aria-hidden className="h-3 w-3" />
+                              {count}
+                            </span>
+                          );
+                        }}
+                      </InputSignalsBadge>
+                    </span>
                   </li>
                 );
               })}
@@ -1947,9 +2142,35 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
           </nav>
         )}
 
+        {railCollapsed ? (
+          <div aria-hidden />
+        ) : (
+          <>
+            {/* no-tour-anchor: a drag handle between panes, not a step a tour points at */}
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              aria-label={tg('resizeList')}
+              tabIndex={0}
+              onPointerDown={(e) => startPaneDrag(e, 'list')}
+              onPointerMove={movePaneDrag}
+              onPointerUp={endPaneDrag}
+              onPointerCancel={endPaneDrag}
+              onDoubleClick={() => resetPane('list')}
+              onKeyDown={(e) => paneKeyDown(e, 'list')}
+              className="group relative z-20 -mx-1.5 w-3 cursor-col-resize touch-none select-none focus-visible:outline-none"
+            >
+              <span
+                aria-hidden
+                className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-transparent transition-colors touch:bg-slate-300 group-hover:bg-brand-blue-primary/40 group-focus-visible:bg-brand-blue-primary group-active:bg-brand-blue-primary"
+              />
+            </div>
+          </>
+        )}
+
         {/* Center — the response itself. */}
-        <section className="overflow-y-auto bg-slate-50">
-          <div className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 px-6 py-3 backdrop-blur-sm">
+        <section className="overflow-y-auto bg-white">
+          <div className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-6 py-3 backdrop-blur-sm">
             <div className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
               {tg('questionLabel')}
               <span className="text-slate-300">·</span>
@@ -2136,6 +2357,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                         {tg('timedOutUnderMinimum')}
                       </span>
                     )}
+                    {gradedChip}
                   </div>
                 )}
                 {showPlayback && writingPlayback ? (
@@ -2361,19 +2583,39 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
         </section>
 
         {/* Right rail — rubric, score, comment, takes or highlights. */}
+        {/* no-tour-anchor: a drag handle between panes, not a step a tour points at */}
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label={tg('resizeScore')}
+          tabIndex={0}
+          onPointerDown={(e) => startPaneDrag(e, 'score')}
+          onPointerMove={movePaneDrag}
+          onPointerUp={endPaneDrag}
+          onPointerCancel={endPaneDrag}
+          onDoubleClick={() => resetPane('score')}
+          onKeyDown={(e) => paneKeyDown(e, 'score')}
+          className="group relative z-20 -mx-1.5 w-3 cursor-col-resize touch-none select-none focus-visible:outline-none"
+        >
+          <span
+            aria-hidden
+            className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-transparent transition-colors touch:bg-slate-300 group-hover:bg-brand-blue-primary/40 group-focus-visible:bg-brand-blue-primary group-active:bg-brand-blue-primary"
+          />
+        </div>
+
         <aside
           ref={railRef}
           className="flex flex-col gap-5 overflow-y-auto border-l border-slate-200 bg-white p-5"
         >
           {target && showPoints && (
             <div>
-              <label
-                htmlFor="grade-points"
-                className="mb-2 block text-sm font-bold uppercase tracking-wider text-slate-500"
-              >
-                {tg('points')}
-              </label>
-              <div className="flex items-baseline gap-2">
+              <div className="flex items-center gap-3">
+                <label
+                  htmlFor="grade-points"
+                  className="text-lg font-bold uppercase tracking-wider text-slate-500"
+                >
+                  {tg('points')}
+                </label>
                 <input
                   id="grade-points"
                   type="number"
@@ -2392,7 +2634,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                   className="w-28 rounded-lg border-2 border-emerald-500/30 bg-white px-3 py-2 text-lg font-bold text-emerald-800 focus:border-emerald-500 focus:outline-hidden aria-[invalid]:border-brand-red-primary/60"
                   placeholder="0"
                 />
-                <span className="font-mono text-base text-slate-500">
+                <span className="whitespace-nowrap font-mono text-base text-slate-500">
                   / {maxPoints}
                 </span>
               </div>
@@ -2406,21 +2648,23 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                 showPoints &&
                 effectiveRubric &&
                 slot?.slot !== 'addendum' && (
-                  <RubricScoringPanel
-                    key={targetKey}
-                    rubric={effectiveRubric}
-                    maxPoints={maxPoints}
-                    initialScores={savedGrade?.rubricScores}
-                    onChange={handleRubricScoresChange}
-                    overrideNote={
-                      resolvedRubric.overrideMode === 'rubric'
-                        ? tg('rubricOverrideNote')
-                        : undefined
-                    }
-                    tagCounts={tagCounts}
-                    onJumpToTagged={handleJumpToTagged}
-                    tagCountKind={isMedia ? 'note' : 'highlight'}
-                  />
+                  <div className="mt-4">
+                    <RubricScoringPanel
+                      key={targetKey}
+                      rubric={effectiveRubric}
+                      maxPoints={maxPoints}
+                      initialScores={savedGrade?.rubricScores}
+                      onChange={handleRubricScoresChange}
+                      overrideNote={
+                        resolvedRubric.overrideMode === 'rubric'
+                          ? tg('rubricOverrideNote')
+                          : undefined
+                      }
+                      tagCounts={tagCounts}
+                      onJumpToTagged={handleJumpToTagged}
+                      tagCountKind={isMedia ? 'note' : 'highlight'}
+                    />
+                  </div>
                 )}
               {target &&
                 showPoints &&

@@ -4274,16 +4274,6 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
-  'quiz-grading.student-prev': {
-    label: 'Previous student in the Quiz grader',
-    perWidgetType: true,
-    panel: true,
-  },
-  'quiz-grading.student-next': {
-    label: 'Next student in the Quiz grader',
-    perWidgetType: true,
-    panel: true,
-  },
   'quiz-grading.student-select': {
     label: 'Student row in queue in the Quiz grader, by student',
     perField: true,

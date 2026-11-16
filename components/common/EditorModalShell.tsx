@@ -292,7 +292,7 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
   const customHeader = useMemo(
     () => (
       <div
-        className={`flex items-center justify-between gap-4 px-6 py-4 shrink-0 ${headerAccent ? 'text-white' : 'border-b border-slate-200'}`}
+        className={`flex items-center justify-between gap-4 px-6 py-4 shrink-0 ${headerAccent ? 'text-white' : 'border-b border-slate-200'} ${isFullscreen ? '' : 'rounded-t-2xl'}`}
         style={headerAccent ? { backgroundColor: headerAccent } : undefined}
       >
         <div className="flex flex-col min-w-0 flex-1">
@@ -375,7 +375,9 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
       </button>
     );
     return (
-      <div className="flex items-center justify-between gap-3 px-6 py-3 bg-white">
+      <div
+        className={`flex items-center justify-between gap-3 px-6 py-3 bg-white ${isFullscreen ? '' : 'rounded-b-2xl'}`}
+      >
         <div className="flex items-center gap-2 min-w-0">
           {footerEnd && closeButton}
           {footerExtras}
@@ -428,6 +430,7 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
     incompleteNotice,
     tourScope,
     saveAnchor,
+    isFullscreen,
   ]);
 
   return (

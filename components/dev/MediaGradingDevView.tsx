@@ -3,7 +3,7 @@
  * component (no fork) against synthetic responses, with a take resolver that
  * hands back a silent WAV instead of hitting Google Drive.
  */
-import React, { useContext, useMemo } from 'react';
+import React, { useContext, useMemo, useState } from 'react';
 import { AuthContext } from '@/context/AuthContextValue';
 import {
   PAGE_H,
@@ -364,7 +364,30 @@ function makeResponses(state: MediaGradingStateKey): QuizResponse[] {
         _responseKey: key,
         studentUid: `u-${key}`,
         status: 'completed',
+        classPeriod: key === 'r-kath' ? 'Period 4' : 'Period 2',
         tabSwitchWarnings: key === 'r-grace' ? 2 : 0,
+        ...(key === 'r-grace'
+          ? {
+              tabExits: [
+                {
+                  leftAt: 1_700_000_100_000,
+                  returnedAt: 1_700_000_112_000,
+                  durationMs: 12_000,
+                  outcome: 'returned',
+                  questionIndex: 0,
+                  attempt: 0,
+                },
+                {
+                  leftAt: 1_700_000_400_000,
+                  returnedAt: 1_700_000_447_000,
+                  durationMs: 47_000,
+                  outcome: 'returned',
+                  questionIndex: 2,
+                  attempt: 0,
+                },
+              ],
+            }
+          : {}),
         answers: [
           { questionId: 'q3', answer: text, answeredAt: 1_700_000_000_000 },
         ],
@@ -470,12 +493,20 @@ export const MediaGradingDevView: React.FC<{ state: MediaGradingStateKey }> = ({
     [state]
   );
   const responses = useMemo(() => makeResponses(state), [state]);
+  const [classFilter, setClassFilter] = useState('all');
+  const classOptions = useMemo(
+    () =>
+      [
+        ...new Set(responses.map((r) => r.classPeriod).filter(Boolean)),
+      ].sort() as string[],
+    [responses]
+  );
   const names = useMemo(
     () =>
       new Map([
-        ['r-ada', 'Ada Lovelace'],
-        ['r-grace', 'Grace Hopper'],
-        ['r-kath', 'Katherine Johnson'],
+        ['r-ada', 'Lovelace, Ada'],
+        ['r-grace', 'Hopper, Grace'],
+        ['r-kath', 'Johnson, Katherine'],
       ]),
     []
   );
@@ -517,6 +548,9 @@ export const MediaGradingDevView: React.FC<{ state: MediaGradingStateKey }> = ({
         teacherUid="teacher-dev"
         resolveTakeUrl={resolveTakeUrl}
         onSaveGrade={() => Promise.resolve()}
+        classFilter={classFilter}
+        classOptions={classOptions}
+        onClassFilterChange={setClassFilter}
         onClose={() => undefined}
       />
     </AuthContext.Provider>
