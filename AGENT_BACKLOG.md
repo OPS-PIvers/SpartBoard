@@ -235,6 +235,8 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
   <details><summary>Branches to delete (178, checked 2026-11-01)</summary>
 
+claude/project-thread-ssbmlj (#5941)
+claude/project-thread-ssbmlj-ab112 (this docs PR, delete after it merges)
 claude/project-thread-7t008a (#5940, then its AB-112 docs PR; delete after both merge)
 claude/project-thread-dhavkf (#5913)
 claude/backlog-ab-107-20261115 (#5925)
