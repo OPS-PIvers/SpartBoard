@@ -19,7 +19,8 @@ import React, {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ResponseQuotesFrame } from './ResponseQuotesFrame';
+import { ResponseQuotesFrame, ShowQuotesButton } from './ResponseQuotesFrame';
+import { hasPassageQuotes } from '@/utils/quizQuotes';
 import {
   AlertCircle,
   Ban,
@@ -693,6 +694,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     textEntry ? question?.id : undefined
   );
   const [playbackOpenKey, setPlaybackOpenKey] = useState<string | null>(null);
+  const [showQuotes, setShowQuotes] = useState(false);
   const savedGrade = target ? targetGrade(target) : undefined;
   const position = findPosition(
     traversal,
@@ -1374,6 +1376,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   }, [advance]);
 
   const handlePointsKeyDown = useCallback(
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization -- deps kept as written
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key !== 'Enter') return;
       e.preventDefault();
@@ -1386,10 +1389,10 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
       commitDraft(false);
       arm();
     },
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization -- deps kept as written
     [cancelPendingWrite, complete, commitDraft, arm]
   );
 
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- deps kept as written
   const handleUndoExcuse = useCallback(async () => {
     if (!onClearGrade || !target || !responseKey) return;
     setClearing(true);
@@ -2134,41 +2137,51 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                         {tg('timedOutUnderMinimum')}
                       </span>
                     )}
-                    {writingPlayback && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setPlaybackOpenKey(showPlayback ? null : targetKey)
-                        }
-                        aria-pressed={showPlayback}
-                        title="Replay how this answer was written"
-                        {...tourTypeAttr(
-                          'quiz-grading.writing-playback',
-                          'quiz'
+                    <div className="ml-auto flex items-center gap-1 self-center">
+                      {studentAnswer &&
+                        !showPlayback &&
+                        hasPassageQuotes(snapshotForList) && (
+                          <ShowQuotesButton
+                            pressed={showQuotes}
+                            onToggle={() => setShowQuotes((v) => !v)}
+                          />
                         )}
-                        className={`touch-target-expand relative ml-auto inline-flex items-center gap-1 self-center rounded-sm px-1.5 py-0.5 text-xs font-semibold transition-colors ${
-                          showPlayback
-                            ? 'bg-brand-blue-primary/10 text-brand-blue-dark'
-                            : 'text-brand-blue-primary hover:bg-slate-200 hover:text-brand-blue-dark'
-                        }`}
-                      >
-                        <History aria-hidden className="h-3.5 w-3.5" />
-                        {showPlayback ? 'Back to answer' : 'Playback'}
-                      </button>
-                    )}
-                    {studentAnswer && (
-                      <CopyTextButton
-                        html={snapshotForList}
-                        label={tg('copyResponse')}
-                        copiedLabel={tg('copied')}
-                        caption={tg('copy')}
-                        anchor={tourTypeAttr(
-                          'quiz-grading.copy-response',
-                          'quiz'
-                        )}
-                        className={`touch-target-expand relative ${writingPlayback ? '' : 'ml-auto '}inline-flex items-center gap-1 self-center rounded-sm px-1.5 py-0.5 text-xs font-semibold text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-700 disabled:opacity-30`}
-                      />
-                    )}
+                      {writingPlayback && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPlaybackOpenKey(showPlayback ? null : targetKey)
+                          }
+                          aria-pressed={showPlayback}
+                          title="Replay how this answer was written"
+                          {...tourTypeAttr(
+                            'quiz-grading.writing-playback',
+                            'quiz'
+                          )}
+                          className={`touch-target-expand relative inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-xs font-semibold transition-colors ${
+                            showPlayback
+                              ? 'bg-brand-blue-primary/10 text-brand-blue-dark'
+                              : 'text-brand-blue-primary hover:bg-slate-200 hover:text-brand-blue-dark'
+                          }`}
+                        >
+                          <History aria-hidden className="h-3.5 w-3.5" />
+                          {showPlayback ? 'Back to answer' : 'Playback'}
+                        </button>
+                      )}
+                      {studentAnswer && (
+                        <CopyTextButton
+                          html={snapshotForList}
+                          label={tg('copyResponse')}
+                          copiedLabel={tg('copied')}
+                          caption={tg('copy')}
+                          anchor={tourTypeAttr(
+                            'quiz-grading.copy-response',
+                            'quiz'
+                          )}
+                          className="touch-target-expand relative inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-xs font-semibold text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-700 disabled:opacity-30"
+                        />
+                      )}
+                    </div>
                   </div>
                 )}
                 {showPlayback && writingPlayback ? (
@@ -2177,7 +2190,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                     playback={writingPlayback}
                   />
                 ) : studentAnswer ? (
-                  <ResponseQuotesFrame snapshot={snapshotForList}>
+                  <ResponseQuotesFrame showQuotes={showQuotes}>
                     <AnnotatedResponseView
                       key={hydrateKey}
                       mode="edit"
