@@ -238,6 +238,8 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
 claude/project-thread-g6k4z7-points (#5964)
 hotfix/quiz-points-score (#5965)
+claude/project-thread-9o434u (#5967)
+claude/project-thread-9o434u-ab112 (this docs PR, delete after it merges)
 claude/project-thread-g6k4z7-docs (#5957)
 claude/project-thread-g6k4z7-docs2 (this docs PR, delete after it merges)
 nightly/debugger-log-2026-11-16 (#5939)
