@@ -24,6 +24,8 @@ import { VideoActivityManager } from '@/components/widgets/VideoActivityWidget/c
 import { GuidedLearningManager } from '@/components/widgets/GuidedLearning/components/GuidedLearningManager';
 import { AssignmentClassesModal } from '@/components/common/library/AssignmentClassesModal';
 import { MiniAppManager } from '@/components/widgets/MiniApp/components/MiniAppManager';
+import { MiniAppSubmissionsMonitor } from '@/components/widgets/MiniApp/components/MiniAppSubmissionsMonitor';
+import type { PeriodAccessActions } from '@/hooks/usePeriodAccess';
 import { FlashcardLibrary } from '@/components/widgets/Flashcards/FlashcardLibrary';
 import { FlashcardAssignmentSettingsModal } from '@/components/widgets/Flashcards/FlashcardAssignmentSettingsModal';
 import { WallLibraryModal } from '@/components/widgets/ActivityWall/WallLibraryModal';
@@ -39,6 +41,8 @@ import type {
   GuidedLearningSetMetadata,
   MiniAppAssignment,
   MiniAppItem,
+  MiniAppSession,
+  PeriodAccess,
   QuestionBankMetadata,
   QuizAssignment,
   QuizConfig,
@@ -237,12 +241,15 @@ const MINI_APP_ASSIGNMENTS: MiniAppAssignment[] = range((i) => ({
   id: `maa-${i}`,
   sessionId: `mas-${i}`,
   appId: `app-${i}`,
-  appTitle: `Mini app ${i + 1}`,
-  assignmentName: `Mini app ${i + 1}`,
+  appTitle: i === 0 ? 'Interactive 3D Brain Explorer' : `Mini app ${i + 1}`,
+  assignmentName:
+    i === 0 ? 'Interactive 3D Brain Explorer' : `Mini app ${i + 1}`,
   teacherUid: 'mock-user-id',
   status: i % 2 === 0 ? 'active' : 'inactive',
   createdAt: NOW - i * 3600_000,
   updatedAt: NOW - i * 3600_000,
+  mode: 'submissions',
+  rosterIds: i % 3 === 0 ? ['roster-3', 'roster-4'] : ['roster-5'],
 }));
 
 const FLASHCARD_SETS: FlashcardSet[] = range((i) => ({
@@ -617,13 +624,91 @@ const GuidedLearningManagerView: React.FC<{
   />
 );
 
+const MONITOR_NAMES = new Map(
+  [
+    ['Ava', 'Martinez'],
+    ['Liam', 'Johnson'],
+    ['Noah', 'Nguyen'],
+    ['Emma', 'Olson'],
+    ['Mia', 'Fitzgerald-Hernandez'],
+    ['J', 'Lee'],
+  ].map(([givenName, familyName], i) => [`p${i}`, { givenName, familyName }])
+);
+const MONITOR_SUBMISSIONS = [0, 3].map((i) => ({
+  id: `p${i}`,
+  submittedAt: NOW + i * 60_000,
+  payload: { completed: true, levelReached: i + 2 },
+}));
+
 const MiniAppView: React.FC = () => {
   const [tab, setTab] = useState<LibraryTab>('library');
+  const [monitoring, setMonitoring] = useState<MiniAppAssignment | null>(null);
+  const [periods, setPeriods] = useState<Record<string, PeriodAccess>>(() =>
+    Object.fromEntries(
+      ROSTERS.slice(0, 2).map((r) => [
+        r.id,
+        {
+          state: 'closed' as const,
+          openAt: null,
+          closeAt: null,
+          bellPeriodId: null,
+          verified: true,
+          label: r.name,
+          rosterId: r.id,
+        },
+      ])
+    )
+  );
+  const setState = (key: string, state: PeriodAccess['state']) =>
+    setPeriods((prev) => ({ ...prev, [key]: { ...prev[key], state } }));
   const edit = useEditClasses();
   return (
     <>
       {edit.dialog}
+      {monitoring && (
+        <MiniAppSubmissionsMonitor
+          session={
+            {
+              id: monitoring.sessionId,
+              assignmentName: monitoring.assignmentName,
+              status: monitoring.status === 'active' ? 'active' : 'ended',
+              rosterIds: ['roster-3', 'roster-4'],
+              accessMode: 'assessment',
+              periodAccess: periods,
+            } as unknown as MiniAppSession
+          }
+          assignmentName={monitoring.assignmentName}
+          submissions={MONITOR_SUBMISSIONS}
+          loading={false}
+          error={null}
+          names={MONITOR_NAMES}
+          namesLoading={false}
+          namesError={false}
+          periodActions={
+            monitoring.status === 'active'
+              ? ({
+                  startPeriod: (key: string) => {
+                    setState(key, 'open');
+                    return asyncNoop();
+                  },
+                  pausePeriod: (key: string) => {
+                    setState(key, 'paused');
+                    return asyncNoop();
+                  },
+                  extendPeriod: asyncNoop,
+                } as unknown as PeriodAccessActions)
+              : undefined
+          }
+          orgId={null}
+          onClose={() => setMonitoring(null)}
+        />
+      )}
       <MiniAppManager
+        onArchiveMonitor={setMonitoring}
+        onArchiveResults={setMonitoring}
+        assignmentClassNames={(a) =>
+          ROSTERS.filter((r) => a.rosterIds?.includes(r.id)).map((r) => r.name)
+        }
         onArchiveEditClasses={edit.open}
         userId="mock-user-id"
         tab={tab}
@@ -888,6 +973,7 @@ const HarnessToasts: React.FC<{ children: React.ReactNode }> = ({
           ]),
         removeToast: (id: string) =>
           setToasts((prev) => prev.filter((t) => t.id !== id)),
+        rosters: ROSTERS,
       }) as unknown as DashboardContextValue,
     [toasts]
   );

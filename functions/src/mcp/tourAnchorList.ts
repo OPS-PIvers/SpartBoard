@@ -51716,6 +51716,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "mini-app.archive-results",
+    "label": "Results item in a Mini App assignment row menu",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "miniApp"
+    ]
+  },
+  {
     "id": "mini-app.archive-publish-scores",
     "label": "Publish scores item in a Mini App Completed assignment row menu",
     "scope": "widget type",
