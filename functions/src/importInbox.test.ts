@@ -18,7 +18,8 @@ vi.mock('./glTours', () => ({
 }));
 
 import * as firebaseAdmin from './firebaseAdmin';
-import { ExtensionCallError, trustedUidForEmail } from './webTourExtension';
+import { trustedUidForEmail } from './trustedSignIn';
+import { ExtensionCallError } from './webTourExtension';
 import {
   checkImporter,
   countLiveInboxItems,
