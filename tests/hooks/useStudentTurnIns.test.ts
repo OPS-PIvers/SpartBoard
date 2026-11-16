@@ -10,7 +10,8 @@ vi.mock('@/hooks/useStudentAssignments', () => ({
 }));
 vi.mock('@/utils/studentResponseDoc', () => ({
   OVERRIDE_KINDS: new Set(['quiz']),
-  readsTurnIn: (a: { kind: string }) => a.kind === 'quiz',
+  readsTurnIn: (a: { kind: string }) =>
+    a.kind === 'quiz' || a.kind === 'writing',
   readStudentResponseDoc: (...args: unknown[]): Promise<unknown> =>
     readMock(...args) as Promise<unknown>,
 }));
@@ -67,5 +68,28 @@ describe('useStudentTurnIns settled', () => {
     const { result } = renderHook(() => useStudentTurnIns(list, null));
     expect(result.current.settled).toBe(true);
     expect(readMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('useStudentTurnIns writing', () => {
+  it('marks returned writing apart from writing that is only turned in', async () => {
+    readMock.mockImplementation((a: { sessionId: string }) =>
+      Promise.resolve({
+        status: a.sessionId === 'w1' ? 'returned' : 'turned-in',
+      })
+    );
+    const list = [make('w1', 'writing'), make('w2', 'writing')];
+    const { result } = renderHook(() => useStudentTurnIns(list, 'uid-1'));
+    await waitFor(() =>
+      expect(Object.keys(result.current.checks)).toHaveLength(2)
+    );
+    expect(result.current.checks['writing:w1']).toMatchObject({
+      turnIn: 'turned-in',
+      returned: true,
+    });
+    expect(result.current.checks['writing:w2']).toMatchObject({
+      turnIn: 'turned-in',
+      returned: false,
+    });
   });
 });

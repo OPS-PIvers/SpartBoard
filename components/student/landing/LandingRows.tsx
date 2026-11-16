@@ -445,6 +445,12 @@ function completedRight(
         Locked
       </span>
     );
+  if (item.kind === 'writing')
+    return (
+      <span className="text-xs text-slate-500">
+        {check?.returned ? 'Returned' : 'Turned in'}
+      </span>
+    );
   return item.row && areResultsShared(item.row.assignment, check, nowMs) ? (
     <span className="text-xs font-semibold text-brand-blue-primary">
       View results

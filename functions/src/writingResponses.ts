@@ -356,6 +356,10 @@ export interface OpenWritingResult {
   status: WritingResponseStatus;
   saveCount: number;
   deadlineAt: number | null;
+  /** The open log chunk, so the holding tab appends to it instead of replacing it (B2). */
+  logChunk: number;
+  log: string;
+  logStartText: string;
 }
 
 /** Creates the student's response on first open (the clock starts here, D7) or returns the existing one. */
@@ -378,11 +382,20 @@ export async function handleOpenWriting(
     const snap = await tx.get(ref);
     if (snap.exists) {
       const r: Data = snap.data() ?? {};
+      const logChunk = isNum(r.logChunk) ? r.logChunk : 0;
+      const chunk = await tx.get(
+        ref.collection(WRITING_LOG).doc(String(logChunk))
+      );
+      const log: unknown = chunk.exists ? chunk.get('log') : '';
+      const startText: unknown = chunk.exists ? chunk.get('startText') : '';
       return {
         created: false,
         status: deriveWritingStatus(r),
         saveCount: isNum(r.saveCount) ? r.saveCount : 0,
         deadlineAt: isNum(r.deadlineAt) ? r.deadlineAt : null,
+        logChunk,
+        log: typeof log === 'string' ? log : '',
+        logStartText: typeof startText === 'string' ? startText : '',
       };
     }
     if (session.status === 'ended')
@@ -420,7 +433,15 @@ export async function handleOpenWriting(
       draftSeq: 0,
       updatedAt: now,
     });
-    return { created: true, status: 'draft', saveCount: 0, deadlineAt };
+    return {
+      created: true,
+      status: 'draft',
+      saveCount: 0,
+      deadlineAt,
+      logChunk: 0,
+      log: '',
+      logStartText: '',
+    };
   });
 }
 

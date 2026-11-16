@@ -1,14 +1,16 @@
 // `/writing/{sessionId}`: the student's Writing assignment, read live from the session and their own response.
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { useStudentAuth } from '@/context/useStudentAuth';
-import type {
-  WritingAssignmentSession,
-  WritingResponse,
-  WritingResponseStatus,
-} from '@/types';
+import type { TabExit, WritingAssignmentSession } from '@/types';
+import { useStudentAssignmentPointer } from '@/hooks/useStudentAssignmentPointer';
+import { useTabAwayTracker } from '@/hooks/useTabAwayTracker';
+import { useWritingPiece } from '@/hooks/useWritingPiece';
+import { PageProtectionGuards } from '@/components/common/PageProtectionGuards';
+import { effectivePageProtections } from '@/utils/pageProtections';
+import { deriveWritingView } from '@/utils/writingStudentView';
 import { WritingStudentShell } from './WritingStudentShell';
 
 const SESSIONS = 'writing_assignment_sessions';
@@ -25,11 +27,123 @@ const goBack = () => {
   window.location.href = '/my-assignments';
 };
 
+/** The page clock, ticking each 30 s so a close or due date passing shows without a reload. */
+function useMinuteClock(): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
+  return now;
+}
+
+const WritingPiecePage: React.FC<{
+  session: WritingAssignmentSession;
+  studentUid: string;
+}> = ({ session, studentUid }) => {
+  const now = useMinuteClock();
+  const piece = useWritingPiece({
+    sessionId: session.id,
+    studentUid,
+    allowPaste: session.allowPaste === true,
+  });
+  // Per-student accommodations live on the student's own pointer, never on the session (M17).
+  const pointer = useStudentAssignmentPointer(studentUid, session.id);
+  const override = pointer?.override;
+  const view = deriveWritingView({
+    session,
+    response: piece.response,
+    pointer: pointer
+      ? { closeAt: pointer.closeAt ?? null, dueAt: pointer.dueAt ?? null }
+      : null,
+    tab: {
+      myTabId: piece.myTabId,
+      holding: piece.holding,
+      claiming: piece.claiming,
+      online: piece.online,
+      dirty: piece.dirty,
+      slow: piece.slow,
+      html: piece.html,
+    },
+    now,
+  });
+
+  // Focus mode: fullscreen at the lock level and print blocking; the editor owns paste (D8).
+  const protections = effectivePageProtections(session, override);
+  const writing = view.mode === 'writing';
+  // Time away from the tab goes into the summary (D9), counted once per return.
+  const counted = useRef(new Set<number>());
+  const recordAway = piece.recordAway;
+  const releaseRef = useRef<() => void>(() => undefined);
+  const tracker = useTabAwayTracker({
+    enabled: writing,
+    sessionActive: session.status === 'active',
+    ready: true,
+    serverExits: undefined,
+    attempt: 0,
+    getPosition: () => ({}),
+    onLeave: () => Promise.resolve(false),
+    saveExits: (exits: TabExit[]) => {
+      const last = exits[exits.length - 1];
+      if (last?.outcome && !counted.current.has(last.leftAt)) {
+        counted.current.add(last.leftAt);
+        recordAway(last.durationMs ?? 0);
+        releaseRef.current();
+      }
+      return Promise.resolve();
+    },
+    limitMs: null,
+    autoSubmit: false,
+    onAwayTooLong: () => undefined,
+    fullscreenRequired: protections.fullscreen && writing,
+  });
+  useLayoutEffect(() => {
+    releaseRef.current = tracker.release;
+  });
+
+  const response = piece.response;
+  const readOnlyHtml = response?.html ?? '';
+  return (
+    <>
+      <WritingStudentShell
+        session={session}
+        onDone={goBack}
+        piece={{
+          view,
+          editorKey: writing
+            ? `w-${piece.seed.key}`
+            : `r-${view.mode}-${response?.saveCount ?? 0}`,
+          editorHtml: writing ? piece.seed.html : readOnlyHtml,
+          unsent: piece.unsent,
+          notice: piece.notice,
+          busy: piece.busy,
+          online: piece.online,
+          contextMenuOff: override?.spellingHelp !== true,
+          onStart: () => void piece.start(),
+          onTurnIn: () => void piece.turnIn(),
+          onTakeBack: () => void piece.takeBack(),
+          onContinueHere: () => void piece.start(),
+          onDismissUnsent: piece.dismissUnsent,
+          onUnsentCopy: piece.onUnsentCopy,
+          onEditorChange: piece.onEditorChange,
+          allowInsert: piece.allowInsert,
+          onEditorCopy: piece.onEditorCopy,
+          bindEditor: piece.bindEditor,
+        }}
+      />
+      {writing && (
+        <PageProtectionGuards
+          protections={{ ...protections, blockClipboard: false }}
+        />
+      )}
+    </>
+  );
+};
+
 export const WritingAssignmentPage: React.FC = () => {
   const { pseudonymUid } = useStudentAuth();
   const sessionId = writingSessionIdFromPath(window.location.pathname);
   const [view, setView] = useState<View>({ kind: 'loading' });
-  const [status, setStatus] = useState<WritingResponseStatus | null>(null);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -51,18 +165,6 @@ export const WritingAssignmentPage: React.FC = () => {
     );
   }, [sessionId]);
 
-  useEffect(() => {
-    if (!sessionId || !pseudonymUid) return;
-    return onSnapshot(
-      doc(db, SESSIONS, sessionId, 'responses', pseudonymUid),
-      (snap) =>
-        setStatus(
-          snap.exists() ? (snap.data() as WritingResponse).status : null
-        ),
-      () => setStatus(null)
-    );
-  }, [sessionId, pseudonymUid]);
-
   if (!sessionId || view.kind === 'missing')
     return (
       <div className="flex h-screen h-dvh flex-col items-center justify-center gap-4 bg-slate-100 px-4 text-center text-slate-700">
@@ -77,7 +179,7 @@ export const WritingAssignmentPage: React.FC = () => {
       </div>
     );
 
-  if (view.kind === 'loading')
+  if (view.kind === 'loading' || !pseudonymUid)
     return (
       <div className="flex h-screen h-dvh items-center justify-center bg-slate-100 text-slate-700">
         <Loader2
@@ -89,10 +191,10 @@ export const WritingAssignmentPage: React.FC = () => {
     );
 
   return (
-    <WritingStudentShell
+    <WritingPiecePage
+      key={`${sessionId}:${pseudonymUid}`}
       session={view.session}
-      status={status}
-      onDone={goBack}
+      studentUid={pseudonymUid}
     />
   );
 };
