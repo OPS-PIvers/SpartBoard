@@ -238,6 +238,8 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
 claude/project-thread-1vmhxb (#5951)
 claude/project-thread-1vmhxb-ab112 (this docs PR, delete after it merges)
+claude/project-thread-lqy8qu (#5952)
+claude/project-thread-lqy8qu-ab112 (this docs PR, delete after it merges)
 claude/project-thread-g6k4z7 (#5953)
 hotfix/choose-n-extra-score (#5954)
 claude/project-thread-g6k4z7-docs (this docs PR, delete after it merges)
