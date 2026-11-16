@@ -653,7 +653,8 @@ describe('ProjectsWidget', () => {
       fireEvent.click(
         within(dialog).getByRole('button', { name: /^Step 2, Draft/ })
       );
-      fireEvent.click(within(dialog).getByRole('button', { name: 'Done' }));
+      const picker = screen.getByRole('dialog', { name: 'Set Draft' });
+      fireEvent.click(within(picker).getByRole('button', { name: 'Done' }));
       await waitFor(() =>
         expect(setStepState).toHaveBeenCalledWith(
           'g1',
