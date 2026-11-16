@@ -26036,20 +26036,63 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "classes.agenda-open",
     "label": "Show the Agenda deck and links for a class or Course in My Classes",
     "scope": "board",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.course-agenda",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
   },
   {
     "id": "classes.agenda-pick",
     "label": "Select or change the Agenda Google Slides deck in My Classes",
     "scope": "board",
     "panel": true,
-    "persists": true
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.course-agenda",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.agenda-open"
+        ],
+        "reveal": "classes.agenda-open",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
   },
   {
     "id": "classes.agenda-open-deck",
     "label": "Open the Agenda deck in Google Slides from My Classes",
     "scope": "board",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.course-agenda",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.agenda-open"
+        ],
+        "reveal": "classes.agenda-open",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
   },
   {
     "id": "classes.agenda-remove",
@@ -26057,51 +26100,169 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "board",
     "panel": true,
     "destructive": true,
-    "persists": true
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.course-agenda",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.agenda-open"
+        ],
+        "reveal": "classes.agenda-open",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
   },
   {
     "id": "classes.agenda-fix-sharing",
     "label": "Fix who can open the Agenda deck in My Classes",
     "scope": "board",
     "panel": true,
-    "persists": true
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.course-agenda",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
   },
   {
     "id": "classes.agenda-copy-link",
     "label": "Copy Class page link button in My Classes",
     "scope": "board",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.course-agenda",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.agenda-open"
+        ],
+        "reveal": "classes.agenda-open",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
   },
   {
     "id": "classes.agenda-link-add",
     "label": "Add link button for a Course in My Classes",
     "scope": "board",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.course-agenda",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.agenda-open"
+        ],
+        "reveal": "classes.agenda-open",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
   },
   {
     "id": "classes.agenda-link-title",
     "label": "Link title field for a Course in My Classes",
     "scope": "board",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.course-agenda",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.agenda-link-add"
+        ],
+        "reveal": "classes.agenda-link-add",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
   },
   {
     "id": "classes.agenda-link-url",
     "label": "Link address field for a Course in My Classes",
     "scope": "board",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.course-agenda",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.agenda-link-add"
+        ],
+        "reveal": "classes.agenda-link-add",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
   },
   {
     "id": "classes.agenda-link-cancel",
     "label": "Cancel adding a Course link in My Classes",
     "scope": "board",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.course-agenda",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.agenda-link-add"
+        ],
+        "reveal": "classes.agenda-link-add",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
   },
   {
     "id": "classes.agenda-link-save",
     "label": "Save a new Course link in My Classes",
     "scope": "board",
     "panel": true,
-    "persists": true
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.course-agenda",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.agenda-link-add"
+        ],
+        "reveal": "classes.agenda-link-add",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
   },
   {
     "id": "classes.agenda-link-remove",
@@ -26109,7 +26270,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "board",
     "panel": true,
     "destructive": true,
-    "persists": true
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.course-agenda",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.agenda-open"
+        ],
+        "reveal": "classes.agenda-open",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
   },
   {
     "id": "classes.edit-roster",
