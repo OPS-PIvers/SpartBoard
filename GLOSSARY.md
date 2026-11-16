@@ -92,7 +92,11 @@ _Avoid_: bundle, export
 
 **Course**:
 Sections a teacher has chosen to link because they are taught the same thing, so the Agenda and Class page are set once. Linking is optional: an unlinked section stands as its own Course. Rosters, periods, due dates and grades stay with each section.
-_Avoid_: class (for the group), merged class
+_Avoid_: class (for the group), merged class, course (alone, for a Classroom course or a Schoology course: always name the LMS)
+
+**Class**:
+One section a teacher teaches, with its own roster and period: a ClassLink section or a roster made by hand. It keeps this meaning whether or not it is linked into a Course.
+_Avoid_: course (that is the linked group), section (in anything a teacher or student reads)
 
 **Agenda**:
 A Course's daily plan: the Google Slides deck the teacher already keeps, newest day first, shown on the board, on the Class page and to families.
