@@ -1,14 +1,7 @@
 // Thread B owns this file: the Agenda deck, its sharing, pinned links and the Class page link (D6 to D12, D18, D24).
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  AlertTriangle,
-  Check,
-  ChevronRight,
-  ExternalLink,
-  Link2,
-  Presentation,
-} from 'lucide-react';
+import { AlertTriangle, Presentation } from 'lucide-react';
 import { FirebaseError } from 'firebase/app';
 import { tourAttr } from '@/config/tourAnchors';
 import { useAuth } from '@/context/useAuth';
@@ -29,13 +22,12 @@ import type {
   CoursePinnedLink,
 } from '@/utils/course/contract';
 import { DeckAccessError, DeckDrive } from './agenda/deckDrive';
-import { PinnedLinksEditor } from './agenda/PinnedLinksEditor';
+import { AgendaDialog } from './agenda/AgendaDialog';
 import { useDeckCheck } from './agenda/useDeckCheck';
 import { useAgendaStatus } from './agenda/agendaStatus';
 import {
   classPageLink,
   courseSaveInput,
-  deckUrl,
   neededSharing,
   sharingProblem,
 } from './agenda/agendaLogic';
@@ -234,7 +226,6 @@ export const AgendaSetup: React.FC<CourseGroupProps> = ({
       const old = agenda;
       const next: CourseAgenda = { fileId: picked.id, title: picked.name };
       if (!(await save({ agenda: next }))) return;
-      setOpen(true);
       if (drive && domain) {
         const { sharing } = await readDeckState(drive, next.fileId, domain);
         const fix = sharingProblem(sharing, needed);
@@ -281,186 +272,62 @@ export const AgendaSetup: React.FC<CourseGroupProps> = ({
     }
   };
 
-  const problemText =
-    problem === 'students'
-      ? t('course.agenda.studentsCantOpen', {
-          defaultValue: "Students can't open this deck.",
-        })
-      : problem === 'families'
-        ? t('course.agenda.familiesCantOpen', {
-            defaultValue: "Families can't open this deck.",
-          })
-        : problem === 'unknown'
-          ? t('course.agenda.cantCheck', {
-              defaultValue: "Can't check who can open this deck.",
-            })
-          : null;
+  const warn = problem === 'students' || problem === 'families';
+  const dialogTitle = course?.name ?? group.rosters[0]?.name ?? '';
 
   return (
-    <div className="pl-9 pr-2 pb-2 -mt-1" data-agenda-setup="">
+    <div className="pl-9 pr-2 pb-2 -mt-1.5">
       <button
         type="button"
-        onClick={() => setOpen(!open)}
-        aria-expanded={open}
+        onClick={() => setOpen(true)}
         {...tourAttr('classes.agenda-open')}
-        className="w-full flex items-center gap-1.5 py-1 text-left text-xs text-slate-600 hover:text-brand-blue-primary"
+        className={`flex max-w-full items-center gap-1.5 rounded py-0.5 text-left text-xs hover:text-brand-blue-primary ${
+          warn ? 'text-amber-700' : agenda ? 'text-slate-500' : 'text-slate-400'
+        }`}
       >
-        <Presentation
-          className="w-3.5 h-3.5 shrink-0 text-slate-400"
-          aria-hidden="true"
-        />
-        <span className="flex-1 min-w-0 truncate">
-          {agenda ? (
-            <>
-              <span className="sr-only">
-                {t('course.agenda.label', { defaultValue: 'Agenda' })}:{' '}
-              </span>
-              {agenda.title}
-            </>
-          ) : (
-            t('course.agenda.add', { defaultValue: 'Add agenda' })
-          )}
-        </span>
-        {problem && problem !== 'unknown' && (
-          <AlertTriangle
-            className="w-3.5 h-3.5 shrink-0 text-amber-600"
-            aria-hidden="true"
-          />
+        {warn ? (
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+        ) : (
+          <Presentation className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
         )}
-        <ChevronRight
-          className={`w-3.5 h-3.5 shrink-0 text-slate-400 transition-transform ${open ? 'rotate-90' : ''}`}
-          aria-hidden="true"
-        />
+        <span className="min-w-0 truncate">
+          {warn
+            ? problem === 'families'
+              ? t('course.agenda.lineFamiliesCantOpen', {
+                  defaultValue: "Families can't open the agenda",
+                })
+              : t('course.agenda.lineStudentsCantOpen', {
+                  defaultValue: "Students can't open the agenda",
+                })
+            : agenda
+              ? agenda.title
+              : t('course.agenda.add', { defaultValue: 'Add agenda' })}
+        </span>
       </button>
-
-      {problemText && (problem !== 'unknown' || open) && (
-        <div
-          role="status"
-          className={`flex items-center gap-2 py-1 text-xs ${problem === 'unknown' ? 'text-slate-500' : 'text-amber-700'}`}
-        >
-          <span
-            className="flex-1 min-w-0"
-            title={
-              problem === 'unknown'
-                ? t('course.agenda.cantCheckHint', {
-                    defaultValue:
-                      "Only the deck's owner can see and change who can open it.",
-                  })
-                : undefined
-            }
-          >
-            {problemText}
-          </span>
-          {problem !== 'unknown' && drive && domain && (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void fixSharing()}
-              {...tourAttr('classes.agenda-fix-sharing')}
-              className="shrink-0 px-2 py-0.5 text-xs font-semibold text-brand-blue-primary border border-brand-blue-primary/40 rounded-lg hover:bg-brand-blue-lighter disabled:opacity-50"
-            >
-              {needed === 'anyone'
-                ? t('course.agenda.shareAnyone', {
-                    defaultValue: 'Share with anyone',
-                  })
-                : t('course.agenda.shareOrono', {
-                    defaultValue: 'Share with Orono',
-                  })}
-            </button>
-          )}
-        </div>
-      )}
-
-      {open && (
-        <div className="space-y-2 pt-1">
-          {agenda ? (
-            <div className="flex items-center gap-3 text-xs">
-              <a
-                href={deckUrl(agenda.fileId)}
-                target="_blank"
-                rel="noopener noreferrer"
-                {...tourAttr('classes.agenda-open-deck')}
-                className="flex items-center gap-1 font-semibold text-brand-blue-primary hover:underline"
-              >
-                <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
-                {t('course.agenda.openDeck', { defaultValue: 'Open' })}
-              </a>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void pickDeck()}
-                {...tourAttr('classes.agenda-pick')}
-                className="font-semibold text-slate-600 hover:text-brand-blue-primary disabled:opacity-50"
-              >
-                {t('course.agenda.change', { defaultValue: 'Change deck' })}
-              </button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void removeDeck()}
-                {...tourAttr('classes.agenda-remove')}
-                className="font-semibold text-slate-600 hover:text-red-600 disabled:opacity-50"
-              >
-                {t('course.agenda.remove', { defaultValue: 'Remove' })}
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void pickDeck()}
-              {...tourAttr('classes.agenda-pick')}
-              className="w-full px-2.5 py-1.5 text-xs font-semibold text-white bg-brand-blue-primary rounded-lg hover:bg-brand-blue-dark disabled:opacity-50"
-            >
-              {t('course.agenda.pick', {
-                defaultValue: 'Select a Google Slides deck',
-              })}
-            </button>
-          )}
-          <p className="text-xxs text-slate-500">
-            {t('course.agenda.firstSlide', {
-              defaultValue:
-                'Students see the first slide. Add each new day at the top.',
-            })}
-          </p>
-
-          <PinnedLinksEditor
-            links={course?.pinnedLinks ?? []}
-            busy={busy}
-            onSave={saveLinks}
-          />
-
-          {pageLink && (
-            <button
-              type="button"
-              onClick={() => void copyPageLink()}
-              title={pageLink}
-              {...tourAttr('classes.agenda-copy-link')}
-              className="flex items-center gap-1 py-1 text-xs font-semibold text-slate-600 hover:text-brand-blue-primary"
-            >
-              {copied ? (
-                <Check
-                  className="w-3.5 h-3.5 text-emerald-600"
-                  aria-hidden="true"
-                />
-              ) : (
-                <Link2 className="w-3.5 h-3.5" aria-hidden="true" />
-              )}
-              {copied
-                ? t('course.agenda.copied', { defaultValue: 'Copied' })
-                : t('course.agenda.copyLink', {
-                    defaultValue: 'Copy Class page link',
-                  })}
-            </button>
-          )}
-        </div>
-      )}
-
-      {error && (
-        <p role="alert" className="py-1 text-xs text-red-600">
-          {error}
-        </p>
-      )}
+      <AgendaDialog
+        isOpen={open}
+        onClose={() => setStatus({ open: false, error: null })}
+        title={dialogTitle}
+        agenda={agenda}
+        problem={problem}
+        sharingOk={
+          !!agenda &&
+          !problem &&
+          (state?.sharing ?? course?.deckCheck?.sharing ?? null) !== null
+        }
+        needed={needed}
+        canFix={!!drive && !!domain}
+        links={course?.pinnedLinks ?? []}
+        pageLink={pageLink}
+        copied={copied}
+        busy={busy}
+        error={error}
+        onPick={() => void pickDeck()}
+        onRemove={() => void removeDeck()}
+        onFix={() => void fixSharing()}
+        onSaveLinks={saveLinks}
+        onCopy={() => void copyPageLink()}
+      />
     </div>
   );
 };

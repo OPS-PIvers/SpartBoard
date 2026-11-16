@@ -53,7 +53,10 @@ function makeCourse(over: Partial<Course> = {}): Course {
 }
 
 /** A tiny Drive: permissions per file; a file missing from `perms` answers 403. */
-function fakeDrive(perms: Record<string, DrivePermission[]>) {
+function fakeDrive(
+  perms: Record<string, DrivePermission[]>,
+  refuseWrites = false
+) {
   let n = 0;
   const calls: string[] = [];
   const fetchMock = vi.fn((url: string, init?: RequestInit) => {
@@ -68,6 +71,20 @@ function fakeDrive(perms: Record<string, DrivePermission[]>) {
       );
     const list = perms[file];
     if (!list)
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            error: {
+              code: 403,
+              message:
+                'The user does not have sufficient permissions for this file.',
+              errors: [{ reason: 'insufficientFilePermissions' }],
+            },
+          }),
+          { status: 403 }
+        )
+      );
+    if (refuseWrites && method !== 'GET')
       return Promise.resolve(
         new Response(
           JSON.stringify({
@@ -231,7 +248,7 @@ describe('AgendaSetup', () => {
       />
     );
     fireEvent.click(screen.getByRole('button', { name: /old deck/i }));
-    fireEvent.click(screen.getByRole('button', { name: 'Change deck' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Change' }));
     await waitFor(() => expect(drive.perms.oldDeck12345).toHaveLength(1));
     expect(showConfirm).toHaveBeenCalledTimes(1);
     expect(showConfirm.mock.calls[0][1]).toMatchObject({
@@ -261,8 +278,13 @@ describe('AgendaSetup', () => {
         saveCourse={saveCourse}
       />
     );
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: "Students can't open the agenda",
+      })
+    );
     expect(
-      await screen.findByText("Students can't open this deck.")
+      screen.getByText("Students can't open this deck.")
     ).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Share with Orono' })
@@ -323,7 +345,7 @@ describe('AgendaSetup', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: /add agenda/i }));
     expect(
-      screen.getByRole('button', { name: 'Copy Class page link' })
+      screen.getByRole('button', { name: 'Copy link' })
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Add link' }));
     fireEvent.change(screen.getByLabelText('Title'), {
@@ -390,7 +412,10 @@ describe('AgendaSetup', () => {
   });
 
   it('says only the owner can change sharing on a deck Drive refuses, with no silent failure', async () => {
-    fakeDrive({});
+    fakeDrive(
+      { theirDeck123: [{ id: 'o', type: 'user', role: 'owner' }] },
+      true
+    );
     showConfirm.mockResolvedValue(true);
     render(
       <AgendaSetup
@@ -413,6 +438,9 @@ describe('AgendaSetup', () => {
           })
         )}
       />
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: "Students can't open the agenda" })
     );
     fireEvent.click(screen.getByRole('button', { name: 'Share with Orono' }));
     expect(

@@ -6356,8 +6356,13 @@ export const TOUR_ANCHORS = {
     rowList: 'classes',
   },
   'classes.agenda-open': {
-    label: 'Show the Agenda deck and links for a class or Course in My Classes',
+    label: 'Open the Agenda dialog for a class or Course in My Classes',
     panel: true,
+  },
+  'classes.agenda-done': {
+    label: 'Done button in the Agenda dialog in My Classes',
+    panel: true,
+    closes: 'own',
   },
   'classes.agenda-pick': {
     label: 'Select or change the Agenda Google Slides deck in My Classes',

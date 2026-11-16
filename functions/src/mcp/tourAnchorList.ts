@@ -26034,7 +26034,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "classes.agenda-open",
-    "label": "Show the Agenda deck and links for a class or Course in My Classes",
+    "label": "Open the Agenda dialog for a class or Course in My Classes",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -26044,6 +26044,27 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.agenda-done",
+    "label": "Done button in the Agenda dialog in My Classes",
+    "scope": "board",
+    "panel": true,
+    "closes": "own",
+    "routes": [
+      {
+        "surface": "board.course-agenda-dialog",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.agenda-open"
         ],
         "needs": [
           "class"
@@ -26059,14 +26080,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "persists": true,
     "routes": [
       {
-        "surface": "board.course-agenda",
-        "kind": "sidebar",
+        "surface": "board.course-agenda-dialog",
+        "kind": "modal",
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
           "classes.agenda-open"
         ],
-        "reveal": "classes.agenda-open",
         "needs": [
           "class"
         ]
@@ -26080,14 +26100,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "routes": [
       {
-        "surface": "board.course-agenda",
-        "kind": "sidebar",
+        "surface": "board.course-agenda-dialog",
+        "kind": "modal",
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
           "classes.agenda-open"
         ],
-        "reveal": "classes.agenda-open",
         "needs": [
           "class"
         ]
@@ -26103,14 +26122,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "persists": true,
     "routes": [
       {
-        "surface": "board.course-agenda",
-        "kind": "sidebar",
+        "surface": "board.course-agenda-dialog",
+        "kind": "modal",
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
           "classes.agenda-open"
         ],
-        "reveal": "classes.agenda-open",
         "needs": [
           "class"
         ]
@@ -26125,11 +26143,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "persists": true,
     "routes": [
       {
-        "surface": "board.course-agenda",
-        "kind": "sidebar",
+        "surface": "board.course-agenda-dialog",
+        "kind": "modal",
         "path": [
           "sidebar.open-menu",
-          "sidebar.classes"
+          "sidebar.classes",
+          "classes.agenda-open"
         ],
         "needs": [
           "class"
@@ -26144,14 +26163,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "routes": [
       {
-        "surface": "board.course-agenda",
-        "kind": "sidebar",
+        "surface": "board.course-agenda-dialog",
+        "kind": "modal",
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
           "classes.agenda-open"
         ],
-        "reveal": "classes.agenda-open",
         "needs": [
           "class"
         ]
@@ -26165,14 +26183,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "routes": [
       {
-        "surface": "board.course-agenda",
-        "kind": "sidebar",
+        "surface": "board.course-agenda-dialog",
+        "kind": "modal",
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
           "classes.agenda-open"
         ],
-        "reveal": "classes.agenda-open",
         "needs": [
           "class"
         ]
@@ -26186,11 +26203,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "routes": [
       {
-        "surface": "board.course-agenda",
-        "kind": "sidebar",
+        "surface": "board.course-agenda-dialog",
+        "kind": "modal",
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
+          "classes.agenda-open",
           "classes.agenda-link-add"
         ],
         "reveal": "classes.agenda-link-add",
@@ -26207,11 +26225,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "routes": [
       {
-        "surface": "board.course-agenda",
-        "kind": "sidebar",
+        "surface": "board.course-agenda-dialog",
+        "kind": "modal",
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
+          "classes.agenda-open",
           "classes.agenda-link-add"
         ],
         "reveal": "classes.agenda-link-add",
@@ -26228,11 +26247,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "routes": [
       {
-        "surface": "board.course-agenda",
-        "kind": "sidebar",
+        "surface": "board.course-agenda-dialog",
+        "kind": "modal",
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
+          "classes.agenda-open",
           "classes.agenda-link-add"
         ],
         "reveal": "classes.agenda-link-add",
@@ -26250,11 +26270,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "persists": true,
     "routes": [
       {
-        "surface": "board.course-agenda",
-        "kind": "sidebar",
+        "surface": "board.course-agenda-dialog",
+        "kind": "modal",
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
+          "classes.agenda-open",
           "classes.agenda-link-add"
         ],
         "reveal": "classes.agenda-link-add",
@@ -26273,14 +26294,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "persists": true,
     "routes": [
       {
-        "surface": "board.course-agenda",
-        "kind": "sidebar",
+        "surface": "board.course-agenda-dialog",
+        "kind": "modal",
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
           "classes.agenda-open"
         ],
-        "reveal": "classes.agenda-open",
         "needs": [
           "class"
         ]
