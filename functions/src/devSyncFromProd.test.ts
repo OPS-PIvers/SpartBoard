@@ -45,7 +45,7 @@ import {
   fromRestFields,
   readProdConfig,
   readProdTree,
-  stripInlinePii,
+  stripProdOnlyFields,
   SYNCED_USER_COLLECTIONS,
   syncConfigFromProdV1,
   syncMyMaterialsFromProdV1,
@@ -120,17 +120,51 @@ describe('SYNCED_USER_COLLECTIONS', () => {
   });
 });
 
-describe('stripInlinePii', () => {
+describe('stripProdOnlyFields', () => {
   it('drops inline students from roster docs only', () => {
     const fields = {
       name: { stringValue: 'P3' },
       students: { arrayValue: { values: [{ stringValue: 'Kid' }] } },
     };
-    expect(Object.keys(stripInlinePii('rosters', fields))).toEqual(['name']);
-    expect(Object.keys(stripInlinePii('quizzes', fields))).toEqual([
+    expect(Object.keys(stripProdOnlyFields('rosters', fields))).toEqual([
+      'name',
+    ]);
+    expect(Object.keys(stripProdOnlyFields('quizzes', fields))).toEqual([
       'name',
       'students',
     ]);
+  });
+
+  it('drops links to prod-only shares, linked collections and synced groups', () => {
+    const board = {
+      name: { stringValue: 'Board' },
+      linkedShareId: { stringValue: 'share-1' },
+      linkedShareRole: { stringValue: 'owner' },
+      linkedShareHostName: { stringValue: 'Host' },
+      linkedShareHostUid: { stringValue: 'uid' },
+      linkedShareEnded: { booleanValue: false },
+    };
+    expect(Object.keys(stripProdOnlyFields('dashboards', board))).toEqual([
+      'name',
+    ]);
+    const collection = {
+      name: { stringValue: 'PLC' },
+      linkedCollectionId: { stringValue: 'lc-1' },
+      linkedCollectionRole: { stringValue: 'collaborator' },
+      linkedCollectionEnded: { booleanValue: false },
+      linkedSectionId: { stringValue: 's-1' },
+    };
+    expect(Object.keys(stripProdOnlyFields('collections', collection))).toEqual(
+      ['name']
+    );
+    const sync = { mapValue: { fields: { groupId: { stringValue: 'g' } } } };
+    for (const name of ['quizzes', 'question_banks', 'video_activities']) {
+      expect(
+        Object.keys(
+          stripProdOnlyFields(name, { title: { stringValue: 'Q' }, sync })
+        )
+      ).toEqual(['title']);
+    }
   });
 });
 
