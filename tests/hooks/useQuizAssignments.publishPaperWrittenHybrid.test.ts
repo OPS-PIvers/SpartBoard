@@ -141,3 +141,74 @@ describe('gradeResponseForPublish: written answers on paper', () => {
     ).toBe(33);
   });
 });
+
+describe('gradeResponseForPublish: choose-N section with an extra written answer', () => {
+  const written = (id: string) => ({
+    id,
+    text: id,
+    type: 'free-response' as const,
+    correctAnswer: '',
+    incorrectAnswers: [],
+    timeLimit: 30,
+    points: 2,
+  });
+  const chooseQuiz = {
+    ...quizData,
+    questions: [quizData.questions[0], written('w1'), written('w2')],
+  } satisfies QuizData;
+  const ctx = {
+    ...buildResponseGradingContext(chooseQuiz, {}),
+    sections: [
+      {
+        id: 's1',
+        title: 'Pick one',
+        chooseCount: 1,
+        questionIds: ['w1', 'w2'],
+      },
+    ],
+  };
+  const response = (extra: Record<string, unknown> = {}) =>
+    ({
+      studentUid: 's1',
+      status: 'completed',
+      completedAttempts: 1,
+      answers: [
+        { questionId: 'q0', answer: 'a', answeredAt: 1 },
+        { questionId: 'w1', answer: 'First essay', answeredAt: 2 },
+        { questionId: 'w2', answer: 'Second essay', answeredAt: 3 },
+      ],
+      ...extra,
+    }) as unknown as QuizResponse;
+
+  it('publishes the score when only the counted answer is graded', () => {
+    const graded = gradeResponseForPublish(
+      response({
+        grading: { w1: { pointsAwarded: 2, gradedBy: 't', gradedAt: 1 } },
+      }),
+      ctx
+    );
+    expect(graded.score).toBe(100);
+  });
+
+  it('follows the teacher pick of which answer counts', () => {
+    const graded = gradeResponseForPublish(
+      response({
+        countedChoices: { attempt: 1, bySection: { s1: ['w2'] } },
+        grading: { w2: { pointsAwarded: 1, gradedBy: 't', gradedAt: 1 } },
+      }),
+      ctx
+    );
+    expect(graded.score).toBe(67);
+  });
+
+  it('still holds the score while the counted answer is ungraded', () => {
+    const graded = gradeResponseForPublish(
+      response({
+        countedChoices: { attempt: 1, bySection: { s1: ['w2'] } },
+        grading: { w1: { pointsAwarded: 2, gradedBy: 't', gradedAt: 1 } },
+      }),
+      ctx
+    );
+    expect(graded.score).toBeNull();
+  });
+});

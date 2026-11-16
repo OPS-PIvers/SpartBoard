@@ -1213,7 +1213,6 @@ export function gradeResponseForPublish(
         a.paperTranscript
       )
     );
-    if (result.state === 'awaiting-grade') awaitingGrade = true;
     if (
       representativeAnswers.get(a.questionId) !== a ||
       (baseServed && !baseServed.has(a.questionId))
@@ -1226,6 +1225,8 @@ export function gradeResponseForPublish(
     if (!servedIds || servedIds.has(a.questionId)) {
       pointsEarned += result.pointsEarned;
       pointsMax += result.pointsMax;
+      // An ungraded extra answer in a choose-N section is not scored, so it can't hold the score.
+      if (result.state === 'awaiting-grade') awaitingGrade = true;
     }
     return { ...a, isCorrect: result.isCorrect };
   });
