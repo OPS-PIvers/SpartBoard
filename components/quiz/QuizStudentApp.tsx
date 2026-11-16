@@ -6694,15 +6694,19 @@ export const PublishedScoreReview: React.FC<{
                 <>
                   <p
                     className={`text-5xl font-black tabular-nums sm:text-6xl ${headingText}`}
-                    aria-label={t('quizStudent.results.pointsOf', {
-                      earned: formatScorePoints(scorePoints.earned),
-                      possible: formatScorePoints(scorePoints.possible),
-                    })}
                   >
-                    {formatScorePoints(scorePoints.earned)}
-                    <span className={subtleText}>
-                      {' / '}
-                      {formatScorePoints(scorePoints.possible)}
+                    <span className="sr-only">
+                      {t('quizStudent.results.pointsOf', {
+                        earned: formatScorePoints(scorePoints.earned),
+                        possible: formatScorePoints(scorePoints.possible),
+                      })}
+                    </span>
+                    <span aria-hidden="true">
+                      {formatScorePoints(scorePoints.earned)}
+                      <span className={prepText}>
+                        {' / '}
+                        {formatScorePoints(scorePoints.possible)}
+                      </span>
                     </span>
                   </p>
                   <p

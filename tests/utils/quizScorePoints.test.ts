@@ -14,6 +14,15 @@ describe('publishedScorePoints', () => {
     ).toEqual({ earned: 18, possible: 24 });
   });
 
+  it('accepts unrounded partial credit that matches the score', () => {
+    expect(
+      publishedScorePoints({
+        score: 8,
+        scorePoints: { earned: 1 / 6, possible: 2 },
+      })
+    ).toEqual({ earned: 1 / 6, possible: 2 });
+  });
+
   it('ignores points a later score-only write left stale', () => {
     expect(
       publishedScorePoints({
