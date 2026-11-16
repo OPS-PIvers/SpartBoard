@@ -88,6 +88,38 @@ _Avoid_: ping, alert, message, buzz
 One file holding quizzes or question banks with their pictures, which an admin uploads to the District library.
 _Avoid_: bundle, export
 
+## Classes
+
+**Course**:
+Sections a teacher has chosen to link because they are taught the same thing, so the Agenda and Class page are set once. Linking is optional: an unlinked section stands as its own Course. Rosters, periods, due dates and grades stay with each section.
+_Avoid_: class (for the group), merged class
+
+**Agenda**:
+A Course's daily plan: the Google Slides deck the teacher already keeps, newest day first, shown on the board, on the Class page and to families.
+_Avoid_: announcement (that is an admin's message to staff), schedule (that is the bell-schedule widget)
+
+**Class page**:
+The page a student sees for one class inside My Assignments: the Agenda, a few pinned links and their assigned work.
+_Avoid_: course page, portal, student home (that is My Assignments, the list across all classes)
+
+**Family link**:
+A Course's public page for families, with no sign-in: the Agenda and pinned links only. SpartBoard adds no student's name or work to it. The teacher switches it on, and its address never changes.
+_Avoid_: parent portal, public Class page, share link
+
+## Student work
+
+**Writing assignment**:
+A piece of writing a teacher assigns that students write in SpartBoard, over one sitting or many, where how it was written is kept as a Writing record.
+_Avoid_: writing task, essay, Google assignment (that is a Drive file copied per student)
+
+**Writing record**:
+What SpartBoard keeps about how a piece was written: every edit, so it can be played back, and a summary of time spent, sittings, pastes and time away from the tab. It states facts and never judges the student.
+_Avoid_: keystroke log, input signals, integrity report, surveillance
+
+**Focus mode**:
+The protections a teacher can switch on for an assigned activity: blocking copy and paste, and counting time away from the tab. It never means the Writing record.
+_Avoid_: lockdown, Focus session (that is the extension limiting a student's tabs)
+
 ## Getting Started
 
 **Help Center**:
