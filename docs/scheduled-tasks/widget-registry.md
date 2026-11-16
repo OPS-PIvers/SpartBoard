@@ -102,6 +102,8 @@ _2026-09-26 action: Item selection ran across today's reading list (the three da
 
 ## Open
 
+_2026-11-16 action: Monday daily run. Nothing In Progress in any journal. No actionable Open items in the three dailies; the only open weekly items are broad or test-only dead-export LOWs (legacy-cleanup), left Open. Rebase onto `dev-paul` conflicts (unrelated histories), so the tree stays synced via the earlier ours-merge. No code change._
+
 _2026-11-13: Daily audit (Friday). WidgetType 69 members. WIDGET_COMPONENTS 68/69 (`sticker` documented absence); WIDGET_SETTINGS_SCHEMAS 66/69 (`blooms-detail`/`onboarding`/`sticker` documented); WIDGET_SETTINGS_COMPONENTS and WIDGET_APPEARANCE_COMPONENTS are now intentionally empty (legacy panels only; schema-driven drawer is the default). WIDGET_DEFAULTS 69/69, 0 orphans; WIDGET_GRADE_LEVELS 72 (69 + magic/record/remote); tools.ts gap set = 7 documented exclusions. All 66 `lazyNamed()` targets resolve (Poll/Catalyst hits were resolver false positives via `export *`). 0 new issues._
 
 _2026-10-12: Daily audit (Monday), after merging `origin/dev-paul` @ `c7605470`. Scripted cross-reference: `WidgetType` 68, 0 duplicates; `WIDGET_COMPONENTS` 67/68 (`sticker`, documented); `WIDGET_SCALING_CONFIG` 68/68; `WIDGET_DEFAULTS` 68/68; `WIDGET_GRADE_LEVELS` 71 = 68 + `magic`/`record`/`remote`; `config/tools.ts` 64 types, gaps exactly the 7 documented exclusions; legacy settings/appearance maps still empty (documented migration). 0 new issues; existing Open items unchanged._
