@@ -22,7 +22,6 @@ import {
   updateDoc,
   where,
   writeBatch,
-  type Firestore,
 } from 'firebase/firestore';
 import { seedDistrictStaff } from './districtStaffSeed';
 
@@ -117,7 +116,7 @@ const save = (o: Record<string, unknown> = {}) => {
 
 /** A log chunk write batched with the response save it rides on (D25). */
 const logWrite = (
-  db: Firestore,
+  db: ReturnType<typeof asStudent>,
   n: number,
   data: Record<string, unknown>,
   patch: Record<string, unknown> = {}
