@@ -9,7 +9,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
 - **Release review findings.** Fix small (S) findings inside the release as `release fix:` PRs. File an item here only for work that is M or larger, needs a flag or rules design, or can't ship in that release.
 - **Agent-only means agent-only.** An item in Ready needs nothing from Paul. When an item needs new wording, the agent builds it and asks Paul with a screenshot and a decision card in its thread; when it needs a real decision, it goes to PAUL_TODO.md and the item moves to Blocked.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-245**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-248**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -21,6 +21,9 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
 ### Security and correctness
 
+- **AB-245 MCP endpoint: re-check membership on each request** (S, security). From the AB-107 review (#5925): `mcpEndpoint` checks membership when it issues the access token, so a student or a removed member who already holds one keeps the tools for up to an hour. Re-check the caller's active staff membership on each request (cached briefly is fine), with a test that a deactivated member's existing token is refused.
+- **AB-247 Focus: a typed about:blank in a link-opened tab** (S, security). From the Claude review of #5932 (AB-240): the opened marker (`openerTabId`, `focusOpened:<tabId>`) lasts the tab's whole life, so a student can Ctrl-click a link on an allowed page, then type `about:blank` in that tab and Redirect and Lock let it through. Allow about:blank only as an opened tab's first, page-started load: block it when the commit's `transitionType` is `typed`, `auto_bookmark`, `generated`, `keyword` or `reload`, or once the tab has committed a real page (record that even outside a session, since a tab can load before Lock starts). Apply the same rule in `allTabs` and `activeOpened` in `extension/src/focus/chromeEnforce.ts`, keep popup windows allowed, raise the extension version, and add tests.
+- **AB-246 Classroom add-on login: re-check a stored ClassLink class** (S, security). From the AB-167 review (#5927): `classroomAddonLoginV1` (`functions/src/classroomAddonAuth.ts`) still trusts a `classlinkClassId` stored on a course link before #5927. At login, check it against `link.teacherUid`'s verified class list (`unverifiedClassIds`) and drop it when it isn't there, with a test.
 - **AB-242 Follow-ups from the 2026-11-15 PR sweep** (S). Small findings left after #5884, #5887, #5888 and #5889 merged: (1) `hooks/useSubShareContentLoader.ts` `load()` logs every permission-denied on `calendar_*` content for link-only subs once a share carries `calendarIds`; skip permission-denied as `loadKey` does. (2) Add `(?s)` to the super-admin path regex in `firestore.rules` (the `admin_settings` super-admin match, unchanged by #5884) so a newline doc id can't slip past it, with a rules test. (3) Add a unit test that greps `functions/src` for `collectionGroup(` names and fails when one is missing from `notServerCgPath`. (4) `importPaperResponses.ts` counts skipped foreign pointers in `foreign`, which no client reads; add them to `unplaced` or show them. (5) `functions/src/subControlAssignment.ts` `finalizeQuizResponses` runs every transaction at once; chunk at about 50. (6) Consider merging `provenGoogleEmail` (`mailRecipients.ts`) and `trustedSignInUid` (`webTourExtension.ts`) into one check.
 - **AB-244 Follow-ups from release 2026.11.15b** (S). From the #5920 release review: (1) `getStudentClassDirectoryV1` (`functions/src/studentIdentity.ts`) drops classes whose roster owner ClassLink couldn't confirm during an outage, so the student's class list shrinks until ClassLink answers (the token keeps them); list a token class in `uncertainIds` from its roster docs, but only when the owner is a staff member doc, so a forged roster's name never shows. (2) `utils/sharedBoardItems.ts` `publishSharedBoardItem` skips the pick check whenever a copy exists, so after a share is re-created at an old id an owner's tab can republish an item never picked for the new share; skip it only when the stored `shareNonce` matches, and make the items `allow update` rule require the pick when the stored nonce differs, with rules tests. (3) `sub-share.calendar` anchor (`ShareWithSubModal.tsx`) is on every calendar checkbox; register it `perField` and tag rows with `tourFieldAttr`. (4) Sub-share calendar checkboxes show raw calendar ids; show the widget's calendar name, and hint when calendars are ticked with no sub named. (5) Paper publish counts students whose `pin_index` entry is gone as unplaced under a toast that says to sync the roster; give them their own count or wording. (6) Tests: `question-editor-fields` on (`metaList=true`) in the quiz and video editors, and the in-flight ClassLink lookup dedupe in `studentIdentity.test.ts`.
 - **AB-243 Store re-minted class claims on student_sections** (S). From the #5887 re-review: `getStudentClassDirectoryV1` re-mints the token without updating `student_sections.classIds`, so a section added mid-day can drop at the next sign-in during a ClassLink blip; and an owner whose class list is always truncated keeps returning 'unavailable', so a once-claimed section holds a claim slot at every sign-in. Write the re-minted set back, and treat `class list truncated` separately from an outage.
@@ -232,6 +235,16 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
   <details><summary>Branches to delete (178, checked 2026-11-01)</summary>
 
+claude/project-thread-dhavkf (#5913)
+claude/backlog-ab-107-20261115 (#5925)
+claude/backlog-ab-95-20261115 (#5926)
+claude/backlog-ab-167-20261115 (#5927)
+claude/backlog-ab-220-20261115 (#5928)
+claude/backlog-ab-169-20261115 (#5929)
+claude/backlog-ab-216-20261115 (#5930)
+claude/backlog-ab-210-20261115 (#5931)
+claude/backlog-ab-240-20261115 (#5932)
+claude/backlog-closeout-20261115 (this docs PR, delete after it merges)
 claude/project-thread-rkoilv (#5919)
 claude/project-thread-jebqdl (#5921, #5922, release 2026.11.15b follow-ups)
 security/k2-scheduled-mailers (#5884)
