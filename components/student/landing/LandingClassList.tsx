@@ -104,7 +104,7 @@ export const LandingClassList: React.FC<LandingClassListProps> = ({
           >
             <span
               aria-hidden="true"
-              className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-white ${onDark(active) ? 'ring-1 ring-white/30' : ''}`}
+              className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-white ${dark ? 'border-2 border-white' : ''}`}
               style={{ background: c.color.bar }}
             >
               {c.square}
