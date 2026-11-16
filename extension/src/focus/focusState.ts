@@ -101,14 +101,16 @@ const BROWSER_SCHEMES = new Set(['chrome:', 'chrome-search:', 'chrome-error:']);
 
 /**
  * Whether Redirect or Lock blocks a top-level page: a web page off the allowlist, or any other page that can show one
- * (data:, file:, view-source:, another extension's page). Our own pages, browser screens and about:blank pass;
+ * (data:, file:, view-source:, another extension's page). Our own pages and browser screens pass, and about:blank only
+ * in a tab another page opened (`opened`), since anything can be written into a blank tab;
  * blob: and filesystem: pages follow the site that made them. `ownPages` is `chrome.runtime.getURL('')`.
  */
 export function isBlockedTopLevel(
   url: string,
   sites: FocusActiveSession['sites'],
   origins: readonly string[],
-  ownPages: string
+  ownPages: string,
+  opened: boolean
 ): boolean {
   if (!url) return false;
   const verdict = matchFocusUrl(url, sites, origins);
@@ -122,7 +124,8 @@ export function isBlockedTopLevel(
   }
   const scheme = parsed.protocol.toLowerCase();
   if (BROWSER_SCHEMES.has(scheme)) return false;
-  if (scheme === 'about:') return parsed.pathname.toLowerCase() !== 'blank';
+  if (scheme === 'about:')
+    return !opened || parsed.pathname.toLowerCase() !== 'blank';
   if (scheme === 'blob:' || scheme === 'filesystem:') {
     let inner: URL;
     try {
@@ -142,11 +145,13 @@ export function statusFor(
   session: FocusActiveSession,
   origins: readonly string[],
   ownPages: string,
-  fullscreen = true
+  fullscreen = true,
+  opened = false
 ): FocusReportedStatus {
   if (session.level === 'lock' && !session.released && !fullscreen)
     return 'away';
-  return url && isBlockedTopLevel(url, session.sites, origins, ownPages)
+  return url &&
+    isBlockedTopLevel(url, session.sites, origins, ownPages, opened)
     ? 'away'
     : 'on-task';
 }

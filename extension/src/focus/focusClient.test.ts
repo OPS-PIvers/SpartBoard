@@ -81,6 +81,7 @@ function setup(over: Partial<FocusClientDeps> = {}) {
       return Promise.resolve();
     },
     activeUrl: () => Promise.resolve(url),
+    activeOpened: () => Promise.resolve(false),
     activeFullscreen: () => Promise.resolve(fullscreen),
     loadTries: (sessionId: string) =>
       Promise.resolve(
