@@ -122,4 +122,5 @@ These are technical and get settled in the PR that reaches them:
 - **Read aloud of the student's own writing.** Server text to speech on a 1,500 word draft, replayed while revising, has a cost. Version 1 reads the prompt and sources only; decide the rest after seeing real use.
 - **Sanitizing.** The stored text is HTML from a `contentEditable`. Sanitize on save and again on render and export.
 - **Co-taught sections.** Follow whatever quizzes do for a class two teachers hold.
+- **Rules for the edit log.** Each chunk is written once by the student and never changed. Only the owning teacher can read it, plus the student when D11 allows.
 - **Recording without a notice.** D10 lets a teacher switch the notice off. Before it opens past admins, Paul decides whether district policy needs the notice locked on.

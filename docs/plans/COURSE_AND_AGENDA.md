@@ -100,6 +100,7 @@ These are technical and get settled in the PR that reaches them:
 
 - **Co-taught sections.** Two teachers can each hold a roster for the same ClassLink class. The student-readable copy is one document per class, so the build must say whose Agenda wins. Suggested: the first teacher to set one, with a clear message to the second.
 - **Rule for the student-readable copy.** A teacher may write it only for a class they hold a roster for; the rule needs a cheap way to check that. Read `.claude/rules/firestore-rules.md` first.
+- **Rule for the public family copy.** It is readable without sign-in, so it holds only the fields D13 lists and exists only while the link is switched on.
 - **Students outside the domain sign-in.** A student signed in to Chrome with a personal Google account won't see a deck shared to Orono only. The Class page needs a plain message for that case.
 - **Workspace sharing settings.** Paul reports staff can share "Anyone with the link" today. Confirm on a real staff account before PR E.
 
