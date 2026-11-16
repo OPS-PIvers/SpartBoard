@@ -4,8 +4,11 @@ import {
   WritingLogWriter,
   buildCheckpoints,
   diffText,
+  SESSION_GAP_MS,
   parseWritingLog,
+  replacedWords,
   summarizeWriting,
+  writingSessions,
   textAfter,
   textAt,
   utf8Length,
@@ -47,7 +50,7 @@ describe('WritingLogWriter', () => {
     const s = summarizeWriting(edits);
     expect(s.deletions).toBe(1);
     expect(s.deletedChars).toBe(1);
-    expect(s.insertsInside).toBe(1);
+    expect(s.wordsReplaced).toBe(0);
     expect(s.writingMs).toBe(700);
   });
 
@@ -110,7 +113,8 @@ describe('WritingLogWriter', () => {
 
   it('budgets in bytes, so non-Latin text costs more', () => {
     const w = new WritingLogWriter(undefined);
-    expect(w.write('', '你', 0, 'typed', 1e6)).toBe(5);
+    w.write('', 'a', 0, 'typed', 1e6, 0);
+    expect(w.write('a', 'a你', 0, 'typed', 1e6, 0)).toBe(6);
     expect(w.size).toBe(utf8Length(w.value));
   });
 
@@ -138,5 +142,83 @@ describe('parseWritingLog', () => {
     expect(parseWritingLog('x'.repeat(WRITING_LOG_MAX + 100)).edits).toEqual(
       []
     );
+  });
+});
+
+describe('replacedWords', () => {
+  it('counts a whole word swapped for another', () => {
+    expect(replacedWords('the big dog ran', 'the huge dog ran')).toBe(1);
+  });
+
+  it('leaves out typo fixes, additions and cuts', () => {
+    expect(replacedWords('teh dog ran', 'the dog ran')).toBe(0);
+    expect(replacedWords('it was becuase of', 'it was because of')).toBe(0);
+    expect(replacedWords('the dog ran', 'the black dog ran')).toBe(0);
+    expect(replacedWords('the black dog ran', 'the dog ran')).toBe(0);
+  });
+});
+
+describe('summarizeWriting words replaced', () => {
+  const run = (steps: string[]) => {
+    const w = new WritingLogWriter(undefined);
+    type(w, steps);
+    return summarizeWriting(parseWritingLog(w.value).edits).wordsReplaced;
+  };
+
+  it('counts selecting a word earlier in the text and typing a new one', () => {
+    expect(
+      run([
+        'the big dog ran',
+        'the  dog ran',
+        'the h dog ran',
+        'the hu dog ran',
+        'the huge dog ran',
+      ])
+    ).toBe(1);
+  });
+
+  it('ignores retyping the word being written at the end', () => {
+    expect(run(['I like dogs', 'I like ', 'I like c', 'I like cats'])).toBe(0);
+  });
+
+  it('ignores fixing a typo earlier in the text', () => {
+    expect(run(['teh dog ran', 'th dog ran', 'the dog ran'])).toBe(0);
+  });
+});
+
+describe('writing sessions', () => {
+  const at = (h: number) => Date.UTC(2026, 10, 16, h);
+
+  it('starts a new session after a long break, even in the same page load', () => {
+    const w = new WritingLogWriter(undefined);
+    w.write('', 'a', 0, 'typed', 1e6, at(9));
+    w.write('a', 'ab', 60_000, 'typed', 1e6, at(9) + 60_000);
+    w.write('ab', 'abc', 61_000, 'typed', 1e6, at(14));
+    const { edits, stamps } = parseWritingLog(w.value);
+    expect(stamps.map((s) => s.at)).toEqual([0, 2]);
+    expect(writingSessions(edits, stamps)).toEqual([
+      { at: 0, start: at(9), end: at(9) + 60_000 },
+      { at: 2, start: at(14), end: at(14) },
+    ]);
+  });
+
+  it('continues the session across a quick page reload', () => {
+    const first = new WritingLogWriter(undefined);
+    first.write('', 'a', 0, 'typed', 1e6, at(9));
+    first.write('a', 'ab', 120_000, 'typed', 1e6, at(9) + 120_000);
+    const second = new WritingLogWriter(first.value);
+    second.write('ab', 'abc', 0, 'typed', 1e6, at(9) + 180_000);
+    const { edits, stamps } = parseWritingLog(second.value);
+    expect(stamps).toHaveLength(2);
+    expect(writingSessions(edits, stamps)).toEqual([
+      { at: 0, start: at(9), end: at(9) + 180_000 },
+    ]);
+    expect(SESSION_GAP_MS).toBe(900_000);
+  });
+
+  it('has no sessions for a log written before stamps', () => {
+    const { edits, stamps } = parseWritingLog('0:a;64:b');
+    expect(edits).toHaveLength(2);
+    expect(writingSessions(edits, stamps)).toEqual([]);
   });
 });

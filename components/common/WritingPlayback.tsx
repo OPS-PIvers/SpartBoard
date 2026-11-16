@@ -11,6 +11,7 @@ import {
   summarizeWriting,
   buildCheckpoints,
   textAt,
+  writingSessions,
   type WritingEdit,
 } from '@/utils/writingLog';
 import { BadgePopover } from './BadgePopover';
@@ -26,6 +27,21 @@ const formatSpan = (ms: number): string => {
   const m = Math.floor(s / 60);
   return s % 60 === 0 ? `${m} min` : `${m} min ${s % 60} sec`;
 };
+
+const formatWhen = (ms: number): string =>
+  new Date(ms).toLocaleString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+
+const formatTime = (ms: number): string =>
+  new Date(ms).toLocaleTimeString(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 
 const count = (n: number, one: string, many = `${one}s`) =>
   `${n.toLocaleString()} ${n === 1 ? one : many}`;
@@ -43,8 +59,17 @@ export const WritingPlayer: React.FC<{
   hidePasted?: boolean;
   hideUnkeyed?: boolean;
 }> = ({ log, hidePasted = false, hideUnkeyed = false }) => {
-  const { edits, cutOff } = useMemo(() => parseWritingLog(log), [log]);
+  const { edits, stamps, cutOff } = useMemo(() => parseWritingLog(log), [log]);
   const summary = useMemo(() => summarizeWriting(edits), [edits]);
+  const sessions = useMemo(
+    () => writingSessions(edits, stamps),
+    [edits, stamps]
+  );
+  // Where a later session picks up; playback goes straight on instead of waiting out the break.
+  const sessionAt = useMemo(
+    () => new Map(sessions.slice(1).map((x, i) => [x.at, i + 2])),
+    [sessions]
+  );
   const [index, setIndex] = useState(edits.length);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(2);
@@ -52,13 +77,13 @@ export const WritingPlayer: React.FC<{
   const atEnd = index >= edits.length;
   useEffect(() => {
     if (!playing || atEnd) return;
-    const wait = edits[index].dt / speed;
+    const wait = sessionAt.has(index) ? 600 : edits[index].dt / speed;
     const id = window.setTimeout(
       () => setIndex((i) => Math.min(i + 1, edits.length)),
       Math.max(wait, 10)
     );
     return () => window.clearTimeout(id);
-  }, [playing, atEnd, index, speed, edits]);
+  }, [playing, atEnd, index, speed, edits, sessionAt]);
 
   const checkpoints = useMemo(() => buildCheckpoints(edits), [edits]);
   const text = useMemo(
@@ -72,20 +97,23 @@ export const WritingPlayer: React.FC<{
   const marked =
     last && last.kind !== 'typed' && shownKind(last.kind) ? last.ins.length : 0;
   const next = atEnd ? undefined : edits[index];
+  const nextSession = sessionAt.get(index);
+  const inPause =
+    !!next && next.dt >= LONG_PAUSE_MS && nextSession === undefined;
   const note =
+    (nextSession !== undefined
+      ? `Session ${nextSession} starts ${formatWhen(sessions[nextSession - 1].start)}`
+      : null) ??
     (last && shownKind(last.kind) ? EDIT_LABEL[last.kind] : null) ??
-    (next && next.dt >= LONG_PAUSE_MS
-      ? `Paused for ${formatSpan(next.dt)} here`
-      : null);
+    (inPause && next ? `Paused for ${formatSpan(next.dt)} here` : null);
 
   const pauses = useMemo(
     () =>
       edits.flatMap((e, i) =>
-        e.dt >= LONG_PAUSE_MS ? [{ at: i, ms: e.dt }] : []
+        e.dt >= LONG_PAUSE_MS && !sessionAt.has(i) ? [{ at: i, ms: e.dt }] : []
       ),
-    [edits]
+    [edits, sessionAt]
   );
-  const inPause = !!next && next.dt >= LONG_PAUSE_MS;
 
   const toggle = () => {
     if (atEnd) setIndex(0);
@@ -95,15 +123,18 @@ export const WritingPlayer: React.FC<{
 
   return (
     <div className="space-y-3">
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-4">
+      <dl className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
         {[
           ['Writing time', formatSpan(summary.writingMs)],
+          ...(sessions.length > 0
+            ? [['Sessions', sessions.length.toLocaleString()]]
+            : []),
           ['Edits', summary.edits.toLocaleString()],
           [
             'Deletions',
             `${summary.deletions.toLocaleString()} (${count(summary.deletedChars, 'character')})`,
           ],
-          ['Added mid-text', summary.insertsInside.toLocaleString()],
+          ['Full words replaced', summary.wordsReplaced.toLocaleString()],
         ].map(([label, value]) => (
           <div key={label}>
             <dt className="text-xs font-bold uppercase tracking-wider text-slate-500">
@@ -113,6 +144,16 @@ export const WritingPlayer: React.FC<{
           </div>
         ))}
       </dl>
+      {sessions.length > 0 && (
+        <ol className="space-y-0.5 text-sm text-slate-700">
+          {sessions.map((x, i) => (
+            <li key={x.at}>
+              <span className="font-semibold">Session {i + 1}:</span>{' '}
+              {formatWhen(x.start)} to {formatTime(x.end)}
+            </li>
+          ))}
+        </ol>
+      )}
       {((summary.pastedChars > 0 && !hidePasted) ||
         (summary.syncChars > 0 && !hideUnkeyed) ||
         summary.restoredChars > 0) && (
@@ -147,7 +188,11 @@ export const WritingPlayer: React.FC<{
         {text.slice(caret)}
       </div>
       <div className="flex h-6 items-center gap-2">
-        <p className="text-xs font-semibold text-amber-700">{note}</p>
+        <p
+          className={`text-xs font-semibold ${nextSession !== undefined ? 'text-brand-blue-primary' : 'text-amber-700'}`}
+        >
+          {note}
+        </p>
         {inPause && (
           // no-tour-anchor: playback of one student's answer, nothing a tour walks to
           <button
@@ -191,6 +236,23 @@ export const WritingPlayer: React.FC<{
             aria-valuetext={`Edit ${index} of ${edits.length}`}
             className="w-full accent-brand-blue-primary"
           />
+          {sessions.slice(1).map((x, i) => (
+            // no-tour-anchor: one session in one student's answer, nothing a tour walks to
+            <button
+              key={`s${x.at}`}
+              type="button"
+              onClick={() => {
+                setPlaying(false);
+                setIndex(x.at);
+              }}
+              title={`Session ${i + 2}: ${formatWhen(x.start)}`}
+              aria-label={`Jump to session ${i + 2}`}
+              style={{
+                left: `calc(8px + (100% - 16px) * ${x.at / Math.max(edits.length, 1)})`,
+              }}
+              className="touch-target-expand absolute bottom-0 h-3 w-1 -translate-x-1/2 rounded-full bg-brand-blue-primary hover:bg-brand-blue-dark focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+            />
+          ))}
           {pauses.map((p) => (
             // no-tour-anchor: one pause in one student's answer, nothing a tour walks to
             <button
@@ -321,7 +383,7 @@ export const WritingPlaybackBadge: React.FC<WritingPlaybackBadgeProps> = ({
                         </span>
                         <span className="block text-xs text-slate-600">
                           {count(s.finalText.length, 'character')},{' '}
-                          {count(s.deletions + s.insertsInside, 'revision')}
+                          {count(s.deletions + s.wordsReplaced, 'revision')}
                         </span>
                       </span>
                     </button>

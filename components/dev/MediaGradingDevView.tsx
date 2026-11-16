@@ -38,9 +38,12 @@ function devWritingLog(text: string, pasteFrom?: number): string {
   const w = new WritingLogWriter(undefined);
   let prev = '';
   let t = 0;
+  // A second session the next afternoon, from the 60th character on.
+  const start = Date.UTC(2026, 10, 16, 14, 5);
   const step = (next: string, kind: 'typed' | 'pasted', gap: number) => {
     t += gap;
-    w.write(prev, next, t, kind, 1e6);
+    const wall = start + t + (next.length > 60 ? 27 * 3_600_000 : 0);
+    w.write(prev, next, t, kind, 1e6, wall);
     prev = next;
   };
   const end = pasteFrom ?? text.length;
