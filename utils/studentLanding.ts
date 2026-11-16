@@ -1,12 +1,13 @@
 import {
   isClosedProjectRun,
+  isClosedUnsubmittableRun,
   type AssignmentSummary,
   type SessionKind,
 } from '@/hooks/useStudentAssignments';
 import type { TurnInMap } from '@/hooks/useStudentTurnIns';
 import { getWindowState, isResourceAvailable } from '@/utils/assignmentWindow';
 import { isMissingStillOpen, type TurnInState } from '@/utils/studentTurnIn';
-import { hasResponseDoc } from '@/utils/studentResponseDoc';
+import { readsTurnIn } from '@/utils/studentResponseDoc';
 import { listBellPeriods, normalizePeriodKey } from '@/utils/bellSchedule';
 import type { ScheduleLookup } from '@/utils/studentClassOrder';
 import type { RosterBellPeriod } from '@/types';
@@ -58,11 +59,14 @@ export function landingRowState(
     return isResourceAvailable(a, nowMs) ? 'resource' : null;
   }
   const check = checks[a.compositeId];
-  const checkable = hasResponseDoc(a.kind);
+  const checkable = readsTurnIn(a);
   const turnIn: TurnInState | undefined = check?.turnIn;
-  if (isClosedProjectRun(a) || turnIn === 'turned-in') return 'turned-in';
+  if (isClosedUnsubmittableRun(a) || turnIn === 'turned-in') return 'turned-in';
+  // In no group yet, so nothing to submit: never Missing.
+  if (a.kind === 'projects' && turnIn === 'not-started')
+    return isClosedProjectRun(a) ? 'turned-in' : 'open';
 
-  if (isClosed(a, nowMs)) {
+  if (isClosed(a, nowMs) || isClosedProjectRun(a)) {
     if (check?.reopened && a.channel !== 'ended' && a.endedAt === undefined)
       return 'in-progress';
     // Ended rows wait for their check; one the student never opened needs a deadline to count as Missing.

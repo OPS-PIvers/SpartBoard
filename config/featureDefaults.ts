@@ -948,6 +948,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'project-submit': {
+    label: 'Project submit',
+    icon: ClipboardCheck,
+    description:
+      'Groups submit their project; teachers see Submitted, Late or Missing and can reopen.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Gradebook route and its data layer (docs/plans/GRADEBOOK.md D5).
   gradebook: {
     label: 'Gradebook',
@@ -1337,6 +1348,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     widget: 'music',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Embed setting for touch panels where a tap opens the embedded deck in a new tab.
+  'embed-block-new-tabs': {
+    label: 'Block new tabs in Embed',
+    icon: MonitorPlay,
+    description:
+      'Embed widgets get a setting that stops the embedded page from opening new tabs.',
+    stage: 'preview',
+    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,

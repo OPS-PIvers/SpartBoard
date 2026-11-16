@@ -4325,6 +4325,11 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-grading.writing-playback': {
+    label: 'Replay how the student wrote their answer in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-grading.comment': {
     label: 'Teacher comment box in the Quiz grader',
     perWidgetType: true,
@@ -11213,6 +11218,12 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     requires: 'widget-restored',
   },
+  'projects.group-reopen': {
+    label: 'Reopen a submitted group on the Projects board',
+    perWidgetType: true,
+    requires: 'widget-restored',
+    persists: true,
+  },
   'projects.step-cell': {
     label: 'Step status cell on the Projects board',
     perWidgetType: true,
@@ -11848,6 +11859,11 @@ export const TOUR_ANCHORS = {
   },
   'mini-app.results-back': {
     label: 'Back button in the Mini App results view',
+    perWidgetType: true,
+    panel: true,
+  },
+  'mini-app.archive-results': {
+    label: 'Results item in a Mini App assignment row menu',
     perWidgetType: true,
     panel: true,
   },

@@ -91,9 +91,16 @@ describe('readTurnInState', () => {
     expect(readTurnInState('mini-app', undefined, {})).toBe('turned-in');
   });
 
-  it('has no per-student state for walls and projects', () => {
+  it('has no per-student state for walls', () => {
     expect(readTurnInState('activity-wall', undefined, {})).toBe('not-started');
-    expect(readTurnInState('projects', undefined, {})).toBe('not-started');
+  });
+
+  it('reads a project from the student\u2019s own group doc', () => {
+    expect(readTurnInState('projects', undefined, null)).toBe('not-started');
+    expect(readTurnInState('projects', undefined, {})).toBe('in-progress');
+    expect(readTurnInState('projects', undefined, { submittedAt: 5 })).toBe(
+      'turned-in'
+    );
   });
 });
 

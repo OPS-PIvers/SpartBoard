@@ -70,6 +70,25 @@ export function parseCimdDocument(
   return { redirectUris, clientName: name };
 }
 
+/** Body text, or null once it passes MAX_DOC_BYTES; stops reading at the cap. */
+async function readCappedText(res: Response): Promise<string | null> {
+  if (!res.body) return null;
+  const reader = (res.body as ReadableStream<Uint8Array>).getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > MAX_DOC_BYTES) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks).toString('utf8');
+}
+
 export async function fetchCimdClient(
   clientId: string,
   now = Date.now()
@@ -84,8 +103,8 @@ export async function fetchCimdClient(
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
     if (!res.ok) return null;
-    const text = await res.text();
-    if (text.length > MAX_DOC_BYTES) return null;
+    const text = await readCappedText(res);
+    if (text === null) return null;
     const client = parseCimdDocument(clientId, JSON.parse(text) as unknown);
     if (!client) return null;
     if (docCache.size >= MAX_CACHED) docCache.clear();

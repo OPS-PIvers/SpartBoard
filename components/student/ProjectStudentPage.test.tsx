@@ -1,5 +1,11 @@
 import '@testing-library/jest-dom';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ProjectGroup, ProjectRun } from '@/types';
 import { ProjectStudentPage } from './ProjectStudentPage';
@@ -8,13 +14,25 @@ const h = vi.hoisted(() => ({
   run: null as ProjectRun | null,
   myGroup: null as ProjectGroup | null,
   setStepState: vi.fn((..._args: unknown[]) => Promise.resolve()),
+  signOut: vi.fn(),
+  submit: vi.fn((..._args: unknown[]) =>
+    Promise.resolve({ submittedAt: 1, late: false })
+  ),
+  confirm: vi.fn((..._args: unknown[]) => Promise.resolve(true)),
+}));
+
+vi.mock('@/context/useDialog', () => ({
+  useDialog: () => ({ showConfirm: h.confirm, showAlert: vi.fn() }),
+}));
+vi.mock('@/utils/projectRunWrites', () => ({
+  submitProjectGroup: h.submit,
 }));
 
 vi.mock('@/context/useStudentAuth', () => ({
   useStudentAuth: () => ({
     pseudonymUid: 'ps-1',
     classIds: ['class-1'],
-    signOut: vi.fn(),
+    signOut: h.signOut,
   }),
 }));
 vi.mock('@/hooks/useStudentProjectRun', () => ({
@@ -87,10 +105,27 @@ describe('ProjectStudentPage', () => {
     h.myGroup = makeGroup({});
   });
 
+  it('Done returns to My Assignments without signing the student out', () => {
+    const assign = vi.fn();
+    vi.stubGlobal('location', { ...window.location, assign });
+    try {
+      render(<ProjectStudentPage />);
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Done, back to my assignments' })
+      );
+      expect(assign).toHaveBeenCalledWith('/my-assignments');
+      expect(h.signOut).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('renders the own group row with its color and one cell per step', () => {
     render(<ProjectStudentPage />);
     expect(screen.getByRole('heading', { name: 'Team Rocket' })).toBeVisible();
-    expect(screen.getByTestId('own-group-edge')).toHaveClass('bg-rose-500');
+    expect(screen.getByTestId('own-group-name').firstElementChild).toHaveClass(
+      'bg-rose-500'
+    );
     expect(within(stepsList()).getAllByRole('listitem')).toHaveLength(3);
     expect(cell(/Research: Not started/)).toBeEnabled();
   });
@@ -98,7 +133,21 @@ describe('ProjectStudentPage', () => {
   it('falls back to the palette color by order when the group has none', () => {
     h.myGroup = makeGroup({ color: undefined, order: 0 });
     render(<ProjectStudentPage />);
-    expect(screen.getByTestId('own-group-edge')).toHaveClass('bg-blue-500');
+    expect(screen.getByTestId('own-group-name').firstElementChild).toHaveClass(
+      'bg-blue-500'
+    );
+  });
+
+  it('sends Tab from the picker back to its step', () => {
+    render(<ProjectStudentPage />);
+    fireEvent.click(cell(/Build: Not started/));
+    const picker = screen.getByRole('dialog', { name: 'Set Build' });
+    const options = within(picker).getAllByRole('button');
+    fireEvent.keyDown(document.activeElement ?? picker, { key: 'ArrowUp' });
+    expect(options[options.length - 1]).toHaveFocus();
+    fireEvent.keyDown(document.activeElement ?? picker, { key: 'Tab' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(cell(/Build: Not started/)).toHaveFocus();
   });
 
   it('writes the picked state in one tap', () => {
@@ -158,5 +207,56 @@ describe('ProjectStudentPage', () => {
     fireEvent.click(cell(/Research/));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(h.setStepState).not.toHaveBeenCalled();
+  });
+
+  describe('submitting', () => {
+    beforeEach(() => {
+      h.submit.mockClear();
+      h.confirm.mockClear();
+      h.confirm.mockResolvedValue(true);
+    });
+
+    it('offers no Submit on a run that takes no submissions', () => {
+      render(<ProjectStudentPage />);
+      expect(
+        screen.queryByRole('button', { name: 'Submit project' })
+      ).not.toBeInTheDocument();
+    });
+
+    it('submits for the group after a confirm that counts open steps', async () => {
+      h.run = makeRun({ studentSubmit: true });
+      h.myGroup = makeGroup({ stepStates: { s1: 'done' } });
+      render(<ProjectStudentPage />);
+      fireEvent.click(screen.getByRole('button', { name: 'Submit project' }));
+      await waitFor(() =>
+        expect(h.submit).toHaveBeenCalledWith('teacher_p1', 'g1')
+      );
+      expect(h.confirm).toHaveBeenCalledWith(
+        "2 steps aren't done yet. Everyone in Team Rocket will see it as submitted. You can't make changes after this.",
+        { title: 'Submit for your group?', confirmLabel: 'Submit' }
+      );
+    });
+
+    it('does nothing when the student cancels', async () => {
+      h.run = makeRun({ studentSubmit: true });
+      h.confirm.mockResolvedValue(false);
+      render(<ProjectStudentPage />);
+      fireEvent.click(screen.getByRole('button', { name: 'Submit project' }));
+      await waitFor(() => expect(h.confirm).toHaveBeenCalled());
+      expect(h.submit).not.toHaveBeenCalled();
+    });
+
+    it('locks the steps and says when it was submitted late', () => {
+      h.run = makeRun({ studentSubmit: true });
+      h.myGroup = makeGroup({ submittedAt: Date.now(), submittedLate: true });
+      render(<ProjectStudentPage />);
+      expect(screen.getByRole('status')).toHaveTextContent(/^Submitted late /);
+      expect(
+        screen.queryByRole('button', { name: 'Submit project' })
+      ).not.toBeInTheDocument();
+      for (const button of within(stepsList()).getAllByRole('button')) {
+        expect(button).toBeDisabled();
+      }
+    });
   });
 });

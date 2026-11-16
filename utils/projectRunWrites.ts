@@ -11,6 +11,8 @@ import {
   updateDoc,
   type Firestore,
 } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '@/config/firebase';
 import type {
   ProjectDefinition,
   ProjectGroupEvent,
@@ -144,7 +146,8 @@ export async function setRunAcceptingUpdates(
 export async function syncRunFromProject(
   db: Firestore,
   run: ProjectRun,
-  project: ProjectDefinition
+  project: ProjectDefinition,
+  studentSubmit = false
 ): Promise<void> {
   const payload: Record<string, unknown> = {
     title: project.title,
@@ -164,6 +167,40 @@ export async function syncRunFromProject(
 
   if (project.dueAt !== undefined) payload.dueAt = project.dueAt;
   else if (run.dueAt !== undefined) payload.dueAt = deleteField();
+  // A closed run never gains submissions, so its groups stay Turned in rather than Missing.
+  if (studentSubmit && run.acceptingUpdates) payload.studentSubmit = true;
 
   await updateDoc(doc(db, RUNS_COLLECTION, run.id), payload);
+}
+
+/** Submits for the whole group; the server checks membership and sets Late. */
+export async function submitProjectGroup(
+  runId: string,
+  groupId: string
+): Promise<{ submittedAt: number; late: boolean }> {
+  const call = httpsCallable<
+    { runId: string; groupId: string },
+    { submittedAt: number; late: boolean }
+  >(functions, 'submitProjectGroupV1');
+  return (await call({ runId, groupId })).data;
+}
+
+/** Teacher Reopen: clears the submission so the group can edit and submit again. */
+export async function reopenProjectGroup(
+  db: Firestore,
+  runId: string,
+  groupId: string,
+  teacherUid: string | undefined
+): Promise<void> {
+  await updateDoc(groupRef(db, runId, groupId), {
+    submittedAt: deleteField(),
+    submittedByUid: deleteField(),
+    submittedLate: deleteField(),
+    updatedAt: Date.now(),
+  });
+  await logProjectEvent(db, runId, groupId, teacherUid, {
+    actorRole: 'teacher',
+    kind: 'submission',
+    detail: 'reopened',
+  });
 }

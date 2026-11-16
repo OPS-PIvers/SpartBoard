@@ -813,6 +813,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "countdown#countToday",
       "countdown#includeWeekends",
       "drawing#shapeFill",
+      "embed#blockNewTabs",
       "flashcards#presentShuffle",
       "focus#hideNames",
       "lunchCount#isManualMode",
@@ -18019,6 +18020,31 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-grading.copy-response",
     "label": "Copy the whole student response in the Quiz grader",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.grader",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.writing-playback",
+    "label": "Replay how the student wrote their answer in the Quiz grader",
     "scope": "widget type",
     "panel": true,
     "keys": [
@@ -48882,6 +48908,31 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "projects.group-reopen",
+    "label": "Reopen a submitted group on the Projects board",
+    "scope": "widget type",
+    "persists": true,
+    "requires": "widget-restored",
+    "keys": [
+      "projects"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.projects.board",
+        "kind": "panel",
+        "widget_type": "projects",
+        "path": [
+          "library-shell.card-primary-action:projects#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "class",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "projects.step-cell",
     "label": "Step status cell on the Projects board",
     "scope": "widget type",
@@ -51708,6 +51759,29 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "widget",
         "widget_type": "miniApp",
         "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "mini-app.archive-results",
+    "label": "Results item in a Mini App assignment row menu",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "miniApp"
+    ],
+    "routes": [
+      {
+        "surface": "library.mini-app",
+        "kind": "widget",
+        "widget_type": "miniApp",
+        "path": [
+          "library-shell.archive-menu:miniApp#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:miniApp#row-1",
         "needs": [
           "widget-on-stage"
         ]

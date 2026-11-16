@@ -50,10 +50,51 @@ const isAnswerBox = (target: EventTarget | null): target is HTMLElement => {
 const isLongAnswer = (el: HTMLElement): boolean =>
   el instanceof HTMLTextAreaElement || el.isContentEditable;
 
+const BLOCK_TAGS = new Set([
+  'P',
+  'DIV',
+  'LI',
+  'UL',
+  'OL',
+  'BLOCKQUOTE',
+  'H1',
+  'H2',
+  'H3',
+  'H4',
+  'H5',
+  'H6',
+  'PRE',
+]);
+
+/** An answer box's text with one newline per line break; `innerText` doubles paragraph breaks. */
+export function editorPlainText(root: Node): string {
+  let out = '';
+  const walk = (node: Node) => {
+    for (const child of Array.from(node.childNodes)) {
+      if (child.nodeType === Node.TEXT_NODE) {
+        out += child.nodeValue ?? '';
+      } else if (child instanceof Element) {
+        if (child.tagName === 'BR') {
+          // A block's last <br> only holds its line open.
+          if (child.nextSibling || !BLOCK_TAGS.has(node.nodeName)) out += '\n';
+        } else if (BLOCK_TAGS.has(child.tagName)) {
+          if (out !== '' && !out.endsWith('\n')) out += '\n';
+          walk(child);
+          if (child.nextSibling) out += '\n';
+        } else {
+          walk(child);
+        }
+      }
+    }
+  };
+  walk(root);
+  return out;
+}
+
 const answerText = (el: HTMLElement): string =>
   el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement
     ? el.value
-    : el.innerText;
+    : editorPlainText(el);
 
 /** A side panel takes at least this much width, in px. */
 const PANEL_MIN_PX = 200;

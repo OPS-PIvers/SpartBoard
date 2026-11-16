@@ -4,6 +4,7 @@ import type { InputSignalCounts } from '@/types';
 import { parseWritingLog, textAfter } from '@/utils/writingLog';
 import { INPUT_SIGNALS_FLUSH_EVENT } from '@/utils/inputSignals';
 import {
+  editorPlainText,
   useInputSignals,
   type UseInputSignalsArgs,
 } from '@/hooks/useInputSignals';
@@ -171,6 +172,29 @@ describe('useInputSignals', () => {
     expect(textAfter(edits, edits.length)).toBe('cat');
   });
 
+  it('logs no unkeyed text when the editor turns a new line into a paragraph', () => {
+    const { save, unmount } = setup();
+    const box = document.createElement('div');
+    Object.defineProperty(box, 'isContentEditable', { value: true });
+    document.body.appendChild(box);
+    const edit = (html: string, inputType = 'insertText') => {
+      box.dispatchEvent(new InputEvent('beforeinput', { bubbles: true }));
+      box.innerHTML = html;
+      box.dispatchEvent(
+        new InputEvent('input', { bubbles: true, inputType, data: null })
+      );
+    };
+    edit('a');
+    edit('a<div><br></div>', 'insertParagraph');
+    // The editor rewrites the new <div> as a <p> with no input event.
+    box.innerHTML = 'a<p><br></p>';
+    edit('a<p>b</p>');
+    unmount();
+    const { edits } = parseWritingLog(save.mock.calls[0][1].q1.log);
+    expect(edits.map((e) => e.kind)).toEqual(['typed', 'typed', 'typed']);
+    expect(textAfter(edits, edits.length)).toBe('a\nb');
+  });
+
   it('counts a page that narrows while the window keeps its size', () => {
     const { save, unmount } = setup();
     const width = window.innerWidth;
@@ -267,5 +291,31 @@ describe('useInputSignals', () => {
     expect(save).toHaveBeenCalledExactlyOnceWith(0, {
       _: { browser: 'Firefox 131, Windows', profile: 'no-extension' },
     });
+  });
+});
+
+describe('editorPlainText', () => {
+  const textOf = (html: string) => {
+    const el = document.createElement('div');
+    el.innerHTML = html;
+    return editorPlainText(el);
+  };
+
+  it('gives one newline per Enter and two around a blank line', () => {
+    expect(textOf('<p>a</p><p>b</p>')).toBe('a\nb');
+    expect(textOf('<p>a</p><p><br></p><p>b</p>')).toBe('a\n\nb');
+    expect(textOf('a<div>b</div><div><br></div><div>c</div>')).toBe(
+      'a\nb\n\nc'
+    );
+  });
+
+  it('keeps a line break inside a paragraph and drops a closing one', () => {
+    expect(textOf('<p>a<br>b</p>')).toBe('a\nb');
+    expect(textOf('<p>a<br><br></p>')).toBe('a\n');
+    expect(textOf('<p>a</p><p><br></p>')).toBe('a\n');
+  });
+
+  it('puts list items on their own lines', () => {
+    expect(textOf('<ul><li>x</li><li>y</li></ul><p>z</p>')).toBe('x\ny\nz');
   });
 });

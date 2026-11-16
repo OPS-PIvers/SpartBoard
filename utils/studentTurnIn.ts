@@ -38,6 +38,10 @@ export function readTurnInState(
       return isNum(response.submittedAt) ? 'turned-in' : 'in-progress';
     case 'mini-app':
       return 'turned-in';
+    case 'projects':
+      return isNum(response.submittedAt) && response.submittedAt > 0
+        ? 'turned-in'
+        : 'in-progress';
     default:
       return 'not-started';
   }

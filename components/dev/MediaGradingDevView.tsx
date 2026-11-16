@@ -22,6 +22,7 @@ import {
 import { FreeResponseGrader } from '@/components/widgets/QuizWidget/components/FreeResponseGrader';
 import type {
   DrawableObject,
+  GlobalFeature,
   WhiteboardStartingPage,
   ArtifactArchiveEntry,
   QuizQuestion,
@@ -29,6 +30,35 @@ import type {
   ResponseArtifact,
 } from '@/types';
 import { type MediaGradingStateKey } from './devViewStates';
+import { WritingLogWriter } from '@/utils/writingLog';
+import { INPUT_SIGNALS_FEATURE } from '@/utils/inputSignals';
+
+/** A typed answer's edit log: typed key by key with one backspaced word and a pasted phrase. */
+function devWritingLog(text: string, pasteFrom?: number): string {
+  const w = new WritingLogWriter(undefined);
+  let prev = '';
+  let t = 0;
+  // A second session the next afternoon, from the 60th character on.
+  const start = Date.UTC(2026, 10, 16, 14, 5);
+  const step = (next: string, kind: 'typed' | 'pasted', gap: number) => {
+    t += gap;
+    const wall = start + t + (next.length > 60 ? 27 * 3_600_000 : 0);
+    w.write(prev, next, t, kind, 1e6, wall);
+    prev = next;
+  };
+  const end = pasteFrom ?? text.length;
+  for (let i = 1; i <= end; i++) {
+    if (i === 12) {
+      for (const c of 'wrng') step(prev + c, 'typed', 140);
+      for (let k = 0; k < 4; k++) step(prev.slice(0, -1), 'typed', 90);
+    }
+    step(text.slice(0, i), 'typed', text[i - 1] === ' ' ? 260 : 150);
+    if (i === 40) t += 12_000;
+    if (i === 95) t += 75_000;
+  }
+  if (pasteFrom !== undefined) step(text, 'pasted', 3_000);
+  return w.value;
+}
 
 // 0.2s of silence — enough for the transport to be real without a fixture file.
 const SILENT_WAV =
@@ -338,6 +368,20 @@ function makeResponses(state: MediaGradingStateKey): QuizResponse[] {
         answers: [
           { questionId: 'q3', answer: text, answeredAt: 1_700_000_000_000 },
         ],
+        ...(key === 'r-grace'
+          ? {}
+          : {
+              inputSignals: {
+                0: {
+                  q3: {
+                    log: devWritingLog(
+                      text.replace(/<[^>]+>/g, ''),
+                      key === 'r-kath' ? 120 : undefined
+                    ),
+                  },
+                },
+              },
+            }),
         grading: graded
           ? {
               q3: {
@@ -453,7 +497,13 @@ export const MediaGradingDevView: React.FC<{ state: MediaGradingStateKey }> = ({
             canAccessQuizMediaResponse: () => true,
             canAccessFeature: () => true,
           }
-        : auth,
+        : auth && state === 'typed'
+          ? {
+              ...auth,
+              canAccessFeature: (id: GlobalFeature) =>
+                id === INPUT_SIGNALS_FEATURE || auth.canAccessFeature(id),
+            }
+          : auth,
     [auth, state]
   );
 

@@ -383,6 +383,8 @@ export interface CreateAssignmentOptions extends AudienceSessionFields {
   /** Per-period gate; its questions move to `content/questions` until each period opens. */
   accessMode?: AccessMode;
   periodAccess?: Record<string, PeriodAccess>;
+  /** A Manual due date that allows late work, so no period locks at it. */
+  manualLate?: boolean;
 }
 
 const QUIZ_ASSIGNMENTS_COLLECTION = 'quiz_assignments';
@@ -1211,7 +1213,6 @@ export function gradeResponseForPublish(
         a.paperTranscript
       )
     );
-    if (result.state === 'awaiting-grade') awaitingGrade = true;
     if (
       representativeAnswers.get(a.questionId) !== a ||
       (baseServed && !baseServed.has(a.questionId))
@@ -1224,6 +1225,8 @@ export function gradeResponseForPublish(
     if (!servedIds || servedIds.has(a.questionId)) {
       pointsEarned += result.pointsEarned;
       pointsMax += result.pointsMax;
+      // An ungraded extra answer in a choose-N section is not scored, so it can't hold the score.
+      if (result.state === 'awaiting-grade') awaitingGrade = true;
     }
     return { ...a, isCorrect: result.isCorrect };
   });
@@ -1608,6 +1611,7 @@ export const useQuizAssignments = (
         gameDurationMs,
         paperBatchId,
         paperWritten,
+        manualLate,
       } = options ?? {};
       if (!userId) throw new Error('Not authenticated');
       const perPeriod =
@@ -1618,6 +1622,16 @@ export const useQuizAssignments = (
         accessMode === 'assessment' &&
         closeAt != null &&
         closeAt === settings.dueAt;
+      // `dueLocks: false` marks a Manual due with late work allowed, so edits still read it as Manual.
+      const dueLockField = dueLocks
+        ? { dueLocks: true }
+        : perPeriod &&
+            accessMode === 'assessment' &&
+            closeAt == null &&
+            settings.dueAt != null &&
+            manualLate === true
+          ? { dueLocks: false }
+          : {};
       const hasBankSlots = !!bankSlots && bankSlots.length > 0;
       // Review games draw per student too (plan D17).
       if (
@@ -1723,7 +1737,7 @@ export const useQuizAssignments = (
         // Per-period sessions carry each period's window instead of a shared one.
         ...(openAt != null && !perPeriod ? { openAt } : {}),
         ...(closeAt != null && !perPeriod ? { closeAt } : {}),
-        ...(dueLocks ? { dueLocks: true } : {}),
+        ...dueLockField,
         ...(settings.resolvedDriveFileId
           ? { resolvedDriveFileId: settings.resolvedDriveFileId }
           : {}),
@@ -1914,7 +1928,7 @@ export const useQuizAssignments = (
         // by `setAssignmentTargetsV1` (§2a ordering guarantee), never here.
         ...(openAt != null && !perPeriod ? { openAt } : {}),
         ...(closeAt != null && !perPeriod ? { closeAt } : {}),
-        ...(dueLocks ? { dueLocks: true } : {}),
+        ...dueLockField,
         ...(workKind ? { workKind } : {}),
         ...(paperWritten && !paperBatchId
           ? { paperWrittenQuestionIds: paperWritten.questionIds }

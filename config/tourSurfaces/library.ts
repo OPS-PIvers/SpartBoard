@@ -457,6 +457,7 @@ export const SURFACES: TourSurfaceMap = {
         'library-shell.archive-menu:miniApp#row-1',
       'mini-app.archive-publish-scores':
         'library-shell.archive-menu:miniApp#row-1',
+      'mini-app.archive-results': 'library-shell.archive-menu:miniApp#row-1',
       'mini-app.preview-open-editor': 'library-shell.card-open:miniApp#row-1',
     },
   },

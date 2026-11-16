@@ -2387,6 +2387,8 @@ export interface EmbedConfig {
   autoplay?: boolean;
   /** Start playback at this offset (seconds). YouTube only — Drive's /preview iframe ignores it. */
   startAtSeconds?: number;
+  /** Drops `allow-popups` from the iframe sandbox so taps can't open new tabs. */
+  blockNewTabs?: boolean;
 }
 
 export interface BuildingPollDefaults {
@@ -5523,7 +5525,7 @@ export interface PeriodAccessSessionFields {
   studentAccess?: Record<string, number>;
   /** Epoch ms of the last whole-session pause; see `PeriodAccess.pausedAt`. */
   pausedAt?: number;
-  /** Manual due date: every period locks at `dueAt`; a Start or Let in after it is late. */
+  /** Manual due date: true locks every period at `dueAt`; false allows late work past it. */
   dueLocks?: boolean;
   /** Reopened after End for these student uids only; cleared on End or a whole reopen. */
   reopenedFor?: string[];
@@ -10338,6 +10340,8 @@ export interface ProjectRun extends SessionWorkKindFields {
   /** Retired: students only ever see their own group. Old runs keep it until backfilled. */
   showStatusToStudents?: boolean;
   acceptingUpdates: boolean;
+  /** Groups can submit; set when a teacher with the project-submit preview starts or edits the run. */
+  studentSubmit?: boolean;
   /** D42 — absent on runs made before the field existed. */
   createdAt?: number;
   updatedAt: number;
@@ -10364,6 +10368,11 @@ export interface ProjectGroup {
    * that is what makes the per-step approval ceiling enforceable.
    */
   lastStepChange?: { stepId: string; at: number };
+  /** Set by `submitProjectGroupV1` for the whole group; the teacher's Reopen clears it. */
+  submittedAt?: number;
+  submittedByUid?: string;
+  /** Submitted after the run's due date. */
+  submittedLate?: boolean;
   updatedAt: number;
 }
 
@@ -10414,7 +10423,7 @@ export interface ProjectGroupEvent {
   at: number;
   actorUid: string;
   actorRole: 'student' | 'teacher';
-  kind: 'stepState' | 'workLink' | 'upload' | 'membership';
+  kind: 'stepState' | 'workLink' | 'upload' | 'membership' | 'submission';
   stepId?: string;
   from?: ProjectStepState;
   to?: ProjectStepState;
@@ -11339,6 +11348,8 @@ export type GlobalFeature =
   | 'quiz-monitor-roster'
   /** Quiz setting that shows students their score as soon as they submit. */
   | 'quiz-score-on-submit'
+  /** Projects: a group submits its project; the teacher sees Submitted, Late or Missing and can reopen. */
+  | 'project-submit'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */
   | 'gradebook'
   /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */
@@ -11397,6 +11408,8 @@ export type GlobalFeature =
   | 'flashcards-speak'
   /** Teachers add their own YouTube songs to the Music widget's station list. */
   | 'music-my-songs'
+  /** Embed widget setting that stops the embedded page from opening new tabs. */
+  | 'embed-block-new-tabs'
   /** Connect button on widget toolbars: Sequences and Follows between widgets (docs/adr/0002). */
   | 'widget-connections'
   /** Copy, paste and print blocking and fullscreen on quiz and video activity pages (CHROME_EXTENSION.md F14). */
