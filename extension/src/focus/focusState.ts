@@ -150,8 +150,7 @@ export function statusFor(
 ): FocusReportedStatus {
   if (session.level === 'lock' && !session.released && !fullscreen)
     return 'away';
-  return url &&
-    isBlockedTopLevel(url, session.sites, origins, ownPages, opened)
+  return url && isBlockedTopLevel(url, session.sites, origins, ownPages, opened)
     ? 'away'
     : 'on-task';
 }
