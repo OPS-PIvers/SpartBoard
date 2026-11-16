@@ -57,6 +57,7 @@ import {
   CloudSun,
   Workflow,
   SquareChevronDown,
+  Split,
   CalendarClock,
   MessageSquare,
 } from 'lucide-react';
@@ -632,6 +633,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: SquareChevronDown,
     description:
       'Stimuli, learning targets and DOK use the same field style as Type.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Flashcards accepted answers as rows. Admin-only until Paul has tested it in prod.
+  'flashcard-answer-rows': {
+    label: 'Flashcards answer rows',
+    icon: Split,
+    description:
+      'Each accepted answer gets its own row, and slash shorthand spells out into rows.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

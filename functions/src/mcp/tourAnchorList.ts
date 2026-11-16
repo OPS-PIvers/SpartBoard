@@ -50169,6 +50169,40 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "flashcards.card-term-alternate",
+    "label": "Add accepted answer button on a term in the Flashcards editor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards",
+        "kind": "widget",
+        "widget_type": "flashcards",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.card-definition-alternate",
+    "label": "Add accepted answer button on a definition in the Flashcards editor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards",
+        "kind": "widget",
+        "widget_type": "flashcards",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "flashcards.card-insert",
     "label": "Add card button between cards in the Flashcards editor",
     "scope": "field",

@@ -2677,6 +2677,8 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'flashcards.card-move': ['library.flashcards.editor'],
     'flashcards.card-term': ['library.flashcards.editor'],
     'flashcards.card-definition': ['library.flashcards.editor'],
+    'flashcards.card-term-alternate': ['library.flashcards'],
+    'flashcards.card-definition-alternate': ['library.flashcards'],
     'flashcards.card-insert': ['library.flashcards.editor'],
     'flashcards.card-delete': ['library.flashcards.editor'],
     'flashcards.editor-paste': ['library.flashcards.editor'],
