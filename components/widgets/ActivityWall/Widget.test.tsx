@@ -518,6 +518,28 @@ describe('ActivityWallWidget', () => {
     });
   });
 
+  it('puts the student link in the failure toast when the clipboard refuses', async () => {
+    const writeText = vi.fn().mockRejectedValue(new Error('denied'));
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+    renderWidget();
+    await waitFor(() =>
+      expect(getWidgetShareLink('widget-1')).toContain('teacher-1_wall-1')
+    );
+    await userEvent.click(await screen.findByRole('button', { name: 'Share' }));
+    const [copy] = await screen.findAllByRole('button', {
+      name: 'Copy student link',
+    });
+    await userEvent.click(copy);
+    await waitFor(() => expect(writeText).toHaveBeenCalled());
+    expect(mockAddToast).toHaveBeenLastCalledWith(
+      expect.stringContaining('teacher-1_wall-1'),
+      'error'
+    );
+  });
+
   it('shows the empty state and opens the library when no wall is active', async () => {
     mockLibraryEntries.current = [];
     render(

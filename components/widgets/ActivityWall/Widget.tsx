@@ -44,6 +44,7 @@ import {
 import { followConnection } from '@/utils/connectionEngine';
 import { hasConnectionTab } from '@/components/connections/connectionSummary';
 import { usePublishWidgetShareLink } from '@/utils/widgetShareLinks';
+import { copyText } from '@/utils/copyText';
 import {
   useLinkedShareHost,
   useLinkedShareMemberName,
@@ -504,11 +505,10 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
 
   const copyStudentLink = useCallback(async () => {
     if (!studentUrl) return;
-    try {
-      await navigator.clipboard.writeText(studentUrl);
+    if (await copyText(studentUrl)) {
       addToast('Student link copied!', 'success');
-    } catch {
-      addToast('Could not copy link. Please copy manually.', 'error');
+    } else {
+      addToast(`Could not copy. Student link: ${studentUrl}`, 'error');
     }
   }, [addToast, studentUrl]);
 
