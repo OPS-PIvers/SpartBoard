@@ -172,6 +172,29 @@ describe('useInputSignals', () => {
     expect(textAfter(edits, edits.length)).toBe('cat');
   });
 
+  it('logs no unkeyed text when the editor turns a new line into a paragraph', () => {
+    const { save, unmount } = setup();
+    const box = document.createElement('div');
+    Object.defineProperty(box, 'isContentEditable', { value: true });
+    document.body.appendChild(box);
+    const edit = (html: string, inputType = 'insertText') => {
+      box.dispatchEvent(new InputEvent('beforeinput', { bubbles: true }));
+      box.innerHTML = html;
+      box.dispatchEvent(
+        new InputEvent('input', { bubbles: true, inputType, data: null })
+      );
+    };
+    edit('a');
+    edit('a<div><br></div>', 'insertParagraph');
+    // The editor rewrites the new <div> as a <p> with no input event.
+    box.innerHTML = 'a<p><br></p>';
+    edit('a<p>b</p>');
+    unmount();
+    const { edits } = parseWritingLog(save.mock.calls[0][1].q1.log);
+    expect(edits.map((e) => e.kind)).toEqual(['typed', 'typed', 'typed']);
+    expect(textAfter(edits, edits.length)).toBe('a\nb');
+  });
+
   it('counts a page that narrows while the window keeps its size', () => {
     const { save, unmount } = setup();
     const width = window.innerWidth;
