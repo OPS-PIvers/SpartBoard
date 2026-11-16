@@ -265,6 +265,7 @@ import {
 import { TeacherPreviewBanner } from '@/components/student/TeacherPreviewBanner';
 import { useStaffAudienceGate } from '@/components/student/useStaffAudienceGate';
 import { usePreviewMode } from '@/hooks/usePreviewMode';
+import { getAssignmentWidgetKind } from '@/utils/quizWidgetKind';
 import { ResultsWatermark } from './ResultsWatermark';
 import { ResultsTabWarningModal } from './ResultsTabWarningModal';
 import { useResultsTabWarnings } from '@/hooks/useResultsTabWarnings';
@@ -6188,7 +6189,12 @@ const ResultsScreen: React.FC<{
   return (
     <div className="h-screen h-dvh overflow-y-auto bg-slate-900">
       <div className="min-h-full flex flex-col items-center justify-center p-6 text-center">
-        <Trophy className="w-16 h-16 text-amber-400 mb-6" />
+        {getAssignmentWidgetKind(session) === 'review' && (
+          <Trophy
+            className="w-16 h-16 text-amber-400 mb-6"
+            aria-hidden="true"
+          />
+        )}
         <h1 className="text-3xl font-black text-white mb-2">
           {t('quizStudent.results.complete')}
         </h1>
@@ -6361,6 +6367,8 @@ export const PublishedScoreReview: React.FC<{
   const answerIncorrectText = light ? 'text-red-600' : 'text-red-300';
   const answerNeutralText = light ? 'text-slate-700' : 'text-slate-200';
   const trophyCls = light ? 'text-amber-500' : 'text-amber-400';
+  // Trophy belongs to Review games only; Quiz is an assessment.
+  const isReviewGame = getAssignmentWidgetKind(session) === 'review';
   const checkIconCls = light ? 'text-emerald-600' : 'text-emerald-400';
   const xIconCls = light ? 'text-red-500' : 'text-red-400';
 
@@ -6630,7 +6638,12 @@ export const PublishedScoreReview: React.FC<{
       />
       <div className="mx-auto w-full max-w-6xl">
         <header className="mb-6 flex flex-col items-center text-center">
-          <Trophy className={`mb-4 h-12 w-12 ${trophyCls}`} />
+          {isReviewGame && (
+            <Trophy
+              className={`mb-4 h-12 w-12 ${trophyCls}`}
+              aria-hidden="true"
+            />
+          )}
           <h1 className={`text-2xl font-black sm:text-3xl ${headingText}`}>
             {t('quizStudent.results.title')}
           </h1>
