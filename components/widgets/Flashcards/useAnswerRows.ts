@@ -56,17 +56,15 @@ export const useAnswerRows = (
     rows,
     valueAt: (row) => (draft?.row === row ? draft.text : (rows[row] ?? '')),
     change: (row, value) => {
-      if (/[/;]/u.test(value)) {
-        setDraft({ row, text: value });
-        return;
-      }
-      setDraft(null);
-      write(rows.map((current, i) => (i === row ? value : current)));
+      const next = rows.map((current, i) => (i === row ? value : current));
+      setDraft(/[/;]/u.test(value) ? { row, text: value } : null);
+      // A spaced " / " would split rows mid-typing, so only that waits for blur.
+      if (!value.includes(' / ')) write(next);
     },
     commit: (row) => {
       const value = draft?.row === row ? draft.text : rows[row];
       setDraft(null);
-      if (value === undefined) return;
+      if (value === undefined || !/[/;]/u.test(value)) return;
       const expanded = expandAnswerRows(value, language);
       write([...rows.slice(0, row), ...expanded, ...rows.slice(row + 1)]);
     },
