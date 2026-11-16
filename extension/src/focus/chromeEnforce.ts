@@ -90,6 +90,15 @@ async function openedTabIds(): Promise<Set<number>> {
   );
 }
 
+// Only a page or an extension can make a popup window, so a blank tab there counts as opened.
+const isPopupWindow = (windowId: number | undefined) =>
+  windowId === undefined
+    ? Promise.resolve(false)
+    : chrome.windows
+        .get(windowId)
+        .then((w) => w.type === chrome.windows.WindowType.POPUP)
+        .catch(() => false);
+
 const allTabs = async (): Promise<TabInfo[]> => {
   const [tabs, own, opened] = await Promise.all([
     chrome.tabs.query({}),
@@ -106,7 +115,10 @@ const allTabs = async (): Promise<TabInfo[]> => {
           t.pendingUrl || t.url || own.get(t.id) || (await topFrameUrl(t.id)),
         active: t.active,
         lastAccessed: t.lastAccessed ?? 0,
-        opened: t.openerTabId !== undefined || opened.has(t.id),
+        opened:
+          t.openerTabId !== undefined ||
+          opened.has(t.id) ||
+          (await isPopupWindow(t.windowId)),
       };
     })
   );
@@ -208,7 +220,9 @@ export function createChromeEnforcer(deps: {
     const key = `${OPENED_KEY_PREFIX}${tabId}`;
     if ((await chrome.storage.session.get(key))[key]) return true;
     const tab = await chrome.tabs.get(tabId).catch(() => undefined);
-    return tab?.openerTabId !== undefined;
+    return (
+      tab?.openerTabId !== undefined || (await isPopupWindow(tab?.windowId))
+    );
   };
 
   const rememberTab = (tabId: number, url: string) =>
