@@ -155,7 +155,11 @@ export const StudentLandingV2: React.FC<StudentLandingV2Props> = ({
       onLockedClick={onLockedClick}
       onOpenGradeOnly={onOpenGradeOnly}
       notice={notice}
-      classTop={<ClassPageAgenda view={classPage} />}
+      classTop={
+        classPage.agendas.length || classPage.links.length ? (
+          <ClassPageAgenda view={classPage} />
+        ) : undefined
+      }
     />
   );
 };

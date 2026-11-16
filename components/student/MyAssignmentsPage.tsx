@@ -104,30 +104,34 @@ const MyAssignmentsPage: React.FC = () => {
     initialPath.tab === 'grades' ? 'completed' : 'assignments'
   );
 
-  const [courseLinkDone, setCourseLinkDone] = useState(
-    initialPath.courseLinkId === null
-  );
+  // The link's answer is frozen once, so a later claim refresh never fights the student's view.
+  const [courseLinkPick, setCourseLinkPick] = useState<{
+    done: boolean;
+    classId: string | null;
+  }>({ done: initialPath.courseLinkId === null, classId: null });
+  const courseLinkDone = courseLinkPick.done;
 
   // A class from the URL or a tap is the student's pick; auto-select never overrides it.
   const [picked, setPicked] = useState(initialPath.classId !== null);
   if (!courseLinkDone && courseLink.status !== 'loading') {
-    setCourseLinkDone(true);
-    if (courseLink.status === 'found') {
+    const classId = courseLink.status === 'found' ? courseLink.classId : null;
+    setCourseLinkPick({ done: true, classId });
+    if (classId) {
       setPicked(true);
-      setActiveClassId(courseLink.classId);
+      setActiveClassId(classId);
     }
   }
-  const courseLinkClassId =
-    courseLink.status === 'found' ? courseLink.classId : null;
-  const courseLinkMissing = courseLink.status === 'missing';
+  const resolvedLink = initialPath.courseLinkId !== null && courseLinkDone;
+  const linkPathClassId = gradesEnabled ? courseLinkPick.classId : null;
   useEffect(() => {
-    if (!courseLinkClassId && !courseLinkMissing) return;
+    if (!resolvedLink) return;
+    // Class in the URL only where the page keeps it in sync (syncPath).
     window.history.replaceState(
       null,
       '',
-      myAssignmentsPath(courseLinkClassId, 'assignments')
+      myAssignmentsPath(linkPathClassId, 'assignments')
     );
-  }, [courseLinkClassId, courseLinkMissing]);
+  }, [resolvedLink, linkPathClassId]);
   const [autoSelectDone, setAutoSelectDone] = useState(false);
   const autoSelectReady =
     directory.status === 'ready' && bell.status !== 'loading' && courseLinkDone;

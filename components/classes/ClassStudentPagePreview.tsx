@@ -259,7 +259,8 @@ export const ClassStudentPageView: React.FC<ClassStudentPageViewProps> = ({
             onLockedClick={(a) => open(a.kind, a.sessionId)}
             onOpenGradeOnly={onOpenGradeOnly}
             classTop={
-              classPage ? (
+              classPage &&
+              (classPage.agendas.length || classPage.links.length) ? (
                 <ClassPageAgenda
                   view={classPage}
                   embedUrlFor={agendaEmbedUrlFor}

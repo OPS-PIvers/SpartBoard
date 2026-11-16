@@ -242,7 +242,8 @@ describe('MyAssignmentsPage bell period', () => {
     render(<MyAssignmentsPage />);
     expect(courseLinkArgs[0]?.[0]).toBe('link-1');
     expect(heading()).toBe('Art');
-    expect(window.location.pathname).toBe('/my-assignments/ART');
+    // Grades are off, so the class stays out of the URL as elsewhere on the page.
+    expect(window.location.pathname).toBe('/my-assignments');
   });
 
   it('waits on a Course link, then falls back to the class in session', () => {
