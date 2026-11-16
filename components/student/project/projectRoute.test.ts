@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { parseProjectRunId, projectHref } from './projectRoute';
+import {
+  parseProjectRunId,
+  projectBackHref,
+  projectHref,
+} from './projectRoute';
 
 describe('projectHref', () => {
   it('escapes a run id so a odd project id cannot break the path', () => {
@@ -27,5 +31,29 @@ describe('parseProjectRunId', () => {
 
   it('returns null for a malformed escape rather than throwing', () => {
     expect(parseProjectRunId('/project/%E0%A4%A')).toBeNull();
+  });
+});
+
+describe('projectBackHref', () => {
+  const origin = 'https://spartboard.web.app';
+
+  it('returns to the class page the student came from', () => {
+    expect(projectBackHref(`${origin}/my-assignments/c%201`, origin)).toBe(
+      '/my-assignments/c%201'
+    );
+    expect(projectBackHref(`${origin}/my-assignments`, origin)).toBe(
+      '/my-assignments'
+    );
+  });
+
+  it('falls back to /my-assignments for any other referrer', () => {
+    expect(projectBackHref('', origin)).toBe('/my-assignments');
+    expect(projectBackHref('https://evil.example/my-assignments', origin)).toBe(
+      '/my-assignments'
+    );
+    expect(projectBackHref(`${origin}/my-assignmentsx`, origin)).toBe(
+      '/my-assignments'
+    );
+    expect(projectBackHref(`${origin}/quiz`, origin)).toBe('/my-assignments');
   });
 });

@@ -217,6 +217,11 @@ export const SETTINGS_FIELD_LIST: Readonly<
       label: 'Auto-Refresh',
       kind: 'select',
     },
+    {
+      anchor: 'settings.toggle:embed#blockNewTabs',
+      label: 'Block embedded content from opening new tabs',
+      kind: 'toggle',
+    },
   ],
   lunchCount: [
     {

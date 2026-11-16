@@ -59,7 +59,9 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     zoom = 1,
     autoplay = false,
     startAtSeconds,
+    blockNewTabs = false,
   } = config;
+  const blockPopups = blockNewTabs && canAccessFeature('embed-block-new-tabs');
 
   const ZOOM_STEPS = [
     0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 0.75, 0.8, 0.9, 1.0, 1.25, 1.5, 1.75,
@@ -260,7 +262,9 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   }, [refreshInterval]);
 
   const sandbox = React.useMemo(() => {
-    let base = 'allow-scripts allow-forms allow-popups';
+    let base = blockPopups
+      ? 'allow-scripts allow-forms'
+      : 'allow-scripts allow-forms allow-popups';
     if (mode === 'url') {
       base += ' allow-modals';
       try {
@@ -284,7 +288,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       }
     }
     return base;
-  }, [mode, embedUrl, globalConfig?.whitelistUrls]);
+  }, [mode, embedUrl, globalConfig?.whitelistUrls, blockPopups]);
 
   const handleGenerateMiniApp = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -650,7 +654,18 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             </div>
           ) : (
             <div className="flex-1 relative overflow-hidden">
-              {displayMode === 'code' ? (
+              {displayMode === 'code' && blockPopups ? (
+                <iframe
+                  key={`code-blocked-${refreshKey}`}
+                  title="Embed Content"
+                  srcDoc={html}
+                  className="absolute top-0 left-0 border-none block"
+                  style={zoomStyle}
+                  sandbox="allow-scripts allow-forms"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                />
+              ) : displayMode === 'code' ? (
                 <iframe
                   key={`code-${refreshKey}`}
                   title="Embed Content"
@@ -663,7 +678,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 />
               ) : (
                 <iframe
-                  key={`url-${refreshKey}`}
+                  key={`url-${refreshKey}-${sandbox}`}
                   title="Embed Content"
                   src={finalEmbedUrl}
                   className="absolute top-0 left-0 border-none block"

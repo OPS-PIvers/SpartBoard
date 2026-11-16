@@ -414,6 +414,7 @@ var WIDGET_DEFAULTS = {
       mode: 'url',
       html: '',
       refreshInterval: 0,
+      blockNewTabs: false,
     },
   },
   poll: {
