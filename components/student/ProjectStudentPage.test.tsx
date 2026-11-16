@@ -106,7 +106,9 @@ describe('ProjectStudentPage', () => {
   it('renders the own group row with its color and one cell per step', () => {
     render(<ProjectStudentPage />);
     expect(screen.getByRole('heading', { name: 'Team Rocket' })).toBeVisible();
-    expect(screen.getByTestId('own-group-edge')).toHaveClass('bg-rose-500');
+    expect(screen.getByTestId('own-group-name').firstElementChild).toHaveClass(
+      'bg-rose-500'
+    );
     expect(within(stepsList()).getAllByRole('listitem')).toHaveLength(3);
     expect(cell(/Research: Not started/)).toBeEnabled();
   });
@@ -114,7 +116,21 @@ describe('ProjectStudentPage', () => {
   it('falls back to the palette color by order when the group has none', () => {
     h.myGroup = makeGroup({ color: undefined, order: 0 });
     render(<ProjectStudentPage />);
-    expect(screen.getByTestId('own-group-edge')).toHaveClass('bg-blue-500');
+    expect(screen.getByTestId('own-group-name').firstElementChild).toHaveClass(
+      'bg-blue-500'
+    );
+  });
+
+  it('sends Tab from the picker back to its step', () => {
+    render(<ProjectStudentPage />);
+    fireEvent.click(cell(/Build: Not started/));
+    const picker = screen.getByRole('dialog', { name: 'Set Build' });
+    const options = within(picker).getAllByRole('button');
+    fireEvent.keyDown(document.activeElement ?? picker, { key: 'ArrowUp' });
+    expect(options[options.length - 1]).toHaveFocus();
+    fireEvent.keyDown(document.activeElement ?? picker, { key: 'Tab' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(cell(/Build: Not started/)).toHaveFocus();
   });
 
   it('writes the picked state in one tap', () => {

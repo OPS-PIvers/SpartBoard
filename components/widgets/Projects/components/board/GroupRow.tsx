@@ -44,8 +44,7 @@ interface GroupRowProps {
 }
 
 const CELL_PAD = 'min(3px, 0.8cqmin) min(3px, 0.8cqmin)';
-const NAME_PAD =
-  'min(3px, 0.8cqmin) min(8px, 1.8cqmin) min(3px, 0.8cqmin) min(12px, 2.6cqmin)';
+const NAME_PAD = 'min(3px, 0.8cqmin) min(8px, 1.8cqmin)';
 
 export const GroupRow: React.FC<GroupRowProps> = ({
   group,
@@ -102,15 +101,6 @@ export const GroupRow: React.FC<GroupRowProps> = ({
           className="sticky left-0 z-1 w-px whitespace-nowrap text-left align-middle font-normal"
           style={{ ...stickyStyle, padding: NAME_PAD }}
         >
-          <span
-            aria-hidden
-            className={`absolute left-0 rounded-full ${color}`}
-            style={{
-              top: '12%',
-              bottom: '12%',
-              width: 'min(5px, 1.2cqmin)',
-            }}
-          />
           {readOnly || !runId ? (
             nameChip
           ) : (
