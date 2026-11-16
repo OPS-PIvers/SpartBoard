@@ -6252,6 +6252,8 @@ export interface QuizLiveLogEntry {
 export interface QuizScorePoints {
   earned: number;
   possible: number;
+  /** The `completedAttempts` these points scored; a retake leaves them stale. */
+  attempt: number;
 }
 
 export interface QuizResponse extends StaffResponseFields {

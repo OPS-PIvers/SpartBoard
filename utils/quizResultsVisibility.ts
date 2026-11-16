@@ -174,10 +174,13 @@ export const resultsExpiryFromPreset = (
 
 /** Points behind a published score, or null when absent or stale (a path rewrote `score` alone). */
 export function publishedScorePoints(
-  response: Partial<Pick<QuizResponse, 'score' | 'scorePoints'>>
+  response: Partial<
+    Pick<QuizResponse, 'score' | 'scorePoints' | 'completedAttempts'>
+  >
 ): { earned: number; possible: number } | null {
   const points = response.scorePoints;
   if (typeof response.score !== 'number' || !points) return null;
+  if (points.attempt !== (response.completedAttempts ?? 0)) return null;
   const { earned, possible } = points;
   if (typeof earned !== 'number' || typeof possible !== 'number') return null;
   if (!(possible > 0) || earned < 0 || earned > possible) return null;

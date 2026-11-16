@@ -110,7 +110,7 @@ export function scoreAttempt(
 ): {
   score: number;
   answers: ScoreOnSubmitAnswer[];
-  points: { earned: number; possible: number };
+  points: { earned: number; possible: number; attempt: number };
 } | null {
   const answers = (
     Array.isArray(response.answers) ? response.answers : []
@@ -174,7 +174,14 @@ export function scoreAttempt(
   return {
     score: max === 0 ? 0 : Math.round((earned / max) * 100),
     answers: graded,
-    points: { earned, possible: max },
+    points: {
+      earned,
+      possible: max,
+      attempt:
+        typeof response.completedAttempts === 'number'
+          ? response.completedAttempts
+          : 0,
+    },
   };
 }
 
