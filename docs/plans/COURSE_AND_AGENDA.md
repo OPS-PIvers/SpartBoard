@@ -20,28 +20,28 @@ Non-goals for this plan:
 
 ## 2. Decisions
 
-| #   | Decision               | Choice                                                                                                                                                                  |
-| --- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| D1  | Course                 | Teacher-owned, optional link above ClassLink sections. An unlinked section is a Course of one. Rosters, periods, due dates and grades stay with the section (ADR 0008)  |
-| D2  | Who it is for          | Grades 6 to 12. Elementary homerooms and specialists are out of this plan and revisited after the pilot                                                                 |
-| D3  | Where it is set up     | My Classes in the sidebar: linking suggestions, and each Course's Agenda and pinned links. The Agenda widget links to the same setup when a Course has no Agenda        |
-| D4  | Linking suggestions    | Suggested from matching ClassLink titles ("English 9: link these 3 sections?"). Nothing links until the teacher confirms                                                |
-| D5  | Unlinking              | The unlinked section becomes its own Course with a copy of the Agenda and pinned links, so nothing disappears from students                                             |
-| D6  | Agenda source          | The teacher's existing file, chosen with the Google Picker. One running deck per Course                                                                                 |
-| D7  | File type              | Google Slides in v1                                                                                                                                                     |
-| D8  | Today's slide          | Always the first slide. Setup tells the teacher to add each new day at the top of the deck                                                                              |
-| D9  | File sharing           | SpartBoard checks the file's sharing and offers to fix it, saying in plain words what changes. The teacher confirms before anything changes                             |
-| D10 | Sharing levels         | "Anyone in Orono with the link" for students. "Anyone with the link" only when the family link is switched on                                                           |
-| D11 | Class page             | The existing per-class page in My Assignments (`/my-assignments/{classId}`). Agenda and pinned links sit above the Assignments, Resources and Completed tabs            |
-| D12 | Pinned links           | A short list on the Course, title and address each, at most 6. Shown on the Class page and the family link                                                              |
-| D13 | Family link            | One per Course, public, no sign-in. Shows the Course name, the Agenda and pinned links only                                                                             |
-| D14 | Family link control    | Off until the teacher switches it on, and can be switched off. The address never changes, so a link pinned elsewhere works again when switched back on. No reset button |
-| D15 | Search engines         | The family page is marked `noindex`                                                                                                                                     |
-| D16 | Board                  | A new Agenda widget in the Dock with a Course picker on the widget. It does not read the active class                                                                   |
-| D17 | Existing agenda widget | `arts-letters-agenda` is a K to 5 checklist and stays as it is                                                                                                          |
-| D18 | LMS                    | The teacher pins the Class page link (and the family link, if on) in Schoology or Classroom once. Nothing here needs an LMS course (ADR 0009)                           |
-| D19 | Rollout                | Behind a flag, on for admins first. Then a volunteer pilot of current daily users across the middle and high school                                                     |
-| D20 | Pilot success          | Most pilot teachers still have a current Agenda after 3 weeks without reminders. Then it opens to all secondary staff                                                   |
+| #   | Decision               | Choice                                                                                                                                                                                                             |
+| --- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| D1  | Course                 | Teacher-owned, optional link above ClassLink sections. An unlinked section is a Course of one. Rosters, periods, due dates and grades stay with the section (ADR 0008)                                             |
+| D2  | Who it is for          | Grades 6 to 12. Elementary homerooms and specialists are out of this plan and revisited after the pilot                                                                                                            |
+| D3  | Where it is set up     | My Classes in the sidebar: linking suggestions, and each Course's Agenda and pinned links. The Agenda widget links to the same setup when a Course has no Agenda                                                   |
+| D4  | Linking suggestions    | Suggested from matching ClassLink titles ("English 9: link these 3 sections?"). Nothing links until the teacher confirms                                                                                           |
+| D5  | Unlinking              | The unlinked section becomes its own Course with a copy of the Agenda and pinned links, so nothing disappears from students                                                                                        |
+| D6  | Agenda source          | The teacher's existing file, chosen with the Google Picker. One running deck per Course                                                                                                                            |
+| D7  | File type              | Google Slides in v1                                                                                                                                                                                                |
+| D8  | Today's slide          | Always the first slide. Setup tells the teacher to add each new day at the top of the deck                                                                                                                         |
+| D9  | File sharing           | SpartBoard checks the file's sharing and offers to fix it, saying in plain words what changes. The teacher confirms before anything changes                                                                        |
+| D10 | Sharing levels         | "Anyone in Orono with the link" for students. "Anyone with the link" only when the family link is switched on, after a confirm that says every slide in the deck, past days included, becomes public               |
+| D11 | Class page             | The existing per-class page in My Assignments (`/my-assignments/{classId}`). Agenda and pinned links sit above the Assignments, Resources and Completed tabs                                                       |
+| D12 | Pinned links           | A short list on the Course, title and address each, at most 6. Shown on the Class page and the family link                                                                                                         |
+| D13 | Family link            | One per Course, public, no sign-in. Shows the Course name, the Agenda and pinned links only. SpartBoard adds no student data, but cannot check what is on the slides                                               |
+| D14 | Family link control    | Off until the teacher switches it on, and can be switched off. The address never changes, so a link pinned elsewhere works again when switched back on. No reset button                                            |
+| D15 | Search engines         | The family page is marked `noindex`                                                                                                                                                                                |
+| D16 | Board                  | A new Agenda widget in the Dock with a Course picker on the widget. It does not read the active class                                                                                                              |
+| D17 | Existing agenda widget | `arts-letters-agenda` is a K to 5 checklist and stays as it is                                                                                                                                                     |
+| D18 | LMS                    | The teacher pins one Class page link per Course (and the family link, if on) in Schoology or Classroom once. The link opens each student's own section in that Course. Nothing here needs an LMS course (ADR 0009) |
+| D19 | Rollout                | Behind a flag, on for admins first. Then a volunteer pilot of current daily users across the middle and high school                                                                                                |
+| D20 | Pilot success          | Most pilot teachers still have a current Agenda after 3 weeks without reminders. Then it opens to all secondary staff                                                                                              |
 
 Defaults I chose that were not asked; say if any is wrong:
 
@@ -73,14 +73,14 @@ A section with no Course document behaves as a Course of one; a Course document 
 
 Five PRs, three waves. Each new collection's rules ride in their own PR because a PR may grow the compiled Firestore rules by only 1,500 bytes (`.claude/rules/firestore-rules.md`).
 
-| Wave | PR                 | What                                                                                                                                                              | Agent model                                  |
-| ---- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
-| 1    | A. Course          | The type, the `courses` collection and rules, linking suggestions, link, unlink and rename in My Classes, and the flag                                            | Strongest: it fixes the data shape and rules |
-| 1    | B. Agenda setup    | Stacked on A. Pick the Slides file, the sharing check and confirm (D9, D10), pinned links (D12), the student-readable copy and its rule, the Class page link copy | Strongest: rules and Drive sharing           |
-| 2    | C. Class page      | Agenda and pinned links above the tabs in `LandingClassView` and the teacher's preview                                                                            | Mid-tier: UI on a settled shape              |
-| 2    | D. Agenda widget   | New widget with a Course picker, via the `new-widget` skill                                                                                                       | Mid-tier: follows the widget template        |
-| 2    | E. Family link     | The public page and route, its rule, the on/off switch, `noindex`, the "Anyone with the link" confirm                                                             | Strongest: a public page and its rule        |
-| 3    | Pilot (in C, D, E) | The Getting Started tour and the pilot measure (§6), added to whichever wave 2 PR merges last                                                                     | Mid-tier                                     |
+| Wave | PR                 | What                                                                                                                                                                              | Agent model                                  |
+| ---- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| 1    | A. Course          | The type, the `courses` collection and rules, linking suggestions, link, unlink and rename in My Classes, and the flag                                                            | Strongest: it fixes the data shape and rules |
+| 1    | B. Agenda setup    | Stacked on A. Pick the Slides file, the sharing check and confirm (D9, D10), pinned links (D12), the student-readable copy and its rule, the one-per-Course Class page link (D18) | Strongest: rules and Drive sharing           |
+| 2    | C. Class page      | Agenda and pinned links above the tabs in `LandingClassView` and the teacher's preview                                                                                            | Mid-tier: UI on a settled shape              |
+| 2    | D. Agenda widget   | New widget with a Course picker, via the `new-widget` skill                                                                                                                       | Mid-tier: follows the widget template        |
+| 2    | E. Family link     | The public page and route, its rule, the on/off switch, `noindex`, the "Anyone with the link" confirm                                                                             | Strongest: a public page and its rule        |
+| 3    | Pilot (in C, D, E) | The Getting Started tour and the pilot measure (§6), added to whichever wave 2 PR merges last                                                                                     | Mid-tier                                     |
 
 - Wave 1 is serial: one agent, A then B. Everything later reads the shape these two set.
 - Wave 2 runs as three agents at once, each in its own worktree from `dev-paul` after B merges. They touch different folders; the only shared files are `firestore.rules` (E only), `types.ts` and the widget registries (D only).
@@ -101,7 +101,7 @@ These are technical and get settled in the PR that reaches them:
 - **Co-taught sections.** Two teachers can each hold a roster for the same ClassLink class. The student-readable copy is one document per class, so the build must say whose Agenda wins. Suggested: the first teacher to set one, with a clear message to the second.
 - **Rule for the student-readable copy.** A teacher may write it only for a class they hold a roster for; the rule needs a cheap way to check that. Read `.claude/rules/firestore-rules.md` first.
 - **Students outside the domain sign-in.** A student signed in to Chrome with a personal Google account won't see a deck shared to Orono only. The Class page needs a plain message for that case.
-- **Workspace sharing settings.** Paul reports staff can share "Anyone with the link" today. Confirm on a real staff account before PR 5.
+- **Workspace sharing settings.** Paul reports staff can share "Anyone with the link" today. Confirm on a real staff account before PR E.
 
 ## 6. Pilot
 

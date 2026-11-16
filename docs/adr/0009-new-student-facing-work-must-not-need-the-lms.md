@@ -4,7 +4,7 @@ Schoology and Google Classroom keep running beside SpartBoard, and the district 
 
 ## Consequences
 
-- The Class page is reached by its own link, which a teacher pins in the LMS once. Nothing depends on an LTI launch or a Classroom course.
-- Families open the Family link without signing in. It shows the Agenda and pinned links only, never a student's name or work.
+- The Class page is reached by one link per Course, which a teacher pins in the LMS once and which opens each student's own section. Nothing depends on an LTI launch or a Classroom course.
+- Families open the Family link without signing in. It shows the Agenda and pinned links only. SpartBoard adds no student's name or work to it, but the whole Agenda deck is public, so what is on the slides is the teacher's to check.
 - Student-facing folders, pages and a new discussion tool are not built. Materials are reached through the Agenda, and Activity Wall is the discussion tool.
 - This sets no date for dropping Schoology and does not change the 2026-06-05 decision to keep its embedded launch for quizzes and video activities.

@@ -103,17 +103,21 @@ The page a student sees for one class inside My Assignments: the Agenda, a few p
 _Avoid_: course page, portal, student home (that is My Assignments, the list across all classes)
 
 **Family link**:
-A Course's public page for families, with no sign-in: the Agenda and pinned links only, never a student's name or work. The teacher switches it on, and its address never changes.
+A Course's public page for families, with no sign-in: the Agenda and pinned links only. SpartBoard adds no student's name or work to it. The teacher switches it on, and its address never changes.
 _Avoid_: parent portal, public Class page, share link
 
 ## Student work
 
 **Writing assignment**:
-A piece of writing a teacher assigns that students write in SpartBoard, where how it was written is recorded so teacher and student can both play it back.
+A piece of writing a teacher assigns that students write in SpartBoard, over one sitting or many, where how it was written is kept as a Writing record.
 _Avoid_: writing task, essay, Google assignment (that is a Drive file copied per student)
 
+**Writing record**:
+What SpartBoard keeps about how a piece was written: every edit, so it can be played back, and a summary of time spent, sittings, pastes and time away from the tab. It states facts and never judges the student.
+_Avoid_: keystroke log, input signals, integrity report, surveillance
+
 **Focus mode**:
-The protections a teacher can switch on for an assigned activity: blocking copy and paste, and counting time away from the tab. It never means recording how work was written.
+The protections a teacher can switch on for an assigned activity: blocking copy and paste, and counting time away from the tab. It never means the Writing record.
 _Avoid_: lockdown, Focus session (that is the extension limiting a student's tabs)
 
 ## Getting Started
