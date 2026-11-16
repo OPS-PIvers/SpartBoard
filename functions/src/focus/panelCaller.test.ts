@@ -91,8 +91,6 @@ describe('panelCaller', () => {
   });
 
   it('is unavailable without a client id', async () => {
-    expect(await status(panelCaller('t', { ...deps, clientId: '' }))).toBe(
-      503
-    );
+    expect(await status(panelCaller('t', { ...deps, clientId: '' }))).toBe(503);
   });
 });

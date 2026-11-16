@@ -12,7 +12,10 @@ import type { FocusCaller } from './sessions';
 
 const SIGN_IN = 'Sign in to Chrome with your Orono account.';
 
-export interface PanelCallerDeps extends Pick<ExtensionDeps, 'clientId' | 'tokenInfo'> {
+export interface PanelCallerDeps extends Pick<
+  ExtensionDeps,
+  'clientId' | 'tokenInfo'
+> {
   userForEmail: typeof trustedUserForEmail;
 }
 

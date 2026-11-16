@@ -9,7 +9,10 @@ interface SignInUser {
 }
 
 /** The account's uid only when a Google sign-in proved it owns the address; anyone can register an unverified password account. */
-export function trustedSignInUid(user: SignInUser, email: string): string | null {
+export function trustedSignInUid(
+  user: SignInUser,
+  email: string
+): string | null {
   if (user.disabled === true || user.emailVerified !== true) return null;
   const want = email.trim().toLowerCase();
   const google = (user.providerData ?? []).some(
