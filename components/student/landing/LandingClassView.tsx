@@ -36,6 +36,8 @@ interface LandingClassViewProps {
   pseudonymUid: string | null;
   onLockedClick: (a: AssignmentSummary) => void;
   onOpenGradeOnly: (item: DoneItem) => void;
+  /** The Agenda and pinned links, above the tabs (D11). */
+  classTop?: React.ReactNode;
 }
 
 export const LandingClassView: React.FC<LandingClassViewProps> = ({
@@ -52,6 +54,7 @@ export const LandingClassView: React.FC<LandingClassViewProps> = ({
   pseudonymUid,
   onLockedClick,
   onOpenGradeOnly,
+  classTop,
 }) => {
   const head = (
     <div>
@@ -69,6 +72,7 @@ export const LandingClassView: React.FC<LandingClassViewProps> = ({
     return (
       <>
         {head}
+        {classTop && <div className="mt-5">{classTop}</div>}
         <div className="mt-6">
           <EmptyBox text={`Nothing has been assigned in ${cls.name} yet.`} />
         </div>
@@ -158,6 +162,7 @@ export const LandingClassView: React.FC<LandingClassViewProps> = ({
       {head}
       <div className="mt-5 flex flex-col gap-4">
         <LiveBanner rows={p.live} classNameOf={() => undefined} />
+        {classTop}
         <div
           role="tablist"
           aria-label={`${cls.name} sections`}

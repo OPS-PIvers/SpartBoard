@@ -3,6 +3,7 @@
 import React from 'react';
 import { StudentLandingSample } from '@/components/student/landing/StudentLandingSample';
 import type { LandingTab } from '@/components/student/landing/types';
+import { fixtureClassTop } from './classPageAgendaFixtures';
 
 const readParam = (key: string): string | null =>
   new URLSearchParams(window.location.search).get(key);
@@ -13,5 +14,6 @@ export const StudentLandingDevHarness: React.FC = () => (
     gradesEnabled={readParam('gb') === '1'}
     initialClassId={readParam('class')}
     initialTab={(readParam('tab') as LandingTab | null) ?? 'assignments'}
+    classTopFor={readParam('agenda') === '1' ? fixtureClassTop : undefined}
   />
 );
