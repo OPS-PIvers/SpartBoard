@@ -50205,6 +50205,42 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "flashcards.card-term-image",
+    "label": "Add image button on a term in the Flashcards editor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.card-definition-image",
+    "label": "Add image button on a definition in the Flashcards editor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "flashcards.card-insert",
     "label": "Add card button between cards in the Flashcards editor",
     "scope": "field",

@@ -1,4 +1,5 @@
 import { withoutClaudeReview } from '@/utils/claudeReview';
+import { flashcardImageFields } from '@/utils/flashcardImageUrls';
 import { useCallback, useContext, useEffect, useState } from 'react';
 import {
   collection,
@@ -273,6 +274,7 @@ const normalizeSet = ({ targets, ...set }: FlashcardSet): FlashcardSet => ({
     id: card.id,
     term: card.term.slice(0, 500),
     definition: card.definition.slice(0, 1000),
+    ...flashcardImageFields(card),
     ...(card.speak && speakFitsLanguage(card.speak, set.termLanguage)
       ? { speak: card.speak }
       : {}),

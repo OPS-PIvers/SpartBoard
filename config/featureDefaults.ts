@@ -58,6 +58,7 @@ import {
   Workflow,
   SquareChevronDown,
   Split,
+  ImagePlus,
   CalendarClock,
   MessageSquare,
 } from 'lucide-react';
@@ -645,6 +646,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: Split,
     description:
       'Each accepted answer gets its own row, and slash shorthand spells out into rows.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Flashcards card images. Admin-only until Paul has tested it in prod.
+  'flashcard-card-images': {
+    label: 'Flashcards card images',
+    icon: ImagePlus,
+    description: 'Teachers can paste or pick an image for each side of a card.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

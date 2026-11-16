@@ -60,6 +60,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'embed-mini-app',
   'embed-reload',
   'flashcard-answer-rows',
+  'flashcard-card-images',
   'flashcards-ai',
   'flashcards-speak',
   'focus-sessions',

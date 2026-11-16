@@ -8,6 +8,8 @@ import { SpeakCardRow } from './speak/SpeakCardStatus';
 import { ipaDraftFor } from './speak/speakEditorState';
 import type { SpeakRowProps } from './useFlashcardEditorState';
 import { AnswerAltFields, AnswerMainField } from './AnswerRowFields';
+import { CardImageButton } from './CardImageControls';
+import { useCardImage, type CardImageUploader } from './useCardImage';
 import {
   ANSWER_FIELD_CLASS,
   answerFieldStyle,
@@ -26,6 +28,8 @@ interface SortableCardRowProps {
   answerRows: boolean;
   termLanguage: string;
   definitionLanguage: string;
+  /** Card images (flag flashcard-card-images); null hides the picker. */
+  uploadImage: CardImageUploader | null;
 }
 
 export const SortableCardRow: React.FC<SortableCardRowProps> = ({
@@ -39,6 +43,7 @@ export const SortableCardRow: React.FC<SortableCardRowProps> = ({
   answerRows,
   termLanguage,
   definitionLanguage,
+  uploadImage,
 }) => {
   const fieldKey = `row-${index + 1}`;
   const termRows = useAnswerRows(
@@ -68,6 +73,120 @@ export const SortableCardRow: React.FC<SortableCardRowProps> = ({
       onAddAfter(index);
     }
   };
+  const termImage = useCardImage(uploadImage, (url) =>
+    onChange(card.id, { termImageUrl: url })
+  );
+  const definitionImage = useCardImage(uploadImage, (url) =>
+    onChange(card.id, { definitionImageUrl: url })
+  );
+
+  const sideCell = (side: 'term' | 'definition'): React.ReactNode => {
+    const isTerm = side === 'term';
+    const label = `${isTerm ? 'Term' : 'Definition'} ${index + 1}`;
+    const answers = isTerm ? termRows : definitionRows;
+    const image = isTerm ? termImage : definitionImage;
+    const imageUrl = isTerm ? card.termImageUrl : card.definitionImageUrl;
+    const maxLength = isTerm ? 500 : 1000;
+    const textareaAnchor = isTerm
+      ? tourFieldAttr('flashcards.card-term', 'flashcards', fieldKey)
+      : tourFieldAttr('flashcards.card-definition', 'flashcards', fieldKey);
+    const imageButton =
+      uploadImage || imageUrl ? (
+        <CardImageButton
+          image={image}
+          url={imageUrl}
+          label={label}
+          side={side}
+          fieldKey={fieldKey}
+          onRemove={() =>
+            onChange(
+              card.id,
+              isTerm
+                ? { termImageUrl: undefined }
+                : { definitionImageUrl: undefined }
+            )
+          }
+        />
+      ) : undefined;
+    const definitionKeyDown =
+      answerRows && definitionRows.rows.length > 1
+        ? (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+            if (event.key === 'Enter') addOnEnterOrTabOut(event);
+          }
+        : addOnEnterOrTabOut;
+    const field = answerRows ? (
+      <AnswerMainField
+        answers={answers}
+        cardId={card.id}
+        side={side}
+        label={label}
+        placeholder={isTerm ? 'Term' : 'Definition'}
+        maxLength={maxLength}
+        fieldKey={fieldKey}
+        onKeyDown={isTerm ? undefined : definitionKeyDown}
+        textareaAnchor={textareaAnchor}
+        extraButton={imageButton}
+      />
+    ) : (
+      <div className="relative min-w-0">
+        <label>
+          <span className="sr-only">{label}</span>
+          <textarea
+            value={isTerm ? card.term : card.definition}
+            onChange={(event) =>
+              onChange(
+                card.id,
+                isTerm
+                  ? { term: event.target.value }
+                  : { definition: event.target.value }
+              )
+            }
+            onKeyDown={isTerm ? undefined : addOnEnterOrTabOut}
+            maxLength={maxLength}
+            rows={1}
+            className={ANSWER_FIELD_CLASS}
+            style={answerFieldStyle(
+              imageButton ? 'min(36px, 9cqmin)' : undefined
+            )}
+            placeholder={isTerm ? 'Term' : 'Definition'}
+            {...textareaAnchor}
+          />
+        </label>
+        {imageButton && (
+          <div
+            className="absolute top-1/2 right-0 flex -translate-y-1/2 items-center"
+            style={{ marginRight: 'min(6px, 1.5cqmin)' }}
+          >
+            {imageButton}
+          </div>
+        )}
+      </div>
+    );
+    if (!uploadImage) return field;
+    return (
+      <div className="min-w-0" {...image.targetProps}>
+        {field}
+      </div>
+    );
+  };
+
+  const failedCell = (side: 'term' | 'definition'): React.ReactNode => {
+    const isTerm = side === 'term';
+    if (!(isTerm ? termImage : definitionImage).failed) return null;
+    return (
+      <p
+        className={`font-semibold text-rose-700 ${isTerm ? 'col-start-3' : 'col-start-4'}`}
+        style={{
+          fontSize: 'min(12px, 3.5cqmin)',
+          marginLeft: 'min(14px, 3.5cqmin)',
+        }}
+        role="alert"
+      >
+        {"Image didn't upload"}
+      </p>
+    );
+  };
+
   const hasAlternates =
     answerRows && (termRows.rows.length > 1 || definitionRows.rows.length > 1);
 
@@ -120,83 +239,8 @@ export const SortableCardRow: React.FC<SortableCardRowProps> = ({
       >
         {index + 1}
       </span>
-      {answerRows ? (
-        <>
-          <AnswerMainField
-            answers={termRows}
-            cardId={card.id}
-            side="term"
-            label={`Term ${index + 1}`}
-            placeholder="Term"
-            maxLength={500}
-            fieldKey={fieldKey}
-            textareaAnchor={tourFieldAttr(
-              'flashcards.card-term',
-              'flashcards',
-              fieldKey
-            )}
-          />
-          <AnswerMainField
-            answers={definitionRows}
-            cardId={card.id}
-            side="definition"
-            label={`Definition ${index + 1}`}
-            placeholder="Definition"
-            maxLength={1000}
-            fieldKey={fieldKey}
-            onKeyDown={
-              definitionRows.rows.length > 1
-                ? (event) => {
-                    if (event.key === 'Enter') addOnEnterOrTabOut(event);
-                  }
-                : addOnEnterOrTabOut
-            }
-            textareaAnchor={tourFieldAttr(
-              'flashcards.card-definition',
-              'flashcards',
-              fieldKey
-            )}
-          />
-        </>
-      ) : (
-        <>
-          <label className="min-w-0">
-            <span className="sr-only">Term {index + 1}</span>
-            <textarea
-              value={card.term}
-              onChange={(event) =>
-                onChange(card.id, { term: event.target.value })
-              }
-              maxLength={500}
-              rows={1}
-              className={ANSWER_FIELD_CLASS}
-              style={answerFieldStyle()}
-              placeholder="Term"
-              {...tourFieldAttr('flashcards.card-term', 'flashcards', fieldKey)}
-            />
-          </label>
-          <label className="min-w-0">
-            <span className="sr-only">Definition {index + 1}</span>
-            <textarea
-              value={card.definition}
-              onChange={(event) =>
-                onChange(card.id, { definition: event.target.value })
-              }
-              onKeyDown={addOnEnterOrTabOut}
-              maxLength={1000}
-              rows={1}
-              className={ANSWER_FIELD_CLASS}
-              style={answerFieldStyle()}
-              placeholder="Definition"
-              {...tourFieldAttr(
-                'flashcards.card-definition',
-                'flashcards',
-                fieldKey
-              )}
-            />
-          </label>
-        </>
-      )}
+      {sideCell('term')}
+      {sideCell('definition')}
       <button
         type="button"
         onClick={() => onRemove(card.id)}
@@ -270,6 +314,8 @@ export const SortableCardRow: React.FC<SortableCardRowProps> = ({
           />
         </>
       )}
+      {failedCell('term')}
+      {failedCell('definition')}
       {speak && (
         <SpeakCardRow
           card={card}

@@ -13,6 +13,7 @@ import type { FlashcardCard, FlashcardSide } from '@/types';
 import { tourAttr } from '@/config/tourAnchors';
 import { RoundSummary, type RoundSummaryMissed } from './PlayerPrimitives';
 import { answerDisplayLines } from '@/utils/flashcardAnswerRows';
+import { CardPicture } from './CardPicture';
 import { cx, getFlashcardSides } from './playerUtils';
 
 interface FlashcardsModeProps {
@@ -234,6 +235,7 @@ export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
               {t(`flashcards.cards.${canFlip ? showFirst : 'term'}`)}
             </span>
             <div className="my-auto flex w-full flex-col items-center">
+              <CardPicture url={sides.promptImage} />
               <span
                 className="max-w-[22ch] text-center font-black leading-tight text-balance"
                 style={{ fontSize: 'clamp(22px, 10cqmin, 58px)' }}
@@ -285,6 +287,7 @@ export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
               )}
             </span>
             <div className="my-auto flex w-full flex-col items-center">
+              <CardPicture url={sides.answerImage} />
               <span
                 className="max-w-[26ch] text-center font-black leading-tight text-balance"
                 style={{ fontSize: 'clamp(20px, 8cqmin, 48px)' }}

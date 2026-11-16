@@ -49,6 +49,7 @@ import { DEFAULT_QUIZ_LANGUAGE } from '@/config/quizReadAloud';
 import { PasteImportDrawer } from './PasteImportDrawer';
 import { SpeakReviewList } from './speak/SpeakReviewList';
 import { SortableCardRow } from './SortableCardRow';
+import type { CardImageUploader } from './useCardImage';
 import type { SpeakLookupCall } from './speak/lookupSpeakReferences';
 import {
   cleanFlashcards,
@@ -113,8 +114,26 @@ export const FlashcardSetEditorModal: React.FC<
     lookupReferences,
     composeSet,
   } = state;
-  const answerRows =
-    useContext(AuthContext)?.canAccessFeature('flashcard-answer-rows') ?? false;
+  const auth = useContext(AuthContext);
+  const answerRows = auth?.canAccessFeature('flashcard-answer-rows') ?? false;
+  const driveToken = auth?.googleAccessToken;
+  const refreshDriveToken = auth?.refreshGoogleToken;
+  // Pictures live in the teacher's Drive, so the picker needs Drive connected.
+  const uploadImage: CardImageUploader | null =
+    driveToken &&
+    refreshDriveToken &&
+    auth.canAccessFeature('flashcard-card-images')
+      ? async (file) => {
+          const [images, { GoogleDriveService }] = await Promise.all([
+            import('@/utils/flashcardImages'),
+            import('@/utils/googleDriveService'),
+          ]);
+          const blob = await images.prepareFlashcardImage(file);
+          if (!blob) return null;
+          const drive = new GoogleDriveService(driveToken, refreshDriveToken);
+          return images.uploadFlashcardImage(drive, blob);
+        }
+      : null;
   const importCards = (incoming: FlashcardCard[]): void =>
     appendCards(
       answerRows
@@ -514,6 +533,7 @@ export const FlashcardSetEditorModal: React.FC<
                   answerRows={answerRows}
                   termLanguage={termLanguage}
                   definitionLanguage={definitionLanguage}
+                  uploadImage={uploadImage}
                 />
               ))}
             </div>
