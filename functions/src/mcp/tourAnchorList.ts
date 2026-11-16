@@ -8284,28 +8284,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "quiz-editor.footer-draft-ai",
-    "label": "Draft with AI (modal footer) in the Quiz editor",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "quiz"
-    ],
-    "routes": [
-      {
-        "surface": "quiz.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:quiz",
-          "library-shell.new-menu-item:quiz#item-1"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "quiz-editor.bank-targets-add",
     "label": "Bank targets: Add in the Quiz editor",
     "scope": "widget type",
@@ -50274,27 +50252,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "flashcards-editor.draft-ai",
     "label": "Draft with AI (list header) in the Flashcards set editor",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:flashcards"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards-editor.footer-draft-ai",
-    "label": "Draft with AI (footer) in the Flashcards set editor",
     "scope": "widget type",
     "panel": true,
     "keys": [
