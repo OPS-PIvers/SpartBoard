@@ -88,6 +88,30 @@ _Avoid_: ping, alert, message, buzz
 One file holding quizzes or question banks with their pictures, which an admin uploads to the District library.
 _Avoid_: bundle, export
 
+## Classes
+
+**Course**:
+A teacher's sections that are taught the same thing, grouped so the Agenda and Class page are set once. Rosters, periods, due dates and grades stay with each section.
+_Avoid_: class (for the group), merged class
+
+**Agenda**:
+A Course's daily plan: the Google Slides or Doc file the teacher already keeps, shown on the board, on the Class page and to families.
+_Avoid_: announcement (that is an admin's message to staff), schedule (that is the bell-schedule widget)
+
+**Class page**:
+A Course's page for students: the Agenda, their assigned work and a few pinned links. Its public version shows families the Agenda and links only, never a student's name or work.
+_Avoid_: course page, portal, student home (that is My Assignments, the list across all classes)
+
+## Student work
+
+**Writing assignment**:
+A piece of writing a teacher assigns that students write in SpartBoard, where how it was written is recorded so teacher and student can both play it back.
+_Avoid_: writing task, essay, Google assignment (that is a Drive file copied per student)
+
+**Focus mode**:
+The protections a teacher can switch on for an assigned activity: blocking copy and paste, and counting time away from the tab. It never means recording how work was written.
+_Avoid_: lockdown, Focus session (that is the extension limiting a student's tabs)
+
 ## Getting Started
 
 **Help Center**:
