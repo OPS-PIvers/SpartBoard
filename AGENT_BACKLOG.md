@@ -236,6 +236,8 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
   <details><summary>Branches to delete (178, checked 2026-11-01)</summary>
 
+claude/project-thread-a5eqoq (#5976)
+claude/ab112-a5eqoq (this docs PR, delete after it merges)
 claude/project-thread-636nhw (#5977)
 claude/ab112-636nhw (this docs PR, delete after it merges)
 claude/project-thread-g6k4z7-points (#5964)
