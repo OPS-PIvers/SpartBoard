@@ -22,6 +22,7 @@ import {
   ltiPushErrorMessage,
   type LtiPushGradesData,
   type LtiPushGradesRequest,
+  LTI_PUSH_GRADES_CALL_OPTS,
 } from '@/utils/ltiGradePush';
 import { GRADEBOOK_SESSION_COLLECTIONS } from '@/utils/gradebook/gradebookCore';
 import {
@@ -64,7 +65,7 @@ export function useGradebookLmsPush(
   onToolColumnDone?: (outcome: GradebookPushOutcome) => void
 ): GradebookLmsPush {
   const { user, canAccessFeature } = useAuth();
-  const { rosters } = useDashboard();
+  const { rosters, addToast } = useDashboard();
   const linkedTargets = useMemo(
     () => schoologyLinkedTargets(rosters),
     [rosters]
@@ -142,7 +143,14 @@ export function useGradebookLmsPush(
             }
           : null
       ),
-    onDone: (message, ok) => onToolColumnDone?.({ ok, message }),
+    onDone: (message, ok, retry) =>
+      retry
+        ? addToast(message, 'error', {
+            label: 'Retry',
+            onClick: retry,
+            persist: true,
+          })
+        : onToolColumnDone?.({ ok, message }),
   });
 
   const push = async (): Promise<GradebookPushOutcome | null> => {
@@ -165,7 +173,8 @@ export function useGradebookLmsPush(
       try {
         const call = httpsCallable<LtiPushGradesRequest, LtiPushGradesData>(
           functions,
-          'ltiPushGradesForAssignmentV1'
+          'ltiPushGradesForAssignmentV1',
+          LTI_PUSH_GRADES_CALL_OPTS
         );
         const { data } = await call({
           sessionId: column.sessionId,

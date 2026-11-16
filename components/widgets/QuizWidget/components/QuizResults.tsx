@@ -218,6 +218,7 @@ import {
   ltiPushErrorMessage,
   type LtiPushGradesRequest,
   type LtiPushGradesData,
+  LTI_PUSH_GRADES_CALL_OPTS,
 } from '@/utils/ltiGradePush';
 import {
   runClassroomGradePush,
@@ -2251,7 +2252,8 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     try {
       const push = httpsCallable<LtiPushGradesRequest, LtiPushGradesData>(
         functions,
-        'ltiPushGradesForAssignmentV1'
+        'ltiPushGradesForAssignmentV1',
+        LTI_PUSH_GRADES_CALL_OPTS
       );
       const { data } = await push({
         sessionId: session.id,
@@ -2360,7 +2362,12 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
         }),
       };
     },
-    onDone: (message, ok) => addToast(message, ok ? 'success' : 'error'),
+    onDone: (message, ok, retry) =>
+      addToast(
+        message,
+        ok ? 'success' : 'error',
+        retry ? { label: 'Retry', onClick: retry, persist: true } : undefined
+      ),
   });
   const showSchoologyPush = !isReview && (!!ltiAttachment || toolColumnMode);
 

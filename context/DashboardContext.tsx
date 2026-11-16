@@ -1266,6 +1266,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     ) => {
       const id = crypto.randomUUID();
       setToasts((prev) => [...prev, { id, message, type, action }]);
+      if (action?.persist) return;
       // If there's an action, keep it longer (10s) so the user has time to click
       const duration = action ? 10000 : 3000;
       const timer = setTimeout(() => {

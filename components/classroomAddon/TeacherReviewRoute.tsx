@@ -110,6 +110,7 @@ import {
   ltiPushErrorMessage,
   type LtiPushGradesRequest,
   type LtiPushGradesData,
+  LTI_PUSH_GRADES_CALL_OPTS,
 } from '@/utils/ltiGradePush';
 import { logError } from '@/utils/logError';
 import {
@@ -727,7 +728,8 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
     try {
       const push = httpsCallable<LtiPushGradesRequest, LtiPushGradesData>(
         functions,
-        'ltiPushGradesForAssignmentV1'
+        'ltiPushGradesForAssignmentV1',
+        LTI_PUSH_GRADES_CALL_OPTS
       );
       const { data } = await push({
         sessionId,
