@@ -6473,7 +6473,8 @@
         "stale": "This course changed in another tab. Try again.",
         "saveFailed": "Couldn't save. Try again.",
         "stillPublic": "The link is off, but the deck is still public. Change its sharing in Google Slides.",
-        "unshareFailed": "The link is off, but the deck's sharing didn't change. Change it in Google Slides."
+        "unshareFailed": "The link is off, but the deck's sharing didn't change. Change it in Google Slides.",
+        "deckStillUsed": "The link is off. The deck stays public because another course's family link shows it."
       },
       "page": {
         "agenda": "Agenda",

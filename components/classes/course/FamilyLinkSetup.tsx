@@ -8,7 +8,9 @@ import { primaryBtn, secondaryBtn } from '@/components/common/lightChrome';
 import { tourAttr } from '@/config/tourAnchors';
 import { AuthContext } from '@/context/AuthContextValue';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
-import type { Course } from '@/utils/course/contract';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '@/config/firebase';
+import { COURSES_SUBCOLLECTION, type Course } from '@/utils/course/contract';
 import { emailDomain } from '@/utils/course/deckSharing';
 import { familyPageUrl } from '@/components/family/familyPageModel';
 import {
@@ -20,6 +22,17 @@ import {
 import type { CourseGroupProps } from './types';
 
 type Confirm = 'on' | 'off' | null;
+
+/** The teacher's Courses as saved now, so an un-share sees a link another tab just switched on. */
+async function readCourses(uid: string): Promise<Course[]> {
+  const snap = await getDocs(
+    collection(db, 'users', uid, COURSES_SUBCOLLECTION)
+  );
+  return snap.docs.map((d) => ({
+    ...(d.data() as Omit<Course, 'id'>),
+    id: d.id,
+  }));
+}
 
 export interface FamilyLinkControlProps extends FamilyLinkDeps {
   course: Course;
@@ -199,13 +212,15 @@ const FamilyLinkWithDrive: React.FC<{
   course: Course;
   saveCourse: CourseGroupProps['saveCourse'];
   email: string | null | undefined;
-}> = ({ course, saveCourse, email }) => {
+  uid: string;
+}> = ({ course, saveCourse, email, uid }) => {
   const { driveService } = useGoogleDrive();
   return (
     <FamilyLinkControl
       course={course}
       saveCourse={saveCourse}
       drive={driveService}
+      otherCourses={() => readCourses(uid)}
       domain={emailDomain(email)}
       origin={window.location.origin}
     />
@@ -225,6 +240,7 @@ export const FamilyLinkSetup: React.FC<CourseGroupProps> = ({
       course={group.course}
       saveCourse={saveCourse}
       email={auth.user.email}
+      uid={auth.user.uid}
     />
   );
 };

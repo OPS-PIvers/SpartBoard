@@ -19,7 +19,9 @@ export type FamilyLinkProblem =
   /** The link is off but the deck is still public (an inherited permission, say). */
   | 'stillPublic'
   /** The link is off but the deck's sharing could not be changed back. */
-  | 'unshareFailed';
+  | 'unshareFailed'
+  /** The link is off but the deck stays public, because another Course's family link still shows it. */
+  | 'deckStillUsed';
 
 export interface FamilyLinkDeps {
   saveCourse: UseCoursesResult['saveCourse'];
@@ -27,6 +29,8 @@ export interface FamilyLinkDeps {
   drive: DeckSharingDrive | null;
   /** The teacher's district domain, for "Anyone in Orono with the link". */
   domain: string | null;
+  /** The teacher's other Courses now, read fresh before a deck is un-shared. */
+  otherCourses?: () => Promise<Course[]>;
 }
 
 const save = (course: Course, on: boolean): SaveCourseRequest => ({
@@ -37,6 +41,16 @@ const save = (course: Course, on: boolean): SaveCourseRequest => ({
     expectedUpdatedAt: course.updatedAt,
   },
 });
+
+/** Undoes only what turning on added: the anyone-with-the-link permissions, nothing else. */
+async function removeAnyoneAccess(
+  drive: DeckSharingDrive,
+  fileId: string
+): Promise<void> {
+  const perms = await drive.listFilePermissions(fileId);
+  for (const p of perms.filter((x) => x.type === 'anyone'))
+    await drive.deletePermission(fileId, p.id);
+}
 
 const isStale = (err: unknown) => {
   const code = (err as { code?: unknown } | null)?.code;
@@ -55,7 +69,7 @@ export async function turnFamilyLinkOn(
     try {
       const before = await readDeckState(deps.drive, fileId, deps.domain);
       await setDeckSharing(deps.drive, fileId, 'anyone', deps.domain);
-      madePublic = before.sharing !== 'anyone';
+      madePublic = before.sharing === 'private' || before.sharing === 'domain';
     } catch {
       return 'shareFailed';
     }
@@ -64,11 +78,11 @@ export async function turnFamilyLinkOn(
     await deps.saveCourse(save(course, true));
     return null;
   } catch (err) {
-    if (madePublic && fileId && deps.drive && deps.domain)
-      await setDeckSharing(deps.drive, fileId, 'domain', deps.domain).catch(
-        () => undefined
-      );
-    return isStale(err) ? 'stale' : 'saveFailed';
+    // A stale save may mean another tab just switched the link on, so the deck is left public then.
+    if (isStale(err)) return 'stale';
+    if (madePublic && fileId && deps.drive)
+      await removeAnyoneAccess(deps.drive, fileId).catch(() => undefined);
+    return 'saveFailed';
   }
 }
 
@@ -86,6 +100,20 @@ export async function turnFamilyLinkOff(
   const fileId = course.agenda?.fileId;
   if (!unshare || !fileId) return null;
   if (!deps.drive || !deps.domain) return 'unshareFailed';
+  try {
+    const others = deps.otherCourses ? await deps.otherCourses() : [];
+    if (
+      others.some(
+        (c) =>
+          c.id !== course.id &&
+          c.familyLink?.on === true &&
+          c.agenda?.fileId === fileId
+      )
+    )
+      return 'deckStillUsed';
+  } catch {
+    return 'unshareFailed';
+  }
   try {
     await setDeckSharing(deps.drive, fileId, 'domain', deps.domain);
     return null;

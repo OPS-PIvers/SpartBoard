@@ -119,6 +119,15 @@ describe('turnFamilyLinkOn', () => {
 
   it('puts a deck it made public back to Orono only when the save fails', async () => {
     const { drive, perms } = fakeDrive([domainPerm]);
+    const saveCourse = vi.fn(() => Promise.reject(new Error('down')));
+    expect(
+      await turnFamilyLinkOn(course(), { drive, domain: DOMAIN, saveCourse })
+    ).toBe('saveFailed');
+    expect(perms()).toEqual([domainPerm]);
+  });
+
+  it('leaves the deck public on a stale save, since another tab may have just switched the link on', async () => {
+    const { drive, perms } = fakeDrive([domainPerm]);
     const saveCourse = vi.fn(() =>
       Promise.reject(
         Object.assign(new Error('x'), { code: 'functions/failed-precondition' })
@@ -127,7 +136,25 @@ describe('turnFamilyLinkOn', () => {
     expect(
       await turnFamilyLinkOn(course(), { drive, domain: DOMAIN, saveCourse })
     ).toBe('stale');
-    expect(perms().some((p) => p.type === 'anyone')).toBe(false);
+    expect(perms().some((p) => p.type === 'anyone')).toBe(true);
+  });
+
+  it('never rolls back a deck whose sharing it could not read first', async () => {
+    const { drive, perms } = fakeDrive([domainPerm]);
+    let first = true;
+    const original = { ...drive };
+    drive.listFilePermissions = (id: string) => {
+      if (first) {
+        first = false;
+        return Promise.reject(new Error('read failed'));
+      }
+      return original.listFilePermissions(id);
+    };
+    const saveCourse = vi.fn(() => Promise.reject(new Error('down')));
+    expect(
+      await turnFamilyLinkOn(course(), { drive, domain: DOMAIN, saveCourse })
+    ).toBe('saveFailed');
+    expect(perms().some((p) => p.type === 'anyone')).toBe(true);
   });
 
   it('leaves a deck that was already public alone when the save fails', async () => {
@@ -207,6 +234,20 @@ describe('turnFamilyLinkOff', () => {
         saveCourse: ok(),
       })
     ).toBe('stillPublic');
+  });
+
+  it('keeps the deck public while another Course with its link on shows it', async () => {
+    const { drive, deletePermission } = fakeDrive([domainPerm, anyone]);
+    const other = course({ id: 'c2', familyLink: { shareId: 's2', on: true } });
+    expect(
+      await turnFamilyLinkOff(course(), true, {
+        drive,
+        domain: DOMAIN,
+        saveCourse: ok(),
+        otherCourses: () => Promise.resolve([course(), other]),
+      })
+    ).toBe('deckStillUsed');
+    expect(deletePermission).not.toHaveBeenCalled();
   });
 
   it('reports a deck it could not reach once the link is off', async () => {
