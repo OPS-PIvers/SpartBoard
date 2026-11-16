@@ -22,6 +22,9 @@ const tab: WritingTabFacts = {
   online: true,
   dirty: false,
   slow: false,
+  refused: false,
+  copyOk: true,
+  turningIn: false,
   html: '<p>one two three four</p>',
 };
 const response = (over: Partial<WritingResponseFacts> = {}): WritingResponseFacts => ({
@@ -98,6 +101,24 @@ describe('deriveWritingView', () => {
     expect(derive({ tab: { dirty: true, slow: true } }).saveState).toBe(
       'device'
     );
+  });
+
+  it('says not saved when neither the server nor the device has the text', () => {
+    expect(
+      derive({ tab: { dirty: true, online: false, copyOk: false } }).saveState
+    ).toBe('failed');
+    expect(derive({ tab: { dirty: true, refused: true } }).saveState).toBe(
+      'device'
+    );
+    expect(
+      derive({ tab: { dirty: true, refused: true, copyOk: false } }).saveState
+    ).toBe('failed');
+  });
+
+  it('holds the editor still while Turn in sends the text on screen', () => {
+    const v = derive({ tab: { turningIn: true } });
+    expect(v.mode).toBe('writing');
+    expect(v.editable).toBe(false);
   });
 
   it('makes this tab read-only once another tab claims the piece (D23)', () => {

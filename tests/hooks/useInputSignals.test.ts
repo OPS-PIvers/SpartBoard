@@ -207,6 +207,21 @@ describe('useInputSignals', () => {
     expect(save).toHaveBeenCalledOnce();
   });
 
+  it('saves a large log on pagehide without the throttle', () => {
+    const big = `0:${'a'.repeat(40_000)}`;
+    const { save } = setup({ serverSignals: { '0': { q1: { log: big } } } });
+    const box = document.createElement('textarea');
+    box.value = 'a'.repeat(40_000);
+    document.body.appendChild(box);
+    box.dispatchEvent(new InputEvent('beforeinput', { bubbles: true }));
+    box.value += 'b';
+    box.dispatchEvent(
+      new InputEvent('input', { bubbles: true, inputType: 'insertText' })
+    );
+    window.dispatchEvent(new Event('pagehide'));
+    expect(save).toHaveBeenCalledOnce();
+  });
+
   it('logs no unkeyed text when the editor turns a new line into a paragraph', () => {
     const { save, unmount } = setup();
     const box = document.createElement('div');

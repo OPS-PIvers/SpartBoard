@@ -10,7 +10,7 @@ import { useTabAwayTracker } from '@/hooks/useTabAwayTracker';
 import { useWritingPiece } from '@/hooks/useWritingPiece';
 import { PageProtectionGuards } from '@/components/common/PageProtectionGuards';
 import { effectivePageProtections } from '@/utils/pageProtections';
-import { deriveWritingView } from '@/utils/writingStudentView';
+import { deriveWritingView, writingClosed } from '@/utils/writingStudentView';
 import { WritingStudentShell } from './WritingStudentShell';
 
 const SESSIONS = 'writing_assignment_sessions';
@@ -42,20 +42,22 @@ const WritingPiecePage: React.FC<{
   studentUid: string;
 }> = ({ session, studentUid }) => {
   const now = useMinuteClock();
+  // Per-student accommodations live on the student's own pointer, never on the session (M17).
+  const pointer = useStudentAssignmentPointer(studentUid, session.id);
+  const override = pointer?.override;
+  const pointerFacts = pointer
+    ? { closeAt: pointer.closeAt ?? null, dueAt: pointer.dueAt ?? null }
+    : null;
   const piece = useWritingPiece({
     sessionId: session.id,
     studentUid,
     allowPaste: session.allowPaste === true,
+    closed: writingClosed(session, pointerFacts, now),
   });
-  // Per-student accommodations live on the student's own pointer, never on the session (M17).
-  const pointer = useStudentAssignmentPointer(studentUid, session.id);
-  const override = pointer?.override;
   const view = deriveWritingView({
     session,
     response: piece.response,
-    pointer: pointer
-      ? { closeAt: pointer.closeAt ?? null, dueAt: pointer.dueAt ?? null }
-      : null,
+    pointer: pointerFacts,
     tab: {
       myTabId: piece.myTabId,
       holding: piece.holding,
@@ -63,10 +65,17 @@ const WritingPiecePage: React.FC<{
       online: piece.online,
       dirty: piece.dirty,
       slow: piece.slow,
+      refused: piece.refused,
+      copyOk: piece.copyOk,
+      turningIn: piece.turningIn,
       html: piece.html,
     },
     now,
   });
+  const flushBeforeLeave = piece.flushBeforeLeave;
+  const onDone = () => {
+    void flushBeforeLeave().finally(goBack);
+  };
 
   // Focus mode: fullscreen at the lock level and print blocking; the editor owns paste (D8).
   const protections = effectivePageProtections(session, override);
@@ -107,7 +116,7 @@ const WritingPiecePage: React.FC<{
     <>
       <WritingStudentShell
         session={session}
-        onDone={goBack}
+        onDone={onDone}
         piece={{
           view,
           editorKey: writing

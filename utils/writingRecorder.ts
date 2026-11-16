@@ -5,6 +5,8 @@ import {
   SESSION_GAP_MS,
   WritingLogWriter,
   diffText,
+  parseWritingLog,
+  textAfter,
   utf8Length,
   type WritingEditKind,
 } from '@/utils/writingLog';
@@ -22,7 +24,21 @@ export interface ClosedLogChunk {
 export interface OpenLogChunk {
   index: number;
   log: string;
+}
+
+/** The open chunk from every chunk's log up to it: its start text is the earlier chunks replayed. */
+export function openChunkFromLogs(logs: readonly string[]): {
+  chunk: number;
+  log: string;
   startText: string;
+} {
+  let text = '';
+  const last = Math.max(0, logs.length - 1);
+  for (let i = 0; i < last; i += 1) {
+    const { edits } = parseWritingLog(logs[i], text.length);
+    text = textAfter(edits, edits.length, text);
+  }
+  return { chunk: last, log: logs[last] ?? '', startText: text };
 }
 
 /** Room an edit's encoding needs beyond its text: kind, times, positions and a clock stamp. */
@@ -51,7 +67,6 @@ export function emptyWritingSummary(now: number): WritingResponseSummary {
 export class WritingRecorder {
   private writer: WritingLogWriter;
   private chunk: number;
-  private startText: string;
   private closing: ClosedLogChunk[] = [];
   private counts: Counts;
   private baseSavedAt: number;
@@ -70,7 +85,6 @@ export class WritingRecorder {
     chunkBytes?: number;
   }) {
     this.chunk = opts.chunk;
-    this.startText = opts.startText;
     this.chunkBytes = opts.chunkBytes ?? WRITING_LOG_CHUNK_BYTES;
     this.writer = new WritingLogWriter(
       opts.log,
@@ -147,6 +161,12 @@ export class WritingRecorder {
       utf8Length(ins) +
       EDIT_OVERHEAD +
       (this.writer.current === prev ? 0 : utf8Length(prev) + EDIT_OVERHEAD);
+    // An edit no chunk could hold ends the log here; a later chunk could not replay past a cut.
+    if (need > this.chunkBytes) {
+      this.counts.logStoppedAt = wall;
+      this.version += 1;
+      return;
+    }
     if (this.writer.size > 0 && this.writer.size + need > this.chunkBytes)
       if (!this.roll(this.writer.current, wall)) return;
     this.writer.write(
@@ -158,8 +178,7 @@ export class WritingRecorder {
       wall
     );
     this.version += 1;
-    // One edit bigger than a whole chunk: the writer marked the cut; carry on from the text after it.
-    if (this.writer.full) this.roll(next, wall);
+    if (this.writer.full) this.counts.logStoppedAt = wall;
   }
 
   /** Closes the open chunk and opens the next from `text`; false once the ten chunks are used (D25). */
@@ -171,7 +190,6 @@ export class WritingRecorder {
     }
     this.closing.push({ index: this.chunk, log: this.writer.value });
     this.chunk += 1;
-    this.startText = text;
     this.writer = new WritingLogWriter('', text);
     this.version += 1;
     return true;
@@ -183,11 +201,7 @@ export class WritingRecorder {
   }
 
   get openChunk(): OpenLogChunk {
-    return {
-      index: this.chunk,
-      log: this.writer.value,
-      startText: this.chunk > 0 ? this.startText : '',
-    };
+    return { index: this.chunk, log: this.writer.value };
   }
 
   /** The oldest full chunk still to be written closed, if any. */

@@ -10790,8 +10790,6 @@ export interface WritingLogChunk {
   log: string;
   /** Closed chunks never change; the next one opens at index + 1. */
   closed: boolean;
-  /** Plain text the chunk's edits start from; '' or absent for chunk 0. */
-  startText?: string;
   updatedAt: number;
 }
 

@@ -7057,6 +7057,11 @@ service cloud.firestore {
       allow list: if sessionListScoped();
       function wrS() { return dbGet('writing_assignment_sessions', sid).data; }
       function wrTeacher() { return liveUid(wrS().teacherUid); }
+      // Open, or still open for this student through their pointer's later closeAt (read only past the session close).
+      function wrOpen(s) {
+        return runOpen(s) || (s.get('status', '') != 'ended' &&
+          nowMs() < dbGet4('student_assignments', authUid(), 'items', sid).data.get('closeAt', 0) + 120000);
+      }
       match /responses/{uid} {
         function wrMine() { return uid == authUid(); }
         function wrR() { return dbGet4('writing_assignment_sessions', sid, 'responses', uid).data; }
@@ -7071,7 +7076,7 @@ service cloud.firestore {
           && (unchanged('tabId') || incoming().tabAt == request.time)
           && incoming().logChunk >= existing().logChunk && incoming().logChunk < 10
           && nowMs() - 30000 < existing().get('deadlineAt', nowMs())
-          && runOpen(wrS()) && (studentLetIn(wrS()) || periodOpen(wrS(), existing().classId));
+          && wrOpen(wrS()) && (studentLetIn(wrS()) || periodOpen(wrS(), existing().classId));
         // D25: only the open chunk is writable, a closed chunk never changes, and each write rides a
         // response save in the same batch (which carries that save's tab, lock and clock checks).
         match /log/{n} {

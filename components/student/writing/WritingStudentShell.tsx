@@ -1,6 +1,7 @@
 // The student Writing page: prompt, sources beside the editor, save state, and Turn in or Take back (D12, D23, D24).
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import {
+  AlertTriangle,
   CalendarClock,
   CloudOff,
   Copy,
@@ -34,7 +35,7 @@ export interface WritingShellPiece {
   view: WritingPageView;
   editorKey: string;
   editorHtml: string;
-  unsent: UnsentWriting | null;
+  unsent: UnsentWriting[];
   notice: WritingNotice | null;
   busy: 'turn-in' | 'take-back' | null;
   online: boolean;
@@ -44,7 +45,7 @@ export interface WritingShellPiece {
   onTurnIn: () => void;
   onTakeBack: () => void;
   onContinueHere: () => void;
-  onDismissUnsent: () => void;
+  onDismissUnsent: (savedAt: number) => void;
   onUnsentCopy: (text: string) => void;
   onEditorChange: (html: string) => void;
   allowInsert: (text: string, via: 'paste' | 'drop' | 'drag-inside') => boolean;
@@ -69,6 +70,10 @@ export const WRITING_STRINGS = {
   saved: 'Saved',
   savedDevice: 'Saved on this device',
   savedDeviceTitle: 'It sends when you are back online.',
+  notSaved: 'Not saved',
+  notSavedBody:
+    "Your writing isn't saved yet. Keep this tab open, or copy your text somewhere safe.",
+  notSavedNotice: "Your writing didn't save. Check your connection and try again.",
   offline:
     "You're offline. Keep this tab open and your writing will save when you reconnect.",
   takenOverTitle: 'This writing is open in another tab',
@@ -96,6 +101,8 @@ export const WRITING_STRINGS = {
   takeBackPastDue: 'This is past its due date, so it can no longer be taken back.',
   takeBackFailed: "Couldn't take this back. Try again.",
   turnInFailed: "Couldn't turn this in. Try again.",
+  tooLarge: 'This piece is too long to turn in. Shorten it and try again.',
+  paused: "Your class isn't open right now. Turn this in when it starts again.",
   returned: 'Your teacher returned this.',
   revising: 'Your teacher returned this for revision. You can keep writing.',
   closed: 'This assignment is closed.',
@@ -129,8 +136,12 @@ const noticeText = (n: WritingNotice): string | null => {
   switch (n) {
     case 'paste-blocked':
       return S.pasteBlocked;
-    case 'offline':
-      return S.offline;
+    case 'not-saved':
+      return S.notSavedNotice;
+    case 'too-large':
+      return S.tooLarge;
+    case 'paused':
+      return S.paused;
     case 'turn-in-failed':
       return S.turnInFailed;
     case 'closed':
@@ -160,6 +171,7 @@ const UnsentPanel: React.FC<{
   onDismiss: () => void;
 }> = ({ unsent, onCopy, onDismiss }) => {
   const [copied, setCopied] = useState(false);
+  const titleId = useId();
   const copy = () => {
     const text = plainOf(unsent.html);
     onCopy(text);
@@ -170,7 +182,7 @@ const UnsentPanel: React.FC<{
   };
   return (
     <section
-      aria-labelledby="writing-unsent-title"
+      aria-labelledby={titleId}
       className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-950"
     >
       <div className="flex items-start gap-3">
@@ -179,7 +191,7 @@ const UnsentPanel: React.FC<{
           aria-hidden="true"
         />
         <div className="min-w-0 flex-1 space-y-2">
-          <h2 id="writing-unsent-title" className="text-sm font-bold">
+          <h2 id={titleId} className="text-sm font-bold">
             {S.unsentTitle}
           </h2>
           <p className="text-sm">{S.unsentBody}</p>
@@ -209,6 +221,16 @@ const UnsentPanel: React.FC<{
 
 const SaveState: React.FC<{ view: WritingPageView }> = ({ view }) => {
   if (!view.saveState) return <span />;
+  if (view.saveState === 'failed')
+    return (
+      <span
+        className="inline-flex items-center gap-1.5 text-sm font-semibold text-rose-700"
+        data-testid="writing-save-state"
+      >
+        <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+        {S.notSaved}
+      </span>
+    );
   if (view.saveState === 'device')
     return (
       <span
@@ -263,8 +285,9 @@ export const WritingStudentShell: React.FC<{
         ? S.tooLong(session.maxWords, view.wordGap)
         : null;
 
+  const bindEditor = piece?.bindEditor;
   const editor = showEditor && piece && (
-    <div ref={piece.bindEditor} className="min-w-0">
+    <div ref={bindEditor} className="min-w-0">
       <WrittenResponseEditor
         questionKey={piece.editorKey}
         value={piece.editorHtml}
@@ -394,13 +417,14 @@ export const WritingStudentShell: React.FC<{
           </div>
         )}
 
-        {piece?.unsent && (
+        {piece?.unsent.map((u) => (
           <UnsentPanel
-            unsent={piece.unsent}
+            key={u.savedAt}
+            unsent={u}
             onCopy={piece.onUnsentCopy}
-            onDismiss={piece.onDismissUnsent}
+            onDismiss={() => piece.onDismissUnsent(u.savedAt)}
           />
-        )}
+        ))}
 
         {view.mode === 'writing' && view.status === 'revising' && (
           <p className="text-sm text-slate-700">{S.revising}</p>
@@ -438,7 +462,12 @@ export const WritingStudentShell: React.FC<{
             )}
             <div className="min-w-0 flex-1 space-y-3">
               {editor}
-              {notice && piece?.notice !== 'offline' && (
+              {view.saveState === 'failed' && (
+                <p role="alert" className="text-sm font-semibold text-rose-700">
+                  {S.notSavedBody}
+                </p>
+              )}
+              {notice && (
                 <p role="status" className="text-sm font-medium text-slate-700">
                   {notice}
                 </p>

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { WritingRecorder, emptyWritingSummary } from './writingRecorder';
+import {
+  WritingRecorder,
+  emptyWritingSummary,
+  openChunkFromLogs,
+} from './writingRecorder';
 import { parseWritingLog, textAfter } from './writingLog';
 
 const fresh = (over: Partial<ConstructorParameters<typeof WritingRecorder>[0]> = {}) =>
@@ -85,19 +89,38 @@ describe('WritingRecorder', () => {
       rec.edit(text, next, i * 100, 'typed', MIN + i);
       text = next;
     }
-    const closed = rec.nextClosing;
-    expect(closed?.index).toBe(0);
+    expect(rec.nextClosing?.index).toBe(0);
     expect(rec.openChunk.index).toBeGreaterThan(0);
     expect(rec.logDirty).toBe(true);
-    // The closed chunk plus the open chunk, read from its start text, give the whole piece.
-    const first = parseWritingLog(closed?.log);
-    const before = textAfter(first.edits, first.edits.length);
-    expect(text.startsWith(before)).toBe(true);
-    rec.confirmClosed(0);
-    while (rec.nextClosing) rec.confirmClosed(rec.nextClosing.index);
-    const open = rec.openChunk;
+    const logs: string[] = [];
+    while (rec.nextClosing) {
+      logs.push(rec.nextClosing.log);
+      rec.confirmClosed(rec.nextClosing.index);
+    }
+    logs.push(rec.openChunk.log);
+    // The chunks replayed in order give the whole piece, with no start text stored on them.
+    const open = openChunkFromLogs(logs);
+    expect(open.chunk).toBe(rec.openChunk.index);
     const rest = parseWritingLog(open.log, open.startText.length);
     expect(textAfter(rest.edits, rest.edits.length, open.startText)).toBe(text);
+    // A later page load carries on in the open chunk from the replayed text.
+    const again = new WritingRecorder({ ...open, base: null, chunkBytes: 200 });
+    again.edit(text, `${text}end`, 0, 'typed', 2 * MIN);
+    const more = parseWritingLog(again.openChunk.log, open.startText.length);
+    expect(textAfter(more.edits, more.edits.length, open.startText)).toBe(
+      `${text}end`
+    );
+  });
+
+  it('stops recording at one edit bigger than a chunk, keeping the chunks replayable', () => {
+    const rec = fresh({ chunkBytes: 200 });
+    rec.edit('', 'a', 0, 'typed', MIN);
+    rec.edit('a', `a${'x'.repeat(400)}`, 10, 'pasted', MIN);
+    expect(rec.summary(1, 1).logStoppedAt).toBe(MIN);
+    expect(rec.nextClosing).toBeNull();
+    expect(rec.summary(1, 1).pasteCount).toBe(1);
+    const { edits } = parseWritingLog(rec.openChunk.log);
+    expect(textAfter(edits, edits.length)).toBe('a');
   });
 
   it('stops recording after the last chunk but keeps counting (D25)', () => {

@@ -155,7 +155,7 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
       (err: unknown) => logError('useInputSignals.environment', err)
     );
     let lastSaved = performance.now();
-    // Only a turn-in and unmount skip the large-log throttle (AB-201); the rest stay dirty for a later save.
+    // Only a turn-in, pagehide and unmount skip the large-log throttle (AB-201); the rest stay dirty for a later save.
     const flush = (e?: Event, throttled = false) => {
       const save = argsRef.current.save;
       const now = performance.now();
@@ -285,6 +285,8 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
       if (visible()) collector.clock(performance.now(), true);
       else flush(undefined, true);
     };
+    // Closing or leaving the page is the last chance to save, so it skips the throttle.
+    const onPageHide = () => flush();
     let size = {
       inner: window.innerWidth,
       outer: window.outerWidth,
@@ -318,6 +320,7 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
     document.addEventListener('beforeinput', onBeforeInput, opts);
     document.addEventListener('input', onInput, opts);
     document.addEventListener('visibilitychange', onHidden);
+    window.addEventListener('pagehide', onPageHide);
     window.addEventListener('resize', onResize);
     screen.addEventListener?.('change', onScreenChange);
     const id = window.setInterval(() => flush(undefined, true), FLUSH_MS);
@@ -332,6 +335,7 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
       document.removeEventListener('beforeinput', onBeforeInput, opts);
       document.removeEventListener('input', onInput, opts);
       document.removeEventListener('visibilitychange', onHidden);
+      window.removeEventListener('pagehide', onPageHide);
       window.removeEventListener('resize', onResize);
       screen.removeEventListener?.('change', onScreenChange);
       window.clearInterval(id);

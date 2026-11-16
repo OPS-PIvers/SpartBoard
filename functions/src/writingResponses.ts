@@ -356,10 +356,9 @@ export interface OpenWritingResult {
   status: WritingResponseStatus;
   saveCount: number;
   deadlineAt: number | null;
-  /** The open log chunk, so the holding tab appends to it instead of replacing it (B2). */
+  /** The open log chunk's index and every chunk up to it, so the holding tab appends instead of replacing (B2). */
   logChunk: number;
-  log: string;
-  logStartText: string;
+  logs: string[];
 }
 
 /** Creates the student's response on first open (the clock starts here, D7) or returns the existing one. */
@@ -382,20 +381,23 @@ export async function handleOpenWriting(
     const snap = await tx.get(ref);
     if (snap.exists) {
       const r: Data = snap.data() ?? {};
-      const logChunk = isNum(r.logChunk) ? r.logChunk : 0;
-      const chunk = await tx.get(
-        ref.collection(WRITING_LOG).doc(String(logChunk))
+      const logChunk = isNum(r.logChunk) ? Math.min(r.logChunk, 9) : 0;
+      const chunks = await Promise.all(
+        Array.from({ length: logChunk + 1 }, (_, i) =>
+          tx.get(ref.collection(WRITING_LOG).doc(String(i)))
+        )
       );
-      const log: unknown = chunk.exists ? chunk.get('log') : '';
-      const startText: unknown = chunk.exists ? chunk.get('startText') : '';
+      const logs = chunks.map((c) => {
+        const log: unknown = c.exists ? c.get('log') : '';
+        return typeof log === 'string' ? log : '';
+      });
       return {
         created: false,
         status: deriveWritingStatus(r),
         saveCount: isNum(r.saveCount) ? r.saveCount : 0,
         deadlineAt: isNum(r.deadlineAt) ? r.deadlineAt : null,
         logChunk,
-        log: typeof log === 'string' ? log : '',
-        logStartText: typeof startText === 'string' ? startText : '',
+        logs,
       };
     }
     if (session.status === 'ended')
@@ -439,8 +441,7 @@ export async function handleOpenWriting(
       saveCount: 0,
       deadlineAt,
       logChunk: 0,
-      log: '',
-      logStartText: '',
+      logs: [''],
     };
   });
 }

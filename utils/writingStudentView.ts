@@ -10,6 +10,7 @@ import {
   takeBackBlock,
   type WritingResponseStatus,
 } from '@/utils/writingResponseState';
+import { saveStateOf, type WritingSaveState } from '@/utils/writingSaveFlow';
 
 /** The page's main state; each one is a harness state. */
 export type WritingPageMode =
@@ -21,8 +22,7 @@ export type WritingPageMode =
   | 'returned'
   | 'closed';
 
-/** Where this tab's unsaved writing is. */
-export type WritingSaveState = 'saved' | 'saving' | 'device';
+export type { WritingSaveState };
 
 export interface WritingTabFacts {
   myTabId: string;
@@ -34,6 +34,12 @@ export interface WritingTabFacts {
   dirty: boolean;
   /** A save has been waiting long enough that the device copy is what holds the text. */
   slow: boolean;
+  /** The last save failed, even after a retry. */
+  refused: boolean;
+  /** The last device copy write worked. */
+  copyOk: boolean;
+  /** Turn in is sending the text on screen, so the editor holds still. */
+  turningIn: boolean;
   /** The current html, for the word count. */
   html: string;
 }
@@ -78,7 +84,8 @@ export interface WritingPageView {
 const isNum = (v: unknown): v is number =>
   typeof v === 'number' && Number.isFinite(v);
 
-function closedNow(
+/** Past the close (the student's own, else the session's) and its grace, or ended. */
+export function writingClosed(
   session: WritingSessionFacts,
   pointer: WritingPointerFacts | null,
   now: number
@@ -114,7 +121,7 @@ export function deriveWritingView(args: {
     saveState: null,
   };
   if (!session || response === undefined) return base;
-  const closed = closedNow(session, pointer, now);
+  const closed = writingClosed(session, pointer, now);
   if (response === null)
     return { ...base, mode: closed ? 'closed' : 'not-started' };
   const status = deriveWritingStatus(response);
@@ -140,7 +147,7 @@ export function deriveWritingView(args: {
     ...base,
     mode: 'writing',
     status,
-    editable: true,
+    editable: !tab.turningIn,
     showTurnIn: true,
     turnInBlockedBy:
       wordCount === 0
@@ -153,10 +160,6 @@ export function deriveWritingView(args: {
               ? 'offline'
               : null,
     wordGap: tooShort && min !== undefined ? min - wordCount : tooLong && max !== undefined ? wordCount - max : 0,
-    saveState: !tab.dirty
-      ? 'saved'
-      : !tab.online || tab.slow
-        ? 'device'
-        : 'saving',
+    saveState: saveStateOf(tab),
   };
 }

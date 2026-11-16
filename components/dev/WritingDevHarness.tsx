@@ -51,6 +51,8 @@ type StateId =
   | 'not-started'
   | 'writing'
   | 'saved-on-device'
+  | 'not-saved'
+  | 'turning-in'
   | 'taken-over'
   | 'unsent'
   | 'paste-blocked'
@@ -64,6 +66,9 @@ interface Fixture {
   html: string;
   online?: boolean;
   dirty?: boolean;
+  refused?: boolean;
+  copyOk?: boolean;
+  turningIn?: boolean;
   unsent?: UnsentWriting;
   notice?: WritingNotice;
 }
@@ -77,6 +82,14 @@ const FIXTURES: Record<StateId, Fixture> = {
     online: false,
     dirty: true,
   },
+  'not-saved': {
+    status: 'draft',
+    html: DRAFT,
+    dirty: true,
+    refused: true,
+    copyOk: false,
+  },
+  'turning-in': { status: 'draft', html: DRAFT, turningIn: true },
   'taken-over': { status: 'draft', tabId: 'other', html: DRAFT },
   unsent: {
     status: 'draft',
@@ -118,6 +131,9 @@ export const WritingDevHarness: React.FC = () => {
       online: f.online ?? true,
       dirty: f.dirty ?? false,
       slow: false,
+      refused: f.refused ?? false,
+      copyOk: f.copyOk ?? true,
+      turningIn: f.turningIn ?? false,
       html: f.html,
     },
     now: NOW,
@@ -126,9 +142,9 @@ export const WritingDevHarness: React.FC = () => {
     view,
     editorKey: state,
     editorHtml: f.html,
-    unsent: f.unsent ?? null,
+    unsent: f.unsent ? [f.unsent] : [],
     notice: f.notice ?? null,
-    busy: null,
+    busy: f.turningIn ? 'turn-in' : null,
     online: f.online ?? true,
     contextMenuOff: true,
     onStart: noop,
