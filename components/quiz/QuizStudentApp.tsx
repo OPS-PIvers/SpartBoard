@@ -6327,20 +6327,30 @@ export const PublishedScoreReview: React.FC<{
     ? myAttemptAsResponse(liveResponse, picked)
     : liveResponse;
   const drawIds = picked ? picked.servedQuestionIds : liveDrawIds;
-  const attemptLabel = (n: number, score: number | null | undefined) =>
-    typeof score === 'number' ? `${n} · ${score}%` : String(n);
+  // Points lead, as on the score card; percent only when an attempt has no point total.
+  const attemptLabel = (
+    n: number,
+    score: number | null | undefined,
+    points: { earned: number; possible: number } | null | undefined
+  ) =>
+    points
+      ? `${n} · ${formatScorePoints(points.earned)}/${formatScorePoints(points.possible)}`
+      : typeof score === 'number'
+        ? `${n} · ${score}%`
+        : String(n);
   const attemptOptions =
     myAttempts.length > 0
       ? [
           ...myAttempts.map((a) => ({
             n: a.n,
-            label: attemptLabel(a.n, a.score),
+            label: attemptLabel(a.n, a.score, a.points),
           })),
           {
             n: null,
             label: attemptLabel(
               Math.max(liveAttemptN, myAttempts[myAttempts.length - 1].n + 1),
-              liveResponse.score
+              liveResponse.score,
+              publishedScorePoints(liveResponse)
             ),
           },
         ]
@@ -6383,8 +6393,15 @@ export const PublishedScoreReview: React.FC<{
 
   const scorePercent =
     typeof myResponse.score === 'number' ? myResponse.score : null;
-  // An earlier attempt's copy carries no points of its own.
-  const scorePoints = picked ? null : publishedScorePoints(myResponse);
+  // An earlier attempt's points come from the attempt list, and only when they make its percent.
+  const scorePoints = picked
+    ? picked.points &&
+      typeof picked.score === 'number' &&
+      Math.round((picked.points.earned / picked.points.possible) * 100) ===
+        picked.score
+      ? picked.points
+      : null
+    : publishedScorePoints(myResponse);
   // Per-question correctness counts come straight off the authoritative
   // response — no client-side grading. Defensive default: a published
   // assignment with all-undefined `isCorrect` reads as 0 correct rather

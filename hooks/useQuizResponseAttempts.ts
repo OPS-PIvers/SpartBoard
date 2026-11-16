@@ -167,6 +167,8 @@ export interface MyQuizAttempt {
   n: number;
   submittedAt: number | null;
   score: number | null;
+  /** Point total behind `score`; absent from older servers and ungraded attempts. */
+  points?: { earned: number; possible: number };
   answers?: { questionId: string; answer: string; isCorrect?: boolean }[];
   grading?: QuizResponse['grading'];
   servedQuestionIds?: string[];

@@ -35,6 +35,8 @@ export interface MyAttempt {
   submittedAt: number | null;
   /** Percent, or null while a written answer still needs a grade. */
   score: number | null;
+  /** Point total behind `score`, when the attempt list has one. */
+  points?: { earned: number; possible: number };
   answers?: MyAttemptAnswer[];
   grading?: Doc;
   servedQuestionIds?: string[];
@@ -88,12 +90,29 @@ function passesClassGate(session: Doc, claims: MyAttemptsClaims): boolean {
 }
 
 /** The scored list entry for attempt `n`, which follows teacher grading of earlier attempts. */
-function listScore(list: Doc | undefined, n: number): number | null {
+function listEntry(list: Doc | undefined, n: number): Doc | null {
   const entries: unknown = list?.attempts;
   if (!Array.isArray(entries)) return null;
   const hit = entries.map(asRecord).find((e) => e.n === n);
-  if (!hit || hit.state !== 'scored') return null;
-  return pctOf(num(hit.points), num(hit.max));
+  return hit && hit.state === 'scored' ? hit : null;
+}
+
+function listScore(list: Doc | undefined, n: number): number | null {
+  const hit = listEntry(list, n);
+  return hit ? pctOf(num(hit.points), num(hit.max)) : null;
+}
+
+/** Earned and possible points for attempt `n`, only when they make its percent. */
+function listPoints(
+  list: Doc | undefined,
+  n: number
+): { earned: number; possible: number } | null {
+  const hit = listEntry(list, n);
+  const earned = num(hit?.points);
+  const possible = num(hit?.max);
+  if (earned === null || possible === null || !(possible > 0)) return null;
+  if (earned < 0 || earned > possible) return null;
+  return { earned, possible };
 }
 
 export async function handleGetMyQuizAttempts(
@@ -170,10 +189,12 @@ export async function handleGetMyQuizAttempts(
 
   const attempts = copies.map((c): MyAttempt => {
     const n = Number(c.n);
+    const points = listPoints(list, n);
     const base: MyAttempt = {
       n,
       submittedAt: num(c.submittedAt),
       score: listScore(list, n) ?? num(c.score),
+      ...(points ? { points } : {}),
     };
     if (!withResponses) return base;
     const parsed = parseCompletedResponse(c);
