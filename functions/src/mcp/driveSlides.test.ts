@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { uploadSlideImage } from './drive';
+import { slideImageFolder, uploadSlideImage } from './drive';
 
 interface Call {
   url: string;
@@ -38,8 +38,10 @@ afterEach(() => vi.unstubAllGlobals());
 describe('uploadSlideImage', () => {
   it("saves a marked slide in the teacher's HotspotImages folder, viewable by link", async () => {
     const calls = stubDrive();
+    const folder = await slideImageFolder('tok');
     const id = await uploadSlideImage(
       'tok',
+      folder,
       Buffer.from('PNGDATA'),
       'image/png',
       'hotspot-1.png'
@@ -57,10 +59,34 @@ describe('uploadSlideImage', () => {
     });
   });
 
+  it('trashes the file when sharing throws, not only when it is refused', async () => {
+    const calls = stubDrive();
+    const base = fetch as unknown as (
+      u: string,
+      i?: RequestInit
+    ) => Promise<Response>;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string, init?: RequestInit) =>
+        url.endsWith('/permissions')
+          ? Promise.reject(new Error('timeout'))
+          : base(url, init)
+      )
+    );
+    await expect(
+      uploadSlideImage('tok', 'f', Buffer.from('x'), 'image/png', 'a.png')
+    ).rejects.toThrow(/timeout/);
+    expect(
+      calls.some(
+        (c) => c.method === 'PATCH' && c.body.includes('"trashed":true')
+      )
+    ).toBe(true);
+  });
+
   it('trashes the file when it cannot be shared', async () => {
     const calls = stubDrive(403);
     await expect(
-      uploadSlideImage('tok', Buffer.from('x'), 'image/png', 'a.png')
+      uploadSlideImage('tok', 'f', Buffer.from('x'), 'image/png', 'a.png')
     ).rejects.toThrow(/share/);
     expect(
       calls.some(

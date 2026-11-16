@@ -216,16 +216,21 @@ export async function replaceDriveJson(
 /** appProperties mark the client checks before releasing a Guided Learning slide (utils/driveAppFolder.ts). */
 const GL_SLIDE_APP_PROPERTIES = { spartboardGlSlide: '1' };
 
-/** Saves a slide image to SpartBoard/Assets/HotspotImages in the teacher's Drive, viewable by link; returns its id. */
+/** The teacher's SpartBoard/Assets/HotspotImages folder id, created when missing. */
+export async function slideImageFolder(token: string): Promise<string> {
+  const root = await findOrCreateFolder(token, DRIVE_APP_FOLDER);
+  const assets = await findOrCreateFolder(token, 'Assets', root);
+  return findOrCreateFolder(token, 'HotspotImages', assets);
+}
+
+/** Saves a slide image in that folder, viewable by link; returns its id, and trashes it on any later failure. */
 export async function uploadSlideImage(
   token: string,
+  folderId: string,
   bytes: Buffer,
   mimeType: string,
   fileName: string
 ): Promise<string> {
-  const root = await findOrCreateFolder(token, DRIVE_APP_FOLDER);
-  const assets = await findOrCreateFolder(token, 'Assets', root);
-  const folderId = await findOrCreateFolder(token, 'HotspotImages', assets);
   const boundary = `spartboard-${Date.now().toString(36)}`;
   const metadata = JSON.stringify({
     name: fileName,
@@ -250,18 +255,20 @@ export async function uploadSlideImage(
   );
   if (!created.ok) throw new Error(`drive slide upload ${created.status}`);
   const { id } = (await created.json()) as { id: string };
-  const shared = await driveFetch(
-    token,
-    `${DRIVE_API}/files/${encodeURIComponent(id)}/permissions`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role: 'reader', type: 'anyone' }),
-    }
-  );
-  if (!shared.ok) {
+  try {
+    const shared = await driveFetch(
+      token,
+      `${DRIVE_API}/files/${encodeURIComponent(id)}/permissions`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: 'reader', type: 'anyone' }),
+      }
+    );
+    if (!shared.ok) throw new Error(`drive slide share ${shared.status}`);
+  } catch (err) {
     await trashDriveFile(token, id);
-    throw new Error(`drive slide share ${shared.status}`);
+    throw err;
   }
   return id;
 }

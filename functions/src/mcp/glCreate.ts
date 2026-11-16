@@ -13,6 +13,7 @@ import {
 import {
   createGuidedLearningJson,
   driveTokenFor,
+  slideImageFolder,
   trashDriveFile,
   uploadSlideImage,
 } from './drive';
@@ -207,21 +208,25 @@ async function uploadSlides(
   );
   const stamp = Date.now();
   if (driveToken) {
-    const ids: string[] = [];
-    try {
-      for (const [i, { contentType, body }] of images.entries()) {
-        ids.push(
-          await uploadSlideImage(
-            driveToken,
-            body,
-            contentType,
-            `hotspot-${stamp}-claude-${i + 1}.${EXTENSIONS[contentType]}`
-          )
-        );
-      }
-    } catch (err) {
+    const folderId = await slideImageFolder(driveToken);
+    const results = await Promise.allSettled(
+      images.map(({ contentType, body }, i) =>
+        uploadSlideImage(
+          driveToken,
+          folderId,
+          body,
+          contentType,
+          `hotspot-${stamp}-claude-${i + 1}.${EXTENSIONS[contentType]}`
+        )
+      )
+    );
+    const ids = results.flatMap((r) =>
+      r.status === 'fulfilled' ? [r.value] : []
+    );
+    const failed = results.find((r) => r.status === 'rejected');
+    if (failed) {
       await Promise.all(ids.map((id) => trashDriveFile(driveToken, id)));
-      throw err;
+      throw failed.reason;
     }
     return {
       urls: ids.map((id) => `https://lh3.googleusercontent.com/d/${id}`),
@@ -298,11 +303,12 @@ export async function saveNewSet(
   const token = source === 'mine' ? await driveTokenFor(ctx.uid) : null;
   await reserveWrite(ctx);
   const slides = await uploadSlides(ctx, input.slide_urls ?? [], token);
+  const setId = randomUUID();
   try {
     const now = Date.now();
     const set = buildNewSet(
       input,
-      { id: randomUUID(), uid: ctx.uid, now },
+      { id: setId, uid: ctx.uid, now },
       source,
       planned,
       slides
@@ -348,9 +354,18 @@ export async function saveNewSet(
     await batch.commit();
     return { set, source, anchorsRequested };
   } catch (err) {
-    // The set never saved, so its Drive slides go to the teacher's trash.
-    if (token)
-      await Promise.all(slides.driveIds.map((id) => trashDriveFile(token, id)));
+    // A commit can fail after landing, so slides are trashed only when the set really didn't save.
+    if (token && slides.driveIds.length > 0) {
+      const saved = await ctx.db
+        .doc(`users/${ctx.uid}/${PERSONAL}/${setId}`)
+        .get()
+        .then((snap) => snap.exists)
+        .catch(() => true);
+      if (!saved)
+        await Promise.all(
+          slides.driveIds.map((id) => trashDriveFile(token, id))
+        );
+    }
     throw err;
   }
 }
