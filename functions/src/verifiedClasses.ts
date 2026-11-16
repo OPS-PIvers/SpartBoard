@@ -28,6 +28,8 @@ import {
 export const VERIFIED_CLASSES_FILL_PATH =
   'admin_settings/verified_classes_fill';
 const MAX_TEST_CLASSES = 50;
+/** Minimum gap between one teacher's refreshMyClassesV1 runs. */
+export const REFRESH_COOLDOWN_MS = 60_000;
 /** The fill job re-reads a list whose ClassLink part is this old. */
 export const FILL_STALE_MS = 7 * 24 * 60 * 60 * 1000;
 const FILL_MAX_TEACHERS_PER_RUN = 400;
@@ -94,6 +96,24 @@ export async function refreshVerifiedClasses(
   return writeVerifiedClasses(db, uid, { classlink, test }, now);
 }
 
+/** Claims the refresh slot; returns the stored doc when the last claim is still inside the cooldown. */
+async function claimRefreshSlot(
+  db: admin.firestore.Firestore,
+  uid: string,
+  now: number
+): Promise<VerifiedClassesDoc | null> {
+  const ref = db.doc(`${VERIFIED_CLASSES_COLLECTION}/${uid}`);
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const at: unknown = snap.exists ? snap.get('refreshedAt') : null;
+    if (typeof at === 'number' && now - at < REFRESH_COOLDOWN_MS) {
+      return snap.data() as VerifiedClassesDoc;
+    }
+    tx.set(ref, { refreshedAt: now }, { merge: true });
+    return null;
+  });
+}
+
 export const refreshMyClassesV1 = onCall(
   {
     memory: '256MiB',
@@ -116,11 +136,16 @@ export const refreshMyClassesV1 = onCall(
     if (!email) {
       throw new HttpsError('permission-denied', 'Teacher account required.');
     }
-    const doc = await refreshVerifiedClasses(
-      admin.firestore(),
-      request.auth.uid,
-      email
-    );
+    const db = admin.firestore();
+    const recent = await claimRefreshSlot(db, request.auth.uid, Date.now());
+    if (recent) {
+      const ids: unknown = recent.ids;
+      return {
+        count: Array.isArray(ids) ? ids.length : 0,
+        classlinkAt: recent.classlinkAt ?? null,
+      };
+    }
+    const doc = await refreshVerifiedClasses(db, request.auth.uid, email);
     return { count: doc.ids.length, classlinkAt: doc.classlinkAt ?? null };
   }
 );

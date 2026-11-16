@@ -1160,11 +1160,9 @@ service cloud.firestore {
     // Removed because this exposes PII (emails). Need a different architecture.
     // Reverting to admin only for now.
 
-    // Feature permissions carry betaUsers emails. The new client reads the stripped mirror and own beta_grants (permissionMirrors CFs);
-    // signed-in reads of the originals stay one release so a previous-client page or a hosting rollback still sees real permissions.
+    // Feature permissions carry betaUsers emails: admins only. Everyone else reads the stripped mirror and own beta_grants (permissionMirrors CFs).
     match /feature_permissions/{widgetType} {
-      allow read: if signedIn();
-      allow write: if isAdmin();
+      allow read, write: if isAdmin();
     }
     match /feature_permissions_public/{widgetType} {
       allow read: if signedIn();
@@ -1257,9 +1255,9 @@ service cloud.firestore {
     // enumerate, so deny all. `{document=**}` covers the contexts/{contextId} subcollection.
     // /lti_session_memberships/{sessionId}/{document=**}: no client access (default deny).
 
-    // Global permissions carry betaUsers emails; the new client uses global_permissions_public. Signed-in reads stay one release (see feature_permissions).
+    // Global permissions carry betaUsers emails: admins read; others use global_permissions_public.
     match /global_permissions/{featureId=**} {
-      allow read: if signedIn();
+      allow read: if isAdmin();
       allow write: if isAdmin() && notServerCgPath(featureId);
     }
 

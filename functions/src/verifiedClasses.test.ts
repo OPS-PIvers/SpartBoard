@@ -89,8 +89,8 @@ const db = {
   runTransaction: async <T>(fn: (tx: unknown) => Promise<T>) =>
     fn({
       get: async (r: { path: string }) => snap(r.path),
-      set: (r: { path: string }, d: Doc) => {
-        docs[r.path] = d;
+      set: (r: { path: string }, d: Doc, o?: { merge?: boolean }) => {
+        docs[r.path] = o?.merge ? { ...docs[r.path], ...d } : d;
       },
     }),
 };
@@ -100,6 +100,7 @@ import {
   refreshVerifiedClasses,
   runVerifiedClassesFill,
   FILL_STALE_MS,
+  REFRESH_COOLDOWN_MS,
 } from './verifiedClasses';
 
 const callRefresh = refreshMyClassesV1 as unknown as (req: {
@@ -181,6 +182,42 @@ describe('refreshMyClassesV1', () => {
     });
     expect(out.count).toBe(2);
     expect(Object.keys(docs)).toEqual(['verified_classes/me']);
+  });
+});
+
+describe('refreshMyClassesV1 cooldown', () => {
+  const me = {
+    uid: 'me',
+    token: { email: 't@orono.k12.mn.us', email_verified: true },
+  };
+
+  it('serves the stored list instead of calling ClassLink again inside the cooldown', async () => {
+    h.taught = new Set(['cl-1']);
+    const first = await callRefresh({ auth: me });
+    expect(first.count).toBe(1);
+    h.taught = new Set(['cl-1', 'cl-2']);
+    const second = await callRefresh({ auth: me });
+    expect(second.count).toBe(1);
+    expect(docs['verified_classes/me']?.ids).toEqual(['cl-1']);
+  });
+
+  it('refreshes again once the cooldown has passed', async () => {
+    h.taught = new Set(['cl-1']);
+    await callRefresh({ auth: me });
+    docs['verified_classes/me'].refreshedAt =
+      Date.now() - REFRESH_COOLDOWN_MS - 1;
+    h.taught = new Set(['cl-1', 'cl-2']);
+    const out = await callRefresh({ auth: me });
+    expect(out.count).toBe(2);
+  });
+
+  it('throttles even when ClassLink is down', async () => {
+    h.taught = new Error('unavailable');
+    await callRefresh({ auth: me });
+    h.taught = new Set(['cl-1']);
+    const out = await callRefresh({ auth: me });
+    expect(out.classlinkAt).toBeNull();
+    expect(docs['verified_classes/me']?.classlink).toEqual([]);
   });
 });
 
