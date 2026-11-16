@@ -92,6 +92,7 @@ import {
   type MiniAppStepperChoices,
 } from './miniAppStepperAssign';
 import { AssignmentsModal } from './components/AssignmentsModal';
+import { MiniAppAssignmentMonitor } from './components/MiniAppAssignmentMonitor';
 import { MiniAppManager } from './components/MiniAppManager';
 import { AssignmentClassesModal } from '@/components/common/library/AssignmentClassesModal';
 import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
@@ -523,6 +524,10 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     assignments.some((a) => a.appId === activeApp.id && a.mode !== 'view-only');
   const [editingClasses, setEditingClasses] =
     useState<MiniAppAssignment | null>(null);
+  const [monitoring, setMonitoring] = useState<{
+    assignment: MiniAppAssignment;
+    view: 'monitor' | 'results';
+  } | null>(null);
   const [publishingScores, setPublishingScores] =
     useState<MiniAppAssignment | null>(null);
 
@@ -1987,11 +1992,40 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                   ? setPublishingScores
                   : undefined
               }
+              onArchiveMonitor={
+                canAccessFeature('mini-app-results')
+                  ? (assignment) =>
+                      setMonitoring({ assignment, view: 'monitor' })
+                  : undefined
+              }
+              onArchiveResults={
+                canAccessFeature('mini-app-results')
+                  ? (assignment) =>
+                      setMonitoring({ assignment, view: 'results' })
+                  : undefined
+              }
+              assignmentClassNames={(assignment) =>
+                rosters
+                  .filter((r) => assignment.rosterIds?.includes(r.id))
+                  .map((r) => r.name)
+              }
               assignmentMode={assignmentMode}
               readOnly={isActiveBoardReadOnly}
             />
             {/* Assign modal */}
             {assignDialog}
+            {monitoring && (
+              <MiniAppAssignmentMonitor
+                key={`${monitoring.assignment.id}-${monitoring.view}`}
+                assignment={monitoring.assignment}
+                view={monitoring.view}
+                onClose={() => setMonitoring(null)}
+                onMissing={() => {
+                  setMonitoring(null);
+                  addToast("Couldn't open this assignment.", 'error');
+                }}
+              />
+            )}
             {publishingScores && (
               <PublishScoresModal
                 assignmentTitle={publishingScores.assignmentName}

@@ -11851,6 +11851,11 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'mini-app.archive-results': {
+    label: 'Results item in a Mini App assignment row menu',
+    perWidgetType: true,
+    panel: true,
+  },
   'mini-app.archive-publish-scores': {
     label: 'Publish scores item in a Mini App Completed assignment row menu',
     perWidgetType: true,
