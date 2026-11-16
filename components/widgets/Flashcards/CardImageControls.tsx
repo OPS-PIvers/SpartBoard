@@ -58,6 +58,7 @@ export const CardImageButton: React.FC<ButtonProps> = ({
             alt={`${label} image`}
             onClose={() => setPreviewing(false)}
             actions={
+              // no-tour-anchor: inside the full-screen preview, which tours don't open
               <button
                 type="button"
                 onClick={() => {
@@ -95,6 +96,7 @@ export const CardImageButton: React.FC<ButtonProps> = ({
           <ImagePlus style={ICON} aria-hidden />
         )}
       </button>
+      {/* no-tour-anchor: hidden file input; tours point at the Add image button */}
       <input
         ref={input}
         type="file"
