@@ -28,7 +28,11 @@ export const StimulusTabFields: React.FC<{
             onChange({ tabLabel: e.target.value ? e.target.value : undefined })
           }
           placeholder="Numbered when empty"
-          title="Students see this name on the tab when a question has two or more stimuli."
+          title={
+            tourType === 'quiz'
+              ? 'Students see this name on the tab when a question has two or more stimuli.'
+              : 'Students see this name on the tab when there are two or more stimuli.'
+          }
           {...tourFieldAttr('quiz-stimuli.tab-label', tourType, String(index))}
           className={inputClass}
         />

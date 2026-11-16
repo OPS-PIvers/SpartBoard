@@ -18,7 +18,7 @@ export const clampWritingPoints = (points: number): number =>
     ? Math.min(MAX_WRITING_POINTS, Math.max(1, Math.round(points)))
     : 1;
 
-const normalizeGrading = (
+export const normalizeGrading = (
   grading: WritingGrading | undefined
 ): WritingGrading => {
   if (!grading) return { mode: 'ungraded' };
@@ -109,5 +109,5 @@ export function writingGradingLabel(
 ): string {
   if (!grading || grading.mode === 'ungraded') return 'Ungraded';
   if (grading.mode === 'points') return writingPointsLabel(grading.points);
-  return grading.rubricSnapshot.title || 'Untitled rubric';
+  return grading.rubricSnapshot?.title || 'Untitled rubric';
 }

@@ -1,5 +1,11 @@
 // The Writing widget body: the Library and Archive of Writing assignments.
-import React, { useCallback, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   Archive as ArchiveIcon,
   CheckSquare,
@@ -145,6 +151,10 @@ export const WritingManager: React.FC<{ widget: WidgetData }> = ({
     () => new Map(assignments.map((a) => [a.id, a])),
     [assignments]
   );
+  const byIdRef = useRef(byId);
+  useLayoutEffect(() => {
+    byIdRef.current = byId;
+  }, [byId]);
   const libraryItems = useMemo(
     () => assignments.filter((a) => !a.archivedAt),
     [assignments]
@@ -233,8 +243,15 @@ export const WritingManager: React.FC<{ widget: WidgetData }> = ({
 
   const handleSave = useCallback(
     async (next: Item): Promise<void> => {
+      // Deleted elsewhere: an editor save must not bring it back.
+      const current = byIdRef.current.get(next.id);
+      if (!current) return;
       try {
-        await saveAssignment(next);
+        await saveAssignment({
+          ...next,
+          archivedAt: current.archivedAt ?? null,
+          order: current.order,
+        });
       } catch {
         addToast('That writing assignment could not be saved.', 'error');
         throw new Error('save failed');

@@ -16,6 +16,7 @@ import type { WritingAssignmentDefinition } from '@/types';
 import { logError } from '@/utils/logError';
 import {
   duplicateWritingAssignment,
+  normalizeGrading,
   normalizeWritingAssignment,
 } from '@/utils/writingAssignments';
 
@@ -60,10 +61,17 @@ export function useWritingAssignmentLibrary(
       ),
       (snapshot) => {
         setAssignments(
-          snapshot.docs.map((snapshotDoc) => ({
-            ...(snapshotDoc.data() as Omit<WritingAssignmentDefinition, 'id'>),
-            id: snapshotDoc.id,
-          }))
+          snapshot.docs.map((snapshotDoc) => {
+            const data = snapshotDoc.data() as Omit<
+              WritingAssignmentDefinition,
+              'id'
+            >;
+            return {
+              ...data,
+              grading: normalizeGrading(data.grading),
+              id: snapshotDoc.id,
+            };
+          })
         );
         setError(null);
         setLoading(false);
