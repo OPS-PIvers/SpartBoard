@@ -59,6 +59,13 @@ export const flattenCollections = (
     out.push({ c, depth: 0, effectiveParentId: null });
     walk(c.id, 1);
   }
+  // Parent cycles (two-tab races) are unreachable from root; surface them there too.
+  for (const c of [...collections].sort((a, b) => a.order - b.order)) {
+    if (visited.has(c.id)) continue;
+    visited.add(c.id);
+    out.push({ c, depth: 0, effectiveParentId: null });
+    walk(c.id, 1);
+  }
   return out;
 };
 
