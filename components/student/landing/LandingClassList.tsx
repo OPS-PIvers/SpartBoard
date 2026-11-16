@@ -26,13 +26,13 @@ const TONE: Record<'now' | 'missing' | 'plain', string> = {
 const DARK_TONE: Record<'now' | 'missing' | 'plain', string> = {
   now: 'text-emerald-300',
   missing: 'text-rose-300',
-  plain: 'text-white/70',
+  plain: 'text-white/60',
 };
 
 const rowClass = (active: boolean, dark: boolean): string =>
   `flex w-full min-h-[48px] items-center gap-3 rounded-xl px-2.5 py-2 text-left transition focus:outline-hidden focus-visible:ring-2 ${
     dark
-      ? `focus-visible:ring-white ${active ? 'bg-white/15' : 'hover:bg-white/10'}`
+      ? `focus-visible:ring-white/70 ${active ? 'bg-white shadow-xs' : 'hover:bg-white/10'}`
       : `focus-visible:ring-brand-blue-primary ${active ? 'bg-slate-100' : 'hover:bg-slate-50'}`
   }`;
 
@@ -47,32 +47,42 @@ export const LandingClassList: React.FC<LandingClassListProps> = ({
   tone = 'light',
 }) => {
   const dark = tone === 'dark';
-  const nameClass = `block truncate text-sm font-semibold ${dark ? 'text-white' : 'text-slate-800'}`;
+  // An active row on the dark rail is a white pill, so it uses the light text colours.
+  const onDark = (active: boolean) => dark && !active;
+  const nameClass = (active: boolean) =>
+    `block truncate text-sm font-semibold ${
+      onDark(active)
+        ? 'text-white'
+        : dark
+          ? 'text-brand-blue-dark'
+          : 'text-slate-800'
+    }`;
+  const overviewActive = selectedClassId === null;
   return (
     <nav aria-label="Classes" className="flex flex-col gap-0.5">
       <button
         type="button"
         onClick={() => onSelect(null)}
         aria-current={selectedClassId === null ? 'page' : undefined}
-        className={rowClass(selectedClassId === null, dark)}
+        className={rowClass(overviewActive, dark)}
       >
         <span
           aria-hidden="true"
-          className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${dark ? 'bg-white/15 text-white' : 'bg-slate-200 text-slate-600'}`}
+          className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${onDark(overviewActive) ? 'bg-white/15 text-white' : dark ? 'bg-brand-blue-lighter text-brand-blue-dark' : 'bg-slate-200 text-slate-600'}`}
         >
           <House className="h-4 w-4" strokeWidth={2.25} />
         </span>
         <span className="min-w-0 flex-1">
-          <span className={nameClass}>Overview</span>
+          <span className={nameClass(overviewActive)}>Overview</span>
           <span
-            className={`block truncate text-xs ${dark ? 'text-white/70' : 'text-slate-500'}`}
+            className={`block truncate text-xs ${onDark(overviewActive) ? 'text-white/60' : 'text-slate-500'}`}
           >
             All classes
           </span>
         </span>
       </button>
       <p
-        className={`mb-1 mt-3 px-2.5 text-xs font-semibold ${dark ? 'text-white/70' : 'text-slate-500'}`}
+        className={`mb-1 mt-3 px-2.5 text-xs font-semibold ${dark ? 'text-white/50' : 'text-slate-500'}`}
       >
         My classes
       </p>
@@ -94,15 +104,15 @@ export const LandingClassList: React.FC<LandingClassListProps> = ({
           >
             <span
               aria-hidden="true"
-              className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-white ${dark ? 'ring-1 ring-white/30' : ''}`}
+              className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-white ${onDark(active) ? 'ring-1 ring-white/30' : ''}`}
               style={{ background: c.color.bar }}
             >
               {c.square}
             </span>
             <span className="min-w-0 flex-1">
-              <span className={nameClass}>{c.name}</span>
+              <span className={nameClass(active)}>{c.name}</span>
               <span
-                className={`block truncate text-xs ${(dark ? DARK_TONE : TONE)[line.tone]}`}
+                className={`block truncate text-xs ${(onDark(active) ? DARK_TONE : TONE)[line.tone]}`}
               >
                 {line.text}
               </span>
