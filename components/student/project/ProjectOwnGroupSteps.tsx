@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { Loader2, Lock } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight, Loader2, Lock } from 'lucide-react';
 import type { ProjectGroup, ProjectStep, ProjectStepState } from '@/types';
 import {
   STEP_STATE_LABELS,
@@ -10,6 +10,36 @@ import {
 import { STATE_STYLES } from '@/components/widgets/Projects/stepVisuals';
 import { StateMark } from '@/components/widgets/Projects/StateMark';
 import { ProjectStepStatePicker } from './ProjectStepStatePicker';
+
+const MIN_CELL = 120;
+const GAP = 8;
+const ARROW = 32;
+const ROW_GAP = 6;
+const LIST_PAD = 4;
+
+interface StripLayout {
+  cellWidth: number;
+  perPage: number;
+  overflow: boolean;
+}
+
+/** Whole cells only: every visible step gets an equal share and none is cut off. */
+const layoutFor = (width: number, count: number): StripLayout => {
+  if (count * MIN_CELL + (count - 1) * GAP + LIST_PAD <= width) {
+    return {
+      cellWidth: (width - LIST_PAD - (count - 1) * GAP) / count,
+      perPage: count,
+      overflow: false,
+    };
+  }
+  const avail = width - 2 * (ARROW + ROW_GAP) - LIST_PAD;
+  const perPage = Math.max(1, Math.floor((avail + GAP) / (MIN_CELL + GAP)));
+  return {
+    cellWidth: (avail - (perPage - 1) * GAP) / perPage,
+    perPage,
+    overflow: true,
+  };
+};
 
 /** D41 — the rules lock an approved step, so a student cannot move it out of done. */
 const isApprovedLock = (step: ProjectStep, state: ProjectStepState): boolean =>
@@ -26,6 +56,7 @@ interface StepCellProps {
   onClose: () => void;
   onPick: (state: ProjectStepState) => void;
   asTeacher: boolean;
+  sized: boolean;
 }
 
 const StepCell: React.FC<StepCellProps> = ({
@@ -39,6 +70,7 @@ const StepCell: React.FC<StepCellProps> = ({
   onClose,
   onPick,
   asTeacher,
+  sized,
 }) => {
   const wrapperRef = useRef<HTMLLIElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -49,7 +81,11 @@ const StepCell: React.FC<StepCellProps> = ({
   return (
     <li
       ref={wrapperRef}
-      className="sm:min-w-30 sm:flex-1 sm:shrink-0 sm:basis-30"
+      className={
+        sized
+          ? 'sm:w-(--step-w) sm:shrink-0 sm:snap-start'
+          : 'sm:min-w-30 sm:flex-1 sm:basis-30'
+      }
     >
       <button
         ref={triggerRef}
@@ -125,24 +161,54 @@ export const ProjectOwnGroupSteps: React.FC<ProjectOwnGroupStepsProps> = ({
   asTeacher = false,
 }) => {
   const color = resolveGroupColor(group.color, group.order);
+  const rowRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLOListElement>(null);
-  const centeredRef = useRef(false);
+  const placedRef = useRef(false);
+  const [layout, setLayout] = useState<StripLayout | null>(null);
+  const [edges, setEdges] = useState({ prev: false, next: false });
   const currentIndex = steps.findIndex(
     (step) => stepStateOf(group, step.id) !== 'done'
   );
+  const count = steps.length;
 
-  // Bring the first unfinished step into view once, so live updates never move the strip.
+  const readEdges = () => {
+    const list = listRef.current;
+    if (!list) return;
+    const max = list.scrollWidth - list.clientWidth;
+    setEdges({ prev: list.scrollLeft > 1, next: list.scrollLeft < max - 1 });
+  };
+
+  useEffect(() => {
+    const row = rowRef.current;
+    if (!row || count === 0 || typeof ResizeObserver === 'undefined') return;
+    const measure = () => setLayout(layoutFor(row.clientWidth, count));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(row);
+    return () => observer.disconnect();
+  }, [count]);
+
+  // Open on the page holding the first unfinished step, once, so live updates never move it.
   useEffect(() => {
     const list = listRef.current;
-    const item = list?.children[currentIndex] as HTMLElement | undefined;
-    if (centeredRef.current || !list || !item) return;
-    centeredRef.current = true;
-    if (list.scrollWidth <= list.clientWidth) return;
-    const listRect = list.getBoundingClientRect();
-    const itemRect = item.getBoundingClientRect();
-    list.scrollLeft +=
-      itemRect.left - listRect.left - (listRect.width - itemRect.width) / 2;
-  }, [currentIndex, steps.length]);
+    if (!list || !layout) return;
+    if (!placedRef.current && layout.overflow && currentIndex > 0) {
+      placedRef.current = true;
+      list.scrollLeft = (currentIndex - 1) * (layout.cellWidth + GAP);
+    }
+    readEdges();
+  }, [layout, currentIndex]);
+
+  const page = (direction: 1 | -1) => {
+    if (!layout) return;
+    listRef.current?.scrollBy({
+      left: direction * layout.perPage * (layout.cellWidth + GAP),
+      behavior: 'smooth',
+    });
+  };
+
+  const arrowClass =
+    'touch-target-expand hidden w-8 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary disabled:cursor-default disabled:opacity-30 disabled:hover:bg-transparent sm:flex';
 
   return (
     <div>
@@ -166,29 +232,64 @@ export const ProjectOwnGroupSteps: React.FC<ProjectOwnGroupStepsProps> = ({
           Your teacher has not added the steps yet.
         </p>
       ) : (
-        <ol
-          ref={listRef}
-          aria-label="Your steps"
-          className="custom-scrollbar mt-3 flex flex-col gap-2 sm:-mx-0.5 sm:flex-row sm:overflow-x-auto sm:px-0.5 sm:pb-1.5 sm:pt-0.5"
-        >
-          {steps.map((step, index) => (
-            <StepCell
-              key={step.id}
-              step={step}
-              index={index}
-              state={stepStateOf(group, step.id)}
-              canEdit={canEdit}
-              busy={busyStepId === step.id}
-              open={openStepId === step.id}
-              onToggle={() =>
-                onOpenStep(openStepId === step.id ? null : step.id)
-              }
-              onClose={() => onOpenStep(null)}
-              onPick={(state) => onPick(step, state)}
-              asTeacher={asTeacher}
-            />
-          ))}
-        </ol>
+        <div ref={rowRef} className="mt-3 sm:flex sm:items-stretch sm:gap-1.5">
+          {layout?.overflow && (
+            // no-tour-anchor: scrolls the step row, nothing a tour would point at
+            <button
+              type="button"
+              aria-label="Previous steps"
+              disabled={!edges.prev}
+              onClick={() => page(-1)}
+              className={arrowClass}
+            >
+              <ChevronLeft aria-hidden className="h-5 w-5" />
+            </button>
+          )}
+          <ol
+            ref={listRef}
+            aria-label="Your steps"
+            onScroll={readEdges}
+            style={
+              layout
+                ? ({
+                    '--step-w': `${layout.cellWidth}px`,
+                  } as React.CSSProperties)
+                : undefined
+            }
+            className="no-scrollbar flex min-w-0 flex-1 flex-col gap-2 sm:snap-x sm:snap-mandatory sm:flex-row sm:overflow-x-auto sm:p-0.5 sm:scroll-px-0.5"
+          >
+            {steps.map((step, index) => (
+              <StepCell
+                key={step.id}
+                step={step}
+                index={index}
+                state={stepStateOf(group, step.id)}
+                canEdit={canEdit}
+                busy={busyStepId === step.id}
+                open={openStepId === step.id}
+                onToggle={() =>
+                  onOpenStep(openStepId === step.id ? null : step.id)
+                }
+                onClose={() => onOpenStep(null)}
+                onPick={(state) => onPick(step, state)}
+                asTeacher={asTeacher}
+                sized={layout !== null}
+              />
+            ))}
+          </ol>
+          {layout?.overflow && (
+            // no-tour-anchor: scrolls the step row, nothing a tour would point at
+            <button
+              type="button"
+              aria-label="Next steps"
+              disabled={!edges.next}
+              onClick={() => page(1)}
+              className={arrowClass}
+            >
+              <ChevronRight aria-hidden className="h-5 w-5" />
+            </button>
+          )}
+        </div>
       )}
     </div>
   );
