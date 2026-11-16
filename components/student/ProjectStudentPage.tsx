@@ -15,7 +15,7 @@ import { ProjectGroupWork } from './project/ProjectGroupWork';
 import { ProjectOwnGroupSteps } from './project/ProjectOwnGroupSteps';
 import { ProjectRubricSheet } from './project/ProjectRubricSheet';
 import { ProjectScoreCard } from './project/ProjectScoreCard';
-import { parseProjectRunId } from './project/projectRoute';
+import { parseProjectRunId, projectBackHref } from './project/projectRoute';
 
 const Centered: React.FC<{
   icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
@@ -31,7 +31,7 @@ const Centered: React.FC<{
 
 /** `/project/:runId` — a group's own view of one project (§6, D30); rules enforce the limits. */
 export const ProjectStudentPage: React.FC = () => {
-  const { pseudonymUid, signOut } = useStudentAuth();
+  const { pseudonymUid } = useStudentAuth();
   const runId = useMemo(() => parseProjectRunId(window.location.pathname), []);
 
   const {
@@ -195,7 +195,14 @@ export const ProjectStudentPage: React.FC = () => {
   };
 
   return (
-    <StudentPageShell onDone={() => void signOut()}>
+    <StudentPageShell
+      doneAction="back"
+      onDone={() =>
+        window.location.assign(
+          projectBackHref(document.referrer, window.location.origin)
+        )
+      }
+    >
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h1 className="truncate text-2xl font-black tracking-tight text-slate-900">
