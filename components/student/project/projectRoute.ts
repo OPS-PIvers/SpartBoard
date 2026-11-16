@@ -16,3 +16,16 @@ export function parseProjectRunId(pathname: string): string | null {
     return null;
   }
 }
+
+/** Where Done goes: the `/my-assignments` page the student came from, else its top. */
+export function projectBackHref(referrer: string, origin: string): string {
+  try {
+    const url = new URL(referrer);
+    if (url.origin === origin && /^\/my-assignments(\/|$)/.test(url.pathname)) {
+      return url.pathname;
+    }
+  } catch {
+    // No or malformed referrer.
+  }
+  return '/my-assignments';
+}

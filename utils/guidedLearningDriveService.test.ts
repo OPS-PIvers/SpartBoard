@@ -8,6 +8,7 @@ import {
   GuidedLearningDriveService,
   resetGuidedLearningDriveFolderCache,
 } from './guidedLearningDriveService';
+import { DevProdDriveWriteError } from './devDriveWriteGuard';
 
 const set: GuidedLearningSet = {
   id: 'abcdef12-3456',
@@ -90,6 +91,16 @@ describe('GuidedLearningDriveService.saveSet', () => {
       method === 'PATCH' && url.includes('/files/file-1') ? empty(404) : null
     );
     await expect(service().saveSet(set, 'file-1')).resolves.toBe('new-file');
+    expect(calls.filter((c) => c.method === 'POST')).toHaveLength(1);
+  });
+
+  it('saves a dev copy when the file belongs to the live site', async () => {
+    handler = driveWithFolders((url, method) => {
+      if (method === 'PATCH' && url.includes('/files/prod-file'))
+        throw new DevProdDriveWriteError();
+      return null;
+    });
+    await expect(service().saveSet(set, 'prod-file')).resolves.toBe('new-file');
     expect(calls.filter((c) => c.method === 'POST')).toHaveLength(1);
   });
 
