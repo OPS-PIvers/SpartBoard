@@ -95,12 +95,16 @@ Sections a teacher has chosen to link because they are taught the same thing, so
 _Avoid_: class (for the group), merged class
 
 **Agenda**:
-A Course's daily plan: the Google Slides or Doc file the teacher already keeps, shown on the board, on the Class page and to families.
+A Course's daily plan: the Google Slides deck the teacher already keeps, newest day first, shown on the board, on the Class page and to families.
 _Avoid_: announcement (that is an admin's message to staff), schedule (that is the bell-schedule widget)
 
 **Class page**:
-A Course's page for students: the Agenda, their assigned work and a few pinned links. Its public version shows families the Agenda and links only, never a student's name or work.
+The page a student sees for one class inside My Assignments: the Agenda, a few pinned links and their assigned work.
 _Avoid_: course page, portal, student home (that is My Assignments, the list across all classes)
+
+**Family link**:
+A Course's public page for families, with no sign-in: the Agenda and pinned links only, never a student's name or work. The teacher switches it on, and its address never changes.
+_Avoid_: parent portal, public Class page, share link
 
 ## Student work
 
