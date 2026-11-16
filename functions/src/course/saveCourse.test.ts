@@ -465,6 +465,30 @@ describe('saveCourseV1 merges, partial saves and deleted classes', () => {
     expect(doc(`family_pages/${gone.familyLink.shareId}`)).toBeDefined();
   });
 
+  it('never republishes a family address the teacher switched off when its Course merges into one that is on', async () => {
+    await save({ ...base, rosterIds: ['p2'], familyLinkOn: true });
+    await save({
+      ...base,
+      name: 'Other',
+      rosterIds: ['p5'],
+      familyLinkOn: true,
+    });
+    const otherPath = paths(`users/${UID}/courses/`).find(
+      (p) => doc(p)?.name === 'Other'
+    ) as string;
+    const off = doc(otherPath) as { familyLink: { shareId: string } };
+    await save({ id: otherPath.split('/').pop(), familyLinkOn: false });
+    expect(doc(`family_pages/${off.familyLink.shareId}`)).toBeUndefined();
+    await save({ id: 'id1', rosterIds: ['p2', 'p5'] });
+    const kept = doc(`users/${UID}/courses/id1`) as {
+      formerShareIds: string[];
+      familyLink: { on: boolean };
+    };
+    expect(kept.familyLink.on).toBe(true);
+    expect(kept.formerShareIds).not.toContain(off.familyLink.shareId);
+    expect(doc(`family_pages/${off.familyLink.shareId}`)).toBeUndefined();
+  });
+
   it('keeps both old links when a new Course empties two Courses', async () => {
     await save({ ...base, rosterIds: ['p2'] });
     await save({ ...base, name: 'Other', rosterIds: ['p5'] });

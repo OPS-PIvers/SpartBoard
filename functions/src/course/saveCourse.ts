@@ -479,10 +479,10 @@ async function saveOnce(
     const formerShareIds = keepFormer(
       [
         ...(prev?.formerShareIds ?? []),
-        ...merged.flatMap((c) => [
-          ...(c.familyLink ? [c.familyLink.shareId] : []),
-          ...c.formerShareIds,
-        ]),
+        // A switched-off address stays off: it is dropped rather than republished under this Course.
+        ...merged.flatMap((c) =>
+          c.familyLink?.on ? [c.familyLink.shareId, ...c.formerShareIds] : []
+        ),
       ],
       familyShareId
     );
