@@ -3661,6 +3661,7 @@
       "title": "Your Results",
       "attempt": "Attempt",
       "fullyCorrect": "{{correct}} of {{total}} fully correct",
+      "pointsOf": "{{earned}} out of {{possible}} points",
       "writtenPending": "Your written response is still being graded. Check back soon.",
       "yourAnswers": "Your Answers",
       "otherQuestions": "Other questions",
