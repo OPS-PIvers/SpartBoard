@@ -223,18 +223,19 @@ describe('GuidedLearningStudio', () => {
       pressKey('Delete');
     });
     expect(
-      screen.getByLabelText('Activity title').nextSibling
+      screen.getByLabelText('Activity title').closest('label')?.nextSibling
     ).toHaveTextContent('0 steps');
     act(() => {
       pressKey('z', { ctrlKey: true });
     });
     expect(
-      screen.getByLabelText('Activity title').nextSibling
+      screen.getByLabelText('Activity title').closest('label')?.nextSibling
     ).toHaveTextContent('1 step');
   });
 
   describe('undo everywhere', () => {
-    const subtitle = () => screen.getByLabelText('Activity title').nextSibling;
+    const subtitle = () =>
+      screen.getByLabelText('Activity title').closest('label')?.nextSibling;
 
     it('offers Undo after deleting a step with the Delete key', () => {
       renderWithToasts();
@@ -372,7 +373,7 @@ describe('GuidedLearningStudio', () => {
     });
     openDialog.current = null;
     expect(
-      screen.getByLabelText('Activity title').nextSibling
+      screen.getByLabelText('Activity title').closest('label')?.nextSibling
     ).toHaveTextContent('1 step');
   });
 
@@ -383,7 +384,7 @@ describe('GuidedLearningStudio', () => {
     });
     const title = screen.getByLabelText('Activity title');
     fireEvent.keyDown(title, { key: 'Delete' });
-    expect(title.nextSibling).toHaveTextContent('1 step');
+    expect(title.closest('label')?.nextSibling).toHaveTextContent('1 step');
   });
 
   it('autosaves after an edit', async () => {

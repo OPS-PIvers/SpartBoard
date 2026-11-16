@@ -9,6 +9,7 @@ import React, {
 import { AlertCircle, AlertTriangle, Check, Loader2, X } from 'lucide-react';
 import { Modal } from './Modal';
 import { FullscreenToggleButton } from './FullscreenToggleButton';
+import { EditableHeaderTitle } from './EditableHeaderTitle';
 import { useDialog } from '@/context/useDialog';
 import { DashboardContext } from '@/context/DashboardContextValue';
 import { useAutosave, type AutosaveStatus } from '@/hooks/useAutosave';
@@ -297,20 +298,16 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
       >
         <div className="flex flex-col min-w-0 flex-1">
           {onTitleChange ? (
-            <input
+            <EditableHeaderTitle
               id="editor-modal-shell-title"
-              type="text"
               value={title}
-              onChange={(e) => onTitleChange(e.target.value)}
+              onChange={onTitleChange}
               placeholder={titlePlaceholder ?? 'Untitled'}
-              // Visually identical to the static h3 fallback below (same font
-              // weight/size/color), but editable and full-width so the user
-              // can rename the item without a duplicate title field in the
-              // editor body. `aria-labelledby` on the modal still resolves
-              // here because the id is preserved.
-              className={`font-black text-lg truncate bg-transparent border-0 focus:outline-hidden focus:ring-0 placeholder:font-bold w-full p-0 ${headerAccent ? 'text-white placeholder:text-white/60' : 'text-slate-800 placeholder:text-slate-400'}`}
-              aria-label="Title"
-              {...(tourScope ? tourTypeAttr('editor.title', tourScope) : {})}
+              ariaLabel="Title"
+              onAccent={!!headerAccent}
+              tourAttrs={
+                tourScope ? tourTypeAttr('editor.title', tourScope) : undefined
+              }
             />
           ) : (
             <h3
