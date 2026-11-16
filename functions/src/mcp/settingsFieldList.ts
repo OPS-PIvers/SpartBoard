@@ -219,7 +219,7 @@ export const SETTINGS_FIELD_LIST: Readonly<
     },
     {
       anchor: 'settings.toggle:embed#blockNewTabs',
-      label: 'Block new tabs',
+      label: 'Block embedded content from opening new tabs',
       kind: 'toggle',
     },
   ],
