@@ -1,9 +1,10 @@
-// My Classes roster list grouped by Course behind the course-agenda flag (D1, D3); threads A, B and E fill the stubs it renders.
+// My Classes list behind the course-agenda flag: a linked Course is one row (D3); threads A, B and E fill the stubs it renders.
 import React, { Fragment, useMemo } from 'react';
 import { courseGroups } from '@/utils/course/courseGroups';
 import { AgendaSetup } from './AgendaSetup';
 import { CourseGroupActions } from './CourseGroupActions';
 import { CourseLinking } from './CourseLinking';
+import { CourseRow } from './CourseRow';
 import { FamilyLinkSetup } from './FamilyLinkSetup';
 import type { CourseClassListProps, CourseRoster } from './types';
 
@@ -36,20 +37,20 @@ export function CourseClassList<R extends CourseRoster>({
               key={group.course?.id ?? `roster-${group.rosters[0].id}`}
               data-course-group={linked ? 'linked' : 'single'}
             >
-              {linked && (
-                <p className="px-1 pt-2 text-xs font-bold text-slate-500 break-words">
-                  {group.course?.name}
-                </p>
+              {linked ? (
+                <CourseRow
+                  group={group}
+                  renderSection={(r) => renderRow(r, indexOf.get(r.id) ?? 0)}
+                />
+              ) : (
+                <ul>
+                  {group.rosters.map((r) => (
+                    <Fragment key={r.id}>
+                      {renderRow(r, indexOf.get(r.id) ?? 0)}
+                    </Fragment>
+                  ))}
+                </ul>
               )}
-              <ul
-                className={`divide-y divide-slate-200 ${linked ? 'pl-3' : ''}`}
-              >
-                {group.rosters.map((r) => (
-                  <Fragment key={r.id}>
-                    {renderRow(r, indexOf.get(r.id) ?? 0)}
-                  </Fragment>
-                ))}
-              </ul>
               <CourseGroupActions group={group} saveCourse={saveCourse} />
               <AgendaSetup group={group} saveCourse={saveCourse} />
               <FamilyLinkSetup group={group} saveCourse={saveCourse} />

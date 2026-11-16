@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { CourseClassList } from './CourseClassList';
 import type { Course } from '@/utils/course/contract';
 
@@ -28,7 +28,7 @@ const rosters = [
 ];
 
 describe('CourseClassList', () => {
-  it('shows linked classes together under the Course name and unlinked ones on their own', () => {
+  it('shows a linked Course as one collapsed row that opens to its classes, and unlinked ones on their own', () => {
     const { container } = render(
       <CourseClassList
         rosters={rosters}
@@ -40,10 +40,16 @@ describe('CourseClassList', () => {
     );
     const list = container.querySelector('[data-tour="classes.roster-list"]');
     expect(list).not.toBeNull();
-    const linked = container.querySelector('[data-course-group="linked"]');
-    expect(linked).not.toBeNull();
-    const inLinked = within(linked as HTMLElement);
+    const linked = container.querySelector(
+      '[data-course-group="linked"]'
+    ) as HTMLElement;
+    const inLinked = within(linked);
     expect(inLinked.getByText('English 9')).toBeInTheDocument();
+    expect(inLinked.getByText('2 sections')).toBeInTheDocument();
+    expect(inLinked.queryByText('0:English 9 P2')).toBeNull();
+    const chevron = inLinked.getByRole('button', { expanded: false });
+    fireEvent.click(chevron);
+    expect(chevron).toHaveAttribute('aria-expanded', 'true');
     expect(inLinked.getByText('0:English 9 P2')).toBeInTheDocument();
     expect(inLinked.getByText('2:English 9 P5')).toBeInTheDocument();
     const single = container.querySelector('[data-course-group="single"]');

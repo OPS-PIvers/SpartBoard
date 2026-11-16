@@ -469,11 +469,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
       }
       onEdit={() => setEditingRosterId(r.id)}
       onSyncClassLink={() =>
-        setClassLinkMode({
-          kind: 'merge',
-          rosterId: r.id,
-          rosterName: r.name,
-        })
+        setClassLinkMode({ kind: 'merge', rosterId: r.id, rosterName: r.name })
       }
       onLinkClassroom={() => setLinkingRoster(r)}
       onViewStudentPage={

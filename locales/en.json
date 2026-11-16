@@ -5239,7 +5239,6 @@
       "tabSubmitTitle": "You left the page too many times",
       "submittingAnswers": "Submitting your answers…",
       "forcedTab": "You left the page too many times. Your assignment has been submitted. Ask your teacher if you think this was a mistake.",
-      "tryAgain": "Try again",
       "tryAgainError": "Couldn't start a new attempt. Try again.",
       "tabWarningOf": "Warning {{count}} of {{limit}}."
     },
@@ -6443,5 +6442,11 @@
     "hour": "Hour",
     "minute": "Minute",
     "period": "AM or PM"
+  },
+  "course": {
+    "linking": {
+      "sectionCount_one": "{{count}} section",
+      "sectionCount_other": "{{count}} sections"
+    }
   }
 }
