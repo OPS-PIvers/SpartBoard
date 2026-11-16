@@ -862,6 +862,28 @@ describe('QuizAssignmentSettingsModal — on the assign stepper', () => {
     expect(screen.queryByLabelText('Closes')).not.toBeInTheDocument();
   });
 
+  it('shows the Manual state for a Manual due date with late work', () => {
+    render(
+      <QuizAssignmentSettingsModal
+        assignment={saved({
+          openAt: undefined,
+          closeAt: undefined,
+          dueAt: closes,
+          dueLocks: false,
+          accessMode: 'assessment',
+          periodAccess: {
+            c1: { state: 'closed' },
+          } as unknown as QuizAssignment['periodAccess'],
+        })}
+        rosters={rosters}
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+    openWhen();
+    expect(screen.queryByLabelText('Closes')).not.toBeInTheDocument();
+  });
+
   it('shows the Manual state with no dates for a Manual start', () => {
     render(
       <QuizAssignmentSettingsModal

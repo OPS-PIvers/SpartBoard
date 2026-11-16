@@ -8,13 +8,14 @@ const h = vi.hoisted(() => ({
   run: null as ProjectRun | null,
   myGroup: null as ProjectGroup | null,
   setStepState: vi.fn((..._args: unknown[]) => Promise.resolve()),
+  signOut: vi.fn(),
 }));
 
 vi.mock('@/context/useStudentAuth', () => ({
   useStudentAuth: () => ({
     pseudonymUid: 'ps-1',
     classIds: ['class-1'],
-    signOut: vi.fn(),
+    signOut: h.signOut,
   }),
 }));
 vi.mock('@/hooks/useStudentProjectRun', () => ({
@@ -85,6 +86,21 @@ describe('ProjectStudentPage', () => {
     h.setStepState.mockClear();
     h.run = makeRun();
     h.myGroup = makeGroup({});
+  });
+
+  it('Done returns to My Assignments without signing the student out', () => {
+    const assign = vi.fn();
+    vi.stubGlobal('location', { ...window.location, assign });
+    try {
+      render(<ProjectStudentPage />);
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Done, back to my assignments' })
+      );
+      expect(assign).toHaveBeenCalledWith('/my-assignments');
+      expect(h.signOut).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('renders the own group row with its color and one cell per step', () => {
