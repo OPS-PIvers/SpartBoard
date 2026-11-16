@@ -73,18 +73,17 @@ beforeEach(async () => {
 });
 
 describe('permission docs with betaUsers', () => {
-  // Compat release: signed-in callers still read the originals so previous-client pages keep working; tighten next release.
   it.each([
     ['anonymous', asAnon],
     ['student', asStudent],
     ['teacher', asTeacher],
-  ])('%s can still read but not write the originals', async (_n, ctx) => {
+  ])('%s cannot read or write the originals', async (_n, ctx) => {
     const db = ctx().firestore();
     for (const c of ['feature_permissions', 'global_permissions']) {
-      await assertSucceeds(getDocs(collection(db, c)));
+      await assertFails(getDocs(collection(db, c)));
     }
-    await assertSucceeds(getDoc(doc(db, 'feature_permissions/quiz')));
-    await assertSucceeds(getDoc(doc(db, 'global_permissions/gradebook')));
+    await assertFails(getDoc(doc(db, 'feature_permissions/quiz')));
+    await assertFails(getDoc(doc(db, 'global_permissions/gradebook')));
     await assertFails(
       setDoc(doc(db, 'feature_permissions/quiz'), { betaUsers: [] })
     );
@@ -103,8 +102,12 @@ describe('permission docs with betaUsers', () => {
     const db = asAdmin().firestore();
     await assertSucceeds(getDocs(collection(db, 'feature_permissions')));
     await assertSucceeds(getDocs(collection(db, 'global_permissions')));
+    await assertSucceeds(getDoc(doc(db, 'global_permissions/gradebook')));
     await assertSucceeds(
       setDoc(doc(db, 'feature_permissions/quiz'), { betaUsers: [] })
+    );
+    await assertSucceeds(
+      setDoc(doc(db, 'global_permissions/gradebook'), { betaUsers: [] })
     );
   });
 
