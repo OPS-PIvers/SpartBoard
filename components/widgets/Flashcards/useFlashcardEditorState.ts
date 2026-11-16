@@ -1,4 +1,5 @@
 import { useContext, useEffect, useState } from 'react';
+import { flashcardImageFields } from '@/utils/flashcardImageUrls';
 import { joinAnswerRows, splitAnswerRows } from '@/utils/flashcardAnswerRows';
 import type {
   FlashcardCard,
@@ -51,18 +52,24 @@ const withoutEmptyAnswerRows = (text: string): string => {
 /** Trimmed cards with stale references dropped and fully empty rows left out. */
 export const cleanFlashcards = (cards: FlashcardCard[]): FlashcardCard[] =>
   cards
-    .map((card) => {
+    .map(({ termImageUrl, definitionImageUrl, ...card }) => {
       const term = withoutEmptyAnswerRows(card.term);
-      const next = {
+      const next: FlashcardCard = {
         ...card,
         term,
         definition: withoutEmptyAnswerRows(card.definition),
+        ...flashcardImageFields({ termImageUrl, definitionImageUrl }),
       };
       // References belong to the term they were computed for.
       if (next.speak && next.speak.term !== term) delete next.speak;
       return next;
     })
-    .filter((card) => card.term !== '' || card.definition !== '');
+    .filter(
+      (card) =>
+        card.term !== '' ||
+        card.definition !== '' ||
+        Boolean(card.termImageUrl ?? card.definitionImageUrl)
+    );
 
 /** What still has to be filled in before a set can be used, or null. */
 export const flashcardSetIncompleteReason = (
@@ -179,10 +186,14 @@ export const useFlashcardEditorState = (
   /** Flips terms, definitions and languages; a second click flips back. */
   const swapSides = (): void => {
     setCards((current) =>
-      current.map((card) => ({
+      current.map(({ termImageUrl, definitionImageUrl, ...card }) => ({
         ...card,
         term: card.definition,
         definition: card.term,
+        ...flashcardImageFields({
+          termImageUrl: definitionImageUrl,
+          definitionImageUrl: termImageUrl,
+        }),
       }))
     );
     setTermLanguage(definitionLanguage);

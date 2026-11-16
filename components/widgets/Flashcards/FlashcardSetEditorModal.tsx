@@ -49,6 +49,7 @@ import { DEFAULT_QUIZ_LANGUAGE } from '@/config/quizReadAloud';
 import { PasteImportDrawer } from './PasteImportDrawer';
 import { SpeakReviewList } from './speak/SpeakReviewList';
 import { SortableCardRow } from './SortableCardRow';
+import type { CardImageUploader } from './useCardImage';
 import type { SpeakLookupCall } from './speak/lookupSpeakReferences';
 import {
   cleanFlashcards,
@@ -113,8 +114,18 @@ export const FlashcardSetEditorModal: React.FC<
     lookupReferences,
     composeSet,
   } = state;
-  const answerRows =
-    useContext(AuthContext)?.canAccessFeature('flashcard-answer-rows') ?? false;
+  const auth = useContext(AuthContext);
+  const answerRows = auth?.canAccessFeature('flashcard-answer-rows') ?? false;
+  const uid = auth?.user?.uid;
+  const uploadImage: CardImageUploader | null =
+    uid && auth?.canAccessFeature('flashcard-card-images')
+      ? async (file) => {
+          const { prepareFlashcardImage, uploadFlashcardImage } =
+            await import('@/utils/flashcardImages');
+          const blob = await prepareFlashcardImage(file);
+          return blob ? uploadFlashcardImage(uid, blob) : null;
+        }
+      : null;
   const importCards = (incoming: FlashcardCard[]): void =>
     appendCards(
       answerRows
@@ -514,6 +525,7 @@ export const FlashcardSetEditorModal: React.FC<
                   answerRows={answerRows}
                   termLanguage={termLanguage}
                   definitionLanguage={definitionLanguage}
+                  uploadImage={uploadImage}
                 />
               ))}
             </div>

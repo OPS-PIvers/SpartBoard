@@ -21,6 +21,9 @@ export interface FlashcardCard {
   id: string;
   term: string;
   definition: string;
+  /** The teacher's card pictures; Claude tools keep them but never set them. */
+  termImageUrl?: string;
+  definitionImageUrl?: string;
   /** Speak references (client FlashcardCardSpeak); valid only for the term they were computed for. */
   speak?: Record<string, unknown>;
 }
@@ -57,8 +60,22 @@ const refDialects = (speak: Record<string, unknown>): unknown[] =>
     ? speak.refs.map((ref) => (ref as { dialect?: unknown }).dialect)
     : [];
 
+const imageFields = (
+  card: FlashcardCard
+): Pick<FlashcardCard, 'termImageUrl' | 'definitionImageUrl'> => ({
+  ...(card.termImageUrl ? { termImageUrl: card.termImageUrl } : {}),
+  ...(card.definitionImageUrl
+    ? { definitionImageUrl: card.definitionImageUrl }
+    : {}),
+});
+
 const withoutCardSpeak = (cards: FlashcardCard[]): FlashcardCard[] =>
-  cards.map(({ id, term, definition }) => ({ id, term, definition }));
+  cards.map(({ id, term, definition, ...card }) => ({
+    id,
+    term,
+    definition,
+    ...imageFields(card as FlashcardCard),
+  }));
 
 /** Mirrors normalizeSet in hooks/useFlashcardSets.ts. */
 export function normalizeSet(
@@ -75,6 +92,7 @@ export function normalizeSet(
       id: card.id,
       term: card.term.slice(0, MAX_TERM),
       definition: card.definition.slice(0, MAX_DEFINITION),
+      ...imageFields(card),
       ...(card.speak &&
       dialectsFit(refDialects(card.speak), set.termLanguage || 'en-US')
         ? { speak: card.speak }
@@ -104,10 +122,12 @@ export function mergeCards(
       previous?.speak && previous.term === card.term
         ? previous.speak
         : undefined;
+    // Claude never edits pictures; a kept card keeps its own.
     return {
       id,
       term: card.term,
       definition: card.definition,
+      ...(previous ? imageFields(previous) : {}),
       ...(speak ? { speak } : {}),
     };
   });

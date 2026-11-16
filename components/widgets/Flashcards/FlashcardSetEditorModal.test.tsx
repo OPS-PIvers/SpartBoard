@@ -56,11 +56,13 @@ const baseSet = (overrides: Partial<FlashcardSet> = {}): FlashcardSet => ({
   ...overrides,
 });
 
-const auth = (speak: boolean, answerRows = false) =>
+const auth = (speak: boolean, answerRows = false, images = false) =>
   ({
+    user: { uid: 'teacher-1' },
     canAccessFeature: (id: string) =>
       (speak && id === 'flashcards-speak') ||
-      (answerRows && id === 'flashcard-answer-rows'),
+      (answerRows && id === 'flashcard-answer-rows') ||
+      (images && id === 'flashcard-card-images'),
   }) as unknown as AuthContextType;
 
 const lookup = vi.fn<SpeakLookupCall>((input) =>
@@ -77,6 +79,7 @@ const renderModal = (opts: {
   isNew?: boolean;
   speak?: boolean;
   answerRows?: boolean;
+  images?: boolean;
 }) => {
   const onPersist = vi.fn<
     (set: FlashcardSet, o: { final: boolean }) => Promise<void>
@@ -84,7 +87,11 @@ const renderModal = (opts: {
   const onClose = vi.fn();
   render(
     <AuthContext.Provider
-      value={auth(opts.speak ?? false, opts.answerRows ?? false)}
+      value={auth(
+        opts.speak ?? false,
+        opts.answerRows ?? false,
+        opts.images ?? false
+      )}
     >
       <FlashcardSetEditorModal
         set={opts.set ?? baseSet()}
@@ -305,6 +312,69 @@ describe('FlashcardSetEditorModal', () => {
     ]);
     expect(card.term).toBe('el doctor / la doctora');
     expect(card.definition).toBe('');
+  });
+
+  it('splits saved slash shorthand into rows from the fork button', () => {
+    renderModal({
+      answerRows: true,
+      set: baseSet({
+        termLanguage: 'es-ES',
+        cards: [{ id: 'c1', term: 'el/la guía', definition: 'guide' }],
+      }),
+    });
+    fireEvent.click(
+      screen.getByLabelText('Add another accepted answer to Term 1')
+    );
+    expect(screen.getByLabelText('Term 1')).toHaveProperty('value', 'el guía');
+    expect(screen.getByLabelText('Term 1, accepted answer B')).toHaveProperty(
+      'value',
+      'la guía'
+    );
+    expect(screen.queryByLabelText('Term 1, accepted answer C')).toBeNull();
+  });
+
+  it('shows image buttons only with the card images flag', () => {
+    renderModal({});
+    expect(screen.queryByLabelText('Add image to Term 1')).toBeNull();
+  });
+
+  it('shows a side image with a remove button, and swaps it with the text', () => {
+    const url = 'https://firebasestorage.googleapis.com/v0/b/x/o/a.webp';
+    renderModal({
+      images: true,
+      set: baseSet({
+        cards: [
+          { id: 'c1', term: 'hola', definition: 'hello', termImageUrl: url },
+        ],
+      }),
+    });
+    expect(screen.queryByLabelText('Add image to Term 1')).toBeNull();
+    expect(screen.getByLabelText('Add image to Definition 1')).toBeTruthy();
+    expect(screen.getByAltText('Term 1 image')).toHaveProperty('src', url);
+    fireEvent.click(screen.getByLabelText('Swap terms and definitions'));
+    expect(screen.getByAltText('Definition 1 image')).toHaveProperty(
+      'src',
+      url
+    );
+    fireEvent.click(screen.getByLabelText('Remove image from Definition 1'));
+    expect(screen.queryByAltText('Definition 1 image')).toBeNull();
+  });
+
+  it('keeps a card that has only a picture so the missing text is flagged', () => {
+    const url = 'https://firebasestorage.googleapis.com/v0/b/x/o/a.webp';
+    const cleaned = cleanFlashcards([
+      { id: 'c', term: '', definition: '', definitionImageUrl: url },
+      {
+        id: 'd',
+        term: 'a',
+        definition: 'b',
+        termImageUrl: 'https://evil.example/x.png',
+      },
+    ]);
+    expect(cleaned).toEqual([
+      { id: 'c', term: '', definition: '', definitionImageUrl: url },
+      { id: 'd', term: 'a', definition: 'b' },
+    ]);
   });
 
   it('leaves text without blank rows as typed', () => {

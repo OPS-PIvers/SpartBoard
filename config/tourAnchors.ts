@@ -11483,6 +11483,16 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'flashcards.card-term-image': {
+    label: 'Add image button on a term in the Flashcards editor',
+    perField: true,
+    panel: true,
+  },
+  'flashcards.card-definition-image': {
+    label: 'Add image button on a definition in the Flashcards editor',
+    perField: true,
+    panel: true,
+  },
   'flashcards.card-insert': {
     label: 'Add card button between cards in the Flashcards editor',
     perField: true,

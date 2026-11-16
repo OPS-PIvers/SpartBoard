@@ -22,6 +22,8 @@ export interface AnswerRows {
   change: (row: number, text: string) => void;
   commit: (row: number) => void;
   addAfter: (row: number) => void;
+  /** Spells out any slash shorthand into rows, or else adds a blank row. */
+  fork: () => void;
   remove: (row: number) => void;
 }
 
@@ -71,6 +73,22 @@ export const useAnswerRows = (
     addAfter: (row) => {
       write([...rows.slice(0, row + 1), '', ...rows.slice(row + 1)]);
       focusRow(cardId, side, row + 1);
+    },
+    fork: () => {
+      const current = rows.map((value, i) =>
+        draft?.row === i ? draft.text : value
+      );
+      const expanded = current.flatMap((value) =>
+        /[/;]/u.test(value) ? expandAnswerRows(value, language) : [value]
+      );
+      setDraft(null);
+      if (expanded.length > current.length) {
+        write(expanded);
+        focusRow(cardId, side, expanded.length - 1);
+        return;
+      }
+      write([...current, '']);
+      focusRow(cardId, side, current.length);
     },
     remove: (row) => {
       setDraft(null);

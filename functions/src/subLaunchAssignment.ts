@@ -707,7 +707,24 @@ interface FcCard {
   id: string;
   term: string;
   definition: string;
+  termImageUrl?: string;
+  definitionImageUrl?: string;
 }
+
+// Mirrors isFlashcardImageUrl in utils/flashcardImages.ts.
+const isCardImageUrl = (url: unknown): url is string => {
+  if (typeof url !== 'string' || url.length > 2048) return false;
+  try {
+    const parsed = new URL(url);
+    return (
+      parsed.protocol === 'https:' &&
+      (parsed.hostname === 'firebasestorage.googleapis.com' ||
+        parsed.hostname === 'storage.googleapis.com')
+    );
+  } catch {
+    return false;
+  }
+};
 
 /**
  * The deck a sub-launched run studies. Field by field rather than a spread:
@@ -728,7 +745,17 @@ export function fcCardsFromBundle(cards: unknown): FcCard[] {
     if (typeof card.term !== 'string') continue;
     if (typeof card.definition !== 'string') continue;
     seen.add(card.id);
-    out.push({ id: card.id, term: card.term, definition: card.definition });
+    out.push({
+      id: card.id,
+      term: card.term,
+      definition: card.definition,
+      ...(isCardImageUrl(card.termImageUrl)
+        ? { termImageUrl: card.termImageUrl }
+        : {}),
+      ...(isCardImageUrl(card.definitionImageUrl)
+        ? { definitionImageUrl: card.definitionImageUrl }
+        : {}),
+    });
   }
   if (out.length === 0) {
     denied('The shared flashcard set has no usable cards.');

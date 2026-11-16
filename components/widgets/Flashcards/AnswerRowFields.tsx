@@ -19,6 +19,8 @@ interface MainFieldProps {
   fieldKey: string;
   onKeyDown?: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   textareaAnchor: Record<string, string>;
+  /** Another button inside the field, left of the fork (the image picker). */
+  extraButton?: React.ReactNode;
 }
 
 /** The side's first answer, with a button that adds another accepted answer under it. */
@@ -32,6 +34,7 @@ export const AnswerMainField: React.FC<MainFieldProps> = ({
   fieldKey,
   onKeyDown,
   textareaAnchor,
+  extraButton,
 }) => (
   <div className="group/answer relative min-w-0">
     <label>
@@ -45,35 +48,41 @@ export const AnswerMainField: React.FC<MainFieldProps> = ({
         rows={1}
         data-answer-row={`${cardId}-${side}-0`}
         className={ANSWER_FIELD_CLASS}
-        style={answerFieldStyle('min(36px, 9cqmin)')}
+        style={answerFieldStyle(
+          extraButton ? 'min(64px, 16cqmin)' : 'min(36px, 9cqmin)'
+        )}
         placeholder={placeholder}
         {...textareaAnchor}
       />
     </label>
-    <button
-      type="button"
-      onClick={() => answers.addAfter(answers.rows.length - 1)}
-      className="absolute top-1/2 right-0 -translate-y-1/2 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-      style={{
-        padding: 'min(5px, 1.2cqmin)',
-        marginRight: 'min(6px, 1.5cqmin)',
-      }}
-      aria-label={`Add another accepted answer to ${label}`}
-      title="Add another accepted answer"
-      {...(side === 'term'
-        ? tourFieldAttr(
-            'flashcards.card-term-alternate',
-            'flashcards',
-            fieldKey
-          )
-        : tourFieldAttr(
-            'flashcards.card-definition-alternate',
-            'flashcards',
-            fieldKey
-          ))}
+    <div
+      className="absolute top-1/2 right-0 flex -translate-y-1/2 items-center"
+      style={{ marginRight: 'min(6px, 1.5cqmin)' }}
     >
-      <Split style={{ ...ICON, transform: 'rotate(90deg)' }} aria-hidden />
-    </button>
+      {extraButton}
+      <button
+        type="button"
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={answers.fork}
+        className="rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+        style={{ padding: 'min(5px, 1.2cqmin)' }}
+        aria-label={`Add another accepted answer to ${label}`}
+        title="Add another accepted answer"
+        {...(side === 'term'
+          ? tourFieldAttr(
+              'flashcards.card-term-alternate',
+              'flashcards',
+              fieldKey
+            )
+          : tourFieldAttr(
+              'flashcards.card-definition-alternate',
+              'flashcards',
+              fieldKey
+            ))}
+      >
+        <Split style={{ ...ICON, transform: 'rotate(90deg)' }} aria-hidden />
+      </button>
+    </div>
   </div>
 );
 
