@@ -16,7 +16,10 @@ vi.mock('@/config/firebase', () => ({
   googleProvider: {},
 }));
 
-import { PublishedScoreReview } from '@/components/quiz/QuizStudentApp';
+import {
+  PublishedScoreReview,
+  QuizSubmittedWaitScreen,
+} from '@/components/quiz/QuizStudentApp';
 
 const makeSession = (extra: Partial<QuizSession>) =>
   ({
@@ -70,5 +73,39 @@ describe('PublishedScoreReview header icon', () => {
   it('treats an untagged teacher-paced session as a Review game', () => {
     const { container } = renderFor(makeSession({ sessionMode: 'teacher' }));
     expect(container.querySelector('.lucide-trophy')).not.toBeNull();
+  });
+});
+
+describe('Submitted screen leaderboard', () => {
+  const gameFields = {
+    speedBonusEnabled: true,
+    streakBonusEnabled: true,
+    liveLeaderboard: [
+      { studentUid: 'other', name: 'Zed Leader', score: 900, rank: 1 },
+    ],
+  } as Partial<QuizSession>;
+  const renderWait = (session: QuizSession) =>
+    render(
+      <QuizSubmittedWaitScreen
+        session={session}
+        myResponse={response}
+        pin=""
+        answeredCount={1}
+        hideReturnButton
+      />
+    );
+
+  it('never shows a leaderboard on a Quiz assessment', () => {
+    const { queryByText } = renderWait(
+      makeSession({ widgetKind: 'quiz', ...gameFields })
+    );
+    expect(queryByText('Zed Leader')).toBeNull();
+  });
+
+  it('shows the leaderboard on a Review game', () => {
+    const { getByText } = renderWait(
+      makeSession({ widgetKind: 'review', ...gameFields })
+    );
+    expect(getByText('Zed Leader')).toBeInTheDocument();
   });
 });
