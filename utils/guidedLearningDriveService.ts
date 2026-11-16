@@ -11,6 +11,7 @@
 
 import { GuidedLearningSet } from '@/types';
 import { DRIVE_APP_FOLDER } from '@/config/devProject';
+import { DevProdDriveWriteError } from '@/utils/devDriveWriteGuard';
 import { authError } from '@/utils/driveAuthErrors';
 import {
   GL_SLIDE_APP_PROPERTY,
@@ -160,10 +161,16 @@ export class GuidedLearningDriveService {
     const content = JSON.stringify(set);
 
     if (existingFileId) {
-      const updateRes = await this.patchContent(existingFileId, content);
-      if (updateRes.ok) return existingFileId;
+      const updateRes = await this.patchContent(existingFileId, content).catch(
+        (err: unknown) => {
+          // On dev, a set synced from the live site gets a dev copy and the caller repoints to it.
+          if (err instanceof DevProdDriveWriteError) return null;
+          throw err;
+        }
+      );
+      if (updateRes?.ok) return existingFileId;
       // Only a missing file may fall through to lookup/create; anything else would duplicate.
-      if (updateRes.status !== 404) {
+      if (updateRes && updateRes.status !== 404) {
         throw new Error('Failed to save guided learning set to Drive');
       }
     }

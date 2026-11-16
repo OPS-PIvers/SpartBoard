@@ -158,6 +158,29 @@ describe('fetchCimdClient', () => {
     expect(await fetchCimdClient(CODE_ID)).toBeNull();
   });
 
+  it('stops reading a body once it passes the size cap', async () => {
+    let pulled = 0;
+    const chunk = new Uint8Array(4096).fill(120);
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulled += 1;
+        if (pulled > 500) controller.close();
+        else controller.enqueue(chunk);
+      },
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>(() => Promise.resolve(new Response(body)))
+    );
+    expect(await fetchCimdClient(CODE_ID)).toBeNull();
+    expect(pulled).toBeLessThan(20);
+  });
+
+  it('counts bytes, not characters, against the cap', async () => {
+    mockFetch({ ...CODE_DOC, pad: '\u00e9'.repeat(10_000) });
+    expect(await fetchCimdClient(CODE_ID)).toBeNull();
+  });
+
   it('caches a good document', async () => {
     const fn = mockFetch(CODE_DOC);
     expect(await fetchCimdClient(CODE_ID)).not.toBeNull();
