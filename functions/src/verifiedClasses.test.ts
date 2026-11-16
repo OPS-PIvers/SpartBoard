@@ -204,7 +204,7 @@ describe('refreshMyClassesV1 cooldown', () => {
   it('refreshes again once the cooldown has passed', async () => {
     h.taught = new Set(['cl-1']);
     await callRefresh({ auth: me });
-    (docs['verified_classes/me'] as Doc).refreshedAt =
+    docs['verified_classes/me'].refreshedAt =
       Date.now() - REFRESH_COOLDOWN_MS - 1;
     h.taught = new Set(['cl-1', 'cl-2']);
     const out = await callRefresh({ auth: me });
