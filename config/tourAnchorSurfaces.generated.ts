@@ -1118,6 +1118,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'widget-settings.reveal-grid.upload-csv': ['widgets.reveal-grid.settings'],
     'widget-settings.reveal-grid.generator': ['widgets.reveal-grid.settings'],
     'widget-settings.reveal-grid.paste-data': ['widgets.reveal-grid.settings'],
+    'reveal-grid.add-cards': ['widgets.reveal-grid.face'],
     'reveal-grid.start-over': ['widgets.reveal-grid.face'],
     'widget-settings.reveal-grid.add-pasted': ['widgets.reveal-grid.settings'],
     'widget-settings.reveal-grid.add-card': ['widgets.reveal-grid.settings'],

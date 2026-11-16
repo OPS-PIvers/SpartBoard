@@ -5233,6 +5233,10 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     panel: true,
   },
+  'reveal-grid.add-cards': {
+    label: 'Add cards button on an empty Reveal Grid',
+    perWidget: true,
+  },
   'reveal-grid.start-over': {
     label: 'Start over button in Reveal Grid memory mode',
     perWidget: true,
