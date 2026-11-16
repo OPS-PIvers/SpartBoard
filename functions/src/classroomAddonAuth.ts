@@ -1707,12 +1707,15 @@ export const assignToClassroomV1 = onCall(
     // the gap when it's missing) so assign can't silently re-route a course.
     if (mode === 'addon') {
       // Capture the session's class only when it is on the caller's own verified list.
-      const linkClasslinkClassId =
-        sessionClasslinkClassId &&
-        (await unverifiedClassIds(db, callerUid, [sessionClasslinkClassId]))
-          .length === 0
-          ? sessionClasslinkClassId
-          : null;
+      // A failed list read keeps the assign (the courseWork already exists) and drops the class.
+      const classIsVerified = sessionClasslinkClassId
+        ? await unverifiedClassIds(db, callerUid, [sessionClasslinkClassId])
+            .then((ids) => ids.length === 0)
+            .catch(() => false)
+        : false;
+      const linkClasslinkClassId = classIsVerified
+        ? sessionClasslinkClassId
+        : null;
       const ref = db.doc(`classroom_course_links/${courseId}`);
       await db.runTransaction(async (tx) => {
         const existing = await tx.get(ref);
