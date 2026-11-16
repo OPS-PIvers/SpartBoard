@@ -4,7 +4,7 @@ import type { Course } from '@/utils/course/contract';
 import { useAgendaDeckCheck } from './useAgendaDeckCheck';
 
 const h = vi.hoisted(() => ({
-  drive: {},
+  drive: null as object | null,
   readDeckState: vi.fn(),
 }));
 

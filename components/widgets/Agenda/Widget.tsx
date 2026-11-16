@@ -264,17 +264,26 @@ const AgendaFace: React.FC<{
                 aspectRatio: '16 / 9',
               }}
             >
-              <iframe
-                key={`${agenda?.fileId}-${reloads}`}
-                title={`Agenda: ${choice.label}`}
-                src={deckSrcDoc ? undefined : embedUrl}
-                srcDoc={deckSrcDoc}
-                className="absolute inset-0 block h-full w-full border-none"
-                allow="fullscreen"
-                tabIndex={-1}
-                onLoad={() => setReloading(false)}
-                allowFullScreen
-              />
+              {deckSrcDoc ? (
+                <iframe
+                  title={`Agenda: ${choice.label}`}
+                  srcDoc={deckSrcDoc}
+                  sandbox=""
+                  className="absolute inset-0 block h-full w-full border-none"
+                  tabIndex={-1}
+                />
+              ) : (
+                <iframe
+                  key={`${agenda?.fileId}-${reloads}`}
+                  title={`Agenda: ${choice.label}`}
+                  src={embedUrl}
+                  className="absolute inset-0 block h-full w-full border-none"
+                  allow="fullscreen"
+                  tabIndex={-1}
+                  onLoad={() => setReloading(false)}
+                  allowFullScreen
+                />
+              )}
               {/* Today's slide stays put: a click drags the widget instead of advancing the deck. */}
               <div aria-hidden="true" className="absolute inset-0" />
             </div>
