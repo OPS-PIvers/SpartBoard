@@ -23,6 +23,54 @@ describe('isActiveOrgMemberOrAdmin', () => {
       (await isActiveOrgMemberOrAdmin(db as unknown as Db, EMAIL)).ok
     ).toBe(false);
   });
+
+  const DOMAIN = {
+    [`organizations/orono/domains/d1`]: {
+      domain: '@orono.k12.mn.us',
+      status: 'verified',
+    },
+  };
+
+  it('admits an active staff member doc', async () => {
+    const { db } = makeStubFirestore({
+      ...DOMAIN,
+      [`organizations/orono/members/${EMAIL}`]: {
+        roleId: 'teacher',
+        status: 'active',
+      },
+    });
+    expect(await isActiveOrgMemberOrAdmin(db as unknown as Db, EMAIL)).toEqual({
+      ok: true,
+      orgId: 'orono',
+    });
+  });
+
+  it('refuses a student member doc', async () => {
+    const { db } = makeStubFirestore({
+      ...DOMAIN,
+      [`organizations/orono/members/${EMAIL}`]: {
+        roleId: 'student',
+        status: 'active',
+      },
+    });
+    expect(
+      (await isActiveOrgMemberOrAdmin(db as unknown as Db, EMAIL)).ok
+    ).toBe(false);
+  });
+
+  it('admits an admin whose org member doc is a student one', async () => {
+    const { db } = makeStubFirestore({
+      ...DOMAIN,
+      [`admins/${EMAIL}`]: {},
+      [`organizations/orono/members/${EMAIL}`]: {
+        roleId: 'student',
+        status: 'active',
+      },
+    });
+    expect(
+      (await isActiveOrgMemberOrAdmin(db as unknown as Db, EMAIL)).ok
+    ).toBe(true);
+  });
 });
 
 describe('rubricMaxPoints', () => {
