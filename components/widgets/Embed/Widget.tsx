@@ -654,18 +654,25 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             </div>
           ) : (
             <div className="flex-1 relative overflow-hidden">
-              {displayMode === 'code' ? (
+              {displayMode === 'code' && blockPopups ? (
                 <iframe
-                  key={`code-${refreshKey}-${blockPopups}`}
+                  key={`code-blocked-${refreshKey}`}
                   title="Embed Content"
                   srcDoc={html}
                   className="absolute top-0 left-0 border-none block"
                   style={zoomStyle}
-                  sandbox={
-                    blockPopups
-                      ? 'allow-scripts allow-forms'
-                      : 'allow-scripts allow-forms allow-popups'
-                  }
+                  sandbox="allow-scripts allow-forms"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                />
+              ) : displayMode === 'code' ? (
+                <iframe
+                  key={`code-${refreshKey}`}
+                  title="Embed Content"
+                  srcDoc={html}
+                  className="absolute top-0 left-0 border-none block"
+                  style={zoomStyle}
+                  sandbox="allow-scripts allow-forms allow-popups"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   allowFullScreen
                 />
