@@ -11472,6 +11472,11 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'flashcards.card-insert': {
+    label: 'Add card button between cards in the Flashcards editor',
+    perField: true,
+    panel: true,
+  },
   'flashcards.card-delete': {
     label: 'Delete button on a card in the Flashcards editor',
     perField: true,
@@ -11484,17 +11489,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'flashcards-editor.draft-ai': {
-    label: 'Draft with AI (list header) in the Flashcards set editor',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards-editor.add-menu': {
-    label: 'More ways to add menu in the Flashcards set editor',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards-editor.add-blank': {
-    label: 'Add-menu item: Blank card in the Flashcards set editor',
+    label: 'Draft with AI in the Flashcards set editor',
     perWidgetType: true,
     panel: true,
   },
@@ -11581,11 +11576,6 @@ export const TOUR_ANCHORS = {
   'flashcards-speak-editor.ipa-remove': {
     label: 'Remove pronunciation button in the Flashcards editor',
     perField: true,
-    panel: true,
-  },
-  'flashcards.add-card': {
-    label: 'Add card button in the Flashcards editor',
-    perWidgetType: true,
     panel: true,
   },
   'flashcards.language-select': {
