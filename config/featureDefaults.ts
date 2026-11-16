@@ -12,6 +12,7 @@ import {
   Building2,
   Cast,
   ClipboardCheck,
+  HardDrive,
   Highlighter,
   ScanLine,
   Download,
@@ -1654,6 +1655,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: SquareChevronDown,
     description:
       "Dropdowns, date and time fields open the app's own lists instead of the browser's.",
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Teacher uploads go only to Drive; without Drive they ask to reconnect. Admin-only until Paul has used it on prod.
+  'drive-only-uploads': {
+    label: 'Uploads save to Drive only',
+    icon: HardDrive,
+    description:
+      'Pictures and PDFs a teacher uploads save only to their Google Drive. Without Drive, they are asked to reconnect.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

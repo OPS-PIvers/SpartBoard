@@ -120,6 +120,11 @@ export const reportDriveAuthError = (err: unknown): boolean => {
   return true;
 };
 
+/** Shows the Reconnect prompt every time, for an action that can't go ahead without Drive. */
+export const promptDriveReconnect = (): void => {
+  driveAuthErrorHandler?.();
+};
+
 /**
  * Construct a `DriveAuthError` and route it through `reportDriveAuthError`
  * before returning it for the caller to throw. Use at every Drive/Sheets

@@ -8,6 +8,11 @@ import {
   deleteObject,
 } from 'firebase/storage';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
+import { useAuth } from '@/context/useAuth';
+import {
+  isDriveAuthError,
+  setDriveAuthErrorHandler,
+} from '@/utils/driveAuthErrors';
 
 // Mock dependencies
 vi.mock('firebase/storage', () => ({
@@ -34,6 +39,8 @@ Object.defineProperty(URL, 'revokeObjectURL', {
   writable: true,
 });
 
+let driveOnly = false;
+
 describe('useStorage', () => {
   const mockUploadBytes = uploadBytes as Mock;
   const mockGetDownloadURL = getDownloadURL as Mock;
@@ -57,6 +64,10 @@ describe('useStorage', () => {
     mockDriveService.isInAppFolder.mockResolvedValue(true);
     // Default: Drive not connected
     mockUseGoogleDrive.mockReturnValue({ driveService: null });
+    driveOnly = false;
+    (useAuth as Mock).mockReturnValue({
+      canAccessFeature: (id: string) => id === 'drive-only-uploads' && driveOnly,
+    });
 
     mockRef.mockReturnValue('mock-ref');
     mockUploadBytes.mockResolvedValue({ ref: 'mock-snapshot-ref' });
@@ -394,6 +405,72 @@ describe('useStorage', () => {
       expect(mockUploadBytes).toHaveBeenCalled();
       expect(pdfResult?.url).toBe('https://firebase.storage/url');
       expect(pdfResult?.storagePath).toMatch(/users\/user123\/pdfs\/.*/);
+    });
+  });
+  describe('with Uploads save to Drive only on', () => {
+    const uploads = [
+      ['uploadBackgroundImage'],
+      ['uploadSticker'],
+      ['uploadDisplayImage'],
+      ['uploadHotspotImage'],
+      ['uploadPdf'],
+    ] as const;
+
+    it.each(uploads)(
+      '%s asks to reconnect Drive instead of saving to Storage',
+      async (method) => {
+        driveOnly = true;
+        const prompt = vi.fn();
+        setDriveAuthErrorHandler(prompt);
+        const { result } = renderHook(() => useStorage());
+        let caught: unknown;
+        await act(async () => {
+          await result.current[method]('user123', mockFile).catch((e) => {
+            caught = e;
+          });
+        });
+        expect(isDriveAuthError(caught)).toBe(true);
+        expect(prompt).toHaveBeenCalledTimes(1);
+        expect(mockUploadBytes).not.toHaveBeenCalled();
+        setDriveAuthErrorHandler(null);
+      }
+    );
+
+    it('asks again on every try, so a dismissed prompt comes back', async () => {
+      driveOnly = true;
+      const prompt = vi.fn();
+      setDriveAuthErrorHandler(prompt);
+      const { result } = renderHook(() => useStorage());
+      await act(async () => {
+        await result.current.uploadSticker('u', mockFile).catch(() => null);
+        await result.current.uploadSticker('u', mockFile).catch(() => null);
+      });
+      expect(prompt).toHaveBeenCalledTimes(2);
+      setDriveAuthErrorHandler(null);
+    });
+
+    it('screenshots also need Drive', async () => {
+      driveOnly = true;
+      const { result } = renderHook(() => useStorage());
+      let caught: unknown;
+      await act(async () => {
+        await result.current
+          .uploadScreenshot('u', new Blob(['x'], { type: 'image/jpeg' }))
+          .catch((e) => {
+            caught = e;
+          });
+      });
+      expect(isDriveAuthError(caught)).toBe(true);
+      expect(mockUploadBytes).not.toHaveBeenCalled();
+    });
+
+    it('admin uploads still save to Storage', async () => {
+      driveOnly = true;
+      const { result } = renderHook(() => useStorage());
+      await act(async () => {
+        await result.current.uploadAdminSticker(mockFile);
+      });
+      expect(mockUploadBytes).toHaveBeenCalled();
     });
   });
 });
