@@ -236,6 +236,10 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
   <details><summary>Branches to delete (178, checked 2026-11-01)</summary>
 
+claude/project-thread-g6k4z7-points (#5964)
+hotfix/quiz-points-score (#5965)
+claude/project-thread-g6k4z7-docs (#5957)
+claude/project-thread-g6k4z7-docs2 (this docs PR, delete after it merges)
 nightly/debugger-log-2026-11-16 (#5939)
 nightly/build-2026-11-16 (#5938)
 nightly/admin-2026-11-16 (#5937)
