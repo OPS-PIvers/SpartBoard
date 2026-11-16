@@ -4,7 +4,7 @@
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { CriterionId, Scorecard } from './types.ts';
+import type { CriterionId, Rubric, Scorecard } from './types.ts';
 
 /** Marks graded, non-Paul entries stale; Paul's scores and N/A entries stay (R2, R15). */
 export function markStale(card: Scorecard, ids: CriterionId[]): number {
@@ -31,6 +31,17 @@ function main(): void {
     process.exit(2);
   }
   const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+  const rubric = JSON.parse(
+    readFileSync(join(root, 'docs/widget-rubric/rubric.json'), 'utf8')
+  ) as Rubric;
+  const known = new Set<string>(
+    rubric.dimensions.flatMap((d) => d.criteria.map((c) => c.id))
+  );
+  const unknown = ids.filter((id) => !known.has(id));
+  if (unknown.length > 0) {
+    console.error(`unknown criterion ids: ${unknown.join(', ')}`);
+    process.exit(2);
+  }
   const dir = join(root, 'docs/widget-rubric/scorecards');
   let total = 0;
   for (const file of readdirSync(dir).filter((f) => f.endsWith('.json'))) {

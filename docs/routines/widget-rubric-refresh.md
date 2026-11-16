@@ -6,7 +6,7 @@ It runs Sunday at about 9:30 PM Central, before the widget rubric loop (10:58 PM
 
 ## Each week
 
-1. **Window.** Read the last row of `docs/widget-rubric/refresh-log.md`; the window starts at its date. Work on the latest `origin/dev-paul`.
+1. **Window.** If a refresh PR from an earlier week is still open, work on its branch: start the window at that branch's last log row and add this week's changes to the same PR and card, never a second PR. Otherwise work on the latest `origin/dev-paul`. The window starts at the date of the last row of `docs/widget-rubric/refresh-log.md`.
 2. **Gather evidence** from the window only:
    - Project memory: `feedback` files modified in the window, and the "How Paul wants work done" section of the index (UI, wording and style rules).
    - The Widget Fixes page (URL in the `widget-rubric-routines` memory): Artifact `read`, then `node scripts/widget-grader/grading/review.ts decisions --page <saved file>`. Every Skip and its note is evidence. So are `supervision.json` loops with outcome `rejected` or `changed`.
@@ -21,7 +21,7 @@ It runs Sunday at about 9:30 PM Central, before the widget rubric loop (10:58 PM
    node scripts/widget-grader/markStale.ts --criteria S1,V3
    ```
 
-   It stales graded script and judge scores only; Paul's grades and N/A entries stay. The loop's queue re-grades stale cards first.
+   It stales graded script and judge scores only; Paul's grades and N/A entries stay, and it refuses unknown ids. The loop re-grades stale cards up to 3 a week; those cards stay in the fix queue meanwhile.
 
 6. **Log.** Add one row to `docs/widget-rubric/refresh-log.md`: date, rubric version, and one line per change with its evidence.
 7. **Verify and PR.** Run `pnpm exec prettier --write` on every changed file and `pnpm exec vitest related --run tests/widgetRubric.test.ts tests/widgetGrader/markStale.test.ts`. Open one draft PR into `dev-paul` titled `Widget rubric refresh <date>: <n> rule changes` with a table of each change (criterion, before, after, evidence) and subscribe to it.
