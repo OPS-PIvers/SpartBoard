@@ -266,6 +266,7 @@ import { TeacherPreviewBanner } from '@/components/student/TeacherPreviewBanner'
 import { useStaffAudienceGate } from '@/components/student/useStaffAudienceGate';
 import { usePreviewMode } from '@/hooks/usePreviewMode';
 import { ResultsWatermark } from './ResultsWatermark';
+import { useWatermarkStudentName } from '@/components/student/useWatermarkStudentName';
 import { ResultsTabWarningModal } from './ResultsTabWarningModal';
 import { useResultsTabWarnings } from '@/hooks/useResultsTabWarnings';
 import {
@@ -6500,11 +6501,8 @@ export const PublishedScoreReview: React.FC<{
   // any future modal dialogs (z-50, well below `Z_INDEX.modal`/`Z_INDEX.toast`
   // from `config/zIndex.ts`). Strictly decorative + pointer-events-none, so
   // it doesn't interfere with scrolling, focus, or selection beneath it.
-  // Student display name is best-effort: SSO joiners carry an
-  // `auth.currentUser.displayName`; anonymous PIN joiners fall back to their
-  // PIN; otherwise we use a generic 'Student' label. The watermark is
-  // informational — its job is to discourage shared screenshots, not to
-  // authenticate.
+  // Student name is best-effort (see useWatermarkStudentName); it deters shared
+  // screenshots, it does not authenticate.
   const watermarkEnabled = protection?.watermarkEnabled === true;
   // When the session has no `scorePublishedAt` (legacy or mid-publish), fall
   // back to a per-mount snapshot of `Date.now()`. `useState(fn)` runs `fn`
@@ -6514,20 +6512,11 @@ export const PublishedScoreReview: React.FC<{
   const [fallbackPublishedAt] = useState(() => Date.now());
   const publishedAt =
     publishedAtProp ?? session.scorePublishedAt ?? fallbackPublishedAt;
-  // Prefer an explicit override (the Classroom SSO session is nameless, so the
-  // add-on passes the roster-resolved / userinfo name down). Otherwise treat a
-  // blank/whitespace-only displayName as missing and fall through to the PIN
-  // label, then a generic "Student".
-  const trimmedOverride = watermarkNameOverride?.trim() ?? '';
-  const trimmedDisplayName = auth.currentUser?.displayName?.trim() ?? '';
-  const watermarkStudentName =
-    trimmedOverride.length > 0
-      ? trimmedOverride
-      : trimmedDisplayName.length > 0
-        ? trimmedDisplayName
-        : pin
-          ? `PIN ${pin}`
-          : 'Student';
+  // The Classroom add-on and LTI pass a roster name as the override.
+  const watermarkStudentName = useWatermarkStudentName(
+    watermarkNameOverride,
+    pin
+  );
 
   // ─── Tab-switch warning protection ─────────────────────────────────────────
   // Listens for visibility/focus loss; each return increments the warning
