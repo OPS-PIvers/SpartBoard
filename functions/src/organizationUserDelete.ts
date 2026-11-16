@@ -44,6 +44,7 @@ import {
   isStrictSuperAdmin,
 } from './authz';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { deleteAllCourseCopies } from './course/saveCourse';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -346,6 +347,8 @@ export const deleteOrganizationUser = onCall(
     }
 
     if (uid) {
+      // Course copies live outside users/{uid}: Class pages, course links and public family pages.
+      await deleteAllCourseCopies(db, uid);
       await db.recursiveDelete(db.doc(`users/${uid}`));
       await db.doc(`verified_classes/${uid}`).delete();
       try {

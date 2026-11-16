@@ -14,6 +14,8 @@ export const COURSE_MAX_PINNED_LINKS = 6;
 export const COURSE_MAX_LINK_TITLE_LENGTH = 80;
 export const COURSE_MAX_LINK_URL_LENGTH = 2000;
 export const COURSE_MAX_AGENDA_TITLE_LENGTH = 200;
+/** Merged-in link addresses kept per Course. */
+export const COURSE_MAX_FORMER_LINKS = 20;
 /** A teacher holds far fewer; bounds the save transaction's read of every Course. */
 export const COURSE_MAX_PER_TEACHER = 100;
 
@@ -59,6 +61,10 @@ export interface Course {
   familyLink: CourseFamilyLink | null;
   /** D18: the one Class page link for the Course, `/my-assignments/course/{linkId}`. */
   linkId: string;
+  /** Class page links of Courses merged into this one; they keep working (D14, D18). */
+  formerLinkIds: string[];
+  /** Family link addresses of Courses merged into this one; live whenever this Course's family link is on. */
+  formerShareIds: string[];
   /** Roster id to the student class id the server confirmed and wrote a Class page copy for. */
   rosterClassIds: Record<string, string>;
   deckCheck: CourseDeckCheck | null;

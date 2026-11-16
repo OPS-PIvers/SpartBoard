@@ -9,6 +9,7 @@ import {
   COURSE_DECK_SHARING,
   COURSE_MAX_CLASSES,
   COURSE_MAX_NAME_LENGTH,
+  COURSE_MAX_FORMER_LINKS,
   COURSE_MAX_PER_TEACHER,
   COURSE_PAGE_LINKS_COLLECTION,
   FAMILY_PAGES_COLLECTION,
@@ -82,6 +83,9 @@ const isClassId = (id: unknown): id is string =>
   id !== '.' &&
   id !== '..';
 
+const idList = (v: unknown): string[] =>
+  Array.isArray(v) ? (v as unknown[]).filter(isCourseDocId) : [];
+
 function readCourse(id: string, data: Data | undefined): Course | null {
   if (!data) return null;
   const rosterIds = Array.isArray(data.rosterIds)
@@ -108,6 +112,8 @@ function readCourse(id: string, data: Data | undefined): Course | null {
         ? { shareId: fam.shareId, on: fam.on === true }
         : null,
     linkId: typeof data.linkId === 'string' ? data.linkId : '',
+    formerLinkIds: idList(data.formerLinkIds),
+    formerShareIds: idList(data.formerShareIds),
     rosterClassIds: map,
     deckCheck: (data.deckCheck as Course['deckCheck']) ?? null,
     createdAt: typeof data.createdAt === 'number' ? data.createdAt : 0,
@@ -134,7 +140,8 @@ function copiesOf(uid: string, c: Course, now: number): Map<string, Data> {
     out.set(classPagePath(classId, uid), copy as unknown as Data);
   }
   const link: CoursePageLink = { classIds: ids };
-  out.set(linkPath(c.linkId), link as unknown as Data);
+  for (const linkId of [c.linkId, ...c.formerLinkIds])
+    out.set(linkPath(linkId), link as unknown as Data);
   if (c.familyLink?.on) {
     const page: FamilyPage = {
       courseName: c.name,
@@ -143,7 +150,8 @@ function copiesOf(uid: string, c: Course, now: number): Map<string, Data> {
       pinnedLinks: c.pinnedLinks,
       updatedAt: now,
     };
-    out.set(familyPath(c.familyLink.shareId), page as unknown as Data);
+    for (const shareId of [c.familyLink.shareId, ...c.formerShareIds])
+      out.set(familyPath(shareId), page as unknown as Data);
   }
   return out;
 }
@@ -353,7 +361,37 @@ function takeRostersOut(
   return { finals, emptied, before, after, courseWrites };
 }
 
+class StaleRead extends Error {}
+
+/** Merged-in addresses without the primary one or repeats, the most recent kept. */
+function keepFormer(ids: string[], primary: string | null): string[] {
+  const out: string[] = [];
+  for (const id of ids)
+    if (id && id !== primary && !out.includes(id)) out.push(id);
+  return out.slice(-COURSE_MAX_FORMER_LINKS);
+}
+
 async function save(
+  db: Firestore,
+  teacher: { uid: string; email: string; name: string },
+  input: Record<string, unknown>,
+  deps: CourseDeps
+): Promise<SaveCourseReply> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await saveOnce(db, teacher, input, deps);
+    } catch (err) {
+      if (!(err instanceof StaleRead)) throw err;
+      if (attempt >= 2)
+        throw new HttpsError(
+          'aborted',
+          'This course changed while saving. Try again.'
+        );
+    }
+  }
+}
+
+async function saveOnce(
   db: Firestore,
   teacher: { uid: string; email: string; name: string },
   input: Record<string, unknown>,
@@ -397,6 +435,16 @@ async function save(
 
   const savedId = await db.runTransaction(async (tx) => {
     const courses = await loadCourses(tx, db, teacher.uid);
+    // Rosters and ClassLink were read before the transaction; any Course changed since means read again.
+    if (
+      courses.size !== all.length ||
+      all.some((c) => courses.get(c.id)?.updatedAt !== c.updatedAt)
+    )
+      throw new StaleRead();
+    for (const r of rosterIds) {
+      if (!(await tx.get(db.doc(`users/${teacher.uid}/rosters/${r}`))).exists)
+        throw new StaleRead();
+    }
     const prev = courseId !== null ? courses.get(courseId as string) : null;
     if (courseId !== null && !prev)
       throw new HttpsError('not-found', 'That course is gone.');
@@ -415,15 +463,36 @@ async function save(
       id,
       now
     );
-    // D14: a family link or Class page link already shared survives the Course it was on being merged away.
-    const inheritedFamily =
-      prev?.familyLink ?? out.emptied.find((c) => c.familyLink)?.familyLink;
-    const inheritedLink =
-      prev?.linkId || (out.emptied.length === 1 ? out.emptied[0].linkId : '');
+    // D14, D18: every address already shared from a merged-away Course keeps working on this one.
+    const merged = out.emptied;
+    const primaryFamily =
+      prev?.familyLink ?? merged.find((c) => c.familyLink)?.familyLink ?? null;
+    const linkId = prev?.linkId || merged[0]?.linkId || deps.newId();
+    const formerLinkIds = keepFormer(
+      [
+        ...(prev?.formerLinkIds ?? []),
+        ...merged.flatMap((c) => [c.linkId, ...c.formerLinkIds]),
+      ],
+      linkId
+    );
+    const familyShareId = primaryFamily?.shareId ?? null;
+    const formerShareIds = keepFormer(
+      [
+        ...(prev?.formerShareIds ?? []),
+        ...merged.flatMap((c) => [
+          ...(c.familyLink ? [c.familyLink.shareId] : []),
+          ...c.formerShareIds,
+        ]),
+      ],
+      familyShareId
+    );
     const famOn =
       typeof input.familyLinkOn === 'boolean'
         ? input.familyLinkOn
-        : inheritedFamily?.on === true;
+        : prev
+          ? prev.familyLink?.on === true ||
+            merged.some((c) => c.familyLink?.on === true)
+          : merged.some((c) => c.familyLink?.on === true);
     const agenda =
       input.agenda !== undefined
         ? cleanCourseAgenda(input.agenda)
@@ -438,12 +507,14 @@ async function save(
         input.pinnedLinks !== undefined
           ? cleanPinnedLinks(input.pinnedLinks)
           : (prev?.pinnedLinks ?? []),
-      familyLink: inheritedFamily
-        ? { shareId: inheritedFamily.shareId, on: famOn }
+      familyLink: familyShareId
+        ? { shareId: familyShareId, on: famOn }
         : famOn
           ? { shareId: deps.newId(), on: true }
           : null,
-      linkId: inheritedLink || deps.newId(),
+      linkId,
+      formerLinkIds,
+      formerShareIds,
       rosterClassIds: confirmed.map,
       deckCheck:
         prev && prev.agenda?.fileId === agenda?.fileId ? prev.deckCheck : null,
@@ -524,6 +595,8 @@ async function unlink(
       pinnedLinks: c.pinnedLinks,
       familyLink: null,
       linkId: deps.newId(),
+      formerLinkIds: [],
+      formerShareIds: [],
       rosterClassIds: confirmed.map,
       deckCheck: c.deckCheck,
       createdAt: now,
@@ -655,5 +728,22 @@ export async function handleSaveCourse(
       return recordDeckCheck(db, teacher.uid, req, deps);
     default:
       return bad('Unknown action.');
+  }
+}
+
+/** Removes every copy a teacher's Courses put outside users/{uid}; account deletion runs it before deleting the folder. */
+export async function deleteAllCourseCopies(
+  db: Firestore,
+  uid: string
+): Promise<void> {
+  const courses = await readAllCourses(db, uid);
+  const paths = new Set<string>();
+  for (const c of courses)
+    for (const p of copiesOf(uid, c, 0).keys()) paths.add(p);
+  const list = [...paths];
+  for (let i = 0; i < list.length; i += 400) {
+    const batch = db.batch();
+    for (const p of list.slice(i, i + 400)) batch.delete(db.doc(p));
+    await batch.commit();
   }
 }

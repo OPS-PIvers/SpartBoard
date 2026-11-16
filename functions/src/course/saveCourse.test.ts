@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMemoryFirestore } from '../focus/testFirestore';
 import {
+  deleteAllCourseCopies,
   dropDeletedRoster,
   handleSaveCourse,
   type CourseCaller,
@@ -148,7 +149,9 @@ describe('saveCourseV1 save', () => {
     expect(paths(`users/${UID}/courses/`)).toEqual([
       `users/${UID}/courses/id3`,
     ]);
-    expect(doc('course_page_links/id2')).toBeUndefined();
+    expect(doc('course_page_links/id2')).toEqual({
+      classIds: ['cl-p2', 'cl-p5'],
+    });
     expect(doc(`class_pages/cl-p5/teachers/${UID}`)?.courseName).toBe(
       'English 9'
     );
@@ -421,6 +424,63 @@ describe('saveCourseV1 merges, partial saves and deleted classes', () => {
     expect(paths(`users/${UID}/courses/`)).toEqual([
       `users/${UID}/courses/id1`,
     ]);
+    expect(paths('family_pages/')).toEqual([]);
+  });
+
+  it('keeps the merged Course links working when a class joins an existing Course', async () => {
+    await save({ ...base, rosterIds: ['p2'] });
+    await save({
+      ...base,
+      name: 'Other',
+      rosterIds: ['p5'],
+      familyLinkOn: true,
+    });
+    const gone = doc(`users/${UID}/courses/id3`) as {
+      linkId: string;
+      familyLink: { shareId: string };
+    };
+    await save({ id: 'id1', rosterIds: ['p2', 'p5'] });
+    expect(paths(`users/${UID}/courses/`)).toEqual([
+      `users/${UID}/courses/id1`,
+    ]);
+    const kept = doc(`users/${UID}/courses/id1`) as {
+      linkId: string;
+      formerLinkIds: string[];
+      formerShareIds: string[];
+      familyLink: { shareId: string; on: boolean } | null;
+    };
+    expect(kept.linkId).not.toBe(gone.linkId);
+    expect(kept.formerLinkIds).toEqual([gone.linkId]);
+    expect([kept.familyLink?.shareId, ...kept.formerShareIds]).toContain(
+      gone.familyLink.shareId
+    );
+    expect(doc(`course_page_links/${gone.linkId}`)).toEqual({
+      classIds: ['cl-p2', 'cl-p5'],
+    });
+    expect(kept.familyLink?.on).toBe(true);
+    expect(doc(`family_pages/${gone.familyLink.shareId}`)).toBeDefined();
+  });
+
+  it('keeps both old links when a new Course empties two Courses', async () => {
+    await save({ ...base, rosterIds: ['p2'] });
+    await save({ ...base, name: 'Other', rosterIds: ['p5'] });
+    const a = doc(`users/${UID}/courses/id1`) as { linkId: string };
+    const b = doc(`users/${UID}/courses/id3`) as { linkId: string };
+    await save({ name: 'Both', rosterIds: ['p2', 'p5'] });
+    const [only] = paths(`users/${UID}/courses/`);
+    const next = doc(only) as { linkId: string; formerLinkIds: string[] };
+    expect([next.linkId, ...next.formerLinkIds].sort()).toEqual(
+      [a.linkId, b.linkId].sort()
+    );
+    expect(doc(`course_page_links/${a.linkId}`)).toBeDefined();
+    expect(doc(`course_page_links/${b.linkId}`)).toBeDefined();
+  });
+
+  it('removes every copy outside the teacher folder when the account is deleted', async () => {
+    await save({ ...base, rosterIds: ['p2', 'p5'], familyLinkOn: true });
+    await deleteAllCourseCopies(db, UID);
+    expect(paths('class_pages/')).toEqual([]);
+    expect(paths('course_page_links/')).toEqual([]);
     expect(paths('family_pages/')).toEqual([]);
   });
 
