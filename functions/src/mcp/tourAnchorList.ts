@@ -62730,6 +62730,45 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "publish-in-progress.cancel",
+    "label": "Cancel button in the in-progress publish check",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.publish-scores",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "publish-in-progress.end-and-publish",
+    "label": "End and publish button in the in-progress publish check",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.publish-scores",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "publish-in-progress.confirm",
+    "label": "Confirm button in the in-progress publish check",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.publish-scores",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "override-row.toggle",
     "label": "Student row header in the override editor",
     "scope": "board",
