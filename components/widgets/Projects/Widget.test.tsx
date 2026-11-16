@@ -159,6 +159,7 @@ describe('ProjectsWidget', () => {
       activeDashboard: { globalStyle: { fontFamily: 'sans' } },
     });
     (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      canAccessFeature: () => false,
       user: { uid: 'teacher-1' },
     });
     (useProjectGrades as unknown as ReturnType<typeof vi.fn>).mockReturnValue({

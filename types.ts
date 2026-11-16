@@ -10340,6 +10340,8 @@ export interface ProjectRun extends SessionWorkKindFields {
   /** Retired: students only ever see their own group. Old runs keep it until backfilled. */
   showStatusToStudents?: boolean;
   acceptingUpdates: boolean;
+  /** Groups can submit; set when a teacher with the project-submit preview starts or edits the run. */
+  studentSubmit?: boolean;
   /** D42 — absent on runs made before the field existed. */
   createdAt?: number;
   updatedAt: number;
@@ -10366,6 +10368,11 @@ export interface ProjectGroup {
    * that is what makes the per-step approval ceiling enforceable.
    */
   lastStepChange?: { stepId: string; at: number };
+  /** Set by `submitProjectGroupV1` for the whole group; the teacher's Reopen clears it. */
+  submittedAt?: number;
+  submittedByUid?: string;
+  /** Submitted after the run's due date. */
+  submittedLate?: boolean;
   updatedAt: number;
 }
 
@@ -10416,7 +10423,7 @@ export interface ProjectGroupEvent {
   at: number;
   actorUid: string;
   actorRole: 'student' | 'teacher';
-  kind: 'stepState' | 'workLink' | 'upload' | 'membership';
+  kind: 'stepState' | 'workLink' | 'upload' | 'membership' | 'submission';
   stepId?: string;
   from?: ProjectStepState;
   to?: ProjectStepState;
@@ -11341,6 +11348,8 @@ export type GlobalFeature =
   | 'quiz-monitor-roster'
   /** Quiz setting that shows students their score as soon as they submit. */
   | 'quiz-score-on-submit'
+  /** Projects: a group submits its project; the teacher sees Submitted, Late or Missing and can reopen. */
+  | 'project-submit'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */
   | 'gradebook'
   /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */

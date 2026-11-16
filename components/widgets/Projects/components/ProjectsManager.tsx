@@ -144,7 +144,8 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
 }) => {
   const config = widget.config as ProjectsConfig;
   const { updateWidget, addToast, rosters } = useDashboard();
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
+  const studentSubmit = canAccessFeature('project-submit');
   const confirmDelete = useLibraryDeleteConfirm();
   const userId = user?.uid;
 
@@ -330,13 +331,13 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
       try {
         await saveProject(next);
         const run = runByProjectId.get(next.id);
-        if (run) await syncRunFromProject(db, run, next);
+        if (run) await syncRunFromProject(db, run, next, studentSubmit);
       } catch {
         addToast('That project could not be saved.', 'error');
         throw new Error('save failed');
       }
     },
-    [addToast, runByProjectId, saveProject]
+    [addToast, runByProjectId, saveProject, studentSubmit]
   );
 
   const handleDelete = async (project: ProjectDefinition): Promise<void> => {

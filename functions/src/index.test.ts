@@ -3872,6 +3872,7 @@ describe('index barrel — deployed export set', () => {
     'commitRosterPinIndexV1',
     'controlSubAssignmentV1',
     'commitProjectGroupsV1',
+    'submitProjectGroupV1',
     'pinLoginV1',
     // Individual assignment targeting (M17 A2 / A2b)
     'setAssignmentTargetsV1',

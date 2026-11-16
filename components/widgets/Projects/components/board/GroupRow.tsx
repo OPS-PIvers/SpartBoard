@@ -15,12 +15,34 @@ import {
 } from '../../projectSteps';
 import { STATE_STYLES } from '../../stepVisuals';
 import { StateMark } from '../../StateMark';
-import { cellKey, groupColorOf, stepsWithWork } from '../../boardHelpers';
+import {
+  cellKey,
+  groupColorOf,
+  stepsWithWork,
+  type ProjectSubmitStatus,
+} from '../../boardHelpers';
 import { GroupDetails } from './GroupDetails';
 import { tourTypeAttr } from '@/config/tourAnchors';
 
 export type BoardGroup = SubShareProjectGroupView &
-  Partial<Pick<ProjectGroup, 'memberUids' | 'workLinks'>>;
+  Partial<
+    Pick<
+      ProjectGroup,
+      'memberUids' | 'workLinks' | 'submittedAt' | 'submittedLate'
+    >
+  >;
+
+const SUBMIT_LABELS: Record<ProjectSubmitStatus, string> = {
+  submitted: 'Submitted',
+  late: 'Late',
+  missing: 'Missing',
+};
+
+const SUBMIT_TONES: Record<ProjectSubmitStatus, string> = {
+  submitted: 'text-emerald-700',
+  late: 'text-amber-700',
+  missing: 'text-brand-red-primary',
+};
 
 interface GroupRowProps {
   group: BoardGroup;
@@ -41,6 +63,10 @@ interface GroupRowProps {
   openCellKey: string | null;
   onOpenCell: (groupId: string, stepId: string, anchor: HTMLElement) => void;
   stickyStyle: React.CSSProperties;
+  /** Submitted, Late or Missing on a run that takes submissions. */
+  submitStatus?: ProjectSubmitStatus | null;
+  /** Clears the submission so the group can edit and submit again. */
+  onReopen?: () => Promise<void>;
 }
 
 const CELL_PAD = 'min(3px, 0.8cqmin) min(3px, 0.8cqmin)';
@@ -62,6 +88,8 @@ export const GroupRow: React.FC<GroupRowProps> = ({
   openCellKey,
   onOpenCell,
   stickyStyle,
+  submitStatus = null,
+  onReopen,
 }) => {
   const { user } = useAuth();
   const listenRunId = runId && (watchWork || expanded) ? runId : null;
@@ -91,6 +119,16 @@ export const GroupRow: React.FC<GroupRowProps> = ({
       </span>
     </span>
   );
+  const statusText = submitStatus && (
+    <span
+      className={`shrink-0 font-bold ${SUBMIT_TONES[submitStatus]}`}
+      style={{
+        fontSize: dense ? 'min(11px, 3.2cqmin)' : 'min(12px, 3.6cqmin)',
+      }}
+    >
+      {SUBMIT_LABELS[submitStatus]}
+    </span>
+  );
 
   const cellHeight = dense ? 'min(20px, 4.2cqmin)' : 'min(30px, 6.5cqmin)';
 
@@ -112,7 +150,13 @@ export const GroupRow: React.FC<GroupRowProps> = ({
             }}
           />
           {readOnly || !runId ? (
-            nameChip
+            <span
+              className="flex min-w-0 items-center"
+              style={{ gap: 'min(6px, 1.4cqmin)' }}
+            >
+              {nameChip}
+              {statusText}
+            </span>
           ) : (
             <span
               className="flex min-w-0 items-center"
@@ -146,6 +190,7 @@ export const GroupRow: React.FC<GroupRowProps> = ({
                   }}
                 />
               </button>
+              {statusText}
             </span>
           )}
         </th>
@@ -279,6 +324,9 @@ export const GroupRow: React.FC<GroupRowProps> = ({
               workLinks={work.workLinks}
               uploads={files.uploads}
               workLoading={work.loading || files.loading}
+              submittedAt={group.submittedAt}
+              submittedLate={group.submittedLate}
+              onReopen={readOnly ? undefined : onReopen}
             />
           </td>
         </tr>
