@@ -949,6 +949,53 @@ describe('linkClassroomCourse (course-squatting fix)', () => {
     expect(typeof write?.data.updatedAt).toBe('number');
   });
 
+  it("refuses a ClassLink class that is not on the caller's verified list", async () => {
+    vi.spyOn(classroomAddonNet, 'verifyTeacherOfCourse').mockResolvedValue({
+      ok: true,
+      status: 200,
+      isTeacher: true,
+    });
+    gradeSyncDocs.set('verified_classes/teacher-1', {
+      ids: ['CL-OTHER'],
+      classlinkAt: 1,
+    });
+
+    await expect(
+      callLink({ data: linkData, auth: { uid: 'teacher-1' } })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(findLinkWrite()).toBeUndefined();
+  });
+
+  it("links a ClassLink class that is on the caller's verified list", async () => {
+    vi.spyOn(classroomAddonNet, 'verifyTeacherOfCourse').mockResolvedValue({
+      ok: true,
+      status: 200,
+      isTeacher: true,
+    });
+    gradeSyncDocs.set('verified_classes/teacher-1', {
+      ids: ['CL-SECTION-1'],
+      classlinkAt: 1,
+    });
+
+    await callLink({ data: linkData, auth: { uid: 'teacher-1' } });
+    expect(findLinkWrite()?.data.classlinkClassId).toBe('CL-SECTION-1');
+  });
+
+  it('links a roster with no ClassLink class whatever the verified list holds', async () => {
+    vi.spyOn(classroomAddonNet, 'verifyTeacherOfCourse').mockResolvedValue({
+      ok: true,
+      status: 200,
+      isTeacher: true,
+    });
+    gradeSyncDocs.set('verified_classes/teacher-1', { ids: [], classlinkAt: 1 });
+
+    await callLink({
+      data: { ...linkData, classlinkClassId: undefined },
+      auth: { uid: 'teacher-1' },
+    });
+    expect(findLinkWrite()?.data.classlinkClassId).toBeNull();
+  });
+
   it('fails closed when the teacher check is unverifiable (never links on an unverifiable token)', async () => {
     vi.spyOn(classroomAddonNet, 'verifyTeacherOfCourse').mockResolvedValue({
       ok: false,
@@ -2062,6 +2109,42 @@ describe('assignToClassroomV1 (partner-first assign)', () => {
       teacherUid: 'teacher-1',
       classlinkClassId: 'CL-SECTION-9',
     });
+  });
+
+  it("does not copy a session class that is not on the caller's verified list", async () => {
+    seedSession('quiz_sessions', 'S1', 'teacher-1', ['CL-SECTION-9']);
+    gradeSyncDocs.set('verified_classes/teacher-1', {
+      ids: ['CL-OTHER'],
+      classlinkAt: 1,
+    });
+    stubAssignHappyPath();
+
+    const res = await callAssign({
+      data: assignQuizData,
+      auth: { uid: 'teacher-1' },
+    });
+
+    expect(res.mode).toBe('addon');
+    const linkWrite = firestoreWrites.find(
+      (w) => w.path === 'classroom_course_links/C1'
+    );
+    expect(linkWrite?.data.teacherUid).toBe('teacher-1');
+    expect(linkWrite?.data.classlinkClassId).toBeUndefined();
+  });
+
+  it("copies a session class that is on the caller's verified list", async () => {
+    seedSession('quiz_sessions', 'S1', 'teacher-1', ['CL-SECTION-9']);
+    gradeSyncDocs.set('verified_classes/teacher-1', {
+      ids: ['CL-SECTION-9'],
+      classlinkAt: 1,
+    });
+    stubAssignHappyPath();
+
+    await callAssign({ data: assignQuizData, auth: { uid: 'teacher-1' } });
+
+    expect(
+      firestoreWrites.find((w) => w.path === 'classroom_course_links/C1')?.data
+    ).toMatchObject({ classlinkClassId: 'CL-SECTION-9' });
   });
 
   it('filters classroom:<courseId> entries when choosing the ClassLink class', async () => {
