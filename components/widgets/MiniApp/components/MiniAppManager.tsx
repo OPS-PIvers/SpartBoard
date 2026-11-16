@@ -318,9 +318,10 @@ const MiniAppArchiveRow: React.FC<{
   );
   const classList =
     !!classNamesFor && canAccessFeature('assignment-class-list') && !isViewOnly;
+  const appTitle = (assignment.appTitle ?? '').trim().toLowerCase();
   const sameTitle =
-    assignment.appTitle.trim().toLowerCase() ===
-    assignment.assignmentName.trim().toLowerCase();
+    !!appTitle &&
+    appTitle === (assignment.assignmentName ?? '').trim().toLowerCase();
   return (
     <AssignmentArchiveCard<MiniAppAssignment>
       assignment={assignment}

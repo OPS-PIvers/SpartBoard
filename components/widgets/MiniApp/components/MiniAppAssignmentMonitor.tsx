@@ -3,6 +3,7 @@ import React, { useEffect, useEffectEvent, useState } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 import { db } from '@/config/firebase';
+import { useAuth } from '@/context/useAuth';
 import type { MiniAppAssignment, MiniAppSession } from '@/types';
 import { SubmissionsModal } from './SubmissionsModal';
 
@@ -15,22 +16,22 @@ export const MiniAppAssignmentMonitor: React.FC<{
   const [session, setSession] = useState<MiniAppSession | null>(null);
   const { sessionId } = assignment;
   const missing = useEffectEvent(onMissing);
+  const uid = useAuth().user?.uid;
 
-  useEffect(
-    () =>
-      onSnapshot(
-        doc(db, 'mini_app_sessions', sessionId),
-        (snap) => {
-          if (!snap.exists()) {
-            missing();
-            return;
-          }
-          setSession({ ...(snap.data() as MiniAppSession), id: snap.id });
-        },
-        () => missing()
-      ),
-    [sessionId]
-  );
+  useEffect(() => {
+    if (!uid) return;
+    return onSnapshot(
+      doc(db, 'mini_app_sessions', sessionId),
+      (snap) => {
+        if (!snap.exists()) {
+          missing();
+          return;
+        }
+        setSession({ ...(snap.data() as MiniAppSession), id: snap.id });
+      },
+      () => missing()
+    );
+  }, [sessionId, uid]);
 
   if (!session || session.id !== sessionId) {
     return (
