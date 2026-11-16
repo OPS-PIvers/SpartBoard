@@ -66,30 +66,47 @@ export const ScheduleWarningBanner: React.FC = () => {
 
   return (
     <div
-      className="fixed left-1/2 top-4 flex max-w-[90vw] -translate-x-1/2 items-center gap-4 rounded-2xl bg-brand-blue-primary px-6 py-4 text-white shadow-2xl"
+      className="fixed left-1/2 top-[10vh] flex w-[min(92vw,64rem)] -translate-x-1/2 flex-col items-center gap-4"
       style={{ zIndex: Z_INDEX.toast }}
       role="status"
       aria-live="polite"
     >
-      <BellRing className="h-8 w-8 shrink-0" aria-hidden="true" />
       {/* no-tour-anchor: a transient alert that appears on its own, never something a tour points at */}
       <button
         type="button"
         onClick={() => setShown(null)}
-        className="min-h-11 text-left text-2xl font-bold"
+        className="flex w-full flex-col items-center gap-3 rounded-3xl border-4 border-white/40 bg-brand-blue-primary px-8 py-8 text-center text-white shadow-2xl"
       >
-        {t('connections.scheduleWarning.banner', {
-          task: shown.task.trim() || t('connections.scheduleWarning.thisBlock'),
-          minutes: shown.minutes,
-          defaultValue: '{{task}} ends in {{minutes}} min',
-        })}
+        <BellRing
+          className="shrink-0"
+          style={{
+            width: 'clamp(3rem, 9vw, 6.5rem)',
+            height: 'clamp(3rem, 9vw, 6.5rem)',
+          }}
+          aria-hidden="true"
+        />
+        <span
+          className="font-black leading-tight"
+          style={{ fontSize: 'clamp(2.25rem, 7vw, 6rem)' }}
+        >
+          {shown.task.trim() || t('connections.scheduleWarning.thisBlock')}
+        </span>
+        <span
+          className="font-bold"
+          style={{ fontSize: 'clamp(1.75rem, 4.5vw, 3.75rem)' }}
+        >
+          {t('connections.scheduleWarning.endsIn', {
+            minutes: shown.minutes,
+            defaultValue: 'Ends in {{minutes}} min',
+          })}
+        </span>
       </button>
       {soundBlocked && (
         // no-tour-anchor: shows only when the browser blocked sound, never part of a tour
         <button
           type="button"
           onClick={enableSound}
-          className="min-h-11 shrink-0 rounded-xl bg-white px-4 text-sm font-bold text-brand-blue-primary"
+          className="min-h-12 rounded-2xl bg-white px-6 text-lg font-bold text-brand-blue-primary shadow-xl"
         >
           {t('connections.scheduleWarning.enableSound', {
             defaultValue: 'Enable classroom sounds',

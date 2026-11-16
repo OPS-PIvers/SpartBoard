@@ -6264,7 +6264,7 @@
   "connections": {
     "runFinished": "Sequence finished",
     "scheduleWarning": {
-      "banner": "{{task}} ends in {{minutes}} min",
+      "endsIn": "Ends in {{minutes}} min",
       "thisBlock": "This block",
       "enableSound": "Enable classroom sounds"
     },

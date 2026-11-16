@@ -15,8 +15,8 @@ vi.mock('@/utils/timeToolAudio', () => ({
 }));
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string, o?: { task?: string; minutes?: number }) =>
-      o?.task ? `${o.task} ends in ${o.minutes ?? 0} min` : key,
+    t: (key: string, o?: { minutes?: number }) =>
+      o?.minutes === undefined ? key : `Ends in ${o.minutes} min`,
   }),
 }));
 
@@ -55,7 +55,7 @@ describe('ScheduleWarningBanner', () => {
       board({ id: 'a1', at: Date.now() })
     );
     rerender(<ScheduleWarningBanner />);
-    expect(screen.getByText('Art ends in 5 min')).toBeTruthy();
+    expect(screen.getByText('Ends in 5 min')).toBeTruthy();
     expect(playTimerAlert).toHaveBeenCalledWith('Gong');
   });
 
@@ -64,7 +64,7 @@ describe('ScheduleWarningBanner', () => {
       board({ id: 'old', at: Date.now() - 60_000 })
     );
     render(<ScheduleWarningBanner />);
-    expect(screen.queryByText('Art ends in 5 min')).toBeNull();
+    expect(screen.queryByText('Ends in 5 min')).toBeNull();
     expect(playTimerAlert).not.toHaveBeenCalled();
   });
 
@@ -75,7 +75,7 @@ describe('ScheduleWarningBanner', () => {
       board({ id: 'a2', at: Date.now() })
     );
     rerender(<ScheduleWarningBanner />);
-    fireEvent.click(screen.getByText('Art ends in 5 min'));
-    expect(screen.queryByText('Art ends in 5 min')).toBeNull();
+    fireEvent.click(screen.getByText('Ends in 5 min'));
+    expect(screen.queryByText('Ends in 5 min')).toBeNull();
   });
 });
