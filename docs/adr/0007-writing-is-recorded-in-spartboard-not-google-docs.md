@@ -4,6 +4,7 @@ A Writing assignment is written in SpartBoard's own editor, where every edit is 
 
 ## Consequences
 
+- Writing assignments get their own widget, as quizzes do, and each one is a Library item.
 - Students who must work in Docs, Slides or Vids get a copied file per student with no playback and no paste blocking.
 - A finished Writing assignment exports to a Google Doc, which is how a teacher runs a Google originality report on it in Classroom.
 - Recording is for learning evidence first: students are told it happens and can play back their own writing. Blocking is something a teacher switches on per assignment.

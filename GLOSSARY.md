@@ -91,7 +91,7 @@ _Avoid_: bundle, export
 ## Classes
 
 **Course**:
-A teacher's sections that are taught the same thing, grouped so the Agenda and Class page are set once. Rosters, periods, due dates and grades stay with each section.
+Sections a teacher has chosen to link because they are taught the same thing, so the Agenda and Class page are set once. Linking is optional: an unlinked section stands as its own Course. Rosters, periods, due dates and grades stay with each section.
 _Avoid_: class (for the group), merged class
 
 **Agenda**:

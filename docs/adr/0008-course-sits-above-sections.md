@@ -6,5 +6,5 @@ SpartBoard had no course: each ClassLink section is its own class with its own r
 
 - Rosters, periods, due dates and grades stay with each section.
 - A Course belongs to one teacher. Two teachers of the same subject each have their own, and can point at the same Agenda file.
-- Courses are suggested from matching ClassLink titles and the teacher confirms them, so a section with no match is a Course of one.
+- Linking is optional. Courses are suggested from matching ClassLink titles and nothing is linked until the teacher confirms, so an unlinked section is a Course of one and can be unlinked again later.
 - Sharing a Course with a Team or co-teachers is a later decision.
