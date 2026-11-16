@@ -49,6 +49,8 @@ const TICK_MS = 250;
 const TAKEOVER_MS = 5000;
 // A Run this page finds already finished and this old was left behind by a closed page, so it stops instead of going on.
 const STALE_RUN_MS = 10 * 60 * 1000;
+// The longest a page waits before starting a block warning, so one of several open pages starts it.
+const WARN_JITTER_MS = 1500;
 
 // Runs move on their own, so they're left out of the comparison.
 const sameConnections = (a: WidgetConnection[], b: WidgetConnection[]) => {
@@ -388,6 +390,7 @@ export const ConnectionsRunner: React.FC = () => {
   const overdueSince = useRef(new Map<string, number>());
   const advancedAt = useRef(new Map<string, number>());
   const seenSteps = useRef(new Set<string>());
+  const warnEligibleAt = useRef(new Map<string, number>());
   const staleSteps = useRef(new Set<string>());
 
   useEffect(() => {
@@ -500,6 +503,18 @@ export const ConnectionsRunner: React.FC = () => {
         }
         const warning = due.get(schedule.id);
         if (!warning) continue;
+        // Every open page sees a warning come due at once, so each waits a random moment and re-checks the synced board first.
+        const waitKey = `${board.id}:${c.id}:${warning.key}:${new Date(now).toDateString()}`;
+        const eligibleAt = warnEligibleAt.current.get(waitKey);
+        if (eligibleAt === undefined) {
+          warnEligibleAt.current.set(
+            waitKey,
+            now + Math.random() * WARN_JITTER_MS
+          );
+          continue;
+        }
+        if (now < eligibleAt) continue;
+        warnEligibleAt.current.delete(waitKey);
         const started = startRun(
           c,
           widgets,

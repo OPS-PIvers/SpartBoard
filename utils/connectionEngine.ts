@@ -247,7 +247,8 @@ export const joinRunByHand = (
     ...steps[index],
     actions: steps[index].actions.slice(pressedAt + 1),
   };
-  const applied = applyStep(rest, widgets, now);
+  const block = seq.run?.block;
+  const applied = applyStep(rest, widgets, now, block);
   // The rest of the step ran a list out, so the Run ends here like it does on Start and advance.
   if (applied.ends) {
     return {
@@ -264,6 +265,7 @@ export const joinRunByHand = (
         stepIndex: index,
         stepStartedAt: now,
         loops: seq.run?.loops ?? 0,
+        ...(block && { block }),
       },
     },
     patches: applied.blocked ? {} : applied.patches,

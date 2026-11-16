@@ -48,14 +48,14 @@ describe('ScheduleWarningBanner', () => {
     } as unknown as ReturnType<typeof useAuth>);
   });
 
-  it('shows the message and plays the sound when an alert arrives', () => {
+  it('shows the message and plays the sound when an alert arrives', async () => {
     vi.mocked(useDashboard).mockReturnValue(board());
     const { rerender } = render(<ScheduleWarningBanner />);
     vi.mocked(useDashboard).mockReturnValue(
       board({ id: 'a1', at: Date.now() })
     );
     rerender(<ScheduleWarningBanner />);
-    expect(screen.getByText('Ends in 5 min')).toBeTruthy();
+    expect(await screen.findByText('Ends in 5 min')).toBeTruthy();
     expect(playTimerAlert).toHaveBeenCalledWith('Gong');
   });
 
@@ -68,14 +68,25 @@ describe('ScheduleWarningBanner', () => {
     expect(playTimerAlert).not.toHaveBeenCalled();
   });
 
-  it('closes when tapped', () => {
+  it('ignores an old alert that only appears after the page has been open a while', () => {
+    vi.mocked(useDashboard).mockReturnValue(board());
+    const { rerender } = render(<ScheduleWarningBanner />);
+    vi.mocked(useDashboard).mockReturnValue(
+      board({ id: 'other-board', at: Date.now() - 60_000 })
+    );
+    rerender(<ScheduleWarningBanner />);
+    expect(screen.queryByText('Ends in 5 min')).toBeNull();
+    expect(playTimerAlert).not.toHaveBeenCalled();
+  });
+
+  it('closes when tapped', async () => {
     vi.mocked(useDashboard).mockReturnValue(board());
     const { rerender } = render(<ScheduleWarningBanner />);
     vi.mocked(useDashboard).mockReturnValue(
       board({ id: 'a2', at: Date.now() })
     );
     rerender(<ScheduleWarningBanner />);
-    fireEvent.click(screen.getByText('Ends in 5 min'));
+    fireEvent.click(await screen.findByText('Ends in 5 min'));
     expect(screen.queryByText('Ends in 5 min')).toBeNull();
   });
 });

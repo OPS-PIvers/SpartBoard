@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BellRing } from 'lucide-react';
 import { useDashboard } from '@/context/useDashboard';
@@ -12,7 +12,7 @@ import {
 } from '@/utils/timeToolAudio';
 
 const SHOW_MS = 10_000;
-// An alert older than this was already played by another page, so it is not replayed here.
+// An alert older than this was already played, so it is not replayed.
 const FRESH_MS = 20_000;
 
 // Plays a Schedule block warning's sound and shows its message across the board.
@@ -21,8 +21,7 @@ export const ScheduleWarningBanner: React.FC = () => {
   const { activeDashboard } = useDashboard();
   const { canAccessFeature } = useAuth();
   const enabled = canAccessFeature('widget-connections');
-  const [mountedAt] = useState(() => Date.now());
-  const [handled, setHandled] = useState<ReadonlySet<string>>(new Set());
+  const handled = useRef(new Set<string>());
   const [shown, setShown] = useState<ScheduleWarningAlert | null>(null);
   const [soundBlocked, setSoundBlocked] = useState(false);
 
@@ -35,19 +34,40 @@ export const ScheduleWarningBanner: React.FC = () => {
     }
   }
 
-  // A new alert shows once; one saved before this page opened was already played elsewhere.
-  if (latest && !handled.has(latest.id)) {
-    setHandled(new Set([...handled, latest.id]));
-    if (latest.at >= mountedAt - FRESH_MS) setShown(latest);
-  }
+  const alertId = latest?.id;
+  const alertAt = latest?.at;
+  const alertTask = latest?.task;
+  const alertMinutes = latest?.minutes;
+  const alertSound = latest?.sound;
+
+  // A new alert plays once, when first seen; an old one (another board, or saved before this page opened) is skipped.
+  useEffect(() => {
+    if (
+      alertId === undefined ||
+      alertAt === undefined ||
+      alertTask === undefined ||
+      alertMinutes === undefined ||
+      alertSound === undefined ||
+      handled.current.has(alertId)
+    ) {
+      return;
+    }
+    handled.current.add(alertId);
+    if (Date.now() - alertAt > FRESH_MS) return;
+    playTimerAlert(alertSound);
+    queueMicrotask(() => {
+      setShown({
+        id: alertId,
+        at: alertAt,
+        task: alertTask,
+        minutes: alertMinutes,
+        sound: alertSound,
+      });
+      setSoundBlocked(getAudioCtx()?.state === 'suspended');
+    });
+  }, [alertId, alertAt, alertTask, alertMinutes, alertSound]);
 
   const shownId = shown?.id;
-  const shownSound = shown?.sound;
-  useEffect(() => {
-    if (!shownId || !shownSound) return;
-    playTimerAlert(shownSound);
-    queueMicrotask(() => setSoundBlocked(getAudioCtx()?.state === 'suspended'));
-  }, [shownId, shownSound]);
 
   useEffect(() => {
     if (!shownId || soundBlocked) return;

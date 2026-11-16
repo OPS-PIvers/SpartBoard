@@ -182,7 +182,8 @@ const blockWarn: ConnectionActionDef = {
               id: `${now}`,
               at: now,
               task: block.task,
-              minutes: block.minutes,
+              // The time actually left, so a late warning doesn't say "5 min" beside a shorter Timer.
+              minutes: Math.max(1, Math.ceil((block.endsAt - now) / 60000)),
               sound: block.sound,
             },
           },
@@ -204,7 +205,8 @@ export const WIDGET_CONNECTIONS: Partial<
         id: 'start-to-block-end',
         label: 'Start until the block ends',
         apply: (_c, now, _params, block) => {
-          if (!block) return { patch: {} };
+          // Started by hand there is no block to count to, so the Run stops here instead of waiting on an idle Timer.
+          if (!block) return null;
           const seconds = Math.max(1, Math.round((block.endsAt - now) / 1000));
           return { patch: { ...startFreshClock(seconds, now) } };
         },

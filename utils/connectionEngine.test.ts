@@ -534,3 +534,99 @@ describe('Connect from a Daily Schedule to a Timer', () => {
     ]);
   });
 });
+
+describe('block warning Runs started or joined by hand', () => {
+  const schedule = widget('s', 'schedule', { items: [] });
+  const block = {
+    endsAt: 1_000_000 + 300_000,
+    task: 'Art',
+    minutes: 5,
+    sound: 'Chime',
+  };
+  const warnThenTimer = (): SequenceConnection => ({
+    id: 'w',
+    kind: 'sequence',
+    repeat: 'until-done',
+    steps: [
+      { id: 'a', actions: [{ widgetId: 's', action: 'warn' }] },
+      {
+        id: 'b',
+        actions: [{ widgetId: 't', action: 'start-to-block-end' }],
+      },
+    ],
+  });
+
+  it('a hand start stops at the Timer step instead of waiting on an idle Timer', () => {
+    const widgets = [schedule, timer('t', 60)];
+    const started = startRun(warnThenTimer(), widgets, 1_000_000, 'dev');
+    if (!started) throw new Error('step 1 should start');
+    const moved = advanceRun(started.sequence, widgets, 1_000_100, 'dev');
+    expect(moved.finished).toBe(true);
+    expect(moved.sequence.run).toBeNull();
+  });
+
+  it('a hand start of a single warning-and-Timer step has nothing to do', () => {
+    const together: SequenceConnection = {
+      ...warnThenTimer(),
+      steps: [
+        {
+          id: 'a',
+          actions: [
+            { widgetId: 's', action: 'warn' },
+            { widgetId: 't', action: 'start-to-block-end' },
+          ],
+        },
+      ],
+    };
+    expect(
+      startRun(together, [schedule, timer('t', 60)], 1_000_000, 'dev')
+    ).toBeNull();
+  });
+
+  it('a hand press during a block Run keeps the block, so the pass still ends', () => {
+    const checklist = widget('c', 'checklist', {
+      items: [
+        { id: '1', text: 'a', completed: false },
+        { id: '2', text: 'b', completed: false },
+      ],
+    });
+    const seq: SequenceConnection = {
+      id: 'w',
+      kind: 'sequence',
+      repeat: 'until-done',
+      steps: [
+        { id: 'a', actions: [{ widgetId: 's', action: 'warn' }] },
+        { id: 'b', actions: [{ widgetId: 'c', action: 'next' }] },
+      ],
+      run: {
+        deviceId: 'dev',
+        stepIndex: 0,
+        stepStartedAt: 1_000_000,
+        loops: 0,
+        block,
+      },
+    };
+    const joined = joinRunByHand(
+      seq,
+      [schedule, checklist],
+      'c',
+      'next',
+      1_000_500,
+      'dev'
+    );
+    expect(joined?.sequence.run?.block).toEqual(block);
+  });
+
+  it('the banner minutes follow the time left, not the configured minutes', () => {
+    const widgets = [schedule, timer('t', 60)];
+    const together: SequenceConnection = {
+      ...warnThenTimer(),
+      steps: [{ id: 'a', actions: [{ widgetId: 's', action: 'warn' }] }],
+    };
+    const late = 1_000_000 + 4 * 60_000 + 30_000;
+    const started = startRun(together, widgets, late, 'dev', block);
+    expect(started?.patches.s).toMatchObject({
+      warningAlert: { minutes: 1 },
+    });
+  });
+});
