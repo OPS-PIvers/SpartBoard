@@ -262,14 +262,13 @@ describe('FlashcardSetEditorModal', () => {
     expect(screen.getAllByPlaceholderText('Term')).toHaveLength(3);
   });
 
-  it('inserts a card between rows from the plus button', () => {
+  it('inserts a card between rows or after the last one from the plus button', () => {
     renderModal({});
-    expect(
-      screen.queryByLabelText('Add card after card 2')
-    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Add card after card 2'));
+    expect(screen.getAllByPlaceholderText('Term')).toHaveLength(3);
     fireEvent.click(screen.getByLabelText('Add card after card 1'));
     expect(screen.getByLabelText('Term 2')).toHaveProperty('value', '');
-    expect(screen.getAllByPlaceholderText('Term')).toHaveLength(3);
+    expect(screen.getAllByPlaceholderText('Term')).toHaveLength(4);
   });
 
   it('swaps terms, definitions and languages, and swaps back on a second click', () => {

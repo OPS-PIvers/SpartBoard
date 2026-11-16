@@ -148,7 +148,7 @@ export const SortableCardRow: React.FC<SortableCardRowProps> = ({
           }}
         />
       </button>
-      {!isLast && !isDragging && (
+      {!isDragging && (
         <>
           <div
             aria-hidden
