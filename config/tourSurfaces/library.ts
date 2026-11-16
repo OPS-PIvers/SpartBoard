@@ -138,6 +138,7 @@ export const SURFACES: TourSurfaceMap = {
       'assign-mods.language': 'assign-step.modifications',
       'assign-mods.group': 'assign-step.modifications',
       'assign-mods.add-group': 'assign-step.modifications',
+      'assign-mods.group-generate-translation': 'assign-step.modifications',
       'assign-mods.remove-group': 'assign-step.modifications',
     },
   },

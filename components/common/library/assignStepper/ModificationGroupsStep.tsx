@@ -92,7 +92,7 @@ const StudentsMenu: React.FC<{
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
         {...tourAttr('assign-mods.students')}
-        className={`flex h-8 w-full items-center gap-2 rounded-lg border px-2.5 text-sm hover:border-slate-400 ${
+        className={`touch-target-expand flex h-8 w-full items-center gap-2 rounded-lg border px-2.5 text-sm hover:border-slate-400 ${
           picked.length > 0
             ? 'border-brand-blue-primary/50 bg-brand-blue-lighter/40 font-semibold text-brand-blue-dark'
             : 'border-slate-300 bg-white text-slate-700'
@@ -281,11 +281,11 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
               disabled={generateDisabled}
               onClick={() => translation.onGenerate?.([entry.locale])}
               {...tourFieldAttr(
-                'assign-mods.generate-translation',
+                'assign-mods.group-generate-translation',
                 'assign',
                 entry.locale
               )}
-              className="shrink-0 rounded-md border border-amber-300 bg-white px-2.5 py-1 font-bold text-amber-800 hover:bg-amber-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+              className="touch-target-expand shrink-0 rounded-md border border-amber-300 bg-white px-2.5 py-1 font-bold text-amber-800 hover:bg-amber-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
             >
               {t('quizTranslation.assign.generate')}
             </button>
@@ -334,7 +334,12 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
                   rows={rows}
                   picked={group.studentKeys.filter((k) => rowByKey.has(k))}
                   onChange={(keys) =>
-                    onChange(withGroupStudents(list, group.id, keys))
+                    onChange(
+                      withGroupStudents(list, group.id, [
+                        ...group.studentKeys.filter((k) => !rowByKey.has(k)),
+                        ...keys,
+                      ])
+                    )
                   }
                 />
               </Row>
@@ -408,7 +413,7 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
                   }
                   aria-label="Language"
                   {...tourAttr('assign-mods.language')}
-                  className="h-8 w-44 rounded-lg border border-slate-300 bg-white px-2.5 text-sm text-slate-700"
+                  className="h-8 w-44 rounded-lg border border-slate-300 bg-white px-2.5 text-sm text-slate-700 touch:h-11"
                 >
                   <option value="">Each student’s own</option>
                   {languageOptions.map((l) => (
@@ -428,7 +433,7 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
                     setOpenId(null);
                   }}
                   {...tourAttr('assign-mods.remove-group')}
-                  className="inline-flex items-center gap-1 text-xs font-bold text-brand-red-primary hover:underline"
+                  className="touch-target-expand inline-flex items-center gap-1 text-xs font-bold text-brand-red-primary hover:underline"
                 >
                   <Trash2 className="h-3.5 w-3.5" aria-hidden />
                   Remove group
@@ -446,7 +451,7 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
           setOpenId(added.id);
         }}
         {...tourAttr('assign-mods.add-group')}
-        className="inline-flex items-center gap-1 text-left text-xs font-bold text-brand-blue-primary hover:underline"
+        className="touch-target-expand inline-flex items-center gap-1 text-left text-xs font-bold text-brand-blue-primary hover:underline"
       >
         <Plus className="h-3.5 w-3.5" aria-hidden />
         Another group with different changes

@@ -1559,6 +1559,12 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'assign-mods.group-generate-translation': {
+    label:
+      'Generate translation button in the Assign dialog Modifications step',
+    perField: true,
+    panel: true,
+  },
   'assign-modal.cancel-header': {
     label: 'Cancel button at the top of the Assign window',
     panel: true,

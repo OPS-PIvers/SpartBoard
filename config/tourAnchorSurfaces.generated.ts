@@ -351,6 +351,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'assign-mods.skip-student': ['library.assign-stepper'],
     'assign-mods.remove': ['library.assign-stepper'],
     'assign-mods.generate-translation': ['library.assign-stepper'],
+    'assign-mods.group-generate-translation': ['library.assign-stepper'],
     'assign-modal.cancel-header': ['library.assign-modal'],
     'assign-modal.cancel': ['library.assign-modal'],
     'assign-modal.confirm': ['library.assign-modal'],

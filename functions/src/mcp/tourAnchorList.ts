@@ -6374,6 +6374,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-mods.group-generate-translation",
+    "label": "Generate translation button in the Assign dialog Modifications step",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-step.modifications"
+        ],
+        "reveal": "assign-step.modifications"
+      }
+    ]
+  },
+  {
     "id": "assign-modal.cancel-header",
     "label": "Cancel button at the top of the Assign window",
     "scope": "board",
