@@ -31,7 +31,7 @@
       "note": "At 150x100 the image, pins and empty-state text all shrink together to about 10px pins and 2.7px text, and the stress grid of pins covers the image with nothing collapsing.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T16:05:40.455Z",
-      "stale": false
+      "stale": true
     },
     "S2": {
       "score": 3,
@@ -71,7 +71,7 @@
       },
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T16:05:40.455Z",
-      "stale": false
+      "stale": true
     },
     "S4": {
       "score": 3,
@@ -281,7 +281,7 @@
       "note": "The pins look clean, but the heavy dark letterbox bands, shadowed pins and the gray-on-gray empty-state text look dated.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T16:05:40.455Z",
-      "stale": false
+      "stale": true
     },
     "V2": {
       "score": 3,
@@ -318,7 +318,7 @@
       "note": "The image is clearly the primary element and the small round pins sit on it as a secondary layer.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T16:05:40.455Z",
-      "stale": false
+      "stale": true
     },
     "V4": {
       "score": 3,
@@ -370,7 +370,7 @@
       "note": "Pins use one lucide icon style, and the copy is short with no copy-guard violations.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T16:05:40.455Z",
-      "stale": false
+      "stale": true
     },
     "C1": {
       "score": 2,

@@ -39,7 +39,7 @@
       "note": "At 150x100 the six typical tiles stay legible, but the stress fixture shrinks all 24 tiles uniformly to 2px labels and 22px targets instead of hiding or overflowing anything.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:26:01.461Z",
-      "stale": false
+      "stale": true
     },
     "S2": {
       "score": 2,
@@ -80,7 +80,7 @@
       "note": "The grid reflows to a single row of six at the widest aspect and a single column (three columns under stress) at the tallest, with about 7% dead area.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:26:01.461Z",
-      "stale": false
+      "stale": true
     },
     "S4": {
       "score": 2,
@@ -274,7 +274,7 @@
       "note": "Flat rounded color tiles with one lucide icon style and bold labels look current, with only light text shadows and no ban-list hits on the typical face.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:26:01.461Z",
-      "stale": false
+      "stale": true
     },
     "V2": {
       "score": 3,
@@ -311,7 +311,7 @@
       "note": "The tiles are the clear primary element and inside each the icon and label step down cleanly, with no secondary chrome competing.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:26:01.461Z",
-      "stale": false
+      "stale": true
     },
     "V4": {
       "score": 2,
@@ -363,7 +363,7 @@
       "note": "Labels are short plain sound names with a single lucide speaker icon, though the identical icon on every tile adds nothing to tell sounds apart.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:26:01.461Z",
-      "stale": false
+      "stale": true
     },
     "C1": {
       "score": 2,

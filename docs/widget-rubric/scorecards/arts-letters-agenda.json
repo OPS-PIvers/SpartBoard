@@ -39,7 +39,7 @@
       "note": "At 150×100 the title, descriptions and Reset button drop away and only the three checkable names remain, though the checkboxes are small (about 14 px).",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-07T20:14:31.900Z",
-      "stale": false
+      "stale": true
     },
     "S2": {
       "score": 3,
@@ -80,7 +80,7 @@
       "note": "The three items sit in a row at 1400×350 and stack in a column at 225×900, so the layout reflows at both extremes, though the tall cards are mostly empty.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-07T20:14:31.900Z",
-      "stale": false
+      "stale": true
     },
     "S4": {
       "score": 3,
@@ -274,7 +274,7 @@
       "note": "The face is a clean glass panel with white cards and one accent color, with no gradients, emoji or crowded pills.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-07T20:14:31.900Z",
-      "stale": false
+      "stale": true
     },
     "V2": {
       "score": 3,
@@ -311,7 +311,7 @@
       "note": "The step names are the largest, heaviest text, with the italic descriptions and the small Reset pill stepping down, though the title is close to the names in weight.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-07T20:14:31.900Z",
-      "stale": false
+      "stale": true
     },
     "V4": {
       "score": 3,
@@ -363,7 +363,7 @@
       "note": "Labels are short and plain (Launch, Learn, Land, Reset checks) and the only icon is a lucide checkmark.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-07T20:14:31.900Z",
-      "stale": false
+      "stale": true
     },
     "C1": {
       "score": 2,
