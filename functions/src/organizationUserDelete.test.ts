@@ -29,6 +29,12 @@ vi.mock('./firebaseAdmin', () => {
   };
 });
 
+const deleteAllCourseCopiesMock = vi.fn();
+vi.mock('./course/saveCourse', () => ({
+  deleteAllCourseCopies: (...args: unknown[]) =>
+    deleteAllCourseCopiesMock(...args) as unknown,
+}));
+
 vi.mock('firebase-functions/v2/https', () => {
   class HttpsError extends Error {
     code: string;
@@ -160,6 +166,7 @@ function makeDb(opts: {
 beforeEach(() => {
   vi.clearAllMocks();
   recursiveDeleteMock.mockResolvedValue(undefined);
+  deleteAllCourseCopiesMock.mockResolvedValue(undefined);
   deleteFilesMock.mockResolvedValue(undefined);
   getFilesMock.mockResolvedValue([[]]);
   deleteUserMock.mockResolvedValue(undefined);
@@ -456,6 +463,7 @@ describe('deleteOrganizationUser — preflight and execution', () => {
 
     expect(res.deleted).toBe(true);
     expect(recursiveDeleteMock).toHaveBeenCalledTimes(1);
+    expect(deleteAllCourseCopiesMock).toHaveBeenCalledWith(db, 'uid9');
     expect(deleteFilesMock).toHaveBeenCalledWith({ prefix: 'users/uid9/' });
     expect(deleteUserMock).toHaveBeenCalledWith('uid9');
     expect(res.summary).toMatchObject({

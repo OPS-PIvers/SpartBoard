@@ -41,6 +41,8 @@ import { LinkSchoologyModal } from '@/components/classes/LinkSchoologyModal';
 import { useSchoologySeenSections } from '@/hooks/useSchoologySeenSections';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { SidebarClassRow } from './SidebarClassRow';
+import { CourseClassList } from '@/components/classes/course/CourseClassList';
+import { useCourses } from '@/hooks/useCourses';
 
 /** Google Classroom OAuth scope for read-only course listing. */
 const CLASSROOM_COURSES_READONLY_SCOPE =
@@ -143,6 +145,8 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
 
   const [editingRosterId, setEditingRosterId] = useState<string | null>(null);
   const studentPageOn = canAccessFeature('class-student-page');
+  const coursesOn = canAccessFeature('course-agenda');
+  const { courses: spartCourses, saveCourse } = useCourses(coursesOn);
   const [studentPageRoster, setStudentPageRoster] =
     useState<ClassRoster | null>(null);
   const [classLinkMode, setClassLinkMode] =
@@ -453,6 +457,30 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
     }
   };
 
+  const renderRosterRow = (r: ClassRoster, rosterIndex: number) => (
+    <SidebarClassRow
+      key={r.id}
+      roster={r}
+      isActive={activeRosterId === r.id}
+      classLinkEnabled={classLinkEnabled}
+      rowKey={`row-${rosterIndex + 1}`}
+      onToggleActive={() =>
+        setActiveRoster(activeRosterId === r.id ? null : r.id)
+      }
+      onEdit={() => setEditingRosterId(r.id)}
+      onSyncClassLink={() =>
+        setClassLinkMode({ kind: 'merge', rosterId: r.id, rosterName: r.name })
+      }
+      onLinkClassroom={() => setLinkingRoster(r)}
+      onViewStudentPage={
+        studentPageOn && studentPageClassId(r)
+          ? () => setStudentPageRoster(r)
+          : undefined
+      }
+      onDelete={() => void handleDelete(r)}
+    />
+  );
+
   return (
     <>
       <div
@@ -570,38 +598,22 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
                     defaultValue: 'Your Classes',
                   })}
                 </h3>
-                <ul
-                  className="divide-y divide-slate-200 border-y border-slate-200"
-                  {...tourAttr('classes.roster-list')}
-                >
-                  {rosters.map((r, rosterIndex) => (
-                    <SidebarClassRow
-                      key={r.id}
-                      roster={r}
-                      isActive={activeRosterId === r.id}
-                      classLinkEnabled={classLinkEnabled}
-                      rowKey={`row-${rosterIndex + 1}`}
-                      onToggleActive={() =>
-                        setActiveRoster(activeRosterId === r.id ? null : r.id)
-                      }
-                      onEdit={() => setEditingRosterId(r.id)}
-                      onSyncClassLink={() =>
-                        setClassLinkMode({
-                          kind: 'merge',
-                          rosterId: r.id,
-                          rosterName: r.name,
-                        })
-                      }
-                      onLinkClassroom={() => setLinkingRoster(r)}
-                      onViewStudentPage={
-                        studentPageOn && studentPageClassId(r)
-                          ? () => setStudentPageRoster(r)
-                          : undefined
-                      }
-                      onDelete={() => void handleDelete(r)}
-                    />
-                  ))}
-                </ul>
+                {coursesOn ? (
+                  <CourseClassList
+                    rosters={rosters}
+                    courses={spartCourses}
+                    saveCourse={saveCourse}
+                    renderRow={renderRosterRow}
+                    listAttrs={tourAttr('classes.roster-list')}
+                  />
+                ) : (
+                  <ul
+                    className="divide-y divide-slate-200 border-y border-slate-200"
+                    {...tourAttr('classes.roster-list')}
+                  >
+                    {rosters.map(renderRosterRow)}
+                  </ul>
+                )}
               </div>
             )}
           </div>

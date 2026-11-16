@@ -6348,6 +6348,13 @@ export const TOUR_ANCHORS = {
     rows: true,
     rowList: 'classes',
   },
+  'classes.course-expand': {
+    label: 'Show the classes in a linked Course in My Classes',
+    perField: true,
+    panel: true,
+    rows: true,
+    rowList: 'classes',
+  },
   'classes.edit-roster': {
     label: 'Edit class button in My Classes',
     perField: true,

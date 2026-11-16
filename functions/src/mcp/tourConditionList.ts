@@ -50,6 +50,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'claude-connector',
   'claude-connector-apps',
   'claude-connector-guided-learning',
+  'course-agenda',
   'dashboard-import',
   'dashboard-layout',
   'dashboard-sharing',

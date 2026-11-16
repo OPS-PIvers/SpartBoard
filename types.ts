@@ -11419,6 +11419,8 @@ export type GlobalFeature =
   | 'share-content-safeguards'
   /** My Classes "View Student Page": a class's student page, read from the teacher's own sessions. */
   | 'class-student-page'
+  /** Course and Agenda: link classes into a Course and set its daily Agenda in My Classes (docs/plans/COURSE_AND_AGENDA.md). */
+  | 'course-agenda'
   /** Per-widget AI switches; ids match the server's `global_permissions` quota docs. */
   | 'quiz'
   | 'video-activity-ai'
@@ -13207,3 +13209,19 @@ export interface ShortLink {
   /** Optional human-readable name shown in the admin table. */
   label?: string;
 }
+
+// Course and Agenda (docs/plans/COURSE_AND_AGENDA.md §4.1); the contract lives in utils/course/contract.ts so functions/ can copy it.
+export type {
+  ClassPageCopy,
+  Course,
+  CourseAgenda,
+  CourseDeckCheck,
+  CourseDeckSharing,
+  CourseFamilyLink,
+  CourseInput,
+  CoursePageLink,
+  CoursePinnedLink,
+  FamilyPage,
+  SaveCourseReply,
+  SaveCourseRequest,
+} from './utils/course/contract';
