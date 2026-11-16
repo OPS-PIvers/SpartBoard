@@ -68,7 +68,10 @@ import {
   resolveQuizAssignment,
   sampleQuizDraw,
 } from '@/utils/questionBanks';
-import { withCurrentAnswerKeys } from '@/utils/quizAssignBankDraw';
+import {
+  loadAssignmentAnswerKeyQuiz,
+  withCurrentAnswerKeys,
+} from '@/utils/quizAssignBankDraw';
 import {
   reconcileBankSlotsForPlcShare,
   unsharedBanksMessage,
@@ -1262,6 +1265,29 @@ const TeacherQuizWidget: React.FC<{
       );
     },
     [loadQuiz, loadQuizData, loadBankContentsForQuiz]
+  );
+
+  // Publish reads the key without the loading pane, which would unmount the open Publish dialog.
+  const loadAnswerKeyQuizQuietly = useCallback(
+    async (
+      meta: QuizMetadata,
+      assignment: Pick<QuizAssignment, 'resolvedDriveFileId'>
+    ): Promise<QuizData | null> => {
+      try {
+        return await loadAssignmentAnswerKeyQuiz(
+          meta.driveFileId,
+          assignment.resolvedDriveFileId,
+          { loadQuizData, loadBankContentsForQuiz }
+        );
+      } catch (err) {
+        addToast(
+          err instanceof Error ? err.message : 'Failed to load quiz',
+          'error'
+        );
+        return null;
+      }
+    },
+    [loadQuizData, loadBankContentsForQuiz, addToast]
   );
 
   // Quiet fetch for the assign modal's lazy question load — must not touch
@@ -2695,7 +2721,7 @@ const TeacherQuizWidget: React.FC<{
             );
             return;
           }
-          const data = await loadAnswerKeyQuiz(meta, target);
+          const data = await loadAnswerKeyQuizQuietly(meta, target);
           if (!data) return;
           const result = await publishAssignmentScores(
             target.id,

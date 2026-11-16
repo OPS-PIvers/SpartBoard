@@ -4,6 +4,7 @@ import type { BankContent } from '@/utils/questionBanks';
 import {
   applyCurrentAnswerKeys,
   hasEveryCurrentAnswerKey,
+  loadAssignmentAnswerKeyQuiz,
   resolveQuizAssignContent,
   withCurrentAnswerKeys,
 } from '@/utils/quizAssignBankDraw';
@@ -208,5 +209,48 @@ describe('applyCurrentAnswerKeys', () => {
         applyCurrentAnswerKeys(frozen, lib(), bankOf(fib()))
       )
     ).toBe(true);
+  });
+});
+
+describe('loadAssignmentAnswerKeyQuiz', () => {
+  it('loads the library quiz when the assignment has no frozen copy', async () => {
+    const library = baseQuiz({ questions: [q('m1')] });
+    const loadQuizData = vi.fn().mockResolvedValue(library);
+    const out = await loadAssignmentAnswerKeyQuiz('drive-1', undefined, {
+      loadQuizData,
+      loadBankContentsForQuiz: vi.fn(),
+    });
+    expect(out).toBe(library);
+    expect(loadQuizData).toHaveBeenCalledWith('drive-1');
+  });
+
+  it('grades the frozen copy with the library keys', async () => {
+    const frozen = baseQuiz({ questions: [fib()] });
+    const loadQuizData = vi.fn((id: string) =>
+      Promise.resolve(
+        id === 'frozen-1' ? frozen : baseQuiz({ ...lib(), id: 'library' })
+      )
+    );
+    const out = await loadAssignmentAnswerKeyQuiz('drive-1', 'frozen-1', {
+      loadQuizData,
+      loadBankContentsForQuiz: () =>
+        Promise.resolve(
+          bankOf(fib({ alternateAnswers: ['Twins', 'Twinning'] }))
+        ) as Promise<Map<string, BankContent>>,
+    });
+    expect(loadQuizData.mock.calls.map((c) => c[0])).toEqual([
+      'frozen-1',
+      'drive-1',
+    ]);
+    expect(out.questions[0].alternateAnswers).toEqual(['Twins', 'Twinning']);
+  });
+
+  it('throws when the frozen copy cannot load', async () => {
+    await expect(
+      loadAssignmentAnswerKeyQuiz('drive-1', 'frozen-1', {
+        loadQuizData: () => Promise.reject(new Error('gone')),
+        loadBankContentsForQuiz: vi.fn(),
+      })
+    ).rejects.toThrow('gone');
   });
 });
