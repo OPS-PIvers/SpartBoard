@@ -5525,7 +5525,7 @@ export interface PeriodAccessSessionFields {
   studentAccess?: Record<string, number>;
   /** Epoch ms of the last whole-session pause; see `PeriodAccess.pausedAt`. */
   pausedAt?: number;
-  /** Manual due date: every period locks at `dueAt`; a Start or Let in after it is late. */
+  /** Manual due date: true locks every period at `dueAt`; false allows late work past it. */
   dueLocks?: boolean;
   /** Reopened after End for these student uids only; cleared on End or a whole reopen. */
   reopenedFor?: string[];
