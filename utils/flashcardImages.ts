@@ -1,7 +1,6 @@
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
-import { storage } from '@/config/firebase';
+import type { GoogleDriveService } from './googleDriveService';
 
-/** Mirrors the `storage.rules` cap on users/{uid}/flashcard_images. */
+/** Keeps card pictures small enough to load quickly on student devices. */
 export const MAX_FLASHCARD_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_SIDE_PX = 1200;
 const UPLOAD_TYPES = /^image\/(png|jpeg|webp|gif)$/u;
@@ -49,15 +48,17 @@ export const prepareFlashcardImage = async (
   return blob.size <= MAX_FLASHCARD_IMAGE_BYTES ? blob : null;
 };
 
+/** Saves the picture in the teacher's Drive, viewable by link so students can see it. */
 export const uploadFlashcardImage = async (
-  uid: string,
+  drive: GoogleDriveService,
   blob: Blob
 ): Promise<string> => {
-  const ext = blob.type === 'image/gif' ? 'gif' : blob.type.split('/')[1];
-  const path = `users/${uid}/flashcard_images/${Date.now()}-${crypto.randomUUID()}.${ext}`;
-  const snapshot = await uploadBytes(ref(storage, path), blob, {
-    contentType: blob.type,
-    cacheControl: 'public, max-age=31536000, immutable',
-  });
-  return getDownloadURL(snapshot.ref);
+  const ext = blob.type.split('/')[1] ?? 'png';
+  const file = await drive.uploadFile(
+    blob,
+    `flashcard-${Date.now()}.${ext}`,
+    'Assets/FlashcardImages'
+  );
+  await drive.makePublic(file.id, undefined);
+  return `https://lh3.googleusercontent.com/d/${file.id}`;
 };

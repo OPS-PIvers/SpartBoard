@@ -8,6 +8,8 @@ interface ImageLightboxProps {
   alt: string;
   /** Text shown under the image, e.g. the answer the picture belongs to. */
   caption?: string;
+  /** Buttons under the image, e.g. Remove. */
+  actions?: React.ReactNode;
   onClose: () => void;
 }
 
@@ -16,6 +18,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
   src,
   alt,
   caption,
+  actions,
   onClose,
 }) => {
   useEffect(() => {
@@ -48,7 +51,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
       >
         <X size={20} />
       </button>
-      {caption ? (
+      {caption || actions ? (
         <figure
           className="flex max-h-full flex-col items-center gap-3"
           onClick={(e) => e.stopPropagation()}
@@ -58,9 +61,12 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
             alt={alt}
             className="max-h-[82vh] max-w-[94vw] rounded-lg bg-white object-contain shadow-2xl"
           />
-          <figcaption className="max-w-[94vw] text-center text-lg font-bold text-white wrap-break-word">
-            {caption}
-          </figcaption>
+          {caption && (
+            <figcaption className="max-w-[94vw] text-center text-lg font-bold text-white wrap-break-word">
+              {caption}
+            </figcaption>
+          )}
+          {actions}
         </figure>
       ) : (
         <img

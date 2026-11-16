@@ -123,12 +123,6 @@ const FOLDERS: {
     maxMb: 25,
   },
   { folder: 'hotspot_images', okType: 'video/mp4', maxMb: 250 },
-  {
-    folder: 'flashcard_images',
-    okType: 'image/webp',
-    badType: 'image/svg+xml',
-    maxMb: 5,
-  },
   { folder: 'instructional', okType: 'image/png', maxMb: 50 },
   { folder: 'notebooks', okType: 'image/svg+xml', maxMb: 250 },
   {

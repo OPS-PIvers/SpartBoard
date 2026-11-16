@@ -712,19 +712,9 @@ interface FcCard {
 }
 
 // Mirrors isFlashcardImageUrl in utils/flashcardImages.ts.
-const isCardImageUrl = (url: unknown): url is string => {
-  if (typeof url !== 'string' || url.length > 2048) return false;
-  try {
-    const parsed = new URL(url);
-    return (
-      parsed.protocol === 'https:' &&
-      (parsed.hostname === 'firebasestorage.googleapis.com' ||
-        parsed.hostname === 'storage.googleapis.com')
-    );
-  } catch {
-    return false;
-  }
-};
+const isCardImageUrl = (url: unknown): url is string =>
+  typeof url === 'string' &&
+  /^https:\/\/lh3\.googleusercontent\.com\/d\/[\w-]{10,200}$/u.test(url);
 
 /**
  * The deck a sub-launched run studies. Field by field rather than a spread:

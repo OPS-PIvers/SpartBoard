@@ -1,42 +1,93 @@
-import React, { useRef } from 'react';
-import { ImagePlus, Loader2, X } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { ImagePlus, Loader2, Trash2 } from 'lucide-react';
 import { tourFieldAttr } from '@/config/tourAnchors';
+import { ImageLightbox } from '@/components/common/ImageLightbox';
 import type { CardImageState } from './useCardImage';
 
 const ICON = { width: 'min(15px, 4cqmin)', height: 'min(15px, 4cqmin)' };
+const THUMB = 'min(26px, 6.5cqmin)';
 
 interface ButtonProps {
   image: CardImageState;
+  url: string | undefined;
   label: string;
   side: 'term' | 'definition';
   fieldKey: string;
+  onRemove: () => void;
 }
 
-/** Opens the file picker for a side's picture; sits inside the field. */
+/** Inside the field: picks a picture, or shows it small and opens a preview. */
 export const CardImageButton: React.FC<ButtonProps> = ({
   image,
+  url,
   label,
   side,
   fieldKey,
+  onRemove,
 }) => {
   const input = useRef<HTMLInputElement>(null);
+  const [previewing, setPreviewing] = useState(false);
+  const anchor = tourFieldAttr(
+    side === 'term'
+      ? 'flashcards.card-term-image'
+      : 'flashcards.card-definition-image',
+    'flashcards',
+    fieldKey
+  );
+  if (url && !image.uploading) {
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => setPreviewing(true)}
+          className="overflow-hidden rounded-md border border-slate-200 bg-white hover:border-slate-400"
+          style={{
+            width: THUMB,
+            height: THUMB,
+            margin: '0 min(2px, 0.5cqmin)',
+          }}
+          aria-label={`Preview image on ${label}`}
+          title="Preview image"
+          {...anchor}
+        >
+          <img src={url} alt="" className="h-full w-full object-cover" />
+        </button>
+        {previewing && (
+          <ImageLightbox
+            src={url}
+            alt={`${label} image`}
+            onClose={() => setPreviewing(false)}
+            actions={
+              <button
+                type="button"
+                onClick={() => {
+                  setPreviewing(false);
+                  onRemove();
+                }}
+                className="inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-sm font-bold text-white hover:bg-white/30 focus-visible:ring-2 focus-visible:ring-white outline-hidden"
+              >
+                <Trash2 size={16} aria-hidden />
+                Remove image
+              </button>
+            }
+          />
+        )}
+      </>
+    );
+  }
   return (
     <>
       <button
         type="button"
         onClick={() => input.current?.click()}
         disabled={image.uploading}
-        className="rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-wait"
+        className={`rounded-lg hover:bg-slate-100 hover:text-slate-700 disabled:cursor-wait ${
+          image.failed ? 'text-rose-600' : 'text-slate-400'
+        }`}
         style={{ padding: 'min(5px, 1.2cqmin)' }}
         aria-label={`Add image to ${label}`}
-        title="Add image"
-        {...tourFieldAttr(
-          side === 'term'
-            ? 'flashcards.card-term-image'
-            : 'flashcards.card-definition-image',
-          'flashcards',
-          fieldKey
-        )}
+        title={image.failed ? "Image didn't upload" : 'Add image'}
+        {...anchor}
       >
         {image.uploading ? (
           <Loader2 style={ICON} className="animate-spin" aria-hidden />
@@ -57,63 +108,5 @@ export const CardImageButton: React.FC<ButtonProps> = ({
         }}
       />
     </>
-  );
-};
-
-interface PreviewProps {
-  url: string | undefined;
-  failed: boolean;
-  label: string;
-  onRemove: () => void;
-}
-
-/** The side's picture under its text, or the upload error. */
-export const CardImagePreview: React.FC<PreviewProps> = ({
-  url,
-  failed,
-  label,
-  onRemove,
-}) => {
-  if (failed && !url) {
-    return (
-      <p
-        className="font-semibold text-rose-700"
-        style={{
-          fontSize: 'min(12px, 3.5cqmin)',
-          marginLeft: 'min(14px, 3.5cqmin)',
-        }}
-        role="alert"
-      >
-        {"Image didn't upload"}
-      </p>
-    );
-  }
-  if (!url) return null;
-  return (
-    <div className="relative self-start">
-      <img
-        src={url}
-        alt={`${label} image`}
-        className="block rounded-lg border border-slate-200 bg-white object-contain"
-        style={{ height: 'min(84px, 21cqmin)', maxWidth: '100%' }}
-      />
-      {/* no-tour-anchor: per-image remove, a tour points at the add button */}
-      <button
-        type="button"
-        onClick={onRemove}
-        className="touch-target-expand absolute top-0 right-0 flex items-center justify-center rounded-full border border-slate-300 bg-white text-slate-500 shadow-xs hover:border-slate-400 hover:text-slate-800"
-        style={{
-          width: 'min(20px, 5cqmin)',
-          height: 'min(20px, 5cqmin)',
-          transform: 'translate(40%, -40%)',
-        }}
-        aria-label={`Remove image from ${label}`}
-        title="Remove image"
-      >
-        <X
-          style={{ width: 'min(12px, 3cqmin)', height: 'min(12px, 3cqmin)' }}
-        />
-      </button>
-    </div>
   );
 };

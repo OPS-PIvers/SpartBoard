@@ -58,7 +58,8 @@ const baseSet = (overrides: Partial<FlashcardSet> = {}): FlashcardSet => ({
 
 const auth = (speak: boolean, answerRows = false, images = false) =>
   ({
-    user: { uid: 'teacher-1' },
+    googleAccessToken: 'token',
+    refreshGoogleToken: () => Promise.resolve('token'),
     canAccessFeature: (id: string) =>
       (speak && id === 'flashcards-speak') ||
       (answerRows && id === 'flashcard-answer-rows') ||
@@ -338,8 +339,8 @@ describe('FlashcardSetEditorModal', () => {
     expect(screen.queryByLabelText('Add image to Term 1')).toBeNull();
   });
 
-  it('shows a side image with a remove button, and swaps it with the text', () => {
-    const url = 'https://firebasestorage.googleapis.com/v0/b/x/o/a.webp';
+  it('shows a side picture as a small preview button, and swaps it with the text', () => {
+    const url = 'https://lh3.googleusercontent.com/d/1AbCdEfGhIjKlMnOp';
     renderModal({
       images: true,
       set: baseSet({
@@ -350,25 +351,27 @@ describe('FlashcardSetEditorModal', () => {
     });
     expect(screen.queryByLabelText('Add image to Term 1')).toBeNull();
     expect(screen.getByLabelText('Add image to Definition 1')).toBeTruthy();
-    expect(screen.getByAltText('Term 1 image')).toHaveProperty('src', url);
     fireEvent.click(screen.getByLabelText('Swap terms and definitions'));
+    expect(screen.queryByLabelText('Preview image on Term 1')).toBeNull();
+    fireEvent.click(screen.getByLabelText('Preview image on Definition 1'));
     expect(screen.getByAltText('Definition 1 image')).toHaveProperty(
       'src',
       url
     );
-    fireEvent.click(screen.getByLabelText('Remove image from Definition 1'));
-    expect(screen.queryByAltText('Definition 1 image')).toBeNull();
+    fireEvent.click(screen.getByText('Remove image'));
+    expect(screen.queryByLabelText('Preview image on Definition 1')).toBeNull();
+    expect(screen.getByLabelText('Add image to Definition 1')).toBeTruthy();
   });
 
   it('keeps a card that has only a picture so the missing text is flagged', () => {
-    const url = 'https://firebasestorage.googleapis.com/v0/b/x/o/a.webp';
+    const url = 'https://lh3.googleusercontent.com/d/1AbCdEfGhIjKlMnOp';
     const cleaned = cleanFlashcards([
       { id: 'c', term: '', definition: '', definitionImageUrl: url },
       {
         id: 'd',
         term: 'a',
         definition: 'b',
-        termImageUrl: 'https://evil.example/x.png',
+        termImageUrl: 'https://firebasestorage.googleapis.com/v0/b/x/o/a.png',
       },
     ]);
     expect(cleaned).toEqual([

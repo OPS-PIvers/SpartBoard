@@ -1,18 +1,9 @@
-// Only our own Storage serves card images, so a pasted link can't load from anywhere.
-const IMAGE_HOSTS = new Set([
-  'firebasestorage.googleapis.com',
-  'storage.googleapis.com',
-]);
+// Only a Drive file link is a card picture, so a pasted link can't load from anywhere.
+const DRIVE_IMAGE_URL =
+  /^https:\/\/lh3\.googleusercontent\.com\/d\/[\w-]{10,200}$/u;
 
-export const isFlashcardImageUrl = (url: unknown): url is string => {
-  if (typeof url !== 'string' || url.length > 2048) return false;
-  try {
-    const parsed = new URL(url);
-    return parsed.protocol === 'https:' && IMAGE_HOSTS.has(parsed.hostname);
-  } catch {
-    return false;
-  }
-};
+export const isFlashcardImageUrl = (url: unknown): url is string =>
+  typeof url === 'string' && DRIVE_IMAGE_URL.test(url);
 
 export const imageFileFrom = (
   items: DataTransferItemList | FileList | null | undefined

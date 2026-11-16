@@ -8,7 +8,7 @@ import { SpeakCardRow } from './speak/SpeakCardStatus';
 import { ipaDraftFor } from './speak/speakEditorState';
 import type { SpeakRowProps } from './useFlashcardEditorState';
 import { AnswerAltFields, AnswerMainField } from './AnswerRowFields';
-import { CardImageButton, CardImagePreview } from './CardImageControls';
+import { CardImageButton } from './CardImageControls';
 import { useCardImage, type CardImageUploader } from './useCardImage';
 import {
   ANSWER_FIELD_CLASS,
@@ -93,12 +93,21 @@ export const SortableCardRow: React.FC<SortableCardRowProps> = ({
       fieldKey
     );
     const imageButton =
-      uploadImage && !imageUrl ? (
+      uploadImage || imageUrl ? (
         <CardImageButton
           image={image}
+          url={imageUrl}
           label={label}
           side={side}
           fieldKey={fieldKey}
+          onRemove={() =>
+            onChange(
+              card.id,
+              isTerm
+                ? { termImageUrl: undefined }
+                : { definitionImageUrl: undefined }
+            )
+          }
         />
       ) : undefined;
     const definitionKeyDown =
@@ -163,30 +172,20 @@ export const SortableCardRow: React.FC<SortableCardRowProps> = ({
     );
   };
 
-  const previewCell = (side: 'term' | 'definition'): React.ReactNode => {
+  const failedCell = (side: 'term' | 'definition'): React.ReactNode => {
     const isTerm = side === 'term';
-    const image = isTerm ? termImage : definitionImage;
-    const imageUrl = isTerm ? card.termImageUrl : card.definitionImageUrl;
-    if (!imageUrl && !image.failed) return null;
+    if (!(isTerm ? termImage : definitionImage).failed) return null;
     return (
-      <div
-        className={`flex min-w-0 ${isTerm ? 'col-start-3' : 'col-start-4'}`}
-        {...image.targetProps}
+      <p
+        className={`font-semibold text-rose-700 ${isTerm ? 'col-start-3' : 'col-start-4'}`}
+        style={{
+          fontSize: 'min(12px, 3.5cqmin)',
+          marginLeft: 'min(14px, 3.5cqmin)',
+        }}
+        role="alert"
       >
-        <CardImagePreview
-          url={imageUrl}
-          failed={image.failed}
-          label={`${isTerm ? 'Term' : 'Definition'} ${index + 1}`}
-          onRemove={() =>
-            onChange(
-              card.id,
-              isTerm
-                ? { termImageUrl: undefined }
-                : { definitionImageUrl: undefined }
-            )
-          }
-        />
-      </div>
+        {"Image didn't upload"}
+      </p>
     );
   };
 
@@ -317,8 +316,8 @@ export const SortableCardRow: React.FC<SortableCardRowProps> = ({
           />
         </>
       )}
-      {previewCell('term')}
-      {previewCell('definition')}
+      {failedCell('term')}
+      {failedCell('definition')}
       {speak && (
         <SpeakCardRow
           card={card}

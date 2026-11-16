@@ -116,14 +116,22 @@ export const FlashcardSetEditorModal: React.FC<
   } = state;
   const auth = useContext(AuthContext);
   const answerRows = auth?.canAccessFeature('flashcard-answer-rows') ?? false;
-  const uid = auth?.user?.uid;
+  const driveToken = auth?.googleAccessToken;
+  const refreshDriveToken = auth?.refreshGoogleToken;
+  // Pictures live in the teacher's Drive, so the picker needs Drive connected.
   const uploadImage: CardImageUploader | null =
-    uid && auth?.canAccessFeature('flashcard-card-images')
+    driveToken &&
+    refreshDriveToken &&
+    auth.canAccessFeature('flashcard-card-images')
       ? async (file) => {
-          const { prepareFlashcardImage, uploadFlashcardImage } =
-            await import('@/utils/flashcardImages');
-          const blob = await prepareFlashcardImage(file);
-          return blob ? uploadFlashcardImage(uid, blob) : null;
+          const [images, { GoogleDriveService }] = await Promise.all([
+            import('@/utils/flashcardImages'),
+            import('@/utils/googleDriveService'),
+          ]);
+          const blob = await images.prepareFlashcardImage(file);
+          if (!blob) return null;
+          const drive = new GoogleDriveService(driveToken, refreshDriveToken);
+          return images.uploadFlashcardImage(drive, blob);
         }
       : null;
   const importCards = (incoming: FlashcardCard[]): void =>

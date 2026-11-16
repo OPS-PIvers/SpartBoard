@@ -133,12 +133,6 @@ service firebase.storage {
       allow delete: if userFileOwner(userId) && viewAsWriteOk();
     }
 
-    match /users/{userId}/flashcard_images/{allPaths=**} {
-      allow read: if userFileOwner(userId) && viewAsReadOk();
-      allow create, update: if userFileUpload(userId, 5 * 1024 * 1024, 'image/(png|jpeg|webp|gif)');
-      allow delete: if userFileOwner(userId) && viewAsWriteOk();
-    }
-
     match /users/{userId}/instructional/{allPaths=**} {
       allow read: if userFileOwner(userId) && viewAsReadOk();
       allow create, update: if userFileUpload(userId, 50 * 1024 * 1024, '.*');
