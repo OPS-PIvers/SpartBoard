@@ -35,16 +35,14 @@ export function cleanClassName(
     );
     text = text.replace(new RegExp(`\\b${escape(classCode)}\\b`, 'gi'), ' ');
   }
-  // Anything left in parentheses is a code or a teacher name.
-  text = text.replace(/\([^)]*\)/g, ' ');
   text = text.replace(
     new RegExp(`\\b${PERIOD_WORDS}\\.?\\s*[-#:]?\\s*\\d+[a-z]?\\b`, 'gi'),
     ' '
   );
   text = text.replace(/\b(?:block|blk|sec|sect|section)\.?\s+[a-z]\b/gi, ' ');
   text = text.replace(/\b\d+(?:st|nd|rd|th)\s+(?:period|hour|block)\b/gi, ' ');
-  // A section number after a dash at the end ("English 9 - 03").
-  text = text.replace(/\s[-–—]\s*\d+[a-z]?\s*$/i, ' ');
+  // A two-digit section number after a dash at the end ("English 9 - 03"); "Spanish - 2" is a level.
+  text = text.replace(/\s[-–—]\s*\d{2,}[a-z]?\s*$/i, ' ');
   text = text.replace(/\s+[-–—:]\s+/g, ' - ');
   text = text.replace(/\s+/g, ' ').trim();
   text = text.replace(/^[-–—:\s]+|[-–—:\s]+$/g, '').trim();
@@ -81,16 +79,23 @@ export function linkSuggestions<R extends SuggestRoster>(
 ): LinkSuggestion<R>[] {
   const buckets = new Map<
     string,
-    { singles: R[]; linked: Set<string>; first: number }
+    { singles: R[]; linked: Set<string>; ownCourse: Set<string>; first: number }
   >();
   groups.forEach((g, i) => {
     const linkedId = g.course && g.rosters.length > 1 ? g.course.id : null;
     for (const r of g.rosters) {
       const k = matchKey(r);
       if (!k) continue;
-      const b = buckets.get(k) ?? { singles: [], linked: new Set(), first: i };
+      const b = buckets.get(k) ?? {
+        singles: [],
+        linked: new Set<string>(),
+        ownCourse: new Set<string>(),
+        first: i,
+      };
       if (linkedId) b.linked.add(linkedId);
+      // A class with its own saved Course (often one just unlinked) is only suggested for a new Course.
       else b.singles.push(r);
+      if (!linkedId && g.course) b.ownCourse.add(r.id);
       buckets.set(k, b);
     }
   });
@@ -98,6 +103,7 @@ export function linkSuggestions<R extends SuggestRoster>(
   for (const b of buckets.values()) {
     if (b.linked.size > 1) continue;
     const courseId = b.linked.size === 1 ? [...b.linked][0] : null;
+    if (courseId) b.singles = b.singles.filter((r) => !b.ownCourse.has(r.id));
     if (b.singles.length < (courseId ? 1 : 2)) continue;
     const key = [...b.singles.map((r) => r.id)].sort().join(',');
     if (dismissed.has(key)) continue;

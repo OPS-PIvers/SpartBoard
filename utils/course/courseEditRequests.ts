@@ -11,12 +11,17 @@ export function courseEditRequests(
   selected: readonly string[]
 ): SaveCourseRequest[] {
   if (!course) {
+    // A deleted class still listed on a Course doesn't stop it being the base.
+    const existing = new Set(groups.flatMap((g) => g.rosters.map((r) => r.id)));
     // Build on a saved Course whose classes are all picked, so its Agenda and links carry over.
     const base = groups
       .map((g) => g.course)
       .filter(
         (c): c is Course =>
-          c !== null && c.rosterIds.every((id) => selected.includes(id))
+          c !== null &&
+          c.rosterIds
+            .filter((id) => existing.has(id))
+            .every((id) => selected.includes(id))
       )
       .sort((a, b) => b.rosterIds.length - a.rosterIds.length)[0];
     return [

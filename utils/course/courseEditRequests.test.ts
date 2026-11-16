@@ -61,4 +61,15 @@ describe('courseEditRequests', () => {
       { action: 'unlink', courseId: 'k', rosterId: 'c' },
     ]);
   });
+
+  it('still builds on a Course that lists a deleted class', () => {
+    const courses = [course('l', ['a', 'b', 'gone'], 4)];
+    expect(
+      courseEditRequests(courseGroups(courses, rosters), null, 'X', [
+        'a',
+        'b',
+        'c',
+      ])[0]
+    ).toMatchObject({ course: { id: 'l', expectedUpdatedAt: 4 } });
+  });
 });

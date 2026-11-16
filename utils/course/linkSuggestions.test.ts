@@ -38,8 +38,10 @@ describe('cleanClassName', () => {
     [
       'Period 3 - Grade 7 Social Studies (Ivers)',
       undefined,
-      'Grade 7 Social Studies',
+      'Grade 7 Social Studies (Ivers)',
     ],
+    ['Biology (Honors)', undefined, 'Biology (Honors)'],
+    ['Spanish - 2', undefined, 'Spanish - 2'],
     ['AP Computer Science - Section B', undefined, 'AP Computer Science'],
     ['3rd Hour Physics', undefined, 'Physics'],
     ['Physics 1', undefined, 'Physics 1'],
@@ -105,6 +107,17 @@ describe('linkSuggestions', () => {
         courseGroups(
           [course('k', 'E', ['a', 'c']), course('m', 'F', ['d', 'h'])],
           more
+        )
+      )
+    ).toEqual([]);
+  });
+
+  it('never suggests adding a class that has its own saved Course, such as one just unlinked', () => {
+    expect(
+      linkSuggestions(
+        courseGroups(
+          [course('k', 'E', ['a', 'c']), course('d1', 'D', ['d'])],
+          rosters
         )
       )
     ).toEqual([]);

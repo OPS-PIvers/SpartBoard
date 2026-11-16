@@ -205,4 +205,38 @@ describe('CourseClassList', () => {
     );
     expect(screen.queryByText('English 9: link these 2 classes?')).toBeNull();
   });
+
+  it('keeps a class added to the Course after the editor opened', async () => {
+    const saveCourse = vi.fn().mockResolvedValue({
+      courseId: 'c1',
+      rostersWithoutClassPage: [],
+      classLinkUnavailable: false,
+    });
+    const props = {
+      rosters,
+      saveCourse,
+      renderRow: (r: { name: string }) => <li>{r.name}</li>,
+    };
+    const { rerender } = render(
+      <CourseClassList {...props} courses={[course]} />
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Edit Course: English 9' })
+    );
+    rerender(
+      <CourseClassList
+        {...props}
+        courses={[{ ...course, rosterIds: ['p2', 'p5', 'p3'], updatedAt: 9 }]}
+      />
+    );
+    fireEvent.change(screen.getByLabelText('Course name'), {
+      target: { value: 'Eng 9' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await vi.waitFor(() => expect(saveCourse).toHaveBeenCalledTimes(1));
+    expect(saveCourse.mock.calls[0][0]).toEqual({
+      action: 'save',
+      course: { id: 'c1', name: 'Eng 9', expectedUpdatedAt: 9 },
+    });
+  });
 });
