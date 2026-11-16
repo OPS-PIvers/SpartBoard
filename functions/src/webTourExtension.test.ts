@@ -16,6 +16,7 @@ vi.mock('./glTours', () => ({
   GL_TOURS_COLLECTION: 'building_guided_learning_tours',
 }));
 
+import * as firebaseAdmin from './firebaseAdmin';
 import {
   CROSS_SITE_PROTOCOL,
   ExtensionCallError,
@@ -32,6 +33,7 @@ import {
   verifyCaller,
   type ExtensionDeps,
 } from './webTourExtension';
+import { trustedUidForEmail } from './trustedSignIn';
 
 const CLIENT = 'client-123.apps.googleusercontent.com';
 
@@ -162,6 +164,24 @@ describe('verifyCaller', () => {
     const caller = await verifyCaller(
       't',
       deps({ uidForEmail: () => Promise.resolve(null) })
+    );
+    expect(caller.uid).toBeNull();
+  });
+
+  it('gives a password-only account registered with the address no uid', async () => {
+    vi.mocked(firebaseAdmin.auth).mockReturnValue({
+      getUserByEmail: () =>
+        Promise.resolve({
+          uid: 'attacker',
+          emailVerified: true,
+          providerData: [
+            { providerId: 'password', email: 'teacher@orono.k12.mn.us' },
+          ],
+        }),
+    } as never);
+    const caller = await verifyCaller(
+      't',
+      deps({ uidForEmail: trustedUidForEmail })
     );
     expect(caller.uid).toBeNull();
   });

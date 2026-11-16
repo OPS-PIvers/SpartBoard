@@ -217,4 +217,22 @@ describe('useFirestore – shareDashboard records the board’s items as the hos
       expect(recordPicks).toHaveBeenCalledWith('host', 'new-share', [])
     );
   });
+
+  it('with share content safeguards on, never turns the board’s own items into picks', async () => {
+    const dashboard: Dashboard = {
+      ...withItems,
+      linkedShareId: 'old',
+      linkedShareRole: 'owner',
+    };
+    (firestore.getDoc as unknown as Fn).mockResolvedValue({
+      exists: () => false,
+      data: () => undefined,
+    });
+    await renderHook(() =>
+      useFirestore('host', false)
+    ).result.current.shareDashboard(dashboard, 'synced', 'Host');
+    await vi.waitFor(() =>
+      expect(recordPicks).toHaveBeenCalledWith('host', 'new-share', [])
+    );
+  });
 });

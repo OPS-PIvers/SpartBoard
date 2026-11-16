@@ -39,6 +39,7 @@ import {
   PAPER_WRITTEN_CROP_PREFIX,
   paperCropStoragePath,
   paperPageStoragePath,
+  serverSeat,
 } from './paperWrittenTypes';
 import {
   loadTargetDirectory,
@@ -524,8 +525,11 @@ export async function ownPaperCropPath(
   const scanId: unknown = privateSnap.data()?.scanId;
   const privateSeat: unknown = privateSnap.data()?.seat;
   // The import's own seat for this scan; a later re-import can move `paperSeat`.
-  const seat =
-    typeof privateSeat === 'number' ? privateSeat : response.paperSeat;
+  const seat = serverSeat(
+    privateSeat,
+    response.paperSeat,
+    response.paperWrittenSeat
+  );
   if (
     typeof seat !== 'number' ||
     !Number.isInteger(seat) ||

@@ -17,6 +17,8 @@ vi.mock('./glTours', () => ({
   GL_TOURS_COLLECTION: 'building_guided_learning_tours',
 }));
 
+import * as firebaseAdmin from './firebaseAdmin';
+import { trustedUidForEmail } from './trustedSignIn';
 import { ExtensionCallError } from './webTourExtension';
 import {
   checkImporter,
@@ -157,6 +159,44 @@ describe('checkImporter', () => {
     expect(await status(checkImporter('tok', deps({ clientId: '' })))).toBe(
       503
     );
+  });
+});
+
+describe('the account lookup for a sent page', () => {
+  const withUser = (user: object) =>
+    vi.mocked(firebaseAdmin.auth).mockReturnValue({
+      getUserByEmail: () => Promise.resolve(user),
+    } as never);
+  const EMAIL = 'teacher@orono.k12.mn.us';
+
+  it('reports no account and stores nothing for a self-registered password account', async () => {
+    withUser({
+      uid: 'attacker',
+      emailVerified: false,
+      providerData: [{ providerId: 'password', email: EMAIL }],
+    });
+    const importer = await checkImporter(
+      'tok',
+      deps({ uidForEmail: trustedUidForEmail })
+    );
+    expect(importer.uid).toBeNull();
+    const { s, writes } = store();
+    expect((await importStatus(importer, s)).hasAccount).toBe(false);
+    expect(await status(receiveSend(body(), importer, s))).toBe(403);
+    expect(writes).toEqual([]);
+  });
+
+  it("finds the teacher's own Google account", async () => {
+    withUser({
+      uid: 'teacher-uid',
+      emailVerified: true,
+      providerData: [{ providerId: 'google.com', email: EMAIL }],
+    });
+    const importer = await checkImporter(
+      'tok',
+      deps({ uidForEmail: trustedUidForEmail })
+    );
+    expect(importer.uid).toBe('teacher-uid');
   });
 });
 

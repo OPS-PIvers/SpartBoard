@@ -816,6 +816,52 @@ describe('QuizAssignmentSettingsModal — on the assign stepper', () => {
     expect(screen.queryByText('Quiz integrity')).not.toBeInTheDocument();
   });
 
+  it('keeps the date editor for a per-period assignment with a due date but no Manual due marker', () => {
+    render(
+      <QuizAssignmentSettingsModal
+        assignment={saved({
+          openAt: undefined,
+          closeAt: undefined,
+          dueAt: closes,
+          accessMode: 'assessment',
+          periodAccess: {
+            c1: { state: 'closed' },
+          } as unknown as QuizAssignment['periodAccess'],
+        })}
+        rosters={rosters}
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+    openWhen();
+    expect(
+      screen.queryByText('Starts paused. You start and pause each class.')
+    ).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Closes')).toBeInTheDocument();
+  });
+
+  it('shows the Manual state for a Manual due date (dueLocks)', () => {
+    render(
+      <QuizAssignmentSettingsModal
+        assignment={saved({
+          openAt: undefined,
+          closeAt: undefined,
+          dueAt: closes,
+          dueLocks: true,
+          accessMode: 'assessment',
+          periodAccess: {
+            c1: { state: 'closed' },
+          } as unknown as QuizAssignment['periodAccess'],
+        })}
+        rosters={rosters}
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+    openWhen();
+    expect(screen.queryByLabelText('Closes')).not.toBeInTheDocument();
+  });
+
   it('shows the Manual state with no dates for a Manual start', () => {
     render(
       <QuizAssignmentSettingsModal

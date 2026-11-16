@@ -106,7 +106,6 @@ export const FlashcardSetEditorModal: React.FC<
     updateCard,
     insertCardAfter,
     removeCard,
-    canSwap,
     swapSides,
     appendCards,
     lookupReferences,
@@ -250,7 +249,7 @@ export const FlashcardSetEditorModal: React.FC<
 
   const incompleteNotice = flashcardSetIncompleteReason(
     { title, cards },
-    { termOnly: state.termOnly }
+    { termOnly: true }
   );
 
   const hasContent = title.trim() !== '' || cleanFlashcards(cards).length > 0;
@@ -484,11 +483,7 @@ export const FlashcardSetEditorModal: React.FC<
           >
             0
           </span>
-          <div
-            className={
-              canSwap ? 'flex min-w-0 items-start justify-between' : 'contents'
-            }
-          >
+          <div className="flex min-w-0 items-start justify-between">
             <FlashcardLanguageField
               key={`term-${swapCount}`}
               label="Term language"
@@ -500,22 +495,20 @@ export const FlashcardSetEditorModal: React.FC<
               }}
               tourField="term"
             />
-            {canSwap && (
-              <button
-                type="button"
-                onClick={() => {
-                  swapSides();
-                  setSwapCount((n) => n + 1);
-                }}
-                aria-label="Swap terms and definitions"
-                title="Swap terms and definitions"
-                {...tourTypeAttr('flashcards.swap-sides', 'flashcards')}
-                className="touch-target-expand shrink-0 rounded-lg text-slate-500 hover:bg-slate-200/60 hover:text-slate-700 focus-visible:ring-2 focus-visible:ring-rose-500/30 outline-hidden"
-                style={{ padding: 'min(4px, 1cqmin)' }}
-              >
-                <ArrowLeftRight style={COLUMN_ICON} />
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => {
+                swapSides();
+                setSwapCount((n) => n + 1);
+              }}
+              aria-label="Swap terms and definitions"
+              title="Swap terms and definitions"
+              {...tourTypeAttr('flashcards.swap-sides', 'flashcards')}
+              className="touch-target-expand shrink-0 rounded-lg text-slate-500 hover:bg-slate-200/60 hover:text-slate-700 focus-visible:ring-2 focus-visible:ring-rose-500/30 outline-hidden"
+              style={{ padding: 'min(4px, 1cqmin)' }}
+            >
+              <ArrowLeftRight style={COLUMN_ICON} />
+            </button>
           </div>
           <FlashcardLanguageField
             key={`definition-${swapCount}`}
@@ -594,7 +587,7 @@ export const FlashcardSetEditorModal: React.FC<
         <PasteImportDrawer
           onClose={() => setPasteOpen(false)}
           onImport={appendCards}
-          termOnly={state.termOnly}
+          termOnly
         />
       )}
     </EditorModalShell>

@@ -3492,6 +3492,7 @@
     "optionLabel": "Explanation for {{option}}"
   },
   "quizDok": {
+    "fieldNone": "None",
     "level": "DOK level",
     "none": "No DOK",
     "any": "Any DOK",
@@ -4517,6 +4518,10 @@
     "tourField": "Which setting",
     "tourFieldPick": "Choose a setting",
     "tourFieldPlaceholder": "Setting key",
+    "tourRow": "Which row",
+    "tourRowFirst": "First row",
+    "tourRowAny": "Any row",
+    "tourRowN": "Row {{n}}",
     "tourAction_click": "Wait for the click",
     "tourAction_observe": "Show it, then Next",
     "tourAction_toggle": "Wait for the switch",
@@ -6409,5 +6414,14 @@
   "quizAnswerPicture": {
     "name": "Picture {{n}}",
     "nameWithAlt": "Picture {{n}}: {{alt}}"
+  },
+  "picker": {
+    "clear": "Clear",
+    "today": "Today",
+    "previousMonth": "Previous month",
+    "nextMonth": "Next month",
+    "hour": "Hour",
+    "minute": "Minute",
+    "period": "AM or PM"
   }
 }

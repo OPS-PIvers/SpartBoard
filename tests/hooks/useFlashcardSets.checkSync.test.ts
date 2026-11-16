@@ -58,13 +58,13 @@ const fixedSet: FlashcardSet = {
   updatedAt: 2,
 };
 
-const wrapper = (flags: string[]) =>
+const wrapper = () =>
   function Auth({ children }: { children: ReactNode }) {
     return createElement(
       AuthContext.Provider,
       {
         value: {
-          canAccessFeature: (id: string) => flags.includes(id),
+          canAccessFeature: () => false,
         } as unknown as AuthContextType,
       },
       children
@@ -115,23 +115,10 @@ beforeEach(() => {
 });
 
 describe('useFlashcardSets open Check sync', () => {
-  it('leaves Checks alone without the flag', async () => {
-    sessionsByKind([], [staleCheck]);
-    const { result } = renderHook(() => useFlashcardSets('t1'), {
-      wrapper: wrapper([]),
-    });
-    let rewritten = -1;
-    await act(async () => {
-      rewritten = await result.current.saveSet(fixedSet);
-    });
-    expect(rewritten).toBe(0);
-    expect(ops.some((op) => String(op.ref).includes('check-'))).toBe(false);
-  });
-
   it('fixes cards a Check already has, keeping deleted ones and skipping new ones', async () => {
     sessionsByKind([{ cardsInContent: false }], [staleCheck]);
     const { result } = renderHook(() => useFlashcardSets('t1'), {
-      wrapper: wrapper(['flashcards-check-sync']),
+      wrapper: wrapper(),
     });
     let rewritten = -1;
     await act(async () => {
@@ -152,7 +139,7 @@ describe('useFlashcardSets open Check sync', () => {
       get: (key: string) => (key === 'cards' ? staleCheck.cards : undefined),
     });
     const { result } = renderHook(() => useFlashcardSets('t1'), {
-      wrapper: wrapper(['flashcards-check-sync']),
+      wrapper: wrapper(),
     });
     await act(async () => {
       await result.current.saveSet(fixedSet);
@@ -176,7 +163,7 @@ describe('useFlashcardSets open Check sync', () => {
       [{ title: 'Animales', cards: [card('a', 'gato', 'cat')] }]
     );
     const { result } = renderHook(() => useFlashcardSets('t1'), {
-      wrapper: wrapper(['flashcards-check-sync']),
+      wrapper: wrapper(),
     });
     let rewritten = -1;
     await act(async () => {
@@ -190,7 +177,7 @@ describe('useFlashcardSets open Check sync', () => {
   it('only re-titles, without a re-score, when the cards already match', async () => {
     sessionsByKind([], [{ title: 'Old', cards: [card('a', 'gato', 'cat')] }]);
     const { result } = renderHook(() => useFlashcardSets('t1'), {
-      wrapper: wrapper(['flashcards-check-sync']),
+      wrapper: wrapper(),
     });
     await act(async () => {
       await result.current.saveSet(fixedSet);
@@ -204,7 +191,7 @@ describe('useFlashcardSets open Check sync', () => {
   it('skips Checks on an autosave', async () => {
     sessionsByKind([], [staleCheck]);
     const { result } = renderHook(() => useFlashcardSets('t1'), {
-      wrapper: wrapper(['flashcards-check-sync']),
+      wrapper: wrapper(),
     });
     await act(async () => {
       await result.current.saveSet(fixedSet, { syncChecks: false });
@@ -224,7 +211,7 @@ describe('useFlashcardSets open Check sync', () => {
       ]
     );
     const { result } = renderHook(() => useFlashcardSets('t1'), {
-      wrapper: wrapper(['flashcards-check-sync']),
+      wrapper: wrapper(),
     });
     let rewritten = -1;
     await act(async () => {

@@ -136,8 +136,10 @@ export const CalendarConfigurationModal: React.FC<
     };
   }, [isOpen, ensureGoogleScope]);
 
-  const handleSave = async (updatedConfig?: CalendarGlobalConfig) => {
-    if (isAuthBypass || loadFailed) return;
+  const handleSave = async (
+    updatedConfig?: CalendarGlobalConfig
+  ): Promise<boolean> => {
+    if (isAuthBypass || loadFailed || loading) return false;
     setSaving(true);
     try {
       const docRef = doc(db, 'feature_permissions', 'calendar');
@@ -153,9 +155,11 @@ export const CalendarConfigurationModal: React.FC<
       if (!updatedConfig) {
         addToast('Calendar configuration saved!', 'success');
       }
+      return true;
     } catch (err) {
       console.error('Failed to save calendar config:', err);
       addToast('Failed to save configuration.', 'error');
+      return false;
     } finally {
       setSaving(false);
     }
@@ -219,8 +223,9 @@ export const CalendarConfigurationModal: React.FC<
         buildingDefaults: nextBuildingDefaults,
       };
       setConfig(nextConfig);
-      await handleSave(nextConfig);
-      addToast('All building calendars synced!', 'success');
+      if (await handleSave(nextConfig)) {
+        addToast('All building calendars synced!', 'success');
+      }
     } catch (err) {
       console.error('Global sync failed:', err);
       addToast('Failed to sync all calendars.', 'error');
@@ -340,7 +345,7 @@ export const CalendarConfigurationModal: React.FC<
         <button
           {...tourTypeAttr('admin.widget-config.save', 'calendar')}
           onClick={() => void handleSave()}
-          disabled={saving || loadFailed}
+          disabled={saving || loadFailed || loading}
           className="px-8 py-2.5 bg-brand-blue-primary text-white rounded-2xl text-sm font-black shadow-lg shadow-blue-500/20 hover:bg-brand-blue-dark transition-all flex items-center gap-2 disabled:opacity-50"
         >
           {saving ? (

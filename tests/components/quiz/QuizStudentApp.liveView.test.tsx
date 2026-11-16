@@ -184,21 +184,28 @@ describe('ActiveQuiz on a watched student’s device', () => {
   });
 });
 
+const revisited = (extra: Partial<QuizResponse> = {}) =>
+  response({
+    answers: [
+      {
+        questionId: 'q1',
+        answer: 'Wrong',
+        answeredAt: 5,
+        status: 'submitted',
+      },
+    ],
+    ...extra,
+  });
+
+const waitPastDebounce = () =>
+  new Promise((resolve) => setTimeout(resolve, 700));
+
 describe('ActiveQuiz after going back to a submitted answer', () => {
-  it('saves the changed choice without waiting for Next', async () => {
+  it('saves the changed choice without waiting for Next while Live view watches', async () => {
     const onAnswer = vi.fn(() => Promise.resolve());
     render(
       renderQuiz(
-        response({
-          answers: [
-            {
-              questionId: 'q1',
-              answer: 'Wrong',
-              answeredAt: 5,
-              status: 'submitted',
-            },
-          ],
-        }),
+        revisited({ liveView: { until: Date.now() + 60_000, notify: false } }),
         { onAnswer }
       )
     );
@@ -208,7 +215,50 @@ describe('ActiveQuiz after going back to a submitted answer', () => {
     await waitFor(() =>
       expect(onAnswer).toHaveBeenCalledWith('q1', 'Right', undefined, {
         isDraft: true,
+        liveRevisit: true,
       })
+    );
+  });
+
+  it('writes nothing until Next when nobody is watching', async () => {
+    const onAnswer = vi.fn(() => Promise.resolve());
+    render(renderQuiz(revisited(), { onAnswer }));
+    await screen.findByText('First question?');
+    fireEvent.click(screen.getByRole('button', { name: /^Right/ }));
+
+    await waitPastDebounce();
+    document.dispatchEvent(new Event('spartboard:quiz:flush-written'));
+    expect(onAnswer).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: /^Next/i }));
+    await waitFor(() => expect(onAnswer).toHaveBeenCalledTimes(1));
+    expect(onAnswer).toHaveBeenCalledWith(
+      'q1',
+      'Right',
+      undefined,
+      expect.not.objectContaining({ isDraft: true })
+    );
+  });
+
+  it('falls back to saving on Next once the watch has run out', async () => {
+    const onAnswer = vi.fn(() => Promise.resolve());
+    render(
+      renderQuiz(
+        revisited({ liveView: { until: Date.now() - 1, notify: false } }),
+        { onAnswer }
+      )
+    );
+    await screen.findByText('First question?');
+    fireEvent.click(screen.getByRole('button', { name: /^Right/ }));
+
+    await waitPastDebounce();
+    document.dispatchEvent(new Event('spartboard:quiz:flush-written'));
+    expect(onAnswer).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: /^Next/i }));
+    await waitFor(() => expect(onAnswer).toHaveBeenCalledTimes(1));
+    expect(onAnswer.mock.calls[0]).toEqual(
+      expect.arrayContaining(['q1', 'Right'])
     );
   });
 });

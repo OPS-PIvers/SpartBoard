@@ -12,6 +12,7 @@ export interface TourAnchorEntry {
   key_pattern?: string;
   key_hint?: string;
   row_wildcard?: true;
+  row_list?: string;
   cycles?: string;
   opens_empty?: string;
   closes?: string;
@@ -5351,6 +5352,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "key_pattern": "assign#row-[1-9]\\d*",
     "key_hint": "assign#row-1 for the first row",
+    "row_wildcard": true,
+    "row_list": "assign-classes",
     "routes": [
       {
         "surface": "library.assign-stepper",
@@ -5392,6 +5395,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "key_pattern": "assign#row-[1-9]\\d*",
     "key_hint": "assign#row-1 for the first row",
+    "row_wildcard": true,
     "routes": [
       {
         "surface": "library.assign-stepper",
@@ -14575,6 +14579,25 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-stimuli.attach-preview",
+    "label": "Per-stimulus preview button in the Quiz widget attach list",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-stimuli.attach-question",
     "label": "Per-question attach checkbox in the Quiz widget",
     "scope": "field",
@@ -19254,7 +19277,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "quiz-live-view.tell-student",
-    "label": "Tell the student switch in Quiz Live view",
+    "label": "Notify student when viewing switch in Quiz Live view",
     "scope": "widget type",
     "panel": true,
     "persists": true,
@@ -25392,6 +25415,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Library item card body (open)",
     "scope": "field",
     "row_wildcard": true,
+    "row_list": "library-cards",
     "routes": [
       {
         "surface": "library.shell",
@@ -25406,6 +25430,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "persists": true,
     "row_wildcard": true,
+    "row_list": "library-cards",
     "routes": [
       {
         "surface": "library.shell",
@@ -25419,6 +25444,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Secondary primary action button on a library item card",
     "scope": "field",
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "library-cards",
     "routes": [
       {
         "surface": "library.shell",
@@ -25432,6 +25459,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Icon-only quick action button on a library item card",
     "scope": "field",
     "persists": true,
+    "row_list": "library-cards",
     "routes": [
       {
         "surface": "library.shell",
@@ -25444,6 +25472,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "library-shell.card-menu",
     "label": "Kebab menu button on a library item card",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "library-cards",
     "routes": [
       {
         "surface": "library.shell",
@@ -25458,6 +25488,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "row_list": "library-cards",
     "routes": [
       {
         "surface": "library.shell",
@@ -25475,6 +25506,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "persists": true,
     "row_wildcard": true,
+    "row_list": "assignment-rows",
     "routes": [
       {
         "surface": "library.assignments",
@@ -25487,6 +25519,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "library-shell.archive-menu",
     "label": "Kebab menu button on an assignment row (In Progress or Archive tab)",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "assignment-rows",
     "routes": [
       {
         "surface": "library.shell",
@@ -25501,6 +25535,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "row_list": "assignment-rows",
     "routes": [
       {
         "surface": "library.shell",
@@ -25961,6 +25996,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "classes",
     "routes": [
       {
         "surface": "board.sidebar-classes",
@@ -25978,6 +26015,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "row_wildcard": true,
+    "row_list": "classes",
     "routes": [
       {
         "surface": "board.sidebar-classes",
@@ -25995,6 +26033,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "classes",
     "routes": [
       {
         "surface": "board.sidebar-classes",
@@ -26012,6 +26052,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "row_wildcard": true,
+    "row_list": "classes",
     "routes": [
       {
         "surface": "board.sidebar-classes",
@@ -26029,6 +26070,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "row_wildcard": true,
+    "row_list": "classes",
     "routes": [
       {
         "surface": "board.sidebar-classes",
@@ -26063,6 +26105,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "row_wildcard": true,
+    "row_list": "classes",
     "routes": [
       {
         "surface": "board.sidebar-classes",
@@ -26099,6 +26142,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "row_wildcard": true,
+    "row_list": "plcs",
     "routes": [
       {
         "surface": "board.sidebar-plcs",
@@ -26116,6 +26160,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "row_wildcard": true,
+    "row_list": "plcs",
     "routes": [
       {
         "surface": "board.sidebar-plcs",
@@ -26133,6 +26178,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "row_wildcard": true,
+    "row_list": "plcs",
     "routes": [
       {
         "surface": "board.sidebar-plcs",
@@ -61676,6 +61722,24 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "sub-share.calendar",
+    "label": "Calendar checkbox in the sub share dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.share-with-sub",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards.share-board",
+          "share-link.share-with-sub"
+        ]
+      }
+    ]
+  },
+  {
     "id": "share-collection.mode-synced",
     "label": "Synced option in the collection share dialog",
     "scope": "board",
@@ -62125,6 +62189,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Select checkbox on a library item card",
     "scope": "field",
     "panel": true,
+    "row_list": "library-cards",
     "routes": [
       {
         "surface": "library.shell",
@@ -76780,6 +76845,116 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.archive-menu:quiz#row-1"
         ],
         "reveal": "library-shell.archive-menu:quiz#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-library.archive-reopen-all",
+    "label": "All students item under Reopen in a quiz Completed row menu",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-library.archive-reopen-students",
+    "label": "Select students item under Reopen in a quiz Completed row menu",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-reopen-students.search",
+    "label": "Search box in the reopen for selected students dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-reopen-students.select-group",
+    "label": "Select all button for a group in the reopen students dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-reopen-students.cancel",
+    "label": "Cancel button in the reopen students dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-reopen-students.confirm",
+    "label": "Reopen button in the reopen students dialog",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [],
         "needs": [
           "widget-on-stage"
         ]

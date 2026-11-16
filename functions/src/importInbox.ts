@@ -13,6 +13,7 @@ import {
   verifiedTokenEmail,
   type TokenInfo,
 } from './webTourExtension';
+import { trustedUidForEmail } from './trustedSignIn';
 import {
   IMPORT_INBOX_COLLECTION,
   IMPORT_INBOX_TTL_MS,
@@ -633,13 +634,7 @@ function defaultDeps(db: Firestore): ImporterDeps {
   return {
     clientId: EXTENSION_OAUTH_CLIENTS[process.env.GCLOUD_PROJECT ?? ''] ?? '',
     tokenInfo: fetchTokenInfo,
-    uidForEmail: async (email) => {
-      try {
-        return (await admin.auth().getUserByEmail(email)).uid;
-      } catch {
-        return null;
-      }
-    },
+    uidForEmail: trustedUidForEmail,
     allowed: async (email, uid) => {
       // Students share the district domain, so the flag alone can't admit an address.
       const staff =

@@ -39,7 +39,6 @@
     "components/assignmentsHub/AssignmentDetailPane.tsx::PIN/manual — no SSO status",
     "components/assignmentsHub/AssignmentDetailPane.tsx::Removed — work retained",
     "components/auth/InviteAcceptance.tsx::Hang tight — we&rsquo;re linking your account to",
-    "components/auth/NewUserSetup.tsx::selected — you can change this anytime from the dock.",
     "components/boardsModal/BoardsModal.tsx::No Boards in selection — Collections can't be used here",
     "components/boardsModal/useBoardsModalDnd.ts::Move failed — please retry",
     "components/classes/LinkSchoologyModal.tsx::Import your classes from ClassLink first — Schoology section",

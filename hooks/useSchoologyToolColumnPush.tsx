@@ -130,13 +130,11 @@ export function useSchoologyToolColumnPush({
       setPending({
         data,
         payload,
-        dueDate: canAccessFeature('schoology-push-due-date')
-          ? startingDueDate(
-              closeAt,
-              dueAt,
-              canAccessFeature(ASSIGN_DUE_DATE_FEATURE) ? endedAt : null
-            )
-          : undefined,
+        dueDate: startingDueDate(
+          closeAt,
+          dueAt,
+          canAccessFeature(ASSIGN_DUE_DATE_FEATURE) ? endedAt : null
+        ),
       });
       return;
     }

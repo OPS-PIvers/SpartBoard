@@ -18,15 +18,9 @@ import {
 import { loadTaughtClassEnrollment } from '../studentIdentity';
 import { assertViewAsAllowed } from '../viewAsGuard';
 import { liveFocusPushDeps, wakeFocusStudents } from './push';
-import {
-  DISTRICT_DOMAIN,
-  EXTENSION_OAUTH_CLIENTS,
-  ExtensionCallError,
-  bearerToken,
-  fetchTokenInfo,
-  verifiedTokenEmail,
-} from '../webTourExtension';
+import { ExtensionCallError, bearerToken } from '../webTourExtension';
 import { handleFocusPanel } from './panel';
+import { panelCaller } from './panelCaller';
 import {
   handleFocusAddSite,
   handleFocusEnd,
@@ -140,41 +134,6 @@ export const focusEndV1 = onCall(OPTIONS, async (request) => {
     liveDeps
   );
 });
-
-const SIGN_IN = 'Sign in to Chrome with your Orono account.';
-
-/** The staff member a side panel token belongs to, as the callables see a signed-in teacher (H7). */
-async function panelCaller(token: string): Promise<FocusCaller> {
-  const clientId = EXTENSION_OAUTH_CLIENTS[process.env.GCLOUD_PROJECT ?? ''];
-  if (!clientId) throw new ExtensionCallError(503, 'Focus is not set up yet.');
-  const email = await verifiedTokenEmail(
-    token,
-    { clientId, tokenInfo: fetchTokenInfo },
-    DISTRICT_DOMAIN,
-    SIGN_IN
-  );
-  const user = await admin
-    .auth()
-    .getUserByEmail(email)
-    .catch((err: { code?: unknown }) => {
-      // Any other Auth error is a 500, which the panel treats as offline and retries.
-      if (err?.code === 'auth/user-not-found') return null;
-      throw err;
-    });
-  if (!user || user.disabled)
-    throw new ExtensionCallError(
-      403,
-      'Sign in to SpartBoard once, then try again.'
-    );
-  return {
-    uid: user.uid,
-    email,
-    emailVerified: true,
-    anonymous: false,
-    studentRole: user.customClaims?.studentRole === true,
-    name: user.displayName ?? null,
-  };
-}
 
 // The side panel's Focus tab (F12): the teacher's Chrome Google token, never Firebase auth, so no View as.
 export const focusPanelV1 = onRequest(

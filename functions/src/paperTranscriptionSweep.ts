@@ -3,6 +3,7 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import * as admin from './firebaseAdmin';
 import type { Firestore } from 'firebase-admin/firestore';
 import './functionsInit';
+import { provenGoogleEmailForUid } from './mailRecipients';
 import {
   archiveQuizArtifactCore,
   buildDefaultArchiveDeps,
@@ -848,13 +849,7 @@ export const sweepPaperWrittenCrops = onSchedule(
       archive: (input) =>
         archiveQuizArtifactCore({ ...input, callerUid: null }, archiveDeps),
       cleanUpStorage: (input) => retryStorageCleanup(input, archiveDeps),
-      getTeacherEmail: async (uid) => {
-        try {
-          return (await admin.auth().getUser(uid)).email ?? null;
-        } catch {
-          return null;
-        }
-      },
+      getTeacherEmail: (uid) => provenGoogleEmailForUid(admin.auth(), uid),
     });
     console.log('[sweepPaperWrittenCrops]', JSON.stringify(summary));
   }

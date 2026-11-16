@@ -4,15 +4,10 @@ import { describe, expect, it } from 'vitest';
 import { AuthContext, type AuthContextType } from '@/context/AuthContextValue';
 import { useShowSparty } from './useShowSparty';
 
-const withAuth = (spartyEnabled: boolean, canAccess: boolean) => {
+const withAuth = (spartyEnabled: boolean) => {
   const Wrapper = ({ children }: { children: React.ReactNode }) => (
     <AuthContext.Provider
-      value={
-        {
-          spartyEnabled,
-          canAccessFeature: (id: string) => id === 'sparty' && canAccess,
-        } as unknown as AuthContextType
-      }
+      value={{ spartyEnabled } as unknown as AuthContextType}
     >
       {children}
     </AuthContext.Provider>
@@ -21,13 +16,12 @@ const withAuth = (spartyEnabled: boolean, canAccess: boolean) => {
 };
 
 describe('useShowSparty', () => {
-  it('needs both the feature and the teacher switch', () => {
-    const show = (enabled: boolean, access: boolean) =>
-      renderHook(() => useShowSparty(), { wrapper: withAuth(enabled, access) })
-        .result.current;
-    expect(show(true, true)).toBe(true);
-    expect(show(false, true)).toBe(false);
-    expect(show(true, false)).toBe(false);
+  it('follows the teacher switch', () => {
+    const show = (enabled: boolean) =>
+      renderHook(() => useShowSparty(), { wrapper: withAuth(enabled) }).result
+        .current;
+    expect(show(true)).toBe(true);
+    expect(show(false)).toBe(false);
   });
 
   it('stays hidden outside the auth provider', () => {

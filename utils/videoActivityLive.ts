@@ -1,3 +1,4 @@
+import { LEGACY_FORMER_PINS_AT } from '@/utils/rosterPins';
 import type {
   ClassRoster,
   StaffResponseFields,
@@ -50,8 +51,17 @@ export function notAskedVideoActivityQuestionIds(
 interface MakeUpResponseLike {
   studentUid: string;
   pin?: string;
+  joinedAt?: number | null;
   answers: { questionId: string }[];
 }
+
+/** A former PIN names its student only for a join made before the re-roll. */
+const joinedBeforeRetire = (
+  joinedAt: number | null | undefined,
+  formerPinsAt: number | undefined
+): boolean =>
+  typeof joinedAt === 'number' &&
+  joinedAt < (formerPinsAt ?? LEGACY_FORMER_PINS_AT);
 
 /** Roster students with no answers in a live session: the make-up's default targets (D18). */
 export function makeUpTargetStudents(
@@ -61,30 +71,37 @@ export function makeUpTargetStudents(
   targetRefKeyByStudentUid: Map<string, string>
 ): StudentTargetRef[] {
   const answeredKeys = new Set<string>();
-  const answeredPins = new Set<string>();
+  const answeredPins = new Map<string, (number | null | undefined)[]>();
   for (const r of responses) {
     if (r.answers.length === 0) continue;
     const key = targetRefKeyByStudentUid.get(r.studentUid);
     if (key) answeredKeys.add(key);
-    if (r.pin) answeredPins.add(r.pin);
+    if (r.pin)
+      answeredPins.set(r.pin, [...(answeredPins.get(r.pin) ?? []), r.joinedAt]);
   }
   const selected = rosters.filter((r) => rosterIds.includes(r.id));
   const currentPins = new Set(
     selected.flatMap((r) => r.students.map((s) => s.pin))
   );
   // A former PIN counts only when no selected student holds it now.
-  const pinsByStudentId = new Map<string, string[]>();
+  const hasAnswered = new Map<string, boolean>();
   for (const s of selected.flatMap((r) => r.students)) {
-    pinsByStudentId.set(s.id, [
-      ...(s.pin ? [s.pin] : []),
-      ...(s.formerPins ?? []).filter((pin) => !currentPins.has(pin)),
-    ]);
+    hasAnswered.set(
+      s.id,
+      (!!s.pin && answeredPins.has(s.pin)) ||
+        (s.formerPins ?? []).some(
+          (pin) =>
+            !currentPins.has(pin) &&
+            (answeredPins.get(pin) ?? []).some((at) =>
+              joinedBeforeRetire(at, s.formerPinsAt)
+            )
+        )
+    );
   }
   return classStudentRows({ rosters, selectedRosterIds: rosterIds })
     .filter((row) => {
       if (answeredKeys.has(row.key)) return false;
-      const pins = pinsByStudentId.get(row.studentId) ?? [];
-      return !pins.some((pin) => answeredPins.has(pin));
+      return !hasAnswered.get(row.studentId);
     })
     .map((row) => row.ref);
 }
@@ -162,10 +179,12 @@ interface RosterStudentName {
   lastName: string;
   pin: string;
   formerPins?: string[];
+  formerPinsAt?: number;
 }
 
 interface LiveResponseLike extends StaffResponseFields {
   pin?: string;
+  joinedAt?: number | null;
   name?: string;
   studentUid: string;
   answers: { questionId: string }[];
@@ -191,7 +210,11 @@ export function whoHasntAnswered(
       : '';
     const pinStudent = r.pin
       ? (rosterStudents.find((s) => s.pin === r.pin) ??
-        rosterStudents.find((s) => s.formerPins?.includes(r.pin ?? '')))
+        rosterStudents.find(
+          (s) =>
+            s.formerPins?.includes(r.pin ?? '') &&
+            joinedBeforeRetire(r.joinedAt, s.formerPinsAt)
+        ))
       : undefined;
     const pinName = pinStudent
       ? `${pinStudent.firstName} ${pinStudent.lastName}`.trim()

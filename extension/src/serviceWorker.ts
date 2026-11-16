@@ -413,6 +413,7 @@ const focus = createFocusClient({
   ...chromeFocusDeps,
   enforce: enforcer.sync,
   activeFullscreen: enforcer.activeFullscreen,
+  activeOpened: enforcer.activeOpened,
   origins,
   ownPages: chrome.runtime.getURL(''),
   protocol: FOCUS_ENFORCE_PROTOCOL,
@@ -697,6 +698,10 @@ chrome.webNavigation.onBeforeNavigate.addListener((d) => {
     () => blockedNavigation(d.tabId, d.url, false)
   );
 });
+// A tab a page opened (a sign-in popup) may sit on about:blank; one the student opened may not.
+chrome.webNavigation.onCreatedNavigationTarget.addListener((d) =>
+  enforcer.opened(d.tabId)
+);
 chrome.webNavigation.onCommitted.addListener((d) => {
   if (isShownTopFrame(d)) blockedNavigation(d.tabId, d.url, true);
 });

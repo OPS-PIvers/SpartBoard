@@ -48,6 +48,7 @@ export const QUIZ_EDITOR_STATES = [
   'qe-bank-slot',
   'qe-sections',
   'qe-picture-only',
+  'qe-stimuli',
 ] as const;
 export type QuizEditorStateKey = (typeof QUIZ_EDITOR_STATES)[number];
 

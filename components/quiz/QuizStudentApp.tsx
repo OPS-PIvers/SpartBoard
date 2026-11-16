@@ -37,6 +37,7 @@ import {
   initialQuestionStep,
   initialQuizJoinFlow,
   isAttemptSubmitted,
+  needsAttemptClock,
   questionStepReducer,
   questionTimedOut,
   quizJoinFlowReducer,
@@ -1020,7 +1021,11 @@ const QuizJoinFlow: React.FC<{
       questionId: string,
       answer: string,
       speedBonus?: number,
-      opts?: { isDraft?: boolean; timedOutUnderMinimum?: boolean }
+      opts?: {
+        isDraft?: boolean;
+        timedOutUnderMinimum?: boolean;
+        liveRevisit?: boolean;
+      }
     ) => {
       // View-only shares never persist responses — the Firestore rule
       // rejects the write defense-in-depth, but skip it client-side too so
@@ -1959,6 +1964,7 @@ export const ActiveQuiz: React.FC<{
       isDraft?: boolean;
       timedOutUnderMinimum?: boolean;
       locale?: string;
+      liveRevisit?: boolean;
     }
   ) => Promise<void>;
   /** Appends one committed take; rejects so the recorder can show the failure. */
@@ -2250,23 +2256,17 @@ export const ActiveQuiz: React.FC<{
           session.pauseSpans
         )
       : null;
-  // A limit added to a live assignment starts the clock for attempts already underway.
-  const needsAttemptClock =
-    session.sessionMode === 'student' &&
-    session.timeLimitMinutes != null &&
-    myResponse != null &&
-    !isAttemptSubmitted(myResponse) &&
-    myResponse.lastWriteAt != null &&
-    myResponse.attemptStartedAt == null;
+  // Any open timed attempt without a clock (a limit added mid-assignment, or a row a paper scan created) starts it.
+  const attemptNeedsClock = needsAttemptClock(session, myResponse);
   const attemptClockRequestedRef = useRef(false);
   useEffect(() => {
-    if (!needsAttemptClock || !onStartAttemptClock) return;
+    if (!attemptNeedsClock || !onStartAttemptClock) return;
     if (attemptClockRequestedRef.current) return;
     attemptClockRequestedRef.current = true;
     onStartAttemptClock().catch((err: unknown) => {
       console.error('[QuizStudentApp] attempt clock stamp failed:', err);
     });
-  }, [needsAttemptClock, onStartAttemptClock]);
+  }, [attemptNeedsClock, onStartAttemptClock]);
   const [timeUpSubmitted, setTimeUpSubmitted] = useState(false);
   const [timeUpFailed, setTimeUpFailed] = useState(false);
   const timeUpTriggeredRef = useRef(false);
@@ -3053,16 +3053,25 @@ export const ActiveQuiz: React.FC<{
   // paths (flush handler, structured-input change callbacks) that can't
   // read state directly.
   const submittedRef = useRef(false);
-  // A self-paced revisit of a saved answer stays editable, so its changes autosave like a first answer.
+  // Only while Live view watches does a self-paced revisit autosave; otherwise it saves on Next.
   const draftLocked =
     submitted &&
     !(
+      liveViewUntil > 0 &&
       isStudentPaced &&
       step.alreadyAnswered &&
       step.timedOutFor !== currentQuestion?.id
     );
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   submittedRef.current = draftLocked;
+  // A revisit draft writes only while the teacher's stamp is still ahead at write time.
+  const liveRevisitRef = useRef<{ revisit: boolean; until: number }>({
+    revisit: false,
+    until: 0,
+  });
+  useLayoutEffect(() => {
+    liveRevisitRef.current = { revisit: submitted, until: liveViewUntil };
+  }, [submitted, liveViewUntil]);
   // A revisit over the word limit keeps its saved answer on every draft path, as Next does.
   const overLimitRevisitRef = useRef(false);
   // Pending draft tracker for question-change flushes. The state-driven
@@ -3269,6 +3278,8 @@ export const ActiveQuiz: React.FC<{
     const type = currentQuestion?.type;
     if (!qid || !type) return;
     if (draftLocked) return;
+    // A stamp that ran out without being cleared leaves the revisit to Next.
+    if (submitted && liveViewUntil <= getServerNow()) return;
     // A revisit over the word limit keeps its saved answer, as Next does.
     if (submitted && wordLimitBlocked) return;
     // Cache miss — student hasn't touched this question this session
@@ -3292,9 +3303,16 @@ export const ActiveQuiz: React.FC<{
 
     const snapshot = cachedDraft;
     const capturedQid = qid;
+    const liveRevisit = submitted;
     const writeNow = () => {
+      if (liveRevisit && liveRevisitRef.current.until <= getServerNow()) return;
       void onAnswerRef
-        .current(capturedQid, snapshot, undefined, { isDraft: true })
+        .current(
+          capturedQid,
+          snapshot,
+          undefined,
+          liveRevisit ? { isDraft: true, liveRevisit } : { isDraft: true }
+        )
         .catch((err: unknown) => {
           logError('QuizStudentApp.draftAutosave', err, {
             questionId: capturedQid,
@@ -3337,6 +3355,7 @@ export const ActiveQuiz: React.FC<{
     currentQuestion?.type,
     draftLocked,
     submitted,
+    liveViewUntil,
     wordLimitBlocked,
     savedAnswerForCurrent,
   ]);
@@ -3403,12 +3422,20 @@ export const ActiveQuiz: React.FC<{
       // refuses the unsafe blank-over-non-blank case from there.
       if (draft === (savedAnswerForCurrentRef.current ?? '')) return;
 
+      const { revisit: liveRevisit, until } = liveRevisitRef.current;
+      if (liveRevisit && until <= getServerNow()) return;
+
       if (draftAutosaveTimer.current) {
         clearTimeout(draftAutosaveTimer.current);
         draftAutosaveTimer.current = null;
       }
       void onAnswerRef
-        .current(qid, draft, undefined, { isDraft: true })
+        .current(
+          qid,
+          draft,
+          undefined,
+          liveRevisit ? { isDraft: true, liveRevisit } : { isDraft: true }
+        )
         .catch((err: unknown) => {
           logError('QuizStudentApp.draftFlush', err, {
             questionId: qid,

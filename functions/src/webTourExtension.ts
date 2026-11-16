@@ -3,6 +3,7 @@ import './functionsInit';
 import { onRequest } from 'firebase-functions/v2/https';
 import * as admin from './firebaseAdmin';
 import { isDistrictStaffEmail } from './districtStaff';
+import { trustedUidForEmail } from './trustedSignIn';
 import { GL_TOURS_COLLECTION } from './glTours';
 import { WEB_TOURS_FEATURE_ID, isWebTourPicturePath } from './mcp/webTourTools';
 import { isWebTourSnapshot } from './mcp/webTours';
@@ -557,13 +558,7 @@ function defaultDeps(db: Firestore): ExtensionDeps {
   return {
     clientId: EXTENSION_OAUTH_CLIENTS[process.env.GCLOUD_PROJECT ?? ''] ?? '',
     tokenInfo: fetchTokenInfo,
-    uidForEmail: async (email) => {
-      try {
-        return (await admin.auth().getUserByEmail(email)).uid;
-      } catch {
-        return null;
-      }
-    },
+    uidForEmail: trustedUidForEmail,
     allowed: async (email, uid) => {
       // Students share the district domain, so the flag alone can't admit an address.
       const staff =

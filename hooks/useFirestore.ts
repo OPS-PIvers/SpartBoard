@@ -38,6 +38,7 @@ import {
   sharedConnections,
   type SharedBoardBaseline,
 } from '@/utils/sharedBoardMerge';
+import { isValidConnection } from '@/utils/dashboardSanitize';
 import {
   Dashboard,
   SharedBoardIntendedMode,
@@ -318,8 +319,13 @@ function mapSharedDocToDashboard(
   const {
     linkedCollectionId: rawLinkId,
     shareConnections: rawShareConnections,
+    connections: rawConnections,
     ...rest
   } = record;
+  // A collaborator can write either list, so only well-formed entries reach the board.
+  const rawConns = Array.isArray(rawShareConnections)
+    ? rawShareConnections
+    : rawConnections;
   const hostUid =
     typeof record.originalAuthor === 'string' && record.originalAuthor
       ? record.originalAuthor
@@ -332,8 +338,8 @@ function mapSharedDocToDashboard(
     ...(hostUid ? { linkedShareHostUid: hostUid } : {}),
     ...(intendedMode ? { intendedMode } : {}),
     ...(typeof rawLinkId === 'string' ? { linkedCollectionId: rawLinkId } : {}),
-    ...(Array.isArray(rawShareConnections) && {
-      connections: rawShareConnections as WidgetConnection[],
+    ...(Array.isArray(rawConns) && {
+      connections: rawConns.filter(isValidConnection),
     }),
   };
 }
@@ -430,7 +436,11 @@ const waitToRetry = (attempt: number) =>
     window.addEventListener('online', done);
   });
 
-export const useFirestore = (userId: string | null) => {
+export const useFirestore = (
+  userId: string | null,
+  /** False under `share-content-safeguards`: a re-shared legacy board's widgets never stand in for picks. */
+  legacyPickFallback = true
+) => {
   const dashboardsRef = useMemo(
     () =>
       !isAuthBypass && userId
@@ -744,6 +754,8 @@ export const useFirestore = (userId: string | null) => {
         ...data,
         ...shareConnectionFields(data),
         sharedAt: Date.now(),
+        // Binds item copies to this share instance, so a re-created id can't read an old one's.
+        createdNonce: crypto.randomUUID(),
         originalAuthor: userId,
         ...(hostDisplayName ? { originalAuthorName: hostDisplayName } : {}),
         ...(intendedMode ? { intendedMode } : {}),
@@ -760,9 +772,13 @@ export const useFirestore = (userId: string | null) => {
         const own = () => ownBoardItemPicks(dashboard.widgets ?? [], userId);
         if (oldShareId) {
           if (dashboard.linkedShareRole !== 'owner') return;
-          // A share made before picks existed has none to carry, so the board's own items stand in.
+          // A share made before picks existed has none to carry, so the board's own items stand in (legacy only).
           const old = await readBoardItemPicks(userId, oldShareId);
-          await recordBoardItemPicks(userId, id, old ?? own());
+          await recordBoardItemPicks(
+            userId,
+            id,
+            old ?? (legacyPickFallback ? own() : [])
+          );
           return;
         }
         // Every item on a never-shared board is this teacher's, whatever stale stamp a widget carries.
@@ -805,7 +821,7 @@ export const useFirestore = (userId: string | null) => {
       startSeed(docRef.id);
       return docRef.id;
     },
-    [userId]
+    [userId, legacyPickFallback]
   );
 
   /**

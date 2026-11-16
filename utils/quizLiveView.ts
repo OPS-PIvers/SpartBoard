@@ -16,6 +16,11 @@ import { resolveAttemptDeadline, timestampMillis } from '@/utils/quizTimeLimit';
 import { describeTabExit, totalAwayMs } from '@/utils/tabExits';
 
 export const QUIZ_LIVE_VIEW_FEATURE = 'quiz-live-view' as const;
+export const LIVE_VIEW_NUDGE_FEATURE = 'quiz-live-view-nudge' as const;
+export const LIVE_VIEW_NUDGE_NOTE_FEATURE =
+  'quiz-live-view-nudge-note' as const;
+export const LIVE_VIEW_SCREENSHOT_FEATURE =
+  'quiz-live-view-screenshot' as const;
 export const LIVE_VIEW_SESSION_ID = 'live-view-mirror';
 /** How long one stamp keeps the student reporting; the open panel renews it before then. */
 export const LIVE_VIEW_STAMP_MS = 5 * 60_000;

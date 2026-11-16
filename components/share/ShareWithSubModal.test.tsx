@@ -73,13 +73,15 @@ vi.mock('@/context/useDashboard', () => ({
   }),
 }));
 
+const flags = vi.hoisted(() => new Set<string>());
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     selectedBuildings: ['high'],
     hasOrg: true,
-    canAccessFeature: () => false,
+    canAccessFeature: (id: string) => flags.has(id),
   }),
 }));
+afterEach(() => flags.clear());
 
 vi.mock('@/hooks/useAdminBuildings', () => ({
   useAdminBuildings: () => [{ id: 'high', name: 'High School' }],
@@ -330,6 +332,87 @@ describe('ShareWithSubModal — an existing share', () => {
       subEmails?: string[];
     };
     expect(input.subEmails).toEqual([]);
+  });
+
+  const calendarBoard = (): Dashboard => ({
+    ...board,
+    widgets: [
+      {
+        id: 'cal-w',
+        type: 'calendar',
+        x: 0,
+        y: 0,
+        w: 1,
+        h: 1,
+        z: 1,
+        flipped: false,
+        config: { personalCalendarIds: ['cal-a', 'cal-b'] },
+      } as unknown as Dashboard['widgets'][number],
+    ],
+  });
+
+  it('with share content safeguards off, shows no calendar ticks and sends no list', async () => {
+    flags.clear();
+    render(
+      <ShareWithSubModal
+        isOpen
+        target={{ kind: 'board', dashboard: calendarBoard() }}
+        existingShares={[existing]}
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByLabelText('cal-a')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Update the share' }));
+    await waitFor(() =>
+      expect(updateSubstituteCollectionShare).toHaveBeenCalled()
+    );
+    const input = updateSubstituteCollectionShare.mock.calls[0]?.[0] as Record<
+      string,
+      unknown
+    >;
+    expect('calendarIds' in input).toBe(false);
+  });
+
+  it('re-ticks the calendars the live share already carries', async () => {
+    flags.add('share-content-safeguards');
+    const calBoard: Dashboard = {
+      ...board,
+      widgets: [
+        {
+          id: 'cal-w',
+          type: 'calendar',
+          x: 0,
+          y: 0,
+          w: 1,
+          h: 1,
+          z: 1,
+          flipped: false,
+          config: { personalCalendarIds: ['cal-a', 'cal-b'] },
+        } as unknown as Dashboard['widgets'][number],
+      ],
+    };
+    render(
+      <ShareWithSubModal
+        isOpen
+        target={{ kind: 'board', dashboard: calBoard }}
+        existingShares={[{ ...existing, calendarIds: ['cal-a'] }]}
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(screen.getByLabelText<HTMLInputElement>('cal-a').checked).toBe(true);
+    expect(screen.getByLabelText<HTMLInputElement>('cal-b').checked).toBe(
+      false
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Update the share' }));
+    await waitFor(() =>
+      expect(updateSubstituteCollectionShare).toHaveBeenCalled()
+    );
+    const input = updateSubstituteCollectionShare.mock.calls[0]?.[0] as {
+      calendarIds?: string[];
+    };
+    expect(input.calendarIds).toEqual(['cal-a']);
   });
 
   it('keeps the share on the building it was created for', () => {

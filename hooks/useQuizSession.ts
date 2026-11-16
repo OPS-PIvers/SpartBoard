@@ -14,6 +14,11 @@ import {
   publicImageOnlyAnswers,
 } from '@/utils/quizAnswerImages';
 import { stripRubricExamples } from '@/utils/rubricGuide';
+import { needsAttemptClock } from '@/utils/quizStudentPhase';
+import {
+  INPUT_SIGNALS_FLUSH_EVENT,
+  type InputSignalsFlushDetail,
+} from '@/utils/inputSignals';
 import {
   useState,
   useEffect,
@@ -365,8 +370,8 @@ export function isWriteAtAfter(a: unknown, b: unknown): boolean {
 }
 
 /**
- * Defensive predicate: a draft autosave over an already-submitted answer
- * must not downgrade its status to 'draft' (the write keeps 'submitted'). The cache-driven
+ * Defensive predicate: refuse a draft autosave that would downgrade an
+ * already-submitted answer's status to 'draft'. The cache-driven
  * autosave path can re-fire for the same question during the SSO
  * listener-fast race window (back-nav before the response listener
  * echoes the just-submitted answer back, so the local `submitted` state
@@ -2183,6 +2188,8 @@ export interface UseQuizSessionStudentResult {
       isDraft?: boolean;
       timedOutUnderMinimum?: boolean;
       locale?: string;
+      /** A revisit draft while Live view watches: a changed one saves over the submitted answer. */
+      liveRevisit?: boolean;
     }
   ) => Promise<void>;
   /**
@@ -3080,15 +3087,23 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
                 hasClassPeriod: !!classPeriod,
               })
             );
-          } else if (classPeriod && existing.classPeriod !== classPeriod) {
+          } else if (
+            (classPeriod && existing.classPeriod !== classPeriod) ||
+            needsAttemptClock(sessionData, existing)
+          ) {
             // Backfill classPeriod on an in-flight response (e.g. student
             // joined before periods were configured or reloaded after a
             // change). Treat this as activity — refresh lastWriteAt so
             // a long-running session doesn't trip the idle auto-submit
             // on the next sweep just because of a backfill touch.
+            // An open timed row with no clock (a paper scan made it) starts it here, or its answers are refused.
             await updateDoc(responseRef, {
-              classPeriod,
-              lastWriteAt: serverTimestamp(),
+              ...(classPeriod && existing.classPeriod !== classPeriod
+                ? { classPeriod, lastWriteAt: serverTimestamp() }
+                : {}),
+              ...(needsAttemptClock(sessionData, existing)
+                ? { attemptStartedAt: serverTimestamp() }
+                : {}),
             }).catch((err: unknown) =>
               logQuizJoinFirestoreError('update-backfill-period', err, {
                 sessionId: sessionDoc.id,
@@ -3251,7 +3266,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
             attemptStartedAt?: FieldValue;
           } = {
             studentUid,
-            joinedAt: Date.now(),
+            joinedAt: getServerNow(),
             // Seed `lastWriteAt` at join so a student who joins but
             // never answers still ages into the idle auto-submit query.
             // Server-stamped (not Date.now()) so a Chromebook with a
@@ -3280,13 +3295,17 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
             ...(resolvedClassId ? { classId: resolvedClassId } : {}),
             ...staffResponseFields(staffIdentity),
           };
-          const created = periodKey
-            ? writeBatch(db)
-                .set(responseRef, newResponse)
-                .set(seatRef(sessionDoc.id, studentUid), { responseKey })
-                .commit()
-            : setDoc(responseRef, newResponse);
-          await created.catch((err: unknown) =>
+          // A denied create re-syncs the clock and restamps `joinedAt`, which the rules hold to server time.
+          const create = () => {
+            const row = { ...newResponse, joinedAt: getServerNow() };
+            return periodKey
+              ? writeBatch(db)
+                  .set(responseRef, row)
+                  .set(seatRef(sessionDoc.id, studentUid), { responseKey })
+                  .commit()
+              : setDoc(responseRef, row);
+          };
+          await retryWithFreshClock(studentUid, create).catch((err: unknown) =>
             logQuizJoinFirestoreError('create-response', err, {
               sessionId: sessionDoc.id,
               responseKey,
@@ -3426,6 +3445,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         isDraft?: boolean;
         timedOutUnderMinimum?: boolean;
         locale?: string;
+        liveRevisit?: boolean;
       }
     ) => {
       const sessionId = sessionIdRef.current;
@@ -3501,9 +3521,12 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
             ? { priorEntry, now }
             : null;
 
-        // A draft over a submitted answer keeps it submitted: an unchanged one is skipped, a changed one saves.
+        // A draft over a submitted answer is skipped, except a changed Live view revisit, which stays submitted.
         const keepSubmitted = isUnsafeStatusDowngrade(isDraft, priorEntry);
-        if (keepSubmitted && priorEntry?.answer === answer) {
+        if (
+          keepSubmitted &&
+          (opts?.liveRevisit !== true || priorEntry?.answer === answer)
+        ) {
           return { skip: true, snapshot };
         }
 
@@ -3978,6 +4001,14 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     const quizId = quizIdRef.current;
     const teacherUid = teacherUidRef.current;
     if (!sessionId || !responseKey) return;
+    const signalSaves: Promise<void>[] = [];
+    document.dispatchEvent(
+      new CustomEvent<InputSignalsFlushDetail>(INPUT_SIGNALS_FLUSH_EVENT, {
+        detail: { saves: signalSaves },
+      })
+    );
+    // Land the final counters before the turn-in locks them.
+    await settleDraftsWithin(signalSaves, DRAFT_SETTLE_MS);
     // Let a just-flushed draft land first: once turned in, the rules lock the answers.
     await settleDraftsWithin(inFlightDraftsRef.current, DRAFT_SETTLE_MS);
     await settleDraftsWithin(inFlightTxRef.current, DRAFT_SETTLE_MS);

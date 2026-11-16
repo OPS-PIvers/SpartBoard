@@ -362,8 +362,9 @@ export function isScoredMiniAppRow(row: GradeIndexRow | null): boolean {
   return (
     row?.kind === 'mini-app' &&
     row.gradedBy !== undefined &&
-    row.max !== null &&
-    row.max > 0
+    // App-graded rows await the teacher's mark, so they stay markable.
+    ((row.max !== null && row.max > 0) ||
+      (row.gradedBy === 'app' && row.state === 'awaiting-grade'))
   );
 }
 

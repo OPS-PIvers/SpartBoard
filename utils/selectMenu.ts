@@ -1,4 +1,5 @@
 // Opens every single-choice <select> as the app's own list instead of the browser's, keeping the native control, its value and change events.
+import { appPickersEnabled } from './pickerPanel';
 
 const MENU_ID = 'spart-select-menu';
 const LIST_CLASS =
@@ -69,6 +70,7 @@ const touchOnly = () =>
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
 
 const isMenuSelect = (el: unknown): el is HTMLSelectElement =>
+  appPickersEnabled() &&
   el instanceof HTMLSelectElement &&
   !el.multiple &&
   el.size <= 1 &&
@@ -485,6 +487,7 @@ export const installSelectMenus = (): (() => void) => {
   };
 
   const onMouseDown = (e: MouseEvent) => {
+    if (!appPickersEnabled() && !current) return;
     if (current?.list.contains(e.target as Node)) return;
     const target = e.target as Element | null;
     const select = target?.closest?.('select');
@@ -506,6 +509,7 @@ export const installSelectMenus = (): (() => void) => {
   };
 
   const onKeyDown = (e: KeyboardEvent) => {
+    if (!appPickersEnabled() && !current) return;
     const menu = current;
     if (menu) {
       if (e.target === menu.select || menu.list.contains(e.target as Node))

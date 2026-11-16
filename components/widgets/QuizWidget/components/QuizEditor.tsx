@@ -7,11 +7,7 @@
  */
 
 import { MathText } from '@/components/common/MathText';
-import {
-  STUDENT_KEYBOARDS_FEATURE,
-  accentSetForLanguage,
-  answerAccents,
-} from '@/config/studentKeyboards';
+import { accentSetForLanguage, answerAccents } from '@/config/studentKeyboards';
 import {
   AccentLanguageRow,
   AnswerKeyboardLinks,
@@ -840,7 +836,6 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
     canAccessFeature,
   });
   const uploadWhiteboardImage = useWhiteboardImageUpload();
-  const keyboardsOn = canAccessFeature(STUDENT_KEYBOARDS_FEATURE);
   const blankTypesOn = canAccessFeature('quiz-blank-types');
   const defaultAccents = accentSetForLanguage(state.language) ?? 'es';
   const uploadAnswerImage = useCallback(
@@ -938,6 +933,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             state={state}
             slotId={selectedSlot.id}
             calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
+            previewAvailable={canAccessFeature('quiz-stimulus-preview')}
           />
         }
       />
@@ -964,6 +960,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   const timeLimitLockedByRecording = mediaResponseAllowed && !!q.recording;
   // Spoken answers on: Type, Format, Time limit and Points share one compact line.
   const compactRow = mediaResponseAllowed;
+  const metaList = canAccessFeature('question-editor-fields');
 
   return (
     // Not `relative`: the rubric builder anchors to the modal body so it can span both panes.
@@ -982,32 +979,35 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             void promptStandards.onPromptBlur(q.id, q.text, q.targets)
           }
           textareaRef={promptRef}
-          promptAccents={keyboardsOn ? defaultAccents : undefined}
-          promptMath={keyboardsOn}
+          promptAccents={defaultAccents}
+          promptMath
           promptFormat
         />
 
-        {/* Under the prompt, matching where students see it. */}
-        <QuestionStimulusSection
-          state={state}
-          questionId={q.id}
-          calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
-          pasteScopeRef={paneRef}
-        />
+        <div
+          className={metaList ? 'border-y border-slate-200 py-1' : 'space-y-4'}
+        >
+          {/* Under the prompt, matching where students see it. */}
+          <QuestionStimulusSection
+            state={state}
+            questionId={q.id}
+            calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
+            pasteScopeRef={paneRef}
+            previewAvailable={canAccessFeature('quiz-stimulus-preview')}
+            metaList={metaList}
+          />
 
-        {/* Learning targets */}
-        <QuestionTargetsField
-          question={q}
-          onChange={(targets) => updateQuestion(q.id, { targets })}
-          onDokChange={
-            canAccessFeature('quiz-dok')
-              ? (dok) => updateQuestion(q.id, { dok })
-              : undefined
-          }
-          promptStandards={promptStandards}
-          pickerOpen={pickerOpen}
-          onPickerOpenChange={setPickerOpen}
-        />
+          {/* Learning targets */}
+          <QuestionTargetsField
+            question={q}
+            onChange={(targets) => updateQuestion(q.id, { targets })}
+            onDokChange={(dok) => updateQuestion(q.id, { dok })}
+            promptStandards={promptStandards}
+            pickerOpen={pickerOpen}
+            onPickerOpenChange={setPickerOpen}
+            metaList={metaList}
+          />
+        </div>
 
         {/* Type / format / time / points row */}
         <div
@@ -1173,11 +1173,8 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
               question={q}
               onChange={(updates) => updateQuestion(q.id, updates)}
               onUploadImage={uploadAnswerImage}
-              onExplanationsChange={
-                canAccessFeature('quiz-explanations')
-                  ? (optionExplanations) =>
-                      updateQuestion(q.id, { optionExplanations })
-                  : undefined
+              onExplanationsChange={(optionExplanations) =>
+                updateQuestion(q.id, { optionExplanations })
               }
             />
             <NeedsAnswerNotice
@@ -1247,17 +1244,15 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                       Spell check
                     </span>
                   </label>
-                  {keyboardsOn && (
-                    <AnswerKeyboardLinks
-                      value={q.answerKeyboard}
-                      onChange={(answerKeyboard) =>
-                        updateQuestion(q.id, { answerKeyboard })
-                      }
-                      defaultAccents={defaultAccents}
-                    />
-                  )}
+                  <AnswerKeyboardLinks
+                    value={q.answerKeyboard}
+                    onChange={(answerKeyboard) =>
+                      updateQuestion(q.id, { answerKeyboard })
+                    }
+                    defaultAccents={defaultAccents}
+                  />
                 </div>
-                {keyboardsOn && answerAccents(q.answerKeyboard) && (
+                {answerAccents(q.answerKeyboard) && (
                   <AccentLanguageRow
                     value={answerAccents(q.answerKeyboard) ?? defaultAccents}
                     onChange={(answerKeyboard) =>
@@ -1335,7 +1330,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             <AnswerKeyKeyboard
               question={q}
               onChange={(updates) => updateQuestion(q.id, updates)}
-              keyboard={keyboardsOn ? { defaultAccents } : undefined}
+              keyboard={{ defaultAccents }}
             >
               {({ links, renderInput }) => (
                 <FibBlanksEditor
@@ -1356,7 +1351,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           <FibAnswerField
             question={q}
             onChange={(updates) => updateQuestion(q.id, updates)}
-            keyboard={keyboardsOn ? { defaultAccents } : undefined}
+            keyboard={{ defaultAccents }}
           />
         )}
         {blankTypeOf(q) === 'drag' && (
@@ -1366,12 +1361,10 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           />
         )}
 
-        {canAccessFeature('quiz-explanations') && (
-          <QuestionExplanationField
-            question={q}
-            onChange={(updates) => updateQuestion(q.id, updates)}
-          />
-        )}
+        <QuestionExplanationField
+          question={q}
+          onChange={(updates) => updateQuestion(q.id, updates)}
+        />
       </div>
 
       {showRubricBuilder && isFreeResponseType(q.type) && (

@@ -2195,6 +2195,7 @@
     "optionLabel": "Explicación de {{option}}"
   },
   "quizDok": {
+    "fieldNone": "Ninguno",
     "level": "Nivel DOK",
     "none": "Sin DOK",
     "any": "Cualquier DOK",
@@ -3216,6 +3217,10 @@
     "tourField": "Qué ajuste",
     "tourFieldPick": "Elige un ajuste",
     "tourFieldPlaceholder": "Clave del ajuste",
+    "tourRow": "Qué fila",
+    "tourRowFirst": "Primera fila",
+    "tourRowAny": "Cualquier fila",
+    "tourRowN": "Fila {{n}}",
     "tourAction_click": "Esperar el clic",
     "tourAction_observe": "Mostrarlo y luego Siguiente",
     "tourAction_toggle": "Esperar el interruptor",
@@ -5081,5 +5086,14 @@
   "quizAnswerPicture": {
     "name": "Imagen {{n}}",
     "nameWithAlt": "Imagen {{n}}: {{alt}}"
+  },
+  "picker": {
+    "clear": "Borrar",
+    "today": "Hoy",
+    "previousMonth": "Mes anterior",
+    "nextMonth": "Mes siguiente",
+    "hour": "Hora",
+    "minute": "Minuto",
+    "period": "a. m. o p. m."
   }
 }

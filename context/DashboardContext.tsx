@@ -768,6 +768,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const {
     user,
     isAdmin,
+    canAccessFeature,
     roleId,
     userRoles,
     isStudentRole,
@@ -799,7 +800,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     joinSharedBoard,
     leaveSharedBoard,
     stopSharingBoard,
-  } = useFirestore(user?.uid ?? null);
+  } = useFirestore(
+    user?.uid ?? null,
+    // Optional call: many provider tests mock useAuth without it.
+    !canAccessFeature?.('share-content-safeguards')
+  );
 
   const collectionsApi = useCollections(user?.uid);
   const linkedCollectionApi = useLinkedCollection();
@@ -5487,7 +5492,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             namesOutcome.missed = write ? write.failedEmails : subEmails;
             return write;
           },
-          readQueue: driveQueueReader(driveService),
+          readQueue: driveQueueReader(driveService, user?.uid),
           readWallPosts: wallPostsReader(user?.uid),
           onIncomplete: (labels) => {
             namesOutcome.unread = labels;
@@ -5607,7 +5612,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             namesOutcome.missed = write ? write.failedEmails : subEmails;
             return write;
           },
-          readQueue: driveQueueReader(driveService),
+          readQueue: driveQueueReader(driveService, user?.uid),
           readWallPosts: wallPostsReader(user?.uid),
           onIncomplete: (labels) => {
             namesOutcome.unread = labels;
