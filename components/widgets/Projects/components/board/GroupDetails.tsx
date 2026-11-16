@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Link2, Paperclip, Users, History } from 'lucide-react';
+import { CheckCircle2, History, Link2, Paperclip, Users } from 'lucide-react';
+import { tourTypeAttr } from '@/config/tourAnchors';
 import type { ProjectStep, ProjectUpload, ProjectWorkLink } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import {
@@ -19,6 +20,10 @@ interface GroupDetailsProps {
   workLinks: ProjectWorkLink[];
   uploads: ProjectUpload[];
   workLoading: boolean;
+  submittedAt?: number;
+  submittedLate?: boolean;
+  /** Present when the group has submitted and the teacher may reopen it. */
+  onReopen?: () => Promise<void>;
 }
 
 const TEXT = 'min(13px, 3.8cqmin)';
@@ -61,7 +66,11 @@ export const GroupDetails: React.FC<GroupDetailsProps> = ({
   workLinks,
   uploads,
   workLoading,
+  submittedAt,
+  submittedLate,
+  onReopen,
 }) => {
+  const [reopening, setReopening] = useState(false);
   const { orgId } = useAuth();
   const hasSignIn = !classId.startsWith('local:');
   const { byStudentUid } = useAssignmentPseudonymsMulti(
@@ -90,6 +99,39 @@ export const GroupDetails: React.FC<GroupDetailsProps> = ({
         padding: 'min(10px, 2cqmin) min(12px, 2.4cqmin)',
       }}
     >
+      {submittedAt !== undefined && submittedAt > 0 && (
+        <Section
+          icon={CheckCircle2}
+          label={submittedLate ? 'Late' : 'Submitted'}
+        >
+          <p className="flex flex-wrap items-baseline gap-x-2">
+            <span>
+              {new Date(submittedAt).toLocaleString(undefined, {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+              })}
+            </span>
+            {onReopen && (
+              <button
+                type="button"
+                {...tourTypeAttr('projects.group-reopen', 'projects')}
+                disabled={reopening}
+                onClick={() => {
+                  setReopening(true);
+                  void onReopen().finally(() => setReopening(false));
+                }}
+                className="font-bold text-brand-blue-primary hover:underline disabled:opacity-50"
+              >
+                Reopen
+              </button>
+            )}
+          </p>
+        </Section>
+      )}
+
       <Section icon={Users} label="Members">
         {memberUids.length === 0 ? (
           <Quiet>No students have joined.</Quiet>

@@ -132,6 +132,7 @@ export { getGradebookRosterV1 } from './gradebook/getGradebookRosterV1';
 
 // ── Projects widget: group import (docs/plans/shipped/PROJECTS_WIDGET.md D8) ───────
 export { commitProjectGroupsV1 } from './projectGroups';
+export { submitProjectGroupV1 } from './projectSubmit';
 // Projects widget: uploads ride the Activity Wall's Storage → Drive path (D20).
 export { archiveProjectUploadOnCreate } from './projectUploadArchive';
 

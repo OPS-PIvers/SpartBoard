@@ -108,6 +108,65 @@ describe('landingRowState', () => {
   });
 });
 
+describe('landingRowState for projects', () => {
+  const project = (over: Partial<AssignmentSummary> = {}) =>
+    a({
+      kind: 'projects',
+      compositeId: 'projects:r1',
+      sessionId: 'r1',
+      acceptingResponses: true,
+      ...over,
+    });
+
+  it('keeps a closed run without submissions under Completed as before', () => {
+    const row = project({ acceptingResponses: false });
+    expect(landingRowState(row, {}, NOW)).toBe('turned-in');
+  });
+
+  it('moves a submitted group to Completed while the run stays open', () => {
+    const row = project({ studentSubmit: true });
+    expect(landingRowState(row, checked(row, 'turned-in'), NOW)).toBe(
+      'turned-in'
+    );
+    expect(landingRowState(row, checked(row, 'in-progress'), NOW)).toBe(
+      'in-progress'
+    );
+  });
+
+  it('never marks a student in no group Missing', () => {
+    const open = project({ studentSubmit: true, dueAt: NOW - DAY });
+    expect(landingRowState(open, checked(open, 'not-started'), NOW)).toBe(
+      'open'
+    );
+    const closed = project({
+      studentSubmit: true,
+      dueAt: NOW - DAY,
+      acceptingResponses: false,
+    });
+    expect(landingRowState(closed, checked(closed, 'not-started'), NOW)).toBe(
+      'turned-in'
+    );
+  });
+
+  it('shows Missing past due, open or closed', () => {
+    const open = project({ studentSubmit: true, dueAt: NOW - DAY });
+    expect(landingRowState(open, checked(open, 'in-progress'), NOW)).toBe(
+      'missing-open'
+    );
+    const closed = project({
+      studentSubmit: true,
+      dueAt: NOW - DAY,
+      acceptingResponses: false,
+    });
+    expect(landingRowState(closed, checked(closed, 'in-progress'), NOW)).toBe(
+      'missing'
+    );
+    expect(landingRowState(closed, checked(closed, 'turned-in'), NOW)).toBe(
+      'turned-in'
+    );
+  });
+});
+
 describe('partitionLanding', () => {
   it('sorts Missing still open first, then by due date, then no due date', () => {
     const later = a({ sessionId: 'later', dueAt: NOW + 3 * DAY });

@@ -11218,6 +11218,12 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     requires: 'widget-restored',
   },
+  'projects.group-reopen': {
+    label: 'Reopen a submitted group on the Projects board',
+    perWidgetType: true,
+    requires: 'widget-restored',
+    persists: true,
+  },
   'projects.step-cell': {
     label: 'Step status cell on the Projects board',
     perWidgetType: true,

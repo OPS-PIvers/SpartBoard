@@ -1,4 +1,9 @@
-import type { ProjectGroup, ProjectGroupEvent, ProjectStep } from '@/types';
+import type {
+  ProjectGroup,
+  ProjectGroupEvent,
+  ProjectRun,
+  ProjectStep,
+} from '@/types';
 import {
   STEP_STATE_LABELS,
   resolveGroupColor,
@@ -152,7 +157,28 @@ export function describeEvent(
       return event.detail
         ? `${actor} uploaded ${event.detail}`
         : `${actor} uploaded a file`;
+    case 'submission':
+      if (event.detail === 'reopened') return `${actor} reopened the project`;
+      return event.detail === 'late'
+        ? `${actor} submitted late`
+        : `${actor} submitted the project`;
     default:
       return `${actor} changed the group`;
   }
+}
+
+export type ProjectSubmitStatus = 'submitted' | 'late' | 'missing';
+
+/** Submitted, Late or Missing for a run that takes submissions; null before the due date. */
+export function submitStatusOf(
+  group: Pick<ProjectGroup, 'classId' | 'submittedAt' | 'submittedLate'>,
+  run: Pick<ProjectRun, 'studentSubmit' | 'dueAt'> | null,
+  now: number
+): ProjectSubmitStatus | null {
+  // A group with no sign-in can never submit, so it is never Missing.
+  if (run?.studentSubmit !== true || group.classId.startsWith('local:'))
+    return null;
+  if ((group.submittedAt ?? 0) > 0)
+    return group.submittedLate ? 'late' : 'submitted';
+  return typeof run.dueAt === 'number' && now > run.dueAt ? 'missing' : null;
 }

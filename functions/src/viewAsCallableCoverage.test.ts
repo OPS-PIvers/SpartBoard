@@ -92,6 +92,7 @@ const CALLABLE_MODES: Record<string, Mode> = {
   setPlcNormingFlagV1: 'write',
   studentLoginV1: 'write',
   submitFlashcardCheckV1: 'write',
+  submitProjectGroupV1: 'write',
   reopenFlashcardCheckV1: 'write',
   submitMiniAppResultV1: 'write',
   syncBuildingGroupV1: 'write',

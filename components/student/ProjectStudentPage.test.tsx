@@ -1,5 +1,11 @@
 import '@testing-library/jest-dom';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ProjectGroup, ProjectRun } from '@/types';
 import { ProjectStudentPage } from './ProjectStudentPage';
@@ -9,6 +15,17 @@ const h = vi.hoisted(() => ({
   myGroup: null as ProjectGroup | null,
   setStepState: vi.fn((..._args: unknown[]) => Promise.resolve()),
   signOut: vi.fn(),
+  submit: vi.fn((..._args: unknown[]) =>
+    Promise.resolve({ submittedAt: 1, late: false })
+  ),
+  confirm: vi.fn((..._args: unknown[]) => Promise.resolve(true)),
+}));
+
+vi.mock('@/context/useDialog', () => ({
+  useDialog: () => ({ showConfirm: h.confirm, showAlert: vi.fn() }),
+}));
+vi.mock('@/utils/projectRunWrites', () => ({
+  submitProjectGroup: h.submit,
 }));
 
 vi.mock('@/context/useStudentAuth', () => ({
@@ -190,5 +207,56 @@ describe('ProjectStudentPage', () => {
     fireEvent.click(cell(/Research/));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(h.setStepState).not.toHaveBeenCalled();
+  });
+
+  describe('submitting', () => {
+    beforeEach(() => {
+      h.submit.mockClear();
+      h.confirm.mockClear();
+      h.confirm.mockResolvedValue(true);
+    });
+
+    it('offers no Submit on a run that takes no submissions', () => {
+      render(<ProjectStudentPage />);
+      expect(
+        screen.queryByRole('button', { name: 'Submit project' })
+      ).not.toBeInTheDocument();
+    });
+
+    it('submits for the group after a confirm that counts open steps', async () => {
+      h.run = makeRun({ studentSubmit: true });
+      h.myGroup = makeGroup({ stepStates: { s1: 'done' } });
+      render(<ProjectStudentPage />);
+      fireEvent.click(screen.getByRole('button', { name: 'Submit project' }));
+      await waitFor(() =>
+        expect(h.submit).toHaveBeenCalledWith('teacher_p1', 'g1')
+      );
+      expect(h.confirm).toHaveBeenCalledWith(
+        "2 steps aren't done yet. Everyone in Team Rocket will see it as submitted. You can't make changes after this.",
+        { title: 'Submit for your group?', confirmLabel: 'Submit' }
+      );
+    });
+
+    it('does nothing when the student cancels', async () => {
+      h.run = makeRun({ studentSubmit: true });
+      h.confirm.mockResolvedValue(false);
+      render(<ProjectStudentPage />);
+      fireEvent.click(screen.getByRole('button', { name: 'Submit project' }));
+      await waitFor(() => expect(h.confirm).toHaveBeenCalled());
+      expect(h.submit).not.toHaveBeenCalled();
+    });
+
+    it('locks the steps and says when it was submitted late', () => {
+      h.run = makeRun({ studentSubmit: true });
+      h.myGroup = makeGroup({ submittedAt: Date.now(), submittedLate: true });
+      render(<ProjectStudentPage />);
+      expect(screen.getByRole('status')).toHaveTextContent(/^Submitted late /);
+      expect(
+        screen.queryByRole('button', { name: 'Submit project' })
+      ).not.toBeInTheDocument();
+      for (const button of within(stepsList()).getAllByRole('button')) {
+        expect(button).toBeDisabled();
+      }
+    });
   });
 });

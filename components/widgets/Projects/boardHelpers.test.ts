@@ -10,6 +10,7 @@ import {
   reviewCells,
   rosterForClass,
   stepsWithWork,
+  submitStatusOf,
 } from './boardHelpers';
 import { defaultGroupColor } from './projectSteps';
 
@@ -178,5 +179,29 @@ describe('describeEvent', () => {
         nameOf
       )
     ).toBe("A student added a link for 'Draft'");
+  });
+});
+
+describe('submitStatusOf', () => {
+  const run = { studentSubmit: true, dueAt: 100 };
+  const g = (extra = {}) => ({ classId: 'c1', ...extra });
+
+  it('shows nothing on a run that takes no submissions', () => {
+    expect(submitStatusOf(g(), { dueAt: 100 }, 500)).toBeNull();
+    expect(submitStatusOf(g(), null, 500)).toBeNull();
+  });
+
+  it('reads Submitted and Late off the group', () => {
+    expect(submitStatusOf(g({ submittedAt: 50 }), run, 500)).toBe('submitted');
+    expect(
+      submitStatusOf(g({ submittedAt: 150, submittedLate: true }), run, 500)
+    ).toBe('late');
+  });
+
+  it('is Missing only after the due date, and never for a group with no sign-in', () => {
+    expect(submitStatusOf(g(), run, 50)).toBeNull();
+    expect(submitStatusOf(g(), run, 500)).toBe('missing');
+    expect(submitStatusOf(g({ classId: 'local:x' }), run, 500)).toBeNull();
+    expect(submitStatusOf(g(), { studentSubmit: true }, 500)).toBeNull();
   });
 });
