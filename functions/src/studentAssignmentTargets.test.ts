@@ -2098,7 +2098,7 @@ describe('sanitizeOverride', () => {
       'Fifth',
     ]);
     const long = out?.supports?.[3];
-    expect(long?.kind === 'text' && long.text.length).toBe(2000);
+    expect(long?.kind === 'text' && long.text.length).toBe(1000);
   });
 
   it('drops supports that are not a list', () => {

@@ -12,12 +12,13 @@ import {
 import type { QuizSupport } from '@/types';
 import { useGooglePicker } from '@/hooks/useGooglePicker';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
+import { useAuth } from '@/context/useAuth';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { usePickMenu } from './usePickMenu';
 import { MAX_SUPPORTS } from './modificationGroups';
 
 const TITLE_MAX = 80;
-const TEXT_MAX = 2000;
+const TEXT_MAX = 1000;
 
 type DraftKind = 'text' | 'link';
 
@@ -46,7 +47,8 @@ const inputCls =
 
 export const SupportsEditor: React.FC<{
   supports: QuizSupport[];
-  onChange: (next: QuizSupport[]) => void;
+  /** Takes an updater so a slow Drive share applies to the latest list. */
+  onChange: (update: (prev: QuizSupport[]) => QuizSupport[]) => void;
 }> = ({ supports, onChange }) => {
   const { open, setOpen, rootRef, onKeyDown } = usePickMenu();
   const menuId = useId();
@@ -54,6 +56,7 @@ export const SupportsEditor: React.FC<{
   const bodyId = useId();
   const { openPicker } = useGooglePicker();
   const { driveService, userDomain } = useGoogleDrive();
+  const { ensureGoogleScope } = useAuth();
   const [draft, setDraft] = useState<{
     kind: DraftKind;
     title: string;
@@ -72,22 +75,44 @@ export const SupportsEditor: React.FC<{
   const pickDriveFile = async () => {
     setOpen(false);
     setError(null);
-    const file = await openPicker({ mode: 'stimuli' });
-    if (!file) return;
-    setBusy(true);
+    let file;
     try {
-      if (!driveService) throw new Error('Drive not connected');
-      // Students open it from their own account, so it's shared with the school.
-      await driveService.makePublic(file.id, userDomain);
-      onChange([
-        ...supports,
-        {
-          kind: 'drive',
-          title: file.name.slice(0, TITLE_MAX),
-          fileId: file.id,
-        },
-      ]);
+      const token = await ensureGoogleScope('drive.file', {
+        interactive: true,
+      });
+      if (!token) throw new Error('No Drive access');
+      file = await openPicker({ mode: 'stimuli', token });
     } catch {
+      setError('Couldn’t open Google Drive. Try again.');
+      return;
+    }
+    if (!file || !driveService) return;
+    const picked = file;
+    setBusy(true);
+    let copyId: string | null = null;
+    try {
+      // Share a copy so the teacher's original keeps its own sharing.
+      const copy = await driveService.copyFile(
+        picked.id,
+        picked.name,
+        'Assets/QuizSupports'
+      );
+      copyId = copy.id;
+      await driveService.makePublic(copy.id, userDomain);
+      onChange((prev) =>
+        prev.length >= MAX_SUPPORTS
+          ? prev
+          : [
+              ...prev,
+              {
+                kind: 'drive',
+                title: picked.name.slice(0, TITLE_MAX),
+                fileId: copy.id,
+              },
+            ]
+      );
+    } catch {
+      if (copyId) await driveService.deleteFile(copyId).catch(() => undefined);
       setError('Couldn’t share that file. Try again.');
     } finally {
       setBusy(false);
@@ -104,12 +129,11 @@ export const SupportsEditor: React.FC<{
   const save = () => {
     if (!draft || !draftValid) return;
     const title = draft.title.trim();
-    onChange([
-      ...supports,
+    const added: QuizSupport =
       draft.kind === 'text'
         ? { kind: 'text', title, text: draft.body.trim() }
-        : { kind: 'link', title, url: draft.body.trim() },
-    ]);
+        : { kind: 'link', title, url: draft.body.trim() };
+    onChange((prev) => [...prev, added]);
     setDraft(null);
   };
 
@@ -194,7 +218,9 @@ export const SupportsEditor: React.FC<{
                 </span>
                 <button
                   type="button"
-                  onClick={() => onChange(supports.filter((_, j) => j !== i))}
+                  onClick={() =>
+                    onChange((prev) => prev.filter((_, j) => j !== i))
+                  }
                   aria-label={`Remove ${s.title}`}
                   {...tourFieldAttr(
                     'assign-mods.support-remove',

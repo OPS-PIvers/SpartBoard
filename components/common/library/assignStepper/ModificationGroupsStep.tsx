@@ -1,5 +1,12 @@
 // Modifications step body: groups of students, each with one set of shared rules.
-import React, { useContext, useId, useMemo, useState } from 'react';
+import React, {
+  useContext,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, Plus, Search, Trash2, User } from 'lucide-react';
 import { AuthContext } from '@/context/AuthContextValue';
@@ -19,6 +26,7 @@ import {
   uncoveredLocalesForTargets,
 } from '@/utils/quizTranslationAdvisory';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import type { QuizSupport } from '@/types';
 import type { ModificationsQuizContext } from './ModificationsView';
 import { usePickMenu } from './usePickMenu';
 import { SupportsEditor } from './SupportsEditor';
@@ -223,6 +231,23 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
 
   const set = (id: string, patch: Partial<ModificationGroup>) =>
     onChange(list.map((g) => (g.id === id ? { ...g, ...patch } : g)));
+  // A Drive share finishes after other edits, so supports apply to the latest groups.
+  const latest = useRef(groups);
+  useLayoutEffect(() => {
+    latest.current = groups;
+  });
+  const updateSupports = (
+    id: string,
+    update: (prev: QuizSupport[]) => QuizSupport[]
+  ) => {
+    const current = latest.current;
+    if (!current.some((g) => g.id === id)) return;
+    const next = current.map((g) =>
+      g.id === id ? { ...g, supports: update(g.supports ?? []) } : g
+    );
+    latest.current = next;
+    onChange(next);
+  };
 
   const translation = quizContext.translation;
   const advisory = useMemo(
@@ -427,7 +452,7 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
             )}
             <SupportsEditor
               supports={group.supports ?? []}
-              onChange={(supports) => set(group.id, { supports })}
+              onChange={(update) => updateSupports(group.id, update)}
             />
             {list.length > 1 && (
               <div className="pt-2">

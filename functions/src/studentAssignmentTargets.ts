@@ -188,7 +188,7 @@ export type QuizSupport =
 
 const MAX_SUPPORTS = 5;
 const MAX_SUPPORT_TITLE = 80;
-const MAX_SUPPORT_TEXT = 2000;
+const MAX_SUPPORT_TEXT = 1000;
 const MAX_SUPPORT_URL = 2000;
 const DRIVE_FILE_ID_RE = /^[A-Za-z0-9_-]{10,200}$/;
 
