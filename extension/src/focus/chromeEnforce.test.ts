@@ -16,6 +16,7 @@ interface FakeTab {
   url: string;
   active: boolean;
   lastAccessed: number;
+  openerTabId?: number;
 }
 interface FakeWindow {
   id: number;
@@ -70,7 +71,7 @@ function fakeChrome(
       }),
     },
     windows: {
-      WindowType: { NORMAL: 'normal' },
+      WindowType: { NORMAL: 'normal', POPUP: 'popup' },
       WindowState: {
         NORMAL: 'normal',
         MINIMIZED: 'minimized',
@@ -361,8 +362,63 @@ describe('createChromeEnforcer non-web pages', () => {
     expect(
       await e.navigated(1, `${BASE}?notice=blocked`, undefined, true)
     ).toBe(false);
+    tabs[0].openerTabId = 7;
     expect(await e.navigated(1, 'about:blank', undefined, true)).toBe(false);
     expect(c.updates.length).toBe(before);
+  });
+
+  it('sends a blank tab no page opened to the focus page, but leaves an opened one', async () => {
+    const tabs: FakeTab[] = [
+      { id: 1, windowId: 1, url: 'about:blank', active: true, lastAccessed: 1 },
+      {
+        id: 2,
+        windowId: 1,
+        url: 'about:blank',
+        active: false,
+        lastAccessed: 2,
+      },
+      {
+        id: 3,
+        windowId: 1,
+        url: 'about:blank',
+        active: false,
+        lastAccessed: 3,
+      },
+    ];
+    tabs[1].openerTabId = 1;
+    const c = fakeChrome(tabs, [{ id: 1, type: 'normal', state: 'normal' }]);
+    const e = enforcer();
+    e.opened(3);
+    current = local(session());
+    expect(await e.navigated(1, 'about:blank', undefined, true)).toBe(true);
+    expect(c.updates.at(-1)).toEqual({
+      id: 1,
+      props: { url: `${BASE}?notice=blocked` },
+    });
+    const before = c.updates.length;
+    expect(await e.navigated(2, 'about:blank', undefined, true)).toBe(false);
+    expect(await e.navigated(3, 'about:blank', undefined, true)).toBe(false);
+    expect(c.updates.length).toBe(before);
+    expect(await e.activeOpened()).toBe(false);
+
+    tabs[0].url = 'about:blank';
+    await e.sync(current);
+    expect(c.updates.slice(before).map((u) => u.id)).toEqual([1]);
+  });
+
+  it('leaves a blank tab in a popup window, such as a sign-in popup', async () => {
+    const tabs: FakeTab[] = [
+      { id: 1, windowId: 2, url: 'about:blank', active: true, lastAccessed: 1 },
+    ];
+    const c = fakeChrome(tabs, [
+      { id: 1, type: 'normal', state: 'normal' },
+      { id: 2, type: 'popup', state: 'normal' },
+    ]);
+    const e = enforcer();
+    current = local(session());
+    expect(await e.navigated(1, 'about:blank', undefined, true)).toBe(false);
+    await e.sync(current);
+    expect(c.updates.length).toBe(0);
   });
 });
 
