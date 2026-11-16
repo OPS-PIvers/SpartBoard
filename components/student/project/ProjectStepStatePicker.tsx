@@ -1,4 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { scrollMovesAnchor } from '@/utils/domHelpers';
 import type { ProjectStep, ProjectStepState } from '@/types';
 import {
   STEP_STATE_LABELS,
@@ -29,11 +31,39 @@ export const ProjectStepStatePicker: React.FC<ProjectStepStatePickerProps> = ({
   asTeacher = false,
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
+
+  // Portalled with fixed position so the scrolling step strip cannot clip it.
+  useLayoutEffect(() => {
+    const anchor = anchorRef.current;
+    if (!anchor) return;
+    const rect = anchor.getBoundingClientRect();
+    const width = Math.max(rect.width, 192);
+    const height = panelRef.current?.offsetHeight ?? 200;
+    const below = rect.bottom + 6;
+    const preferred =
+      below + height > window.innerHeight && rect.top - height - 6 > 0
+        ? rect.top - height - 6
+        : below;
+    const top = Math.max(
+      8,
+      Math.min(preferred, window.innerHeight - height - 8)
+    );
+    const left = Math.min(
+      Math.max(8, rect.left),
+      window.innerWidth - width - 8
+    );
+    setPos({ top, left, width });
+  }, [anchorRef]);
 
   useEffect(() => {
     panelRef.current
       ?.querySelector<HTMLButtonElement>('button[aria-pressed="true"]')
-      ?.focus();
+      ?.focus({ preventScroll: true });
   }, []);
 
   useEffect(() => {
@@ -41,27 +71,61 @@ export const ProjectStepStatePicker: React.FC<ProjectStepStatePickerProps> = ({
       if (event.key === 'Escape') {
         event.preventDefault();
         onClose(true);
+        return;
+      }
+      const buttons = Array.from(
+        panelRef.current?.querySelectorAll<HTMLButtonElement>('button') ?? []
+      );
+      const index = buttons.indexOf(
+        document.activeElement as HTMLButtonElement
+      );
+      if (index === -1) return;
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        const step = event.key === 'ArrowDown' ? 1 : -1;
+        buttons[(index + step + buttons.length) % buttons.length]?.focus();
+        return;
+      }
+      // Portalled to <body>: tabbing off either end returns to the step instead of leaving the page.
+      const atEnd = event.shiftKey ? index === 0 : index === buttons.length - 1;
+      if (event.key === 'Tab' && atEnd) {
+        event.preventDefault();
+        onClose(true);
       }
     };
     const onPointer = (event: PointerEvent) => {
       const target = event.target as Node | null;
       if (target && anchorRef.current?.contains(target)) return;
+      if (target && panelRef.current?.contains(target)) return;
       onClose(false);
     };
+    const onScroll = (event: Event) => {
+      if (scrollMovesAnchor(event, anchorRef.current)) onClose(false);
+    };
+    const onResize = () => onClose(false);
     document.addEventListener('keydown', onKey);
     document.addEventListener('pointerdown', onPointer);
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', onResize);
     return () => {
       document.removeEventListener('keydown', onKey);
       document.removeEventListener('pointerdown', onPointer);
+      window.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', onResize);
     };
   }, [anchorRef, onClose]);
 
-  return (
+  return createPortal(
     <div
       ref={panelRef}
       role="dialog"
       aria-label={`Set ${step.title}`}
-      className="absolute left-0 top-full z-20 mt-1.5 w-full min-w-48 rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg"
+      className="fixed z-popover rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg"
+      style={{
+        top: pos?.top ?? -9999,
+        left: pos?.left ?? -9999,
+        width: pos?.width ?? 192,
+      }}
     >
       <div role="group" aria-label="Status" className="flex flex-col gap-1">
         {(asTeacher ? STEP_STATE_ORDER : studentStateOptions(step)).map(
@@ -96,6 +160,7 @@ export const ProjectStepStatePicker: React.FC<ProjectStepStatePickerProps> = ({
           Your teacher marks this one done.
         </p>
       )}
-    </div>
+    </div>,
+    document.body
   );
 };
