@@ -106,6 +106,7 @@ function attemptsFixture(live: boolean) {
     completedAttempts: 3,
     submittedAt: T + 2 * 86_400_000,
     score: 80,
+    scorePoints: { earned: 4, possible: 5, attempt: 3 },
     answers: answersFrom({
       a1: '7/8',
       a2: '2/3',

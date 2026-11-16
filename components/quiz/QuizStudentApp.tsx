@@ -319,7 +319,11 @@ import { answerAccents } from '@/config/studentKeyboards';
 import { isValidDraw, orderServedQuestions } from '@/utils/questionBanks';
 import { chooseServedDraw } from '@/utils/quizBankDraw';
 import { groupQuestionsByTargets } from '@/utils/quizTargetStats';
-import { resolveResultsVisibility } from '@/utils/quizResultsVisibility';
+import {
+  formatScorePoints,
+  publishedScorePoints,
+  resolveResultsVisibility,
+} from '@/utils/quizResultsVisibility';
 import { useQuizScoreOnSubmit } from '@/hooks/useQuizScoreOnSubmit';
 import {
   DEFAULT_WRITTEN_RETURN_MODE,
@@ -6367,6 +6371,8 @@ export const PublishedScoreReview: React.FC<{
 
   const scorePercent =
     typeof myResponse.score === 'number' ? myResponse.score : null;
+  // An earlier attempt's copy carries no points of its own.
+  const scorePoints = picked ? null : publishedScorePoints(myResponse);
   // Per-question correctness counts come straight off the authoritative
   // response — no client-side grading. Defensive default: a published
   // assignment with all-undefined `isCorrect` reads as 0 correct rather
@@ -6684,9 +6690,36 @@ export const PublishedScoreReview: React.FC<{
         >
           {scorePercent !== null ? (
             <>
-              <p className={`text-5xl font-black sm:text-6xl ${headingText}`}>
-                {scorePercent}%
-              </p>
+              {scorePoints ? (
+                <>
+                  <p
+                    className={`text-5xl font-black tabular-nums sm:text-6xl ${headingText}`}
+                  >
+                    <span className="sr-only">
+                      {t('quizStudent.results.pointsOf', {
+                        earned: formatScorePoints(scorePoints.earned),
+                        possible: formatScorePoints(scorePoints.possible),
+                      })}
+                    </span>
+                    <span aria-hidden="true">
+                      {formatScorePoints(scorePoints.earned)}
+                      <span className={prepText}>
+                        {' / '}
+                        {formatScorePoints(scorePoints.possible)}
+                      </span>
+                    </span>
+                  </p>
+                  <p
+                    className={`mt-2 text-xl font-bold tabular-nums ${prepText}`}
+                  >
+                    {scorePercent}%
+                  </p>
+                </>
+              ) : (
+                <p className={`text-5xl font-black sm:text-6xl ${headingText}`}>
+                  {scorePercent}%
+                </p>
+              )}
               {/* Per-question tally counts only fully-correct answers, so
                   it can lag the percentage on quizzes that award partial
                   credit (Matching/Ordering with `allowPartialCredit`) or
@@ -6694,7 +6727,8 @@ export const PublishedScoreReview: React.FC<{
                   written-response questions where "fully correct" is a
                   category error. Hide the line on essay-only quizzes; on
                   mixed quizzes it counts only the auto-graded subset. */}
-              {autoGradedCount > 0 &&
+              {!scorePoints &&
+                autoGradedCount > 0 &&
                 (picked ? !!picked.answers : hasVerdicts) && (
                   <p className={`mt-2 text-sm ${subtleText}`}>
                     {t('quizStudent.results.fullyCorrect', {

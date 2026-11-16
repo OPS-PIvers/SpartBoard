@@ -2411,6 +2411,7 @@
       "title": "Tes résultats",
       "attempt": "Tentative",
       "fullyCorrect": "{{correct}} sur {{total}} entièrement correctes",
+      "pointsOf": "{{earned}} sur {{possible}} points",
       "writtenPending": "Ta réponse écrite est encore en cours de correction. Reviens bientôt.",
       "yourAnswers": "Tes réponses",
       "otherQuestions": "Autres questions",

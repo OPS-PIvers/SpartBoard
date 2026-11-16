@@ -150,6 +150,11 @@ describe('handleScoreQuizOnSubmit', () => {
       handleScoreQuizOnSubmit(makeDb(docs), 'stu', { sessionId: 's1' })
     ).resolves.toEqual({ score: 50 });
     expect(docs[RESPONSE].score).toBe(50);
+    expect(docs[RESPONSE].scorePoints).toEqual({
+      earned: 1,
+      possible: 2,
+      attempt: 0,
+    });
     expect(
       (docs[RESPONSE].answers as { isCorrect: boolean }[]).map(
         (a) => a.isCorrect
