@@ -711,7 +711,7 @@ interface FcCard {
   definitionImageUrl?: string;
 }
 
-// Mirrors isFlashcardImageUrl in utils/flashcardImages.ts.
+// Mirrors isFlashcardImageUrl in utils/flashcardImageUrls.ts.
 const isCardImageUrl = (url: unknown): url is string =>
   typeof url === 'string' &&
   /^https:\/\/lh3\.googleusercontent\.com\/d\/[\w-]{10,200}$/u.test(url);
