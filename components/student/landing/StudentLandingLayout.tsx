@@ -135,8 +135,9 @@ export const StudentLandingLayout: React.FC<StudentLandingLayoutProps> = ({
     };
   }, [sheetOpen]);
 
-  const classList = (
+  const classList = (tone: 'light' | 'dark') => (
     <LandingClassList
+      tone={tone}
       classes={classes}
       partition={partition}
       inSessionIds={inSessionIds}
@@ -183,8 +184,8 @@ export const StudentLandingLayout: React.FC<StudentLandingLayoutProps> = ({
 
       <div className="relative flex min-h-0 flex-1">
         <StudentBrandBackdrop fixed={false} />
-        <aside className="relative hidden w-64 shrink-0 overflow-y-auto border-r border-slate-200 bg-white/60 p-3 pb-6 min-[896px]:block">
-          {classList}
+        <aside className="relative hidden w-64 shrink-0 overflow-y-auto bg-brand-blue-primary p-3 pb-6 min-[896px]:block">
+          {classList('dark')}
         </aside>
         <main
           ref={mainRef}
@@ -272,7 +273,7 @@ export const StudentLandingLayout: React.FC<StudentLandingLayoutProps> = ({
               aria-hidden="true"
               className="mx-auto mb-2 h-1 w-10 rounded-full bg-slate-300"
             />
-            {classList}
+            {classList('light')}
             <div className="mt-3 flex items-center justify-between gap-3 border-t border-slate-100 px-2.5 pt-3 text-sm text-slate-600">
               <span className="truncate">{firstName ?? ''}</span>
               <SignOutButton onClick={onSignOut} tone="light" />
