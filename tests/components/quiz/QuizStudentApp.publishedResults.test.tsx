@@ -638,9 +638,7 @@ describe('QuizStudentApp — published points', () => {
 
     render(<QuizStudentApp />);
 
-    expect(
-      await screen.findByLabelText('18 out of 24 points')
-    ).toBeInTheDocument();
+    expect(await screen.findByText('18 out of 24 points')).toBeInTheDocument();
     expect(screen.getByText('75%')).toBeInTheDocument();
   });
 
@@ -654,7 +652,7 @@ describe('QuizStudentApp — published points', () => {
     render(<QuizStudentApp />);
 
     expect(await screen.findByText('80%')).toBeInTheDocument();
-    expect(screen.queryByLabelText(/out of 24 points/)).toBeNull();
+    expect(screen.queryByText(/out of 24 points/)).toBeNull();
   });
 });
 

@@ -1273,10 +1273,7 @@ export function gradeResponseForPublish(
   return {
     score,
     answers: gradedAnswers,
-    points: {
-      earned: Math.round(pointsEarned * 100) / 100,
-      possible: Math.round(pointsMax * 100) / 100,
-    },
+    points: { earned: pointsEarned, possible: pointsMax },
   };
 }
 

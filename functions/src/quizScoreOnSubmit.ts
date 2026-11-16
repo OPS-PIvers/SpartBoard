@@ -174,10 +174,7 @@ export function scoreAttempt(
   return {
     score: max === 0 ? 0 : Math.round((earned / max) * 100),
     answers: graded,
-    points: {
-      earned: Math.round(earned * 100) / 100,
-      possible: Math.round(max * 100) / 100,
-    },
+    points: { earned, possible: max },
   };
 }
 
