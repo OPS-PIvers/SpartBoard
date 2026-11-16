@@ -112,6 +112,10 @@ describe('handleGetMyQuizAttempts', () => {
     const { attempts } = await call(seed());
     expect(attempts.map((a) => a.n)).toEqual([1, 2]);
     expect(attempts.map((a) => a.score)).toEqual([50, 100]);
+    expect(attempts.map((a) => a.points)).toEqual([
+      { earned: 1, possible: 2 },
+      { earned: 2, possible: 2 },
+    ]);
     expect(attempts[0].answers).toEqual([
       { questionId: 'q1', answer: 'B', isCorrect: false },
       { questionId: 'q2', answer: 'C', isCorrect: true },

@@ -617,3 +617,34 @@ describe('sameQuizSessionPhase', () => {
     expect(sameQuizSessionPhase(mustPhase(SESSIONS.lobby), null)).toBe(false);
   });
 });
+
+describe('podium is a Review game feature only', () => {
+  it('advances a Quiz-kind teacher-paced session without a podium pause', () => {
+    const quiz = fields({
+      widgetKind: 'quiz',
+      showPodiumBetweenQuestions: true,
+    });
+    const write = quizSessionWrite(quiz, { type: 'advance' }, NOW);
+    expect(write?.patch.questionPhase).not.toBe('reviewing');
+    expect(write?.patch.currentQuestionIndex).toBe(1);
+  });
+
+  it('never arms a podium on a Quiz-kind auto session', () => {
+    const quiz = fields({
+      widgetKind: 'quiz',
+      sessionMode: 'auto',
+      showPodiumBetweenQuestions: true,
+    });
+    const write = quizSessionWrite(quiz, { type: 'everyoneAnswered' }, NOW);
+    expect(write?.patch.questionPhase).toBeUndefined();
+  });
+
+  it('keeps the podium on a Review session', () => {
+    const review = fields({
+      widgetKind: 'review',
+      showPodiumBetweenQuestions: true,
+    });
+    const write = quizSessionWrite(review, { type: 'advance' }, NOW);
+    expect(write?.patch.questionPhase).toBe('reviewing');
+  });
+});

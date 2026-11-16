@@ -67,6 +67,7 @@ const attemptsLoader: MyQuizAttemptsLoader = () =>
         n: 1,
         submittedAt: T,
         score: 40,
+        points: { earned: 2, possible: 5 },
         answers: answersFrom({
           a1: '4/12',
           a2: '2/3',
@@ -79,6 +80,7 @@ const attemptsLoader: MyQuizAttemptsLoader = () =>
         n: 2,
         submittedAt: T + 86_400_000,
         score: 60,
+        points: { earned: 3, possible: 5 },
         answers: answersFrom({
           a1: '7/8',
           a2: '3/5',

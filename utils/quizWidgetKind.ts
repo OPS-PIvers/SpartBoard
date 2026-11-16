@@ -17,3 +17,10 @@ export function getAssignmentWidgetKind(doc: {
     ? 'review'
     : 'quiz';
 }
+
+/** Speed, streak, sounds, leaderboard and podium belong to Review games only. */
+export function isReviewGame(
+  doc: Parameters<typeof getAssignmentWidgetKind>[0]
+) {
+  return getAssignmentWidgetKind(doc) === 'review';
+}

@@ -323,19 +323,6 @@ export const FlashcardSetEditorModal: React.FC<
     </span>
   );
 
-  const footerExtras = aiEnabled ? (
-    <button
-      type="button"
-      onClick={() => ai.setOpen(true)}
-      {...tourTypeAttr('flashcards-editor.footer-draft-ai', 'flashcards')}
-      className="h-[36px] px-3 bg-white border border-slate-200 hover:border-brand-blue-light text-slate-700 rounded-xl font-bold text-xs uppercase tracking-wider shadow-xs transition-colors flex items-center gap-2"
-      title="Generate with AI"
-    >
-      <Wand2 className="w-4 h-4" />
-      Draft with AI
-    </button>
-  ) : null;
-
   const banner = (error ?? notice) && (
     <div
       role={error ? 'alert' : 'status'}
@@ -570,7 +557,6 @@ export const FlashcardSetEditorModal: React.FC<
       autosave={{ draftToken, resetKey: set.id, enabled: checkingCount === 0 }}
       incompleteNotice={hasContent ? incompleteNotice : null}
       onClose={() => void finishAndClose()}
-      footerExtras={footerExtras}
       bodyClassName="p-0! overflow-hidden! relative flex flex-col"
       headerAccent={LIBRARY_HEADER_ACCENTS.flashcards}
     >

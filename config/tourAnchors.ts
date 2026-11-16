@@ -2060,11 +2060,6 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
-  'quiz-editor.footer-draft-ai': {
-    label: 'Draft with AI (modal footer) in the Quiz editor',
-    perWidgetType: true,
-    panel: true,
-  },
   'quiz-editor.bank-targets-add': {
     label: 'Bank targets: Add in the Quiz editor',
     perWidgetType: true,
@@ -11490,11 +11485,6 @@ export const TOUR_ANCHORS = {
   },
   'flashcards-editor.draft-ai': {
     label: 'Draft with AI (list header) in the Flashcards set editor',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards-editor.footer-draft-ai': {
-    label: 'Draft with AI (footer) in the Flashcards set editor',
     perWidgetType: true,
     panel: true,
   },

@@ -10,7 +10,7 @@
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
-import { AlertTriangle, Plus, Wand2, Target } from 'lucide-react';
+import { AlertTriangle, Plus, Target } from 'lucide-react';
 import {
   LibraryFolder,
   QUESTION_BANK_SIZE_WARN,
@@ -312,7 +312,6 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
     saving,
     setSaving,
     setError,
-    setShowAiPrompt,
     originalTitle,
     originalQuestions,
     originalStimuli,
@@ -544,22 +543,6 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
       ) : null,
     [folders, folderId, onFolderChange]
   );
-  const footerExtras = useMemo(
-    () =>
-      aiEnabled ? (
-        <button
-          onClick={() => setShowAiPrompt(true)}
-          {...tourTypeAttr('quiz-editor.footer-draft-ai', 'quiz')}
-          className="h-[36px] px-3 bg-white border border-slate-200 hover:border-brand-blue-light text-slate-700 rounded-xl font-bold text-xs uppercase tracking-wider shadow-xs transition-colors flex items-center gap-2"
-          title="Generate with AI"
-        >
-          <Wand2 className="w-4 h-4" />
-          Draft with AI
-        </button>
-      ) : null,
-    [aiEnabled, setShowAiPrompt]
-  );
-
   const bankTargetsStrip = isBank ? (
     <div className="flex flex-col gap-1.5">
       <div className="flex flex-wrap items-center gap-2">
@@ -623,7 +606,6 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
       onClose={onClose}
       saveLabel={isBank ? 'Save Bank' : 'Save Quiz'}
       saveAnchor={tourTypeAttr('editor.save', 'quiz')}
-      footerExtras={footerExtras}
       contextPane={
         <div className="flex flex-col h-full">
           {/* Questions / Stimuli / Languages segmented tab toggle */}
