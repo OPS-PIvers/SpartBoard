@@ -238,6 +238,8 @@ export function pacedScorePoster(opts: {
     let r: PostScoreResult = { ok: false, status: 0, isRedirect: false };
     for (let attempt = 0; ; attempt++) {
       await slot();
+      // Past the deadline, report a retryable failure so the callable returns in time.
+      if (now() > opts.deadline) return r;
       r = await post(o);
       const delay = SCORE_RETRY_DELAYS_MS[attempt];
       if (

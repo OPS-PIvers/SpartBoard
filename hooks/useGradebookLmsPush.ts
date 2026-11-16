@@ -22,6 +22,7 @@ import {
   ltiPushErrorMessage,
   type LtiPushGradesData,
   type LtiPushGradesRequest,
+  LTI_PUSH_GRADES_CALL_OPTS,
 } from '@/utils/ltiGradePush';
 import { GRADEBOOK_SESSION_COLLECTIONS } from '@/utils/gradebook/gradebookCore';
 import {
@@ -172,7 +173,8 @@ export function useGradebookLmsPush(
       try {
         const call = httpsCallable<LtiPushGradesRequest, LtiPushGradesData>(
           functions,
-          'ltiPushGradesForAssignmentV1'
+          'ltiPushGradesForAssignmentV1',
+          LTI_PUSH_GRADES_CALL_OPTS
         );
         const { data } = await call({
           sessionId: column.sessionId,

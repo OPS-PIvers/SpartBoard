@@ -67,6 +67,7 @@ import {
   ltiPushErrorMessage,
   type LtiPushGradesRequest,
   type LtiPushGradesData,
+  LTI_PUSH_GRADES_CALL_OPTS,
 } from '@/utils/ltiGradePush';
 import { functions } from '@/config/firebase';
 import { tourFieldAttr } from '@/config/tourAnchors';
@@ -633,7 +634,8 @@ export const Results: React.FC<ResultsProps> = ({
     try {
       const callable = httpsCallable<LtiPushGradesRequest, LtiPushGradesData>(
         functions,
-        'ltiPushGradesForAssignmentV1'
+        'ltiPushGradesForAssignmentV1',
+        LTI_PUSH_GRADES_CALL_OPTS
       );
       const { data } = await callable({
         sessionId: session.id,

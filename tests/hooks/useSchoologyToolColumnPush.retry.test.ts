@@ -119,4 +119,65 @@ describe('useSchoologyToolColumnPush retry', () => {
       grades
     );
   });
+
+  it('sends the current score on Retry and offers no Retry for a refusal', async () => {
+    pushMock.mockResolvedValueOnce({
+      results: [
+        { pseudonymUid: 'a', ok: false, status: 404 },
+        { pseudonymUid: 'b', ok: false, status: 503 },
+        { pseudonymUid: 'c', ok: true },
+      ],
+      pushed: 1,
+      total: 3,
+      sections: [],
+    });
+    let current = grades;
+    const onDone = vi.fn();
+    const { result } = renderHook(() =>
+      useSchoologyToolColumnPush({
+        sessionId: 'sess-2',
+        kind: 'quiz',
+        title: 'Quiz',
+        buildPayload: () => Promise.resolve({ maxPoints: 5, grades: current }),
+        onDone,
+      })
+    );
+    await act(() => result.current.start());
+    expect(onDone.mock.calls[0][0]).toContain('2 not sent.');
+    current = [
+      { pseudonymUid: 'a', pointsEarned: 5 },
+      { pseudonymUid: 'b', pointsEarned: 1 },
+      { pseudonymUid: 'c', pointsEarned: 3 },
+    ];
+    pushMock.mockResolvedValueOnce({
+      results: [{ pseudonymUid: 'b', ok: true }],
+      pushed: 1,
+      total: 1,
+      sections: [],
+    });
+    await act(async () => {
+      (onDone.mock.calls[0][2] as () => void)();
+      await vi.waitFor(() => expect(pushMock).toHaveBeenCalledTimes(2));
+    });
+    expect((pushMock.mock.calls[1][1] as { grades: unknown }).grades).toEqual([
+      { pseudonymUid: 'b', pointsEarned: 1 },
+    ]);
+  });
+
+  it('offers no Retry when every failure would fail again', async () => {
+    pushMock.mockResolvedValueOnce({
+      results: grades.map((g) => ({
+        pseudonymUid: g.pseudonymUid,
+        ok: false,
+        reason: 'not a teacher of the Schoology section',
+      })),
+      pushed: 0,
+      total: 3,
+      sections: [],
+    });
+    const onDone = vi.fn();
+    const { result } = renderPush(onDone);
+    await act(() => result.current.start());
+    expect(onDone.mock.calls[0][2]).toBeUndefined();
+  });
 });

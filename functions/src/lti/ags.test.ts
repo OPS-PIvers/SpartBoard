@@ -388,8 +388,23 @@ describe('pacedScorePoster', () => {
     expect(post).toHaveBeenCalledTimes(SCORE_RETRY_DELAYS_MS.length + 1);
 
     const late = vi.fn().mockResolvedValue(res(503));
-    await pacedScorePoster({ deadline: 1000, post: late, ...c })(opts);
+    await pacedScorePoster({ deadline: c.now() + 1000, post: late, ...c })(
+      opts
+    );
     expect(late).toHaveBeenCalledTimes(1);
+
+    const queued = vi.fn().mockResolvedValue(res(200));
+    const send = pacedScorePoster({
+      deadline: c.now() + 100,
+      post: queued,
+      spacingMs: 150,
+      ...c,
+    });
+    const first = await send(opts);
+    const second = await send(opts);
+    expect(first.ok).toBe(true);
+    expect(second).toEqual(res(0));
+    expect(queued).toHaveBeenCalledTimes(1);
   });
 
   it('spaces concurrent posts apart', async () => {
