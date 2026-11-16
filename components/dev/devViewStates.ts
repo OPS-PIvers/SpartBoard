@@ -104,6 +104,9 @@ export const STUDENT_QUIZ_STATES = [
   'sq-picture-only-mc',
   'sq-picture-only-matching',
   'sq-picture-only-ordering',
+  'sq-submitted',
+  'sq-submitted-live',
+  'sq-results',
 ] as const;
 export type StudentQuizStateKey = (typeof STUDENT_QUIZ_STATES)[number];
 

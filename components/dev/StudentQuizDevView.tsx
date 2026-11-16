@@ -7,6 +7,8 @@ import React, { useMemo } from 'react';
 import {
   ActiveQuiz,
   PublishedScoreReview,
+  QuizSubmittedWaitScreen,
+  ResultsScreen,
 } from '@/components/quiz/QuizStudentApp';
 import {
   MyQuizAttemptsLoaderContext,
@@ -183,6 +185,32 @@ export const StudentQuizDevView: React.FC<{ state: StudentQuizStateKey }> = ({
           pin=""
         />
       </MyQuizAttemptsLoaderContext.Provider>
+    );
+  }
+  if (state === 'sq-submitted' || state === 'sq-submitted-live') {
+    const { session: s, response: r } = attemptsFixture(
+      state === 'sq-submitted-live'
+    );
+    return (
+      <QuizSubmittedWaitScreen
+        session={{ ...s, scoreVisibility: undefined }}
+        myResponse={r}
+        pin={state === 'sq-submitted-live' ? '1004' : ''}
+        answeredCount={5}
+        totalQuestions={5}
+      />
+    );
+  }
+  if (state === 'sq-results') {
+    const { session: s, response: r } = attemptsFixture(false);
+    return (
+      <ResultsScreen
+        session={{ ...s, scoreVisibility: undefined }}
+        myResponse={r}
+        answeredCount={5}
+        totalQuestions={5}
+        pin=""
+      />
     );
   }
   if (state === 'sq-stop-wait' || state === 'sq-stop-open') {

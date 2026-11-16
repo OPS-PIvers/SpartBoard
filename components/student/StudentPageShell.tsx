@@ -1,6 +1,7 @@
 import React from 'react';
 import { ArrowLeft, GraduationCap, LogOut } from 'lucide-react';
 import { APP_NAME } from '@/config/constants';
+import { StudentBrandBackdrop } from './StudentBrandBackdrop';
 
 /**
  * The chrome every GIS-authenticated student page wears: brand header, page
@@ -20,14 +21,10 @@ export const StudentPageShell: React.FC<PageShellProps> = ({
   children,
 }) => (
   <div className="relative h-screen h-dvh w-screen overflow-y-auto overflow-x-hidden bg-slate-50 font-sans">
-    <div className="pointer-events-none fixed inset-0 overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] bg-size-[16px_16px] opacity-40" />
-      <div className="absolute left-[-15%] top-[-10%] h-[500px] w-[500px] rounded-full bg-brand-blue-primary/15 blur-[120px]" />
-      <div className="absolute bottom-[-15%] right-[-10%] h-[500px] w-[500px] rounded-full bg-brand-red-primary/10 blur-[120px]" />
-    </div>
+    <StudentBrandBackdrop />
 
     <div className="relative z-10 flex min-h-full flex-col">
-      <header className="relative z-30 flex h-[72px] shrink-0 items-center justify-between gap-4 bg-linear-to-r from-brand-blue-primary to-brand-blue-dark px-4 text-white shadow-md shadow-brand-blue-primary/20 sm:h-[80px] sm:px-8">
+      <header className="relative z-30 flex h-[72px] shrink-0 items-center justify-between gap-4 bg-brand-blue-dark px-4 text-white sm:h-[80px] sm:px-8">
         <div className="flex min-w-0 items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15 shadow-xs ring-1 ring-white/20">
             <GraduationCap className="h-5 w-5 text-white" strokeWidth={2.5} />
@@ -44,7 +41,7 @@ export const StudentPageShell: React.FC<PageShellProps> = ({
               ? 'Done, back to my assignments'
               : 'Done, sign out'
           }
-          className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white shadow-xs transition hover:border-white/30 hover:bg-white/20 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-blue-primary"
+          className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white shadow-xs transition hover:border-white/30 hover:bg-white/20 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-blue-dark"
         >
           {doneAction === 'back' ? (
             <ArrowLeft className="h-4 w-4" strokeWidth={2.25} />

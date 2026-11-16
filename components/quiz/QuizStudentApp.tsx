@@ -349,6 +349,7 @@ import {
 } from '@/utils/quizCompleteness';
 import { useStudentAssignmentPointer } from '@/hooks/useStudentAssignmentPointer';
 import { AssignmentExcludedNotice } from '@/components/student/AssignmentExcludedNotice';
+import { StudentBrandBackdrop } from '@/components/student/StudentBrandBackdrop';
 import { resolveEffectiveWindow } from '@/utils/assignmentWindow';
 import { effectivePageProtections } from '@/utils/pageProtections';
 import { PageProtectionGuards } from '@/components/common/PageProtectionGuards';
@@ -6138,7 +6139,7 @@ const ReviewPhase: React.FC<{
   );
 };
 
-const ResultsScreen: React.FC<{
+export const ResultsScreen: React.FC<{
   session: QuizSession;
   myResponse: ReturnType<typeof useQuizSessionStudent>['myResponse'];
   answeredCount: number;
@@ -6189,35 +6190,50 @@ const ResultsScreen: React.FC<{
     );
   }
 
+  const light = isBrandSubmitScreen(session, pin);
   return (
-    <div className="h-screen h-dvh overflow-y-auto bg-slate-900">
-      <div className="min-h-full flex flex-col items-center justify-center p-6 text-center">
-        {isReviewGame(session) && (
+    <div
+      className={`relative h-screen h-dvh overflow-y-auto ${light ? 'bg-slate-50' : 'bg-slate-900'}`}
+    >
+      {light && <StudentBrandBackdrop fixed={false} />}
+      <div className="relative min-h-full flex flex-col items-center justify-center p-6 text-center">
+        {isReviewGame(session) ? (
           <Trophy
             className="w-16 h-16 text-amber-400 mb-6"
             aria-hidden="true"
           />
+        ) : (
+          light && <SubmittedMark light />
         )}
-        <h1 className="text-3xl font-black text-white mb-2">
+        <h1
+          className={`text-3xl font-black mb-2 ${light ? 'text-slate-800' : 'text-white'}`}
+        >
           {t('quizStudent.results.complete')}
         </h1>
-        <p className="text-slate-400 text-sm mb-8">
+        <p
+          className={`text-sm mb-8 ${light ? 'text-slate-500' : 'text-slate-400'}`}
+        >
           {pin ? (
             <>
               {t('quizStudent.results.greatJobPin')}{' '}
-              <span className="font-mono font-bold text-white">{pin}</span>!
+              <span
+                className={`font-mono font-bold ${light ? 'text-slate-800' : 'text-white'}`}
+              >
+                {pin}
+              </span>
+              !
             </>
           ) : (
             t('quizStudent.results.greatJob')
           )}
         </p>
 
-        <div className="mb-8 p-6 bg-slate-800 rounded-2xl">
-          <p className="text-5xl font-black text-white mb-2">{answeredCount}</p>
-          <p className="text-slate-400 text-sm">
-            {t('quizStudent.results.answeredOf', { total: totalQuestions })}
-          </p>
-        </div>
+        <AnsweredCountCard
+          light={light}
+          answeredCount={answeredCount}
+          total={totalQuestions}
+          className="mb-8"
+        />
 
         <p className="text-slate-500 text-sm max-w-xs">
           {t('quizStudent.results.submitted')}
@@ -7565,68 +7581,135 @@ export const QuizSubmittedWaitScreen: React.FC<{
     effectiveTabWarningThreshold
   );
   const scoreSuffix = getScoreSuffix(session);
+  const light = isBrandSubmitScreen(session, pin);
 
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-center">
-      <CheckCircle2 className="w-16 h-16 text-emerald-400 mb-6" />
-      <h1 className="text-3xl font-black text-white mb-2">
-        {t('quizStudent.submitted.title')}
-      </h1>
-      <p className="text-slate-400 text-sm mb-6">
-        {pin ? (
-          <>
-            {t('quizStudent.submitted.greatWorkPin')}{' '}
-            <span className="font-mono font-bold text-white">{pin}</span>.
-          </>
-        ) : (
-          t('quizStudent.submitted.greatWork')
-        )}
-      </p>
-
-      <div className="mb-6 p-5 bg-slate-800 rounded-2xl">
-        <p className="text-4xl font-black text-white mb-2">{answeredCount}</p>
-        <p className="text-slate-400 text-sm">
-          {t('quizStudent.results.answeredOf', {
-            total: totalQuestions ?? session.totalQuestions,
-          })}
+    <div
+      className={`relative min-h-screen flex flex-col items-center justify-center p-6 text-center ${
+        light ? 'bg-slate-50' : 'bg-slate-900'
+      }`}
+    >
+      {light && <StudentBrandBackdrop fixed={false} />}
+      <div className="relative flex flex-col items-center">
+        <SubmittedMark light={light} />
+        <h1
+          className={`text-3xl font-black mb-2 ${light ? 'text-slate-800' : 'text-white'}`}
+        >
+          {t('quizStudent.submitted.title')}
+        </h1>
+        <p
+          className={`text-sm mb-6 ${light ? 'text-slate-500' : 'text-slate-400'}`}
+        >
+          {pin ? (
+            <>
+              {t('quizStudent.submitted.greatWorkPin')}{' '}
+              <span
+                className={`font-mono font-bold ${light ? 'text-slate-800' : 'text-white'}`}
+              >
+                {pin}
+              </span>
+              .
+            </>
+          ) : (
+            t('quizStudent.submitted.greatWork')
+          )}
         </p>
-      </div>
 
-      {tabSwitchAutoSubmitted && (
-        <div className="max-w-sm mb-6 p-3 bg-amber-500/20 border border-amber-500/40 rounded-xl text-amber-200 text-sm">
-          {t('quizStudent.submitted.autoSubmitted')}
-        </div>
-      )}
+        <AnsweredCountCard
+          light={light}
+          answeredCount={answeredCount}
+          total={totalQuestions ?? session.totalQuestions}
+          className="mb-6"
+        />
 
-      {isGamificationActive(session) &&
-        isReviewGame(session) &&
-        session.liveLeaderboard && (
-          <div className="mb-6 w-full flex justify-center">
-            <StudentLeaderboard
-              entries={session.liveLeaderboard}
-              myPin={pin}
-              myStudentUid={myResponse.studentUid}
-              scoreSuffix={scoreSuffix}
-            />
+        {tabSwitchAutoSubmitted && (
+          <div
+            className={`max-w-sm mb-6 p-3 rounded-xl text-sm ${
+              light
+                ? 'bg-amber-50 border border-amber-200 text-amber-800'
+                : 'bg-amber-500/20 border border-amber-500/40 text-amber-200'
+            }`}
+          >
+            {t('quizStudent.submitted.autoSubmitted')}
           </div>
         )}
 
-      <div className="flex items-center gap-2 text-slate-500 text-sm">
-        <Loader2 className="w-4 h-4 animate-spin" />
-        {t('quizStudent.submitted.waitingFinal')}
-      </div>
+        {isGamificationActive(session) &&
+          isReviewGame(session) &&
+          session.liveLeaderboard && (
+            <div className="mb-6 w-full flex justify-center">
+              <StudentLeaderboard
+                entries={session.liveLeaderboard}
+                myPin={pin}
+                myStudentUid={myResponse.studentUid}
+                scoreSuffix={scoreSuffix}
+              />
+            </div>
+          )}
 
-      {/*
+        <div className="flex items-center gap-2 text-sm text-slate-500">
+          <Loader2
+            className={`w-4 h-4 animate-spin ${light ? 'text-brand-blue-primary' : ''}`}
+          />
+          {t('quizStudent.submitted.waitingFinal')}
+        </div>
+
+        {/*
         Pseudonym students (no PIN) reached this from /my-assignments and
         would otherwise be stranded waiting for the teacher to end the
         quiz. PIN-based students joined by code and have nowhere to go
         back to — skip the CTA for them.
       */}
-      {!pin && !hideReturnButton && (
-        <div className="mt-6">
-          <ReturnToAssignmentsButton variant="standalone" />
-        </div>
-      )}
+        {!pin && !hideReturnButton && (
+          <div className="mt-6">
+            <ReturnToAssignmentsButton variant="standalone" />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Students who came from My Assignments (no PIN) or a self-paced quiz get the brand page; live PIN joins stay dark.
+const isBrandSubmitScreen = (session: QuizSession, pin: string): boolean =>
+  !pin || session.sessionMode === 'student';
+
+const SubmittedMark: React.FC<{ light: boolean }> = ({ light }) =>
+  light ? (
+    <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-blue-primary shadow-lg shadow-brand-blue-primary/20">
+      <Check
+        className="h-8 w-8 text-white"
+        strokeWidth={3}
+        aria-hidden="true"
+      />
+    </div>
+  ) : (
+    <CheckCircle2 className="w-16 h-16 text-emerald-400 mb-6" />
+  );
+
+const AnsweredCountCard: React.FC<{
+  light: boolean;
+  answeredCount: number;
+  total: number;
+  className?: string;
+}> = ({ light, answeredCount, total, className = '' }) => {
+  const { t } = useTranslation();
+  return (
+    <div
+      className={`p-5 rounded-2xl ${
+        light
+          ? 'min-w-[200px] bg-white border border-slate-200 shadow-xs'
+          : 'bg-slate-800'
+      } ${className}`}
+    >
+      <p
+        className={`text-4xl font-black mb-2 tabular-nums ${light ? 'text-brand-blue-primary' : 'text-white'}`}
+      >
+        {answeredCount}
+      </p>
+      <p className={`text-sm ${light ? 'text-slate-500' : 'text-slate-400'}`}>
+        {t('quizStudent.results.answeredOf', { total })}
+      </p>
     </div>
   );
 };
