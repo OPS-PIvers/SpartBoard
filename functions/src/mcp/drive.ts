@@ -213,6 +213,68 @@ export async function replaceDriveJson(
   }
 }
 
+/** appProperties mark the client checks before releasing a Guided Learning slide (utils/driveAppFolder.ts). */
+const GL_SLIDE_APP_PROPERTIES = { spartboardGlSlide: '1' };
+
+/** Saves a slide image to SpartBoard/Assets/HotspotImages in the teacher's Drive, viewable by link; returns its id. */
+export async function uploadSlideImage(
+  token: string,
+  bytes: Buffer,
+  mimeType: string,
+  fileName: string
+): Promise<string> {
+  const root = await findOrCreateFolder(token, DRIVE_APP_FOLDER);
+  const assets = await findOrCreateFolder(token, 'Assets', root);
+  const folderId = await findOrCreateFolder(token, 'HotspotImages', assets);
+  const boundary = `spartboard-${Date.now().toString(36)}`;
+  const metadata = JSON.stringify({
+    name: fileName,
+    parents: [folderId],
+    appProperties: GL_SLIDE_APP_PROPERTIES,
+  });
+  const body = Buffer.concat([
+    Buffer.from(
+      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n--${boundary}\r\nContent-Type: ${mimeType}\r\n\r\n`
+    ),
+    bytes,
+    Buffer.from(`\r\n--${boundary}--`),
+  ]);
+  const created = await driveFetch(
+    token,
+    `${DRIVE_UPLOAD_API}/files?uploadType=multipart&fields=id`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
+      body: new Uint8Array(body),
+    }
+  );
+  if (!created.ok) throw new Error(`drive slide upload ${created.status}`);
+  const { id } = (await created.json()) as { id: string };
+  const shared = await driveFetch(
+    token,
+    `${DRIVE_API}/files/${encodeURIComponent(id)}/permissions`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: 'reader', type: 'anyone' }),
+    }
+  );
+  if (!shared.ok) {
+    await trashDriveFile(token, id);
+    throw new Error(`drive slide share ${shared.status}`);
+  }
+  return id;
+}
+
+/** Best-effort move to the teacher's Drive trash, for an upload whose save failed. */
+export async function trashDriveFile(token: string, id: string): Promise<void> {
+  await driveFetch(token, `${DRIVE_API}/files/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ trashed: true }),
+  }).catch(() => undefined);
+}
+
 /** Raw bytes and type of a Drive file, for slide images. */
 export async function readDriveBytes(
   token: string,
