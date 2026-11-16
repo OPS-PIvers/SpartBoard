@@ -170,14 +170,21 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
       : modifications?.hasQuestionTimeLimits
         ? 'Standard'
         : undefined;
+  // Without a time limit the time rule does nothing, so it drops out of the summary and overrides.
+  const withTime = (list: ModificationGroup[]) =>
+    timeLimitLabel
+      ? list
+      : list.map((g) => ({ ...g, time: 'standard' as const }));
   const applyGroups = (next: ModificationGroup[]) => {
     setGroups(next);
     if (!modifications) return;
+    // Every roster, not just the checked ones, so re-checking a class keeps its students' rules.
+    const allRows = modificationRows({ rosters: usable });
     modifications.onTargetingChange({
       ...modifications.targeting,
       overridesByKey: overridesFromGroups(
-        next,
-        groupRows,
+        withTime(next),
+        allRows,
         modifications.quizContext.questions
       ),
     });
@@ -262,7 +269,7 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
     stepIds.splice(stepIds.indexOf('classes') + 1, 0, 'modifications');
     bodies.modifications = {
       value: formatModificationGroupsValue(
-        groups,
+        withTime(groups),
         new Set(groupRows.map((row) => row.key)),
         languageNativeLabel
       ),

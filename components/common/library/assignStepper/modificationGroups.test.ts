@@ -91,6 +91,21 @@ describe('overridesFromGroups', () => {
     expect(out.c).toBeUndefined();
   });
 
+  it('never shortens standing extra time', () => {
+    const standing = [
+      row('s', 'c1', { defaultOverride: { timeMultiplier: 2 } }),
+      row('u', 'c1', { defaultOverride: { timeMultiplier: 'unlimited' } }),
+    ];
+    const out = overridesFromGroups(
+      [group({ studentKeys: ['s', 'u', 'a'], time: 1.5 })],
+      [...rows, ...standing],
+      QUESTIONS
+    );
+    expect(out.s.timeMultiplier).toBe(2);
+    expect(out.u.timeMultiplier).toBe('unlimited');
+    expect(out.a.timeMultiplier).toBe(1.5);
+  });
+
   it('ignores students no longer in the checked classes', () => {
     expect(
       overridesFromGroups(

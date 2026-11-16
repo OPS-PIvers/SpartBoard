@@ -69,6 +69,15 @@ export function hiddenOptionIdsForRule(
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
+const TIME_RANK = { 1.5: 1, 2: 2, unlimited: 3 } as const;
+
+// A group never shortens a standing accommodation's extra time.
+const moreTime = (
+  standing: StudentOverride['timeMultiplier'],
+  rule: Exclude<TimeRule, 'standard'>
+): Exclude<TimeRule, 'standard'> =>
+  standing && TIME_RANK[standing] > TIME_RANK[rule] ? standing : rule;
+
 /** One group's rules on top of a student's standing accommodation. */
 export function overrideForGroup(
   group: ModificationGroup,
@@ -76,7 +85,8 @@ export function overrideForGroup(
   questions: OverrideEditorQuestion[]
 ): StudentOverride {
   const next: StudentOverride = { ...(standing ?? {}) };
-  if (group.time !== 'standard') next.timeMultiplier = group.time;
+  if (group.time !== 'standard')
+    next.timeMultiplier = moreTime(standing?.timeMultiplier, group.time);
   const hidden = hiddenOptionIdsForRule(questions, group.answerChoices);
   if (hidden) next.hiddenOptionIdsByQuestion = hidden;
   if (group.readAloud) next.readAloud = true;
