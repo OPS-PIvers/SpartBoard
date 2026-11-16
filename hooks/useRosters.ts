@@ -694,8 +694,17 @@ export const useRosters = (user: User | null) => {
           await driveService.updateFileContent(existingFileId, blob);
           return existingFileId;
         } catch (err) {
-          // On dev, a roster synced from the live site gets a dev copy and the caller repoints to it.
+          // On dev, a roster synced from the live site gets a dev copy (reused after a re-sync) and the caller repoints to it.
           if (!(err instanceof DevProdDriveWriteError)) throw err;
+          const folderId =
+            await driveService.getFolderPath(ROSTER_DRIVE_FOLDER);
+          const [devCopy] = await driveService.listFiles(
+            `name = '${rosterId}.json' and '${folderId}' in parents and trashed = false`
+          );
+          if (devCopy) {
+            await driveService.updateFileContent(devCopy.id, blob);
+            return devCopy.id;
+          }
         }
       }
       const file = await driveService.uploadFile(
