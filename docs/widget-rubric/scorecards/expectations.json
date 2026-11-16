@@ -31,7 +31,7 @@
       "note": "At 150x100 the values stay readable but all three rows are kept, so the third row is clipped at the bottom and the 'LEVEL' badge text shrinks to about 2 px.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:20:53.019Z",
-      "stale": false
+      "stale": true
     },
     "S2": {
       "score": 2,
@@ -72,7 +72,7 @@
       "note": "The same three stacked rows appear at every aspect; the wide shape fits well, but at 225x900 each row is a tall card with the text floating in the middle of empty space.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:20:53.019Z",
-      "stale": false
+      "stale": true
     },
     "S4": {
       "score": 2,
@@ -285,7 +285,7 @@
       "note": "Clean and colorful, but every row is boxed in a colored border inside a gray frame and the 'LEVEL' badge text is tiny.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:20:53.019Z",
-      "stale": false
+      "stale": true
     },
     "V2": {
       "score": 3,
@@ -322,7 +322,7 @@
       "note": "The large bold colored values are clearly primary, with small gray category labels and icons stepping down beneath them.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:20:53.019Z",
-      "stale": false
+      "stale": true
     },
     "V4": {
       "score": 2,

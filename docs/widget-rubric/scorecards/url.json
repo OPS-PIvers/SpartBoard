@@ -241,7 +241,7 @@
       "note": "The grid reflows to a single row at 1400×350 and a single column at 225×900 with almost no dead space.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-20T04:16:40.160Z",
-      "stale": false
+      "stale": true
     },
     "S7": {
       "score": 3,

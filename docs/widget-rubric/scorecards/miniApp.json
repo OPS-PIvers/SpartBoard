@@ -31,7 +31,7 @@
       "note": "At 150x100 the empty library keeps its full toolbar shrunk to 2.7 px text and 6.84 px tap targets, and the running app shows only a cropped title with its button cut off.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:27:51.812Z",
-      "stale": false
+      "stale": true
     },
     "S2": {
       "score": 1,
@@ -72,7 +72,7 @@
       "note": "The app keeps the same top-left layout at 1400x350 and 225x900, so the tall shape leaves a large blank band and the stress text clips at the right edge.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:27:51.812Z",
-      "stale": false
+      "stale": true
     },
     "S4": {
       "score": 1,
@@ -267,7 +267,7 @@
       "note": "The library chrome looks modern, but the running face is a default browser button under a plain bold system-font title on bare white, which reads as dated.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:27:51.812Z",
-      "stale": false
+      "stale": true
     },
     "V2": {
       "score": 3,
@@ -304,7 +304,7 @@
       "note": "The Fraction Tiles title is clearly primary and the smaller button steps down below it.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:27:51.812Z",
-      "stale": false
+      "stale": true
     },
     "V4": {
       "score": 2,
@@ -356,7 +356,7 @@
       "note": "There are no copy violations, only lucide icons, and short plain labels such as Import, New App and Add a tile.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:27:51.812Z",
-      "stale": false
+      "stale": true
     },
     "C1": {
       "score": 2,

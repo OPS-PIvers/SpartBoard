@@ -31,7 +31,7 @@
       "note": "At 150x100 the whole grid shrinks uniformly with the header kept, so typical card labels are tiny and stress text (1.24 px) is an unreadable blur with nothing collapsing.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:39:08.398Z",
-      "stale": false
+      "stale": true
     },
     "S2": {
       "score": 3,
@@ -72,7 +72,7 @@
       "note": "The grid reflows from 3 or 5 columns wide to 2 columns tall with little dead space, though the tall shape shows mismatched label sizes (tiny terms beside a large answer).",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:39:08.398Z",
-      "stale": false
+      "stale": true
     },
     "S4": {
       "score": 3,
@@ -284,7 +284,7 @@
       "note": "Clean soft cards, but every element is a bordered box and the header text and OFF toggle are tiny gray-on-gray, so it reads slightly dated.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:39:08.398Z",
-      "stale": false
+      "stale": true
     },
     "V2": {
       "score": 3,
@@ -321,7 +321,7 @@
       "note": "The card grid dominates with bold terms while the title and Show Answers toggle step down to small header text.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:39:08.398Z",
-      "stale": false
+      "stale": true
     },
     "V4": {
       "score": 2,
@@ -373,7 +373,7 @@
       "note": "Labels such as Vocabulary Review and Show Answers are short and plain, with lucide icons only.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:39:08.398Z",
-      "stale": false
+      "stale": true
     },
     "C1": {
       "score": 3,

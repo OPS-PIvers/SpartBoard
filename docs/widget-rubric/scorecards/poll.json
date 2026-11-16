@@ -31,7 +31,7 @@
       "note": "At 150×100 everything shrinks uniformly: the third option is clipped off, the Reset Poll control is a 3.84 px label on an 8.81 px tap target, and the stress question runs into unreadable micro-text.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:08:35.174Z",
-      "stale": false
+      "stale": true
     },
     "S2": {
       "score": 2,
@@ -72,7 +72,7 @@
       "note": "The same stacked list appears at every aspect, and the tallest shape leaves most of the card as a dead band under the three bars.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:08:35.174Z",
-      "stale": false
+      "stale": true
     },
     "S4": {
       "score": 3,
@@ -287,7 +287,7 @@
       "note": "The bars are clean, but the face has gray-on-gray tiny Reset Poll text and all-caps type everywhere, so it looks dated.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:08:35.174Z",
-      "stale": false
+      "stale": true
     },
     "V2": {
       "score": 3,
@@ -324,7 +324,7 @@
       "note": "The large bold question is clearly primary, and the option labels, counts and faint reset step down in size and weight.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:08:35.174Z",
-      "stale": false
+      "stale": true
     },
     "V4": {
       "score": 2,
@@ -376,7 +376,7 @@
       "note": "Labels like Reset Poll and option counts with percentages are short and plain, and every icon is lucide.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:08:35.174Z",
-      "stale": false
+      "stale": true
     },
     "C1": {
       "score": 2,
