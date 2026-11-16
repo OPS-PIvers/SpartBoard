@@ -13,6 +13,7 @@ import {
   deriveWritingStatus,
   isWritingTurnedIn,
   isWritingUnlocked,
+  resolveWritingCloseAt,
   resolveWritingDueAt,
   takeBackBlock,
   timedTurnInDue,
@@ -107,9 +108,7 @@ describe('writingTransition', () => {
   });
 
   it('Return keeps it locked and Return for revision unlocks it', () => {
-    expect(writingTransition('turned-in', { type: 'return' })).toBe(
-      'returned'
-    );
+    expect(writingTransition('turned-in', { type: 'return' })).toBe('returned');
     expect(
       writingTransition('turned-in', { type: 'return-for-revision' })
     ).toBe('revising');
@@ -176,6 +175,32 @@ describe('takeBackBlock', () => {
     );
     expect(takeBackBlock('turned-in', OPEN)).toBeNull();
   });
+  it('refuses once closed or ended, past the grace', () => {
+    const closed = { ...OPEN, dueAt: null, closeAt: 0 };
+    expect(
+      takeBackBlock('turned-in', { ...closed, now: WRITING_CLOSE_GRACE_MS })
+    ).toBeNull();
+    expect(
+      takeBackBlock('turned-in', { ...closed, now: WRITING_CLOSE_GRACE_MS + 1 })
+    ).toBe('closed');
+  });
+});
+
+describe('resolveWritingCloseAt', () => {
+  it('takes the pointer close, else the session close', () => {
+    expect(resolveWritingCloseAt({ closeAt: 5 }, 9)).toBe(9);
+    expect(resolveWritingCloseAt({ closeAt: 5 })).toBe(5);
+    expect(resolveWritingCloseAt({})).toBeNull();
+  });
+  it('brings the close forward to the teacher end', () => {
+    expect(
+      resolveWritingCloseAt({ status: 'ended', endedAt: 3, closeAt: 5 })
+    ).toBe(3);
+    expect(resolveWritingCloseAt({ status: 'ended', endedAt: 7 })).toBe(7);
+    expect(
+      resolveWritingCloseAt({ status: 'ended', endedAt: 7, closeAt: 5 })
+    ).toBe(5);
+  });
 });
 
 describe('turnInBlock', () => {
@@ -186,7 +211,11 @@ describe('turnInBlock', () => {
   });
   it('refuses after the close plus the grace', () => {
     expect(
-      turnInBlock('draft', { ...facts, closeAt: 0, now: WRITING_CLOSE_GRACE_MS })
+      turnInBlock('draft', {
+        ...facts,
+        closeAt: 0,
+        now: WRITING_CLOSE_GRACE_MS,
+      })
     ).toBeNull();
     expect(
       turnInBlock('draft', {

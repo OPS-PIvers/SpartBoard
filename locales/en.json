@@ -3408,7 +3408,8 @@
       "videoActivity": "Video Activity",
       "guidedLearning": "Guided Learning",
       "miniApp": "Mini App",
-      "flashcards": "Flashcards"
+      "flashcards": "Flashcards",
+      "writing": "Writing"
     },
     "flashcardKind": {
       "check": "Check",

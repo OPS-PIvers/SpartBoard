@@ -10676,6 +10676,10 @@ export interface WritingAssignmentRecord {
   dueAt?: number | null;
   dueAtByClassId?: Record<string, number>;
   timeLimitMinutes?: number;
+  /** Manual assign: each class starts paused; mirrored from the session by `updateWritingSessionV1`. */
+  accessMode?: AccessMode;
+  periodAccess?: Record<string, PeriodAccess>;
+  dueLocks?: boolean;
   targetMode?: 'class' | 'students';
   targetStudents?: StudentTargetRef[];
   targetGroupIds?: string[];
@@ -10718,7 +10722,7 @@ export interface WritingFeedback {
   gradedAt: number;
 }
 
-/** The score that counts (D14): the latest graded draft's. Server-written by `saveWritingFeedbackV1`. */
+/** A frozen copy's score (D14). On the copy from `saveWritingFeedbackV1`; on the response only once returned. */
 export interface WritingGrade {
   draftId: string;
   draftNumber: number;
@@ -10731,7 +10735,7 @@ export interface WritingGrade {
 
 /**
  * `writing_assignment_sessions/{sid}/responses/{studentUid}`, created by `openWritingV1`.
- * The student writes only html, summary, saveCount, tabId, tabAt and logChunk; functions write the rest.
+ * The student writes only html, summary, saveCount, saveKey, tabId, tabAt and logChunk; functions write the rest.
  */
 export interface WritingResponse {
   studentUid: string;
@@ -10743,22 +10747,28 @@ export interface WritingResponse {
   status: WritingResponseStatus;
   /** D23/D24: rises with every save; the rules refuse a write that does not raise it. */
   saveCount: number;
+  /** D23: `${tabId}:${saveCount}`, sent with every student save so the save names its tab. */
+  saveKey?: string;
   /** D23: the tab that holds the piece; a write from another tab is refused unless it claims the piece. */
   tabId: string;
   /** Server time of the last claim; a claiming write sets it to the request time. */
   tabAt?: { toMillis: () => number } | null;
-  /** D25: index of the open log chunk, 0 to 9. */
+  /** D25: index of the open log chunk, 0 to 9; never moves back. */
   logChunk: number;
   startedAt: number;
   /** D7: the clock's start and end on timed work, stamped by `openWritingV1`; the end includes extra time. */
   timerStartedAt?: number;
   deadlineAt?: number;
-  /** Frozen copies so far; `drafts/{n}` for n = 1..draftCount. */
+  /** Frozen copies that still exist (take back lowers it). */
   draftCount: number;
+  /** Copy ids handed out so far; never lowered, so a taken-back id is never reused (`drafts/{String(seq)}`). */
+  draftSeq?: number;
+  /** The newest copy; each copy links to the one before through `prevDraftId`. */
   latestDraftId?: string;
   turnedInAt?: number;
   turnedInBy?: WritingTurnedInBy;
   returnedAt?: number;
+  /** The returned score that counts (D14), copied at Return; teacher scores before Return stay on the copies. */
   grade?: WritingGrade;
   /** D21: the 1 August deletion removed this piece's log chunks. */
   logPurgedAt?: number;
@@ -10774,9 +10784,13 @@ export interface WritingLogChunk {
   updatedAt: number;
 }
 
-/** `.../responses/{studentUid}/drafts/{n}`: the frozen copy one turn in makes, with its feedback. */
+/** `.../responses/{studentUid}/drafts/{seq}`: the frozen copy one turn in makes, with its feedback. */
 export interface WritingDraft {
+  /** Shown as "Draft n": the count of copies at turn in. */
   number: number;
+  /** The id's number; ids are never reused. */
+  seq?: number;
+  prevDraftId?: string;
   html: string;
   summary: WritingResponseSummary;
   turnedInAt: number;
@@ -10785,6 +10799,8 @@ export interface WritingDraft {
   logMark: { chunk: number; length: number };
   feedback?: WritingFeedback;
   feedbackAt?: number;
+  /** This copy's own score; the student reads it once the copy is returned. */
+  grade?: WritingGrade;
   returnedAt?: number;
   returnKind?: 'return' | 'revision';
 }

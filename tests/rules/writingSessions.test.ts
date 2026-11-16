@@ -3,7 +3,7 @@
 
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
-import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   assertFails,
   assertSucceeds,
@@ -21,6 +21,8 @@ import {
   setDoc,
   updateDoc,
   where,
+  writeBatch,
+  type Firestore,
 } from 'firebase/firestore';
 import { seedDistrictStaff } from './districtStaffSeed';
 
@@ -100,13 +102,31 @@ const response = (o: Record<string, unknown> = {}) => ({
   ...o,
 });
 
-/** A normal save from the holding tab. */
-const save = (o: Record<string, unknown> = {}) => ({
-  html: '<p>more</p>',
-  summary: { wordCount: 1, savedAt: 2 },
-  saveCount: 4,
-  ...o,
-});
+/** A normal save from the holding tab; saveKey names the tab and the counter (D23). */
+const save = (o: Record<string, unknown> = {}) => {
+  const out: Record<string, unknown> = {
+    html: '<p>more</p>',
+    summary: { wordCount: 1, savedAt: 2 },
+    saveCount: 4,
+    ...o,
+  };
+  const tab = typeof o.tabId === 'string' ? o.tabId : 'tab-a';
+  if (!('saveKey' in o)) out.saveKey = `${tab}:${Number(out.saveCount)}`;
+  return out;
+};
+
+/** A log chunk write batched with the response save it rides on (D25). */
+const logWrite = (
+  db: Firestore,
+  n: number,
+  data: Record<string, unknown>,
+  patch: Record<string, unknown> = {}
+) => {
+  const batch = writeBatch(db);
+  batch.update(doc(db, RESP), save(patch));
+  batch.set(doc(db, `${RESP}/log/${n}`), data);
+  return batch.commit();
+};
 
 beforeAll(async () => {
   testEnv = await initializeTestEnvironment({
@@ -135,7 +155,10 @@ beforeEach(async () => {
   );
   await seed(SESSION, session());
   await seed(RESP, response());
-  await seed(`${SESSION}/responses/${CLASSMATE}`, response({ studentUid: CLASSMATE }));
+  await seed(
+    `${SESSION}/responses/${CLASSMATE}`,
+    response({ studentUid: CLASSMATE })
+  );
 });
 
 describe('writing_assignment_sessions', () => {
@@ -234,9 +257,7 @@ describe('responses: student writes', () => {
       { deadlineAt: 9e12 },
       { classId: 'class-z' },
     ]) {
-      await assertFails(
-        updateDoc(doc(asStudent(STUDENT), RESP), save(patch))
-      );
+      await assertFails(updateDoc(doc(asStudent(STUDENT), RESP), save(patch)));
     }
   });
 
@@ -283,6 +304,71 @@ describe('responses: student writes', () => {
     );
   });
 
+  it('refuses a partial save that leaves out the tab (D23)', async () => {
+    await seed(RESP, response({ tabId: 'tab-b' }));
+    // The old tab omits tabId, so the stored tab-b stands; its key still names tab-a.
+    await assertFails(
+      updateDoc(doc(asStudent(STUDENT), RESP), {
+        html: '<p>old tab</p>',
+        saveCount: 9,
+        saveKey: 'tab-a:9',
+      })
+    );
+    await assertFails(
+      updateDoc(doc(asStudent(STUDENT), RESP), {
+        html: '<p>old tab</p>',
+        saveCount: 9,
+      })
+    );
+    await assertSucceeds(
+      updateDoc(doc(asStudent(STUDENT), RESP), {
+        html: '<p>tab b</p>',
+        saveCount: 9,
+        saveKey: 'tab-b:9',
+      })
+    );
+  });
+
+  it('refuses html that is not a string', async () => {
+    await assertFails(
+      updateDoc(doc(asStudent(STUDENT), RESP), save({ html: ['x'] }))
+    );
+  });
+
+  it('stops saving 30 seconds past the clock on timed work (D7)', async () => {
+    await seed(RESP, response({ deadlineAt: Date.now() - 60_000 }));
+    await assertFails(updateDoc(doc(asStudent(STUDENT), RESP), save()));
+    await seed(RESP, response({ deadlineAt: Date.now() + 5_000 }));
+    await assertSucceeds(updateDoc(doc(asStudent(STUDENT), RESP), save()));
+  });
+
+  it('saves only while a Manual class is started, or the student is let in', async () => {
+    const pa = (state: string) => ({
+      [CLASS_A]: { state, openAt: null, closeAt: null },
+    });
+    await seed(
+      SESSION,
+      session({ accessMode: 'assessment', periodAccess: pa('paused') })
+    );
+    await assertFails(updateDoc(doc(asStudent(STUDENT), RESP), save()));
+    await seed(
+      SESSION,
+      session({
+        accessMode: 'assessment',
+        periodAccess: pa('paused'),
+        studentAccess: { [STUDENT]: Date.now() + 60_000 },
+      })
+    );
+    await assertSucceeds(updateDoc(doc(asStudent(STUDENT), RESP), save()));
+    await seed(
+      SESSION,
+      session({ accessMode: 'assessment', periodAccess: pa('open') })
+    );
+    await assertSucceeds(
+      updateDoc(doc(asStudent(STUDENT), RESP), save({ saveCount: 5 }))
+    );
+  });
+
   it('a classmate cannot write my response, nor can the teacher', async () => {
     await assertFails(updateDoc(doc(asStudent(CLASSMATE), RESP), save()));
     await assertFails(updateDoc(doc(asTeacher(TEACHER), RESP), save()));
@@ -304,14 +390,27 @@ describe('responses: student writes', () => {
       updateDoc(doc(asStudent(STUDENT), RESP), save({ logChunk: 10 }))
     );
   });
+
+  it('never moves the log chunk back', async () => {
+    await seed(RESP, response({ logChunk: 2 }));
+    await assertFails(
+      updateDoc(doc(asStudent(STUDENT), RESP), save({ logChunk: 1 }))
+    );
+    await assertFails(
+      updateDoc(doc(asStudent(STUDENT), RESP), save({ logChunk: -1 }))
+    );
+    await assertSucceeds(
+      updateDoc(doc(asStudent(STUDENT), RESP), save({ logChunk: 2 }))
+    );
+  });
 });
 
 describe('log chunks (D25)', () => {
   const chunk = (n: number) => `${RESP}/log/${n}`;
 
-  it('the student writes the open chunk; the teacher reads, students do not', async () => {
+  it('the student writes the open chunk with a save; the teacher reads, students do not', async () => {
     await assertSucceeds(
-      setDoc(doc(asStudent(STUDENT), chunk(0)), { log: 'ab', closed: false })
+      logWrite(asStudent(STUDENT), 0, { log: 'ab', closed: false })
     );
     await assertSucceeds(getDoc(doc(asTeacher(TEACHER), chunk(0))));
     await assertFails(getDoc(doc(asStudent(STUDENT), chunk(0))));
@@ -320,21 +419,76 @@ describe('log chunks (D25)', () => {
     );
   });
 
+  it('a chunk write alone, without a response save in its batch, is refused', async () => {
+    await assertFails(
+      setDoc(doc(asStudent(STUDENT), chunk(0)), { log: 'x', closed: false })
+    );
+  });
+
+  it('a chunk write from a tab that lost the piece is refused with its save', async () => {
+    await seed(RESP, response({ tabId: 'tab-b' }));
+    await assertFails(
+      logWrite(asStudent(STUDENT), 0, { log: 'stale', closed: false })
+    );
+    await assertSucceeds(
+      logWrite(
+        asStudent(STUDENT),
+        0,
+        { log: 'fresh', closed: false },
+        { tabId: 'tab-b' }
+      )
+    );
+  });
+
+  it('checks the chunk shape and size', async () => {
+    for (const bad of [
+      { log: 'x', closed: 'no' },
+      { log: 5, closed: false },
+      { log: 'x'.repeat(200_001), closed: false },
+    ])
+      await assertFails(logWrite(asStudent(STUDENT), 0, bad));
+    await assertSucceeds(
+      logWrite(asStudent(STUDENT), 0, {
+        log: 'x'.repeat(200_000),
+        closed: false,
+      })
+    );
+  });
+
   it('only the newest chunk is writable', async () => {
     await assertFails(
-      setDoc(doc(asStudent(STUDENT), chunk(1)), { log: 'x', closed: false })
+      logWrite(asStudent(STUDENT), 1, { log: 'x', closed: false })
     );
     await seed(RESP, response({ logChunk: 1 }));
     await seed(chunk(0), { log: 'old', closed: false });
     await assertFails(
-      setDoc(doc(asStudent(STUDENT), chunk(0)), { log: 'x', closed: false })
+      logWrite(asStudent(STUDENT), 0, { log: 'x', closed: false })
+    );
+  });
+
+  it('closes the full chunk in the batch that opens the next', async () => {
+    await assertSucceeds(
+      logWrite(
+        asStudent(STUDENT),
+        0,
+        { log: 'full', closed: true },
+        { logChunk: 1 }
+      )
+    );
+    await assertSucceeds(
+      logWrite(
+        asStudent(STUDENT),
+        1,
+        { log: 'next', closed: false },
+        { logChunk: 1, saveCount: 5 }
+      )
     );
   });
 
   it('a closed chunk never changes and is never deleted', async () => {
     await seed(chunk(0), { log: 'full', closed: true });
     await assertFails(
-      setDoc(doc(asStudent(STUDENT), chunk(0)), { log: 'y', closed: true })
+      logWrite(asStudent(STUDENT), 0, { log: 'y', closed: true })
     );
     await seed(chunk(0), { log: 'open', closed: false });
     await assertFails(deleteDoc(doc(asStudent(STUDENT), chunk(0))));
@@ -343,17 +497,32 @@ describe('log chunks (D25)', () => {
   it('there is no eleventh chunk', async () => {
     await seed(RESP, response({ logChunk: 9 }));
     await assertSucceeds(
-      setDoc(doc(asStudent(STUDENT), chunk(9)), { log: 'x', closed: true })
+      logWrite(
+        asStudent(STUDENT),
+        9,
+        { log: 'x', closed: true },
+        { logChunk: 9 }
+      )
     );
     await assertFails(
-      setDoc(doc(asStudent(STUDENT), chunk(10)), { log: 'x', closed: false })
+      logWrite(
+        asStudent(STUDENT),
+        10,
+        { log: 'x', closed: false },
+        { logChunk: 9, saveCount: 5 }
+      )
     );
   });
 
-  it('no log writes while the piece is locked', async () => {
+  it('no log writes while the piece is locked or the session has ended', async () => {
     await seed(RESP, response({ status: 'turned-in' }));
     await assertFails(
-      setDoc(doc(asStudent(STUDENT), chunk(0)), { log: 'x', closed: false })
+      logWrite(asStudent(STUDENT), 0, { log: 'x', closed: false })
+    );
+    await seed(RESP, response());
+    await seed(SESSION, session({ status: 'ended', endedAt: 1 }));
+    await assertFails(
+      logWrite(asStudent(STUDENT), 0, { log: 'x', closed: false })
     );
   });
 });
@@ -370,10 +539,30 @@ describe('frozen copies', () => {
     await assertFails(getDoc(doc(asStudent(CLASSMATE), draft)));
   });
 
+  it('before Return a student reads no grade: it sits on the copy, and the response has none', async () => {
+    // As saveWritingFeedbackV1 leaves them: score on the copy, nothing on the response.
+    await seed(draft, {
+      number: 1,
+      html: 'x',
+      turnedInAt: 1,
+      feedback: { pointsAwarded: 8 },
+      grade: { draftId: '1', pointsAwarded: 8 },
+    });
+    await seed(RESP, response({ status: 'turned-in', latestDraftId: '1' }));
+    const mine = await getDoc(doc(asStudent(STUDENT), RESP));
+    expect(mine.data()?.grade).toBeUndefined();
+    await assertFails(getDoc(doc(asStudent(STUDENT), draft)));
+    await assertFails(
+      getDocs(collection(asStudent(STUDENT), `${RESP}/drafts`))
+    );
+  });
+
   it('no client writes them, feedback included', async () => {
     await seed(draft, { number: 1, html: 'x', turnedInAt: 1 });
     await assertFails(
-      updateDoc(doc(asTeacher(TEACHER), draft), { feedback: { pointsAwarded: 1 } })
+      updateDoc(doc(asTeacher(TEACHER), draft), {
+        feedback: { pointsAwarded: 1 },
+      })
     );
     await assertFails(
       setDoc(doc(asStudent(STUDENT), `${RESP}/drafts/2`), { html: 'x' })
@@ -384,13 +573,13 @@ describe('frozen copies', () => {
 
 describe('teacher records', () => {
   const record = `users/${TEACHER}/writing_assignment_records/${SID}`;
-  it('the owner reads and deletes; nobody writes from the client', async () => {
+  it('the owner reads; nobody writes or deletes from the client (deleteWritingSessionV1 does)', async () => {
     await seed(record, { id: SID, teacherUid: TEACHER });
     await assertSucceeds(getDoc(doc(asTeacher(TEACHER), record)));
     await assertFails(getDoc(doc(asTeacher(OTHER_TEACHER), record)));
     await assertFails(
       setDoc(doc(asTeacher(TEACHER), record), { id: SID, title: 'x' })
     );
-    await assertSucceeds(deleteDoc(doc(asTeacher(TEACHER), record)));
+    await assertFails(deleteDoc(doc(asTeacher(TEACHER), record)));
   });
 });

@@ -10,7 +10,12 @@ import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import { assertViewAsAllowed } from './viewAsGuard';
 import { isDistrictStaffToken } from './districtStaff';
-import { sanitizeOverride } from './studentAssignmentTargets';
+import {
+  parseRef,
+  refKey,
+  sanitizeOverride,
+  type StudentTargetRef,
+} from './studentAssignmentTargets';
 import { WRITING_RESPONSES, WRITING_SESSIONS } from './writingResponses';
 
 export const WRITING_RECORDS = 'writing_assignment_records';
@@ -86,7 +91,10 @@ export function sessionSettings(d: Data): Data {
     ? Math.round(d.timeLimitMinutes)
     : 0;
   const away = isNum(d.tabAwayLimitSeconds)
-    ? Math.min(TAB_AWAY_MAX, Math.max(TAB_AWAY_MIN, Math.round(d.tabAwayLimitSeconds)))
+    ? Math.min(
+        TAB_AWAY_MAX,
+        Math.max(TAB_AWAY_MIN, Math.round(d.tabAwayLimitSeconds))
+      )
     : undefined;
   return {
     allowPaste: d.allowPaste === true,
@@ -101,6 +109,34 @@ export function sessionSettings(d: Data): Data {
     ...(d.blockPrint === true ? { blockPrint: true } : {}),
     ...(d.focusLevel === 'lock' ? { focusLevel: 'lock' } : {}),
   };
+}
+
+const PERIOD_STATES = ['open', 'paused', 'closed'];
+const PERIOD_FIELDS = ['state', 'openAt', 'closeAt', 'pausedAt'] as const;
+const PERIOD_KEY_RE = /^[^/.]{1,300}$/;
+
+/** A Manual assign's per-class gate (the stepper's buildPeriodGate), kept to its known fields. */
+export function sanitizePeriodAccess(v: unknown): Data | undefined {
+  if (typeof v !== 'object' || v === null) return undefined;
+  const out: Data = {};
+  for (const [k, raw] of Object.entries(v as Data).slice(0, MAX_CLASSES)) {
+    if (!PERIOD_KEY_RE.test(k) || typeof raw !== 'object' || raw === null)
+      continue;
+    const p = raw as Data;
+    if (typeof p.state !== 'string' || !PERIOD_STATES.includes(p.state))
+      continue;
+    out[k] = {
+      state: p.state,
+      openAt: optTime(p.openAt),
+      closeAt: optTime(p.closeAt),
+      bellPeriodId: typeof p.bellPeriodId === 'string' ? p.bellPeriodId : null,
+      verified: p.verified === true,
+      label: typeof p.label === 'string' ? p.label.slice(0, 200) : '',
+      ...(typeof p.rosterId === 'string' ? { rosterId: p.rosterId } : {}),
+      ...(isNum(p.pausedAt) ? { pausedAt: p.pausedAt } : {}),
+    };
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
 }
 
 function overrides(v: unknown): Data | undefined {
@@ -154,6 +190,13 @@ export async function handleAssignWriting(
     ...(dueAtByClassId ? { dueAtByClassId } : {}),
     ...(typeof d.dueLocks === 'boolean' ? { dueLocks: d.dueLocks } : {}),
   };
+  const periodAccess = sanitizePeriodAccess(d.periodAccess);
+  const gate = periodAccess
+    ? {
+        accessMode: d.accessMode === 'assignment' ? 'assignment' : 'assessment',
+        periodAccess,
+      }
+    : {};
   const sessionId = newId();
   const session = {
     id: sessionId,
@@ -167,6 +210,7 @@ export async function handleAssignWriting(
     ...(rosterIds.length > 0 ? { rosterIds } : {}),
     status: 'active',
     ...windows,
+    ...gate,
     workKind: 'work',
     createdAt: now,
     updatedAt: now,
@@ -186,6 +230,7 @@ export async function handleAssignWriting(
     classIds,
     periodNames,
     ...windows,
+    ...gate,
     ...(isNum(settings.timeLimitMinutes)
       ? { timeLimitMinutes: settings.timeLimitMinutes }
       : {}),
@@ -262,6 +307,147 @@ export async function handleEndWritingSession(
   return { ended: true };
 }
 
+const WINDOW_KEYS = ['openAt', 'closeAt', 'dueAt'] as const;
+const MAX_REFS = 2000;
+
+function refList(v: unknown): StudentTargetRef[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const out: StudentTargetRef[] = [];
+  for (const raw of v.slice(0, MAX_REFS)) {
+    const ref = parseRef(raw);
+    if (ref) out.push(ref);
+  }
+  return out;
+}
+
+/** Applies one period's field patch to a stored row; unknown periods and fields are dropped. */
+function patchPeriods(stored: unknown, patch: unknown): Data | null {
+  if (typeof patch !== 'object' || patch === null) return null;
+  if (typeof stored !== 'object' || stored === null) return null;
+  const next: Data = { ...(stored as Data) };
+  let changed = false;
+  for (const [k, raw] of Object.entries(patch as Data)) {
+    const row = next[k];
+    if (typeof row !== 'object' || row === null) continue;
+    if (typeof raw !== 'object' || raw === null) continue;
+    const p = raw as Data;
+    const out: Data = { ...(row as Data) };
+    for (const f of PERIOD_FIELDS) {
+      if (!(f in p)) continue;
+      if (f === 'state') {
+        if (typeof p.state === 'string' && PERIOD_STATES.includes(p.state))
+          out.state = p.state;
+      } else out[f] = optTime(p[f]);
+    }
+    next[k] = out;
+    changed = true;
+  }
+  return changed ? next : null;
+}
+
+/**
+ * The teacher's edits from the Assignments hub and the class Start/Pause controls, since no client writes a Writing
+ * session: the window, period rows, Let in passes, and the record's targeting siblings.
+ */
+export async function handleUpdateWritingSession(
+  db: Firestore,
+  caller: AssignWritingCaller | null,
+  data: unknown,
+  now: number
+): Promise<{ updated: boolean }> {
+  if (!caller) throw new HttpsError('unauthenticated', 'Sign in required.');
+  if (!caller.staff)
+    throw new HttpsError('permission-denied', 'Teacher account required.');
+  const d = (data ?? {}) as Data;
+  const sid = d.sessionId;
+  if (typeof sid !== 'string' || !sid || sid.includes('/'))
+    throw new HttpsError('invalid-argument', 'sessionId is required.');
+  const ref = db.collection(WRITING_SESSIONS).doc(sid);
+  const recordRef = db
+    .collection('users')
+    .doc(caller.uid)
+    .collection(WRITING_RECORDS)
+    .doc(sid);
+  return db.runTransaction(async (tx) => {
+    const [snap, recordSnap] = await Promise.all([
+      tx.get(ref),
+      tx.get(recordRef),
+    ]);
+    if (!snap.exists)
+      throw new HttpsError('not-found', 'Assignment not found.');
+    const session: Data = snap.data() ?? {};
+    if (session.teacherUid !== caller.uid)
+      throw new HttpsError('permission-denied', 'Not your assignment.');
+    const record: Data = recordSnap.exists ? (recordSnap.data() ?? {}) : {};
+    const shared: Data = {};
+    const window = (d.window ?? {}) as Data;
+    for (const k of WINDOW_KEYS)
+      if (k in window) shared[k] = optTime(window[k]);
+    const periods = patchPeriods(session.periodAccess, d.periodAccess);
+    if (periods) shared.periodAccess = periods;
+    const sessionOnly: Data = {};
+    if (typeof d.studentAccess === 'object' && d.studentAccess !== null) {
+      const passes: Data = {
+        ...((session.studentAccess ?? {}) as Data),
+      };
+      for (const [uid, until] of Object.entries(d.studentAccess as Data).slice(
+        0,
+        MAX_REFS
+      ))
+        if (isNum(until) && !uid.includes('/') && !uid.includes('.'))
+          passes[uid] = until;
+      sessionOnly.studentAccess = passes;
+    }
+    const recordOnly: Data = {};
+    const r = (d.record ?? {}) as Data;
+    if (Array.isArray(r.targetGroupIds))
+      recordOnly.targetGroupIds = strings(r.targetGroupIds, 200);
+    if (typeof r.overrides === 'object' && r.overrides !== null) {
+      const map: Data = {
+        ...((record.overridesBySourcedId ?? {}) as Data),
+      };
+      for (const [k, raw] of Object.entries(r.overrides as Data).slice(
+        0,
+        MAX_REFS
+      )) {
+        if (!/^(classlink|test):/.test(k)) continue;
+        const o = raw === null ? null : sanitizeOverride(raw);
+        if (o) map[k] = o;
+        else delete map[k];
+      }
+      recordOnly.overridesBySourcedId = map;
+    }
+    const excluded = refList(r.excludedTargets);
+    if (excluded) recordOnly.excludedTargets = excluded;
+    if (isNum(r.targetSkippedCount))
+      recordOnly.targetSkippedCount = Math.max(
+        0,
+        Math.round(r.targetSkippedCount)
+      );
+    const removed = refList(r.removedStudentRefs);
+    if (removed && removed.length > 0) {
+      const prior = refList(record.removedStudentRefs) ?? [];
+      const keys = new Set(prior.map((x) => refKey(x)));
+      recordOnly.removedStudentRefs = [
+        ...prior,
+        ...removed.filter((x) => !keys.has(refKey(x))),
+      ].slice(-MAX_REFS);
+    }
+    const sessionPatch = { ...shared, ...sessionOnly };
+    const recordPatch = { ...shared, ...recordOnly };
+    if (
+      Object.keys(sessionPatch).length === 0 &&
+      Object.keys(recordPatch).length === 0
+    )
+      return { updated: false };
+    if (Object.keys(sessionPatch).length > 0)
+      tx.update(ref, { ...sessionPatch, updatedAt: now });
+    if (recordSnap.exists)
+      tx.update(recordRef, { ...recordPatch, updatedAt: now });
+    return { updated: true };
+  });
+}
+
 /** D21: a deleted session takes its responses, frozen copies and log chunks with it, however it was deleted. */
 export async function deleteWritingSessionData(
   db: Firestore,
@@ -322,6 +508,17 @@ export const endWritingSessionV1 = onCall(OPTIONS, async (request) => {
   await assertViewAsAllowed(request, { outward: true });
   const db = admin.firestore();
   return handleEndWritingSession(
+    db,
+    await callerFrom(db, request.auth),
+    request.data,
+    Date.now()
+  );
+});
+
+export const updateWritingSessionV1 = onCall(OPTIONS, async (request) => {
+  await assertViewAsAllowed(request, { outward: true });
+  const db = admin.firestore();
+  return handleUpdateWritingSession(
     db,
     await callerFrom(db, request.auth),
     request.data,

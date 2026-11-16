@@ -23,8 +23,10 @@ export const WRITING_LOG_MAX_CHUNKS = 10;
 export const WRITING_CLOSE_GRACE_MS = 120_000;
 /** A timed turn in waits for the clock, give or take a client clock this far ahead. */
 export const WRITING_TIMER_SKEW_MS = 5_000;
-/** Seam for F: the holding tab's final text is taken this long after the deadline. */
+/** The holding tab's final text is taken this long after the deadline; the rules give saves the same grace. */
 export const WRITING_TIMED_FLUSH_GRACE_MS = 30_000;
+/** A frozen copy's text, in UTF-8 bytes, so a copy with its feedback stays under Firestore's 1 MiB. */
+export const WRITING_HTML_MAX_BYTES = 400_000;
 
 /** The student can write: a first draft or a revision. */
 export function isWritingUnlocked(status: WritingResponseStatus): boolean {
@@ -55,10 +57,12 @@ export interface WritingTakeBackFacts {
   hasFeedback: boolean;
   /** The assignment has a time limit. */
   timed: boolean;
+  /** The close that applies to this student, the teacher's end included; null or absent when there is none. */
+  closeAt?: number | null;
 }
 
 export type WritingTakeBackBlock =
-  'not-turned-in' | 'feedback' | 'past-due' | 'timed';
+  'not-turned-in' | 'feedback' | 'past-due' | 'timed' | 'closed';
 
 /** D12: why take back is refused, or null when it is allowed. */
 export function takeBackBlock(
@@ -69,6 +73,11 @@ export function takeBackBlock(
   if (facts.timed) return 'timed';
   if (facts.hasFeedback) return 'feedback';
   if (facts.dueAt !== null && facts.now > facts.dueAt) return 'past-due';
+  if (
+    facts.closeAt != null &&
+    facts.now > facts.closeAt + WRITING_CLOSE_GRACE_MS
+  )
+    return 'closed';
   return null;
 }
 
@@ -81,7 +90,7 @@ export function canTakeBack(
 
 export interface WritingTurnInFacts {
   now: number;
-  /** The close that applies to this student; null when there is none. */
+  /** The close that applies to this student, the teacher's end included; null when there is none. */
   closeAt: number | null;
   wordCount: number;
   minWords?: number;
@@ -171,6 +180,22 @@ export function writingEventAllowed(
     (status === 'returned' && event.type === 'return') ||
     (status === 'revising' && event.type === 'return-for-revision')
   );
+}
+
+/** The close for one student: their pointer's or the session's, brought forward to the teacher's end. */
+export function resolveWritingCloseAt(
+  session: { closeAt?: unknown; status?: unknown; endedAt?: unknown },
+  pointerCloseAt?: unknown
+): number | null {
+  const close =
+    typeof pointerCloseAt === 'number'
+      ? pointerCloseAt
+      : typeof session.closeAt === 'number'
+        ? session.closeAt
+        : null;
+  if (session.status !== 'ended') return close;
+  const ended = typeof session.endedAt === 'number' ? session.endedAt : 0;
+  return close === null ? ended : Math.min(close, ended);
 }
 
 /** The due date for one student: their pointer's, else their class's, else the session's. */

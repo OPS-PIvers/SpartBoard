@@ -255,7 +255,7 @@ export interface SetAssignmentTargetsInput {
 
 // ── ref parsing / normalization ────────────────────────────────────────────
 
-function parseRef(raw: unknown): StudentTargetRef | null {
+export function parseRef(raw: unknown): StudentTargetRef | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const kind = (raw as { kind?: unknown }).kind;
   if (kind === 'classlink') {

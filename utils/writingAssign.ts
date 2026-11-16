@@ -1,5 +1,10 @@
 // Builds the Writing assign callable input and its targeting payload from the stepper's state.
-import type { ClassRoster, StudentOverride } from '@/types';
+import type {
+  AccessMode,
+  ClassRoster,
+  PeriodAccess,
+  StudentOverride,
+} from '@/types';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 import type { AssignTargetingValue } from '@/utils/studentTargetRef';
 import {
@@ -28,6 +33,11 @@ export interface AssignWritingInput {
   blockPrint?: boolean;
   targetGroupIds?: string[];
   overridesBySourcedId?: Record<string, StudentOverride>;
+  /** Manual: each class starts paused until the teacher starts it. */
+  accessMode?: AccessMode;
+  periodAccess?: Record<string, PeriodAccess>;
+  /** Manual due date: true locks each class at the due; false allows late work past it. */
+  dueLocks?: boolean;
 }
 
 export interface WritingAssignSettings {
@@ -55,18 +65,33 @@ export function buildWritingAssignSubmission(args: {
   targeting: AssignTargetingValue;
   dueAtByRosterId?: Record<string, number>;
   settings: WritingAssignSettings;
+  /** The Manual class gate from `buildPeriodGate`; the classes then keep the window, not the session. */
+  periodGate?: {
+    accessMode: AccessMode;
+    periodAccess: Record<string, PeriodAccess>;
+  };
 }): WritingAssignSubmission {
   const visible = new Set(
     args.rosters.filter((r) => !r.loadError).map((r) => r.id)
   );
   const rosterIds = args.classes.classIds.filter((id) => visible.has(id));
   const selected = args.rosters.filter((r) => rosterIds.includes(r.id));
+  const gate = args.periodGate;
+  // A per-period session's pointers carry no shared window.
+  const targeting = gate
+    ? { ...args.targeting, openAt: undefined, closeAt: undefined }
+    : args.targeting;
   const mixed = expandMixedTargeting(
-    args.targeting,
+    targeting,
     { ...args.classes, classIds: rosterIds },
     args.rosters
   );
   const expanded = mixed.targeting;
+  const manualDue = args.targeting.dueAt ?? null;
+  const dueLocks =
+    gate && manualDue != null
+      ? args.targeting.closeAt === manualDue
+      : undefined;
   const derived = deriveSessionTargetsFromRosters(selected);
   const perClass =
     args.dueAtByRosterId && Object.keys(args.dueAtByRosterId).length > 0
@@ -102,6 +127,10 @@ export function buildWritingAssignSubmission(args: {
       ...(Object.keys(expanded.overridesByKey).length > 0
         ? { overridesBySourcedId: expanded.overridesByKey }
         : {}),
+      ...(gate
+        ? { accessMode: gate.accessMode, periodAccess: gate.periodAccess }
+        : {}),
+      ...(dueLocks !== undefined ? { dueLocks } : {}),
     },
   };
 }

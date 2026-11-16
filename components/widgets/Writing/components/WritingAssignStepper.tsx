@@ -38,6 +38,7 @@ import {
 import { useQuizRuleGates } from '@/components/common/library/assignStepper/QuizRuleStepGates';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { applyWhen } from '@/utils/assignAvailability';
+import { buildPeriodGate } from '@/utils/periodPlan';
 import {
   EMPTY_ASSIGN_TARGETING_VALUE,
   type AssignTargetingValue,
@@ -73,12 +74,15 @@ export const WritingAssignStepper: React.FC<WritingAssignStepperProps> = ({
     classIds: [],
     studentsByClass: {},
   });
-  const { when, setWhen } = useAssignWhen('writing', () =>
-    defaultWhenValue({
-      activity: 'writing',
-      bellAvailable: false,
-      manualAvailable: false,
-    })
+  const { when, setWhen } = useAssignWhen(
+    'writing',
+    () =>
+      defaultWhenValue({
+        activity: 'writing',
+        bellAvailable: false,
+        manualAvailable: true,
+      }),
+    { manualDue: true }
   );
   const [targeting, setTargeting] = useState<AssignTargetingValue>(
     EMPTY_ASSIGN_TARGETING_VALUE
@@ -137,7 +141,7 @@ export const WritingAssignStepper: React.FC<WritingAssignStepperProps> = ({
       value: formatWhenValue(when, {
         variant: 'when',
         rosterCount: picked.length,
-        manualAvailable: false,
+        manualAvailable: true,
         t,
       }),
       body: (
@@ -146,7 +150,7 @@ export const WritingAssignStepper: React.FC<WritingAssignStepperProps> = ({
           onChange={setWhen}
           variant="when"
           rosters={picked}
-          manualAvailable={false}
+          manualAvailable
           perClass
           sharedOpens
         />
@@ -176,12 +180,19 @@ export const WritingAssignStepper: React.FC<WritingAssignStepperProps> = ({
       { ...targeting, availability: when.availability },
       {
         mode: when.mode,
-        manualAvailable: false,
+        manualAvailable: true,
         rosters: picked,
         bellWindow: undefined,
         workKind: { default: 'work', locked: true },
       }
     );
+    const periodGate = buildPeriodGate({
+      plan: resolved.targeting.periodPlan,
+      rosters: picked,
+      sharedWindow: resolved.targeting,
+      bellWindow: undefined,
+      manualStart: when.mode === 'manual',
+    });
     await onAssign(
       buildWritingAssignSubmission({
         itemId: item.id,
@@ -189,6 +200,7 @@ export const WritingAssignStepper: React.FC<WritingAssignStepperProps> = ({
         classes,
         targeting: resolved.targeting,
         dueAtByRosterId: resolved.dueAtByRosterId,
+        periodGate,
         settings: {
           ...rules,
           timeLimitMinutes: gates.timeLimitOn ? rules.timeLimitMinutes : null,

@@ -3894,6 +3894,7 @@ describe('index barrel — deployed export set', () => {
     'assignWritingV1',
     'deleteWritingSessionV1',
     'endWritingSessionV1',
+    'updateWritingSessionV1',
     'cleanupWritingSessionData',
     'openWritingV1',
     'turnInWritingV1',

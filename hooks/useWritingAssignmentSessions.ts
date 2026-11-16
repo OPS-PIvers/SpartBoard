@@ -3,11 +3,46 @@ import { useCallback, useEffect, useState } from 'react';
 import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
-import type { WritingAssignmentRecord } from '@/types';
+import type {
+  StudentOverride,
+  StudentTargetRef,
+  WritingAssignmentRecord,
+} from '@/types';
+import type { PeriodAccessPatch } from '@/hooks/usePeriodAccess';
 import { logError } from '@/utils/logError';
 import type { AssignWritingInput } from '@/utils/writingAssign';
 
 export const WRITING_RECORDS_COLLECTION = 'writing_assignment_records';
+
+/** What `updateWritingSessionV1` reads: the hub's edits and the class Start/Pause/Let in controls. */
+export interface UpdateWritingSessionInput extends PeriodAccessPatch {
+  sessionId: string;
+  window?: {
+    openAt?: number | null;
+    closeAt?: number | null;
+    dueAt?: number | null;
+  };
+  record?: {
+    targetGroupIds?: string[];
+    /** null clears that student's override. */
+    overrides?: Record<string, StudentOverride | null>;
+    excludedTargets?: StudentTargetRef[];
+    targetSkippedCount?: number;
+    /** Added to the stored list. */
+    removedStudentRefs?: StudentTargetRef[];
+  };
+}
+
+/** No client writes a Writing session or its record; these edits go through the server. */
+export async function updateWritingSession(
+  input: UpdateWritingSessionInput
+): Promise<void> {
+  await httpsCallable(functions, 'updateWritingSessionV1')(input);
+}
+
+export async function endWritingSession(sessionId: string): Promise<void> {
+  await httpsCallable(functions, 'endWritingSessionV1')({ sessionId });
+}
 
 export interface UseWritingAssignmentSessionsResult {
   records: WritingAssignmentRecord[];
@@ -60,9 +95,10 @@ export function useWritingAssignmentSessions(
     return res.data.sessionId;
   }, []);
 
-  const end = useCallback(async (sessionId: string) => {
-    await httpsCallable(functions, 'endWritingSessionV1')({ sessionId });
-  }, []);
+  const end = useCallback(
+    (sessionId: string) => endWritingSession(sessionId),
+    []
+  );
 
   const remove = useCallback(async (sessionId: string) => {
     await httpsCallable(functions, 'deleteWritingSessionV1')({ sessionId });

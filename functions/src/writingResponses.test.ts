@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- in-memory store rows. */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument -- in-memory store rows. */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 vi.mock('./functionsInit', () => ({}));
@@ -42,7 +42,12 @@ const teacher: WritingCaller = { uid: 't1', student: false, classIds: [] };
 const open = (now = 1_000, caller = student) =>
   handleOpenWriting(db, caller, { sessionId: SID, tabId: 'tabA' }, now);
 const turnIn = (data: object = {}, now = 2_000) =>
-  handleTurnInWriting(db, student, { sessionId: SID, tabId: 'tabA', ...data }, now);
+  handleTurnInWriting(
+    db,
+    student,
+    { sessionId: SID, tabId: 'tabA', ...data },
+    now
+  );
 const takeBack = (now = 3_000) =>
   handleTakeBackWriting(db, student, { sessionId: SID }, now);
 const ret = (revise: boolean, data: object = {}, caller = teacher) =>
@@ -53,11 +58,15 @@ const ret = (revise: boolean, data: object = {}, caller = teacher) =>
     4_000,
     revise
   );
-const feedback = (draftId = '1', fb: object = { overallComment: 'Good' }) =>
+const feedback = (
+  draftId = '1',
+  fb: object = { overallComment: 'Good' },
+  turnedInAt: number = store.get(`${RESP}/drafts/${draftId}`)?.turnedInAt ?? 0
+) =>
   handleSaveWritingFeedback(
     db,
     teacher,
-    { sessionId: SID, studentUid: 'stu1', draftId, feedback: fb },
+    { sessionId: SID, studentUid: 'stu1', draftId, turnedInAt, feedback: fb },
     5_000
   );
 
@@ -142,7 +151,11 @@ describe('openWritingV1', () => {
     await expect(open(500_000)).rejects.toMatchObject({
       code: 'failed-precondition',
     });
-    store.set(SESSION, { ...store.get(SESSION), closeAt: null, status: 'ended' });
+    store.set(SESSION, {
+      ...store.get(SESSION),
+      closeAt: null,
+      status: 'ended',
+    });
     await expect(open()).rejects.toMatchObject({ code: 'failed-precondition' });
   });
 });
@@ -150,13 +163,18 @@ describe('openWritingV1', () => {
 describe('turnInWritingV1', () => {
   beforeEach(async () => {
     await open();
-    store.set(RESP, { ...store.get(RESP), html: '<p>one two</p>', saveCount: 3 });
+    store.set(RESP, {
+      ...store.get(RESP),
+      html: '<p>one two</p>',
+      saveCount: 3,
+    });
   });
 
   it('freezes a copy and locks the piece', async () => {
     await expect(turnIn()).resolves.toEqual({
       status: 'turned-in',
       draftCount: 1,
+      latestDraftId: '1',
     });
     expect(store.get(`${RESP}/drafts/1`)).toMatchObject({
       number: 1,
@@ -172,8 +190,15 @@ describe('turnInWritingV1', () => {
   });
 
   it('takes a fresh final flush from the holding tab', async () => {
-    await turnIn({ html: '<p>a b c</p>', saveCount: 4, summary: { awayMs: 9 } });
-    expect(store.get(RESP)).toMatchObject({ html: '<p>a b c</p>', saveCount: 4 });
+    await turnIn({
+      html: '<p>a b c</p>',
+      saveCount: 4,
+      summary: { awayMs: 9 },
+    });
+    expect(store.get(RESP)).toMatchObject({
+      html: '<p>a b c</p>',
+      saveCount: 4,
+    });
     expect(store.get(`${RESP}/drafts/1`).summary).toMatchObject({
       wordCount: 3,
       awayMs: 9,
@@ -184,9 +209,76 @@ describe('turnInWritingV1', () => {
     await expect(turnIn({ tabId: 'tabB' })).rejects.toMatchObject({
       details: { reason: 'stale-tab' },
     });
-    await expect(turnIn({ html: '<p>x</p>', saveCount: 3 })).rejects.toMatchObject(
-      { details: { reason: 'stale-save' } }
-    );
+    await expect(
+      turnIn({ html: '<p>x</p>', saveCount: 2 })
+    ).rejects.toMatchObject({ details: { reason: 'stale-save' } });
+  });
+
+  it('accepts its current counter again and keeps the saved text', async () => {
+    await turnIn({ html: '<p>ignored</p>', saveCount: 3 });
+    expect(store.get(`${RESP}/drafts/1`).html).toBe('<p>one two</p>');
+    expect(store.get(RESP).html).toBe('<p>one two</p>');
+  });
+
+  it('refuses html over the byte cap, counting UTF-8 bytes', async () => {
+    const wide = '\u{1F600}'.repeat(100_001);
+    expect(wide.length).toBeLessThan(400_001);
+    await expect(turnIn({ html: wide, saveCount: 4 })).rejects.toMatchObject({
+      code: 'invalid-argument',
+    });
+  });
+
+  it('keeps only known summary numbers from the flush', async () => {
+    await turnIn({
+      html: '<p>a</p>',
+      saveCount: 4,
+      summary: { awayMs: 3, junk: 'x'.repeat(10), pasteCount: 'no' },
+    });
+    const summary = store.get(`${RESP}/drafts/1`).summary;
+    expect(summary.awayMs).toBe(3);
+    expect(summary).not.toHaveProperty('junk');
+    expect(summary.pasteCount).toBe(0);
+  });
+
+  it('refuses after the teacher ends the assignment, past the grace', async () => {
+    store.set(SESSION, {
+      ...store.get(SESSION),
+      status: 'ended',
+      endedAt: 1_000,
+    });
+    await expect(turnIn({}, 1_000 + 60_000)).resolves.toMatchObject({
+      status: 'turned-in',
+    });
+    store.set(RESP, { ...store.get(RESP), status: 'draft' });
+    await expect(turnIn({}, 1_000 + 121_000)).rejects.toMatchObject({
+      details: { reason: 'closed' },
+    });
+  });
+
+  it('refuses while the class period is paused (Manual)', async () => {
+    store.set(SESSION, {
+      ...store.get(SESSION),
+      periodAccess: { c1: { state: 'paused', openAt: null, closeAt: null } },
+    });
+    await expect(turnIn()).rejects.toMatchObject({
+      details: { reason: 'paused' },
+    });
+  });
+
+  it('past a timed deadline it turns in as the timer, word limits aside', async () => {
+    store.set(SESSION, {
+      ...store.get(SESSION),
+      minWords: 50,
+      enforceWordLimit: true,
+    });
+    store.set(RESP, { ...store.get(RESP), deadlineAt: 1_500 });
+    await expect(
+      turnIn({ tabId: 'tabB', html: '<p>other tab</p>', saveCount: 9 })
+    ).resolves.toMatchObject({ status: 'turned-in' });
+    expect(store.get(`${RESP}/drafts/1`)).toMatchObject({
+      html: '<p>one two</p>',
+      turnedInBy: 'timer',
+    });
   });
 
   it('refuses a second turn in and enforced word limits', async () => {
@@ -249,6 +341,18 @@ describe('takeBackWritingV1', () => {
     await expect(takeBack(15_000)).resolves.toMatchObject({ status: 'draft' });
   });
 
+  it('refuses once the teacher ended the assignment', async () => {
+    store.set(SESSION, {
+      ...store.get(SESSION),
+      dueAt: null,
+      status: 'ended',
+      endedAt: 2_500,
+    });
+    await expect(takeBack(2_500 + 121_000)).rejects.toMatchObject({
+      details: { reason: 'closed' },
+    });
+  });
+
   it('refuses timed work', async () => {
     store.set(SESSION, { ...store.get(SESSION), timeLimitMinutes: 5 });
     await expect(takeBack()).rejects.toMatchObject({
@@ -263,6 +367,7 @@ describe('takeBackWritingV1', () => {
     await expect(takeBack()).resolves.toEqual({
       status: 'revising',
       draftCount: 1,
+      latestDraftId: '1',
     });
     expect(store.get(RESP).latestDraftId).toBe('1');
   });
@@ -290,6 +395,19 @@ describe('return and return for revision', () => {
     await expect(ret(false)).rejects.toMatchObject({
       code: 'failed-precondition',
     });
+  });
+
+  it('Return for revision ends the clock on timed work', async () => {
+    store.set(RESP, {
+      ...store.get(RESP),
+      timerStartedAt: 1_000,
+      deadlineAt: 61_000,
+    });
+    await ret(false);
+    expect(store.get(RESP).deadlineAt).toBe(61_000);
+    await ret(true);
+    expect(store.get(RESP).deadlineAt).toBeUndefined();
+    expect(store.get(RESP).timerStartedAt).toBeUndefined();
   });
 
   it('can change whether students see their record (D11)', async () => {
@@ -320,20 +438,68 @@ describe('saveWritingFeedbackV1', () => {
     await turnIn();
   });
 
-  it('writes feedback onto the copy and the counting grade', async () => {
+  it('writes feedback and the score onto the copy, not the student-readable response', async () => {
     await expect(feedback('1', { pointsAwarded: 8 })).resolves.toEqual({
       draftId: '1',
       counts: true,
     });
-    expect(store.get(`${RESP}/drafts/1`).feedback).toMatchObject({
-      pointsAwarded: 8,
-      gradedBy: 't1',
+    expect(store.get(`${RESP}/drafts/1`)).toMatchObject({
+      feedback: { pointsAwarded: 8, gradedBy: 't1' },
+      grade: { draftId: '1', pointsAwarded: 8, maxPoints: 10 },
     });
+    expect(store.get(RESP).grade).toBeUndefined();
+  });
+
+  it('Return copies the score the student may now see', async () => {
+    await feedback('1', { pointsAwarded: 8 });
+    await ret(false);
     expect(store.get(RESP).grade).toMatchObject({
       draftId: '1',
       pointsAwarded: 8,
-      maxPoints: 10,
     });
+    // A regrade of a copy already returned shows at once.
+    await feedback('1', { pointsAwarded: 6 });
+    expect(store.get(RESP).grade.pointsAwarded).toBe(6);
+  });
+
+  it('refuses a copy whose turn in does not match what the teacher saw', async () => {
+    await expect(feedback('1', {}, 1)).rejects.toMatchObject({
+      details: { reason: 'taken-back' },
+    });
+    await expect(
+      handleSaveWritingFeedback(
+        db,
+        teacher,
+        { sessionId: SID, studentUid: 'stu1', draftId: '1', feedback: {} },
+        5_000
+      )
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+  });
+
+  it('never reuses a draft id after take back, so old feedback cannot land on new text', async () => {
+    const seen = store.get(`${RESP}/drafts/1`).turnedInAt;
+    await takeBack();
+    store.set(RESP, {
+      ...store.get(RESP),
+      html: '<p>new text</p>',
+      saveCount: 5,
+    });
+    await turnIn({}, 2_500);
+    expect(store.has(`${RESP}/drafts/1`)).toBe(false);
+    expect(store.get(`${RESP}/drafts/2`)).toMatchObject({
+      number: 1,
+      seq: 2,
+      html: '<p>new text</p>',
+    });
+    expect(store.get(RESP)).toMatchObject({
+      draftSeq: 2,
+      draftCount: 1,
+      latestDraftId: '2',
+    });
+    await expect(
+      feedback('1', { pointsAwarded: 1 }, seen)
+    ).rejects.toMatchObject({ details: { reason: 'taken-back' } });
+    expect(store.has(`${RESP}/drafts/1`)).toBe(false);
   });
 
   it('is refused, never recreated, once the copy was taken back', async () => {
@@ -358,11 +524,12 @@ describe('saveWritingFeedbackV1', () => {
     await expect(feedback('1', { pointsAwarded: 2 })).resolves.toMatchObject({
       counts: false,
     });
+    expect(store.get(`${RESP}/drafts/1`).feedback.pointsAwarded).toBe(2);
+    await ret(false);
     expect(store.get(RESP).grade).toMatchObject({
       draftId: '2',
       pointsAwarded: 9,
     });
-    expect(store.get(`${RESP}/drafts/1`).feedback.pointsAwarded).toBe(2);
   });
 });
 
@@ -382,8 +549,12 @@ describe('turnInTimedWritingV1', () => {
 
   it('the holding tab turns it in with its last text', async () => {
     await expect(
-      timed(60_000, student, { tabId: 'tabA', html: '<p>end</p>', saveCount: 1 })
-    ).resolves.toEqual({ status: 'turned-in', draftCount: 1 });
+      timed(60_000, student, {
+        tabId: 'tabA',
+        html: '<p>end</p>',
+        saveCount: 1,
+      })
+    ).resolves.toMatchObject({ status: 'turned-in', draftCount: 1 });
     expect(store.get(`${RESP}/drafts/1`)).toMatchObject({
       html: '<p>end</p>',
       turnedInBy: 'timer',
@@ -398,6 +569,19 @@ describe('turnInTimedWritingV1', () => {
       saveCount: 1,
     });
     expect(store.get(`${RESP}/drafts/1`).html).toBe('<p>saved</p>');
+  });
+
+  it('ignores a stale flush instead of failing', async () => {
+    store.set(RESP, { ...store.get(RESP), html: '<p>saved</p>', saveCount: 4 });
+    await expect(
+      timed(60_000, student, { tabId: 'tabB', html: '<p>x</p>', saveCount: 9 })
+    ).resolves.toMatchObject({ status: 'turned-in' });
+    expect(store.get(`${RESP}/drafts/1`).html).toBe('<p>saved</p>');
+    store.set(RESP, { ...store.get(RESP), status: 'draft' });
+    await expect(
+      timed(60_000, student, { tabId: 'tabA', html: '<p>y</p>', saveCount: 4 })
+    ).resolves.toMatchObject({ status: 'turned-in' });
+    expect(store.get(`${RESP}/drafts/2`).html).toBe('<p>saved</p>');
   });
 
   it('the teacher can turn it in once time is up; repeats are no-ops', async () => {

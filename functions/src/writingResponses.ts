@@ -11,12 +11,15 @@ import * as admin from './firebaseAdmin';
 import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { isPeriodFrozen } from './quizSessionContent';
 import {
   WRITING_CLOSE_GRACE_MS,
+  WRITING_HTML_MAX_BYTES,
   WRITING_TIMED_FLUSH_GRACE_MS,
   canSaveFeedback,
   countWritingWords,
   deriveWritingStatus,
+  resolveWritingCloseAt,
   resolveWritingDueAt,
   takeBackBlock,
   timedTurnInDue,
@@ -44,11 +47,25 @@ export interface WritingCaller {
 
 type Data = Record<string, unknown>;
 
-const HTML_MAX = 400_000;
 const TAB_ID_MAX = 100;
 const COMMENT_MAX = 10_000;
 const ANNOTATIONS_MAX = 300;
 const RUBRIC_SCORES_MAX = 50;
+/** Feedback JSON in bytes; with the text cap a frozen copy stays under 1 MiB. */
+const FEEDBACK_MAX_BYTES = 300_000;
+const SUMMARY_KEYS = [
+  'wordCount',
+  'savedAt',
+  'writingMs',
+  'sessions',
+  'pasteCount',
+  'pastedChars',
+  'untypedCount',
+  'untypedChars',
+  'awayMs',
+  'awayCount',
+  'logStoppedAt',
+] as const;
 
 const isDocumentId = (v: unknown): v is string =>
   typeof v === 'string' &&
@@ -61,6 +78,8 @@ const isDocumentId = (v: unknown): v is string =>
 
 const isNum = (v: unknown): v is number =>
   typeof v === 'number' && Number.isFinite(v);
+
+const utf8Bytes = (s: string): number => Buffer.byteLength(s, 'utf8');
 
 function requireCaller(caller: WritingCaller | null): WritingCaller {
   if (!caller) throw new HttpsError('unauthenticated', 'Sign in required.');
@@ -92,8 +111,8 @@ const sessionRef = (db: Firestore, sid: string) =>
   db.collection(WRITING_SESSIONS).doc(sid);
 const responseRef = (db: Firestore, sid: string, uid: string) =>
   sessionRef(db, sid).collection(WRITING_RESPONSES).doc(uid);
-const draftRef = (response: DocumentReference, n: number) =>
-  response.collection(WRITING_DRAFTS).doc(String(n));
+const draftRef = (response: DocumentReference, id: string) =>
+  response.collection(WRITING_DRAFTS).doc(id);
 const pointerRef = (db: Firestore, uid: string, sid: string) =>
   db.collection('student_assignments').doc(uid).collection('items').doc(sid);
 
@@ -130,7 +149,15 @@ const emptySummary = (now: number) => ({
   awayCount: 0,
 });
 
-/** The student's own flush: final text and summary from the holding tab (D24), refused when stale. */
+/** Only the known summary numbers, so a client can't grow a frozen copy through it. */
+function cleanSummary(raw: unknown): Data {
+  const src = typeof raw === 'object' && raw !== null ? (raw as Data) : {};
+  const out: Data = {};
+  for (const k of SUMMARY_KEYS) if (isNum(src[k])) out[k] = src[k];
+  return out;
+}
+
+/** The student's own flush: final text and summary from the holding tab (D24). */
 interface Flush {
   html: string;
   summary: Data;
@@ -140,29 +167,51 @@ interface Flush {
 function flushOf(data: unknown): Flush | null {
   const d = (data ?? {}) as Data;
   if (d.html === undefined) return null;
-  if (typeof d.html !== 'string' || d.html.length > HTML_MAX)
+  if (typeof d.html !== 'string' || utf8Bytes(d.html) > WRITING_HTML_MAX_BYTES)
     throw new HttpsError('invalid-argument', 'html is too long.');
   if (!isNum(d.saveCount))
     throw new HttpsError('invalid-argument', 'saveCount is required.');
-  const summary =
-    typeof d.summary === 'object' && d.summary !== null
-      ? (d.summary as Data)
-      : {};
-  return { html: d.html, summary, saveCount: d.saveCount };
+  return {
+    html: d.html,
+    summary: cleanSummary(d.summary),
+    saveCount: d.saveCount,
+  };
 }
 
-/** D23/D24: a flush must come from the holding tab and raise the save counter. */
-function assertFresh(response: Data, tabId: string, flush: Flush | null): void {
+/** D23/D24 for a student's own turn in: the holding tab only; a resent current counter carries no new text. */
+function freshFlush(
+  response: Data,
+  tabId: string,
+  flush: Flush | null
+): Flush | null {
   if (response.tabId !== tabId)
     throw new HttpsError(
       'failed-precondition',
       'This piece is open in another tab.',
       { reason: 'stale-tab' }
     );
-  if (flush && !(isNum(response.saveCount) && flush.saveCount > response.saveCount))
+  if (!flush) return null;
+  const saved = isNum(response.saveCount) ? response.saveCount : 0;
+  if (flush.saveCount === saved) return null;
+  if (flush.saveCount < saved)
     throw new HttpsError('failed-precondition', 'A newer save exists.', {
       reason: 'stale-save',
     });
+  return flush;
+}
+
+/** The timed turn in takes a flush only from the holding tab, newer than the save and inside the grace; else it is ignored. */
+function timedFlush(
+  response: Data,
+  tabId: string | null,
+  flush: Flush | null,
+  now: number
+): Flush | null {
+  if (!flush || tabId === null || response.tabId !== tabId) return null;
+  if (!isNum(response.deadlineAt)) return null;
+  if (now > response.deadlineAt + WRITING_TIMED_FLUSH_GRACE_MS) return null;
+  const saved = isNum(response.saveCount) ? response.saveCount : 0;
+  return flush.saveCount > saved ? flush : null;
 }
 
 async function loadStudentAccess(
@@ -190,6 +239,29 @@ async function loadStudentAccess(
   return { session, pointer, classId };
 }
 
+/** Manual (per-period) sessions: the student's class must be started, or the student let in. */
+function assertPeriodOpen(
+  session: Data,
+  uid: string,
+  classId: unknown,
+  now: number
+): void {
+  if (isPeriodFrozen(session, { studentUid: uid, classId }, now))
+    throw new HttpsError(
+      'failed-precondition',
+      "Your class period isn't open right now.",
+      { reason: 'paused' }
+    );
+}
+
+const draftSeqOf = (response: Data): number =>
+  isNum(response.draftSeq)
+    ? response.draftSeq
+    : isNum(response.draftCount)
+      ? response.draftCount
+      : 0;
+
+/** Writes a frozen copy under a never-reused id (D12: a taken-back id is never handed out again). */
 function freezeDraft(
   tx: Transaction,
   ref: DocumentReference,
@@ -199,10 +271,20 @@ function freezeDraft(
   logLength: number,
   by: WritingTurnedInBy,
   now: number
-): void {
+): { draftCount: number; draftId: string } {
+  if (utf8Bytes(html) > WRITING_HTML_MAX_BYTES)
+    throw new HttpsError('failed-precondition', 'This piece is too long.', {
+      reason: 'too-large',
+    });
+  const seq = draftSeqOf(response) + 1;
+  const draftId = String(seq);
   const number = (isNum(response.draftCount) ? response.draftCount : 0) + 1;
-  tx.set(draftRef(ref, number), {
+  tx.set(draftRef(ref, draftId), {
     number,
+    seq,
+    ...(typeof response.latestDraftId === 'string'
+      ? { prevDraftId: response.latestDraftId }
+      : {}),
     html,
     summary,
     turnedInAt: now,
@@ -217,11 +299,13 @@ function freezeDraft(
       type: 'turn-in',
     }),
     draftCount: number,
-    latestDraftId: String(number),
+    draftSeq: seq,
+    latestDraftId: draftId,
     turnedInAt: now,
     turnedInBy: by,
     updatedAt: now,
   });
+  return { draftCount: number, draftId };
 }
 
 async function openLogLength(
@@ -233,6 +317,36 @@ async function openLogLength(
   const snap = await tx.get(ref.collection(WRITING_LOG).doc(String(chunk)));
   const log: unknown = snap.exists ? snap.get('log') : '';
   return typeof log === 'string' ? log.length : 0;
+}
+
+/** Freezes the piece with an optional flush already judged fresh; reads come first, as transactions need. */
+async function freezeWith(
+  tx: Transaction,
+  ref: DocumentReference,
+  r: Data,
+  flush: Flush | null,
+  by: WritingTurnedInBy,
+  now: number
+): Promise<WritingStatusResult> {
+  const html = flush ? flush.html : typeof r.html === 'string' ? r.html : '';
+  const logLength = await openLogLength(tx, ref, r);
+  const summary = {
+    ...cleanSummary(r.summary),
+    ...(flush?.summary ?? {}),
+    wordCount: countWritingWords(html),
+  };
+  if (flush) tx.update(ref, { html, summary, saveCount: flush.saveCount });
+  const { draftCount, draftId } = freezeDraft(
+    tx,
+    ref,
+    r,
+    html,
+    summary,
+    logLength,
+    by,
+    now
+  );
+  return { status: 'turned-in', draftCount, latestDraftId: draftId };
 }
 
 // ── openWritingV1 ────────────────────────────────────────────────────────────
@@ -279,6 +393,8 @@ export async function handleOpenWriting(
       throw new HttpsError('failed-precondition', 'Not open yet.');
     if (closeAt !== null && now > closeAt + WRITING_CLOSE_GRACE_MS)
       throw new HttpsError('failed-precondition', 'This assignment is closed.');
+    // The clock must not start while the class is paused.
+    assertPeriodOpen(session, caller.uid, classId, now);
     const override = (pointer.override ?? {}) as Data;
     const deadlineAt = writingDeadline(
       now,
@@ -301,6 +417,7 @@ export async function handleOpenWriting(
         : {}),
       ...(deadlineAt !== null ? { deadlineAt } : {}),
       draftCount: 0,
+      draftSeq: 0,
       updatedAt: now,
     });
     return { created: true, status: 'draft', saveCount: 0, deadlineAt };
@@ -312,9 +429,11 @@ export async function handleOpenWriting(
 export interface WritingStatusResult {
   status: WritingResponseStatus;
   draftCount: number;
+  /** The newest frozen copy's id, absent when none is left. */
+  latestDraftId?: string;
 }
 
-/** The student turns the piece in from the holding tab, with an optional final flush. */
+/** The student turns the piece in from the holding tab; past a timed deadline it goes through the timed path. */
 export async function handleTurnInWriting(
   db: Firestore,
   rawCaller: WritingCaller | null,
@@ -333,11 +452,31 @@ export async function handleTurnInWriting(
       throw new HttpsError('not-found', 'Open the assignment first.');
     const r: Data = snap.data() ?? {};
     const status = deriveWritingStatus(r);
-    assertFresh(r, tabId, flush);
-    const html = flush ? flush.html : typeof r.html === 'string' ? r.html : '';
+    const closeAt = resolveWritingCloseAt(session, pointer.closeAt);
+    if (closeAt !== null && now > closeAt + WRITING_CLOSE_GRACE_MS)
+      throw new HttpsError('failed-precondition', 'Cannot turn this in.', {
+        reason: 'closed',
+      });
+    // Past the clock the timer's rules apply: no word limits, a stale flush is dropped.
+    if (
+      isNum(r.deadlineAt) &&
+      timedTurnInDue(now, r.deadlineAt) &&
+      (status === 'draft' || status === 'revising')
+    )
+      return freezeWith(
+        tx,
+        ref,
+        r,
+        timedFlush(r, tabId, flush, now),
+        'timer',
+        now
+      );
+    const fresh = freshFlush(r, tabId, flush);
+    assertPeriodOpen(session, caller.uid, r.classId, now);
+    const html = fresh ? fresh.html : typeof r.html === 'string' ? r.html : '';
     const block = turnInBlock(status, {
       now,
-      closeAt: windowField(pointer, session, 'closeAt'),
+      closeAt,
       wordCount: countWritingWords(html),
       minWords: isNum(session.minWords) ? session.minWords : undefined,
       maxWords: isNum(session.maxWords) ? session.maxWords : undefined,
@@ -347,17 +486,7 @@ export async function handleTurnInWriting(
       throw new HttpsError('failed-precondition', 'Cannot turn this in.', {
         reason: block,
       });
-    const logLength = await openLogLength(tx, ref, r);
-    const summary = {
-      ...((r.summary ?? {}) as Data),
-      ...(flush?.summary ?? {}),
-      wordCount: countWritingWords(html),
-    };
-    if (flush)
-      tx.update(ref, { html, summary, saveCount: flush.saveCount });
-    freezeDraft(tx, ref, r, html, summary, logLength, 'student', now);
-    const draftCount = (isNum(r.draftCount) ? r.draftCount : 0) + 1;
-    return { status: 'turned-in', draftCount };
+    return freezeWith(tx, ref, r, fresh, 'student', now);
   });
 }
 
@@ -376,10 +505,14 @@ export async function handleTakeBackWriting(
   const ref = responseRef(db, sid, caller.uid);
   return db.runTransaction(async (tx): Promise<WritingStatusResult> => {
     const snap = await tx.get(ref);
-    if (!snap.exists) throw new HttpsError('not-found', 'Nothing to take back.');
+    if (!snap.exists)
+      throw new HttpsError('not-found', 'Nothing to take back.');
     const r: Data = snap.data() ?? {};
     const count = isNum(r.draftCount) ? r.draftCount : 0;
-    const latest = count > 0 ? draftRef(ref, count) : null;
+    const latest =
+      typeof r.latestDraftId === 'string'
+        ? draftRef(ref, r.latestDraftId)
+        : null;
     const draftSnap = latest ? await tx.get(latest) : null;
     const draft: Data = draftSnap?.exists ? (draftSnap.data() ?? {}) : {};
     const facts = {
@@ -389,8 +522,12 @@ export async function handleTakeBackWriting(
         typeof r.classId === 'string' ? r.classId : null,
         pointer.dueAt
       ),
-      hasFeedback: draft.feedback != null || isNum(draft.feedbackAt),
+      hasFeedback:
+        draft.feedback != null ||
+        isNum(draft.feedbackAt) ||
+        draft.grade != null,
       timed: isNum(session.timeLimitMinutes) && session.timeLimitMinutes > 0,
+      closeAt: resolveWritingCloseAt(session, pointer.closeAt),
     };
     const status = deriveWritingStatus(r);
     const block = !draftSnap?.exists
@@ -400,22 +537,26 @@ export async function handleTakeBackWriting(
       throw new HttpsError('failed-precondition', 'Cannot take this back.', {
         reason: block,
       });
-    const event: WritingEvent = {
-      type: 'take-back',
-      facts,
-      draftsLeft: count - 1,
-    };
+    const left = Math.max(0, count - 1);
+    const event: WritingEvent = { type: 'take-back', facts, draftsLeft: left };
+    const prev =
+      typeof draft.prevDraftId === 'string' ? draft.prevDraftId : undefined;
     tx.delete(latest);
     tx.update(ref, {
       status: writingTransition(status, event),
-      draftCount: count - 1,
-      latestDraftId:
-        count - 1 > 0 ? String(count - 1) : FieldValue.delete(),
+      draftCount: left,
+      // draftSeq stays where it is, so the next turn in gets a new id.
+      draftSeq: draftSeqOf(r),
+      latestDraftId: prev ?? FieldValue.delete(),
       turnedInAt: FieldValue.delete(),
       turnedInBy: FieldValue.delete(),
       updatedAt: now,
     });
-    return { status: writingTransition(status, event), draftCount: count - 1 };
+    return {
+      status: writingTransition(status, event),
+      draftCount: left,
+      ...(prev ? { latestDraftId: prev } : {}),
+    };
   });
 }
 
@@ -467,39 +608,63 @@ export async function handleTimedTurnIn(
     const status = deriveWritingStatus(r);
     const count = isNum(r.draftCount) ? r.draftCount : 0;
     if (status === 'turned-in' || status === 'returned')
-      return { status, draftCount: count };
+      return {
+        status,
+        draftCount: count,
+        ...(typeof r.latestDraftId === 'string'
+          ? { latestDraftId: r.latestDraftId }
+          : {}),
+      };
     if (!isNum(r.deadlineAt))
       throw new HttpsError('failed-precondition', 'This piece is not timed.');
     if (!timedTurnInDue(now, r.deadlineAt))
       throw new HttpsError('failed-precondition', 'Time is not up yet.', {
         reason: 'early',
       });
-    // F decides how late a flush may land (§5); past the grace the saved text is frozen as it is.
-    const useFlush =
-      flush !== null &&
-      tabId !== null &&
-      now <= r.deadlineAt + WRITING_TIMED_FLUSH_GRACE_MS;
-    if (useFlush && tabId) assertFresh(r, tabId, flush);
-    const html =
-      useFlush && flush
-        ? flush.html
-        : typeof r.html === 'string'
-          ? r.html
-          : '';
-    const logLength = await openLogLength(tx, ref, r);
-    const summary = {
-      ...((r.summary ?? {}) as Data),
-      ...(useFlush && flush ? flush.summary : {}),
-      wordCount: countWritingWords(html),
-    };
-    if (useFlush && flush)
-      tx.update(ref, { html, summary, saveCount: flush.saveCount });
-    freezeDraft(tx, ref, r, html, summary, logLength, 'timer', now);
-    return { status: 'turned-in', draftCount: count + 1 };
+    return freezeWith(
+      tx,
+      ref,
+      r,
+      timedFlush(r, tabId, flush, now),
+      'timer',
+      now
+    );
   });
 }
 
 // ── returnWritingV1 / returnWritingForRevisionV1 ────────────────────────────
+
+/** Newest first, following each copy's link to the one before it. */
+async function draftChain(
+  tx: Transaction,
+  ref: DocumentReference,
+  latestId: unknown
+): Promise<Array<{ id: string; data: Data }>> {
+  const out: Array<{ id: string; data: Data }> = [];
+  let id = typeof latestId === 'string' ? latestId : null;
+  while (id && out.length < 100 && !out.some((d) => d.id === id)) {
+    const snap = await tx.get(draftRef(ref, id));
+    if (!snap.exists) break;
+    const data: Data = snap.data() ?? {};
+    out.push({ id, data });
+    id = typeof data.prevDraftId === 'string' ? data.prevDraftId : null;
+  }
+  return out;
+}
+
+/** D14 for the student's view: the newest returned copy with a score; the teacher's draft scores stay on the copies. */
+function returnedGrade(
+  chain: Array<{ id: string; data: Data }>,
+  returningId: string | null
+): Data | null {
+  for (const d of chain)
+    if (
+      d.data.grade != null &&
+      (d.id === returningId || isNum(d.data.returnedAt))
+    )
+      return d.data.grade as Data;
+  return null;
+}
 
 /** Return (keeps it locked) or Return for revision (unlocks it); either repeats, and D11 can change with it. */
 export async function handleReturnWriting(
@@ -525,24 +690,41 @@ export async function handleReturnWriting(
     const r: Data = snap.data() ?? {};
     const status = deriveWritingStatus(r);
     const count = isNum(r.draftCount) ? r.draftCount : 0;
-    const latest = count > 0 ? draftRef(ref, count) : null;
-    const draftSnap = latest ? await tx.get(latest) : null;
-    if (!latest || !draftSnap?.exists || !writingEventAllowed(status, event))
+    const chain = await draftChain(tx, ref, r.latestDraftId);
+    const latest = chain[0];
+    if (!latest || !writingEventAllowed(status, event))
       throw new HttpsError('failed-precondition', 'Nothing to return.', {
-        reason: draftSnap?.exists === false ? 'taken-back' : 'not-turned-in',
+        reason:
+          typeof r.latestDraftId === 'string' && !latest
+            ? 'taken-back'
+            : 'not-turned-in',
       });
     const next = writingTransition(status, event);
-    tx.update(latest, {
+    const grade = returnedGrade(chain, latest.id);
+    tx.update(draftRef(ref, latest.id), {
       returnedAt: now,
       returnKind: revise ? 'revision' : 'return',
     });
-    tx.update(ref, { status: next, returnedAt: now, updatedAt: now });
+    tx.update(ref, {
+      status: next,
+      returnedAt: now,
+      // Only what the student may now see: the returned score that counts.
+      grade: grade ?? FieldValue.delete(),
+      // A revision is untimed (D7): the clock ends with the first sitting.
+      ...(revise
+        ? {
+            deadlineAt: FieldValue.delete(),
+            timerStartedAt: FieldValue.delete(),
+          }
+        : {}),
+      updatedAt: now,
+    });
     if (typeof d.studentCanViewRecord === 'boolean')
       tx.update(sessionRef(db, sid), {
         studentCanViewRecord: d.studentCanViewRecord,
         updatedAt: now,
       });
-    return { status: next, draftCount: count };
+    return { status: next, draftCount: count, latestDraftId: latest.id };
   });
 }
 
@@ -567,10 +749,7 @@ function sanitizeFeedback(raw: unknown, caller: WritingCaller, now: number) {
     out.overallComment = f.overallComment;
   }
   if (f.annotations !== undefined) {
-    if (
-      !Array.isArray(f.annotations) ||
-      f.annotations.length > ANNOTATIONS_MAX
-    )
+    if (!Array.isArray(f.annotations) || f.annotations.length > ANNOTATIONS_MAX)
       throw new HttpsError('invalid-argument', 'annotations are invalid.');
     out.annotations = f.annotations;
   }
@@ -587,6 +766,8 @@ function sanitizeFeedback(raw: unknown, caller: WritingCaller, now: number) {
       throw new HttpsError('invalid-argument', 'excused is invalid.');
     out.excused = f.excused;
   }
+  if (utf8Bytes(JSON.stringify(out)) > FEEDBACK_MAX_BYTES)
+    throw new HttpsError('invalid-argument', 'feedback is too long.');
   return out;
 }
 
@@ -595,7 +776,7 @@ const maxPointsOf = (session: Data): number | undefined => {
   return g.mode === 'points' && isNum(g.points) ? g.points : undefined;
 };
 
-/** D12/D13: feedback lands only on a frozen copy that still exists; a taken-back copy is never recreated. */
+/** D12/D13: feedback lands only on the frozen copy the teacher saw; a taken-back copy is never recreated. */
 export async function handleSaveWritingFeedback(
   db: Firestore,
   rawCaller: WritingCaller | null,
@@ -610,6 +791,9 @@ export async function handleSaveWritingFeedback(
       'invalid-argument',
       'studentUid and draftId are required.'
     );
+  if (!isNum(d.turnedInAt))
+    throw new HttpsError('invalid-argument', 'turnedInAt is required.');
+  const draftId = d.draftId;
   const session = await sessionForTeacher(db, caller, sid);
   const feedback = sanitizeFeedback(d.feedback, caller, now);
   const maxPoints = maxPointsOf(session);
@@ -618,49 +802,71 @@ export async function handleSaveWritingFeedback(
     isNum(feedback.pointsAwarded) &&
     feedback.pointsAwarded > maxPoints
   )
-    throw new HttpsError('invalid-argument', 'pointsAwarded is over the total.');
+    throw new HttpsError(
+      'invalid-argument',
+      'pointsAwarded is over the total.'
+    );
   const ref = responseRef(db, sid, d.studentUid);
-  const dRef = ref.collection(WRITING_DRAFTS).doc(d.draftId);
-  return db.runTransaction(async (tx): Promise<{ draftId: string; counts: boolean }> => {
-    const [snap, draftSnap] = await Promise.all([tx.get(ref), tx.get(dRef)]);
-    const r: Data = snap.exists ? (snap.data() ?? {}) : {};
-    if (!canSaveFeedback(deriveWritingStatus(r), draftSnap.exists))
-      throw new HttpsError(
-        'failed-precondition',
-        'The student took this work back.',
-        { reason: 'taken-back' }
-      );
-    const draft: Data = draftSnap.data() ?? {};
-    const number = isNum(draft.number) ? draft.number : Number(d.draftId);
-    tx.update(dRef, { feedback, feedbackAt: now });
-    const scored =
-      isNum(feedback.pointsAwarded) ||
-      Array.isArray(feedback.rubricScores) ||
-      feedback.excused === true;
-    const current = (r.grade ?? null) as Data | null;
-    // D14: the latest graded draft's score counts; an earlier draft's regrade keeps its own.
-    const counts =
-      scored &&
-      (!current || !isNum(current.draftNumber) || number >= current.draftNumber);
-    if (counts)
-      tx.update(ref, {
-        grade: {
-          draftId: d.draftId,
-          draftNumber: number,
-          ...(isNum(feedback.pointsAwarded)
-            ? { pointsAwarded: feedback.pointsAwarded }
-            : {}),
-          ...(maxPoints !== undefined ? { maxPoints } : {}),
-          ...(Array.isArray(feedback.rubricScores)
-            ? { rubricScores: feedback.rubricScores }
-            : {}),
-          ...(feedback.excused === true ? { excused: true } : {}),
-          gradedAt: now,
-        },
-        updatedAt: now,
+  return db.runTransaction(
+    async (tx): Promise<{ draftId: string; counts: boolean }> => {
+      const snap = await tx.get(ref);
+      const r: Data = snap.exists ? (snap.data() ?? {}) : {};
+      const chain = await draftChain(tx, ref, r.latestDraftId);
+      const at = chain.findIndex((c) => c.id === draftId);
+      const draft = at >= 0 ? chain[at].data : null;
+      // The copy must be the one the teacher graded: same id and same turn in.
+      if (
+        !draft ||
+        draft.turnedInAt !== d.turnedInAt ||
+        !canSaveFeedback(deriveWritingStatus(r), true)
+      )
+        throw new HttpsError(
+          'failed-precondition',
+          'The student took this work back.',
+          { reason: 'taken-back' }
+        );
+      const scored =
+        isNum(feedback.pointsAwarded) ||
+        Array.isArray(feedback.rubricScores) ||
+        feedback.excused === true;
+      const number = isNum(draft.number) ? draft.number : Number(draftId);
+      const grade = scored
+        ? {
+            draftId,
+            draftNumber: number,
+            ...(isNum(feedback.pointsAwarded)
+              ? { pointsAwarded: feedback.pointsAwarded }
+              : {}),
+            ...(maxPoints !== undefined ? { maxPoints } : {}),
+            ...(Array.isArray(feedback.rubricScores)
+              ? { rubricScores: feedback.rubricScores }
+              : {}),
+            ...(feedback.excused === true ? { excused: true } : {}),
+            gradedAt: now,
+          }
+        : null;
+      tx.update(draftRef(ref, draftId), {
+        feedback,
+        feedbackAt: now,
+        grade: grade ?? FieldValue.delete(),
       });
-    return { draftId: d.draftId, counts };
-  });
+      // D14: the latest graded copy's score counts; an earlier copy's regrade keeps its own.
+      const counts =
+        scored && chain.slice(0, at).every((c) => c.data.grade == null);
+      // A copy the student already sees updates the score they see; otherwise it waits for Return.
+      if (isNum(draft.returnedAt)) {
+        const after = chain.map((c, i) =>
+          i === at ? { id: c.id, data: { ...c.data, grade } } : c
+        );
+        const visible = returnedGrade(after, null);
+        tx.update(ref, {
+          grade: visible ?? FieldValue.delete(),
+          updatedAt: now,
+        });
+      }
+      return { draftId, counts };
+    }
+  );
 }
 
 // ── callables ────────────────────────────────────────────────────────────────
@@ -722,4 +928,3 @@ export const returnWritingForRevisionV1 = callable(
   true
 );
 export const saveWritingFeedbackV1 = callable(handleSaveWritingFeedback, true);
-

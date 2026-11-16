@@ -78,7 +78,12 @@ export type { AssignTargetingValue } from '@/utils/studentTargetRef';
 export { EMPTY_ASSIGN_TARGETING_VALUE } from '@/utils/studentTargetRef';
 
 export type AssignTargetingKind =
-  'quiz' | 'video-activity' | 'guided-learning' | 'mini-app' | 'flashcards';
+  | 'quiz'
+  | 'video-activity'
+  | 'guided-learning'
+  | 'mini-app'
+  | 'flashcards'
+  | 'writing';
 
 export interface AssignTargetingQuizContext {
   questions: OverrideEditorQuestion[];
@@ -376,6 +381,7 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
         value={value}
         onChange={onChange}
         quizMode={kind === 'quiz'}
+        writingMode={kind === 'writing'}
         quizContext={quizContext}
         readAloudAvailable={readAloudAvailable}
         canPickClasses={canPickClasses}
@@ -474,6 +480,7 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
                     override={value.overridesByKey[row.key] ?? {}}
                     onChange={(next) => setOverrideForKey(row.key, next)}
                     quizMode={kind === 'quiz'}
+                    writingMode={kind === 'writing'}
                     readAloudAvailable={readAloudAvailable}
                     questions={quizContext?.questions ?? []}
                     rubrics={quizContext?.rubrics ?? []}

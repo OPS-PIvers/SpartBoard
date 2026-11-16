@@ -2112,7 +2112,8 @@
       "videoActivity": "Actividad de Video",
       "guidedLearning": "Aprendizaje Guiado",
       "miniApp": "Mini App",
-      "flashcards": "Tarjetas"
+      "flashcards": "Tarjetas",
+      "writing": "Escritura"
     },
     "flashcardKind": {
       "check": "Evaluación",

@@ -34,7 +34,9 @@ const ITEM: WritingAssignmentDefinition = {
 };
 
 const renderStepper = () => {
-  const onAssign = vi.fn((_s: WritingAssignSubmission) => Promise.resolve(true));
+  const onAssign = vi.fn((_s: WritingAssignSubmission) =>
+    Promise.resolve(true)
+  );
   const auth = {
     user: { uid: 'teacher-1' },
     canAccessFeature: () => false,
@@ -78,5 +80,24 @@ describe('WritingAssignStepper', () => {
     });
     expect(input).not.toHaveProperty('timeLimitMinutes');
     expect(input).not.toHaveProperty('focusLevel');
+  });
+
+  it('offers Manual as the Quiz stepper does: each class starts paused', async () => {
+    const { onAssign } = renderStepper();
+    fireEvent.click(screen.getByRole('checkbox', { name: /Period 1/ }));
+    fireEvent.click(screen.getAllByText('When')[0]);
+    fireEvent.click(await screen.findByRole('radio', { name: 'Manual' }));
+    expect(
+      screen.getByText('Starts paused. You start and pause each class.')
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Assign' }));
+    await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
+    const { input } = onAssign.mock.calls[0][0];
+    expect(input).toMatchObject({
+      accessMode: 'assessment',
+      openAt: null,
+      closeAt: null,
+    });
+    expect(input.periodAccess?.['CL-r1']).toMatchObject({ state: 'closed' });
   });
 });

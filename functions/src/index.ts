@@ -167,6 +167,7 @@ export {
   assignWritingV1,
   deleteWritingSessionV1,
   endWritingSessionV1,
+  updateWritingSessionV1,
   cleanupWritingSessionData,
 } from './writingSessions';
 export {
