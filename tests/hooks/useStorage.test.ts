@@ -66,7 +66,8 @@ describe('useStorage', () => {
     mockUseGoogleDrive.mockReturnValue({ driveService: null });
     driveOnly = false;
     (useAuth as Mock).mockReturnValue({
-      canAccessFeature: (id: string) => id === 'drive-only-uploads' && driveOnly,
+      canAccessFeature: (id: string) =>
+        id === 'drive-only-uploads' && driveOnly,
     });
 
     mockRef.mockReturnValue('mock-ref');
