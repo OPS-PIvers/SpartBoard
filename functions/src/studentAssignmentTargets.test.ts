@@ -2075,6 +2075,36 @@ describe('refKey', () => {
 });
 
 describe('sanitizeOverride', () => {
+  it('keeps text, https link and Drive file supports, capped', () => {
+    const out = sanitizeOverride({
+      supports: [
+        { kind: 'text', title: ' Word bank ', text: 'cell, nucleus' },
+        { kind: 'link', title: 'Notes', url: 'https://example.org/a' },
+        { kind: 'drive', title: 'Diagram', fileId: '1AbCdEfGhIjKlMnOp' },
+        { kind: 'link', title: 'Bad', url: 'javascript:alert(1)' },
+        { kind: 'link', title: 'Plain', url: 'http://example.org' },
+        { kind: 'drive', title: 'Bad id', fileId: '../../x' },
+        { kind: 'text', title: '', text: 'no title' },
+        { kind: 'text', title: 'Long', text: 'x'.repeat(5000) },
+        { kind: 'text', title: 'Fifth', text: 'ok' },
+        { kind: 'text', title: 'Sixth', text: 'over the cap' },
+      ],
+    });
+    expect(out?.supports?.map((s) => s.title)).toEqual([
+      'Word bank',
+      'Notes',
+      'Diagram',
+      'Long',
+      'Fifth',
+    ]);
+    const long = out?.supports?.[3];
+    expect(long?.kind === 'text' && long.text.length).toBe(2000);
+  });
+
+  it('drops supports that are not a list', () => {
+    expect(sanitizeOverride({ supports: 'x' })).toBeNull();
+  });
+
   it('drops unknown keys', () => {
     expect(sanitizeOverride({ timeMultiplier: 2, evil: 'x' })).toEqual({
       timeMultiplier: 2,

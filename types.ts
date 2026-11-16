@@ -7300,7 +7300,15 @@ export interface StudentOverride {
   closeAt?: number; // per-student window shift (epoch ms)
   /** BCP-47 code, e.g. 'es' | 'so' | 'hmn'. Absent = English. Shape-validated only. */
   language?: string;
+  /** Quiz only: teacher-provided supports shown in the student's Supports panel. */
+  supports?: QuizSupport[];
 }
+
+/** A word bank, a link or a Drive file the teacher gives a student during a quiz. */
+export type QuizSupport =
+  | { kind: 'text'; title: string; text: string }
+  | { kind: 'link'; title: string; url: string }
+  | { kind: 'drive'; title: string; fileId: string };
 
 /**
  * Server-fan-out pointer doc at `/student_assignments/{studentUid}/items/{assignmentId}`.

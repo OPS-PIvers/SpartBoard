@@ -6214,6 +6214,119 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-mods.supports-add",
+    "label": "Add support button for a modification group",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-step.modifications"
+        ],
+        "reveal": "assign-step.modifications"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.supports-kind",
+    "label": "Text, Link or Drive file choice in the Add support menu",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.supports-add"
+        ],
+        "reveal": "assign-mods.supports-add"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.support-title",
+    "label": "Support title field for a modification group",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.supports-add"
+        ],
+        "reveal": "assign-mods.supports-add"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.support-body",
+    "label": "Support text or link field for a modification group",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.supports-add"
+        ],
+        "reveal": "assign-mods.supports-add"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.support-save",
+    "label": "Add button that saves a new support",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.supports-add"
+        ],
+        "reveal": "assign-mods.supports-add"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.support-cancel",
+    "label": "Cancel button for a new support",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.supports-add"
+        ],
+        "reveal": "assign-mods.supports-add"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.support-remove",
+    "label": "Remove support button for a modification group",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-step.modifications"
+        ],
+        "reveal": "assign-step.modifications"
+      }
+    ]
+  },
+  {
     "id": "assign-mods.remove-group",
     "label": "Remove group button in the Assign dialog Modifications step",
     "scope": "board",

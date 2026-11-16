@@ -57,6 +57,7 @@ import {
   SectionCapNotice,
   SectionIntroDialog,
 } from './QuizSectionParts';
+import { SupportsButton, SupportsDialog } from './QuizSupportsParts';
 import { QuizStopScreen } from './QuizStopScreen';
 import { StudentExplanation } from './StudentExplanation';
 import {
@@ -2604,6 +2605,7 @@ export const ActiveQuiz: React.FC<{
     () => new Set()
   );
   const [directionsOpen, setDirectionsOpen] = useState(false);
+  const [supportsOpen, setSupportsOpen] = useState(false);
   const [clearingAnswer, setClearingAnswer] = useState(false);
   // The student's accommodation language; the toggle resets to it on advance (§4.6).
   const assignedLocale = override?.language;
@@ -4042,6 +4044,7 @@ export const ActiveQuiz: React.FC<{
   // when `light`, so they use the light palette directly; the violet teacher-
   // paced affordances and the gamified AnswerFeedbackBanner stay dark.
   const light = isStudentPaced;
+  const supports = override?.supports ?? [];
   const sectionAnswers = myResponse?.answers ?? [];
   const sectionServedIds =
     isStudentPaced && (drawIds || override?.questionIds)
@@ -4550,6 +4553,12 @@ export const ActiveQuiz: React.FC<{
               {attemptDeadline != null && !isAttemptSubmitted(myResponse) && (
                 <QuizTimeLimitClock deadline={attemptDeadline} light={light} />
               )}
+              {supports.length > 0 && (
+                <SupportsButton
+                  light={light}
+                  onOpen={() => setSupportsOpen(true)}
+                />
+              )}
               {whiteboardConfig && currentStimuli.length > 0 && (
                 <StimulusDrawerButton
                   open={stimulusDrawerOpen}
@@ -4624,6 +4633,13 @@ export const ActiveQuiz: React.FC<{
                 />
               )}
             </div>
+          )}
+          {supportsOpen && supports.length > 0 && (
+            <SupportsDialog
+              supports={supports}
+              light={light}
+              onClose={() => setSupportsOpen(false)}
+            />
           )}
           {showSectionIntro && sectionState && (
             <SectionIntroDialog

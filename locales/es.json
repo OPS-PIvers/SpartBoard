@@ -3925,7 +3925,6 @@
       "tabSubmitTitle": "Saliste de la página demasiadas veces",
       "submittingAnswers": "Entregando tus respuestas…",
       "forcedTab": "Saliste de la página demasiadas veces. Tu tarea se entregó. Habla con tu maestro si crees que fue un error.",
-      "tryAgain": "Intentar de nuevo",
       "tryAgainError": "No se pudo empezar un nuevo intento. Inténtalo de nuevo.",
       "tabWarningOf": "Advertencia {{count}} de {{limit}}."
     },
@@ -5099,5 +5098,12 @@
     "hour": "Hora",
     "minute": "Minuto",
     "period": "a. m. o p. m."
+  },
+  "quizSupports": {
+    "button": "Apoyos",
+    "title": "Apoyos",
+    "back": "Atrás",
+    "close": "Cerrar",
+    "openLink": "Abrir enlace"
   }
 }

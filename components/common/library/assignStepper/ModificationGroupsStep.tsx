@@ -21,6 +21,7 @@ import {
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import type { ModificationsQuizContext } from './ModificationsView';
 import { usePickMenu } from './usePickMenu';
+import { SupportsEditor } from './SupportsEditor';
 import {
   groupRuleLabels,
   hiddenOptionIdsForRule,
@@ -424,6 +425,10 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
                 </select>
               </Row>
             )}
+            <SupportsEditor
+              supports={group.supports ?? []}
+              onChange={(supports) => set(group.id, { supports })}
+            />
             {list.length > 1 && (
               <div className="pt-2">
                 <button
