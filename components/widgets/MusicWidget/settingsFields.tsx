@@ -118,14 +118,16 @@ export const MusicStationField: React.FC<{ ctx: CustomRenderCtx }> = ({
   const { stations, isLoading } = useMusicStations();
   const t = (leaf: string) => ctx.t(`widgetSettings.music.${leaf}`);
   const mySongsOn = ctx.canAccessFeature('music-my-songs');
-  const { songs, addSong, removeSong } = useMySongs(mySongsOn);
+  const personal =
+    (config.source ?? 'curated') === 'personal' && canUsePersonal(ctx);
+  const { songs, addSong, removeSong } = useMySongs(mySongsOn && !personal);
   const [songError, setSongError] = useState<string | null>(null);
   const stationIdRef = useRef(config.stationId);
   useLayoutEffect(() => {
     stationIdRef.current = config.stationId;
   });
 
-  if ((config.source ?? 'curated') === 'personal' && canUsePersonal(ctx)) {
+  if (personal) {
     return (
       <div
         id={ctx.id}
@@ -233,13 +235,17 @@ export const MusicStationField: React.FC<{ ctx: CustomRenderCtx }> = ({
       role="radiogroup"
       aria-labelledby={ctx.labelId}
       aria-describedby={ctx.describedBy}
-      onKeyDown={(event) =>
+      onKeyDown={(event) => {
+        // Arrow keys on a song's remove button must not change the station.
+        if ((event.target as HTMLElement).getAttribute('role') !== 'radio') {
+          return;
+        }
         handleRadioGroupKeyDown(
           event,
           rows.map((row) => row.id),
           (id) => rows.find((row) => row.id === id)?.select()
-        )
-      }
+        );
+      }}
       className="-mx-4 divide-y divide-slate-100 border-t border-slate-100"
     >
       {rows.map((row, rowIndex) => {

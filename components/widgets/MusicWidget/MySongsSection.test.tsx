@@ -176,6 +176,25 @@ describe('Music station list with my songs', () => {
     );
   });
 
+  it('ignores arrow keys on a song remove button', () => {
+    songs = [
+      {
+        id: 's1',
+        title: 'Saved',
+        channel: '',
+        url: `https://www.youtube.com/watch?v=${ID}`,
+        thumbnail: '',
+        createdAt: 1,
+      },
+    ];
+    const updateConfig = vi.fn();
+    render(<MusicStationField ctx={makeCtx(updateConfig, 's1')} />);
+    const remove = screen.getByLabelText('mySongsRemove: Saved');
+    remove.focus();
+    fireEvent.keyDown(remove, { key: 'ArrowDown' });
+    expect(updateConfig).not.toHaveBeenCalled();
+  });
+
   it('clears the widget pick when the selected song is removed', async () => {
     songs = [
       {
