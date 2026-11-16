@@ -69,14 +69,23 @@ Defaults I chose that were not asked; say if any is wrong:
 
 A section with no Course document behaves as a Course of one; a Course document is created the first time the teacher links sections or sets an Agenda.
 
-### 4.2 Stacked PRs into `dev-paul`
+### 4.2 PRs into `dev-paul`, in three waves
 
-1. **Course.** The type, the `courses` collection and rules, linking suggestions and link, unlink and rename in My Classes. Flag added here.
-2. **Agenda setup.** Pick the Slides file on a Course, the sharing check and confirm (D9, D10), pinned links (D12), and the student-readable copy.
-3. **Class page.** Agenda and pinned links above the tabs in `LandingClassView`, and in the teacher's preview.
-4. **Agenda widget.** New widget with a Course picker, via the `new-widget` skill.
-5. **Family link.** The public page and route, the on/off switch, `noindex`, and the "Anyone with the link" confirm.
-6. **Pilot.** A Getting Started tour for setup, a copyable Class page link in My Classes, and the pilot measure (§6).
+Five PRs, three waves. Each new collection's rules ride in their own PR because a PR may grow the compiled Firestore rules by only 1,500 bytes (`.claude/rules/firestore-rules.md`).
+
+| Wave | PR                 | What                                                                                                                                                              | Agent model                                  |
+| ---- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| 1    | A. Course          | The type, the `courses` collection and rules, linking suggestions, link, unlink and rename in My Classes, and the flag                                            | Strongest: it fixes the data shape and rules |
+| 1    | B. Agenda setup    | Stacked on A. Pick the Slides file, the sharing check and confirm (D9, D10), pinned links (D12), the student-readable copy and its rule, the Class page link copy | Strongest: rules and Drive sharing           |
+| 2    | C. Class page      | Agenda and pinned links above the tabs in `LandingClassView` and the teacher's preview                                                                            | Mid-tier: UI on a settled shape              |
+| 2    | D. Agenda widget   | New widget with a Course picker, via the `new-widget` skill                                                                                                       | Mid-tier: follows the widget template        |
+| 2    | E. Family link     | The public page and route, its rule, the on/off switch, `noindex`, the "Anyone with the link" confirm                                                             | Strongest: a public page and its rule        |
+| 3    | Pilot (in C, D, E) | The Getting Started tour and the pilot measure (§6), added to whichever wave 2 PR merges last                                                                     | Mid-tier                                     |
+
+- Wave 1 is serial: one agent, A then B. Everything later reads the shape these two set.
+- Wave 2 runs as three agents at once, each in its own worktree from `dev-paul` after B merges. They touch different folders; the only shared files are `firestore.rules` (E only), `types.ts` and the widget registries (D only).
+- A cheaper model writes, the main session reviews: each wave 2 PR gets one review pass by the strongest model before it merges.
+- No agent runs the full lint, test or type-check; CI is the gate.
 
 ### 4.3 Flags
 
