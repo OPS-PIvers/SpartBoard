@@ -50,6 +50,8 @@ export interface CourseFamilyLink {
 export interface Course {
   id: string;
   name: string;
+  /** The teacher's display name as last saved; shown on the Class page and family page. */
+  teacherName: string;
   rosterIds: string[];
   agenda: CourseAgenda | null;
   pinnedLinks: CoursePinnedLink[];
@@ -88,19 +90,21 @@ export interface FamilyPage {
   updatedAt: number;
 }
 
-/** What the teacher sets on a Course; the server owns ids, class ids and times. */
+/** What the teacher sets on a Course; the server owns ids, class ids and times. A field left out keeps its saved value. */
 export interface CourseInput {
-  /** Absent creates a Course. */
+  /** Absent creates a Course, which then needs `name` and `rosterIds`. */
   id?: string;
-  name: string;
-  rosterIds: string[];
-  agenda: CourseAgenda | null;
-  pinnedLinks: CoursePinnedLink[];
-  familyLinkOn: boolean;
+  name?: string;
+  rosterIds?: string[];
+  agenda?: CourseAgenda | null;
+  pinnedLinks?: CoursePinnedLink[];
+  familyLinkOn?: boolean;
+  /** When set, the save is refused if the Course changed since this `updatedAt` (another tab or control saved first). */
+  expectedUpdatedAt?: number;
 }
 
 export type SaveCourseRequest =
-  /** Create or update; a roster already in another Course moves here, and a Course left empty is deleted. */
+  /** Create or update. A roster in another Course moves here; a Course it empties is deleted, and a new Course takes over its family link and Class page link. */
   | { action: 'save'; course: CourseInput }
   /** D5: the roster becomes its own Course with a copy of the Agenda and pinned links. */
   | { action: 'unlink'; courseId: string; rosterId: string }

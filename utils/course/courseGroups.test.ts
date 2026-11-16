@@ -9,6 +9,7 @@ const course = (id: string, rosterIds: string[]): Course => ({
   agenda: null,
   pinnedLinks: [],
   familyLink: null,
+  teacherName: 'T',
   linkId: `link-${id}`,
   rosterClassIds: {},
   deckCheck: null,
@@ -32,31 +33,5 @@ describe('courseGroups', () => {
     const eng = course('eng', ['p1']);
     expect(courseForRoster([eng], 'p1')).toBe(eng);
     expect(courseForRoster([eng], 'p2')).toBeNull();
-  });
-});
-
-describe('dropRosterRequest', () => {
-  it('saves the Course without the class, or deletes a Course left empty', async () => {
-    const { dropRosterRequest } = await import('./courseGroups');
-    const eng = {
-      ...course('eng', ['p1', 'p2']),
-      familyLink: { shareId: 's', on: true },
-    };
-    expect(dropRosterRequest(eng, 'p1')).toEqual({
-      action: 'save',
-      course: {
-        id: 'eng',
-        name: 'eng',
-        rosterIds: ['p2'],
-        agenda: null,
-        pinnedLinks: [],
-        familyLinkOn: true,
-      },
-    });
-    expect(dropRosterRequest(course('one', ['p1']), 'p1')).toEqual({
-      action: 'delete',
-      courseId: 'one',
-    });
-    expect(dropRosterRequest(eng, 'p9')).toBeNull();
   });
 });

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  DeckStillPublicError,
   deckSharingOf,
   emailDomain,
   readDeckState,
@@ -100,6 +101,27 @@ describe('setDeckSharing', () => {
   });
 });
 
+describe('setDeckSharing failures', () => {
+  it('removes public access before adding Orono, so a failed add never leaves the deck public', async () => {
+    const { drive, perms } = fakeDrive([owner, { id: 'a', type: 'anyone' }]);
+    drive.addLinkReaderPermission = vi.fn(() =>
+      Promise.reject(new Error('domain sharing blocked'))
+    );
+    await expect(setDeckSharing(drive, 'f', 'domain', DOMAIN)).rejects.toThrow(
+      'blocked'
+    );
+    expect(perms().some((p) => p.type === 'anyone')).toBe(false);
+  });
+
+  it('says so when a public permission could not be removed', async () => {
+    const { drive } = fakeDrive([owner, { id: 'a', type: 'anyone' }]);
+    drive.deletePermission = vi.fn(() => Promise.resolve());
+    await expect(
+      setDeckSharing(drive, 'f', 'domain', DOMAIN)
+    ).rejects.toBeInstanceOf(DeckStillPublicError);
+  });
+});
+
 describe('readDeckState', () => {
   it('reports sharing and last-modified time', async () => {
     const { drive } = fakeDrive([
@@ -156,6 +178,32 @@ describe('GoogleDriveService deck calls (mocked fetch)', () => {
     expect(await drive.getFileModifiedTime('f')).toBe(
       Date.parse('2026-11-16T10:00:00.000Z')
     );
+    vi.restoreAllMocks();
+  });
+
+  it('reads every page of permissions', async () => {
+    const pages = [
+      { nextPageToken: 'p2', permissions: [{ id: 'u1', type: 'user' }] },
+      { permissions: [{ id: 'a', type: 'anyone' }] },
+    ];
+    const urls: string[] = [];
+    vi.spyOn(global, 'fetch').mockImplementation((url) => {
+      const href = typeof url === 'string' ? url : (url as URL).toString();
+      urls.push(href);
+      const body = pages[urls.length - 1];
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(body),
+        text: () => Promise.resolve(''),
+      } as Response);
+    });
+    const perms = await new GoogleDriveService('token').listFilePermissions(
+      'f'
+    );
+    expect(perms.map((p) => p.id)).toEqual(['u1', 'a']);
+    expect(urls[1]).toContain('pageToken=p2');
+    expect(urls[0]).toContain('supportsAllDrives=true');
     vi.restoreAllMocks();
   });
 });

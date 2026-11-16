@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMemoryFirestore } from '../focus/testFirestore';
 import {
+  dropDeletedRoster,
   handleSaveCourse,
   type CourseCaller,
   type CourseDeps,
@@ -190,7 +191,7 @@ describe('saveCourseV1 save', () => {
     ).rejects.toThrow(/name/);
     await expect(save({ ...base, rosterIds: [] })).rejects.toThrow(/class/);
     await expect(save({ ...base, rosterIds: ['nope'] })).rejects.toThrow(
-      /Unknown class/
+      /at least one class/
     );
     await expect(
       save({ ...base, agenda: { fileId: '../x' }, rosterIds: ['p2'] })
@@ -341,5 +342,98 @@ describe('saveCourseV1 unlink, delete and deck check', () => {
       agenda: { fileId: 'otherDeck_12345', title: 'New' },
     });
     expect(doc(`users/${UID}/courses/id1`)?.deckCheck).toBeNull();
+  });
+});
+
+describe('saveCourseV1 merges, partial saves and deleted classes', () => {
+  it('keeps the family link address and Class page link when a Course is merged into a new one (D14)', async () => {
+    await save({ ...base, rosterIds: ['p5'], familyLinkOn: true });
+    const old = doc(`users/${UID}/courses/id1`) as {
+      linkId: string;
+      familyLink: { shareId: string };
+    };
+    await save({ name: 'English 9', rosterIds: ['p2', 'p5'] });
+    const merged = paths(`users/${UID}/courses/`);
+    expect(merged).toHaveLength(1);
+    const next = doc(merged[0]) as {
+      linkId: string;
+      familyLink: { shareId: string; on: boolean };
+    };
+    expect(next.familyLink).toEqual({
+      shareId: old.familyLink.shareId,
+      on: true,
+    });
+    expect(next.linkId).toBe(old.linkId);
+    expect(doc(`family_pages/${old.familyLink.shareId}`)).toBeDefined();
+    expect(doc(`course_page_links/${old.linkId}`)).toEqual({
+      classIds: ['cl-p2', 'cl-p5'],
+    });
+  });
+
+  it('keeps fields a save leaves out', async () => {
+    await save({ ...base, rosterIds: ['p2'], familyLinkOn: true });
+    await save({ id: 'id1', name: 'Renamed' });
+    expect(doc(`users/${UID}/courses/id1`)).toMatchObject({
+      name: 'Renamed',
+      rosterIds: ['p2'],
+      agenda: base.agenda,
+      pinnedLinks: base.pinnedLinks,
+      familyLink: { on: true },
+    });
+  });
+
+  it('refuses a save made from a stale copy of the Course', async () => {
+    await save({ ...base, rosterIds: ['p2'] });
+    deps.now = () => 2000;
+    await save({ id: 'id1', name: 'First tab' });
+    await expect(
+      save({ id: 'id1', name: 'Second tab', expectedUpdatedAt: 1000 })
+    ).rejects.toThrow(/changed/);
+    await save({ id: 'id1', name: 'Fresh', expectedUpdatedAt: 2000 });
+    expect(doc(`users/${UID}/courses/id1`)?.name).toBe('Fresh');
+  });
+
+  it('drops a deleted class from a save instead of failing', async () => {
+    await save({ ...base, rosterIds: ['p2', 'p5'] });
+    db.dump().delete(`users/${UID}/rosters/p5`);
+    await save({ id: 'id1', name: 'Still here' });
+    expect(doc(`users/${UID}/courses/id1`)?.rosterIds).toEqual(['p2']);
+    expect(paths('class_pages/')).toEqual([
+      `class_pages/cl-p2/teachers/${UID}`,
+    ]);
+  });
+
+  it('takes a deleted class out of its Course, and removes an emptied Course with its pages', async () => {
+    await save({ ...base, rosterIds: ['p2', 'p5'] });
+    await save({
+      ...base,
+      name: 'Solo',
+      rosterIds: ['hand'],
+      familyLinkOn: true,
+    });
+    await dropDeletedRoster(db, UID, 'p5', 3000);
+    expect(doc(`users/${UID}/courses/id1`)?.rosterIds).toEqual(['p2']);
+    expect(doc(`class_pages/cl-p5/teachers/${UID}`)).toBeUndefined();
+    expect(doc(`class_pages/cl-p2/teachers/${UID}`)?.teacherName).toBe(
+      'Ms. Rivera'
+    );
+    await dropDeletedRoster(db, UID, 'hand', 3000);
+    expect(paths(`users/${UID}/courses/`)).toEqual([
+      `users/${UID}/courses/id1`,
+    ]);
+    expect(paths('family_pages/')).toEqual([]);
+  });
+
+  it('asks ClassLink again on unlink, so a class no longer taught gets no copy', async () => {
+    await save({ ...base, rosterIds: ['p2', 'p5'] });
+    taught = new Set(['cl-p2']);
+    const reply = await handleSaveCourse(
+      db,
+      caller,
+      { action: 'unlink', courseId: 'id1', rosterId: 'p5' },
+      deps
+    );
+    expect(reply.rostersWithoutClassPage).toEqual(['p5']);
+    expect(doc(`class_pages/cl-p5/teachers/${UID}`)).toBeUndefined();
   });
 });

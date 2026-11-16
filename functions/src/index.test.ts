@@ -4058,6 +4058,7 @@ describe('index barrel — deployed export set', () => {
     'focusPanelV1',
     'focusSweepSessions',
     'saveCourseV1',
+    'courseRosterDeleted',
     'expireActivityWallShares',
     'finalizeIdleQuizAttempts',
     'finalizeExpiredQuizAttempts',

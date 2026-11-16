@@ -632,25 +632,42 @@ export class GoogleDriveService {
    * `role` populated. Filters down to user-type permissions in callers.
    */
   async listFilePermissions(fileId: string): Promise<DrivePermission[]> {
-    const response = await this.fetchWithRetry(
-      `${DRIVE_API_URL}/files/${fileId}/permissions?fields=permissions(id,type,role,emailAddress,domain)`,
-      { headers: this.headers }
-    );
-    if (!response.ok) {
-      if (response.status === 401 || response.status === 403) {
-        throw authError('Google Drive access expired. Please sign in again.');
-      }
-      const body = await response.text();
-      throw new Error(
-        `Failed to list permissions on ${fileId}: ${response.status} ${body.slice(0, 200)}`
+    const out: DrivePermission[] = [];
+    let pageToken: string | undefined;
+    // A deck shared with each student by name has more than one page of permissions.
+    do {
+      const url = new URL(`${DRIVE_API_URL}/files/${fileId}/permissions`);
+      url.searchParams.set(
+        'fields',
+        'nextPageToken,permissions(id,type,role,emailAddress,domain)'
       );
-    }
-    const data = (await response.json()) as {
-      permissions?: Array<Partial<DrivePermission>>;
-    };
-    return (data.permissions ?? []).filter(
-      (p): p is DrivePermission => typeof p.id === 'string'
-    );
+      url.searchParams.set('pageSize', '100');
+      url.searchParams.set('supportsAllDrives', 'true');
+      if (pageToken) url.searchParams.set('pageToken', pageToken);
+      const response = await this.fetchWithRetry(url.toString(), {
+        headers: this.headers,
+      });
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          throw authError('Google Drive access expired. Please sign in again.');
+        }
+        const body = await response.text();
+        throw new Error(
+          `Failed to list permissions on ${fileId}: ${response.status} ${body.slice(0, 200)}`
+        );
+      }
+      const data = (await response.json()) as {
+        nextPageToken?: string;
+        permissions?: Array<Partial<DrivePermission>>;
+      };
+      out.push(
+        ...(data.permissions ?? []).filter(
+          (p): p is DrivePermission => typeof p.id === 'string'
+        )
+      );
+      pageToken = data.nextPageToken;
+    } while (pageToken);
+    return out;
   }
 
   /** Adds a reader permission for everyone in `domain` with the link, or for anyone with the link; never falls back between them. */
@@ -659,7 +676,7 @@ export class GoogleDriveService {
     target: { type: 'domain'; domain: string } | { type: 'anyone' }
   ): Promise<void> {
     const response = await this.fetchWithRetry(
-      `${DRIVE_API_URL}/files/${fileId}/permissions?sendNotificationEmail=false`,
+      `${DRIVE_API_URL}/files/${fileId}/permissions?sendNotificationEmail=false&supportsAllDrives=true`,
       {
         method: 'POST',
         headers: this.headers,
@@ -684,7 +701,7 @@ export class GoogleDriveService {
   /** The file's last-modified time in ms, or null when Drive gives none. */
   async getFileModifiedTime(fileId: string): Promise<number | null> {
     const response = await this.fetchWithRetry(
-      `${DRIVE_API_URL}/files/${fileId}?fields=modifiedTime`,
+      `${DRIVE_API_URL}/files/${fileId}?fields=modifiedTime&supportsAllDrives=true`,
       { headers: this.headers }
     );
     if (!response.ok) {
@@ -755,7 +772,7 @@ export class GoogleDriveService {
    */
   async deletePermission(fileId: string, permissionId: string): Promise<void> {
     const response = await this.fetchWithRetry(
-      `${DRIVE_API_URL}/files/${fileId}/permissions/${permissionId}`,
+      `${DRIVE_API_URL}/files/${fileId}/permissions/${permissionId}?supportsAllDrives=true`,
       {
         method: 'DELETE',
         headers: this.headers,

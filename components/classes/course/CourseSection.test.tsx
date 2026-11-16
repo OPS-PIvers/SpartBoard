@@ -7,6 +7,7 @@ import type { Course } from '@/utils/course/contract';
 const course: Course = {
   id: 'c1',
   name: 'English 9',
+  teacherName: 'T',
   rosterIds: ['p2', 'p5'],
   agenda: null,
   pinnedLinks: [],

@@ -60,7 +60,15 @@ export async function readDeckState(
   };
 }
 
-/** D10, D23: 'domain' adds the Orono link permission and removes every anyone-with-the-link one; 'anyone' adds one and keeps the domain one. */
+/** Thrown when a deck still reads as public after SpartBoard removed what it could (an inherited permission, say). */
+export class DeckStillPublicError extends Error {
+  constructor() {
+    super('The deck is still shared with anyone who has the link.');
+    this.name = 'DeckStillPublicError';
+  }
+}
+
+/** D10, D23: 'domain' removes every anyone-with-the-link permission first, then adds the Orono one; 'anyone' adds one and keeps the domain one. */
 export async function setDeckSharing(
   drive: DeckSharingDrive,
   fileId: string,
@@ -69,6 +77,11 @@ export async function setDeckSharing(
 ): Promise<void> {
   const perms = await drive.listFilePermissions(fileId);
   const d = domain.toLowerCase();
+  if (level === 'domain') {
+    // Public access goes first, so a failed add never leaves the deck public.
+    for (const p of perms.filter((x) => x.type === 'anyone'))
+      await drive.deletePermission(fileId, p.id);
+  }
   const hasDomain = perms.some(
     (p) => p.type === 'domain' && p.domain?.toLowerCase() === d
   );
@@ -79,6 +92,9 @@ export async function setDeckSharing(
       await drive.addLinkReaderPermission(fileId, { type: 'anyone' });
     return;
   }
-  for (const p of perms.filter((x) => x.type === 'anyone'))
-    await drive.deletePermission(fileId, p.id);
+  if (perms.some((p) => p.type === 'anyone')) {
+    const after = await drive.listFilePermissions(fileId);
+    if (after.some((p) => p.type === 'anyone'))
+      throw new DeckStillPublicError();
+  }
 }

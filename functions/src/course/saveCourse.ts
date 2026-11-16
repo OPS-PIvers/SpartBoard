@@ -99,6 +99,7 @@ function readCourse(id: string, data: Data | undefined): Course | null {
   return {
     id,
     name: typeof data.name === 'string' ? data.name : '',
+    teacherName: typeof data.teacherName === 'string' ? data.teacherName : '',
     rosterIds,
     agenda: cleanCourseAgenda(data.agenda),
     pinnedLinks: cleanPinnedLinks(data.pinnedLinks),
@@ -117,12 +118,8 @@ function readCourse(id: string, data: Data | undefined): Course | null {
 const classIdsOf = (c: Course) => [...new Set(Object.values(c.rosterClassIds))];
 
 /** Every doc a Course puts outside the teacher's own folder, as path to data. */
-function copiesOf(
-  uid: string,
-  c: Course,
-  teacherName: string,
-  now: number
-): Map<string, Data> {
+function copiesOf(uid: string, c: Course, now: number): Map<string, Data> {
+  const teacherName = c.teacherName;
   const out = new Map<string, Data>();
   const ids = classIdsOf(c);
   for (const classId of ids) {
@@ -281,43 +278,120 @@ function assertOneCoursePerClass(courses: Iterable<Course>) {
   }
 }
 
+/** Every Course the teacher has, read outside a transaction (for the ClassLink step). */
+async function readAllCourses(db: Firestore, uid: string): Promise<Course[]> {
+  const snap = await db
+    .collection(`users/${uid}/${COURSES_SUBCOLLECTION}`)
+    .limit(COURSE_MAX_PER_TEACHER + 1)
+    .get();
+  return snap.docs
+    .map((d) => readCourse(d.id, d.data()))
+    .filter((c): c is Course => c !== null);
+}
+
+/** Rosters that still exist, with their data; a deleted roster is simply left out. */
+async function loadRosters(
+  db: Firestore,
+  uid: string,
+  rosterIds: readonly string[]
+): Promise<Map<string, Data>> {
+  const out = new Map<string, Data>();
+  if (rosterIds.length === 0) return out;
+  const snaps = await db.getAll(
+    ...rosterIds.map((id) => db.doc(`users/${uid}/rosters/${id}`))
+  );
+  snaps.forEach((s, i) => {
+    if (s.exists) out.set(rosterIds[i], s.data() ?? {});
+  });
+  return out;
+}
+
+/** Courses after `rosterIds` leave every Course but `keepId`: emptied ones are deleted. Returns the writes and what was emptied. */
+function takeRostersOut(
+  uid: string,
+  courses: Iterable<Course>,
+  rosterIds: readonly string[],
+  keepId: string | null,
+  now: number
+): {
+  finals: Map<string, Course>;
+  emptied: Course[];
+  before: Map<string, Data>[];
+  after: Map<string, Data>[];
+  courseWrites: Map<string, Data | null>;
+} {
+  const finals = new Map<string, Course>();
+  const emptied: Course[] = [];
+  const before: Map<string, Data>[] = [];
+  const after: Map<string, Data>[] = [];
+  const courseWrites = new Map<string, Data | null>();
+  for (const c of courses) {
+    if (c.id === keepId) continue;
+    const kept = c.rosterIds.filter((r) => !rosterIds.includes(r));
+    if (kept.length === c.rosterIds.length) {
+      finals.set(c.id, c);
+      continue;
+    }
+    before.push(copiesOf(uid, c, now));
+    if (kept.length === 0) {
+      emptied.push(c);
+      courseWrites.set(coursePath(uid, c.id), null);
+      continue;
+    }
+    const map: Record<string, string> = {};
+    for (const r of kept) if (c.rosterClassIds[r]) map[r] = c.rosterClassIds[r];
+    const moved: Course = {
+      ...c,
+      rosterIds: kept,
+      rosterClassIds: map,
+      updatedAt: now,
+    };
+    finals.set(c.id, moved);
+    after.push(copiesOf(uid, moved, now));
+    courseWrites.set(coursePath(uid, c.id), courseData(moved));
+  }
+  return { finals, emptied, before, after, courseWrites };
+}
+
 async function save(
   db: Firestore,
   teacher: { uid: string; email: string; name: string },
   input: Record<string, unknown>,
   deps: CourseDeps
 ): Promise<SaveCourseReply> {
-  const name = cleanCourseText(input.name, COURSE_MAX_NAME_LENGTH);
-  if (!name) bad('A course needs a name.');
-  const rawIds = Array.isArray(input.rosterIds) ? input.rosterIds : [];
-  if (!rawIds.every(isCourseDocId)) bad('Unknown class.');
-  const rosterIds = [...new Set(rawIds as string[])];
-  if (rosterIds.length === 0) bad('A course needs at least one class.');
-  if (rosterIds.length > COURSE_MAX_CLASSES) bad('Too many classes.');
-  if (input.agenda != null && !cleanCourseAgenda(input.agenda))
-    bad('That Agenda file is not valid.');
-  const agenda = cleanCourseAgenda(input.agenda);
-  const pinnedLinks = cleanPinnedLinks(input.pinnedLinks);
   const courseId = input.id === undefined ? null : input.id;
   if (courseId !== null && !isCourseDocId(courseId)) bad('Unknown course.');
+  const creating = courseId === null;
+  let name: string | undefined;
+  if (input.name !== undefined || creating) {
+    name = cleanCourseText(input.name, COURSE_MAX_NAME_LENGTH);
+    if (!name) bad('A course needs a name.');
+  }
+  let wantedIds: string[] | undefined;
+  if (input.rosterIds !== undefined || creating) {
+    const rawIds = Array.isArray(input.rosterIds) ? input.rosterIds : [];
+    if (!rawIds.every(isCourseDocId)) bad('Unknown class.');
+    wantedIds = [...new Set(rawIds as string[])];
+    if (wantedIds.length > COURSE_MAX_CLASSES) bad('Too many classes.');
+  }
+  if (input.agenda != null && !cleanCourseAgenda(input.agenda))
+    bad('That Agenda file is not valid.');
+  const expected = input.expectedUpdatedAt;
+  if (expected !== undefined && typeof expected !== 'number') bad('Bad save.');
 
-  const rosterSnaps = await db.getAll(
-    ...rosterIds.map((id) => db.doc(`users/${teacher.uid}/rosters/${id}`))
+  const all = await readAllCourses(db, teacher.uid);
+  const stored = courseId ? all.find((c) => c.id === courseId) : undefined;
+  // A deleted roster drops out of the Course instead of failing the save.
+  const rosters = await loadRosters(
+    db,
+    teacher.uid,
+    wantedIds ?? stored?.rosterIds ?? []
   );
-  const rosters = new Map<string, Data>();
-  rosterSnaps.forEach((s, i) => {
-    if (!s.exists) throw new HttpsError('not-found', 'Unknown class.');
-    rosters.set(rosterIds[i], s.data() ?? {});
-  });
-  const known =
-    courseId !== null
-      ? (readCourse(
-          courseId as string,
-          (
-            await db.doc(coursePath(teacher.uid, courseId as string)).get()
-          ).data()
-        )?.rosterClassIds ?? {})
-      : {};
+  const rosterIds = [...rosters.keys()];
+  if (rosterIds.length === 0) bad('A course needs at least one class.');
+  // Any Course's earlier confirmation counts during a ClassLink outage, so a moved class keeps its page.
+  const known: Record<string, string> = {};
+  for (const c of all) Object.assign(known, c.rosterClassIds);
   const confirmed = await confirmClasses(db, teacher, rosters, known, deps);
   const now = deps.now();
 
@@ -326,65 +400,66 @@ async function save(
     const prev = courseId !== null ? courses.get(courseId as string) : null;
     if (courseId !== null && !prev)
       throw new HttpsError('not-found', 'That course is gone.');
+    if (prev && typeof expected === 'number' && prev.updatedAt !== expected)
+      throw new HttpsError(
+        'failed-precondition',
+        'This course changed. Reload and try again.'
+      );
     if (!prev && courses.size >= COURSE_MAX_PER_TEACHER)
       throw new HttpsError('resource-exhausted', 'Too many courses.');
     const id = prev?.id ?? deps.newId();
-    const famOn = input.familyLinkOn === true;
+    const out = takeRostersOut(
+      teacher.uid,
+      courses.values(),
+      rosterIds,
+      id,
+      now
+    );
+    // D14: a family link or Class page link already shared survives the Course it was on being merged away.
+    const inheritedFamily =
+      prev?.familyLink ?? out.emptied.find((c) => c.familyLink)?.familyLink;
+    const inheritedLink =
+      prev?.linkId || (out.emptied.length === 1 ? out.emptied[0].linkId : '');
+    const famOn =
+      typeof input.familyLinkOn === 'boolean'
+        ? input.familyLinkOn
+        : inheritedFamily?.on === true;
+    const agenda =
+      input.agenda !== undefined
+        ? cleanCourseAgenda(input.agenda)
+        : (prev?.agenda ?? null);
     const next: Course = {
       id,
-      name,
+      name: name ?? prev?.name ?? '',
+      teacherName: teacher.name || prev?.teacherName || '',
       rosterIds,
       agenda,
-      pinnedLinks,
-      familyLink: prev?.familyLink
-        ? { shareId: prev.familyLink.shareId, on: famOn }
+      pinnedLinks:
+        input.pinnedLinks !== undefined
+          ? cleanPinnedLinks(input.pinnedLinks)
+          : (prev?.pinnedLinks ?? []),
+      familyLink: inheritedFamily
+        ? { shareId: inheritedFamily.shareId, on: famOn }
         : famOn
           ? { shareId: deps.newId(), on: true }
           : null,
-      linkId: prev?.linkId || deps.newId(),
+      linkId: inheritedLink || deps.newId(),
       rosterClassIds: confirmed.map,
       deckCheck:
         prev && prev.agenda?.fileId === agenda?.fileId ? prev.deckCheck : null,
       createdAt: prev?.createdAt ?? now,
       updatedAt: now,
     };
-
-    const before: Map<string, Data>[] = [];
-    const after: Map<string, Data>[] = [];
-    const finals = new Map<string, Course>();
-    const courseWrites = new Map<string, Data | null>();
-    for (const c of courses.values()) {
-      if (c.id === id) continue;
-      const kept = c.rosterIds.filter((r) => !rosterIds.includes(r));
-      if (kept.length === c.rosterIds.length) {
-        finals.set(c.id, c);
-        continue;
-      }
-      // A roster moving into this Course leaves its old one; an emptied Course is deleted.
-      before.push(copiesOf(teacher.uid, c, teacher.name, now));
-      if (kept.length === 0) {
-        courseWrites.set(coursePath(teacher.uid, c.id), null);
-        continue;
-      }
-      const map: Record<string, string> = {};
-      for (const r of kept)
-        if (c.rosterClassIds[r]) map[r] = c.rosterClassIds[r];
-      const moved: Course = {
-        ...c,
-        rosterIds: kept,
-        rosterClassIds: map,
-        updatedAt: now,
-      };
-      finals.set(c.id, moved);
-      after.push(copiesOf(teacher.uid, moved, teacher.name, now));
-      courseWrites.set(coursePath(teacher.uid, c.id), courseData(moved));
-    }
-    finals.set(id, next);
-    assertOneCoursePerClass(finals.values());
-    if (prev) before.push(copiesOf(teacher.uid, prev, teacher.name, now));
-    after.push(copiesOf(teacher.uid, next, teacher.name, now));
-    courseWrites.set(coursePath(teacher.uid, id), courseData(next));
-    applyWrites(db, tx, new Map([...plan(before, after), ...courseWrites]));
+    out.finals.set(id, next);
+    assertOneCoursePerClass(out.finals.values());
+    if (prev) out.before.push(copiesOf(teacher.uid, prev, now));
+    out.after.push(copiesOf(teacher.uid, next, now));
+    out.courseWrites.set(coursePath(teacher.uid, id), courseData(next));
+    applyWrites(
+      db,
+      tx,
+      new Map([...plan(out.before, out.after), ...out.courseWrites])
+    );
     return id;
   });
 
@@ -404,24 +479,33 @@ async function unlink(
 ): Promise<SaveCourseReply> {
   if (!isCourseDocId(courseId) || !isCourseDocId(rosterId))
     bad('Unknown class.');
-  const now = deps.now();
-  const rosterSnap = await db
-    .doc(`users/${teacher.uid}/rosters/${rosterId as string}`)
-    .get();
-  const rosterName = cleanCourseText(
-    rosterSnap.get('name'),
-    COURSE_MAX_NAME_LENGTH
+  const r = rosterId as string;
+  const rosters = await loadRosters(db, teacher.uid, [r]);
+  const roster = rosters.get(r);
+  if (!roster) throw new HttpsError('not-found', 'Unknown class.');
+  const rosterName = cleanCourseText(roster.name, COURSE_MAX_NAME_LENGTH);
+  const stored = readCourse(
+    courseId as string,
+    (await db.doc(coursePath(teacher.uid, courseId as string)).get()).data()
   );
+  // Asked again, so a class the teacher no longer teaches gets no copy.
+  const confirmed = await confirmClasses(
+    db,
+    teacher,
+    rosters,
+    stored?.rosterClassIds ?? {},
+    deps
+  );
+  const now = deps.now();
   return db.runTransaction(async (tx) => {
     const snap = await tx.get(
       db.doc(coursePath(teacher.uid, courseId as string))
     );
     const c = readCourse(courseId as string, snap.data());
     if (!c) throw new HttpsError('not-found', 'That course is gone.');
-    if (!c.rosterIds.includes(rosterId as string)) bad('Unknown class.');
+    if (!c.rosterIds.includes(r)) bad('Unknown class.');
     if (c.rosterIds.length < 2)
       throw new HttpsError('failed-precondition', 'That class is on its own.');
-    const r = rosterId as string;
     const rest: Record<string, string> = { ...c.rosterClassIds };
     delete rest[r];
     const remaining: Course = {
@@ -434,31 +518,49 @@ async function unlink(
     const alone: Course = {
       id: deps.newId(),
       name: rosterName || c.name,
+      teacherName: teacher.name || c.teacherName,
       rosterIds: [r],
       agenda: c.agenda,
       pinnedLinks: c.pinnedLinks,
       familyLink: null,
       linkId: deps.newId(),
-      rosterClassIds: c.rosterClassIds[r] ? { [r]: c.rosterClassIds[r] } : {},
+      rosterClassIds: confirmed.map,
       deckCheck: c.deckCheck,
       createdAt: now,
       updatedAt: now,
     };
+    assertOneCoursePerClass([remaining, alone]);
     const writes = plan(
-      [copiesOf(teacher.uid, c, teacher.name, now)],
-      [
-        copiesOf(teacher.uid, remaining, teacher.name, now),
-        copiesOf(teacher.uid, alone, teacher.name, now),
-      ]
+      [copiesOf(teacher.uid, c, now)],
+      [copiesOf(teacher.uid, remaining, now), copiesOf(teacher.uid, alone, now)]
     );
     writes.set(coursePath(teacher.uid, c.id), courseData(remaining));
     writes.set(coursePath(teacher.uid, alone.id), courseData(alone));
     applyWrites(db, tx, writes);
     return {
       courseId: alone.id,
-      rostersWithoutClassPage: alone.rosterClassIds[r] ? [] : [r],
-      classLinkUnavailable: false,
+      rostersWithoutClassPage: confirmed.map[r] ? [] : [r],
+      classLinkUnavailable: confirmed.classLinkUnavailable,
     };
+  });
+}
+
+/** A deleted class leaves its Course (the roster-delete trigger); an emptied Course goes with its copies. */
+export async function dropDeletedRoster(
+  db: Firestore,
+  uid: string,
+  rosterId: string,
+  now: number
+): Promise<void> {
+  await db.runTransaction(async (tx) => {
+    const courses = await loadCourses(tx, db, uid);
+    const out = takeRostersOut(uid, courses.values(), [rosterId], null, now);
+    if (out.courseWrites.size === 0) return;
+    applyWrites(
+      db,
+      tx,
+      new Map([...plan(out.before, out.after), ...out.courseWrites])
+    );
   });
 }
 
@@ -477,7 +579,7 @@ async function remove(
       (await tx.get(db.doc(path))).data()
     );
     if (!c) return;
-    const writes = plan([copiesOf(teacher.uid, c, teacher.name, now)], []);
+    const writes = plan([copiesOf(teacher.uid, c, now)], []);
     writes.set(path, null);
     applyWrites(db, tx, writes);
   });

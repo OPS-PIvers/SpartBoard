@@ -1,6 +1,6 @@
 // Groups a teacher's classes by Course; a class in no Course is a Course of one (D1).
 import type { ClassRoster } from '@/types';
-import type { Course, SaveCourseRequest } from './contract';
+import type { Course } from './contract';
 
 export interface CourseGroup<R extends Pick<ClassRoster, 'id'>> {
   /** Null for a class in no saved Course yet; saving creates its Course. */
@@ -36,25 +36,4 @@ export function courseGroups<R extends Pick<ClassRoster, 'id'>>(
     out.push({ course, rosters: members });
   }
   return out;
-}
-
-/** The saveCourseV1 call that takes a deleted class out of its Course; a Course left empty is deleted with its copies. */
-export function dropRosterRequest(
-  course: Course,
-  rosterId: string
-): SaveCourseRequest | null {
-  if (!course.rosterIds.includes(rosterId)) return null;
-  const rosterIds = course.rosterIds.filter((id) => id !== rosterId);
-  if (rosterIds.length === 0) return { action: 'delete', courseId: course.id };
-  return {
-    action: 'save',
-    course: {
-      id: course.id,
-      name: course.name,
-      rosterIds,
-      agenda: course.agenda,
-      pinnedLinks: course.pinnedLinks,
-      familyLinkOn: course.familyLink?.on === true,
-    },
-  };
 }
