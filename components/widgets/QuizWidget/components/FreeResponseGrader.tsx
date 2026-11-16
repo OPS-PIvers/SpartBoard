@@ -17,6 +17,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useLayoutEffect,
   useRef,
   useState,
 } from 'react';
@@ -588,6 +589,10 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   const [railCollapsedPref, setRailCollapsedPref] = useState(readRailCollapsed);
   const railCollapsed = railCollapsedPref;
   const [paneWidths, setPaneWidths] = useState(readPaneWidths);
+  const paneWidthsRef = useRef(paneWidths);
+  useLayoutEffect(() => {
+    paneWidthsRef.current = paneWidths;
+  }, [paneWidths]);
   const paneDragRef = useRef<{
     pane: keyof PaneWidths;
     startX: number;
@@ -630,10 +635,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   const endPaneDrag = () => {
     if (!paneDragRef.current) return;
     paneDragRef.current = null;
-    setPaneWidths((prev) => {
-      writePaneWidths(prev);
-      return prev;
-    });
+    writePaneWidths(paneWidthsRef.current);
   };
   const paneKeyDown = (
     e: React.KeyboardEvent<HTMLDivElement>,
@@ -660,18 +662,14 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
         grid.getBoundingClientRect().width * 0.45
       )
     );
-    setPaneWidths((prev) => {
-      const updated = { ...prev, [pane]: next };
-      writePaneWidths(updated);
-      return updated;
-    });
+    const updated = { ...paneWidthsRef.current, [pane]: next };
+    setPaneWidths(updated);
+    writePaneWidths(updated);
   };
   const resetPane = (pane: keyof PaneWidths) => {
-    setPaneWidths((prev) => {
-      const updated = { ...prev, [pane]: null };
-      writePaneWidths(updated);
-      return updated;
-    });
+    const updated = { ...paneWidthsRef.current, [pane]: null };
+    setPaneWidths(updated);
+    writePaneWidths(updated);
   };
   const toggleRail = () => {
     const next = !railCollapsedPref;

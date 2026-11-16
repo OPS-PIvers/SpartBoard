@@ -17804,56 +17804,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "quiz-grading.student-prev",
-    "label": "Previous student in the Quiz grader",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "quiz"
-    ],
-    "routes": [
-      {
-        "surface": "quiz.grader",
-        "kind": "modal",
-        "path": [
-          "library-shell.tab:quiz#archive",
-          "library-shell.archive-primary-action:quiz#row-1",
-          "quiz-grading.open:quiz"
-        ],
-        "needs": [
-          "student-data",
-          "library-item",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "quiz-grading.student-next",
-    "label": "Next student in the Quiz grader",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "quiz"
-    ],
-    "routes": [
-      {
-        "surface": "quiz.grader",
-        "kind": "modal",
-        "path": [
-          "library-shell.tab:quiz#archive",
-          "library-shell.archive-primary-action:quiz#row-1",
-          "quiz-grading.open:quiz"
-        ],
-        "needs": [
-          "student-data",
-          "library-item",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "quiz-grading.student-select",
     "label": "Student row in queue in the Quiz grader, by student",
     "scope": "field",
