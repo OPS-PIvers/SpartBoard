@@ -1,0 +1,1 @@
+export { AgendaWidget } from './Widget';

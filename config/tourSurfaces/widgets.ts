@@ -8,6 +8,13 @@ export const SURFACES: TourSurfaceMap = {
     widgetType: 'arts-letters-agenda',
     needs: ['widget-on-stage'],
   },
+  'widgets.agenda.face': {
+    label: 'Agenda widget',
+    kind: 'widget',
+    files: ['components/widgets/Agenda/'],
+    widgetType: 'agenda',
+    needs: ['widget-on-stage'],
+  },
   'widgets.blooms-taxonomy.face': {
     label: "Bloom's Taxonomy widget",
     kind: 'widget',

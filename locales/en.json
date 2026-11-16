@@ -1241,6 +1241,7 @@
     }
   },
   "widgetSettings": {
+    "agenda": {},
     "qr": {
       "destinationUrl": "Destination URL",
       "linkRepeater": "Link repeater",
