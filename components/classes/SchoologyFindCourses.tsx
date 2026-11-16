@@ -26,7 +26,7 @@ const STATUS_TEXT: Record<Exclude<FoundSectionStatus, 'ready'>, string> = {
   linked: 'Linked',
   none: 'No Schoology course',
   taken: 'Linked by another teacher',
-  'not-teacher': 'You aren’t a teacher of this course',
+  'not-teacher': 'You aren’t a teacher of this Schoology course',
   error: 'Couldn’t check',
 };
 
@@ -127,7 +127,10 @@ export const SchoologyFindCourses: React.FC<SchoologyFindCoursesProps> = ({
         addToast('None of those classes could be linked.', 'error');
       }
     } catch (err) {
-      addToast(errorMessage(err, 'Failed to link the courses.'), 'error');
+      addToast(
+        errorMessage(err, 'Failed to link the Schoology courses.'),
+        'error'
+      );
     } finally {
       setLinking(false);
     }

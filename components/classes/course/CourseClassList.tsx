@@ -1,8 +1,8 @@
 // My Classes list behind the course-agenda flag: a linked Course is one row (D3); threads A, B and E fill the stubs it renders.
-import React, { Fragment, useMemo } from 'react';
+import React, { Fragment, useMemo, useState } from 'react';
 import { courseGroups } from '@/utils/course/courseGroups';
 import { AgendaSetup } from './AgendaSetup';
-import { CourseGroupActions } from './CourseGroupActions';
+import { CourseEditButton, CourseEditor } from './CourseGroupActions';
 import { CourseLinking } from './CourseLinking';
 import { CourseRow } from './CourseRow';
 import { FamilyLinkSetup } from './FamilyLinkSetup';
@@ -23,6 +23,7 @@ export function CourseClassList<R extends CourseRoster>({
     () => new Map(rosters.map((r, i) => [r.id, i])),
     [rosters]
   );
+  const [editingId, setEditingId] = useState<string | null>(null);
   return (
     <>
       <CourseLinking groups={groups} saveCourse={saveCourse} />
@@ -32,17 +33,39 @@ export function CourseClassList<R extends CourseRoster>({
       >
         {groups.map((group) => {
           const linked = group.course !== null && group.rosters.length > 1;
+          const rowKey = `row-${(indexOf.get(group.rosters[0].id) ?? 0) + 1}`;
+          const courseId = linked ? (group.course?.id ?? null) : null;
+          const editing = courseId !== null && editingId === courseId;
           return (
             <li
               key={group.course?.id ?? `roster-${group.rosters[0].id}`}
               data-course-group={linked ? 'linked' : 'single'}
             >
-              {linked ? (
-                <CourseRow
-                  group={group}
-                  rowKey={`row-${(indexOf.get(group.rosters[0].id) ?? 0) + 1}`}
-                  renderSection={(r) => renderRow(r, indexOf.get(r.id) ?? 0)}
-                />
+              {linked && group.course ? (
+                <>
+                  <CourseRow
+                    group={group}
+                    rowKey={rowKey}
+                    renderSection={(r) => renderRow(r, indexOf.get(r.id) ?? 0)}
+                    actions={
+                      <CourseEditButton
+                        rowKey={rowKey}
+                        courseName={group.course.name}
+                        open={editing}
+                        onClick={() => setEditingId(editing ? null : courseId)}
+                      />
+                    }
+                  />
+                  {editing && (
+                    <CourseEditor
+                      key={group.course.id}
+                      groups={groups}
+                      course={group.course}
+                      saveCourse={saveCourse}
+                      onDone={() => setEditingId(null)}
+                    />
+                  )}
+                </>
               ) : (
                 <ul>
                   {group.rosters.map((r) => (
@@ -52,7 +75,6 @@ export function CourseClassList<R extends CourseRoster>({
                   ))}
                 </ul>
               )}
-              <CourseGroupActions group={group} saveCourse={saveCourse} />
               <AgendaSetup group={group} saveCourse={saveCourse} />
               <FamilyLinkSetup group={group} saveCourse={saveCourse} />
             </li>
