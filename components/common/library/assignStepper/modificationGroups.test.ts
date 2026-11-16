@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { ClassRoster } from '@/types';
 import type { ClassStudentRow } from '@/utils/studentTargetRef';
 import {
   formatModificationGroupsValue,
@@ -130,15 +131,56 @@ describe('withGroupStudents', () => {
 });
 
 describe('rowsInClasses', () => {
+  const student = (id: string) => ({
+    id,
+    firstName: id,
+    lastName: id,
+    pin: id,
+    classLinkSourcedId: id,
+  });
+  const roster = (id: string, ids: string[]): ClassRoster => ({
+    id,
+    name: id,
+    driveFileId: null,
+    studentCount: ids.length,
+    createdAt: 0,
+    students: ids.map(student),
+  });
+  const rosters = [
+    roster('c1', ['a', 'b']),
+    roster('c2', ['c', 'b']),
+    roster('c3', ['d']),
+  ];
+  const rows = ['a', 'b', 'c', 'd'].map((id, i) =>
+    row(`classlink:${id}`, ['c1', 'c1', 'c2', 'c3'][i])
+  );
+
   it('keeps only students the Classes step sends the quiz to', () => {
-    const rows = ['a', 'b', 'c', 'd'].map((id, i) =>
-      row(`classlink:${id}`, ['c1', 'c1', 'c2', 'c3'][i])
+    const kept = rowsInClasses(
+      rows,
+      {
+        classIds: ['c1'],
+        studentsByClass: { c1: [{ kind: 'classlink', sourcedId: 'a' }] },
+      },
+      rosters
     );
-    const kept = rowsInClasses(rows, {
-      classIds: ['c1', 'c2'],
-      studentsByClass: { c1: [{ kind: 'classlink', sourcedId: 'a' }] },
-    });
-    expect(kept.map((r) => r.key)).toEqual(['classlink:a', 'classlink:c']);
+    expect(kept.map((r) => r.key)).toEqual(['classlink:a']);
+  });
+
+  it('keeps a student skipped in one class but sent through another', () => {
+    const kept = rowsInClasses(
+      rows,
+      {
+        classIds: ['c1', 'c2'],
+        studentsByClass: { c1: [{ kind: 'classlink', sourcedId: 'a' }] },
+      },
+      rosters
+    );
+    expect(kept.map((r) => r.key)).toEqual([
+      'classlink:a',
+      'classlink:b',
+      'classlink:c',
+    ]);
   });
 });
 

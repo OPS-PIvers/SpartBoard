@@ -158,7 +158,8 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
             rosters: usable,
             selectedRosterIds: classes.classIds,
           }),
-          classes
+          classes,
+          usable
         )
       : [];
   const sessionMinutes = gates.timeLimitOn

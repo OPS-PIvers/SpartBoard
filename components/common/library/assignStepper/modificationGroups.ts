@@ -1,9 +1,12 @@
 // Modification groups: students who share one set of rules, expanded into per-student overrides at assign time.
-import type { StudentOverride } from '@/types';
+import type { ClassRoster, StudentOverride } from '@/types';
 import type { ClassStudentRow } from '@/utils/studentTargetRef';
 import type { OverrideEditorQuestion } from '../OverrideEditorRow';
 import type { AssignClassesValue } from './assignClassesValue';
-import { studentTargetRefKey } from '@/utils/studentTargetRef';
+import {
+  resolveStudentTargetRef,
+  studentTargetRefKey,
+} from '@/utils/studentTargetRef';
 
 export type AnswerChoicesRule = 'all' | 'drop-one' | 'two';
 export type TimeRule = 'standard' | 1.5 | 2 | 'unlimited';
@@ -31,14 +34,23 @@ export const newModificationGroup = (): ModificationGroup => ({
 /** Rows the Classes step sends the assignment to, so a group can't pick a student who won't get it. */
 export function rowsInClasses(
   rows: ClassStudentRow[],
-  classes: AssignClassesValue
+  classes: AssignClassesValue,
+  rosters: ClassRoster[]
 ): ClassStudentRow[] {
-  return rows.filter((row) => {
-    if (!classes.classIds.includes(row.rosterId)) return false;
-    const picked = classes.studentsByClass[row.rosterId];
-    if (!picked || picked.length === 0) return true;
-    return picked.some((ref) => studentTargetRefKey(ref) === row.key);
-  });
+  const sent = new Set<string>();
+  for (const roster of rosters) {
+    if (!classes.classIds.includes(roster.id)) continue;
+    const picked = classes.studentsByClass[roster.id];
+    if (picked && picked.length > 0) {
+      for (const ref of picked) sent.add(studentTargetRefKey(ref));
+      continue;
+    }
+    for (const student of roster.students) {
+      const ref = resolveStudentTargetRef(student, roster);
+      if (ref) sent.add(studentTargetRefKey(ref));
+    }
+  }
+  return rows.filter((row) => sent.has(row.key));
 }
 
 // Stable per-question pick so every student in a group sees the same choices.
