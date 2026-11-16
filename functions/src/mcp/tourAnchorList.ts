@@ -26033,6 +26033,85 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "classes.agenda-open",
+    "label": "Show the Agenda deck and links for a class or Course in My Classes",
+    "scope": "board",
+    "panel": true
+  },
+  {
+    "id": "classes.agenda-pick",
+    "label": "Select or change the Agenda Google Slides deck in My Classes",
+    "scope": "board",
+    "panel": true,
+    "persists": true
+  },
+  {
+    "id": "classes.agenda-open-deck",
+    "label": "Open the Agenda deck in Google Slides from My Classes",
+    "scope": "board",
+    "panel": true
+  },
+  {
+    "id": "classes.agenda-remove",
+    "label": "Remove the Agenda deck in My Classes",
+    "scope": "board",
+    "panel": true,
+    "destructive": true,
+    "persists": true
+  },
+  {
+    "id": "classes.agenda-fix-sharing",
+    "label": "Fix who can open the Agenda deck in My Classes",
+    "scope": "board",
+    "panel": true,
+    "persists": true
+  },
+  {
+    "id": "classes.agenda-copy-link",
+    "label": "Copy Class page link button in My Classes",
+    "scope": "board",
+    "panel": true
+  },
+  {
+    "id": "classes.agenda-link-add",
+    "label": "Add link button for a Course in My Classes",
+    "scope": "board",
+    "panel": true
+  },
+  {
+    "id": "classes.agenda-link-title",
+    "label": "Link title field for a Course in My Classes",
+    "scope": "board",
+    "panel": true
+  },
+  {
+    "id": "classes.agenda-link-url",
+    "label": "Link address field for a Course in My Classes",
+    "scope": "board",
+    "panel": true
+  },
+  {
+    "id": "classes.agenda-link-cancel",
+    "label": "Cancel adding a Course link in My Classes",
+    "scope": "board",
+    "panel": true
+  },
+  {
+    "id": "classes.agenda-link-save",
+    "label": "Save a new Course link in My Classes",
+    "scope": "board",
+    "panel": true,
+    "persists": true
+  },
+  {
+    "id": "classes.agenda-link-remove",
+    "label": "Remove a Course link in My Classes",
+    "scope": "board",
+    "panel": true,
+    "destructive": true,
+    "persists": true
+  },
+  {
     "id": "classes.edit-roster",
     "label": "Edit class button in My Classes",
     "scope": "field",

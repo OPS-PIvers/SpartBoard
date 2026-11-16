@@ -4,6 +4,8 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { CourseClassList } from './CourseClassList';
 import type { Course } from '@/utils/course/contract';
 
+vi.mock('./AgendaSetup', () => ({ AgendaSetup: () => null }));
+
 const course: Course = {
   id: 'c1',
   name: 'English 9',
