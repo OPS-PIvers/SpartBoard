@@ -28,6 +28,7 @@ vi.mock('@/hooks/useGooglePicker', () => ({
 const refreshToken = vi.fn(() => Promise.resolve(null));
 
 import { AgendaSetup } from './AgendaSetup';
+import { clearAgendaStatuses } from './agenda/agendaStatus';
 
 const DOMAIN = 'orono.k12.mn.us';
 
@@ -70,7 +71,12 @@ function fakeDrive(perms: Record<string, DrivePermission[]>) {
       return Promise.resolve(
         new Response(
           JSON.stringify({
-            error: { errors: [{ reason: 'insufficientFilePermissions' }] },
+            error: {
+              code: 403,
+              message:
+                'The user does not have sufficient permissions for this file.',
+              errors: [{ reason: 'insufficientFilePermissions' }],
+            },
           }),
           { status: 403 }
         )
@@ -93,6 +99,7 @@ function fakeDrive(perms: Record<string, DrivePermission[]>) {
 
 describe('AgendaSetup', () => {
   beforeEach(() => {
+    clearAgendaStatuses();
     showConfirm.mockReset();
     openPicker.mockReset();
   });
@@ -338,5 +345,107 @@ describe('AgendaSetup', () => {
         ],
       },
     });
+  });
+
+  it('shares a swapped-in deck with anyone, after the confirm, while the family link is on', async () => {
+    const drive = fakeDrive({
+      newDeck1234: [
+        { id: 'd', type: 'domain', domain: DOMAIN, role: 'reader' },
+      ],
+    });
+    openPicker.mockResolvedValue({
+      id: 'newDeck1234',
+      name: 'New',
+      mimeType: '',
+    });
+    showConfirm.mockResolvedValue(true);
+    const saveCourse = vi.fn(() =>
+      Promise.resolve({
+        courseId: 'c1',
+        rostersWithoutClassPage: [],
+        classLinkUnavailable: false,
+      })
+    );
+    render(
+      <AgendaSetup
+        group={{
+          course: makeCourse({ familyLink: { shareId: 's1', on: true } }),
+          rosters: [{ id: 'p2', name: 'P2' }],
+        }}
+        saveCourse={saveCourse}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /add agenda/i }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Select a Google Slides deck' })
+    );
+    await waitFor(() =>
+      expect(drive.perms.newDeck1234).toContainEqual(
+        expect.objectContaining({ type: 'anyone' })
+      )
+    );
+    expect(showConfirm.mock.calls[0][1]).toMatchObject({
+      title: 'Share with anyone?',
+    });
+  });
+
+  it('says only the owner can change sharing on a deck Drive refuses, with no silent failure', async () => {
+    fakeDrive({});
+    showConfirm.mockResolvedValue(true);
+    render(
+      <AgendaSetup
+        group={{
+          course: makeCourse({
+            agenda: { fileId: 'theirDeck123', title: 'Shared deck' },
+            deckCheck: {
+              checkedAt: Date.now(),
+              modifiedAt: null,
+              sharing: 'private',
+            },
+          }),
+          rosters: [{ id: 'p2', name: 'P2' }],
+        }}
+        saveCourse={vi.fn(() =>
+          Promise.resolve({
+            courseId: 'c1',
+            rostersWithoutClassPage: [],
+            classLinkUnavailable: false,
+          })
+        )}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Share with Orono' }));
+    expect(
+      await screen.findByText("Only the deck's owner can change its sharing.")
+    ).toBeInTheDocument();
+  });
+
+  it('keeps its open panel and messages when a class gets its first Course', () => {
+    fakeDrive({});
+    const saveCourse = vi.fn(() =>
+      Promise.resolve({
+        courseId: 'c1',
+        rostersWithoutClassPage: [],
+        classLinkUnavailable: false,
+      })
+    );
+    const roster = { id: 'p3', name: 'Speech P3' };
+    const { unmount } = render(
+      <AgendaSetup
+        group={{ course: null, rosters: [roster] }}
+        saveCourse={saveCourse}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /add agenda/i }));
+    unmount();
+    render(
+      <AgendaSetup
+        group={{ course: makeCourse({ rosterIds: ['p3'] }), rosters: [roster] }}
+        saveCourse={saveCourse}
+      />
+    );
+    expect(
+      screen.getByRole('button', { name: 'Select a Google Slides deck' })
+    ).toBeInTheDocument();
   });
 });

@@ -40,10 +40,10 @@ export const PinnedLinksEditor: React.FC<PinnedLinksEditorProps> = ({
   const add = async (e: React.FormEvent) => {
     e.preventDefault();
     const typed = url.trim();
-    const withScheme = /^[a-z][a-z0-9+.-]*:/i.test(typed)
+    const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(typed)
       ? typed
       : `https://${typed}`;
-    if (!cleanPinnedLinkUrl(withScheme)) {
+    if (/\s/.test(typed) || !cleanPinnedLinkUrl(withScheme)) {
       setBadUrl(true);
       return;
     }
@@ -96,6 +96,7 @@ export const PinnedLinksEditor: React.FC<PinnedLinksEditorProps> = ({
       {adding ? (
         <form onSubmit={(e) => void add(e)} className="space-y-1.5 py-1">
           <input
+            autoFocus
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             maxLength={COURSE_MAX_LINK_TITLE_LENGTH}

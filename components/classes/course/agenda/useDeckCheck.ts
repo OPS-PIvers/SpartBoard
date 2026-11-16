@@ -1,10 +1,10 @@
 // D24: re-reads the Agenda deck's sharing when My Classes opens and records the check on the Course.
 import { useCallback, useEffect, useEffectEvent, useState } from 'react';
-import { readDeckState, type DeckState } from '@/utils/course/deckSharing';
+import type { DeckState } from '@/utils/course/deckSharing';
 import type { Course } from '@/utils/course/contract';
 import type { UseCoursesResult } from '@/hooks/useCourses';
 import { logError } from '@/utils/logError';
-import type { DeckDrive } from './deckDrive';
+import { readDeckForCheck, type DeckDrive } from './deckDrive';
 import { shouldRecordCheck } from './agendaLogic';
 
 export interface DeckCheckResult {
@@ -44,8 +44,8 @@ export function useDeckCheck(
   useEffect(() => {
     if (!key || !drive || !fileId || !domain) return;
     let live = true;
-    void readDeckState(drive, fileId, domain).then((state) => {
-      if (!live) return;
+    void readDeckForCheck(drive, fileId, domain).then((state) => {
+      if (!live || !state) return;
       setReading({ key, state });
       record(state);
     });

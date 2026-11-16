@@ -31,6 +31,7 @@ import type {
 import { DeckAccessError, DeckDrive } from './agenda/deckDrive';
 import { PinnedLinksEditor } from './agenda/PinnedLinksEditor';
 import { useDeckCheck } from './agenda/useDeckCheck';
+import { useAgendaStatus } from './agenda/agendaStatus';
 import {
   classPageLink,
   courseSaveInput,
@@ -56,7 +57,6 @@ function saveErrorText(t: TFn, err: unknown): string {
 }
 
 function shareErrorText(t: TFn, err: unknown): string | null {
-  if (isDriveAuthError(err)) return null;
   if (err instanceof DeckStillPublicError)
     return t('course.agenda.stillPublic', {
       defaultValue:
@@ -72,6 +72,8 @@ function shareErrorText(t: TFn, err: unknown): string | null {
       defaultValue: "Only the deck's owner can change its sharing.",
     });
   }
+  // The sign-in toast already fired for this one.
+  if (isDriveAuthError(err)) return null;
   if (err instanceof Error && err.name.startsWith('Dev')) return err.message;
   return t('course.agenda.shareFailed', {
     defaultValue: "Couldn't change sharing. Try again.",
@@ -86,12 +88,18 @@ export const AgendaSetup: React.FC<CourseGroupProps> = ({
   const { user, googleAccessToken, refreshGoogleToken } = useAuth();
   const { showConfirm } = useDialog();
   const { openPicker } = useGooglePicker();
-  const [open, setOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useAgendaStatus(group.rosters[0]?.id ?? '');
   const [copied, setCopied] = useState(false);
+  const { open, error } = status;
+  const setOpen = (next: boolean) => setStatus({ open: next });
+  const setError = (next: string | null) => setStatus({ error: next });
 
   const course = group.course;
+  // Stays busy until the saved Course arrives, so the next save sends its new updatedAt.
+  const busy =
+    status.busy ||
+    (status.savedFrom !== null &&
+      (course?.updatedAt ?? null) === status.savedFrom);
   const agenda = course?.agenda ?? null;
   const domain = emailDomain(user?.email);
   const drive = useMemo(
@@ -119,6 +127,7 @@ export const AgendaSetup: React.FC<CourseGroupProps> = ({
         action: 'save',
         course: courseSaveInput(group, patch),
       });
+      setStatus({ savedFrom: course?.updatedAt ?? null });
       return true;
     } catch (err) {
       logError('AgendaSetup.save', err);
@@ -204,12 +213,11 @@ export const AgendaSetup: React.FC<CourseGroupProps> = ({
   };
 
   const run = async (work: () => Promise<void>) => {
-    setBusy(true);
-    setError(null);
+    setStatus({ busy: true, error: null });
     try {
       await work();
     } finally {
-      setBusy(false);
+      setStatus({ busy: false });
     }
   };
 
@@ -231,11 +239,7 @@ export const AgendaSetup: React.FC<CourseGroupProps> = ({
         const { sharing } = await readDeckState(drive, next.fileId, domain);
         const fix = sharingProblem(sharing, needed);
         if (fix === 'students' || fix === 'families')
-          await share(
-            next.fileId,
-            next.title,
-            fix === 'families' ? 'anyone' : 'domain'
-          );
+          await share(next.fileId, next.title, needed);
       }
       if (old) await offerStopSharing(old);
       recheck();
@@ -255,12 +259,11 @@ export const AgendaSetup: React.FC<CourseGroupProps> = ({
     });
 
   const saveLinks = async (links: CoursePinnedLink[]) => {
-    setBusy(true);
-    setError(null);
+    setStatus({ busy: true, error: null });
     try {
       return await save({ pinnedLinks: links });
     } finally {
-      setBusy(false);
+      setStatus({ busy: false });
     }
   };
 
@@ -297,7 +300,7 @@ export const AgendaSetup: React.FC<CourseGroupProps> = ({
     <div className="pl-9 pr-2 pb-2 -mt-1" data-agenda-setup="">
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setOpen(!open)}
         aria-expanded={open}
         {...tourAttr('classes.agenda-open')}
         className="w-full flex items-center gap-1.5 py-1 text-left text-xs text-slate-600 hover:text-brand-blue-primary"

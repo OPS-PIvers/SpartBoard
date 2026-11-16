@@ -1,7 +1,11 @@
 // Drive calls for an Agenda deck: a 403 here means "not yours to share", not a lost sign-in, so it never fires the sign-in toast.
 import { authError } from '@/utils/driveAuthErrors';
 import type { DrivePermission } from '@/utils/googleDriveService';
-import type { DeckSharingDrive } from '@/utils/course/deckSharing';
+import {
+  deckSharingOf,
+  type DeckSharingDrive,
+  type DeckState,
+} from '@/utils/course/deckSharing';
 
 const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3';
 const TIMEOUT_MS = 20_000;
@@ -17,8 +21,8 @@ export type DeckAccessReason = 'no-access' | 'not-found' | 'policy';
 /** Drive refused the deck itself: the teacher can't change its sharing, it is gone, or a district policy blocks the change. */
 export class DeckAccessError extends Error {
   readonly reason: DeckAccessReason;
-  constructor(reason: DeckAccessReason, detail: string) {
-    super(detail);
+  constructor(reason: DeckAccessReason) {
+    super(`Drive refused the deck (${reason}).`);
     this.name = 'DeckAccessError';
     this.reason = reason;
   }
@@ -59,11 +63,11 @@ export function deckErrorFor(status: number, body: string): Error {
         /policy|publishOutNotPermitted|cannotShare|sharingRestricted/i.test(r)
       )
     ) {
-      return new DeckAccessError('policy', body.slice(0, 200));
+      return new DeckAccessError('policy');
     }
-    return new DeckAccessError('no-access', body.slice(0, 200));
+    return new DeckAccessError('no-access');
   }
-  if (status === 404) return new DeckAccessError('not-found', '');
+  if (status === 404) return new DeckAccessError('not-found');
   return new Error(`Drive request failed: ${status} ${body.slice(0, 200)}`);
 }
 
@@ -176,4 +180,30 @@ export class DeckDrive implements DeckSharingDrive {
         : NaN;
     return Number.isFinite(ms) ? ms : null;
   }
+}
+
+/** D24 reading: a deck Drive refuses reads as 'unknown'; a sign-in or network failure gives null, so no check is written. */
+export async function readDeckForCheck(
+  drive: DeckSharingDrive,
+  fileId: string,
+  domain: string
+): Promise<DeckState | null> {
+  const [perms, modified] = await Promise.allSettled([
+    drive.listFilePermissions(fileId),
+    drive.getFileModifiedTime(fileId),
+  ]);
+  const refused = (r: PromiseSettledResult<unknown>) =>
+    r.status === 'rejected' && r.reason instanceof DeckAccessError;
+  if (
+    (perms.status === 'rejected' && !refused(perms)) ||
+    (modified.status === 'rejected' && !refused(modified))
+  )
+    return null;
+  return {
+    sharing:
+      perms.status === 'fulfilled'
+        ? deckSharingOf(perms.value, domain)
+        : 'unknown',
+    modifiedAt: modified.status === 'fulfilled' ? modified.value : null,
+  };
 }

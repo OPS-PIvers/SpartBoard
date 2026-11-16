@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DeckAccessError, DeckDrive, deckErrorFor } from './deckDrive';
+import {
+  DeckAccessError,
+  DeckDrive,
+  deckErrorFor,
+  readDeckForCheck,
+} from './deckDrive';
 import {
   DriveAuthError,
   setDriveAuthErrorHandler,
@@ -82,13 +87,11 @@ describe('DeckDrive', () => {
   });
 
   it('refreshes the token once on a 401 and retries', async () => {
-    fetchMock
-      .mockResolvedValueOnce(json(401, {}))
-      .mockResolvedValueOnce(
-        json(200, {
-          permissions: [{ id: 'd', type: 'domain', domain: DOMAIN }],
-        })
-      );
+    fetchMock.mockResolvedValueOnce(json(401, {})).mockResolvedValueOnce(
+      json(200, {
+        permissions: [{ id: 'd', type: 'domain', domain: DOMAIN }],
+      })
+    );
     const refresh = vi.fn(() => Promise.resolve('fresh'));
     const drive = new DeckDrive('tok', refresh);
     await expect(drive.listFilePermissions('deck123456')).resolves.toEqual([
@@ -124,6 +127,42 @@ describe('DeckDrive', () => {
     const perms = await drive.listFilePermissions('deck123456');
     expect(perms.map((p) => p.id)).toEqual(['a', 'b']);
     expect(String(fetchMock.mock.calls[1][0])).toContain('pageToken=p2');
+  });
+});
+
+describe('readDeckForCheck', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('gives no reading when sign-in or the network fails, so no check is written', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve(json(401, {})))
+    );
+    const drive = new DeckDrive('tok', () => Promise.resolve(null));
+    await expect(
+      readDeckForCheck(drive, 'deck123456', DOMAIN)
+    ).resolves.toBeNull();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.reject(new TypeError('offline')))
+    );
+    await expect(
+      readDeckForCheck(drive, 'deck123456', DOMAIN)
+    ).resolves.toBeNull();
+  });
+
+  it('reads a deck Drive refuses as unknown', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve(json(404, {})))
+    );
+    const drive = new DeckDrive('tok', () => Promise.resolve(null));
+    await expect(
+      readDeckForCheck(drive, 'deck123456', DOMAIN)
+    ).resolves.toEqual({
+      sharing: 'unknown',
+      modifiedAt: null,
+    });
   });
 });
 

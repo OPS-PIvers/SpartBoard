@@ -39,6 +39,8 @@ export function shouldRecordCheck(
   now: number
 ): boolean {
   if (!previous) return true;
+  // A deck that stopped answering keeps its last known edit time.
+  if (next.modifiedAt === null && previous.modifiedAt !== null) return false;
   if (previous.sharing !== next.sharing) return true;
   if (previous.modifiedAt !== next.modifiedAt) return true;
   return now - previous.checkedAt >= DECK_CHECK_REFRESH_MS;
