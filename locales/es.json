@@ -2411,6 +2411,7 @@
       "title": "Tus resultados",
       "attempt": "Intento",
       "fullyCorrect": "{{correct}} de {{total}} totalmente correctas",
+      "pointsOf": "{{earned}} de {{possible}} puntos",
       "writtenPending": "Tu respuesta escrita aún se está calificando. Vuelve a mirar pronto.",
       "yourAnswers": "Tus respuestas",
       "otherQuestions": "Otras preguntas",

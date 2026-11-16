@@ -188,6 +188,7 @@ describe('gradeResponseForPublish: choose-N section with an extra written answer
       ctx
     );
     expect(graded.score).toBe(100);
+    expect(graded.points).toEqual({ earned: 3, possible: 3, attempt: 1 });
   });
 
   it('follows the teacher pick of which answer counts', () => {
@@ -199,6 +200,7 @@ describe('gradeResponseForPublish: choose-N section with an extra written answer
       ctx
     );
     expect(graded.score).toBe(67);
+    expect(graded.points).toEqual({ earned: 2, possible: 3, attempt: 1 });
   });
 
   it('still holds the score while the counted answer is ungraded', () => {
@@ -210,5 +212,6 @@ describe('gradeResponseForPublish: choose-N section with an extra written answer
       ctx
     );
     expect(graded.score).toBeNull();
+    expect(graded.points).toBeNull();
   });
 });

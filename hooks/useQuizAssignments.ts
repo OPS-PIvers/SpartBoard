@@ -92,6 +92,7 @@ import type {
   QuizQuestion,
   QuizResponse,
   QuizResponseAnswer,
+  QuizScorePoints,
   QuizScoreVisibility,
   QuizSection,
   QuizSession,
@@ -1111,11 +1112,18 @@ export function buildRevealedRubricExamples(
   return Object.keys(out).length > 0 ? out : null;
 }
 
+/** One response graded for publishing; `score` and `points` are null while a slot awaits a teacher grade. */
+export interface PublishGrade {
+  score: number | null;
+  answers: QuizResponseAnswer[];
+  points?: QuizScorePoints | null;
+}
+
 /** Grades one response for publishing; `score` is null while a slot awaits a teacher grade. */
 export function gradeResponseForPublish(
   data: QuizResponse,
   ctx: ResponseGradingContext
-): { score: number | null; answers: QuizResponseAnswer[] } {
+): PublishGrade {
   const {
     questionsById,
     overridesByStudentUid,
@@ -1262,7 +1270,28 @@ export function gradeResponseForPublish(
   }
   const score =
     pointsMax === 0 ? 0 : Math.round((pointsEarned / pointsMax) * 100);
-  return { score: awaitingGrade ? null : score, answers: gradedAnswers };
+  if (awaitingGrade)
+    return { score: null, answers: gradedAnswers, points: null };
+  return {
+    score,
+    answers: gradedAnswers,
+    points: {
+      earned: pointsEarned,
+      possible: pointsMax,
+      attempt: data.completedAttempts ?? 0,
+    },
+  };
+}
+
+/** The score fields a publish writes; both clear while a slot awaits a grade. */
+export function publishScoreFields(graded: PublishGrade): {
+  score: number | ReturnType<typeof deleteField>;
+  scorePoints: QuizScorePoints | ReturnType<typeof deleteField>;
+} {
+  return {
+    score: graded.score ?? deleteField(),
+    scorePoints: graded.points ?? deleteField(),
+  };
 }
 
 /** True when a class publish must keep the key and verdicts off a response: an open attempt or a hidden student. */
@@ -1279,7 +1308,7 @@ export function withholdsPublishedResults(
 /** One response's class-publish patch; the key lives on each response, never the session (D4). */
 export function classPublishPatch(
   data: QuizResponse,
-  graded: { score: number | null; answers: QuizResponseAnswer[] },
+  graded: PublishGrade,
   opts: {
     visibility: QuizScoreVisibility;
     now: number;
@@ -1298,7 +1327,7 @@ export function classPublishPatch(
         visibilityShowsResponses(override.visibility)));
   return {
     // `deleteField()` so a stale score can't linger once a slot awaits grading.
-    score: graded.score ?? deleteField(),
+    ...publishScoreFields(graded),
     answers: keepVerdicts
       ? graded.answers
       : answersWithoutVerdicts(graded.answers),
@@ -4059,7 +4088,7 @@ export const useQuizAssignments = (
       const buildStudentPatch = (data: QuizResponse) => {
         const graded = gradeResponseForPublish(data, ctx);
         return {
-          score: graded.score ?? deleteField(),
+          ...publishScoreFields(graded),
           answers: keepVerdicts
             ? graded.answers
             : answersWithoutVerdicts(graded.answers),

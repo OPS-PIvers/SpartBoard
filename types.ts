@@ -6270,6 +6270,14 @@ export interface QuizLiveLogEntry {
   driveFileId?: string;
 }
 
+/** Points earned of points possible behind a published quiz score. */
+export interface QuizScorePoints {
+  earned: number;
+  possible: number;
+  /** The `completedAttempts` these points scored; a retake leaves them stale. */
+  attempt: number;
+}
+
 export interface QuizResponse extends StaffResponseFields {
   /**
    * The Firestore doc key under /responses. Populated at read time by the
@@ -6363,6 +6371,8 @@ export interface QuizResponse extends StaffResponseFields {
    * full quiz data loaded from Drive.
    */
   score: number | null;
+  /** Points behind a published `score`, written with it; shown only while it still matches `score`. */
+  scorePoints?: QuizScorePoints;
   submittedAt: number | null;
   /** Server-written at turn-in (functions/src/quizTurnIn.ts); read through `trustedTurnInMs`. */
   turnIn?: TurnInStamp;
