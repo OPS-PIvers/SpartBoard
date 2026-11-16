@@ -9,6 +9,9 @@ import type { Course, SaveCourseRequest } from '@/utils/course/contract';
 import { emailDomain, readDeckState } from '@/utils/course/deckSharing';
 import { shouldCheckDeck } from './agendaWidgetState';
 
+// One check per Course at a time, shared by every Agenda widget on the board.
+const inFlight = new Set<string>();
+
 export function useAgendaDeckCheck(
   course: Course | null,
   saveCourse: (request: SaveCourseRequest) => Promise<unknown>
@@ -27,6 +30,9 @@ export function useAgendaDeckCheck(
   useEffect(() => {
     if (!driveService || !domain || !courseId || !fileId) return;
     if (isAuthBypass || viewAsSuppressesBackgroundWrites() || !isDue()) return;
+    const key = `${courseId}/${fileId}`;
+    if (inFlight.has(key)) return;
+    inFlight.add(key);
     let cancelled = false;
     void (async () => {
       try {
@@ -41,6 +47,8 @@ export function useAgendaDeckCheck(
         });
       } catch (err) {
         logError('agenda deck check', err);
+      } finally {
+        inFlight.delete(key);
       }
     })();
     return () => {

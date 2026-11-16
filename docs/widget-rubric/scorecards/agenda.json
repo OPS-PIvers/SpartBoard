@@ -2,7 +2,7 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "agenda",
   "rubricVersion": "1.2.0",
-  "gradedAt": "2026-11-16T23:32:41.576Z",
+  "gradedAt": "2026-11-16T23:42:24.746Z",
   "stale": false,
   "criteria": {
     "S6": {
@@ -10,7 +10,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.2.0",
-      "gradedAt": "2026-11-16T23:32:41.576Z",
+      "gradedAt": "2026-11-16T23:42:24.746Z",
       "stale": false
     },
     "I5": {
@@ -18,7 +18,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.2.0",
-      "gradedAt": "2026-11-16T23:32:41.576Z",
+      "gradedAt": "2026-11-16T23:42:24.746Z",
       "stale": false
     },
     "S1": {
@@ -38,7 +38,7 @@
       },
       "note": "At 150×100 the three header icons stay full size while the slide shrinks to unreadable ~4px text, and with a long title the warning banner pushes the slide off the card.",
       "rubricVersion": "1.2.0",
-      "gradedAt": "2026-11-16T23:32:41.576Z",
+      "gradedAt": "2026-11-16T23:42:24.746Z",
       "stale": false
     },
     "S2": {
@@ -58,7 +58,7 @@
       },
       "note": "At 1400×900 the slide scales up proportionally and fills the card with readable lines, but it only zooms and shows no extra items or detail.",
       "rubricVersion": "1.2.0",
-      "gradedAt": "2026-11-16T23:32:41.576Z",
+      "gradedAt": "2026-11-16T23:42:24.746Z",
       "stale": false
     },
     "S3": {
@@ -79,7 +79,7 @@
       },
       "note": "The slide keeps its 16:9 box and centers, leaving wide gray bands on both sides at 1400×350 and huge bands above and below at 225×900, with no reflow.",
       "rubricVersion": "1.2.0",
-      "gradedAt": "2026-11-16T23:32:41.576Z",
+      "gradedAt": "2026-11-16T23:42:24.746Z",
       "stale": false
     },
     "S4": {
@@ -95,7 +95,7 @@
         "runId": "agenda"
       },
       "rubricVersion": "1.2.0",
-      "gradedAt": "2026-11-16T23:32:41.576Z",
+      "gradedAt": "2026-11-16T23:42:24.746Z",
       "stale": false
     },
     "S5": {
@@ -113,7 +113,7 @@
         "runId": "agenda"
       },
       "rubricVersion": "1.2.0",
-      "gradedAt": "2026-11-16T23:32:41.576Z",
+      "gradedAt": "2026-11-16T23:42:24.746Z",
       "stale": false
     },
     "S7": {
@@ -132,7 +132,7 @@
       },
       "note": "The envelope sits at the global 150×100 floor, which suits a glanceable agenda, though the slide is only barely legible there.",
       "rubricVersion": "1.2.0",
-      "gradedAt": "2026-11-16T23:32:41.576Z",
+      "gradedAt": "2026-11-16T23:42:24.746Z",
       "stale": false
     },
     "S8": {
@@ -152,7 +152,7 @@
       },
       "note": "Maximized is the same card with a bigger slide, small header and icons, and an empty course list stranded in the top-left corner, so it reads as an enlarged card rather than a presenting layout.",
       "rubricVersion": "1.2.0",
-      "gradedAt": "2026-11-16T23:32:41.576Z",
+      "gradedAt": "2026-11-16T23:42:24.746Z",
       "stale": false
     },
     "I1": {
@@ -168,7 +168,7 @@
         "runId": "agenda"
       },
       "rubricVersion": "1.2.0",
-      "gradedAt": "2026-11-16T23:32:41.576Z",
+      "gradedAt": "2026-11-16T23:42:24.746Z",
       "stale": false
     },
     "I2": {
@@ -184,7 +184,7 @@
         "runId": "agenda"
       },
       "rubricVersion": "1.2.0",
-      "gradedAt": "2026-11-16T23:32:41.576Z",
+      "gradedAt": "2026-11-16T23:42:24.746Z",
       "stale": false
     },
     "I3": {
@@ -201,7 +201,7 @@
         "runId": "agenda"
       },
       "rubricVersion": "1.2.0",
-      "gradedAt": "2026-11-16T23:32:41.576Z",
+      "gradedAt": "2026-11-16T23:42:24.746Z",
       "stale": false
     },
     "I4": {
@@ -217,7 +217,7 @@
         "runId": "agenda"
       },
       "rubricVersion": "1.2.0",
-      "gradedAt": "2026-11-16T23:32:41.576Z",
+      "gradedAt": "2026-11-16T23:42:24.746Z",
       "stale": false
     },
     "I6": {
@@ -235,7 +235,7 @@
       },
       "note": "The bare ghost icons and plain course rows show no visible selected or active state, and refresh shows no pending feedback.",
       "rubricVersion": "1.2.0",
-      "gradedAt": "2026-11-16T23:32:41.576Z",
+      "gradedAt": "2026-11-16T23:42:24.746Z",
       "stale": false
     },
     "I7": {
@@ -255,7 +255,7 @@
         "runId": "agenda"
       },
       "rubricVersion": "1.2.0",
-      "gradedAt": "2026-11-16T23:32:41.576Z",
+      "gradedAt": "2026-11-16T23:42:24.746Z",
       "stale": false
     },
     "V1": {
@@ -273,7 +273,7 @@
       },
       "note": "A clean, restrained header with a white slide and lucide icons, with no ban-list hits.",
       "rubricVersion": "1.2.0",
-      "gradedAt": "2026-11-16T23:32:41.576Z",
+      "gradedAt": "2026-11-16T23:42:24.746Z",
       "stale": false
     },
     "V2": {
@@ -292,7 +292,7 @@
       },
       "note": "From the back of the room it clearly reads as today's agenda, with only a title and three small icons around the slide, and the proxies are low.",
       "rubricVersion": "1.2.0",
-      "gradedAt": "2026-11-16T23:32:41.576Z",
+      "gradedAt": "2026-11-16T23:42:24.746Z",
       "stale": false
     },
     "V3": {
@@ -310,7 +310,7 @@
       },
       "note": "The slide's date and bullets dominate, while the course title and icons step down in size and weight.",
       "rubricVersion": "1.2.0",
-      "gradedAt": "2026-11-16T23:32:41.576Z",
+      "gradedAt": "2026-11-16T23:42:24.746Z",
       "stale": false
     },
     "V4": {
@@ -328,7 +328,7 @@
       },
       "note": "Only ScaledEmptyState is shared; the header icons, course list and banner are four raw one-off controls on the face.",
       "rubricVersion": "1.2.0",
-      "gradedAt": "2026-11-16T23:32:41.576Z",
+      "gradedAt": "2026-11-16T23:42:24.746Z",
       "stale": false
     },
     "V5": {
@@ -344,7 +344,7 @@
         "runId": "agenda"
       },
       "rubricVersion": "1.2.0",
-      "gradedAt": "2026-11-16T23:32:41.576Z",
+      "gradedAt": "2026-11-16T23:42:24.746Z",
       "stale": false
     },
     "V6": {
@@ -362,7 +362,7 @@
       },
       "note": "The copy is short and plain (Select a course, No agenda yet, Fix in My Classes) with one lucide style, but the unlabeled swap icon for switching course is not self-explanatory.",
       "rubricVersion": "1.2.0",
-      "gradedAt": "2026-11-16T23:32:41.576Z",
+      "gradedAt": "2026-11-16T23:42:24.746Z",
       "stale": false
     },
     "C1": {
@@ -380,7 +380,7 @@
       },
       "note": "The course and its deck are chosen on the face, but the drawer offers nothing widget-specific (no title toggle, fit or slide scale, or day selection).",
       "rubricVersion": "1.2.0",
-      "gradedAt": "2026-11-16T23:32:41.576Z",
+      "gradedAt": "2026-11-16T23:42:24.746Z",
       "stale": false
     },
     "C2": {
@@ -398,7 +398,7 @@
       },
       "note": "The Settings tab only reads \"Standard settings available.\", so the drawer has nothing to organize and looks like a placeholder.",
       "rubricVersion": "1.2.0",
-      "gradedAt": "2026-11-16T23:32:41.576Z",
+      "gradedAt": "2026-11-16T23:42:24.746Z",
       "stale": false
     },
     "C3": {
@@ -416,7 +416,7 @@
       },
       "note": "On first drop it is usable as a plain course list, but the list sits at the top of a large empty gray card and looks unfinished.",
       "rubricVersion": "1.2.0",
-      "gradedAt": "2026-11-16T23:32:41.576Z",
+      "gradedAt": "2026-11-16T23:42:24.746Z",
       "stale": false
     },
     "C5": {
@@ -434,7 +434,7 @@
       },
       "note": "The empty face is the action itself, a 'Select a course' list a teacher taps directly, though a course with 'No agenda yet' gives no next step.",
       "rubricVersion": "1.2.0",
-      "gradedAt": "2026-11-16T23:32:41.576Z",
+      "gradedAt": "2026-11-16T23:42:24.746Z",
       "stale": false
     },
     "R1": {
@@ -453,7 +453,7 @@
       },
       "note": "The harness forces loading, error, offline and no-roster states, and the stress view shows a designed warning banner with a 'Fix in My Classes' action, though the empty course list itself is undesigned.",
       "rubricVersion": "1.2.0",
-      "gradedAt": "2026-11-16T23:32:41.576Z",
+      "gradedAt": "2026-11-16T23:42:24.746Z",
       "stale": false
     },
     "R3": {
@@ -469,7 +469,7 @@
         "runId": "agenda"
       },
       "rubricVersion": "1.2.0",
-      "gradedAt": "2026-11-16T23:32:41.576Z",
+      "gradedAt": "2026-11-16T23:42:24.746Z",
       "stale": false
     },
     "R4": {
@@ -487,7 +487,7 @@
       },
       "note": "The face shows only course names and slide content, with no student data.",
       "rubricVersion": "1.2.0",
-      "gradedAt": "2026-11-16T23:32:41.576Z",
+      "gradedAt": "2026-11-16T23:42:24.746Z",
       "stale": false
     },
     "E1": {
@@ -505,7 +505,7 @@
       },
       "note": "It links to My Classes courses and their Slides decks and shows the linked course on the face. Proposal for Paul: add a schedule or day link so the slide advances on its own; remove nothing.",
       "rubricVersion": "1.2.0",
-      "gradedAt": "2026-11-16T23:32:41.576Z",
+      "gradedAt": "2026-11-16T23:42:24.746Z",
       "stale": false
     },
     "E3": {
@@ -523,7 +523,7 @@
       },
       "note": "Four folder tests across 556 lines in six files (largest 410), with no any, no useDashboard calls and no derived-state effects.",
       "rubricVersion": "1.2.0",
-      "gradedAt": "2026-11-16T23:32:41.576Z",
+      "gradedAt": "2026-11-16T23:42:24.746Z",
       "stale": false
     }
   },
@@ -533,28 +533,28 @@
       "evidence": {
         "runId": "agenda"
       },
-      "gradedAt": "2026-11-16T23:32:41.576Z"
+      "gradedAt": "2026-11-16T23:42:24.746Z"
     },
     "G2": {
       "pass": true,
       "evidence": {
         "runId": "agenda"
       },
-      "gradedAt": "2026-11-16T23:32:41.576Z"
+      "gradedAt": "2026-11-16T23:42:24.746Z"
     },
     "G3": {
       "pass": true,
       "evidence": {
         "runId": "agenda"
       },
-      "gradedAt": "2026-11-16T23:32:41.576Z"
+      "gradedAt": "2026-11-16T23:42:24.746Z"
     },
     "G4": {
       "pass": true,
       "evidence": {
         "runId": "agenda"
       },
-      "gradedAt": "2026-11-16T23:32:41.576Z"
+      "gradedAt": "2026-11-16T23:42:24.746Z"
     }
   }
 }

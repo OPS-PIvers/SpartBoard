@@ -83,6 +83,14 @@ describe('useAgendaDeckCheck', () => {
     expect(h.readDeckState).not.toHaveBeenCalled();
   });
 
+  it('runs one check when two widgets show the same Course', async () => {
+    const save = vi.fn().mockResolvedValue(null);
+    renderHook(() => useAgendaDeckCheck(course(), save));
+    renderHook(() => useAgendaDeckCheck(course(), save));
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+    expect(h.readDeckState).toHaveBeenCalledTimes(1);
+  });
+
   it('does nothing without Drive or an Agenda', () => {
     h.drive = null;
     renderHook(() => useAgendaDeckCheck(course(), vi.fn()));

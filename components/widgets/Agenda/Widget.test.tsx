@@ -14,6 +14,7 @@ const h = vi.hoisted(() => ({
   rosters: [] as unknown[],
   courses: [] as unknown[],
   loading: false,
+  error: null as string | null,
 }));
 
 vi.mock('@/context/dashboardCanvasStore', () => ({
@@ -28,7 +29,7 @@ vi.mock('@/hooks/useCourses', () => ({
   useCourses: (enabled: boolean) => ({
     courses: enabled ? h.courses : [],
     loading: enabled && h.loading,
-    error: null,
+    error: enabled ? h.error : null,
     saveCourse: h.saveCourse,
   }),
 }));
@@ -73,6 +74,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   h.flagOn = true;
   h.loading = false;
+  h.error = null;
   h.rosters = [
     { id: 'r1', name: 'English 9 P1' },
     { id: 'r2', name: 'English 9 P2' },
@@ -180,6 +182,33 @@ describe('AgendaWidget', () => {
     h.courses = [];
     render(<AgendaWidget widget={widget({ courseId: 'c1' })} />);
     expect(screen.getByRole('status', { name: 'Loading' })).toBeInTheDocument();
+  });
+
+  it('shows only the slide when the widget is tiny', () => {
+    render(
+      <AgendaWidget
+        widget={{ ...widget({ courseId: 'c1' }), w: 200, h: 140 }}
+      />
+    );
+    expect(screen.getByTitle('Agenda: English 9')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Change course' })).toBeNull();
+  });
+
+  it('waits for Courses when only the classes have loaded', () => {
+    h.loading = true;
+    h.courses = [];
+    render(
+      <AgendaWidget widget={widget({ courseId: 'c1', rosterId: 'r1' })} />
+    );
+    expect(screen.getByRole('status', { name: 'Loading' })).toBeInTheDocument();
+    expect(screen.queryByText('No agenda yet')).toBeNull();
+  });
+
+  it('says so when Courses fail to load', () => {
+    h.error = 'denied';
+    h.courses = [];
+    render(<AgendaWidget widget={widget({ courseId: 'c1' })} />);
+    expect(screen.getByText("Couldn't load courses")).toBeInTheDocument();
   });
 
   it('points a teacher with no classes to My Classes', () => {

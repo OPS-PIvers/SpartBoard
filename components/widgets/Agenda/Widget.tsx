@@ -71,6 +71,7 @@ export const AgendaWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       widget={widget}
       courses={courses}
       loading={loading}
+      error={!fixture && !!live.error}
       saveCourse={saveCourse}
       deckSrcDoc={fixture?.deckSrcDoc}
     />
@@ -81,9 +82,10 @@ const AgendaFace: React.FC<{
   widget: WidgetData;
   courses: Course[];
   loading: boolean;
+  error: boolean;
   saveCourse: (request: SaveCourseRequest) => Promise<unknown>;
   deckSrcDoc?: string;
-}> = ({ widget, courses, loading, saveCourse, deckSrcDoc }) => {
+}> = ({ widget, courses, loading, error, saveCourse, deckSrcDoc }) => {
   const config = widget.config as AgendaConfig;
   const { updateWidget } = useDashboardActions();
   const rosters = useDashboardCanvasSelector((s) => s.rosters);
@@ -94,7 +96,22 @@ const AgendaFace: React.FC<{
 
   const choices = agendaChoices(courses, rosters ?? []);
   const choice = resolveAgendaChoice(config, choices);
+  // Rosters arrive before Courses, so a saved Course pick waits rather than flashing "No agenda yet".
+  const waitingForCourse =
+    loading && !!config.courseId && choice?.course?.id !== config.courseId;
   useAgendaDeckCheck(picking ? null : (choice?.course ?? null), saveCourse);
+
+  if (error) {
+    return (
+      <ScaledEmptyState
+        {...EMPTY_TONE}
+        icon={AlertTriangle}
+        title="Couldn't load courses"
+        subtitle="Reload the page to try again."
+      />
+    );
+  }
+  if (waitingForCourse && !picking) return <Waiting />;
 
   if (choices.length === 0) {
     if (loading || rosters === undefined) return <Waiting />;
@@ -140,60 +157,65 @@ const AgendaFace: React.FC<{
   const embedUrl = agenda ? agendaEmbedUrl(agenda.fileId) : null;
   const openUrl = agenda ? agendaOpenUrl(agenda.fileId) : null;
   const blocked = deckBlocksStudents(course);
+  // Too small for the controls: the slide alone, which is what a tiny agenda is for.
+  const slideOnly =
+    !!embedUrl && !widget.maximized && (widget.w < 200 || widget.h < 200);
 
   return (
     <div className="flex h-full w-full flex-col bg-transparent">
-      <div
-        className="flex shrink-0 items-center"
-        style={{
-          gap: 'min(6px, 1.5cqmin)',
-          padding: 'min(6px, 1.5cqmin) min(8px, 2cqmin)',
-        }}
-      >
-        <span
-          className="min-w-0 flex-1 break-words font-bold leading-tight text-slate-800"
-          style={{ fontSize: `min(${22 * scale}px, ${5 * scale}cqmin)` }}
+      {!slideOnly && (
+        <div
+          className="flex shrink-0 items-center"
+          style={{
+            gap: 'min(6px, 1.5cqmin)',
+            padding: 'min(6px, 1.5cqmin) min(8px, 2cqmin)',
+          }}
         >
-          {choice.label}
-        </span>
-        {embedUrl && (
-          <IconButton
-            label="Reload agenda"
-            icon={RefreshCw}
-            spinning={reloading}
-            onClick={() => {
-              setReloading(true);
-              setReloads((n) => n + 1);
-            }}
-            {...tourAttr('agenda.reload', widget.id)}
-          />
-        )}
-        {openUrl && (
-          <a
-            href={openUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Open in Google Slides"
-            title="Open in Google Slides"
-            className={ICON_BUTTON_CLASS}
-            style={ICON_BUTTON_STYLE}
-            {...tourAttr('agenda.open-slides', widget.id)}
+          <span
+            className="min-w-0 flex-1 break-words font-bold leading-tight text-slate-800"
+            style={{ fontSize: `min(${22 * scale}px, ${5 * scale}cqmin)` }}
           >
-            <ExternalLink aria-hidden="true" style={ICON_STYLE} />
-          </a>
-        )}
-        <IconButton
-          label="Change course"
-          icon={Repeat}
-          onClick={() => setPicking(true)}
-          {...tourAttr('agenda.change-course', widget.id)}
-        />
-      </div>
+            {choice.label}
+          </span>
+          {embedUrl && (
+            <IconButton
+              label="Reload agenda"
+              icon={RefreshCw}
+              spinning={reloading}
+              onClick={() => {
+                setReloading(true);
+                setReloads((n) => n + 1);
+              }}
+              {...tourAttr('agenda.reload', widget.id)}
+            />
+          )}
+          {openUrl && (
+            <a
+              href={openUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Open in Google Slides"
+              title="Open in Google Slides"
+              className={ICON_BUTTON_CLASS}
+              style={ICON_BUTTON_STYLE}
+              {...tourAttr('agenda.open-slides', widget.id)}
+            >
+              <ExternalLink aria-hidden="true" style={ICON_STYLE} />
+            </a>
+          )}
+          <IconButton
+            label="Change course"
+            icon={Repeat}
+            onClick={() => setPicking(true)}
+            {...tourAttr('agenda.change-course', widget.id)}
+          />
+        </div>
+      )}
 
-      {blocked && (
+      {blocked && !slideOnly && (
         <div
           role="status"
-          className="flex shrink-0 items-center border-y border-amber-200 bg-amber-50 text-amber-900"
+          className="flex shrink-0 items-center border-y border-slate-200 text-amber-800"
           style={{
             gap: 'min(8px, 2cqmin)',
             padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
@@ -212,10 +234,10 @@ const AgendaFace: React.FC<{
           <button
             type="button"
             onClick={openMyClasses}
-            className="shrink-0 rounded-md font-semibold text-amber-900 underline underline-offset-2 hover:bg-amber-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-amber-600"
+            className="shrink-0 rounded-md font-semibold text-amber-800 underline underline-offset-2 hover:bg-slate-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-amber-600"
             style={{
               padding: '0 min(8px, 2cqmin)',
-              minHeight: 'max(32px, min(40px, 9cqmin))',
+              minHeight: '44px',
             }}
             {...tourAttr('agenda.fix-sharing', widget.id)}
           >
@@ -228,7 +250,11 @@ const AgendaFace: React.FC<{
         {embedUrl ? (
           <div
             className="flex h-full w-full items-center justify-center"
-            style={{ padding: '0 min(8px, 2cqmin) min(8px, 2cqmin)' }}
+            style={{
+              padding: slideOnly
+                ? 'min(8px, 2cqmin)'
+                : '0 min(8px, 2cqmin) min(8px, 2cqmin)',
+            }}
           >
             <div
               className="relative overflow-hidden rounded-lg bg-white shadow-sm"
@@ -369,8 +395,8 @@ const CoursePicker: React.FC<{
 const ICON_BUTTON_CLASS =
   'inline-flex shrink-0 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary';
 const ICON_BUTTON_STYLE: React.CSSProperties = {
-  width: 'max(32px, min(44px, 10cqmin))',
-  height: 'max(32px, min(44px, 10cqmin))',
+  width: 'max(44px, min(48px, 10cqmin))',
+  height: 'max(44px, min(48px, 10cqmin))',
 };
 const ICON_STYLE: React.CSSProperties = {
   width: 'max(16px, min(20px, 5cqmin))',
@@ -416,7 +442,7 @@ const FaceButton: React.FC<
       fontSize: `min(${15 * scale}px, ${4.5 * scale}cqmin)`,
       padding: 'min(8px, 2cqmin) min(14px, 3.5cqmin)',
       gap: 'min(6px, 1.5cqmin)',
-      minHeight: 'min(40px, 10cqmin)',
+      minHeight: '44px',
     }}
     {...rest}
   >
