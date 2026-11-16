@@ -2,6 +2,7 @@
 
 import { deleteField } from 'firebase/firestore';
 import type { QuizSession } from '@/types';
+import { isReviewGame } from './quizWidgetKind';
 import {
   deriveRunState,
   endSessionPatch,
@@ -34,6 +35,7 @@ export type QuizSessionPhaseFields = Pick<
   | 'questionPhase'
   | 'autoProgressAt'
   | 'showPodiumBetweenQuestions'
+  | 'widgetKind'
 >;
 
 export type QuizSessionEvent =
@@ -127,13 +129,16 @@ export function quizSessionWrite(
       return {
         patch: {
           autoProgressAt: now + AUTO_ADVANCE_DELAY_MS,
-          ...(session.showPodiumBetweenQuestions
-            ? { questionPhase: 'reviewing' }
-            : {}),
+          ...(podiumOn(session) ? { questionPhase: 'reviewing' } : {}),
         },
         finalize: false,
       };
   }
+}
+
+/** The podium pause between questions is a Review game feature only. */
+function podiumOn(session: QuizSessionPhaseFields): boolean {
+  return session.showPodiumBetweenQuestions === true && isReviewGame(session);
 }
 
 function advanceWrite(
@@ -146,7 +151,7 @@ function advanceWrite(
   if (
     (phase.kind === 'question' || phase.kind === 'game') &&
     phase.step === 'answering' &&
-    session.showPodiumBetweenQuestions
+    podiumOn(session)
   ) {
     return {
       patch: { questionPhase: 'reviewing', autoProgressAt: null },

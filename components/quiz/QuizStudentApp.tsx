@@ -265,6 +265,7 @@ import {
 import { TeacherPreviewBanner } from '@/components/student/TeacherPreviewBanner';
 import { useStaffAudienceGate } from '@/components/student/useStaffAudienceGate';
 import { usePreviewMode } from '@/hooks/usePreviewMode';
+import { isReviewGame } from '@/utils/quizWidgetKind';
 import { ResultsWatermark } from './ResultsWatermark';
 import { useWatermarkStudentName } from '@/components/student/useWatermarkStudentName';
 import { ResultsTabWarningModal } from './ResultsTabWarningModal';
@@ -2859,6 +2860,11 @@ export const ActiveQuiz: React.FC<{
   const [revealedAnswer, setRevealedAnswer] = useState<string | null>(null);
   const [speedBonusEarned, setSpeedBonusEarned] = useState<number | null>(null);
   const [streakCount, setStreakCount] = useState(0);
+  // Speed, streak and sounds are Review game features; a Quiz assessment never uses them.
+  const reviewGame = isReviewGame(session);
+  const speedBonusOn = reviewGame && session.speedBonusEnabled === true;
+  const streakBonusOn = reviewGame && session.streakBonusEnabled === true;
+  const soundsOn = reviewGame && session.soundEffectsEnabled === true;
 
   // Self-paced save errors. `saveError` surfaces a retry banner above the
   // NEXT/SUBMIT button when `onAnswer`/`onComplete` rejects (offline,
@@ -3105,11 +3111,11 @@ export const ActiveQuiz: React.FC<{
       timeLeft > 0 &&
       timeLeft <= 5 &&
       !submitted &&
-      session.soundEffectsEnabled
+      soundsOn
     ) {
       playCountdownTick();
     }
-  }, [timeLeft, submitted, session.soundEffectsEnabled]);
+  }, [timeLeft, submitted, soundsOn]);
 
   // Same last-question rule as handleSubmit, read by the timeout effect below.
   const timeoutFinishesQuizRef = useRef(false);
@@ -3591,7 +3597,7 @@ export const ActiveQuiz: React.FC<{
 
     // Compute speed bonus before submit so it's persisted with the answer
     let computedSpeedBonus: number | undefined;
-    if (session.speedBonusEnabled && effectiveTimeLimit > 0) {
+    if (speedBonusOn && effectiveTimeLimit > 0) {
       const remaining = Math.max(0, timeLeft ?? 0);
       const bonusPct = Math.round((remaining / effectiveTimeLimit) * 50);
       if (bonusPct > 0) computedSpeedBonus = bonusPct;
@@ -3618,7 +3624,7 @@ export const ActiveQuiz: React.FC<{
         setAnswerFeedback(isCorrect ? 'correct' : 'incorrect');
 
         // Sound effects
-        if (session.soundEffectsEnabled) {
+        if (soundsOn) {
           if (isCorrect) {
             playCorrectChime();
           } else {
@@ -3630,11 +3636,7 @@ export const ActiveQuiz: React.FC<{
         if (isCorrect) {
           const newStreak = streakCount + 1;
           setStreakCount(newStreak);
-          if (
-            session.streakBonusEnabled &&
-            newStreak >= 2 &&
-            session.soundEffectsEnabled
-          ) {
+          if (streakBonusOn && newStreak >= 2 && soundsOn) {
             playStreakSound();
           }
         } else {
@@ -3768,7 +3770,7 @@ export const ActiveQuiz: React.FC<{
     try {
       if (!skipWrite) {
         let computedSpeedBonus: number | undefined;
-        if (session.speedBonusEnabled && effectiveTimeLimit > 0) {
+        if (speedBonusOn && effectiveTimeLimit > 0) {
           const remaining = Math.max(0, timeLeft ?? 0);
           const bonusPct = Math.round((remaining / effectiveTimeLimit) * 50);
           if (bonusPct > 0) computedSpeedBonus = bonusPct;
@@ -5135,7 +5137,7 @@ export const ActiveQuiz: React.FC<{
                             pictures={publicImageOnlyPictures(currentQuestion)}
                             speedBonus={speedBonusEarned}
                             streakCount={streakCount}
-                            streakEnabled={session.streakBonusEnabled}
+                            streakEnabled={streakBonusOn}
                           />
                           <SuccessPill light={light}>
                             {currentIndex < effectiveTotalQuestions - 1
@@ -5316,7 +5318,7 @@ export const ActiveQuiz: React.FC<{
                           pictures={publicImageOnlyPictures(currentQuestion)}
                           speedBonus={speedBonusEarned}
                           streakCount={streakCount}
-                          streakEnabled={session.streakBonusEnabled}
+                          streakEnabled={streakBonusOn}
                         />
                         <SuccessPill light={light}>
                           {currentIndex < effectiveTotalQuestions - 1
@@ -6047,7 +6049,8 @@ const ReviewPhase: React.FC<{
   servedLocale,
 }) => {
   const { t } = useTranslation();
-  const gamificationEnabled = isGamificationActive(session);
+  const reviewGame = isReviewGame(session);
+  const gamificationEnabled = reviewGame && isGamificationActive(session);
   const revealed = session.revealedAnswers?.[currentQuestion.id];
   const myAnswer = myResponse?.answers.find(
     (a) => a.questionId === currentQuestion.id
@@ -6093,7 +6096,7 @@ const ReviewPhase: React.FC<{
         )}
 
         {/* Student's result */}
-        {isCorrect !== null && (
+        {reviewGame && isCorrect !== null && (
           <div
             className={`text-lg font-black mb-6 ${isCorrect ? 'text-emerald-400' : 'text-red-400'}`}
           >
@@ -6189,7 +6192,12 @@ const ResultsScreen: React.FC<{
   return (
     <div className="h-screen h-dvh overflow-y-auto bg-slate-900">
       <div className="min-h-full flex flex-col items-center justify-center p-6 text-center">
-        <Trophy className="w-16 h-16 text-amber-400 mb-6" />
+        {isReviewGame(session) && (
+          <Trophy
+            className="w-16 h-16 text-amber-400 mb-6"
+            aria-hidden="true"
+          />
+        )}
         <h1 className="text-3xl font-black text-white mb-2">
           {t('quizStudent.results.complete')}
         </h1>
@@ -6215,16 +6223,18 @@ const ResultsScreen: React.FC<{
           {t('quizStudent.results.submitted')}
         </p>
 
-        {isGamificationActive(session) && session.liveLeaderboard && (
-          <div className="mt-8 w-full flex justify-center">
-            <StudentLeaderboard
-              entries={session.liveLeaderboard}
-              myPin={pin}
-              myStudentUid={myStudentUid}
-              scoreSuffix={getScoreSuffix(session)}
-            />
-          </div>
-        )}
+        {isGamificationActive(session) &&
+          isReviewGame(session) &&
+          session.liveLeaderboard && (
+            <div className="mt-8 w-full flex justify-center">
+              <StudentLeaderboard
+                entries={session.liveLeaderboard}
+                myPin={pin}
+                myStudentUid={myStudentUid}
+                scoreSuffix={getScoreSuffix(session)}
+              />
+            </div>
+          )}
       </div>
     </div>
   );
@@ -6318,20 +6328,30 @@ export const PublishedScoreReview: React.FC<{
     ? myAttemptAsResponse(liveResponse, picked)
     : liveResponse;
   const drawIds = picked ? picked.servedQuestionIds : liveDrawIds;
-  const attemptLabel = (n: number, score: number | null | undefined) =>
-    typeof score === 'number' ? `${n} · ${score}%` : String(n);
+  // Points lead, as on the score card; percent only when an attempt has no point total.
+  const attemptLabel = (
+    n: number,
+    score: number | null | undefined,
+    points: { earned: number; possible: number } | null | undefined
+  ) =>
+    points
+      ? `${n} · ${formatScorePoints(points.earned)}/${formatScorePoints(points.possible)}`
+      : typeof score === 'number'
+        ? `${n} · ${score}%`
+        : String(n);
   const attemptOptions =
     myAttempts.length > 0
       ? [
           ...myAttempts.map((a) => ({
             n: a.n,
-            label: attemptLabel(a.n, a.score),
+            label: attemptLabel(a.n, a.score, a.points),
           })),
           {
             n: null,
             label: attemptLabel(
               Math.max(liveAttemptN, myAttempts[myAttempts.length - 1].n + 1),
-              liveResponse.score
+              liveResponse.score,
+              publishedScorePoints(liveResponse)
             ),
           },
         ]
@@ -6362,6 +6382,8 @@ export const PublishedScoreReview: React.FC<{
   const answerIncorrectText = light ? 'text-red-600' : 'text-red-300';
   const answerNeutralText = light ? 'text-slate-700' : 'text-slate-200';
   const trophyCls = light ? 'text-amber-500' : 'text-amber-400';
+  // Trophy belongs to Review games only; Quiz is an assessment.
+  const showTrophy = isReviewGame(session);
   const checkIconCls = light ? 'text-emerald-600' : 'text-emerald-400';
   const xIconCls = light ? 'text-red-500' : 'text-red-400';
 
@@ -6372,8 +6394,15 @@ export const PublishedScoreReview: React.FC<{
 
   const scorePercent =
     typeof myResponse.score === 'number' ? myResponse.score : null;
-  // An earlier attempt's copy carries no points of its own.
-  const scorePoints = picked ? null : publishedScorePoints(myResponse);
+  // An earlier attempt's points come from the attempt list, and only when they make its percent.
+  const scorePoints = picked
+    ? picked.points &&
+      typeof picked.score === 'number' &&
+      Math.round((picked.points.earned / picked.points.possible) * 100) ===
+        picked.score
+      ? picked.points
+      : null
+    : publishedScorePoints(myResponse);
   // Per-question correctness counts come straight off the authoritative
   // response — no client-side grading. Defensive default: a published
   // assignment with all-undefined `isCorrect` reads as 0 correct rather
@@ -6619,7 +6648,12 @@ export const PublishedScoreReview: React.FC<{
       />
       <div className="mx-auto w-full max-w-6xl">
         <header className="mb-6 flex flex-col items-center text-center">
-          <Trophy className={`mb-4 h-12 w-12 ${trophyCls}`} />
+          {showTrophy && (
+            <Trophy
+              className={`mb-4 h-12 w-12 ${trophyCls}`}
+              aria-hidden="true"
+            />
+          )}
           <h1 className={`text-2xl font-black sm:text-3xl ${headingText}`}>
             {t('quizStudent.results.title')}
           </h1>
@@ -7564,16 +7598,18 @@ export const QuizSubmittedWaitScreen: React.FC<{
         </div>
       )}
 
-      {isGamificationActive(session) && session.liveLeaderboard && (
-        <div className="mb-6 w-full flex justify-center">
-          <StudentLeaderboard
-            entries={session.liveLeaderboard}
-            myPin={pin}
-            myStudentUid={myResponse.studentUid}
-            scoreSuffix={scoreSuffix}
-          />
-        </div>
-      )}
+      {isGamificationActive(session) &&
+        isReviewGame(session) &&
+        session.liveLeaderboard && (
+          <div className="mb-6 w-full flex justify-center">
+            <StudentLeaderboard
+              entries={session.liveLeaderboard}
+              myPin={pin}
+              myStudentUid={myResponse.studentUid}
+              scoreSuffix={scoreSuffix}
+            />
+          </div>
+        )}
 
       <div className="flex items-center gap-2 text-slate-500 text-sm">
         <Loader2 className="w-4 h-4 animate-spin" />

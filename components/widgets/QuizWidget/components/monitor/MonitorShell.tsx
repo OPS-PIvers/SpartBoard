@@ -96,6 +96,7 @@ import {
   type LiveScoreboardLink,
 } from './QuizSettingsScreen';
 import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
+import { isReviewGame } from '@/utils/quizWidgetKind';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
 
 export interface QuizLiveMonitorProps {
@@ -208,7 +209,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     onBack,
     hideLiveScoreboard = false,
     liveScoreboardLink,
-    assessmentOnly = false,
+    assessmentOnly: assessmentOnlyProp = false,
     overridesBySourcedId = null,
     localizedFibAnswers = null,
     overridesByStudentUid = null,
@@ -218,6 +219,8 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     responsesLoaded = true,
     reopenPicker = null,
   } = props;
+  // Any Quiz-kind session is an assessment, including PLC mounts that omit the prop.
+  const assessmentOnly = assessmentOnlyProp || !isReviewGame(session);
   const fibGrading = useMemo<FibGradingContext>(
     () => ({
       answers: localizedFibAnswers,
@@ -456,6 +459,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
   useEffect(() => {
     const shouldBroadcast =
       session.status === 'active' &&
+      !assessmentOnly &&
       (isGame || isGamificationActive(scoringConfig));
     if (!shouldBroadcast) {
       if (session.status === 'ended' || clearedRef.current) return;
