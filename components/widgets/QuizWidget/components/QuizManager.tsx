@@ -3200,6 +3200,9 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
             targeting: assignTargeting,
             onTargetingChange: setAssignTargeting,
             quizContext: assignQuizContext,
+            hasQuestionTimeLimits: (assignQuizData?.questions ?? []).some(
+              (q) => q.timeLimit > 0
+            ),
           }}
           sharing={{
             value: assignOptions,

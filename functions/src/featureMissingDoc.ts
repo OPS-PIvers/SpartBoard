@@ -34,6 +34,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'drive-only-uploads',
   'assignment-class-list',
   'quiz-score-on-submit',
+  'modification-groups',
   'project-submit',
   'gradebook',
   'student-gradebook',
