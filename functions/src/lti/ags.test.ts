@@ -406,3 +406,49 @@ describe('pacedScorePoster', () => {
     expect(c.waits).toEqual([150, 150]);
   });
 });
+
+describe('pacedScorePoster under Schoology rate limit', () => {
+  it('sends a 150-student class with no 429 when Schoology allows 50 per 5 seconds', async () => {
+    let t = 0;
+    const sent: number[] = [];
+    let refused = 0;
+    const post = vi.fn(() => {
+      const recent = sent.filter((s) => s > t - 5000).length;
+      if (recent >= 50) {
+        refused++;
+        return Promise.resolve({ ok: false, status: 429, isRedirect: false });
+      }
+      sent.push(t);
+      return Promise.resolve({ ok: true, status: 200, isRedirect: false });
+    });
+    const send = pacedScorePoster({
+      deadline: 200_000,
+      post,
+      now: () => t,
+      wait: (ms) => {
+        t = Math.max(t, ms + t);
+        return Promise.resolve();
+      },
+    });
+    const opts = {
+      lineitemUrl: 'https://lti-service.svc.schoology.com/x',
+      accessToken: 't',
+      score: { userId: 'u', scoreGiven: 1, scoreMaximum: 2 },
+      timestamp: '2026-11-16T00:00:00Z',
+    };
+    // Eight workers at a time, like pushSection.
+    const queue = Array.from({ length: 150 }, (_, i) => i);
+    const results: boolean[] = [];
+    await Promise.all(
+      Array.from({ length: 8 }, async () => {
+        while (queue.length) {
+          queue.shift();
+          results.push((await send(opts)).ok);
+        }
+      })
+    );
+    expect(results.filter(Boolean)).toHaveLength(150);
+    expect(refused).toBe(0);
+    expect(t).toBeLessThan(25_000);
+  });
+});

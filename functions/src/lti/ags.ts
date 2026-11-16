@@ -211,6 +211,7 @@ export const isRetryableScoreStatus = (r: PostScoreResult): boolean =>
 
 // Schoology allows about 50 requests per 5 seconds, so a class-sized burst hits 429 near the 50th post.
 export const SCORE_RETRY_DELAYS_MS = [2000, 5000, 10000];
+// About 33 posts per 5 seconds, so a push stays under the limit with room for its other Schoology calls.
 const SCORE_SPACING_MS = 150;
 
 /** postScore paced under Schoology's rate limit, retrying transient failures until `deadline`. */
