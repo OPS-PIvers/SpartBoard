@@ -40,7 +40,7 @@ export const SortableCardRow: React.FC<SortableCardRowProps> = ({
     <div
       ref={setNodeRef}
       data-card-id={card.id}
-      className={`relative grid grid-cols-[auto_auto_minmax(0,1fr)_minmax(0,1.25fr)_auto] items-start ${
+      className={`relative grid grid-cols-[auto_auto_minmax(0,1fr)_minmax(0,1fr)_auto] items-center ${
         isDragging ? 'z-10 bg-white opacity-80 shadow-lg' : ''
       }`}
       style={{
@@ -71,7 +71,7 @@ export const SortableCardRow: React.FC<SortableCardRowProps> = ({
         />
       </button>
       <span
-        className="min-w-[3ch] pt-2 text-right font-black tabular-nums text-slate-300"
+        className="min-w-[3ch] text-right font-black tabular-nums text-slate-300"
         style={{ fontSize: 'min(12px, 3.8cqmin)' }}
       >
         {index + 1}
@@ -149,15 +149,22 @@ export const SortableCardRow: React.FC<SortableCardRowProps> = ({
         />
       </button>
       {!isLast && !isDragging && (
-        <div className="group/insert absolute inset-x-0 -bottom-2 z-10 flex h-4 items-center justify-center">
+        <div
+          className="group/insert absolute inset-x-0 -bottom-2 z-10 grid h-4 grid-cols-[auto_auto_minmax(0,1fr)_minmax(0,1fr)_auto] items-center"
+          style={{
+            columnGap: 'min(8px, 2cqmin)',
+            padding: '0 min(4px, 1cqmin)',
+          }}
+        >
           <button
             type="button"
             tabIndex={-1}
             onClick={() => onAddAfter(index)}
-            className="flex items-center justify-center rounded-full border border-slate-300 bg-white text-slate-500 opacity-0 shadow-xs transition-opacity group-hover/insert:opacity-100 hover:border-slate-400 hover:text-slate-800 touch:opacity-100"
+            className="col-start-4 flex items-center justify-center justify-self-start rounded-full border border-slate-300 bg-white text-slate-500 opacity-0 shadow-xs transition-opacity group-hover/insert:opacity-100 hover:border-slate-400 hover:text-slate-800 touch:opacity-100"
             style={{
               width: 'min(20px, 5cqmin)',
               height: 'min(20px, 5cqmin)',
+              transform: 'translateX(calc(-50% - min(4px, 1cqmin)))',
             }}
             aria-label={`Add card after card ${index + 1}`}
             title="Add card here"

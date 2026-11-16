@@ -450,7 +450,7 @@ export const FlashcardSetEditorModal: React.FC<
       <div>
         {listHeader}
         <div
-          className="grid grid-cols-[auto_auto_minmax(0,1fr)_minmax(0,1.25fr)_auto] items-start"
+          className="grid grid-cols-[auto_auto_minmax(0,1fr)_minmax(0,1fr)_auto] items-center"
           style={{
             gap: 'min(8px, 2cqmin)',
             padding: '0 min(4px, 1cqmin) min(6px, 1.5cqmin)',
@@ -470,7 +470,7 @@ export const FlashcardSetEditorModal: React.FC<
           >
             0
           </span>
-          <div className="flex min-w-0 items-start justify-between">
+          <div className="flex min-w-0 justify-center">
             <FlashcardLanguageField
               key={`term-${swapCount}`}
               label="Term language"
@@ -482,6 +482,8 @@ export const FlashcardSetEditorModal: React.FC<
               }}
               tourField="term"
             />
+          </div>
+          <div className="relative flex min-w-0 justify-center">
             <button
               type="button"
               onClick={() => {
@@ -491,23 +493,26 @@ export const FlashcardSetEditorModal: React.FC<
               aria-label="Swap terms and definitions"
               title="Swap terms and definitions"
               {...tourTypeAttr('flashcards.swap-sides', 'flashcards')}
-              className="touch-target-expand shrink-0 rounded-lg text-slate-500 hover:bg-slate-200/60 hover:text-slate-700 focus-visible:ring-2 focus-visible:ring-rose-500/30 outline-hidden"
-              style={{ padding: 'min(4px, 1cqmin)' }}
+              className="touch-target-expand absolute top-1/2 left-0 rounded-lg text-slate-500 hover:bg-slate-200/60 hover:text-slate-700 focus-visible:ring-2 focus-visible:ring-rose-500/30 outline-hidden"
+              style={{
+                padding: 'min(4px, 1cqmin)',
+                transform: 'translate(calc(-50% - min(4px, 1cqmin)), -50%)',
+              }}
             >
               <ArrowLeftRight style={COLUMN_ICON} />
             </button>
+            <FlashcardLanguageField
+              key={`definition-${swapCount}`}
+              label="Definition language"
+              heading="Definition"
+              value={definitionLanguage}
+              onChange={(tag) => {
+                setSettledLanguage((p) => ({ ...p, definition: true }));
+                setDefinitionLanguage(tag);
+              }}
+              tourField="definition"
+            />
           </div>
-          <FlashcardLanguageField
-            key={`definition-${swapCount}`}
-            label="Definition language"
-            heading="Definition"
-            value={definitionLanguage}
-            onChange={(tag) => {
-              setSettledLanguage((p) => ({ ...p, definition: true }));
-              setDefinitionLanguage(tag);
-            }}
-            tourField="definition"
-          />
           <span
             aria-hidden
             className="invisible"
