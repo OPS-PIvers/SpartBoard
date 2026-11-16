@@ -88,6 +88,7 @@ Every new user-facing feature or behaviour change reaches `main` switched **off 
 - `isAdmin` is `null` while loading, `true`/`false` when loaded. Admin status = a document exists at `/admins/{email}`.
 - Non-admin clients read `feature_permissions_public` / `global_permissions_public` (CF-mirrored, betaUsers stripped) plus own `beta_grants/{email}`; only admins read the originals. Keep secrets out of permission `config`.
 - Feature permissions default to public when no `feature_permissions` record exists; `enabled: false` disables a widget for everyone, admins included.
+- **Teacher uploads go to the teacher's Google Drive, never Firebase Storage or a Firestore blob** (Drive is unlimited, Storage is billed): `GoogleDriveService.uploadFile` + `makePublic`, as `useStorage().uploadHotspotImage` does. Storage is only for student work, admin/district assets and files a function processes. `tests/storageUploads.static.test.ts` fails on any new Storage write or writable `storage.rules` path; read `.claude/rules/storage-uploads.md` first.
 - Dashboard IDs are UUIDs, not Firestore auto-IDs. Always check `user?.uid` before Firestore operations, and return the unsubscribe function from real-time listeners.
 - Collections and access rules: read `firestore.rules`. Students use anonymous Firebase Auth with a PIN.
 - `firebase.json` has no hosting `predeploy` hook. Run `pnpm run build` before a manual `firebase deploy --only hosting`.
