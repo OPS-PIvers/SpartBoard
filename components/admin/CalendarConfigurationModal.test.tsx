@@ -120,4 +120,18 @@ describe('CalendarConfigurationModal failed load', () => {
     expect(await screen.findByDisplayValue('6')).toBeTruthy();
     expect(setDoc).not.toHaveBeenCalled();
   });
+
+  it('ignores Save clicks while a retry read is still pending', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    vi.mocked(getDoc).mockRejectedValueOnce(new Error('unavailable'));
+    render(<CalendarConfigurationModal isOpen onClose={vi.fn()} />);
+    await screen.findByRole('alert');
+
+    vi.mocked(getDoc).mockReturnValue(new Promise(() => undefined));
+    fireEvent.click(screen.getByText('Try again'));
+    const save = screen.getByText('Save Configuration').closest('button');
+    expect(save).toBeDisabled();
+    fireEvent.click(save as HTMLButtonElement);
+    expect(setDoc).not.toHaveBeenCalled();
+  });
 });
