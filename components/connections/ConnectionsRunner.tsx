@@ -514,7 +514,6 @@ export const ConnectionsRunner: React.FC = () => {
           continue;
         }
         if (now < eligibleAt) continue;
-        warnEligibleAt.current.delete(waitKey);
         const started = startRun(
           c,
           widgets,
@@ -522,6 +521,8 @@ export const ConnectionsRunner: React.FC = () => {
           CONNECTION_DEVICE_ID,
           warning.block
         );
+        // A warning that can't start today isn't retried every moment; the day in the key lets it try again tomorrow.
+        warnEligibleAt.current.set(waitKey, Infinity);
         if (!started) continue;
         updated.set(c.id, started.sequence);
         for (const [id, p] of Object.entries(started.patches)) {
