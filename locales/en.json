@@ -6443,5 +6443,8 @@
     "hour": "Hour",
     "minute": "Minute",
     "period": "AM or PM"
+  },
+  "course": {
+    "title": "Courses"
   }
 }

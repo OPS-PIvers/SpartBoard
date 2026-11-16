@@ -41,6 +41,13 @@ import { LinkSchoologyModal } from '@/components/classes/LinkSchoologyModal';
 import { useSchoologySeenSections } from '@/hooks/useSchoologySeenSections';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { SidebarClassRow } from './SidebarClassRow';
+import { CourseSection } from '@/components/classes/course/CourseSection';
+import { useCourses } from '@/hooks/useCourses';
+import {
+  courseForRoster,
+  dropRosterRequest,
+} from '@/utils/course/courseGroups';
+import { logError } from '@/utils/logError';
 
 /** Google Classroom OAuth scope for read-only course listing. */
 const CLASSROOM_COURSES_READONLY_SCOPE =
@@ -143,6 +150,8 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
 
   const [editingRosterId, setEditingRosterId] = useState<string | null>(null);
   const studentPageOn = canAccessFeature('class-student-page');
+  const coursesOn = canAccessFeature('course-agenda');
+  const { courses: spartCourses, saveCourse } = useCourses(coursesOn);
   const [studentPageRoster, setStudentPageRoster] =
     useState<ClassRoster | null>(null);
   const [classLinkMode, setClassLinkMode] =
@@ -449,6 +458,16 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
       }
     );
     if (confirmed) {
+      // Take the class out of its Course first, so its students' Class page copy goes too.
+      const course = coursesOn
+        ? courseForRoster(spartCourses, roster.id)
+        : null;
+      const drop = course ? dropRosterRequest(course, roster.id) : null;
+      if (drop) {
+        await saveCourse(drop).catch((err: unknown) =>
+          logError('SidebarClasses.dropRosterFromCourse', err)
+        );
+      }
       await deleteRoster(roster.id);
     }
   };
@@ -603,6 +622,14 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
                   ))}
                 </ul>
               </div>
+            )}
+
+            {coursesOn && (
+              <CourseSection
+                rosters={rosters}
+                courses={spartCourses}
+                saveCourse={saveCourse}
+              />
             )}
           </div>
         </div>

@@ -34,6 +34,16 @@ const CONSUMER_DOMAINS = new Set([
   'me.com',
 ]);
 
+/** One Drive permission, as `listFilePermissions` returns it. */
+export interface DrivePermission {
+  id: string;
+  emailAddress?: string;
+  role?: string;
+  type?: string;
+  /** Set on `domain` permissions. */
+  domain?: string;
+}
+
 export interface DriveFile {
   id: string;
   name: string;
@@ -621,13 +631,9 @@ export class GoogleDriveService {
    * Returns the raw permissions array with `id`, `emailAddress`, and
    * `role` populated. Filters down to user-type permissions in callers.
    */
-  async listFilePermissions(
-    fileId: string
-  ): Promise<
-    Array<{ id: string; emailAddress?: string; role?: string; type?: string }>
-  > {
+  async listFilePermissions(fileId: string): Promise<DrivePermission[]> {
     const response = await this.fetchWithRetry(
-      `${DRIVE_API_URL}/files/${fileId}/permissions?fields=permissions(id,type,role,emailAddress)`,
+      `${DRIVE_API_URL}/files/${fileId}/permissions?fields=permissions(id,type,role,emailAddress,domain)`,
       { headers: this.headers }
     );
     if (!response.ok) {
@@ -640,23 +646,59 @@ export class GoogleDriveService {
       );
     }
     const data = (await response.json()) as {
-      permissions?: Array<{
-        id?: string;
-        emailAddress?: string;
-        role?: string;
-        type?: string;
-      }>;
+      permissions?: Array<Partial<DrivePermission>>;
     };
     return (data.permissions ?? []).filter(
-      (
-        p
-      ): p is {
-        id: string;
-        emailAddress?: string;
-        role?: string;
-        type?: string;
-      } => typeof p.id === 'string'
+      (p): p is DrivePermission => typeof p.id === 'string'
     );
+  }
+
+  /** Adds a reader permission for everyone in `domain` with the link, or for anyone with the link; never falls back between them. */
+  async addLinkReaderPermission(
+    fileId: string,
+    target: { type: 'domain'; domain: string } | { type: 'anyone' }
+  ): Promise<void> {
+    const response = await this.fetchWithRetry(
+      `${DRIVE_API_URL}/files/${fileId}/permissions?sendNotificationEmail=false`,
+      {
+        method: 'POST',
+        headers: this.headers,
+        body: JSON.stringify({
+          role: 'reader',
+          allowFileDiscovery: false,
+          ...target,
+        }),
+      }
+    );
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw authError('Google Drive access expired. Please sign in again.');
+      }
+      const body = await response.text();
+      throw new Error(
+        `Failed to share ${fileId}: ${response.status} ${body.slice(0, 200)}`
+      );
+    }
+  }
+
+  /** The file's last-modified time in ms, or null when Drive gives none. */
+  async getFileModifiedTime(fileId: string): Promise<number | null> {
+    const response = await this.fetchWithRetry(
+      `${DRIVE_API_URL}/files/${fileId}?fields=modifiedTime`,
+      { headers: this.headers }
+    );
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw authError('Google Drive access expired. Please sign in again.');
+      }
+      throw new Error(`Failed to read ${fileId}: ${response.status}`);
+    }
+    const data = (await response.json()) as { modifiedTime?: unknown };
+    const ms =
+      typeof data.modifiedTime === 'string'
+        ? Date.parse(data.modifiedTime)
+        : NaN;
+    return Number.isFinite(ms) ? ms : null;
   }
 
   /**

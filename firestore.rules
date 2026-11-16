@@ -868,6 +868,24 @@ service cloud.firestore {
 
     // /users/{userId}/retired_pins/{period__pin}: linked students' replaced PINs, Admin SDK only (no client access).
 
+    // Course and Agenda (docs/plans/COURSE_AND_AGENDA.md D21, §4.1): saveCourseV1 writes all four; no client writes.
+    match /users/{userId}/courses/{courseId} {
+      allow read: if ownsUserTeacher(userId);
+    }
+    // One copy per teacher, so co-teachers never overwrite each other (D22); a student reads their own classes' copies.
+    match /class_pages/{classId}/teachers/{teacherUid} {
+      allow read: if studentRoleCanAccessClass(classId) ||
+        (signedIn() && authUid() == teacherUid);
+    }
+    // The Course's student class ids only; the link id is the capability.
+    match /course_page_links/{linkId} {
+      allow get: if signedIn();
+    }
+    // Public family page (D13), present only while the link is on; listing is denied, the share id is the capability.
+    match /family_pages/{shareId} {
+      allow get: if true;
+    }
+
     // Library items a teacher put on a live shared board themselves (kind_itemId list); only they publish.
     match /users/{userId}/board_item_picks/{shareId} {
       allow read, write: if ownsUserTeacher(userId) && notAnon();

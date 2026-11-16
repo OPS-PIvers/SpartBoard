@@ -94,6 +94,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'assign-due-date',
   'reopen-selected-students',
   'share-import-confirm',
+  'course-agenda',
 ];
 
 // Mirror of `missingDocPublic: true` flags and their `defaultMinTier` (null = none); config/featureDefaults.test.ts keeps it in sync.
