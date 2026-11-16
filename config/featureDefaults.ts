@@ -1341,6 +1341,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Embed setting for touch panels where a tap opens the embedded deck in a new tab.
+  'embed-block-new-tabs': {
+    label: 'Block new tabs in Embed',
+    icon: MonitorPlay,
+    description:
+      'Embed widgets get a setting that stops the embedded page from opening new tabs.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Widget Connections (docs/adr/0002). Admin-only until Paul has run it in class.
   'widget-connections': {
     label: 'Widget connections',
