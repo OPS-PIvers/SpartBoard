@@ -40,6 +40,7 @@ export function CourseClassList<R extends CourseRoster>({
               {linked ? (
                 <CourseRow
                   group={group}
+                  rowKey={`row-${(indexOf.get(group.rosters[0].id) ?? 0) + 1}`}
                   renderSection={(r) => renderRow(r, indexOf.get(r.id) ?? 0)}
                 />
               ) : (

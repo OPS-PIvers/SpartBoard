@@ -2,11 +2,14 @@
 import React, { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronRight } from 'lucide-react';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import type { CourseGroup } from '@/utils/course/courseGroups';
 import type { CourseRoster } from './types';
 
 export interface CourseRowProps<R extends CourseRoster> {
   group: CourseGroup<R>;
+  /** The class list row key of the Course's first class, for its tour anchor. */
+  rowKey: string;
   /** Renders one linked class's usual row (an `li`). */
   renderSection: (roster: R) => React.ReactNode;
   /** Thread A's Course controls (rename, unlink), shown on the right of the row. */
@@ -15,6 +18,7 @@ export interface CourseRowProps<R extends CourseRoster> {
 
 export function CourseRow<R extends CourseRoster>({
   group,
+  rowKey,
   renderSection,
   actions,
 }: CourseRowProps<R>): React.ReactElement {
@@ -29,6 +33,7 @@ export function CourseRow<R extends CourseRoster>({
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
           aria-controls={listId}
+          {...tourFieldAttr('classes.course-expand', 'classes', rowKey)}
           className="flex flex-1 min-w-0 items-center gap-1 text-left"
         >
           <span className="shrink-0 p-1.5 text-slate-400">
