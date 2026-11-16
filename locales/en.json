@@ -6443,5 +6443,11 @@
     "hour": "Hour",
     "minute": "Minute",
     "period": "AM or PM"
+  },
+  "course": {
+    "linking": {
+      "sectionCount_one": "{{count}} section",
+      "sectionCount_other": "{{count}} sections"
+    }
   }
 }

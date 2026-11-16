@@ -394,6 +394,9 @@ export {
   focusPanelV1,
   focusSweepSessions,
 } from './focus/sessionCallables';
+// Course and Agenda: the only writer of Courses and their Class page and family copies (docs/plans/COURSE_AND_AGENDA.md D21).
+export { saveCourseV1 } from './course/callable';
+export { courseRosterDeleted } from './course/rosterDeleted';
 export { expireActivityWallShares } from './expireActivityWallShares';
 export { saveSharedActivityWallV1 } from './sharedActivityWallEdit';
 export { finalizeIdleQuizAttempts } from './finalizeIdleQuizAttempts';

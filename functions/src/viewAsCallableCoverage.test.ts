@@ -110,6 +110,7 @@ const CALLABLE_MODES: Record<string, Mode> = {
   focusExtendV1: 'outward',
   focusReleaseV1: 'outward',
   focusStartV1: 'outward',
+  saveCourseV1: 'outward',
   createClassroomAttachment: 'outward',
   verifyClassroomTeacherV1: 'outward',
   createOrganizationInvites: 'outward',

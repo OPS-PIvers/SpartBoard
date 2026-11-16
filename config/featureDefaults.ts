@@ -33,6 +33,7 @@ import {
   Mic,
   Music,
   Music2,
+  Presentation,
   Printer,
   RefreshCw,
   Send,
@@ -1029,6 +1030,19 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'View Student Page',
     icon: Eye,
     description: "Teachers open a class's student page from My Classes.",
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'students',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Course and Agenda setup in My Classes (docs/plans/COURSE_AND_AGENDA.md D19). Admin-only until Paul has used it in prod.
+  'course-agenda': {
+    label: 'Courses and Agenda',
+    icon: Presentation,
+    description:
+      'Link classes into a Course and show its daily Agenda to students.',
     stage: 'preview',
     afterLaunch: 'keep',
     category: 'students',

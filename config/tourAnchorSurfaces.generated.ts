@@ -1412,6 +1412,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     ],
     'widget-settings.random.locked-group': ['widgets.random.settings'],
     'classes.set-active': ['board.sidebar-classes'],
+    'classes.course-expand': ['board.roster-editor'],
     'classes.edit-roster': ['board.sidebar-classes'],
     'classes.sync-classlink': ['board.sidebar-classes'],
     'classes.link-classroom': ['board.sidebar-classes'],
