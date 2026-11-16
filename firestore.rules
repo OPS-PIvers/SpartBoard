@@ -7030,6 +7030,20 @@ service cloud.firestore {
                     && isInt('updatedAt');
     }
 
+    // Writing library (docs/plans/WRITING_ASSIGNMENT.md); students see a session copy, never the library.
+    match /users/{userId}/writing_assignments/{itemId} {
+      allow read, delete: if ownsUserTeacher(userId);
+      allow create, update: if ownsUserTeacher(userId)
+                            && incoming().id == itemId
+                            && isStr('title')
+                            && isMap('grading')
+                            && optListMax('stimuli', 10)
+                            && isInt('updatedAt');
+    }
+    match /users/{userId}/writing_folders/{folderId} {
+      allow read, write: if ownsUserTeacher(userId);
+    }
+
     // Projects runs (docs/plans/shipped/PROJECTS_WIDGET.md §5.2). One doc per group is
     // required, not preferred: rules cannot gate a partial write to an array
     // inside a single run doc, so "edit only my group" is unenforceable in a

@@ -250,4 +250,8 @@ export const WIDGET_CATALOGUE: Readonly<
     name: 'Focus',
     category: 'Management',
   },
+  writing: {
+    name: 'Writing',
+    category: 'Instruction',
+  },
 };

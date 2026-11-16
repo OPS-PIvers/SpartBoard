@@ -16949,6 +16949,72 @@ export const TOUR_ANCHORS = {
     label: 'Folder picker in the Projects editor header',
     panel: true,
   },
+  'writing.selection-mode': {
+    label: 'Select button in the Writing library',
+    perWidget: true,
+    requires: 'widget-restored',
+  },
+  'writing.bulk-move': {
+    label: 'Move to folder button in the Writing bulk action bar',
+    persists: true,
+    panel: true,
+  },
+  'writing.bulk-delete': {
+    label: 'Delete button in the Writing bulk action bar',
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'writing.bulk-clear': {
+    label: 'Clear selection button in the Writing bulk action bar',
+    panel: true,
+  },
+  'writing-editor.tab-prompt': {
+    label: 'Prompt tab in the Writing editor',
+    panel: true,
+  },
+  'writing-editor.tab-stimuli': {
+    label: 'Stimuli tab in the Writing editor',
+    panel: true,
+  },
+  'writing-editor.prompt': {
+    label: 'Prompt box in the Writing editor',
+    panel: true,
+  },
+  'writing-editor.grading-ungraded': {
+    label: 'Ungraded option in the Writing editor',
+    panel: true,
+  },
+  'writing-editor.grading-points': {
+    label: 'Points option in the Writing editor',
+    panel: true,
+  },
+  'writing-editor.grading-rubric': {
+    label: 'Rubric option in the Writing editor',
+    panel: true,
+  },
+  'writing-editor.points': {
+    label: 'Points box in the Writing editor',
+    panel: true,
+  },
+  'writing-editor.rubric-edit': {
+    label: 'Rubric: Edit in the Writing editor',
+    panel: true,
+  },
+  'writing-editor.rubric-detach': {
+    label: 'Rubric: Detach in the Writing editor',
+    destructive: true,
+    panel: true,
+  },
+  'writing-editor.folder': {
+    label: 'Folder picker in the Writing editor header',
+    panel: true,
+  },
+  'writing-editor.save': {
+    label: 'Save button in the Writing editor',
+    persists: true,
+    panel: true,
+  },
   'gl-ai.attach-doc': {
     label: 'Attach context doc button in the Guided Learning AI generator',
     panel: true,

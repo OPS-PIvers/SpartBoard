@@ -32,6 +32,7 @@ import {
   FileText,
   ClipboardList,
   FolderKanban,
+  NotebookPen,
   Gamepad2,
   Wand2,
   Quote,
@@ -648,5 +649,13 @@ export const TOOLS: ToolMetadata[] = [
       'extension',
       'on task',
     ],
+  },
+  {
+    type: 'writing',
+    icon: NotebookPen,
+    label: 'Writing',
+    color: 'bg-teal-600',
+    category: 'instruction',
+    keywords: ['essay', 'writing assignment', 'prompt', 'draft', 'rubric'],
   },
 ];

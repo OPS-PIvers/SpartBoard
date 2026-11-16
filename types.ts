@@ -72,7 +72,8 @@ export type WidgetType =
   | 'review'
   | 'routineGuide'
   | 'arts-letters-agenda'
-  | 'focus';
+  | 'focus'
+  | 'writing';
 
 // --- ROSTER SYSTEM TYPES ---
 
@@ -10546,6 +10547,49 @@ export interface ProjectsConfig {
   cardOpacity?: number;
 }
 
+// --- WRITING WIDGET TYPES (docs/plans/WRITING_ASSIGNMENT.md) ---
+
+/** How a Writing assignment is graded (D14); a rubric is a snapshot, like quiz `rubricSnapshot`. */
+export type WritingGrading =
+  | { mode: 'ungraded' }
+  | { mode: 'points'; points: number }
+  | { mode: 'rubric'; rubricId: string; rubricSnapshot: Rubric };
+
+/** Library item at `/users/{uid}/writing_assignments/{id}`; doc id === `id`. */
+export interface WritingAssignmentDefinition {
+  id: string;
+  title: string;
+  /** Prompt in the quiz prompt's text marks (bold, italic, underline, lists). */
+  prompt: string;
+  /** Stimulus tabs shown beside the editor (D6). */
+  stimuli?: QuizStimulus[];
+  /** Optional word limits, as on a quiz written answer (D7). */
+  minWords?: number;
+  maxWords?: number;
+  /** Turn in is refused outside the word limits. */
+  enforceWordLimit?: boolean;
+  grading: WritingGrading;
+  /** Library folder; absent or null means the root. */
+  folderId?: string | null;
+  /** Manual library order; absent sorts after everything ordered. */
+  order?: number;
+  createdAt: number;
+  updatedAt: number;
+  archivedAt?: number | null;
+}
+
+/** Per-board state only; Writing assignments live in the teacher's library. */
+export interface WritingConfig {
+  /** Which face the widget shows; later PRs add the monitor and grader views. */
+  view?: 'manager';
+  /** Tab within the manager view. */
+  managerTab?: 'library' | 'active' | 'archive';
+  /** Persisted library grid/list toggle. */
+  libraryViewMode?: 'grid' | 'list';
+  /** Persisted folder-panel state; `'auto'` derives it from widget width. */
+  folderPanelMode?: 'auto' | 'full' | 'rail' | 'hidden';
+}
+
 // Union of all widget configs
 export type WidgetConfig =
   | RoutineGuideConfig
@@ -10615,7 +10659,8 @@ export type WidgetConfig =
   | FlashcardsConfig
   | ProjectsConfig
   | ArtsLettersAgendaConfig
-  | FocusConfig;
+  | FocusConfig
+  | WritingConfig;
 
 // Helper type to get config type for a specific widget
 export type ConfigForWidget<T extends WidgetType> = T extends 'url'
@@ -10756,7 +10801,9 @@ export type ConfigForWidget<T extends WidgetType> = T extends 'url'
                                                                                                                                         ? ArtsLettersAgendaConfig
                                                                                                                                         : T extends 'focus'
                                                                                                                                           ? FocusConfig
-                                                                                                                                          : never;
+                                                                                                                                          : T extends 'writing'
+                                                                                                                                            ? WritingConfig
+                                                                                                                                            : never;
 
 export interface WidgetComponentProps {
   widget: WidgetData;
@@ -12724,7 +12771,8 @@ export type LibraryFolderWidget =
   | 'guided_learning'
   | 'miniapp'
   | 'flashcards'
-  | 'projects';
+  | 'projects'
+  | 'writing';
 
 /**
  * A folder record stored at

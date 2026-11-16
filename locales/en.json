@@ -2476,7 +2476,8 @@
         "map": "Map",
         "camera": "Camera"
       }
-    }
+    },
+    "writing": {}
   },
   "widgetWindow": {
     "closeWidget": "Close widget? Data will be lost.",

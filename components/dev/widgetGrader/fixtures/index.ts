@@ -46,6 +46,7 @@ import { first5Fixtures } from './first-5';
 import { flashcardsFixtures } from './flashcards';
 import { needDoPutThenFixtures } from './need-do-put-then';
 import { projectsFixtures } from './projects';
+import { writingFixtures } from './writing';
 import { reviewFixtures } from './review';
 import { routineGuideFixtures } from './routineGuide';
 import { soundboardFixtures } from './soundboard';
@@ -129,6 +130,7 @@ export const WIDGET_FIXTURES: Partial<Record<WidgetType, WidgetFixtureSet>> = {
   flashcards: flashcardsFixtures,
   'need-do-put-then': needDoPutThenFixtures,
   projects: projectsFixtures,
+  writing: writingFixtures,
   review: reviewFixtures,
   routineGuide: routineGuideFixtures,
   soundboard: soundboardFixtures,

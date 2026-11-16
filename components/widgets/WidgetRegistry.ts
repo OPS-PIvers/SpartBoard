@@ -153,6 +153,7 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
     'ArtsLettersAgendaWidget'
   ),
   focus: lazyNamed(() => import('./Focus'), 'FocusWidget'),
+  writing: lazyNamed(() => import('./Writing/Widget'), 'WritingWidget'),
   flashcards: lazyNamed(
     () => import('./Flashcards/Widget'),
     'FlashcardsWidget'
@@ -341,6 +342,7 @@ export const WIDGET_SETTINGS_SCHEMAS: Partial<
   'arts-letters-agenda': () =>
     import('./ArtsLettersAgenda/settings.schema').then((m) => m.default),
   focus: () => import('./Focus/settings.schema').then((m) => m.default),
+  writing: () => import('./Writing/settings.schema').then((m) => m.default),
   mathTools: () => import('./MathTools/settings.schema').then((m) => m.default),
   mathTool: () =>
     import('./MathToolInstance/settings.schema').then((m) => m.default),
@@ -683,6 +685,13 @@ export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
   focus: {
     baseWidth: 460,
     baseHeight: 560,
+    canSpread: true,
+    skipScaling: true,
+    padding: 0,
+  },
+  writing: {
+    baseWidth: LIBRARY_WIDGET_SIZE.w,
+    baseHeight: LIBRARY_WIDGET_SIZE.h,
     canSpread: true,
     skipScaling: true,
     padding: 0,

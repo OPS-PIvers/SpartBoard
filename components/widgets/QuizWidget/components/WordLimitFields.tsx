@@ -1,19 +1,39 @@
 // Min/Max word-limit row plus the "Enforce limit" switch for a Free Response question.
 
 import React, { useState } from 'react';
-import type { QuizQuestion } from '@/types';
 import { tourAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { Toggle } from '@/components/common/Toggle';
-import { isInvalidWordRange, wordLimitBounds } from '@/utils/wordLimit';
+import {
+  isInvalidWordRange,
+  wordLimitBounds,
+  type WordLimitConfig,
+} from '@/utils/wordLimit';
 import { labelClass, inputClass } from './quizEditorFieldStyles';
+import type { SharedEditorTourType } from './stimulusTourType';
+
+const ANCHORS = {
+  quiz: {
+    min: tourTypeAttr('quiz-editor.word-min', 'quiz'),
+    max: tourTypeAttr('quiz-editor.word-max', 'quiz'),
+    enforce: tourAttr('quiz-editor.word-enforce', undefined, 'quiz'),
+  },
+  writing: {
+    min: tourTypeAttr('quiz-editor.word-min', 'writing'),
+    max: tourTypeAttr('quiz-editor.word-max', 'writing'),
+    enforce: tourAttr('quiz-editor.word-enforce', undefined, 'writing'),
+  },
+} as const;
 
 const MAX_WORD_BOUND = 5000;
 const suffixClass =
   'absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-xxs uppercase tracking-wider pointer-events-none';
 
 interface Props {
-  question: QuizQuestion;
-  onChange: (updates: Partial<QuizQuestion>) => void;
+  /** A quiz question or a Writing assignment: anything with an id and word limits. */
+  question: WordLimitConfig & { id: string };
+  onChange: (updates: WordLimitConfig) => void;
+  /** Widget type the fields' tour anchors are scoped to. */
+  tourWidgetType?: SharedEditorTourType;
 }
 
 const toField = (n: number | undefined): string =>
@@ -26,7 +46,11 @@ const parseBound = (raw: string): number | undefined => {
   return Math.min(MAX_WORD_BOUND, n);
 };
 
-export const WordLimitFields: React.FC<Props> = ({ question, onChange }) => {
+export const WordLimitFields: React.FC<Props> = ({
+  question,
+  onChange,
+  tourWidgetType = 'quiz',
+}) => {
   const committed = wordLimitBounds(question);
   const [minRaw, setMinRaw] = useState(() => toField(committed.min));
   const [maxRaw, setMaxRaw] = useState(() => toField(committed.max));
@@ -71,7 +95,7 @@ export const WordLimitFields: React.FC<Props> = ({ question, onChange }) => {
             max={MAX_WORD_BOUND}
             value={minRaw}
             aria-label="Minimum words"
-            {...tourTypeAttr('quiz-editor.word-min', 'quiz')}
+            {...ANCHORS[tourWidgetType].min}
             placeholder="None"
             onChange={(e) => {
               setMinRaw(e.target.value);
@@ -88,7 +112,7 @@ export const WordLimitFields: React.FC<Props> = ({ question, onChange }) => {
             max={MAX_WORD_BOUND}
             value={maxRaw}
             aria-label="Maximum words"
-            {...tourTypeAttr('quiz-editor.word-max', 'quiz')}
+            {...ANCHORS[tourWidgetType].max}
             placeholder="None"
             onChange={(e) => {
               setMaxRaw(e.target.value);
@@ -120,7 +144,7 @@ export const WordLimitFields: React.FC<Props> = ({ question, onChange }) => {
             size="sm"
             showLabels={false}
             label="Enforce limit"
-            anchor={tourAttr('quiz-editor.word-enforce', undefined, 'quiz')}
+            anchor={ANCHORS[tourWidgetType].enforce}
           />
           <p className="text-sm font-bold text-slate-700" aria-hidden>
             Enforce limit

@@ -45,6 +45,8 @@ export const SYNCED_USER_COLLECTIONS = [
   'userProfile',
   'video_activities',
   'video_activity_folders',
+  'writing_assignments',
+  'writing_folders',
 ] as const;
 
 // Fields that never leave prod: inline roster names, and links to shares, linked collections and synced groups that exist only on prod.

@@ -39,6 +39,8 @@ export const folderCollectionName = (widget: LibraryFolderWidget): string => {
       return 'flashcard_folders';
     case 'projects':
       return 'projects_folders';
+    case 'writing':
+      return 'writing_folders';
   }
 };
 
@@ -63,6 +65,8 @@ const itemCollectionName = (widget: LibraryFolderWidget): string => {
       return 'flashcard_sets';
     case 'projects':
       return 'projects';
+    case 'writing':
+      return 'writing_assignments';
   }
 };
 

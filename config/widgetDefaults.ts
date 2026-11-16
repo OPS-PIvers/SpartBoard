@@ -14,6 +14,7 @@ import {
   ProjectsConfig,
   ArtsLettersAgendaConfig,
   FocusConfig,
+  WritingConfig,
 } from '@/types';
 import { STICKY_NOTE_COLORS } from './colors';
 import {
@@ -765,5 +766,13 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       level: 'redirect',
       minutes: 30,
     } satisfies FocusConfig,
+  },
+  writing: {
+    ...LIBRARY_WIDGET_SIZE,
+    config: {
+      view: 'manager',
+      managerTab: 'library',
+      libraryViewMode: 'list',
+    } satisfies WritingConfig,
   },
 };
