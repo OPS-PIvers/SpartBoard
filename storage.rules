@@ -133,9 +133,9 @@ service firebase.storage {
       allow delete: if userFileOwner(userId) && viewAsWriteOk();
     }
 
+    // Unused upload folder: no new uploads; any old file stays readable and deletable.
     match /users/{userId}/instructional/{allPaths=**} {
       allow read: if userFileOwner(userId) && viewAsReadOk();
-      allow create, update: if userFileUpload(userId, 50 * 1024 * 1024, '.*');
       allow delete: if userFileOwner(userId) && viewAsWriteOk();
     }
 
