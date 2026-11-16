@@ -11403,6 +11403,7 @@ export type GlobalFeature =
   | 'quiz-monitor-roster'
   /** Quiz setting that shows students their score as soon as they submit. */
   | 'quiz-score-on-submit'
+  | 'modification-groups'
   /** Projects: a group submits its project; the teacher sees Submitted, Late or Missing and can reopen. */
   | 'project-submit'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */
