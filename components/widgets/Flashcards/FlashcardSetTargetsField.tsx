@@ -1,8 +1,6 @@
 import React, { useId, useState } from 'react';
 import type { QuestionTargetTag } from '@/types';
 import { tourAttr } from '@/config/tourAnchors';
-import { useAuth } from '@/context/useAuth';
-import { TargetsField } from '@/components/quiz/targets/TargetsField';
 import { TargetPicker } from '@/components/quiz/targets/TargetPicker';
 import {
   MetaChevron,
@@ -14,17 +12,17 @@ interface FlashcardSetTargetsFieldProps {
   targets: QuestionTargetTag[] | undefined;
   /** Receives undefined when the last tag is removed, so an untagged set stays free of the key. */
   onChange: (targets: QuestionTargetTag[] | undefined) => void;
-  labelClassName?: string;
 }
 
-const MetaTargetsRow: React.FC<
-  Pick<FlashcardSetTargetsFieldProps, 'targets' | 'onChange'>
+/** Set-level learning targets as a row of the Quiz-style metadata list, applied to every card. */
+export const FlashcardSetTargetsField: React.FC<
+  FlashcardSetTargetsFieldProps
 > = ({ targets, onChange }) => {
   const id = useId();
   const [pickerOpen, setPickerOpen] = useState(false);
   const tags = targets ?? [];
   return (
-    <div className="border-y border-slate-200 py-1">
+    <>
       <MetaItem label="Learning targets" htmlFor={id}>
         <button
           id={id}
@@ -33,7 +31,7 @@ const MetaTargetsRow: React.FC<
           aria-expanded={pickerOpen}
           onClick={() => setPickerOpen(true)}
           title={tags.map((t) => t.label).join('\n') || undefined}
-          className={`${metaValueClass} max-w-full`}
+          className={`${metaValueClass} max-w-full px-2`}
           {...tourAttr('targets.field')}
         >
           <span
@@ -57,26 +55,6 @@ const MetaTargetsRow: React.FC<
           onClose={() => setPickerOpen(false)}
         />
       )}
-    </div>
-  );
-};
-
-/** Set-level learning targets: Quiz's targets field and picker, applied to every card in the set. */
-export const FlashcardSetTargetsField: React.FC<
-  FlashcardSetTargetsFieldProps
-> = ({
-  targets,
-  onChange,
-  labelClassName = 'mb-1 block text-xxs font-black uppercase tracking-widest text-slate-500',
-}) => {
-  const { canAccessFeature } = useAuth();
-  return canAccessFeature('question-editor-fields') ? (
-    <MetaTargetsRow targets={targets} onChange={onChange} />
-  ) : (
-    <TargetsField
-      targets={targets}
-      onChange={onChange}
-      labelClassName={labelClassName}
-    />
+    </>
   );
 };

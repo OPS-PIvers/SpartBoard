@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DndContext,
@@ -18,7 +18,6 @@ import {
 import {
   AlertCircle,
   ArrowLeftRight,
-  ChevronDown,
   ClipboardPaste,
   GripVertical,
   Plus,
@@ -29,13 +28,9 @@ import type { FlashcardSet } from '@/types';
 import { EditorModalShell } from '@/components/common/EditorModalShell';
 import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 import { ImportAttributionLine } from '@/components/import/ImportAttributionLine';
-import { useClickOutside } from '@/hooks/useClickOutside';
 import { useDialog } from '@/context/useDialog';
 import { tourTypeAttr } from '@/config/tourAnchors';
-import {
-  inputClass,
-  labelClass,
-} from '@/components/widgets/QuizWidget/components/quizEditorFieldStyles';
+import { metaLabelClass } from '@/components/widgets/QuizWidget/components/QuestionFields';
 import { FlashcardLanguageField } from './FlashcardLanguageField';
 import { FlashcardSetTargetsField } from './FlashcardSetTargetsField';
 import {
@@ -118,9 +113,7 @@ export const FlashcardSetEditorModal: React.FC<
   });
   const [swapCount, setSwapCount] = useState(0);
   const [pasteOpen, setPasteOpen] = useState(false);
-  const [addMenuOpen, setAddMenuOpen] = useState(false);
-  const addMenuRef = useRef<HTMLDivElement>(null);
-  useClickOutside(addMenuRef, () => setAddMenuOpen(false));
+  const descriptionId = useId();
   const termTexts = cards.map((card) => card.term).join('\n');
   const definitionTexts = cards.map((card) => card.definition).join('\n');
   const initialTerms = useMemo(
@@ -337,102 +330,68 @@ export const FlashcardSetEditorModal: React.FC<
     </div>
   );
 
-  const listHeader = (
-    <div className="flex items-center justify-between mb-2">
-      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-        Cards ({cards.length})
-      </h4>
-      <div className="flex items-center gap-2">
-        {aiEnabled && (
-          <button
-            type="button"
-            onClick={() => ai.setOpen(true)}
-            {...tourTypeAttr('flashcards-editor.draft-ai', 'flashcards')}
-            className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 rounded-lg text-xs font-bold transition-colors"
-            title="Generate cards with AI"
-          >
-            <Wand2 className="w-3.5 h-3.5 text-slate-500" />
-            Draft with AI
-          </button>
-        )}
-        <div ref={addMenuRef} className="relative flex items-stretch">
-          <button
-            type="button"
-            onClick={() => addCardAfter(cards.length - 1)}
-            disabled={cards.length >= MAX_FLASHCARDS_PER_SET}
-            className="flex items-center gap-1 pl-2.5 pr-2 py-1 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-l-lg text-xs font-bold transition-colors disabled:opacity-50"
-            {...tourTypeAttr('flashcards.add-card', 'flashcards')}
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Add
-          </button>
-          <button
-            type="button"
-            onClick={() => setAddMenuOpen((open) => !open)}
-            aria-label="More ways to add"
-            aria-haspopup="menu"
-            aria-expanded={addMenuOpen}
-            className="flex items-center px-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-r-lg border-l border-white/25 transition-colors"
-            {...tourTypeAttr('flashcards-editor.add-menu', 'flashcards')}
-          >
-            <ChevronDown className="w-3.5 h-3.5" />
-          </button>
-          {addMenuOpen && (
-            <div
-              role="menu"
-              className="absolute right-0 top-full mt-1 w-48 rounded-lg border border-slate-200 bg-white shadow-lg py-1 z-20"
-            >
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setAddMenuOpen(false);
-                  addCardAfter(cards.length - 1);
-                }}
-                {...tourTypeAttr('flashcards-editor.add-blank', 'flashcards')}
-                className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs font-semibold text-slate-700 hover:bg-slate-100"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Blank card
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setAddMenuOpen(false);
-                  setPasteOpen(true);
-                }}
-                {...tourTypeAttr('flashcards.editor-paste', 'flashcards')}
-                className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs font-semibold text-slate-700 hover:bg-slate-100"
-              >
-                <ClipboardPaste className="w-3.5 h-3.5" />
-                Paste cards
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
+  const quietButton =
+    'inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-100 hover:text-brand-blue-primary disabled:opacity-50';
+
+  const addRow = (
+    <div
+      className="flex flex-wrap items-center"
+      style={{ gap: 'min(4px, 1cqmin)', paddingTop: 'min(8px, 2cqmin)' }}
+    >
+      <button
+        type="button"
+        onClick={() => addCardAfter(cards.length - 1)}
+        disabled={cards.length >= MAX_FLASHCARDS_PER_SET}
+        className={`${quietButton} text-brand-blue-primary`}
+        {...tourTypeAttr('flashcards.add-card', 'flashcards')}
+      >
+        <Plus className="h-3.5 w-3.5" aria-hidden />
+        Add card
+      </button>
+      <button
+        type="button"
+        onClick={() => setPasteOpen(true)}
+        className={quietButton}
+        {...tourTypeAttr('flashcards.editor-paste', 'flashcards')}
+      >
+        <ClipboardPaste className="h-3.5 w-3.5" aria-hidden />
+        Paste cards
+      </button>
+      {aiEnabled && (
+        <button
+          type="button"
+          onClick={() => ai.setOpen(true)}
+          className={quietButton}
+          title="Generate cards with AI"
+          {...tourTypeAttr('flashcards-editor.draft-ai', 'flashcards')}
+        >
+          <Wand2 className="h-3.5 w-3.5" aria-hidden />
+          Draft with AI
+        </button>
+      )}
     </div>
   );
 
   const cardsPane = (
     <div className="space-y-4">
-      <label className="block">
-        <span className={labelClass}>Description (optional)</span>
-        <input
-          value={description}
-          onChange={(event) => setDescription(event.target.value)}
-          maxLength={300}
-          className={inputClass}
-          placeholder="What this set covers"
-          {...tourTypeAttr('flashcards.editor-description', 'flashcards')}
-        />
-      </label>
-      <FlashcardSetTargetsField
-        targets={targets}
-        onChange={setTargets}
-        labelClassName={labelClass}
-      />
+      <div className="border-y border-slate-200 py-1">
+        <div className="flex min-h-8 items-center gap-3">
+          <label htmlFor={descriptionId} className="w-36 shrink-0">
+            <span className={`${metaLabelClass} block`}>Description</span>
+            <span className="block text-xs text-slate-400">Optional</span>
+          </label>
+          <input
+            id={descriptionId}
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            maxLength={300}
+            className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1.5 text-sm text-slate-800 placeholder:text-slate-400 hover:border-slate-200 focus:border-brand-blue-primary focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/20"
+            placeholder="What this set covers"
+            {...tourTypeAttr('flashcards.editor-description', 'flashcards')}
+          />
+        </div>
+        <FlashcardSetTargetsField targets={targets} onChange={setTargets} />
+      </div>
       {set.importedFrom && (
         <ImportAttributionLine
           attribution={set.importedFrom}
@@ -448,7 +407,7 @@ export const FlashcardSetEditorModal: React.FC<
         />
       )}
       <div>
-        {listHeader}
+        <h4 className={`${metaLabelClass} mb-2`}>Cards ({cards.length})</h4>
         <div
           className="grid grid-cols-[auto_auto_minmax(0,1fr)_minmax(0,1fr)_auto] items-center"
           style={{
@@ -546,6 +505,7 @@ export const FlashcardSetEditorModal: React.FC<
             </div>
           </SortableContext>
         </DndContext>
+        {addRow}
       </div>
     </div>
   );

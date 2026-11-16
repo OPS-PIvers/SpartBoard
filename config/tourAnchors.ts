@@ -11489,17 +11489,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'flashcards-editor.draft-ai': {
-    label: 'Draft with AI (list header) in the Flashcards set editor',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards-editor.add-menu': {
-    label: 'More ways to add menu in the Flashcards set editor',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards-editor.add-blank': {
-    label: 'Add-menu item: Blank card in the Flashcards set editor',
+    label: 'Draft with AI under the card list in the Flashcards set editor',
     perWidgetType: true,
     panel: true,
   },

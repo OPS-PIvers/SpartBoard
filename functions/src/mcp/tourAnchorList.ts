@@ -50219,49 +50219,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "flashcards-editor.draft-ai",
-    "label": "Draft with AI (list header) in the Flashcards set editor",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:flashcards"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards-editor.add-menu",
-    "label": "More ways to add menu in the Flashcards set editor",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:flashcards"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards-editor.add-blank",
-    "label": "Add-menu item: Blank card in the Flashcards set editor",
+    "label": "Draft with AI under the card list in the Flashcards set editor",
     "scope": "widget type",
     "panel": true,
     "keys": [
