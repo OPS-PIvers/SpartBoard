@@ -486,13 +486,11 @@ async function saveOnce(
       ],
       familyShareId
     );
+    // D10: only an explicit familyLinkOn makes content public; a merge never switches it on.
     const famOn =
       typeof input.familyLinkOn === 'boolean'
         ? input.familyLinkOn
-        : prev
-          ? prev.familyLink?.on === true ||
-            merged.some((c) => c.familyLink?.on === true)
-          : merged.some((c) => c.familyLink?.on === true);
+        : prev?.familyLink?.on === true;
     const agenda =
       input.agenda !== undefined
         ? cleanCourseAgenda(input.agenda)

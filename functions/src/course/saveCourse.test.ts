@@ -349,7 +349,7 @@ describe('saveCourseV1 unlink, delete and deck check', () => {
 });
 
 describe('saveCourseV1 merges, partial saves and deleted classes', () => {
-  it('keeps the family link address and Class page link when a Course is merged into a new one (D14)', async () => {
+  it('keeps the family link address and Class page link when a Course is merged into a new one, with the family link off until switched on (D10, D14)', async () => {
     await save({ ...base, rosterIds: ['p5'], familyLinkOn: true });
     const old = doc(`users/${UID}/courses/id1`) as {
       linkId: string;
@@ -364,9 +364,11 @@ describe('saveCourseV1 merges, partial saves and deleted classes', () => {
     };
     expect(next.familyLink).toEqual({
       shareId: old.familyLink.shareId,
-      on: true,
+      on: false,
     });
     expect(next.linkId).toBe(old.linkId);
+    expect(doc(`family_pages/${old.familyLink.shareId}`)).toBeUndefined();
+    await save({ id: merged[0].split('/').pop(), familyLinkOn: true });
     expect(doc(`family_pages/${old.familyLink.shareId}`)).toBeDefined();
     expect(doc(`course_page_links/${old.linkId}`)).toEqual({
       classIds: ['cl-p2', 'cl-p5'],
@@ -457,7 +459,9 @@ describe('saveCourseV1 merges, partial saves and deleted classes', () => {
     expect(doc(`course_page_links/${gone.linkId}`)).toEqual({
       classIds: ['cl-p2', 'cl-p5'],
     });
-    expect(kept.familyLink?.on).toBe(true);
+    expect(kept.familyLink?.on).toBe(false);
+    expect(doc(`family_pages/${gone.familyLink.shareId}`)).toBeUndefined();
+    await save({ id: 'id1', familyLinkOn: true });
     expect(doc(`family_pages/${gone.familyLink.shareId}`)).toBeDefined();
   });
 
