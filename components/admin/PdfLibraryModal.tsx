@@ -71,6 +71,9 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
   // Global Config state
   const [globalConfig, setGlobalConfig] = useState<PdfGlobalConfig>({});
   const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [configStatus, setConfigStatus] = useState<
+    'loading' | 'ready' | 'failed'
+  >(isAuthBypass ? 'ready' : 'loading');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -122,26 +125,29 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
   }, [showMessage]);
 
   // Load global config
+  const fetchConfig = useCallback(async () => {
+    setConfigStatus('loading');
+    try {
+      const snap = await getDoc(doc(db, 'feature_permissions', 'pdf'));
+      if (snap.exists()) {
+        const data = snap.data() as FeaturePermission;
+        if (data.config) {
+          setGlobalConfig(data.config);
+        }
+      }
+      setConfigStatus('ready');
+    } catch (err) {
+      console.error('Failed to load pdf global config', err);
+      // Never offer defaults after a failed read: Save would overwrite the real doc.
+      setConfigStatus('failed');
+    }
+  }, []);
+
   useEffect(() => {
     if (isAuthBypass) return;
-
-    const fetchConfig = async () => {
-      try {
-        const docRef = doc(db, 'feature_permissions', 'pdf');
-        const snap = await getDoc(docRef);
-        if (snap.exists()) {
-          const data = snap.data() as FeaturePermission;
-          if (data.config) {
-            setGlobalConfig(data.config);
-          }
-        }
-      } catch (err) {
-        console.error('Failed to load pdf global config', err);
-      }
-    };
-
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Firestore load on mount
     void fetchConfig();
-  }, []);
+  }, [fetchConfig]);
 
   // --- Helpers ---
   const openEditor = (pdf?: GlobalPdfItem) => {
@@ -259,6 +265,7 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
   };
 
   const handleSaveSettings = async () => {
+    if (configStatus !== 'ready') return;
     setIsSavingSettings(true);
     try {
       const docRef = doc(db, 'feature_permissions', 'pdf');
@@ -518,6 +525,22 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
         ) : view === 'settings' ? (
           /* Settings View */
           <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
+            {configStatus === 'failed' && (
+              <div
+                role="alert"
+                className="flex items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700"
+              >
+                <p>Could not load the saved global settings.</p>
+                <button
+                  type="button"
+                  // no-tour-anchor: shown only when the load fails
+                  onClick={() => void fetchConfig()}
+                  className="font-bold text-brand-blue-primary"
+                >
+                  Try again
+                </button>
+              </div>
+            )}
             <DockDefaultsPanel
               config={{
                 dockDefaults: globalConfig.dockDefaults ?? {},
@@ -530,7 +553,7 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
               <button
                 {...tourAttr('admin.pdf-library.save-settings')}
                 onClick={handleSaveSettings}
-                disabled={isSavingSettings}
+                disabled={isSavingSettings || configStatus !== 'ready'}
                 className="w-full flex items-center justify-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-md shadow-red-100 transition-all active:scale-95"
               >
                 {isSavingSettings ? (
