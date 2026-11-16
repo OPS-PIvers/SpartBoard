@@ -32,6 +32,7 @@ export const DOC_ID_STRATEGY: Record<AssignmentSummary['kind'], DocIdStrategy> =
     'activity-wall': 'none',
     flashcards: 'auth-uid',
     projects: 'none',
+    writing: 'auth-uid',
   };
 
 export const RESPONSE_SUBCOLLECTION: Record<
@@ -45,6 +46,7 @@ export const RESPONSE_SUBCOLLECTION: Record<
   'activity-wall': 'submissions',
   flashcards: 'progress',
   projects: null,
+  writing: 'responses',
 };
 
 /** Kinds whose response doc can carry a per-student `resultsOverride`. */

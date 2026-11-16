@@ -1,4 +1,8 @@
 import type { WorkKind } from '@/utils/gradebook/gradebookCore';
+import type {
+  WritingResponseStatus,
+  WritingTurnedInBy,
+} from '@/utils/writingResponseState';
 import type { FocusSite } from '@/utils/focus/contract';
 import type { ImportAttribution } from '@/utils/import/contract';
 import type { TourConditionRef, TourDoneFact } from '@/config/tourConditions';
@@ -7297,6 +7301,8 @@ export interface StudentOverride {
   readAloud?: boolean; // quiz only; signed-in students, needs 'quiz-read-aloud'
   /** Block (true) or allow (false) copy, paste and print for this student; absent = the session's rule. */
   blockCopyPaste?: boolean;
+  /** Writing only (D22): leaves the right-click spelling menu on. */
+  spellingHelp?: boolean;
   openAt?: number;
   closeAt?: number; // per-student window shift (epoch ms)
   /** BCP-47 code, e.g. 'es' | 'so' | 'hmn'. Absent = English. Shape-validated only. */
@@ -7310,7 +7316,12 @@ export interface StudentOverride {
  */
 export interface StudentAssignmentPointer {
   kind:
-    'quiz' | 'video-activity' | 'guided-learning' | 'mini-app' | 'flashcards';
+    | 'quiz'
+    | 'video-activity'
+    | 'guided-learning'
+    | 'mini-app'
+    | 'flashcards'
+    | 'writing';
   sessionId: string;
   teacherUid: string;
   classId: string;
@@ -10588,6 +10599,194 @@ export interface WritingConfig {
   libraryViewMode?: 'grid' | 'list';
   /** Persisted folder-panel state; `'auto'` derives it from widget width. */
   folderPanelMode?: 'auto' | 'full' | 'rail' | 'hidden';
+}
+
+export type { WritingResponseStatus, WritingTurnedInBy };
+
+/** Session at `writing_assignment_sessions/{id}`; created by `assignWritingV1` with the Library item snapshotted. */
+export interface WritingAssignmentSession
+  extends PeriodAccessSessionFields, SessionWorkKindFields {
+  id: string;
+  teacherUid: string;
+  /** The Library item at `/users/{teacherUid}/writing_assignments/{itemId}`. */
+  itemId: string;
+  title: string;
+  prompt: string;
+  stimuli?: QuizStimulus[];
+  minWords?: number;
+  maxWords?: number;
+  enforceWordLimit?: boolean;
+  /** Snapshot at assign time, rubric included (D14). */
+  grading: WritingGrading;
+  /** D8: paste and drop from outside the piece; off blocks both. */
+  allowPaste: boolean;
+  /** D10: the line telling students their writing is recorded. */
+  recordingNotice: boolean;
+  /** D11: students can open their own Writing record; the teacher can change it when returning. */
+  studentCanViewRecord: boolean;
+  /** D4: Chrome's red underlines. */
+  spellCheck: boolean;
+  /** D7: minutes from the student opening it; absent means no limit and the work can span days. */
+  timeLimitMinutes?: number;
+  /** Focus mode (glossary): counting time away, plus fullscreen at the lock level. */
+  tabWarningsEnabled?: boolean;
+  tabAwayLimitSeconds?: number;
+  blockPrint?: boolean;
+  focusLevel?: FocusLevel;
+  /** D5: read aloud of the prompt and sources for every student (F wires it). */
+  readAloudAll?: boolean;
+  /** BCP-47 language of the prompt, for read aloud; absent = 'en-US'. */
+  language?: string;
+  classIds: string[];
+  classId?: string;
+  periodNames?: string[];
+  rosterIds?: string[];
+  /** Classes narrowed to picked students (D5b), written by `setAssignmentTargetsV1`. */
+  studentTargetClassIds?: string[];
+  individualTargeting?: boolean;
+  status: 'active' | 'ended';
+  openAt?: number | null;
+  closeAt?: number | null;
+  dueAt?: number | null;
+  /** Per-class due dates, as quizzes have them. */
+  dueAtByClassId?: Record<string, number>;
+  /** D16: grades published to students; the grade shows once returned or published, whichever is first. */
+  scorePublishedAt?: number;
+  createdAt: number;
+  updatedAt: number;
+  endedAt?: number;
+}
+
+/** `users/{uid}/writing_assignment_records/{sessionId}`: the teacher's server-written record, the targeting archive. */
+export interface WritingAssignmentRecord {
+  id: string;
+  sessionId: string;
+  itemId: string;
+  title: string;
+  teacherUid: string;
+  status: 'active' | 'ended';
+  createdAt: number;
+  updatedAt: number;
+  endedAt?: number;
+  rosterIds?: string[];
+  classIds?: string[];
+  periodNames?: string[];
+  openAt?: number | null;
+  closeAt?: number | null;
+  dueAt?: number | null;
+  dueAtByClassId?: Record<string, number>;
+  timeLimitMinutes?: number;
+  targetMode?: 'class' | 'students';
+  targetStudents?: StudentTargetRef[];
+  targetGroupIds?: string[];
+  overridesBySourcedId?: Record<string, StudentOverride>;
+  excludedTargets?: StudentTargetRef[];
+  overridesByStudentUid?: Record<string, StudentOverride>;
+  targetSkippedCount?: number;
+  removedStudentRefs?: StudentTargetRef[];
+}
+
+/** The Writing record summary (D9), kept on the response and copied onto each frozen copy. */
+export interface WritingResponseSummary {
+  wordCount: number;
+  /** Client ms of the last save. */
+  savedAt: number;
+  /** Time spent writing, pauses capped as in `summarizeWriting`. */
+  writingMs: number;
+  /** Writing sessions (glossary): stretches with no gap over 15 minutes. */
+  sessions: number;
+  pasteCount: number;
+  pastedChars: number;
+  /** Text added without typing or pasting (an extension, dictation). */
+  untypedCount: number;
+  untypedChars: number;
+  /** Time away from the tab and how many times. */
+  awayMs: number;
+  awayCount: number;
+  /** D25: when recording stopped because the log was full; the summary keeps counting. */
+  logStoppedAt?: number;
+}
+
+/** A frozen copy's or the response's teacher feedback (D13); offsets index the frozen copy's plain text. */
+export interface WritingFeedback {
+  pointsAwarded?: number;
+  overallComment?: string;
+  annotations?: WrittenAnswerAnnotation[];
+  rubricScores?: WrittenAnswerRubricScore[];
+  excused?: boolean;
+  gradedBy: string;
+  gradedAt: number;
+}
+
+/** The score that counts (D14): the latest graded draft's. Server-written by `saveWritingFeedbackV1`. */
+export interface WritingGrade {
+  draftId: string;
+  draftNumber: number;
+  pointsAwarded?: number;
+  maxPoints?: number;
+  rubricScores?: WrittenAnswerRubricScore[];
+  excused?: boolean;
+  gradedAt: number;
+}
+
+/**
+ * `writing_assignment_sessions/{sid}/responses/{studentUid}`, created by `openWritingV1`.
+ * The student writes only html, summary, saveCount, tabId, tabAt and logChunk; functions write the rest.
+ */
+export interface WritingResponse {
+  studentUid: string;
+  /** The class the student reached it through, from their claim or pointer. */
+  classId: string;
+  /** Sanitized editor HTML; sanitize again on render and export. */
+  html: string;
+  summary: WritingResponseSummary;
+  status: WritingResponseStatus;
+  /** D23/D24: rises with every save; the rules refuse a write that does not raise it. */
+  saveCount: number;
+  /** D23: the tab that holds the piece; a write from another tab is refused unless it claims the piece. */
+  tabId: string;
+  /** Server time of the last claim; a claiming write sets it to the request time. */
+  tabAt?: { toMillis: () => number } | null;
+  /** D25: index of the open log chunk, 0 to 9. */
+  logChunk: number;
+  startedAt: number;
+  /** D7: the clock's start and end on timed work, stamped by `openWritingV1`; the end includes extra time. */
+  timerStartedAt?: number;
+  deadlineAt?: number;
+  /** Frozen copies so far; `drafts/{n}` for n = 1..draftCount. */
+  draftCount: number;
+  latestDraftId?: string;
+  turnedInAt?: number;
+  turnedInBy?: WritingTurnedInBy;
+  returnedAt?: number;
+  grade?: WritingGrade;
+  /** D21: the 1 August deletion removed this piece's log chunks. */
+  logPurgedAt?: number;
+  updatedAt: number;
+}
+
+/** `.../responses/{studentUid}/log/{index}`: one chunk of the edit log (D25). */
+export interface WritingLogChunk {
+  /** `WritingLogWriter` encoding; at most `WRITING_LOG_CHUNK_BYTES` bytes. */
+  log: string;
+  /** Closed chunks never change; the next one opens at index + 1. */
+  closed: boolean;
+  updatedAt: number;
+}
+
+/** `.../responses/{studentUid}/drafts/{n}`: the frozen copy one turn in makes, with its feedback. */
+export interface WritingDraft {
+  number: number;
+  html: string;
+  summary: WritingResponseSummary;
+  turnedInAt: number;
+  turnedInBy: WritingTurnedInBy;
+  /** Where the edit log stood at turn in, so the record can mark each draft. */
+  logMark: { chunk: number; length: number };
+  feedback?: WritingFeedback;
+  feedbackAt?: number;
+  returnedAt?: number;
+  returnKind?: 'return' | 'revision';
 }
 
 // Union of all widget configs

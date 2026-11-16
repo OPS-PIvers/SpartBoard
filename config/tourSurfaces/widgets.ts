@@ -816,6 +816,15 @@ export const SURFACES: TourSurfaceMap = {
       'writing-editor.rubric-detach': 'writing-editor.grading-rubric',
     },
   },
+  'widgets.writing.assign': {
+    label: 'Writing assign stepper',
+    kind: 'modal',
+    files: ['components/widgets/Writing/components/WritingAssignStepper.tsx'],
+    opensWith: 'library-shell.card-primary-action:writing#row-1',
+    parent: 'widgets.writing.face',
+    widgetType: 'writing',
+    needs: ['library-item', 'class'],
+  },
   'widgets.projects.groups-manager': {
     label: 'Projects groups manager',
     kind: 'modal',

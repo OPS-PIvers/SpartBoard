@@ -24,6 +24,7 @@ const TITLES: Record<AssignActivity, string> = {
   gl: 'Parts of a Cell',
   flashcards: 'Unit 3 Vocabulary',
   miniapp: 'Fraction Pizza',
+  writing: 'Personal Narrative',
 };
 
 const VALUES: Record<AssignStepId, string> = {
@@ -40,6 +41,7 @@ const VALUES: Record<AssignStepId, string> = {
   study: 'Term first',
   sheets: '2 spares, answer key',
   written: 'On paper, 3 questions',
+  writing: 'Paste off, spell check on',
   sharing: 'Not shared',
 };
 
@@ -49,6 +51,7 @@ const ACTIVITIES: AssignActivity[] = [
   'gl',
   'flashcards',
   'miniapp',
+  'writing',
 ];
 
 const Preview: React.FC = () => {

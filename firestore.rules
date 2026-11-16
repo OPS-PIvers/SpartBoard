@@ -6756,8 +6756,9 @@ service cloud.firestore {
     // keyed by source key ("building:<id>", "global:<id>", "plcbank:<plcId>:<id>").
     // Filing back to the source folder deletes the doc, so folderId is never null.
     match /users/{userId}/{placements}/{sourceKey} {
+      // writing_assignment_records: the server-written record of each Writing session, read and deleted here.
       allow read, delete: if ownsUserTeacher(userId) && placements in [
-        'guided_learning_placements', 'miniapp_placements', 'question_bank_placements'
+        'guided_learning_placements', 'miniapp_placements', 'question_bank_placements', 'writing_assignment_records'
       ];
       allow create, update: if ownsUserTeacher(userId) && placements in [
           'guided_learning_placements', 'miniapp_placements', 'question_bank_placements'
@@ -7042,6 +7043,38 @@ service cloud.firestore {
     }
     match /users/{userId}/writing_folders/{folderId} {
       allow read, write: if ownsUserTeacher(userId);
+    }
+    // Writing sessions (WRITING_ASSIGNMENT.md §4.2). Server functions create responses and own every
+    // status change and frozen copy; a student's own write changes only the draft text, the summary
+    // and the open log chunk (D23: the save counter rises and the holding tab matches unless claimed now).
+    match /writing_assignment_sessions/{sid} {
+      allow get: if myOldTeacher() ||
+        existing().get('classIds', []).hasAny(tok().get('classIds', [])) ||
+        dbExists4('student_assignments', authUid(), 'items', sid);
+      allow list: if sessionListScoped();
+      function wrS() { return dbGet('writing_assignment_sessions', sid).data; }
+      function wrTeacher() { return liveUid(wrS().teacherUid); }
+      match /responses/{uid} {
+        function wrMine() { return uid == authUid(); }
+        function wrR() { return dbGet4('writing_assignment_sessions', sid, 'responses', uid).data; }
+        allow read: if wrMine() || wrTeacher();
+        allow update: if wrMine() && existing().status in ['draft', 'revising']
+          && changedOnly(['html', 'summary', 'saveCount', 'tabId', 'tabAt', 'logChunk'])
+          && incoming().saveCount > existing().saveCount
+          && (unchanged('tabId') || incoming().tabAt == request.time)
+          && incoming().logChunk < 10
+          && runOpen(wrS());
+        // D25: only the open chunk is writable, and a closed chunk never changes.
+        match /log/{n} {
+          allow read: if wrTeacher();
+          allow create, update: if wrMine() && wrR().status in ['draft', 'revising']
+            && n == string(wrR().logChunk) && (noDoc() || existing().closed != true);
+        }
+        // Frozen copies; the student sees one only after it is returned.
+        match /drafts/{d} {
+          allow read: if wrTeacher() || (wrMine() && 'returnedAt' in existing());
+        }
+      }
     }
 
     // Projects runs (docs/plans/shipped/PROJECTS_WIDGET.md §5.2). One doc per group is

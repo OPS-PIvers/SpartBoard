@@ -18,6 +18,7 @@ const STEP_TOUR: Record<AssignStepId, ReturnType<typeof tourAttr>> = {
   study: tourAttr('assign-step.study'),
   sheets: tourAttr('assign-step.sheets'),
   written: tourAttr('assign-step.written'),
+  writing: tourAttr('assign-step.writing'),
   sharing: tourAttr('assign-step.sharing'),
 };
 

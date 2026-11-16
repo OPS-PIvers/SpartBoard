@@ -1,4 +1,4 @@
-// The Writing widget body: the Library and Archive of Writing assignments.
+// The Writing widget body: the Library of Writing assignments, and the ones In Progress and Completed.
 import React, {
   useCallback,
   useLayoutEffect,
@@ -7,24 +7,34 @@ import React, {
   useState,
 } from 'react';
 import {
-  Archive as ArchiveIcon,
   CheckSquare,
+  Inbox,
   Loader2,
   NotebookPen,
+  Play,
   Plus,
-  RotateCcw,
   SquarePen,
   Trash2,
 } from 'lucide-react';
+import { httpsCallable } from 'firebase/functions';
 import type {
+  StudentOverride,
+  StudentTargetRef,
   WidgetData,
   WritingAssignmentDefinition,
+  WritingAssignmentRecord,
   WritingConfig,
 } from '@/types';
+import { functions } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useWritingAssignmentLibrary } from '@/hooks/useWritingAssignmentLibrary';
 import { useFolders } from '@/hooks/useFolders';
+import { useWritingAssignmentSessions } from '@/hooks/useWritingAssignmentSessions';
+import { buildMixedTargetsPayload } from '@/utils/assignTargets';
+import { payloadRequiresCall } from '@/utils/studentTargetRef';
+import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
+import type { WritingAssignSubmission } from '@/utils/writingAssign';
 import {
   BulkActionBar,
   FolderPickerPopover,
@@ -56,6 +66,8 @@ import {
   writingGradingLabel,
 } from '@/utils/writingAssignments';
 import { WritingEditorModal } from './WritingEditorModal';
+import { WritingAssignStepper } from './WritingAssignStepper';
+import { WritingAssignmentRow } from './WritingAssignmentRow';
 
 type Item = WritingAssignmentDefinition;
 
@@ -101,11 +113,32 @@ const NOUN = LIBRARY_ITEM_NOUNS.writing;
 const plural = (n: number): string =>
   `${n} writing assignment${n === 1 ? '' : 's'}`;
 
+const TAB_LABELS = { archive: 'Completed' };
+const ASSIGNED_NOUN = { one: 'assignment', other: 'assignments' };
+
+// Mirrors functions/src/studentAssignmentTargets.ts input/result shapes.
+interface SetAssignmentTargetsCallableInput {
+  assignmentId: string;
+  kind: 'writing';
+  sessionId: string;
+  add: StudentTargetRef[];
+  remove: StudentTargetRef[];
+  overridesBySourcedId: Record<string, StudentOverride | null>;
+  excludedTargets?: StudentTargetRef[];
+  window: { openAt?: number | null; closeAt?: number | null; dueAt?: number | null };
+  targetMode?: 'class' | 'students';
+  studentTargetClassIds?: string[];
+}
+interface SetAssignmentTargetsCallableResult {
+  skipped?: { ref: StudentTargetRef; reason: string }[];
+  skippedExclusions?: { ref: StudentTargetRef; reason: string }[];
+}
+
 export const WritingManager: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const config = widget.config as WritingConfig;
-  const { updateWidget, addToast } = useDashboard();
+  const { updateWidget, addToast, rosters } = useDashboard();
   const { user } = useAuth();
   const confirmDelete = useLibraryDeleteConfirm();
   const userId = user?.uid;
@@ -116,15 +149,13 @@ export const WritingManager: React.FC<{ widget: WidgetData }> = ({
     error,
     saveAssignment,
     deleteAssignment,
-    setArchived,
     duplicateAssignment,
     reorderAssignments,
   } = useWritingAssignmentLibrary(userId);
   const folderState = useFolders(userId, 'writing');
+  const sessions = useWritingAssignmentSessions(userId);
 
-  // No Active tab until assigning lands; a stale 'active' falls back to the Library.
-  const tab: LibraryTab =
-    config.managerTab === 'archive' ? 'archive' : 'library';
+  const tab: LibraryTab = config.managerTab ?? 'library';
   const update = useCallback(
     (updates: Partial<WritingConfig>) =>
       updateWidget(widget.id, { config: { ...config, ...updates } }),
@@ -132,6 +163,7 @@ export const WritingManager: React.FC<{ widget: WidgetData }> = ({
   );
 
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [assigningId, setAssigningId] = useState<string | null>(null);
   const [folderPickerTarget, setFolderPickerTarget] = useState<Item | null>(
     null
   );
@@ -144,7 +176,10 @@ export const WritingManager: React.FC<{ widget: WidgetData }> = ({
       setSelectionMode(false);
       selection.clear();
     }
-    update({ managerTab: next === 'archive' ? 'archive' : 'library' });
+    update({
+      managerTab:
+        next === 'active' || next === 'archive' ? next : 'library',
+    });
   };
 
   const byId = useMemo(
@@ -155,13 +190,18 @@ export const WritingManager: React.FC<{ widget: WidgetData }> = ({
   useLayoutEffect(() => {
     byIdRef.current = byId;
   }, [byId]);
+  // Archived items stay out of the Library; nothing archives them any more.
   const libraryItems = useMemo(
     () => assignments.filter((a) => !a.archivedAt),
     [assignments]
   );
-  const archivedItems = useMemo(
-    () => assignments.filter((a) => a.archivedAt),
-    [assignments]
+  const activeRecords = useMemo(
+    () => sessions.records.filter((r) => r.status !== 'ended'),
+    [sessions.records]
+  );
+  const endedRecords = useMemo(
+    () => sessions.records.filter((r) => r.status === 'ended'),
+    [sessions.records]
   );
 
   const folderItemCounts = useMemo(
@@ -270,15 +310,74 @@ export const WritingManager: React.FC<{ widget: WidgetData }> = ({
     }
   };
 
-  const handleArchive = async (item: Item, archived: boolean) => {
+  const performAssign = async ({
+    input,
+    expandedTargeting,
+    studentTargetClassIds,
+  }: WritingAssignSubmission): Promise<boolean> => {
+    let sessionId: string;
     try {
-      await setArchived(item.id, archived);
-      addToast(
-        archived ? 'Moved to the archive.' : 'Back in your library.',
-        'success'
-      );
+      sessionId = await sessions.assign(input);
     } catch {
-      addToast('That writing assignment could not be archived.', 'error');
+      addToast('That writing assignment could not be assigned.', 'error');
+      return false;
+    }
+    const payload = buildMixedTargetsPayload(undefined, {
+      targeting: expandedTargeting,
+      studentTargetClassIds,
+    });
+    if (payloadRequiresCall(payload)) {
+      try {
+        const res = await httpsCallable<
+          SetAssignmentTargetsCallableInput,
+          SetAssignmentTargetsCallableResult
+        >(
+          functions,
+          'setAssignmentTargetsV1'
+        )({ assignmentId: sessionId, kind: 'writing', sessionId, ...payload });
+        const skipped = res.data.skipped?.length ?? 0;
+        if (skipped > 0)
+          addToast(
+            skippedTargetsToastMessage(
+              skipped,
+              res.data.skippedExclusions?.length ?? 0
+            ),
+            'error'
+          );
+      } catch {
+        addToast(
+          'Could not apply individual targeting. Try editing the assignment again.',
+          'error'
+        );
+      }
+    }
+    setAssigningId(null);
+    update({ managerTab: 'active' });
+    addToast('Assigned.', 'success');
+    return true;
+  };
+
+  const handleEnd = async (record: WritingAssignmentRecord): Promise<void> => {
+    try {
+      await sessions.end(record.id);
+    } catch {
+      addToast('That assignment could not be ended.', 'error');
+    }
+  };
+
+  const handleDeleteRecord = async (
+    record: WritingAssignmentRecord
+  ): Promise<void> => {
+    const ok = await confirmDelete({
+      titles: [record.title],
+      noun: ASSIGNED_NOUN,
+      detail: "Students' writing is deleted with it.",
+    });
+    if (!ok) return;
+    try {
+      await sessions.remove(record.id);
+    } catch {
+      addToast('That assignment could not be deleted.', 'error');
     }
   };
 
@@ -321,16 +420,22 @@ export const WritingManager: React.FC<{ widget: WidgetData }> = ({
     }
   };
 
-  const subtitleFor = (item: Item, prefix: string): React.ReactElement => (
+  const subtitleFor = (item: Item): React.ReactElement => (
     <span>
       {writingGradingLabel(item.grading)}
-      {` · ${prefix} `}
-      {formatDate(item.archivedAt ?? item.updatedAt)}
+      {' · Updated '}
+      {formatDate(item.updatedAt)}
     </span>
   );
 
   const renderLibraryCard = (item: Item, index?: number) => {
     const secondary: LibraryMenuAction[] = [
+      {
+        id: 'edit',
+        label: 'Edit',
+        icon: SquarePen,
+        onClick: () => setEditingId(item.id),
+      },
       buildDuplicateAction(item, async () => {
         try {
           const copy = await duplicateAssignment(item);
@@ -344,12 +449,6 @@ export const WritingManager: React.FC<{ widget: WidgetData }> = ({
         disabled: !userId,
       }),
       {
-        id: 'archive',
-        label: 'Move to archive',
-        icon: ArchiveIcon,
-        onClick: () => void handleArchive(item, true),
-      },
-      {
         id: 'delete',
         label: 'Delete',
         icon: Trash2,
@@ -362,11 +461,11 @@ export const WritingManager: React.FC<{ widget: WidgetData }> = ({
         key={item.id}
         id={item.id}
         title={item.title}
-        subtitle={subtitleFor(item, 'Updated')}
+        subtitle={subtitleFor(item)}
         primaryAction={{
-          label: 'Edit',
-          icon: SquarePen,
-          onClick: () => setEditingId(item.id),
+          label: 'Assign',
+          icon: Play,
+          onClick: () => setAssigningId(item.id),
         }}
         secondaryActions={secondary}
         viewMode={view.state.viewMode}
@@ -375,46 +474,50 @@ export const WritingManager: React.FC<{ widget: WidgetData }> = ({
         selected={selection.isSelected(item.id)}
         onSelectionToggle={() => selection.toggle(item.id)}
         onClick={() => setEditingId(item.id)}
+        onDoubleClick={() => setEditingId(item.id)}
         tourIndex={index}
         tourWidgetType="writing"
       />
     );
   };
 
-  const renderArchiveCard = (item: Item, index: number) => (
-    <LibraryItemCard<Item>
-      key={item.id}
-      id={item.id}
-      title={item.title}
-      subtitle={subtitleFor(item, 'Archived')}
-      primaryAction={{
-        label: 'Back to library',
-        icon: RotateCcw,
-        onClick: () => void handleArchive(item, false),
-      }}
-      secondaryActions={[
-        {
-          id: 'edit',
-          label: 'Edit',
-          icon: SquarePen,
-          onClick: () => setEditingId(item.id),
-        },
-        {
-          id: 'delete',
-          label: 'Delete',
-          icon: Trash2,
-          destructive: true,
-          onClick: () => void handleDelete(item),
-        },
-      ]}
-      sortable={false}
-      viewMode="list"
-      tourIndex={index}
-      tourWidgetType="writing"
-    />
-  );
-
   const editing = editingId ? byId.get(editingId) : undefined;
+  const assigning = assigningId ? byId.get(assigningId) : undefined;
+
+  const renderRecords = (
+    records: WritingAssignmentRecord[],
+    mode: 'active' | 'archive'
+  ) =>
+    sessions.loading ? (
+      <LoadingRow />
+    ) : records.length === 0 ? (
+      <ScaledEmptyState
+        icon={Inbox}
+        title={
+          mode === 'active'
+            ? 'No writing assignments in progress'
+            : 'No completed assignments'
+        }
+        subtitle={
+          mode === 'active'
+            ? 'Assign one from the Library tab.'
+            : 'Ended assignments appear here.'
+        }
+      />
+    ) : (
+      <div className="flex flex-col">
+        {records.map((record, index) => (
+          <WritingAssignmentRow
+            key={record.id}
+            record={record}
+            mode={mode}
+            tourIndex={index}
+            onEnd={(r) => void handleEnd(r)}
+            onDelete={(r) => void handleDeleteRecord(r)}
+          />
+        ))}
+      </div>
+    );
 
   const folderSidebarSlot =
     tab === 'library' && userId ? (
@@ -468,8 +571,13 @@ export const WritingManager: React.FC<{ widget: WidgetData }> = ({
       widgetType="writing"
       tab={tab}
       onTabChange={setTab}
-      counts={{ library: libraryItems.length, archive: archivedItems.length }}
-      visibleTabs={['library', 'archive']}
+      counts={{
+        library: libraryItems.length,
+        active: activeRecords.length,
+        archive: endedRecords.length,
+      }}
+      tabLabels={TAB_LABELS}
+      visibleTabs={['library', 'active', 'archive']}
       primaryAction={
         tab === 'library'
           ? {
@@ -555,12 +663,10 @@ export const WritingManager: React.FC<{ widget: WidgetData }> = ({
             }
           />
         </div>
-      ) : archivedItems.length === 0 ? (
-        <ScaledEmptyState icon={ArchiveIcon} title="Nothing archived" />
+      ) : tab === 'active' ? (
+        renderRecords(activeRecords, 'active')
       ) : (
-        <div className="flex flex-col">
-          {archivedItems.map((item, index) => renderArchiveCard(item, index))}
-        </div>
+        renderRecords(endedRecords, 'archive')
       )}
     </LibraryShell>
   );
@@ -596,6 +702,16 @@ export const WritingManager: React.FC<{ widget: WidgetData }> = ({
           }}
           onClose={() => setFolderPickerTarget(null)}
           title={`Move "${folderPickerTarget.title}" to…`}
+        />
+      )}
+
+      {assigning && (
+        <WritingAssignStepper
+          isOpen
+          item={assigning}
+          rosters={rosters}
+          onClose={() => setAssigningId(null)}
+          onAssign={performAssign}
         />
       )}
 

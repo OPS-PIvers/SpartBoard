@@ -4977,6 +4977,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-step.writing",
+    "label": "Writing rules step header in the Writing Assign dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "assign-step.sharing",
     "label": "Sharing step header in the Assign dialog",
     "scope": "board",
@@ -5134,28 +5147,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Setting switch in the Assign dialog quiz steps",
     "scope": "field",
     "panel": true,
-    "keys": [
-      "assign#allow-skipping",
-      "assign#autoplay",
-      "assign#away-auto-submit",
-      "assign#block-copy-paste",
-      "assign#focus-mode",
-      "assign#learning-targets",
-      "assign#mini-app-show-results",
-      "assign#raise-hand",
-      "assign#read-aloud",
-      "assign#require-fullscreen",
-      "assign#reveal-correct",
-      "assign#rewind-on-wrong",
-      "assign#score-on-submit",
-      "assign#show-explanations",
-      "assign#show-right-wrong",
-      "assign#shuffle-answers",
-      "assign#shuffle-questions",
-      "assign#stimulus-quotes",
-      "assign#tab-switch-auto-submit",
-      "assign#time-limit"
-    ],
     "routes": [
       {
         "surface": "library.assign-stepper",
@@ -63123,6 +63114,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "override-row.spelling-help",
+    "label": "Spelling help checkbox in the override editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.override-row",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "override-row.copy-paste-print",
     "label": "Copy, paste and print choice in the override editor",
     "scope": "board",
@@ -74687,6 +74691,72 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         ],
         "needs": [
           "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing.stepper-class-picker",
+    "label": "Class list in the Writing assign dialog",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.assign",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.card-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "class",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing.stepper-class-row",
+    "label": "Class checkbox in the Writing assign dialog class list",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.assign",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.card-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "class",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing.stepper-student-menu",
+    "label": "Student picker button for one class in the Writing assign dialog",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.assign",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.card-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "class",
           "widget-on-stage"
         ]
       }

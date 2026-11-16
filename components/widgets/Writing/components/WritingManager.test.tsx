@@ -1,16 +1,27 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import type { WidgetData, WritingAssignmentDefinition } from '@/types';
+import type {
+  WidgetData,
+  WritingAssignmentDefinition,
+  WritingAssignmentRecord,
+} from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useWritingAssignmentLibrary } from '@/hooks/useWritingAssignmentLibrary';
 import { useFolders } from '@/hooks/useFolders';
+import { useWritingAssignmentSessions } from '@/hooks/useWritingAssignmentSessions';
 import { WritingManager } from './WritingManager';
 
 vi.mock('@/context/useAuth');
 vi.mock('@/context/useDashboard');
 vi.mock('@/hooks/useWritingAssignmentLibrary');
 vi.mock('@/hooks/useFolders');
+vi.mock('@/hooks/useWritingAssignmentSessions');
+vi.mock('./WritingAssignStepper', () => ({
+  WritingAssignStepper: ({ item }: { item: WritingAssignmentDefinition }) => (
+    <div role="dialog">{`Assigning ${item.id}`}</div>
+  ),
+}));
 vi.mock('@/context/useDialog', () => ({
   useDialog: () => ({ showConfirm: vi.fn().mockResolvedValue(true) }),
 }));
@@ -23,7 +34,7 @@ vi.mock('./WritingEditorModal', () => ({
 }));
 
 const saveAssignment = vi.fn().mockResolvedValue(undefined);
-const setArchived = vi.fn().mockResolvedValue(undefined);
+const endSession = vi.fn().mockResolvedValue(undefined);
 const updateWidget = vi.fn();
 
 const item = (
@@ -59,9 +70,34 @@ const mockLibrary = (assignments: WritingAssignmentDefinition[]) =>
     error: null,
     saveAssignment,
     deleteAssignment: vi.fn(),
-    setArchived,
     duplicateAssignment: vi.fn(),
     reorderAssignments: vi.fn(),
+  });
+
+const record = (
+  overrides: Partial<WritingAssignmentRecord> = {}
+): WritingAssignmentRecord => ({
+  id: 's-1',
+  sessionId: 's-1',
+  itemId: 'wa-1',
+  title: 'Argument essay',
+  teacherUid: 'teacher-1',
+  status: 'active',
+  createdAt: 1,
+  updatedAt: 1,
+  periodNames: ['Period 1'],
+  ...overrides,
+});
+
+const mockSessions = (records: WritingAssignmentRecord[]) =>
+  (
+    useWritingAssignmentSessions as unknown as ReturnType<typeof vi.fn>
+  ).mockReturnValue({
+    records,
+    loading: false,
+    assign: vi.fn(),
+    end: endSession,
+    remove: vi.fn(),
   });
 
 describe('WritingManager', () => {
@@ -73,7 +109,9 @@ describe('WritingManager', () => {
     (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       updateWidget,
       addToast: vi.fn(),
+      rosters: [],
     });
+    mockSessions([]);
     (useFolders as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       folders: [],
       loading: false,
@@ -118,13 +156,50 @@ describe('WritingManager', () => {
     expect(created.folderId).toBeNull();
   });
 
-  it('shows archived items on the Archive tab and restores them', async () => {
-    mockLibrary([item({ id: 'wa-2', title: 'Old essay', archivedAt: 5 })]);
-    render(<WritingManager widget={widget({ managerTab: 'archive' })} />);
-    expect(screen.getByText('Old essay')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Back to library' }));
-    await waitFor(() =>
-      expect(setArchived).toHaveBeenCalledWith('wa-2', false)
+  it('makes Assign the row button and keeps Edit in the menu', () => {
+    mockLibrary([item()]);
+    render(<WritingManager widget={widget()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Assign' }));
+    expect(screen.getByRole('dialog')).toHaveTextContent('Assigning wa-1');
+    expect(
+      screen.queryByRole('button', { name: 'Back to library' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows the three tabs with In Progress and Completed counts', () => {
+    mockLibrary([item()]);
+    mockSessions([
+      record(),
+      record({ id: 's-2', title: 'Book review', status: 'ended' }),
+    ]);
+    render(<WritingManager widget={widget()} />);
+    expect(screen.getAllByText('Library').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('In Progress').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Completed').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Archive')).not.toBeInTheDocument();
+  });
+
+  it('lists active sessions on In Progress and ended ones on Completed', () => {
+    mockLibrary([]);
+    mockSessions([
+      record(),
+      record({ id: 's-2', title: 'Book review', status: 'ended' }),
+    ]);
+    const { rerender } = render(
+      <WritingManager widget={widget({ managerTab: 'active' })} />
     );
+    expect(screen.getByText('Argument essay')).toBeInTheDocument();
+    expect(screen.queryByText('Book review')).not.toBeInTheDocument();
+    rerender(<WritingManager widget={widget({ managerTab: 'archive' })} />);
+    expect(screen.getByText('Book review')).toBeInTheDocument();
+    expect(screen.queryByText('Argument essay')).not.toBeInTheDocument();
+  });
+
+  it('shows the In Progress empty state', () => {
+    mockLibrary([]);
+    render(<WritingManager widget={widget({ managerTab: 'active' })} />);
+    expect(
+      screen.getByText('No writing assignments in progress')
+    ).toBeInTheDocument();
   });
 });

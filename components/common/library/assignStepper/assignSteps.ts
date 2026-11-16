@@ -15,9 +15,16 @@ export type AssignStepId =
   | 'study'
   | 'sheets'
   | 'written'
+  | 'writing'
   | 'sharing';
 
-export type AssignActivity = 'quiz' | 'video' | 'gl' | 'flashcards' | 'miniapp';
+export type AssignActivity =
+  | 'quiz'
+  | 'video'
+  | 'gl'
+  | 'flashcards'
+  | 'miniapp'
+  | 'writing';
 
 export type AssignKind = 'work' | 'resource';
 
@@ -41,11 +48,14 @@ export interface AssignStepDef {
   body: React.ReactNode;
 }
 
-/** Quiz and Video Activity always collect work (D3). */
+/** Quiz, Video Activity and Writing always collect work (D3). */
 const effectiveKind = (
   activity: AssignActivity,
   kind: AssignKind
-): AssignKind => (activity === 'quiz' || activity === 'video' ? 'work' : kind);
+): AssignKind =>
+  activity === 'quiz' || activity === 'video' || activity === 'writing'
+    ? 'work'
+    : kind;
 
 export function getAssignSteps(
   activity: AssignActivity,
@@ -65,6 +75,7 @@ export function getAssignSteps(
   if (activity === 'flashcards') {
     steps.push('cards', 'check', 'attempts', 'integrity', 'feedback');
   }
+  if (activity === 'writing') steps.push('writing', 'integrity');
   if (
     (activity === 'quiz' ||
       activity === 'video' ||
@@ -90,6 +101,7 @@ const TITLES: Record<AssignStepId, string> = {
   study: 'Study settings',
   sheets: 'Answer sheets',
   written: 'Written answers',
+  writing: 'Writing rules',
   sharing: 'Sharing',
 };
 
@@ -99,7 +111,12 @@ export function getAssignStepTitle(
   ctx: AssignStepContext
 ): string {
   if (id === 'classes' && activity === 'video' && ctx.live) return 'Class';
-  if (id === 'integrity' && (activity === 'video' || activity === 'flashcards'))
+  if (
+    id === 'integrity' &&
+    (activity === 'video' ||
+      activity === 'flashcards' ||
+      activity === 'writing')
+  )
     return 'Integrity';
   if (id === 'when' && effectiveKind(activity, ctx.kind) === 'resource') {
     return 'Available';

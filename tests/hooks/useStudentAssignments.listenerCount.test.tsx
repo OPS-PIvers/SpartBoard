@@ -21,7 +21,8 @@ import { useStudentAssignments } from '@/hooks/useStudentAssignments';
  *   activity-wall   active 1×2 shapes (no ended channel)          = 2
  *   flashcards      active 1×1 shape  + ended 1×1 shape           = 2
  *   projects        active 1×1 shape  (no ended channel)          = 1
- *                                                           total = 21
+ *   writing         active 1×1 shape  + ended 1×1 shape           = 2
+ *                                                           total = 23
  */
 
 /**
@@ -122,7 +123,7 @@ beforeEach(() => {
 });
 
 describe('useStudentAssignments — bounded per-status listener plan (F8)', () => {
-  it('opens one listener per (kind, channel, shape, status) — 21 for the current config', async () => {
+  it('opens one listener per (kind, channel, shape, status) — 23 for the current config', async () => {
     deliverDocsByCollection({});
 
     const { result } = renderHook(() =>
@@ -134,8 +135,8 @@ describe('useStudentAssignments — bounded per-status listener plan (F8)', () =
     });
 
     // Quiz's active channel fans waiting+active into 2 server-side-filtered
-    // listeners per shape, so the plan totals 21 (see the table above).
-    expect(vi.mocked(firestore.onSnapshot)).toHaveBeenCalledTimes(21);
+    // listeners per shape, so the plan totals 23 (see the table above).
+    expect(vi.mocked(firestore.onSnapshot)).toHaveBeenCalledTimes(23);
   });
 
   it('cleans up every listener on unmount', async () => {
@@ -157,7 +158,7 @@ describe('useStudentAssignments — bounded per-status listener plan (F8)', () =
     });
 
     const opened = vi.mocked(firestore.onSnapshot).mock.calls.length;
-    expect(opened).toBe(21);
+    expect(opened).toBe(23);
     unmount();
     // Exactly one cleanup per opened listener — no leaks, no double-frees.
     expect(unsubscribe).toHaveBeenCalledTimes(opened);

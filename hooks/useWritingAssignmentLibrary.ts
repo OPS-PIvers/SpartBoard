@@ -28,7 +28,6 @@ interface UseWritingAssignmentLibraryResult {
   error: string | null;
   saveAssignment: (assignment: WritingAssignmentDefinition) => Promise<void>;
   deleteAssignment: (id: string) => Promise<void>;
-  setArchived: (id: string, archived: boolean) => Promise<void>;
   duplicateAssignment: (
     assignment: WritingAssignmentDefinition
   ) => Promise<WritingAssignmentDefinition>;
@@ -109,18 +108,6 @@ export function useWritingAssignmentLibrary(
     [itemRef, userId]
   );
 
-  const setArchived = useCallback(
-    async (id: string, archived: boolean) => {
-      if (!userId) throw new Error('Sign in to archive.');
-      await setDoc(
-        itemRef(userId, id),
-        { archivedAt: archived ? Date.now() : null, updatedAt: Date.now() },
-        { merge: true }
-      );
-    },
-    [itemRef, userId]
-  );
-
   const duplicateAssignment = useCallback(
     async (
       assignment: WritingAssignmentDefinition
@@ -156,7 +143,6 @@ export function useWritingAssignmentLibrary(
     error,
     saveAssignment,
     deleteAssignment,
-    setArchived,
     duplicateAssignment,
     reorderAssignments,
   };

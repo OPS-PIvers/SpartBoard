@@ -441,6 +441,18 @@ const WidgetGraderHarness =
         )
       )
     : null;
+const WritingAssignmentPage = lazy(() =>
+  import('./components/student/writing/WritingAssignmentPage').then(
+    (module) => ({ default: module.WritingAssignmentPage })
+  )
+);
+const WritingDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/WritingDevHarness').then((module) => ({
+        default: module.WritingDevHarness,
+      }))
+    )
+  : null;
 const ClassStudentPageDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/ClassStudentPageDevHarness').then((module) => ({
@@ -1006,6 +1018,7 @@ const App: React.FC = () => {
     (pathname === '/activity-wall' || pathname.startsWith('/activity-wall/'));
   const isPollVoteRoute = pathname === '/poll' || pathname.startsWith('/poll/');
   const isFlashcardAssignmentRoute = pathname.startsWith('/flashcards/a/');
+  const isWritingAssignmentRoute = pathname.startsWith('/writing/');
   const isFlashcardsRoute =
     !isFlashcardAssignmentRoute && pathname.startsWith('/flashcards/');
   const isInviteRoute = pathname.startsWith('/invite/');
@@ -1081,6 +1094,31 @@ const App: React.FC = () => {
         </StudentAuthProvider>
         <DialogContainer />
       </DialogProvider>
+    );
+  }
+
+  // Assigned Writing reads the session and the student's own response under the SSO token.
+  if (isWritingAssignmentRoute) {
+    return (
+      <DialogProvider>
+        <StudentAuthProvider>
+          <RequireStudentAuth>
+            <Suspense fallback={<FullPageLoader />}>
+              <WritingAssignmentPage />
+            </Suspense>
+          </RequireStudentAuth>
+        </StudentAuthProvider>
+        <DialogContainer />
+      </DialogProvider>
+    );
+  }
+
+  // The student Writing page on a fake session; dev builds only.
+  if (WritingDevHarness && pathname === '/writing-dev') {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <WritingDevHarness />
+      </Suspense>
     );
   }
 

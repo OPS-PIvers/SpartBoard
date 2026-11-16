@@ -1209,6 +1209,10 @@ export const TOUR_ANCHORS = {
     label: 'Written answers step header in the Quiz Assign dialog',
     panel: true,
   },
+  'assign-step.writing': {
+    label: 'Writing rules step header in the Writing Assign dialog',
+    panel: true,
+  },
   'assign-step.sharing': {
     label: 'Sharing step header in the Assign dialog',
     panel: true,
@@ -14233,6 +14237,10 @@ export const TOUR_ANCHORS = {
     label: 'Read aloud checkbox in the override editor',
     panel: true,
   },
+  'override-row.spelling-help': {
+    label: 'Spelling help checkbox in the override editor',
+    panel: true,
+  },
   'override-row.copy-paste-print': {
     label: 'Copy, paste and print choice in the override editor',
     panel: true,
@@ -16947,6 +16955,21 @@ export const TOUR_ANCHORS = {
   },
   'projects-editor.folder': {
     label: 'Folder picker in the Projects editor header',
+    panel: true,
+  },
+  'writing.stepper-class-picker': {
+    label: 'Class list in the Writing assign dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'writing.stepper-class-row': {
+    label: 'Class checkbox in the Writing assign dialog class list',
+    perField: true,
+    panel: true,
+  },
+  'writing.stepper-student-menu': {
+    label: 'Student picker button for one class in the Writing assign dialog',
+    perField: true,
     panel: true,
   },
   'writing.selection-mode': {

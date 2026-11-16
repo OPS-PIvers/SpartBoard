@@ -55,6 +55,7 @@ const ACTIVITIES: readonly AssignActivity[] = [
   'gl',
   'flashcards',
   'miniapp',
+  'writing',
 ];
 
 // Stable per activity, since the read hook keys its effect on the spec.
