@@ -8,6 +8,25 @@ import {
 export const saveKeyOf = (tabId: string, saveCount: number): string =>
   `${tabId}:${saveCount}`;
 
+/** A save goes this long after typing stops, and at least every max wait while typing. */
+export const SAVE_IDLE_MS = 1_500;
+export const SAVE_MAX_WAIT_MS = 10_000;
+/** D15: while the teacher has Live view open, saves go out at least this often. */
+export const WATCHED_SAVE_MAX_WAIT_MS = 2_000;
+
+/** How long to wait before the next save, from the first unsaved change. */
+export function saveDelayMs(a: {
+  firstAt: number;
+  now: number;
+  /** Server ms the teacher's Live view watch runs to; 0 when nobody is watching. */
+  watchedUntil: number;
+  serverNow: number;
+}): number {
+  const maxWait =
+    a.watchedUntil > a.serverNow ? WATCHED_SAVE_MAX_WAIT_MS : SAVE_MAX_WAIT_MS;
+  return Math.max(0, Math.min(SAVE_IDLE_MS, a.firstAt + maxWait - a.now));
+}
+
 /** The log goes up every 20 s, slowing to once a minute past 30 KB (AB-201). */
 export const LOG_EVERY_MS = 20_000;
 export const BIG_LOG_BYTES = 30_000;
