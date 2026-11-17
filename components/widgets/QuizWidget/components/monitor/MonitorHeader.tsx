@@ -1,4 +1,4 @@
-// The monitor's blue header shared by Quiz and Writing: Back, title and the Live, Paused or Ended pill.
+// The monitor header shared by Quiz and Writing: Back, title and the Live, Paused or Ended pill.
 import React from 'react';
 import { ArrowLeft } from 'lucide-react';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
@@ -17,11 +17,14 @@ export const MonitorHeader: React.FC<{
   /** Omitted hides Back. */
   onBack?: () => void;
   backAnchor: TourAnchorAttrs;
+  /** The widget's header color; omitted keeps Quiz's brand blue. */
+  accent?: string;
   /** Room on the right, e.g. for a connected Review's corner tab. */
   paddingRight?: number | string;
 }> = ({
   title,
   status,
+  accent,
   onBack,
   backAnchor,
   paddingRight = 'min(12px, 3cqmin)',
@@ -31,6 +34,7 @@ export const MonitorHeader: React.FC<{
     <div
       className="flex items-center bg-brand-blue-primary text-white shrink-0"
       style={{
+        ...(accent ? { backgroundColor: accent } : {}),
         gap: 'min(8px, 2cqmin)',
         paddingBlock: 'min(10px, 2.5cqmin)',
         paddingLeft: 'min(12px, 3cqmin)',
@@ -62,6 +66,7 @@ export const MonitorHeader: React.FC<{
       <span
         className={`shrink-0 rounded-full font-sans font-semibold uppercase tracking-wider ${pill.cls}`}
         style={{
+          ...(accent && status === 'live' ? { color: accent } : {}),
           fontSize: 'min(10px, 3.5cqmin)',
           padding: 'min(2px, 0.5cqmin) min(8px, 2cqmin)',
         }}

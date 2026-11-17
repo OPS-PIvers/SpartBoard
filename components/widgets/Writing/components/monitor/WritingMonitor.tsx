@@ -24,6 +24,7 @@ import {
 import { usePeriodRunner } from '@/hooks/usePeriodRunner';
 import { updateWritingSession } from '@/hooks/useWritingAssignmentSessions';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import {
   StatusBuckets,
@@ -387,6 +388,7 @@ export const WritingMonitorView: React.FC<{
       <MonitorHeader
         title={title}
         status={status}
+        accent={LIBRARY_HEADER_ACCENTS.writing}
         onBack={onBack}
         backAnchor={tourTypeAttr('writing-monitor.back', TYPE)}
       />
