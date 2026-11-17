@@ -139,7 +139,10 @@ import {
 } from '@/utils/paperSheetVersions';
 import { resolveQuizAssignment, type BankContent } from '@/utils/questionBanks';
 import { printPaperTest } from '@/utils/paperTestPrint';
-import type { PrintedSupport } from '@/utils/paperPrintedVersions';
+import type {
+  PrintedSupport,
+  PrintedTranslation,
+} from '@/utils/paperPrintedVersions';
 import {
   chooseLineFor,
   sectionOfQuestion,
@@ -236,6 +239,8 @@ export interface PaperPrintGroup {
   label: string;
   students: Record<string, readonly string[]>;
   supports?: readonly PrintedSupport[];
+  /** The group's language on the test paper; the answer sheet stays in English. */
+  translation?: PrintedTranslation;
 }
 
 /** What the print dialog records on an authored quiz. */
@@ -1073,11 +1078,15 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
           : {}),
         ...(batch.sheetLayout === 'questions'
           ? {
-              questionTexts: sheetQuestions.map((q) => ({
-                text: plainPromptText(q.text),
-                choices: batch.choiceOrder?.[q.id] ?? [],
-                ...choicePictureFields(q, batch.choiceOrder?.[q.id] ?? []),
-              })),
+              questionTexts: sheetQuestions.map((q) => {
+                const english = batch.choiceOrder?.[q.id] ?? [];
+                const tr = group?.translation?.questions[q.id];
+                return {
+                  text: plainPromptText(tr?.text ?? q.text),
+                  choices: english.map((c) => tr?.choices?.[c] ?? c),
+                  ...choicePictureFields(q, english),
+                };
+              }),
             }
           : {}),
         ...(!isStub && analysis.rows.some((r) => r.sourceLabel)
@@ -1246,11 +1255,14 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                 }
               : undefined;
           if (section) headed.add(section.id);
+          const tr = group?.translation?.questions[q.id];
           return [
             {
               row: r.row,
-              text: q.text,
-              choices,
+              text: tr?.text ?? q.text,
+              choices: tr?.choices
+                ? choices.map((c) => tr.choices?.[c] ?? c)
+                : choices,
               ...choicePictureFields(q, choices),
               ...(r.written ? { written: true } : {}),
               ...(heading ? { section: heading } : {}),
@@ -1270,7 +1282,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
               })),
             }
           : {
-              quizTitle: quiz.title,
+              quizTitle: group?.translation?.title ?? quiz.title,
               questions: questionsOf(analysis),
               ...(group?.supports?.length ? { supports: group.supports } : {}),
             }

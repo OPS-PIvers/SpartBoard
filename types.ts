@@ -6677,6 +6677,13 @@ export interface PaperPrintedGroupRecord {
   answerChoices: 'all' | 'drop-one' | 'two';
   modifiedQuestions?: boolean;
   supports?: QuizSupport[];
+  /** The group's language, so a reprint prints the same translation. */
+  language?: string;
+}
+
+/** A printed group planned at assign, kept so a version closed before printing can still print. */
+export interface PaperCopyGroupPlan extends PaperPrintedGroupRecord {
+  students: { rosterId: string; studentId: string }[];
 }
 
 export interface PaperBatch {
@@ -7494,6 +7501,8 @@ export interface QuizAssignment
   paperWrittenScanned?: number;
   /** Stacks printed for modification groups of this device assignment (`paper-printed-versions`). */
   paperCopyBatchIds?: string[];
+  /** Every printed group planned at assign, printed or not. */
+  paperCopyGroups?: PaperCopyGroupPlan[];
   /** D37 mode last chosen in Publish Scores; mirrored on the session and cleared on unpublish. */
   writtenReturnMode?: WrittenReturnMode;
   createdAt: number;

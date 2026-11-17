@@ -46,7 +46,7 @@ const STYLES = `
   @page { size: 215.9mm 279.4mm; }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #000; font-size: 11pt; }
-  .brand { display: flex; align-items: center; gap: 3mm; margin-bottom: 5mm; }
+  .brand { display: flex; align-items: center; justify-content: center; gap: 3mm; }
   .brand svg { display: block; }
   .brand-tag { font-size: 8pt; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
   h1 { font-size: 15pt; margin: 0 0 4mm; }
@@ -104,7 +104,7 @@ function testHtml(
   questions: readonly PaperTestQuestion[],
   label?: string
 ): string {
-  return `<div class="brand">${spartronLogoSvg(4.2)}<span class="brand-tag">${escapeHtml(SPARTRON_TAGLINE)}</span></div><h1>${escapeHtml(quizTitle)}</h1>${
+  return `<h1>${escapeHtml(quizTitle)}</h1>${
     label ? `<p class="version-label">${escapeHtml(label)}</p>` : ''
   }
 <div class="meta"><div>Name <span></span></div><div>Class <span></span></div></div>
@@ -149,6 +149,8 @@ export function printPaperTest(
       styles: STYLES,
       body: buildPaperTestHtml(job),
       marginMm: { vertical: 18, horizontal: 20 },
+      // Same mark, size and place as the bubble sheet's footer.
+      footer: `<div class="brand">${spartronLogoSvg(4.2)}<span class="brand-tag">${escapeHtml(SPARTRON_TAGLINE)}</span></div>`,
     },
     openWindow
   );

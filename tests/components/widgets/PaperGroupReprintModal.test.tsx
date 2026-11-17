@@ -2,8 +2,9 @@ import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 
+const auth = vi.hoisted(() => ({ written: false }));
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ canAccessFeature: () => false }),
+  useAuth: () => ({ canAccessFeature: () => auth.written }),
 }));
 vi.mock('@/hooks/usePaperSheetStimulusImages', () => ({
   usePaperSheetStimulusImages: () => ({ src: {}, failed: [], loading: false }),
@@ -126,5 +127,84 @@ describe('PaperGroupReprintModal', () => {
       'Alvarez, Sam',
     ]);
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('prints each group with its own written prompt wording', () => {
+    auth.written = true;
+    const fr = (text: string): QuizQuestion => ({
+      id: 'q3',
+      timeLimit: 0,
+      text,
+      type: 'free-response',
+      correctAnswer: '',
+      incorrectAnswers: [],
+    });
+    const withPrompt = (text: string): QuizData => ({
+      ...QUIZ,
+      questions: [...QUIZ.questions, fr(text)],
+    });
+    const print = vi.fn<(job: PaperPrintJob) => void>();
+    render(
+      <PaperGroupReprintModal
+        groups={[
+          {
+            ...GROUPS[0],
+            quiz: withPrompt('Explain.\nBase wording'),
+            batch: { ...GROUPS[0].batch, pageMaps: [] },
+          },
+          {
+            ...GROUPS[1],
+            quiz: withPrompt('Explain.\nGroup 2 wording'),
+            batch: { ...GROUPS[1].batch, pageMaps: [] },
+          },
+        ]}
+        rosters={[ROSTER]}
+        onClose={vi.fn()}
+        onError={vi.fn()}
+        print={print}
+      />
+    );
+    fireEvent.click(screen.getByLabelText('Baker, Jo'));
+    fireEvent.click(screen.getByLabelText('Alvarez, Sam'));
+    fireEvent.click(screen.getByRole('button', { name: /Print 1 of 2/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
+    expect(print.mock.calls[0][0].prompts?.q3.text).toBe(
+      'Explain.\nBase wording'
+    );
+    expect(print.mock.calls[1][0].prompts?.q3.text).toBe(
+      'Explain.\nGroup 2 wording'
+    );
+    auth.written = false;
+  });
+
+  it("prints a translated group's question text in its language", () => {
+    const print = vi.fn<(job: PaperPrintJob) => void>();
+    render(
+      <PaperGroupReprintModal
+        groups={[
+          {
+            ...GROUPS[0],
+            batch: { ...GROUPS[0].batch, sheetLayout: 'questions' },
+            translation: {
+              questions: {
+                q1: { text: 'Pregunta q1', choices: { a: 'una' } },
+              },
+            },
+          },
+        ]}
+        rosters={[ROSTER]}
+        onClose={vi.fn()}
+        onError={vi.fn()}
+        print={print}
+      />
+    );
+    fireEvent.click(screen.getByLabelText('Baker, Jo'));
+    fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
+    const texts = print.mock.calls[0][0].questionTexts;
+    expect(texts?.[0]).toEqual({
+      text: 'Pregunta q1',
+      choices: ['una', 'b', 'c', 'd'],
+    });
+    expect(texts?.[1].text).toBe('Question q2');
   });
 });

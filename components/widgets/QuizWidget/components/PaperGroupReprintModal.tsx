@@ -4,6 +4,7 @@ import React from 'react';
 import { tourFieldAttr } from '@/config/tourAnchors';
 import type { ClassRoster, PaperBatch, QuizData } from '@/types';
 import type { printPaperSheets } from '@/utils/paperSheetPrint';
+import type { PrintedTranslation } from '@/utils/paperPrintedVersions';
 import { PaperStacksReprintDialog, ReprintCheckRow } from './PaperReprintModal';
 
 /** One printed group's stack, with the quiz version it printed. */
@@ -11,6 +12,7 @@ export interface PaperReprintGroup {
   label: string;
   quiz: QuizData;
   batch: PaperBatch;
+  translation?: PrintedTranslation;
 }
 
 export const PaperGroupReprintModal: React.FC<{
