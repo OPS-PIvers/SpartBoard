@@ -5,7 +5,7 @@ Fixture pages that render real SpartBoard screens with canned data, for surfaces
 ## Sub-features
 
 - `harness-library` shows the library managers for quiz, video activity, guided learning, mini app, flashcards, activity wall and review (`/library-managers-dev`).
-- `harness-session-views` shows student-side quiz and video activity views (`/session-views-dev`).
+- `harness-session-views` shows the Quiz and Video Activity monitors and results plus student-side views (`/session-views-dev`). Quiz fixtures are self-paced Quiz assignments, as teachers run them, so Live view works; `state=review` is the teacher-paced Review monitor.
 - `harness-student-landing` shows the student landing page (`/student-landing-dev`).
 - `harness-other` covers `/gl-views-dev`, `/notebook-views-dev`, `/live-tour-views-dev`, `/assign-stepper-dev`, `/gradebook-dev`, `/library-dev`, `/media-review-dev`, `/notebook-editor-dev`, `/teams-*-dev`, `/widget-grader-dev`, `/sparty-dev`.
 

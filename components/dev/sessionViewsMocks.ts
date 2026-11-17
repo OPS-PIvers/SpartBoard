@@ -92,7 +92,19 @@ function quizPublicQuestions(): QuizPublicQuestion[] {
   ];
 }
 
+/** A Quiz assignment as teachers run it: self-paced, so the monitor offers Live view. */
 export function makeQuizSession(
+  status: QuizSessionStatus = 'active'
+): QuizSession {
+  return {
+    ...makeReviewSession(status),
+    sessionMode: 'student',
+    widgetKind: 'quiz',
+  };
+}
+
+/** A teacher-paced Review, where the board sets the question. */
+export function makeReviewSession(
   status: QuizSessionStatus = 'active'
 ): QuizSession {
   return {
@@ -103,6 +115,7 @@ export function makeQuizSession(
     teacherUid: 'mock-user-id',
     status,
     sessionMode: 'teacher',
+    widgetKind: 'review',
     currentQuestionIndex:
       status === 'waiting' ? -1 : status === 'ended' ? 1 : 0,
     startedAt: status === 'waiting' ? null : NOW - 600_000,

@@ -41,6 +41,7 @@ export type ViewKey =
 export type StateKey =
   | 'waiting'
   | 'live'
+  | 'review'
   | 'reviewing'
   | 'self-paced'
   | 'timed'
@@ -104,6 +105,7 @@ const qualify = (
 const SESSION_STATE_LABELS: Record<string, string> = {
   waiting: 'Waiting (no responses)',
   live: 'Live',
+  review: 'Review, teacher-paced (monitor)',
   reviewing: 'Reviewing (present)',
   'self-paced': 'Self-paced (present)',
   timed: 'Timed (monitor)',

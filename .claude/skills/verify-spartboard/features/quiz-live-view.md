@@ -13,7 +13,7 @@ A teacher opens Student view on a running quiz assignment to see the copy studen
 
 - Quiz widget, In Progress tab, a row's menu, Student view. Needs the `quiz-student-view` preview flag.
 - Quiz widget, Monitor, In progress, the eye button on a student's row. Needs the `quiz-live-view` preview flag, a self-paced quiz, and the teacher who assigned it.
-- Verification path: the `/library-managers-dev?view=quiz` and `/session-views-dev?view=quiz-monitor&state=multi-class&full=1` harness pages.
+- Verification path: the `/library-managers-dev?view=quiz` and `/session-views-dev?view=quiz-monitor&state=live&full=1` harness pages.
 
 ## Driving it with the browser pane
 
@@ -23,7 +23,7 @@ Preconditions:
 - Resize the tab to 1280x800.
 
 - **Row note and menu.** `navigate` to `http://localhost:56320/library-managers-dev?view=quiz`, click the `In Progress` tab. One row reads `Edited since assigned`. Click a row's menu (`[data-tour^="library-shell.archive-menu"]`): it lists `Student view` (`quiz-library.archive-student-view`).
-- **Open Live view.** `navigate` to `http://localhost:56320/session-views-dev?view=quiz-monitor&state=multi-class&full=1`, click `In progress`, then the first `[data-tour^="quiz-monitor.live-view"]`. A dialog named `Live view` opens with the student's name, their question with the saved choice selected, and `Teacher's Live view, not the student's screen`.
+- **Open Live view.** `navigate` to `http://localhost:56320/session-views-dev?view=quiz-monitor&state=live&full=1`, click `In progress`, then the first `[data-tour^="quiz-monitor.live-view"]`. A dialog named `Live view` opens with the student's name, their question with the saved choice selected, and `Teacher's Live view, not the student's screen`.
 - **Controls.** The side column lists Started, On question, Answered, Tab exits and Input tracking, then `Notify student when viewing` (`quiz-live-view.tell-student`), the `Nudge note` select, `Nudge`, `Screenshot` and the line `Saves this redrawn view, not the student's screen.`
 - **Next student.** Click `Next` (`quiz-live-view.next`). The name in the header changes.
 - **Proof.** `evidence.mjs new quiz-live-view session-views-dev`; screenshot the roster with the eye buttons and the open panel, and `note` the student name and question shown.
