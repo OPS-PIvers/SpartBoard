@@ -24,7 +24,7 @@ const WRITING_RECORD_STRINGS = {
   playFromHere: 'Play from here',
   draftTurnedIn: (n: number) => `Draft ${n} turned in`,
   logFull: 'Recording stopped here: the log was full.',
-  purged: 'Playback is no longer kept.',
+  purged: 'Playback no longer available.',
   empty: 'No writing recorded yet.',
   loading: 'Loading',
   loadFailed: "Couldn't load the Writing record.",
