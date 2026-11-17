@@ -4,7 +4,7 @@ type Props = Omit<
   React.InputHTMLAttributes<HTMLInputElement>,
   'value' | 'onChange' | 'type'
 > & {
-  value: number;
+  value: number | undefined;
   onCommit: (n: number) => void;
   normalize?: (n: number) => number;
 };
@@ -23,7 +23,7 @@ export const DraftNumberField: React.FC<Props> = ({
     <input
       {...rest}
       type="number"
-      value={draft ?? String(value)}
+      value={draft ?? String(value ?? '')}
       onChange={(e) => {
         const n = parseFloat(e.target.value);
         const stored = Number.isFinite(n) ? normalize?.(n) : undefined;
