@@ -4,6 +4,7 @@ import { advanceRun, joinRunByHand } from './connectionEngine';
 import {
   convertLegacyConnections,
   isLegacyMigrated,
+  LEGACY_CONNECTIONS_DONE,
   LEGACY_CONNECTIONS_MARKER,
   usesLegacyToggles,
 } from './legacyConnections';
@@ -67,7 +68,12 @@ describe('convertLegacyConnections', () => {
         { widgetId: 's', action: 'rotate' },
       ],
     ]);
-    expect(r?.markers).toEqual({ t: { [LEGACY_CONNECTIONS_MARKER]: true } });
+    expect(r?.markers).toEqual({
+      t: {
+        [LEGACY_CONNECTIONS_MARKER]: true,
+        [LEGACY_CONNECTIONS_DONE]: ['stations', 'traffic', 'voice'],
+      },
+    });
   });
 
   it('makes Timer and a Randomizer that start each other one repeating loop', () => {
@@ -144,6 +150,82 @@ describe('convertLegacyConnections', () => {
     expect(
       convertLegacyConnections(
         board([w('q', 'qr', { syncWithTextWidget: true })])
+      )
+    ).toBeNull();
+  });
+
+  it('converts a toggle whose partner widget arrives after the first conversion', () => {
+    const timer = w('t', 'time-tool', {
+      duration: 60,
+      timerEndVoiceLevel: 0,
+      timerEndTrafficColor: 'red',
+    });
+    const first = convertLegacyConnections(
+      board([timer, w('e', 'expectations')])
+    );
+    expect(seqs(first)[0].steps[1].actions).toEqual([
+      { widgetId: 'e', action: 'voice-0' },
+    ]);
+    const marked = {
+      ...timer,
+      config: { ...timer.config, ...first?.markers.t },
+    };
+    const later = convertLegacyConnections(
+      board([marked, w('e', 'expectations'), w('l', 'traffic')], {
+        connections: first?.connections,
+      })
+    );
+    expect(seqs(later)).toHaveLength(1);
+    expect(seqs(later)[0].steps[1].actions).toEqual([
+      { widgetId: 'l', action: 'red' },
+    ]);
+    expect(later?.markers.t[LEGACY_CONNECTIONS_DONE]).toEqual([
+      'traffic',
+      'voice',
+    ]);
+    const again = {
+      ...marked,
+      config: { ...marked.config, ...later?.markers.t },
+    };
+    expect(
+      convertLegacyConnections(
+        board([again, w('e', 'expectations'), w('l', 'traffic')])
+      )
+    ).toBeNull();
+  });
+
+  it('makes one loop when a picker arrives after the Timer was converted', () => {
+    const timer = w('t', 'time-tool', {
+      duration: 60,
+      timerEndVoiceLevel: 0,
+      timerEndTriggerRandom: true,
+      [LEGACY_CONNECTIONS_MARKER]: true,
+      [LEGACY_CONNECTIONS_DONE]: ['voice'],
+    });
+    const r = convertLegacyConnections(
+      board([
+        timer,
+        w('e', 'expectations'),
+        w('r', 'random', { mode: 'single', autoStartTimer: true }),
+      ])
+    );
+    expect(seqs(r)).toHaveLength(1);
+    expect(seqs(r)[0].repeat).toBe('until-done');
+    expect(seqs(r)[0].steps[1].actions).toEqual([
+      { widgetId: 'r', action: 'next' },
+    ]);
+  });
+
+  it('leaves a widget marked before the done list alone', () => {
+    expect(
+      convertLegacyConnections(
+        board([
+          w('t', 'time-tool', {
+            timerEndTrafficColor: 'red',
+            [LEGACY_CONNECTIONS_MARKER]: true,
+          }),
+          w('l', 'traffic'),
+        ])
       )
     ).toBeNull();
   });
