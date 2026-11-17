@@ -2030,11 +2030,13 @@
       "tabAway": "Límite fuera: {{seconds}} s",
       "windowShifted": "Horario ajustado",
       "readAloud": "Lectura en voz alta",
+      "spellingHelp": "Ayuda ortográfica",
       "language": "{{language}}",
       "copyPastePrintBlocked": "Sin copiar, pegar ni imprimir",
       "copyPastePrintAllowed": "Copiar, pegar e imprimir permitido"
     },
     "language": "Idioma",
+    "spellingHelp": "Ayuda ortográfica",
     "noChanges": "Sin cambios",
     "copyPastePrint": "Copiar, pegar e imprimir",
     "copyPastePrintBlock": "Bloquear",
