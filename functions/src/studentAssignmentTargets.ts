@@ -183,6 +183,62 @@ export interface StudentOverride {
   closeAt?: number;
   /** BCP-47 code. Shape-validated only — membership in the org list is enforced elsewhere. */
   language?: string;
+  supports?: QuizSupport[];
+}
+
+export type QuizSupport =
+  | { kind: 'text'; title: string; text: string }
+  | { kind: 'link'; title: string; url: string }
+  | { kind: 'drive'; title: string; fileId: string };
+
+const MAX_SUPPORTS = 5;
+const MAX_SUPPORT_TITLE = 80;
+const MAX_SUPPORT_TEXT = 1000;
+const MAX_SUPPORT_URL = 2000;
+const DRIVE_FILE_ID_RE = /^[A-Za-z0-9_-]{10,200}$/;
+
+const supportTitle = (raw: unknown): string | null =>
+  typeof raw === 'string' && raw.trim()
+    ? raw.trim().slice(0, MAX_SUPPORT_TITLE)
+    : null;
+
+// Links must be https so a support can't run script or open a non-web scheme.
+const httpsUrl = (raw: unknown): string | null => {
+  if (typeof raw !== 'string' || raw.length > MAX_SUPPORT_URL) return null;
+  try {
+    const url = new URL(raw.trim());
+    return url.protocol === 'https:' ? url.toString() : null;
+  } catch {
+    return null;
+  }
+};
+
+export function sanitizeSupports(raw: unknown): QuizSupport[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const out: QuizSupport[] = [];
+  for (const item of raw) {
+    if (out.length >= MAX_SUPPORTS) break;
+    if (typeof item !== 'object' || item === null) continue;
+    const src = item as Record<string, unknown>;
+    const title = supportTitle(src.title);
+    if (!title) continue;
+    if (src.kind === 'text' && typeof src.text === 'string' && src.text.trim())
+      out.push({
+        kind: 'text',
+        title,
+        text: src.text.trim().slice(0, MAX_SUPPORT_TEXT),
+      });
+    else if (src.kind === 'link') {
+      const url = httpsUrl(src.url);
+      if (url) out.push({ kind: 'link', title, url });
+    } else if (
+      src.kind === 'drive' &&
+      typeof src.fileId === 'string' &&
+      DRIVE_FILE_ID_RE.test(src.fileId)
+    )
+      out.push({ kind: 'drive', title, fileId: src.fileId });
+  }
+  return out.length > 0 ? out : undefined;
 }
 
 /** `undefined` = key absent (preserve stored value); `null` = explicit clear. */
@@ -474,6 +530,8 @@ export function sanitizeOverride(raw: unknown): StudentOverride | null {
     out.answerChoices = src.answerChoices;
 
   if (src.readAloud === true) out.readAloud = true;
+  const supports = sanitizeSupports(src.supports);
+  if (supports) out.supports = supports;
   if (typeof src.blockCopyPaste === 'boolean')
     out.blockCopyPaste = src.blockCopyPaste;
   if (src.spellingHelp === true) out.spellingHelp = true;
@@ -676,6 +734,14 @@ function sameIdSet(a: readonly string[], b: readonly string[]): boolean {
   return setA.size === new Set(b).size && b.every((id) => setA.has(id));
 }
 
+/** Scoring never reads supports, so the assignment-doc mirror leaves them out. */
+function withoutSupports(override: StudentOverride): StudentOverride {
+  if (!override.supports) return override;
+  const rest = { ...override };
+  delete rest.supports;
+  return rest;
+}
+
 // ── handler ────────────────────────────────────────────────────────────────
 
 /**
@@ -771,7 +837,8 @@ async function commitPointerOps(
         if (!op.payload) {
           if (snap.exists) tx.delete(op.ref);
         } else if (snap.exists || !op.requireExisting) {
-          tx.set(op.ref, op.payload, { merge: true });
+          // Named fields replace whole, so a dropped override key is removed.
+          tx.set(op.ref, op.payload, { mergeFields: Object.keys(op.payload) });
         }
       });
       return lost;
@@ -1254,7 +1321,9 @@ export async function handleSetAssignmentTargets(
   for (const [uid, value] of overrideChangesByUid) {
     if (conflicts.has(uid)) continue;
     overridesByStudentUid[uid] =
-      value === null ? admin.firestore.FieldValue.delete() : value;
+      value === null
+        ? admin.firestore.FieldValue.delete()
+        : withoutSupports(value);
   }
   // Write-once record of the language each student was served. Never cleared,
   // so de-targeting one still grades their submitted work in the right locale.

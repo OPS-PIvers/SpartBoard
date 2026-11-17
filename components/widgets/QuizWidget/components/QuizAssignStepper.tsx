@@ -1,4 +1,5 @@
 // Quiz assign on the accordion stepper (docs/plans/shipped/ASSIGN_STEPPER.md PR 3).
+import { GoogleDriveService } from '@/utils/googleDriveService';
 import React, { useContext, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ClassRoster, Plc, QuizBehaviorSettings } from '@/types';
@@ -124,6 +125,7 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   const { t } = useTranslation();
   const gates = useQuizRuleGates();
   const [modsOpen, setModsOpen] = useState(false);
+  const [sharingCount, setSharingCount] = useState(0);
   const auth = useContext(AuthContext);
   const groupsOn =
     !!modifications && auth?.canAccessFeature?.('modification-groups') === true;
@@ -286,6 +288,9 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
           quizContext={modifications.quizContext}
           timeLimitLabel={timeLimitLabel}
           overridesByKey={modifications.targeting.overridesByKey}
+          onSharingChange={(sharing) =>
+            setSharingCount((n) => Math.max(0, n + (sharing ? 1 : -1)))
+          }
         />
       ),
     };
@@ -312,7 +317,18 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   return (
     <AssignStepper
       isOpen
-      onClose={onClose}
+      onClose={() => {
+        // Closing without assigning leaves the shared support copies unused.
+        const token = auth?.googleAccessToken;
+        const drive = token
+          ? new GoogleDriveService(token, auth.refreshGoogleToken)
+          : null;
+        for (const g of groups)
+          for (const sup of g.supports ?? [])
+            if (sup.kind === 'drive')
+              void drive?.deleteFile(sup.fileId).catch(() => undefined);
+        onClose();
+      }}
       title={title}
       steps={steps}
       submitLabel={onPaper ? 'Assign and print' : submitLabel}
@@ -328,16 +344,18 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
           : undefined
       }
       onSubmit={onSubmit}
-      disabled={needsPlc || backwards}
+      disabled={needsPlc || backwards || sharingCount > 0}
       disabledReason={
         needsPlc
           ? PICK_A_PLC
-          : backwards
-            ? t(
-                'assignAvailability.closesBeforeOpens',
-                'Closes before it opens.'
-              )
-            : undefined
+          : sharingCount > 0
+            ? 'Still sharing a Drive file.'
+            : backwards
+              ? t(
+                  'assignAvailability.closesBeforeOpens',
+                  'Closes before it opens.'
+                )
+              : undefined
       }
       overlayView={
         modifications && modsOpen ? (

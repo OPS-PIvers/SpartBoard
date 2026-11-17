@@ -32,6 +32,21 @@ import { type StudentQuizStateKey } from './devViewStates';
 
 const noop = (): Promise<void> => Promise.resolve();
 
+const SUPPORTS_OVERRIDE = {
+  supports: [
+    {
+      kind: 'text' as const,
+      title: 'Word bank',
+      text: 'numerator\ndenominator\nequivalent\nsimplify',
+    },
+    {
+      kind: 'link' as const,
+      title: 'Fraction strips',
+      url: 'https://example.org/fraction-strips',
+    },
+  ],
+};
+
 const T = 1_700_000_000_000;
 const ATTEMPT_QUESTIONS = [
   { id: 'a1', text: 'What is 3/4 + 1/8?', choices: ['7/8', '4/12', '1'] },
@@ -144,7 +159,7 @@ export const StudentQuizDevView: React.FC<{ state: StudentQuizStateKey }> = ({
                   ? makeOptionImagesQuizSession('Matching')
                   : state === 'sq-images-mc'
                     ? makeOptionImagesQuizSession('MC')
-                    : state === 'sq-stimuli'
+                    : state === 'sq-stimuli' || state === 'sq-supports-stimuli'
                       ? makeStimulusQuizSession()
                       : state === 'sq-picture' || state === 'sq-pictures'
                         ? makePictureStimulusQuizSession(
@@ -265,6 +280,11 @@ export const StudentQuizDevView: React.FC<{ state: StudentQuizStateKey }> = ({
         onRecordStimulusPlay={noop}
         onReportStimulusError={noop}
         fullscreenRequired={state === 'sq-fullscreen'}
+        override={
+          state === 'sq-supports' || state === 'sq-supports-stimuli'
+            ? SUPPORTS_OVERRIDE
+            : undefined
+        }
       />
     </div>
   );
