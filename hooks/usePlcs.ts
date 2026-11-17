@@ -395,14 +395,8 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
     selectedBuildings = [],
     buildingIds = [],
     roleId = null,
-    userRoles = null,
   } = useAuth();
-  const isSuperAdmin = isSuperAdminActor(
-    user?.email,
-    userRoles?.superAdmins,
-    roleId,
-    orgId
-  );
+  const isSuperAdmin = isSuperAdminActor(user?.email, roleId, orgId);
   // Extract the resolved building as primitives so the `createPlc` callback's
   // dependency array stays referentially stable (the source arrays may be new
   // references each render). Optional chaining guards against a `null` (not just

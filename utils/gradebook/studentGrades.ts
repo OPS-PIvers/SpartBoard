@@ -21,6 +21,7 @@ export const STUDENT_GRADE_KIND_LABELS: Record<GradebookKind, string> = {
   projects: 'Project',
   'mini-app': 'Mini-app',
   'activity-wall': 'Wall',
+  writing: 'Writing',
 };
 
 /** What the Grades tab renders; the student's projection doc or a teacher preview. */

@@ -31,13 +31,8 @@ const sameWindow = (a: FocusWindow, b: FocusWindow) =>
 
 /** F6: the hours and days focus sessions may run, in Central time; the server enforces them. */
 export const FocusHoursRow: React.FC = () => {
-  const { user, userRoles, roleId, orgId } = useAuth();
-  const locked = !isSuperAdminActor(
-    user?.email,
-    userRoles?.superAdmins,
-    roleId,
-    orgId
-  );
+  const { user, roleId, orgId } = useAuth();
+  const locked = !isSuperAdminActor(user?.email, roleId, orgId);
   const [saved, setSaved] = useState<FocusWindow | null>(null);
   const [draft, setDraft] = useState<FocusWindow | null>(null);
   const [saving, setSaving] = useState(false);

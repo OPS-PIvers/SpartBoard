@@ -97,6 +97,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'reopen-selected-students',
   'share-import-confirm',
   'course-agenda',
+  'va-score-only-verdicts',
 ];
 
 // Mirror of `missingDocPublic: true` flags and their `defaultMinTier` (null = none); config/featureDefaults.test.ts keeps it in sync.

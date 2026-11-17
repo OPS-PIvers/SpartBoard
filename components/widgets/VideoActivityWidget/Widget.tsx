@@ -1484,7 +1484,8 @@ const TeacherVideoActivityWidget: React.FC<{
                 target.id,
                 data,
                 visibility,
-                protection
+                protection,
+                canAccessFeature('va-score-only-verdicts')
               );
               addToast(
                 result.responsesUpdated > 0

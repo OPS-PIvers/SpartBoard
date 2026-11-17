@@ -39,7 +39,6 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'admin-1', email: 'admin@school.org' },
     canAccessFeature: () => h.aiAllowed,
-    userRoles: { superAdmins: [] },
     roleId: 'admin',
     orgId: h.orgId,
   }),

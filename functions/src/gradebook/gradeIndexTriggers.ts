@@ -266,6 +266,7 @@ export const gradeIndexFlashcardProgress = studentDocTrigger('flashcards');
 export const gradeIndexProjectGrade = studentDocTrigger('projects');
 export const gradeIndexMiniAppSubmission = studentDocTrigger('mini-app');
 export const gradeIndexWallSubmission = studentDocTrigger('activity-wall');
+export const gradeIndexWritingResponse = studentDocTrigger('writing');
 
 export const gradeIndexQuizSession = sessionTrigger('quiz');
 export const gradeIndexVideoSession = sessionTrigger('video-activity');
@@ -275,6 +276,7 @@ export const gradeIndexFlashcardSession = sessionTrigger('flashcards');
 export const gradeIndexProjectRun = sessionTrigger('projects');
 export const gradeIndexMiniAppSession = sessionTrigger('mini-app');
 export const gradeIndexWallSession = sessionTrigger('activity-wall');
+export const gradeIndexWritingSession = sessionTrigger('writing');
 
 /** Key or tag edits live off the session, so they queue the session themselves. */
 export async function handleSideDocWrite(
@@ -387,6 +389,7 @@ const POINTER_KINDS = new Set<string>([
   'guided-learning',
   'mini-app',
   'flashcards',
+  'writing',
 ]);
 
 /** Individual targeting changes who is assigned and their due date (D25), so the session is rebuilt. */

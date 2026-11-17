@@ -1174,7 +1174,7 @@ describe('isQuizMediaResponseGranted', () => {
     ).resolves.toBe(true);
   });
 
-  it('grants beta via admin_settings/user_roles.superAdmins', async () => {
+  it('ignores the retired admin_settings/user_roles.superAdmins list', async () => {
     await expect(
       isQuizMediaResponseGranted(
         makeGateDb(BETA_RECORD, null, [], {
@@ -1183,7 +1183,7 @@ describe('isQuizMediaResponseGranted', () => {
         TEACHER_EMAIL,
         't1'
       )
-    ).resolves.toBe(true);
+    ).resolves.toBe(false);
   });
 
   it("grants beta via the org membership doc's super_admin roleId", async () => {

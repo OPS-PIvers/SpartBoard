@@ -222,7 +222,6 @@ describe('DashboardContext getDefaultDockTools beta-access parity', () => {
       teachers: [],
       betaTeachers: ['roster-beta@school.org'],
       admins: [],
-      superAdmins: [],
     };
     authMock.featurePermissions = [betaPermission({ betaUsers: [] })];
 

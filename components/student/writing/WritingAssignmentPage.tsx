@@ -12,6 +12,7 @@ import { PageProtectionGuards } from '@/components/common/PageProtectionGuards';
 import { effectivePageProtections } from '@/utils/pageProtections';
 import { deriveWritingView, writingClosed } from '@/utils/writingStudentView';
 import { WritingStudentShell } from './WritingStudentShell';
+import { WritingReturnedFeedback } from './WritingReturnedFeedback';
 
 const SESSIONS = 'writing_assignment_sessions';
 
@@ -138,6 +139,15 @@ const WritingPiecePage: React.FC<{
           allowInsert: piece.allowInsert,
           onEditorCopy: piece.onEditorCopy,
           bindEditor: piece.bindEditor,
+          feedback: (
+            <WritingReturnedFeedback
+              sessionId={session.id}
+              studentUid={studentUid}
+              grading={session.grading}
+              draftSeq={response?.draftSeq}
+              returnedAt={response?.returnedAt}
+            />
+          ),
         }}
       />
       {writing && (
@@ -193,7 +203,7 @@ export const WritingAssignmentPage: React.FC = () => {
       <div className="flex h-screen h-dvh items-center justify-center bg-slate-100 text-slate-700">
         <Loader2
           aria-hidden="true"
-          className="mr-2 h-5 w-5 animate-spin text-teal-700"
+          className="mr-2 h-5 w-5 animate-spin text-yellow-800"
         />
         Loading
       </div>

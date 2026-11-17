@@ -55,12 +55,13 @@ vi.mock('firebase/firestore', () => ({
 }));
 
 const { authState } = vi.hoisted(() => ({
-  authState: { superAdmins: ['admin@test.com'] as string[] },
+  authState: { roleId: 'super_admin' },
 }));
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { email: 'admin@test.com' },
-    userRoles: { superAdmins: authState.superAdmins },
+    roleId: authState.roleId,
+    orgId: 'orono',
   }),
 }));
 
@@ -329,14 +330,14 @@ describe('PreviewsPanel', () => {
   });
 
   it('locks super-admin-only switches for an org admin', async () => {
-    authState.superAdmins = [];
+    authState.roleId = 'domain_admin';
     try {
       await renderPanel();
       fireEvent.click(district('Super admin View as'));
       fireEvent.click(district('Substitutes can start an activity'));
       expect(setDocMock).not.toHaveBeenCalled();
     } finally {
-      authState.superAdmins = ['admin@test.com'];
+      authState.roleId = 'super_admin';
     }
   });
 
@@ -403,14 +404,14 @@ describe('PreviewsPanel', () => {
   });
 
   it('locks Focus session hours for an org admin', async () => {
-    authState.superAdmins = [];
+    authState.roleId = 'domain_admin';
     try {
       await renderPanel();
       expect(screen.getByLabelText('Start time')).toBeDisabled();
       expect(screen.getByRole('button', { name: 'Monday' })).toBeDisabled();
       expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
     } finally {
-      authState.superAdmins = ['admin@test.com'];
+      authState.roleId = 'super_admin';
     }
   });
 });

@@ -31,9 +31,8 @@ const firestoreMocks = vi.hoisted(() => ({
 const authState = vi.hoisted(() => ({
   value: {
     user: { uid: 'u1', email: 'super@school.org' },
-    userRoles: { superAdmins: ['super@school.org'] },
-    orgId: null as string | null,
-    roleId: null as string | null,
+    orgId: 'orono',
+    roleId: 'super_admin',
   },
 }));
 
@@ -226,7 +225,6 @@ const pictureSet = (id: string) =>
 const asOrgAdmin = () => {
   authState.value = {
     user: { uid: 'u2', email: 'admin@school.org' },
-    userRoles: { superAdmins: ['super@school.org'] },
     orgId: 'orono',
     roleId: 'domain_admin',
   };
@@ -243,9 +241,8 @@ describe('HelpCenterManager', () => {
     writeHelpCenterSelection(null);
     authState.value = {
       user: { uid: 'u1', email: 'super@school.org' },
-      userRoles: { superAdmins: ['super@school.org'] },
-      orgId: null,
-      roleId: null,
+      orgId: 'orono',
+      roleId: 'super_admin',
     };
     helpState.items = [];
     helpState.categories = [
@@ -479,7 +476,7 @@ describe('HelpCenterManager', () => {
     expect(itemMocks.createHiddenHelpItem.mock.calls[0][1]).toEqual({
       uid: 'u1',
       email: 'super@school.org',
-      orgId: null,
+      orgId: 'orono',
       isSuperAdmin: true,
     });
   });

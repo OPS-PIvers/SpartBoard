@@ -298,13 +298,13 @@ describe('assertCallerMayDelete', () => {
     ).rejects.toMatchObject({ code: 'permission-denied' });
   });
 
-  it('admits a legacy superAdmins entry with no member doc', async () => {
+  it('rejects an address only on the retired legacy superAdmins list', async () => {
     const { db } = makeDb({
       docs: { 'admin_settings/user_roles': { superAdmins: ['legacy@x'] } },
     });
     await expect(
       assertCallerMayDelete(db as never, 'legacy@x')
-    ).resolves.toBeUndefined();
+    ).rejects.toMatchObject({ code: 'permission-denied' });
   });
 
   it('rejects a non-member', async () => {

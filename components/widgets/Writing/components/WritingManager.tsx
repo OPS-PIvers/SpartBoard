@@ -518,6 +518,9 @@ export const WritingManager: React.FC<{ widget: WidgetData }> = ({
             tourIndex={index}
             onEnd={(r) => void handleEnd(r)}
             onDelete={(r) => void handleDeleteRecord(r)}
+            onResults={(r) =>
+              update({ view: 'results', resultsSessionId: r.id })
+            }
           />
         ))}
       </div>
