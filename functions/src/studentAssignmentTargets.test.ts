@@ -625,7 +625,9 @@ describe('handleSetAssignmentTargets', () => {
   });
 
   it('drops supports from the pointer when a new override has none', async () => {
-    const supports = [{ kind: 'text', title: 'Word bank', text: 'cell' }];
+    const supports = [
+      { kind: 'text' as const, title: 'Word bank', text: 'cell' },
+    ];
     await run(
       baseInput({
         overridesBySourcedId: {
