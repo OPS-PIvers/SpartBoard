@@ -33,6 +33,7 @@ import {
   startRun,
   joinRunByHand,
   liveSteps,
+  nextStepIndex,
   warningScheduleOf,
   type WidgetPatches,
 } from '@/utils/connectionEngine';
@@ -53,9 +54,10 @@ const TAKEOVER_MS = 5000;
 const STALE_RUN_MS = 10 * 60 * 1000;
 // The longest a page waits before starting a block warning, so one of several open pages starts it.
 const WARN_JITTER_MS = 1500;
-// A remote Timer start: each open page waits up to this long, and a hidden page longer, so one page joins the Run.
+// A remote Timer start: the page carrying the Run joins at once; others wait long enough to see its write first.
 const JOIN_JITTER_MS = 1500;
 const HIDDEN_JOIN_DELAY_MS = 3000;
+const OTHER_PAGE_JOIN_DELAY_MS = 4000;
 // A legacy conversion whose write hasn't shown up on the board after this long is tried again.
 const CONVERT_RETRY_MS = 10000;
 
@@ -280,14 +282,27 @@ export const ConnectionsRunner: React.FC = () => {
     }
     if (started.length === 0 || !board.connections?.length) return;
     if (board.linkedShareRole === 'viewer' && !board.linkedShareEnded) return;
-    // Every open page sees the start, so each waits a moment and joins only if no other page has.
-    const delay =
-      Math.random() * JOIN_JITTER_MS +
-      (document.visibilityState === 'hidden' ? HIDDEN_JOIN_DELAY_MS : 0);
+    // Every open page sees the start, so only one should join: the Run's own page first, then whichever page is first to wait it out.
+    const runDevices = board.connections.flatMap((c) =>
+      c.kind === 'sequence' && c.run ? [c.run.deviceId] : []
+    );
+    const delay = runDevices.includes(CONNECTION_DEVICE_ID)
+      ? 0
+      : (runDevices.length > 0 ? OTHER_PAGE_JOIN_DELAY_MS : 0) +
+        Math.random() * JOIN_JITTER_MS +
+        (document.visibilityState === 'hidden' ? HIDDEN_JOIN_DELAY_MS : 0);
     const wait = window.setTimeout(() => {
       joinWaits.current.delete(wait);
       const current = latest.current.activeDashboard;
       if (current?.id !== board.id || !current.connections?.length) return;
+      // A Timer stopped again before the wait ended doesn't join.
+      const stillRunning = started.filter((id) =>
+        current.widgets.some(
+          (w) =>
+            w.id === id && !!(w.config as { isRunning?: boolean }).isRunning
+        )
+      );
+      if (stillRunning.length === 0) return;
       const { widgets, waiting } = engineView(
         current,
         latest.current.roster
@@ -298,7 +313,7 @@ export const ConnectionsRunner: React.FC = () => {
       for (const c of current.connections) {
         if (c.kind !== 'sequence') continue;
         let seq: SequenceConnection = c;
-        for (const id of started) {
+        for (const id of stillRunning) {
           if (pressWaits(seq, widgets, id, waiting)) continue;
           const joined = joinRunByHand(
             seq,
@@ -362,8 +377,9 @@ export const ConnectionsRunner: React.FC = () => {
       }
       const { widgets, waiting } = engineView(board, latest.current.roster);
       const steps = liveSteps(seq, widgets);
-      const nextIndex = command === 'next' ? (seq.run?.stepIndex ?? -1) + 1 : 0;
-      if (touches(steps[nextIndex] ?? steps[0], waiting)) {
+      const nextIndex =
+        command === 'next' ? nextStepIndex(seq, steps, widgets) : 0;
+      if (nextIndex !== null && touches(steps[nextIndex], waiting)) {
         latest.current.addToast(
           latest.current.t('connections.classNotLoaded'),
           'info'
@@ -481,8 +497,8 @@ export const ConnectionsRunner: React.FC = () => {
             continue;
           }
           const stepKey = `${key}:${run.stepIndex}:${run.stepStartedAt}`;
+          // Counted as seen only once the step isn't held, so a held stale step is still caught later.
           const firstLook = !seenSteps.current.has(stepKey);
-          seenSteps.current.add(stepKey);
           const steps = liveSteps(seq, board.widgets);
           const step = steps[run.stepIndex];
           // Wait for the class to load rather than act on an empty list; the steps around it keep going.
@@ -501,13 +517,16 @@ export const ConnectionsRunner: React.FC = () => {
           const done =
             !step || isStepFinished(step, widgets, run.stepStartedAt, now);
           if (!done) {
+            seenSteps.current.add(stepKey);
             overdueSince.current.delete(key);
             continue;
           }
-          if (touches(steps[run.stepIndex + 1] ?? steps[0], waiting)) {
+          const next = nextStepIndex(seq, steps, widgets);
+          if (next !== null && touches(steps[next], waiting)) {
             held();
             continue;
           }
+          seenSteps.current.add(stepKey);
           if (
             firstLook &&
             run.deviceId !== CONNECTION_DEVICE_ID &&

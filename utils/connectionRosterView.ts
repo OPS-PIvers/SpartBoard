@@ -69,12 +69,3 @@ export const engineView = (
   });
   return { widgets, waiting };
 };
-
-// The engine's widgets, or null while any class roster in a Connection is still loading.
-export const engineWidgets = (
-  board: Dashboard,
-  view: RosterView
-): WidgetData[] | null => {
-  const { widgets, waiting } = engineView(board, view);
-  return waiting.size > 0 ? null : widgets;
-};

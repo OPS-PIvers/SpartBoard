@@ -96,13 +96,20 @@ export const convertLegacyConnections = (
 
   // Pickers that the first Timer triggers and that also start it back; found up front so widget order can't split the loop in two.
   const loopPartners = new Set<string>();
-  if (timer && !isMarked(timer)) {
+  const timerDone = timer ? doneToggles(timer) : null;
+  // Still open on both sides: the Timer's end toggle and the picker's auto-start.
+  const openPair = (picker: WidgetData | undefined, end: string) =>
+    !!picker &&
+    !!timerDone &&
+    !timerDone.has(end) &&
+    doneToggles(picker)?.has('autoStartTimer') === false;
+  if (timer) {
     const tc = timer.config as TimeToolConfig;
     const random = first('random');
     const rc = random?.config as RandomConfig | undefined;
     if (
       random &&
-      !isMarked(random) &&
+      openPair(random, 'random') &&
       tc.timerEndTriggerRandom &&
       rc?.autoStartTimer &&
       rc.mode === 'single'
@@ -112,7 +119,7 @@ export const convertLegacyConnections = (
     const nextUp = first('nextUp');
     if (
       nextUp &&
-      !isMarked(nextUp) &&
+      openPair(nextUp, 'nextUp') &&
       tc.timerEndTriggerNextUp &&
       (nextUp.config as NextUpConfig).autoStartTimer
     ) {

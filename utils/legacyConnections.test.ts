@@ -194,6 +194,28 @@ describe('convertLegacyConnections', () => {
     ).toBeNull();
   });
 
+  it('makes one loop when a picker arrives after the Timer was converted', () => {
+    const timer = w('t', 'time-tool', {
+      duration: 60,
+      timerEndVoiceLevel: 0,
+      timerEndTriggerRandom: true,
+      [LEGACY_CONNECTIONS_MARKER]: true,
+      [LEGACY_CONNECTIONS_DONE]: ['voice'],
+    });
+    const r = convertLegacyConnections(
+      board([
+        timer,
+        w('e', 'expectations'),
+        w('r', 'random', { mode: 'single', autoStartTimer: true }),
+      ])
+    );
+    expect(seqs(r)).toHaveLength(1);
+    expect(seqs(r)[0].repeat).toBe('until-done');
+    expect(seqs(r)[0].steps[1].actions).toEqual([
+      { widgetId: 'r', action: 'next' },
+    ]);
+  });
+
   it('leaves a widget marked before the done list alone', () => {
     expect(
       convertLegacyConnections(

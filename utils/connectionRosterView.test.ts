@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { ClassRoster, Dashboard, WidgetData } from '@/types';
 import { CHECKLIST_ROSTER_ORDER } from './checklistCurrent';
-import {
-  engineView,
-  engineWidgets,
-  type RosterView,
-} from './connectionRosterView';
+import { engineView, type RosterView } from './connectionRosterView';
+
+// The widgets, or null while a class is loading, as the runner treats them.
+const engineWidgets = (b: Dashboard, v: RosterView) => {
+  const r = engineView(b, v);
+  return r.waiting.size > 0 ? null : r.widgets;
+};
 
 const checklist = (config: Record<string, unknown> = {}): WidgetData => ({
   id: 'cl',
