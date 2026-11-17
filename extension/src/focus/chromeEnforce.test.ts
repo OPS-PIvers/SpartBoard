@@ -488,6 +488,26 @@ describe('createChromeEnforcer non-web pages', () => {
     ).toBe(true);
   });
 
+  it('sends away an opened tab Chrome parked at about:blank#blocked', async () => {
+    const tabs: FakeTab[] = [
+      {
+        id: 2,
+        windowId: 1,
+        url: 'about:blank#blocked',
+        active: true,
+        lastAccessed: 2,
+        openerTabId: 1,
+      },
+    ];
+    fakeChrome(tabs, [{ id: 1, type: 'normal', state: 'normal' }]);
+    const e = enforcer();
+    e.opened(2);
+    current = local(session());
+    expect(
+      await e.navigated(2, 'about:blank#blocked', undefined, true, 'link')
+    ).toBe(true);
+  });
+
   it("keeps a popup window's blank tab after it showed a page", async () => {
     const tabs: FakeTab[] = [
       { id: 1, windowId: 2, url: 'about:blank', active: true, lastAccessed: 1 },

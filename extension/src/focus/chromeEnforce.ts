@@ -44,7 +44,9 @@ const STUDENT_TRANSITIONS = new Set([
   'keyword_generated',
   'reload',
 ]);
-const isBlank = (url: string) => /^about:blank/i.test(url);
+// Chrome's about:blank#blocked (a javascript: link opened in a new tab) is not a page-started blank.
+const isBlank = (url: string) =>
+  /^about:blank/i.test(url) && !/^about:blank#blocked/i.test(url);
 /** A tab the worker is restoring is left alone for this long, so its way back isn't read as a try. */
 const RESTORING_MS = 10_000;
 
