@@ -6,6 +6,10 @@ import { useAuth } from '@/context/useAuth';
 import { playTimerAlert } from '@/utils/timeToolAudio';
 import { ScheduleWarningBanner } from './ScheduleWarningBanner';
 
+vi.mock('@/hooks/useConnectionsEnabled', () => ({
+  useConnectionsEnabled: () => true,
+}));
+
 vi.mock('@/context/useDashboard', () => ({ useDashboard: vi.fn() }));
 vi.mock('@/context/useAuth', () => ({ useAuth: vi.fn() }));
 vi.mock('@/utils/timeToolAudio', () => ({

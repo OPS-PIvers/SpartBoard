@@ -1,4 +1,5 @@
 import React from 'react';
+import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 import { AlertCircle, Link } from 'lucide-react';
 import { Toggle } from '@/components/common/Toggle';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
@@ -14,7 +15,7 @@ export const QRDestinationField: React.FC<{ ctx: CustomRenderCtx }> = ({
 }) => {
   const { activeDashboard } = useDashboard();
   const config = ctx.config as QRConfig;
-  const connectionsOn = ctx.canAccessFeature('widget-connections');
+  const connectionsOn = useConnectionsEnabled();
   const { followedTextId, linkLeaderId } = resolveQRSource(
     connectionsOn,
     activeDashboard?.connections,
@@ -116,7 +117,7 @@ export const QRSettingsFields: React.FC<{ widget: WidgetData }> = ({
     widget,
     isAdmin: false,
     // The old toggle this panel shows only exists without Connections.
-    canAccessFeature: (id: string) => id !== 'widget-connections',
+    canAccessFeature: () => false,
     t,
     updateConfig,
     describedBy: undefined,

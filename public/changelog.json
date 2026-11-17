@@ -1,6 +1,23 @@
 {
   "entries": [
     {
+      "version": "2026.11.17.2",
+      "date": "2026-11-17",
+      "title": "Connect widgets",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Board",
+          "items": [
+            {
+              "text": "Connect widgets so one starts or changes another. Tap Connect on a widget, add the steps, and SpartBoard runs them in order, like a timer that picks the next name when it ends. Links you set up before, like a timer that changes the traffic light, became Connections on their own."
+            }
+          ]
+        }
+      ],
+      "details": []
+    },
+    {
       "version": "2026.11.17.1",
       "date": "2026-11-17",
       "title": "Share link checks, class lists and extra answers",
@@ -2853,6 +2870,42 @@
     }
   ],
   "widgetNotes": [
+    {
+      "id": "time-tool-connect-2026-11-17",
+      "widget": "time-tool",
+      "date": "2026-11-17",
+      "text": "Tap Connect to link this widget to others, so one starts or changes another."
+    },
+    {
+      "id": "random-connect-2026-11-17",
+      "widget": "random",
+      "date": "2026-11-17",
+      "text": "Tap Connect to link this widget to others, so one starts or changes another."
+    },
+    {
+      "id": "nextUp-connect-2026-11-17",
+      "widget": "nextUp",
+      "date": "2026-11-17",
+      "text": "Tap Connect to link this widget to others, so one starts or changes another."
+    },
+    {
+      "id": "stations-connect-2026-11-17",
+      "widget": "stations",
+      "date": "2026-11-17",
+      "text": "Tap Connect to link this widget to others, so one starts or changes another."
+    },
+    {
+      "id": "sound-connect-2026-11-17",
+      "widget": "sound",
+      "date": "2026-11-17",
+      "text": "Tap Connect to link this widget to others, so one starts or changes another."
+    },
+    {
+      "id": "music-connect-2026-11-17",
+      "widget": "music",
+      "date": "2026-11-17",
+      "text": "Tap Connect to link this widget to others, so one starts or changes another."
+    },
     {
       "id": "quiz-assign-to-classroom-2026-11-17",
       "widget": "quiz",

@@ -6,6 +6,7 @@ import React, {
   useCallback,
   useLayoutEffect,
 } from 'react';
+import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
 import { useBoardTriggerClaim } from '@/hooks/useBoardTriggerClaim';
@@ -99,7 +100,6 @@ import {
 import { teamsFromGroups } from '@/components/widgets/Scoreboard/groupTeams';
 import { usesLegacyToggles } from '@/utils/legacyConnections';
 import { useNamesFromStations } from './useNamesFromStations';
-import { useAuth } from '@/context/useAuth';
 
 import { WidgetLayout } from '../WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
@@ -186,8 +186,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     () => (Array.isArray(config.doneNames) ? config.doneNames : []),
     [config.doneNames]
   );
-  const { canAccessFeature } = useAuth();
-  const connectionsOn = canAccessFeature('widget-connections');
+  const connectionsOn = useConnectionsEnabled();
   useNamesFromStations(widget, connectionsOn);
   const avoidRecentPartners = config.avoidRecentPartners === true;
   // Read in the deferred pick callback; a migrated widget's auto-start became a Sequence.

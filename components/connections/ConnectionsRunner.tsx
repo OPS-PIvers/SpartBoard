@@ -170,8 +170,7 @@ export const ConnectionsRunner: React.FC = () => {
     rosters,
     activeRosterId,
   } = useDashboard();
-  const { canAccessFeature, featurePermissions, selectedBuildings } = useAuth();
-  const enabled = canAccessFeature('widget-connections');
+  const { featurePermissions, selectedBuildings } = useAuth();
   const [gate, setGate] = useState({ enabled: false, ready: false });
   const groupsEnabled = gate.enabled;
   const groupsReady = gate.ready;
@@ -201,7 +200,6 @@ export const ConnectionsRunner: React.FC = () => {
 
   // Hand actions: start a Run at the matching step, or move the Run there.
   useEffect(() => {
-    if (!enabled) return;
     return onHandAction((widgetId, hand) => {
       markHandled([widgetId]);
       // A copied board keeps its widget ids, so the board on screen wins.
@@ -252,7 +250,7 @@ export const ConnectionsRunner: React.FC = () => {
         );
       }
     });
-  }, [enabled]);
+  }, []);
 
   // A Timer started from the phone remote, a routine or a linked widget joins the Run like a hand press.
   const wasRunning = useRef(new Map<string, boolean>());
@@ -265,7 +263,6 @@ export const ConnectionsRunner: React.FC = () => {
     };
   }, []);
   useEffect(() => {
-    if (!enabled) return;
     const board = activeDashboard;
     if (!board) return;
     // Record every Timer first, so a start seen while the watcher was idle never counts later.
@@ -330,11 +327,10 @@ export const ConnectionsRunner: React.FC = () => {
         write(latest.current.applyConnectionChanges, current, patches, updated);
     }, delay);
     joinWaits.current.add(wait);
-  }, [enabled, activeDashboard]);
+  }, [activeDashboard]);
 
   // Start, Stop and Next from a step badge.
   useEffect(() => {
-    if (!enabled) return;
     let retry: number | undefined;
     const handle = (
       boardId: string,
@@ -433,12 +429,11 @@ export const ConnectionsRunner: React.FC = () => {
       off();
       window.clearTimeout(retry);
     };
-  }, [enabled]);
+  }, []);
 
   // Old nexus toggles become Connections, once per widget (the marker stops a repeat).
   const converting = useRef(new Map<string, number>());
   useEffect(() => {
-    if (!enabled) return;
     const now = Date.now();
     for (const board of dashboards) {
       if (board.linkedShareRole === 'viewer' && !board.linkedShareEnded) {
@@ -456,9 +451,9 @@ export const ConnectionsRunner: React.FC = () => {
         ...result.connections,
       ]);
     }
-  }, [enabled, dashboards, applyConnectionChanges]);
+  }, [dashboards, applyConnectionChanges]);
 
-  const anyRun = enabled && dashboards.some(hasRun);
+  const anyRun = dashboards.some(hasRun);
   // Keyed by board too: a copied board keeps its Connection ids.
   const overdueSince = useRef(new Map<string, number>());
   const advancedAt = useRef(new Map<string, number>());
@@ -563,12 +558,10 @@ export const ConnectionsRunner: React.FC = () => {
   }, [anyRun]);
 
   // A Sequence that starts with Schedule's block warning begins itself when a block is about to end.
-  const watchWarnings =
-    enabled &&
-    !!activeDashboard?.connections?.some(
-      (c) =>
-        c.kind === 'sequence' && !!warningScheduleOf(c, activeDashboard.widgets)
-    );
+  const watchWarnings = !!activeDashboard?.connections?.some(
+    (c) =>
+      c.kind === 'sequence' && !!warningScheduleOf(c, activeDashboard.widgets)
+  );
 
   useEffect(() => {
     if (!watchWarnings) return;
@@ -649,7 +642,7 @@ export const ConnectionsRunner: React.FC = () => {
     return () => window.clearInterval(id);
   }, [watchWarnings]);
 
-  return enabled && needsRosterGroups(dashboards) ? (
+  return needsRosterGroups(dashboards) ? (
     <RosterGroupsGateReader onChange={setGate} />
   ) : null;
 };

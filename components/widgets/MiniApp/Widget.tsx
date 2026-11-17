@@ -1,4 +1,5 @@
 import { copyText } from '@/utils/copyText';
+import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 import React, {
   useState,
   useRef,
@@ -458,6 +459,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   } = useDashboard();
   const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
   const { user, getAssignmentMode, canAccessFeature } = useAuth();
+  const connectionsOn = useConnectionsEnabled();
   const assignmentMode: AssignmentMode = getAssignmentMode('miniApp');
   // View-only shares a link with no classes, so it keeps its own dialog (D20).
   const stepperOn = assignmentMode === 'submissions';
@@ -1034,7 +1036,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       // With Connections, a QR that Follows this app gets the new link instead of adding another.
       // Only while this app's board is still the one on screen, so another board's connections are never replaced.
       const linked =
-        canAccessFeature('widget-connections') &&
+        connectionsOn &&
         mountedRef.current &&
         !!startBoardId &&
         latestBoard?.id === startBoardId &&
@@ -1073,7 +1075,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     createAssignment,
     addWidget,
     addToast,
-    canAccessFeature,
+    connectionsOn,
     updateDashboard,
     updateWidget,
     widget.id,
@@ -1940,7 +1942,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
             <MiniAppManager
               userId={user?.uid}
               clearsConnectionTab={
-                canAccessFeature('widget-connections') &&
+                connectionsOn &&
                 hasConnectionTab(
                   activeDashboard?.connections,
                   activeDashboard?.widgets ?? [],

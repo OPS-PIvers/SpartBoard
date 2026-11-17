@@ -59,13 +59,6 @@ test.describe('time-tool settings drawer at 1280x800', () => {
   test('edits one field per group, reflects it on the board, and keeps values on reopen', async ({
     page,
   }) => {
-    // The timer-end partner cards are the old toggles, which Widget Connections hides from the mock admin.
-    await page.addInitScript(() =>
-      localStorage.setItem(
-        'authBypassFeatureOverrides',
-        JSON.stringify({ 'widget-connections': false })
-      )
-    );
     await page.goto('/');
     const widget = await addTimerWidget(page);
     let drawer = await openDrawer(page);
@@ -83,20 +76,19 @@ test.describe('time-tool settings drawer at 1280x800', () => {
     await step.fill('30');
     await expect(step).toHaveValue('30');
 
-    // Behavior: every partner card offers a one-tap add on an empty board.
-    await expect(
-      drawer.getByRole('button', { name: /^Add .* widget$/ })
-    ).toHaveCount(5);
-
     // Display group lives on the Style tab: visual ring draws the progress ring behind the digits.
     await dismissWelcomeToast(page);
     await drawer.getByRole('tab', { name: 'Style' }).click();
-    await expect(widget.locator('svg circle')).toHaveCount(0);
+    await expect(
+      widget.locator('svg[viewBox="0 0 220 220"] circle')
+    ).toHaveCount(0);
     await drawer
       .getByRole('radiogroup', { name: 'Display Style' })
       .getByRole('radio', { name: /visual/i })
       .click();
-    await expect(widget.locator('svg circle').first()).toBeVisible();
+    await expect(
+      widget.locator('svg[viewBox="0 0 220 220"] circle').first()
+    ).toBeVisible();
 
     // Display: LCD number style applies its tracking class to the digits.
     await drawer

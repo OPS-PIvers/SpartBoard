@@ -414,9 +414,8 @@ const TeacherQuizWidget: React.FC<{
     canUseQuizAi;
   const config = widget.config as QuizConfig;
   const isReview = variant === 'review';
-  // With Connections on, only Review syncs to a Scoreboard; a Quiz widget never does.
-  const quizDropsScoreboard =
-    !isReview && canAccessFeature('widget-connections');
+  // Only Review syncs to a Scoreboard; a Quiz widget never does.
+  const quizDropsScoreboard = !isReview;
   // The assign stepper is Assessment Mode only and saves last-used rules (plan D12).
   const assessmentAssign = !isReview;
   const kindTag = { widgetKind: variant };

@@ -159,7 +159,6 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'web-tours',
   'webcam-ai',
   'whiteboard-pro',
-  'widget-connections',
 ];
 
 export const TOUR_CONDITION_RETIRED_FEATURES: readonly string[] = [
@@ -199,5 +198,6 @@ export const TOUR_CONDITION_RETIRED_FEATURES: readonly string[] = [
   'tour-steps-view',
   'video-activity-editor-arrows',
   'video-activity-stops',
+  'widget-connections',
   'youtube-paste-picker',
 ];

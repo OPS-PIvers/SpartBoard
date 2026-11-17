@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 import { useTranslation } from 'react-i18next';
 import { BellRing } from 'lucide-react';
 import { useDashboard } from '@/context/useDashboard';
-import { useAuth } from '@/context/useAuth';
 import { Z_INDEX } from '@/config/zIndex';
 import type { ScheduleConfig, ScheduleWarningAlert } from '@/types';
 import {
@@ -19,8 +19,7 @@ const FRESH_MS = 20_000;
 export const ScheduleWarningBanner: React.FC = () => {
   const { t } = useTranslation();
   const { activeDashboard } = useDashboard();
-  const { canAccessFeature } = useAuth();
-  const enabled = canAccessFeature('widget-connections');
+  const enabled = useConnectionsEnabled();
   const handled = useRef(new Set<string>());
   const [shown, setShown] = useState<ScheduleWarningAlert | null>(null);
   const [soundBlocked, setSoundBlocked] = useState(false);

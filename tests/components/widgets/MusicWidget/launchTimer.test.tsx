@@ -5,6 +5,10 @@ import { MusicWidget } from '@/components/widgets/MusicWidget/Widget';
 import type { WidgetData } from '@/types';
 
 const canAccessFeature = vi.fn<(id: string) => boolean>();
+const connectionsOn = vi.fn(() => false);
+vi.mock('@/hooks/useConnectionsEnabled', () => ({
+  useConnectionsEnabled: () => connectionsOn(),
+}));
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     canAccessFeature,
@@ -69,7 +73,8 @@ const timer = (id: string) =>
 
 beforeEach(() => {
   vi.clearAllMocks();
-  canAccessFeature.mockImplementation((id) => id !== 'widget-connections');
+  canAccessFeature.mockReturnValue(true);
+  connectionsOn.mockReturnValue(false);
   boardWidgets = [];
   readOnly = false;
   stationUrl = 'https://www.youtube.com/watch?v=jfKfPfyJRdk';
@@ -92,8 +97,8 @@ describe('Music launch timer button', () => {
     );
   });
 
-  it('with Connections on, makes the new Timer the one Music Follows', () => {
-    canAccessFeature.mockImplementation((id) => id === 'widget-connections');
+  it('on the teacher board, makes the new Timer the one Music Follows', () => {
+    connectionsOn.mockReturnValue(true);
     render(<MusicWidget widget={music()} />);
     fireEvent.click(screen.getByRole('button', { name: 'Add a linked timer' }));
     const [, overrides] = addWidget.mock.calls[0];
