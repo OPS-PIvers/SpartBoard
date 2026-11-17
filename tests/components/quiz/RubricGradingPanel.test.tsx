@@ -38,6 +38,8 @@ const rubric: Rubric = {
   ],
 };
 
+let renders = 0;
+
 const renderPanel = (
   opts: {
     flag?: boolean;
@@ -56,11 +58,18 @@ const renderPanel = (
   };
   render(
     <AuthContext.Provider value={auth}>
-      <RubricScoringPanel rubric={rubric} maxPoints={6} onChange={onChange} />
+      <RubricScoringPanel
+        rubric={{ ...rubric, id: `r${++renders}` }}
+        maxPoints={6}
+        onChange={onChange}
+      />
     </AuthContext.Provider>
   );
   return { onChange };
 };
+
+const openCriterion = (name: string) =>
+  fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${name}`) }));
 
 const levelButtons = (criterionName: string) =>
   within(
@@ -121,13 +130,12 @@ describe('RubricGradingPanel (rubric-grading-v2)', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Thesis/ }));
     expect(screen.getByText('Clarity of the claim')).toBeInTheDocument();
     expect(screen.getByText('No thesis')).toBeInTheDocument();
-    // Open criteria carry over to the next student; close it for later tests.
-    fireEvent.click(screen.getByRole('button', { name: /^Thesis/ }));
   });
 
   it('takes a score override in the criterion box and keeps the level', () => {
     const { onChange } = renderPanel();
     fireEvent.click(screen.getByRole('button', { name: 'Meets, 3 pts' }));
+    openCriterion('Thesis');
     fireEvent.change(screen.getByLabelText('Score for Thesis'), {
       target: { value: '2.5' },
     });
@@ -139,6 +147,7 @@ describe('RubricGradingPanel (rubric-grading-v2)', () => {
 
   it('picks the matching level when a typed score equals one', () => {
     const { onChange } = renderPanel();
+    openCriterion('Thesis');
     fireEvent.change(screen.getByLabelText('Score for Thesis'), {
       target: { value: '4' },
     });
@@ -150,6 +159,7 @@ describe('RubricGradingPanel (rubric-grading-v2)', () => {
 
   it('scores with no level when the typed score matches none', () => {
     const { onChange } = renderPanel();
+    openCriterion('Evidence');
     fireEvent.change(screen.getByLabelText('Score for Evidence'), {
       target: { value: '1.5' },
     });
@@ -161,6 +171,7 @@ describe('RubricGradingPanel (rubric-grading-v2)', () => {
 
   it('ignores a score above the criterion max', () => {
     const { onChange } = renderPanel();
+    openCriterion('Evidence');
     const box = screen.getByLabelText('Score for Evidence');
     fireEvent.change(box, { target: { value: '9' } });
     expect(onChange).not.toHaveBeenCalled();

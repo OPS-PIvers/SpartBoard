@@ -223,7 +223,7 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
   return (
     <section aria-label="Rubric scoring" className="flex flex-col">
       <header className="pb-2">
-        <div className="-ml-2 flex flex-wrap items-center gap-x-1 gap-y-1">
+        <div className="flex flex-wrap items-center justify-center gap-x-1 gap-y-1">
           <button
             type="button"
             onClick={() => setTableOpen(true)}
@@ -299,7 +299,7 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
             <fieldset
               key={criterion.id}
               aria-labelledby={nameId}
-              className="py-3"
+              className="py-2"
             >
               <div className="flex items-start gap-3">
                 <button
@@ -330,30 +330,9 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
                     </span>
                   </span>
                 </button>
-                <div className="flex shrink-0 items-baseline gap-0.5 pt-1">
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    min={0}
-                    max={max}
-                    step="any"
-                    value={boxValue}
-                    onChange={(e) => typePoints(criterion, e.target.value)}
-                    onBlur={() => clearPointDraft(criterion.id)}
-                    aria-label={`Score for ${criterion.name}`}
-                    aria-invalid={boxInvalid || undefined}
-                    {...tourFieldAttr(
-                      'quiz-grading.rubric-criterion-score',
-                      'quiz',
-                      criterion.id
-                    )}
-                    placeholder="–"
-                    className="w-9 rounded-sm border-b border-slate-300 bg-transparent px-0.5 text-right text-sm font-bold tabular-nums text-brand-blue-primary [appearance:textfield] placeholder:text-slate-400 hover:border-slate-500 focus:border-brand-blue-primary focus:outline-hidden aria-[invalid]:border-brand-red-primary [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                  />
-                  <span className="whitespace-nowrap text-sm font-semibold tabular-nums text-slate-500">
-                    /{max}
-                  </span>
-                </div>
+                <span className="shrink-0 pt-0.5 text-sm font-bold tabular-nums text-slate-500">
+                  {max}
+                </span>
               </div>
 
               {tagCount > 0 && onJumpToTagged && (
@@ -434,10 +413,37 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
                       );
                     })}
                   </div>
-                  <div className="mt-1 flex justify-end">{noteButton}</div>
+                  <div className="mt-1.5 flex items-center justify-between gap-2">
+                    <label className="flex items-baseline gap-1 text-sm font-semibold text-slate-600">
+                      Score
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        min={0}
+                        max={max}
+                        step="any"
+                        value={boxValue}
+                        onChange={(e) => typePoints(criterion, e.target.value)}
+                        onBlur={() => clearPointDraft(criterion.id)}
+                        aria-label={`Score for ${criterion.name}`}
+                        aria-invalid={boxInvalid || undefined}
+                        {...tourFieldAttr(
+                          'quiz-grading.rubric-criterion-score',
+                          'quiz',
+                          criterion.id
+                        )}
+                        placeholder="–"
+                        className="w-9 rounded-sm border-b border-slate-300 bg-transparent px-0.5 text-right text-sm font-bold tabular-nums text-brand-blue-primary [appearance:textfield] placeholder:text-slate-400 hover:border-slate-500 focus:border-brand-blue-primary focus:outline-hidden aria-[invalid]:border-brand-red-primary [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      />
+                      <span className="tabular-nums text-slate-500">
+                        /{max}
+                      </span>
+                    </label>
+                    {noteButton}
+                  </div>
                 </>
               ) : (
-                <div className="mt-2 flex items-start gap-2">
+                <div className="mt-1.5 flex items-center gap-1.5">
                   <div className="flex min-w-0 flex-1 flex-wrap gap-1.5">
                     {levels.map((level) => {
                       const isSelected = selected?.levelId === level.id;
@@ -454,7 +460,7 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
                             'quiz',
                             `${criterion.id}-${level.id}`
                           )}
-                          className={`h-9 max-w-12 flex-[1_0_2.25rem] rounded-md border-2 text-base font-bold tabular-nums transition-colors [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-blue-primary ${
+                          className={`h-9 min-w-9 flex-1 rounded-md border-2 text-base font-bold tabular-nums transition-colors [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-blue-primary ${
                             isSelected
                               ? 'border-brand-blue-primary bg-brand-blue-primary text-white'
                               : 'border-brand-blue-primary/70 bg-white text-brand-blue-primary hover:bg-slate-100'
