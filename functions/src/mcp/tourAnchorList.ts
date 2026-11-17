@@ -13823,11 +13823,11 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ],
     "routes": [
       {
-        "surface": "quiz.paper-reprint",
+        "surface": "quiz.paper-copies-reprint",
         "kind": "modal",
         "path": [
           "library-shell.archive-menu:quiz#row-1",
-          "quiz-library.reprint-sheets:quiz"
+          "quiz-library.reprint-paper-copies:quiz"
         ],
         "needs": [
           "library-item",
@@ -78876,7 +78876,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.face",
         "kind": "widget",
         "widget_type": "quiz",
-        "path": [],
+        "path": [
+          "library-shell.archive-menu:quiz#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:quiz#row-1",
         "needs": [
           "widget-on-stage"
         ]
@@ -78896,7 +78899,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.face",
         "kind": "widget",
         "widget_type": "quiz",
-        "path": [],
+        "path": [
+          "library-shell.archive-menu:quiz#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:quiz#row-1",
         "needs": [
           "widget-on-stage"
         ]

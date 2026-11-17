@@ -16,10 +16,8 @@ import {
 import { PaperImportModal } from '@/components/widgets/QuizWidget/components/PaperImportModal';
 import { PaperPrintModal } from '@/components/widgets/QuizWidget/components/PaperPrintModal';
 import { printedGroupQuiz } from '@/utils/paperPrintedVersions';
-import {
-  PaperGroupReprintModal,
-  PaperReprintModal,
-} from '@/components/widgets/QuizWidget/components/PaperReprintModal';
+import { PaperReprintModal } from '@/components/widgets/QuizWidget/components/PaperReprintModal';
+import { PaperGroupReprintModal } from '@/components/widgets/QuizWidget/components/PaperGroupReprintModal';
 import type {
   ClassRoster,
   PaperBatch,

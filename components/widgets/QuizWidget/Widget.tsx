@@ -211,11 +211,11 @@ import {
   type PaperImportRequestExtra,
   type PaperImportWrittenResult,
 } from './components/PaperImportModal';
+import { PaperReprintModal } from './components/PaperReprintModal';
 import {
   PaperGroupReprintModal,
-  PaperReprintModal,
   type PaperReprintGroup,
-} from './components/PaperReprintModal';
+} from './components/PaperGroupReprintModal';
 import {
   firestoreDocData,
   readPaperImportQuota,

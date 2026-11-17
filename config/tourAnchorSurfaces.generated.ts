@@ -731,7 +731,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'quiz-print.cancel': ['quiz.paper-print'],
     'quiz-reprint.cancel': ['quiz.paper-reprint'],
     'quiz-reprint.print': ['quiz.paper-reprint'],
-    'quiz-reprint.group': ['quiz.paper-reprint'],
+    'quiz-reprint.group': ['quiz.paper-copies-reprint'],
     'quiz-reprint.student': ['quiz.paper-reprint'],
     'quiz-print.close': ['quiz.paper-print'],
     'quiz-print.import-remove': ['quiz.paper-print'],
