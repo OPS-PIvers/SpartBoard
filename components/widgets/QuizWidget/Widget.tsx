@@ -3538,7 +3538,9 @@ const TeacherQuizWidget: React.FC<{
                   quiz: studentView.quiz,
                   behavior: studentView.behavior,
                   crossOutOn: canAccessFeature('quiz-cross-out'),
-                  timeLimitOn: canAccessFeature(QUIZ_TIME_LIMIT_FEATURE),
+                  timeLimitOn:
+                    canAccessFeature(QUIZ_TIME_LIMIT_FEATURE) &&
+                    canAccessFeature('modification-groups'),
                 })}
             tabAwayTimerOn={canAccessFeature('tab-away-timer')}
             versions={studentView.versions}
