@@ -32,7 +32,7 @@ import {
   LiveViewControls,
   LiveViewFrame,
   LiveViewStat,
-} from '@/components/widgets/QuizWidget/components/monitor/LiveViewFrame';
+} from '@/components/widgets/QuizWidget/components/monitor/LiveViewPanel';
 import { savedAgo, type WritingMonitorRow } from '@/utils/writingMonitor';
 
 const minutes = (ms: number): string => `${Math.round(ms / 60_000)} min`;

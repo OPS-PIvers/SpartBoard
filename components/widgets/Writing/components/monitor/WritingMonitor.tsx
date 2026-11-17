@@ -1,5 +1,12 @@
 // The Writing monitor (D15) in the Quiz monitor's shell: header, class picker, status counts and roster rows, with Live view and Nudge.
-import React, { useCallback, useContext, useMemo, useState } from 'react';
+import React, {
+  Suspense,
+  lazy,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+} from 'react';
 import { Eye, Loader2, NotebookPen } from 'lucide-react';
 import type {
   WritingAssignmentRecord,
@@ -52,7 +59,13 @@ import {
 } from '@/utils/writingMonitor';
 import { formatAwayDuration } from '@/utils/tabAwayLimit';
 import { studentTargetRefKey } from '@/utils/studentTargetRef';
-import { WritingLiveViewPanel } from './WritingLiveViewPanel';
+
+// Lazy, as in the Quiz monitor: Live view's module carries the Quiz player.
+const WatchPanel = lazy(() =>
+  import('./WritingLiveViewPanel').then((m) => ({
+    default: m.WritingLiveViewPanel,
+  }))
+);
 
 const TYPE = 'writing';
 const BUCKET_LABELS: Partial<Record<BucketKey, string>> = {
@@ -394,13 +407,15 @@ export const WritingMonitorView: React.FC<{
       />
       {body}
       {session && canLiveView && watching && (
-        <WritingLiveViewPanel
-          session={session}
-          students={watchable}
-          studentKey={watching}
-          onSelect={setWatching}
-          onClose={() => setWatching(null)}
-        />
+        <Suspense fallback={null}>
+          <WatchPanel
+            session={session}
+            students={watchable}
+            studentKey={watching}
+            onSelect={setWatching}
+            onClose={() => setWatching(null)}
+          />
+        </Suspense>
       )}
     </div>
   );
