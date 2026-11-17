@@ -94,6 +94,9 @@ const WRITING_STRINGS = {
     `Write at least ${min} words to turn in. ${gap} to go.`,
   tooLong: (max: number, gap: number) =>
     `Your writing is ${gap} ${gap === 1 ? 'word' : 'words'} over the ${max}-word limit. Trim it to turn in.`,
+  tooShortServer: (min: number) => `Write at least ${min} words to turn in.`,
+  tooLongServer: (max: number) =>
+    `Your writing is over the ${max}-word limit. Trim it to turn in.`,
   turnedIn: 'You turned this in.',
   takeBack: 'Take back',
   takingBack: 'Taking back...',
@@ -134,8 +137,15 @@ const PRIMARY_BTN =
 const SECONDARY_BTN =
   'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-5 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-light disabled:cursor-not-allowed disabled:opacity-50';
 
-const noticeText = (n: WritingNotice): string | null => {
+const noticeText = (
+  n: WritingNotice,
+  session: Pick<WritingAssignmentSession, 'minWords' | 'maxWords'>
+): string | null => {
   switch (n) {
+    case 'too-short':
+      return session.minWords ? S.tooShortServer(session.minWords) : null;
+    case 'too-long':
+      return session.maxWords ? S.tooLongServer(session.maxWords) : null;
     case 'paste-blocked':
       return S.pasteBlocked;
     case 'not-saved':
@@ -259,7 +269,9 @@ export const WritingStudentShell: React.FC<{
   session: WritingShellSession;
   piece?: WritingShellPiece;
   onDone: () => void;
-}> = ({ session, piece, onDone }) => {
+  /** D11: the button to the student's own Writing record, when the teacher allows it. */
+  record?: React.ReactNode;
+}> = ({ session, piece, onDone, record }) => {
   const view: WritingPageView = piece?.view ?? {
     mode: 'not-started',
     status: null,
@@ -274,7 +286,7 @@ export const WritingStudentShell: React.FC<{
   const statusKey = view.status ?? 'none';
   const limit = wordLimitLabel(session.minWords, session.maxWords);
   const stimuli = session.stimuli ?? [];
-  const notice = piece?.notice ? noticeText(piece.notice) : null;
+  const notice = piece?.notice ? noticeText(piece.notice, session) : null;
   const showEditor =
     view.mode !== 'not-started' &&
     view.mode !== 'loading' &&
@@ -331,12 +343,15 @@ export const WritingStudentShell: React.FC<{
               ) : null}
             </div>
           </div>
-          <span
-            className="rounded-lg bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700"
-            data-testid="writing-status"
-          >
-            {S.status[statusKey]}
-          </span>
+          <div className="flex flex-wrap items-center gap-3">
+            {record}
+            <span
+              className="rounded-lg bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700"
+              data-testid="writing-status"
+            >
+              {S.status[statusKey]}
+            </span>
+          </div>
         </div>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-5 text-slate-800">

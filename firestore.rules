@@ -7071,6 +7071,8 @@ service cloud.firestore {
         allow update: if wrMine() && existing().status in ['draft', 'revising']
           && changedOnly(['html', 'summary', 'saveCount', 'saveKey', 'tabId', 'tabAt', 'logChunk'])
           && isStr('html') && incoming().html.size() <= 130000
+          && incoming().get('summary', {}).keys().hasOnly(['wordCount', 'savedAt', 'writingMs', 'sessions', 'pasteCount',
+            'pastedChars', 'untypedCount', 'untypedChars', 'awayMs', 'awayCount', 'logStoppedAt'])
           && incoming().saveCount > existing().saveCount
           && incoming().saveKey == incoming().tabId + ':' + string(incoming().saveCount)
           && (unchanged('tabId') || incoming().tabAt == request.time)
@@ -7079,8 +7081,9 @@ service cloud.firestore {
           && wrOpen(wrS()) && (studentLetIn(wrS()) || periodOpen(wrS(), existing().classId));
         // D25: only the open chunk is writable, a closed chunk never changes, and each write rides a
         // response save in the same batch (which carries that save's tab, lock and clock checks).
+        // D11: the student reads their own record only while the teacher lets them.
         match /log/{n} {
-          allow read: if wrTeacher();
+          allow read: if wrTeacher() || (wrMine() && wrS().get('studentCanViewRecord', false) == true);
           allow create, update: if wrMine() && n == string(wrR().logChunk)
             && dbGetAfter4('writing_assignment_sessions', sid, 'responses', uid).data.saveCount > wrR().saveCount
             && (noDoc() || existing().closed != true)

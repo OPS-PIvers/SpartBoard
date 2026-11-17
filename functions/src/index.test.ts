@@ -3903,6 +3903,7 @@ describe('index barrel — deployed export set', () => {
     'returnWritingV1',
     'returnWritingForRevisionV1',
     'saveWritingFeedbackV1',
+    'purgeWritingLogs',
     // Substitute shares
     'launchSubAssignmentV1',
     // Flashcards Check submission

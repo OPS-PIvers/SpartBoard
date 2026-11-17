@@ -195,6 +195,7 @@ export class WritingRecorder {
     this.closing.push({ index: this.chunk, log: this.writer.value });
     this.chunk += 1;
     this.writer = new WritingLogWriter('', text);
+    this.writer.continueLive();
     this.version += 1;
     return true;
   }

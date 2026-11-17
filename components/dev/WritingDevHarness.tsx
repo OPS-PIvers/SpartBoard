@@ -7,7 +7,11 @@ import {
   type WritingShellSession,
 } from '@/components/student/writing/WritingStudentShell';
 import { deriveWritingView } from '@/utils/writingStudentView';
+import { StudentWritingRecordButton } from '@/components/student/writing/StudentWritingRecord';
 import type { WritingResponseStatus } from '@/types';
+import { WritingRecordDemo, type RecordDemoId } from './WritingRecordDemo';
+
+const RECORD_DEMOS: RecordDemoId[] = ['teacher', 'full', 'purged', 'student'];
 
 const NOW = Date.UTC(2026, 10, 18, 15, 0);
 
@@ -111,7 +115,18 @@ const initialState = (): StateId => {
 
 const noop = () => undefined;
 
+const recordDemo = (): RecordDemoId | null => {
+  const q = new URLSearchParams(window.location.search).get('record');
+  return RECORD_DEMOS.includes(q as RecordDemoId) ? (q as RecordDemoId) : null;
+};
+
 export const WritingDevHarness: React.FC = () => {
+  const [record] = useState(recordDemo);
+  if (record) return <WritingRecordDemo id={record} />;
+  return <WritingPieceHarness />;
+};
+
+const WritingPieceHarness: React.FC = () => {
   const [state, setState] = useState<StateId>(initialState);
   const [bar] = useState(
     () => !new URLSearchParams(window.location.search).has('shot')
@@ -176,7 +191,20 @@ export const WritingDevHarness: React.FC = () => {
           ))}
         </div>
       )}
-      <WritingStudentShell session={SESSION} piece={piece} onDone={noop} />
+      <WritingStudentShell
+        session={SESSION}
+        piece={piece}
+        onDone={noop}
+        record={
+          f.status !== null && f.status !== 'draft' ? (
+            <StudentWritingRecordButton
+              sessionId="dev"
+              studentUid="dev"
+              facts={{ summary: undefined }}
+            />
+          ) : undefined
+        }
+      />
     </div>
   );
 };

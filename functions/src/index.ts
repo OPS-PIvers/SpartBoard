@@ -179,6 +179,7 @@ export {
   returnWritingForRevisionV1,
   saveWritingFeedbackV1,
 } from './writingResponses';
+export { purgeWritingLogs } from './writingLogPurge';
 
 // ── Flashcards Check submission (server-graded; docs/plans/shipped/FLASHCARDS.md §7) ─
 export {

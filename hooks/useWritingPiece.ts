@@ -17,7 +17,7 @@ import {
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
-import type { WritingResponse } from '@/types';
+import type { WritingResponse, WritingResponseSummary } from '@/types';
 import { editorPlainText } from '@/hooks/useInputSignals';
 import { countWords } from '@/utils/wordCount';
 import { logError } from '@/utils/logError';
@@ -119,6 +119,15 @@ const codeOf = (err: unknown): string => {
 
 const isOnline = () =>
   typeof navigator === 'undefined' ? true : navigator.onLine;
+
+/** D21: once the yearly deletion took a piece's log, recording stays stopped and the summary keeps counting. */
+function purgedBase(
+  base: WritingResponseSummary | undefined,
+  purgedAt: number | undefined
+): WritingResponseSummary | undefined {
+  if (!isNum(purgedAt) || !base || isNum(base.logStoppedAt)) return base;
+  return { ...base, logStoppedAt: purgedAt };
+}
 
 export function useWritingPiece(args: {
   sessionId: string;
@@ -472,7 +481,7 @@ export function useWritingPiece(args: {
         log: fromCopy ? fromCopy.log : fromServer.log,
         startText: fromServer.startText,
         chunk: logChunk,
-        base: send ? send.summary : s.summary,
+        base: purgedBase(send ? send.summary : s.summary, s.logPurgedAt),
       });
       const htmlStart = send ? send.html : (s.html ?? '');
       const saveCount = serverCount + 1;

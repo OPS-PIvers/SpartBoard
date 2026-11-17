@@ -4,7 +4,7 @@ import { Loader2 } from 'lucide-react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { useStudentAuth } from '@/context/useStudentAuth';
-import type { TabExit, WritingAssignmentSession } from '@/types';
+import type { WritingAssignmentSession } from '@/types';
 import { useStudentAssignmentPointer } from '@/hooks/useStudentAssignmentPointer';
 import { useTabAwayTracker } from '@/hooks/useTabAwayTracker';
 import { useWritingPiece } from '@/hooks/useWritingPiece';
@@ -12,6 +12,7 @@ import { PageProtectionGuards } from '@/components/common/PageProtectionGuards';
 import { effectivePageProtections } from '@/utils/pageProtections';
 import { deriveWritingView, writingClosed } from '@/utils/writingStudentView';
 import { WritingStudentShell } from './WritingStudentShell';
+import { StudentWritingRecordButton } from './StudentWritingRecord';
 
 const SESSIONS = 'writing_assignment_sessions';
 
@@ -80,8 +81,7 @@ const WritingPiecePage: React.FC<{
   // Focus mode: fullscreen at the lock level and print blocking; the editor owns paste (D8).
   const protections = effectivePageProtections(session, override);
   const writing = view.mode === 'writing';
-  // Time away from the tab goes into the summary (D9), counted once per return.
-  const counted = useRef(new Set<number>());
+  // Time away from the tab goes into the summary (D9), once per return, past the exit log's cap too.
   const recordAway = piece.recordAway;
   const releaseRef = useRef<() => void>(() => undefined);
   const tracker = useTabAwayTracker({
@@ -92,14 +92,10 @@ const WritingPiecePage: React.FC<{
     attempt: 0,
     getPosition: () => ({}),
     onLeave: () => Promise.resolve(false),
-    saveExits: (exits: TabExit[]) => {
-      const last = exits[exits.length - 1];
-      if (last?.outcome && !counted.current.has(last.leftAt)) {
-        counted.current.add(last.leftAt);
-        recordAway(last.durationMs ?? 0);
-        releaseRef.current();
-      }
-      return Promise.resolve();
+    saveExits: undefined,
+    onExitClosed: (_outcome, ms) => {
+      recordAway(ms);
+      releaseRef.current();
     },
     limitMs: null,
     autoSubmit: false,
@@ -117,6 +113,18 @@ const WritingPiecePage: React.FC<{
       <WritingStudentShell
         session={session}
         onDone={onDone}
+        record={
+          session.studentCanViewRecord === true && response ? (
+            <StudentWritingRecordButton
+              sessionId={session.id}
+              studentUid={studentUid}
+              facts={{
+                summary: response.summary,
+                logPurgedAt: response.logPurgedAt,
+              }}
+            />
+          ) : undefined
+        }
         piece={{
           view,
           editorKey: writing
