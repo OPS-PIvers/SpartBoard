@@ -260,4 +260,21 @@ describe('auto Late and Missing around the class-close cushion', () => {
       'missing',
     ]);
   });
+
+  it('shows an excused Writing piece as Excused, out of the average', () => {
+    const row = {
+      ...rowAt(due),
+      kind: 'writing' as const,
+      state: 'scored' as const,
+      excused: true as const,
+    };
+    expect(flags(row, due)).toEqual(['excused']);
+    expect(
+      core.resolveFinalScore(row, null, null, {
+        flagDefs: core.DEFAULT_GRADEBOOK_FLAGS,
+        autoFlags: true,
+        now: due,
+      }).status
+    ).toBe('excluded');
+  });
 });

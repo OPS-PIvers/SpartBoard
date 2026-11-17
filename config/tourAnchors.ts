@@ -4455,6 +4455,12 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'quiz-grading.excuse': {
+    label: 'Excuse button in the grader',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
   'quiz-grading.undo-excuse': {
     label: 'Undo excuse in the Quiz grader',
     perWidgetType: true,
@@ -17252,6 +17258,49 @@ export const TOUR_ANCHORS = {
   'writing-editor.save': {
     label: 'Save button in the Writing editor',
     persists: true,
+    panel: true,
+  },
+  'writing-results.back': {
+    label: 'Back button in Writing results',
+    perWidgetType: true,
+  },
+  'writing-results.grade': {
+    label: 'Grade button in Writing results',
+    perWidgetType: true,
+  },
+  'writing-results.hide-names': {
+    label: 'Hide names button in Writing results',
+    perWidgetType: true,
+  },
+  'writing-results.drill-students': {
+    label: 'Students row in Writing results',
+    perWidgetType: true,
+  },
+  'writing-results.sort': {
+    label: 'Student sort in Writing results',
+    perField: true,
+  },
+  'writing-results.student-row': {
+    label: 'Student row in Writing results',
+    perField: true,
+    rows: true,
+  },
+  'writing-grading.return': {
+    label: 'Return button in the Writing grader',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'writing-grading.return-revision': {
+    label: 'Return for revision button in the Writing grader',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'writing-grading.student-record': {
+    label:
+      'Students can replay their own writing checkbox in the Writing grader',
+    perWidgetType: true,
     panel: true,
   },
   'gl-ai.attach-doc': {

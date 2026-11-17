@@ -458,6 +458,13 @@ const WritingDevHarness = import.meta.env.DEV
       }))
     )
   : null;
+const WritingGraderDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/WritingGraderDevHarness').then((module) => ({
+        default: module.WritingGraderDevHarness,
+      }))
+    )
+  : null;
 const FamilyLinkDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/FamilyLinkDevHarness').then((module) => ({
@@ -1130,6 +1137,15 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <WritingDevHarness />
+      </Suspense>
+    );
+  }
+
+  // Writing results, grader and returned feedback on fixtures; dev builds only.
+  if (WritingGraderDevHarness && pathname === '/writing-grader-dev') {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <WritingGraderDevHarness />
       </Suspense>
     );
   }

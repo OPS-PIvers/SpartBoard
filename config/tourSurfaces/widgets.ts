@@ -809,6 +809,31 @@ export const SURFACES: TourSurfaceMap = {
       'projects-editor.bulk-cancel': 'projects-editor.paste-steps',
     },
   },
+  'widgets.writing.results': {
+    label: 'Writing results',
+    kind: 'panel',
+    files: [
+      'components/widgets/Writing/components/results/WritingResults.tsx',
+      'components/widgets/Writing/components/results/WritingResultsView.tsx',
+    ],
+    opensWith: 'library-shell.archive-primary-action:writing#row-1',
+    parent: 'widgets.writing.face',
+    widgetType: 'writing',
+    needs: ['library-item', 'student-data'],
+    inner: {
+      'writing-results.sort': 'writing-results.drill-students:writing',
+      'writing-results.student-row': 'writing-results.drill-students:writing',
+    },
+  },
+  'widgets.writing.grader': {
+    label: 'Writing grader',
+    kind: 'modal',
+    files: ['components/widgets/Writing/components/results/WritingGrader.tsx'],
+    opensWith: 'writing-results.grade:writing',
+    parent: 'widgets.writing.results',
+    widgetType: 'writing',
+    needs: ['library-item', 'student-data'],
+  },
   'widgets.writing.editor': {
     label: 'Writing assignment editor',
     kind: 'modal',

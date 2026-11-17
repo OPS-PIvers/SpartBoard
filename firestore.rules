@@ -4377,7 +4377,8 @@ service cloud.firestore {
         'flashcards': 'flashcard_sessions',
         'projects': 'project_runs',
         'mini-app': 'mini_app_sessions',
-        'activity-wall': 'activity_wall_sessions'
+        'activity-wall': 'activity_wall_sessions',
+        'writing': 'writing_assignment_sessions'
       }[d.kind])/$(d.sessionId)).data.teacherUid == authUid();
     }
     function gbCreateOk(d) {

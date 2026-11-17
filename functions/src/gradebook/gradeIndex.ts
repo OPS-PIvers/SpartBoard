@@ -21,11 +21,13 @@ import {
   scoreProjectMember,
   scoreQuizResponse,
   scoreVideoResponse,
+  scoreWritingResponse,
   parseStepTargets,
   toMillis,
   type QuizContext,
   isReviewQuiz,
 } from './gradeRowMath';
+import { writingGradingMax } from '../writingResponseState';
 import type { ClassStudents } from './projectMemberAuthority';
 import { RosterUnavailableError } from './rosterUnavailable';
 import type {
@@ -54,6 +56,7 @@ export const STUDENT_SUBCOLLECTION: Record<GradeKind, string> = {
   projects: 'grades',
   'mini-app': 'submissions',
   'activity-wall': 'submissions',
+  writing: 'responses',
 };
 
 const asRecord = (v: unknown): Doc =>
@@ -95,6 +98,9 @@ export interface SessionContext {
   quiz?: QuizContext;
 }
 
+const writingMaxPoints = (session: Doc): number | null =>
+  writingGradingMax(session.grading);
+
 /** A doc key the index can't tie to a stable student (anonymous PIN joins). */
 const isPinKey = (docId: string): boolean => docId.startsWith('pin-');
 
@@ -110,6 +116,8 @@ export async function loadSessionContext(
   const teacherUid = asString(session.teacherUid);
   if (!teacherUid) return null;
   if (isResourceSession(kind, session)) return null;
+  // Ungraded Writing has nothing to put in a column.
+  if (kind === 'writing' && writingMaxPoints(session) === null) return null;
 
   if (kind === 'quiz') {
     session = await withQuizSessionContent(ref, session);
@@ -203,6 +211,8 @@ export async function loadSessionContext(
         toMillis(submission.submittedAt),
         meta.classIds.length === 1 ? meta.classIds[0] : null
       ),
+    writing: (_uid, response) =>
+      scoreWritingResponse(writingMaxPoints(s), response),
   };
   return { kind, sessionId, session: s, meta, score: scorers[kind] };
 }
@@ -227,6 +237,8 @@ export function studentUidFor(
       return asString(data.studentUid) || null;
     case 'activity-wall':
       return data.isGuest === true ? null : asString(data.authorUid) || null;
+    case 'writing':
+      return docId;
     case 'projects':
       return null;
   }
@@ -585,6 +597,7 @@ const WATCHED: Record<GradeKind, string[]> = {
   projects: ['points', 'maxPoints', 'overridesByUid', 'released', 'gradedAt'],
   'mini-app': ['submittedAt', 'studentUid', 'best'],
   'activity-wall': ['submittedAt', 'authorUid'],
+  writing: ['status', 'grade', 'turnedInAt', 'classId', 'startedAt'],
 };
 
 export function docWriteMatters(w: DocWrite): boolean {
