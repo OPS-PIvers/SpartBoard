@@ -177,6 +177,18 @@ describe('deriveWritingView', () => {
     expect(
       derive({
         response: response({ status: 'turned-in' }),
+        session: { status: 'ended', endedAt: NOW - 200_000 },
+      }).showTakeBack
+    ).toBe(false);
+    expect(
+      derive({
+        response: response({ status: 'turned-in' }),
+        session: { closeAt: NOW - 200_000 },
+      }).showTakeBack
+    ).toBe(false);
+    expect(
+      derive({
+        response: response({ status: 'turned-in' }),
         pointer: { dueAt: NOW + 5 },
         session: { dueAt: NOW - 1 },
       }).showTakeBack

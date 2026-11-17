@@ -40,6 +40,7 @@ import { WritingRecorder, openChunkFromLogs } from '@/utils/writingRecorder';
 import {
   deriveWritingStatus,
   isWritingUnlocked,
+  timedTurnInDue,
 } from '@/utils/writingResponseState';
 import {
   LOG_EVERY_MS,
@@ -49,6 +50,9 @@ import {
   saveKeyOf,
   turnInFlush,
 } from '@/utils/writingSaveFlow';
+
+const isNum = (v: unknown): v is number =>
+  typeof v === 'number' && Number.isFinite(v);
 
 const SESSIONS = 'writing_assignment_sessions';
 /** Text saves 1.5 s after typing stops, at least every 10 s while typing. */
@@ -147,6 +151,7 @@ export function useWritingPiece(args: {
   const [notice, setNotice] = useState<WritingNotice | null>(null);
   const [busy, setBusy] = useState<'turn-in' | 'take-back' | null>(null);
   const [turningIn, setTurningIn] = useState(false);
+  const [timeUp, setTimeUp] = useState(false);
   const [html, setHtml] = useState('');
   const [seed, setSeed] = useState({ key: 0, html: '' });
 
@@ -241,10 +246,13 @@ export function useWritingPiece(args: {
     );
   }, [sessionId, studentUid]);
 
-  // A close passing while this tab holds the piece: the rules refuse saves from here on.
-  const closeOut = useEffectEvent(() => letGo(null));
+  // A close or end while this tab holds the piece: one last save inside the rules' grace, then let go.
+  const closeOut = useEffectEvent(async () => {
+    await runSave(true).catch(() => false);
+    letGo(null);
+  });
   useEffect(() => {
-    if (closed && holding) closeOut();
+    if (closed && holding) void closeOut();
   }, [closed, holding]);
 
   /** Writes the device copy of `text`; false (and not "saved on this device") when storage refuses it. */
@@ -443,6 +451,15 @@ export function useWritingPiece(args: {
         clearDeviceCopy(storage, studentUid, sessionId);
       }
       if (!isWritingUnlocked(status) || closedRef.current) return;
+      // Time is up: the timed turn in freezes the server's text, so a copy not sent is kept to copy out.
+      if (isNum(s.deadlineAt) && timedTurnInDue(Date.now(), s.deadlineAt)) {
+        if (decision === 'send' && copy) {
+          putUnsent(copy.html);
+          clearDeviceCopy(storage, studentUid, sessionId);
+        }
+        setTimeUp(true);
+        return;
+      }
       const logChunk = typeof s.logChunk === 'number' ? s.logChunk : 0;
       const fromServer = openChunkFromLogs(opened.logs);
       if (fromServer.chunk !== logChunk)
@@ -531,6 +548,7 @@ export function useWritingPiece(args: {
     !holding &&
     !claiming &&
     !lost &&
+    !timeUp &&
     notice !== 'open-failed' &&
     notice !== 'closed';
   const autoStart = useEffectEvent(() => void start());
@@ -539,6 +557,61 @@ export function useWritingPiece(args: {
     const id = window.setTimeout(autoStart, 0);
     return () => window.clearTimeout(id);
   }, [wantsStart]);
+
+  // A timed piece turns itself in when its clock runs out, carrying this tab's text if it holds the piece.
+  const deadlineAt =
+    response &&
+    status !== null &&
+    isWritingUnlocked(status) &&
+    isNum(response.deadlineAt)
+      ? response.deadlineAt
+      : null;
+  const timedTries = useRef(0);
+  const [timedRetry, setTimedRetry] = useState(0);
+  const timedTurnIn = useEffectEvent(async () => {
+    setTimeUp(true);
+    setTurningIn(true);
+    try {
+      const held = holdingRef.current;
+      const flush = held
+        ? turnInFlush({
+            html: htmlRef.current,
+            savedHtml: savedHtmlRef.current,
+            confirmed: confirmedRef.current,
+          })
+        : null;
+      const summary = flush
+        ? recorderRef.current?.summary(countWords(flush.html), Date.now())
+        : undefined;
+      await httpsCallable(
+        functions,
+        'turnInTimedWritingV1'
+      )({
+        sessionId,
+        ...(flush
+          ? {
+              tabId: myTabId,
+              html: flush.html,
+              saveCount: flush.saveCount,
+              ...(summary ? { summary } : {}),
+            }
+          : {}),
+      });
+    } catch (err) {
+      logError('useWritingPiece.timedTurnIn', err);
+      timedTries.current += 1;
+      if (timedTries.current < 6)
+        window.setTimeout(() => setTimedRetry((n) => n + 1), 5_000);
+    } finally {
+      setTurningIn(false);
+    }
+  });
+  useEffect(() => {
+    if (deadlineAt === null || !studentUid) return;
+    const wait = Math.max(0, deadlineAt - Date.now());
+    const id = window.setTimeout(() => void timedTurnIn(), wait);
+    return () => window.clearTimeout(id);
+  }, [deadlineAt, studentUid, timedRetry]);
 
   // Timers: debounced text saves, the log cadence, and saves on hide and reconnect; the device copy on hide and close.
   const saveTimer = useRef<{ idle: number | null; firstAt: number | null }>({
@@ -792,7 +865,9 @@ export function useWritingPiece(args: {
           ? 'take-back-feedback'
           : reason === 'past-due'
             ? 'take-back-past-due'
-            : 'take-back-failed'
+            : reason === 'closed'
+              ? 'closed'
+              : 'take-back-failed'
       );
     } finally {
       setBusy(null);

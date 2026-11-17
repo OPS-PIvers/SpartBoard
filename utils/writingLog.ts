@@ -67,6 +67,8 @@ const escapeText = (s: string) =>
     /[%,;!:]/g,
     (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`
   );
+/** Bytes `s` takes in a log once escaped. */
+export const encodedLength = (s: string): number => utf8Length(escapeText(s));
 const unescapeText = (s: string) =>
   s.replace(/%(25|2C|3B|21|3A)/g, (_, hex: string) =>
     String.fromCharCode(parseInt(hex, 16))

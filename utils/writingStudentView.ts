@@ -6,6 +6,7 @@ import {
   WRITING_CLOSE_GRACE_MS,
   deriveWritingStatus,
   isWritingUnlocked,
+  resolveWritingCloseAt,
   resolveWritingDueAt,
   takeBackBlock,
   type WritingResponseStatus,
@@ -59,6 +60,7 @@ export type WritingSessionFacts = Pick<
   | 'maxWords'
   | 'enforceWordLimit'
   | 'timeLimitMinutes'
+  | 'endedAt'
 >;
 
 export type WritingResponseFacts = Pick<
@@ -131,6 +133,7 @@ export function deriveWritingView(args: {
       dueAt: resolveWritingDueAt(session, response.classId, pointer?.dueAt),
       hasFeedback: false,
       timed: isNum(response.deadlineAt),
+      closeAt: resolveWritingCloseAt(session, pointer?.closeAt),
     });
     return { ...base, mode: 'turned-in', status, showTakeBack: block === null };
   }

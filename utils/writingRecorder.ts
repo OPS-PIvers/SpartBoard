@@ -5,6 +5,7 @@ import {
   SESSION_GAP_MS,
   WritingLogWriter,
   diffText,
+  encodedLength,
   parseWritingLog,
   textAfter,
   utf8Length,
@@ -162,9 +163,9 @@ export class WritingRecorder {
   ): void {
     if (this.counts.logStoppedAt !== undefined) return;
     const need =
-      utf8Length(ins) +
+      encodedLength(ins) +
       EDIT_OVERHEAD +
-      (this.writer.current === prev ? 0 : utf8Length(prev) + EDIT_OVERHEAD);
+      (this.writer.current === prev ? 0 : encodedLength(prev) + EDIT_OVERHEAD);
     // An edit no chunk could hold ends the log here; a later chunk could not replay past a cut.
     if (need > this.chunkBytes) {
       this.counts.logStoppedAt = wall;

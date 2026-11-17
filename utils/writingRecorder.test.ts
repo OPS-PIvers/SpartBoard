@@ -114,6 +114,15 @@ describe('WritingRecorder', () => {
     );
   });
 
+  it('rolls to the next chunk for a paste whose escaped punctuation would not fit', () => {
+    const rec = fresh({ chunkBytes: 400 });
+    rec.edit('', 'a'.repeat(150), 0, 'typed', MIN);
+    const paste = ',;:'.repeat(30);
+    rec.edit('a'.repeat(150), `${'a'.repeat(150)}${paste}`, 10, 'pasted', MIN);
+    expect(rec.summary(1, 1).logStoppedAt).toBeUndefined();
+    expect(rec.nextClosing?.index).toBe(0);
+  });
+
   it('stops recording at one edit bigger than a chunk, keeping the chunks replayable', () => {
     const rec = fresh({ chunkBytes: 200 });
     rec.edit('', 'a', 0, 'typed', MIN);
