@@ -97,9 +97,7 @@ const setup = () => {
 describe('PaperGroupReprintModal', () => {
   it('lists every printed student in one list, by last name', () => {
     setup();
-    const names = screen
-      .getAllByRole('checkbox')
-      .map((c) => c.closest('label')?.textContent);
+    const names = screen.getAllByRole('checkbox').map((c) => c.textContent);
     expect(names).toEqual([
       'Group 11 student',
       'Group 21 student',

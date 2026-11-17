@@ -4,7 +4,7 @@ import React from 'react';
 import { tourFieldAttr } from '@/config/tourAnchors';
 import type { ClassRoster, PaperBatch, QuizData } from '@/types';
 import type { printPaperSheets } from '@/utils/paperSheetPrint';
-import { PaperStacksReprintDialog } from './PaperReprintModal';
+import { PaperStacksReprintDialog, ReprintCheckRow } from './PaperReprintModal';
 
 /** One printed group's stack, with the quiz version it printed. */
 export interface PaperReprintGroup {
@@ -32,39 +32,29 @@ export const PaperGroupReprintModal: React.FC<{
                 if (keys.length === 0) return null;
                 const all = keys.every((k) => picked.has(k));
                 return (
-                  <label
+                  <ReprintCheckRow
                     key={g.batch.id}
-                    className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 text-sm font-semibold text-slate-800 hover:bg-slate-50"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={all}
-                      ref={(el) => {
-                        if (el)
-                          el.indeterminate =
-                            !all && keys.some((k) => picked.has(k));
-                      }}
-                      onChange={() => {
-                        const next = new Set(picked);
-                        for (const k of keys)
-                          if (all) next.delete(k);
-                          else next.add(k);
-                        setPicked(next);
-                      }}
-                      {...tourFieldAttr(
-                        'quiz-reprint.group',
-                        'quiz',
-                        String(i + 1)
-                      )}
-                      className="h-4 w-4 rounded-sm border-slate-300"
-                    />
-                    <span className="truncate">{g.label}</span>
-                    <span className="ml-auto shrink-0 text-xs font-normal text-slate-500">
-                      {keys.length === 1
+                    label={g.label}
+                    detail={
+                      keys.length === 1
                         ? '1 student'
-                        : `${keys.length} students`}
-                    </span>
-                  </label>
+                        : `${keys.length} students`
+                    }
+                    strong
+                    checked={all}
+                    onToggle={() => {
+                      const next = new Set(picked);
+                      for (const k of keys)
+                        if (all) next.delete(k);
+                        else next.add(k);
+                      setPicked(next);
+                    }}
+                    anchor={tourFieldAttr(
+                      'quiz-reprint.group',
+                      'quiz',
+                      String(i + 1)
+                    )}
+                  />
                 );
               })}
             </div>

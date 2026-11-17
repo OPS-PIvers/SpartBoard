@@ -1,9 +1,13 @@
 // Print response sheets again for a Paper assignment: the same seats, so a lost sheet still imports as its student.
 
 import React, { useMemo, useState } from 'react';
-import { AlertTriangle, Printer } from 'lucide-react';
+import { AlertTriangle, Check, Printer } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
-import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
+import {
+  tourFieldAttr,
+  tourTypeAttr,
+  type TourAnchorAttrs,
+} from '@/config/tourAnchors';
 import { useAuth } from '@/context/useAuth';
 import { usePaperSheetStimulusImages } from '@/hooks/usePaperSheetStimulusImages';
 import type { ClassRoster, PaperBatch, QuizData, Student } from '@/types';
@@ -76,6 +80,47 @@ export const PaperReprintModal: React.FC<PaperReprintModalProps> = ({
   const stacks = useMemo(() => [{ quiz, batch }], [quiz, batch]);
   return <PaperStacksReprintDialog stacks={stacks} {...rest} />;
 };
+
+/** One checkable row in the reprint list. */
+export const ReprintCheckRow: React.FC<{
+  label: string;
+  detail?: string;
+  checked: boolean;
+  onToggle: () => void;
+  anchor: TourAnchorAttrs;
+  strong?: boolean;
+}> = ({ label, detail, checked, onToggle, anchor, strong }) => (
+  <button
+    type="button"
+    role="checkbox"
+    aria-checked={checked}
+    aria-label={label}
+    onClick={onToggle}
+    {...anchor}
+    className={`flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm transition-colors [-webkit-tap-highlight-color:transparent] focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 touch:py-2.5 ${
+      checked
+        ? 'bg-brand-blue-lighter/50 text-brand-blue-dark'
+        : 'text-slate-800 hover:bg-slate-50'
+    } ${strong ? 'font-semibold' : ''}`}
+  >
+    <span
+      aria-hidden
+      className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[5px] border transition-colors ${
+        checked
+          ? 'border-brand-blue-primary bg-brand-blue-primary text-white'
+          : 'border-slate-300 bg-white'
+      }`}
+    >
+      {checked && <Check className="h-3 w-3" strokeWidth={3} />}
+    </span>
+    <span className="min-w-0 flex-1 truncate">{label}</span>
+    {detail && (
+      <span className="shrink-0 text-xs font-normal text-slate-500">
+        {detail}
+      </span>
+    )}
+  </button>
+);
 
 /** Reprint one or more stacks: students from every stack in one list, each printing on its own stack's version. */
 export const PaperStacksReprintDialog: React.FC<ReprintDialogProps> = ({
@@ -311,23 +356,17 @@ export const PaperStacksReprintDialog: React.FC<ReprintDialogProps> = ({
                     {roster.name}
                   </p>
                   {rows.map(({ key, seat, student }) => (
-                    <label
+                    <ReprintCheckRow
                       key={key}
-                      className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 text-sm text-slate-800 hover:bg-slate-50"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={picked.has(key)}
-                        onChange={() => toggle(key)}
-                        {...tourFieldAttr(
-                          'quiz-reprint.student',
-                          'quiz',
-                          String(seat)
-                        )}
-                        className="h-4 w-4 rounded-sm border-slate-300"
-                      />
-                      <span className="truncate">{studentName(student)}</span>
-                    </label>
+                      label={studentName(student)}
+                      checked={picked.has(key)}
+                      onToggle={() => toggle(key)}
+                      anchor={tourFieldAttr(
+                        'quiz-reprint.student',
+                        'quiz',
+                        String(seat)
+                      )}
+                    />
                   ))}
                 </div>
               ))}
