@@ -19,6 +19,7 @@ export const KIND_LABELS: Record<GradebookKind, string> = {
   projects: 'Project',
   'mini-app': 'Mini app',
   'activity-wall': 'Activity wall',
+  writing: 'Writing',
 };
 
 // Flag colors are Tailwind hue names; full class strings keep them in the build.

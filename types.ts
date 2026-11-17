@@ -4531,6 +4531,8 @@ export interface QuizQuestion {
   /** Time limit in seconds. 0 = no time limit. */
   timeLimit: number;
   text: string;
+  /** Modified wording of the prompt for students in a group with modified questions; same answer key. */
+  modifiedText?: string;
   type: QuizQuestionType;
   /**
    * MC/FIB: the correct answer text. Multi-blank FIB: one answer per blank joined by `FIB_BLANK_SEP`.
@@ -5354,6 +5356,8 @@ export interface QuizPublicQuestion {
   id: string;
   type: QuizQuestion['type'];
   text: string;
+  /** The teacher's modified prompt, shown only to students whose override asks for it. */
+  modifiedText?: string;
   timeLimit: number;
   /** MC/MA: all answer choices pre-shuffled (correct identity unknown) */
   choices?: string[];
@@ -7316,7 +7320,17 @@ export interface StudentOverride {
   closeAt?: number; // per-student window shift (epoch ms)
   /** BCP-47 code, e.g. 'es' | 'so' | 'hmn'. Absent = English. Shape-validated only. */
   language?: string;
+  /** Quiz only: serve each question's modified wording where the teacher wrote one. */
+  modifiedQuestions?: boolean;
+  /** Quiz only: teacher-provided supports shown in the student's Supports panel. */
+  supports?: QuizSupport[];
 }
+
+/** A word bank, a link or a Drive file the teacher gives a student during a quiz. */
+export type QuizSupport =
+  | { kind: 'text'; title: string; text: string }
+  | { kind: 'link'; title: string; url: string }
+  | { kind: 'drive'; title: string; fileId: string };
 
 /**
  * Server-fan-out pointer doc at `/student_assignments/{studentUid}/items/{assignmentId}`.
@@ -8385,6 +8399,8 @@ export interface VideoActivityResponse extends StaffResponseFields {
   resultsLockedOutAt?: number;
   /** Teacher marks for short-answer questions, keyed by question id. Teacher-written only. */
   grading?: Record<string, WrittenAnswerGrade>;
+  /** Set when the last publish kept right/wrong off `answers`, so the student sees only `score`. */
+  verdictsWithheld?: boolean;
 }
 
 /**
@@ -10600,10 +10616,12 @@ export interface WritingAssignmentDefinition {
 
 /** Per-board state only; Writing assignments live in the teacher's library. */
 export interface WritingConfig {
-  /** Which face the widget shows; later PRs add the grader view. */
-  view?: 'manager' | 'monitor';
+  /** Which face the widget shows; `results` grades `resultsSessionId`. */
+  view?: 'manager' | 'monitor' | 'results';
   /** The session the monitor shows. */
   monitorSessionId?: string;
+  /** The session the results face shows. */
+  resultsSessionId?: string;
   /** Tab within the manager view. */
   managerTab?: 'library' | 'active' | 'archive';
   /** Persisted library grid/list toggle. */
@@ -11185,7 +11203,6 @@ export interface UserRolesConfig {
   teachers: string[];
   betaTeachers: string[];
   admins: string[];
-  superAdmins: string[];
 }
 
 /**
@@ -11790,7 +11807,9 @@ export type GlobalFeature =
   | 'assign-due-date'
   /** Reopen an ended quiz for selected students only. */
   | 'reopen-selected-students'
-  | 'share-import-confirm';
+  | 'share-import-confirm'
+  /** A score-only Video Activity publish keeps right/wrong off students' answers. */
+  | 'va-score-only-verdicts';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

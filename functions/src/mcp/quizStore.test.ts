@@ -18,6 +18,30 @@ const store = (q: FriendlyQuestion, existing?: StoredQuestion) =>
   toStoredQuestion(q, 1, existing, newId);
 
 describe('toStoredQuestion', () => {
+  it('drops the modified wording when the prompt is rewritten', () => {
+    const existing: StoredQuestion = {
+      id: 'q1',
+      timeLimit: 0,
+      text: 'Which planet is closest to the Sun?',
+      type: 'MC',
+      correctAnswer: 'Mercury',
+      incorrectAnswers: ['Venus'],
+      modifiedText: 'Which planet is nearest the Sun?',
+    };
+    const q = {
+      type: 'multiple_choice' as const,
+      correct_answer: 'Mercury',
+      incorrect_answers: ['Venus', 'Mars'],
+    };
+    expect(
+      store({ ...q, text: 'Which planet is closest to the Sun?' }, existing)
+        .modifiedText
+    ).toBe('Which planet is nearest the Sun?');
+    expect(
+      store({ ...q, text: 'Which planet is largest?' }, existing).modifiedText
+    ).toBeUndefined();
+  });
+
   it("keeps the teacher's printed lettering when an edit keeps the same options", () => {
     const existing: StoredQuestion = {
       id: 'q1',

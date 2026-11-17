@@ -111,15 +111,15 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
 }) => {
   const { t } = useTranslation();
   const { rosters, addRoster, updateRoster, addToast } = useDashboard();
-  const { user, userRoles, orgId, roleId } = useAuth();
+  const { orgId, roleId } = useAuth();
   const bellOptions = useTeacherBellPeriodOptions();
   const backfillRef = useRef({ rosters, updateRoster, bellOptions });
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   backfillRef.current = { rosters, updateRoster, bellOptions };
 
   const canReadTestClassesForOrg = useMemo(
-    () => canReadTestClasses(orgId, roleId, userRoles, user?.email),
-    [orgId, roleId, userRoles, user?.email]
+    () => canReadTestClasses(orgId, roleId),
+    [orgId, roleId]
   );
 
   const [loading, setLoading] = useState(false);

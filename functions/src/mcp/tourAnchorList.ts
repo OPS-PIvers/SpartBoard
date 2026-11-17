@@ -6362,6 +6362,135 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-mods.modified-questions",
+    "label": "Modified questions switch for a modification group",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-step.modifications"
+        ],
+        "reveal": "assign-step.modifications"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.supports-add",
+    "label": "Add support button for a modification group",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-step.modifications"
+        ],
+        "reveal": "assign-step.modifications"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.supports-kind",
+    "label": "Text, Link or Drive file choice in the Add support menu",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.supports-add"
+        ],
+        "reveal": "assign-mods.supports-add"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.support-title",
+    "label": "Support title field for a modification group",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.supports-add"
+        ],
+        "reveal": "assign-mods.supports-add"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.support-body",
+    "label": "Support text or link field for a modification group",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.supports-add"
+        ],
+        "reveal": "assign-mods.supports-add"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.support-save",
+    "label": "Add button that saves a new support",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.supports-add"
+        ],
+        "reveal": "assign-mods.supports-add"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.support-cancel",
+    "label": "Cancel button for a new support",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.supports-add"
+        ],
+        "reveal": "assign-mods.supports-add"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.support-remove",
+    "label": "Remove support button for a modification group",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-step.modifications"
+        ],
+        "reveal": "assign-step.modifications"
+      }
+    ]
+  },
+  {
     "id": "assign-mods.remove-group",
     "label": "Remove group button in the Assign dialog Modifications step",
     "scope": "board",
@@ -7894,6 +8023,52 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new:quiz",
           "library-shell.new-menu-item:quiz#item-1"
         ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.modified",
+    "label": "Modified version row under Learning targets in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.modified-text",
+    "label": "Modified version wording box in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-editor.modified:quiz"
+        ],
+        "reveal": "quiz-editor.modified:quiz",
         "needs": [
           "widget-on-stage"
         ]
@@ -18358,6 +18533,32 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-grading.comment",
     "label": "Teacher comment box in the Quiz grader",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.grader",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.excuse",
+    "label": "Excuse button in the grader",
     "scope": "widget type",
     "panel": true,
     "persists": true,
@@ -76121,6 +76322,220 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         ],
         "needs": [
           "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-results.back",
+    "label": "Back button in Writing results",
+    "scope": "widget type",
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.results",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-results.grade",
+    "label": "Grade button in Writing results",
+    "scope": "widget type",
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.results",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-results.hide-names",
+    "label": "Hide names button in Writing results",
+    "scope": "widget type",
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.results",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-results.drill-students",
+    "label": "Students row in Writing results",
+    "scope": "widget type",
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.results",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-results.sort",
+    "label": "Student sort in Writing results",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "widgets.writing.results",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-results.drill-students:writing"
+        ],
+        "reveal": "writing-results.drill-students:writing",
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-results.student-row",
+    "label": "Student row in Writing results",
+    "scope": "field",
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.results",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-results.drill-students:writing"
+        ],
+        "reveal": "writing-results.drill-students:writing",
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-grading.return",
+    "label": "Return button in the Writing grader",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.grader",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-results.grade:writing"
+        ],
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-grading.return-revision",
+    "label": "Return for revision button in the Writing grader",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.grader",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-results.grade:writing"
+        ],
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-grading.student-record",
+    "label": "Students can replay their own writing checkbox in the Writing grader",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.grader",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-results.grade:writing"
+        ],
+        "needs": [
+          "library-item",
+          "student-data",
           "widget-on-stage"
         ]
       }

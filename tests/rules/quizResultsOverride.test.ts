@@ -172,3 +172,125 @@ describe('quiz response UPDATE — results publication fields', () => {
     );
   });
 });
+
+describe('quiz response retake — the published key stays behind (#5811)', () => {
+  const keyed = {
+    completedAttempts: 1,
+    revealedAnswers: { q1: 'A' },
+    revealedExplanations: { q1: 'Because' },
+    resultsOverride: {
+      ...shownOverride,
+      revealedRubricExamples: { q1: { c1: 'Example' } },
+    },
+  };
+  const retake = {
+    status: 'joined',
+    answers: [],
+    score: null,
+    submittedAt: null,
+    preSyncVersion: 0,
+  };
+  const strip = {
+    revealedAnswers: deleteField(),
+    revealedExplanations: deleteField(),
+    'resultsOverride.revealedAnswers': deleteField(),
+    'resultsOverride.revealedRubricExamples': deleteField(),
+  };
+
+  it('a retake that strips the key succeeds', async () => {
+    await seedResponse(keyed);
+    await assertSucceeds(
+      updateDoc(doc(asAnonStudent(), RESPONSE_PATH), { ...retake, ...strip })
+    );
+  });
+
+  it('a retake with no key on the doc still succeeds', async () => {
+    await seedResponse({
+      completedAttempts: 1,
+      resultsOverride: { mode: 'hidden', publishedAt: 1000 },
+    });
+    await assertSucceeds(
+      updateDoc(doc(asAnonStudent(), RESPONSE_PATH), retake)
+    );
+  });
+
+  // AB-250 refuses this once old clients are gone; until then it lands as before.
+  it('a retake that leaves the key in place is still allowed', async () => {
+    await seedResponse(keyed);
+    await assertSucceeds(
+      updateDoc(doc(asAnonStudent(), RESPONSE_PATH), retake)
+    );
+  });
+
+  it('a retake that writes revealedAnswers onto a doc with none is REJECTED', async () => {
+    await seedResponse({ completedAttempts: 1 });
+    await assertFails(
+      updateDoc(doc(asAnonStudent(), RESPONSE_PATH), {
+        ...retake,
+        revealedAnswers: { q1: 'A' },
+      })
+    );
+  });
+
+  it('a retake that adds a key to the override is REJECTED', async () => {
+    await seedResponse({
+      completedAttempts: 1,
+      resultsOverride: shownOverride,
+    });
+    await assertFails(
+      updateDoc(doc(asAnonStudent(), RESPONSE_PATH), {
+        ...retake,
+        'resultsOverride.revealedAnswers': deleteField(),
+        'resultsOverride.revealedExplanations': { q1: 'Because' },
+      })
+    );
+  });
+
+  it('a retake that keeps revealedAnswers is REJECTED', async () => {
+    await seedResponse(keyed);
+    const { revealedAnswers: _kept, ...rest } = strip;
+    await assertFails(
+      updateDoc(doc(asAnonStudent(), RESPONSE_PATH), { ...retake, ...rest })
+    );
+  });
+
+  it("a retake that keeps the override's key is REJECTED", async () => {
+    await seedResponse(keyed);
+    const { 'resultsOverride.revealedAnswers': _kept, ...rest } = strip;
+    await assertFails(
+      updateDoc(doc(asAnonStudent(), RESPONSE_PATH), { ...retake, ...rest })
+    );
+  });
+
+  it('a retake that deletes the whole override is REJECTED', async () => {
+    await seedResponse(keyed);
+    await assertFails(
+      updateDoc(doc(asAnonStudent(), RESPONSE_PATH), {
+        ...retake,
+        revealedAnswers: deleteField(),
+        revealedExplanations: deleteField(),
+        resultsOverride: deleteField(),
+      })
+    );
+  });
+
+  it('a retake that also changes the override visibility is REJECTED', async () => {
+    await seedResponse(keyed);
+    await assertFails(
+      updateDoc(doc(asAnonStudent(), RESPONSE_PATH), {
+        ...retake,
+        ...strip,
+        'resultsOverride.visibility': 'score-only',
+      })
+    );
+  });
+
+  it('a student cannot strip the key outside a retake', async () => {
+    await seedResponse(keyed);
+    await assertFails(
+      updateDoc(doc(asAnonStudent(), RESPONSE_PATH), {
+        revealedAnswers: deleteField(),
+      })
+    );
+  });
+});

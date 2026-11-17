@@ -1546,6 +1546,41 @@ export const TOUR_ANCHORS = {
     label: 'Another group with different changes button in the Assign dialog',
     panel: true,
   },
+  'assign-mods.modified-questions': {
+    label: 'Modified questions switch for a modification group',
+    panel: true,
+  },
+  'assign-mods.supports-add': {
+    label: 'Add support button for a modification group',
+    panel: true,
+  },
+  'assign-mods.supports-kind': {
+    label: 'Text, Link or Drive file choice in the Add support menu',
+    perField: true,
+    panel: true,
+  },
+  'assign-mods.support-title': {
+    label: 'Support title field for a modification group',
+    panel: true,
+  },
+  'assign-mods.support-body': {
+    label: 'Support text or link field for a modification group',
+    panel: true,
+  },
+  'assign-mods.support-save': {
+    label: 'Add button that saves a new support',
+    panel: true,
+  },
+  'assign-mods.support-cancel': {
+    label: 'Cancel button for a new support',
+    panel: true,
+  },
+  'assign-mods.support-remove': {
+    label: 'Remove support button for a modification group',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
   'assign-mods.remove-group': {
     label: 'Remove group button in the Assign dialog Modifications step',
     destructive: true,
@@ -1979,6 +2014,16 @@ export const TOUR_ANCHORS = {
   },
   'quiz-editor.explanation': {
     label: 'Explanation box in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.modified': {
+    label: 'Modified version row under Learning targets in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.modified-text': {
+    label: 'Modified version wording box in the Quiz editor',
     perWidgetType: true,
     panel: true,
   },
@@ -4406,6 +4451,12 @@ export const TOUR_ANCHORS = {
   },
   'quiz-grading.comment': {
     label: 'Teacher comment box in the Quiz grader',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-grading.excuse': {
+    label: 'Excuse button in the grader',
     perWidgetType: true,
     persists: true,
     panel: true,
@@ -17286,6 +17337,49 @@ export const TOUR_ANCHORS = {
   'writing-editor.save': {
     label: 'Save button in the Writing editor',
     persists: true,
+    panel: true,
+  },
+  'writing-results.back': {
+    label: 'Back button in Writing results',
+    perWidgetType: true,
+  },
+  'writing-results.grade': {
+    label: 'Grade button in Writing results',
+    perWidgetType: true,
+  },
+  'writing-results.hide-names': {
+    label: 'Hide names button in Writing results',
+    perWidgetType: true,
+  },
+  'writing-results.drill-students': {
+    label: 'Students row in Writing results',
+    perWidgetType: true,
+  },
+  'writing-results.sort': {
+    label: 'Student sort in Writing results',
+    perField: true,
+  },
+  'writing-results.student-row': {
+    label: 'Student row in Writing results',
+    perField: true,
+    rows: true,
+  },
+  'writing-grading.return': {
+    label: 'Return button in the Writing grader',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'writing-grading.return-revision': {
+    label: 'Return for revision button in the Writing grader',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'writing-grading.student-record': {
+    label:
+      'Students can replay their own writing checkbox in the Writing grader',
+    perWidgetType: true,
     panel: true,
   },
   'gl-ai.attach-doc': {

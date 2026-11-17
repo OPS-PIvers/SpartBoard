@@ -10,5 +10,5 @@ export const LIBRARY_HEADER_ACCENTS: Partial<Record<WidgetType, string>> = {
   flashcards: '#be185d', // pink-700
   projects: '#0369a1', // sky-700
   'activity-wall': '#c2410c', // orange-700
-  writing: '#0f766e', // teal-700
+  writing: '#854d0e', // yellow-800
 };

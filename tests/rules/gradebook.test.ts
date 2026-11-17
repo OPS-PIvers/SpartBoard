@@ -259,6 +259,44 @@ describe('gradebook_marks', () => {
     );
   });
 
+  it("takes a Writing mark and column on the owner's own Writing session, and reads them back", async () => {
+    const WS = 'writing-session-1';
+    const OTHER_WS = 'writing-session-2';
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `writing_assignment_sessions/${WS}`), {
+        teacherUid: TEACHER,
+      });
+      await setDoc(
+        doc(ctx.firestore(), `writing_assignment_sessions/${OTHER_WS}`),
+        { teacherUid: OTHER }
+      );
+    });
+    const db = teacherDb();
+    await assertSucceeds(
+      setDoc(
+        doc(db, `gradebook_marks/${WS}__${STUDENT}`),
+        mark({ kind: 'writing', sessionId: WS })
+      )
+    );
+    await assertSucceeds(getDoc(doc(db, `gradebook_marks/${WS}__${STUDENT}`)));
+    await assertFails(
+      getDoc(doc(otherDb(), `gradebook_marks/${WS}__${STUDENT}`))
+    );
+    await assertSucceeds(
+      setDoc(
+        doc(db, `gradebook_columns/${WS}`),
+        column({ kind: 'writing', sessionId: WS })
+      )
+    );
+    await assertSucceeds(getDoc(doc(db, `gradebook_columns/${WS}`)));
+    await assertFails(
+      setDoc(
+        doc(db, `gradebook_marks/${OTHER_WS}__${STUDENT}`),
+        mark({ kind: 'writing', sessionId: OTHER_WS })
+      )
+    );
+  });
+
   it('refuses a mismatched id, a spoofed owner, editors or bad fields', async () => {
     const db = teacherDb();
     await assertFails(

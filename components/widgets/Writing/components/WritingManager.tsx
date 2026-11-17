@@ -521,6 +521,9 @@ export const WritingManager: React.FC<{ widget: WidgetData }> = ({
             onMonitor={(r) =>
               update({ view: 'monitor', monitorSessionId: r.id })
             }
+            onResults={(r) =>
+              update({ view: 'results', resultsSessionId: r.id })
+            }
           />
         ))}
       </div>

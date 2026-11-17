@@ -14,9 +14,6 @@ export function isBetaUser(
   return (
     betaUsers.some((e) => e.toLowerCase() === lowerEmail) ||
     (userRoles?.betaTeachers?.some((e) => e.toLowerCase() === lowerEmail) ??
-      false) ||
-    // LO2 harmonization: legacy admin_settings/user_roles.superAdmins[] is kept as an accepted source alongside roleId==='super_admin' until a Paul-gated migration retires it.
-    (userRoles?.superAdmins?.some((e) => e.toLowerCase() === lowerEmail) ??
       false)
   );
 }

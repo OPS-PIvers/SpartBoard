@@ -1,6 +1,7 @@
 // One assigned Writing session on the In Progress or Completed tab.
 import React, { useCallback } from 'react';
 import {
+  BarChart3,
   Calendar,
   Monitor,
   Pause,
@@ -37,7 +38,16 @@ export const WritingAssignmentRow: React.FC<{
   onEnd: (record: WritingAssignmentRecord) => void;
   onDelete: (record: WritingAssignmentRecord) => void;
   onMonitor?: (record: WritingAssignmentRecord) => void;
-}> = ({ record: r, mode, tourIndex, onEnd, onDelete, onMonitor }) => {
+  onResults: (record: WritingAssignmentRecord) => void;
+}> = ({
+  record: r,
+  mode,
+  tourIndex,
+  onEnd,
+  onDelete,
+  onMonitor,
+  onResults,
+}) => {
   const { rosters, addToast } = useDashboard();
   // Manual: each class starts paused; Start and Pause go through the server, as no client writes the session.
   const perPeriod = mode === 'active' && hasPeriodAccess(r);
@@ -75,6 +85,12 @@ export const WritingAssignmentRow: React.FC<{
     mode === 'active' && onMonitor
       ? { label: 'Monitor', icon: Monitor, onClick: () => onMonitor(r) }
       : undefined;
+  const results = {
+    id: 'results',
+    label: 'Results',
+    icon: BarChart3,
+    onClick: () => onResults(r),
+  };
   const secondaries: LibraryMenuAction[] = [
     ...(monitor && paused
       ? [
@@ -85,6 +101,7 @@ export const WritingAssignmentRow: React.FC<{
           },
         ]
       : []),
+    ...(mode === 'active' ? [results] : []),
     ...(perPeriod && !paused
       ? [
           {
@@ -160,7 +177,9 @@ export const WritingAssignmentRow: React.FC<{
               icon: Rocket,
               onClick: () => void runPeriod(periods.startAll),
             }
-          : monitor
+          : mode === 'archive'
+            ? results
+            : monitor
       }
       secondaryActions={secondaries}
     />

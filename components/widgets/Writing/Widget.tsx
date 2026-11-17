@@ -6,6 +6,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { useWritingAssignmentSessions } from '@/hooks/useWritingAssignmentSessions';
 import { WritingManager } from './components/WritingManager';
 import { WritingMonitor } from './components/monitor/WritingMonitor';
+import { WritingResults } from './components/results/WritingResults';
 
 const WritingMonitorView: React.FC<{
   widget: WidgetData;
@@ -35,10 +36,29 @@ const WritingMonitorView: React.FC<{
   );
 };
 
+const WritingResultsFace: React.FC<{
+  widget: WidgetData;
+  sessionId: string;
+}> = ({ widget, sessionId }) => {
+  const { updateWidget } = useDashboard();
+  const config = widget.config as WritingConfig;
+  return (
+    <WritingResults
+      sessionId={sessionId}
+      onBack={() => {
+        const { resultsSessionId: _closed, ...rest } = config;
+        updateWidget(widget.id, { config: { ...rest, view: 'manager' } });
+      }}
+    />
+  );
+};
+
 export const WritingWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const config = widget.config as WritingConfig;
   const monitorId =
     config.view === 'monitor' ? config.monitorSessionId : undefined;
+  const resultsId =
+    config.view === 'results' ? config.resultsSessionId : undefined;
   return (
     <WidgetLayout
       padding="p-0"
@@ -46,6 +66,8 @@ export const WritingWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       content={
         monitorId ? (
           <WritingMonitorView widget={widget} sessionId={monitorId} />
+        ) : resultsId ? (
+          <WritingResultsFace widget={widget} sessionId={resultsId} />
         ) : (
           <WritingManager widget={widget} />
         )

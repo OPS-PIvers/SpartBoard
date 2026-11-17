@@ -250,3 +250,32 @@ export function countWritingWords(html: string): number {
     .trim();
   return text ? text.split(' ').length : 0;
 }
+
+/** D14: what a score is out of: the points total, the rubric's top levels summed, or null when ungraded. */
+export function writingGradingMax(grading: unknown): number | null {
+  if (typeof grading !== 'object' || grading === null) return null;
+  const g = grading as {
+    mode?: unknown;
+    points?: unknown;
+    rubricSnapshot?: { criteria?: unknown };
+  };
+  if (g.mode === 'points')
+    return typeof g.points === 'number' && Number.isFinite(g.points)
+      ? g.points
+      : null;
+  if (g.mode !== 'rubric') return null;
+  const criteria = g.rubricSnapshot?.criteria;
+  if (!Array.isArray(criteria)) return null;
+  let total = 0;
+  for (const c of criteria) {
+    const levels = (c as { levels?: unknown } | null)?.levels;
+    if (!Array.isArray(levels)) continue;
+    let top = 0;
+    for (const l of levels) {
+      const p = (l as { points?: unknown } | null)?.points;
+      if (typeof p === 'number' && Number.isFinite(p)) top = Math.max(top, p);
+    }
+    total += top;
+  }
+  return total > 0 ? total : null;
+}
