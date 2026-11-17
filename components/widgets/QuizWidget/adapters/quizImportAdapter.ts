@@ -140,8 +140,6 @@ export interface QuizImportAdapterDeps {
   aiExtract?: AiExtractFn;
   /** `quiz-import-versions-plain` is on, so a typed PDF splits into versions without AI. */
   plainVersions?: boolean;
-  /** `quiz-import-equations` is on, so math in a question's text comes in as drawn equations. */
-  equations?: boolean;
   /** The versioned AI call; given only with AI access. */
   aiExtractVersions?: AiExtractVersionsFn;
   /** Creates the folder, bank and quizzes a version review settled on, pictures already attached (V6). */
@@ -508,7 +506,7 @@ export function createQuizImportAdapter(
         return {
           data: extractedToQuizData(extracted, {
             sections: true,
-            ...(deps.equations ? { equations: true } : {}),
+            equations: true,
             ...(standardCodes ? { standardsFromText: standardCodes } : {}),
           }),
           // Notes about one question show on its review row, not here.

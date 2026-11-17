@@ -309,15 +309,14 @@ const MiniAppArchiveRow: React.FC<{
   // aggregation per visible card on every dashboard tab-focus, so we gate
   // it behind the `share-link-tracking` global permission. Non-admins
   // pass `enabled: false` to the hook → no Firestore read at all.
-  const { canSeeShareTracking, canAccessFeature } = useAuth();
+  const { canSeeShareTracking } = useAuth();
   const trackingEnabled = canSeeShareTracking();
   const { count } = useSessionViewCount(
     'mini_app_sessions',
     assignment.sessionId,
     isViewOnly && trackingEnabled
   );
-  const classList =
-    !!classNamesFor && canAccessFeature('assignment-class-list') && !isViewOnly;
+  const classList = !!classNamesFor && !isViewOnly;
   const appTitle = (assignment.appTitle ?? '').trim().toLowerCase();
   const sameTitle =
     !!appTitle &&

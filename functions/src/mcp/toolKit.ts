@@ -275,24 +275,10 @@ export function slimTool(tool: ListedTool): ListedTool {
   return out;
 }
 
-/** Removes the MCP Apps preview link from a listed tool, for teachers without previews. */
-export function stripAppMeta(tool: ListedTool): ListedTool {
-  const meta = tool._meta as Record<string, unknown> | undefined;
-  if (!meta) return tool;
-  const rest = { ...meta };
-  delete rest.ui;
-  delete rest['ui/resourceUri'];
-  const out: ListedTool = { ...tool };
-  if (Object.keys(rest).length > 0) out._meta = rest;
-  else delete out._meta;
-  return out;
-}
-
 /** Wraps the SDK's tools/list handler with slimTool, leaving out `hidden` tools; a no-op if the SDK internals change. */
 export function slimToolListing(
   server: McpServer,
-  hidden?: () => Promise<ReadonlySet<string>>,
-  keepAppMeta?: () => Promise<boolean>
+  hidden?: () => Promise<ReadonlySet<string>>
 ): void {
   const handlers = (
     server.server as unknown as { _requestHandlers?: Map<string, ListHandler> }
@@ -302,16 +288,10 @@ export function slimToolListing(
   handlers.set('tools/list', async (request, extra) => {
     const result = (await original(request, extra)) as { tools?: ListedTool[] };
     if (!Array.isArray(result.tools)) return result;
-    const [skip, keepApps] = await Promise.all([
-      hidden ? hidden() : new Set<string>(),
-      keepAppMeta ? keepAppMeta() : true,
-    ]);
-    const tools = result.tools
-      .filter((t) => !skip.has(t.name ?? ''))
-      .map(slimTool);
+    const skip = hidden ? await hidden() : new Set<string>();
     return {
       ...result,
-      tools: keepApps ? tools : tools.map(stripAppMeta),
+      tools: result.tools.filter((t) => !skip.has(t.name ?? '')).map(slimTool),
     };
   });
 }

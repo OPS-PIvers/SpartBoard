@@ -1,6 +1,56 @@
 {
   "entries": [
     {
+      "version": "2026.11.17.1",
+      "date": "2026-11-17",
+      "title": "Share link checks, class lists and extra answers",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Quiz",
+          "items": [
+            {
+              "text": "When a student answers more questions than a section asks for, you pick which answers count in Results. The score, gradebook and printout update to match."
+            },
+            {
+              "text": "Math in an imported test, like fractions, powers and roots, comes in drawn the way it looks on paper."
+            }
+          ]
+        },
+        {
+          "type": "feature",
+          "subtitle": "Sharing",
+          "items": [
+            {
+              "text": "A share link asks before it imports and shows who shared it. Cancel imports nothing."
+            }
+          ]
+        },
+        {
+          "type": "feature",
+          "subtitle": "Assignments",
+          "items": [
+            {
+              "text": "An assignment given to several classes shows how many classes. Click it to see the full list."
+            }
+          ]
+        },
+        {
+          "type": "improvement",
+          "subtitle": "Improvements",
+          "items": [
+            {
+              "text": "Dropdowns and date and time fields open SpartBoard's own lists, which work the same with a mouse, a keyboard or a finger."
+            },
+            {
+              "text": "Quizzes and rubrics you make with Claude show as a preview card in the chat. You can ask for a change to a question right from the card."
+            }
+          ]
+        }
+      ],
+      "details": []
+    },
+    {
       "version": "2026.11.17",
       "date": "2026-11-17",
       "title": "Quiz points, calmer quizzes and late work",
@@ -2794,6 +2844,12 @@
     }
   ],
   "widgetNotes": [
+    {
+      "id": "quiz-pick-counted-2026-11-17",
+      "widget": "quiz",
+      "date": "2026-11-17",
+      "text": "If a student answers more questions than a section asks for, Results shows Answered extra and you pick which answers count."
+    },
     {
       "id": "quiz-answer-keyboards-2026-11-15",
       "widget": "quiz",
