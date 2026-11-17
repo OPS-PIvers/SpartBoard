@@ -3,8 +3,10 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-11-10_
+_Last audited: 2026-11-17_
 _Last action: 2026-09-22 — HIGH `SpecialistSchedule` stale `Settings.tsx` reference fixed in both new-widget and admin-widget-config skills (all 4 mirror files): file-layout callout rewritten to the current schema-driven files, `featurePermissions`-read example repointed to `settingsFields.tsx`. Moved to Completed._
+
+_2026-11-17: Tuesday Audit B1, against `origin/dev-paul` (`6d3b439ec`). Skills read from `.claude/skills/{new-widget,admin-widget-config}/SKILL.md` (`/mnt/skills/user/` absent). Path scan: only `YourWidget` template placeholders fail to resolve (the `miniAppViewState.test.ts` hit is a false positive; it lives at `tests/components/miniApp/`). Checklist matches current registration files and the `pnpm run new-widget-settings` scaffold script exists; `SpecialistSchedule/` still has `SpecialistScheduleWidget.tsx`, `settings.schema.ts`, `settingsFields.tsx`; `lazyNamed` convention matches `WidgetRegistry.ts`; skills correctly state there are no `Settings.tsx` files. 0 new issues._
 
 _2026-11-10: Tuesday Audit B1. Both skills (repo copies under `.claude/skills/`; `/mnt/skills/user` absent) cite only paths that resolve, besides `YourWidget` template placeholders. `SpecialistSchedule/` still has `settings.schema.ts`/`settingsFields.tsx`; `lazyNamed` convention matches `WidgetRegistry.ts`; admin `*ConfigurationPanel.tsx` hierarchy unchanged. 0 new issues._
 
