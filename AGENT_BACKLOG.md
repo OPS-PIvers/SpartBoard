@@ -9,7 +9,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
 - **Release review findings.** Fix small (S) findings inside the release as `release fix:` PRs. File an item here only for work that is M or larger, needs a flag or rules design, or can't ship in that release.
 - **Agent-only means agent-only.** An item in Ready needs nothing from Paul. When an item needs new wording, the agent builds it and asks Paul with a screenshot and a decision card in its thread; when it needs a real decision, it goes to PAUL_TODO.md and the item moves to Blocked.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-269**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-270**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -109,6 +109,7 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
 ### Quiz, Video Activity and Guided Learning
 
+- **AB-269 Rubric table Edit in the Writing grader** (M). Behind `rubric-grading-v2` (#6088): the full rubric table's Edit only shows in Quiz results, where `onSaveRubric` saves the quiz file and library rubric and `rescoreRubricGrades` moves students scored at a changed level to its new points. Writing needs `updateWritingSessionV1` to accept a rubric edit (swap the session's rubric snapshot, same criteria ids only) and rescore saved feedback the same way, then pass `onSaveRubric` from `WritingGrader` to `FreeResponseGrader`. Also not covered in Quiz: frozen assignment copies, bank-drawn questions and earlier attempts.
 - **AB-267 Printed versions reprint minors** (S). Behind `paper-printed-versions` (release review of #6086): a reprint with no Drive token or a translation load error prints English with only a console warning (show a notice); the "Group N · English" label only shows with two or more groups; a stack records the group's wanted language even when its first print fell back to English, so a later reprint can switch language; the reprint `questionTexts` skip `plainPromptText` and `choicePictureFields` that `PaperPrintModal` applies (pre-existing). Tests for each.
 - **AB-257 Video Activity onto the Quiz monitor, results and grader** (M). Paul's rule (`.claude/rules/assignment-shells.md`): assignment widgets reuse the Quiz shells. Video Activity still has its own copies, listed in `KNOWN_COPIES` and `NOT_YET_ADOPTED` in `tests/assignmentShells.static.test.ts`: (1) `monitor/VaRosterList.tsx` (own roster and `RowMenu`) → `RosterList` or `RosterParts`, as `Flashcards/results/FlashcardCheckRoster.tsx` does; (2) the `QuestionDetail` in `monitor/VideoActivityMonitor.tsx` → `QuestionResults`/`ItemDetailView`; the monitor also needs `QuestionResults`; (3) `Results.tsx` (old `SessionRow`) and `results/VaResultsParity.tsx` (own `DrillRow`) → `ResultsHome` (`ResultsSummaryCard`, `ScoreDistributionBars`, `ResultsDrillRow`); (4) `results/VaShortAnswerMarking.tsx` → `FreeResponseGrader`, extended for a time-in-video prompt if needed; (5) `VideoActivityLivePlayer.tsx` header and buttons (old `SessionViewHeader`, `ActionButton`) → the Quiz `present/` or monitor pieces. One PR per numbered part is fine; delete each guard entry in the PR that clears it. Before and after screenshots for Paul, no flag needed when the screen looks the same.
 - **AB-258 Guided Learning onto the Quiz roster and results** (M). Same rule. `results/GuidedLearningMonitor.tsx` renders its roster rows inline → `RosterParts`, and its per-step breakdown inline (about lines 222-260) → `QuestionResults`/`ItemResultsList`; `GuidedLearningResults.tsx` has no `ResultsHome` summary or drill rows; `results/StudentProgressLine.tsx` copies `StudentAnswerLine` (extend it with a step-progress variant). Guard entries: `guided-learning` in `NOT_YET_ADOPTED` and `StudentProgressLine` in `KNOWN_COPIES`.
@@ -543,6 +544,8 @@ claude/funny-wozniak-97qwkg (#6051)
 claude/project-thread-1glhgi (#6055)
 claude/project-thread-1glhgi-docs (this docs PR, delete after it merges)
 claude/project-thread-1h9zd9 (#6075, then its AB-112 docs PR; delete after it merges)
+claude/project-thread-h6xnku (#6088)
+claude/project-thread-h6xnku-docs (this docs PR, delete after it merges)
 
 ```
 git push origin --delete claude/project-thread-1ylvse
