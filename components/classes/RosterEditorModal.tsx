@@ -1,5 +1,6 @@
 import React, { useContext, useMemo, useState } from 'react';
 import { AuthContext } from '@/context/AuthContextValue';
+import { RosterAccommodationsList } from './RosterAccommodationsList';
 import { useTranslation } from 'react-i18next';
 import { Save, AlertTriangle, X, Plus, Users, UsersRound } from 'lucide-react';
 import {
@@ -25,9 +26,7 @@ import {
 import { OverrideEditorRow } from '@/components/common/library/OverrideEditorRow';
 import {
   isEmptyStudentOverride,
-  applyGroupOverride,
   setRosterDefaultOverride,
-  sharedStudentOverride,
 } from '@/utils/rosterDefaultOverrides';
 
 interface RosterEditorModalProps {
@@ -133,6 +132,9 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
     else if (id === 'restrictions') setShowRestrictions(on);
   };
 
+  const auth = useContext(AuthContext);
+  const accommodationsListOn =
+    auth?.canAccessFeature?.('modification-groups') === true;
   const [activeTab, setActiveTab] = useState<
     'students' | 'groups' | 'accommodations'
   >('students');
@@ -376,10 +378,18 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
             students={validStudents}
             onChange={setGroups}
           />
+        ) : activeTab === 'accommodations' && roster && accommodationsListOn ? (
+          <RosterAccommodationsList
+            students={validStudents}
+            groups={groups}
+            overrides={defaultOverrides}
+            readAloudAvailable={readAloudAvailable}
+            onChange={setDefaultOverrides}
+            onAddStudents={() => setActiveTab('students')}
+          />
         ) : activeTab === 'accommodations' && roster ? (
           <RosterAccommodationsPanel
             students={validStudents}
-            groups={groups}
             overrides={defaultOverrides}
             readAloudAvailable={readAloudAvailable}
             onChange={setDefaultOverrides}
@@ -911,7 +921,6 @@ const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = ({
 
 interface RosterAccommodationsPanelProps {
   students: Student[];
-  groups: RosterGroup[];
   overrides: Record<string, StudentOverride>;
   readAloudAvailable: boolean;
   onChange: (overrides: Record<string, StudentOverride>) => void;
@@ -928,7 +937,6 @@ interface RosterAccommodationsPanelProps {
  */
 const RosterAccommodationsPanel: React.FC<RosterAccommodationsPanelProps> = ({
   students,
-  groups,
   overrides,
   readAloudAvailable,
   onChange,
@@ -937,34 +945,6 @@ const RosterAccommodationsPanel: React.FC<RosterAccommodationsPanelProps> = ({
   const { t } = useTranslation();
   const studentName = (s: Student) =>
     `${s.firstName} ${s.lastName}`.trim() || s.id;
-  const auth = useContext(AuthContext);
-  const groupsOn =
-    groups.length > 0 &&
-    auth?.canAccessFeature?.('modification-groups') === true;
-  const groupRows = groupsOn
-    ? groups
-        .map((g) => ({
-          group: g,
-          memberIds: students
-            .filter((s) => g.studentIds.includes(s.id))
-            .map((s) => s.id),
-        }))
-        .filter((r) => r.memberIds.length > 0)
-    : [];
-  const sectionLabel =
-    'px-1 pt-1 text-xxs font-bold uppercase tracking-widest text-slate-400';
-  const peersFor = (excludeIds: string[]) =>
-    students
-      .filter(
-        (other) =>
-          !excludeIds.includes(other.id) &&
-          !isEmptyStudentOverride(overrides[other.id])
-      )
-      .map((other) => ({
-        id: other.id,
-        name: studentName(other),
-        override: overrides[other.id],
-      }));
 
   return (
     <div className="flex-1 min-h-0 border border-slate-200 rounded-xl bg-slate-50/30 overflow-y-auto custom-scrollbar">
@@ -990,54 +970,18 @@ const RosterAccommodationsPanel: React.FC<RosterAccommodationsPanelProps> = ({
               defaultValue: 'These apply to every new assignment.',
             })}
           </p>
-          {groupRows.length > 0 && (
-            <>
-              <div className={sectionLabel}>
-                {t('sidebar.classes.accommodationsGroups', {
-                  defaultValue: 'Groups',
-                })}
-              </div>
-              {groupRows.map(({ group, memberIds }, index) => (
-                <div
-                  key={group.id}
-                  {...tourFieldAttr(
-                    'roster-editor.accommodations-group',
-                    'roster-editor',
-                    `group-${index + 1}`
-                  )}
-                >
-                  <OverrideEditorRow
-                    studentName={`${group.name} (${
-                      memberIds.length === 1
-                        ? t('sidebar.classes.oneStudent', {
-                            defaultValue: '1 student',
-                          })
-                        : t('sidebar.classes.nStudents', {
-                            defaultValue: '{{count}} students',
-                            count: memberIds.length,
-                          })
-                    })`}
-                    override={sharedStudentOverride(overrides, memberIds)}
-                    quizMode
-                    allowWindowShift={false}
-                    readAloudAvailable={readAloudAvailable}
-                    pageProtectionsAvailable
-                    peers={peersFor(memberIds)}
-                    onChange={(next) =>
-                      onChange(applyGroupOverride(overrides, memberIds, next))
-                    }
-                  />
-                </div>
-              ))}
-              <div className={sectionLabel}>
-                {t('sidebar.classes.accommodationsStudents', {
-                  defaultValue: 'Students',
-                })}
-              </div>
-            </>
-          )}
           {students.map((s) => {
-            const peers = peersFor([s.id]);
+            const peers = students
+              .filter(
+                (other) =>
+                  other.id !== s.id &&
+                  !isEmptyStudentOverride(overrides[other.id])
+              )
+              .map((other) => ({
+                id: other.id,
+                name: studentName(other),
+                override: overrides[other.id],
+              }));
             return (
               <OverrideEditorRow
                 key={s.id}

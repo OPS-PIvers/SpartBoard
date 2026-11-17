@@ -17962,6 +17962,35 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'roster-editor.accommodations-add': {
+    label:
+      'Add menu for students and groups on the roster editor Accommodations tab',
+    panel: true,
+  },
+  'roster-editor.accommodations-search': {
+    label: 'Search box in the Accommodations Add menu',
+    panel: true,
+  },
+  'roster-editor.accommodations-pick-group': {
+    label: 'Group checkbox in the Accommodations Add menu',
+    perField: true,
+    panel: true,
+  },
+  'roster-editor.accommodations-pick-student': {
+    label: 'Student checkbox in the Accommodations Add menu',
+    perField: true,
+    panel: true,
+  },
+  'roster-editor.accommodations-done': {
+    label: 'Done button that closes the Accommodations Add menu',
+    panel: true,
+  },
+  'roster-editor.accommodations-remove': {
+    label: 'Remove button on a row of the roster editor Accommodations tab',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
   'roster-editor.accommodations-add-student': {
     label: 'Add Student button on the empty roster editor Accommodations tab',
     panel: true,
