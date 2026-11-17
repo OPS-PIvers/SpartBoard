@@ -56,24 +56,73 @@ export const applyRubricEdit = <
 >(
   questions: Q[],
   rubric: Rubric
-): { questions: Q[]; changed: boolean; libraryIds: string[] } => {
+): {
+  questions: Q[];
+  changed: boolean;
+  libraryIds: string[];
+  before?: Rubric;
+  requiredTotal?: number;
+} => {
   let changed = false;
+  let before: Rubric | undefined;
+  let requiredTotal: number | undefined;
+  const total = rubricMaxPoints(rubric);
   const libraryIds = new Set<string>();
   const next = questions.map((q) => {
     let out = q;
-    if (sameRubric(q.rubricSnapshot, rubric)) {
-      out = { ...out, rubricSnapshot: rubric, points: rubricMaxPoints(rubric) };
+    const isMain = sameRubric(q.rubricSnapshot, rubric);
+    const isModified = sameRubric(q.modifiedRubricSnapshot, rubric);
+    if (isMain) {
+      before ??= q.rubricSnapshot;
+      out = { ...out, rubricSnapshot: rubric, points: total };
+      // Only the main rubric goes back to the library; a modified copy shares its id.
       if (q.rubricId) libraryIds.add(q.rubricId);
     }
-    if (sameRubric(q.modifiedRubricSnapshot, rubric)) {
+    if (isModified) {
+      before ??= q.modifiedRubricSnapshot;
       out = { ...out, modifiedRubricSnapshot: rubric };
-      if (q.modifiedRubricId) libraryIds.add(q.modifiedRubricId);
     }
+    const other =
+      isMain && !isModified
+        ? q.modifiedRubricSnapshot
+        : isModified && !isMain
+          ? q.rubricSnapshot
+          : undefined;
+    if (other && rubricMaxPoints(other) !== total)
+      requiredTotal ??= rubricMaxPoints(other);
     if (out !== q) changed = true;
     return out;
   });
-  return { questions: next, changed, libraryIds: [...libraryIds] };
+  return {
+    questions: next,
+    changed,
+    libraryIds: [...libraryIds],
+    before,
+    requiredTotal,
+  };
 };
+
+const rubricContent = (r: Rubric): string =>
+  JSON.stringify({
+    title: r.title,
+    description: r.description ?? '',
+    criteria: r.criteria.map((c) => ({
+      id: c.id,
+      name: c.name,
+      description: c.description ?? '',
+      examples: c.guide?.examples ?? [],
+      levels: c.levels.map((l) => [
+        l.id,
+        l.label,
+        l.points,
+        l.description ?? '',
+      ]),
+    })),
+  });
+
+/** Same title, criteria and levels, ignoring ids of the rubric itself and timestamps. */
+export const sameRubricContent = (a: Rubric, b: Rubric): boolean =>
+  rubricContent(a) === rubricContent(b);
 
 /** Grades whose picked levels changed points; typed overrides (points not equal to the old level) are left alone. */
 export const rescoreRubricGrades = (
