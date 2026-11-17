@@ -293,6 +293,7 @@ import {
 import {
   serveQuestionSubset,
   applyHiddenOptions,
+  applyModifiedRubric,
   applyModifiedWording,
   applyTimeMultiplier,
   serveLocalizedQuestion,
@@ -2571,12 +2572,16 @@ export const ActiveQuiz: React.FC<{
   const answerOptionShuffleEnabled = attemptShuffle.answers;
   const currentQuestion = useMemo(() => {
     if (!baseQuestion) return baseQuestion;
-    const served = isStudentPaced
-      ? applyHiddenOptions(
-          applyModifiedWording(baseQuestion, override?.modifiedQuestions),
-          override?.hiddenOptionIdsByQuestion
-        )
-      : baseQuestion;
+    // The modified rubric grades every pace; the wording only shows when student-paced.
+    const served = applyModifiedRubric(
+      isStudentPaced
+        ? applyHiddenOptions(
+            applyModifiedWording(baseQuestion, override?.modifiedQuestions),
+            override?.hiddenOptionIdsByQuestion
+          )
+        : baseQuestion,
+      override?.modifiedQuestions
+    );
     if (!answerOptionShuffleEnabled) return served;
     return shuffleQuestionForStudent(served, studentShuffleSeed);
   }, [
@@ -4207,9 +4212,12 @@ export const ActiveQuiz: React.FC<{
   const currentReviewRows = () =>
     reviewRows(
       orderedPublicQuestions.map((base) => {
-        const q = applyModifiedWording(
-          base,
-          isStudentPaced && override?.modifiedQuestions
+        const q = applyModifiedRubric(
+          applyModifiedWording(
+            base,
+            isStudentPaced && override?.modifiedQuestions
+          ),
+          override?.modifiedQuestions
         );
         return applyLocalizedStrings(
           q,
@@ -6515,7 +6523,12 @@ export const PublishedScoreReview: React.FC<{
           session.publicQuestions ?? [],
           override?.questionIds
         )
-  ).map((q) => applyModifiedWording(q, modifiedOn));
+  ).map((q) =>
+    applyModifiedRubric(
+      applyModifiedWording(q, modifiedOn),
+      override?.modifiedQuestions
+    )
+  );
   const publicQuestionIndex = new Map(
     publicQuestions.map((question, index) => [question.id, index])
   );

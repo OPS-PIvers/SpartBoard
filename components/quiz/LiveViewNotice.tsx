@@ -23,7 +23,9 @@ export const LiveViewNotice: React.FC<{
   liveView: QuizLiveViewStamp | null | undefined;
   /** The quiz's language, so a note reads in it. */
   language?: string;
-}> = ({ liveView, language }) => {
+  /** Names the work in the banner; Writing says "your writing". */
+  subject?: 'quiz' | 'writing';
+}> = ({ liveView, language, subject = 'quiz' }) => {
   const { t } = useTranslation();
   const lng = language ? { lng: language } : {};
   const until = liveView?.notify ? (liveView.until ?? 0) : 0;
@@ -66,7 +68,17 @@ export const LiveViewNotice: React.FC<{
           className="sticky top-0 z-10 flex items-center justify-center gap-2 border-b border-sky-200 bg-sky-50 px-4 py-1.5 text-xs font-semibold text-sky-900"
         >
           <Eye className="h-3.5 w-3.5 shrink-0" aria-hidden />
-          {t('quizLiveView.banner', 'Your teacher is viewing your quiz', lng)}
+          {subject === 'writing'
+            ? t(
+                'quizLiveView.bannerWriting',
+                'Your teacher is viewing your writing',
+                lng
+              )
+            : t(
+                'quizLiveView.banner',
+                'Your teacher is viewing your quiz',
+                lng
+              )}
         </div>
       )}
       {showNudge && (

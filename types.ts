@@ -4632,6 +4632,10 @@ export interface QuizQuestion {
   rubricSnapshot?: Rubric;
   /** Free Response only. Students see the attached rubric while answering; hidden unless true. */
   rubricVisibleToStudents?: boolean;
+  /** Free Response only. Library id of `modifiedRubricSnapshot`; informational. */
+  modifiedRubricId?: string;
+  /** Free Response only. Rubric for students in a group with modified questions; totals the same points as `rubricSnapshot`. */
+  modifiedRubricSnapshot?: Rubric;
   /**
    * Ids of `QuizData.stimuli` entries shown alongside this question.
    * Empty/missing = no stimuli. The shared-pointer array is the grouping:
@@ -5414,6 +5418,8 @@ export interface QuizPublicQuestion {
   rubricSnapshot?: Rubric;
   /** Free Response only. The teacher hid the rubric while answering; the snapshot carries only what scored results show. */
   rubricHidden?: boolean;
+  /** Free Response only. The modified rubric, projected like `rubricSnapshot`, for students whose override asks for it. */
+  modifiedRubricSnapshot?: Rubric;
   /** Ids into `QuizSession.stimuli` shown alongside this question. */
   stimulusIds?: string[];
   /**
@@ -10617,7 +10623,9 @@ export interface WritingAssignmentDefinition {
 /** Per-board state only; Writing assignments live in the teacher's library. */
 export interface WritingConfig {
   /** Which face the widget shows; `results` grades `resultsSessionId`. */
-  view?: 'manager' | 'results';
+  view?: 'manager' | 'monitor' | 'results';
+  /** The session the monitor shows. */
+  monitorSessionId?: string;
   /** The session the results face shows. */
   resultsSessionId?: string;
   /** Tab within the manager view. */
@@ -10626,6 +10634,8 @@ export interface WritingConfig {
   libraryViewMode?: 'grid' | 'list';
   /** Persisted folder-panel state; `'auto'` derives it from widget width. */
   folderPanelMode?: 'auto' | 'full' | 'rail' | 'hidden';
+  /** The monitor's Word counts switch; off by default. */
+  monitorShowWordCounts?: boolean;
 }
 
 export type { WritingResponseStatus, WritingTurnedInBy };
@@ -10709,6 +10719,8 @@ export interface WritingAssignmentRecord {
   dueLocks?: boolean;
   targetMode?: 'class' | 'students';
   targetStudents?: StudentTargetRef[];
+  /** Classes narrowed to picked students, written by `setAssignmentTargetsV1`. */
+  studentTargetClassIds?: string[];
   targetGroupIds?: string[];
   overridesBySourcedId?: Record<string, StudentOverride>;
   excludedTargets?: StudentTargetRef[];
@@ -10799,6 +10811,8 @@ export interface WritingResponse {
   grade?: WritingGrade;
   /** D21: the 1 August deletion removed this piece's log chunks. */
   logPurgedAt?: number;
+  /** D15: Live view's watch and Nudge; only the session's teacher writes it. */
+  liveView?: QuizLiveViewStamp | null;
   updatedAt: number;
 }
 

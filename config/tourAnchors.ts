@@ -2174,6 +2174,22 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-editor.modified-rubric-attach': {
+    label: 'Modified rubric: Attach in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.modified-rubric-edit': {
+    label: 'Modified rubric: Edit in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.modified-rubric-detach': {
+    label: 'Modified rubric: Detach in the Quiz editor',
+    perWidgetType: true,
+    destructive: true,
+    panel: true,
+  },
   'quiz-editor.fib-answer': {
     label: 'Correct answer input (FIB / short answer) in the Quiz editor',
     perWidgetType: true,
@@ -17213,6 +17229,85 @@ export const TOUR_ANCHORS = {
   'writing.bulk-clear': {
     label: 'Clear selection button in the Writing bulk action bar',
     panel: true,
+  },
+  'writing.archive-monitor': {
+    label: 'Monitor item in a Writing assignment row menu',
+    perWidgetType: true,
+    panel: true,
+  },
+  'writing-monitor.back': {
+    label: 'Back button in the Writing monitor',
+    perWidgetType: true,
+  },
+  'writing-monitor.class-picker': {
+    label: 'Class picker in the Writing monitor',
+    perWidgetType: true,
+  },
+  'writing-monitor.period-start': {
+    label: 'Start button for the picked class in the Writing monitor',
+    perWidgetType: true,
+    persists: true,
+  },
+  'writing-monitor.period-pause': {
+    label: 'Pause button for the picked class in the Writing monitor',
+    perWidgetType: true,
+    persists: true,
+  },
+  'writing-monitor.period-more-time': {
+    label: 'More time button in the Writing monitor',
+    perWidgetType: true,
+  },
+  'writing-monitor.period-extend': {
+    label: 'Extend time option in the Writing monitor More time menu',
+    perWidgetType: true,
+    persists: true,
+  },
+  'writing-monitor.status-bucket': {
+    label: 'Student status count in the Writing monitor',
+    perField: true,
+  },
+  'writing-monitor.word-counts': {
+    label: 'Word counts switch in the Writing monitor',
+    perWidgetType: true,
+  },
+  'writing-monitor.live-view': {
+    label: 'Live view button on a student in the Writing monitor',
+    perField: true,
+    persists: true,
+  },
+  'writing-live-view.previous': {
+    label: 'Previous student button in Writing Live view',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'writing-live-view.next': {
+    label: 'Next student button in Writing Live view',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'writing-live-view.close': {
+    label: 'Close button in Writing Live view',
+    perWidgetType: true,
+    panel: true,
+  },
+  'writing-live-view.tell-student': {
+    label: 'Notify student when viewing switch in Writing Live view',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'writing-live-view.nudge-note': {
+    label: 'Nudge note picker in Writing Live view',
+    perWidgetType: true,
+    panel: true,
+  },
+  'writing-live-view.nudge': {
+    label: 'Nudge button in Writing Live view',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
   },
   'writing-editor.tab-prompt': {
     label: 'Prompt tab in the Writing editor',

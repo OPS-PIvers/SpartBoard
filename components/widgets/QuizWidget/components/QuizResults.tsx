@@ -68,6 +68,7 @@ import {
   isFreeResponseType,
   type QuizWidgetKind,
   type QuizLiveLogEntry,
+  type Rubric,
 } from '@/types';
 import {
   buildReviewRanking,
@@ -2707,6 +2708,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           )}
           {effectiveScreen === 'students' && (
             <StudentsScreen
+              rubricFor={printRubric}
               liveLogByKey={liveLogByKey}
               quizTitle={quiz.title}
               responses={filteredResponses}
@@ -4161,6 +4163,10 @@ function studentReportTargets(
 
 /** The expanded student row: publish control, per-question lines, print (D11-D13, D23). */
 const StudentDrilldownPanel: React.FC<{
+  rubricFor: (
+    response: QuizResponse,
+    question: QuizQuestion
+  ) => Rubric | undefined;
   id: string;
   quizTitle: string;
   response: QuizResponse;
@@ -4183,6 +4189,7 @@ const StudentDrilldownPanel: React.FC<{
   /** Saves which answers count in an over-answered section; absent hides the picker. */
   onSaveCountedChoices?: SaveCountedChoices;
 }> = ({
+  rubricFor,
   id,
   quizTitle,
   response: liveResponse,
@@ -4254,9 +4261,9 @@ const StudentDrilldownPanel: React.FC<{
         questions,
         response,
         makeQuestionGradeFn(fibGrading),
-        { showExtraAnswers }
+        { showExtraAnswers, rubricFor: (q) => rubricFor(response, q) }
       ),
-    [questions, response, fibGrading, showExtraAnswers]
+    [questions, response, fibGrading, showExtraAnswers, rubricFor]
   );
   const questionById = useMemo(
     () => new Map(questions.map((q) => [q.id, q])),
@@ -4435,6 +4442,11 @@ const collator = new Intl.Collator(undefined, {
 });
 
 const StudentsScreen: React.FC<{
+  /** The rubric this student is graded on (a modified or per-student one when set). */
+  rubricFor: (
+    response: QuizResponse,
+    question: QuizQuestion
+  ) => Rubric | undefined;
   quizTitle: string;
   responses: QuizResponse[];
   questions: QuizQuestion[];
@@ -4472,6 +4484,7 @@ const StudentsScreen: React.FC<{
   liveLogByKey?: ReadonlyMap<string, QuizLiveLogEntry[]>;
   onSaveCountedChoices?: SaveCountedChoices;
 }> = ({
+  rubricFor,
   liveLogByKey,
   quizTitle,
   responses,
@@ -5270,6 +5283,7 @@ const StudentsScreen: React.FC<{
               </div>
               {isExpanded && (
                 <StudentDrilldownPanel
+                  rubricFor={rubricFor}
                   id={panelId}
                   quizTitle={quizTitle}
                   response={r}

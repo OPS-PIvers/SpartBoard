@@ -11,6 +11,8 @@ import { useWritingPiece } from '@/hooks/useWritingPiece';
 import { PageProtectionGuards } from '@/components/common/PageProtectionGuards';
 import { effectivePageProtections } from '@/utils/pageProtections';
 import { deriveWritingView, writingClosed } from '@/utils/writingStudentView';
+import { LiveViewNotice } from '@/components/quiz/LiveViewNotice';
+import { syncServerTime } from '@/utils/serverTime';
 import { WritingStudentShell } from './WritingStudentShell';
 import { StudentWritingRecordButton } from './StudentWritingRecord';
 import { WritingReturnedFeedback } from './WritingReturnedFeedback';
@@ -126,6 +128,15 @@ const WritingPiecePage: React.FC<{
             />
           ) : undefined
         }
+        liveNotice={
+          writing && (
+            <LiveViewNotice
+              liveView={response?.liveView}
+              language={session.language}
+              subject="writing"
+            />
+          )
+        }
         piece={{
           view,
           editorKey: writing
@@ -171,6 +182,11 @@ export const WritingAssignmentPage: React.FC = () => {
   const { pseudonymUid } = useStudentAuth();
   const sessionId = writingSessionIdFromPath(window.location.pathname);
   const [view, setView] = useState<View>({ kind: 'loading' });
+
+  // Live view's watch and its faster saves are timed on the server's clock.
+  useEffect(() => {
+    syncServerTime(pseudonymUid);
+  }, [pseudonymUid]);
 
   useEffect(() => {
     if (!sessionId) return;

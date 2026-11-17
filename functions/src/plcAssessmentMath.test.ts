@@ -1110,6 +1110,27 @@ describe('gradeGroupAnswer', () => {
     ).toBe('scored');
   });
 
+  it('accepts a rubric grade complete on the modified rubric', () => {
+    const w = q({
+      type: 'free-response',
+      correctAnswer: null,
+      rubricCriterionIds: ['c1', 'c2'],
+      modifiedRubricCriterionIds: ['m1'],
+    });
+    expect(
+      gradeGroupAnswer(w, 'text', {
+        pointsAwarded: 4,
+        scoredCriterionIds: ['m1'],
+      }).state
+    ).toBe('scored');
+    expect(
+      gradeGroupAnswer(w, 'text', {
+        pointsAwarded: 2,
+        scoredCriterionIds: ['c1'],
+      }).state
+    ).toBe('awaiting-grade');
+  });
+
   it('reports no-key for auto types without an answer key', () => {
     expect(
       gradeGroupAnswer(q({ correctAnswer: null }), 'A', undefined).state

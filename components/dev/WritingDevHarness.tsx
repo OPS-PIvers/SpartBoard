@@ -12,6 +12,12 @@ import type { WritingResponseStatus } from '@/types';
 import { WritingRecordDemo, type RecordDemoId } from './WritingRecordDemo';
 
 const RECORD_DEMOS: RecordDemoId[] = ['teacher', 'full', 'purged', 'student'];
+import { LiveViewNotice } from '@/components/quiz/LiveViewNotice';
+import { WritingMonitorDev } from './WritingMonitorDev';
+
+// `&live=1` shows the Live view banner a watched student sees.
+const LIVE = new URLSearchParams(window.location.search).has('live');
+const LIVE_STAMP = { until: Date.now() + 3_600_000, notify: true };
 
 const NOW = Date.UTC(2026, 10, 18, 15, 0);
 
@@ -123,10 +129,15 @@ const recordDemo = (): RecordDemoId | null => {
 export const WritingDevHarness: React.FC = () => {
   const [record] = useState(recordDemo);
   if (record) return <WritingRecordDemo id={record} />;
-  return <WritingPieceHarness />;
+  return new URLSearchParams(window.location.search).get('view') ===
+    'monitor' ? (
+    <WritingMonitorDev />
+  ) : (
+    <StudentPageDev />
+  );
 };
 
-const WritingPieceHarness: React.FC = () => {
+const StudentPageDev: React.FC = () => {
   const [state, setState] = useState<StateId>(initialState);
   const [bar] = useState(
     () => !new URLSearchParams(window.location.search).has('shot')
@@ -203,6 +214,11 @@ const WritingPieceHarness: React.FC = () => {
               facts={{ summary: undefined }}
             />
           ) : undefined
+        }
+        liveNotice={
+          LIVE ? (
+            <LiveViewNotice liveView={LIVE_STAMP} subject="writing" />
+          ) : null
         }
       />
     </div>

@@ -193,3 +193,10 @@ export function liveViewStats(
         : null,
   };
 }
+
+/** "2:30 PM", the Live view's Started time. */
+export const liveViewClock = (ms: number): string =>
+  new Date(ms).toLocaleTimeString(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+  });

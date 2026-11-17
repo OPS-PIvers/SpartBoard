@@ -3,6 +3,7 @@ import React, { useCallback } from 'react';
 import {
   BarChart3,
   Calendar,
+  Monitor,
   Pause,
   PowerOff,
   Rocket,
@@ -17,6 +18,7 @@ import {
 import { usePeriodRunner } from '@/hooks/usePeriodRunner';
 import { updateWritingSession } from '@/hooks/useWritingAssignmentSessions';
 import { hasPeriodAccess } from '@/utils/periodAccess';
+import { tourTypeAttr } from '@/config/tourAnchors';
 import {
   AssignmentArchiveCard,
   type LibraryMenuAction,
@@ -35,8 +37,17 @@ export const WritingAssignmentRow: React.FC<{
   tourIndex: number;
   onEnd: (record: WritingAssignmentRecord) => void;
   onDelete: (record: WritingAssignmentRecord) => void;
+  onMonitor?: (record: WritingAssignmentRecord) => void;
   onResults: (record: WritingAssignmentRecord) => void;
-}> = ({ record: r, mode, tourIndex, onEnd, onDelete, onResults }) => {
+}> = ({
+  record: r,
+  mode,
+  tourIndex,
+  onEnd,
+  onDelete,
+  onMonitor,
+  onResults,
+}) => {
   const { rosters, addToast } = useDashboard();
   // Manual: each class starts paused; Start and Pause go through the server, as no client writes the session.
   const perPeriod = mode === 'active' && hasPeriodAccess(r);
@@ -70,6 +81,10 @@ export const WritingAssignmentRow: React.FC<{
         ? `${classes.length} classes`
         : null;
   const icon = { width: 'min(12px, 3cqmin)', height: 'min(12px, 3cqmin)' };
+  const monitor =
+    mode === 'active' && onMonitor
+      ? { label: 'Monitor', icon: Monitor, onClick: () => onMonitor(r) }
+      : undefined;
   const results = {
     id: 'results',
     label: 'Results',
@@ -77,6 +92,15 @@ export const WritingAssignmentRow: React.FC<{
     onClick: () => onResults(r),
   };
   const secondaries: LibraryMenuAction[] = [
+    ...(monitor && paused
+      ? [
+          {
+            id: 'monitor',
+            ...monitor,
+            anchor: tourTypeAttr('writing.archive-monitor', 'writing'),
+          },
+        ]
+      : []),
     ...(mode === 'active' ? [results] : []),
     ...(perPeriod && !paused
       ? [
@@ -155,7 +179,7 @@ export const WritingAssignmentRow: React.FC<{
             }
           : mode === 'archive'
             ? results
-            : undefined
+            : monitor
       }
       secondaryActions={secondaries}
     />

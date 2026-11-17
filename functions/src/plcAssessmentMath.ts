@@ -58,6 +58,8 @@ export interface GroupQuestion {
   allowPartialCredit: boolean;
   /** Rubric criterion ids on the synced question; empty when no rubric. */
   rubricCriterionIds: string[];
+  /** Criterion ids of the modified-group rubric; a grade complete on either rubric is final. */
+  modifiedRubricCriterionIds?: string[];
   /** Frozen tag snapshots used for target and standard rollups. */
   targets: QuestionTargetSnapshot[];
   /** Depth of Knowledge level 1-4 from the synced quiz or the assignment snapshot. */
@@ -372,6 +374,13 @@ export function parseSyncedQuestion(raw: unknown): GroupQuestion | null {
       : {}),
     allowPartialCredit: r.allowPartialCredit === true,
     rubricCriterionIds: parseRubricCriterionIds(r.rubricSnapshot),
+    ...(r.modifiedRubricSnapshot
+      ? {
+          modifiedRubricCriterionIds: parseRubricCriterionIds(
+            r.modifiedRubricSnapshot
+          ),
+        }
+      : {}),
     targets: parseTargets(r.targets),
     ...(parseDok(r.dok) ? { dok: parseDok(r.dok) } : {}),
   };
@@ -688,10 +697,13 @@ export function gradeGroupAnswer(
     const awarded = Math.min(max, Math.max(0, manual.pointsAwarded));
     // A rubric saved one criterion at a time stays provisional until every criterion is scored.
     const scored = new Set(manual.scoredCriterionIds);
+    const covers = (ids: readonly string[] | undefined) =>
+      !!ids && ids.length > 0 && ids.every((id) => scored.has(id));
     const partialRubric =
       question.rubricCriterionIds.length > 0 &&
       scored.size > 0 &&
-      question.rubricCriterionIds.some((id) => !scored.has(id));
+      !covers(question.rubricCriterionIds) &&
+      !covers(question.modifiedRubricCriterionIds);
     return {
       isCorrect: awarded === max && max > 0,
       pointsEarned: awarded,

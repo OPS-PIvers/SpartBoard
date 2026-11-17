@@ -149,7 +149,7 @@ import {
 import { useSavedMarkupComments } from '@/components/quiz/paper/markup/useSavedMarkupComments';
 
 // brand-blue-primary, as a value for the shell's inline header style.
-const BRAND_BLUE_HEADER = '#2d3f89';
+const BRAND_BLUE_HEADER = 'var(--spart-primary, #2d3f89)';
 
 const RAIL_NAME_COLLATOR = new Intl.Collator(undefined, {
   sensitivity: 'base',

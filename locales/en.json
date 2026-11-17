@@ -3758,6 +3758,7 @@
   },
   "quizLiveView": {
     "banner": "Your teacher is viewing your quiz",
+    "bannerWriting": "Your teacher is viewing your writing",
     "nudge": "Your teacher is checking in",
     "noteSeeMe": "Please see me",
     "noteOwnWork": "Eyes on your own work",
