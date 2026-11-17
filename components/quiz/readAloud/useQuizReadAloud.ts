@@ -350,14 +350,35 @@ export function useQuizReadAloud({
     for (const sid of question?.stimulusIds ?? []) {
       if (stimulusText(sid)) parts.push({ kind: 'stimulus', stimulusId: sid });
     }
-    if (promptRewritten) {
-      const choices =
-        question?.type === 'MC' || question?.type === 'MA'
-          ? (question.choices ?? [])
-          : question?.type === 'FIB'
-            ? spokenBlankChoices(question)
-            : [];
-      choices.forEach((_c, index) => parts.push({ kind: 'choice', index }));
+    if (promptRewritten && question) {
+      // Only what this student sees, in screen order, keyed by canonical index.
+      const shown = (
+        kind: 'choice' | ReadAloudItemKind,
+        served: string[] | undefined,
+        all: string[] | undefined
+      ) =>
+        (served ?? []).forEach((text) => {
+          const index = all?.indexOf(text) ?? -1;
+          if (index >= 0) parts.push({ kind, index });
+        });
+      if (question.type === 'MC' || question.type === 'MA')
+        shown('choice', question.choices, canonical?.choices);
+      if (question.type === 'FIB' && canonical)
+        shown(
+          'choice',
+          spokenBlankChoices(question),
+          spokenBlankChoices(canonical)
+        );
+      if (question.type === 'Matching') {
+        shown('matchingLeft', question.matchingLeft, canonical?.matchingLeft);
+        shown(
+          'matchingRight',
+          question.matchingRight,
+          canonical?.matchingRight
+        );
+      }
+      if (question.type === 'Ordering')
+        shown('orderingItem', question.orderingItems, canonical?.orderingItems);
       if (parts.length === 0) return;
     } else parts.push({ kind: 'whole' });
     stop();
@@ -373,6 +394,7 @@ export function useQuizReadAloud({
     stop,
     start,
     promptRewritten,
+    canonical,
   ]);
 
   // The ended handler below starts queued parts through this ref.

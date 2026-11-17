@@ -8065,8 +8065,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "editor",
         "path": [
           "library-shell.new:quiz",
-          "library-shell.new-menu-item:quiz#item-1"
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-editor.modified:quiz"
         ],
+        "reveal": "quiz-editor.modified:quiz",
         "needs": [
           "widget-on-stage"
         ]

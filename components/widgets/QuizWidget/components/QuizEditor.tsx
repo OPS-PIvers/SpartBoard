@@ -1011,6 +1011,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
 
           {canAccessFeature('modification-groups') && (
             <QuestionModifiedField
+              key={q.id}
               question={q}
               onChange={(modifiedText) =>
                 updateQuestion(q.id, { modifiedText })
