@@ -1,6 +1,7 @@
 import { tourFieldAttr } from '@/config/tourAnchors';
 import React from 'react';
 import { First5GlobalConfig } from '@/types';
+import { DraftNumberField } from './DraftNumberField';
 import { computeCurrentDayNumber } from '@/utils/first5';
 
 interface First5ConfigurationPanelProps {
@@ -26,15 +27,14 @@ export const First5ConfigurationPanel: React.FC<
     .toISOString()
     .split('T')[0];
 
-  const handleDayNumberChange = (value: string) => {
-    const num = parseInt(value, 10);
-    if (!isNaN(num)) {
-      onChange({
-        ...config,
-        activeDayNumber: Math.max(1, num),
-        referenceDate: localTodayISO,
-      });
-    }
+  const normalizeDayNumber = (num: number) => Math.max(1, Math.floor(num));
+
+  const handleDayNumberChange = (num: number) => {
+    onChange({
+      ...config,
+      activeDayNumber: normalizeDayNumber(num),
+      referenceDate: localTodayISO,
+    });
   };
 
   const handleResetToToday = () => {
@@ -57,12 +57,12 @@ export const First5ConfigurationPanel: React.FC<
           Today&apos;s Day Number
         </label>
         <div className="flex items-center gap-2">
-          <input
+          <DraftNumberField
             id="first5-day-number"
-            type="number"
             min="1"
-            value={todaysDayNumber ?? (activeDayNumber || '')}
-            onChange={(e) => handleDayNumberChange(e.target.value)}
+            value={todaysDayNumber ?? (activeDayNumber || undefined)}
+            onCommit={handleDayNumberChange}
+            normalize={normalizeDayNumber}
             placeholder="e.g. 777"
             {...tourFieldAttr(
               'admin.widget-config.field',

@@ -771,6 +771,12 @@
 | 2026-11-16 | State & Data | Discarded: `parseMeetingCadence` accepted a NaN weekday (one-line validator gap, but no UI path produces it and the downstream effect was never traced). | — |
 | 2026-11-16 | Admin & Config | `PdfLibraryModal` swallowed a failed `getDoc`, so Save wrote defaults over the saved config. Now a load-status gate with Try again (same as #5881). (contained). | [#5937](https://github.com/OPS-PIvers/SpartBoard/pull/5937) |
 | 2026-11-16 | Build & Tooling | `fetchCimdClient` read the whole metadata body before the 16 KB cap and counted characters, not bytes. Now a capped streaming byte read. (contained). | [#5938](https://github.com/OPS-PIvers/SpartBoard/pull/5938) |
+| 2026-11-17 | Baseline | `pnpm run validate` green on `dev-paul` at `6ad031c2` (2493 root files, 26587 tests; 256 functions files, 5811 tests). |
+| 2026-11-17 | Widgets | `useTimeTool.handleStart` awaited `resumeAudio()` and then built the start patch from the pre-await `config`, so a remote start or adjust during the await was overwritten (restart, reverted time). Now reads the latest config from a ref after the await. PR: #6042 |
+| 2026-11-17 | Dashboard & Layout | Clean. Read `lazyNamed`/`LazyChunkErrorBoundary`, `DeepLinkShareImporter`, `TabAwayClock`, `AIGeneratorOverlay`, `Modal` and `useUnifiedAssignments`; all backlog leads closed or unreachable. |
+| 2026-11-17 | State & Data | `dueReminders` only evaluated the calendar day of `now`, so an alert with a lead crossing midnight never showed the evening before, and a late-evening alert vanished after midnight. Now evaluates days -1, 0 and +1 with a per-occurrence dedupe key. PR: #6043 |
+| 2026-11-17 | Admin & Config | First 5 "Today's Day Number" ignored a cleared box (controlled input dropped NaN), so it snapped back. Now uses `DraftNumberField` (which accepts `undefined`). PR: #6044 |
+| 2026-11-17 | Build & Tooling | `handleControlSubAssignment` ran `refreshIdleResponses` on every quiz resume, including a resume of a run that was not paused, which reset real idleness and wrote the whole class. Now only when `session.status === 'paused'`. PR: #6045 |
 
 ## Backlog
 
@@ -1258,6 +1264,11 @@
 | State & Data | 2026-11-16: `parseMeetingCadence` NaN weekday (discarded, low; reject in the parser if a real path appears). `useSeatedPeriodContent` timeout overflow/no reset, `dueReminders`, `allDayDates`, `startingDueDate`, CSV helper duplication, formula guards, `context/*` providers and session hooks still not inspected. |
 | Admin & Config | 2026-11-16: `PdfLibraryModal` save-time `getDoc` (~L265) defaults to public/enabled when the doc is missing (matches app default, low). Number-input panels (Calendar, First5, SmartNotebook, ActivityWall, QuizReadAloud), `canonicalizeBuildingKeyedRecord`, `SubjectsPanel` Escape, `SchoologyCategoriesPanel` casts, `withoutProtectedMembers` still unchecked. |
 | Build & Tooling | 2026-11-16: `loadOwnedRosterClasses` (`studentAssignmentTargets.ts`) reads only the first 100 roster docs; `backfill-*.mjs`/`migrate-internal-tool-permissions.mjs`/`focus-vapid-keygen.mjs` `--project` with no value reads the next flag; `mcp/oauthEndpoints.ts handleToken` compares `redirect_uri` only when sent (confirm intent). Closed: `subControlAssignment` sweeps are paginated, `videoStore` handles `/live/`. |
+| Widgets | Open: `VideoActivityWidget/Widget.tsx:341` `.slice(0, 200)` can split a surrogate pair (use `clipText`); `videoActivityImportAdapter.parseCsv` accepts a negative time limit; `resumeAudio` awaiting `ctx.resume()` can hang without a gesture (unverified). Closed: ArtsLettersAgenda, GL and SmartNotebook clipboard, Focus, RandomWidget unmount. | 2026-11-17 | open (low) |
+| Dashboard & Layout | Low, unconfirmed: `replayClipboardAsPaste` names `image/svg+xml` as `.svg+xml`; `buildChildrenByParent` can hoist a child of a parent cycle to root. `lazyNamed` and `DeepLinkShareImporter` leads closed. Still unread in depth: `Dock.tsx`, `DraggableWindow.tsx`, `AnnotationOverlay.tsx`, `BoardsModal.tsx`. | 2026-11-17 | open (low) |
+| State & Data | Not inspected: `context/*` providers, `useLiveSession`, `usePollSession`, `useMiniAppSession`, cancel flags in `useBankSources`/`useFlashcard*`. Closed: `extractYouTubeId` `live/` fixed; pause-on-End keeps `pausedAt` open by design. | 2026-11-17 | open |
+| Admin & Config | `normalizeQuizTranslationSettings`/`positiveInt` accepts 0 and does not dedupe languages (0 may mean off); `UsersView` `Date.parse` sort can be NaN; same uncleared-number class likely in `SmartNotebookConfigurationPanel:112`, `CalendarConfigurationModal` (~430, ~839), `ActivityWallConfigurationPanel:191`. | 2026-11-17 | open |
+| Build & Tooling | Script ergonomics: `backfill-*.mjs` take `--apply` as project id when `--project` has no value; `checkTourAnchors.ts --base` with no value; `pruneRulesets` reads one page. Unread: `studentAssignmentTargets.ts`, `quizMediaArchive.ts` (from 500), `organizationInvites`, `googleOAuth`, `aiGeneration`. Closed: `videoStore.ts` `live/`, `listAllResponses` pages. | 2026-11-17 | open (low) |
 
 ## Notes & Gotchas
 
@@ -1731,3 +1742,6 @@
 - 2026-11-16: four fixes (#5935-#5938), one discarded (State & Data: NaN weekday with no reachable path). Subagents ran scoped checks only; I swapped each source file back to `HEAD~1` to confirm every new test fails before and passes after, then ran one merged-tree `validate` + `build`. The only failure was the known `VideoActivityStudentApp.live.test.tsx` load-timing flake (18/18 alone), which stopped `validate` before the functions suite, so `pnpm -C functions run test` was run separately (green). `dev-paul` did not move. Baseline about 1 h, gate about 1 h. The Stop hook keeps asking to push the session branch; it holds only `dev-paul` history, so ignore it.
 
 - Run count: **125** | Last run: **2026-11-16**
+- 2026-11-17: four fixes (#6042-#6045), Dashboard & Layout clean. Subagents ran scoped checks only; I swapped each source file back to `HEAD~1` to confirm every new test fails before and passes after, then ran one merged-tree `validate` + `build` (green, no flakes). `dev-paul` moved during the run (no overlap); branches were rebased in their worktrees and scoped tests rerun. Baseline about 1 h, gate about 1 h.
+
+- Run count: **126** | Last run: **2026-11-17**

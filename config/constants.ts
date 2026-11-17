@@ -31,13 +31,5 @@ export const QUIZ_SSO_REDIRECT_ENABLED = false;
  */
 export const CLASSROOM_ASSIGN_ENABLED = true;
 
-/**
- * Staged-rollout guard for "Assign to Google Classroom": while `true`, the entry
- * point is shown to **admins only** so the first live (prod) end-to-end run —
- * Spike A: partner-first courseWork.create + due-date + token-less add-on
- * attachment + grade roll-up — happens with a single controlled user before the
- * button is exposed to every teacher. Flip to `false` (one line, no JSX changes)
- * to widen to all teachers once Spike A passes. Has no effect unless
- * `CLASSROOM_ASSIGN_ENABLED` is also `true`.
- */
-export const CLASSROOM_ASSIGN_ADMIN_ONLY = true;
+/** Spike A passed on prod; `true` would limit "Assign to Google Classroom" to admins again. */
+export const CLASSROOM_ASSIGN_ADMIN_ONLY = false;
