@@ -82,7 +82,7 @@ export function useWritingMonitor(
         const moved: Record<string, number> = {};
         for (const r of responses) {
           const count = r.saveCount ?? 0;
-          if (!first && counts.get(r.studentUid) !== count)
+          if (!first && count > 0 && counts.get(r.studentUid) !== count)
             moved[r.studentUid] = at;
           counts.set(r.studentUid, count);
         }

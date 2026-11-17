@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { WritingResponse } from '@/types';
 import {
   WRITING_IDLE_MS,
+  WRITING_IDLE_WINDOW_MS,
   buildWritingMonitorRows,
   countWritingBuckets,
   savedAgo,
@@ -170,5 +171,39 @@ describe('buildWritingMonitorRows clock', () => {
       seenAt: { u1: NOW - 3 * 60_000 },
     });
     expect(seen.idleMs).toBe(3 * 60_000);
+  });
+});
+
+describe('buildWritingMonitorRows across days', () => {
+  it('does not call a save from earlier in the week idle, unless this tab saw it', () => {
+    const old = response('u1', {
+      saveCount: 5,
+      summary: {
+        ...response('u1').summary,
+        savedAt: NOW - WRITING_IDLE_WINDOW_MS - 60_000,
+      },
+    });
+    const opts = { names, rosterUids: [], classId: '', now: NOW };
+    expect(
+      buildWritingMonitorRows({ ...opts, responses: [old] })[0].idleMs
+    ).toBeNull();
+    const [seen] = buildWritingMonitorRows({
+      ...opts,
+      responses: [old],
+      seenAt: { u1: NOW - WRITING_IDLE_WINDOW_MS - 60_000 },
+    });
+    expect(seen.idleMs).toBe(WRITING_IDLE_WINDOW_MS + 60_000);
+  });
+
+  it('shows no saved time for a student who opened the piece but never saved', () => {
+    const [row] = buildWritingMonitorRows({
+      responses: [response('u1')],
+      names,
+      rosterUids: [],
+      classId: '',
+      now: NOW,
+      seenAt: { u1: NOW },
+    });
+    expect(row.savedAt).toBeNull();
   });
 });

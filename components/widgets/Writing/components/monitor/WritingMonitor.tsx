@@ -1,5 +1,5 @@
 // The Writing monitor (D15) in the Quiz monitor's shell: header, class picker, status counts and roster rows, with Live view and Nudge.
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useMemo, useState } from 'react';
 import { Eye, Loader2, NotebookPen } from 'lucide-react';
 import type {
   WritingAssignmentRecord,
@@ -7,6 +7,8 @@ import type {
   WritingResponse,
 } from '@/types';
 import { useAuth } from '@/context/useAuth';
+import { AuthContext } from '@/context/AuthContextValue';
+import { QUIZ_LIVE_VIEW_FEATURE } from '@/utils/quizLiveView';
 import { useDashboard } from '@/context/useDashboard';
 import { useWritingMonitor } from '@/hooks/useWritingMonitor';
 import {
@@ -75,44 +77,75 @@ export const WritingMonitor: React.FC<{
     () => session?.classIds ?? record?.classIds ?? [],
     [session?.classIds, record?.classIds]
   );
-  const targetStudents =
+  // Older records name picked students with targetMode; Writing's picks keep mode 'class' and list their classes.
+  const legacyPicked =
     record?.targetMode === 'students' ? record.targetStudents : undefined;
-  // Names for everyone the session reaches; the per-class lookup lists who hasn't opened it.
+  // Names for everyone the session reaches; the per-class lookups list who hasn't opened it.
   const all = useAssignmentPseudonymsMulti(
     sessionId,
     classIds,
     orgId,
-    targetStudents
+    legacyPicked
+  );
+  const targetStudents = record?.targetStudents;
+  const narrowedIds = record?.studentTargetClassIds;
+  const targeted = useMemo(
+    () =>
+      targetStudents?.length
+        ? new Set(targetStudents.map(studentTargetRefKey))
+        : null,
+    [targetStudents]
+  );
+  const narrowed = useMemo(
+    () => new Set(legacyPicked ? classIds : targeted ? narrowedIds : []),
+    [legacyPicked, classIds, targeted, narrowedIds]
   );
   const picked = useMemo(
     () => (classId ? [classId] : classIds),
     [classId, classIds]
   );
-  const roster = useAssignmentPseudonymsMulti(
+  const wholePicked = useMemo(
+    () => picked.filter((id) => !narrowed.has(id)),
+    [picked, narrowed]
+  );
+  const narrowedPicked = useMemo(
+    () => picked.filter((id) => narrowed.has(id)),
+    [picked, narrowed]
+  );
+  const whole = useAssignmentPseudonymsMulti(sessionId, wholePicked, orgId);
+  const part = useAssignmentPseudonymsMulti(
     sessionId,
-    picked,
+    narrowedPicked,
     orgId,
-    targetStudents
+    legacyPicked
   );
   const excluded = useMemo(
     () => new Set((record?.excludedTargets ?? []).map(studentTargetRefKey)),
     [record?.excludedTargets]
   );
-  // Without the targeting record, or with picked students (refs carry no class), roster rows would list the wrong students.
+  // Without the targeting record, or a class filter on old picks (refs carry no class), rows would list the wrong students.
   const rosterKnown =
-    !!record && !roster.loading && !(classId && targetStudents);
+    !!record && !whole.loading && !part.loading && !(classId && legacyPicked);
   const rosterUids = useMemo(() => {
     const out: string[] = [];
     if (!rosterKnown) return out;
-    for (const uid of roster.byStudentUid.keys()) {
-      const ref = roster.targetRefKeyByStudentUid.get(uid);
+    for (const uid of whole.byStudentUid.keys()) {
+      const ref = whole.targetRefKeyByStudentUid.get(uid);
       if (!ref || !excluded.has(ref)) out.push(uid);
+    }
+    // In a class narrowed to picked students, only the picks belong.
+    for (const uid of part.byStudentUid.keys()) {
+      const ref = part.targetRefKeyByStudentUid.get(uid);
+      if (ref && targeted?.has(ref) && !excluded.has(ref)) out.push(uid);
     }
     return out;
   }, [
     rosterKnown,
-    roster.byStudentUid,
-    roster.targetRefKeyByStudentUid,
+    whole.byStudentUid,
+    whole.targetRefKeyByStudentUid,
+    part.byStudentUid,
+    part.targetRefKeyByStudentUid,
+    targeted,
     excluded,
   ]);
   const { rosters } = useDashboard();
@@ -202,6 +235,12 @@ export const WritingMonitorView: React.FC<{
   const now = useServerNow(15_000);
   const [openBucket, setOpenBucket] = useState<BucketKey | null>(null);
   const [watching, setWatching] = useState<string | null>(null);
+  // Gated like the Quiz Live view: the admin flag, and only the assigning teacher.
+  const auth = useContext(AuthContext);
+  const canLiveView =
+    auth?.canAccessFeature?.(QUIZ_LIVE_VIEW_FEATURE) === true &&
+    !!session?.teacherUid &&
+    auth.user?.uid === session.teacherUid;
   const classIds = session?.classIds ?? fallbackClasses.classIds;
   const periodNames = session?.periodNames ?? fallbackClasses.periodNames;
   const classLabel = (id: string): string =>
@@ -312,7 +351,7 @@ export const WritingMonitorView: React.FC<{
             <WritingRosterList
               rows={rows.filter((r) => r.bucket === openBucket)}
               watchable={watchable}
-              onLiveView={setWatching}
+              onLiveView={canLiveView ? setWatching : undefined}
             />
           )}
         </div>
@@ -329,7 +368,7 @@ export const WritingMonitorView: React.FC<{
         backAnchor={tourTypeAttr('writing-monitor.back', TYPE)}
       />
       {body}
-      {session && watching && (
+      {session && canLiveView && watching && (
         <WritingLiveViewPanel
           session={session}
           students={watchable}
@@ -346,7 +385,7 @@ export const WritingMonitorView: React.FC<{
 const WritingRosterList: React.FC<{
   rows: WritingMonitorRow[];
   watchable: WritingMonitorRow[];
-  onLiveView: (key: string) => void;
+  onLiveView?: (key: string) => void;
 }> = ({ rows, watchable, onLiveView }) => {
   if (rows.length === 0)
     return (
@@ -360,7 +399,8 @@ const WritingRosterList: React.FC<{
   return (
     <div className="flex flex-col" style={{ gap: 'min(6px, 1.5cqmin)' }}>
       {rows.map((row, index) => {
-        const canWatch = watchable.some((w) => w.key === row.key);
+        const canWatch =
+          !!onLiveView && watchable.some((w) => w.key === row.key);
         return (
           <RosterRow key={row.key} name={row.name} muted={!row.response}>
             {row.status === 'revising' && (
@@ -401,7 +441,7 @@ const WritingRosterList: React.FC<{
                   TYPE,
                   `row-${index + 1}`
                 )}
-                onClick={() => onLiveView(row.key)}
+                onClick={() => onLiveView?.(row.key)}
                 title="Live view"
                 aria-label={`Live view of ${row.name}`}
                 className="touch-target-expand relative inline-flex shrink-0 items-center rounded-md text-brand-blue-primary hover:bg-brand-blue-lighter"

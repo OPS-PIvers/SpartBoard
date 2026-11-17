@@ -25,6 +25,8 @@ export interface WritingMonitorRow {
 
 /** Writing in progress with no save for 2 minutes reads as idle, as in Quiz. */
 export const WRITING_IDLE_MS = 120_000;
+/** A last save older than this reads as away from the piece, not idle, unless this tab saw it. */
+export const WRITING_IDLE_WINDOW_MS = 30 * 60_000;
 
 const bucketOf = (
   status: WritingResponseStatus,
@@ -72,8 +74,9 @@ export function buildWritingMonitorRows(params: {
     const status = deriveWritingStatus(r);
     const bucket = bucketOf(status, r);
     // The student's clock can be off, so it never reads as later than now.
+    const seenSave = (r.saveCount ?? 0) > 0 ? seenAt[r.studentUid] : undefined;
     const savedAt =
-      seenAt[r.studentUid] ??
+      seenSave ??
       (typeof r.summary?.savedAt === 'number' && (r.saveCount ?? 0) > 0
         ? Math.min(r.summary.savedAt, now)
         : null);
@@ -88,10 +91,12 @@ export function buildWritingMonitorRows(params: {
       awayMs: r.summary?.awayMs ?? 0,
       awayCount: r.summary?.awayCount ?? 0,
       savedAt,
+      // Work runs for days, so an old save is not idle: only one seen here or within the last half hour.
       idleMs:
         bucket === 'inProgress' &&
         typeof since === 'number' &&
-        now - since > WRITING_IDLE_MS
+        now - since > WRITING_IDLE_MS &&
+        (seenSave != null || now - since < WRITING_IDLE_WINDOW_MS)
           ? now - since
           : null,
     });

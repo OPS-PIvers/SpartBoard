@@ -10693,6 +10693,8 @@ export interface WritingAssignmentRecord {
   dueLocks?: boolean;
   targetMode?: 'class' | 'students';
   targetStudents?: StudentTargetRef[];
+  /** Classes narrowed to picked students, written by `setAssignmentTargetsV1`. */
+  studentTargetClassIds?: string[];
   targetGroupIds?: string[];
   overridesBySourcedId?: Record<string, StudentOverride>;
   excludedTargets?: StudentTargetRef[];

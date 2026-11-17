@@ -7078,7 +7078,7 @@ service cloud.firestore {
           && nowMs() - 30000 < existing().get('deadlineAt', nowMs())
           && wrOpen(wrS()) && (studentLetIn(wrS()) || periodOpen(wrS(), existing().classId));
         // D15: Live view's watch and Nudge; the student's own saves can't touch liveView.
-        allow update: if wrTeacher() && changedOnly(['liveView']) && incoming().liveView is map && incoming().liveView.size() <= 3;
+        allow update: if wrTeacher() && changedOnly(['liveView']) && isMap('liveView') && incoming().liveView.size() <= 3;
         // D25: only the open chunk is writable, a closed chunk never changes, and each write rides a
         // response save in the same batch (which carries that save's tab, lock and clock checks).
         match /log/{n} {

@@ -1,11 +1,24 @@
 // Live view (D15): one student's piece in the Quiz Live view frame, with Nudge; only the session's teacher opens it.
-import React, { useEffect, useEffectEvent, useMemo, useState } from 'react';
+import React, {
+  useContext,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useState,
+} from 'react';
 import type { QuizNudgeNoteId, WritingAssignmentSession } from '@/types';
 import { PromptText } from '@/components/common/PromptText';
 import { tourTypeAttr } from '@/config/tourAnchors';
 import { useDashboard } from '@/context/useDashboard';
+import { AuthContext } from '@/context/AuthContextValue';
+import { useQuizLiveViewAlwaysNotify } from '@/hooks/useQuizHandRaiseMode';
 import { useServerNow } from '@/hooks/useServerNow';
-import { LIVE_VIEW_RENEW_MS, liveViewClock } from '@/utils/quizLiveView';
+import {
+  LIVE_VIEW_NUDGE_FEATURE,
+  LIVE_VIEW_NUDGE_NOTE_FEATURE,
+  LIVE_VIEW_RENEW_MS,
+  liveViewClock,
+} from '@/utils/quizLiveView';
 import { formatTimeLeft } from '@/utils/quizTimeLimit';
 import { formatAwayDuration } from '@/utils/tabAwayLimit';
 import { logError } from '@/utils/logError';
@@ -34,7 +47,14 @@ export const WritingLiveViewPanel: React.FC<{
 }> = ({ session, students, studentKey, onSelect, onClose }) => {
   const { addToast } = useDashboard();
   const now = useServerNow(1000);
+  // The Quiz Live view's admin settings apply here too.
+  const auth = useContext(AuthContext);
+  const alwaysNotify = useQuizLiveViewAlwaysNotify();
+  const canNudge = auth?.canAccessFeature?.(LIVE_VIEW_NUDGE_FEATURE) === true;
+  const canNudgeNote =
+    canNudge && auth?.canAccessFeature?.(LIVE_VIEW_NUDGE_NOTE_FEATURE) === true;
   const [tell, setTell] = useState(false);
+  const notify = alwaysNotify || tell;
   const [noteId, setNoteId] = useState<QuizNudgeNoteId | ''>('');
   const [nudging, setNudging] = useState(false);
 
@@ -49,7 +69,7 @@ export const WritingLiveViewPanel: React.FC<{
   );
 
   const stamp = useEffectEvent(() => {
-    stampWritingLiveView(sessionId, studentKey, tell).catch((err: unknown) =>
+    stampWritingLiveView(sessionId, studentKey, notify).catch((err: unknown) =>
       logError('WritingLiveView.stamp', err, { sessionId })
     );
   });
@@ -77,13 +97,13 @@ export const WritingLiveViewPanel: React.FC<{
   const onTell = (next: boolean) => {
     setTell(next);
     if (!watching) return;
-    stampWritingLiveView(sessionId, studentKey, next).catch((err: unknown) =>
-      logError('WritingLiveView.stamp', err, { sessionId })
+    stampWritingLiveView(sessionId, studentKey, alwaysNotify || next).catch(
+      (err: unknown) => logError('WritingLiveView.stamp', err, { sessionId })
     );
   };
 
   const onNudge = async () => {
-    if (!watching || nudging) return;
+    if (!watching || nudging || !canNudge) return;
     setNudging(true);
     try {
       await sendWritingNudge(sessionId, studentKey, noteId || undefined);
@@ -178,12 +198,14 @@ export const WritingLiveViewPanel: React.FC<{
               </LiveViewStat>
             </dl>
             <LiveViewControls
-              showTell
+              showTell={!alwaysNotify}
               tell={tell}
               onTell={onTell}
-              notifyText={tell ? 'Your teacher is viewing your writing' : null}
-              canNudge
-              canNudgeNote
+              notifyText={
+                notify ? 'Your teacher is viewing your writing' : null
+              }
+              canNudge={canNudge}
+              canNudgeNote={canNudgeNote}
               noteId={noteId}
               onNoteId={setNoteId}
               nudging={nudging}
