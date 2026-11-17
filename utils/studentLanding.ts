@@ -62,7 +62,7 @@ export function landingRowState(
   const checkable = readsTurnIn(a);
   const turnIn: TurnInState | undefined = check?.turnIn;
   if (isClosedUnsubmittableRun(a) || turnIn === 'turned-in') return 'turned-in';
-  // A printed copy waits for its scan, so it is never Missing; a closed one stays off the page until then.
+  // A printed copy waits for its scan, so it is never Missing; a closed untouched one stays off the page until then.
   const onPaper = a.kind === 'quiz' && a.override?.onPaper === true;
   // In no group yet, so nothing to submit: never Missing.
   if (a.kind === 'projects' && turnIn === 'not-started')
@@ -73,7 +73,7 @@ export function landingRowState(
       return 'in-progress';
     // Ended rows wait for their check; one the student never opened needs a deadline to count as Missing.
     if (!checkable || !check) return null;
-    if (onPaper) return null;
+    if (onPaper) return turnIn === 'in-progress' ? 'closed' : null;
     const deadline = a.dueAt ?? a.closeAt;
     if (deadline !== undefined && nowMs > deadline) return 'missing';
     return turnIn === 'in-progress' ? 'closed' : null;
