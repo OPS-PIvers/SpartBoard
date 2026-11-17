@@ -129,13 +129,12 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   const isOnBoard = useDashboardCanvasSelector(
     (s) => !!s.activeDashboard?.widgets.some((w) => w.id === widget.id)
   );
-  const hasTab = useDashboardCanvasSelector(
-    (s) =>
-      hasConnectionTab(
-        s.activeDashboard?.connections,
-        s.activeDashboard?.widgets ?? [],
-        widget.id
-      )
+  const hasTab = useDashboardCanvasSelector((s) =>
+    hasConnectionTab(
+      s.activeDashboard?.connections,
+      s.activeDashboard?.widgets ?? [],
+      widget.id
+    )
   );
   const { showConfirm } = useDialog();
   const claudeReview = useClaudeReview('activity_wall_activities');

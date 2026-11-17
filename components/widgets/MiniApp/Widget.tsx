@@ -1072,7 +1072,6 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     createAssignment,
     addWidget,
     addToast,
-    canAccessFeature,
     updateDashboard,
     updateWidget,
     widget.id,
@@ -1939,11 +1938,10 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
             <MiniAppManager
               userId={user?.uid}
               clearsConnectionTab={hasConnectionTab(
-                  activeDashboard?.connections,
-                  activeDashboard?.widgets ?? [],
-                  widget.id
-                )
-              }
+                activeDashboard?.connections,
+                activeDashboard?.widgets ?? [],
+                widget.id
+              )}
               tab={managerTab}
               onTabChange={setManagerTab}
               personalLibrary={library}

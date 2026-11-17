@@ -565,7 +565,6 @@ export const TimeToolWidget: React.FC<{
 
   const effectiveAdjustStep = Math.max(5, Math.min(60, adjustStepSeconds));
 
-
   const showAdjustControls = mode === 'timer' && !isEditing && !isNarrow;
   const isExpired = clockStateOf(config).phase === 'expired';
 

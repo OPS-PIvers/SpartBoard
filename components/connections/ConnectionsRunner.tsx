@@ -559,9 +559,9 @@ export const ConnectionsRunner: React.FC = () => {
 
   // A Sequence that starts with Schedule's block warning begins itself when a block is about to end.
   const watchWarnings = !!activeDashboard?.connections?.some(
-      (c) =>
-        c.kind === 'sequence' && !!warningScheduleOf(c, activeDashboard.widgets)
-    );
+    (c) =>
+      c.kind === 'sequence' && !!warningScheduleOf(c, activeDashboard.widgets)
+  );
 
   useEffect(() => {
     if (!watchWarnings) return;
