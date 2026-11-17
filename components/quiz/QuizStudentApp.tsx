@@ -57,7 +57,7 @@ import {
   SectionCapNotice,
   SectionIntroDialog,
 } from './QuizSectionParts';
-import { SupportsButton, SupportsDialog } from './QuizSupportsParts';
+import { SupportsButton, SupportsPanel } from './QuizSupportsParts';
 import { QuizStopScreen } from './QuizStopScreen';
 import { StudentExplanation } from './StudentExplanation';
 import {
@@ -4045,6 +4045,7 @@ export const ActiveQuiz: React.FC<{
   // paced affordances and the gamified AnswerFeedbackBanner stay dark.
   const light = isStudentPaced;
   const supports = override?.supports ?? [];
+  const supportsPanelOpen = supportsOpen && supports.length > 0;
   const sectionAnswers = myResponse?.answers ?? [];
   const sectionServedIds =
     isStudentPaced && (drawIds || override?.questionIds)
@@ -4434,7 +4435,7 @@ export const ActiveQuiz: React.FC<{
         className={
           splitPanel
             ? 'flex flex-col lg:flex-row lg:items-start mx-auto w-full max-w-[1920px]'
-            : sideStimuli.length > 0
+            : sideStimuli.length > 0 || supportsPanelOpen
               ? 'flex flex-col lg:flex-row lg:items-start mx-auto w-full max-w-[1700px]'
               : 'contents'
         }
@@ -4498,7 +4499,7 @@ export const ActiveQuiz: React.FC<{
           {...clipboardGuards}
           className={`flex flex-col w-full min-w-0 ${
             whiteboardConfig ? 'flex-1 px-6 py-4' : 'p-6'
-          } ${splitPanel ? 'lg:flex-1 lg:mx-auto' : sideStimuli.length > 0 ? 'lg:flex-1' : 'mx-auto'} ${
+          } ${splitPanel ? 'lg:flex-1 lg:mx-auto' : sideStimuli.length > 0 || supportsPanelOpen ? 'lg:flex-1' : 'mx-auto'} ${
             // Free Response gets elbow room for long-form writing; structured
             // inputs read worse stretched across a widescreen.
             whiteboardConfig
@@ -4556,7 +4557,8 @@ export const ActiveQuiz: React.FC<{
               {supports.length > 0 && (
                 <SupportsButton
                   light={light}
-                  onOpen={() => setSupportsOpen(true)}
+                  open={supportsPanelOpen}
+                  onToggle={() => setSupportsOpen((o) => !o)}
                 />
               )}
               {whiteboardConfig && currentStimuli.length > 0 && (
@@ -4633,13 +4635,6 @@ export const ActiveQuiz: React.FC<{
                 />
               )}
             </div>
-          )}
-          {supportsOpen && supports.length > 0 && (
-            <SupportsDialog
-              supports={supports}
-              light={light}
-              onClose={() => setSupportsOpen(false)}
-            />
           )}
           {showSectionIntro && sectionState && (
             <SectionIntroDialog
@@ -5652,6 +5647,16 @@ export const ActiveQuiz: React.FC<{
             <div className="mt-6 flex justify-center">{raiseHandButton}</div>
           )}
         </div>
+        {/* Supports sit beside the question (above it on a phone), never over it. */}
+        {supportsPanelOpen && (
+          <div className="order-first flex max-h-[45vh] w-full shrink-0 flex-col p-4 pb-0 lg:order-none lg:sticky lg:top-0 lg:h-screen lg:max-h-none lg:w-[38%] lg:min-w-[320px] lg:p-6 lg:pl-3">
+            <SupportsPanel
+              supports={supports}
+              light={light}
+              onClose={() => setSupportsOpen(false)}
+            />
+          </div>
+        )}
       </ReviewSwap>
     </div>
   );

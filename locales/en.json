@@ -6452,8 +6452,6 @@
   "quizSupports": {
     "button": "Supports",
     "title": "Supports",
-    "back": "Back",
-    "close": "Close",
-    "openLink": "Open link"
+    "close": "Close"
   }
 }

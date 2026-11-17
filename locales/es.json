@@ -5102,8 +5102,6 @@
   "quizSupports": {
     "button": "Apoyos",
     "title": "Apoyos",
-    "back": "Atrás",
-    "close": "Cerrar",
-    "openLink": "Abrir enlace"
+    "close": "Cerrar"
   }
 }
