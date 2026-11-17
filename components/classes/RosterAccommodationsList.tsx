@@ -97,9 +97,13 @@ export const RosterAccommodationsList: React.FC<
         override: overrides[o.id],
       }));
 
+  // Removing a student's own row keeps the settings their listed groups give them.
   const removeStudent = (id: string) => {
     setAddedStudents((prev) => prev.filter((x) => x !== id));
-    onChange(setRosterDefaultOverride(overrides, id, {}));
+    const fromGroups = listedGroups
+      .filter((g) => g.memberIds.includes(id))
+      .reduce<StudentOverride>((acc, g) => ({ ...acc, ...g.shared }), {});
+    onChange(setRosterDefaultOverride(overrides, id, fromGroups));
   };
   const removeGroup = (row: GroupRow) => {
     setAddedGroups((prev) => prev.filter((x) => x !== row.group.id));

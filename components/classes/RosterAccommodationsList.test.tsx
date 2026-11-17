@@ -83,4 +83,22 @@ describe('RosterAccommodationsList', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Remove Modified' }));
     expect(latest).toEqual({ c: { readAloud: true } });
   });
+
+  it("removing a member's own row keeps the group's settings", () => {
+    render(
+      <Host
+        initial={{
+          b: { timeMultiplier: 2 },
+          c: { timeMultiplier: 2, readAloud: true },
+        }}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Add/ }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /Bui, Linh/ }));
+    expect(latest).toEqual({
+      b: { timeMultiplier: 2 },
+      c: { timeMultiplier: 2 },
+    });
+    expect(screen.getByText('Modified (2 students)')).toBeInTheDocument();
+  });
 });
