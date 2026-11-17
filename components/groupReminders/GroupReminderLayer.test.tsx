@@ -138,4 +138,51 @@ describe('GroupReminderLayer', () => {
     });
     expect(screen.queryByRole('alert')).toBeNull();
   });
+  it('keeps an evening dismissal after midnight when another is dismissed', () => {
+    const late = group({
+      reminder: {
+        ...reminder,
+        days: [2],
+        alerts: [{ time: '00:05', leadMinutes: 10 }],
+      },
+    });
+    const early = group({
+      id: 'g2',
+      reminder: {
+        ...reminder,
+        days: [2],
+        alerts: [{ time: '00:01', leadMinutes: 0 }],
+      },
+    });
+    const both: ClassRoster[] = [
+      { ...rosters(late)[0], groups: [late, early] },
+    ];
+    vi.setSystemTime(new Date(2026, 8, 28, 23, 55, 30));
+    const first = render(<GroupReminderLayer rosters={both} />);
+    act(() => {
+      vi.advanceTimersByTime(10_000);
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^dismiss$/i }));
+    act(() => {
+      vi.advanceTimersByTime(600);
+    });
+    first.unmount();
+    vi.setSystemTime(new Date(2026, 8, 29, 0, 1, 0));
+    const second = render(
+      <GroupReminderLayer rosters={[{ ...both[0], groups: [early] }]} />
+    );
+    act(() => {
+      vi.advanceTimersByTime(10_000);
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^dismiss$/i }));
+    act(() => {
+      vi.advanceTimersByTime(600);
+    });
+    second.unmount();
+    render(<GroupReminderLayer rosters={[{ ...both[0], groups: [late] }]} />);
+    act(() => {
+      vi.advanceTimersByTime(10_000);
+    });
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
 });

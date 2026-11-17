@@ -33,12 +33,18 @@ function readDismissed(): Record<string, string> {
   }
 }
 
-/** Remembers a dismissal for the rest of the day so a reload does not re-fire it. */
+/** Remembers a dismissal into the next day so a reload does not re-fire it, even across midnight. */
 function rememberDismissed(key: string) {
   try {
-    const today = toLocalDateKey(new Date());
+    const now = new Date();
+    const today = toLocalDateKey(now);
+    const yesterday = toLocalDateKey(
+      new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)
+    );
     const kept = Object.fromEntries(
-      Object.entries(readDismissed()).filter(([, day]) => day === today)
+      Object.entries(readDismissed()).filter(
+        ([, day]) => day === today || day === yesterday
+      )
     );
     kept[key] = today;
     localStorage.setItem(DISMISSED_KEY, JSON.stringify(kept));
