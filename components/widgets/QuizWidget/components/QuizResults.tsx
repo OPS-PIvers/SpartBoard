@@ -307,6 +307,8 @@ interface QuizResultsProps {
   onBack: () => void;
   tabWarningsEnabled?: boolean;
   session?: import('@/types').QuizSession | null;
+  /** Printed group stacks (`paper-printed-versions`); a response scanned from one shows a Paper badge. */
+  paperCopyBatchIds?: readonly string[];
   /**
    * Delete a single student response by its deterministic Firestore doc key
    * (falls back to `studentUid` for legacy docs written before keying moved
@@ -482,6 +484,7 @@ export const QuizResults: React.FC<QuizResultsProps> = (props) => {
 };
 
 const QuizResultsContent: React.FC<QuizResultsProps> = ({
+  paperCopyBatchIds,
   quiz,
   responses: rawResponses,
   config,
@@ -2701,6 +2704,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
             <StudentsScreen
               rubricFor={printRubric}
               liveLogByKey={liveLogByKey}
+              paperCopyBatchIds={paperCopyBatchIds}
               quizTitle={quiz.title}
               responses={filteredResponses}
               questions={quiz.questions}
@@ -4494,10 +4498,12 @@ const StudentsScreen: React.FC<{
   onViewChange: (view: { sort: StudentSort; display: ScoreDisplay }) => void;
   /** Teacher-only Live view actions per response key; absent without the flag. */
   liveLogByKey?: ReadonlyMap<string, QuizLiveLogEntry[]>;
+  paperCopyBatchIds?: readonly string[];
   onSaveCountedChoices?: SaveCountedChoices;
 }> = ({
   rubricFor,
   liveLogByKey,
+  paperCopyBatchIds,
   quizTitle,
   responses,
   questions,
@@ -4936,7 +4942,9 @@ const StudentsScreen: React.FC<{
                       <SessionBadge tone="neutral" label={label} />
                     </span>
                   ))}
-                  {r.answers?.some((a) => isPaperWrittenAnswer(a)) && (
+                  {(r.answers?.some((a) => isPaperWrittenAnswer(a)) ||
+                    (!!r.paperBatchId &&
+                      !!paperCopyBatchIds?.includes(r.paperBatchId))) && (
                     <span className="shrink-0">
                       <SessionBadge
                         tone="neutral"
