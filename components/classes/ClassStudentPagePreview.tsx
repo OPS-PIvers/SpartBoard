@@ -60,7 +60,7 @@ export const ClassStudentPagePreview: React.FC<
   );
   // Only this teacher's own copy, as the preview leaves out a co-teacher's work.
   const classPage = useClassPageAgendas(
-    studentPageClassId(roster),
+    canAccessFeature('course-agenda') ? studentPageClassId(roster) : null,
     user?.uid ?? null
   );
   return (
