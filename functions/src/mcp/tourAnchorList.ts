@@ -6266,6 +6266,38 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-mods.students-clear",
+    "label": "Clear button in the modification group Students menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.students"
+        ],
+        "reveal": "assign-mods.students"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.students-done",
+    "label": "Done button that closes the modification group Students menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.students"
+        ],
+        "reveal": "assign-mods.students"
+      }
+    ]
+  },
+  {
     "id": "assign-mods.class-group",
     "label": "Class group button in the modification group Students menu",
     "scope": "field",
@@ -78726,8 +78758,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "roster-editor.accommodations-group",
-    "label": "Group menu on the roster editor Accommodations tab",
-    "scope": "board",
+    "label": "Group row on the roster editor Accommodations tab",
+    "scope": "field",
     "panel": true,
     "routes": [
       {

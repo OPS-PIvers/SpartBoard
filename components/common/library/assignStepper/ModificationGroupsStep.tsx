@@ -286,6 +286,28 @@ const StudentsMenu: React.FC<{
               </p>
             )}
           </div>
+          <div className="flex items-center justify-between border-t border-slate-100 px-2 pb-0.5 pt-1.5">
+            {picked.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => onChange([])}
+                {...tourAttr('assign-mods.students-clear')}
+                className="touch-target-expand text-xs font-bold text-slate-500 hover:underline"
+              >
+                Clear
+              </button>
+            ) : (
+              <span />
+            )}
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              {...tourAttr('assign-mods.students-done')}
+              className="touch-target-expand rounded-md bg-brand-blue-primary px-3 py-1 text-xs font-bold text-white hover:bg-brand-blue-dark"
+            >
+              Done
+            </button>
+          </div>
         </div>
       )}
     </div>

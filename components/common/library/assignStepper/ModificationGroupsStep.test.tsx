@@ -69,4 +69,14 @@ describe('ModificationGroupsStep class groups', () => {
       screen.getByRole('button', { name: /Needs reteach/ })
     ).toBeDisabled();
   });
+
+  it('closes the menu with Done and clears picks with Clear', () => {
+    render(<Host />);
+    fireEvent.click(screen.getByRole('button', { name: /Select students/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Reading group A/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+    expect(latest[0].studentKeys).toHaveLength(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(screen.queryByRole('dialog', { name: 'Students' })).toBeNull();
+  });
 });

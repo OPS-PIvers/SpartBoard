@@ -1521,6 +1521,14 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'assign-mods.students-clear': {
+    label: 'Clear button in the modification group Students menu',
+    panel: true,
+  },
+  'assign-mods.students-done': {
+    label: 'Done button that closes the modification group Students menu',
+    panel: true,
+  },
   'assign-mods.class-group': {
     label: 'Class group button in the modification group Students menu',
     perField: true,
@@ -17950,7 +17958,8 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'roster-editor.accommodations-group': {
-    label: 'Group menu on the roster editor Accommodations tab',
+    label: 'Group row on the roster editor Accommodations tab',
+    perField: true,
     panel: true,
   },
   'roster-editor.accommodations-add-student': {

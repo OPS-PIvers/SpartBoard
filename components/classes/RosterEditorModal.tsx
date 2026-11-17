@@ -941,14 +941,18 @@ const RosterAccommodationsPanel: React.FC<RosterAccommodationsPanelProps> = ({
   const groupsOn =
     groups.length > 0 &&
     auth?.canAccessFeature?.('modification-groups') === true;
-  const [groupId, setGroupId] = useState('');
-  const group = groupsOn ? groups.find((g) => g.id === groupId) : undefined;
-  const memberIds = group
-    ? students.filter((s) => group.studentIds.includes(s.id)).map((s) => s.id)
+  const groupRows = groupsOn
+    ? groups
+        .map((g) => ({
+          group: g,
+          memberIds: students
+            .filter((s) => g.studentIds.includes(s.id))
+            .map((s) => s.id),
+        }))
+        .filter((r) => r.memberIds.length > 0)
     : [];
-  const shown = group
-    ? students.filter((s) => memberIds.includes(s.id))
-    : students;
+  const sectionLabel =
+    'px-1 pt-1 text-xxs font-bold uppercase tracking-widest text-slate-400';
   const peersFor = (excludeIds: string[]) =>
     students
       .filter(
@@ -981,65 +985,58 @@ const RosterAccommodationsPanel: React.FC<RosterAccommodationsPanelProps> = ({
         />
       ) : (
         <div className="p-3 flex flex-col gap-2">
-          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
-            <p className="text-xs text-slate-500">
-              {t('sidebar.classes.accommodationsHelp', {
-                defaultValue: 'These apply to every new assignment.',
-              })}
-            </p>
-            {groupsOn && (
-              <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                {t('sidebar.classes.accommodationsGroup', {
-                  defaultValue: 'Group',
+          <p className="text-xs text-slate-500">
+            {t('sidebar.classes.accommodationsHelp', {
+              defaultValue: 'These apply to every new assignment.',
+            })}
+          </p>
+          {groupRows.length > 0 && (
+            <>
+              <div className={sectionLabel}>
+                {t('sidebar.classes.accommodationsGroups', {
+                  defaultValue: 'Groups',
                 })}
-                <select
-                  value={group ? group.id : ''}
-                  onChange={(e) => setGroupId(e.target.value)}
-                  {...tourAttr('roster-editor.accommodations-group')}
-                  className="h-8 min-w-48 max-w-72 rounded-lg border border-slate-300 bg-white px-2.5 text-sm text-slate-700 touch:h-11"
+              </div>
+              {groupRows.map(({ group, memberIds }, index) => (
+                <div
+                  key={group.id}
+                  {...tourFieldAttr(
+                    'roster-editor.accommodations-group',
+                    'roster-editor',
+                    `group-${index + 1}`
+                  )}
                 >
-                  <option value="">
-                    {t('sidebar.classes.accommodationsAllStudents', {
-                      defaultValue: 'All students',
-                    })}
-                  </option>
-                  {groups.map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-          </div>
-          {group &&
-            (memberIds.length === 0 ? (
-              <p className="py-2 text-sm text-slate-500">
-                {t('sidebar.classes.accommodationsGroupEmpty', {
-                  defaultValue: 'This group has no students.',
+                  <OverrideEditorRow
+                    studentName={`${group.name} (${
+                      memberIds.length === 1
+                        ? t('sidebar.classes.oneStudent', {
+                            defaultValue: '1 student',
+                          })
+                        : t('sidebar.classes.nStudents', {
+                            defaultValue: '{{count}} students',
+                            count: memberIds.length,
+                          })
+                    })`}
+                    override={sharedStudentOverride(overrides, memberIds)}
+                    quizMode
+                    allowWindowShift={false}
+                    readAloudAvailable={readAloudAvailable}
+                    pageProtectionsAvailable
+                    peers={peersFor(memberIds)}
+                    onChange={(next) =>
+                      onChange(applyGroupOverride(overrides, memberIds, next))
+                    }
+                  />
+                </div>
+              ))}
+              <div className={sectionLabel}>
+                {t('sidebar.classes.accommodationsStudents', {
+                  defaultValue: 'Students',
                 })}
-              </p>
-            ) : (
-              <OverrideEditorRow
-                key={group.id}
-                studentName={t('sidebar.classes.accommodationsGroupRow', {
-                  defaultValue: 'Everyone in {{name}} ({{count}})',
-                  name: group.name,
-                  count: memberIds.length,
-                })}
-                override={sharedStudentOverride(overrides, memberIds)}
-                quizMode
-                allowWindowShift={false}
-                readAloudAvailable={readAloudAvailable}
-                pageProtectionsAvailable
-                peers={peersFor(memberIds)}
-                defaultExpanded
-                onChange={(next) =>
-                  onChange(applyGroupOverride(overrides, memberIds, next))
-                }
-              />
-            ))}
-          {shown.map((s) => {
+              </div>
+            </>
+          )}
+          {students.map((s) => {
             const peers = peersFor([s.id]);
             return (
               <OverrideEditorRow

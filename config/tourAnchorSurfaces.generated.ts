@@ -344,6 +344,8 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'assign-mods.students': ['library.assign-stepper'],
     'assign-mods.students-search': ['library.assign-stepper'],
     'assign-mods.student': ['library.assign-stepper'],
+    'assign-mods.students-clear': ['library.assign-stepper'],
+    'assign-mods.students-done': ['library.assign-stepper'],
     'assign-mods.class-group': ['library.assign-stepper'],
     'assign-mods.answer-choices': ['library.assign-stepper'],
     'assign-mods.time': ['library.assign-stepper'],
