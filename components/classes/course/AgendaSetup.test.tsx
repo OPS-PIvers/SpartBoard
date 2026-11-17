@@ -540,7 +540,7 @@ describe('AgendaSetup', () => {
       name: 'Hidden deck',
       mimeType: '',
     });
-    const saveCourse = vi.fn(() =>
+    const saveCourse = vi.fn((_req: unknown) =>
       Promise.resolve({
         courseId: 'c1',
         rostersWithoutClassPage: [],
