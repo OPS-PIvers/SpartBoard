@@ -19,12 +19,7 @@ export type AssignStepId =
   | 'sharing';
 
 export type AssignActivity =
-  | 'quiz'
-  | 'video'
-  | 'gl'
-  | 'flashcards'
-  | 'miniapp'
-  | 'writing';
+  'quiz' | 'video' | 'gl' | 'flashcards' | 'miniapp' | 'writing';
 
 export type AssignKind = 'work' | 'resource';
 

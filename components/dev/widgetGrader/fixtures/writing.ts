@@ -52,8 +52,16 @@ const record = (
 });
 
 const ROSTERS = [
-  { ...makeRoster(24, 'Period 1 English'), id: 'roster-w1', classlinkClassId: 'class-w1' },
-  { ...makeRoster(27, 'Period 3 English'), id: 'roster-w3', classlinkClassId: 'class-w3' },
+  {
+    ...makeRoster(24, 'Period 1 English'),
+    id: 'roster-w1',
+    classlinkClassId: 'class-w1',
+  },
+  {
+    ...makeRoster(27, 'Period 3 English'),
+    id: 'roster-w3',
+    classlinkClassId: 'class-w3',
+  },
 ];
 
 const RECORDS = [

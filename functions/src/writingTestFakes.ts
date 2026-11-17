@@ -40,7 +40,10 @@ export function fakeFirestore(store: Map<string, any>) {
   });
   const write = {
     set: (r: any, data: any, opts?: { merge?: boolean }) =>
-      store.set(r.path, apply(opts?.merge ? (store.get(r.path) ?? {}) : {}, data)),
+      store.set(
+        r.path,
+        apply(opts?.merge ? (store.get(r.path) ?? {}) : {}, data)
+      ),
     create: (r: any, data: any) => {
       if (store.has(r.path)) throw new Error(`exists: ${r.path}`);
       store.set(r.path, apply({}, data));
