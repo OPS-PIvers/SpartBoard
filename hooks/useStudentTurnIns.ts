@@ -17,6 +17,8 @@ export interface TurnInCheck {
   turnIn: TurnInState;
   /** A teacher reopened this turned-in quiz; it stays open past its close time. */
   reopened?: boolean;
+  /** Writing the teacher returned (D12); shown as Returned rather than Turned in. */
+  returned?: boolean;
   lockedOut: boolean;
   resultsOverride: QuizResultsOverride | null;
 }
@@ -36,6 +38,7 @@ function toCheck(
       data?.unlocked === true &&
       data.unlockKind === 'reopen' &&
       data.status !== 'completed',
+    ...(a.kind === 'writing' ? { returned: data?.status === 'returned' } : {}),
     lockedOut: overridable && data?.resultsLockedOut === true,
     resultsOverride: overridable
       ? ((data?.resultsOverride as QuizResultsOverride | undefined) ?? null)

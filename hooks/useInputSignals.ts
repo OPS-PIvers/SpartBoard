@@ -154,10 +154,20 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
       (env) => collector.setEnvironment(env.browser, env.profile),
       (err: unknown) => logError('useInputSignals.environment', err)
     );
-    const flush = (e?: Event) => {
+    let lastSaved = performance.now();
+    // Only a turn-in, pagehide and unmount skip the large-log throttle (AB-201); the rest stay dirty for a later save.
+    const flush = (e?: Event, throttled = false) => {
       const save = argsRef.current.save;
-      collector.clock(performance.now(), visible());
+      const now = performance.now();
+      collector.clock(now, visible());
+      if (
+        throttled &&
+        collector.logBytes() > BIG_LOG_BYTES &&
+        now - lastSaved < BIG_LOG_FLUSH_MS
+      )
+        return;
       if (!save || !collector.takeDirty()) return;
+      lastSaved = now;
       const counts = addSignals(base, collector.snapshot());
       writtenRef.current = { attempt, counts };
       const saved = save(attempt, counts).catch((err: unknown) =>
@@ -168,8 +178,9 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
       )?.detail?.saves?.push(saved);
     };
     collectorRef.current = collector;
-    flushRef.current = flush;
-    document.addEventListener(INPUT_SIGNALS_FLUSH_EVENT, flush);
+    flushRef.current = () => flush(undefined, true);
+    const onFlushEvent = (e: Event) => flush(e);
+    document.addEventListener(INPUT_SIGNALS_FLUSH_EVENT, onFlushEvent);
 
     const onPointerMove = (e: PointerEvent) => {
       if (!isTrustedEvent(e) || e.pointerType !== 'mouse') return;
@@ -272,8 +283,10 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
     };
     const onHidden = () => {
       if (visible()) collector.clock(performance.now(), true);
-      else flush();
+      else flush(undefined, true);
     };
+    // Closing or leaving the page is the last chance to save, so it skips the throttle.
+    const onPageHide = () => flush();
     let size = {
       inner: window.innerWidth,
       outer: window.outerWidth,
@@ -307,19 +320,10 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
     document.addEventListener('beforeinput', onBeforeInput, opts);
     document.addEventListener('input', onInput, opts);
     document.addEventListener('visibilitychange', onHidden);
+    window.addEventListener('pagehide', onPageHide);
     window.addEventListener('resize', onResize);
     screen.addEventListener?.('change', onScreenChange);
-    let lastTimed = performance.now();
-    const id = window.setInterval(() => {
-      const now = performance.now();
-      if (
-        collector.logBytes() > BIG_LOG_BYTES &&
-        now - lastTimed < BIG_LOG_FLUSH_MS
-      )
-        return;
-      lastTimed = now;
-      flush();
-    }, FLUSH_MS);
+    const id = window.setInterval(() => flush(undefined, true), FLUSH_MS);
     return () => {
       document.removeEventListener('pointermove', onPointerMove, opts);
       document.removeEventListener('pointerdown', onPointerDown, opts);
@@ -331,10 +335,11 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
       document.removeEventListener('beforeinput', onBeforeInput, opts);
       document.removeEventListener('input', onInput, opts);
       document.removeEventListener('visibilitychange', onHidden);
+      window.removeEventListener('pagehide', onPageHide);
       window.removeEventListener('resize', onResize);
       screen.removeEventListener?.('change', onScreenChange);
       window.clearInterval(id);
-      document.removeEventListener(INPUT_SIGNALS_FLUSH_EVENT, flush);
+      document.removeEventListener(INPUT_SIGNALS_FLUSH_EVENT, onFlushEvent);
       // Once the attempt moves on (a turn-in), the rules refuse its key; the awaited pre-turn-in flush already saved it.
       if (argsRef.current.attempt === attempt) flush();
       collectorRef.current = null;

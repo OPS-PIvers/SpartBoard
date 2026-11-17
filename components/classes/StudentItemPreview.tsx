@@ -299,12 +299,6 @@ export const StudentItemPreview: React.FC<{
         </Frame>
       );
     case 'writing':
-      return (
-        <WritingStudentShell
-          session={item.session}
-          status={null}
-          onDone={onExit}
-        />
-      );
+      return <WritingStudentShell session={item.session} onDone={onExit} />;
   }
 };

@@ -67,6 +67,8 @@ const escapeText = (s: string) =>
     /[%,;!:]/g,
     (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`
   );
+/** Bytes `s` takes in a log once escaped. */
+export const encodedLength = (s: string): number => utf8Length(escapeText(s));
 const unescapeText = (s: string) =>
   s.replace(/%(25|2C|3B|21|3A)/g, (_, hex: string) =>
     String.fromCharCode(parseInt(hex, 16))
@@ -106,12 +108,15 @@ const fromBase36 = (s: string): number | null => {
   return parseInt(s, 36);
 };
 
-/** Reads a log a student's browser wrote; anything malformed is skipped. */
-export function parseWritingLog(log: unknown): ParsedWritingLog {
+/** Reads a log a student's browser wrote; anything malformed is skipped. `startLength` is the text's length before a later chunk. */
+export function parseWritingLog(
+  log: unknown,
+  startLength = 0
+): ParsedWritingLog {
   const out: ParsedWritingLog = { edits: [], stamps: [], cutOff: false };
   if (typeof log !== 'string' || log.length > WRITING_LOG_MAX + 64) return out;
   let cursor = 0;
-  let length = 0;
+  let length = startLength;
   for (const token of log.split(';')) {
     if (token === END_MARK) {
       out.cutOff = true;
@@ -156,8 +161,12 @@ export const applyEdit = (text: string, e: WritingEdit): string =>
   text.slice(0, e.pos) + e.ins + text.slice(e.pos + e.del);
 
 /** The text after the first `count` edits. */
-export function textAfter(edits: WritingEdit[], count: number): string {
-  let text = '';
+export function textAfter(
+  edits: WritingEdit[],
+  count: number,
+  start = ''
+): string {
+  let text = start;
   for (let i = 0; i < count && i < edits.length; i += 1)
     text = applyEdit(text, edits[i]);
   return text;
@@ -203,15 +212,29 @@ export class WritingLogWriter {
   /** The base log came from the recorder that doubled paragraph breaks. */
   private legacy: boolean;
 
-  constructor(base: string | undefined) {
-    const parsed = parseWritingLog(base);
+  /** `startText` is the text a later chunk of one log starts from; its first edit always names its position. */
+  constructor(base: string | undefined, startText?: string) {
+    const parsed = parseWritingLog(base, startText?.length ?? 0);
     this.log = parsed.edits.length > 0 && base ? base : '';
     this.closed = parsed.cutOff;
     this.legacy = parsed.edits.length > 0 && parsed.stamps.length === 0;
     this.bytes = utf8Length(this.log);
-    this.text = textAfter(parsed.edits, parsed.edits.length);
+    this.text = textAfter(parsed.edits, parsed.edits.length, startText);
     const last = parsed.edits[parsed.edits.length - 1];
-    this.cursor = last ? last.pos + last.ins.length : 0;
+    this.cursor = last
+      ? last.pos + last.ins.length
+      : startText !== undefined
+        ? -1
+        : 0;
+  }
+
+  /** The text the log has reached. */
+  get current(): string {
+    return this.text;
+  }
+
+  get full(): boolean {
+    return this.closed;
   }
 
   get value(): string {

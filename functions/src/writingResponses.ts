@@ -356,6 +356,9 @@ export interface OpenWritingResult {
   status: WritingResponseStatus;
   saveCount: number;
   deadlineAt: number | null;
+  /** The open log chunk's index and every chunk up to it, so the holding tab appends instead of replacing (B2). */
+  logChunk: number;
+  logs: string[];
 }
 
 /** Creates the student's response on first open (the clock starts here, D7) or returns the existing one. */
@@ -378,11 +381,23 @@ export async function handleOpenWriting(
     const snap = await tx.get(ref);
     if (snap.exists) {
       const r: Data = snap.data() ?? {};
+      const logChunk = isNum(r.logChunk) ? Math.min(r.logChunk, 9) : 0;
+      const chunks = await Promise.all(
+        Array.from({ length: logChunk + 1 }, (_, i) =>
+          tx.get(ref.collection(WRITING_LOG).doc(String(i)))
+        )
+      );
+      const logs = chunks.map((c) => {
+        const log: unknown = c.exists ? c.get('log') : '';
+        return typeof log === 'string' ? log : '';
+      });
       return {
         created: false,
         status: deriveWritingStatus(r),
         saveCount: isNum(r.saveCount) ? r.saveCount : 0,
         deadlineAt: isNum(r.deadlineAt) ? r.deadlineAt : null,
+        logChunk,
+        logs,
       };
     }
     if (session.status === 'ended')
@@ -420,7 +435,14 @@ export async function handleOpenWriting(
       draftSeq: 0,
       updatedAt: now,
     });
-    return { created: true, status: 'draft', saveCount: 0, deadlineAt };
+    return {
+      created: true,
+      status: 'draft',
+      saveCount: 0,
+      deadlineAt,
+      logChunk: 0,
+      logs: [''],
+    };
   });
 }
 

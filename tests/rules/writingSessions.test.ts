@@ -389,6 +389,32 @@ describe('responses: student writes', () => {
     await assertFails(updateDoc(doc(asStudent(STUDENT), RESP), save()));
   });
 
+  it('keeps saving past the session close while the student pointer extends it', async () => {
+    const later = Date.now() + 3_600_000;
+    await seed(SESSION, session({ closeAt: 1 }));
+    await seed(`student_assignments/${STUDENT}/items/${SID}`, {
+      kind: 'writing',
+      closeAt: later,
+    });
+    await assertSucceeds(updateDoc(doc(asStudent(STUDENT), RESP), save()));
+    // A pointer close that has passed keeps it closed.
+    await seed(`student_assignments/${STUDENT}/items/${SID}`, {
+      kind: 'writing',
+      closeAt: 1,
+    });
+    await assertFails(
+      updateDoc(doc(asStudent(STUDENT), RESP), save({ saveCount: 5 }))
+    );
+    await seed(`student_assignments/${STUDENT}/items/${SID}`, {
+      kind: 'writing',
+      closeAt: later,
+    });
+    await seed(SESSION, session({ status: 'ended', endedAt: 1, closeAt: 1 }));
+    await assertFails(
+      updateDoc(doc(asStudent(STUDENT), RESP), save({ saveCount: 5 }))
+    );
+  });
+
   it('opens the next log chunk up to the tenth', async () => {
     await assertSucceeds(
       updateDoc(doc(asStudent(STUDENT), RESP), save({ logChunk: 1 }))

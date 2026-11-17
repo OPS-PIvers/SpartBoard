@@ -88,6 +88,8 @@ describe('openWritingV1', () => {
       status: 'draft',
       saveCount: 0,
       deadlineAt: null,
+      logChunk: 0,
+      logs: [''],
     });
     expect(store.get(RESP)).toMatchObject({
       studentUid: 'stu1',
@@ -109,6 +111,17 @@ describe('openWritingV1', () => {
       saveCount: 7,
     });
     expect(store.get(RESP).html).toBe('<p>x</p>');
+  });
+
+  it('hands the holding tab the open log chunk to append to', async () => {
+    await open();
+    store.set(RESP, { ...store.get(RESP), logChunk: 1 });
+    store.set(`${RESP}/log/0`, { log: '0:a', closed: true });
+    store.set(`${RESP}/log/1`, { log: '0,1,,b', closed: false });
+    await expect(open(9_000)).resolves.toMatchObject({
+      logChunk: 1,
+      logs: ['0:a', '0,1,,b'],
+    });
   });
 
   it('refuses a student outside the classes with no pointer', async () => {
