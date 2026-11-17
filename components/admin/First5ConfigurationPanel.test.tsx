@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { First5ConfigurationPanel } from './First5ConfigurationPanel';
 import type { First5GlobalConfig } from '@/types';
@@ -23,6 +23,15 @@ const Harness: React.FC<{ onChange: (c: First5GlobalConfig) => void }> = ({
 };
 
 describe('First5ConfigurationPanel day number', () => {
+  // A weekday after ROLLOVER_HOUR, so the shown day number is the saved one.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 8, 30, 10, 0, 0));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('lets the admin clear the field to retype without snapping back', () => {
     const onChange = vi.fn();
     render(<Harness onChange={onChange} />);
