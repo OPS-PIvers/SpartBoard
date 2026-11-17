@@ -1410,6 +1410,18 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       ).rubric,
     [overridesBySourcedId, targetRefKeyByStudentUid]
   );
+  const servedSubsetFor = useCallback(
+    (response: QuizResponse) => {
+      const uid = response.studentUid;
+      if (!uid) return undefined;
+      const ref = targetRefKeyByStudentUid?.get(uid);
+      return (
+        overridesByStudentUid?.[uid] ??
+        (ref ? overridesBySourcedId?.[ref] : undefined)
+      )?.questionIds;
+    },
+    [overridesByStudentUid, overridesBySourcedId, targetRefKeyByStudentUid]
+  );
   const printPeriodOrder = useMemo(
     () => [
       ...resolvedPeriods,
@@ -2700,6 +2712,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           {effectiveScreen === 'students' && (
             <StudentsScreen
               rubricFor={printRubric}
+              servedSubsetFor={servedSubsetFor}
               liveLogByKey={liveLogByKey}
               quizTitle={quiz.title}
               responses={filteredResponses}
@@ -3022,6 +3035,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           targetsFor={printTargets}
           gradeFn={printGradeFn}
           rubricFor={printRubric}
+          servedSubsetFor={servedSubsetFor}
           periodOrder={printPeriodOrder}
           sessionLive={!!session && session.status !== 'ended'}
           sheetsAvailable={paperSheetsEnabled}
@@ -4157,6 +4171,7 @@ const StudentDrilldownPanel: React.FC<{
     response: QuizResponse,
     question: QuizQuestion
   ) => Rubric | undefined;
+  servedSubset?: readonly string[];
   id: string;
   quizTitle: string;
   response: QuizResponse;
@@ -4180,6 +4195,7 @@ const StudentDrilldownPanel: React.FC<{
   onSaveCountedChoices?: SaveCountedChoices;
 }> = ({
   rubricFor,
+  servedSubset,
   id,
   quizTitle,
   response: liveResponse,
@@ -4249,9 +4265,13 @@ const StudentDrilldownPanel: React.FC<{
         questions,
         response,
         makeQuestionGradeFn(fibGrading),
-        { showExtraAnswers: true, rubricFor: (q) => rubricFor(response, q) }
+        {
+          showExtraAnswers: true,
+          rubricFor: (q) => rubricFor(response, q),
+          servedSubset,
+        }
       ),
-    [questions, response, fibGrading, rubricFor]
+    [questions, response, fibGrading, rubricFor, servedSubset]
   );
   const questionById = useMemo(
     () => new Map(questions.map((q) => [q.id, q])),
@@ -4435,6 +4455,8 @@ const StudentsScreen: React.FC<{
     response: QuizResponse,
     question: QuizQuestion
   ) => Rubric | undefined;
+  /** Questions a modification group served this student; absent serves them all. */
+  servedSubsetFor: (response: QuizResponse) => readonly string[] | undefined;
   quizTitle: string;
   responses: QuizResponse[];
   questions: QuizQuestion[];
@@ -4473,6 +4495,7 @@ const StudentsScreen: React.FC<{
   onSaveCountedChoices?: SaveCountedChoices;
 }> = ({
   rubricFor,
+  servedSubsetFor,
   liveLogByKey,
   quizTitle,
   responses,
@@ -5272,6 +5295,7 @@ const StudentsScreen: React.FC<{
               {isExpanded && (
                 <StudentDrilldownPanel
                   rubricFor={rubricFor}
+                  servedSubset={servedSubsetFor(r)}
                   id={panelId}
                   quizTitle={quizTitle}
                   response={r}

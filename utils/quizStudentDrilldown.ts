@@ -19,6 +19,7 @@ import {
   parseMultiAnswer,
 } from '@/utils/quizMultiAnswer';
 import { seededShuffle } from '@/utils/quizShuffle';
+import { orderServedQuestions } from '@/utils/questionBanks';
 import { sanitizeQuizResponse } from '@/utils/security';
 import {
   gradeQuestionForResponse,
@@ -100,6 +101,8 @@ export interface StudentDrilldownOptions {
   rubricFor?: (question: QuizQuestion) => Rubric | undefined;
   /** Keep the text of an extra answer that doesn't count. */
   showExtraAnswers?: boolean;
+  /** Questions a modification group served this student; absent serves them all. */
+  servedSubset?: readonly string[];
 }
 
 export interface StudentDrilldown {
@@ -226,10 +229,20 @@ export function computeStudentDrilldown(
   const seen = new Set<string>();
   const lines: StudentQuestionLine[] = [];
 
-  questions.forEach((q, index) => {
+  const drawn = response.servedQuestionIds;
+  const subset = options.servedSubset ? new Set(options.servedSubset) : null;
+  // Same order and numbers as the student's own results: draw order for bank quizzes, quiz order otherwise.
+  const ordered = drawn?.length
+    ? orderServedQuestions(questions, drawn)
+    : subset
+      ? questions.filter((q) => subset.has(q.id))
+      : questions;
+
+  ordered.forEach((q) => {
     if (seen.has(q.id)) return;
     seen.add(q.id);
     if (!isServed(response, q.id)) return;
+    const number = lines.length + 1;
     const entry = answers.get(q.id);
     const max = q.points ?? 1;
     const manual = isFreeResponseType(q.type);
@@ -255,7 +268,7 @@ export function computeStudentDrilldown(
       | 'pictures'
     > = {
       questionId: q.id,
-      number: index + 1,
+      number,
       text: q.text,
       type: q.type,
       manual,
