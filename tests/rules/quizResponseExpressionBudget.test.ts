@@ -173,6 +173,37 @@ const writes: Record<
         : {}),
     },
   ],
+  'a retake that strips the published key': (c) => [
+    {
+      status: 'completed',
+      submittedAt: now - 5000,
+      servedQuestionIds: served,
+      revealedAnswers: Object.fromEntries(served.map((q) => [q, 'A'])),
+      resultsOverride: {
+        mode: 'shown',
+        visibility: 'score-responses-and-answers',
+        publishedAt: 1000,
+        revealedAnswers: { q1: 'A' },
+        revealedExplanations: { q1: 'Because' },
+      },
+      ...(c.timed ? { timeUp: true } : {}),
+    },
+    {
+      status: 'joined',
+      answers: [],
+      score: null,
+      submittedAt: null,
+      preSyncVersion: 0,
+      partsDone: deleteField(),
+      lastWriteAt: serverTimestamp(),
+      revealedAnswers: deleteField(),
+      'resultsOverride.revealedAnswers': deleteField(),
+      'resultsOverride.revealedExplanations': deleteField(),
+      ...(c.timed
+        ? { attemptStartedAt: serverTimestamp(), timeUp: deleteField() }
+        : {}),
+    },
+  ],
   'a turn-in': (c) => [
     { servedQuestionIds: served },
     {
