@@ -1221,6 +1221,29 @@ function seatRef(sessionId: string, uid: string) {
   return doc(db, QUIZ_SESSIONS_COLLECTION, sessionId, 'seats', uid);
 }
 
+/** Deletes the published answer key a retake must not carry into its new attempt (#5811). */
+export function retakeKeyStrip(
+  r: Pick<
+    QuizResponse,
+    | 'revealedAnswers'
+    | 'revealedRubricExamples'
+    | 'revealedExplanations'
+    | 'resultsOverride'
+  >
+): Record<string, ReturnType<typeof deleteField>> {
+  const patch: Record<string, ReturnType<typeof deleteField>> = {};
+  const override = r.resultsOverride as Record<string, unknown> | undefined;
+  for (const f of [
+    'revealedAnswers',
+    'revealedRubricExamples',
+    'revealedExplanations',
+  ] as const) {
+    if (r[f] != null) patch[f] = deleteField();
+    if (override?.[f] != null) patch[`resultsOverride.${f}`] = deleteField();
+  }
+  return patch;
+}
+
 function logQuizJoinFirestoreError(
   op: string,
   err: unknown,
@@ -3063,6 +3086,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
                 ? { partsDone: deleteField() }
                 : {}),
               ...(existing.partHeld != null ? { partHeld: deleteField() } : {}),
+              ...retakeKeyStrip(existing),
               // A bank-draw session rolls a fresh draw for the next attempt.
               ...(Array.isArray(sessionData.bankSlots) &&
               sessionData.bankSlots.length > 0
