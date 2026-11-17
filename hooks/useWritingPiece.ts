@@ -246,15 +246,6 @@ export function useWritingPiece(args: {
     );
   }, [sessionId, studentUid]);
 
-  // A close or end while this tab holds the piece: one last save inside the rules' grace, then let go.
-  const closeOut = useEffectEvent(async () => {
-    await runSave(true).catch(() => false);
-    letGo(null);
-  });
-  useEffect(() => {
-    if (closed && holding) void closeOut();
-  }, [closed, holding]);
-
   /** Writes the device copy of `text`; false (and not "saved on this device") when storage refuses it. */
   const storeCopy = useCallback(
     (text?: string): boolean => {
@@ -416,6 +407,17 @@ export function useWritingPiece(args: {
     },
     [commitOnce, resync, clearMyCopy]
   );
+
+  // A close or end while this tab holds the piece: one last save inside the rules' grace, then let go.
+  const closeOut = useEffectEvent(async () => {
+    await runSave(true).catch(() => false);
+    letGo(null);
+  });
+  useEffect(() => {
+    if (!closed || !holding) return;
+    const id = window.setTimeout(() => void closeOut(), 0);
+    return () => window.clearTimeout(id);
+  }, [closed, holding]);
 
   /** D23 claim: opens the piece (creating it on first open), sends a device copy that is still this piece's, then holds it. */
   const start = useCallback(async () => {

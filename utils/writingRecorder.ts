@@ -8,7 +8,6 @@ import {
   encodedLength,
   parseWritingLog,
   textAfter,
-  utf8Length,
   type WritingEditKind,
 } from '@/utils/writingLog';
 import {
