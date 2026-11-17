@@ -11647,8 +11647,6 @@ export type GlobalFeature =
   | 'quiz-document-ai-reader'
   /** Splits a typed PDF with version headings without AI. */
   | 'quiz-import-versions-plain'
-  /** Math in an imported question's text becomes drawn equations. */
-  | 'quiz-import-equations'
   /** Live tours on other websites, played by the Chrome extension (docs/plans/CHROME_EXTENSION.md T12). */
   | 'web-tours'
   /** Tab-away clock, auto-submit when away too long, and the teacher's exit log. */
@@ -11684,8 +11682,6 @@ export type GlobalFeature =
   | 'claude-connector'
   /** Guided Learning tools inside the Claude connector; building and Help Center sets stay admin-only. */
   | 'claude-connector-guided-learning'
-  /** Claude connector previews: quizzes and rubrics show as an interactive card inside Claude (MCP Apps). */
-  | 'claude-connector-apps'
   /** Teacher-paced (live) Video Activity sessions, chosen at assign time (docs/plans/shipped/VA_TEACHER_PACED.md). */
   | 'video-activity-live'
   /** Quiz Student view: teachers take a quiz as students see it, with focus-mode toggles; nothing is saved. */
@@ -11698,12 +11694,8 @@ export type GlobalFeature =
   | 'quiz-live-view-nudge-note'
   /** Live view's Screenshot button. */
   | 'quiz-live-view-screenshot'
-  /** The app's own lists for dropdowns, date and time fields and suggestions, in place of the browser's. */
-  | 'app-pickers'
   /** Teacher picture and PDF uploads need Google Drive; without it they ask to reconnect instead of saving to Firebase Storage. */
   | 'drive-only-uploads'
-  /** Assignment rows in the Quiz, Flashcards and Video Activity libraries show a "N classes" button with the full class list. */
-  | 'assignment-class-list'
   /** Quiz Monitor lists the whole class roster, with students who haven't joined under Not started. */
   | 'quiz-monitor-roster'
   /** Quiz setting that shows students their score as soon as they submit. */
@@ -11807,13 +11799,10 @@ export type GlobalFeature =
   | 'video-import-ai'
   /** Right-click menu on the board background. */
   | 'board-context-menu'
-  /** Teachers pick which answers count when a student answers more than a section asks. */
-  | 'choose-n-pick-counted'
   /** Manual assignments get a due date, and Assign remembers the When step. */
   | 'assign-due-date'
   /** Reopen an ended quiz for selected students only. */
   | 'reopen-selected-students'
-  | 'share-import-confirm'
   /** A score-only Video Activity publish keeps right/wrong off students' answers. */
   | 'va-score-only-verdicts';
 

@@ -3754,18 +3754,11 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
   const periods = a.periodNames ?? (a.periodName ? [a.periodName] : []);
   const urlLive = a.status !== 'inactive';
   const noPeriods = periods.length === 0 && mode === 'active';
-  const periodLabel =
-    periods.length === 1
-      ? periods[0]
-      : periods.length > 0
-        ? `${periods.length} classes`
-        : null;
 
   // Admin-only by default — view-count display fires one Firestore
   // aggregation per visible card per dashboard tab-focus, gated behind the
   // `share-link-tracking` global permission.
   const { canSeeShareTracking, canAccessFeature } = useAuth();
-  const classList = canAccessFeature('assignment-class-list');
   const trackingEnabled = canSeeShareTracking();
   const showJoinCode =
     urlLive && !a.paper && canAccessFeature('anonymous-join');
@@ -3845,24 +3838,6 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
         {showJoinCode && (
           <span className="font-mono tracking-wider">{a.code}</span>
         )}
-        {!classList &&
-          (noPeriods && a.audience === 'staff' ? (
-            <span className="font-semibold">Staff</span>
-          ) : noPeriods ? (
-            <span
-              className="font-semibold text-amber-600 truncate"
-              style={{ maxWidth: 'min(120px, 30cqmin)' }}
-            >
-              No classes
-            </span>
-          ) : periodLabel != null ? (
-            <span
-              className="font-semibold truncate"
-              style={{ maxWidth: 'min(120px, 30cqmin)' }}
-            >
-              {periodLabel}
-            </span>
-          ) : null)}
         {status.tone === 'success' && (
           <span className="inline-flex items-center">
             <Radio
@@ -3962,14 +3937,13 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
           </span>
         )}
         {/* Last, so a long class list wraps under the shorter items. */}
-        {classList &&
-          (noPeriods && a.audience === 'staff' ? (
-            <span className="font-semibold">Staff</span>
-          ) : noPeriods ? (
-            <span className="font-semibold text-amber-600">No classes</span>
-          ) : (
-            <AssignmentClassNames names={periods} />
-          ))}
+        {noPeriods && a.audience === 'staff' ? (
+          <span className="font-semibold">Staff</span>
+        ) : noPeriods ? (
+          <span className="font-semibold text-amber-600">No classes</span>
+        ) : (
+          <AssignmentClassNames names={periods} />
+        )}
       </>
     );
   }

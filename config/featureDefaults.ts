@@ -513,18 +513,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Fractions, powers and roots in imported question text become drawn equations. Admin-only until Paul has imported with it.
-  'quiz-import-equations': {
-    label: 'Draw math in imported tests',
-    icon: FileText,
-    description:
-      'Turns fractions, powers and roots in an imported question into drawn equations.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Print/scan paper answer sheets. Admin-only until opened up; the district
   // switch (admin_settings/paper_answer_sheets) must also be on.
   'paper-answer-sheets': {
@@ -847,18 +835,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     category: 'integrations',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Quiz and rubric tools return an interactive preview card that Claude shows in the chat (MCP Apps).
-  'claude-connector-apps': {
-    label: 'Claude connector: previews',
-    icon: Bot,
-    description:
-      'Quizzes and rubrics Claude makes or edits show as a preview card in Claude, with a box to ask for changes.',
-    stage: 'preview',
-    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -1679,18 +1655,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // The app's own dropdown, date/time and suggestion panels. Admin-only until Paul has used them on prod.
-  'app-pickers': {
-    label: 'App dropdowns and date pickers',
-    icon: SquareChevronDown,
-    description:
-      "Dropdowns, date and time fields open the app's own lists instead of the browser's.",
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Teacher uploads go only to Drive; without Drive they ask to reconnect. Admin-only until Paul has used it on prod.
   'drive-only-uploads': {
     label: 'Uploads save to Drive only',
@@ -1703,33 +1667,11 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Assignment rows in the Quiz, Flashcards and Video Activity libraries show "N classes" with the full list.
-  'assignment-class-list': {
-    label: 'Assignment class list',
-    icon: UsersRound,
-    description: 'Assignment rows show N classes with the full list.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'board-context-menu': {
     label: 'Board right-click menu',
     icon: MousePointerClick,
     description:
       'Right-click the board background to paste, tidy up, change the background or copy a link to the board.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'choose-n-pick-counted': {
-    label: 'Quiz: pick which answers count',
-    icon: ListChecks,
-    description:
-      'When a student answers more questions than a section asks for, the teacher picks which answers count.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
@@ -1766,17 +1708,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     widget: 'video-activity',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'share-import-confirm': {
-    label: 'Share links: confirm import',
-    icon: Link2,
-    description: 'Share links ask before importing and name who shared them.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    category: 'sharing',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
