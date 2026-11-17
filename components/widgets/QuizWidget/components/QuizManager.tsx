@@ -606,6 +606,30 @@ interface QuizManagerProps {
   onError?: (message: string) => void;
 }
 
+/* ─── Printed group copies on a device assignment card ─────────────────────── */
+
+const importCopiesAction = (
+  a: QuizAssignment,
+  onImport: (a: QuizAssignment) => void
+): LibraryMenuAction => ({
+  id: 'import-copies',
+  label: 'Import paper responses',
+  icon: ScanLine,
+  anchor: tourTypeAttr('quiz-library.import-paper-copies', 'quiz'),
+  onClick: () => onImport(a),
+});
+
+const reprintCopiesAction = (
+  a: QuizAssignment,
+  onReprint: (a: QuizAssignment) => void
+): LibraryMenuAction => ({
+  id: 'reprint-copies',
+  label: 'Print paper copies',
+  icon: Printer,
+  anchor: tourTypeAttr('quiz-library.reprint-paper-copies', 'quiz'),
+  onClick: () => onReprint(a),
+});
+
 /* ─── Status resolver for archive cards ───────────────────────────────────── */
 
 /** Folds related In Progress and Completed menu rows into side menus; a group of one stays a plain row. */
@@ -625,6 +649,8 @@ function groupArchiveSecondaries(
         'import-written',
         'reprint-paper',
         'reprint-written',
+        'import-copies',
+        'reprint-copies',
       ],
       id: 'paper',
       label: 'Paper',
@@ -1921,7 +1947,12 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           onClick: () => onImportPaperResponses(a),
         });
       }
-      if (a.hasPaperResponses && !a.paper && onImportPaperResponses) {
+      if (a.paperCopyBatchIds?.length) {
+        if (onImportPaperResponses)
+          secondaries.push(importCopiesAction(a, onImportPaperResponses));
+        if (onReprintPaperSheets)
+          secondaries.push(reprintCopiesAction(a, onReprintPaperSheets));
+      } else if (a.hasPaperResponses && !a.paper && onImportPaperResponses) {
         secondaries.push({
           id: 'import-paper',
           label: 'Import responses',
@@ -2052,8 +2083,14 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         onClick: () => onImportPaperResponses(a),
       });
     }
+    if (a.paperCopyBatchIds?.length) {
+      if (onImportPaperResponses)
+        secondaries.push(importCopiesAction(a, onImportPaperResponses));
+      if (onReprintPaperSheets)
+        secondaries.push(reprintCopiesAction(a, onReprintPaperSheets));
+    }
     // More scans from the same stack (another class, make-ups) still import here.
-    if ((a.paper || a.hasPaperResponses) && onImportPaperResponses) {
+    else if ((a.paper || a.hasPaperResponses) && onImportPaperResponses) {
       secondaries.push({
         id: 'import-paper',
         label: 'Import responses',

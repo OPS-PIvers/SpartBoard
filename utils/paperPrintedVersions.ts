@@ -1,5 +1,6 @@
 // A modification group's printed version of a device quiz (`paper-printed-versions`).
 import type {
+  PaperBatch,
   PaperPrintedGroupRecord,
   QuizData,
   QuizQuestion,
@@ -96,4 +97,23 @@ export function printedGroupRecord(
     ...(modifiedQuestions ? { modifiedQuestions: true } : {}),
     ...(supports?.length ? { supports } : {}),
   };
+}
+
+/** A device assignment's printed stacks in group order, each with the quiz version it printed. */
+export function printedReprintGroups(
+  quiz: QuizData,
+  batches: readonly PaperBatch[]
+): { label: string; quiz: QuizData; batch: PaperBatch }[] {
+  return [...batches]
+    .sort(
+      (a, b) => (a.printedGroup?.number ?? 0) - (b.printedGroup?.number ?? 0)
+    )
+    .map((batch, i) => ({
+      label: `Group ${batch.printedGroup?.number ?? i + 1}`,
+      quiz: printedGroupQuiz(
+        quiz,
+        batch.printedGroup ?? { answerChoices: 'all' }
+      ),
+      batch,
+    }));
 }

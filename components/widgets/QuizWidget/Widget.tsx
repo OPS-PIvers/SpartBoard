@@ -211,7 +211,11 @@ import {
   type PaperImportRequestExtra,
   type PaperImportWrittenResult,
 } from './components/PaperImportModal';
-import { PaperReprintModal } from './components/PaperReprintModal';
+import {
+  PaperGroupReprintModal,
+  PaperReprintModal,
+  type PaperReprintGroup,
+} from './components/PaperReprintModal';
 import {
   firestoreDocData,
   readPaperImportQuota,
@@ -239,6 +243,7 @@ import {
   printedGroupForPrint,
   printedGroupQuiz,
   printedGroupRecord,
+  printedReprintGroups,
 } from '@/utils/paperPrintedVersions';
 import type { PrintedGroupPick } from '@/components/common/library/assignStepper/modificationGroups';
 import {
@@ -1036,6 +1041,9 @@ const TeacherQuizWidget: React.FC<{
     !!paperUid &&
     canAccessFeature('modification-groups') &&
     canAccessFeature(PAPER_PRINTED_VERSIONS_FEATURE);
+  const [paperGroupReprint, setPaperGroupReprint] = useState<
+    PaperReprintGroup[] | null
+  >(null);
   // Printed groups still to print after an assign, one print dialog at a time.
   const [printedQueue, setPrintedQueue] = useState<{
     assignmentId: string;
@@ -1061,9 +1069,11 @@ const TeacherQuizWidget: React.FC<{
       createdAt: assignment.createdAt,
       updatedAt: assignment.createdAt,
     };
-  // Printed group stacks stay loose until the card can import them, so the library import attaches them.
   const linkedPaperBatchIds = new Set(
-    assignments.flatMap((a) => (a.paperBatchId ? [a.paperBatchId] : []))
+    assignments.flatMap((a) => [
+      ...(a.paperBatchId ? [a.paperBatchId] : []),
+      ...(a.paperCopyBatchIds ?? []),
+    ])
   );
   const looseStackQuizIds = new Set(
     paperBatchIndex
@@ -3517,7 +3527,14 @@ const TeacherQuizWidget: React.FC<{
                   .filter((b) =>
                     assignment.paperBatchId
                       ? b.id === assignment.paperBatchId
-                      : !linkedPaperBatchIds.has(b.id)
+                      : assignment.paperCopyBatchIds?.length
+                        ? assignment.paperCopyBatchIds.includes(b.id)
+                        : !linkedPaperBatchIds.has(b.id)
+                  )
+                  .sort(
+                    (a, b) =>
+                      (a.printedGroup?.number ?? 0) -
+                      (b.printedGroup?.number ?? 0)
                   );
                 setPaperImport({ quiz: data, meta, batches, assignment });
               }
@@ -3528,9 +3545,24 @@ const TeacherQuizWidget: React.FC<{
             ? async (assignment) => {
                 const data = await loadQuiz(paperAssignmentMeta(assignment));
                 if (!data) return;
-                const batch = (
-                  await listPaperBatchesForQuiz(paperUid, assignment.quizId)
-                ).find((b) => b.id === assignment.paperBatchId);
+                const stacks = await listPaperBatchesForQuiz(
+                  paperUid,
+                  assignment.quizId
+                );
+                const copyIds = assignment.paperCopyBatchIds ?? [];
+                if (copyIds.length > 0) {
+                  const groups = printedReprintGroups(
+                    data,
+                    stacks.filter((b) => copyIds.includes(b.id))
+                  );
+                  if (groups.length > 0) setPaperGroupReprint(groups);
+                  else
+                    addToast('Could not find these response sheets.', 'error');
+                  return;
+                }
+                const batch = stacks.find(
+                  (b) => b.id === assignment.paperBatchId
+                );
                 if (batch)
                   setPaperReprint({
                     quiz: data,
@@ -5475,6 +5507,14 @@ const TeacherQuizWidget: React.FC<{
           onClose={() => {
             setPaperImport(null);
           }}
+          onError={(message) => addToast(message, 'error')}
+        />
+      )}
+      {paperGroupReprint && (
+        <PaperGroupReprintModal
+          groups={paperGroupReprint}
+          rosters={rosters}
+          onClose={() => setPaperGroupReprint(null)}
           onError={(message) => addToast(message, 'error')}
         />
       )}

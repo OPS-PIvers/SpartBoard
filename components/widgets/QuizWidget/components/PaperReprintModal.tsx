@@ -32,6 +32,8 @@ export interface PaperReprintModalProps {
   onError: (message: string) => void;
   /** Written answers on paper: the stack holds only written boxes, with no prompt pages or sheet stimuli. */
   writtenOnly?: boolean;
+  /** Shown above the student list, e.g. the printed group picker. */
+  header?: React.ReactNode;
   print?: typeof printPaperSheets;
 }
 
@@ -48,6 +50,7 @@ export const PaperReprintModal: React.FC<PaperReprintModalProps> = ({
   onClose,
   onError,
   writtenOnly = false,
+  header,
   print = printPaperSheets,
 }) => {
   const { canAccessFeature } = useAuth();
@@ -200,6 +203,7 @@ export const PaperReprintModal: React.FC<PaperReprintModalProps> = ({
       }
     >
       <div className="space-y-3 pb-2">
+        {header}
         {blocker ? (
           <p className="flex items-start gap-2 text-sm text-slate-700">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
@@ -246,5 +250,50 @@ export const PaperReprintModal: React.FC<PaperReprintModalProps> = ({
         )}
       </div>
     </Modal>
+  );
+};
+
+/** One printed group's stack, with the quiz version it printed. */
+export interface PaperReprintGroup {
+  label: string;
+  quiz: QuizData;
+  batch: PaperBatch;
+}
+
+/** Reprint for a device assignment's printed groups: pick the group, then its students. */
+export const PaperGroupReprintModal: React.FC<
+  Omit<PaperReprintModalProps, 'quiz' | 'batch' | 'header' | 'writtenOnly'> & {
+    groups: readonly PaperReprintGroup[];
+  }
+> = ({ groups, ...rest }) => {
+  const [index, setIndex] = useState(0);
+  const current = groups[index] ?? groups[0];
+  if (!current) return null;
+  return (
+    <PaperReprintModal
+      key={current.batch.id}
+      {...rest}
+      quiz={current.quiz}
+      batch={current.batch}
+      header={
+        groups.length > 1 ? (
+          <label className="flex items-center justify-between gap-3 text-sm font-semibold text-slate-700">
+            Group
+            <select
+              value={index}
+              onChange={(e) => setIndex(Number(e.target.value))}
+              {...tourTypeAttr('quiz-reprint.group', 'quiz')}
+              className="h-8 w-44 rounded-lg border border-slate-300 bg-white px-2.5 text-sm font-normal text-slate-700 touch:h-11"
+            >
+              {groups.map((g, i) => (
+                <option key={g.batch.id} value={i}>
+                  {g.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : undefined
+      }
+    />
   );
 };

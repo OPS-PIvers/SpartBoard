@@ -3417,6 +3417,11 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-reprint.group': {
+    label: 'Group picker when printing paper copies again',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-reprint.student': {
     label: 'Student checkbox when printing response sheets again',
     perField: true,
@@ -17971,6 +17976,18 @@ export const TOUR_ANCHORS = {
   },
   'quiz-library.reprint-sheets': {
     label: 'Print response sheets item in a paper assignment menu',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.import-paper-copies': {
+    label:
+      'Import paper responses item in a quiz assignment menu, for printed group copies',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.reprint-paper-copies': {
+    label:
+      'Print paper copies item in a quiz assignment menu, for printed group copies',
     perWidgetType: true,
     panel: true,
   },
