@@ -144,7 +144,10 @@ export const isStepFinished = (
 };
 
 // A step that holds the Run: a pause, the Next button, or a widget it waits on.
-const stepWaits = (step: ConnectionStep, widgets: WidgetData[]): boolean => {
+export const stepWaits = (
+  step: ConnectionStep,
+  widgets: WidgetData[]
+): boolean => {
   if (step.actions.length === 0) return (step.waitSeconds ?? 0) > 0;
   if (step.advance === 'next') return true;
   if (step.advance === 'now') return false;
@@ -162,6 +165,28 @@ export interface AdvanceResult {
   finished: boolean;
 }
 
+// The step a Run moves to after its current one, or null when the Run stops there.
+export const nextStepIndex = (
+  seq: SequenceConnection,
+  steps: ConnectionStep[],
+  widgets: WidgetData[]
+): number | null => {
+  const run = seq.run;
+  if (!run || steps.length === 0) return null;
+  const next = run.stepIndex + 1;
+  if (next < steps.length) return next;
+  if (seq.repeat === 'once' || run.block) return null;
+  // A pass where nothing waits would loop twice a second, so it runs once.
+  if (!steps.some((s) => stepWaits(s, widgets))) return null;
+  if (
+    seq.repeat === 'count' &&
+    run.loops + 1 >= Math.max(1, seq.repeatCount ?? 1)
+  ) {
+    return null;
+  }
+  return 0;
+};
+
 // Moves a Run from its finished step to the next one, wrapping and stopping per `repeat`.
 export const advanceRun = (
   seq: SequenceConnection,
@@ -177,18 +202,9 @@ export const advanceRun = (
     finished: true,
   });
   if (!run || steps.length === 0) return stop();
-  let next = run.stepIndex + 1;
-  let loops = run.loops;
-  if (next >= steps.length) {
-    loops += 1;
-    if (seq.repeat === 'once' || run.block) return stop();
-    // A pass where nothing waits would loop twice a second, so it runs once.
-    if (!steps.some((s) => stepWaits(s, widgets))) return stop();
-    if (seq.repeat === 'count' && loops >= Math.max(1, seq.repeatCount ?? 1)) {
-      return stop();
-    }
-    next = 0;
-  }
+  const next = nextStepIndex(seq, steps, widgets);
+  if (next === null) return stop();
+  const loops = next <= run.stepIndex ? run.loops + 1 : run.loops;
   const applied = applyStep(steps[next], widgets, now, run.block);
   if (applied.blocked) return stop();
   if (applied.ends) return stop(applied.patches);

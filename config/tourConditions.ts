@@ -29,6 +29,10 @@ const FEATURE_PREFIX = 'feature:';
 
 /** Retired flags are on for everyone; saved tours may still name them. Add each id you retire. */
 export const RETIRED_TOUR_FEATURES: readonly string[] = [
+  'app-pickers',
+  'assignment-class-list',
+  'choose-n-pick-counted',
+  'claude-connector-apps',
   'district-library-folders',
   'flashcards-check-sync',
   'flashcards-missed-cards',
@@ -39,6 +43,7 @@ export const RETIRED_TOUR_FEATURES: readonly string[] = [
   'lunch-count-resend',
   'quiz-dok',
   'quiz-explanations',
+  'quiz-import-equations',
   'quiz-import-google-doc-pdf',
   'quiz-import-pdf-answer-marks',
   'quiz-import-versions',
@@ -52,6 +57,7 @@ export const RETIRED_TOUR_FEATURES: readonly string[] = [
   'quiz-stimulus-tabs',
   'quiz-submit-for-student',
   'schoology-push-due-date',
+  'share-import-confirm',
   'sparty',
   'spell-check-setting',
   'student-keyboards',
