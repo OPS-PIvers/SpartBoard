@@ -5,7 +5,11 @@ import { RubricScoringPanel } from '@/components/widgets/QuizWidget/components/R
 import { AuthContext } from '@/context/AuthContextValue';
 import { mockAuth } from '@/components/student/studentMocks';
 import type { AuthContextType } from '@/context/AuthContextValue';
-import type { Rubric, RubricLevelOrder } from '@/types';
+import type {
+  Rubric,
+  RubricLevelOrder,
+  WrittenAnswerRubricScore,
+} from '@/types';
 
 const rubric: Rubric = {
   id: 'r1',
@@ -38,11 +42,10 @@ const renderPanel = (
   opts: {
     flag?: boolean;
     order?: RubricLevelOrder;
-    onChange?: ReturnType<typeof vi.fn>;
     updateAccountPreferences?: AuthContextType['updateAccountPreferences'];
   } = {}
 ) => {
-  const onChange = opts.onChange ?? vi.fn();
+  const onChange = vi.fn<(s: WrittenAnswerRubricScore[], p: number) => void>();
   const auth: AuthContextType = {
     ...mockAuth,
     canAccessFeature: (id) =>
