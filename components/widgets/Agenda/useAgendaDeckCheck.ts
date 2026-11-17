@@ -1,12 +1,15 @@
 // D24: re-checks the shown Course's deck sharing when the widget opens and records it on the Course.
-import { useEffect, useEffectEvent } from 'react';
+import { useEffect, useEffectEvent, useMemo } from 'react';
 import { useAuth } from '@/context/useAuth';
-import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { isAuthBypass } from '@/config/firebase';
 import { viewAsSuppressesBackgroundWrites } from '@/utils/viewAsTab';
 import { logError } from '@/utils/logError';
 import type { Course, SaveCourseRequest } from '@/utils/course/contract';
-import { emailDomain, readDeckState } from '@/utils/course/deckSharing';
+import { emailDomain } from '@/utils/course/deckSharing';
+import {
+  DeckDrive,
+  readDeckForCheck,
+} from '@/components/classes/course/agenda/deckDrive';
 import { shouldCheckDeck } from './agendaWidgetState';
 
 // One check per Course at a time, shared by every Agenda widget on the board.
@@ -16,8 +19,15 @@ export function useAgendaDeckCheck(
   course: Course | null,
   saveCourse: (request: SaveCourseRequest) => Promise<unknown>
 ): void {
-  const { user } = useAuth();
-  const { driveService } = useGoogleDrive();
+  const { user, googleAccessToken, refreshGoogleToken } = useAuth();
+  // DeckDrive reads a deck Drive refuses as 'unknown' instead of prompting a reconnect.
+  const driveService = useMemo(
+    () =>
+      googleAccessToken
+        ? new DeckDrive(googleAccessToken, () => refreshGoogleToken())
+        : null,
+    [googleAccessToken, refreshGoogleToken]
+  );
   const domain = emailDomain(user?.email);
   const courseId = course?.id ?? null;
   const fileId = course?.agenda?.fileId ?? null;
@@ -36,9 +46,9 @@ export function useAgendaDeckCheck(
     let cancelled = false;
     void (async () => {
       try {
-        const state = await readDeckState(driveService, fileId, domain);
+        const state = await readDeckForCheck(driveService, fileId, domain);
         // A deck swapped while reading must not get this deck's result.
-        if (cancelled || !stillShows(fileId)) return;
+        if (!state || cancelled || !stillShows(fileId)) return;
         await saveCourse({
           action: 'recordDeckCheck',
           courseId,
