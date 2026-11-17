@@ -3,6 +3,7 @@ import {
   useEffect,
   useEffectEvent,
   useRef,
+  useLayoutEffect,
   useCallback,
 } from 'react';
 import { TimeToolConfig, WidgetData } from '@/types';
@@ -79,17 +80,24 @@ export const useTimeTool = (
     [updateWidget, widget.id, cancelRaf]
   );
 
+  // Latest config, so a start that awaited audio never decides from a pre-await snapshot.
+  const configRef = useRef(config);
+  useLayoutEffect(() => {
+    configRef.current = config;
+  });
+
   const handleStart = useCallback(async () => {
     await resumeAudio();
-    const patch = timeToolClockPatch(config, {
+    const latest = configRef.current;
+    const patch = timeToolClockPatch(latest, {
       type: 'start',
       now: Date.now(),
     });
     if (!patch) return;
     updateWidget(widget.id, { config: patch });
-    setRunningDisplayTime(config.elapsedTime);
+    setRunningDisplayTime(latest.elapsedTime);
     reportHandAction(widget.id, 'start');
-  }, [config, updateWidget, widget.id]);
+  }, [updateWidget, widget.id]);
 
   // Reset, setTime and adjust spread the whole config, as they always have.
   const applySpread = useCallback(

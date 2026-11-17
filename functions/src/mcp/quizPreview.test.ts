@@ -12,10 +12,9 @@ import {
   registerAppResources,
   resetCardCacheForTests,
 } from './apps';
-import { slimToolListing, stripAppMeta } from './toolKit';
+import { slimToolListing } from './toolKit';
 
 const drive = vi.hoisted(() => ({ files: new Map<string, unknown>() }));
-const flags = vi.hoisted(() => ({ apps: false }));
 vi.mock('./drive', () => ({
   driveTokenFor: vi.fn(() => Promise.resolve('tok')),
   readDriveJson: vi.fn((_t: string, id: string) =>
@@ -28,9 +27,6 @@ vi.mock('./drive', () => ({
       return Promise.resolve(fileId);
     }
   ),
-}));
-vi.mock('../quizMediaArchive', () => ({
-  isGlobalFeatureGranted: vi.fn(() => Promise.resolve(flags.apps)),
 }));
 
 type Data = Record<string, unknown>;
@@ -149,7 +145,6 @@ const stored = (id: string) =>
 
 beforeEach(() => {
   drive.files.clear();
-  flags.apps = false;
 });
 
 describe('rubric_id on free_response questions', () => {
@@ -338,7 +333,6 @@ describe('preview card', () => {
   });
 
   it('sends the saved quiz with the card so the student player can run it', async () => {
-    flags.apps = true;
     const { client } = await connect();
     const made = (await client.callTool({
       name: 'create_quiz',
@@ -362,41 +356,18 @@ describe('preview card', () => {
     expect(view.behavior).toBeNull();
   });
 
-  it('leaves the preview link out of the tool list while the flag is off', async () => {
+  it('keeps the preview link in the tool list', async () => {
     const { client, server } = await connect();
-    slimToolListing(server, undefined, () => Promise.resolve(flags.apps));
-    const off = await client.listTools();
-    expect(off.tools.find((t) => t.name === 'get_quiz')?._meta).toBeUndefined();
-    flags.apps = true;
-    const on = await client.listTools();
-    expect(on.tools.find((t) => t.name === 'get_quiz')?._meta).toMatchObject({
+    slimToolListing(server);
+    const listed = await client.listTools();
+    expect(
+      listed.tools.find((t) => t.name === 'get_quiz')?._meta
+    ).toMatchObject({
       ui: { resourceUri: PREVIEW_URI },
     });
   });
 
-  it('keeps other _meta keys when stripping the preview link', () => {
-    expect(
-      stripAppMeta({
-        name: 'x',
-        _meta: { ui: { resourceUri: PREVIEW_URI }, other: 1 },
-      })
-    ).toEqual({ name: 'x', _meta: { other: 1 } });
-  });
-
-  it('sends no card data while the flag is off', async () => {
-    const { raw } = await connect();
-    const res = await raw('create_quiz', {
-      title: 'Cells',
-      questions: [mc(1)],
-    });
-    expect(res.structuredContent).toBeUndefined();
-    expect(
-      (JSON.parse(res.content[0].text) as Data).preview_shown
-    ).toBeUndefined();
-  });
-
   it('sends the card and marks what an edit changed', async () => {
-    flags.apps = true;
     const { raw } = await connect();
     const made = await raw('create_quiz', {
       title: 'Cells',
@@ -440,7 +411,6 @@ describe('preview card', () => {
   });
 
   it('sends a rubric card from the rubric tools', async () => {
-    flags.apps = true;
     const { raw } = await connect();
     const res = await raw('get_rubric', { rubric_id: 'r1' });
     expect(res.structuredContent).toMatchObject({
@@ -452,7 +422,6 @@ describe('preview card', () => {
   });
 
   it('sends no card for an error', async () => {
-    flags.apps = true;
     const { raw } = await connect();
     const res = await raw('get_rubric', { rubric_id: 'nope' });
     expect(res.isError).toBe(true);

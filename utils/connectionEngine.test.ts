@@ -9,6 +9,8 @@ import {
   isStepFinished,
   joinRunByHand,
   liveConnections,
+  liveSteps,
+  nextStepIndex,
   runOutlivedBlock,
   sharesFollowSlot,
   startRun,
@@ -648,5 +650,34 @@ describe('block warning Runs started or joined by hand', () => {
     expect(started?.patches.s).toMatchObject({
       warningAlert: { minutes: 1 },
     });
+  });
+});
+
+describe('nextStepIndex', () => {
+  const t = timer('t', 5);
+  const seq = (
+    repeat: SequenceConnection['repeat'],
+    stepIndex: number,
+    loops = 0
+  ): SequenceConnection => ({
+    id: 'q',
+    kind: 'sequence',
+    repeat,
+    repeatCount: 2,
+    steps: [
+      { id: 'a', actions: [{ widgetId: 't', action: 'start' }] },
+      { id: 'b', actions: [{ widgetId: 't', action: 'reset' }] },
+    ],
+    run: { deviceId: 'd', stepIndex, stepStartedAt: 0, loops },
+  });
+  const next = (q: SequenceConnection) =>
+    nextStepIndex(q, liveSteps(q, [t]), [t]);
+
+  it('moves on, wraps when the Sequence repeats and stops when it does not', () => {
+    expect(next(seq('once', 0))).toBe(1);
+    expect(next(seq('once', 1))).toBeNull();
+    expect(next(seq('until-done', 1))).toBe(0);
+    expect(next(seq('count', 1, 0))).toBe(0);
+    expect(next(seq('count', 1, 1))).toBeNull();
   });
 });
