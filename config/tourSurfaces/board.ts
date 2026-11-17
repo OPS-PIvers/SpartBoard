@@ -513,6 +513,9 @@ export const SURFACES: TourSurfaceMap = {
       'classes.classroom-confirm': 'classes.link-classroom:classes',
       'classes.classroom-retry': 'classes.link-classroom:classes',
       'classes.classroom-course-row': 'classes.link-classroom:classes',
+      'classes.family-link-deck-private': 'classes.family-link-toggle',
+      'classes.family-link-cancel': 'classes.family-link-toggle',
+      'classes.family-link-confirm': 'classes.family-link-toggle',
     },
   },
   'board.sidebar-plcs': {

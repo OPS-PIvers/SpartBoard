@@ -6451,6 +6451,29 @@ export const TOUR_ANCHORS = {
     label: 'Cancel button when linking classes in My Classes',
     panel: true,
   },
+  'classes.family-link-toggle': {
+    label: 'Family link switch for a Course in My Classes',
+    persists: true,
+    panel: true,
+  },
+  'classes.family-link-copy': {
+    label: 'Copy family link button for a Course in My Classes',
+    panel: true,
+  },
+  'classes.family-link-deck-private': {
+    label:
+      'Stop sharing the deck outside Orono checkbox when turning off a family link',
+    panel: true,
+  },
+  'classes.family-link-cancel': {
+    label: 'Cancel button in the family link confirm',
+    panel: true,
+  },
+  'classes.family-link-confirm': {
+    label: 'Turn on or off button in the family link confirm',
+    persists: true,
+    panel: true,
+  },
   'classes.edit-roster': {
     label: 'Edit class button in My Classes',
     perField: true,

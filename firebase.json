@@ -131,6 +131,19 @@
         ]
       },
       {
+        "source": "/family/**",
+        "headers": [
+          {
+            "key": "X-Robots-Tag",
+            "value": "noindex, nofollow"
+          },
+          {
+            "key": "Referrer-Policy",
+            "value": "no-referrer"
+          }
+        ]
+      },
+      {
         "source": "/activity/**",
         "headers": [
           {
