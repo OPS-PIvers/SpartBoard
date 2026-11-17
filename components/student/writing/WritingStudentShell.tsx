@@ -261,7 +261,9 @@ export const WritingStudentShell: React.FC<{
   session: WritingShellSession;
   piece?: WritingShellPiece;
   onDone: () => void;
-}> = ({ session, piece, onDone }) => {
+  /** Live view's banner and Nudge (D15), pinned to the top of the page. */
+  liveNotice?: React.ReactNode;
+}> = ({ session, piece, onDone, liveNotice }) => {
   const view: WritingPageView = piece?.view ?? {
     mode: 'not-started',
     status: null,
@@ -315,6 +317,7 @@ export const WritingStudentShell: React.FC<{
   return (
     <StudentPageShell onDone={onDone} doneAction="back">
       <div className="mx-auto max-w-6xl space-y-5">
+        {liveNotice}
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 space-y-1">
             <h1 className="text-2xl font-black tracking-tight text-slate-900">

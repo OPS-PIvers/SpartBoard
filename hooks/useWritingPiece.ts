@@ -21,6 +21,7 @@ import type { WritingResponse } from '@/types';
 import { editorPlainText } from '@/hooks/useInputSignals';
 import { countWords } from '@/utils/wordCount';
 import { logError } from '@/utils/logError';
+import { getServerNow } from '@/utils/serverTime';
 import {
   InsideClipboard,
   insertKind,
@@ -47,6 +48,7 @@ import {
   insertApproved,
   isLogDue,
   refusedSaveAction,
+  saveDelayMs,
   saveKeyOf,
   turnInFlush,
 } from '@/utils/writingSaveFlow';
@@ -55,9 +57,6 @@ const isNum = (v: unknown): v is number =>
   typeof v === 'number' && Number.isFinite(v);
 
 const SESSIONS = 'writing_assignment_sessions';
-/** Text saves 1.5 s after typing stops, at least every 10 s while typing. */
-const SAVE_IDLE_MS = 1_500;
-const SAVE_MAX_WAIT_MS = 10_000;
 /** A save still waiting after this long means the device copy is what holds the text. */
 const SLOW_SAVE_MS = 4_000;
 const COPY_DEBOUNCE_MS = 400;
@@ -156,6 +155,7 @@ export function useWritingPiece(args: {
   const [seed, setSeed] = useState({ key: 0, html: '' });
 
   const holdingRef = useRef(false);
+  const watchedUntilRef = useRef(0);
   const recorderRef = useRef<WritingRecorder | null>(null);
   const htmlRef = useRef('');
   const savedHtmlRef = useRef('');
@@ -231,6 +231,7 @@ export function useWritingPiece(args: {
   // The response, and D23: another tab's claim or a lock ends this tab's hold.
   const onServer = useEffectEvent((r: WritingResponse | null) => {
     setResponse(r);
+    watchedUntilRef.current = r?.liveView?.until ?? 0;
     if (!r || !holdingRef.current) return;
     if (r.tabId === myTabId && isWritingUnlocked(deriveWritingStatus(r)))
       return;
@@ -663,10 +664,12 @@ export function useWritingPiece(args: {
     const now = Date.now();
     t.firstAt ??= now;
     if (t.idle !== null) window.clearTimeout(t.idle);
-    const wait = Math.max(
-      0,
-      Math.min(SAVE_IDLE_MS, t.firstAt + SAVE_MAX_WAIT_MS - now)
-    );
+    const wait = saveDelayMs({
+      firstAt: t.firstAt,
+      now,
+      watchedUntil: watchedUntilRef.current,
+      serverNow: getServerNow(),
+    });
     t.idle = window.setTimeout(() => {
       t.idle = null;
       t.firstAt = null;

@@ -10623,7 +10623,9 @@ export interface WritingAssignmentDefinition {
 /** Per-board state only; Writing assignments live in the teacher's library. */
 export interface WritingConfig {
   /** Which face the widget shows; `results` grades `resultsSessionId`. */
-  view?: 'manager' | 'results';
+  view?: 'manager' | 'monitor' | 'results';
+  /** The session the monitor shows. */
+  monitorSessionId?: string;
   /** The session the results face shows. */
   resultsSessionId?: string;
   /** Tab within the manager view. */
@@ -10632,6 +10634,8 @@ export interface WritingConfig {
   libraryViewMode?: 'grid' | 'list';
   /** Persisted folder-panel state; `'auto'` derives it from widget width. */
   folderPanelMode?: 'auto' | 'full' | 'rail' | 'hidden';
+  /** The monitor's Word counts switch; off by default. */
+  monitorShowWordCounts?: boolean;
 }
 
 export type { WritingResponseStatus, WritingTurnedInBy };
@@ -10715,6 +10719,8 @@ export interface WritingAssignmentRecord {
   dueLocks?: boolean;
   targetMode?: 'class' | 'students';
   targetStudents?: StudentTargetRef[];
+  /** Classes narrowed to picked students, written by `setAssignmentTargetsV1`. */
+  studentTargetClassIds?: string[];
   targetGroupIds?: string[];
   overridesBySourcedId?: Record<string, StudentOverride>;
   excludedTargets?: StudentTargetRef[];
@@ -10805,6 +10811,8 @@ export interface WritingResponse {
   grade?: WritingGrade;
   /** D21: the 1 August deletion removed this piece's log chunks. */
   logPurgedAt?: number;
+  /** D15: Live view's watch and Nudge; only the session's teacher writes it. */
+  liveView?: QuizLiveViewStamp | null;
   updatedAt: number;
 }
 

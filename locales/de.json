@@ -2232,6 +2232,7 @@
   },
   "quizLiveView": {
     "banner": "Deine Lehrkraft sieht sich dein Quiz an",
+    "bannerWriting": "Deine Lehrkraft sieht sich deinen Text an",
     "nudge": "Deine Lehrkraft bittet um deine Aufmerksamkeit",
     "noteSeeMe": "Bitte komm zu mir",
     "noteOwnWork": "Schau nur auf deine eigene Arbeit",

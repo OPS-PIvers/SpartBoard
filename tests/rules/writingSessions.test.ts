@@ -13,6 +13,7 @@ import {
 import {
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -436,6 +437,62 @@ describe('responses: student writes', () => {
     await assertSucceeds(
       updateDoc(doc(asStudent(STUDENT), RESP), save({ logChunk: 2 }))
     );
+  });
+});
+
+describe('responses: Live view and Nudge (D15)', () => {
+  const watch = { 'liveView.until': 9e12, 'liveView.notify': true };
+  const nudge = { 'liveView.nudge': { at: 5, noteId: 'keep-going' } };
+
+  it('the session teacher stamps, nudges and clears liveView; the student reads it', async () => {
+    await assertSucceeds(updateDoc(doc(asTeacher(TEACHER), RESP), watch));
+    await assertSucceeds(updateDoc(doc(asTeacher(TEACHER), RESP), nudge));
+    const snap = await getDoc(doc(asStudent(STUDENT), RESP));
+    expect(snap.data()?.liveView).toEqual({
+      until: 9e12,
+      notify: true,
+      nudge: { at: 5, noteId: 'keep-going' },
+    });
+    await assertSucceeds(
+      updateDoc(doc(asTeacher(TEACHER), RESP), {
+        'liveView.until': deleteField(),
+        'liveView.notify': deleteField(),
+      })
+    );
+  });
+
+  it('the teacher writes nothing but liveView, a map of at most three keys', async () => {
+    await assertFails(
+      updateDoc(doc(asTeacher(TEACHER), RESP), { ...watch, wordCount: 3 })
+    );
+    await assertFails(
+      updateDoc(doc(asTeacher(TEACHER), RESP), { status: 'returned' })
+    );
+    await assertFails(
+      updateDoc(doc(asTeacher(TEACHER), RESP), { liveView: 'on' })
+    );
+    await assertFails(
+      updateDoc(doc(asTeacher(TEACHER), RESP), {
+        liveView: { until: 1, notify: false, nudge: { at: 1 }, pad: 'x' },
+      })
+    );
+  });
+
+  it('another teacher, the student and a classmate cannot write liveView', async () => {
+    await assertFails(updateDoc(doc(asTeacher(OTHER_TEACHER), RESP), watch));
+    await assertFails(updateDoc(doc(asStudent(STUDENT), RESP), nudge));
+    await assertFails(
+      updateDoc(doc(asStudent(STUDENT), RESP), save({ liveView: null }))
+    );
+    await assertFails(updateDoc(doc(asStudent(CLASSMATE), RESP), watch));
+  });
+
+  it('a student save keeps the teacher liveView and a classmate never reads it', async () => {
+    await seed(RESP, response({ liveView: { until: 9e12, notify: false } }));
+    await assertSucceeds(updateDoc(doc(asStudent(STUDENT), RESP), save()));
+    const snap = await getDoc(doc(asTeacher(TEACHER), RESP));
+    expect(snap.data()?.liveView).toEqual({ until: 9e12, notify: false });
+    await assertFails(getDoc(doc(asStudent(CLASSMATE), RESP)));
   });
 });
 

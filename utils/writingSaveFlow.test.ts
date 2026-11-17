@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  SAVE_IDLE_MS,
+  saveDelayMs,
   BIG_LOG_BYTES,
   BIG_LOG_EVERY_MS,
   INSERT_APPROVAL_MS,
@@ -136,5 +138,22 @@ describe('insertApproved (D8)', () => {
     expect(
       insertApproved('insertFromPaste', 5_000, 5_000 + INSERT_APPROVAL_MS)
     ).toBe(false);
+  });
+});
+
+describe('saveDelayMs (D15)', () => {
+  const base = { firstAt: 0, watchedUntil: 0, serverNow: 0 };
+  it('saves 1.5 s after typing stops, at least every 10 s while typing', () => {
+    expect(saveDelayMs({ ...base, now: 0 })).toBe(SAVE_IDLE_MS);
+    expect(saveDelayMs({ ...base, now: 9_000 })).toBe(1_000);
+    expect(saveDelayMs({ ...base, now: 12_000 })).toBe(0);
+  });
+  it('saves at least every 2 s while the teacher watches, and stops when the watch ends', () => {
+    const watched = { ...base, watchedUntil: 60_000, serverNow: 30_000 };
+    expect(saveDelayMs({ ...watched, now: 1_000 })).toBe(1_000);
+    expect(saveDelayMs({ ...watched, now: 2_500 })).toBe(0);
+    expect(saveDelayMs({ ...watched, serverNow: 61_000, now: 1_000 })).toBe(
+      SAVE_IDLE_MS
+    );
   });
 });
