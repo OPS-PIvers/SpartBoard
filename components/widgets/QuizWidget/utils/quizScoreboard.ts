@@ -14,6 +14,7 @@ import {
   isFreeResponseType,
 } from '@/types';
 import { gradeAnswer, hasPaperWrittenAwaiting } from '@/hooks/useQuizSession';
+import { gradingPaperTranscript } from '@/utils/paperWritten';
 import {
   fibAnswersForResponse,
   type FibGradingContext,
@@ -107,7 +108,7 @@ export function getEarnedPoints(
         ans.answer,
         manualGrade,
         fibAnswersForResponse(fibGrading, r, q.id),
-        ans.paperTranscript
+        gradingPaperTranscript(q, r, ans.paperTranscript)
       )
     );
 
@@ -325,7 +326,13 @@ export function isResponseAwaitingGrade(
     const grade = applyMediaSlots(
       q,
       r,
-      gradeAnswer(q, ans.answer, manualGrade, undefined, ans.paperTranscript)
+      gradeAnswer(
+        q,
+        ans.answer,
+        manualGrade,
+        undefined,
+        gradingPaperTranscript(q, r, ans.paperTranscript)
+      )
     );
     if (grade.state === 'awaiting-grade') {
       return true;

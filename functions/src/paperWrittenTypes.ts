@@ -70,6 +70,8 @@ export interface PaperPrivateAnswer {
     page: number;
     state: 'ink' | 'blank';
     seat?: number;
+    /** Fill in the blank: the new scan's write-in lines. */
+    blanks?: number;
   };
   /** A custom image box: graded from the scan, archived but never transcribed. */
   noTranscript?: true;
@@ -146,6 +148,8 @@ export type GetPaperPageResponse =
   | { status: 'not-available'; reason: PaperPageUnavailableReason };
 
 export const PAPER_HANDWRITTEN_FEATURE = 'paper-handwritten-responses';
+/** Fill in the blank prints a write-in line per blank; needs the handwritten flag too. */
+export const PAPER_FIB_FEATURE = 'paper-fill-in-blank';
 export const PAPER_KEPT_PAGES_FEATURE = 'paper-kept-pages';
 /** Students see their own kept pages with their results (K1 lifted behind this flag). */
 export const PAPER_PAGES_STUDENT_VIEW_FEATURE = 'paper-pages-student-view';
@@ -212,4 +216,14 @@ export function publicTranscriptState(
   if (status === 'blank') return 'blank';
   if (status === 'image') return 'image';
   return 'pending';
+}
+
+/** Most write-in lines one fill-in-the-blank box is read as. */
+export const MAX_FIB_BLANKS = 50;
+
+/** A positive whole blank count capped at MAX_FIB_BLANKS; undefined otherwise. */
+export function cleanBlanks(raw: unknown): number | undefined {
+  if (typeof raw !== 'number' || !Number.isInteger(raw) || raw < 1)
+    return undefined;
+  return Math.min(raw, MAX_FIB_BLANKS);
 }

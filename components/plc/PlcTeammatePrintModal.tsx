@@ -232,6 +232,9 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
                 result.batch.pageMaps,
                 result.testPaper
               ),
+              ...(result.blankAnswers
+                ? { blankAnswers: result.blankAnswers }
+                : {}),
             }
           : {}),
         // An image the owner never shared is left out rather than blocking the

@@ -10,21 +10,21 @@ export const ILLEGIBLE_MARK = '[illegible]';
 export const BLANK_LINE_MARK = '[empty]';
 /** Mirrors `FIB_BLANK_SEP` in utils/quizFibBlanks.ts. */
 const FIB_BLANK_SEP = '\u001F';
-
 /** A fill-in-the-blank transcript as a stored answer: one trimmed line per blank, joined like a typed one. */
 export function blankAnswerFromTranscript(
   rawTranscript: string,
   blanks: number
 ): string {
   const lines = rawTranscript.split('\n').map((l) => l.trim());
-  const filled = lines.filter((l) => l.length > 0);
   // One blank: a long answer that wrapped is still one answer.
   if (blanks <= 1) {
-    const one = filled.join(' ');
+    const one = lines.filter((l) => l.length > 0).join(' ');
     return one.toLowerCase() === BLANK_LINE_MARK ? '' : one;
   }
+  // Bare empty lines are spacing; an unwritten blank arrives as the [empty] mark.
+  const kept = lines.filter((l) => l.length > 0);
   const out = Array.from({ length: blanks }, (_, i) => {
-    const line = filled[i] ?? '';
+    const line = kept[i] ?? '';
     return line.toLowerCase() === BLANK_LINE_MARK ? '' : line;
   });
   return out.join(FIB_BLANK_SEP);

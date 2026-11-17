@@ -93,6 +93,8 @@ export interface CreateTeammatePaperBatchResult {
   quizTitle: string;
   printedForTeacherName: string;
   testPaper: PaperTestQuestion[];
+  /** Fill in the blank: each blank's answer by question id, for the answer key. */
+  blankAnswers?: Record<string, string[]>;
   /** The server had to create their copy of the quiz to bind the batch to (D9). */
   createdCopy: boolean;
   /** Their copy is deferred to their own next sign-in instead (D20). */

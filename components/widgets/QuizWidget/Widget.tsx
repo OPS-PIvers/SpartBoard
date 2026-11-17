@@ -134,8 +134,8 @@ import {
   SHUFFLED_BEHAVIOR,
   type VersionImportBuild,
 } from '@/utils/quizDocumentImport/versionPlan';
-import { saveRubricDoc } from '@/hooks/useRubrics';
-import { applyRubricEdit } from '@/utils/rubricPoints';
+import { getRubricDoc, saveRubricDoc } from '@/hooks/useRubrics';
+import { applyRubricEdit, sameRubricContent } from '@/utils/rubricPoints';
 import { QuizEditorModal } from './components/QuizEditorModal';
 import { QuizPreview } from './components/QuizPreview';
 import { QuizResults } from './components/QuizResults';
@@ -3051,6 +3051,13 @@ const TeacherQuizWidget: React.FC<{
             // Edit the library quiz file itself, not the graded copy, which may hold drawn bank questions.
             const stored = await loadQuizData(meta.driveFileId);
             const inQuiz = applyRubricEdit(stored.questions, rubric);
+            const shownNow = applyRubricEdit(loadedQuizData.questions, rubric);
+            const requiredTotal =
+              inQuiz.requiredTotal ?? shownNow.requiredTotal;
+            if (requiredTotal !== undefined)
+              throw new Error(
+                `Both versions of this rubric must total ${requiredTotal} points.`
+              );
             if (inQuiz.changed) {
               await saveQuiz(
                 {
@@ -3061,7 +3068,7 @@ const TeacherQuizWidget: React.FC<{
                 meta.driveFileId
               );
             }
-            const shownNow = applyRubricEdit(loadedQuizData.questions, rubric);
+            const before = inQuiz.before ?? shownNow.before;
             const libraryIds = new Set([
               ...inQuiz.libraryIds,
               ...shownNow.libraryIds,
@@ -3076,15 +3083,33 @@ const TeacherQuizWidget: React.FC<{
                 : prev
             );
             const library = await Promise.allSettled(
-              [...libraryIds].map((id) =>
-                saveRubricDoc(user.uid, { ...rubric, id })
-              )
+              [...libraryIds].map(async (id) => {
+                const current = await getRubricDoc(user.uid, id);
+                // Missing (deleted or another teacher's) or edited since: leave the library alone.
+                if (!current) return 'skipped';
+                if (!before || !sameRubricContent(current, before))
+                  return 'kept';
+                await saveRubricDoc(user.uid, {
+                  ...rubric,
+                  id,
+                  createdAt: current.createdAt,
+                });
+                return 'saved';
+              })
+            );
+            const libraryKept = library.some(
+              (r) => r.status === 'fulfilled' && r.value === 'kept'
             );
             if (library.some((r) => r.status === 'rejected'))
               throw new Error(
                 'Saved to this quiz, but your library rubric did not update.'
               );
-            addToast('Rubric saved.', 'success');
+            addToast(
+              libraryKept
+                ? 'Rubric saved to this quiz. Your library copy has newer edits, so it was left as is.'
+                : 'Rubric saved.',
+              'success'
+            );
           }}
           paperSheetsEnabled={paperSheets.enabled}
           responses={responses}

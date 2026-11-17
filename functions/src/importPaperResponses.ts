@@ -47,6 +47,7 @@ import {
   type PaperTranscriptionJob,
   type PaperWrittenImportResult,
   type PaperWrittenPayloadBox,
+  cleanBlanks,
 } from './paperWrittenTypes';
 import {
   readPaperHandwritingQuota,
@@ -78,9 +79,6 @@ type CropMime = (typeof CROP_MIMES)[number];
 
 /** Local mirror of the `unresponded` reasons paper can emit (root `types.ts`). */
 type PaperUnresponded = 'passed' | 'paper-unclear';
-
-// A teacher-written batch map can't make the reader loop over more blanks than a sheet holds.
-const MAX_FIB_BLANKS = 50;
 
 export interface ImportPaperAnswer {
   questionId: string;
@@ -424,11 +422,8 @@ function indexPageMaps(pageMaps: unknown): BatchMapIndex {
       else if (item.kind === 'written' && typeof map.page === 'number') {
         index.written.set(item.questionId, map.page);
         if (item.style === 'image') index.image.add(item.questionId);
-        if (typeof item.blanks === 'number' && item.blanks > 0)
-          index.blanks.set(
-            item.questionId,
-            Math.min(Math.floor(item.blanks), MAX_FIB_BLANKS)
-          );
+        const blanks = cleanBlanks(item.blanks);
+        if (blanks) index.blanks.set(item.questionId, blanks);
       }
     }
   }
@@ -1004,6 +999,7 @@ async function importSeat(
               page: box.page,
               state: box.state,
               seat: sheet.seat,
+              ...(box.blanks ? { blanks: box.blanks } : {}),
             },
             updatedAt: ctx.now,
           },

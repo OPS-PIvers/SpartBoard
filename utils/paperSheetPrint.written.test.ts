@@ -360,6 +360,42 @@ describe('fill in the blank on paper', () => {
     }
   });
 
+  it('letters only the blanks on a question-text box rounded up to whole slots', () => {
+    const maps = mapsFor([fib(1, 1), fib(2, 2)], 'questions');
+    const items = writtenItemsOf(maps[0]);
+    expect(items[0].lines).toBeGreaterThan(1);
+    expect(items[1].lines).toBeGreaterThan(2);
+    const html = buildPaperSheetsHtml(
+      job(maps, {
+        columnsPerPage: 'questions',
+        questionTexts: [
+          { text: 'One ___', choices: [] },
+          { text: 'Two ___ and ___', choices: [] },
+        ],
+      })
+    );
+    const letters = [
+      ...pages(html)[0].matchAll(/class="wr-blank"[^>]*>([a-z])</g),
+    ].map((m) => m[1]);
+    expect(letters).toEqual(['a', 'b']);
+    const key = pages(
+      buildPaperSheetsHtml(
+        job(maps, {
+          columnsPerPage: 'questions',
+          questionTexts: [
+            { text: 'One ___', choices: [] },
+            { text: 'Two ___ and ___', choices: [] },
+          ],
+          sheets: [sheet({ isKeySheet: true, displayName: 'ANSWER KEY' })],
+          blankAnswers: { q1: ['x'], q2: ['y', 'z'] },
+        })
+      )
+    )[0];
+    expect(
+      [...key.matchAll(/class="wr-blank-key"[^>]*>([^<]*)</g)].map((m) => m[1])
+    ).toEqual(['x', 'y', 'z']);
+  });
+
   it('prints each blank’s answer on the answer key', () => {
     const maps = mapsFor([fib(1, 2)]);
     const page = pages(
