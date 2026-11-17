@@ -41,6 +41,7 @@ export type ViewKey =
 export type StateKey =
   | 'waiting'
   | 'live'
+  | 'review'
   | 'reviewing'
   | 'self-paced'
   | 'timed'
@@ -57,6 +58,8 @@ export type StateKey =
   | 'ordering'
   | 'picture-only'
   | 'choose-n'
+  | 'paper-copies'
+  | 'bank-draw'
   | AudioCaptureStateKey
   | RecordingControlStateKey
   | QuizEditorStateKey
@@ -102,6 +105,7 @@ const qualify = (
 const SESSION_STATE_LABELS: Record<string, string> = {
   waiting: 'Waiting (no responses)',
   live: 'Live',
+  review: 'Review, teacher-paced (monitor)',
   reviewing: 'Reviewing (present)',
   'self-paced': 'Self-paced (present)',
   timed: 'Timed (monitor)',
@@ -118,6 +122,8 @@ const SESSION_STATE_LABELS: Record<string, string> = {
   ordering: 'Ordering question (results)',
   'picture-only': 'Picture-only answers (results)',
   'choose-n': 'Answer any 2 of 3, answered extra (results)',
+  'paper-copies': 'Printed group copies (monitor, results)',
+  'bank-draw': 'Bank draw, 3 of 5 questions (results)',
 };
 
 export const STATES: StateOption[] = [

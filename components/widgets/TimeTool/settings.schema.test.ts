@@ -75,12 +75,11 @@ describe('time-tool settings schema', () => {
     ]);
   });
 
-  it('wraps every timer-end setting in a partner card under one section, hidden in stopwatch mode', () => {
-    const ctx = (mode: string, connections = false) =>
+  it('keeps every old timer-end partner card under one section, hidden now that Connections replace them', () => {
+    const ctx = (mode: string) =>
       ({
         config: { mode },
-        canAccessFeature: (id: string) =>
-          id === 'widget-connections' ? connections : true,
+        canAccessFeature: () => true,
       }) as unknown as FieldCtx;
     const behavior = schema.groups.find((g) => g.id === 'behavior');
     const cards = (behavior?.fields ?? []).filter(
@@ -95,9 +94,8 @@ describe('time-tool settings schema', () => {
     ]);
     for (const card of cards) {
       expect(card.section).toBe('timerEndSection');
-      expect(card.visibleWhen?.(ctx('timer'))).toBe(true);
+      expect(card.visibleWhen?.(ctx('timer'))).toBe(false);
       expect(card.visibleWhen?.(ctx('stopwatch'))).toBe(false);
-      expect(card.visibleWhen?.(ctx('timer', true))).toBe(false);
     }
   });
 

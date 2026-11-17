@@ -147,6 +147,7 @@ import { earliestDueAt } from '@/utils/perClassDueDates';
 import { AssignmentClassNames } from '@/components/common/library/AssignmentClassNames';
 import { applyWhen } from '@/utils/assignAvailability';
 import { QuizAssignStepper } from './QuizAssignStepper';
+import type { PrintedGroupPick } from '@/components/common/library/assignStepper/modificationGroups';
 import {
   DEFAULT_WRITTEN_ANSWERS,
   type WrittenAnswersValue,
@@ -217,6 +218,8 @@ export interface QuizStepperAssign {
     boxSizes: Record<string, PaperBoxSize>;
     boxStyles: Record<string, PaperBoxStylePick>;
   };
+  /** Modification groups that print their version at assign (`paper-printed-versions`). */
+  printedGroups?: PrintedGroupPick[];
 }
 
 interface QuizAssignOptions {
@@ -329,15 +332,23 @@ interface QuizManagerProps {
   /** Open the paper assign flow for a library quiz. Absent when the feature is off. */
   onAssignOnPaper?: (quiz: QuizMetadata) => void;
   /** Open the scan import for a paper assignment. */
-  onImportPaperResponses?: (assignment: QuizAssignment) => void;
+  onImportPaperResponses?: (
+    assignment: QuizAssignment,
+    opts?: PaperStackChoice
+  ) => void;
   /** Print a paper assignment's sheets again, same seats, for lost sheets. */
-  onReprintPaperSheets?: (assignment: QuizAssignment) => void;
+  onReprintPaperSheets?: (
+    assignment: QuizAssignment,
+    opts?: PaperStackChoice
+  ) => void;
   /** Import a stack with no Paper card (a teammate's print, or one from before Assign on paper). */
   onImportLooseStack?: (quiz: QuizMetadata) => void;
   /** The quiz has a printed stack that no paper assignment owns. */
   hasLooseStack?: (quizId: string) => boolean;
   /** Assign can put written questions on paper (`paper-written-hybrid` and the paper gates). */
   writtenOnPaperAvailable?: boolean;
+  /** A modification group can print its version at assign (`paper-printed-versions` and the paper gates). */
+  printedVersionsAvailable?: boolean;
   onEdit: (quiz: QuizMetadata) => void;
   onPreview: (quiz: QuizMetadata) => void;
   /** Take the quiz as students see it. Absent when the feature is off. */
@@ -601,6 +612,35 @@ interface QuizManagerProps {
   onError?: (message: string) => void;
 }
 
+/* ─── Printed group copies on a device assignment card ─────────────────────── */
+
+/** `copies` picks the printed versions over the written-answer stack on the same card. */
+export interface PaperStackChoice {
+  copies?: boolean;
+}
+
+const importCopiesAction = (
+  a: QuizAssignment,
+  onImport: (a: QuizAssignment, opts?: PaperStackChoice) => void
+): LibraryMenuAction => ({
+  id: 'import-copies',
+  label: 'Import paper responses',
+  icon: ScanLine,
+  anchor: tourTypeAttr('quiz-library.import-paper-copies', 'quiz'),
+  onClick: () => onImport(a, { copies: true }),
+});
+
+const reprintCopiesAction = (
+  a: QuizAssignment,
+  onReprint: (a: QuizAssignment, opts?: PaperStackChoice) => void
+): LibraryMenuAction => ({
+  id: 'reprint-copies',
+  label: 'Print paper copies',
+  icon: Printer,
+  anchor: tourTypeAttr('quiz-library.reprint-paper-copies', 'quiz'),
+  onClick: () => onReprint(a, { copies: true }),
+});
+
 /* ─── Status resolver for archive cards ───────────────────────────────────── */
 
 /** Folds related In Progress and Completed menu rows into side menus; a group of one stays a plain row. */
@@ -620,6 +660,8 @@ function groupArchiveSecondaries(
         'import-written',
         'reprint-paper',
         'reprint-written',
+        'import-copies',
+        'reprint-copies',
       ],
       id: 'paper',
       label: 'Paper',
@@ -784,6 +826,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onImportLooseStack,
   hasLooseStack,
   writtenOnPaperAvailable = false,
+  printedVersionsAvailable = false,
   onEdit,
   onPreview,
   onStudentView,
@@ -1915,7 +1958,12 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           onClick: () => onImportPaperResponses(a),
         });
       }
-      if (a.hasPaperResponses && !a.paper && onImportPaperResponses) {
+      if (a.paperCopyBatchIds?.length || a.paperCopyGroups?.length) {
+        if (onImportPaperResponses && a.paperCopyBatchIds?.length)
+          secondaries.push(importCopiesAction(a, onImportPaperResponses));
+        if (onReprintPaperSheets)
+          secondaries.push(reprintCopiesAction(a, onReprintPaperSheets));
+      } else if (a.hasPaperResponses && !a.paper && onImportPaperResponses) {
         secondaries.push({
           id: 'import-paper',
           label: 'Import responses',
@@ -2046,8 +2094,14 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         onClick: () => onImportPaperResponses(a),
       });
     }
+    if (a.paperCopyBatchIds?.length || a.paperCopyGroups?.length) {
+      if (onImportPaperResponses && a.paperCopyBatchIds?.length)
+        secondaries.push(importCopiesAction(a, onImportPaperResponses));
+      if (onReprintPaperSheets)
+        secondaries.push(reprintCopiesAction(a, onReprintPaperSheets));
+    }
     // More scans from the same stack (another class, make-ups) still import here.
-    if ((a.paper || a.hasPaperResponses) && onImportPaperResponses) {
+    else if ((a.paper || a.hasPaperResponses) && onImportPaperResponses) {
       secondaries.push({
         id: 'import-paper',
         label: 'Import responses',
@@ -2266,7 +2320,9 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     () => paperBoxImageChoices(assignQuizData?.stimuli ?? []),
     [assignQuizData]
   );
-  const handleStepperAssign = (): void => {
+  const handleStepperAssign = (extra?: {
+    printedGroups: PrintedGroupPick[];
+  }): void => {
     if (!assignTarget) return;
     if (plcs.length > 0 && sharingNeedsPlc(assignOptions, plcs)) return;
     const behavior: QuizBehaviorSettings = {
@@ -2338,6 +2394,9 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                 boxStyles: assignWritten.boxStyles,
               },
             }
+          : {}),
+        ...(!assignToStaff && extra?.printedGroups.length
+          ? { printedGroups: extra.printedGroups }
           : {}),
       }
     );
@@ -3242,6 +3301,12 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                 },
               }
             : {})}
+          // A bank draw differs per student, so there is no one version to print.
+          printedVersionsAvailable={
+            printedVersionsAvailable &&
+            !!assignQuizData &&
+            !assignQuizData.bankSlots?.length
+          }
           onClose={resetAssign}
           onSubmit={handleStepperAssign}
         />
@@ -3754,18 +3819,11 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
   const periods = a.periodNames ?? (a.periodName ? [a.periodName] : []);
   const urlLive = a.status !== 'inactive';
   const noPeriods = periods.length === 0 && mode === 'active';
-  const periodLabel =
-    periods.length === 1
-      ? periods[0]
-      : periods.length > 0
-        ? `${periods.length} classes`
-        : null;
 
   // Admin-only by default — view-count display fires one Firestore
   // aggregation per visible card per dashboard tab-focus, gated behind the
   // `share-link-tracking` global permission.
   const { canSeeShareTracking, canAccessFeature } = useAuth();
-  const classList = canAccessFeature('assignment-class-list');
   const trackingEnabled = canSeeShareTracking();
   const showJoinCode =
     urlLive && !a.paper && canAccessFeature('anonymous-join');
@@ -3845,24 +3903,6 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
         {showJoinCode && (
           <span className="font-mono tracking-wider">{a.code}</span>
         )}
-        {!classList &&
-          (noPeriods && a.audience === 'staff' ? (
-            <span className="font-semibold">Staff</span>
-          ) : noPeriods ? (
-            <span
-              className="font-semibold text-amber-600 truncate"
-              style={{ maxWidth: 'min(120px, 30cqmin)' }}
-            >
-              No classes
-            </span>
-          ) : periodLabel != null ? (
-            <span
-              className="font-semibold truncate"
-              style={{ maxWidth: 'min(120px, 30cqmin)' }}
-            >
-              {periodLabel}
-            </span>
-          ) : null)}
         {status.tone === 'success' && (
           <span className="inline-flex items-center">
             <Radio
@@ -3962,14 +4002,13 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
           </span>
         )}
         {/* Last, so a long class list wraps under the shorter items. */}
-        {classList &&
-          (noPeriods && a.audience === 'staff' ? (
-            <span className="font-semibold">Staff</span>
-          ) : noPeriods ? (
-            <span className="font-semibold text-amber-600">No classes</span>
-          ) : (
-            <AssignmentClassNames names={periods} />
-          ))}
+        {noPeriods && a.audience === 'staff' ? (
+          <span className="font-semibold">Staff</span>
+        ) : noPeriods ? (
+          <span className="font-semibold text-amber-600">No classes</span>
+        ) : (
+          <AssignmentClassNames names={periods} />
+        )}
       </>
     );
   }

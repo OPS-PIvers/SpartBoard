@@ -109,3 +109,43 @@ export function formatModificationsValue(
     ? parts.join(', ')
     : t('assignTargeting.modificationsNone', 'None');
 }
+
+/** A saved class group offered in the Modifications Students menu. */
+export interface ModificationClassGroup {
+  id: string;
+  name: string;
+  rosterName: string;
+  /** Row keys of its members who are among the listed rows. */
+  keys: string[];
+}
+
+/** Saved groups of the checked classes, each mapped to the listed rows it covers. */
+export function modificationClassGroups(
+  rosters: ClassRoster[],
+  selectedRosterIds: string[],
+  rows: ClassStudentRow[]
+): ModificationClassGroup[] {
+  const listed = new Set(rows.map((r) => r.key));
+  const selected = new Set(selectedRosterIds);
+  const out: ModificationClassGroup[] = [];
+  for (const roster of rosters) {
+    if (!selected.has(roster.id)) continue;
+    const byId = new Map(roster.students.map((s) => [s.id, s] as const));
+    for (const group of roster.groups ?? []) {
+      const keys: string[] = [];
+      for (const id of group.studentIds) {
+        const student = byId.get(id);
+        const ref = student ? resolveStudentTargetRef(student, roster) : null;
+        const key = ref ? studentTargetRefKey(ref) : null;
+        if (key && listed.has(key) && !keys.includes(key)) keys.push(key);
+      }
+      out.push({
+        id: `${roster.id}:${group.id}`,
+        name: group.name,
+        rosterName: roster.name,
+        keys,
+      });
+    }
+  }
+  return out;
+}

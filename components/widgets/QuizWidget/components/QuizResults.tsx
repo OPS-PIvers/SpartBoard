@@ -307,6 +307,8 @@ interface QuizResultsProps {
   onBack: () => void;
   tabWarningsEnabled?: boolean;
   session?: import('@/types').QuizSession | null;
+  /** Printed group stacks (`paper-printed-versions`); a response scanned from one shows a Paper badge. */
+  paperCopyBatchIds?: readonly string[];
   /**
    * Delete a single student response by its deterministic Firestore doc key
    * (falls back to `studentUid` for legacy docs written before keying moved
@@ -482,6 +484,7 @@ export const QuizResults: React.FC<QuizResultsProps> = (props) => {
 };
 
 const QuizResultsContent: React.FC<QuizResultsProps> = ({
+  paperCopyBatchIds,
   quiz,
   responses: rawResponses,
   config,
@@ -911,7 +914,6 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       isReview ||
       !user?.uid ||
       user.uid !== session?.teacherUid ||
-      !canAccessFeature('choose-n-pick-counted') ||
       !session.sections?.some((s) => s.chooseCount)
     ) {
       return undefined;
@@ -921,15 +923,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       ((responseKey, sectionId, picked) =>
         saveCountedChoices({ sessionId, responseKey, sectionId, picked, quiz }))
     );
-  }, [
-    session,
-    plcView,
-    isReview,
-    user?.uid,
-    canAccessFeature,
-    quiz,
-    countedChoicesSaver,
-  ]);
+  }, [session, plcView, isReview, user?.uid, quiz, countedChoicesSaver]);
 
   // Same teacher-owner path as the grade write; a dotted path keeps the other hashes.
   const saveBackTranslation = useCallback(
@@ -2710,6 +2704,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
             <StudentsScreen
               rubricFor={printRubric}
               liveLogByKey={liveLogByKey}
+              paperCopyBatchIds={paperCopyBatchIds}
               quizTitle={quiz.title}
               responses={filteredResponses}
               questions={quiz.questions}
@@ -2874,23 +2869,22 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
             className="ml-auto flex items-center shrink-0"
             style={{ gap: 'min(6px, 1.5cqmin)' }}
           >
-            {(isReview || !canAccessFeature('widget-connections')) &&
-              filteredCompleted.length > 0 && (
-                <button
-                  type="button"
-                  onClick={handleScoreboardClick}
-                  disabled={namesLoading}
-                  aria-label="Send to Scoreboard"
-                  {...tourTypeAttr('quiz-results.scoreboard', 'quiz')}
-                  title={
-                    namesLoading ? NAMES_LOADING_TITLE : 'Send to Scoreboard'
-                  }
-                  className={footerButtonClass}
-                  style={footerIconButtonStyle}
-                >
-                  <Trophy aria-hidden style={footerIcon} />
-                </button>
-              )}
+            {isReview && filteredCompleted.length > 0 && (
+              <button
+                type="button"
+                onClick={handleScoreboardClick}
+                disabled={namesLoading}
+                aria-label="Send to Scoreboard"
+                {...tourTypeAttr('quiz-results.scoreboard', 'quiz')}
+                title={
+                  namesLoading ? NAMES_LOADING_TITLE : 'Send to Scoreboard'
+                }
+                className={footerButtonClass}
+                style={footerIconButtonStyle}
+              >
+                <Trophy aria-hidden style={footerIcon} />
+              </button>
+            )}
             {sheetRefresh && (
               <button
                 type="button"
@@ -3032,6 +3026,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           targetsFor={printTargets}
           gradeFn={printGradeFn}
           rubricFor={printRubric}
+          drawOrder={!!session?.bankSlots?.length}
           periodOrder={printPeriodOrder}
           sessionLive={!!session && session.status !== 'ended'}
           sheetsAvailable={paperSheetsEnabled}
@@ -4167,6 +4162,8 @@ const StudentDrilldownPanel: React.FC<{
     response: QuizResponse,
     question: QuizQuestion
   ) => Rubric | undefined;
+  /** Bank session: list questions in the order the student drew them. */
+  drawOrder: boolean;
   id: string;
   quizTitle: string;
   response: QuizResponse;
@@ -4190,6 +4187,7 @@ const StudentDrilldownPanel: React.FC<{
   onSaveCountedChoices?: SaveCountedChoices;
 }> = ({
   rubricFor,
+  drawOrder,
   id,
   quizTitle,
   response: liveResponse,
@@ -4208,8 +4206,6 @@ const StudentDrilldownPanel: React.FC<{
   onSaveCountedChoices,
 }) => {
   const [includeAnswers, setIncludeAnswers] = useState(true);
-  const { canAccessFeature } = useAuth();
-  const showExtraAnswers = canAccessFeature('choose-n-pick-counted');
   const liveKey = getResponseDocKey(liveResponse) as string;
   const copies = useQuizResponseAttempts(sessionId, liveKey, true);
   const earlier = useMemo(
@@ -4261,22 +4257,42 @@ const StudentDrilldownPanel: React.FC<{
         questions,
         response,
         makeQuestionGradeFn(fibGrading),
-        { showExtraAnswers, rubricFor: (q) => rubricFor(response, q) }
+        {
+          showExtraAnswers: true,
+          rubricFor: (q) => rubricFor(response, q),
+          drawOrder,
+        }
       ),
-    [questions, response, fibGrading, showExtraAnswers, rubricFor]
+    [questions, response, fibGrading, rubricFor, drawOrder]
   );
   const questionById = useMemo(
     () => new Map(questions.map((q) => [q.id, q])),
     [questions]
   );
   const responseKey = getResponseDocKey(response) as string;
-  const overAnswered = useMemo(
-    () =>
-      onSaveCountedChoices && !picked
-        ? countedChoiceSections(liveResponse, sections, questions)
-        : [],
-    [onSaveCountedChoices, picked, liveResponse, sections, questions]
-  );
+  const overAnswered = useMemo(() => {
+    if (!onSaveCountedChoices || picked) return [];
+    // The picker uses the same Q numbers as the lines below it.
+    const numberOf = new Map(
+      drilldown.lines.map((l) => [l.questionId, l.number])
+    );
+    return countedChoiceSections(liveResponse, sections, questions).map(
+      (o) => ({
+        ...o,
+        options: o.options.map((x) => ({
+          ...x,
+          number: numberOf.get(x.questionId) ?? x.number,
+        })),
+      })
+    );
+  }, [
+    onSaveCountedChoices,
+    picked,
+    liveResponse,
+    sections,
+    questions,
+    drilldown,
+  ]);
   const saveCounted = async (sectionId: string, ids: string[] | null) => {
     if (!onSaveCountedChoices) return;
     try {
@@ -4482,10 +4498,12 @@ const StudentsScreen: React.FC<{
   onViewChange: (view: { sort: StudentSort; display: ScoreDisplay }) => void;
   /** Teacher-only Live view actions per response key; absent without the flag. */
   liveLogByKey?: ReadonlyMap<string, QuizLiveLogEntry[]>;
+  paperCopyBatchIds?: readonly string[];
   onSaveCountedChoices?: SaveCountedChoices;
 }> = ({
   rubricFor,
   liveLogByKey,
+  paperCopyBatchIds,
   quizTitle,
   responses,
   questions,
@@ -4924,7 +4942,9 @@ const StudentsScreen: React.FC<{
                       <SessionBadge tone="neutral" label={label} />
                     </span>
                   ))}
-                  {r.answers?.some((a) => isPaperWrittenAnswer(a)) && (
+                  {(r.answers?.some((a) => isPaperWrittenAnswer(a)) ||
+                    (!!r.paperBatchId &&
+                      !!paperCopyBatchIds?.includes(r.paperBatchId))) && (
                     <span className="shrink-0">
                       <SessionBadge
                         tone="neutral"
@@ -5284,6 +5304,7 @@ const StudentsScreen: React.FC<{
               {isExpanded && (
                 <StudentDrilldownPanel
                   rubricFor={rubricFor}
+                  drawOrder={!!session?.bankSlots?.length}
                   id={panelId}
                   quizTitle={quizTitle}
                   response={r}

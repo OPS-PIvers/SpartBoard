@@ -21,6 +21,7 @@ import {
 } from './folderView';
 import { isSourceFolderId } from './sourceFolders';
 import { logError } from '@/utils/logError';
+import { itemsAtFolderLevel } from '@/utils/folderLevel';
 import type { LibraryFolderViewModel } from './LibraryFolderViewContext';
 import {
   readLastLibraryLocation,
@@ -220,9 +221,7 @@ export function useFolderLibraryView<TItem>(
       );
     }
     if (location.kind === 'folder' && !searchActive) {
-      return view.visibleItems.filter(
-        (item) => itemFolderId(item) === openFolderId
-      );
+      return itemsAtFolderLevel(view.visibleItems, openFolderId, itemFolderId);
     }
     return view.visibleItems;
   }, [

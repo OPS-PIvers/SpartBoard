@@ -45,6 +45,8 @@ export interface RowScore {
   gradedBy?: 'server' | 'app';
   /** Writing: the teacher excused this piece. */
   excused?: true;
+  /** Quiz: scanned from a printed group copy, so never Late or Missing. */
+  onPaper?: true;
 }
 
 export interface SessionMeta {

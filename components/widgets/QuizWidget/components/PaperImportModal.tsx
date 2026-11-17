@@ -1126,6 +1126,9 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
                 >
                   {batches.map((b) => (
                     <option key={b.id} value={b.id}>
+                      {b.printedGroup
+                        ? `Group ${b.printedGroup.number} · `
+                        : ''}
                       {formatDate(b.createdAt)} ·{' '}
                       {Object.keys(b.seats).length + b.spareSeats.length} sheets
                       · {b.questionCount} questions

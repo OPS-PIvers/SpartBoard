@@ -1,4 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useContext, useMemo, useState } from 'react';
+import { AuthContext } from '@/context/AuthContextValue';
+import { RosterAccommodationsList } from './RosterAccommodationsList';
 import { useTranslation } from 'react-i18next';
 import { Save, AlertTriangle, X, Plus, Users, UsersRound } from 'lucide-react';
 import {
@@ -130,6 +132,9 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
     else if (id === 'restrictions') setShowRestrictions(on);
   };
 
+  const auth = useContext(AuthContext);
+  const accommodationsListOn =
+    auth?.canAccessFeature?.('modification-groups') === true;
   const [activeTab, setActiveTab] = useState<
     'students' | 'groups' | 'accommodations'
   >('students');
@@ -372,6 +377,15 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
             groups={groups}
             students={validStudents}
             onChange={setGroups}
+          />
+        ) : activeTab === 'accommodations' && roster && accommodationsListOn ? (
+          <RosterAccommodationsList
+            students={validStudents}
+            groups={groups}
+            overrides={defaultOverrides}
+            readAloudAvailable={readAloudAvailable}
+            onChange={setDefaultOverrides}
+            onAddStudents={() => setActiveTab('students')}
           />
         ) : activeTab === 'accommodations' && roster ? (
           <RosterAccommodationsPanel

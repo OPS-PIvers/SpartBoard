@@ -19,6 +19,7 @@ import {
   parseMultiAnswer,
 } from '@/utils/quizMultiAnswer';
 import { seededShuffle } from '@/utils/quizShuffle';
+import { orderServedQuestions } from '@/utils/questionBanks';
 import { sanitizeQuizResponse } from '@/utils/security';
 import {
   gradeQuestionForResponse,
@@ -98,8 +99,10 @@ export interface StudentDrilldownOptions {
   includeExplanations?: boolean;
   /** The rubric after per-student overrides; defaults to the question's snapshot. */
   rubricFor?: (question: QuizQuestion) => Rubric | undefined;
-  /** Keep the text of an extra answer that doesn't count (choose-n-pick-counted). */
+  /** Keep the text of an extra answer that doesn't count. */
   showExtraAnswers?: boolean;
+  /** Bank session: list served questions in the order they were drawn, as the student saw them. */
+  drawOrder?: boolean;
 }
 
 export interface StudentDrilldown {
@@ -226,10 +229,18 @@ export function computeStudentDrilldown(
   const seen = new Set<string>();
   const lines: StudentQuestionLine[] = [];
 
-  questions.forEach((q, index) => {
+  const drawn = response.servedQuestionIds;
+  // Numbered 1..n like the student's own results: draw order for bank sessions, quiz order otherwise.
+  const ordered =
+    options.drawOrder && drawn?.length
+      ? orderServedQuestions(questions, drawn)
+      : questions;
+
+  ordered.forEach((q) => {
     if (seen.has(q.id)) return;
     seen.add(q.id);
     if (!isServed(response, q.id)) return;
+    const number = lines.length + 1;
     const entry = answers.get(q.id);
     const max = q.points ?? 1;
     const manual = isFreeResponseType(q.type);
@@ -255,7 +266,7 @@ export function computeStudentDrilldown(
       | 'pictures'
     > = {
       questionId: q.id,
-      number: index + 1,
+      number,
       text: q.text,
       type: q.type,
       manual,

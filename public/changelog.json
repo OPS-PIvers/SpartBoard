@@ -1,6 +1,82 @@
 {
   "entries": [
     {
+      "version": "2026.11.17.2",
+      "date": "2026-11-17",
+      "title": "Connect widgets",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Board",
+          "items": [
+            {
+              "text": "Connect widgets so one starts or changes another. Tap Connect on a widget, add the steps, and SpartBoard runs them in order, like a timer that picks the next name when it ends. Links you set up before, like a timer that changes the traffic light, became Connections on their own."
+            }
+          ]
+        }
+      ],
+      "details": []
+    },
+    {
+      "version": "2026.11.17.1",
+      "date": "2026-11-17",
+      "title": "Share link checks, class lists and extra answers",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Quiz",
+          "items": [
+            {
+              "text": "When a student answers more questions than a section asks for, you pick which answers count in Results. The score, gradebook and printout update to match."
+            },
+            {
+              "text": "Math in an imported test, like fractions, powers and roots, comes in drawn the way it looks on paper."
+            }
+          ]
+        },
+        {
+          "type": "feature",
+          "subtitle": "Sharing",
+          "items": [
+            {
+              "text": "A share link asks before it imports and shows who shared it. Cancel imports nothing."
+            }
+          ]
+        },
+        {
+          "type": "feature",
+          "subtitle": "Assignments",
+          "items": [
+            {
+              "text": "An assignment given to several classes shows how many classes. Click it to see the full list."
+            }
+          ]
+        },
+        {
+          "type": "feature",
+          "subtitle": "Google Classroom",
+          "items": [
+            {
+              "text": "Assign to Google Classroom is in each quiz and video activity assignment's menu. It posts with your due date, and published scores go to Classroom when your account allows."
+            }
+          ]
+        },
+        {
+          "type": "improvement",
+          "subtitle": "Improvements",
+          "items": [
+            {
+              "text": "Dropdowns and date and time fields open SpartBoard's own lists, which work the same with a mouse, a keyboard or a finger."
+            },
+            {
+              "text": "Quizzes and rubrics you make with Claude show as a preview card in the chat. You can ask for a change to a question right from the card."
+            }
+          ]
+        }
+      ],
+      "details": []
+    },
+    {
       "version": "2026.11.17",
       "date": "2026-11-17",
       "title": "Quiz points, calmer quizzes and late work",
@@ -2794,6 +2870,62 @@
     }
   ],
   "widgetNotes": [
+    {
+      "id": "time-tool-connect-2026-11-17",
+      "widget": "time-tool",
+      "date": "2026-11-17",
+      "text": "Tap Connect to link this widget to others, so one starts or changes another."
+    },
+    {
+      "id": "random-connect-2026-11-17",
+      "widget": "random",
+      "date": "2026-11-17",
+      "text": "Tap Connect to link this widget to others, so one starts or changes another."
+    },
+    {
+      "id": "nextUp-connect-2026-11-17",
+      "widget": "nextUp",
+      "date": "2026-11-17",
+      "text": "Tap Connect to link this widget to others, so one starts or changes another."
+    },
+    {
+      "id": "stations-connect-2026-11-17",
+      "widget": "stations",
+      "date": "2026-11-17",
+      "text": "Tap Connect to link this widget to others, so one starts or changes another."
+    },
+    {
+      "id": "sound-connect-2026-11-17",
+      "widget": "sound",
+      "date": "2026-11-17",
+      "text": "Tap Connect to link this widget to others, so one starts or changes another."
+    },
+    {
+      "id": "music-connect-2026-11-17",
+      "widget": "music",
+      "date": "2026-11-17",
+      "text": "Tap Connect to link this widget to others, so one starts or changes another."
+    },
+    {
+      "id": "quiz-assign-to-classroom-2026-11-17",
+      "widget": "quiz",
+      "feature": "google-classroom",
+      "date": "2026-11-17",
+      "text": "Assign to Google Classroom is in each assignment's menu. It posts with your due date, and published scores go to Classroom when your account allows."
+    },
+    {
+      "id": "video-activity-assign-to-classroom-2026-11-17",
+      "widget": "video-activity",
+      "feature": "google-classroom",
+      "date": "2026-11-17",
+      "text": "Assign to Google Classroom is in each assignment's menu. It posts with your due date, and published scores go to Classroom when your account allows."
+    },
+    {
+      "id": "quiz-pick-counted-2026-11-17",
+      "widget": "quiz",
+      "date": "2026-11-17",
+      "text": "If a student answers more questions than a section asks for, Results shows Answered extra and you pick which answers count."
+    },
     {
       "id": "quiz-answer-keyboards-2026-11-15",
       "widget": "quiz",

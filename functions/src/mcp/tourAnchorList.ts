@@ -6266,6 +6266,54 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-mods.students-clear",
+    "label": "Clear button in the modification group Students menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.students"
+        ],
+        "reveal": "assign-mods.students"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.students-done",
+    "label": "Done button that closes the modification group Students menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.students"
+        ],
+        "reveal": "assign-mods.students"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.class-group",
+    "label": "Class group button in the modification group Students menu",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.students"
+        ],
+        "reveal": "assign-mods.students"
+      }
+    ]
+  },
+  {
     "id": "assign-mods.answer-choices",
     "label": "Answer choices rule for a modification group",
     "scope": "board",
@@ -6300,6 +6348,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "assign-mods.read-aloud",
     "label": "Read aloud switch for a modification group",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-step.modifications"
+        ],
+        "reveal": "assign-step.modifications"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.printed",
+    "label": "Printed version switch for a modification group",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -13789,6 +13853,26 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.archive-menu:quiz#row-1",
           "quiz-library.reprint-sheets:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-reprint.group",
+    "label": "Group checkbox when printing paper copies again",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.paper-copies-reprint",
+        "kind": "modal",
+        "path": [
+          "library-shell.archive-menu:quiz#row-1",
+          "quiz-library.reprint-paper-copies:quiz"
         ],
         "needs": [
           "library-item",
@@ -44928,7 +45012,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "admin.district-library.targeting",
-    "label": "Who sees it button in a District library row",
+    "label": "Access button in a District library row",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -45255,7 +45339,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "admin.district-library.folder-targeting",
-    "label": "Who sees this folder button, by folder id",
+    "label": "Folder Access button, by folder id",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -45373,6 +45457,82 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "admin.district-library.row-menu",
     "label": "More actions menu in a District library row",
     "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.district-library.select",
+    "label": "Select button for District library bulk actions",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.district-library.select-all",
+    "label": "Select all in District library selection",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.district-library.select-row",
+    "label": "Checkbox on a District library row",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.district-library.bulk-move",
+    "label": "Move button for selected District library items",
+    "scope": "board",
     "panel": true,
     "routes": [
       {
@@ -78709,6 +78869,167 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "roster-editor.accommodations-group",
+    "label": "Group row on the roster editor Accommodations tab",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes"
+        ],
+        "opened_by": [
+          "classes.new-class",
+          "classes.new-class-empty"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-editor.accommodations-add",
+    "label": "Add menu for students and groups on the roster editor Accommodations tab",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes"
+        ],
+        "opened_by": [
+          "classes.new-class",
+          "classes.new-class-empty"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-editor.accommodations-search",
+    "label": "Search box in the Accommodations Add menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-editor.accommodations-add"
+        ],
+        "reveal": "roster-editor.accommodations-add",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-editor.accommodations-pick-group",
+    "label": "Group checkbox in the Accommodations Add menu",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-editor.accommodations-add"
+        ],
+        "reveal": "roster-editor.accommodations-add",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-editor.accommodations-pick-student",
+    "label": "Student checkbox in the Accommodations Add menu",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-editor.accommodations-add"
+        ],
+        "reveal": "roster-editor.accommodations-add",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-editor.accommodations-done",
+    "label": "Done button that closes the Accommodations Add menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-editor.accommodations-add"
+        ],
+        "reveal": "roster-editor.accommodations-add",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-editor.accommodations-remove",
+    "label": "Remove button on a row of the roster editor Accommodations tab",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes"
+        ],
+        "opened_by": [
+          "classes.new-class",
+          "classes.new-class-empty"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
     "id": "roster-editor.accommodations-add-student",
     "label": "Add Student button on the empty roster editor Accommodations tab",
     "scope": "board",
@@ -78804,6 +79125,52 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-library.reprint-sheets",
     "label": "Print response sheets item in a paper assignment menu",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [
+          "library-shell.archive-menu:quiz#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:quiz#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-library.import-paper-copies",
+    "label": "Import paper responses item in a quiz assignment menu, for printed group copies",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [
+          "library-shell.archive-menu:quiz#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:quiz#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-library.reprint-paper-copies",
+    "label": "Print paper copies item in a quiz assignment menu, for printed group copies",
     "scope": "widget type",
     "panel": true,
     "keys": [

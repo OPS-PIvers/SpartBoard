@@ -139,6 +139,10 @@ import {
 } from '@/utils/paperSheetVersions';
 import { resolveQuizAssignment, type BankContent } from '@/utils/questionBanks';
 import { printPaperTest } from '@/utils/paperTestPrint';
+import type {
+  PrintedSupport,
+  PrintedTranslation,
+} from '@/utils/paperPrintedVersions';
 import {
   chooseLineFor,
   sectionOfQuestion,
@@ -193,6 +197,8 @@ interface PaperPrintModalProps {
   quiz: QuizData;
   /** Assign on paper: the stepper picks classes and the print makes a paper assignment. */
   assign?: PaperAssignOptions;
+  /** A modification group's printed version: its students only, and its supports after the test. */
+  group?: PaperPrintGroup;
   rosters: ClassRoster[];
   /** Persists the batch; the caller owns the Firestore write and its errors. */
   onSaveBatch: (batch: PaperBatch) => Promise<void>;
@@ -226,6 +232,15 @@ interface PaperPrintModalProps {
   /** Test seam mirroring `printPaperSheets`. */
   print?: typeof printPaperSheets;
   printTest?: typeof printPaperTest;
+}
+
+/** The students a printed group's stack is for, by roster id. */
+export interface PaperPrintGroup {
+  label: string;
+  students: Record<string, readonly string[]>;
+  supports?: readonly PrintedSupport[];
+  /** The group's language on the test paper; the answer sheet stays in English. */
+  translation?: PrintedTranslation;
 }
 
 /** What the print dialog records on an authored quiz. */
@@ -292,6 +307,7 @@ const studentSort = (a: Student, b: Student): number =>
 export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   quiz: savedQuiz,
   assign,
+  group,
   rosters,
   onSaveBatch,
   onCreateQuiz,
@@ -344,7 +360,14 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
 
   const [pickedStudentIds, setSelectedStudentIds] = useState<
     Record<string, Set<string>>
-  >({});
+  >(() =>
+    Object.fromEntries(
+      Object.entries(group?.students ?? {}).map(([id, ids]) => [
+        id,
+        new Set(ids),
+      ])
+    )
+  );
   const [classes, setClasses] = useState<AssignClassesValue>(
     EMPTY_ASSIGN_CLASSES_VALUE
   );
@@ -384,7 +407,8 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     aiRetry?: TestAndKeySelection;
   } | null>(null);
   const [readingDoc, setReadingDoc] = useState(false);
-  const [spareCount, setSpareCount] = useState(2);
+  // A group's stack is for named students, so it starts with no spares.
+  const [spareCount, setSpareCount] = useState(group ? 0 : 2);
   const [includeKeySheet, setIncludeKeySheet] = useState(isStub);
   const [includeQuestionText, setIncludeQuestionText] = useState(false);
   const [printing, setPrinting] = useState(false);
@@ -1054,11 +1078,15 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
           : {}),
         ...(batch.sheetLayout === 'questions'
           ? {
-              questionTexts: sheetQuestions.map((q) => ({
-                text: plainPromptText(q.text),
-                choices: batch.choiceOrder?.[q.id] ?? [],
-                ...choicePictureFields(q, batch.choiceOrder?.[q.id] ?? []),
-              })),
+              questionTexts: sheetQuestions.map((q) => {
+                const english = batch.choiceOrder?.[q.id] ?? [];
+                const tr = group?.translation?.questions[q.id];
+                return {
+                  text: plainPromptText(tr?.text ?? q.text),
+                  choices: english.map((c) => tr?.choices?.[c] ?? c),
+                  ...choicePictureFields(q, english),
+                };
+              }),
             }
           : {}),
         ...(!isStub && analysis.rows.some((r) => r.sourceLabel)
@@ -1227,11 +1255,14 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                 }
               : undefined;
           if (section) headed.add(section.id);
+          const tr = group?.translation?.questions[q.id];
           return [
             {
               row: r.row,
-              text: q.text,
-              choices,
+              text: tr?.text ?? q.text,
+              choices: tr?.choices
+                ? choices.map((c) => tr.choices?.[c] ?? c)
+                : choices,
               ...choicePictureFields(q, choices),
               ...(r.written ? { written: true } : {}),
               ...(heading ? { section: heading } : {}),
@@ -1250,7 +1281,11 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                 questions: questionsOf(v.analysis),
               })),
             }
-          : { quizTitle: quiz.title, questions: questionsOf(analysis) }
+          : {
+              quizTitle: group?.translation?.title ?? quiz.title,
+              questions: questionsOf(analysis),
+              ...(group?.supports?.length ? { supports: group.supports } : {}),
+            }
       );
     } catch (err) {
       onError(
@@ -1428,6 +1463,14 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
       </Modal>
     );
   }
+
+  const groupStudentNames = group
+    ? selectionsForPrint.flatMap(({ students }) =>
+        students.map((st) =>
+          [st.lastName, st.firstName].filter(Boolean).join(', ')
+        )
+      )
+    : [];
 
   const footerMessage = tooManyPages
     ? tooManyPagesMessage(pagesPerSheet)
@@ -1813,7 +1856,18 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         </p>
       )}
 
-      {!assign && (
+      {group && (
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
+            Who gets a sheet
+          </p>
+          <p className="mt-1 text-sm text-slate-700">
+            {groupStudentNames.join('; ')}
+          </p>
+        </div>
+      )}
+
+      {!assign && !group && (
         <div>
           <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
             Who gets a sheet
@@ -2081,7 +2135,9 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
               <p className="mt-0.5 max-w-[24rem] truncate text-xs text-slate-500">
                 {onCreateQuiz
                   ? 'New paper test'
-                  : quiz.title || 'Untitled paper test'}
+                  : [quiz.title || 'Untitled paper test', group?.label]
+                      .filter(Boolean)
+                      .join(' · ')}
               </p>
             </div>
           </div>

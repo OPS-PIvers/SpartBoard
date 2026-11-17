@@ -1,6 +1,7 @@
 // Admin Settings > District library with folders: folder tree, folder audience, and rows filed by folder.
 import React, { useMemo, useState } from 'react';
 import {
+  CheckSquare,
   ChevronDown,
   ChevronRight,
   Eye,
@@ -20,6 +21,9 @@ import { useDialog } from '@/context/useDialog';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { OverflowMenu } from '@/components/common/library/LibraryOverflowMenu';
 import { FolderPickerPopover } from '@/components/common/library/FolderPickerPopover';
+import { BulkActionBar } from '@/components/common/library/BulkActionBar';
+import { useLibrarySelection } from '@/components/common/library/useLibrarySelection';
+import { itemsAtFolderLevel } from '@/utils/folderLevel';
 import type { LibraryMenuAction } from '@/components/common/library/types';
 import type { Building } from '@/config/buildings';
 import type { LibraryFolder } from '@/types';
@@ -52,7 +56,7 @@ import {
 import { saveDistrictLibraryTargeting } from '@/hooks/useDistrictLibraryAdmin';
 import { DistrictLibraryTargetingEditor } from './DistrictLibraryTargetingEditor';
 
-/** 'all' lists every item; 'drafts' every unpublished one; anything else is a folder id. */
+/** 'all' is the top level (folders, then unfiled items); 'drafts' every unpublished one; anything else is a folder id. */
 export type AdminPlace = string;
 
 const iconButton =
@@ -131,6 +135,17 @@ export const DistrictLibraryFolderView: React.FC<Props> = ({
   const [itemMode, setItemMode] = useState<'folder' | 'own'>('folder');
   const [moving, setMoving] = useState<Moving | null>(null);
   const [working, setWorking] = useState(false);
+  const [selecting, setSelecting] = useState(false);
+  const selection = useLibrarySelection();
+  const [dragIds, setDragIds] = useState<string[] | null>(null);
+  const [dropOn, setDropOn] = useState<AdminPlace | null>(null);
+
+  // Selection belongs to the open place, so a move never takes rows the admin can't see.
+  const [selectionPlace, setSelectionPlace] = useState(place);
+  if (selectionPlace !== place) {
+    setSelectionPlace(place);
+    selection.clear();
+  }
 
   const ctx = { folders, audiences, items, uid };
   const folderId = place !== 'all' && place !== 'drafts' ? place : null;
@@ -146,6 +161,42 @@ export const DistrictLibraryFolderView: React.FC<Props> = ({
     return out;
   }, [items, folders]);
   const drafts = items.filter((i) => i.status === 'draft');
+  const folderOf = (i: DistrictLibraryItem) => itemFolderId(folders, i);
+
+  const moveTo = (ids: string[], target: string | null) => {
+    const moved = ids.filter((id) => {
+      const item = items.find((i) => i.id === id);
+      return item && folderOf(item) !== target;
+    });
+    if (moved.length === 0) return;
+    selection.clear();
+    void run(() => moveDistrictItems(moved, target, ctx));
+  };
+
+  const dropProps = (target: AdminPlace) => {
+    const folderTarget =
+      target === 'all' ? null : target === 'drafts' ? undefined : target;
+    if (folderTarget === undefined || !dragIds) return {};
+    return {
+      onDragOver: (e: React.DragEvent) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        if (dropOn !== target) setDropOn(target);
+      },
+      onDragLeave: () => {
+        if (dropOn === target) setDropOn(null);
+      },
+      onDrop: (e: React.DragEvent) => {
+        e.preventDefault();
+        const ids = dragIds;
+        setDragIds(null);
+        setDropOn(null);
+        moveTo(ids, folderTarget);
+      },
+    };
+  };
+  const dropRing = (target: AdminPlace) =>
+    dropOn === target ? ' ring-2 ring-brand-blue-primary' : '';
 
   const run = async (action: () => Promise<unknown>) => {
     setWorking(true);
@@ -213,8 +264,9 @@ export const DistrictLibraryFolderView: React.FC<Props> = ({
           nameInput(depth)
         ) : (
           <div
-            className={treeRow(place === node.id)}
+            className={`${treeRow(place === node.id)}${dropRing(node.id)}`}
             style={{ paddingLeft: 8 + depth * 14 }}
+            {...dropProps(node.id)}
           >
             {kids.length > 0 ? (
               <button
@@ -412,8 +464,38 @@ export const DistrictLibraryFolderView: React.FC<Props> = ({
     const home = itemFolderId(folders, item);
     const open = editing?.kind === 'item' && editing.id === item.id;
     return (
-      <li key={item.id} className="py-3">
+      <li
+        key={item.id}
+        className={`py-3${dragIds?.includes(item.id) ? ' opacity-50' : ''}`}
+        draggable={!open && !busy}
+        onDragStart={(e) => {
+          const ids = selection.isSelected(item.id)
+            ? [...selection.selectedIds]
+            : [item.id];
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', item.title);
+          setDragIds(ids);
+        }}
+        onDragEnd={() => {
+          setDragIds(null);
+          setDropOn(null);
+        }}
+      >
         <div className="flex flex-wrap items-start gap-3">
+          {selecting && (
+            <input
+              type="checkbox"
+              checked={selection.isSelected(item.id)}
+              onChange={() => selection.toggle(item.id)}
+              aria-label={`Select ${item.title}`}
+              {...tourFieldAttr(
+                'admin.district-library.select-row',
+                'admin',
+                item.id
+              )}
+              className="mt-1 h-4 w-4 shrink-0 accent-brand-blue-primary"
+            />
+          )}
           <KindIcon
             className="mt-0.5 h-5 w-5 shrink-0 text-slate-400"
             aria-hidden
@@ -453,7 +535,7 @@ export const DistrictLibraryFolderView: React.FC<Props> = ({
               className={iconButton}
             >
               <Users className="h-3.5 w-3.5" aria-hidden />
-              Who sees it
+              Access
             </button>
             <OverflowMenu
               actions={itemActions(item)}
@@ -471,7 +553,7 @@ export const DistrictLibraryFolderView: React.FC<Props> = ({
             {home && (
               <div
                 role="radiogroup"
-                aria-label="Who sees it"
+                aria-label="Access"
                 className="inline-flex rounded-lg border border-slate-300 bg-white p-0.5 text-sm"
               >
                 {(
@@ -577,12 +659,12 @@ export const DistrictLibraryFolderView: React.FC<Props> = ({
     const f = folders[id];
     const n = counts[id] ?? 0;
     return (
-      <li key={id}>
+      <li key={id} {...dropProps(id)}>
         <button
           type="button"
           onClick={() => onPlaceChange(id)}
           {...tourFieldAttr('admin.district-library.open-folder', 'admin', id)}
-          className="flex w-full items-center gap-3 py-2.5 text-left hover:bg-slate-50"
+          className={`flex w-full items-center gap-3 py-2.5 text-left hover:bg-slate-50${dropRing(id)}`}
         >
           <Folder className="h-5 w-5 shrink-0 text-slate-400" aria-hidden />
           <span className="min-w-0 flex-1">
@@ -604,14 +686,49 @@ export const DistrictLibraryFolderView: React.FC<Props> = ({
     );
   };
 
+  const selectControls = (listed: DistrictLibraryItem[]) => {
+    if (listed.length === 0) return null;
+    const ids = listed.map((i) => i.id);
+    const all = ids.every((id) => selection.isSelected(id));
+    return (
+      <>
+        {selecting && (
+          <button
+            type="button"
+            onClick={() => (all ? selection.clear() : selection.selectAll(ids))}
+            {...tourAttr('admin.district-library.select-all')}
+            className={iconButton}
+          >
+            {all ? 'Select none' : 'Select all'}
+          </button>
+        )}
+        <button
+          type="button"
+          aria-pressed={selecting}
+          onClick={() => {
+            if (selecting) selection.clear();
+            setSelecting(!selecting);
+          }}
+          {...tourAttr('admin.district-library.select')}
+          className={`${iconButton} ${selecting ? 'bg-slate-100 text-slate-900' : ''}`}
+        >
+          <CheckSquare className="h-3.5 w-3.5" aria-hidden />
+          {selecting ? 'Cancel' : 'Select'}
+        </button>
+      </>
+    );
+  };
+
   let header: React.ReactNode;
   let body: React.ReactNode;
+  let listed: DistrictLibraryItem[];
   if (folderId && folder) {
     const kids = childFolders(folders, folderId);
-    const direct = items.filter((i) => itemFolderId(folders, i) === folderId);
+    const direct = itemsAtFolderLevel(items, folderId, folderOf);
     const parentPath = folderPathLabel(folders, folder.parentId);
     const audienceOpen = editing?.kind === 'folder' && editing.id === folderId;
     const audience = folderAudienceFor(folders, audiences, folderId);
+    listed = direct;
     header = (
       <>
         <div className="flex flex-wrap items-center gap-2 pb-2">
@@ -636,32 +753,37 @@ export const DistrictLibraryFolderView: React.FC<Props> = ({
               </span>
             </div>
           </div>
-          <button
-            type="button"
-            disabled={working}
-            aria-expanded={audienceOpen}
-            onClick={() =>
-              setEditing(audienceOpen ? null : { kind: 'folder', id: folderId })
-            }
-            {...tourFieldAttr(
-              'admin.district-library.folder-targeting',
-              'admin',
-              folderId
-            )}
-            className={`${iconButton} ${audienceOpen ? 'bg-slate-100 text-slate-900' : ''}`}
-          >
-            <Users className="h-3.5 w-3.5" aria-hidden />
-            Who sees this folder
-          </button>
-          <OverflowMenu
-            actions={folderActions(folderId)}
-            widgetType="admin"
-            anchor={tourFieldAttr(
-              'admin.district-library.folder-menu',
-              'admin',
-              folderId
-            )}
-          />
+          <div className="flex shrink-0 items-center gap-1">
+            {selectControls(direct)}
+            <button
+              type="button"
+              disabled={working}
+              aria-expanded={audienceOpen}
+              onClick={() =>
+                setEditing(
+                  audienceOpen ? null : { kind: 'folder', id: folderId }
+                )
+              }
+              {...tourFieldAttr(
+                'admin.district-library.folder-targeting',
+                'admin',
+                folderId
+              )}
+              className={`${iconButton} ${audienceOpen ? 'bg-slate-100 text-slate-900' : ''}`}
+            >
+              <Users className="h-3.5 w-3.5" aria-hidden />
+              Access
+            </button>
+            <OverflowMenu
+              actions={folderActions(folderId)}
+              widgetType="admin"
+              anchor={tourFieldAttr(
+                'admin.district-library.folder-menu',
+                'admin',
+                folderId
+              )}
+            />
+          </div>
         </div>
         {audienceOpen && (
           <div className="mb-3">
@@ -709,33 +831,63 @@ export const DistrictLibraryFolderView: React.FC<Props> = ({
           {direct.map((item) => itemRow(item, false))}
         </ul>
       );
-  } else {
-    const list = place === 'drafts' ? drafts : items;
+  } else if (place === 'drafts') {
+    listed = drafts;
     header = (
-      <div className="flex flex-wrap items-baseline gap-x-2 pb-2">
-        <h4 className="text-base font-bold text-slate-900">
-          {place === 'drafts' ? 'Drafts' : 'All items'}
-        </h4>
-        <span className="text-xs text-slate-500">
-          {place === 'drafts'
-            ? 'Only admins see drafts'
-            : plural(list.length, 'item')}
+      <div className="flex flex-wrap items-center gap-x-2 pb-2">
+        <h4 className="text-base font-bold text-slate-900">Drafts</h4>
+        <span className="flex-1 text-xs text-slate-500">
+          Only admins see drafts
         </span>
+        {selectControls(drafts)}
       </div>
     );
     body =
-      list.length === 0 ? (
+      drafts.length === 0 ? (
+        <div className="border-t border-slate-200 py-10 text-center">
+          <p className="text-sm font-semibold text-slate-700">No drafts</p>
+        </div>
+      ) : (
+        <ul className="divide-y divide-slate-200 border-y border-slate-200">
+          {drafts.map((item) => itemRow(item, true))}
+        </ul>
+      );
+  } else {
+    const kids = childFolders(folders, null);
+    const unfiled = itemsAtFolderLevel(items, null, folderOf);
+    listed = unfiled;
+    header = (
+      <div className="flex flex-wrap items-center gap-x-2 pb-2">
+        <h4 className="text-base font-bold text-slate-900">All items</h4>
+        <span className="flex-1 text-xs text-slate-500">
+          {[
+            kids.length > 0 ? plural(kids.length, 'folder') : '',
+            plural(items.length, 'item'),
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        </span>
+        {selectControls(unfiled)}
+      </div>
+    );
+    body =
+      kids.length === 0 && unfiled.length === 0 ? (
         <div className="border-t border-slate-200 py-10 text-center">
           <p className="text-sm font-semibold text-slate-700">
-            {place === 'drafts' ? 'No drafts' : 'No library items yet'}
+            No library items yet
           </p>
         </div>
       ) : (
         <ul className="divide-y divide-slate-200 border-y border-slate-200">
-          {list.map((item) => itemRow(item, true))}
+          {kids.map((k) => folderRow(k.id))}
+          {unfiled.map((item) => itemRow(item, false))}
         </ul>
       );
   }
+
+  const shownSelected = listed
+    .map((i) => i.id)
+    .filter((id) => selection.isSelected(id));
 
   const libraryFolders = toLibraryFolders(folders);
   return (
@@ -765,7 +917,8 @@ export const DistrictLibraryFolderView: React.FC<Props> = ({
           type="button"
           onClick={() => onPlaceChange('all')}
           {...tourAttr('admin.district-library.all-items')}
-          className={treeRow(place === 'all')}
+          {...dropProps('all')}
+          className={`${treeRow(place === 'all')}${dropRing('all')}`}
           style={{ paddingLeft: 8 }}
         >
           <span className="w-3.5 shrink-0" />
@@ -798,6 +951,25 @@ export const DistrictLibraryFolderView: React.FC<Props> = ({
       </nav>
       <div className="min-w-0 flex-1">
         {header}
+        {selecting && shownSelected.length > 0 && (
+          <div className="mb-2">
+            <BulkActionBar
+              count={shownSelected.length}
+              onClear={selection.clear}
+              busy={working}
+              actions={[
+                {
+                  id: 'move',
+                  label: 'Move',
+                  icon: FolderInput,
+                  onClick: () =>
+                    setMoving({ kind: 'items', ids: shownSelected }),
+                  anchor: tourAttr('admin.district-library.bulk-move'),
+                },
+              ]}
+            />
+          </div>
+        )}
         {body}
       </div>
       {moving && (
@@ -806,7 +978,9 @@ export const DistrictLibraryFolderView: React.FC<Props> = ({
           title={
             moving.kind === 'folder'
               ? `Move "${folders[moving.id]?.name ?? ''}" to…`
-              : `Move "${shortTitle(items.find((i) => i.id === moving.ids[0])?.title ?? '')}" to…`
+              : moving.ids.length > 1
+                ? `Move ${moving.ids.length} items to…`
+                : `Move "${shortTitle(items.find((i) => i.id === moving.ids[0])?.title ?? '')}" to…`
           }
           folders={
             moving.kind === 'folder'
@@ -818,19 +992,18 @@ export const DistrictLibraryFolderView: React.FC<Props> = ({
           selectedFolderId={
             moving.kind === 'folder'
               ? (folders[moving.id]?.parentId ?? null)
-              : itemFolderId(
-                  folders,
-                  items.find((i) => i.id === moving.ids[0]) ?? {}
-                )
+              : moving.ids.length > 1
+                ? folderId
+                : itemFolderId(
+                    folders,
+                    items.find((i) => i.id === moving.ids[0]) ?? {}
+                  )
           }
           onSelect={(target) => {
             const job = moving;
             setMoving(null);
-            void run(() =>
-              job.kind === 'folder'
-                ? moveDistrictFolder(job.id, target, ctx)
-                : moveDistrictItems(job.ids, target, ctx)
-            );
+            if (job.kind === 'items') moveTo(job.ids, target);
+            else void run(() => moveDistrictFolder(job.id, target, ctx));
           }}
           onClose={() => setMoving(null)}
           rootLabel="Top level"

@@ -392,7 +392,7 @@ describe('QRSettings', () => {
         <AuthContext.Provider
           value={
             {
-              canAccessFeature: (id: string) => id === 'widget-connections',
+              canAccessFeature: () => true,
             } as unknown as ContextType<typeof AuthContext>
           }
         >

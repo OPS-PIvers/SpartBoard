@@ -152,7 +152,7 @@ import { requestClassroomFinalGradeToken } from '@/components/classroomAddon/gis
 import { doc, getDoc, writeBatch } from 'firebase/firestore';
 import { loadAssignedStudentView } from '@/utils/quizAssignedStudentViewLoad';
 import type { AssignedStudentView } from '@/utils/quizStudentViewSession';
-import { functions, db, storage } from '@/config/firebase';
+import { functions, db, storage, isAuthBypass } from '@/config/firebase';
 import { isStaffAudience } from '@/utils/staffAudience';
 import { ref as storageRef, uploadBytes } from 'firebase/storage';
 import {
@@ -213,6 +213,10 @@ import {
 } from './components/PaperImportModal';
 import { PaperReprintModal } from './components/PaperReprintModal';
 import {
+  PaperGroupReprintModal,
+  type PaperReprintGroup,
+} from './components/PaperGroupReprintModal';
+import {
   firestoreDocData,
   readPaperImportQuota,
 } from '@/utils/paperImportQuota';
@@ -235,6 +239,22 @@ import {
   planHybridWrittenBatch,
 } from '@/utils/paperWrittenHybrid';
 import {
+  PAPER_PRINTED_VERSIONS_FEATURE,
+  printedGroupForPrint,
+  printedGroupQuiz,
+  printedGroupRecord,
+  printedReprintGroups,
+  printedCopyPlan,
+  printedStackOrder,
+  recordPick,
+  unprintedCopyPicks,
+  type PrintedTranslation,
+} from '@/utils/paperPrintedVersions';
+import { printedGroupTranslations } from '@/utils/paperPrintedTranslations';
+import { QuizDriveService } from '@/utils/quizDriveService';
+import { MockQuizDriveService } from '@/utils/mockQuizDriveService';
+import type { PrintedGroupPick } from '@/components/common/library/assignStepper/modificationGroups';
+import {
   browserStimulusImageDeps,
   resolveStimulusImages,
   stimulusLoadErrorMessage,
@@ -246,6 +266,8 @@ import {
   deletePaperBatchesForQuiz,
   subscribePaperBatchIndex,
   savePaperBatch,
+  savePrintedCopyBatch,
+  savePrintedCopyPlan,
   listPaperBatchesForQuiz,
   savePendingReview,
 } from '@/utils/paperBatchStore';
@@ -406,9 +428,8 @@ const TeacherQuizWidget: React.FC<{
     canUseQuizAi;
   const config = widget.config as QuizConfig;
   const isReview = variant === 'review';
-  // With Connections on, only Review syncs to a Scoreboard; a Quiz widget never does.
-  const quizDropsScoreboard =
-    !isReview && canAccessFeature('widget-connections');
+  // Only Review syncs to a Scoreboard; a Quiz widget never does.
+  const quizDropsScoreboard = !isReview;
   // The assign stepper is Assessment Mode only and saves last-used rules (plan D12).
   const assessmentAssign = !isReview;
   const kindTag = { widgetKind: variant };
@@ -1024,6 +1045,25 @@ const TeacherQuizWidget: React.FC<{
     !!paperUid &&
     canAccessFeature(PAPER_HANDWRITTEN_FEATURE) &&
     canAccessFeature(PAPER_WRITTEN_HYBRID_FEATURE);
+  // A modification group's printed version, scanned back into the device assignment.
+  const printedVersionsOn =
+    !!paperUid &&
+    canAccessFeature('modification-groups') &&
+    canAccessFeature(PAPER_PRINTED_VERSIONS_FEATURE);
+  const [paperGroupReprint, setPaperGroupReprint] = useState<
+    PaperReprintGroup[] | null
+  >(null);
+  // Printed groups still to print after an assign, one print dialog at a time.
+  const [printedQueue, setPrintedQueue] = useState<{
+    assignmentId: string;
+    groups: {
+      pick: PrintedGroupPick;
+      quiz: QuizData;
+      translation?: PrintedTranslation;
+    }[];
+    /** Already printed groups, offered for reprint once the queue is done. */
+    then?: PaperReprintGroup[];
+  } | null>(null);
   useEffect(() => {
     if (!paperUid) return;
     return subscribePaperBatchIndex(paperUid, setPaperBatchIndex, (err) =>
@@ -1035,6 +1075,52 @@ const TeacherQuizWidget: React.FC<{
     batch: PaperBatch;
     writtenOnly: boolean;
   } | null>(null);
+  const translationLoader = () =>
+    isAuthBypass
+      ? new MockQuizDriveService(user?.uid ?? '')
+      : googleAccessToken
+        ? new QuizDriveService(googleAccessToken)
+        : null;
+  // Printed stacks in group order, each with its group's language for the sheets.
+  const reprintGroupsFor = async (
+    quiz: QuizData,
+    copies: PaperBatch[],
+    index: QuizMetadata['translations']
+  ) => {
+    const ordered = printedStackOrder(copies);
+    const translations = await printedGroupTranslations(
+      quiz,
+      ordered.map((b, i) =>
+        recordPick(b.printedGroup ?? { number: i + 1, answerChoices: 'all' })
+      ),
+      index,
+      translationLoader()
+    );
+    return printedReprintGroups(quiz, ordered, translations);
+  };
+  const queuePrintedGroups = async (
+    assignmentId: string,
+    quiz: QuizData,
+    picks: PrintedGroupPick[],
+    index: QuizMetadata['translations'],
+    then?: PaperReprintGroup[]
+  ) => {
+    const translations = await printedGroupTranslations(
+      quiz,
+      picks,
+      index,
+      translationLoader()
+    );
+    setPrintedQueue({
+      assignmentId,
+      groups: picks.map((pick, i) => ({
+        pick,
+        quiz: printedGroupQuiz(quiz, pick.group),
+        ...(translations[i] ? { translation: translations[i] } : {}),
+      })),
+      ...(then?.length ? { then } : {}),
+    });
+  };
   const paperAssignmentMeta = (assignment: QuizAssignment): QuizMetadata =>
     quizzes.find((q) => q.id === assignment.quizId) ?? {
       id: assignment.quizId,
@@ -1045,7 +1131,10 @@ const TeacherQuizWidget: React.FC<{
       updatedAt: assignment.createdAt,
     };
   const linkedPaperBatchIds = new Set(
-    assignments.flatMap((a) => (a.paperBatchId ? [a.paperBatchId] : []))
+    assignments.flatMap((a) => [
+      ...(a.paperBatchId ? [a.paperBatchId] : []),
+      ...(a.paperCopyBatchIds ?? []),
+    ])
   );
   const looseStackQuizIds = new Set(
     paperBatchIndex
@@ -1550,12 +1639,11 @@ const TeacherQuizWidget: React.FC<{
       after: QuizData,
       meta: QuizMetadata
     ): Promise<void> => {
-      if (!canAccessFeature('choose-n-pick-counted')) return;
       const changes = chooseCountChanges(before, after);
       if (changes.size === 0) return;
       await applyChooseCounts(changes, after, meta);
     },
-    [canAccessFeature, applyChooseCounts]
+    [applyChooseCounts]
   );
 
   // D12: clear the PLC results link on an assignment (confirm first).
@@ -2598,7 +2686,6 @@ const TeacherQuizWidget: React.FC<{
       canImportDocuments,
       loadStandardCodes: loadCatalogCodes,
       pickDocument,
-      equations: canAccessFeature('quiz-import-equations'),
       ...(canUseAiReader ? { aiExtract: extractQuizFromDocument } : {}),
       ...(canImportDocuments
         ? {
@@ -2954,6 +3041,9 @@ const TeacherQuizWidget: React.FC<{
           }}
           tabWarningsEnabled={liveSession?.tabWarningsEnabled ?? true}
           session={liveSession}
+          paperCopyBatchIds={
+            printedVersionsOn ? activeAssignment?.paperCopyBatchIds : undefined
+          }
           onDeleteResponse={removeStudent}
           onUnlockResultsForStudent={unlockResultsForStudent}
           onReopenStudent={reopenStudentAttempt}
@@ -3490,18 +3580,28 @@ const TeacherQuizWidget: React.FC<{
         }
         onImportPaperResponses={
           paperSheets.enabled && !isReview && user?.uid
-            ? async (assignment) => {
+            ? async (assignment, opts) => {
                 const meta = paperAssignmentMeta(assignment);
                 const data = await loadQuiz(meta);
                 if (!data) return;
+                const copyIds = assignment.paperCopyBatchIds ?? [];
                 const batches = (
                   await listPaperBatchesForQuiz(user.uid, meta.id)
                 )
                   // An assignment that took scans before Paper cards has no batch of its own; never offer another's.
                   .filter((b) =>
-                    assignment.paperBatchId
-                      ? b.id === assignment.paperBatchId
-                      : !linkedPaperBatchIds.has(b.id)
+                    opts?.copies
+                      ? copyIds.includes(b.id)
+                      : assignment.paperBatchId
+                        ? b.id === assignment.paperBatchId
+                        : copyIds.length
+                          ? copyIds.includes(b.id)
+                          : !linkedPaperBatchIds.has(b.id)
+                  )
+                  .sort(
+                    (a, b) =>
+                      (a.printedGroup?.number ?? 0) -
+                      (b.printedGroup?.number ?? 0)
                   );
                 setPaperImport({ quiz: data, meta, batches, assignment });
               }
@@ -3509,12 +3609,42 @@ const TeacherQuizWidget: React.FC<{
         }
         onReprintPaperSheets={
           paperUid
-            ? async (assignment) => {
+            ? async (assignment, opts) => {
                 const data = await loadQuiz(paperAssignmentMeta(assignment));
                 if (!data) return;
-                const batch = (
-                  await listPaperBatchesForQuiz(paperUid, assignment.quizId)
-                ).find((b) => b.id === assignment.paperBatchId);
+                const stacks = await listPaperBatchesForQuiz(
+                  paperUid,
+                  assignment.quizId
+                );
+                const copyIds = assignment.paperCopyBatchIds ?? [];
+                const copies = stacks.filter((b) => copyIds.includes(b.id));
+                const unprinted = opts?.copies
+                  ? unprintedCopyPicks(assignment.paperCopyGroups, copies)
+                  : [];
+                const index = paperAssignmentMeta(assignment).translations;
+                if (unprinted.length > 0) {
+                  await queuePrintedGroups(
+                    assignment.id,
+                    data,
+                    unprinted,
+                    index,
+                    await reprintGroupsFor(data, copies, index)
+                  );
+                  return;
+                }
+                if (
+                  copyIds.length > 0 &&
+                  (opts?.copies || !assignment.paperBatchId)
+                ) {
+                  const groups = await reprintGroupsFor(data, copies, index);
+                  if (groups.length > 0) setPaperGroupReprint(groups);
+                  else
+                    addToast('Could not find these response sheets.', 'error');
+                  return;
+                }
+                const batch = stacks.find(
+                  (b) => b.id === assignment.paperBatchId
+                );
                 if (batch)
                   setPaperReprint({
                     quiz: data,
@@ -3539,6 +3669,7 @@ const TeacherQuizWidget: React.FC<{
         }
         hasLooseStack={(quizId) => looseStackQuizIds.has(quizId)}
         writtenOnPaperAvailable={writtenOnPaperOn}
+        printedVersionsAvailable={printedVersionsOn}
         onAddAnswerKey={
           canImportDocuments
             ? async (meta) => {
@@ -4050,6 +4181,32 @@ const TeacherQuizWidget: React.FC<{
             );
             assignmentSaved = true;
             printWritten?.();
+            if (
+              printedVersionsOn &&
+              stepper?.printedGroups?.length &&
+              !quizHasBankSlots(data)
+            ) {
+              // Neither the plan write nor the translation load holds up the rest of assign.
+              if (user?.uid)
+                void savePrintedCopyPlan(
+                  user.uid,
+                  assignmentId,
+                  stepper.printedGroups.map(printedCopyPlan)
+                ).catch((err: unknown) =>
+                  console.warn(
+                    '[QuizWidget] printed group plan not saved:',
+                    err
+                  )
+                );
+              void queuePrintedGroups(
+                assignmentId,
+                { ...data, questions: assignQuestions },
+                stepper.printedGroups,
+                meta.translations
+              ).catch((err: unknown) =>
+                console.warn('[QuizWidget] printed groups not queued:', err)
+              );
+            }
             const finalScore = behavior.finalScore ?? 'latest';
             if (finalScore !== 'latest' && attemptLimit !== 1 && user?.uid) {
               saveAttemptPolicy(
@@ -5327,6 +5484,35 @@ const TeacherQuizWidget: React.FC<{
           onError={(message) => addToast(message, 'error')}
         />
       )}
+      {printedQueue && user?.uid && printedQueue.groups[0] && (
+        <PaperPrintModal
+          key={`${printedQueue.assignmentId}-${printedQueue.groups[0].pick.number}`}
+          quiz={printedQueue.groups[0].quiz}
+          group={printedGroupForPrint(
+            printedQueue.groups[0].pick,
+            printedQueue.groups[0].translation
+          )}
+          rosters={rosters}
+          onSaveBatch={async (batch) => {
+            await savePrintedCopyBatch(user.uid, printedQueue.assignmentId, {
+              ...batch,
+              printedGroup: printedGroupRecord(printedQueue.groups[0].pick),
+            });
+          }}
+          onClose={() => {
+            if (printedQueue.groups.length > 1)
+              setPrintedQueue({
+                ...printedQueue,
+                groups: printedQueue.groups.slice(1),
+              });
+            else {
+              setPrintedQueue(null);
+              if (printedQueue.then) setPaperGroupReprint(printedQueue.then);
+            }
+          }}
+          onError={(message) => addToast(message, 'error')}
+        />
+      )}
       {paperImport && user?.uid && (
         <PaperImportModal
           quiz={paperImport.quiz}
@@ -5421,6 +5607,14 @@ const TeacherQuizWidget: React.FC<{
           onClose={() => {
             setPaperImport(null);
           }}
+          onError={(message) => addToast(message, 'error')}
+        />
+      )}
+      {paperGroupReprint && (
+        <PaperGroupReprintModal
+          groups={paperGroupReprint}
+          rosters={rosters}
+          onClose={() => setPaperGroupReprint(null)}
           onError={(message) => addToast(message, 'error')}
         />
       )}

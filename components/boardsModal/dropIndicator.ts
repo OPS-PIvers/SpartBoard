@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react';
 import type { Collection, Dashboard } from '@/types';
+import { itemsAtFolderLevel, liveFolderOf } from '@/utils/folderLevel';
 
 export type DropMode = 'before' | 'after' | 'into';
 
@@ -17,17 +18,27 @@ export const useDropMode = (droppableId: string): DropMode | null => {
   return indicator?.id === droppableId ? indicator.mode : null;
 };
 
-/** Boards the grid shows for a Collection view, in display order. */
+/** Boards the grid shows: the open Collection's own, at the top level only uncollected ones, or every match while searching there. */
 export const boardsInView = (
   boards: Dashboard[],
-  selectedCollectionId: string | null
-): Dashboard[] =>
-  (selectedCollectionId === null
-    ? boards
-    : boards.filter((b) => (b.collectionId ?? null) === selectedCollectionId)
-  )
-    .slice()
-    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  selectedCollectionId: string | null,
+  allCollections: Collection[],
+  searchActive: boolean
+): Dashboard[] => {
+  const live = new Set(allCollections.map((c) => c.id));
+  const shown =
+    selectedCollectionId === null && searchActive
+      ? boards
+      : itemsAtFolderLevel(
+          boards,
+          selectedCollectionId,
+          liveFolderOf(
+            (b) => b.collectionId,
+            (id) => live.has(id)
+          )
+        );
+  return shown.slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+};
 
 /** Sibling Collections under `parentId`, in display order. At root, also includes orphans (parent id doesn't resolve) so they're reachable as grid cards for rename/move/delete, mirroring the sidebar tree's own orphan-surfacing. */
 export const siblingCollections = (

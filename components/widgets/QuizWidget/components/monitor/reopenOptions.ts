@@ -44,7 +44,7 @@ export function buildReopenOptions(
       uid: s.studentUid,
       name: s.name,
       className: s.period,
-      status: s.absent ? 'absent' : 'not-started',
+      status: s.absent ? 'absent' : s.onPaper ? 'on-paper' : 'not-started',
     });
   }
   return out;

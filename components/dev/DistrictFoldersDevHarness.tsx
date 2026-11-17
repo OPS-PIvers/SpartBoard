@@ -377,7 +377,7 @@ const AdminItemRow: React.FC<{
       <div className="relative flex shrink-0 items-center gap-1">
         <button type="button" className={iconButton}>
           <Users className="h-3.5 w-3.5" aria-hidden />
-          Who sees it
+          Access
         </button>
         <button
           type="button"
@@ -452,7 +452,7 @@ const AdminPanel: React.FC = () => {
             className={`${iconButton} ${state === 'folder-who' ? 'bg-slate-100 text-slate-900' : ''}`}
           >
             <Users className="h-3.5 w-3.5" aria-hidden />
-            Who sees this folder
+            Access
           </button>
           <button type="button" aria-label="Folder menu" className={iconButton}>
             <MoreHorizontal className="h-4 w-4" aria-hidden />

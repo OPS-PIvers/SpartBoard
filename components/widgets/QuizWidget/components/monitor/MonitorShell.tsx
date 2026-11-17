@@ -73,6 +73,10 @@ import { PresentSession } from '@/components/widgets/QuizWidget/components/prese
 import { boardRankRows, rankOrdinal } from '@/utils/reviewLaunch';
 import { useMonitorData } from './useMonitorData';
 import type { MonitorRosterTargets, NotJoinedStudent } from './rosterNotJoined';
+import {
+  usePaperCopySeats,
+  type LoadPaperBatch,
+} from '@/hooks/usePaperCopySeats';
 import { getLocalIsoDate } from '@/utils/localDate';
 import { CurrentQuestionCard } from './CurrentQuestionCard';
 import { useGameClockControls } from './useGameClockControls';
@@ -151,6 +155,8 @@ export interface QuizLiveMonitorProps {
   rosterTargets?: MonitorRosterTargets | null;
   /** False until the responses listener first delivers; roster rows wait for it. */
   responsesLoaded?: boolean;
+  /** Reads a printed group stack; the dev harness passes a fixture. */
+  loadPaperBatch?: LoadPaperBatch;
   /** Opens the picker that reopens this ended quiz for chosen students. */
   reopenPicker?: {
     /** Cancel: leave without reopening. */
@@ -218,6 +224,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     rosterTargets = null,
     responsesLoaded = true,
     reopenPicker = null,
+    loadPaperBatch,
   } = props;
   // Any Quiz-kind session is an assessment, including PLC mounts that omit the prop.
   const assessmentOnly = assessmentOnlyProp || !isReviewGame(session);
@@ -250,6 +257,19 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
       ),
       authContext?.selectedBuildings ?? []
     );
+  const paperCopiesOn =
+    authContext?.canAccessFeature?.('paper-printed-versions') === true &&
+    authContext.user?.uid === session.teacherUid;
+  const paperSeats = usePaperCopySeats(
+    session.teacherUid,
+    paperCopiesOn ? rosterTargets?.paperCopyBatchIds : null,
+    loadPaperBatch
+  );
+  const paperBatchIds = useMemo(
+    () =>
+      new Set(paperCopiesOn ? (rosterTargets?.paperCopyBatchIds ?? []) : []),
+    [paperCopiesOn, rosterTargets?.paperCopyBatchIds]
+  );
   const data = useMonitorData(
     session,
     responses,
@@ -262,7 +282,9 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     rosterTargets,
     responsesLoaded &&
       (!!reopenPicker ||
-        authContext?.canAccessFeature?.('quiz-monitor-roster') === true)
+        authContext?.canAccessFeature?.('quiz-monitor-roster') === true),
+    paperSeats,
+    responsesLoaded
   );
   const reopenOptions = useMemo(
     () => buildReopenOptions(data.allNames, data.allNotJoined, session),
@@ -1098,6 +1120,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                 notJoined={
                   openBucket === 'notStarted' ? data.notJoined : undefined
                 }
+                paperBatchIds={paperBatchIds}
                 onSetAbsent={
                   !outward.locked && session.status !== 'ended'
                     ? markAbsent

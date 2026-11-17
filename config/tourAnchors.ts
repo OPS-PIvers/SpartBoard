@@ -1521,6 +1521,19 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'assign-mods.students-clear': {
+    label: 'Clear button in the modification group Students menu',
+    panel: true,
+  },
+  'assign-mods.students-done': {
+    label: 'Done button that closes the modification group Students menu',
+    panel: true,
+  },
+  'assign-mods.class-group': {
+    label: 'Class group button in the modification group Students menu',
+    perField: true,
+    panel: true,
+  },
   'assign-mods.answer-choices': {
     label: 'Answer choices rule for a modification group',
     panel: true,
@@ -1531,6 +1544,10 @@ export const TOUR_ANCHORS = {
   },
   'assign-mods.read-aloud': {
     label: 'Read aloud switch for a modification group',
+    panel: true,
+  },
+  'assign-mods.printed': {
+    label: 'Printed version switch for a modification group',
     panel: true,
   },
   'assign-mods.language': {
@@ -3411,6 +3428,11 @@ export const TOUR_ANCHORS = {
   'quiz-reprint.print': {
     label: 'Print response sheets again Print button in the Quiz widget',
     perWidgetType: true,
+    panel: true,
+  },
+  'quiz-reprint.group': {
+    label: 'Group checkbox when printing paper copies again',
+    perField: true,
     panel: true,
   },
   'quiz-reprint.student': {
@@ -10304,7 +10326,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'admin.district-library.targeting': {
-    label: 'Who sees it button in a District library row',
+    label: 'Access button in a District library row',
     perField: true,
     panel: true,
   },
@@ -10391,7 +10413,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'admin.district-library.folder-targeting': {
-    label: 'Who sees this folder button, by folder id',
+    label: 'Folder Access button, by folder id',
     perField: true,
     panel: true,
   },
@@ -10426,6 +10448,23 @@ export const TOUR_ANCHORS = {
   'admin.district-library.row-menu': {
     label: 'More actions menu in a District library row',
     perField: true,
+    panel: true,
+  },
+  'admin.district-library.select': {
+    label: 'Select button for District library bulk actions',
+    panel: true,
+  },
+  'admin.district-library.select-all': {
+    label: 'Select all in District library selection',
+    panel: true,
+  },
+  'admin.district-library.select-row': {
+    label: 'Checkbox on a District library row',
+    perField: true,
+    panel: true,
+  },
+  'admin.district-library.bulk-move': {
+    label: 'Move button for selected District library items',
     panel: true,
   },
   'admin.district-library.move': {
@@ -17944,6 +17983,40 @@ export const TOUR_ANCHORS = {
     destructive: true,
     panel: true,
   },
+  'roster-editor.accommodations-group': {
+    label: 'Group row on the roster editor Accommodations tab',
+    perField: true,
+    panel: true,
+  },
+  'roster-editor.accommodations-add': {
+    label:
+      'Add menu for students and groups on the roster editor Accommodations tab',
+    panel: true,
+  },
+  'roster-editor.accommodations-search': {
+    label: 'Search box in the Accommodations Add menu',
+    panel: true,
+  },
+  'roster-editor.accommodations-pick-group': {
+    label: 'Group checkbox in the Accommodations Add menu',
+    perField: true,
+    panel: true,
+  },
+  'roster-editor.accommodations-pick-student': {
+    label: 'Student checkbox in the Accommodations Add menu',
+    perField: true,
+    panel: true,
+  },
+  'roster-editor.accommodations-done': {
+    label: 'Done button that closes the Accommodations Add menu',
+    panel: true,
+  },
+  'roster-editor.accommodations-remove': {
+    label: 'Remove button on a row of the roster editor Accommodations tab',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
   'roster-editor.accommodations-add-student': {
     label: 'Add Student button on the empty roster editor Accommodations tab',
     panel: true,
@@ -17967,6 +18040,18 @@ export const TOUR_ANCHORS = {
   },
   'quiz-library.reprint-sheets': {
     label: 'Print response sheets item in a paper assignment menu',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.import-paper-copies': {
+    label:
+      'Import paper responses item in a quiz assignment menu, for printed group copies',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.reprint-paper-copies': {
+    label:
+      'Print paper copies item in a quiz assignment menu, for printed group copies',
     perWidgetType: true,
     panel: true,
   },

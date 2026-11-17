@@ -14,6 +14,10 @@ import { WidgetData, TimeToolConfig, DEFAULT_GLOBAL_STYLE } from '@/types';
 import { TimeToolWidget } from './TimeToolWidget';
 import { useTimeTool } from './useTimeTool';
 
+vi.mock('@/hooks/useConnectionsEnabled', () => ({
+  useConnectionsEnabled: () => true,
+}));
+
 // useTimeTool still reads the legacy context (updateWidget + activeDashboard);
 // TimeToolWidget itself now reads globalStyle from the mount-stable store.
 vi.mock('@/context/useDashboard');
@@ -1036,12 +1040,6 @@ describe('TimeToolWidget', () => {
 
     beforeEach(() => {
       mockAuth.canAccessFeature.mockReturnValue(true);
-    });
-
-    it('stays hidden while widget connections is off', () => {
-      mockAuth.canAccessFeature.mockReturnValue(false);
-      renderWidget(withBoard());
-      expect(screen.queryByLabelText('Add linked music')).toBeNull();
     });
 
     it('adds a Music widget that follows this timer', () => {

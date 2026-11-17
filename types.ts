@@ -6670,6 +6670,22 @@ export interface PaperBatchVersion {
   swaps: Record<string, string>;
 }
 
+/** The modification rules a printed group's stack was built with (`paper-printed-versions`). */
+export interface PaperPrintedGroupRecord {
+  /** 1-based group position at assign, for "Group 2". */
+  number: number;
+  answerChoices: 'all' | 'drop-one' | 'two';
+  modifiedQuestions?: boolean;
+  supports?: QuizSupport[];
+  /** The group's language, so a reprint prints the same translation. */
+  language?: string;
+}
+
+/** A printed group planned at assign, kept so a version closed before printing can still print. */
+export interface PaperCopyGroupPlan extends PaperPrintedGroupRecord {
+  students: { rosterId: string; studentId: string }[];
+}
+
 export interface PaperBatch {
   id: string;
   /** Quiz these sheets were printed for. Deleted with the quiz. */
@@ -6710,6 +6726,8 @@ export interface PaperBatch {
   versions?: PaperBatchVersion[];
   /** Seat -> index into `versions`; the key sheet is absent and reads as version 0. */
   seatVersions?: Record<number, number>;
+  /** Printed for a modification group of a device assignment: the rules its version applied, so a reprint matches. */
+  printedGroup?: PaperPrintedGroupRecord;
   createdAt: number;
   /** A review the teacher left unfinished, resumable from any device (plan Q26). */
   pendingReview?: PaperPendingReview;
@@ -7330,6 +7348,8 @@ export interface StudentOverride {
   modifiedQuestions?: boolean;
   /** Quiz only: teacher-provided supports shown in the student's Supports panel. */
   supports?: QuizSupport[];
+  /** Quiz only: takes a printed copy, so never Missing before the scan (`paper-printed-versions`). */
+  onPaper?: boolean;
 }
 
 /** A word bank, a link or a Drive file the teacher gives a student during a quiz. */
@@ -7479,6 +7499,10 @@ export interface QuizAssignment
   paperWrittenSeats?: number;
   /** Responses carrying a scan from that stack, recounted by each import. */
   paperWrittenScanned?: number;
+  /** Stacks printed for modification groups of this device assignment (`paper-printed-versions`). */
+  paperCopyBatchIds?: string[];
+  /** Every printed group planned at assign, printed or not. */
+  paperCopyGroups?: PaperCopyGroupPlan[];
   /** D37 mode last chosen in Publish Scores; mirrored on the session and cleared on unpublish. */
   writtenReturnMode?: WrittenReturnMode;
   createdAt: number;
@@ -11647,8 +11671,6 @@ export type GlobalFeature =
   | 'quiz-document-ai-reader'
   /** Splits a typed PDF with version headings without AI. */
   | 'quiz-import-versions-plain'
-  /** Math in an imported question's text becomes drawn equations. */
-  | 'quiz-import-equations'
   /** Live tours on other websites, played by the Chrome extension (docs/plans/CHROME_EXTENSION.md T12). */
   | 'web-tours'
   /** Tab-away clock, auto-submit when away too long, and the teacher's exit log. */
@@ -11684,8 +11706,6 @@ export type GlobalFeature =
   | 'claude-connector'
   /** Guided Learning tools inside the Claude connector; building and Help Center sets stay admin-only. */
   | 'claude-connector-guided-learning'
-  /** Claude connector previews: quizzes and rubrics show as an interactive card inside Claude (MCP Apps). */
-  | 'claude-connector-apps'
   /** Teacher-paced (live) Video Activity sessions, chosen at assign time (docs/plans/shipped/VA_TEACHER_PACED.md). */
   | 'video-activity-live'
   /** Quiz Student view: teachers take a quiz as students see it, with focus-mode toggles; nothing is saved. */
@@ -11698,17 +11718,15 @@ export type GlobalFeature =
   | 'quiz-live-view-nudge-note'
   /** Live view's Screenshot button. */
   | 'quiz-live-view-screenshot'
-  /** The app's own lists for dropdowns, date and time fields and suggestions, in place of the browser's. */
-  | 'app-pickers'
   /** Teacher picture and PDF uploads need Google Drive; without it they ask to reconnect instead of saving to Firebase Storage. */
   | 'drive-only-uploads'
-  /** Assignment rows in the Quiz, Flashcards and Video Activity libraries show a "N classes" button with the full class list. */
-  | 'assignment-class-list'
   /** Quiz Monitor lists the whole class roster, with students who haven't joined under Not started. */
   | 'quiz-monitor-roster'
   /** Quiz setting that shows students their score as soon as they submit. */
   | 'quiz-score-on-submit'
   | 'modification-groups'
+  /** Quiz assign: a modification group can get a printed version, scanned back into the same results. */
+  | 'paper-printed-versions'
   /** Projects: a group submits its project; the teacher sees Submitted, Late or Missing and can reopen. */
   | 'project-submit'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */
@@ -11773,8 +11791,6 @@ export type GlobalFeature =
   | 'music-my-songs'
   /** Embed widget setting that stops the embedded page from opening new tabs. */
   | 'embed-block-new-tabs'
-  /** Connect button on widget toolbars: Sequences and Follows between widgets (docs/adr/0002). */
-  | 'widget-connections'
   /** Copy, paste and print blocking and fullscreen on quiz and video activity pages (CHROME_EXTENSION.md F14). */
   | 'focus-sessions'
   | 'input-signals'
@@ -11807,13 +11823,10 @@ export type GlobalFeature =
   | 'video-import-ai'
   /** Right-click menu on the board background. */
   | 'board-context-menu'
-  /** Teachers pick which answers count when a student answers more than a section asks. */
-  | 'choose-n-pick-counted'
   /** Manual assignments get a due date, and Assign remembers the When step. */
   | 'assign-due-date'
   /** Reopen an ended quiz for selected students only. */
   | 'reopen-selected-students'
-  | 'share-import-confirm'
   /** A score-only Video Activity publish keeps right/wrong off students' answers. */
   | 'va-score-only-verdicts';
 

@@ -185,6 +185,7 @@ export interface StudentOverride {
   language?: string;
   supports?: QuizSupport[];
   modifiedQuestions?: boolean;
+  onPaper?: boolean;
 }
 
 export type QuizSupport =
@@ -532,6 +533,7 @@ export function sanitizeOverride(raw: unknown): StudentOverride | null {
 
   if (src.readAloud === true) out.readAloud = true;
   if (src.modifiedQuestions === true) out.modifiedQuestions = true;
+  if (src.onPaper === true) out.onPaper = true;
   const supports = sanitizeSupports(src.supports);
   if (supports) out.supports = supports;
   if (typeof src.blockCopyPaste === 'boolean')

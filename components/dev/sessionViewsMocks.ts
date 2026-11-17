@@ -92,7 +92,19 @@ function quizPublicQuestions(): QuizPublicQuestion[] {
   ];
 }
 
+/** A Quiz assignment as teachers run it: self-paced, so the monitor offers Live view. */
 export function makeQuizSession(
+  status: QuizSessionStatus = 'active'
+): QuizSession {
+  return {
+    ...makeReviewSession(status),
+    sessionMode: 'student',
+    widgetKind: 'quiz',
+  };
+}
+
+/** A teacher-paced Review, where the board sets the question. */
+export function makeReviewSession(
   status: QuizSessionStatus = 'active'
 ): QuizSession {
   return {
@@ -103,6 +115,7 @@ export function makeQuizSession(
     teacherUid: 'mock-user-id',
     status,
     sessionMode: 'teacher',
+    widgetKind: 'review',
     currentQuestionIndex:
       status === 'waiting' ? -1 : status === 'ended' ? 1 : 0,
     startedAt: status === 'waiting' ? null : NOW - 600_000,
@@ -1342,4 +1355,49 @@ export function makeQuizMonitorRoster(): ClassRoster {
       pin: String(1001 + i),
     })),
   };
+}
+
+/** Five questions where one student was dealt three of them from a bank, in draw order. */
+export function makeBankDrawQuizData(): QuizData {
+  const base = makeQuizData();
+  const texts = [
+    'What is 1/2 + 1/4?',
+    'What is 3/4 - 1/2?',
+    'What is 2/3 of 9?',
+    'What is 1/5 + 2/5?',
+    'What is 5/6 - 1/3?',
+  ];
+  const answers = ['3/4', '1/4', '6', '3/5', '1/2'];
+  return {
+    ...base,
+    questions: texts.map((text, i) => ({
+      ...base.questions[0],
+      id: `bank-q${i + 1}`,
+      text,
+      correctAnswer: answers[i],
+      incorrectAnswers: ['1/8', '2/3', '7/8'],
+    })),
+  };
+}
+
+export function makeBankDrawResponses(): QuizResponse[] {
+  return [
+    {
+      _responseKey: 'pin-Period 3-1001',
+      studentUid: 'pin-Period 3-1001',
+      pin: '1001',
+      joinedAt: NOW - 540_000,
+      status: 'completed',
+      servedQuestionIds: ['bank-q1', 'bank-q4', 'bank-q3'],
+      answers: [
+        { questionId: 'bank-q1', answer: '3/4', answeredAt: NOW - 480_000 },
+        { questionId: 'bank-q4', answer: '3/5', answeredAt: NOW - 450_000 },
+        { questionId: 'bank-q3', answer: '7/8', answeredAt: NOW - 420_000 },
+      ],
+      score: null,
+      submittedAt: NOW - 400_000,
+      classPeriod: 'Period 3',
+      completedAttempts: 1,
+    },
+  ];
 }

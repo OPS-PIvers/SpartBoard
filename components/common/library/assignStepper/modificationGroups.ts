@@ -22,6 +22,8 @@ export interface ModificationGroup {
   language?: string;
   supports?: QuizSupport[];
   modifiedQuestions?: boolean;
+  /** Prints this group's version on paper at assign; scans join the same results. */
+  printed?: boolean;
 }
 
 export const MAX_SUPPORTS = 5;
@@ -109,6 +111,7 @@ export function overrideForGroup(
   if (group.language) next.language = group.language;
   if (group.supports?.length) next.supports = group.supports;
   if (group.modifiedQuestions) next.modifiedQuestions = true;
+  if (group.printed) next.onPaper = true;
   return next;
 }
 
@@ -128,6 +131,30 @@ export function overridesFromGroups(
     }
   }
   return out;
+}
+
+/** A printed group and its students' roster rows, in group order. */
+export interface PrintedGroupPick {
+  group: ModificationGroup;
+  /** 1-based position among the step's groups, for "Group 2". */
+  number: number;
+  students: { rosterId: string; studentId: string }[];
+}
+
+/** Printed groups with at least one student the assignment reaches. */
+export function printedGroupPicks(
+  groups: ModificationGroup[],
+  rows: ClassStudentRow[]
+): PrintedGroupPick[] {
+  const rowByKey = new Map(rows.map((row) => [row.key, row] as const));
+  return groups.flatMap((group, i) => {
+    if (!group.printed) return [];
+    const students = group.studentKeys.flatMap((key) => {
+      const row = rowByKey.get(key);
+      return row ? [{ rosterId: row.rosterId, studentId: row.studentId }] : [];
+    });
+    return students.length > 0 ? [{ group, number: i + 1, students }] : [];
+  });
 }
 
 /** Puts the students in this group only, taking them out of any other group. */
@@ -161,6 +188,7 @@ export function groupRuleLabels(
   const supports = group.supports?.length ?? 0;
   if (supports > 0)
     parts.push(supports === 1 ? '1 support' : `${supports} supports`);
+  if (group.printed) parts.push('printed version');
   return parts;
 }
 

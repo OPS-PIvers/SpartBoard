@@ -160,8 +160,15 @@ const mockDashboardContext = {
   addToast: mockAddToast,
 };
 
+const mockCanvasState = {
+  zoom: 1,
+  activeDashboard: null as { settings?: { spotlightWidgetId?: string } } | null,
+};
+
 vi.mock('@/context/dashboardCanvasStore', () => ({
   useDashboardActions: () => mockDashboardContext,
+  useDashboardCanvasSelector: <T,>(sel: (s: typeof mockCanvasState) => T) =>
+    sel(mockCanvasState),
 }));
 
 vi.mock('@/utils/ai', () => ({
@@ -404,6 +411,88 @@ describe('EmbedWidget', () => {
     expect(iframeAfter).not.toBe(iframeBefore);
     expect(iframeAfter).toHaveAttribute('src', 'https://example.com');
     expect(mockUpdateWidget).not.toHaveBeenCalled();
+  });
+
+  describe('zoom on video players', () => {
+    it('applies zoom to a web page', () => {
+      renderEmbedWidget({
+        ...baseWidget,
+        config: { mode: 'url', url: 'https://example.com', zoom: 2 },
+      });
+      expect(screen.getByTitle('Embed Content').style.transform).toBe(
+        'scale(2)'
+      );
+      expect(
+        screen.getByRole('button', { name: 'Zoom in' })
+      ).toBeInTheDocument();
+    });
+
+    it('shows a saved-zoom YouTube video at its real size with no zoom buttons', () => {
+      renderEmbedWidget({
+        ...baseWidget,
+        config: {
+          mode: 'url',
+          url: 'https://www.youtube.com/watch?v=aqz-KE-bpKQ',
+          zoom: 2,
+        },
+      });
+      const iframe = screen.getByTitle('Embed Content');
+      expect(iframe.style.transform).toBe('scale(1)');
+      expect(iframe.style.width).toBe('100%');
+      expect(
+        screen.queryByRole('button', { name: 'Zoom in' })
+      ).not.toBeInTheDocument();
+    });
+
+    it('draws a video at screen size when the board is zoomed in', () => {
+      mockCanvasState.zoom = 2;
+      onTestFinished(() => {
+        mockCanvasState.zoom = 1;
+      });
+      const ytConfig = {
+        mode: 'url',
+        url: 'https://www.youtube.com/watch?v=aqz-KE-bpKQ',
+      };
+      const { unmount } = renderEmbedWidget({
+        ...baseWidget,
+        config: ytConfig,
+      });
+      const iframe = screen.getByTitle('Embed Content');
+      expect(iframe.style.transform).toBe('scale(0.5)');
+      expect(iframe.style.width).toBe('200%');
+      unmount();
+
+      renderEmbedWidget({ ...baseWidget, maximized: true, config: ytConfig });
+      expect(screen.getByTitle('Embed Content').style.transform).toBe(
+        'scale(1)'
+      );
+    });
+
+    it('leaves web pages to the board zoom', () => {
+      mockCanvasState.zoom = 2;
+      onTestFinished(() => {
+        mockCanvasState.zoom = 1;
+      });
+      renderEmbedWidget(baseWidget);
+      expect(screen.getByTitle('Embed Content').style.transform).toBe(
+        'scale(1)'
+      );
+    });
+
+    it('treats pasted YouTube embed code as a video', () => {
+      renderEmbedWidget({
+        ...baseWidget,
+        config: {
+          mode: 'code',
+          url: '',
+          html: '<iframe width="560" height="315" src="https://www.youtube.com/embed/aqz-KE-bpKQ"></iframe>',
+          zoom: 1.5,
+        },
+      });
+      expect(screen.getByTitle('Embed Content').style.transform).toBe(
+        'scale(1)'
+      );
+    });
   });
 
   describe('Mini App Generation', () => {

@@ -28,6 +28,10 @@ export const SURFACES: TourSurfaceMap = {
         'library-shell.archive-menu:quiz#row-1',
       'quiz-library.reprint-written-sheets':
         'library-shell.archive-menu:quiz#row-1',
+      'quiz-library.import-paper-copies':
+        'library-shell.archive-menu:quiz#row-1',
+      'quiz-library.reprint-paper-copies':
+        'library-shell.archive-menu:quiz#row-1',
       'quiz-library.import-questions': 'library-shell.card-menu:quiz#row-1',
       'quiz-library.make-own-copy': 'library-shell.card-menu:quiz#row-1',
       'quiz-library.archive-monitor': 'library-shell.archive-menu:quiz#row-1',
@@ -268,6 +272,14 @@ export const SURFACES: TourSurfaceMap = {
     parent: 'quiz.face',
     needs: ['library-item'],
     files: [`${C}PaperReprintModal.tsx`],
+  },
+  'quiz.paper-copies-reprint': {
+    label: 'Print paper copies again dialog',
+    kind: 'modal',
+    opensWith: 'quiz-library.reprint-paper-copies:quiz',
+    parent: 'quiz.face',
+    needs: ['library-item'],
+    files: [`${C}PaperGroupReprintModal.tsx`],
   },
   'quiz.paper-import': {
     label: 'Import paper responses dialog',

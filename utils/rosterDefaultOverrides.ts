@@ -63,3 +63,49 @@ export const setRosterDefaultOverride = (
   else result[studentId] = compactStudentOverride(next);
   return result;
 };
+
+const sameValue = (a: unknown, b: unknown) =>
+  JSON.stringify(a) === JSON.stringify(b);
+
+/** The settings every listed student has in common; what a group's row shows. */
+export const sharedStudentOverride = (
+  overrides: Record<string, StudentOverride>,
+  studentIds: string[]
+): StudentOverride => {
+  if (studentIds.length === 0) return {};
+  const [first, ...rest] = studentIds.map((id) =>
+    compactStudentOverride(overrides[id] ?? {})
+  );
+  const shared: Record<string, unknown> = {};
+  const entries: Array<[string, unknown]> = Object.entries(first);
+  for (const [key, value] of entries) {
+    if (
+      rest.every((o) => sameValue((o as Record<string, unknown>)[key], value))
+    )
+      shared[key] = value;
+  }
+  return shared;
+};
+
+/** Applies a group-level edit: each setting that changed is set on every listed student, the rest stay theirs. */
+export const applyGroupOverride = (
+  overrides: Record<string, StudentOverride>,
+  studentIds: string[],
+  next: StudentOverride
+): Record<string, StudentOverride> => {
+  const prev: Record<string, unknown> = {
+    ...sharedStudentOverride(overrides, studentIds),
+  };
+  const after: Record<string, unknown> = { ...next };
+  const changed = [...new Set([...Object.keys(prev), ...Object.keys(after)])]
+    .filter((key) => !WINDOW_SHIFT_KEYS.has(key))
+    .filter((key) => !sameValue(prev[key], after[key]));
+  if (changed.length === 0) return overrides;
+  let result = overrides;
+  for (const id of studentIds) {
+    const own: Record<string, unknown> = { ...(result[id] ?? {}) };
+    for (const key of changed) own[key] = after[key];
+    result = setRosterDefaultOverride(result, id, own);
+  }
+  return result;
+};
