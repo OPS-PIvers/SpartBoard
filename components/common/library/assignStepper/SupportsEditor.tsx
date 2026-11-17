@@ -224,7 +224,7 @@ export const SupportsEditor: React.FC<{
                 <button
                   type="button"
                   onClick={() => {
-                    onChange((prev) => prev.filter((_, j) => j !== i));
+                    onChange((prev) => prev.filter((p) => p !== s));
                     // The Drive file is our own shared copy, so it goes too.
                     if (s.kind === 'drive')
                       void driveService
