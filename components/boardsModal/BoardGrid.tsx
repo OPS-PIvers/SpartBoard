@@ -11,6 +11,7 @@ interface BoardGridProps {
   // Unfiltered set, used only to tell a real orphan from a parent the search filter dropped.
   allCollections: Collection[];
   boards: Dashboard[];
+  searchActive: boolean;
   selectedIds: ReadonlySet<string>;
   canShare: boolean;
   onSelectCollection: (id: string | null) => void;
@@ -40,6 +41,7 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
   collections,
   allCollections,
   boards,
+  searchActive,
   selectedIds,
   canShare,
   onSelectCollection,
@@ -61,14 +63,12 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
     [collections, allCollections, selectedCollectionId]
   );
 
-  // "All Boards" view (selectedCollectionId === null) shows every Board
-  // regardless of Collection membership, with a per-card badge indicating
-  // which Collection each one lives in. Collection-scoped views still
-  // filter strictly to Boards in that Collection.
-  const isAllBoardsView = selectedCollectionId === null;
+  // A search from the top level lists matches from every Collection, badged with where each lives.
+  const isAllBoardsView = selectedCollectionId === null && searchActive;
   const boardsHere = useMemo(
-    () => boardsInView(boards, selectedCollectionId),
-    [boards, selectedCollectionId]
+    () =>
+      boardsInView(boards, selectedCollectionId, allCollections, searchActive),
+    [boards, selectedCollectionId, allCollections, searchActive]
   );
 
   // Lookup table for the per-card Collection badge. Only consulted in

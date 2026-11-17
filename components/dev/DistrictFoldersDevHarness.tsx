@@ -377,7 +377,7 @@ const AdminItemRow: React.FC<{
       <div className="relative flex shrink-0 items-center gap-1">
         <button type="button" className={iconButton}>
           <Users className="h-3.5 w-3.5" aria-hidden />
-          Who sees it
+          Access
         </button>
         <button
           type="button"

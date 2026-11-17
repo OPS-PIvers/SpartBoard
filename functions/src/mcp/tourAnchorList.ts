@@ -44928,7 +44928,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "admin.district-library.targeting",
-    "label": "Who sees it button in a District library row",
+    "label": "Access button in a District library row",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -45373,6 +45373,82 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "admin.district-library.row-menu",
     "label": "More actions menu in a District library row",
     "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.district-library.select",
+    "label": "Select button for District library bulk actions",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.district-library.select-all",
+    "label": "Select all in District library selection",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.district-library.select-row",
+    "label": "Checkbox on a District library row",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.district-library",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#district-library"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.district-library.bulk-move",
+    "label": "Move button for selected District library items",
+    "scope": "board",
     "panel": true,
     "routes": [
       {

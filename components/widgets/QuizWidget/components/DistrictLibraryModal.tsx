@@ -1,5 +1,6 @@
 // Teacher list of District library items that target them (docs/plans/QUIZ_MCA_PRACTICE.md M27-M28).
 import React, { useMemo, useState } from 'react';
+import { itemsAtFolderLevel } from '@/utils/folderLevel';
 import {
   Check,
   ChevronDown,
@@ -270,7 +271,7 @@ export const DistrictLibraryModal: React.FC<DistrictLibraryModalProps> = ({
       .join(' · ');
   };
   const kids = kidsOf(at);
-  const direct = items.filter((i) => itemFolderId(folders, i) === at);
+  const direct = itemsAtFolderLevel(items, at, (i) => itemFolderId(folders, i));
   const remaining = direct.filter((i) => !isAdded(i));
   const query = search.trim().toLowerCase();
 
