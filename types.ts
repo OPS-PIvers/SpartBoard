@@ -11185,7 +11185,6 @@ export interface UserRolesConfig {
   teachers: string[];
   betaTeachers: string[];
   admins: string[];
-  superAdmins: string[];
 }
 
 /**

@@ -2065,11 +2065,11 @@ describe('isTestClassAuthority', () => {
     await expect(check()).resolves.toBe(false);
   });
 
-  it('allows a super admin listed only in the legacy user_roles list', async () => {
+  it('refuses an address listed only in the retired legacy user_roles list', async () => {
     state.docs.set('admin_settings/user_roles', {
       superAdmins: ['Teacher@Orono.k12.mn.us'],
     });
-    await expect(check()).resolves.toBe(true);
+    await expect(check()).resolves.toBe(false);
   });
 
   it('refuses a legacy-listed email whose operator member doc is deactivated', async () => {

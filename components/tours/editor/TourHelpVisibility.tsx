@@ -18,13 +18,8 @@ export const TourHelpVisibility: React.FC<{
   published: boolean;
 }> = ({ setId, published }) => {
   const { t } = useTranslation();
-  const { user, userRoles, orgId, roleId } = useAuth();
-  const isSuperAdmin = isSuperAdminActor(
-    user?.email,
-    userRoles?.superAdmins,
-    roleId,
-    orgId
-  );
+  const { user, orgId, roleId } = useAuth();
+  const isSuperAdmin = isSuperAdminActor(user?.email, roleId, orgId);
   const { items, loading } = useHelpResources({
     includeHidden: true,
     allOrgs: isSuperAdmin,

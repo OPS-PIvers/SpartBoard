@@ -1499,9 +1499,8 @@ const OPERATOR_ORG_ID = 'orono';
  * client-writable, so a plain teacher could otherwise forge a `testClassId`
  * onto their own roster and reach any test-class student in the org.
  *
- * `isSuperAdmin()` accepts EITHER source the rules accept: the legacy
- * `admin_settings/user_roles.superAdmins[]` list, or an operator-org member doc
- * with `roleId == 'super_admin'`. An `/admins/{email}` doc is deliberately NOT
+ * `isSuperAdmin()` is an active operator-org member doc with
+ * `roleId == 'super_admin'`. An `/admins/{email}` doc is deliberately NOT
  * a source — `organizationMembersSync` mirrors building_admins into it too, and
  * the rules gate excludes building admins.
  */
@@ -1510,26 +1509,13 @@ export async function isTestClassAuthority(
   teacherEmailLower: string,
   orgId: string
 ): Promise<boolean> {
-  const [legacyDoc, operatorMemberDoc, memberDoc] = await Promise.all([
-    db.doc('admin_settings/user_roles').get(),
+  const [operatorMemberDoc, memberDoc] = await Promise.all([
     db
       .doc(`organizations/${OPERATOR_ORG_ID}/members/${teacherEmailLower}`)
       .get(),
     db.doc(`organizations/${orgId}/members/${teacherEmailLower}`).get(),
   ]);
-  const legacyList: unknown = legacyDoc.exists
-    ? legacyDoc.get('superAdmins')
-    : null;
   const operatorStatus: unknown = operatorMemberDoc.get('status');
-  if (
-    Array.isArray(legacyList) &&
-    legacyList.some(
-      (e) => typeof e === 'string' && e.toLowerCase() === teacherEmailLower
-    ) &&
-    !(operatorMemberDoc.exists && isRevokedMemberStatus(operatorStatus))
-  ) {
-    return true;
-  }
   if (
     roleIdOf(operatorMemberDoc) === 'super_admin' &&
     (operatorStatus === undefined || operatorStatus === 'active')
