@@ -238,6 +238,8 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
   <details><summary>Branches to delete (178, checked 2026-11-01)</summary>
 
+claude/project-thread-zjwcsx (#6063)
+claude/project-thread-zjwcsx-ab112 (this docs PR, delete after it merges)
 claude/project-thread-by0g86 (#6029; this docs PR reuses it, delete after it merges)
 claude/project-thread-n40jeu (#6021; this docs PR reuses it, delete after it merges)
 claude/project-thread-jve72x (#6028)
