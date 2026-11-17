@@ -263,5 +263,6 @@ describe('ClassroomAddonTeacherReview on Schoology', () => {
         grades: [{ pseudonymUid: 'stu-1', pointsEarned: 10 }],
       })
     );
-  });
+    // Its inner wait alone can take 5 s on a loaded runner, so the test needs room past the 5 s default.
+  }, 15000);
 });

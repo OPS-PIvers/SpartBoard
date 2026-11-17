@@ -83,4 +83,44 @@ describe('RosterAccommodationsList', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Remove Modified' }));
     expect(latest).toEqual({ c: { readAloud: true } });
   });
+
+  it("removing a member's own row keeps the group's settings", () => {
+    render(
+      <Host
+        initial={{
+          b: { timeMultiplier: 2 },
+          c: { timeMultiplier: 2, readAloud: true },
+        }}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Add/ }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /Bui, Linh/ }));
+    expect(latest).toEqual({
+      b: { timeMultiplier: 2 },
+      c: { timeMultiplier: 2 },
+    });
+    expect(screen.getByText('Modified (2 students)')).toBeInTheDocument();
+  });
+
+  it('hides a student whose settings are exactly what two groups give them', () => {
+    render(
+      <RosterAccommodationsList
+        students={students}
+        groups={[
+          { id: 'g1', name: 'Read', studentIds: ['b', 'c'] },
+          { id: 'g2', name: 'Timed', studentIds: ['a', 'c'] },
+        ]}
+        overrides={{
+          a: { timeMultiplier: 2 },
+          b: { readAloud: true },
+          c: { timeMultiplier: 2, readAloud: true },
+        }}
+        readAloudAvailable={false}
+        onChange={() => undefined}
+        onAddStudents={() => undefined}
+      />
+    );
+    expect(screen.getByText('Timed (2 students)')).toBeInTheDocument();
+    expect(screen.queryByText('Bui, Linh')).toBeNull();
+  });
 });

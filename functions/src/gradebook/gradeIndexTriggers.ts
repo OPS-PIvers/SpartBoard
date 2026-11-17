@@ -338,6 +338,7 @@ export const gradeIndexQuizAssignment = onDocumentWritten(
         'overridesByStudentUid',
         'localizedFibAnswers',
         'servedLanguageByStudentUid',
+        'paperCopyBatchIds',
       ],
       event.params.uid
     )

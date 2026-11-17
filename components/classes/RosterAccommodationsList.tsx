@@ -26,9 +26,13 @@ const lastFirst = (s: Student) =>
   [s.lastName, s.firstName].filter(Boolean).join(', ') || s.id;
 const byLastName = (a: Student, b: Student) =>
   lastFirst(a).localeCompare(lastFirst(b));
+const canonical = (o: StudentOverride | undefined) => {
+  const compact = setRosterDefaultOverride({}, 'x', o ?? {}).x ?? {};
+  const entries: Array<[string, unknown]> = Object.entries(compact);
+  return JSON.stringify(entries.sort(([a], [b]) => a.localeCompare(b)));
+};
 const sameOverride = (a: StudentOverride | undefined, b: StudentOverride) =>
-  JSON.stringify(setRosterDefaultOverride({}, 'x', a ?? {}).x ?? {}) ===
-  JSON.stringify(setRosterDefaultOverride({}, 'x', b).x ?? {});
+  canonical(a) === canonical(b);
 const countLabel = (n: number) => (n === 1 ? '1 student' : `${n} students`);
 
 interface GroupRow {
@@ -69,14 +73,19 @@ export const RosterAccommodationsList: React.FC<
   const listedGroups = allGroups.filter(
     (g) => addedGroups.includes(g.group.id) || !isEmptyStudentOverride(g.shared)
   );
-  // A student whose settings are exactly a listed group's shows under that group only.
-  const coveredByGroup = (id: string) =>
-    listedGroups.some(
-      (g) =>
-        g.memberIds.includes(id) &&
-        !isEmptyStudentOverride(g.shared) &&
-        sameOverride(overrides[id], g.shared)
+  // The settings a student gets from every listed group they belong to.
+  const fromListedGroups = (id: string) =>
+    listedGroups
+      .filter((g) => g.memberIds.includes(id))
+      .reduce<StudentOverride>((acc, g) => ({ ...acc, ...g.shared }), {});
+  // A student whose settings are exactly their listed groups' shows under those groups only.
+  const coveredByGroup = (id: string) => {
+    const fromGroups = fromListedGroups(id);
+    return (
+      !isEmptyStudentOverride(fromGroups) &&
+      sameOverride(overrides[id], fromGroups)
     );
+  };
   const listedStudents = sorted.filter(
     (s) =>
       addedStudents.includes(s.id) ||
@@ -97,9 +106,10 @@ export const RosterAccommodationsList: React.FC<
         override: overrides[o.id],
       }));
 
+  // Removing a student's own row keeps the settings their listed groups give them.
   const removeStudent = (id: string) => {
     setAddedStudents((prev) => prev.filter((x) => x !== id));
-    onChange(setRosterDefaultOverride(overrides, id, {}));
+    onChange(setRosterDefaultOverride(overrides, id, fromListedGroups(id)));
   };
   const removeGroup = (row: GroupRow) => {
     setAddedGroups((prev) => prev.filter((x) => x !== row.group.id));

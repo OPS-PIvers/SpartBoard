@@ -89,6 +89,10 @@ describe('landingRowState', () => {
     expect(landingRowState(closed, checked(closed, 'turned-in'), NOW)).toBe(
       'turned-in'
     );
+    // A device attempt left unsubmitted still shows as closed.
+    expect(landingRowState(closed, checked(closed, 'in-progress'), NOW)).toBe(
+      'closed'
+    );
   });
 
   it('marks past-due open work as missing still open, never before its check', () => {
