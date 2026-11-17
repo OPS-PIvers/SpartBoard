@@ -820,6 +820,10 @@ export const SURFACES: TourSurfaceMap = {
     parent: 'widgets.writing.face',
     widgetType: 'writing',
     needs: ['library-item', 'student-data'],
+    inner: {
+      'writing-results.sort': 'writing-results.drill-students:writing',
+      'writing-results.student-row': 'writing-results.drill-students:writing',
+    },
   },
   'widgets.writing.grader': {
     label: 'Writing grader',

@@ -17217,6 +17217,18 @@ export const TOUR_ANCHORS = {
     label: 'Grade button in Writing results',
     perWidgetType: true,
   },
+  'writing-results.hide-names': {
+    label: 'Hide names button in Writing results',
+    perWidgetType: true,
+  },
+  'writing-results.drill-students': {
+    label: 'Students row in Writing results',
+    perWidgetType: true,
+  },
+  'writing-results.sort': {
+    label: 'Student sort in Writing results',
+    perField: true,
+  },
   'writing-results.student-row': {
     label: 'Student row in Writing results',
     perField: true,
