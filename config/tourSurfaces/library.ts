@@ -150,6 +150,13 @@ export const SURFACES: TourSurfaceMap = {
       'assign-mods.support-body': 'assign-mods.supports-add',
       'assign-mods.support-save': 'assign-mods.supports-add',
       'assign-mods.support-cancel': 'assign-mods.supports-add',
+      'assign-mods.support-file-choose':
+        'assign-mods.supports-kind:assign#drive',
+      'assign-mods.support-file-drive':
+        'assign-mods.supports-kind:assign#drive',
+      'assign-mods.support-file-url': 'assign-mods.supports-kind:assign#drive',
+      'assign-mods.support-file-url-add':
+        'assign-mods.supports-kind:assign#drive',
       'assign-mods.support-remove': 'assign-step.modifications',
       'assign-mods.remove-group': 'assign-step.modifications',
     },
