@@ -13,7 +13,7 @@
 # For dev-paul and main the diff base is the last successfully deployed commit, so a cancelled or
 # failed run's backend changes carry into the next run instead of being dropped.
 # Writes key=value lines to $GITHUB_OUTPUT (or stdout). CHANGED_FILES and
-# CONTAINS_DEV_PAUL override the git lookups, for tests.
+# CONTAINS_DEV_PAUL override the git lookups, for tests; OLD_INDEX_FILE stands in for the base commit's index.ts.
 
 set -euo pipefail
 
@@ -74,7 +74,14 @@ else
   # Other dev branches deploy every function; any doubt (or a failed script) keeps every function.
   if [[ "$FUNCTIONS" == "true" && ( "$BRANCH" == "dev-paul" || "$BRANCH" == "main" ) ]] && ! has '^firebase\.json$'; then
     root="${AFFECTED_FUNCTIONS_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
-    names="$(grep '^functions/' <<<"$FILES" | node "$(dirname "$0")/affected-functions.mjs" "$root")" || names=ALL
+    old_index="$(mktemp)"
+    if [[ -n "${OLD_INDEX_FILE:-}" ]]; then
+      cp "$OLD_INDEX_FILE" "$old_index"
+    elif ! git show "${BASE_SHA}:functions/src/index.ts" >"$old_index" 2>/dev/null; then
+      rm -f "$old_index"
+    fi
+    names="$(grep '^functions/' <<<"$FILES" | AFFECTED_FUNCTIONS_OLD_INDEX="$old_index" node "$(dirname "$0")/affected-functions.mjs" "$root")" || names=ALL
+    rm -f "$old_index"
     if [[ -z "$names" ]]; then
       FUNCTIONS=false
     elif [[ "$names" != "ALL" ]]; then

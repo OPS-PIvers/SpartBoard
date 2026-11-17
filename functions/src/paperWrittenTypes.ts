@@ -31,6 +31,8 @@ export type PaperPageItem =
       lines: number;
       /** Absent = lines; mirrors root `types.ts`. */
       style?: PaperBoxStyle;
+      /** Fill in the blank: one write-in line per blank; mirrors root `types.ts`. */
+      blanks?: number;
     };
 
 export interface PaperPageMap {
@@ -82,7 +84,8 @@ export interface PaperTranscriptionJob {
   responseKey: string;
   scanId: string;
   page: number;
-  boxes: { questionId: string; storagePath: string }[];
+  /** `blanks`: a fill-in-the-blank box, read as one answer per write-in line. */
+  boxes: { questionId: string; storagePath: string; blanks?: number }[];
   status: PaperTranscriptionJobStatus;
   attempt: number;
   leaseUntil?: number;

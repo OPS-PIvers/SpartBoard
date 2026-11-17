@@ -21,10 +21,22 @@ const affectedScript = resolve(
 );
 const targetsScript = resolve(repoRoot, '.github/scripts/function-targets.mjs');
 
-function affected(changed: string[], root = repoRoot): string[] | 'ALL' {
+function affected(
+  changed: string[],
+  root = repoRoot,
+  oldIndex?: string
+): string[] | 'ALL' {
+  const env = { ...process.env };
+  delete env.AFFECTED_FUNCTIONS_OLD_INDEX;
+  if (oldIndex !== undefined) {
+    const file = join(mkdtempSync(join(tmpdir(), 'old-index-')), 'index.ts');
+    writeFileSync(file, oldIndex);
+    env.AFFECTED_FUNCTIONS_OLD_INDEX = file;
+  }
   const result = spawnSync('node', [affectedScript, root], {
     input: changed.join('\n'),
     encoding: 'utf-8',
+    env,
   });
   expect(result.status).toBe(0);
   const out = result.stdout.trim();
@@ -213,6 +225,51 @@ describe('affected-functions.mjs edge cases', () => {
       },
       (root) => expect(affected(['functions/src/shared.ts'], root)).toBe('ALL')
     );
+  });
+
+  it('names only the exports index.ts added or repointed since the deployed copy', () => {
+    const index = base['functions/src/index.ts'];
+    const without = (line: string) =>
+      index
+        .split('\n')
+        .filter((l) => l !== line)
+        .join('\n');
+    withFixture(base, (root) => {
+      const changed = ['functions/src/index.ts'];
+      expect(
+        affected(changed, root, without("export { alpha } from './alpha';"))
+      ).toEqual(['alpha']);
+      expect(
+        affected(
+          [...changed, 'functions/src/shared.ts'],
+          root,
+          without("export { d1 } from './d1';")
+        )
+      ).toEqual(['alpha', 'd1']);
+      expect(
+        affected(
+          changed,
+          root,
+          index.replace('beta as betaV1', 'gamma as betaV1')
+        )
+      ).toEqual(['betaV1']);
+      expect(affected(changed, root, `// old comment\n${index}`)).toEqual([]);
+    });
+  });
+
+  it('deploys everything when index.ts removed an export or the deployed copy is missing', () => {
+    withFixture(base, (root) => {
+      const changed = ['functions/src/index.ts'];
+      expect(
+        affected(
+          changed,
+          root,
+          `${base['functions/src/index.ts']}\nexport { gone } from './d1';`
+        )
+      ).toBe('ALL');
+      expect(affected(changed, root)).toBe('ALL');
+      expect(affected(changed, root, 'export const inline = 1;')).toBe('ALL');
+    });
   });
 
   it('deploys everything when index.ts is more than re-exports', () => {

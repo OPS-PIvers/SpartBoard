@@ -202,7 +202,7 @@ import {
   type GetPaperWrittenCropResponse,
   type PaperWrittenActions,
 } from '@/utils/paperCropFetch';
-import { isPaperWrittenAnswer } from '@/utils/paperWritten';
+import { isPaperFibOwed, isPaperWrittenAnswer } from '@/utils/paperWritten';
 import { usePaperPrivateAnswers } from '@/hooks/usePaperPrivateAnswers';
 import { requestAndExchangeAuthCode } from '@/utils/googleOAuthRefresh';
 import { deleteField, doc, updateDoc, FieldPath } from 'firebase/firestore';
@@ -793,8 +793,10 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   // types. Used to surface the "Grade Written" entry-point only when
   // it's actually useful.
   const hasWrittenQuestions = useMemo(
-    () => quiz.questions.some((q) => isFreeResponseType(q.type)),
-    [quiz.questions]
+    () =>
+      quiz.questions.some((q) => isFreeResponseType(q.type)) ||
+      rawResponses.some((r) => r.answers?.some((a) => isPaperFibOwed(a))),
+    [quiz.questions, rawResponses]
   );
 
   // Hidden, not disabled, when the fail-closed gate is off or the session was

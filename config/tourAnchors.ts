@@ -1572,7 +1572,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'assign-mods.supports-kind': {
-    label: 'Text, Link or Drive file choice in the Add support menu',
+    label: 'Text, Link or File choice in the Add support menu',
     perField: true,
     panel: true,
   },
@@ -1590,6 +1590,22 @@ export const TOUR_ANCHORS = {
   },
   'assign-mods.support-cancel': {
     label: 'Cancel button for a new support',
+    panel: true,
+  },
+  'assign-mods.support-file-choose': {
+    label: 'Choose file button for a file support',
+    panel: true,
+  },
+  'assign-mods.support-file-drive': {
+    label: 'Choose from Drive button for a file support',
+    panel: true,
+  },
+  'assign-mods.support-file-url': {
+    label: 'Paste a link field for a file support',
+    panel: true,
+  },
+  'assign-mods.support-file-url-add': {
+    label: 'Add button for a pasted file link',
     panel: true,
   },
   'assign-mods.support-remove': {

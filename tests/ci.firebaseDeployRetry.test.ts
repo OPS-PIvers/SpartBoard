@@ -141,6 +141,7 @@ function runWithStubbedDeploys(
 ): {
   status: number | null;
   onlys: string[];
+  stdout: string;
 } {
   const dir = mkdtempSync(join(tmpdir(), 'deploy-retry-'));
   const bin = join(dir, 'bin');
@@ -169,12 +170,13 @@ function runWithStubbedDeploys(
       ...process.env,
       PATH: `${bin}:${process.env.PATH ?? ''}`,
       RELEASE_FIRESTORE_RULES: 'false',
+      GITHUB_STEP_SUMMARY: '',
       ...(deployOnly === undefined ? {} : { FIREBASE_DEPLOY_ONLY: deployOnly }),
     },
   });
   const onlys = readFileSync(join(dir, 'onlys'), 'utf-8').trim().split('\n');
   rmSync(dir, { recursive: true, force: true });
-  return { status: result.status, onlys };
+  return { status: result.status, onlys, stdout: String(result.stdout) };
 }
 
 describe('firebase-deploy-with-retry.sh CPU quota retry', () => {
@@ -299,6 +301,30 @@ describe('firebase-deploy-with-retry.sh CPU quota retry', () => {
     ]);
     expect(status).toBe(2);
     expect(onlys).toHaveLength(1);
+  });
+});
+
+describe('firebase-deploy-with-retry.sh quota wait summary', () => {
+  const wait = (fn: string) =>
+    `⚠  functions: Got "Quota Exceeded" error while trying to update projects/demo/locations/us-central1/functions/${fn}. Waiting to retry...`;
+
+  it('totals the rate-limit waits across attempts in one line', () => {
+    const { status, stdout } = runWithStubbedDeploys([
+      {
+        exit: 2,
+        log: [wait('alpha'), wait('beta'), 'Error: HTTP Error: 503'].join('\n'),
+      },
+      { exit: 0, log: [wait('alpha'), wait('gamma')].join('\n') },
+    ]);
+    expect(status).toBe(0);
+    expect(stdout).toContain(
+      '::notice::Cloud Functions rate limit: 4 quota waits across 3 functions, all retried by the Firebase CLI.'
+    );
+  });
+
+  it('says nothing when no wait happened', () => {
+    const { stdout } = runWithStubbedDeploys([{ exit: 0, log: '' }]);
+    expect(stdout).not.toContain('rate limit');
   });
 });
 

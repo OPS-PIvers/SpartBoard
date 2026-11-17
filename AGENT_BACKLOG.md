@@ -9,7 +9,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
 - **Release review findings.** Fix small (S) findings inside the release as `release fix:` PRs. File an item here only for work that is M or larger, needs a flag or rules design, or can't ship in that release.
 - **Agent-only means agent-only.** An item in Ready needs nothing from Paul. When an item needs new wording, the agent builds it and asks Paul with a screenshot and a decision card in its thread; when it needs a real decision, it goes to PAUL_TODO.md and the item moves to Blocked.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-266**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-269**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -109,6 +109,7 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
 ### Quiz, Video Activity and Guided Learning
 
+- **AB-267 Printed versions reprint minors** (S). Behind `paper-printed-versions` (release review of #6086): a reprint with no Drive token or a translation load error prints English with only a console warning (show a notice); the "Group N · English" label only shows with two or more groups; a stack records the group's wanted language even when its first print fell back to English, so a later reprint can switch language; the reprint `questionTexts` skip `plainPromptText` and `choicePictureFields` that `PaperPrintModal` applies (pre-existing). Tests for each.
 - **AB-257 Video Activity onto the Quiz monitor, results and grader** (M). Paul's rule (`.claude/rules/assignment-shells.md`): assignment widgets reuse the Quiz shells. Video Activity still has its own copies, listed in `KNOWN_COPIES` and `NOT_YET_ADOPTED` in `tests/assignmentShells.static.test.ts`: (1) `monitor/VaRosterList.tsx` (own roster and `RowMenu`) → `RosterList` or `RosterParts`, as `Flashcards/results/FlashcardCheckRoster.tsx` does; (2) the `QuestionDetail` in `monitor/VideoActivityMonitor.tsx` → `QuestionResults`/`ItemDetailView`; the monitor also needs `QuestionResults`; (3) `Results.tsx` (old `SessionRow`) and `results/VaResultsParity.tsx` (own `DrillRow`) → `ResultsHome` (`ResultsSummaryCard`, `ScoreDistributionBars`, `ResultsDrillRow`); (4) `results/VaShortAnswerMarking.tsx` → `FreeResponseGrader`, extended for a time-in-video prompt if needed; (5) `VideoActivityLivePlayer.tsx` header and buttons (old `SessionViewHeader`, `ActionButton`) → the Quiz `present/` or monitor pieces. One PR per numbered part is fine; delete each guard entry in the PR that clears it. Before and after screenshots for Paul, no flag needed when the screen looks the same.
 - **AB-258 Guided Learning onto the Quiz roster and results** (M). Same rule. `results/GuidedLearningMonitor.tsx` renders its roster rows inline → `RosterParts`, and its per-step breakdown inline (about lines 222-260) → `QuestionResults`/`ItemResultsList`; `GuidedLearningResults.tsx` has no `ResultsHome` summary or drill rows; `results/StudentProgressLine.tsx` copies `StudentAnswerLine` (extend it with a step-progress variant). Guard entries: `guided-learning` in `NOT_YET_ADOPTED` and `StudentProgressLine` in `KNOWN_COPIES`.
 - **AB-259 Mini Apps onto the Quiz roster and results** (M). Same rule. `MiniAppSubmissionsMonitor.tsx` renders its roster rows inline → `RosterParts`, with no `QuestionResults` per-item view; `MiniAppResultsView.tsx` has its own `DrillRow` and no `StudentResultsControl` → `ResultsHome` and `StudentResultsControl`. `SubmissionsModal.tsx`, which hosts both, uses the old `PeriodAccessControls` → `PeriodAccessStrip`. Guard entries: `mini-app` in `NOT_YET_ADOPTED`, two files in `KNOWN_COPIES`.
@@ -186,6 +187,7 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
 ### Widgets and UI
 
+- **AB-266 QR stuck on an old Text sync with no Text widget** (S). Since Connections went Public, `hiddenWithConnections` hides the old per-widget link toggles. A QR with `syncWithTextWidget: true` and no Text widget never converts (`utils/legacyConnections.ts`), so `QRDestinationField` keeps the URL box disabled and the teacher can't turn the sync off. Treat a sync with no Text widget as unsynced (or show the toggle while unconverted), and check the other unconverted toggles (Music `syncWithTimeTool`, Random `autoStartTimer` with no Timer) for the same trap.
 - **AB-211 Lunch Count middle/high refresh button on touch panels** (S, minor; release 2026.11.13d review). `components/widgets/LunchCount/MiddleHighLunchCount.tsx` refresh button is `opacity-0 group-hover:opacity-100`, so a middle or high school board on a touch-only panel never shows it. Pre-existing (moved unchanged). Use the repo's touch-panel pattern from `components/CLAUDE.md` (there is no `touch:` variant). Done when the button shows on a touch device and a test or screenshot proves it.
 - **AB-209 YouTube paste picker: read-only board and start time** (S, minor; release 2026.11.13b review; live for everyone since the flag retired). In `components/layout/Dock.tsx` the Video Activity choice (1) calls `offerImportHandoff` even when `addWidget` no-ops on a read-only board or with no active board, leaving an orphaned handoff; skip the offer, as `ImportScreenHost` does with `refuseReadOnly()`. (2) It rebuilds the URL as `watch?v=<id>`, dropping a pasted `&t=` start time; pass the pasted URL through. Done when a test covers each.
 - **AB-188 Flashcards check sync: retry and don't block the save on rescore** (S, release 2026.11.10 (5) review). `hooks/useFlashcardSets.ts` `rewriteOpenCheckSessions` awaits every `rescoreFlashcardCheckV1` call inside the final save, so editor Close waits on cold starts, and a failed call is only logged: the cards are already committed, so the next save sees no change and never rescores. Fire the rescore after the save resolves, and mark the session (for example `rescorePending`) so a later save or the next open retries it. Skip the call for Flashcards and Speak Checks.
@@ -214,6 +216,7 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
 ### Build hygiene
 
+- **AB-268 VideoActivityStudentApp tab-warning test flakes in CI** (S). `tests/components/videoActivity/VideoActivityStudentApp.live.test.tsx` "warns and logs a tab exit but never submits" failed on the dev-paul push for 80bbd9e2 (could not find "TAB SWITCH DETECTED"); it passes locally. Find the timing dependency and make it deterministic. Never skip it.
 - **AB-263 Slow PDF import test times out in CI** (S). `tests/utils/quizDocumentImport/plainVersions.test.ts` "splits each version with its own key" hit the 5000ms default on the dev-paul push for f86dc870 (a docs-only commit; the run before and after passed). Profile the PDF parse it does, make the fixture smaller or give that one test an explicit timeout with a one-line reason. Never skip it.
 - **AB-121 Carry-forward should warn on missing assets** (S). `scripts/carryForwardAssets.mjs` exits 0 when old chunks can't be fetched (30s timeout, 32 workers since #5253), so an old tab can 404 on a dropped chunk. Emit `::warning::` with the count when `missing.length > 0`, and fail above a set share.
 
@@ -238,10 +241,12 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
   <details><summary>Branches to delete (178, checked 2026-11-01)</summary>
 
+claude/project-thread-qhanha (#6093; this docs PR reuses it, delete after it merges)
 claude/project-thread-dln4ez (#6074)
 claude/project-thread-dln4ez-branches (this docs PR, delete after it merges)
 claude/project-thread-h6p64t (#6069; this docs PR reuses it, delete after it merges)
-claude/project-thread-0rybcr (#6066, #6071; this docs PR reuses it, delete after it merges)
+claude/project-thread-0rybcr (#6066, #6071, #6086)
+claude/project-thread-l1bz26 (#6084; this docs PR reuses it, delete after it merges)
 claude/project-thread-dtdhr9 (#6065)
 claude/project-thread-dtdhr9-ab112 (this docs PR, delete after it merges)
 claude/project-thread-zjwcsx (#6063)

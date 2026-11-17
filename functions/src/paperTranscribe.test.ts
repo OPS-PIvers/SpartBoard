@@ -8,6 +8,7 @@ vi.mock('./firebaseAdmin', () => ({
 }));
 
 import {
+  blankAnswerFromTranscript,
   buildTranscribeParts,
   buildTranscribeResponseSchema,
   cropMimeType,
@@ -252,5 +253,32 @@ describe('transcribePaperPage', () => {
         deps
       )
     ).rejects.toThrow('503');
+  });
+});
+
+describe('fill in the blank boxes', () => {
+  it('labels a box with its write-in lines', () => {
+    const parts = buildTranscribeParts([
+      {
+        questionId: 'q3',
+        image: { data: Buffer.from('a'), mimeType: 'image/webp' },
+        blanks: 2,
+      },
+    ]);
+    expect(parts[0].text).toMatch(/one answer per line/i);
+    expect(parts[1]).toEqual({ text: 'questionId: q3 (2 write-in lines)' });
+  });
+
+  it('stores one answer per line, joined like a typed answer', () => {
+    expect(blankAnswerFromTranscript(' cell \n\n wall ', 2)).toBe(
+      'cell\u001Fwall'
+    );
+    expect(blankAnswerFromTranscript('[EMPTY]\nwall\nextra', 2)).toBe(
+      '\u001Fwall'
+    );
+    expect(blankAnswerFromTranscript('only', 3)).toBe('only\u001F\u001F');
+    expect(blankAnswerFromTranscript('the cell\nmembrane', 1)).toBe(
+      'the cell membrane'
+    );
   });
 });

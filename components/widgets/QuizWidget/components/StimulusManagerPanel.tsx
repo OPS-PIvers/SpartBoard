@@ -9,27 +9,17 @@
  * attach (never auto-shared silently).
  */
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
-import React, {
-  useCallback,
-  useContext,
-  useEffect,
-  useId,
-  useRef,
-  useState,
-} from 'react';
-import type { TourAnchorAttrs } from '@/config/tourAnchors';
+import React, { useCallback, useContext, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Calculator,
   ChevronDown,
   ChevronRight,
-  CloudDownload,
   Eye,
   EyeOff,
   FileText,
   Link2,
   Loader2,
-  Monitor,
   Paperclip,
   Shuffle,
   Trash2,
@@ -50,6 +40,15 @@ import { extractGoogleFileId } from '@/utils/urlHelpers';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useGooglePicker } from '@/hooks/useGooglePicker';
 import { useFilesDrop } from '@/hooks/useFileDrop';
+import {
+  FileSourceButtons as SharedFileSourceButtons,
+  UrlAddRow as SharedUrlAddRow,
+  fileAddButtonClass as fileButtonClass,
+} from '@/components/common/fileAdd/FileAddSources';
+import {
+  isImageFile,
+  usePasteFiles,
+} from '@/components/common/fileAdd/usePasteFiles';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { extractStimulusReadAloudText } from '@/utils/quizReadAloudApi';
@@ -355,107 +354,30 @@ async function addFiles(
   }
 }
 
-const isEditableTarget = (target: EventTarget | null): boolean =>
-  target instanceof HTMLElement &&
-  (target.isContentEditable ||
-    target.tagName === 'INPUT' ||
-    target.tagName === 'TEXTAREA');
-
-const isImageFile = (f: File): boolean => f.type.startsWith('image/');
-
-/** Ctrl+V of a copied image or file anywhere while the panel is open. */
-function usePasteFiles(
-  onFiles: (files: File[]) => void,
-  disabled: boolean,
-  scopeRef?: React.RefObject<HTMLElement | null>,
-  accept?: (file: File) => boolean
-) {
-  useEffect(() => {
-    if (disabled) return;
-    const onPaste = (e: ClipboardEvent) => {
-      const data = e.clipboardData;
-      // An answer box already took this paste for its own picture.
-      if (!data || e.defaultPrevented) return;
-      // Anywhere in the editor counts; modals over it handle their own pastes.
-      if (scopeRef) {
-        const pane = scopeRef.current;
-        const dialog = pane?.closest('[role="dialog"]');
-        const target = e.target instanceof Element ? e.target : null;
-        const inScope = dialog
-          ? target?.closest('[role="dialog"]') === dialog
-          : !!pane?.contains(target);
-        if (!inScope) return;
-      }
-      const files = Array.from(data.files).filter((f) => !accept || accept(f));
-      if (files.length === 0) return;
-      // Pasting copied text into a field keeps working as normal.
-      if (isEditableTarget(e.target) && data.types.includes('text/plain')) {
-        return;
-      }
-      e.preventDefault();
-      onFiles(files);
-    };
-    document.addEventListener('paste', onPaste);
-    return () => document.removeEventListener('paste', onPaste);
-  }, [onFiles, disabled, scopeRef, accept]);
-}
-
-const fileButtonClass =
-  'inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:border-brand-blue-primary hover:text-brand-blue-primary disabled:opacity-40';
-
 /** Hidden file input plus "Choose file" and "Choose from Drive" buttons. */
 const FileSourceButtons: React.FC<{
   intake: StimulusIntake;
   onAdded?: (s: QuizStimulus) => void;
   compact?: boolean;
-  anchors?: { file?: TourAnchorAttrs; drive?: TourAnchorAttrs };
-}> = ({ intake, onAdded, compact = false, anchors }) => {
-  const inputRef = useRef<HTMLInputElement | null>(null);
+}> = ({ intake, onAdded, compact = false }) => {
   const tourType = useContext(StimulusTourTypeContext);
   return (
-    <>
-      {/* no-tour-anchor: hidden file input; the add-file button opens it */}
-      <input
-        ref={inputRef}
-        type="file"
-        multiple
-        accept={STIMULUS_ACCEPT}
-        className="hidden"
-        data-testid="stimulus-file-input"
-        onChange={(e) => {
-          const files = Array.from(e.target.files ?? []);
-          e.target.value = '';
-          if (files.length > 0)
-            void addFiles(intake.addFromFile, files, onAdded);
-        }}
-      />
-      <button
-        {...anchors?.file}
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        disabled={intake.busy}
-        {...(compact ? {} : CHOOSE_FILE[tourType])}
-        className={fileButtonClass}
-      >
-        <Monitor className="h-3.5 w-3.5" aria-hidden />
-        Choose file
-      </button>
-      <button
-        {...anchors?.drive}
-        type="button"
-        onClick={() =>
-          void intake.addFromDrive().then((added) => {
-            if (added) onAdded?.(added);
-          })
-        }
-        disabled={intake.busy}
-        {...(compact ? {} : CHOOSE_DRIVE[tourType])}
-        className={fileButtonClass}
-      >
-        <CloudDownload className="h-3.5 w-3.5" aria-hidden />
-        {compact ? 'Drive' : 'Choose from Drive'}
-      </button>
-    </>
+    <SharedFileSourceButtons
+      onFiles={(files) => void addFiles(intake.addFromFile, files, onAdded)}
+      onDrive={() =>
+        void intake.addFromDrive().then((added) => {
+          if (added) onAdded?.(added);
+        })
+      }
+      busy={intake.busy}
+      accept={STIMULUS_ACCEPT}
+      compact={compact}
+      inputTestId="stimulus-file-input"
+      anchors={{
+        file: compact ? undefined : CHOOSE_FILE[tourType],
+        drive: compact ? undefined : CHOOSE_DRIVE[tourType],
+      }}
+    />
   );
 };
 
@@ -463,49 +385,17 @@ const UrlAddRow: React.FC<{
   onAdd: (url: string) => Promise<unknown>;
   busy: boolean;
   anchored?: boolean;
-  anchors?: { input?: TourAnchorAttrs; add?: TourAnchorAttrs };
-}> = ({ onAdd, busy, anchored = false, anchors }) => {
-  const [url, setUrl] = useState('');
+}> = ({ onAdd, busy, anchored = false }) => {
   const tourType = useContext(StimulusTourTypeContext);
-  const submit = async () => {
-    if (!url.trim()) return;
-    await onAdd(url);
-    setUrl('');
-  };
   return (
-    <div className="flex gap-2">
-      <input
-        {...anchors?.input}
-        type="url"
-        value={url}
-        onChange={(e) => setUrl(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            void submit();
-          }
-        }}
-        placeholder="Paste a link"
-        {...(anchored ? URL_INPUT[tourType] : {})}
-        className={inputClass}
-        disabled={busy}
-      />
-      <button
-        {...anchors?.add}
-        type="button"
-        onClick={() => void submit()}
-        disabled={busy || !url.trim()}
-        {...(anchored ? URL_ADD[tourType] : {})}
-        className="shrink-0 flex items-center gap-1 px-3 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 text-white rounded-lg text-xs font-bold transition-colors"
-      >
-        {busy ? (
-          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-        ) : (
-          <Link2 className="w-3.5 h-3.5" />
-        )}
-        Add
-      </button>
-    </div>
+    <SharedUrlAddRow
+      onAdd={onAdd}
+      busy={busy}
+      anchors={{
+        input: anchored ? URL_INPUT[tourType] : undefined,
+        add: anchored ? URL_ADD[tourType] : undefined,
+      }}
+    />
   );
 };
 
