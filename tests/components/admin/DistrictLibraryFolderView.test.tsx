@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { DistrictLibraryItem } from '@/types/districtLibrary';
+import type { FolderMap } from '@/utils/districtLibraryFolders';
 
 const moveDistrictItems = vi.fn<(...args: unknown[]) => Promise<void>>();
 vi.mock('@/context/useDialog', () => ({
@@ -44,7 +45,7 @@ const item = (id: string, folderId?: string) =>
     folderId,
   }) as DistrictLibraryItem;
 
-const folders = {
+const folders: FolderMap = {
   sci: { name: '8th Grade Science', parentId: null, order: 0 },
 };
 
