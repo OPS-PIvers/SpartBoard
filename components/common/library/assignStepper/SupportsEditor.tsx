@@ -181,7 +181,10 @@ export const SupportsEditor: React.FC<{
           );
           id = up.id;
           await driveService.makePublic(up.id, undefined);
-          addDriveSupport(up.id, pasted ? 'Pasted image' : f.name);
+          addDriveSupport(
+            up.id,
+            pasted && f.type.startsWith('image/') ? 'Pasted image' : f.name
+          );
           added += 1;
         } catch {
           if (id) await driveService.deleteFile(id).catch(() => undefined);
