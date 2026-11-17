@@ -874,6 +874,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "requires": "settings-open",
     "keys": [
       "activity-wall#content",
+      "agenda#content",
       "arts-letters-agenda#content",
       "blending-board#content",
       "breathing#content",
@@ -3820,6 +3821,134 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "agenda.pick-course",
+    "label": "A course in the Agenda course list",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.agenda.face",
+        "kind": "widget",
+        "widget_type": "agenda",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "agenda.picker-back",
+    "label": "Back button in the Agenda course list",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.agenda.face",
+        "kind": "widget",
+        "widget_type": "agenda",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "agenda.change-course",
+    "label": "Change course button in Agenda",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.agenda.face",
+        "kind": "widget",
+        "widget_type": "agenda",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "agenda.reload",
+    "label": "Reload agenda button in Agenda",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.agenda.face",
+        "kind": "widget",
+        "widget_type": "agenda",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "agenda.open-slides",
+    "label": "Open in Google Slides button in Agenda",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.agenda.face",
+        "kind": "widget",
+        "widget_type": "agenda",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "agenda.set-up",
+    "label": "Set up in My Classes button in Agenda",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.agenda.face",
+        "kind": "widget",
+        "widget_type": "agenda",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "agenda.fix-sharing",
+    "label": "Fix in My Classes button on the Agenda sharing notice",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.agenda.face",
+        "kind": "widget",
+        "widget_type": "agenda",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "agenda.open-classes",
+    "label": "Open My Classes button in Agenda",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.agenda.face",
+        "kind": "widget",
+        "widget_type": "agenda",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "focus.class",
     "label": "Class picker in Focus",
     "scope": "widget",
@@ -4809,6 +4938,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "assign-step.classes",
     "label": "Classes step header in the Assign dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "assign-step.modifications",
+    "label": "Modifications step header in the Assign dialog",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -6057,6 +6199,167 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-mods.students",
+    "label": "Students menu for a modification group in the Assign dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-step.modifications"
+        ],
+        "reveal": "assign-step.modifications"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.students-search",
+    "label": "Search box in the modification group Students menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.students"
+        ],
+        "reveal": "assign-mods.students"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.student",
+    "label": "Student checkbox in the modification group Students menu",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.students"
+        ],
+        "reveal": "assign-mods.students"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.answer-choices",
+    "label": "Answer choices rule for a modification group",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-step.modifications"
+        ],
+        "reveal": "assign-step.modifications"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.time",
+    "label": "Time limit rule for a modification group",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-step.modifications"
+        ],
+        "reveal": "assign-step.modifications"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.read-aloud",
+    "label": "Read aloud switch for a modification group",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-step.modifications"
+        ],
+        "reveal": "assign-step.modifications"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.language",
+    "label": "Language dropdown for a modification group",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-step.modifications"
+        ],
+        "reveal": "assign-step.modifications"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.group",
+    "label": "Closed modification group row in the Assign dialog",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-step.modifications"
+        ],
+        "reveal": "assign-step.modifications"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.add-group",
+    "label": "Another group with different changes button in the Assign dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-step.modifications"
+        ],
+        "reveal": "assign-step.modifications"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.remove-group",
+    "label": "Remove group button in the Assign dialog Modifications step",
+    "scope": "board",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-step.modifications"
+        ],
+        "reveal": "assign-step.modifications"
+      }
+    ]
+  },
+  {
     "id": "assign-mods.open",
     "label": "Modifications link in the Assign dialog",
     "scope": "board",
@@ -6196,6 +6499,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "assign-mods.open"
         ],
         "reveal": "assign-mods.open"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.group-generate-translation",
+    "label": "Generate translation button in the Assign dialog Modifications step",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-step.modifications"
+        ],
+        "reveal": "assign-step.modifications"
       }
     ]
   },
@@ -26365,6 +26684,94 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "needs": [
           "class"
         ]
+      }
+    ]
+  },
+  {
+    "id": "classes.family-link-toggle",
+    "label": "Family link switch for a Course in My Classes",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.family-link-copy",
+    "label": "Copy family link button for a Course in My Classes",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.family-link-deck-private",
+    "label": "Stop sharing the deck outside Orono checkbox when turning off a family link",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.family-link-toggle"
+        ],
+        "reveal": "classes.family-link-toggle"
+      }
+    ]
+  },
+  {
+    "id": "classes.family-link-cancel",
+    "label": "Cancel button in the family link confirm",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.family-link-toggle"
+        ],
+        "reveal": "classes.family-link-toggle"
+      }
+    ]
+  },
+  {
+    "id": "classes.family-link-confirm",
+    "label": "Turn on or off button in the family link confirm",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.family-link-toggle"
+        ],
+        "reveal": "classes.family-link-toggle"
       }
     ]
   },

@@ -83,6 +83,7 @@ export const WIDGET_GRADE_LEVELS: Record<
   routineGuide: ALL_GRADE_LEVELS,
   'arts-letters-agenda': ALL_GRADE_LEVELS,
   focus: ['3-5', '6-8', '9-12'],
+  agenda: ['6-8', '9-12'],
   'talking-tool': ALL_GRADE_LEVELS,
   breathing: ALL_GRADE_LEVELS,
   record: ALL_GRADE_LEVELS,

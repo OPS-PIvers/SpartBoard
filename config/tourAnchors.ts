@@ -886,6 +886,38 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     destructive: true,
   },
+  'agenda.pick-course': {
+    label: 'A course in the Agenda course list',
+    perWidget: true,
+  },
+  'agenda.picker-back': {
+    label: 'Back button in the Agenda course list',
+    perWidget: true,
+  },
+  'agenda.change-course': {
+    label: 'Change course button in Agenda',
+    perWidget: true,
+  },
+  'agenda.reload': {
+    label: 'Reload agenda button in Agenda',
+    perWidget: true,
+  },
+  'agenda.open-slides': {
+    label: 'Open in Google Slides button in Agenda',
+    perWidget: true,
+  },
+  'agenda.set-up': {
+    label: 'Set up in My Classes button in Agenda',
+    perWidget: true,
+  },
+  'agenda.fix-sharing': {
+    label: 'Fix in My Classes button on the Agenda sharing notice',
+    perWidget: true,
+  },
+  'agenda.open-classes': {
+    label: 'Open My Classes button in Agenda',
+    perWidget: true,
+  },
   'focus.class': {
     label: 'Class picker in Focus',
     perWidget: true,
@@ -1159,6 +1191,10 @@ export const TOUR_ANCHORS = {
   },
   'assign-step.classes': {
     label: 'Classes step header in the Assign dialog',
+    panel: true,
+  },
+  'assign-step.modifications': {
+    label: 'Modifications step header in the Assign dialog',
     panel: true,
   },
   'assign-step.when': {
@@ -1468,6 +1504,49 @@ export const TOUR_ANCHORS = {
     label: 'Card list in the Flashcards assign Cards step',
     panel: true,
   },
+  'assign-mods.students': {
+    label: 'Students menu for a modification group in the Assign dialog',
+    panel: true,
+  },
+  'assign-mods.students-search': {
+    label: 'Search box in the modification group Students menu',
+    panel: true,
+  },
+  'assign-mods.student': {
+    label: 'Student checkbox in the modification group Students menu',
+    perField: true,
+    panel: true,
+  },
+  'assign-mods.answer-choices': {
+    label: 'Answer choices rule for a modification group',
+    panel: true,
+  },
+  'assign-mods.time': {
+    label: 'Time limit rule for a modification group',
+    panel: true,
+  },
+  'assign-mods.read-aloud': {
+    label: 'Read aloud switch for a modification group',
+    panel: true,
+  },
+  'assign-mods.language': {
+    label: 'Language dropdown for a modification group',
+    panel: true,
+  },
+  'assign-mods.group': {
+    label: 'Closed modification group row in the Assign dialog',
+    perField: true,
+    panel: true,
+  },
+  'assign-mods.add-group': {
+    label: 'Another group with different changes button in the Assign dialog',
+    panel: true,
+  },
+  'assign-mods.remove-group': {
+    label: 'Remove group button in the Assign dialog Modifications step',
+    destructive: true,
+    panel: true,
+  },
   'assign-mods.open': {
     label: 'Modifications link in the Assign dialog',
     panel: true,
@@ -1509,6 +1588,12 @@ export const TOUR_ANCHORS = {
   'assign-mods.generate-translation': {
     label:
       'Generate translation button in the Assign dialog modifications view',
+    perField: true,
+    panel: true,
+  },
+  'assign-mods.group-generate-translation': {
+    label:
+      'Generate translation button in the Assign dialog Modifications step',
     perField: true,
     panel: true,
   },
@@ -6425,6 +6510,29 @@ export const TOUR_ANCHORS = {
   'classes.agenda-link-remove': {
     label: 'Remove a Course link in My Classes',
     destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'classes.family-link-toggle': {
+    label: 'Family link switch for a Course in My Classes',
+    persists: true,
+    panel: true,
+  },
+  'classes.family-link-copy': {
+    label: 'Copy family link button for a Course in My Classes',
+    panel: true,
+  },
+  'classes.family-link-deck-private': {
+    label:
+      'Stop sharing the deck outside Orono checkbox when turning off a family link',
+    panel: true,
+  },
+  'classes.family-link-cancel': {
+    label: 'Cancel button in the family link confirm',
+    panel: true,
+  },
+  'classes.family-link-confirm': {
+    label: 'Turn on or off button in the family link confirm',
     persists: true,
     panel: true,
   },

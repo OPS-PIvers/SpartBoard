@@ -1625,6 +1625,12 @@ export const SETTINGS_FIELD_LIST: Readonly<
       kind: 'toggle',
     },
   ],
+  agenda: [
+    {
+      anchor: 'settings.group:agenda#content',
+      label: 'Content',
+    },
+  ],
   mathTools: [
     {
       anchor: 'settings.group:mathTools#behavior',

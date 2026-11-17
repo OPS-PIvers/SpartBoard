@@ -180,6 +180,11 @@ const WebTourIntakePage = lazy(() =>
     default: module.WebTourIntakePage,
   }))
 );
+const FamilyPage = lazy(() =>
+  import('./components/family/FamilyPage').then((module) => ({
+    default: module.FamilyPage,
+  }))
+);
 const PublicTourPage = lazy(() =>
   import('./components/tours/publicLink/PublicTourPage').then((module) => ({
     default: module.PublicTourPage,
@@ -441,6 +446,13 @@ const WidgetGraderHarness =
         )
       )
     : null;
+const FamilyLinkDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/FamilyLinkDevHarness').then((module) => ({
+        default: module.FamilyLinkDevHarness,
+      }))
+    )
+  : null;
 const ClassStudentPageDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/ClassStudentPageDevHarness').then((module) => ({
@@ -1177,6 +1189,15 @@ const App: React.FC = () => {
     );
   }
 
+  // A Course's public family page (COURSE_AND_AGENDA.md D13): anyone, signed out, so no providers at all.
+  if (pathname.startsWith('/family/')) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <FamilyPage />
+      </Suspense>
+    );
+  }
+
   // A tour an admin made public (TOURS_10X.md S6): anyone, signed out, so no providers at all.
   if (pathname.startsWith('/tour-steps/')) {
     return (
@@ -1467,6 +1488,15 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <WidgetGraderHarness />
+      </Suspense>
+    );
+  }
+
+  // The family link switch and family page on fixtures; auth-bypass only.
+  if (FamilyLinkDevHarness && isAuthBypass && pathname === '/family-link-dev') {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <FamilyLinkDevHarness />
       </Suspense>
     );
   }

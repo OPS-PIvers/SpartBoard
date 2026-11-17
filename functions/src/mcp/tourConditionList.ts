@@ -97,6 +97,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'managed-profile-check',
   'mini-app-ai',
   'mini-app-results',
+  'modification-groups',
   'music-my-songs',
   'noise-meter-pro',
   'ocr',

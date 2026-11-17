@@ -3,6 +3,7 @@ import type React from 'react';
 
 export type AssignStepId =
   | 'classes'
+  | 'modifications'
   | 'when'
   | 'attempts'
   | 'integrity'
@@ -77,6 +78,7 @@ export function getAssignSteps(
 
 const TITLES: Record<AssignStepId, string> = {
   classes: 'Classes',
+  modifications: 'Modifications',
   when: 'When',
   attempts: 'Attempts and order',
   integrity: 'Quiz integrity',

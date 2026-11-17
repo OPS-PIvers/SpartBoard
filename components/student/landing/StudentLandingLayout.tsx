@@ -45,6 +45,8 @@ export interface StudentLandingLayoutProps {
   notice?: React.ReactNode;
   /** Fill the parent box instead of the viewport (admin preview). */
   embedded?: boolean;
+  /** Shown above the selected class's tabs: its Agenda and pinned links. */
+  classTop?: React.ReactNode;
 }
 
 const SignOutButton: React.FC<{
@@ -86,6 +88,7 @@ export const StudentLandingLayout: React.FC<StudentLandingLayoutProps> = ({
   onOpenGradeOnly,
   notice,
   embedded = false,
+  classTop,
 }) => {
   const [sheetOpen, setSheetOpen] = useState(false);
   const sheetTriggerRef = useRef<HTMLButtonElement>(null);
@@ -213,6 +216,7 @@ export const StudentLandingLayout: React.FC<StudentLandingLayoutProps> = ({
                 pseudonymUid={pseudonymUid}
                 onLockedClick={onLockedClick}
                 onOpenGradeOnly={onOpenGradeOnly}
+                classTop={classTop}
               />
             ) : (
               <LandingOverview
