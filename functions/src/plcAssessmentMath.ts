@@ -681,10 +681,30 @@ export function gradeGroupAnswer(
   studentAnswer: string,
   manual: ManualGrade | undefined,
   /** FIB only: translated accepted answers for the locale served to this student. */
-  acceptedAnswers?: readonly string[]
+  acceptedAnswers?: readonly string[],
+  /** Paper answers only: the answer's public `paperTranscript` state. */
+  paperTranscript?: RawAnswer['paperTranscript']
 ): LocalGrade {
   const max = question.points;
   const attempted = hasSubmittedContent(studentAnswer);
+  // Paper fill-in-the-blank not read yet: owed a grade until the AI read or the teacher's mark.
+  if (question.type === 'FIB' && paperAnswerOwed(paperTranscript)) {
+    if (manual === undefined) {
+      return {
+        isCorrect: false,
+        pointsEarned: 0,
+        pointsMax: max,
+        state: 'awaiting-grade',
+      };
+    }
+    const awarded = Math.min(max, Math.max(0, manual.pointsAwarded));
+    return {
+      isCorrect: awarded === max && max > 0,
+      pointsEarned: awarded,
+      pointsMax: max,
+      state: 'scored',
+    };
+  }
   if (question.type === 'free-response') {
     if (manual === undefined) {
       return {
@@ -1101,7 +1121,8 @@ export function computeAssessmentAggregate(
           r.manualGrades?.[sessionQid],
           question.type === 'FIB'
             ? servedFibAnswers(session, r.studentUid, sessionQid)
-            : undefined
+            : undefined,
+          a?.paperTranscript
         );
         // A paper answer not yet scanned or still untranscribed is owed a grade, never a 0.
         const paperOwed =

@@ -526,3 +526,25 @@ describe('isWrittenAnswerAwaitingGrade with a modified rubric', () => {
     ).toBe(true);
   });
 });
+
+describe('gradeAnswer — fill in the blank on paper', () => {
+  const fib = q({ type: 'FIB', correctAnswer: 'cell\u001Fwall', points: 2 });
+
+  it('waits for the AI read or the teacher while the box is unread', () => {
+    for (const state of ['pending', 'image'] as const) {
+      expect(gradeAnswer(fib, '', undefined, undefined, state)).toMatchObject({
+        pointsEarned: 0,
+        state: 'awaiting-grade',
+      });
+      expect(
+        gradeAnswer(fib, '', grade({ pointsAwarded: 2 }), undefined, state)
+      ).toMatchObject({ pointsEarned: 2, isCorrect: true, state: 'scored' });
+    }
+  });
+
+  it('scores a read box with the typed rules', () => {
+    expect(
+      gradeAnswer(fib, 'Cell\u001Fwall', undefined, undefined, 'done')
+    ).toMatchObject({ pointsEarned: 2, isCorrect: true, state: 'scored' });
+  });
+});

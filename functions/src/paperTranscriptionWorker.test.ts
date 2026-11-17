@@ -214,6 +214,44 @@ describe('runPaperTranscriptionJob', () => {
     ]);
   });
 
+  it('stores a fill-in-the-blank box as one answer per line, ready for scoring', async () => {
+    const job = seed()[JOB];
+    const s = setup(
+      {
+        [JOB]: {
+          ...job,
+          boxes: [
+            { questionId: 'q1', storagePath: crop('q1'), blanks: 2 },
+            { questionId: 'q2', storagePath: crop('q2') },
+          ],
+        },
+      },
+      {
+        transcribe: () =>
+          Promise.resolve({
+            model: 'gemini-standard',
+            boxes: [
+              {
+                questionId: 'q1',
+                ok: true as const,
+                rawTranscript: 'nucleus\n[empty]',
+                html: '<p>nucleus</p><p>[empty]</p>',
+                uncertainSpans: [],
+                illegibleCount: 0,
+              },
+            ],
+          }),
+      }
+    );
+    expect(await runPaperTranscriptionJob('t1', 'scan1_3_1_0', s.deps)).toBe(
+      'done'
+    );
+    expect(answerOf(s, 'q1')).toMatchObject({
+      answer: 'nucleus\u001F',
+      paperTranscript: 'done',
+    });
+  });
+
   it('does not double-charge or re-transcribe on replay', async () => {
     const s = setup();
     await runPaperTranscriptionJob('t1', 'scan1_3_1_0', s.deps);

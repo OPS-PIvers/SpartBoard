@@ -984,6 +984,28 @@ export function gradeAnswer(
     };
   }
 
+  // Paper fill-in-the-blank not read yet: owed a grade until the AI read or the teacher's mark.
+  if (
+    question.type === 'FIB' &&
+    (paperTranscript === 'pending' || paperTranscript === 'image')
+  ) {
+    if (!manualGrade) {
+      return {
+        isCorrect: false,
+        pointsEarned: 0,
+        pointsMax: max,
+        state: 'awaiting-grade',
+      };
+    }
+    const awarded = Math.min(max, Math.max(0, manualGrade.pointsAwarded));
+    return {
+      isCorrect: awarded === max && max > 0,
+      pointsEarned: awarded,
+      pointsMax: max,
+      state: 'scored',
+    };
+  }
+
   const state: GradeResult['state'] = attempted ? 'scored' : 'not-attempted';
   const correct = normalizeAnswer(question.correctAnswer);
   const given = normalizeAnswer(studentAnswer);

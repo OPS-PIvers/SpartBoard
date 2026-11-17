@@ -28,6 +28,7 @@ import {
 } from './paperHandwritingQuota';
 import {
   buildDefaultPaperTranscribeDeps,
+  blankAnswerFromTranscript,
   transcribePaperPage,
   type PaperPageTranscript,
   type PaperTranscribeBox,
@@ -139,7 +140,7 @@ export function parseJob(
     return null;
   }
   const cleanBoxes = boxes.filter(
-    (b): b is { questionId: string; storagePath: string } =>
+    (b): b is { questionId: string; storagePath: string; blanks?: unknown } =>
       !!b &&
       typeof (b as { questionId?: unknown }).questionId === 'string' &&
       typeof (b as { storagePath?: unknown }).storagePath === 'string'
@@ -152,6 +153,9 @@ export function parseJob(
     boxes: cleanBoxes.map((b) => ({
       questionId: b.questionId,
       storagePath: b.storagePath,
+      ...(typeof b.blanks === 'number' && b.blanks > 0
+        ? { blanks: b.blanks }
+        : {}),
     })),
     status: status as PaperTranscriptionJobStatus,
     attempt,
@@ -605,7 +609,10 @@ export async function runPaperTranscriptionJob(
       );
       nextAnswers[index] = {
         ...nextAnswers[index],
-        answer: result.html,
+        // A fill-in-the-blank box stores plain blanks, so it scores like a typed answer.
+        answer: box.blanks
+          ? blankAnswerFromTranscript(result.rawTranscript, box.blanks)
+          : result.html,
         paperTranscript: 'done',
       };
       tx.set(

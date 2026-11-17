@@ -376,6 +376,38 @@ describe('client/server page map parity (layoutVersion 2)', () => {
     ).toEqual(['lines', 'lines', 'lines', 'graph', 'lines', 'lines', 'image']);
   });
 
+  it('prints fill in the blank as one line per blank the same way', () => {
+    const questions = [
+      QUESTIONS[0],
+      question('b1', 'cell\u001Fwall\u001Fmembrane', [], 'FIB'),
+      QUESTIONS[4],
+      free('f1'),
+    ];
+    const quiz = writtenQuiz(questions);
+    for (const fib of [true, false]) {
+      const client = clientAnalyze(quiz, { written: true, fib });
+      const server = serverAnalyze(questions, { written: true, fib });
+      expect(server.rows).toEqual(client.rows);
+      expect(server.written).toEqual(client.written);
+      expect(server.entries).toEqual(client.entries);
+      for (const grid of GRIDS) {
+        expect(
+          serverPages({ entries: server.entries, grid, stems: true })
+        ).toEqual(clientPages({ entries: client.entries, grid, stems: true }));
+      }
+    }
+    const client = clientAnalyze(quiz, { written: true, fib: true });
+    expect(
+      client.entries.flatMap((e) =>
+        e.kind === 'written' ? [[e.questionId, e.blanks ?? 0]] : []
+      )
+    ).toEqual([
+      ['b1', 3],
+      ['q5', 1],
+      ['f1', 0],
+    ]);
+  });
+
   it('refuses the same written questions inside an "answer any" section', () => {
     const questions = [QUESTIONS[0], free('f1'), free('f2'), free('f3')];
     const extra: Partial<QuizData> = {
