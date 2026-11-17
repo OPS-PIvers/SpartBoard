@@ -41,6 +41,8 @@ import { LinkSchoologyModal } from '@/components/classes/LinkSchoologyModal';
 import { useSchoologySeenSections } from '@/hooks/useSchoologySeenSections';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { SidebarClassRow } from './SidebarClassRow';
+import { CourseClassList } from '@/components/classes/course/CourseClassList';
+import { useCourses } from '@/hooks/useCourses';
 
 /** Google Classroom OAuth scope for read-only course listing. */
 const CLASSROOM_COURSES_READONLY_SCOPE =
@@ -143,6 +145,8 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
 
   const [editingRosterId, setEditingRosterId] = useState<string | null>(null);
   const studentPageOn = canAccessFeature('class-student-page');
+  const coursesOn = canAccessFeature('course-agenda');
+  const { courses: spartCourses, saveCourse } = useCourses(coursesOn);
   const [studentPageRoster, setStudentPageRoster] =
     useState<ClassRoster | null>(null);
   const [classLinkMode, setClassLinkMode] =
@@ -246,7 +250,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
       setCourseLoadState('loaded');
     } catch (err) {
       setCourseLoadError(
-        err instanceof Error ? err.message : 'Failed to load courses.'
+        err instanceof Error ? err.message : 'Failed to load Classroom courses.'
       );
       setCourseLoadState('error');
     }
@@ -453,6 +457,30 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
     }
   };
 
+  const renderRosterRow = (r: ClassRoster, rosterIndex: number) => (
+    <SidebarClassRow
+      key={r.id}
+      roster={r}
+      isActive={activeRosterId === r.id}
+      classLinkEnabled={classLinkEnabled}
+      rowKey={`row-${rosterIndex + 1}`}
+      onToggleActive={() =>
+        setActiveRoster(activeRosterId === r.id ? null : r.id)
+      }
+      onEdit={() => setEditingRosterId(r.id)}
+      onSyncClassLink={() =>
+        setClassLinkMode({ kind: 'merge', rosterId: r.id, rosterName: r.name })
+      }
+      onLinkClassroom={() => setLinkingRoster(r)}
+      onViewStudentPage={
+        studentPageOn && studentPageClassId(r)
+          ? () => setStudentPageRoster(r)
+          : undefined
+      }
+      onDelete={() => void handleDelete(r)}
+    />
+  );
+
   return (
     <>
       <div
@@ -570,38 +598,22 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
                     defaultValue: 'Your Classes',
                   })}
                 </h3>
-                <ul
-                  className="divide-y divide-slate-200 border-y border-slate-200"
-                  {...tourAttr('classes.roster-list')}
-                >
-                  {rosters.map((r, rosterIndex) => (
-                    <SidebarClassRow
-                      key={r.id}
-                      roster={r}
-                      isActive={activeRosterId === r.id}
-                      classLinkEnabled={classLinkEnabled}
-                      rowKey={`row-${rosterIndex + 1}`}
-                      onToggleActive={() =>
-                        setActiveRoster(activeRosterId === r.id ? null : r.id)
-                      }
-                      onEdit={() => setEditingRosterId(r.id)}
-                      onSyncClassLink={() =>
-                        setClassLinkMode({
-                          kind: 'merge',
-                          rosterId: r.id,
-                          rosterName: r.name,
-                        })
-                      }
-                      onLinkClassroom={() => setLinkingRoster(r)}
-                      onViewStudentPage={
-                        studentPageOn && studentPageClassId(r)
-                          ? () => setStudentPageRoster(r)
-                          : undefined
-                      }
-                      onDelete={() => void handleDelete(r)}
-                    />
-                  ))}
-                </ul>
+                {coursesOn ? (
+                  <CourseClassList
+                    rosters={rosters}
+                    courses={spartCourses}
+                    saveCourse={saveCourse}
+                    renderRow={renderRosterRow}
+                    listAttrs={tourAttr('classes.roster-list')}
+                  />
+                ) : (
+                  <ul
+                    className="divide-y divide-slate-200 border-y border-slate-200"
+                    {...tourAttr('classes.roster-list')}
+                  >
+                    {rosters.map(renderRosterRow)}
+                  </ul>
+                )}
               </div>
             )}
           </div>
@@ -730,7 +742,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
                 <div>
                   <p className="text-sm font-bold text-slate-700">
                     {t('sidebar.classes.linkGoogleClassroom.errorTitle', {
-                      defaultValue: 'Could not load courses',
+                      defaultValue: 'Could not load Classroom courses',
                     })}
                   </p>
                   {courseLoadError && (
@@ -757,7 +769,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
                 <div className="text-center">
                   <p className="text-sm font-bold text-slate-600">
                     {t('sidebar.classes.linkGoogleClassroom.emptyTitle', {
-                      defaultValue: 'No active courses found',
+                      defaultValue: 'No active Classroom courses found',
                     })}
                   </p>
                   <p className="text-xs text-slate-400 mt-0.5 max-w-xs">

@@ -28,7 +28,11 @@ import {
   escapeHtml,
 } from './organizationInvites';
 import { assertViewAsAllowed } from './viewAsGuard';
-import { isRevokedMemberStatus, isStrictSuperAdmin } from './authz';
+import {
+  isOnLegacySuperAdminList,
+  isRevokedMemberStatus,
+  isStrictSuperAdmin,
+} from './authz';
 import { normalizeEmailDomain } from './classlinkShared';
 import { isDomainVerifiedOnlyFor } from './orgDomainOwnership';
 
@@ -118,7 +122,8 @@ async function assertCallerOutranksTarget(
 ): Promise<void> {
   const targetIsSuper =
     target.roleId === 'super_admin' ||
-    (await isStrictSuperAdmin(db, targetEmailLower, { includeRevoked: true }));
+    (await isStrictSuperAdmin(db, targetEmailLower)) ||
+    (await isOnLegacySuperAdminList(db, targetEmailLower));
   if (!targetIsSuper) return;
   if (await isStrictSuperAdmin(db, callerEmailLower)) return;
   throw new HttpsError(

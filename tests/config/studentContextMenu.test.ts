@@ -16,6 +16,7 @@ describe('isStudentFacingPath', () => {
     '/guided-learning/s1',
     '/miniapp/m1',
     '/flashcards/a/set1',
+    '/writing/s1',
     '/my-assignments',
     '/project/p1',
     '/classroom-addon/student',

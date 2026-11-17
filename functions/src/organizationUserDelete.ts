@@ -15,7 +15,7 @@
  *   needs the Admin SDK. `recursiveDelete` also has no client equivalent.
  *
  * WHAT IT DELETES
- *   `/users/{uid}` and all 31 subcollections, Storage under `users/{uid}/`,
+ *   `/users/{uid}` and all 31 subcollections, `/verified_classes/{uid}`, Storage under `users/{uid}/`,
  *   `/admins/{email}`, the Firebase Auth record, and the member doc (last, so
  *   a retry after a partial failure still resolves its target).
  *
@@ -44,6 +44,7 @@ import {
   isStrictSuperAdmin,
 } from './authz';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { deleteAllCourseCopies } from './course/saveCourse';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -114,7 +115,7 @@ export function parseDeletePayload(data: unknown): DeleteUserPayload {
 // ── Authorization ──────────────────────────────────────────────────────────
 
 /**
- * Fails closed. Mirrors `isMemberSuperAdmin()` / `isLegacySuperAdmin()` in
+ * Fails closed. Mirrors `isMemberSuperAdmin()` in
  * firestore.rules: the member doc is read from the OPERATOR org by fixed path,
  * never the target org, because a `super_admin` roleId in any other org grants
  * nothing server-side. An `/admins/{email}` doc is deliberately not a source —
@@ -346,7 +347,10 @@ export const deleteOrganizationUser = onCall(
     }
 
     if (uid) {
+      // Course copies live outside users/{uid}: Class pages, course links and public family pages.
+      await deleteAllCourseCopies(db, uid);
       await db.recursiveDelete(db.doc(`users/${uid}`));
+      await db.doc(`verified_classes/${uid}`).delete();
       try {
         await admin
           .storage()

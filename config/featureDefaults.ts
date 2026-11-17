@@ -12,6 +12,7 @@ import {
   Building2,
   Cast,
   ClipboardCheck,
+  HardDrive,
   Highlighter,
   ScanLine,
   Download,
@@ -32,6 +33,7 @@ import {
   Mic,
   Music,
   Music2,
+  Presentation,
   Printer,
   RefreshCw,
   Send,
@@ -57,8 +59,11 @@ import {
   CloudSun,
   Workflow,
   SquareChevronDown,
+  Split,
+  ImagePlus,
   CalendarClock,
   MessageSquare,
+  SlidersHorizontal,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -638,6 +643,29 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Flashcards accepted answers as rows. Admin-only until Paul has tested it in prod.
+  'flashcard-answer-rows': {
+    label: 'Flashcards answer rows',
+    icon: Split,
+    description:
+      'Each accepted answer gets its own row, and slash shorthand spells out into rows.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Flashcards card images. Admin-only until Paul has tested it in prod.
+  'flashcard-card-images': {
+    label: 'Flashcards card images',
+    icon: ImagePlus,
+    description: 'Teachers can paste or pick an image for each side of a card.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Live tour editing v2 and tour materials. Admin-only until Paul has edited tours with it in prod.
   'live-tour-editing-v2': {
     label: 'Live tour editing v2',
@@ -948,6 +976,32 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Assign "Modifications" step: student groups with shared rules instead of per-question edits.
+  'modification-groups': {
+    label: 'Modification groups',
+    icon: SlidersHorizontal,
+    description:
+      'Quiz assign gets a Modifications step: pick students, then set shared changes like extra time or fewer answer choices.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    modalLabel: 'Modification groups',
+    group: 'assigning',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'project-submit': {
+    label: 'Project submit',
+    icon: ClipboardCheck,
+    description:
+      'Groups submit their project; teachers see Submitted, Late or Missing and can reopen.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Gradebook route and its data layer (docs/plans/GRADEBOOK.md D5).
   gradebook: {
     label: 'Gradebook',
@@ -976,6 +1030,19 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'View Student Page',
     icon: Eye,
     description: "Teachers open a class's student page from My Classes.",
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'students',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Course and Agenda setup in My Classes (docs/plans/COURSE_AND_AGENDA.md D19). Admin-only until Paul has used it in prod.
+  'course-agenda': {
+    label: 'Courses and Agenda',
+    icon: Presentation,
+    description:
+      'Link classes into a Course and show its daily Agenda to students.',
     stage: 'preview',
     afterLaunch: 'keep',
     category: 'students',
@@ -1341,6 +1408,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Embed setting for touch panels where a tap opens the embedded deck in a new tab.
+  'embed-block-new-tabs': {
+    label: 'Block new tabs in Embed',
+    icon: MonitorPlay,
+    description:
+      'Embed widgets get a setting that stops the embedded page from opening new tabs.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Widget Connections (docs/adr/0002). Admin-only until Paul has run it in class.
   'widget-connections': {
     label: 'Widget connections',
@@ -1612,6 +1691,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Teacher uploads go only to Drive; without Drive they ask to reconnect. Admin-only until Paul has used it on prod.
+  'drive-only-uploads': {
+    label: 'Uploads save to Drive only',
+    icon: HardDrive,
+    description:
+      'Pictures and PDFs a teacher uploads save only to their Google Drive. Without Drive, they are asked to reconnect.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Assignment rows in the Quiz, Flashcards and Video Activity libraries show "N classes" with the full list.
   'assignment-class-list': {
     label: 'Assignment class list',
@@ -1690,6 +1781,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'va-score-only-verdicts': {
+    label: 'Video Activity: score-only publish hides right/wrong',
+    icon: Video,
+    description:
+      'Publishing Video Activity scores at Score only stops showing students which answers were right or wrong.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
 };
 
 /** Retired global ids the Dock reads until a Widgets-page doc exists (plan D3). */
@@ -1748,6 +1850,9 @@ export const WIDGET_DEFAULT_ACCESS_LEVEL: Partial<
   routineGuide: 'admin',
   'arts-letters-agenda': 'admin',
   focus: 'admin',
+  // Writing assignment plan D19: admins first.
+  writing: 'admin',
+  agenda: 'admin',
 };
 
 export const getWidgetDefaultAccessLevel = (

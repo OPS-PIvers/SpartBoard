@@ -68,6 +68,7 @@ import {
   isFreeResponseType,
   type QuizWidgetKind,
   type QuizLiveLogEntry,
+  type Rubric,
 } from '@/types';
 import {
   buildReviewRanking,
@@ -218,6 +219,7 @@ import {
   ltiPushErrorMessage,
   type LtiPushGradesRequest,
   type LtiPushGradesData,
+  LTI_PUSH_GRADES_CALL_OPTS,
 } from '@/utils/ltiGradePush';
 import {
   runClassroomGradePush,
@@ -856,16 +858,17 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   // Build a display-name lookup keyed by the response's deterministic
   // doc key so the grader can show a real student name in its header
   // rather than the raw uid/pin.
-  const displayNameByResponseKey = useMemo(() => {
+  // The grader lists students "Last, First", like the exports.
+  const graderNameByResponseKey = useMemo(() => {
     const m = new Map<string, string>();
     responses.forEach((r) => {
       const key = r._responseKey ?? r.studentUid;
       if (!key) return;
-      const name = resolveResponseDisplayName(r, pinToName, byStudentUid);
+      const name = resolveTargetExportName(r);
       if (name) m.set(key, name);
     });
     return m;
-  }, [responses, pinToName, byStudentUid]);
+  }, [responses, resolveTargetExportName]);
 
   // Save a manual grade for a single response/question pair. Uses
   // Firestore's dotted-field-path syntax so concurrent grades on
@@ -2251,7 +2254,8 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     try {
       const push = httpsCallable<LtiPushGradesRequest, LtiPushGradesData>(
         functions,
-        'ltiPushGradesForAssignmentV1'
+        'ltiPushGradesForAssignmentV1',
+        LTI_PUSH_GRADES_CALL_OPTS
       );
       const { data } = await push({
         sessionId: session.id,
@@ -2360,7 +2364,12 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
         }),
       };
     },
-    onDone: (message, ok) => addToast(message, ok ? 'success' : 'error'),
+    onDone: (message, ok, retry) =>
+      addToast(
+        message,
+        ok ? 'success' : 'error',
+        retry ? { label: 'Retry', onClick: retry, persist: true } : undefined
+      ),
   });
   const showSchoologyPush = !isReview && (!!ltiAttachment || toolColumnMode);
 
@@ -2699,6 +2708,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           )}
           {effectiveScreen === 'students' && (
             <StudentsScreen
+              rubricFor={printRubric}
               liveLogByKey={liveLogByKey}
               quizTitle={quiz.title}
               responses={filteredResponses}
@@ -3043,13 +3053,14 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
         <FreeResponseGrader
           quiz={quiz}
           responses={graderResponses}
+          attemptNumber={graderAttempt ?? undefined}
           countedChoices={
             saveCountedChoicesFor && graderAttempt === null && session?.sections
               ? { sections: session.sections, onSave: saveCountedChoicesFor }
               : undefined
           }
           displayNameByResponseKey={
-            hideNames ? maskedNameByResponseKey : displayNameByResponseKey
+            hideNames ? maskedNameByResponseKey : graderNameByResponseKey
           }
           initialTarget={graderTarget}
           renderNormingFlag={
@@ -4152,6 +4163,10 @@ function studentReportTargets(
 
 /** The expanded student row: publish control, per-question lines, print (D11-D13, D23). */
 const StudentDrilldownPanel: React.FC<{
+  rubricFor: (
+    response: QuizResponse,
+    question: QuizQuestion
+  ) => Rubric | undefined;
   id: string;
   quizTitle: string;
   response: QuizResponse;
@@ -4174,6 +4189,7 @@ const StudentDrilldownPanel: React.FC<{
   /** Saves which answers count in an over-answered section; absent hides the picker. */
   onSaveCountedChoices?: SaveCountedChoices;
 }> = ({
+  rubricFor,
   id,
   quizTitle,
   response: liveResponse,
@@ -4245,9 +4261,9 @@ const StudentDrilldownPanel: React.FC<{
         questions,
         response,
         makeQuestionGradeFn(fibGrading),
-        { showExtraAnswers }
+        { showExtraAnswers, rubricFor: (q) => rubricFor(response, q) }
       ),
-    [questions, response, fibGrading, showExtraAnswers]
+    [questions, response, fibGrading, showExtraAnswers, rubricFor]
   );
   const questionById = useMemo(
     () => new Map(questions.map((q) => [q.id, q])),
@@ -4426,6 +4442,11 @@ const collator = new Intl.Collator(undefined, {
 });
 
 const StudentsScreen: React.FC<{
+  /** The rubric this student is graded on (a modified or per-student one when set). */
+  rubricFor: (
+    response: QuizResponse,
+    question: QuizQuestion
+  ) => Rubric | undefined;
   quizTitle: string;
   responses: QuizResponse[];
   questions: QuizQuestion[];
@@ -4463,6 +4484,7 @@ const StudentsScreen: React.FC<{
   liveLogByKey?: ReadonlyMap<string, QuizLiveLogEntry[]>;
   onSaveCountedChoices?: SaveCountedChoices;
 }> = ({
+  rubricFor,
   liveLogByKey,
   quizTitle,
   responses,
@@ -5261,6 +5283,7 @@ const StudentsScreen: React.FC<{
               </div>
               {isExpanded && (
                 <StudentDrilldownPanel
+                  rubricFor={rubricFor}
                   id={panelId}
                   quizTitle={quizTitle}
                   response={r}

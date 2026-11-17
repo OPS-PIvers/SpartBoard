@@ -1220,6 +1220,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // below cause re-runs as `roleResolved`/`roleId`/`isStudentRole` resolve).
   // Scoped per-uid so a sign-out → sign-in as a different user re-arms it.
   const migrationStartedForUidRef = useRef<string | null>(null);
+  // Per-uid guard so repeated empty snapshots or effect re-runs create only one default board.
+  const defaultBoardStartedForUidRef = useRef<string | null>(null);
 
   // Cross-device dock sync. `dockItems`, `libraryOrder`, and `isDockInitialized`
   // are mirrored to `/users/{uid}/userProfile/profile`. Hydration tracks two
@@ -1266,6 +1268,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     ) => {
       const id = crypto.randomUUID();
       setToasts((prev) => [...prev, { id, message, type, action }]);
+      if (action?.persist) return;
       // If there's an action, keep it longer (10s) so the user has time to click
       const duration = action ? 10000 : 3000;
       const timer = setTimeout(() => {
@@ -2520,6 +2523,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // Load dashboards on mount and subscribe to changes
   useEffect(() => {
     if (!user) {
+      defaultBoardStartedForUidRef.current = null;
       // eslint-disable-next-line react-hooks/set-state-in-effect -- state synced from an external system or reset on open
       setLoading(false);
       return;
@@ -2603,6 +2607,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           lastPiiRestoredIdRef.current = null;
           setPiiRestoreNonce((n) => n + 1);
         }
+
+        // The default board has landed, so a later empty snapshot may create another.
+        if (updatedDashboards.length > 0)
+          defaultBoardStartedForUidRef.current = null;
 
         // Update saving status: clear when Firestore confirms no pending writes
         // and we have no local saves in flight
@@ -3066,6 +3074,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             setLoading(false);
             return;
           }
+          if (defaultBoardStartedForUidRef.current === user.uid) {
+            setLoading(false);
+            return;
+          }
+          defaultBoardStartedForUidRef.current = user.uid;
           void saveDashboardRef
             .current(defaultDb)
             .then(() => {
@@ -3080,7 +3093,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 },
               ]);
             })
-            .catch(console.error);
+            .catch((err) => {
+              defaultBoardStartedForUidRef.current = null;
+              console.error(err);
+            });
         }
 
         setLoading(false);

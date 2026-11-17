@@ -13,6 +13,8 @@ interface StudentLeaderboardProps {
    */
   myStudentUid?: string;
   scoreSuffix: string;
+  /** Light card for the brand student page; dark for live sessions. */
+  light?: boolean;
 }
 
 const medalByRank: Record<number, string> = {
@@ -36,12 +38,19 @@ export const StudentLeaderboard: React.FC<StudentLeaderboardProps> = ({
   myPin,
   myStudentUid,
   scoreSuffix,
+  light = false,
 }) => {
   const { t } = useTranslation();
+  const panel = light
+    ? 'bg-white border border-slate-200 shadow-xs'
+    : 'bg-slate-800/70 border border-slate-700';
+  const muted = light ? 'text-slate-500' : 'text-slate-400';
 
   if (entries.length === 0) {
     return (
-      <div className="w-full max-w-sm p-4 bg-slate-800/70 border border-slate-700 rounded-2xl text-slate-400 text-sm">
+      <div
+        className={`w-full max-w-sm p-4 rounded-2xl text-sm ${panel} ${muted}`}
+      >
         {t('widgets.quiz.leaderboard.emptyState')}
       </div>
     );
@@ -61,8 +70,8 @@ export const StudentLeaderboard: React.FC<StudentLeaderboardProps> = ({
       : topFive;
 
   return (
-    <div className="w-full max-w-sm p-4 bg-slate-800/70 border border-slate-700 rounded-2xl text-left">
-      <p className="text-xs text-slate-400 uppercase tracking-widest mb-3">
+    <div className={`w-full max-w-sm p-4 rounded-2xl text-left ${panel}`}>
+      <p className={`text-xs uppercase tracking-widest mb-3 ${muted}`}>
         {t('widgets.quiz.leaderboard.title')}
       </p>
       <div className="space-y-2">
@@ -82,8 +91,12 @@ export const StudentLeaderboard: React.FC<StudentLeaderboardProps> = ({
               <div
                 className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${
                   isMine
-                    ? 'bg-violet-500/15 border-violet-400/60'
-                    : 'bg-slate-900/70 border-slate-700'
+                    ? light
+                      ? 'bg-brand-blue-lighter border-brand-blue-primary/40'
+                      : 'bg-violet-500/15 border-violet-400/60'
+                    : light
+                      ? 'bg-slate-50 border-slate-200'
+                      : 'bg-slate-900/70 border-slate-700'
                 }`}
               >
                 {entry.rank <= 3 ? (
@@ -93,11 +106,15 @@ export const StudentLeaderboard: React.FC<StudentLeaderboardProps> = ({
                     {entry.rank}
                   </span>
                 )}
-                <span className="flex-1 text-sm font-semibold text-white truncate">
+                <span
+                  className={`flex-1 text-sm font-semibold truncate ${light ? 'text-slate-800' : 'text-white'}`}
+                >
                   {entry.name ?? (entry.pin ? `PIN ${entry.pin}` : 'Student')}
                   {isMine ? ` ${t('widgets.quiz.leaderboard.youSuffix')}` : ''}
                 </span>
-                <span className="text-amber-300 text-sm font-black">
+                <span
+                  className={`text-sm font-black ${light ? 'text-brand-blue-primary' : 'text-amber-300'}`}
+                >
                   {entry.score}
                   {scoreSuffix}
                 </span>

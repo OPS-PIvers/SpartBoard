@@ -9,7 +9,14 @@
  * attach (never auto-shared silently).
  */
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
-import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from 'react';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { useTranslation } from 'react-i18next';
 import {
@@ -49,6 +56,42 @@ import { extractStimulusReadAloudText } from '@/utils/quizReadAloudApi';
 import type { QuizEditorController } from './useQuizEditorState';
 import { MetaChevron, MetaItem, metaValueClass } from './QuestionFields';
 import { StimulusTabFields } from './StimulusTabFields';
+import {
+  StimulusTourTypeContext,
+  type SharedEditorTourType,
+} from './stimulusTourType';
+
+/** What the panel needs to list and edit stimuli; a quiz also attaches them to questions. */
+export type StimulusListState = Pick<
+  QuizEditorController,
+  'stimuli' | 'addStimulus' | 'updateStimulus' | 'deleteStimulus'
+>;
+
+const attachTargetsOf = (
+  state: StimulusListState | QuizEditorController
+): QuizEditorController | null => ('questions' in state ? state : null);
+
+// Literal per-type anchors so the tour registry lists both widget types.
+const CHOOSE_FILE = {
+  quiz: tourTypeAttr('quiz-stimuli.choose-file', 'quiz'),
+  writing: tourTypeAttr('quiz-stimuli.choose-file', 'writing'),
+};
+const CHOOSE_DRIVE = {
+  quiz: tourTypeAttr('quiz-stimuli.choose-drive', 'quiz'),
+  writing: tourTypeAttr('quiz-stimuli.choose-drive', 'writing'),
+};
+const URL_INPUT = {
+  quiz: tourTypeAttr('quiz-stimuli.url-input', 'quiz'),
+  writing: tourTypeAttr('quiz-stimuli.url-input', 'writing'),
+};
+const URL_ADD = {
+  quiz: tourTypeAttr('quiz-stimuli.url-add', 'quiz'),
+  writing: tourTypeAttr('quiz-stimuli.url-add', 'writing'),
+};
+const ADD_PASSAGE = {
+  quiz: tourTypeAttr('quiz-stimuli.add-passage', 'quiz'),
+  writing: tourTypeAttr('quiz-stimuli.add-passage', 'writing'),
+};
 
 const labelClass =
   'block text-slate-600 font-bold uppercase tracking-wider mb-1 text-xs';
@@ -76,7 +119,7 @@ const MAX_STIMULUS_BYTES = 200 * 1024 * 1024;
  * Shared intake used by both entry points. Returns the created stimulus
  * or null when an error hit.
  */
-function useStimulusIntake(state: QuizEditorController) {
+function useStimulusIntake(state: StimulusListState) {
   const { driveService, userDomain } = useGoogleDrive();
   const { openPicker } = useGooglePicker();
   const { ensureGoogleScope } = useAuth();
@@ -368,6 +411,7 @@ const FileSourceButtons: React.FC<{
   anchors?: { file?: TourAnchorAttrs; drive?: TourAnchorAttrs };
 }> = ({ intake, onAdded, compact = false, anchors }) => {
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const tourType = useContext(StimulusTourTypeContext);
   return (
     <>
       {/* no-tour-anchor: hidden file input; the add-file button opens it */}
@@ -390,7 +434,7 @@ const FileSourceButtons: React.FC<{
         type="button"
         onClick={() => inputRef.current?.click()}
         disabled={intake.busy}
-        {...(compact ? {} : tourTypeAttr('quiz-stimuli.choose-file', 'quiz'))}
+        {...(compact ? {} : CHOOSE_FILE[tourType])}
         className={fileButtonClass}
       >
         <Monitor className="h-3.5 w-3.5" aria-hidden />
@@ -405,7 +449,7 @@ const FileSourceButtons: React.FC<{
           })
         }
         disabled={intake.busy}
-        {...(compact ? {} : tourTypeAttr('quiz-stimuli.choose-drive', 'quiz'))}
+        {...(compact ? {} : CHOOSE_DRIVE[tourType])}
         className={fileButtonClass}
       >
         <CloudDownload className="h-3.5 w-3.5" aria-hidden />
@@ -422,6 +466,7 @@ const UrlAddRow: React.FC<{
   anchors?: { input?: TourAnchorAttrs; add?: TourAnchorAttrs };
 }> = ({ onAdd, busy, anchored = false, anchors }) => {
   const [url, setUrl] = useState('');
+  const tourType = useContext(StimulusTourTypeContext);
   const submit = async () => {
     if (!url.trim()) return;
     await onAdd(url);
@@ -441,7 +486,7 @@ const UrlAddRow: React.FC<{
           }
         }}
         placeholder="Paste a link"
-        {...(anchored ? tourTypeAttr('quiz-stimuli.url-input', 'quiz') : {})}
+        {...(anchored ? URL_INPUT[tourType] : {})}
         className={inputClass}
         disabled={busy}
       />
@@ -450,7 +495,7 @@ const UrlAddRow: React.FC<{
         type="button"
         onClick={() => void submit()}
         disabled={busy || !url.trim()}
-        {...(anchored ? tourTypeAttr('quiz-stimuli.url-add', 'quiz') : {})}
+        {...(anchored ? URL_ADD[tourType] : {})}
         className="shrink-0 flex items-center gap-1 px-3 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 text-white rounded-lg text-xs font-bold transition-colors"
       >
         {busy ? (
@@ -467,13 +512,22 @@ const UrlAddRow: React.FC<{
 // ─── Quiz-level panel (editor "Stimuli" tab) ────────────────────────────────
 
 export const StimulusManagerPanel: React.FC<{
-  state: QuizEditorController;
+  /** A quiz editor attaches stimuli to questions; a list-only state hides that. */
+  state: StimulusListState | QuizEditorController;
   /** `quiz-read-aloud` gate; shows the per-stimulus read-aloud text row (D12). */
   readAloudAvailable?: boolean;
   /** `quiz-calculator-stimulus` gate. */
   calculatorAvailable?: boolean;
-}> = ({ state, readAloudAvailable = false, calculatorAvailable = false }) => {
-  const { stimuli, questions } = state;
+  /** Widget type the panel's tour anchors are scoped to. */
+  tourWidgetType?: SharedEditorTourType;
+}> = ({
+  state,
+  readAloudAvailable = false,
+  calculatorAvailable = false,
+  tourWidgetType = 'quiz',
+}) => {
+  const { stimuli } = state;
+  const attach = attachTargetsOf(state);
   const intake = useStimulusIntake(state);
   const { addFromFile } = intake;
   const onFiles = useCallback(
@@ -484,81 +538,88 @@ export const StimulusManagerPanel: React.FC<{
   usePasteFiles(onFiles, intake.busy);
 
   return (
-    <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50 px-5 py-4 space-y-4">
-      <div className="space-y-2">
-        <div
-          {...drop.dropProps}
-          data-testid="stimulus-drop-zone"
-          className={`flex flex-col items-center gap-2.5 rounded-lg border-2 border-dashed px-4 py-4 transition-colors ${
-            drop.dragging
-              ? 'border-brand-blue-primary bg-brand-blue-lighter'
-              : 'border-slate-300 bg-white'
-          }`}
-        >
-          <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-600">
-            {intake.busy ? (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-            ) : (
-              <Upload className="h-4 w-4" aria-hidden />
-            )}
-            {drop.dragging ? 'Drop it here' : 'Drag a file or paste an image'}
-          </p>
-          <div className="flex flex-wrap justify-center gap-2">
-            <FileSourceButtons intake={intake} />
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => intake.addPassage()}
-            {...tourTypeAttr('quiz-stimuli.add-passage', 'quiz')}
-            disabled={intake.busy}
-            className="shrink-0 flex items-center gap-2 px-3 py-2 bg-white border-2 border-slate-300 hover:border-brand-blue-primary/50 disabled:opacity-40 rounded-lg text-sm font-bold text-slate-700"
+    <StimulusTourTypeContext.Provider value={tourWidgetType}>
+      <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50 px-5 py-4 space-y-4">
+        <div className="space-y-2">
+          <div
+            {...drop.dropProps}
+            data-testid="stimulus-drop-zone"
+            className={`flex flex-col items-center gap-2.5 rounded-lg border-2 border-dashed px-4 py-4 transition-colors ${
+              drop.dragging
+                ? 'border-brand-blue-primary bg-brand-blue-lighter'
+                : 'border-slate-300 bg-white'
+            }`}
           >
-            <FileText className="w-4 h-4" />
-            Add a passage
-          </button>
-          {calculatorAvailable && (
+            <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-600">
+              {intake.busy ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              ) : (
+                <Upload className="h-4 w-4" aria-hidden />
+              )}
+              {drop.dragging ? 'Drop it here' : 'Drag a file or paste an image'}
+            </p>
+            <div className="flex flex-wrap justify-center gap-2">
+              <FileSourceButtons intake={intake} />
+            </div>
+          </div>
+          <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => intake.addCalculator()}
-              {...tourTypeAttr('quiz-stimuli.add-calculator', 'quiz')}
+              onClick={() => intake.addPassage()}
+              {...ADD_PASSAGE[tourWidgetType]}
               disabled={intake.busy}
               className="shrink-0 flex items-center gap-2 px-3 py-2 bg-white border-2 border-slate-300 hover:border-brand-blue-primary/50 disabled:opacity-40 rounded-lg text-sm font-bold text-slate-700"
             >
-              <Calculator className="w-4 h-4" />
-              Add a calculator
+              <FileText className="w-4 h-4" />
+              Add a passage
             </button>
-          )}
-          <div className="flex-1 min-w-0">
-            <UrlAddRow onAdd={intake.addFromUrl} busy={intake.busy} anchored />
+            {calculatorAvailable && (
+              <button
+                type="button"
+                onClick={() => intake.addCalculator()}
+                {...tourTypeAttr('quiz-stimuli.add-calculator', 'quiz')}
+                disabled={intake.busy}
+                className="shrink-0 flex items-center gap-2 px-3 py-2 bg-white border-2 border-slate-300 hover:border-brand-blue-primary/50 disabled:opacity-40 rounded-lg text-sm font-bold text-slate-700"
+              >
+                <Calculator className="w-4 h-4" />
+                Add a calculator
+              </button>
+            )}
+            <div className="flex-1 min-w-0">
+              <UrlAddRow
+                onAdd={intake.addFromUrl}
+                busy={intake.busy}
+                anchored
+              />
+            </div>
           </div>
         </div>
-      </div>
 
-      {stimuli.length === 0 ? (
-        <div className="text-center text-slate-500 text-sm py-6 border-2 border-dashed border-slate-300 rounded-lg bg-white">
-          No stimuli yet.
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {stimuli.map((s, index) => (
-            <StimulusCard
-              key={s.id}
-              index={index + 1}
-              stimulus={s}
-              state={state}
-              readAloudAvailable={readAloudAvailable}
-            />
-          ))}
-        </div>
-      )}
-      {questions.length === 0 && stimuli.length > 0 && (
-        <p className="text-xs text-slate-500">
-          Add questions to assign these stimuli.
-        </p>
-      )}
-    </div>
+        {stimuli.length === 0 ? (
+          <div className="text-center text-slate-500 text-sm py-6 border-2 border-dashed border-slate-300 rounded-lg bg-white">
+            No stimuli yet.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {stimuli.map((s, index) => (
+              <StimulusCard
+                key={s.id}
+                index={index + 1}
+                stimulus={s}
+                state={state}
+                attach={attach}
+                readAloudAvailable={readAloudAvailable}
+              />
+            ))}
+          </div>
+        )}
+        {attach && attach.questions.length === 0 && stimuli.length > 0 && (
+          <p className="text-xs text-slate-500">
+            Add questions to assign these stimuli.
+          </p>
+        )}
+      </div>
+    </StimulusTourTypeContext.Provider>
   );
 };
 
@@ -720,18 +781,14 @@ const ReadAloudTextRow: React.FC<{
 const StimulusCard: React.FC<{
   stimulus: QuizStimulus;
   index: number;
-  state: QuizEditorController;
+  state: StimulusListState;
+  attach: QuizEditorController | null;
   readAloudAvailable: boolean;
-}> = ({ stimulus: s, index, state, readAloudAvailable }) => {
-  const {
-    questions,
-    bankSlots,
-    updateStimulus,
-    deleteStimulus,
-    toggleStimulusOnQuestion,
-    toggleStimulusOnSlot,
-    setStimulusOnAllQuestions,
-  } = state;
+}> = ({ stimulus: s, index, state, attach, readAloudAvailable }) => {
+  const { updateStimulus, deleteStimulus } = state;
+  const questions = attach?.questions ?? [];
+  const bankSlots = attach?.bankSlots ?? [];
+  const tourType = useContext(StimulusTourTypeContext);
   const [open, setOpen] = useState(false);
   const covered = questionsUsingStimulus(questions, s.id);
   const coveredSlots = bankSlots.filter((slot) =>
@@ -749,7 +806,11 @@ const StimulusCard: React.FC<{
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
           aria-label={open ? 'Collapse stimulus' : 'Expand stimulus'}
-          {...tourFieldAttr('quiz-stimuli.card-expand', 'quiz', String(index))}
+          {...tourFieldAttr(
+            'quiz-stimuli.card-expand',
+            tourType,
+            String(index)
+          )}
           className="text-slate-400 hover:text-slate-600 p-0.5"
         >
           {open ? (
@@ -768,28 +829,34 @@ const StimulusCard: React.FC<{
           value={s.label}
           onChange={(e) => updateStimulus(s.id, { label: e.target.value })}
           placeholder="Label (only you see this)"
-          {...tourFieldAttr('quiz-stimuli.card-label', 'quiz', String(index))}
+          {...tourFieldAttr('quiz-stimuli.card-label', tourType, String(index))}
           className="flex-1 min-w-0 bg-transparent border-0 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-hidden"
         />
-        <span className="shrink-0 text-xxs text-slate-400 tabular-nums">
-          {coveredCount === 0
-            ? 'unassigned'
-            : allAttached
-              ? 'all questions'
-              : [
-                  covered.length > 0 &&
-                    `${covered.length} question${covered.length === 1 ? '' : 's'}`,
-                  coveredSlots.length > 0 &&
-                    `${coveredSlots.length} bank draw${coveredSlots.length === 1 ? '' : 's'}`,
-                ]
-                  .filter(Boolean)
-                  .join(', ')}
-        </span>
+        {attach && (
+          <span className="shrink-0 text-xxs text-slate-400 tabular-nums">
+            {coveredCount === 0
+              ? 'unassigned'
+              : allAttached
+                ? 'all questions'
+                : [
+                    covered.length > 0 &&
+                      `${covered.length} question${covered.length === 1 ? '' : 's'}`,
+                    coveredSlots.length > 0 &&
+                      `${coveredSlots.length} bank draw${coveredSlots.length === 1 ? '' : 's'}`,
+                  ]
+                    .filter(Boolean)
+                    .join(', ')}
+          </span>
+        )}
         <button
           type="button"
           onClick={() => deleteStimulus(s.id)}
           aria-label="Delete stimulus"
-          {...tourFieldAttr('quiz-stimuli.card-delete', 'quiz', String(index))}
+          {...tourFieldAttr(
+            'quiz-stimuli.card-delete',
+            tourType,
+            String(index)
+          )}
           className="text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-sm p-1 transition-colors"
         >
           <Trash2 className="w-3.5 h-3.5" />
@@ -806,7 +873,7 @@ const StimulusCard: React.FC<{
                 id={`passage-${s.id}`}
                 {...tourFieldAttr(
                   'quiz-stimuli.passage-text',
-                  'quiz',
+                  tourType,
                   String(index)
                 )}
                 value={s.text ?? ''}
@@ -858,95 +925,101 @@ const StimulusCard: React.FC<{
                 placeholder="Unlimited"
                 {...tourFieldAttr(
                   'quiz-stimuli.play-limit',
-                  'quiz',
+                  tourType,
                   String(index)
                 )}
                 className={`${inputClass} max-w-[140px]`}
               />
             </div>
           )}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <span className={labelClass.replace('mb-1', 'mb-0')}>
-                Shown on
-              </span>
-              {targetCount > 0 && (
-                <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={allAttached}
-                    {...tourFieldAttr(
-                      'quiz-stimuli.attach-all-questions',
-                      'quiz',
-                      String(index)
-                    )}
-                    onChange={(e) =>
-                      setStimulusOnAllQuestions(s.id, e.target.checked)
-                    }
-                    className="w-3.5 h-3.5 accent-brand-blue-primary"
-                  />
-                  All questions
-                </label>
+          {attach && (
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <span className={labelClass.replace('mb-1', 'mb-0')}>
+                  Shown on
+                </span>
+                {targetCount > 0 && (
+                  <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={allAttached}
+                      {...tourFieldAttr(
+                        'quiz-stimuli.attach-all-questions',
+                        'quiz',
+                        String(index)
+                      )}
+                      onChange={(e) =>
+                        attach.setStimulusOnAllQuestions(s.id, e.target.checked)
+                      }
+                      className="w-3.5 h-3.5 accent-brand-blue-primary"
+                    />
+                    All questions
+                  </label>
+                )}
+              </div>
+              {targetCount === 0 ? (
+                <p className="text-xs text-slate-400">No questions yet.</p>
+              ) : (
+                <ul className="space-y-1 max-h-48 overflow-y-auto custom-scrollbar">
+                  {questions.map((q, i) => (
+                    <li key={q.id}>
+                      <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none rounded-sm px-1.5 py-1 hover:bg-slate-50">
+                        <input
+                          type="checkbox"
+                          checked={q.stimulusIds?.includes(s.id) ?? false}
+                          onChange={() =>
+                            attach.toggleStimulusOnQuestion(s.id, q.id)
+                          }
+                          {...tourFieldAttr(
+                            'quiz-stimuli.attach-question',
+                            'quiz',
+                            `${index}-${i + 1}`
+                          )}
+                          className="w-3.5 h-3.5 accent-brand-blue-primary"
+                        />
+                        <span className="font-mono font-bold text-slate-400 w-6 shrink-0">
+                          Q{i + 1}
+                        </span>
+                        <span className="truncate">
+                          {q.text || (
+                            <span className="italic text-slate-400">
+                              Untitled question
+                            </span>
+                          )}
+                        </span>
+                      </label>
+                    </li>
+                  ))}
+                  {bankSlots.map((slot, slotIndex) => (
+                    <li key={slot.id}>
+                      <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none rounded-sm px-1.5 py-1 hover:bg-slate-50">
+                        <input
+                          type="checkbox"
+                          checked={slot.stimulusIds?.includes(s.id) ?? false}
+                          onChange={() =>
+                            attach.toggleStimulusOnSlot(s.id, slot.id)
+                          }
+                          {...tourFieldAttr(
+                            'quiz-stimuli.attach-bank-slot',
+                            'quiz',
+                            `${index}-${slotIndex + 1}`
+                          )}
+                          className="w-3.5 h-3.5 accent-brand-blue-primary"
+                        />
+                        <Shuffle
+                          className="w-3.5 h-3.5 text-slate-400 shrink-0"
+                          aria-label="Random from bank"
+                        />
+                        <span className="truncate">
+                          {slot.bankTitle} ({slot.count ?? 0} drawn)
+                        </span>
+                      </label>
+                    </li>
+                  ))}
+                </ul>
               )}
             </div>
-            {targetCount === 0 ? (
-              <p className="text-xs text-slate-400">No questions yet.</p>
-            ) : (
-              <ul className="space-y-1 max-h-48 overflow-y-auto custom-scrollbar">
-                {questions.map((q, i) => (
-                  <li key={q.id}>
-                    <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none rounded-sm px-1.5 py-1 hover:bg-slate-50">
-                      <input
-                        type="checkbox"
-                        checked={q.stimulusIds?.includes(s.id) ?? false}
-                        onChange={() => toggleStimulusOnQuestion(s.id, q.id)}
-                        {...tourFieldAttr(
-                          'quiz-stimuli.attach-question',
-                          'quiz',
-                          `${index}-${i + 1}`
-                        )}
-                        className="w-3.5 h-3.5 accent-brand-blue-primary"
-                      />
-                      <span className="font-mono font-bold text-slate-400 w-6 shrink-0">
-                        Q{i + 1}
-                      </span>
-                      <span className="truncate">
-                        {q.text || (
-                          <span className="italic text-slate-400">
-                            Untitled question
-                          </span>
-                        )}
-                      </span>
-                    </label>
-                  </li>
-                ))}
-                {bankSlots.map((slot, slotIndex) => (
-                  <li key={slot.id}>
-                    <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none rounded-sm px-1.5 py-1 hover:bg-slate-50">
-                      <input
-                        type="checkbox"
-                        checked={slot.stimulusIds?.includes(s.id) ?? false}
-                        onChange={() => toggleStimulusOnSlot(s.id, slot.id)}
-                        {...tourFieldAttr(
-                          'quiz-stimuli.attach-bank-slot',
-                          'quiz',
-                          `${index}-${slotIndex + 1}`
-                        )}
-                        className="w-3.5 h-3.5 accent-brand-blue-primary"
-                      />
-                      <Shuffle
-                        className="w-3.5 h-3.5 text-slate-400 shrink-0"
-                        aria-label="Random from bank"
-                      />
-                      <span className="truncate">
-                        {slot.bankTitle} ({slot.count ?? 0} drawn)
-                      </span>
-                    </label>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+          )}
         </div>
       )}
     </div>
@@ -1072,6 +1145,7 @@ const AttachStimulusSection: React.FC<{
   }, intake.busy);
   const attachedCount = attachedIds?.length ?? 0;
   const [previewId, setPreviewId] = useState<string | null>(null);
+  const rowIdPrefix = useId();
   const [previewOwner, setPreviewOwner] = useState(ownerId);
   if (previewOwner !== ownerId) {
     setPreviewOwner(ownerId);
@@ -1112,38 +1186,53 @@ const AttachStimulusSection: React.FC<{
             const name = previewAvailable
               ? stimulusDisplayName(s)
               : s.label || s.url;
-            const row = (
-              <label
-                className={`flex ${previewAvailable ? 'flex-1 min-w-0 ' : ''}items-center gap-2 text-xs text-slate-700 cursor-pointer select-none rounded-sm px-1.5 py-1 hover:bg-slate-50`}
-              >
-                <input
-                  type="checkbox"
-                  checked={attachedIds?.includes(s.id) ?? false}
-                  onChange={() => onToggle(s.id)}
-                  {...tourFieldAttr(
-                    'quiz-stimuli.attach-stimulus',
-                    'quiz',
-                    String(stimulusIndex + 1)
-                  )}
-                  className="w-3.5 h-3.5 accent-brand-blue-primary"
-                />
-                <span
-                  className={`shrink-0 px-1.5 py-0.5 rounded-sm text-xxs font-bold uppercase tracking-wider ${TYPE_BADGE[s.type]}`}
-                >
-                  {STIMULUS_TYPE_LABELS[s.type]}
-                </span>
-                <span className="flex-1 truncate">{name}</span>
-                <span className="shrink-0 max-w-[40%] truncate text-xxs text-slate-400 tabular-nums">
-                  {usedOn.length > 0 ? `on ${usedOn.join(', ')}` : 'unused'}
-                </span>
-              </label>
+            const checkboxId = `${rowIdPrefix}-attach-${s.id}`;
+            const checkbox = (
+              <input
+                id={checkboxId}
+                type="checkbox"
+                checked={attachedIds?.includes(s.id) ?? false}
+                onChange={() => onToggle(s.id)}
+                {...tourFieldAttr(
+                  'quiz-stimuli.attach-stimulus',
+                  'quiz',
+                  String(stimulusIndex + 1)
+                )}
+                className="w-3.5 h-3.5 accent-brand-blue-primary"
+              />
             );
-            if (!previewAvailable) return <li key={s.id}>{row}</li>;
+            const badge = (
+              <span
+                className={`shrink-0 px-1.5 py-0.5 rounded-sm text-xxs font-bold uppercase tracking-wider ${TYPE_BADGE[s.type]}`}
+              >
+                {STIMULUS_TYPE_LABELS[s.type]}
+              </span>
+            );
+            const usedOnText =
+              usedOn.length > 0 ? `on ${usedOn.join(', ')}` : 'unused';
+            if (!previewAvailable) {
+              return (
+                <li key={s.id}>
+                  <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none rounded-sm px-1.5 py-1 hover:bg-slate-50">
+                    {checkbox}
+                    {badge}
+                    <span className="flex-1 truncate">{name}</span>
+                    <span className="shrink-0 max-w-[40%] truncate text-xxs text-slate-400 tabular-nums">
+                      {usedOnText}
+                    </span>
+                  </label>
+                </li>
+              );
+            }
             const previewDomId = `attach-preview-${s.id}`;
             return (
               <li key={s.id}>
-                <div className="flex items-center gap-1">
-                  {row}
+                <div className="flex items-center gap-1 rounded-sm px-1.5 hover:bg-slate-50 text-xs text-slate-700">
+                  <label className="flex min-w-0 items-center gap-2 cursor-pointer select-none py-1">
+                    {checkbox}
+                    {badge}
+                    <span className="truncate">{name}</span>
+                  </label>
                   {s.type !== 'calculator' && (
                     <button
                       type="button"
@@ -1164,7 +1253,7 @@ const AttachStimulusSection: React.FC<{
                       className={`shrink-0 rounded-sm p-1 transition-colors touch-target-expand ${
                         previewing
                           ? 'text-brand-blue-primary bg-brand-blue-lighter'
-                          : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
+                          : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
                       }`}
                     >
                       {previewing ? (
@@ -1174,6 +1263,12 @@ const AttachStimulusSection: React.FC<{
                       )}
                     </button>
                   )}
+                  <label
+                    htmlFor={checkboxId}
+                    className="flex-1 min-w-[25%] self-stretch flex items-center justify-end cursor-pointer select-none py-1 text-right text-xxs text-slate-400 tabular-nums"
+                  >
+                    <span className="truncate">{usedOnText}</span>
+                  </label>
                 </div>
                 {previewing && (
                   <div

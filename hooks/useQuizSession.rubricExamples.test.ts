@@ -68,3 +68,31 @@ describe('buildRevealedRubricExamples', () => {
     );
   });
 });
+
+describe('modified rubric examples', () => {
+  const modified: Rubric = {
+    ...rubric,
+    id: 'r2',
+    criteria: [
+      {
+        ...rubric.criteria[0],
+        id: 'm',
+        guide: { examples: ['It is a meta-analysis.'] },
+      },
+    ],
+  };
+  const withMod: QuizQuestion = { ...fr, modifiedRubricSnapshot: modified };
+  it('keeps them off the student session', () => {
+    expect(
+      JSON.stringify(
+        toPublicQuestion({ ...withMod, rubricVisibleToStudents: true })
+      )
+    ).not.toContain('It is a meta-analysis.');
+  });
+  it('publishes them with the answer key', () => {
+    expect(
+      buildRevealedRubricExamples({ questions: [withMod] } as never)?.['q-fr']
+        ?.m
+    ).toEqual(['It is a meta-analysis.']);
+  });
+});

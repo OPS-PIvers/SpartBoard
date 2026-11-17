@@ -57,6 +57,12 @@ import {
   SectionCapNotice,
   SectionIntroDialog,
 } from './QuizSectionParts';
+import {
+  SupportsButton,
+  SupportsDivider,
+  SupportsPanel,
+} from './QuizSupportsParts';
+import { SUPPORTS_PCT_DEFAULT } from '@/utils/quizSupportsPanel';
 import { QuizStopScreen } from './QuizStopScreen';
 import { StudentExplanation } from './StudentExplanation';
 import {
@@ -265,7 +271,9 @@ import {
 import { TeacherPreviewBanner } from '@/components/student/TeacherPreviewBanner';
 import { useStaffAudienceGate } from '@/components/student/useStaffAudienceGate';
 import { usePreviewMode } from '@/hooks/usePreviewMode';
+import { isReviewGame } from '@/utils/quizWidgetKind';
 import { ResultsWatermark } from './ResultsWatermark';
+import { useWatermarkStudentName } from '@/components/student/useWatermarkStudentName';
 import { ResultsTabWarningModal } from './ResultsTabWarningModal';
 import { useResultsTabWarnings } from '@/hooks/useResultsTabWarnings';
 import {
@@ -285,6 +293,8 @@ import {
 import {
   serveQuestionSubset,
   applyHiddenOptions,
+  applyModifiedRubric,
+  applyModifiedWording,
   applyTimeMultiplier,
   serveLocalizedQuestion,
 } from '@/utils/quizOverrideServing';
@@ -347,6 +357,7 @@ import {
 } from '@/utils/quizCompleteness';
 import { useStudentAssignmentPointer } from '@/hooks/useStudentAssignmentPointer';
 import { AssignmentExcludedNotice } from '@/components/student/AssignmentExcludedNotice';
+import { StudentBrandBackdrop } from '@/components/student/StudentBrandBackdrop';
 import { resolveEffectiveWindow } from '@/utils/assignmentWindow';
 import { effectivePageProtections } from '@/utils/pageProtections';
 import { PageProtectionGuards } from '@/components/common/PageProtectionGuards';
@@ -2561,18 +2572,31 @@ export const ActiveQuiz: React.FC<{
   const answerOptionShuffleEnabled = attemptShuffle.answers;
   const currentQuestion = useMemo(() => {
     if (!baseQuestion) return baseQuestion;
-    const served = isStudentPaced
-      ? applyHiddenOptions(baseQuestion, override?.hiddenOptionIdsByQuestion)
-      : baseQuestion;
+    // The modified rubric grades every pace; the wording only shows when student-paced.
+    const served = applyModifiedRubric(
+      isStudentPaced
+        ? applyHiddenOptions(
+            applyModifiedWording(baseQuestion, override?.modifiedQuestions),
+            override?.hiddenOptionIdsByQuestion
+          )
+        : baseQuestion,
+      override?.modifiedQuestions
+    );
     if (!answerOptionShuffleEnabled) return served;
     return shuffleQuestionForStudent(served, studentShuffleSeed);
   }, [
     baseQuestion,
     isStudentPaced,
     override?.hiddenOptionIdsByQuestion,
+    override?.modifiedQuestions,
     answerOptionShuffleEnabled,
     studentShuffleSeed,
   ]);
+  const modifiedServed =
+    !!baseQuestion &&
+    isStudentPaced &&
+    applyModifiedWording(baseQuestion, override?.modifiedQuestions) !==
+      baseQuestion;
   // Live view (QUIZ_LIVE_VIEW.md D12): position is reported only while the teacher's stamp is ahead.
   const liveView = watching ? null : myResponse?.liveView;
   const liveViewUntil = liveView?.until ?? 0;
@@ -2601,6 +2625,8 @@ export const ActiveQuiz: React.FC<{
     () => new Set()
   );
   const [directionsOpen, setDirectionsOpen] = useState(false);
+  const [supportsOpen, setSupportsOpen] = useState(false);
+  const [supportsPct, setSupportsPct] = useState(SUPPORTS_PCT_DEFAULT);
   const [clearingAnswer, setClearingAnswer] = useState(false);
   // The student's accommodation language; the toggle resets to it on advance (§4.6).
   const assignedLocale = override?.language;
@@ -2643,6 +2669,7 @@ export const ActiveQuiz: React.FC<{
     manifest: session.readAloud,
     locale: readAloudLocale,
     canonicalQuestions: session.publicQuestions,
+    promptRewritten: modifiedServed,
     // Nothing to read behind the review screen.
     question:
       reviewOn && reviewOpen && !isAttemptSubmitted(myResponse)
@@ -2858,6 +2885,11 @@ export const ActiveQuiz: React.FC<{
   const [revealedAnswer, setRevealedAnswer] = useState<string | null>(null);
   const [speedBonusEarned, setSpeedBonusEarned] = useState<number | null>(null);
   const [streakCount, setStreakCount] = useState(0);
+  // Speed, streak and sounds are Review game features; a Quiz assessment never uses them.
+  const reviewGame = isReviewGame(session);
+  const speedBonusOn = reviewGame && session.speedBonusEnabled === true;
+  const streakBonusOn = reviewGame && session.streakBonusEnabled === true;
+  const soundsOn = reviewGame && session.soundEffectsEnabled === true;
 
   // Self-paced save errors. `saveError` surfaces a retry banner above the
   // NEXT/SUBMIT button when `onAnswer`/`onComplete` rejects (offline,
@@ -3104,11 +3136,11 @@ export const ActiveQuiz: React.FC<{
       timeLeft > 0 &&
       timeLeft <= 5 &&
       !submitted &&
-      session.soundEffectsEnabled
+      soundsOn
     ) {
       playCountdownTick();
     }
-  }, [timeLeft, submitted, session.soundEffectsEnabled]);
+  }, [timeLeft, submitted, soundsOn]);
 
   // Same last-question rule as handleSubmit, read by the timeout effect below.
   const timeoutFinishesQuizRef = useRef(false);
@@ -3590,7 +3622,7 @@ export const ActiveQuiz: React.FC<{
 
     // Compute speed bonus before submit so it's persisted with the answer
     let computedSpeedBonus: number | undefined;
-    if (session.speedBonusEnabled && effectiveTimeLimit > 0) {
+    if (speedBonusOn && effectiveTimeLimit > 0) {
       const remaining = Math.max(0, timeLeft ?? 0);
       const bonusPct = Math.round((remaining / effectiveTimeLimit) * 50);
       if (bonusPct > 0) computedSpeedBonus = bonusPct;
@@ -3617,7 +3649,7 @@ export const ActiveQuiz: React.FC<{
         setAnswerFeedback(isCorrect ? 'correct' : 'incorrect');
 
         // Sound effects
-        if (session.soundEffectsEnabled) {
+        if (soundsOn) {
           if (isCorrect) {
             playCorrectChime();
           } else {
@@ -3629,11 +3661,7 @@ export const ActiveQuiz: React.FC<{
         if (isCorrect) {
           const newStreak = streakCount + 1;
           setStreakCount(newStreak);
-          if (
-            session.streakBonusEnabled &&
-            newStreak >= 2 &&
-            session.soundEffectsEnabled
-          ) {
+          if (streakBonusOn && newStreak >= 2 && soundsOn) {
             playStreakSound();
           }
         } else {
@@ -3767,7 +3795,7 @@ export const ActiveQuiz: React.FC<{
     try {
       if (!skipWrite) {
         let computedSpeedBonus: number | undefined;
-        if (session.speedBonusEnabled && effectiveTimeLimit > 0) {
+        if (speedBonusOn && effectiveTimeLimit > 0) {
           const remaining = Math.max(0, timeLeft ?? 0);
           const bonusPct = Math.round((remaining / effectiveTimeLimit) * 50);
           if (bonusPct > 0) computedSpeedBonus = bonusPct;
@@ -4038,6 +4066,8 @@ export const ActiveQuiz: React.FC<{
   // when `light`, so they use the light palette directly; the violet teacher-
   // paced affordances and the gamified AnswerFeedbackBanner stay dark.
   const light = isStudentPaced;
+  const supports = override?.supports ?? [];
+  const supportsPanelOpen = supportsOpen && supports.length > 0;
   const sectionAnswers = myResponse?.answers ?? [];
   const sectionServedIds =
     isStudentPaced && (drawIds || override?.questionIds)
@@ -4181,9 +4211,19 @@ export const ActiveQuiz: React.FC<{
     );
   const currentReviewRows = () =>
     reviewRows(
-      orderedPublicQuestions.map((q) =>
-        applyLocalizedStrings(q, serveLocalizedQuestion(q, assignedLocale))
-      ),
+      orderedPublicQuestions.map((base) => {
+        const q = applyModifiedRubric(
+          applyModifiedWording(
+            base,
+            isStudentPaced && override?.modifiedQuestions
+          ),
+          override?.modifiedQuestions
+        );
+        return applyLocalizedStrings(
+          q,
+          serveLocalizedQuestion(q, assignedLocale)
+        );
+      }),
       myResponse?.answers ?? [],
       answerCache,
       markedIds,
@@ -4427,7 +4467,7 @@ export const ActiveQuiz: React.FC<{
         className={
           splitPanel
             ? 'flex flex-col lg:flex-row lg:items-start mx-auto w-full max-w-[1920px]'
-            : sideStimuli.length > 0
+            : sideStimuli.length > 0 || supportsPanelOpen
               ? 'flex flex-col lg:flex-row lg:items-start mx-auto w-full max-w-[1700px]'
               : 'contents'
         }
@@ -4436,9 +4476,13 @@ export const ActiveQuiz: React.FC<{
           stacked (height-capped, scrollable) above the question on
           narrow ones. One DOM node for both breakpoints so crossing a
           breakpoint never remounts a viewer mid-read. */}
-        {sideStimuli.length > 0 && (
+        {(sideStimuli.length > 0 || supportsPanelOpen) && (
           <div
-            className={`shrink-0 w-full p-4 pb-0 lg:p-6 lg:sticky lg:top-0 lg:h-screen lg:overflow-auto max-h-[45vh] lg:max-h-none overflow-y-auto flex flex-col gap-3 ${
+            className={`shrink-0 w-full p-4 pb-0 lg:p-6 lg:sticky lg:top-0 lg:h-screen max-h-[45vh] lg:max-h-none overflow-y-auto flex flex-col gap-3 ${
+              supportsPanelOpen && sideStimuli.length > 0
+                ? 'lg:overflow-hidden'
+                : 'lg:overflow-auto'
+            } ${
               splitPanel
                 ? 'lg:w-[var(--stimulus-panel-w)] lg:pr-3'
                 : 'lg:w-[44%] lg:min-w-[320px] lg:max-w-[65%] lg:resize-x'
@@ -4449,33 +4493,64 @@ export const ActiveQuiz: React.FC<{
                 : undefined
             }
           >
-            {stimulusTabsOn ? (
-              <StimulusTabsPanel
-                stimuli={sideStimuli}
+            {/* Supports sit on top of the sources, with a drag bar between them. */}
+            {supportsPanelOpen && (
+              <div
+                className={`flex min-h-0 flex-col ${
+                  sideStimuli.length > 0
+                    ? 'lg:h-[var(--supports-h)] lg:shrink-0'
+                    : 'flex-1'
+                }`}
+                style={{ ['--supports-h' as string]: `${supportsPct}%` }}
+              >
+                <SupportsPanel
+                  supports={supports}
+                  light={light}
+                  onClose={() => setSupportsOpen(false)}
+                />
+              </div>
+            )}
+            {supportsPanelOpen && sideStimuli.length > 0 && (
+              <SupportsDivider
+                pct={supportsPct}
+                onChange={setSupportsPct}
                 light={light}
-                renderStimulus={(s) => (
-                  <StimulusRenderer
-                    stimulus={s}
-                    light={light}
-                    onLoadError={handleStimulusLoadError}
-                    readAloud={stimulusReadAloudFor(s)}
-                    selectableText={session.allowStimulusQuotes === true}
-                    fill
-                  />
-                )}
               />
-            ) : (
-              sideStimuli.map((s) => (
-                <div key={s.id} className="flex-1 min-h-[280px] flex flex-col">
-                  <StimulusRenderer
-                    stimulus={s}
+            )}
+            {sideStimuli.length > 0 && (
+              <div className="flex min-h-0 flex-1 flex-col gap-3 lg:overflow-auto">
+                {stimulusTabsOn ? (
+                  <StimulusTabsPanel
+                    stimuli={sideStimuli}
                     light={light}
-                    onLoadError={handleStimulusLoadError}
-                    readAloud={stimulusReadAloudFor(s)}
-                    selectableText={session.allowStimulusQuotes === true}
+                    renderStimulus={(s) => (
+                      <StimulusRenderer
+                        stimulus={s}
+                        light={light}
+                        onLoadError={handleStimulusLoadError}
+                        readAloud={stimulusReadAloudFor(s)}
+                        selectableText={session.allowStimulusQuotes === true}
+                        fill
+                      />
+                    )}
                   />
-                </div>
-              ))
+                ) : (
+                  sideStimuli.map((s) => (
+                    <div
+                      key={s.id}
+                      className="flex-1 min-h-[280px] flex flex-col"
+                    >
+                      <StimulusRenderer
+                        stimulus={s}
+                        light={light}
+                        onLoadError={handleStimulusLoadError}
+                        readAloud={stimulusReadAloudFor(s)}
+                        selectableText={session.allowStimulusQuotes === true}
+                      />
+                    </div>
+                  ))
+                )}
+              </div>
             )}
           </div>
         )}
@@ -4491,7 +4566,7 @@ export const ActiveQuiz: React.FC<{
           {...clipboardGuards}
           className={`flex flex-col w-full min-w-0 ${
             whiteboardConfig ? 'flex-1 px-6 py-4' : 'p-6'
-          } ${splitPanel ? 'lg:flex-1 lg:mx-auto' : sideStimuli.length > 0 ? 'lg:flex-1' : 'mx-auto'} ${
+          } ${splitPanel ? 'lg:flex-1 lg:mx-auto' : sideStimuli.length > 0 || supportsPanelOpen ? 'lg:flex-1' : 'mx-auto'} ${
             // Free Response gets elbow room for long-form writing; structured
             // inputs read worse stretched across a widescreen.
             whiteboardConfig
@@ -4545,6 +4620,13 @@ export const ActiveQuiz: React.FC<{
               </span>
               {attemptDeadline != null && !isAttemptSubmitted(myResponse) && (
                 <QuizTimeLimitClock deadline={attemptDeadline} light={light} />
+              )}
+              {supports.length > 0 && (
+                <SupportsButton
+                  light={light}
+                  open={supportsPanelOpen}
+                  onToggle={() => setSupportsOpen((o) => !o)}
+                />
               )}
               {whiteboardConfig && currentStimuli.length > 0 && (
                 <StimulusDrawerButton
@@ -4646,8 +4728,8 @@ export const ActiveQuiz: React.FC<{
             </div>
           )}
 
-          {/* Question */}
-          {readAloudOn ? (
+          {/* Question; the recorded audio is the original wording, so a modified prompt has none yet. */}
+          {readAloudOn && !modifiedServed ? (
             <div
               ref={promptWrapRef}
               tabIndex={-1}
@@ -5134,7 +5216,7 @@ export const ActiveQuiz: React.FC<{
                             pictures={publicImageOnlyPictures(currentQuestion)}
                             speedBonus={speedBonusEarned}
                             streakCount={streakCount}
-                            streakEnabled={session.streakBonusEnabled}
+                            streakEnabled={streakBonusOn}
                           />
                           <SuccessPill light={light}>
                             {currentIndex < effectiveTotalQuestions - 1
@@ -5315,7 +5397,7 @@ export const ActiveQuiz: React.FC<{
                           pictures={publicImageOnlyPictures(currentQuestion)}
                           speedBonus={speedBonusEarned}
                           streakCount={streakCount}
-                          streakEnabled={session.streakBonusEnabled}
+                          streakEnabled={streakBonusOn}
                         />
                         <SuccessPill light={light}>
                           {currentIndex < effectiveTotalQuestions - 1
@@ -6046,7 +6128,8 @@ const ReviewPhase: React.FC<{
   servedLocale,
 }) => {
   const { t } = useTranslation();
-  const gamificationEnabled = isGamificationActive(session);
+  const reviewGame = isReviewGame(session);
+  const gamificationEnabled = reviewGame && isGamificationActive(session);
   const revealed = session.revealedAnswers?.[currentQuestion.id];
   const myAnswer = myResponse?.answers.find(
     (a) => a.questionId === currentQuestion.id
@@ -6092,7 +6175,7 @@ const ReviewPhase: React.FC<{
         )}
 
         {/* Student's result */}
-        {isCorrect !== null && (
+        {reviewGame && isCorrect !== null && (
           <div
             className={`text-lg font-black mb-6 ${isCorrect ? 'text-emerald-400' : 'text-red-400'}`}
           >
@@ -6134,7 +6217,7 @@ const ReviewPhase: React.FC<{
   );
 };
 
-const ResultsScreen: React.FC<{
+export const ResultsScreen: React.FC<{
   session: QuizSession;
   myResponse: ReturnType<typeof useQuizSessionStudent>['myResponse'];
   answeredCount: number;
@@ -6185,45 +6268,69 @@ const ResultsScreen: React.FC<{
     );
   }
 
+  const light = isBrandSubmitScreen(session, pin);
   return (
-    <div className="h-screen h-dvh overflow-y-auto bg-slate-900">
-      <div className="min-h-full flex flex-col items-center justify-center p-6 text-center">
-        <Trophy className="w-16 h-16 text-amber-400 mb-6" />
-        <h1 className="text-3xl font-black text-white mb-2">
+    <div
+      className={`relative h-screen h-dvh overflow-y-auto ${light ? 'bg-slate-50' : 'bg-slate-900'}`}
+    >
+      {light && <StudentBrandBackdrop fixed={false} />}
+      <div className="relative min-h-full flex flex-col items-center justify-center p-6 text-center">
+        {isReviewGame(session) ? (
+          <Trophy
+            className="w-16 h-16 text-amber-400 mb-6"
+            aria-hidden="true"
+          />
+        ) : (
+          light && <SubmittedMark light />
+        )}
+        <h1
+          className={`text-3xl font-black mb-2 ${light ? 'text-slate-800' : 'text-white'}`}
+        >
           {t('quizStudent.results.complete')}
         </h1>
-        <p className="text-slate-400 text-sm mb-8">
+        <p
+          className={`text-sm mb-8 ${light ? 'text-slate-500' : 'text-slate-400'}`}
+        >
           {pin ? (
             <>
               {t('quizStudent.results.greatJobPin')}{' '}
-              <span className="font-mono font-bold text-white">{pin}</span>!
+              <span
+                className={`font-mono font-bold ${light ? 'text-slate-800' : 'text-white'}`}
+              >
+                {pin}
+              </span>
+              !
             </>
           ) : (
             t('quizStudent.results.greatJob')
           )}
         </p>
 
-        <div className="mb-8 p-6 bg-slate-800 rounded-2xl">
-          <p className="text-5xl font-black text-white mb-2">{answeredCount}</p>
-          <p className="text-slate-400 text-sm">
-            {t('quizStudent.results.answeredOf', { total: totalQuestions })}
-          </p>
-        </div>
+        <AnsweredCountCard
+          light={light}
+          answeredCount={answeredCount}
+          total={totalQuestions}
+          className="mb-8"
+          size="lg"
+        />
 
         <p className="text-slate-500 text-sm max-w-xs">
           {t('quizStudent.results.submitted')}
         </p>
 
-        {isGamificationActive(session) && session.liveLeaderboard && (
-          <div className="mt-8 w-full flex justify-center">
-            <StudentLeaderboard
-              entries={session.liveLeaderboard}
-              myPin={pin}
-              myStudentUid={myStudentUid}
-              scoreSuffix={getScoreSuffix(session)}
-            />
-          </div>
-        )}
+        {isGamificationActive(session) &&
+          isReviewGame(session) &&
+          session.liveLeaderboard && (
+            <div className="mt-8 w-full flex justify-center">
+              <StudentLeaderboard
+                entries={session.liveLeaderboard}
+                myPin={pin}
+                myStudentUid={myStudentUid}
+                scoreSuffix={getScoreSuffix(session)}
+                light={light}
+              />
+            </div>
+          )}
       </div>
     </div>
   );
@@ -6317,20 +6424,30 @@ export const PublishedScoreReview: React.FC<{
     ? myAttemptAsResponse(liveResponse, picked)
     : liveResponse;
   const drawIds = picked ? picked.servedQuestionIds : liveDrawIds;
-  const attemptLabel = (n: number, score: number | null | undefined) =>
-    typeof score === 'number' ? `${n} · ${score}%` : String(n);
+  // Points lead, as on the score card; percent only when an attempt has no point total.
+  const attemptLabel = (
+    n: number,
+    score: number | null | undefined,
+    points: { earned: number; possible: number } | null | undefined
+  ) =>
+    points
+      ? `${n} · ${formatScorePoints(points.earned)}/${formatScorePoints(points.possible)}`
+      : typeof score === 'number'
+        ? `${n} · ${score}%`
+        : String(n);
   const attemptOptions =
     myAttempts.length > 0
       ? [
           ...myAttempts.map((a) => ({
             n: a.n,
-            label: attemptLabel(a.n, a.score),
+            label: attemptLabel(a.n, a.score, a.points),
           })),
           {
             n: null,
             label: attemptLabel(
               Math.max(liveAttemptN, myAttempts[myAttempts.length - 1].n + 1),
-              liveResponse.score
+              liveResponse.score,
+              publishedScorePoints(liveResponse)
             ),
           },
         ]
@@ -6361,6 +6478,8 @@ export const PublishedScoreReview: React.FC<{
   const answerIncorrectText = light ? 'text-red-600' : 'text-red-300';
   const answerNeutralText = light ? 'text-slate-700' : 'text-slate-200';
   const trophyCls = light ? 'text-amber-500' : 'text-amber-400';
+  // Trophy belongs to Review games only; Quiz is an assessment.
+  const showTrophy = isReviewGame(session);
   const checkIconCls = light ? 'text-emerald-600' : 'text-emerald-400';
   const xIconCls = light ? 'text-red-500' : 'text-red-400';
 
@@ -6371,8 +6490,15 @@ export const PublishedScoreReview: React.FC<{
 
   const scorePercent =
     typeof myResponse.score === 'number' ? myResponse.score : null;
-  // An earlier attempt's copy carries no points of its own.
-  const scorePoints = picked ? null : publishedScorePoints(myResponse);
+  // An earlier attempt's points come from the attempt list, and only when they make its percent.
+  const scorePoints = picked
+    ? picked.points &&
+      typeof picked.score === 'number' &&
+      Math.round((picked.points.earned / picked.points.possible) * 100) ===
+        picked.score
+      ? picked.points
+      : null
+    : publishedScorePoints(myResponse);
   // Per-question correctness counts come straight off the authoritative
   // response — no client-side grading. Defensive default: a published
   // assignment with all-undefined `isCorrect` reads as 0 correct rather
@@ -6388,9 +6514,21 @@ export const PublishedScoreReview: React.FC<{
   // entirely when the quiz has no auto-graded questions at all. Restricted
   // to the served subset (M17 §3a-F) — an unmodified question the student
   // was never served must not count toward this denominator.
-  const publicQuestions = drawIds
-    ? orderServedQuestions(session.publicQuestions ?? [], drawIds)
-    : serveQuestionSubset(session.publicQuestions ?? [], override?.questionIds);
+  const modifiedOn =
+    session.sessionMode === 'student' && override?.modifiedQuestions === true;
+  const publicQuestions = (
+    drawIds
+      ? orderServedQuestions(session.publicQuestions ?? [], drawIds)
+      : serveQuestionSubset(
+          session.publicQuestions ?? [],
+          override?.questionIds
+        )
+  ).map((q) =>
+    applyModifiedRubric(
+      applyModifiedWording(q, modifiedOn),
+      override?.modifiedQuestions
+    )
+  );
   const publicQuestionIndex = new Map(
     publicQuestions.map((question, index) => [question.id, index])
   );
@@ -6500,11 +6638,8 @@ export const PublishedScoreReview: React.FC<{
   // any future modal dialogs (z-50, well below `Z_INDEX.modal`/`Z_INDEX.toast`
   // from `config/zIndex.ts`). Strictly decorative + pointer-events-none, so
   // it doesn't interfere with scrolling, focus, or selection beneath it.
-  // Student display name is best-effort: SSO joiners carry an
-  // `auth.currentUser.displayName`; anonymous PIN joiners fall back to their
-  // PIN; otherwise we use a generic 'Student' label. The watermark is
-  // informational — its job is to discourage shared screenshots, not to
-  // authenticate.
+  // Student name is best-effort (see useWatermarkStudentName); it deters shared
+  // screenshots, it does not authenticate.
   const watermarkEnabled = protection?.watermarkEnabled === true;
   // When the session has no `scorePublishedAt` (legacy or mid-publish), fall
   // back to a per-mount snapshot of `Date.now()`. `useState(fn)` runs `fn`
@@ -6514,20 +6649,11 @@ export const PublishedScoreReview: React.FC<{
   const [fallbackPublishedAt] = useState(() => Date.now());
   const publishedAt =
     publishedAtProp ?? session.scorePublishedAt ?? fallbackPublishedAt;
-  // Prefer an explicit override (the Classroom SSO session is nameless, so the
-  // add-on passes the roster-resolved / userinfo name down). Otherwise treat a
-  // blank/whitespace-only displayName as missing and fall through to the PIN
-  // label, then a generic "Student".
-  const trimmedOverride = watermarkNameOverride?.trim() ?? '';
-  const trimmedDisplayName = auth.currentUser?.displayName?.trim() ?? '';
-  const watermarkStudentName =
-    trimmedOverride.length > 0
-      ? trimmedOverride
-      : trimmedDisplayName.length > 0
-        ? trimmedDisplayName
-        : pin
-          ? `PIN ${pin}`
-          : 'Student';
+  // The Classroom add-on and LTI pass a roster name as the override.
+  const watermarkStudentName = useWatermarkStudentName(
+    watermarkNameOverride,
+    pin
+  );
 
   // ─── Tab-switch warning protection ─────────────────────────────────────────
   // Listens for visibility/focus loss; each return increments the warning
@@ -6630,7 +6756,12 @@ export const PublishedScoreReview: React.FC<{
       />
       <div className="mx-auto w-full max-w-6xl">
         <header className="mb-6 flex flex-col items-center text-center">
-          <Trophy className={`mb-4 h-12 w-12 ${trophyCls}`} />
+          {showTrophy && (
+            <Trophy
+              className={`mb-4 h-12 w-12 ${trophyCls}`}
+              aria-hidden="true"
+            />
+          )}
           <h1 className={`text-2xl font-black sm:text-3xl ${headingText}`}>
             {t('quizStudent.results.title')}
           </h1>
@@ -7542,66 +7673,137 @@ export const QuizSubmittedWaitScreen: React.FC<{
     effectiveTabWarningThreshold
   );
   const scoreSuffix = getScoreSuffix(session);
+  const light = isBrandSubmitScreen(session, pin);
 
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-center">
-      <CheckCircle2 className="w-16 h-16 text-emerald-400 mb-6" />
-      <h1 className="text-3xl font-black text-white mb-2">
-        {t('quizStudent.submitted.title')}
-      </h1>
-      <p className="text-slate-400 text-sm mb-6">
-        {pin ? (
-          <>
-            {t('quizStudent.submitted.greatWorkPin')}{' '}
-            <span className="font-mono font-bold text-white">{pin}</span>.
-          </>
-        ) : (
-          t('quizStudent.submitted.greatWork')
-        )}
-      </p>
-
-      <div className="mb-6 p-5 bg-slate-800 rounded-2xl">
-        <p className="text-4xl font-black text-white mb-2">{answeredCount}</p>
-        <p className="text-slate-400 text-sm">
-          {t('quizStudent.results.answeredOf', {
-            total: totalQuestions ?? session.totalQuestions,
-          })}
+    <div
+      className={`relative h-screen h-dvh overflow-y-auto ${
+        light ? 'bg-slate-50' : 'bg-slate-900'
+      }`}
+    >
+      {light && <StudentBrandBackdrop fixed={false} />}
+      <div className="relative min-h-full w-full flex flex-col items-center justify-center p-6 text-center">
+        <SubmittedMark light={light} />
+        <h1
+          className={`text-3xl font-black mb-2 ${light ? 'text-slate-800' : 'text-white'}`}
+        >
+          {t('quizStudent.submitted.title')}
+        </h1>
+        <p
+          className={`text-sm mb-6 ${light ? 'text-slate-500' : 'text-slate-400'}`}
+        >
+          {pin ? (
+            <>
+              {t('quizStudent.submitted.greatWorkPin')}{' '}
+              <span
+                className={`font-mono font-bold ${light ? 'text-slate-800' : 'text-white'}`}
+              >
+                {pin}
+              </span>
+              .
+            </>
+          ) : (
+            t('quizStudent.submitted.greatWork')
+          )}
         </p>
-      </div>
 
-      {tabSwitchAutoSubmitted && (
-        <div className="max-w-sm mb-6 p-3 bg-amber-500/20 border border-amber-500/40 rounded-xl text-amber-200 text-sm">
-          {t('quizStudent.submitted.autoSubmitted')}
-        </div>
-      )}
+        <AnsweredCountCard
+          light={light}
+          answeredCount={answeredCount}
+          total={totalQuestions ?? session.totalQuestions}
+          className="mb-6"
+        />
 
-      {isGamificationActive(session) && session.liveLeaderboard && (
-        <div className="mb-6 w-full flex justify-center">
-          <StudentLeaderboard
-            entries={session.liveLeaderboard}
-            myPin={pin}
-            myStudentUid={myResponse.studentUid}
-            scoreSuffix={scoreSuffix}
+        {tabSwitchAutoSubmitted && (
+          <div
+            className={`max-w-sm mb-6 p-3 rounded-xl text-sm ${
+              light
+                ? 'bg-amber-50 border border-amber-200 text-amber-800'
+                : 'bg-amber-500/20 border border-amber-500/40 text-amber-200'
+            }`}
+          >
+            {t('quizStudent.submitted.autoSubmitted')}
+          </div>
+        )}
+
+        {isGamificationActive(session) &&
+          isReviewGame(session) &&
+          session.liveLeaderboard && (
+            <div className="mb-6 w-full flex justify-center">
+              <StudentLeaderboard
+                entries={session.liveLeaderboard}
+                myPin={pin}
+                myStudentUid={myResponse.studentUid}
+                scoreSuffix={scoreSuffix}
+                light={light}
+              />
+            </div>
+          )}
+
+        <div className="flex items-center gap-2 text-sm text-slate-500">
+          <Loader2
+            className={`w-4 h-4 animate-spin ${light ? 'text-brand-blue-primary' : ''}`}
           />
+          {t('quizStudent.submitted.waitingFinal')}
         </div>
-      )}
 
-      <div className="flex items-center gap-2 text-slate-500 text-sm">
-        <Loader2 className="w-4 h-4 animate-spin" />
-        {t('quizStudent.submitted.waitingFinal')}
-      </div>
-
-      {/*
+        {/*
         Pseudonym students (no PIN) reached this from /my-assignments and
         would otherwise be stranded waiting for the teacher to end the
         quiz. PIN-based students joined by code and have nowhere to go
         back to — skip the CTA for them.
       */}
-      {!pin && !hideReturnButton && (
-        <div className="mt-6">
-          <ReturnToAssignmentsButton variant="standalone" />
-        </div>
-      )}
+        {!pin && !hideReturnButton && (
+          <div className="mt-6">
+            <ReturnToAssignmentsButton variant="standalone" />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Students who came from My Assignments (no PIN) or a self-paced quiz get the brand page; live PIN joins stay dark.
+const isBrandSubmitScreen = (session: QuizSession, pin: string): boolean =>
+  !pin || session.sessionMode === 'student';
+
+const SubmittedMark: React.FC<{ light: boolean }> = ({ light }) =>
+  light ? (
+    <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-blue-primary shadow-lg shadow-brand-blue-primary/20">
+      <Check
+        className="h-8 w-8 text-white"
+        strokeWidth={3}
+        aria-hidden="true"
+      />
+    </div>
+  ) : (
+    <CheckCircle2 className="w-16 h-16 text-emerald-400 mb-6" />
+  );
+
+const AnsweredCountCard: React.FC<{
+  light: boolean;
+  answeredCount: number;
+  total: number;
+  className?: string;
+  size?: 'md' | 'lg';
+}> = ({ light, answeredCount, total, className = '', size = 'md' }) => {
+  const { t } = useTranslation();
+  return (
+    <div
+      className={`${size === 'lg' ? 'p-6' : 'p-5'} rounded-2xl ${
+        light
+          ? 'min-w-[200px] bg-white border border-slate-200 shadow-xs'
+          : 'bg-slate-800'
+      } ${className}`}
+    >
+      <p
+        className={`${size === 'lg' ? 'text-5xl' : 'text-4xl'} font-black mb-2 tabular-nums ${light ? 'text-brand-blue-primary' : 'text-white'}`}
+      >
+        {answeredCount}
+      </p>
+      <p className={`text-sm ${light ? 'text-slate-500' : 'text-slate-400'}`}>
+        {t('quizStudent.results.answeredOf', { total })}
+      </p>
     </div>
   );
 };

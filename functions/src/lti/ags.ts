@@ -199,3 +199,57 @@ export async function postScore(opts: {
     return { ok: false, status: 0, isRedirect: false };
   }
 }
+
+type PostScoreOpts = Parameters<typeof postScore>[0];
+type PostScoreResult = Awaited<ReturnType<typeof postScore>>;
+
+/** Transient AGS failures worth another try: timeouts, rate limits and server errors. */
+export const isRetryableScoreStatus = (r: PostScoreResult): boolean =>
+  !r.ok &&
+  !r.isRedirect &&
+  (r.status === 0 || r.status === 408 || r.status === 429 || r.status >= 500);
+
+// Schoology allows about 50 requests per 5 seconds, so a class-sized burst hits 429 near the 50th post.
+export const SCORE_RETRY_DELAYS_MS = [2000, 5000, 10000];
+// About 33 posts per 5 seconds, so a push stays under the limit with room for its other Schoology calls.
+const SCORE_SPACING_MS = 150;
+
+/** postScore paced under Schoology's rate limit, retrying transient failures until `deadline`. */
+export function pacedScorePoster(opts: {
+  deadline: number;
+  post?: (o: PostScoreOpts) => Promise<PostScoreResult>;
+  now?: () => number;
+  wait?: (ms: number) => Promise<void>;
+  spacingMs?: number;
+}): (o: PostScoreOpts) => Promise<PostScoreResult> {
+  const post = opts.post ?? postScore;
+  const now = opts.now ?? Date.now;
+  const wait =
+    opts.wait ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)));
+  const spacing = opts.spacingMs ?? SCORE_SPACING_MS;
+  let nextSlot = 0;
+  const slot = async (): Promise<void> => {
+    const t = now();
+    const at = Math.max(t, nextSlot);
+    nextSlot = at + spacing;
+    if (at > t) await wait(at - t);
+  };
+  return async (o) => {
+    let r: PostScoreResult = { ok: false, status: 0, isRedirect: false };
+    for (let attempt = 0; ; attempt++) {
+      await slot();
+      // Past the deadline, report a retryable failure so the callable returns in time.
+      if (now() > opts.deadline) return r;
+      r = await post(o);
+      const delay = SCORE_RETRY_DELAYS_MS[attempt];
+      if (
+        !isRetryableScoreStatus(r) ||
+        delay === undefined ||
+        now() + delay > opts.deadline
+      ) {
+        return r;
+      }
+      await wait(delay + Math.floor(Math.random() * 500));
+    }
+  };
+}

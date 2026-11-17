@@ -120,6 +120,18 @@ export const reportDriveAuthError = (err: unknown): boolean => {
   return true;
 };
 
+// The Reconnect toast stays up 10 s, so a batch of failed uploads shows it once.
+const RECONNECT_PROMPT_GAP_MS = 10_000;
+let lastReconnectPromptAt = -Infinity;
+
+/** Shows the Reconnect prompt for an action that can't go ahead without Drive, once per toast lifetime. */
+export const promptDriveReconnect = (now = Date.now()): void => {
+  if (!driveAuthErrorHandler) return;
+  if (now - lastReconnectPromptAt < RECONNECT_PROMPT_GAP_MS) return;
+  lastReconnectPromptAt = now;
+  driveAuthErrorHandler();
+};
+
 /**
  * Construct a `DriveAuthError` and route it through `reportDriveAuthError`
  * before returning it for the caller to throw. Use at every Drive/Sheets
@@ -231,5 +243,6 @@ export const __resetDriveAuthErrorsForTests = (): void => {
   driveAuthErrorHandler = null;
   driveAuthErrorLatched = false;
   lastSeenToken = null;
+  lastReconnectPromptAt = -Infinity;
   driveReconnectedHandlers.clear();
 };

@@ -1,4 +1,4 @@
-// useUnifiedAssignments — normalizes the five per-teacher assignment collections into one flat, sortable list for the Assignments hub (spec §5 D1). Read-only.
+// useUnifiedAssignments — normalizes the six per-teacher assignment collections into one flat, sortable list for the Assignments hub (spec §5 D1). Read-only.
 
 import { useMemo } from 'react';
 import {
@@ -9,6 +9,7 @@ import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments
 import { useGuidedLearningAssignments } from '@/hooks/useGuidedLearningAssignments';
 import { useMiniAppAssignments } from '@/hooks/useMiniAppAssignments';
 import { useFlashcardAssignments } from '@/hooks/useFlashcardAssignments';
+import { useWritingAssignmentSessions } from '@/hooks/useWritingAssignmentSessions';
 import type {
   ClassRoster,
   PeriodAccess,
@@ -17,7 +18,12 @@ import type {
 } from '@/types';
 
 export type AssignmentKind =
-  'quiz' | 'video-activity' | 'guided-learning' | 'mini-app' | 'flashcards';
+  | 'quiz'
+  | 'video-activity'
+  | 'guided-learning'
+  | 'mini-app'
+  | 'flashcards'
+  | 'writing';
 
 /** Lifecycle status for the hub's status filter chip; 'paused' only applies to quiz/video-activity kinds. */
 export type UnifiedAssignmentStatus = 'active' | 'paused' | 'inactive';
@@ -32,9 +38,9 @@ export interface UnifiedAssignmentRow {
   targetSkippedCount: number;
   openAt?: number | null;
   closeAt?: number | null;
-  /** Quiz rows only: the shared due date. */
+  /** Quiz and Writing rows: the shared due date. */
   dueAt?: number | null;
-  /** Quiz rows only: a Manual due date that locks each class row. */
+  /** Quiz and Writing rows: a Manual due date that locks each class row. */
   dueLocks?: boolean;
   createdAt: number;
   /** Paired session doc id — always `id` (1:1 shared UUID, spec §1). D2 name/status resolution. */
@@ -89,7 +95,8 @@ function resolveClassName(
 
 export const useUnifiedAssignments = (
   userId: string | undefined,
-  rosters: ClassRoster[]
+  rosters: ClassRoster[],
+  writingEnabled = true
 ): {
   rows: UnifiedAssignmentRow[];
   loading: boolean;
@@ -100,6 +107,9 @@ export const useUnifiedAssignments = (
   const gl = useGuidedLearningAssignments(userId);
   const miniApp = useMiniAppAssignments(userId);
   const flashcards = useFlashcardAssignments(userId);
+  const writing = useWritingAssignmentSessions(
+    writingEnabled ? userId : undefined
+  );
 
   const rosterNamesById = useMemo(() => {
     const map = new Map<string, string>();
@@ -234,12 +244,41 @@ export const useUnifiedAssignments = (
       })
     );
 
+    const writingRows: UnifiedAssignmentRow[] = writing.records.map((a) => ({
+      id: a.id,
+      kind: 'writing',
+      title: a.title,
+      className:
+        (a.rosterIds ?? []).some((id) => rosterNamesById.has(id)) ||
+        !a.periodNames?.length
+          ? resolveClassName(undefined, a.rosterIds, rosterNamesById)
+          : a.periodNames.join(', '),
+      status: a.status === 'ended' ? 'inactive' : 'active',
+      targetMode: a.targetMode === 'students' ? 'students' : 'class',
+      targetSkippedCount: a.targetSkippedCount ?? 0,
+      openAt: a.openAt,
+      closeAt: a.closeAt,
+      dueAt: a.dueAt,
+      ...(a.dueLocks ? { dueLocks: true } : {}),
+      createdAt: a.createdAt,
+      sessionId: a.sessionId,
+      rosterIds: a.rosterIds,
+      periodNames: a.periodNames,
+      classIds: a.classIds,
+      targetStudents: a.targetStudents,
+      excludedTargets: a.excludedTargets,
+      overridesBySourcedId: a.overridesBySourcedId,
+      removedStudentRefs: a.removedStudentRefs,
+      ...(a.periodAccess ? { periodAccess: a.periodAccess } : {}),
+    }));
+
     return [
       ...quizRows,
       ...vaRows,
       ...glRows,
       ...miniAppRows,
       ...flashcardRows,
+      ...writingRows,
     ].sort((a, b) => b.createdAt - a.createdAt);
   }, [
     quiz.assignments,
@@ -247,6 +286,7 @@ export const useUnifiedAssignments = (
     gl.assignments,
     miniApp.assignments,
     flashcards.assignments,
+    writing.records,
     rosterNamesById,
   ]);
 
@@ -257,7 +297,8 @@ export const useUnifiedAssignments = (
       va.loading ||
       gl.loading ||
       miniApp.loading ||
-      flashcards.loading,
+      flashcards.loading ||
+      writing.loading,
     quizPlcActions: {
       share: quiz.shareAssignmentWithPlc,
       stopSharing: quiz.stopSharingAssignmentWithPlc,

@@ -3200,6 +3200,14 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
             targeting: assignTargeting,
             onTargetingChange: setAssignTargeting,
             quizContext: assignQuizContext,
+            hasQuestionTimeLimits: (assignQuizData?.questions ?? []).some(
+              (q) => q.timeLimit > 0
+            ),
+            // A bank draw may bring modified questions in too.
+            hasModifiedQuestions:
+              (assignQuizData?.questions ?? []).some(
+                (q) => !!q.modifiedText?.trim() || !!q.modifiedRubricSnapshot
+              ) || (assignQuizData?.bankSlots?.length ?? 0) > 0,
           }}
           sharing={{
             value: assignOptions,

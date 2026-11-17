@@ -57,6 +57,7 @@ export interface ToolColumnPushResult {
   reason?: string;
   missing?: boolean;
   missingComment?: boolean;
+  isRedirect?: boolean;
 }
 
 export interface ToolColumnPushData {
@@ -119,7 +120,9 @@ export async function pushToolColumn(
 ): Promise<ToolColumnPushData> {
   const call = httpsCallable<ToolColumnPushRequest, ToolColumnPushData>(
     functions,
-    'ltiPushToolColumnV1'
+    'ltiPushToolColumnV1',
+    // Past the function's 300s timeout, so a slow push still returns its results.
+    { timeout: 310_000 }
   );
   return (await call(req)).data;
 }
@@ -254,6 +257,19 @@ export const TOOL_COLUMN_BENIGN_REASONS: ReadonlySet<string> = new Set([
   'not a teacher of the Schoology section',
 ]);
 
+const RETRYABLE_REASONS: ReadonlySet<string> = new Set([
+  'section failed',
+  'column being created',
+]);
+
+/** A timeout, rate limit, server error or failed section; not a refusal that would fail again. */
+function isRetryableFailure(r: ToolColumnPushResult): boolean {
+  if (r.isRedirect) return false;
+  if (r.reason) return RETRYABLE_REASONS.has(r.reason);
+  const s = r.status ?? 0;
+  return s === 0 || s === 408 || s === 429 || s >= 500;
+}
+
 const plural = (n: number, one: string, many: string): string =>
   `${n} ${n === 1 ? one : many}`;
 
@@ -261,13 +277,19 @@ const plural = (n: number, one: string, many: string): string =>
 export function formatToolColumnPushToast(data: ToolColumnPushData): {
   message: string;
   failed: number;
+  /** Students whose grade hit a passing problem and is worth sending again. */
+  retryUids: string[];
 } {
   const ok = data.results.filter((r) => r.ok);
   const count = (reason: string) =>
     data.results.filter((r) => !r.ok && r.reason === reason).length;
-  const failed = data.results.filter(
+  const failedResults = data.results.filter(
     (r) => !r.ok && !(r.reason && TOOL_COLUMN_BENIGN_REASONS.has(r.reason))
-  ).length;
+  );
+  const failed = failedResults.length;
+  const retryUids = failedResults
+    .filter(isRetryableFailure)
+    .map((r) => r.pseudonymUid);
   const missing = ok.filter((r) => r.missing).length;
   const parts = [
     `Pushed ${plural(ok.length - missing, 'grade', 'grades')} to Schoology${
@@ -319,9 +341,9 @@ export function formatToolColumnPushToast(data: ToolColumnPushData): {
     parts.push('Some Missing marks were added as comments.');
   }
   if (failed > 0) {
-    parts.push(`${failed} failed to push. Try again.`);
+    parts.push(`${failed} not sent.`);
   }
-  return { message: parts.join(' '), failed };
+  return { message: parts.join(' '), failed, retryUids };
 }
 
 /** True when SpartBoard made a Schoology column for this session; read before the session is deleted. */

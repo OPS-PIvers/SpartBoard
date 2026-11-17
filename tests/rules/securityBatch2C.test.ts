@@ -252,6 +252,29 @@ describe('a closed run freezes group uploads', () => {
   });
 });
 
+describe('a submitted group freezes its Storage files', () => {
+  // The Storage emulator cannot resolve firestore.get(), so the gate is pinned by source.
+  it('gates member create and delete on the group not having submitted', () => {
+    const source = readFileSync(STORAGE_RULES, 'utf8');
+    const block = source.slice(
+      source.indexOf('match /project_uploads/'),
+      source.indexOf('match /web_tour_pictures/')
+    );
+    const open = block.slice(block.indexOf('function pjGroupOpen()'));
+    expect(open.slice(0, open.indexOf('}'))).toContain(
+      "get('submittedAt', 0) == 0"
+    );
+    const create = block.slice(block.indexOf('allow create'));
+    expect(create.slice(0, create.indexOf(';'))).toContain(
+      'pjIsGroupMember() && pjRunAccepting() && pjGroupOpen()'
+    );
+    const del = block.slice(block.indexOf('allow delete'));
+    expect(del.slice(0, del.indexOf(';'))).toContain(
+      'pjIsGroupMember() && pjRunAccepting() && pjGroupOpen()'
+    );
+  });
+});
+
 describe('only a real run teacher or member uploads to the transit folder', () => {
   const file = new Uint8Array([1, 2, 3]);
   const pdf = { contentType: 'application/pdf' };

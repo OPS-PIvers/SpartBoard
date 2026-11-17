@@ -582,18 +582,13 @@ async function resolveTier(
   caller: Caller,
   orgId: string | null
 ): Promise<CallerTier> {
-  const [operator, legacy, data] = await Promise.all([
+  const [operator, data] = await Promise.all([
     read(`organizations/${OPERATOR_ORG_ID}/members/${caller.emailLower}`),
-    read('admin_settings/user_roles'),
     orgId
       ? read(`organizations/${orgId}/members/${caller.emailLower}`)
       : Promise.resolve(undefined),
   ]);
-  const superAdmin = isStrictSuperAdminData(
-    caller.emailLower,
-    operator,
-    legacy
-  );
+  const superAdmin = isStrictSuperAdminData(operator);
   return {
     emailLower: caller.emailLower,
     superAdmin,

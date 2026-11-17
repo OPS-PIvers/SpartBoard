@@ -21,6 +21,8 @@ export interface VerifiedClassesDoc {
   updatedAt: number;
   /** When ClassLink last answered for this teacher; absent until it has. */
   classlinkAt?: number;
+  /** When the teacher last asked for a refresh; throttles refreshMyClassesV1. */
+  refreshedAt?: number;
 }
 
 export interface VerifiedClassesSources {
@@ -94,12 +96,15 @@ export function mergeVerifiedClasses(
       : typeof storedAt === 'number'
         ? storedAt
         : undefined;
+  const refreshedAt =
+    typeof stored?.refreshedAt === 'number' ? stored.refreshedAt : undefined;
   return {
     ids,
     classlink,
     test,
     lms,
     updatedAt: now,
+    ...(refreshedAt !== undefined ? { refreshedAt } : {}),
     ...(classlinkAt !== undefined ? { classlinkAt } : {}),
   };
 }

@@ -31,8 +31,11 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-live-view-screenshot',
   'quiz-monitor-roster',
   'app-pickers',
+  'drive-only-uploads',
   'assignment-class-list',
   'quiz-score-on-submit',
+  'modification-groups',
+  'project-submit',
   'gradebook',
   'student-gradebook',
   'quiz-time-limit',
@@ -53,6 +56,8 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-calculator-stimulus',
   'quiz-stimulus-preview',
   'question-editor-fields',
+  'flashcard-answer-rows',
+  'flashcard-card-images',
   'lunch-count-redesign',
   'weather-details',
   'checklist-small-card',
@@ -61,6 +66,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'document-camera-pro',
   'whiteboard-pro',
   'music-my-songs',
+  'embed-block-new-tabs',
   'widget-connections',
   'focus-sessions',
   'input-signals',
@@ -90,6 +96,8 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'assign-due-date',
   'reopen-selected-students',
   'share-import-confirm',
+  'course-agenda',
+  'va-score-only-verdicts',
 ];
 
 // Mirror of `missingDocPublic: true` flags and their `defaultMinTier` (null = none); config/featureDefaults.test.ts keeps it in sync.

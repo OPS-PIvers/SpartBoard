@@ -106,7 +106,7 @@ describe('FreeResponseGrader — Escape with unsaved edits', () => {
       />
     );
 
-    fireEvent.change(screen.getByLabelText(/Points awarded/i), {
+    fireEvent.change(screen.getByLabelText(/^Score$/), {
       target: { value: '5' },
     });
     fireEvent.keyDown(document.body, { key: 'Escape' });

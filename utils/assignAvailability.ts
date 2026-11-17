@@ -538,7 +538,12 @@ export function applyWhen(
       targeting: {
         ...rest,
         ...(workKind ? { workKind } : {}),
-        ...(dueAt != null ? { closeAt: dueAt, dueAt } : {}),
+        // Late work allowed keeps the class open past the due, as a Scheduled close does.
+        ...(dueAt == null
+          ? {}
+          : value.availability?.allowLate
+            ? { dueAt }
+            : { closeAt: dueAt, dueAt }),
         periodPlan: { mode: 'assessment' },
       },
     };

@@ -25,7 +25,7 @@ import {
 } from './config';
 import { ALLOWED_ORIGINS, computeStudentUid } from '../classlinkShared';
 import { loadTestClassMembership } from '../studentAssignmentTargets';
-import { getAgsAccessToken, postScore } from './ags';
+import { getAgsAccessToken, pacedScorePoster, postScore } from './ags';
 import { fetchNrpsMembers, type NrpsMember } from './nrps';
 import { ltiStudentUid } from './identity';
 import {
@@ -399,7 +399,11 @@ async function buildDeps(
     listLineItems,
     createLineItem,
     updateLineItemMaximum,
-    postScore,
+    // Leaves time inside the 300s callable for the column work and saving.
+    postScore: pacedScorePoster({
+      deadline: Date.now() + 200_000,
+      post: postScore,
+    }),
     nrpsMembers: (url, token) => {
       let members = nrpsCache.get(url);
       if (!members) {
@@ -614,6 +618,18 @@ export const ltiCreateToolColumnCategoriesV1 = onCall(
   }
 );
 
+/** HTTP status counts for posts that failed, so a partial push shows its cause in the logs. */
+function failedStatusCounts(
+  results: { ok: boolean; status?: number }[]
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const r of results) {
+    if (r.ok || r.status === undefined) continue;
+    out[r.status] = (out[r.status] ?? 0) + 1;
+  }
+  return out;
+}
+
 // ── ltiPushToolColumnV1 ─────────────────────────────────────────────────────
 export const ltiPushToolColumnV1 = onCall(
   {
@@ -756,7 +772,8 @@ export const ltiPushToolColumnV1 = onCall(
     // PII-free diagnostics: counts only.
     console.log(
       `[ltiPushToolColumn] session=${session.sessionId} sections=${targets.length} ` +
-        `pushed=${results.filter((r) => r.ok).length} total=${grades.length}`
+        `pushed=${results.filter((r) => r.ok).length} total=${grades.length} ` +
+        `failedStatuses=${JSON.stringify(failedStatusCounts(results))}`
     );
     return {
       results,

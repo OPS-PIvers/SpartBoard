@@ -413,6 +413,7 @@ const focus = createFocusClient({
   ...chromeFocusDeps,
   enforce: enforcer.sync,
   activeFullscreen: enforcer.activeFullscreen,
+  activeOpened: enforcer.activeOpened,
   origins,
   ownPages: chrome.runtime.getURL(''),
   protocol: FOCUS_ENFORCE_PROTOCOL,
@@ -678,9 +679,10 @@ function blockedNavigation(
   tabId: number,
   url: string,
   committed: boolean,
-  currentUrl?: string
+  currentUrl?: string,
+  transition?: string
 ): void {
-  enforcer.navigated(tabId, url, currentUrl, committed).then(
+  enforcer.navigated(tabId, url, currentUrl, committed, transition).then(
     (blocked) => {
       if (blocked) void focus.blocked();
     },
@@ -697,8 +699,19 @@ chrome.webNavigation.onBeforeNavigate.addListener((d) => {
     () => blockedNavigation(d.tabId, d.url, false)
   );
 });
+// A tab a page opened (a sign-in popup) may sit on about:blank until it shows a real page; one the student opened may not.
+chrome.webNavigation.onCreatedNavigationTarget.addListener((d) =>
+  enforcer.opened(d.tabId)
+);
 chrome.webNavigation.onCommitted.addListener((d) => {
-  if (isShownTopFrame(d)) blockedNavigation(d.tabId, d.url, true);
+  if (isShownTopFrame(d))
+    blockedNavigation(
+      d.tabId,
+      d.url,
+      true,
+      undefined,
+      String(d.transitionType)
+    );
 });
 chrome.webNavigation.onHistoryStateUpdated.addListener((d) => {
   if (isShownTopFrame(d)) blockedNavigation(d.tabId, d.url, true);

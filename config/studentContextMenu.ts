@@ -38,6 +38,7 @@ const STUDENT_PATH_PREFIXES = [
   '/activity-wall',
   '/poll',
   '/flashcards/a',
+  '/writing',
   '/student/login',
   '/my-assignments',
   '/project',

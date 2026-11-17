@@ -13,6 +13,8 @@ export interface TabInfo {
   url: string;
   active: boolean;
   lastAccessed: number;
+  /** Another page opened this tab (a popup or link target), so a blank page in it is allowed. */
+  opened: boolean;
 }
 
 /** True while the session holds the student at Redirect or Lock; Monitor never blocks. */
@@ -33,8 +35,9 @@ export const isBlockedUrl = (
   url: string,
   state: FocusLocalState,
   origins: readonly string[],
-  ownPages: string
-) => isBlockedTopLevel(url, state.session.sites, origins, ownPages);
+  ownPages: string,
+  opened = false
+) => isBlockedTopLevel(url, state.session.sites, origins, ownPages, opened);
 
 /** The focus page, optionally with the notice that a site was blocked. */
 export const focusPageUrl = (base: string, notice = false) =>
@@ -115,7 +118,8 @@ export const tabsToPark = (
   state: FocusLocalState,
   origins: readonly string[],
   ownPages: string
-) => tabs.filter((t) => isBlockedUrl(t.url, state, origins, ownPages));
+) =>
+  tabs.filter((t) => isBlockedUrl(t.url, state, origins, ownPages, t.opened));
 
 /** Parked tabs to restore: all of them once nothing blocks, else those a newly added site now allows. */
 export function tabsToRestore(

@@ -10,7 +10,15 @@ import {
 import userEvent from '@testing-library/user-event';
 import { EmbedWidget } from './index';
 import { WidgetData, EmbedGlobalConfig } from '@/types';
-import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+import {
+  vi,
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+  onTestFinished,
+} from 'vitest';
 import '@testing-library/jest-dom';
 import * as aiModule from '@/utils/ai';
 import { useAuth } from '@/context/useAuth';
@@ -242,6 +250,82 @@ describe('EmbedWidget', () => {
     render(<EmbedWidget widget={vidsWidget} />);
     const iframe = screen.getByTitle('Embed Content');
     expect(iframe.getAttribute('sandbox')).toContain('allow-same-origin');
+  });
+
+  it('keeps allow-popups unless Block new tabs is on', () => {
+    render(<EmbedWidget widget={baseWidget} />);
+    expect(
+      screen.getByTitle('Embed Content').getAttribute('sandbox')
+    ).toContain('allow-popups');
+  });
+
+  it('drops allow-popups when Block new tabs is on', () => {
+    const slidesWidget: WidgetData = {
+      ...baseWidget,
+      config: {
+        ...baseWidget.config,
+        url: 'https://docs.google.com/presentation/d/preso-id/edit',
+        blockNewTabs: true,
+      },
+    };
+    render(<EmbedWidget widget={slidesWidget} />);
+    const sandbox =
+      screen.getByTitle('Embed Content').getAttribute('sandbox') ?? '';
+    expect(sandbox).not.toContain('allow-popups');
+    expect(sandbox).toContain('allow-same-origin');
+  });
+
+  it('reloads the frame with the new sandbox when Block new tabs flips', () => {
+    const { rerender } = render(<EmbedWidget widget={baseWidget} />);
+    const before = screen.getByTitle('Embed Content');
+    rerender(
+      <EmbedWidget
+        widget={{
+          ...baseWidget,
+          config: { ...baseWidget.config, blockNewTabs: true },
+        }}
+      />
+    );
+    const after = screen.getByTitle('Embed Content');
+    expect(after).not.toBe(before);
+    expect(after.getAttribute('sandbox')).not.toContain('allow-popups');
+  });
+
+  it('drops allow-popups from custom code when Block new tabs is on', () => {
+    render(
+      <EmbedWidget
+        widget={{
+          ...baseWidget,
+          config: { mode: 'code', html: '<p>x</p>', blockNewTabs: true },
+        }}
+      />
+    );
+    expect(screen.getByTitle('Embed Content').getAttribute('sandbox')).toBe(
+      'allow-scripts allow-forms'
+    );
+  });
+
+  it('ignores Block new tabs when its preview flag is off', () => {
+    const original = vi.mocked(useAuth).getMockImplementation();
+    const auth = vi.mocked(useAuth)();
+    vi.mocked(useAuth).mockImplementation(() => ({
+      ...auth,
+      canAccessFeature: (id: string) => id !== 'embed-block-new-tabs',
+    }));
+    onTestFinished(() => {
+      if (original) vi.mocked(useAuth).mockImplementation(original);
+    });
+    render(
+      <EmbedWidget
+        widget={{
+          ...baseWidget,
+          config: { ...baseWidget.config, blockNewTabs: true },
+        }}
+      />
+    );
+    expect(
+      screen.getByTitle('Embed Content').getAttribute('sandbox')
+    ).toContain('allow-popups');
   });
 
   it('renders an iframe with srcDoc in code mode', () => {

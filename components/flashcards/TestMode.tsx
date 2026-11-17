@@ -20,6 +20,7 @@ import { isImeComposing } from '@/utils/imeComposing';
 import { getFlashcardAnswerCharacters } from '@/config/flashcardCharBars';
 import { CharacterBar } from './PlayerPrimitives';
 import { TestQuestionNav } from './TestQuestionNav';
+import { CardPicture } from './CardPicture';
 import { cx, getFlashcardSides } from './playerUtils';
 
 interface TestModeProps {
@@ -680,6 +681,7 @@ export const TestMode: React.FC<TestModeProps> = ({
                 >
                   {sides.prompt}
                 </h2>
+                <CardPicture url={sides.promptImage} />
                 {question.type === 'mc' ? (
                   <div className="grid" style={{ gap: 'min(7px, 1.5cqmin)' }}>
                     {question.options.map((option) => {

@@ -9,7 +9,6 @@ import React, {
   useState,
 } from 'react';
 import {
-  ArrowLeft,
   BarChart3,
   Eye,
   EyeOff,
@@ -84,6 +83,7 @@ import { StatusBuckets, BucketKey } from './StatusBuckets';
 import { OpenPartControl } from './OpenPartControl';
 import { openQuizPart } from './openPart';
 import { RosterList } from './RosterList';
+import { MonitorHeader } from './MonitorHeader';
 import { PeriodAccessStrip } from './PeriodAccessStrip';
 import { ClassPicker, PeriodBar } from './PeriodBar';
 import { joinCodesAllowedForBuildings } from './monitorUtils';
@@ -96,6 +96,7 @@ import {
   type LiveScoreboardLink,
 } from './QuizSettingsScreen';
 import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
+import { isReviewGame } from '@/utils/quizWidgetKind';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
 
 export interface QuizLiveMonitorProps {
@@ -208,7 +209,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     onBack,
     hideLiveScoreboard = false,
     liveScoreboardLink,
-    assessmentOnly = false,
+    assessmentOnly: assessmentOnlyProp = false,
     overridesBySourcedId = null,
     localizedFibAnswers = null,
     overridesByStudentUid = null,
@@ -218,6 +219,8 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     responsesLoaded = true,
     reopenPicker = null,
   } = props;
+  // Any Quiz-kind session is an assessment, including PLC mounts that omit the prop.
+  const assessmentOnly = assessmentOnlyProp || !isReviewGame(session);
   const fibGrading = useMemo<FibGradingContext>(
     () => ({
       answers: localizedFibAnswers,
@@ -456,6 +459,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
   useEffect(() => {
     const shouldBroadcast =
       session.status === 'active' &&
+      !assessmentOnly &&
       (isGame || isGamificationActive(scoringConfig));
     if (!shouldBroadcast) {
       if (session.status === 'ended' || clearedRef.current) return;
@@ -844,13 +848,6 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
           : []),
       ];
 
-  const statusPill =
-    session.status === 'paused'
-      ? { label: 'Paused', cls: 'bg-white/20 text-white' }
-      : session.status === 'ended'
-        ? { label: 'Ended', cls: 'bg-white/20 text-white' }
-        : { label: 'Live', cls: 'bg-white text-brand-blue-primary' };
-
   // Board view hides WHO raised a hand / is idle; on by default since the widget is usually projected.
   const boardView = config.monitorBoardView ?? true;
 
@@ -884,56 +881,31 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
           />
         </Suspense>
       )}
-      <div
-        className="flex items-center bg-brand-blue-primary text-white shrink-0"
-        style={{
-          gap: 'min(8px, 2cqmin)',
-          paddingBlock: 'min(10px, 2.5cqmin)',
-          paddingLeft: 'min(12px, 3cqmin)',
-          // A connected Review carries the corner tab; keep the status pill clear of it.
-          paddingRight: liveScoreboardLink ? 40 : 'min(12px, 3cqmin)',
-        }}
-      >
-        {(onBack != null || !onHome) && (
-          <button
-            onClick={() =>
-              onHome
-                ? onBack?.()
-                : setScreen(
-                    screen.name === 'question'
-                      ? { name: 'questions' }
-                      : { name: 'home' }
-                  )
-            }
-            aria-label="Back"
-            {...tourAttr('quiz-monitor.back', widgetId, tourType)}
-            className="rounded-md hover:bg-white/15 transition-colors"
-            style={{ padding: 'min(4px, 1cqmin)' }}
-          >
-            <ArrowLeft
-              style={{
-                width: 'min(16px, 5cqmin)',
-                height: 'min(16px, 5cqmin)',
-              }}
-            />
-          </button>
-        )}
-        <p
-          className="font-sans font-semibold truncate flex-1"
-          style={{ fontSize: 'min(14px, 5cqmin)' }}
-        >
-          {headerTitle}
-        </p>
-        <span
-          className={`shrink-0 rounded-full font-sans font-semibold uppercase tracking-wider ${statusPill.cls}`}
-          style={{
-            fontSize: 'min(10px, 3.5cqmin)',
-            padding: 'min(2px, 0.5cqmin) min(8px, 2cqmin)',
-          }}
-        >
-          {statusPill.label}
-        </span>
-      </div>
+      <MonitorHeader
+        title={headerTitle}
+        status={
+          session.status === 'paused'
+            ? 'paused'
+            : session.status === 'ended'
+              ? 'ended'
+              : 'live'
+        }
+        onBack={
+          onBack != null || !onHome
+            ? () =>
+                onHome
+                  ? onBack?.()
+                  : setScreen(
+                      screen.name === 'question'
+                        ? { name: 'questions' }
+                        : { name: 'home' }
+                    )
+            : undefined
+        }
+        backAnchor={tourAttr('quiz-monitor.back', widgetId, tourType)}
+        // A connected Review carries the corner tab; keep the status pill clear of it.
+        paddingRight={liveScoreboardLink ? 40 : undefined}
+      />
 
       <div
         className="flex-1 overflow-y-auto"

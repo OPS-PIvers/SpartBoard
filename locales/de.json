@@ -2030,11 +2030,13 @@
       "tabAway": "Abwesenheitslimit: {{seconds}} s",
       "windowShifted": "Zeitfenster verschoben",
       "readAloud": "Vorlesen",
+      "spellingHelp": "Rechtschreibhilfe",
       "language": "{{language}}",
       "copyPastePrintBlocked": "Kein Kopieren, Einfügen oder Drucken",
       "copyPastePrintAllowed": "Kopieren, Einfügen und Drucken erlaubt"
     },
     "language": "Sprache",
+    "spellingHelp": "Rechtschreibhilfe",
     "noChanges": "Keine Änderungen",
     "copyPastePrint": "Kopieren, Einfügen und Drucken",
     "copyPastePrintBlock": "Sperren",
@@ -2112,7 +2114,8 @@
       "videoActivity": "Videoaktivität",
       "guidedLearning": "Geführtes Lernen",
       "miniApp": "Mini-App",
-      "flashcards": "Karteikarten"
+      "flashcards": "Karteikarten",
+      "writing": "Schreiben"
     },
     "flashcardKind": {
       "check": "Überprüfung",
@@ -2229,6 +2232,7 @@
   },
   "quizLiveView": {
     "banner": "Deine Lehrkraft sieht sich dein Quiz an",
+    "bannerWriting": "Deine Lehrkraft sieht sich deinen Text an",
     "nudge": "Deine Lehrkraft bittet um deine Aufmerksamkeit",
     "noteSeeMe": "Bitte komm zu mir",
     "noteOwnWork": "Schau nur auf deine eigene Arbeit",
@@ -2784,15 +2788,15 @@
         "paper-image": "Nicht transkribiert",
         "not-counted": "Zusätzlich, nicht bewertet"
       },
-      "points": "Points awarded",
+      "points": "Score",
+      "resizeList": "Resize student list",
+      "resizeScore": "Resize score panel",
       "comment": "Overall comment (optional)",
       "substituteNote": "Note (required)",
       "commentPlaceholder": "Feedback for this student…",
       "excusedNote": "Entschuldigt. Nicht im Notenbuch.",
       "save": "Save grade",
       "saveAndNext": "Save & next",
-      "prevStudent": "Previous student",
-      "nextStudent": "Next student",
       "prevQuestion": "Previous question",
       "nextQuestion": "Next question",
       "prev": "Previous ungraded",
@@ -2898,6 +2902,9 @@
       },
       "copy": "Kopieren",
       "copyResponse": "Antwort kopieren",
+      "writingPlayback": "Wiedergabe",
+      "backToAnswer": "Zurück zur Antwort",
+      "writingPlaybackHint": "Zeigt, wie diese Antwort geschrieben wurde",
       "copied": "Kopiert",
       "responseLabel": "Antwort des Schülers",
       "timedOutUnderMinimum": "Zeit abgelaufen unter dem Minimum",
@@ -3922,7 +3929,6 @@
       "tabSubmitTitle": "Du hast die Seite zu oft verlassen",
       "submittingAnswers": "Deine Antworten werden abgegeben…",
       "forcedTab": "Du hast die Seite zu oft verlassen. Deine Aufgabe wurde abgegeben. Sprich mit deiner Lehrkraft, wenn du denkst, dass das ein Fehler war.",
-      "tryAgain": "Erneut versuchen",
       "tryAgainError": "Ein neuer Versuch konnte nicht gestartet werden. Versuche es erneut.",
       "tabWarningOf": "Warnung {{count}} von {{limit}}."
     },
@@ -5096,5 +5102,11 @@
     "hour": "Stunde",
     "minute": "Minute",
     "period": "Vormittag oder Nachmittag"
+  },
+  "quizSupports": {
+    "button": "Hilfen",
+    "title": "Hilfen",
+    "close": "Schließen",
+    "resize": "Größe der Hilfen ändern"
   }
 }

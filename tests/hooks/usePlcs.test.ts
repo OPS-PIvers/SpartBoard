@@ -87,7 +87,6 @@ const useAuthMock = vi.fn<
     user: { uid: string; email?: string } | null;
     orgId?: string | null;
     roleId?: string | null;
-    userRoles?: { superAdmins?: string[] } | null;
   }
 >();
 vi.mock('@/context/useAuth', () => ({
@@ -139,8 +138,8 @@ describe('usePlcs - subscription wiring', () => {
   beforeEach(() => {
     useAuthMock.mockReturnValue({
       user: { uid: USER_UID, email: USER_EMAIL },
-      orgId: ORG_ID,
-      userRoles: { superAdmins: [USER_EMAIL] },
+      orgId: 'orono',
+      roleId: 'super_admin',
     });
   });
 
@@ -354,7 +353,7 @@ describe('usePlcs - admin mode for an org-scoped (non-super) admin', () => {
     useAuthMock.mockReturnValue({
       user: { uid: USER_UID, email: USER_EMAIL },
       orgId: ORG_ID,
-      userRoles: { superAdmins: [] },
+      roleId: 'building_admin',
     });
 
     renderHook(() => usePlcs({ asAdmin: true }));
@@ -368,7 +367,7 @@ describe('usePlcs - admin mode for an org-scoped (non-super) admin', () => {
     useAuthMock.mockReturnValue({
       user: { uid: USER_UID, email: USER_EMAIL },
       orgId: null,
-      userRoles: { superAdmins: [] },
+      roleId: 'building_admin',
     });
 
     renderHook(() => usePlcs({ asAdmin: true }));

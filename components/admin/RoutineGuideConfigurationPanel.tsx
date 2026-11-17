@@ -133,7 +133,7 @@ const StepImage: React.FC<{
           e.target.value = '';
           if (!file || !user) return;
           setBusy(true);
-          uploadDisplayImage(user.uid, file)
+          uploadDisplayImage(user.uid, file, { districtAsset: true })
             .then((u) => onChange(u))
             .catch((err: unknown) =>
               logError('RoutineGuideConfigurationPanel.upload', err)

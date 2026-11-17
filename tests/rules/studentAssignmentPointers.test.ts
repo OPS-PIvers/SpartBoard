@@ -131,7 +131,23 @@ beforeEach(async () => {
       doc(db, itemPath(STUDENT_A_UID, 'assignment-2')),
       pointer({ override: { readAloud: true, timeMultiplier: 1.5 } })
     );
+    await setDoc(
+      doc(db, itemPath(STUDENT_A_UID, 'assignment-3')),
+      pointer({
+        override: {
+          supports: [{ kind: 'text', title: 'Word bank', text: 'cell' }],
+        },
+      })
+    );
     await setDoc(doc(db, itemPath(STUDENT_B_UID)), pointer());
+    await setDoc(
+      doc(db, itemPath(STUDENT_B_UID, 'assignment-3')),
+      pointer({
+        override: {
+          supports: [{ kind: 'text', title: 'Word bank', text: 'cell' }],
+        },
+      })
+    );
   });
 });
 
@@ -146,6 +162,22 @@ describe('student_assignments — self-read only', () => {
     await assertSucceeds(
       getDoc(
         doc(asStudent(STUDENT_A_UID), itemPath(STUDENT_A_UID, 'assignment-2'))
+      )
+    );
+  });
+
+  it('student can read their own pointer doc that carries override.supports', async () => {
+    await assertSucceeds(
+      getDoc(
+        doc(asStudent(STUDENT_A_UID), itemPath(STUDENT_A_UID, 'assignment-3'))
+      )
+    );
+  });
+
+  it("student cannot read another student's supports", async () => {
+    await assertFails(
+      getDoc(
+        doc(asStudent(STUDENT_A_UID), itemPath(STUDENT_B_UID, 'assignment-3'))
       )
     );
   });
@@ -246,6 +278,24 @@ describe('student_assignments — no client write path', () => {
     await assertFails(
       updateDoc(doc(asStudent(STUDENT_A_UID), itemPath(STUDENT_A_UID)), {
         'override.readAloud': true,
+      })
+    );
+  });
+
+  it('student cannot give themselves supports', async () => {
+    await assertFails(
+      updateDoc(doc(asStudent(STUDENT_A_UID), itemPath(STUDENT_A_UID)), {
+        'override.supports': [
+          { kind: 'link', title: 'Answers', url: 'https://example.org' },
+        ],
+      })
+    );
+  });
+
+  it('teacher cannot write supports into a pointer directly', async () => {
+    await assertFails(
+      updateDoc(doc(asTeacher(), itemPath(STUDENT_A_UID, 'assignment-3')), {
+        'override.supports': [],
       })
     );
   });

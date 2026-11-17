@@ -266,7 +266,6 @@ const TeacherGuidedLearningWidget: React.FC<{
     getAssignmentMode,
     canAccessFeature,
     appSettings,
-    userRoles,
     orgId,
     roleId,
   } = useAuth();
@@ -534,6 +533,25 @@ const TeacherGuidedLearningWidget: React.FC<{
     [fetchSetCached, addToast]
   );
 
+  // Publish loads the set without the loading pane, which would unmount the open Publish dialog.
+  const loadSetQuietly = useCallback(
+    async (
+      setId: string,
+      driveFileId?: string,
+      buildingEntry?: GuidedLearningBuildingSetIndex
+    ): Promise<GuidedLearningSet | null> => {
+      if (!buildingEntry && !driveFileId) return null;
+      try {
+        return await fetchSetCached(setId, driveFileId, buildingEntry);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Failed to load set';
+        addToast(msg, 'error');
+        return null;
+      }
+    },
+    [fetchSetCached, addToast]
+  );
+
   // Maximize/spotlight portal the window and remount this widget, dropping
   // activeSet while config still says 'player' — reload it from playerSetId.
   const rehydratingSetIdRef = useRef<string | null>(null);
@@ -755,12 +773,7 @@ const TeacherGuidedLearningWidget: React.FC<{
           uid: user.uid,
           email: user.email,
           orgId,
-          isSuperAdmin: isSuperAdminActor(
-            user.email,
-            userRoles?.superAdmins,
-            roleId,
-            orgId
-          ),
+          isSuperAdmin: isSuperAdminActor(user.email, roleId, orgId),
         }
       : null;
 
@@ -2116,7 +2129,7 @@ const TeacherGuidedLearningWidget: React.FC<{
               const buildingEntry = buildingSets.find(
                 (s) => s.id === target.setId
               );
-              const data = await loadSet(
+              const data = await loadSetQuietly(
                 target.setId,
                 personalMeta?.driveFileId,
                 buildingEntry

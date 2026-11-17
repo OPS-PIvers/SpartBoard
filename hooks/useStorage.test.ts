@@ -2,6 +2,9 @@ import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 
 vi.mock('@/config/firebase', () => ({ storage: {}, db: {}, auth: {} }));
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({ canAccessFeature: () => false }),
+}));
 vi.mock('./useGoogleDrive', () => ({
   useGoogleDrive: () => ({ driveService: null, userDomain: '' }),
 }));

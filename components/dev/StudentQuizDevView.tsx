@@ -7,6 +7,8 @@ import React, { useMemo } from 'react';
 import {
   ActiveQuiz,
   PublishedScoreReview,
+  QuizSubmittedWaitScreen,
+  ResultsScreen,
 } from '@/components/quiz/QuizStudentApp';
 import {
   MyQuizAttemptsLoaderContext,
@@ -29,6 +31,38 @@ import {
 import { type StudentQuizStateKey } from './devViewStates';
 
 const noop = (): Promise<void> => Promise.resolve();
+
+const SUPPORTS_OVERRIDE = {
+  supports: [
+    {
+      kind: 'text' as const,
+      title: 'Word bank',
+      text: 'numerator\ndenominator\nequivalent\nsimplify',
+    },
+    {
+      kind: 'link' as const,
+      title: 'Fraction strips',
+      url: 'https://example.org/fraction-strips',
+    },
+  ],
+};
+
+/** The first question carries modified wording. */
+function modifiedSession() {
+  const base = makeTimedQuizSession('active');
+  const [first, ...rest] = base.publicQuestions;
+  return {
+    ...base,
+    publicQuestions: [
+      {
+        ...first,
+        modifiedText:
+          'Add the two fractions: 1/2 + 1/4. Hint: 1/2 is the same as 2/4.',
+      },
+      ...rest,
+    ],
+  };
+}
 
 const T = 1_700_000_000_000;
 const ATTEMPT_QUESTIONS = [
@@ -67,6 +101,7 @@ const attemptsLoader: MyQuizAttemptsLoader = () =>
         n: 1,
         submittedAt: T,
         score: 40,
+        points: { earned: 2, possible: 5 },
         answers: answersFrom({
           a1: '4/12',
           a2: '2/3',
@@ -79,6 +114,7 @@ const attemptsLoader: MyQuizAttemptsLoader = () =>
         n: 2,
         submittedAt: T + 86_400_000,
         score: 60,
+        points: { earned: 3, possible: 5 },
         answers: answersFrom({
           a1: '7/8',
           a2: '3/5',
@@ -140,7 +176,7 @@ export const StudentQuizDevView: React.FC<{ state: StudentQuizStateKey }> = ({
                   ? makeOptionImagesQuizSession('Matching')
                   : state === 'sq-images-mc'
                     ? makeOptionImagesQuizSession('MC')
-                    : state === 'sq-stimuli'
+                    : state === 'sq-stimuli' || state === 'sq-supports-stimuli'
                       ? makeStimulusQuizSession()
                       : state === 'sq-picture' || state === 'sq-pictures'
                         ? makePictureStimulusQuizSession(
@@ -163,7 +199,9 @@ export const StudentQuizDevView: React.FC<{ state: StudentQuizStateKey }> = ({
                                       tabAwayLimitSeconds: 30,
                                       tabAwayAutoSubmit: true,
                                     }
-                                  : makeTimedQuizSession('active'),
+                                  : state === 'sq-modified'
+                                    ? modifiedSession()
+                                    : makeTimedQuizSession('active'),
     [state]
   );
   if (state === 'sq-attempts' || state === 'sq-attempts-live') {
@@ -181,6 +219,32 @@ export const StudentQuizDevView: React.FC<{ state: StudentQuizStateKey }> = ({
           pin=""
         />
       </MyQuizAttemptsLoaderContext.Provider>
+    );
+  }
+  if (state === 'sq-submitted' || state === 'sq-submitted-live') {
+    const { session: s, response: r } = attemptsFixture(
+      state === 'sq-submitted-live'
+    );
+    return (
+      <QuizSubmittedWaitScreen
+        session={{ ...s, scoreVisibility: undefined }}
+        myResponse={r}
+        pin={state === 'sq-submitted-live' ? '1004' : ''}
+        answeredCount={5}
+        totalQuestions={5}
+      />
+    );
+  }
+  if (state === 'sq-results') {
+    const { session: s, response: r } = attemptsFixture(false);
+    return (
+      <ResultsScreen
+        session={{ ...s, scoreVisibility: undefined }}
+        myResponse={r}
+        answeredCount={5}
+        totalQuestions={5}
+        pin=""
+      />
     );
   }
   if (state === 'sq-stop-wait' || state === 'sq-stop-open') {
@@ -235,6 +299,13 @@ export const StudentQuizDevView: React.FC<{ state: StudentQuizStateKey }> = ({
         onRecordStimulusPlay={noop}
         onReportStimulusError={noop}
         fullscreenRequired={state === 'sq-fullscreen'}
+        override={
+          state === 'sq-supports' || state === 'sq-supports-stimuli'
+            ? SUPPORTS_OVERRIDE
+            : state === 'sq-modified'
+              ? { modifiedQuestions: true }
+              : undefined
+        }
       />
     </div>
   );

@@ -120,6 +120,8 @@ export interface ExportableQuestion {
   points?: number;
   /** When present, emits per-criterion rubric columns (see buildResultsSheetData). */
   rubricSnapshot?: Rubric;
+  /** Free response: the modification group's rubric, exported in its own columns. */
+  modifiedRubricSnapshot?: Rubric;
 }
 
 export interface BuildResultsSheetDataOptions<
@@ -330,6 +332,12 @@ export function buildResultsSheetData<
           cols.push(`Q${i + 1} Rubric - ${c.name} Points`);
         }
       }
+      if (rubricQuestionIds.has(q.id) && q.modifiedRubricSnapshot) {
+        for (const c of q.modifiedRubricSnapshot.criteria) {
+          cols.push(`Q${i + 1} Modified rubric - ${c.name}`);
+          cols.push(`Q${i + 1} Modified rubric - ${c.name} Points`);
+        }
+      }
       return cols;
     }),
     ...(options?.extraColumn ? [options.extraColumn.header] : []),
@@ -385,7 +393,11 @@ export function buildResultsSheetData<
             scoreMap.set(s.criterionId, s);
           }
         }
-        for (const c of q.rubricSnapshot.criteria) {
+        const criteria = [
+          ...q.rubricSnapshot.criteria,
+          ...(q.modifiedRubricSnapshot?.criteria ?? []),
+        ];
+        for (const c of criteria) {
           const score = scoreMap.get(c.id);
           if (!score) {
             cols.push('', '');

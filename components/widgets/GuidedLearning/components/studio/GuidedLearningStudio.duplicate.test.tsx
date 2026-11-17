@@ -86,7 +86,8 @@ function renderStudio(set: GuidedLearningSet = buildSet()) {
   );
 }
 
-const subtitle = () => screen.getByLabelText('Activity title').nextSibling;
+const subtitle = () =>
+  screen.getByLabelText('Activity title').closest('label')?.nextSibling;
 const pressKey = (key: string, init: KeyboardEventInit = {}) =>
   act(() => {
     fireEvent.keyDown(window, { key, ...init });

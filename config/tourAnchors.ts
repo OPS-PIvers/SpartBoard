@@ -886,6 +886,38 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     destructive: true,
   },
+  'agenda.pick-course': {
+    label: 'A course in the Agenda course list',
+    perWidget: true,
+  },
+  'agenda.picker-back': {
+    label: 'Back button in the Agenda course list',
+    perWidget: true,
+  },
+  'agenda.change-course': {
+    label: 'Change course button in Agenda',
+    perWidget: true,
+  },
+  'agenda.reload': {
+    label: 'Reload agenda button in Agenda',
+    perWidget: true,
+  },
+  'agenda.open-slides': {
+    label: 'Open in Google Slides button in Agenda',
+    perWidget: true,
+  },
+  'agenda.set-up': {
+    label: 'Set up in My Classes button in Agenda',
+    perWidget: true,
+  },
+  'agenda.fix-sharing': {
+    label: 'Fix in My Classes button on the Agenda sharing notice',
+    perWidget: true,
+  },
+  'agenda.open-classes': {
+    label: 'Open My Classes button in Agenda',
+    perWidget: true,
+  },
   'focus.class': {
     label: 'Class picker in Focus',
     perWidget: true,
@@ -1161,6 +1193,10 @@ export const TOUR_ANCHORS = {
     label: 'Classes step header in the Assign dialog',
     panel: true,
   },
+  'assign-step.modifications': {
+    label: 'Modifications step header in the Assign dialog',
+    panel: true,
+  },
   'assign-step.when': {
     label: 'When step header in the Assign dialog',
     panel: true,
@@ -1203,6 +1239,10 @@ export const TOUR_ANCHORS = {
   },
   'assign-step.written': {
     label: 'Written answers step header in the Quiz Assign dialog',
+    panel: true,
+  },
+  'assign-step.writing': {
+    label: 'Writing rules step header in the Writing Assign dialog',
     panel: true,
   },
   'assign-step.sharing': {
@@ -1468,6 +1508,84 @@ export const TOUR_ANCHORS = {
     label: 'Card list in the Flashcards assign Cards step',
     panel: true,
   },
+  'assign-mods.students': {
+    label: 'Students menu for a modification group in the Assign dialog',
+    panel: true,
+  },
+  'assign-mods.students-search': {
+    label: 'Search box in the modification group Students menu',
+    panel: true,
+  },
+  'assign-mods.student': {
+    label: 'Student checkbox in the modification group Students menu',
+    perField: true,
+    panel: true,
+  },
+  'assign-mods.answer-choices': {
+    label: 'Answer choices rule for a modification group',
+    panel: true,
+  },
+  'assign-mods.time': {
+    label: 'Time limit rule for a modification group',
+    panel: true,
+  },
+  'assign-mods.read-aloud': {
+    label: 'Read aloud switch for a modification group',
+    panel: true,
+  },
+  'assign-mods.language': {
+    label: 'Language dropdown for a modification group',
+    panel: true,
+  },
+  'assign-mods.group': {
+    label: 'Closed modification group row in the Assign dialog',
+    perField: true,
+    panel: true,
+  },
+  'assign-mods.add-group': {
+    label: 'Another group with different changes button in the Assign dialog',
+    panel: true,
+  },
+  'assign-mods.modified-questions': {
+    label: 'Modified questions switch for a modification group',
+    panel: true,
+  },
+  'assign-mods.supports-add': {
+    label: 'Add support button for a modification group',
+    panel: true,
+  },
+  'assign-mods.supports-kind': {
+    label: 'Text, Link or Drive file choice in the Add support menu',
+    perField: true,
+    panel: true,
+  },
+  'assign-mods.support-title': {
+    label: 'Support title field for a modification group',
+    panel: true,
+  },
+  'assign-mods.support-body': {
+    label: 'Support text or link field for a modification group',
+    panel: true,
+  },
+  'assign-mods.support-save': {
+    label: 'Add button that saves a new support',
+    panel: true,
+  },
+  'assign-mods.support-cancel': {
+    label: 'Cancel button for a new support',
+    panel: true,
+  },
+  'assign-mods.support-remove': {
+    label: 'Remove support button for a modification group',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'assign-mods.remove-group': {
+    label: 'Remove group button in the Assign dialog Modifications step',
+    destructive: true,
+    panel: true,
+  },
   'assign-mods.open': {
     label: 'Modifications link in the Assign dialog',
     panel: true,
@@ -1509,6 +1627,12 @@ export const TOUR_ANCHORS = {
   'assign-mods.generate-translation': {
     label:
       'Generate translation button in the Assign dialog modifications view',
+    perField: true,
+    panel: true,
+  },
+  'assign-mods.group-generate-translation': {
+    label:
+      'Generate translation button in the Assign dialog Modifications step',
     perField: true,
     panel: true,
   },
@@ -1893,6 +2017,16 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-editor.modified': {
+    label: 'Modified version row under Learning targets in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.modified-text': {
+    label: 'Modified version wording box in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-editor.dok': {
     label: 'DOK level select beside Learning targets in the Quiz editor',
     perWidgetType: true,
@@ -2040,6 +2174,22 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-editor.modified-rubric-attach': {
+    label: 'Modified rubric: Attach in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.modified-rubric-edit': {
+    label: 'Modified rubric: Edit in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.modified-rubric-detach': {
+    label: 'Modified rubric: Detach in the Quiz editor',
+    perWidgetType: true,
+    destructive: true,
+    panel: true,
+  },
   'quiz-editor.fib-answer': {
     label: 'Correct answer input (FIB / short answer) in the Quiz editor',
     perWidgetType: true,
@@ -2058,11 +2208,6 @@ export const TOUR_ANCHORS = {
   'quiz-editor.ai-count-inc': {
     label: 'AI question count + in the Quiz editor',
     perField: true,
-    panel: true,
-  },
-  'quiz-editor.footer-draft-ai': {
-    label: 'Draft with AI (modal footer) in the Quiz editor',
-    perWidgetType: true,
     panel: true,
   },
   'quiz-editor.bank-targets-add': {
@@ -4279,16 +4424,6 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
-  'quiz-grading.student-prev': {
-    label: 'Previous student in the Quiz grader',
-    perWidgetType: true,
-    panel: true,
-  },
-  'quiz-grading.student-next': {
-    label: 'Next student in the Quiz grader',
-    perWidgetType: true,
-    panel: true,
-  },
   'quiz-grading.student-select': {
     label: 'Student row in queue in the Quiz grader, by student',
     perField: true,
@@ -4325,8 +4460,19 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-grading.writing-playback': {
+    label: 'Replay how the student wrote their answer in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-grading.comment': {
     label: 'Teacher comment box in the Quiz grader',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-grading.excuse': {
+    label: 'Excuse button in the grader',
     perWidgetType: true,
     persists: true,
     panel: true,
@@ -5423,6 +5569,16 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     panel: true,
   },
+  'widget-settings.specialist-schedule.warn-minutes': {
+    label: 'Warn before the end choice in Specialist Schedule settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.specialist-schedule.warn-sound': {
+    label: 'Warning sound choice in Specialist Schedule settings',
+    perWidget: true,
+    panel: true,
+  },
   'widget-settings.specialist-schedule.save-item': {
     label: 'Save item button in Specialist Schedule settings',
     perWidget: true,
@@ -6347,6 +6503,152 @@ export const TOUR_ANCHORS = {
     panel: true,
     rows: true,
     rowList: 'classes',
+  },
+  'classes.course-expand': {
+    label: 'Show the classes in a linked Course in My Classes',
+    perField: true,
+    panel: true,
+    rows: true,
+    rowList: 'classes',
+  },
+  'classes.agenda-open': {
+    label: 'Open the Agenda dialog for a class or Course in My Classes',
+    panel: true,
+  },
+  'classes.agenda-done': {
+    label: 'Done button in the Agenda dialog in My Classes',
+    panel: true,
+    closes: 'own',
+  },
+  'classes.agenda-change': {
+    label: 'Change the Agenda deck in the Agenda dialog',
+    panel: true,
+  },
+  'classes.agenda-paste': {
+    label: 'Paste a Google Slides link for the Agenda deck',
+    panel: true,
+  },
+  'classes.agenda-paste-use': {
+    label: 'Use the pasted Google Slides link as the Agenda deck',
+    persists: true,
+    panel: true,
+  },
+  'classes.agenda-pick': {
+    label: 'Select or change the Agenda Google Slides deck in My Classes',
+    persists: true,
+    panel: true,
+  },
+  'classes.agenda-open-deck': {
+    label: 'Open the Agenda deck in Google Slides from My Classes',
+    panel: true,
+  },
+  'classes.agenda-remove': {
+    label: 'Remove the Agenda deck in My Classes',
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'classes.agenda-fix-sharing': {
+    label: 'Fix who can open the Agenda deck in My Classes',
+    persists: true,
+    panel: true,
+  },
+  'classes.agenda-copy-link': {
+    label: 'Copy Class page link button in My Classes',
+    panel: true,
+  },
+  'classes.agenda-link-add': {
+    label: 'Add link button for a Course in My Classes',
+    panel: true,
+  },
+  'classes.agenda-link-title': {
+    label: 'Link title field for a Course in My Classes',
+    panel: true,
+  },
+  'classes.agenda-link-url': {
+    label: 'Link address field for a Course in My Classes',
+    panel: true,
+  },
+  'classes.agenda-link-cancel': {
+    label: 'Cancel adding a Course link in My Classes',
+    panel: true,
+  },
+  'classes.agenda-link-save': {
+    label: 'Save a new Course link in My Classes',
+    persists: true,
+    panel: true,
+  },
+  'classes.agenda-link-remove': {
+    label: 'Remove a Course link in My Classes',
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'classes.course-edit': {
+    label: 'Edit Course button on a linked Course in My Classes',
+    perField: true,
+    panel: true,
+    rows: true,
+    rowList: 'classes',
+  },
+  'classes.link-classes': {
+    label: 'Link classes button in My Classes',
+    panel: true,
+  },
+  'classes.course-suggestion-link': {
+    label: 'Link button on a suggested Course in My Classes',
+    persists: true,
+    perField: true,
+    panel: true,
+    rows: true,
+  },
+  'classes.course-suggestion-dismiss': {
+    label: 'Not now button on a suggested Course in My Classes',
+    perField: true,
+    panel: true,
+    rows: true,
+  },
+  'classes.course-name': {
+    label: 'Course name field when linking classes in My Classes',
+    panel: true,
+  },
+  'classes.course-class': {
+    label: 'Class checkbox when linking classes in My Classes',
+    perField: true,
+    panel: true,
+    rows: true,
+  },
+  'classes.course-save': {
+    label: 'Link or Save button when linking classes in My Classes',
+    persists: true,
+    panel: true,
+  },
+  'classes.course-cancel': {
+    label: 'Cancel button when linking classes in My Classes',
+    panel: true,
+  },
+  'classes.family-link-toggle': {
+    label: 'Family link switch for a Course in My Classes',
+    persists: true,
+    panel: true,
+  },
+  'classes.family-link-copy': {
+    label: 'Copy family link button for a Course in My Classes',
+    panel: true,
+  },
+  'classes.family-link-deck-private': {
+    label:
+      'Stop sharing the deck outside Orono checkbox when turning off a family link',
+    panel: true,
+  },
+  'classes.family-link-cancel': {
+    label: 'Cancel button in the family link confirm',
+    panel: true,
+  },
+  'classes.family-link-confirm': {
+    label: 'Turn on or off button in the family link confirm',
+    persists: true,
+    panel: true,
   },
   'classes.edit-roster': {
     label: 'Edit class button in My Classes',
@@ -11213,6 +11515,12 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     requires: 'widget-restored',
   },
+  'projects.group-reopen': {
+    label: 'Reopen a submitted group on the Projects board',
+    perWidgetType: true,
+    requires: 'widget-restored',
+    persists: true,
+  },
   'projects.step-cell': {
     label: 'Step status cell on the Projects board',
     perWidgetType: true,
@@ -11466,6 +11774,32 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'flashcards.card-term-alternate': {
+    label: 'Add accepted answer button on a term in the Flashcards editor',
+    perField: true,
+    panel: true,
+  },
+  'flashcards.card-definition-alternate': {
+    label:
+      'Add accepted answer button on a definition in the Flashcards editor',
+    perField: true,
+    panel: true,
+  },
+  'flashcards.card-term-image': {
+    label: 'Add image button on a term in the Flashcards editor',
+    perField: true,
+    panel: true,
+  },
+  'flashcards.card-definition-image': {
+    label: 'Add image button on a definition in the Flashcards editor',
+    perField: true,
+    panel: true,
+  },
+  'flashcards.card-insert': {
+    label: 'Add card button between cards in the Flashcards editor',
+    perField: true,
+    panel: true,
+  },
   'flashcards.card-delete': {
     label: 'Delete button on a card in the Flashcards editor',
     perField: true,
@@ -11478,22 +11812,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'flashcards-editor.draft-ai': {
-    label: 'Draft with AI (list header) in the Flashcards set editor',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards-editor.footer-draft-ai': {
-    label: 'Draft with AI (footer) in the Flashcards set editor',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards-editor.add-menu': {
-    label: 'More ways to add menu in the Flashcards set editor',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards-editor.add-blank': {
-    label: 'Add-menu item: Blank card in the Flashcards set editor',
+    label: 'Draft with AI in the Flashcards set editor',
     perWidgetType: true,
     panel: true,
   },
@@ -11580,11 +11899,6 @@ export const TOUR_ANCHORS = {
   'flashcards-speak-editor.ipa-remove': {
     label: 'Remove pronunciation button in the Flashcards editor',
     perField: true,
-    panel: true,
-  },
-  'flashcards.add-card': {
-    label: 'Add card button in the Flashcards editor',
-    perWidgetType: true,
     panel: true,
   },
   'flashcards.language-select': {
@@ -11848,6 +12162,11 @@ export const TOUR_ANCHORS = {
   },
   'mini-app.results-back': {
     label: 'Back button in the Mini App results view',
+    perWidgetType: true,
+    panel: true,
+  },
+  'mini-app.archive-results': {
+    label: 'Results item in a Mini App assignment row menu',
     perWidgetType: true,
     panel: true,
   },
@@ -14128,6 +14447,18 @@ export const TOUR_ANCHORS = {
     panel: true,
     persists: true,
   },
+  'publish-in-progress.cancel': {
+    label: 'Cancel button in the in-progress publish check',
+    panel: true,
+  },
+  'publish-in-progress.end-and-publish': {
+    label: 'End and publish button in the in-progress publish check',
+    panel: true,
+  },
+  'publish-in-progress.confirm': {
+    label: 'Confirm button in the in-progress publish check',
+    panel: true,
+  },
   'override-row.toggle': {
     label: 'Student row header in the override editor',
     panel: true,
@@ -14142,6 +14473,10 @@ export const TOUR_ANCHORS = {
   },
   'override-row.read-aloud': {
     label: 'Read aloud checkbox in the override editor',
+    panel: true,
+  },
+  'override-row.spelling-help': {
+    label: 'Spelling help checkbox in the override editor',
     panel: true,
   },
   'override-row.copy-paste-print': {
@@ -15524,6 +15859,30 @@ export const TOUR_ANCHORS = {
     keyPattern: '[a-z][\\w-]*#event-[1-9]\\d*-[\\w-]+',
     keyHint: 'schedule#event-1-timer for the Timer choice on the first event',
   },
+  'widget-settings.schedule.event-warning': {
+    label:
+      'Warn before this ends toggle for an event in Schedule settings, by event row',
+    perField: true,
+    panel: true,
+    keyPattern: '[a-z][\\w-]*#event-[1-9]\\d*',
+    keyHint: 'schedule#event-1 for the first event',
+  },
+  'widget-settings.schedule.event-warning-minutes': {
+    label:
+      'Minutes-before-end choice for an event warning in Schedule settings, by event row',
+    perField: true,
+    panel: true,
+    keyPattern: '[a-z][\\w-]*#event-[1-9]\\d*',
+    keyHint: 'schedule#event-1 for the first event',
+  },
+  'widget-settings.schedule.event-warning-sound': {
+    label:
+      'Warning sound choice for an event in Schedule settings, by event row',
+    perField: true,
+    panel: true,
+    keyPattern: '[a-z][\\w-]*#event-[1-9]\\d*',
+    keyHint: 'schedule#event-1 for the first event',
+  },
   'override-row.extended-time': {
     label: 'Extended time options in a student override',
     panel: true,
@@ -16834,6 +17193,214 @@ export const TOUR_ANCHORS = {
   },
   'projects-editor.folder': {
     label: 'Folder picker in the Projects editor header',
+    panel: true,
+  },
+  'writing.stepper-class-picker': {
+    label: 'Class list in the Writing assign dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'writing.stepper-class-row': {
+    label: 'Class checkbox in the Writing assign dialog class list',
+    perField: true,
+    panel: true,
+  },
+  'writing.stepper-student-menu': {
+    label: 'Student picker button for one class in the Writing assign dialog',
+    perField: true,
+    panel: true,
+  },
+  'writing.selection-mode': {
+    label: 'Select button in the Writing library',
+    perWidget: true,
+    requires: 'widget-restored',
+  },
+  'writing.bulk-move': {
+    label: 'Move to folder button in the Writing bulk action bar',
+    persists: true,
+    panel: true,
+  },
+  'writing.bulk-delete': {
+    label: 'Delete button in the Writing bulk action bar',
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'writing.bulk-clear': {
+    label: 'Clear selection button in the Writing bulk action bar',
+    panel: true,
+  },
+  'writing.archive-monitor': {
+    label: 'Monitor item in a Writing assignment row menu',
+    perWidgetType: true,
+    panel: true,
+  },
+  'writing-monitor.back': {
+    label: 'Back button in the Writing monitor',
+    perWidgetType: true,
+  },
+  'writing-monitor.class-picker': {
+    label: 'Class picker in the Writing monitor',
+    perWidgetType: true,
+  },
+  'writing-monitor.period-start': {
+    label: 'Start button for the picked class in the Writing monitor',
+    perWidgetType: true,
+    persists: true,
+  },
+  'writing-monitor.period-pause': {
+    label: 'Pause button for the picked class in the Writing monitor',
+    perWidgetType: true,
+    persists: true,
+  },
+  'writing-monitor.period-more-time': {
+    label: 'More time button in the Writing monitor',
+    perWidgetType: true,
+  },
+  'writing-monitor.period-extend': {
+    label: 'Extend time option in the Writing monitor More time menu',
+    perWidgetType: true,
+    persists: true,
+  },
+  'writing-monitor.status-bucket': {
+    label: 'Student status count in the Writing monitor',
+    perField: true,
+  },
+  'writing-monitor.word-counts': {
+    label: 'Word counts switch in the Writing monitor',
+    perWidgetType: true,
+  },
+  'writing-monitor.live-view': {
+    label: 'Live view button on a student in the Writing monitor',
+    perField: true,
+    persists: true,
+  },
+  'writing-live-view.previous': {
+    label: 'Previous student button in Writing Live view',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'writing-live-view.next': {
+    label: 'Next student button in Writing Live view',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'writing-live-view.close': {
+    label: 'Close button in Writing Live view',
+    perWidgetType: true,
+    panel: true,
+  },
+  'writing-live-view.tell-student': {
+    label: 'Notify student when viewing switch in Writing Live view',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'writing-live-view.nudge-note': {
+    label: 'Nudge note picker in Writing Live view',
+    perWidgetType: true,
+    panel: true,
+  },
+  'writing-live-view.nudge': {
+    label: 'Nudge button in Writing Live view',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'writing-editor.tab-prompt': {
+    label: 'Prompt tab in the Writing editor',
+    panel: true,
+  },
+  'writing-editor.tab-stimuli': {
+    label: 'Stimuli tab in the Writing editor',
+    panel: true,
+  },
+  'writing-editor.prompt': {
+    label: 'Prompt box in the Writing editor',
+    panel: true,
+  },
+  'writing-editor.grading-ungraded': {
+    label: 'Ungraded option in the Writing editor',
+    panel: true,
+  },
+  'writing-editor.grading-points': {
+    label: 'Points option in the Writing editor',
+    panel: true,
+  },
+  'writing-editor.grading-rubric': {
+    label: 'Rubric option in the Writing editor',
+    panel: true,
+  },
+  'writing-editor.points': {
+    label: 'Points box in the Writing editor',
+    panel: true,
+  },
+  'writing-editor.rubric-edit': {
+    label: 'Rubric: Edit in the Writing editor',
+    panel: true,
+  },
+  'writing-editor.rubric-detach': {
+    label: 'Rubric: Detach in the Writing editor',
+    destructive: true,
+    panel: true,
+  },
+  'writing-editor.folder': {
+    label: 'Folder picker in the Writing editor header',
+    panel: true,
+  },
+  'writing-editor.save': {
+    label: 'Save button in the Writing editor',
+    persists: true,
+    panel: true,
+  },
+  'writing-results.back': {
+    label: 'Back button in Writing results',
+    perWidgetType: true,
+  },
+  'writing-results.grade': {
+    label: 'Grade button in Writing results',
+    perWidgetType: true,
+  },
+  'writing-results.hide-names': {
+    label: 'Hide names button in Writing results',
+    perWidgetType: true,
+  },
+  'writing-results.drill-students': {
+    label: 'Students row in Writing results',
+    perWidgetType: true,
+  },
+  'writing-results.sort': {
+    label: 'Student sort in Writing results',
+    perField: true,
+  },
+  'writing-results.student-row': {
+    label: 'Student row in Writing results',
+    perField: true,
+    rows: true,
+  },
+  'writing-grading.return': {
+    label: 'Return button in the Writing grader',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'writing-grading.return-revision': {
+    label: 'Return for revision button in the Writing grader',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'writing-grading.writing-record': {
+    label: 'Writing record button in the Writing grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'writing-grading.student-record': {
+    label:
+      'Students can replay their own writing checkbox in the Writing grader',
+    perWidgetType: true,
     panel: true,
   },
   'gl-ai.attach-doc': {

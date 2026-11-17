@@ -23,6 +23,7 @@ import {
   resolveRotationDayNumber,
   formatRotationDayLabel,
   resolveBuildingConfig,
+  mergeSpecialistItems,
 } from './utils';
 import {
   REFERENCE_VIEWPORT,
@@ -138,36 +139,15 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
   ]);
 
   // Merge rotation items, daily items, and weekly items
-  const currentItems = useMemo(() => {
-    let merged: SpecialistScheduleItem[] = [];
-
-    // 1. Add rotation-specific items (only on school days)
-    if (isSchoolDay && currentDayNumber !== null) {
-      const dayConfig = cycleDays.find((d) => d.dayNumber === currentDayNumber);
-      if (dayConfig) {
-        merged = [...dayConfig.items];
-      }
-    }
-
-    // 2. Add daily recurring items
-    const dailyItems = recurringItems.filter((ri) => ri.type === 'daily');
-    merged = [...merged, ...dailyItems];
-
-    // 3. Add weekly recurring items for today
-    const weeklyItems = recurringItems.filter(
-      (ri) => ri.type === 'weekly' && ri.dayOfWeek === dayOfWeek
-    );
-    merged = [...merged, ...weeklyItems];
-
-    // 4. Sort by startTime
-    merged.sort((a, b) => {
-      const timeA = parseTime(a.startTime);
-      const timeB = parseTime(b.startTime);
-      return timeA - timeB;
-    });
-
-    return merged;
-  }, [currentDayNumber, cycleDays, isSchoolDay, recurringItems, dayOfWeek]);
+  const currentItems = useMemo(
+    () =>
+      mergeSpecialistItems(
+        { cycleDays, recurringItems },
+        isSchoolDay ? currentDayNumber : null,
+        dayOfWeek
+      ),
+    [currentDayNumber, cycleDays, isSchoolDay, recurringItems, dayOfWeek]
+  );
 
   const activeIndex = useMemo(() => {
     if (!currentItems.length) return -1;

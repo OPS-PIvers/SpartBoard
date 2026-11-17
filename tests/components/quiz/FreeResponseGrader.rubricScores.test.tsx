@@ -85,7 +85,7 @@ const responseFor = (
 // by rubric completion is not written twice.
 const saveGrade = async () => {
   await act(() => {
-    fireEvent.keyDown(screen.getByLabelText(/points awarded/i), {
+    fireEvent.keyDown(screen.getByLabelText(/^Score$/), {
       key: 'Enter',
     });
     return Promise.resolve();
@@ -132,7 +132,7 @@ describe('FreeResponseGrader — rubric scoring', () => {
         onClose={vi.fn()}
       />
     );
-    const pts = screen.getByLabelText(/points awarded/i);
+    const pts = screen.getByLabelText(/^Score$/);
     fireEvent.click(screen.getByRole('radio', { name: /Meets/ }));
     // Only one of two criteria scored — no auto-fill yet.
     expect(pts).toHaveValue(null);
@@ -154,7 +154,7 @@ describe('FreeResponseGrader — rubric scoring', () => {
     );
     fireEvent.click(screen.getByRole('radio', { name: /Meets/ }));
     fireEvent.click(screen.getByRole('radio', { name: /Strong/ }));
-    expect(screen.getByLabelText(/points awarded/i)).toHaveValue(5);
+    expect(screen.getByLabelText(/^Score$/)).toHaveValue(5);
   });
 
   it('includes rubricScores in the saved grade', async () => {
@@ -196,7 +196,7 @@ describe('FreeResponseGrader — rubric scoring', () => {
       />
     );
     fireEvent.click(screen.getByRole('radio', { name: /Meets/ }));
-    const pts = screen.getByLabelText(/points awarded/i);
+    const pts = screen.getByLabelText(/^Score$/);
     expect(pts).toHaveValue(null);
     // The teacher still owes a numeric score, so they enter one by hand;
     // the partial rubric selection persists alongside it.
@@ -219,7 +219,7 @@ describe('FreeResponseGrader — rubric scoring', () => {
         onClose={vi.fn()}
       />
     );
-    const pts = screen.getByLabelText(/points awarded/i);
+    const pts = screen.getByLabelText(/^Score$/);
     fireEvent.click(screen.getByRole('radio', { name: /Meets/ }));
     fireEvent.click(screen.getByRole('radio', { name: /Strong/ }));
     expect(pts).toHaveValue(7);
@@ -243,7 +243,7 @@ describe('FreeResponseGrader — rubric scoring', () => {
         onClose={vi.fn()}
       />
     );
-    const pts = screen.getByLabelText(/points awarded/i);
+    const pts = screen.getByLabelText(/^Score$/);
     fireEvent.click(screen.getByRole('radio', { name: /Meets/ }));
     fireEvent.click(screen.getByRole('radio', { name: /Strong/ }));
     expect(pts).toHaveValue(7);
@@ -261,7 +261,7 @@ describe('FreeResponseGrader — rubric scoring', () => {
         onClose={vi.fn()}
       />
     );
-    const pts = screen.getByLabelText(/points awarded/i);
+    const pts = screen.getByLabelText(/^Score$/);
     fireEvent.click(screen.getByRole('radio', { name: /Meets/ }));
     fireEvent.click(screen.getByRole('radio', { name: /Strong/ }));
     fireEvent.change(pts, { target: { value: '2' } });
@@ -283,7 +283,7 @@ describe('FreeResponseGrader — rubric scoring', () => {
       />
     );
     fireEvent.click(screen.getByRole('radio', { name: /Meets/ }));
-    const pts = screen.getByLabelText(/points awarded/i);
+    const pts = screen.getByLabelText(/^Score$/);
     expect(pts).toHaveValue(null);
     expect(screen.getByText(/1 of 2 criteria scored/)).toBeInTheDocument();
     await saveGrade();

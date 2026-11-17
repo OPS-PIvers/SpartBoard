@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 // Same cases as utils/devDriveWriteGuard.test.ts; the two guards must agree.
 import {
+  DevDriveCheckError,
   DevProdDriveWriteError,
   installDevDriveWriteGuard,
   writeTargetFileId,
@@ -166,11 +167,11 @@ describe('installDevDriveWriteGuard', () => {
     const { target, calls } = setup(500);
     await expect(
       target.fetch(`${DRIVE}/devFile`, { ...AUTH, method: 'DELETE' })
-    ).rejects.toThrow(DevProdDriveWriteError);
+    ).rejects.toThrow(DevDriveCheckError);
     const metaCalls = calls.length;
     await expect(
       target.fetch(`${DRIVE}/devFile`, { ...AUTH, method: 'DELETE' })
-    ).rejects.toThrow(DevProdDriveWriteError);
+    ).rejects.toThrow(DevDriveCheckError);
     expect(calls.length).toBeGreaterThan(metaCalls);
   });
 

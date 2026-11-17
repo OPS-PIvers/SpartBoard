@@ -29,6 +29,12 @@ vi.mock('./firebaseAdmin', () => {
   };
 });
 
+const deleteAllCourseCopiesMock = vi.fn();
+vi.mock('./course/saveCourse', () => ({
+  deleteAllCourseCopies: (...args: unknown[]) =>
+    deleteAllCourseCopiesMock(...args) as unknown,
+}));
+
 vi.mock('firebase-functions/v2/https', () => {
   class HttpsError extends Error {
     code: string;
@@ -160,6 +166,7 @@ function makeDb(opts: {
 beforeEach(() => {
   vi.clearAllMocks();
   recursiveDeleteMock.mockResolvedValue(undefined);
+  deleteAllCourseCopiesMock.mockResolvedValue(undefined);
   deleteFilesMock.mockResolvedValue(undefined);
   getFilesMock.mockResolvedValue([[]]);
   deleteUserMock.mockResolvedValue(undefined);
@@ -291,13 +298,13 @@ describe('assertCallerMayDelete', () => {
     ).rejects.toMatchObject({ code: 'permission-denied' });
   });
 
-  it('admits a legacy superAdmins entry with no member doc', async () => {
+  it('rejects an address only on the retired legacy superAdmins list', async () => {
     const { db } = makeDb({
       docs: { 'admin_settings/user_roles': { superAdmins: ['legacy@x'] } },
     });
     await expect(
       assertCallerMayDelete(db as never, 'legacy@x')
-    ).resolves.toBeUndefined();
+    ).rejects.toMatchObject({ code: 'permission-denied' });
   });
 
   it('rejects a non-member', async () => {
@@ -444,6 +451,7 @@ describe('deleteOrganizationUser — preflight and execution', () => {
       docs: {
         ...baseDocs,
         'users/uid9': {},
+        'verified_classes/uid9': { ids: ['c1'] },
         'admins/teacher@orono.k12.mn.us': { roleId: 'building_admin' },
       },
       counts: { quiz_sessions: 4 },
@@ -455,6 +463,7 @@ describe('deleteOrganizationUser — preflight and execution', () => {
 
     expect(res.deleted).toBe(true);
     expect(recursiveDeleteMock).toHaveBeenCalledTimes(1);
+    expect(deleteAllCourseCopiesMock).toHaveBeenCalledWith(db, 'uid9');
     expect(deleteFilesMock).toHaveBeenCalledWith({ prefix: 'users/uid9/' });
     expect(deleteUserMock).toHaveBeenCalledWith('uid9');
     expect(res.summary).toMatchObject({
@@ -463,6 +472,7 @@ describe('deleteOrganizationUser — preflight and execution', () => {
       authAccountRemoved: true,
       quizSessionsPreserved: 4,
     });
+    expect(deleted).toContain('verified_classes/uid9');
     // The member doc is the authorization anchor for a retry, so it goes last.
     expect(deleted[deleted.length - 1]).toBe(
       'organizations/orono/members/teacher@orono.k12.mn.us'

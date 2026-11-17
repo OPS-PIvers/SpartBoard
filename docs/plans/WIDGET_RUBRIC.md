@@ -43,6 +43,7 @@ Status: built (grader scripts, PR gate and nightly sweep, #3884). Decisions sett
 | R32 | **Supervised start.** Paul fully reviews and blind-grades the first 10 loop PRs; lighter review once 8 of 10 are accepted without changes. A failed spot check returns the loop to full review.                                                                                                                                  |
 | R33 | **Weekly spot check:** 8 random recent cards, graded blind (~10 min). Drift on a criterion pauses loops on that criterion until it is re-normed.                                                                                                                                                                                 |
 | R34 | **Gaming check.** A criterion whose script or judge scores rise while Paul's spot-check scores don't is paused and its descriptor or measurement rewritten.                                                                                                                                                                      |
+| R35 | **Weekly rubric refresh.** A Sunday routine (`docs/routines/widget-rubric-refresh.md`) turns Paul's UI corrections and skipped widget fixes from the past week into rule changes, each citing its evidence, as one small PR that merges only with his OK. Each run is logged in `docs/widget-rubric/refresh-log.md`.             |
 
 ## Gates
 
@@ -77,8 +78,8 @@ envelope minimum) + Judge (did the widget choose what to keep).
 
 - 0: Gate G1 or G2 fails at the minimum size.
 - 1: Everything fits but has shrunk uniformly to the point of being unreadable or untappable.
-- 2: Readable and usable, but secondary content crowds the primary content.
-- 3: Secondary content collapses, hides or moves into an overflow so the primary content stays dominant and readable.
+- 2: Readable and usable, but secondary content crowds the primary content, or controls stay large while the primary content shrinks.
+- 3: Labels and decoration collapse or hide, and controls shrink, wrap or move, so the primary content stays dominant and readable. Every control from the default view is still on the card.
 - 4: The small layout is a deliberate design of its own (a compact mode) that a teacher would choose on purpose.
 
 **S2 Large size.** Applies to all. Method: Script (fraction of card area occupied by content, size of
@@ -93,7 +94,7 @@ the primary element) + Judge.
 
 - Judge.
 
-* 1: One layout at every aspect ratio; wide or tall shapes leave large dead bands.
+* 1: One layout at every aspect ratio; wide or tall shapes leave large dead bands, or heavy padding wastes space even at a square.
 * 2: Content centers sensibly but does not reflow.
 * 3: Layout reflows between row and column arrangements at the extremes of the envelope.
 * 4: Each aspect ratio looks designed for that shape.
@@ -210,6 +211,10 @@ level and the ban list:
 - inconsistent corner radii
 - crowded rows of pills or chips
 - decorative helper text
+- purple or violet gradients, or large purple fills
+- decorative accent bars, coloured edge strips or heavy coloured banners
+
+Colour-coded zones on K-5 student-touched widgets (Lunch Count) are function, not decoration.
 
 Levels:
 
@@ -231,8 +236,8 @@ and a holistic busy-ness rating. Proxy thresholds are set from the first full sw
 **V3 Hierarchy.** Applies to all. Method: Judge.
 
 - 1: No primary element; everything competes.
-- 2: A primary element exists but secondary elements are equally heavy.
-- 3: One clear primary element; secondary and tertiary elements step down in size and weight.
+- 2: A primary element exists but secondary elements, including controls, are equally heavy.
+- 3: One clear primary element; secondary and tertiary elements step down in size and weight, and controls never grow to compete with the primary content.
 - 4: As 3, and the eye path matches the order a teacher uses it.
 
 **V4 Consistency.** Applies to all. Method: Script (imports of shared components for buttons, inputs,
@@ -255,8 +260,8 @@ font and window radius honored; standard appearance keys used and wired).
 use) + Judge (wording).
 
 - 1: Copy guard violations or mixed icon styles.
-- 2: Compliant but wordy or unclear labels.
-- 3: Short, plain labels; one icon style.
+- 2: Compliant but wordy or unclear labels, or legacy terms such as "Flip".
+- 3: Short, plain labels in the app's own words (Select, attempts, Submitted, Missing); one icon style.
 - 4: Labels a teacher would write; icons need no label to be understood where used alone.
 
 ### Configurability (15)
@@ -275,7 +280,7 @@ choice on the face; decide which a teacher would plausibly vary).
 
 * 1: One long unordered list.
 * 2: Grouped, but advanced options mixed in with common ones.
-* 3: Common settings first, advanced ones collapsed; standard sections and controls.
+* 3: Common settings first, advanced ones collapsed; standard sections and app controls, with no native browser dropdowns or bare checkboxes.
 * 4: As 3, and a teacher finds any setting in one look.
 
 **C3 Zero-config defaults.** Applies to all. Method: Judge (the `empty` fixture and the default

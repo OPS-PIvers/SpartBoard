@@ -9,6 +9,7 @@ import React, {
 import { AlertCircle, AlertTriangle, Check, Loader2, X } from 'lucide-react';
 import { Modal } from './Modal';
 import { FullscreenToggleButton } from './FullscreenToggleButton';
+import { EditableHeaderTitle } from './EditableHeaderTitle';
 import { useDialog } from '@/context/useDialog';
 import { DashboardContext } from '@/context/DashboardContextValue';
 import { useAutosave, type AutosaveStatus } from '@/hooks/useAutosave';
@@ -292,25 +293,21 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
   const customHeader = useMemo(
     () => (
       <div
-        className={`flex items-center justify-between gap-4 px-6 py-4 shrink-0 ${headerAccent ? 'text-white' : 'border-b border-slate-200'}`}
+        className={`flex items-center justify-between gap-4 px-6 py-4 shrink-0 ${headerAccent ? 'text-white' : 'border-b border-slate-200'} ${isFullscreen ? '' : 'rounded-t-2xl'}`}
         style={headerAccent ? { backgroundColor: headerAccent } : undefined}
       >
         <div className="flex flex-col min-w-0 flex-1">
           {onTitleChange ? (
-            <input
+            <EditableHeaderTitle
               id="editor-modal-shell-title"
-              type="text"
               value={title}
-              onChange={(e) => onTitleChange(e.target.value)}
+              onChange={onTitleChange}
               placeholder={titlePlaceholder ?? 'Untitled'}
-              // Visually identical to the static h3 fallback below (same font
-              // weight/size/color), but editable and full-width so the user
-              // can rename the item without a duplicate title field in the
-              // editor body. `aria-labelledby` on the modal still resolves
-              // here because the id is preserved.
-              className={`font-black text-lg truncate bg-transparent border-0 focus:outline-hidden focus:ring-0 placeholder:font-bold w-full p-0 ${headerAccent ? 'text-white placeholder:text-white/60' : 'text-slate-800 placeholder:text-slate-400'}`}
-              aria-label="Title"
-              {...(tourScope ? tourTypeAttr('editor.title', tourScope) : {})}
+              ariaLabel="Title"
+              onAccent={!!headerAccent}
+              tourAttrs={
+                tourScope ? tourTypeAttr('editor.title', tourScope) : undefined
+              }
             />
           ) : (
             <h3
@@ -375,7 +372,9 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
       </button>
     );
     return (
-      <div className="flex items-center justify-between gap-3 px-6 py-3 bg-white">
+      <div
+        className={`flex items-center justify-between gap-3 px-6 py-3 bg-white ${isFullscreen ? '' : 'rounded-b-2xl'}`}
+      >
         <div className="flex items-center gap-2 min-w-0">
           {footerEnd && closeButton}
           {footerExtras}
@@ -428,6 +427,7 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
     incompleteNotice,
     tourScope,
     saveAnchor,
+    isFullscreen,
   ]);
 
   return (

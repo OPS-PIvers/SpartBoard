@@ -1,6 +1,41 @@
 {
   "entries": [
     {
+      "version": "2026.11.17",
+      "date": "2026-11-17",
+      "title": "Quiz points, calmer quizzes and late work",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Quiz",
+          "items": [
+            {
+              "text": "Quiz results show points earned out of points possible, with the percent underneath."
+            },
+            {
+              "text": "Quizzes no longer use game extras like speed bonus, streaks, the podium and sound effects. Review games keep them."
+            },
+            {
+              "text": "If you publish scores while a quiz is still open, SpartBoard asks first. End & Publish Scores closes the quiz as it publishes."
+            },
+            {
+              "text": "Grade Free Response lists students Last, First, and you can drag the pane edges to resize them."
+            }
+          ]
+        },
+        {
+          "type": "feature",
+          "subtitle": "Assigning",
+          "items": [
+            {
+              "text": "A Manual due date can allow late work. Students can still turn work in after the due date, and it shows as Late."
+            }
+          ]
+        }
+      ],
+      "details": []
+    },
+    {
       "version": "2026.11.15.3",
       "date": "2026-11-15",
       "title": "Quiz explanations, DOK levels and new blank types",

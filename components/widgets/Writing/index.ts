@@ -1,0 +1,1 @@
+export { WritingWidget } from './Widget';

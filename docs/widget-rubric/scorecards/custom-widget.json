@@ -31,7 +31,7 @@
       "note": "At 150x100 everything shrinks evenly: the label above the counter is about 4 px, the -/+ buttons are about 9 px, and the stress grid crams every block into unreadable cells.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T16:03:28.379Z",
-      "stale": false
+      "stale": true
     },
     "S2": {
       "score": 1,
@@ -71,7 +71,7 @@
       "note": "The same fixed 2x2 grid shows at every shape, leaving 60% of the widest card and 45% of the tallest empty, and the stress grid crushes words letter by letter in the tall shape.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T16:03:28.379Z",
-      "stale": false
+      "stale": true
     },
     "S4": {
       "score": 2,
@@ -285,7 +285,7 @@
       "note": "The layout is clean, but the counter label is gray-on-gray and nearly invisible and every block is centered in its cell.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T16:03:28.379Z",
-      "stale": false
+      "stale": true
     },
     "V2": {
       "score": 2,
@@ -322,7 +322,7 @@
       "note": "The title is the largest element, but the stars are just as heavy beside it and the white 2 outweighs its unreadable label.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T16:03:28.379Z",
-      "stale": false
+      "stale": true
     },
     "V4": {
       "score": 1,
@@ -373,7 +373,7 @@
       "note": "The labels (Exit ticket, Submit, -, +) are short and plain, with lucide icons only and no copy violations.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T16:03:28.379Z",
-      "stale": false
+      "stale": true
     },
     "C1": {
       "score": 3,

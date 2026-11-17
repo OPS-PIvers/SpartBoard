@@ -2030,11 +2030,13 @@
       "tabAway": "Límite fuera: {{seconds}} s",
       "windowShifted": "Horario ajustado",
       "readAloud": "Lectura en voz alta",
+      "spellingHelp": "Ayuda ortográfica",
       "language": "{{language}}",
       "copyPastePrintBlocked": "Sin copiar, pegar ni imprimir",
       "copyPastePrintAllowed": "Copiar, pegar e imprimir permitido"
     },
     "language": "Idioma",
+    "spellingHelp": "Ayuda ortográfica",
     "noChanges": "Sin cambios",
     "copyPastePrint": "Copiar, pegar e imprimir",
     "copyPastePrintBlock": "Bloquear",
@@ -2112,7 +2114,8 @@
       "videoActivity": "Actividad de Video",
       "guidedLearning": "Aprendizaje Guiado",
       "miniApp": "Mini App",
-      "flashcards": "Tarjetas"
+      "flashcards": "Tarjetas",
+      "writing": "Escritura"
     },
     "flashcardKind": {
       "check": "Evaluación",
@@ -2229,6 +2232,7 @@
   },
   "quizLiveView": {
     "banner": "Tu maestro está viendo tu prueba",
+    "bannerWriting": "Tu maestro está viendo tu escrito",
     "nudge": "Tu maestro quiere tu atención",
     "noteSeeMe": "Ven a verme, por favor",
     "noteOwnWork": "Mira solo tu propio trabajo",
@@ -2784,15 +2788,15 @@
         "paper-image": "No transcrito",
         "not-counted": "Extra, sin puntuar"
       },
-      "points": "Points awarded",
+      "points": "Score",
+      "resizeList": "Resize student list",
+      "resizeScore": "Resize score panel",
       "comment": "Overall comment (optional)",
       "substituteNote": "Note (required)",
       "commentPlaceholder": "Feedback for this student…",
       "excusedNote": "Justificado. No cuenta en el libro de calificaciones.",
       "save": "Save grade",
       "saveAndNext": "Save & next",
-      "prevStudent": "Previous student",
-      "nextStudent": "Next student",
       "prevQuestion": "Previous question",
       "nextQuestion": "Next question",
       "prev": "Previous ungraded",
@@ -2898,6 +2902,9 @@
       },
       "copy": "Copiar",
       "copyResponse": "Copiar respuesta",
+      "writingPlayback": "Reproducción",
+      "backToAnswer": "Volver a la respuesta",
+      "writingPlaybackHint": "Reproduce cómo se escribió esta respuesta",
       "copied": "Copiado",
       "responseLabel": "Respuesta del estudiante",
       "timedOutUnderMinimum": "Tiempo agotado por debajo del mínimo",
@@ -3922,7 +3929,6 @@
       "tabSubmitTitle": "Saliste de la página demasiadas veces",
       "submittingAnswers": "Entregando tus respuestas…",
       "forcedTab": "Saliste de la página demasiadas veces. Tu tarea se entregó. Habla con tu maestro si crees que fue un error.",
-      "tryAgain": "Intentar de nuevo",
       "tryAgainError": "No se pudo empezar un nuevo intento. Inténtalo de nuevo.",
       "tabWarningOf": "Advertencia {{count}} de {{limit}}."
     },
@@ -5096,5 +5102,11 @@
     "hour": "Hora",
     "minute": "Minuto",
     "period": "a. m. o p. m."
+  },
+  "quizSupports": {
+    "button": "Apoyos",
+    "title": "Apoyos",
+    "close": "Cerrar",
+    "resize": "Cambiar el tamaño de los apoyos"
   }
 }

@@ -661,6 +661,7 @@ export const ScheduleListField: React.FC<{
                           })
                         }
                         autoFocus={item.id === autoFocusItem?.itemId}
+                        showWarning={ctx.canAccessFeature('widget-connections')}
                       />
                     ))}
                   </SortableContext>

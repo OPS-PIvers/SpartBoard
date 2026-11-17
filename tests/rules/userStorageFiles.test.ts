@@ -123,7 +123,6 @@ const FOLDERS: {
     maxMb: 25,
   },
   { folder: 'hotspot_images', okType: 'video/mp4', maxMb: 250 },
-  { folder: 'instructional', okType: 'image/png', maxMb: 50 },
   { folder: 'notebooks', okType: 'image/svg+xml', maxMb: 250 },
   {
     folder: 'pdfs',
@@ -181,6 +180,23 @@ describe.each(FOLDERS)(
     }
   }
 );
+
+describe('users/{uid}/instructional', () => {
+  const own = () => `users/${TEACHER_UID}/instructional/item-${seq}`;
+
+  it('takes no new uploads, even from the owner', async () => {
+    await assertFails(upload(asTeacher(), own(), 'image/png'));
+  });
+
+  it('owner can still read and delete an old file; others cannot', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await upload(ctx, own(), 'image/png');
+    });
+    await assertFails(getBytes(ref(asOther().storage(), own())));
+    await assertSucceeds(getBytes(ref(asTeacher().storage(), own())));
+    await assertSucceeds(deleteObject(ref(asTeacher().storage(), own())));
+  });
+});
 
 describe('storage isAdmin()', () => {
   it('requires a verified email, like firestore.rules', () => {

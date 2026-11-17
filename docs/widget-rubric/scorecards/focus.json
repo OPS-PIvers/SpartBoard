@@ -31,7 +31,7 @@
       "note": "At 150×100 the face switches to a compact glance mode of big minutes left, an away/on-task count and a single End button, dropping the roster entirely.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-29T05:04:24.970Z",
-      "stale": false
+      "stale": true
     },
     "S2": {
       "score": 3,
@@ -72,7 +72,7 @@
       "note": "The widest shape moves the header and buttons into a left column beside a three-column roster, and the tallest stacks to one column, though there the End button wraps onto its own line.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-29T05:04:24.970Z",
-      "stale": false
+      "stale": true
     },
     "S4": {
       "score": 3,
@@ -287,7 +287,7 @@
       "note": "Clean, flat face with a bold minutes number, divider rows rather than boxes, lucide icons and no ban-list hits.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-29T05:04:24.970Z",
-      "stale": false
+      "stale": true
     },
     "V2": {
       "score": 2,
@@ -324,7 +324,7 @@
       "note": "The large 22 min left is clearly primary, with the class name, status summary and roster rows stepping down in size and weight.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-29T05:04:24.970Z",
-      "stale": false
+      "stale": true
     },
     "V4": {
       "score": 2,
@@ -376,7 +376,7 @@
       "note": "Labels are short and plain (Release, +10 min, Release class, End) with one lucide icon style, though the summary line is a long run-on.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-29T05:04:24.970Z",
-      "stale": false
+      "stale": true
     },
     "C1": {
       "score": 3,
@@ -412,7 +412,7 @@
       "note": "The drawer holds a single Hide student names toggle under a standard Behavior section with search, findable in one look.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-29T05:04:24.970Z",
-      "stale": false
+      "stale": true
     },
     "C3": {
       "score": 2,

@@ -217,6 +217,11 @@ export const SETTINGS_FIELD_LIST: Readonly<
       label: 'Auto-Refresh',
       kind: 'select',
     },
+    {
+      anchor: 'settings.toggle:embed#blockNewTabs',
+      label: 'Block embedded content from opening new tabs',
+      kind: 'toggle',
+    },
   ],
   lunchCount: [
     {
@@ -1618,6 +1623,18 @@ export const SETTINGS_FIELD_LIST: Readonly<
       anchor: 'settings.toggle:focus#hideNames',
       label: 'Hide student names',
       kind: 'toggle',
+    },
+  ],
+  writing: [
+    {
+      anchor: 'settings.group:writing#content',
+      label: 'Content',
+    },
+  ],
+  agenda: [
+    {
+      anchor: 'settings.group:agenda#content',
+      label: 'Content',
     },
   ],
   mathTools: [

@@ -180,6 +180,11 @@ const WebTourIntakePage = lazy(() =>
     default: module.WebTourIntakePage,
   }))
 );
+const FamilyPage = lazy(() =>
+  import('./components/family/FamilyPage').then((module) => ({
+    default: module.FamilyPage,
+  }))
+);
 const PublicTourPage = lazy(() =>
   import('./components/tours/publicLink/PublicTourPage').then((module) => ({
     default: module.PublicTourPage,
@@ -441,6 +446,32 @@ const WidgetGraderHarness =
         )
       )
     : null;
+const WritingAssignmentPage = lazy(() =>
+  import('./components/student/writing/WritingAssignmentPage').then(
+    (module) => ({ default: module.WritingAssignmentPage })
+  )
+);
+const WritingDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/WritingDevHarness').then((module) => ({
+        default: module.WritingDevHarness,
+      }))
+    )
+  : null;
+const WritingGraderDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/WritingGraderDevHarness').then((module) => ({
+        default: module.WritingGraderDevHarness,
+      }))
+    )
+  : null;
+const FamilyLinkDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/FamilyLinkDevHarness').then((module) => ({
+        default: module.FamilyLinkDevHarness,
+      }))
+    )
+  : null;
 const ClassStudentPageDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/ClassStudentPageDevHarness').then((module) => ({
@@ -1006,6 +1037,7 @@ const App: React.FC = () => {
     (pathname === '/activity-wall' || pathname.startsWith('/activity-wall/'));
   const isPollVoteRoute = pathname === '/poll' || pathname.startsWith('/poll/');
   const isFlashcardAssignmentRoute = pathname.startsWith('/flashcards/a/');
+  const isWritingAssignmentRoute = pathname.startsWith('/writing/');
   const isFlashcardsRoute =
     !isFlashcardAssignmentRoute && pathname.startsWith('/flashcards/');
   const isInviteRoute = pathname.startsWith('/invite/');
@@ -1081,6 +1113,40 @@ const App: React.FC = () => {
         </StudentAuthProvider>
         <DialogContainer />
       </DialogProvider>
+    );
+  }
+
+  // Assigned Writing reads the session and the student's own response under the SSO token.
+  if (isWritingAssignmentRoute) {
+    return (
+      <DialogProvider>
+        <StudentAuthProvider>
+          <RequireStudentAuth>
+            <Suspense fallback={<FullPageLoader />}>
+              <WritingAssignmentPage />
+            </Suspense>
+          </RequireStudentAuth>
+        </StudentAuthProvider>
+        <DialogContainer />
+      </DialogProvider>
+    );
+  }
+
+  // The student Writing page on a fake session; dev builds only.
+  if (WritingDevHarness && pathname === '/writing-dev') {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <WritingDevHarness />
+      </Suspense>
+    );
+  }
+
+  // Writing results, grader and returned feedback on fixtures; dev builds only.
+  if (WritingGraderDevHarness && pathname === '/writing-grader-dev') {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <WritingGraderDevHarness />
+      </Suspense>
     );
   }
 
@@ -1174,6 +1240,15 @@ const App: React.FC = () => {
         </AuthProvider>
         <DialogContainer />
       </DialogProvider>
+    );
+  }
+
+  // A Course's public family page (COURSE_AND_AGENDA.md D13): anyone, signed out, so no providers at all.
+  if (pathname.startsWith('/family/')) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <FamilyPage />
+      </Suspense>
     );
   }
 
@@ -1467,6 +1542,15 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <WidgetGraderHarness />
+      </Suspense>
+    );
+  }
+
+  // The family link switch and family page on fixtures; auth-bypass only.
+  if (FamilyLinkDevHarness && isAuthBypass && pathname === '/family-link-dev') {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <FamilyLinkDevHarness />
       </Suspense>
     );
   }

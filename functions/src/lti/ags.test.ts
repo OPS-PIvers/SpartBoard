@@ -2,7 +2,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { generateKeyPair, exportPKCS8 } from 'jose';
 import {
   getAgsAccessToken,
+  pacedScorePoster,
   postScore,
+  SCORE_RETRY_DELAYS_MS,
   scoresUrl,
   _resetAgsTokenCache,
 } from './ags';
@@ -318,5 +320,150 @@ describe('postScore', () => {
     // Draining the body is what lets undici recycle the connection — without
     // it, a burst of refused redirects/429s exhausts the pool.
     expect(drainSpy).toHaveBeenCalled();
+  });
+});
+
+describe('pacedScorePoster', () => {
+  const opts = {
+    lineitemUrl: 'https://lti-service.svc.schoology.com/x',
+    accessToken: 't',
+    score: { userId: 'u', scoreGiven: 1, scoreMaximum: 2 },
+    timestamp: '2026-11-16T00:00:00Z',
+  };
+  const res = (status: number, isRedirect = false) => ({
+    ok: status >= 200 && status < 300,
+    status,
+    isRedirect,
+  });
+  const clock = () => {
+    let t = 0;
+    const waits: number[] = [];
+    return {
+      now: () => t,
+      wait: (ms: number) => {
+        waits.push(ms);
+        t += ms;
+        return Promise.resolve();
+      },
+      waits,
+    };
+  };
+
+  it('retries a rate limit and a server error until the post goes through', async () => {
+    const c = clock();
+    const post = vi
+      .fn()
+      .mockResolvedValueOnce(res(429))
+      .mockResolvedValueOnce(res(503))
+      .mockResolvedValueOnce(res(200));
+    const send = pacedScorePoster({ deadline: 60_000, post, ...c });
+    expect(await send(opts)).toEqual(res(200));
+    expect(post).toHaveBeenCalledTimes(3);
+  });
+
+  it('retries a timeout but never a refused redirect or a 4xx', async () => {
+    const c = clock();
+    const timeout = vi
+      .fn()
+      .mockResolvedValueOnce(res(0))
+      .mockResolvedValueOnce(res(200));
+    await pacedScorePoster({ deadline: 60_000, post: timeout, ...c })(opts);
+    expect(timeout).toHaveBeenCalledTimes(2);
+
+    for (const r of [res(0, true), res(400), res(404)]) {
+      const post = vi.fn().mockResolvedValue(r);
+      expect(
+        await pacedScorePoster({ deadline: 60_000, post, ...c })(opts)
+      ).toEqual(r);
+      expect(post).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it('gives up after the last retry or at the deadline', async () => {
+    const c = clock();
+    const post = vi.fn().mockResolvedValue(res(429));
+    expect(
+      await pacedScorePoster({ deadline: 60_000, post, ...c })(opts)
+    ).toEqual(res(429));
+    expect(post).toHaveBeenCalledTimes(SCORE_RETRY_DELAYS_MS.length + 1);
+
+    const late = vi.fn().mockResolvedValue(res(503));
+    await pacedScorePoster({ deadline: c.now() + 1000, post: late, ...c })(
+      opts
+    );
+    expect(late).toHaveBeenCalledTimes(1);
+
+    const queued = vi.fn().mockResolvedValue(res(200));
+    const send = pacedScorePoster({
+      deadline: c.now() + 100,
+      post: queued,
+      spacingMs: 150,
+      ...c,
+    });
+    const first = await send(opts);
+    const second = await send(opts);
+    expect(first.ok).toBe(true);
+    expect(second).toEqual(res(0));
+    expect(queued).toHaveBeenCalledTimes(1);
+  });
+
+  it('spaces concurrent posts apart', async () => {
+    const c = clock();
+    const post = vi.fn().mockResolvedValue(res(200));
+    const send = pacedScorePoster({
+      deadline: 60_000,
+      post,
+      spacingMs: 150,
+      ...c,
+    });
+    await Promise.all([send(opts), send(opts), send(opts)]);
+    expect(post).toHaveBeenCalledTimes(3);
+    expect(c.waits).toEqual([150, 150]);
+  });
+});
+
+describe('pacedScorePoster under Schoology rate limit', () => {
+  it('sends a 150-student class with no 429 when Schoology allows 50 per 5 seconds', async () => {
+    let t = 0;
+    const sent: number[] = [];
+    let refused = 0;
+    const post = vi.fn(() => {
+      const recent = sent.filter((s) => s > t - 5000).length;
+      if (recent >= 50) {
+        refused++;
+        return Promise.resolve({ ok: false, status: 429, isRedirect: false });
+      }
+      sent.push(t);
+      return Promise.resolve({ ok: true, status: 200, isRedirect: false });
+    });
+    const send = pacedScorePoster({
+      deadline: 200_000,
+      post,
+      now: () => t,
+      wait: (ms) => {
+        t = Math.max(t, ms + t);
+        return Promise.resolve();
+      },
+    });
+    const opts = {
+      lineitemUrl: 'https://lti-service.svc.schoology.com/x',
+      accessToken: 't',
+      score: { userId: 'u', scoreGiven: 1, scoreMaximum: 2 },
+      timestamp: '2026-11-16T00:00:00Z',
+    };
+    // Eight workers at a time, like pushSection.
+    const queue = Array.from({ length: 150 }, (_, i) => i);
+    const results: boolean[] = [];
+    await Promise.all(
+      Array.from({ length: 8 }, async () => {
+        while (queue.length) {
+          queue.shift();
+          results.push((await send(opts)).ok);
+        }
+      })
+    );
+    expect(results.filter(Boolean)).toHaveLength(150);
+    expect(refused).toBe(0);
+    expect(t).toBeLessThan(25_000);
   });
 });

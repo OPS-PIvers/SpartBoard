@@ -34,6 +34,11 @@ import {
 import { StudentItemPreview } from './StudentItemPreview';
 import { logError } from '@/utils/logError';
 import { studentPageClassId } from '@/utils/studentPageClassId';
+import {
+  useClassPageAgendas,
+  type ClassPageView,
+} from '@/hooks/useClassPageAgendas';
+import { ClassPageAgenda } from '@/components/student/landing/ClassPageAgenda';
 
 const NO_CHECKS: TurnInMap = {};
 
@@ -46,16 +51,23 @@ interface ClassStudentPagePreviewProps {
 export const ClassStudentPagePreview: React.FC<
   ClassStudentPagePreviewProps
 > = ({ roster, onClose }) => {
-  const { user, canAccessFeature } = useAuth();
+  const { user, canAccessFeature, canAccessWidget } = useAuth();
   const { enabled: projectsEnabled } = useProjectsWidgetSettings();
   const { status, assignments } = useClassStudentPagePreview(
     user?.uid,
     studentPageClassId(roster) ?? '',
-    projectsEnabled
+    projectsEnabled,
+    canAccessWidget('writing')
+  );
+  // Only this teacher's own copy, as the preview leaves out a co-teacher's work.
+  const classPage = useClassPageAgendas(
+    canAccessFeature('course-agenda') ? studentPageClassId(roster) : null,
+    user?.uid ?? null
   );
   return (
     <ClassStudentPageView
       roster={roster}
+      classPage={classPage}
       teacherName={user?.displayName ?? ''}
       status={status}
       assignments={assignments}
@@ -74,6 +86,10 @@ interface ClassStudentPageViewProps {
   onClose: () => void;
   /** Fixture loader for the dev harness. */
   loadItem?: typeof loadStudentPagePreviewItem;
+  /** The class's Agenda and pinned links, above the tabs. */
+  classPage?: ClassPageView;
+  /** Fixture decks on the dev harness. */
+  agendaEmbedUrlFor?: (fileId: string) => string;
 }
 
 /** The preview's page; data comes from the container, or fixtures on /class-student-page-dev. */
@@ -85,6 +101,8 @@ export const ClassStudentPageView: React.FC<ClassStudentPageViewProps> = ({
   tabAwayTimerOn,
   onClose,
   loadItem = loadStudentPagePreviewItem,
+  classPage,
+  agendaEmbedUrlFor,
 }) => {
   const { showAlert } = useDialog();
   const classId = studentPageClassId(roster) ?? '';
@@ -241,6 +259,15 @@ export const ClassStudentPageView: React.FC<ClassStudentPageViewProps> = ({
             onSignOut={onClose}
             onLockedClick={(a) => open(a.kind, a.sessionId)}
             onOpenGradeOnly={onOpenGradeOnly}
+            classTop={
+              classPage &&
+              (classPage.agendas.length || classPage.links.length) ? (
+                <ClassPageAgenda
+                  view={classPage}
+                  embedUrlFor={agendaEmbedUrlFor}
+                />
+              ) : undefined
+            }
             notice={
               status === 'error' ? (
                 <p

@@ -92,9 +92,15 @@ const major = (v: string): number => Number(v.split('.')[0]);
 
 /** R26: a major version change stales the whole card; otherwise only criteria flagged stale need re-grading. */
 export function needsRegrade(rubric: Rubric, card: Scorecard): boolean {
-  if (card.stale || major(card.rubricVersion) !== major(rubric.version))
-    return true;
-  return Object.values(card.criteria).some((c) => c?.stale);
+  return (
+    wholeCardStale(rubric, card) ||
+    Object.values(card.criteria).some((c) => c?.stale)
+  );
+}
+
+/** A minor bump stales single criteria; only a whole-card stale keeps the card out of the fix queue. */
+function wholeCardStale(rubric: Rubric, card: Scorecard): boolean {
+  return card.stale || major(card.rubricVersion) !== major(rubric.version);
 }
 
 /** Weighted shortfall below the loop target across scored dimensions. */
@@ -206,7 +212,7 @@ export function buildQueue(input: QueueInput): Queue {
     const type = card.widgetType;
     if (needsRegrade(rubric, card)) {
       out.regrade.push(type);
-      continue;
+      if (wholeCardStale(rubric, card)) continue;
     }
     const failing = new Set<GateId>([
       ...rollup(rubric, card).gateFailures,

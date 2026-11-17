@@ -31,6 +31,22 @@ const LOCK_KEY = 'focusLock';
 const SAME_TRY_MS = 3_000;
 /** Per tab, the last allowed address it showed while blocking; survives a worker restart, cleared at the end. */
 const TAB_KEY_PREFIX = 'focusTab:';
+/** Per tab, a marker that another page opened it; survives a worker restart, cleared when the tab closes. */
+const OPENED_KEY_PREFIX = 'focusOpened:';
+/** Per tab, a marker that it committed a real page or a student-started load, so it may no longer sit on about:blank. */
+const SPENT_KEY_PREFIX = 'focusBlankSpent:';
+/** Commits the student starts (address bar, bookmark, reload); about:blank from one of these is never a page's own. */
+const STUDENT_TRANSITIONS = new Set([
+  'typed',
+  'auto_bookmark',
+  'generated',
+  'keyword',
+  'keyword_generated',
+  'reload',
+]);
+// Chrome's about:blank#blocked (a javascript: link opened in a new tab) is not a page-started blank.
+const isBlank = (url: string) =>
+  /^about:blank/i.test(url) && !/^about:blank#blocked/i.test(url);
 /** A tab the worker is restoring is left alone for this long, so its way back isn't read as a try. */
 const RESTORING_MS = 10_000;
 
@@ -78,8 +94,31 @@ export async function topFrameUrl(tabId: number): Promise<string> {
   }
 }
 
+/** Tabs marked with the given prefix (OPENED_KEY_PREFIX or SPENT_KEY_PREFIX). */
+const markedTabIds = (all: Record<string, unknown>, prefix: string) =>
+  new Set(
+    Object.keys(all)
+      .filter((k) => k.startsWith(prefix))
+      .map((k) => Number(k.slice(prefix.length)))
+  );
+
+// Only a page or an extension can make a popup window, so a blank tab there counts as opened.
+const isPopupWindow = (windowId: number | undefined) =>
+  windowId === undefined
+    ? Promise.resolve(false)
+    : chrome.windows
+        .get(windowId)
+        .then((w) => w.type === chrome.windows.WindowType.POPUP)
+        .catch(() => false);
+
 const allTabs = async (): Promise<TabInfo[]> => {
-  const [tabs, own] = await Promise.all([chrome.tabs.query({}), ownPageUrls()]);
+  const [tabs, own, marks] = await Promise.all([
+    chrome.tabs.query({}),
+    ownPageUrls(),
+    chrome.storage.session.get(null).catch(() => ({})),
+  ]);
+  const opened = markedTabIds(marks, OPENED_KEY_PREFIX);
+  const spent = markedTabIds(marks, SPENT_KEY_PREFIX);
   const out = await Promise.all(
     tabs.map(async (t): Promise<TabInfo | null> => {
       if (t.id === undefined || t.id === chrome.tabs.TAB_ID_NONE) return null;
@@ -90,6 +129,10 @@ const allTabs = async (): Promise<TabInfo[]> => {
           t.pendingUrl || t.url || own.get(t.id) || (await topFrameUrl(t.id)),
         active: t.active,
         lastAccessed: t.lastAccessed ?? 0,
+        opened:
+          (await isPopupWindow(t.windowId)) ||
+          (!spent.has(t.id) &&
+            (t.openerTabId !== undefined || opened.has(t.id))),
       };
     })
   );
@@ -183,6 +226,23 @@ export function createChromeEnforcer(deps: {
   };
   const recent = new Map<number, { url: string; at: number }>();
   const restoring = new Map<number, number>();
+
+  // Set synchronously when the tab is made, so its first navigation already sees it.
+  const openedNow = new Set<number>();
+  // Tabs already marked spent, so each tab's marker is written once.
+  const spentNow = new Set<number>();
+  // A popup window's tab always may; another opened tab only until it shows a real page or the student loads one.
+  const mayShowBlank = async (tabId: number) => {
+    const tab = await chrome.tabs.get(tabId).catch(() => undefined);
+    if (await isPopupWindow(tab?.windowId)) return true;
+    if (spentNow.has(tabId)) return false;
+    const spentKey = `${SPENT_KEY_PREFIX}${tabId}`;
+    if ((await chrome.storage.session.get(spentKey))[spentKey]) return false;
+    if (openedNow.has(tabId)) return true;
+    const key = `${OPENED_KEY_PREFIX}${tabId}`;
+    if ((await chrome.storage.session.get(key))[key]) return true;
+    return tab?.openerTabId !== undefined;
+  };
 
   const rememberTab = (tabId: number, url: string) =>
     chrome.storage.session.set({ [`${TAB_KEY_PREFIX}${tabId}`]: url });
@@ -346,14 +406,27 @@ export function createChromeEnforcer(deps: {
     tabId: number,
     url: string,
     currentUrl: string | undefined,
-    committed: boolean
+    committed: boolean,
+    transition?: string
   ): Promise<boolean> => {
+    // Recorded outside a session too, since a tab can load before Lock starts.
+    if (
+      committed &&
+      !spentNow.has(tabId) &&
+      (!isBlank(url) || STUDENT_TRANSITIONS.has(transition ?? ''))
+    ) {
+      spentNow.add(tabId);
+      await chrome.storage.session
+        .set({ [`${SPENT_KEY_PREFIX}${tabId}`]: true })
+        .catch(() => undefined);
+    }
     const state = await deps.load();
     const now = deps.now();
     if (!isBlocking(state, now)) return false;
     const since = restoring.get(tabId);
     if (since !== undefined && now - since < RESTORING_MS) return false;
-    if (!isBlockedUrl(url, state, deps.origins, ownPages)) {
+    const opened = isBlank(url) && (await mayShowBlank(tabId));
+    if (!isBlockedUrl(url, state, deps.origins, ownPages, opened)) {
       // Remember where an allowed tab is, so a late event can still send it back there rather than close it.
       // Only a page the tab actually showed, so a redirecting address can't become the way back.
       if (committed && /^https?:/i.test(url)) await rememberTab(tabId, url);
@@ -416,16 +489,32 @@ export function createChromeEnforcer(deps: {
       tabId: number,
       url: string,
       currentUrl: string | undefined,
-      committed: boolean
-    ) => perTab(tabId, () => navigated(tabId, url, currentUrl, committed)),
+      committed: boolean,
+      transition?: string
+    ) =>
+      perTab(tabId, () =>
+        navigated(tabId, url, currentUrl, committed, transition)
+      ),
     /** A tab finished loading or became active: show a pending notice, and cover it in Lock outside fullscreen. */
     tabShown: async (tabId: number) => {
       if (noticeOnLoad.delete(tabId)) await inject(tabId, 'notice');
       await serial(cover);
     },
     windowChanged: () => serial(cover),
+    /** Another page opened this tab (webNavigation.onCreatedNavigationTarget). */
+    opened: (tabId: number) => {
+      openedNow.add(tabId);
+      void chrome.storage.session
+        .set({ [`${OPENED_KEY_PREFIX}${tabId}`]: true })
+        .catch(() => undefined);
+    },
     tabClosed: (tabId: number) => {
       noticeOnLoad.delete(tabId);
+      openedNow.delete(tabId);
+      spentNow.delete(tabId);
+      void chrome.storage.session
+        .remove([`${OPENED_KEY_PREFIX}${tabId}`, `${SPENT_KEY_PREFIX}${tabId}`])
+        .catch(() => undefined);
       recent.delete(tabId);
       restoring.delete(tabId);
       void chrome.storage.session
@@ -443,6 +532,14 @@ export function createChromeEnforcer(deps: {
         };
         await fullscreen(windowId, lock);
       }),
+    /** Whether another page opened the active tab, so a blank page there counts as on task. */
+    activeOpened: async () => {
+      const [tab] = await chrome.tabs.query({
+        active: true,
+        lastFocusedWindow: true,
+      });
+      return tab?.id !== undefined && (await mayShowBlank(tab.id));
+    },
     /** Whether the student's window is fullscreen; Lock counts time outside it as away (F2). */
     activeFullscreen: async () => {
       const win = await lastNormalWindow();

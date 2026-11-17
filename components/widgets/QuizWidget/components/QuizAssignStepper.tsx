@@ -1,5 +1,6 @@
 // Quiz assign on the accordion stepper (docs/plans/shipped/ASSIGN_STEPPER.md PR 3).
-import React, { useState } from 'react';
+import { GoogleDriveService } from '@/utils/googleDriveService';
+import React, { useContext, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ClassRoster, Plc, QuizBehaviorSettings } from '@/types';
 import type { AssignTargetingValue } from '@/utils/studentTargetRef';
@@ -34,6 +35,21 @@ import { SharingStep } from '@/components/common/library/assignStepper/SharingSt
 import { WrittenAnswersStep } from '@/components/common/library/assignStepper/WrittenAnswersStep';
 import { formatWrittenAnswersValue } from '@/components/common/library/assignStepper/WrittenAnswersStep.format';
 import { Printer } from 'lucide-react';
+import { AuthContext } from '@/context/AuthContextValue';
+import { clampQuizTimeLimitMinutes } from '@/utils/quizTimeLimit';
+import { languageNativeLabel } from '@/utils/languageNativeLabel';
+import {
+  countUnresolvableStudents,
+  modificationRows,
+} from '@/components/common/library/assignStepper/ModificationsView.helpers';
+import { ModificationGroupsStep } from '@/components/common/library/assignStepper/ModificationGroupsStep';
+import {
+  formatModificationGroupsValue,
+  newModificationGroup,
+  overridesFromGroups,
+  rowsInClasses,
+  type ModificationGroup,
+} from '@/components/common/library/assignStepper/modificationGroups';
 import { tourTypeAttr } from '@/config/tourAnchors';
 import {
   withAudienceSwitch,
@@ -62,6 +78,10 @@ export interface QuizAssignStepperProps {
     targeting: AssignTargetingValue;
     onTargetingChange: (next: AssignTargetingValue) => void;
     quizContext: ModificationsQuizContext;
+    /** Any question carries its own time limit, so the time rule applies without a quiz-wide one. */
+    hasQuestionTimeLimits?: boolean;
+    /** Some question has a modified version, so groups can opt into it. */
+    hasModifiedQuestions?: boolean;
   };
   /** Omit when sharing is fixed (PLC quiz assign, D21): no Sharing step. */
   sharing?: {
@@ -107,6 +127,13 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   const { t } = useTranslation();
   const gates = useQuizRuleGates();
   const [modsOpen, setModsOpen] = useState(false);
+  const [sharingCount, setSharingCount] = useState(0);
+  const auth = useContext(AuthContext);
+  const groupsOn =
+    !!modifications && auth?.canAccessFeature?.('modification-groups') === true;
+  const [groups, setGroups] = useState<ModificationGroup[]>(() => [
+    newModificationGroup(),
+  ]);
   const usable = rosters.filter((r) => !r.loadError);
   const staff = audience?.audience === 'staff';
   const picked = staff
@@ -128,6 +155,46 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
     periodAccess?.bellWindow
   );
 
+  const groupRows =
+    groupsOn && !staff
+      ? rowsInClasses(
+          modificationRows({
+            rosters: usable,
+            selectedRosterIds: classes.classIds,
+          }),
+          classes,
+          usable
+        )
+      : [];
+  const sessionMinutes = gates.timeLimitOn
+    ? clampQuizTimeLimitMinutes(behavior.sessionOptions.timeLimitMinutes)
+    : null;
+  const timeLimitLabel =
+    sessionMinutes != null
+      ? `${sessionMinutes} min`
+      : modifications?.hasQuestionTimeLimits
+        ? 'Standard'
+        : undefined;
+  // Without a time limit the time rule does nothing, so the summary leaves it out; the override stays for when one is set.
+  const withTime = (list: ModificationGroup[]) =>
+    timeLimitLabel
+      ? list
+      : list.map((g) => ({ ...g, time: 'standard' as const }));
+  const applyGroups = (next: ModificationGroup[]) => {
+    setGroups(next);
+    if (!modifications) return;
+    // Every roster, not just the checked ones, so re-checking a class keeps its students' rules.
+    const allRows = modificationRows({ rosters: usable });
+    modifications.onTargetingChange({
+      ...modifications.targeting,
+      overridesByKey: overridesFromGroups(
+        next,
+        allRows,
+        modifications.quizContext.questions
+      ),
+    });
+  };
+
   const bodies: Record<string, Omit<AssignStepDef, 'id' | 'title'>> = {
     classes: {
       value: formatClassesValue(classes, rosters),
@@ -143,7 +210,7 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
             value={classes}
             onChange={onClassesChange}
           />
-          {modifications && picked.length > 0 && (
+          {modifications && !groupsOn && picked.length > 0 && (
             <ModificationsLink
               rosters={usable}
               selectedRosterIds={classes.classIds}
@@ -203,6 +270,34 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   );
 
   const stepIds = getAssignSteps('quiz', ctx);
+  if (groupsOn && modifications && !staff && picked.length > 0) {
+    stepIds.splice(stepIds.indexOf('classes') + 1, 0, 'modifications');
+    bodies.modifications = {
+      value: formatModificationGroupsValue(
+        withTime(groups),
+        new Set(groupRows.map((row) => row.key)),
+        languageNativeLabel
+      ),
+      body: (
+        <ModificationGroupsStep
+          groups={groups}
+          onChange={applyGroups}
+          rows={groupRows}
+          unresolvableCount={countUnresolvableStudents({
+            rosters: usable,
+            selectedRosterIds: classes.classIds,
+          })}
+          quizContext={modifications.quizContext}
+          timeLimitLabel={timeLimitLabel}
+          hasModifiedQuestions={modifications.hasModifiedQuestions === true}
+          overridesByKey={modifications.targeting.overridesByKey}
+          onSharingChange={(sharing) =>
+            setSharingCount((n) => Math.max(0, n + (sharing ? 1 : -1)))
+          }
+        />
+      ),
+    };
+  }
   if (written) {
     stepIds.splice(stepIds.indexOf('when') + 1, 0, 'written');
     bodies.written = {
@@ -225,7 +320,18 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   return (
     <AssignStepper
       isOpen
-      onClose={onClose}
+      onClose={() => {
+        // Closing without assigning leaves the shared support copies unused.
+        const token = auth?.googleAccessToken;
+        const drive = token
+          ? new GoogleDriveService(token, auth.refreshGoogleToken)
+          : null;
+        for (const g of groups)
+          for (const sup of g.supports ?? [])
+            if (sup.kind === 'drive')
+              void drive?.deleteFile(sup.fileId).catch(() => undefined);
+        onClose();
+      }}
       title={title}
       steps={steps}
       submitLabel={onPaper ? 'Assign and print' : submitLabel}
@@ -241,16 +347,18 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
           : undefined
       }
       onSubmit={onSubmit}
-      disabled={needsPlc || backwards}
+      disabled={needsPlc || backwards || sharingCount > 0}
       disabledReason={
         needsPlc
           ? PICK_A_PLC
-          : backwards
-            ? t(
-                'assignAvailability.closesBeforeOpens',
-                'Closes before it opens.'
-              )
-            : undefined
+          : sharingCount > 0
+            ? 'Still sharing a Drive file.'
+            : backwards
+              ? t(
+                  'assignAvailability.closesBeforeOpens',
+                  'Closes before it opens.'
+                )
+              : undefined
       }
       overlayView={
         modifications && modsOpen ? (

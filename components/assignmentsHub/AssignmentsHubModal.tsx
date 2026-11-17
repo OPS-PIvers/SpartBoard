@@ -9,6 +9,7 @@ import {
   Compass,
   Blocks,
   Layers3,
+  NotebookPen,
   Search,
   X,
 } from 'lucide-react';
@@ -68,6 +69,11 @@ const KIND_META: Record<
     labelKey: 'assignmentsHub.kind.flashcards',
     fallback: 'Flashcards',
   },
+  writing: {
+    icon: NotebookPen,
+    labelKey: 'assignmentsHub.kind.writing',
+    fallback: 'Writing',
+  },
 };
 
 const KIND_ORDER: AssignmentKind[] = [
@@ -76,6 +82,7 @@ const KIND_ORDER: AssignmentKind[] = [
   'guided-learning',
   'mini-app',
   'flashcards',
+  'writing',
 ];
 
 function formatWindowSummary(
@@ -228,11 +235,13 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
   onClose,
 }) => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, canAccessWidget } = useAuth();
   const { rosters } = useDashboard();
+  const writingEnabled = canAccessWidget('writing');
   const { rows, loading, quizPlcActions } = useUnifiedAssignments(
     user?.uid,
-    rosters
+    rosters,
+    writingEnabled
   );
 
   const [search, setSearch] = useState('');
@@ -295,7 +304,9 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
     [rows, kindFilter, activeClassFilter, activeStatusFilter, searchTerm]
   );
 
-  const kindOptions: AssignmentFilterOption[] = KIND_ORDER.map((kind) => ({
+  const kindOptions: AssignmentFilterOption[] = KIND_ORDER.filter(
+    (kind) => kind !== 'writing' || writingEnabled
+  ).map((kind) => ({
     value: kind,
     label: t(KIND_META[kind].labelKey, {
       defaultValue: KIND_META[kind].fallback,

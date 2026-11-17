@@ -76,7 +76,7 @@ describe('FreeResponseGrader — annotations + snapshot', () => {
         onClose={vi.fn()}
       />
     );
-    const pts = screen.getByLabelText(/points awarded/i);
+    const pts = screen.getByLabelText(/^Score$/);
     fireEvent.change(pts, { target: { value: '7' } });
     await act(() => {
       fireEvent.keyDown(pts, { key: 'Enter' });
@@ -124,7 +124,7 @@ describe('FreeResponseGrader — annotations + snapshot', () => {
         onClose={vi.fn()}
       />
     );
-    const pts = screen.getByLabelText(/points awarded/i);
+    const pts = screen.getByLabelText(/^Score$/);
     fireEvent.change(pts, { target: { value: '9' } });
     await act(() => {
       fireEvent.keyDown(pts, { key: 'Enter' });

@@ -947,6 +947,109 @@ describe('group uploads', () => {
   });
 });
 
+describe('a submitted group', () => {
+  const SUBMITTED = { submittedAt: 5, submittedByUid: MEMBER_UID };
+  const workPath = `${GROUP_PATH}/private/work`;
+  const uploadPath = `${GROUP_PATH}/uploads/upload-1`;
+  const work = { workLinks: [], updatedAt: 2 };
+  const upload = {
+    id: 'upload-1',
+    fileName: 'poster.pdf',
+    contentType: 'application/pdf',
+    sizeBytes: 1024,
+    uploadedByUid: MEMBER_UID,
+    uploadedAt: 1,
+    storagePath: `project_uploads/${RUN_ID}/group-1/upload-1/poster.pdf`,
+    archiveStatus: 'firebase',
+  };
+  const stepWrite = {
+    stepStates: { 'step-1': 'inProgress', 'step-2': 'notStarted' },
+    lastStepChange: { stepId: 'step-1', at: 2 },
+    updatedAt: 2,
+  };
+
+  it('never lets a member mark the group submitted or reopened themselves', async () => {
+    await seed();
+    const db = asStudent(MEMBER_UID, [CLASS_ID]);
+    await assertFails(updateDoc(doc(db, GROUP_PATH), { ...SUBMITTED }));
+    await seed({}, SUBMITTED);
+    await assertFails(updateDoc(doc(db, GROUP_PATH), { submittedAt: 0 }));
+  });
+
+  it('freezes member step, link and upload writes but keeps reads', async () => {
+    await seed({}, SUBMITTED);
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), workPath), work);
+      await setDoc(doc(ctx.firestore(), `${uploadPath}-old`), {
+        ...upload,
+        id: 'upload-1-old',
+      });
+    });
+    const db = asStudent(MEMBER_UID, [CLASS_ID]);
+    await assertFails(updateDoc(doc(db, GROUP_PATH), stepWrite));
+    await assertFails(setDoc(doc(db, workPath), work));
+    await assertFails(setDoc(doc(db, uploadPath), upload));
+    await assertFails(deleteDoc(doc(db, `${uploadPath}-old`)));
+    await assertSucceeds(getDoc(doc(db, GROUP_PATH)));
+    await assertSucceeds(getDoc(doc(db, workPath)));
+    await assertSucceeds(getDoc(doc(db, `${uploadPath}-old`)));
+  });
+
+  it('lets the teacher reopen it, which unfreezes member writes', async () => {
+    await seed({}, SUBMITTED);
+    await assertSucceeds(
+      updateDoc(doc(asTeacher(TEACHER_UID), GROUP_PATH), {
+        submittedAt: 0,
+        submittedByUid: '',
+        updatedAt: 3,
+      })
+    );
+    const db = asStudent(MEMBER_UID, [CLASS_ID]);
+    await assertSucceeds(updateDoc(doc(db, GROUP_PATH), stepWrite));
+    await assertSucceeds(setDoc(doc(db, workPath), work));
+    await assertSucceeds(setDoc(doc(db, uploadPath), upload));
+  });
+
+  it('keeps a submission and its reopen out of another teacher’s reach', async () => {
+    await seed({}, SUBMITTED);
+    await assertFails(getDoc(doc(asTeacher(OTHER_TEACHER_UID), GROUP_PATH)));
+    await assertFails(
+      updateDoc(doc(asTeacher(OTHER_TEACHER_UID), GROUP_PATH), {
+        submittedAt: 0,
+      })
+    );
+  });
+
+  it('takes a submission event from the run teacher only, never a member', async () => {
+    await seed();
+    const event = (actorUid: string, actorRole: string) => ({
+      at: 1,
+      actorUid,
+      actorRole,
+      kind: 'submission',
+      detail: 'reopened',
+    });
+    await assertFails(
+      setDoc(
+        doc(asStudent(MEMBER_UID, [CLASS_ID]), `${GROUP_PATH}/events/e1`),
+        event(MEMBER_UID, 'student')
+      )
+    );
+    await assertSucceeds(
+      setDoc(
+        doc(asTeacher(TEACHER_UID), `${GROUP_PATH}/events/e2`),
+        event(TEACHER_UID, 'teacher')
+      )
+    );
+    await assertFails(
+      setDoc(
+        doc(asTeacher(OTHER_TEACHER_UID), `${GROUP_PATH}/events/e3`),
+        event(OTHER_TEACHER_UID, 'teacher')
+      )
+    );
+  });
+});
+
 describe('a deactivated teacher', () => {
   it('loses read and write on their own run, groups and grades', async () => {
     await seed();

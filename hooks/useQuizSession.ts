@@ -589,6 +589,7 @@ export function toPublicQuestion(
     timeLimit: q.timeLimit,
   };
   if (q.targets?.length) base.targets = q.targets.map((t) => ({ ...t }));
+  if (q.modifiedText?.trim()) base.modifiedText = q.modifiedText.trim();
   if (
     (q.type === 'FIB' || isFreeResponseType(q.type)) &&
     isAnswerKeyboard(q.answerKeyboard)
@@ -710,6 +711,10 @@ export function toPublicQuestion(
         ? rubricForScoredResults(q.rubricSnapshot)
         : stripRubricExamples(q.rubricSnapshot);
       if (hideRubric) base.rubricHidden = true;
+      if (q.modifiedRubricSnapshot)
+        base.modifiedRubricSnapshot = hideRubric
+          ? rubricForScoredResults(q.modifiedRubricSnapshot)
+          : stripRubricExamples(q.modifiedRubricSnapshot);
     }
     for (const [loc, tr] of entries) {
       if (base.placeholder && tr.placeholder)
@@ -815,7 +820,7 @@ function longestOrderedSubsequenceLength(
  * A grade with no `rubricScores` at all is a plain manual score, not partial.
  */
 function isPartialRubricGrade(
-  question: Pick<QuizQuestion, 'rubricSnapshot'>,
+  question: Pick<QuizQuestion, 'rubricSnapshot' | 'modifiedRubricSnapshot'>,
   grade: import('@/types').WrittenAnswerGrade
 ): boolean {
   const criteria = question.rubricSnapshot?.criteria;
@@ -823,7 +828,13 @@ function isPartialRubricGrade(
   const scores = grade.rubricScores;
   if (!scores || scores.length === 0) return false;
   const scoredIds = new Set(scores.map((s) => s.criterionId));
-  return criteria.some((c) => !scoredIds.has(c.id));
+  const covers = (rubric: Rubric | undefined) =>
+    !!rubric?.criteria?.length &&
+    rubric.criteria.every((c) => scoredIds.has(c.id));
+  // A modified-group student is scored on the modified rubric instead.
+  return (
+    !covers(question.rubricSnapshot) && !covers(question.modifiedRubricSnapshot)
+  );
 }
 
 /**
@@ -858,7 +869,8 @@ export function hasSubmittedContent(studentAnswer: string): boolean {
  * check and partial-rubric rule instead of re-deriving them.
  */
 export function isWrittenAnswerAwaitingGrade(
-  question: Pick<QuizQuestion, 'rubricSnapshot'> | undefined,
+  question:
+    Pick<QuizQuestion, 'rubricSnapshot' | 'modifiedRubricSnapshot'> | undefined,
   studentAnswer: string,
   grade: import('@/types').WrittenAnswerGrade | undefined,
   paperTranscript?: import('@/types').PaperTranscriptState
@@ -1219,6 +1231,30 @@ function getErrorCode(err: unknown): string | undefined {
 /** `seats/{uid}` points the content rule at the caller's response (anonymous keys aren't the uid). */
 function seatRef(sessionId: string, uid: string) {
   return doc(db, QUIZ_SESSIONS_COLLECTION, sessionId, 'seats', uid);
+}
+
+/** Deletes the published answer key a retake must not carry into its new attempt (#5811). */
+export function retakeKeyStrip(
+  r: Pick<
+    QuizResponse,
+    | 'revealedAnswers'
+    | 'revealedRubricExamples'
+    | 'revealedExplanations'
+    | 'resultsOverride'
+  >
+): Record<string, ReturnType<typeof deleteField>> {
+  const patch: Record<string, ReturnType<typeof deleteField>> = {};
+  const override = r.resultsOverride as Record<string, unknown> | undefined;
+  for (const f of [
+    'revealedAnswers',
+    'revealedRubricExamples',
+    'revealedExplanations',
+  ] as const) {
+    if (f in r) patch[f] = deleteField();
+    if (override && f in override)
+      patch[`resultsOverride.${f}`] = deleteField();
+  }
+  return patch;
 }
 
 function logQuizJoinFirestoreError(
@@ -2334,6 +2370,16 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
   const paperWrittenIdsRef = useRef<readonly string[]>([]);
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   paperWrittenIdsRef.current = session?.paperWrittenQuestionIds ?? [];
+  // A device write for a paper-answered question is refused by the rules; skip it.
+  const isPaperAnswered = useCallback(
+    (existing: QuizResponse, questionId: string) =>
+      !!existing.answers?.some(
+        (a) => a.questionId === questionId && a.paperScanId
+      ) ||
+      (!!existing.paperWrittenBatchId &&
+        paperWrittenIdsRef.current.includes(questionId)),
+    []
+  );
 
   // Per-questionId timestamp of the most recent history snapshot write.
   // Used to throttle snapshots — see HISTORY_SNAPSHOT_THROTTLE_MS.
@@ -3063,6 +3109,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
                 ? { partsDone: deleteField() }
                 : {}),
               ...(existing.partHeld != null ? { partHeld: deleteField() } : {}),
+              ...retakeKeyStrip(existing),
               // A bank-draw session rolls a fresh draw for the next attempt.
               ...(Array.isArray(sessionData.bankSlots) &&
               sessionData.bankSlots.length > 0
@@ -3493,12 +3540,9 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           (a) => a.questionId === questionId
         );
         // An imported paper answer is server-written; the rules refuse a student rewrite of it.
-        if (
-          priorEntry?.paperScanId ||
-          (existing.paperWrittenBatchId &&
-            paperWrittenIdsRef.current.includes(questionId))
-        )
+        if (isPaperAnswered(existing, questionId)) {
           return { skip: true, snapshot: null };
+        }
 
         // #1 guard — see `isUnsafeBlankDraft` doc. Refuses a draft autosave
         // that would silently clobber a non-empty saved answer with ''.
@@ -3749,7 +3793,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         });
       }
     },
-    [runAnswersTx]
+    [runAnswersTx, isPaperAnswered]
   );
 
   /**
@@ -3791,6 +3835,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           if (!snap.exists()) return;
           const existing = snap.data() as QuizResponse;
           if (isAnswerLocked(existing)) return;
+          if (isPaperAnswered(existing, input.questionId)) return;
           const existingAnswers = existing.answers ?? [];
           // Symmetric to markUnresponded: a closed slot never accepts a take.
           if (isRecordingSlotClosed(existingAnswers, input.questionId)) return;
@@ -3834,7 +3879,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       );
       return writtenTakeIndex;
     },
-    [runAnswersTx]
+    [runAnswersTx, isPaperAnswered]
   );
 
   /**
@@ -3953,6 +3998,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           if (!snap.exists()) return;
           const existing = snap.data() as QuizResponse;
           if (isAnswerLocked(existing)) return;
+          if (isPaperAnswered(existing, questionId)) return;
           const existingAnswers = existing.answers ?? [];
           // Never overwrite a real response — a student who already recorded a
           // take on this question has answered it.
@@ -3992,7 +4038,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         })
       );
     },
-    [runAnswersTx]
+    [runAnswersTx, isPaperAnswered]
   );
 
   const completeQuiz = useCallback(async (opts?: { timeUp?: boolean }) => {

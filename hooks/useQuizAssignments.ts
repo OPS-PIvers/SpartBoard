@@ -207,6 +207,7 @@ import {
   type AssignmentLifecyclePatches,
 } from '@/utils/sessionLifecycle';
 import { reopenSessionPatch } from '@/utils/quizSessionPhase';
+import { isReviewGame } from '@/utils/quizWidgetKind';
 import {
   END_TURN_IN_DELAY_MS,
   finalizeOpenQuizResponses,
@@ -384,6 +385,8 @@ export interface CreateAssignmentOptions extends AudienceSessionFields {
   /** Per-period gate; its questions move to `content/questions` until each period opens. */
   accessMode?: AccessMode;
   periodAccess?: Record<string, PeriodAccess>;
+  /** A Manual due date that allows late work, so no period locks at it. */
+  manualLate?: boolean;
 }
 
 const QUIZ_ASSIGNMENTS_COLLECTION = 'quiz_assignments';
@@ -821,6 +824,8 @@ function sessionOptionsToSessionPatch(
     scoreOnSubmitOn: boolean;
     stimulusQuotesOn: boolean;
     pageProtectionsOn: boolean;
+    /** False for a Quiz assessment: game extras are written off. */
+    reviewGame: boolean;
   }
 ): Record<string, unknown> {
   const patch: Record<string, unknown> = {};
@@ -854,13 +859,14 @@ function sessionOptionsToSessionPatch(
   if (o.showExplanations !== undefined)
     patch.showExplanations = o.showExplanations;
   if (o.speedBonusEnabled !== undefined)
-    patch.speedBonusEnabled = o.speedBonusEnabled;
+    patch.speedBonusEnabled = gates.reviewGame && o.speedBonusEnabled;
   if (o.streakBonusEnabled !== undefined)
-    patch.streakBonusEnabled = o.streakBonusEnabled;
+    patch.streakBonusEnabled = gates.reviewGame && o.streakBonusEnabled;
   if (o.showPodiumBetweenQuestions !== undefined)
-    patch.showPodiumBetweenQuestions = o.showPodiumBetweenQuestions;
+    patch.showPodiumBetweenQuestions =
+      gates.reviewGame && o.showPodiumBetweenQuestions;
   if (o.soundEffectsEnabled !== undefined)
-    patch.soundEffectsEnabled = o.soundEffectsEnabled;
+    patch.soundEffectsEnabled = gates.reviewGame && o.soundEffectsEnabled;
   if (o.shuffleQuestions !== undefined)
     patch.shuffleQuestions = o.shuffleQuestions;
   if (o.shuffleAnswerOptions !== undefined)
@@ -1104,7 +1110,13 @@ export function buildRevealedRubricExamples(
   const out: RevealedRubricExamples = {};
   for (const q of dedupeQuestionsById(quizData.questions)) {
     if (!q.rubricSnapshot) continue;
-    const examples = rubricExamplesByCriterion(q.rubricSnapshot);
+    // Modified-rubric criteria carry their own ids, so both share the question's map.
+    const examples = {
+      ...rubricExamplesByCriterion(q.rubricSnapshot),
+      ...(q.modifiedRubricSnapshot
+        ? rubricExamplesByCriterion(q.modifiedRubricSnapshot)
+        : {}),
+    };
     if (Object.keys(examples).length > 0) out[q.id] = examples;
   }
   return Object.keys(out).length > 0 ? out : null;
@@ -1638,6 +1650,7 @@ export const useQuizAssignments = (
         gameDurationMs,
         paperBatchId,
         paperWritten,
+        manualLate,
       } = options ?? {};
       if (!userId) throw new Error('Not authenticated');
       const perPeriod =
@@ -1648,6 +1661,16 @@ export const useQuizAssignments = (
         accessMode === 'assessment' &&
         closeAt != null &&
         closeAt === settings.dueAt;
+      // `dueLocks: false` marks a Manual due with late work allowed, so edits still read it as Manual.
+      const dueLockField = dueLocks
+        ? { dueLocks: true }
+        : perPeriod &&
+            accessMode === 'assessment' &&
+            closeAt == null &&
+            settings.dueAt != null &&
+            manualLate === true
+          ? { dueLocks: false }
+          : {};
       const hasBankSlots = !!bankSlots && bankSlots.length > 0;
       // Review games draw per student too (plan D17).
       if (
@@ -1753,7 +1776,7 @@ export const useQuizAssignments = (
         // Per-period sessions carry each period's window instead of a shared one.
         ...(openAt != null && !perPeriod ? { openAt } : {}),
         ...(closeAt != null && !perPeriod ? { closeAt } : {}),
-        ...(dueLocks ? { dueLocks: true } : {}),
+        ...dueLockField,
         ...(settings.resolvedDriveFileId
           ? { resolvedDriveFileId: settings.resolvedDriveFileId }
           : {}),
@@ -1771,6 +1794,12 @@ export const useQuizAssignments = (
       };
 
       const mode = settings.sessionMode;
+      // Speed, streak, podium and sounds never reach a Quiz assessment.
+      const reviewGame = isReviewGame({
+        widgetKind,
+        sessionMode: mode,
+        mode: assignmentMode,
+      });
       const opts = settings.sessionOptions;
       const sessionTimeLimit = clampQuizTimeLimitMinutes(opts.timeLimitMinutes);
       // Dedupe once so totalQuestions and publicQuestions can't drift apart.
@@ -1910,13 +1939,14 @@ export const useQuizAssignments = (
           : {}),
         revealedAnswers: {},
         // Phase 2 gamification
-        speedBonusEnabled: opts.speedBonusEnabled ?? false,
-        streakBonusEnabled: opts.streakBonusEnabled ?? false,
+        speedBonusEnabled: reviewGame && (opts.speedBonusEnabled ?? false),
+        streakBonusEnabled: reviewGame && (opts.streakBonusEnabled ?? false),
         // Default matches DEFAULT_QUIZ_BEHAVIOR (off) for legacy quizzes
         // with no saved behavior.
-        showPodiumBetweenQuestions: opts.showPodiumBetweenQuestions ?? false,
+        showPodiumBetweenQuestions:
+          reviewGame && (opts.showPodiumBetweenQuestions ?? false),
         ...(opts.boardRankLimit ? { boardRankLimit: opts.boardRankLimit } : {}),
-        soundEffectsEnabled: opts.soundEffectsEnabled ?? false,
+        soundEffectsEnabled: reviewGame && (opts.soundEffectsEnabled ?? false),
         // Per-student per-attempt shuffling. `shuffleAnswerOptions` defaults
         // to true to preserve the always-on behavior that pre-dates this
         // toggle; `shuffleQuestions` is opt-in.
@@ -1944,7 +1974,7 @@ export const useQuizAssignments = (
         // by `setAssignmentTargetsV1` (§2a ordering guarantee), never here.
         ...(openAt != null && !perPeriod ? { openAt } : {}),
         ...(closeAt != null && !perPeriod ? { closeAt } : {}),
-        ...(dueLocks ? { dueLocks: true } : {}),
+        ...dueLockField,
         ...(workKind ? { workKind } : {}),
         ...(paperWritten && !paperBatchId
           ? { paperWrittenQuestionIds: paperWritten.questionIds }
@@ -2481,9 +2511,11 @@ export const useQuizAssignments = (
       else if (dueAtByClassId) sessionPatch.dueAtByClassId = dueAtByClassId;
       if (patch.sessionOptions) {
         // Mirror only edited keys so flag-gated create-time fields (tab-away) aren't switched on.
+        const editedRow = assignmentsRef.current.find(
+          (a) => a.id === assignmentId
+        );
         const prevOptions: Record<string, unknown> = {
-          ...assignmentsRef.current.find((a) => a.id === assignmentId)
-            ?.sessionOptions,
+          ...editedRow?.sessionOptions,
         };
         // Tab warnings always mirror: the monitor once wrote it to the session alone, so the two can differ.
         const changed = Object.fromEntries(
@@ -2499,6 +2531,7 @@ export const useQuizAssignments = (
             scoreOnSubmitOn,
             stimulusQuotesOn,
             pageProtectionsOn,
+            reviewGame: editedRow ? isReviewGame(editedRow) : true,
           })
         );
       }
@@ -3553,6 +3586,10 @@ export const useQuizAssignments = (
                 scoreOnSubmitOn,
                 stimulusQuotesOn,
                 pageProtectionsOn,
+                reviewGame: isReviewGame({
+                  ...assignment,
+                  sessionMode: behavior.sessionMode,
+                }),
               }),
               // A mode flip restarts the cursor the way session-create would.
               ...(modeChanged

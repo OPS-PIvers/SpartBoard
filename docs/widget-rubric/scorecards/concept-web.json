@@ -31,7 +31,7 @@
       "note": "At 150x100 the nodes shrink to unreadable letter fragments with 3.85 px text and a 2.33 px smallest tap target, so the G1/G2 gates fail.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:46:03.121Z",
-      "stale": false
+      "stale": true
     },
     "S2": {
       "score": 2,
@@ -72,7 +72,7 @@
       "note": "Node positions stretch with the card instead of reflowing, so at 225x900 labels break one letter at a time and at 1400x350 the node boxes flatten into thin strips.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:46:03.121Z",
-      "stale": false
+      "stale": true
     },
     "S4": {
       "score": 3,
@@ -288,7 +288,7 @@
       "note": "Clean white canvas, but every node is boxed in a thin border, heavy arrowheads overlap labels, and the plain text '+ Add Node' button looks dated.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:46:03.121Z",
-      "stale": false
+      "stale": true
     },
     "V2": {
       "score": 2,
@@ -325,7 +325,7 @@
       "note": "The central 'Water cycle' topic looks the same as the other nodes, and the thick arrows carry more visual weight than the node labels.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:46:03.121Z",
-      "stale": false
+      "stale": true
     },
     "V4": {
       "score": 2,
@@ -377,7 +377,7 @@
       "note": "Labels are short and copy-guard clean, with only lucide icons plus the inline SVG arrowheads.",
       "rubricVersion": "1.1.0",
       "gradedAt": "2026-10-18T15:46:03.121Z",
-      "stale": false
+      "stale": true
     },
     "C1": {
       "score": 2,

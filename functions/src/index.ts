@@ -132,6 +132,7 @@ export { getGradebookRosterV1 } from './gradebook/getGradebookRosterV1';
 
 // ── Projects widget: group import (docs/plans/shipped/PROJECTS_WIDGET.md D8) ───────
 export { commitProjectGroupsV1 } from './projectGroups';
+export { submitProjectGroupV1 } from './projectSubmit';
 // Projects widget: uploads ride the Activity Wall's Storage → Drive path (D20).
 export { archiveProjectUploadOnCreate } from './projectUploadArchive';
 
@@ -158,7 +159,27 @@ export {
   cleanupGuidedLearningAssignmentPointers,
   cleanupMiniAppAssignmentPointers,
   cleanupFlashcardAssignmentPointers,
+  cleanupWritingAssignmentPointers,
 } from './studentAssignmentCleanup';
+
+// ── Writing assignment (docs/plans/WRITING_ASSIGNMENT.md): assign, delete and every status change ─
+export {
+  assignWritingV1,
+  deleteWritingSessionV1,
+  endWritingSessionV1,
+  updateWritingSessionV1,
+  cleanupWritingSessionData,
+} from './writingSessions';
+export {
+  openWritingV1,
+  turnInWritingV1,
+  takeBackWritingV1,
+  turnInTimedWritingV1,
+  returnWritingV1,
+  returnWritingForRevisionV1,
+  saveWritingFeedbackV1,
+} from './writingResponses';
+export { purgeWritingLogs } from './writingLogPurge';
 
 // ── Flashcards Check submission (server-graded; docs/plans/shipped/FLASHCARDS.md §7) ─
 export {
@@ -276,6 +297,7 @@ export {
   gradeIndexProjectGrade,
   gradeIndexMiniAppSubmission,
   gradeIndexWallSubmission,
+  gradeIndexWritingResponse,
   gradeIndexQuizSession,
   gradeIndexVideoSession,
   gradeIndexGuidedLearningSession,
@@ -283,6 +305,7 @@ export {
   gradeIndexProjectRun,
   gradeIndexMiniAppSession,
   gradeIndexWallSession,
+  gradeIndexWritingSession,
   gradeIndexQuizKey,
   gradeIndexQuizAssignment,
   gradeIndexVideoKey,
@@ -393,6 +416,9 @@ export {
   focusPanelV1,
   focusSweepSessions,
 } from './focus/sessionCallables';
+// Course and Agenda: the only writer of Courses and their Class page and family copies (docs/plans/COURSE_AND_AGENDA.md D21).
+export { saveCourseV1 } from './course/callable';
+export { courseRosterDeleted } from './course/rosterDeleted';
 export { expireActivityWallShares } from './expireActivityWallShares';
 export { saveSharedActivityWallV1 } from './sharedActivityWallEdit';
 export { finalizeIdleQuizAttempts } from './finalizeIdleQuizAttempts';

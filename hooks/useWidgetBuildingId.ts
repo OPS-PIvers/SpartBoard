@@ -24,6 +24,14 @@ export function useWidgetBuildingId(widget: WidgetData): string | undefined {
   if (override) {
     return canonicalBuildingId(widget.buildingId ?? override);
   }
+  return resolveWidgetBuildingId(widget, selectedBuildings);
+}
+
+/** The effective building for a widget outside any override: its own if still selected, else the primary one. */
+export function resolveWidgetBuildingId(
+  widget: Pick<WidgetData, 'buildingId'>,
+  selectedBuildings: string[]
+): string | undefined {
   const canonicalSelected = selectedBuildings.map((id) =>
     canonicalBuildingId(id)
   );

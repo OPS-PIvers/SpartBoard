@@ -19,6 +19,7 @@ import {
   FolderKanban,
   Image as ImageIcon,
   Layers3,
+  NotebookPen,
   PlayCircle,
   Puzzle,
   Sparkles,
@@ -73,7 +74,8 @@ export type SessionKind =
   | 'mini-app'
   | 'activity-wall'
   | 'flashcards'
-  | 'projects';
+  | 'projects'
+  | 'writing';
 
 export type AssignmentChannel = 'active' | 'ended';
 
@@ -115,6 +117,8 @@ export interface AssignmentSummary {
   latestShareCode?: string;
   /** Flashcards only: whether the assignment collects a submission. */
   flashcardKind?: 'check' | 'study';
+  /** Projects only: the run takes group submissions, read from the student's own group. */
+  studentSubmit?: true;
   /** Work is turned in; a Resource is only there to study (the session field, else the kind default). */
   workKind: WorkKind;
   /** A teacher-paced quiz or video activity running now; the student joins it live. */
@@ -388,6 +392,25 @@ export const KIND_CONFIG: Record<SessionKind, KindConfig> = {
     // the run itself can never promise a score is waiting.
     gradingStateFrom: () => 'not-graded',
   },
+  writing: {
+    collectionName: 'writing_assignment_sessions',
+    dualQuery: false,
+    classFilterShape: 'list',
+    activeFilter: { field: 'status', value: 'active' },
+    endedFilter: { field: 'status', value: 'ended' },
+    endedOrderBy: 'endedAt',
+    endedLimit: 50,
+    label: 'Writing',
+    icon: NotebookPen,
+    accent: 'from-teal-500 to-teal-600',
+    titleFrom: (data) =>
+      typeof data.title === 'string' && data.title.length > 0
+        ? data.title
+        : 'Untitled writing assignment',
+    hrefFrom: (sessionId) => `/writing/${encodeURIComponent(sessionId)}`,
+    // Returned feedback lives on each student's own response, not the session.
+    gradingStateFrom: () => 'not-graded',
+  },
 };
 
 export const SESSION_KINDS: readonly SessionKind[] = [
@@ -398,6 +421,7 @@ export const SESSION_KINDS: readonly SessionKind[] = [
   'activity-wall',
   'flashcards',
   'projects',
+  'writing',
 ];
 
 // ---------------------------------------------------------------------------
@@ -409,6 +433,11 @@ const acceptingFlag = (value: unknown): boolean | undefined =>
 export const isClosedProjectRun = (
   a: Pick<AssignmentSummary, 'kind' | 'acceptingResponses'>
 ): boolean => a.kind === 'projects' && a.acceptingResponses === false;
+
+/** A closed run with no submissions counts as turned in; one that takes them waits for the group's own state. */
+export const isClosedUnsubmittableRun = (
+  a: Pick<AssignmentSummary, 'kind' | 'acceptingResponses' | 'studentSubmit'>
+): boolean => isClosedProjectRun(a) && a.studentSubmit !== true;
 
 /**
  * Build an `AssignmentSummary` from a session doc. Hoisted to module scope
@@ -499,7 +528,9 @@ export function buildAssignmentSummary(
       (record.kind === 'check' || record.kind === 'study')
         ? record.kind
         : undefined,
-    workKind: resolveWorkKind(kind, record),
+    studentSubmit:
+      kind === 'projects' && record.studentSubmit === true ? true : undefined,
+    workKind: kind === 'writing' ? 'work' : resolveWorkKind(kind, record),
     live: isLiveSession(kind, channel, record) ? true : undefined,
     periodGate: hasPeriodAccess(record)
       ? {

@@ -91,7 +91,7 @@ const responseFor = (studentUid: string): QuizResponse => ({
 // Enter in the points field commits the draft without waiting for the idle timer.
 const saveGrade = async () => {
   await act(() => {
-    fireEvent.keyDown(screen.getByLabelText(/points awarded/i), {
+    fireEvent.keyDown(screen.getByLabelText(/^Score$/), {
       key: 'Enter',
     });
     return Promise.resolve();
@@ -183,7 +183,7 @@ describe('FreeResponseGrader — per-student rubric override (M17 C4)', () => {
         onClose={vi.fn()}
       />
     );
-    fireEvent.change(screen.getByLabelText(/points awarded/i), {
+    fireEvent.change(screen.getByLabelText(/^Score$/), {
       target: { value: '6' },
     });
     await saveGrade();

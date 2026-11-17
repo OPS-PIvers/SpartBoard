@@ -95,6 +95,9 @@ export const STUDENT_QUIZ_STATES = [
   'sq-attempts-live',
   'sq-fullscreen',
   'sq-cross-out',
+  'sq-supports',
+  'sq-supports-stimuli',
+  'sq-modified',
   'sq-reopened',
   'sq-unlocked',
   'sq-images-ordering',
@@ -104,6 +107,9 @@ export const STUDENT_QUIZ_STATES = [
   'sq-picture-only-mc',
   'sq-picture-only-matching',
   'sq-picture-only-ordering',
+  'sq-submitted',
+  'sq-submitted-live',
+  'sq-results',
 ] as const;
 export type StudentQuizStateKey = (typeof STUDENT_QUIZ_STATES)[number];
 

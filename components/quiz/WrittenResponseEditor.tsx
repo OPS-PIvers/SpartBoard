@@ -91,6 +91,19 @@ interface WrittenResponseEditorProps {
   light?: boolean;
   /** Shows the Insert equation button (quiz math keyboard). */
   mathEnabled?: boolean;
+  /** Writing (D8): decides each paste or drop; false blocks it. Absent keeps quiz behaviour. */
+  allowInsert?: (
+    text: string,
+    via: 'paste' | 'drop' | 'drag-inside'
+  ) => boolean;
+  /** Writing (D8): the text of each copy or cut from the editor, so pasting it back counts as a move. */
+  onCopyText?: (text: string) => void;
+  /** Writing (D4): turns off the right-click menu, and with it the spelling suggestions. */
+  blockContextMenu?: boolean;
+  /** Starting height in px; the student can still drag it taller. */
+  minHeightPx?: number;
+  /** False keeps locked text at full contrast, for work shown read-only. */
+  dimWhenDisabled?: boolean;
   ref?: React.Ref<WrittenResponseEditorHandle>;
 }
 
@@ -117,6 +130,11 @@ const WrittenResponseEditorInner: React.FC<
   blockClipboard,
   light = false,
   mathEnabled = false,
+  allowInsert,
+  onCopyText,
+  blockContextMenu = false,
+  minHeightPx,
+  dimWhenDisabled = true,
   ref,
 }) => {
   const editorRef = useRef<HTMLDivElement | null>(null);
@@ -136,7 +154,9 @@ const WrittenResponseEditorInner: React.FC<
   // they can drag the bottom-right grip to enlarge it (or use ↑/↓ when the
   // handle has keyboard focus). Resets on remount per question via the
   // `questionKey` wrapper.
-  const minHeight = ESSAY_MIN_HEIGHT_PX;
+  const minHeight = minHeightPx ?? ESSAY_MIN_HEIGHT_PX;
+  // Set while a drag started inside the editor, so dropping it back is a move.
+  const draggingInsideRef = useRef(false);
   const [heightPx, setHeightPx] = useState<number>(minHeight);
   // Cap at the smaller of 70vh and MAX_HEIGHT_PX_CAP so very tall windows
   // can't stretch the editor past a reasonable working size.
@@ -405,6 +425,7 @@ const WrittenResponseEditorInner: React.FC<
     if (blockClipboard) return;
     const text = e.clipboardData.getData('text/plain');
     if (!text) return;
+    if (allowInsert && !allowInsert(text, 'paste')) return;
     // Insert as plain text at the current selection.
     document.execCommand('insertText', false, text);
   };
@@ -412,7 +433,11 @@ const WrittenResponseEditorInner: React.FC<
   // Block copy/cut from inside the editor when clipboard is locked. (Paste is
   // handled above.) A no-op handler otherwise so the native clipboard works.
   const handleClipboardCopyCut = (e: React.ClipboardEvent<HTMLDivElement>) => {
-    if (blockClipboard) e.preventDefault();
+    if (blockClipboard) {
+      e.preventDefault();
+      return;
+    }
+    onCopyText?.(document.getSelection()?.toString() ?? '');
   };
 
   // Drag-and-drop is the other channel for importing externally-composed text,
@@ -420,7 +445,15 @@ const WrittenResponseEditorInner: React.FC<
   // to QuizStudentApp's container guard, but keeping it here makes the editor
   // self-contained for any other caller.
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    if (blockClipboard) e.preventDefault();
+    const inside = draggingInsideRef.current;
+    draggingInsideRef.current = false;
+    if (blockClipboard) {
+      e.preventDefault();
+      return;
+    }
+    if (!allowInsert) return;
+    const text = e.dataTransfer.getData('text/plain');
+    if (!allowInsert(text, inside ? 'drag-inside' : 'drop')) e.preventDefault();
   };
 
   const exec = (command: string) => {
@@ -610,17 +643,28 @@ const WrittenResponseEditorInner: React.FC<
           onCopy={handleClipboardCopyCut}
           onCut={handleClipboardCopyCut}
           onDrop={handleDrop}
+          onDragStart={() => {
+            draggingInsideRef.current = true;
+          }}
+          onDragEnd={() => {
+            draggingInsideRef.current = false;
+          }}
+          onContextMenu={
+            blockContextMenu ? (e) => e.preventDefault() : undefined
+          }
           spellCheck={spellCheck}
           className={`rich-text-content w-full px-5 py-4 border-2 border-t-0 ${
             light ? 'bg-white' : 'bg-slate-800'
           } ${
-            disabled
-              ? light
-                ? 'border-slate-200 text-slate-400 cursor-not-allowed'
-                : 'border-slate-700 text-slate-400 cursor-not-allowed'
-              : light
-                ? 'border-slate-300 text-slate-900 focus:outline-hidden focus:border-brand-blue-light focus-visible:ring-2 focus-visible:ring-brand-blue-light'
-                : 'border-slate-700 text-white focus:outline-hidden focus:border-violet-500 focus-visible:ring-2 focus-visible:ring-violet-400'
+            disabled && !dimWhenDisabled
+              ? 'border-slate-200 text-slate-800 cursor-default'
+              : disabled
+                ? light
+                  ? 'border-slate-200 text-slate-400 cursor-not-allowed'
+                  : 'border-slate-700 text-slate-400 cursor-not-allowed'
+                : light
+                  ? 'border-slate-300 text-slate-900 focus:outline-hidden focus:border-brand-blue-light focus-visible:ring-2 focus-visible:ring-brand-blue-light'
+                  : 'border-slate-700 text-white focus:outline-hidden focus:border-violet-500 focus-visible:ring-2 focus-visible:ring-violet-400'
           } rounded-b-2xl text-base leading-relaxed overflow-y-auto [&_[data-math]]:inline-block [&_[data-math]]:px-1.5 [&_[data-math]]:mx-0.5 [&_[data-math]]:rounded [&_[data-math]]:align-middle [&_[data-math]]:cursor-pointer ${
             light
               ? '[&_[data-math]]:bg-slate-100 [&_[data-math]]:text-slate-900'

@@ -1,4 +1,12 @@
-import { doc, getDoc } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  limit,
+  query,
+  where,
+} from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
 import { readOwnMiniAppSubmission } from '@/utils/miniAppResults';
@@ -24,6 +32,7 @@ export const DOC_ID_STRATEGY: Record<AssignmentSummary['kind'], DocIdStrategy> =
     'activity-wall': 'none',
     flashcards: 'auth-uid',
     projects: 'none',
+    writing: 'auth-uid',
   };
 
 export const RESPONSE_SUBCOLLECTION: Record<
@@ -37,6 +46,7 @@ export const RESPONSE_SUBCOLLECTION: Record<
   'activity-wall': 'submissions',
   flashcards: 'progress',
   projects: null,
+  writing: 'responses',
 };
 
 /** Kinds whose response doc can carry a per-student `resultsOverride`. */
@@ -91,11 +101,32 @@ export function hasResponseDoc(kind: AssignmentSummary['kind']): boolean {
   );
 }
 
+/** True when this row's turn-in state is read: a response-doc kind, or a project run taking submissions. */
+export function readsTurnIn(
+  a: Pick<AssignmentSummary, 'kind' | 'studentSubmit'>
+): boolean {
+  return (
+    hasResponseDoc(a.kind) ||
+    (a.kind === 'projects' && a.studentSubmit === true)
+  );
+}
+
 /** The student's own response doc data, or null when there is none. */
 export async function readStudentResponseDoc(
   assignment: Pick<AssignmentSummary, 'kind' | 'sessionId'>,
   pseudonymUid: string
 ): Promise<Record<string, unknown> | null> {
+  if (assignment.kind === 'projects') {
+    // The group doc stands in for a response; the rules admit only this membership query.
+    const snap = await getDocs(
+      query(
+        collection(db, 'project_runs', assignment.sessionId, 'groups'),
+        where('memberUids', 'array-contains', pseudonymUid),
+        limit(1)
+      )
+    );
+    return snap.empty ? null : snap.docs[0].data();
+  }
   const sub = RESPONSE_SUBCOLLECTION[assignment.kind];
   const strategy = DOC_ID_STRATEGY[assignment.kind];
   if (!sub || strategy === 'none') return null;

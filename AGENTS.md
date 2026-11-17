@@ -19,6 +19,8 @@ Each is explained in `CLAUDE.md`.
 - Do not run `pnpm run validate`, full `pnpm run lint`, full `pnpm run test` or `tsc` locally; CI runs them on every push. Run `pnpm exec vitest related --run <changed files>` and let the pre-commit hook lint and format staged files.
 - A new user-facing feature ships behind a flag that is off for teachers.
 - A widget config key belongs to its board unless it is purely visual.
+- Assignment widgets (Quiz, Writing, Video Activity, Flashcards, Mini Apps, Guided Learning, any new one) reuse Quiz's monitor, Live view, results and grader pieces; never build them from scratch.
+- Teacher uploads go to the teacher's Google Drive, never Firebase Storage or a Firestore blob.
 - Code comments are one short line at most.
 - `useEffect` only synchronizes with an external system, and new code never reads or writes `ref.current` during render.
 - Lint fails on warnings, on `any`, and on unhandled promises (`await` them or mark them `void`).

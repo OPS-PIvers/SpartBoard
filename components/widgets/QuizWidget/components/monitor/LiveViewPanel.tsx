@@ -26,7 +26,8 @@ import type {
 } from '@/types';
 import { Toggle } from '@/components/common/Toggle';
 import { Z_INDEX } from '@/config/zIndex';
-import { tourTypeAttr } from '@/config/tourAnchors';
+import { tourTypeAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
+import { NUDGE_NOTE_IDS, NUDGE_NOTE_TEXT } from '@/utils/quizNudgeNotes';
 import { useDashboard } from '@/context/useDashboard';
 import { AuthContext } from '@/context/AuthContextValue';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
@@ -42,6 +43,7 @@ import {
 } from '@/utils/inputSignalSettings';
 import {
   LIVE_VIEW_RENEW_MS,
+  liveViewClock,
   liveViewResponse,
   liveViewSession,
   liveViewStats,
@@ -62,7 +64,6 @@ import {
   watchLiveState,
 } from '@/utils/quizLiveViewStore';
 import { formatTimeLeft } from '@/utils/quizTimeLimit';
-import { NUDGE_NOTE_IDS, NUDGE_NOTE_TEXT } from '@/utils/quizNudgeNotes';
 import { noticeDrawingForSession } from '@/utils/quizWhiteboardSession';
 import { getServerNow } from '@/utils/serverTime';
 import { formatAwayDuration } from '@/utils/tabAwayLimit';
@@ -84,21 +85,189 @@ const noTabSwitch = () => Promise.resolve(0);
 const neverRetry = () => false;
 const SCREENSHOT_FOLDER = 'Quiz Live View';
 
-const clock = (ms: number): string =>
-  new Date(ms).toLocaleTimeString(undefined, {
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-
-const Stat: React.FC<{ label: string; children: React.ReactNode }> = ({
-  label,
-  children,
-}) => (
+// The shared Live view frame: Writing renders these with its own body and stats.
+export const LiveViewStat: React.FC<{
+  label: string;
+  children: React.ReactNode;
+}> = ({ label, children }) => (
   <div className="flex items-baseline justify-between gap-3 py-1">
     <dt className="text-slate-500">{label}</dt>
     <dd className="text-right font-semibold tabular-nums text-slate-800">
       {children}
     </dd>
+  </div>
+);
+
+const navButton =
+  'flex items-center gap-1 rounded-md px-2 py-1 hover:bg-slate-800 disabled:opacity-40 disabled:hover:bg-transparent';
+
+/** The portal, top bar and two panes; `body` and `aside` are null while the student is gone. */
+export const LiveViewFrame: React.FC<{
+  name: string;
+  onPrevious?: () => void;
+  onNext?: () => void;
+  onClose: () => void;
+  anchors: {
+    previous: TourAnchorAttrs;
+    next: TourAnchorAttrs;
+    close: TourAnchorAttrs;
+  };
+  /** Shown instead of the panes when the student can no longer be watched. */
+  gone: { title: string; line: string } | null;
+  body: React.ReactNode;
+  aside: React.ReactNode;
+}> = ({ name, onPrevious, onNext, onClose, anchors, gone, body, aside }) =>
+  createPortal(
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Live view"
+      className="fixed inset-0 flex flex-col bg-slate-100"
+      style={{ zIndex: Z_INDEX.modalDeep }}
+    >
+      <div className="flex h-11 shrink-0 items-center gap-2 overflow-x-auto whitespace-nowrap bg-slate-900 px-3 text-xs text-slate-300">
+        <div className="flex items-center gap-1.5 border-r border-slate-700 pr-2 font-bold text-white">
+          <Eye className="h-4 w-4" aria-hidden />
+          Live view
+        </div>
+        <span className="truncate text-sm font-semibold text-white">
+          {name}
+        </span>
+        <div className="ml-auto flex items-center gap-1 pl-2">
+          <button
+            type="button"
+            {...anchors.previous}
+            onClick={onPrevious}
+            disabled={!onPrevious}
+            className={navButton}
+          >
+            <ChevronLeft className="h-3.5 w-3.5" aria-hidden />
+            Previous
+          </button>
+          <button
+            type="button"
+            {...anchors.next}
+            onClick={onNext}
+            disabled={!onNext}
+            className={navButton}
+          >
+            Next
+            <ChevronRight className="h-3.5 w-3.5" aria-hidden />
+          </button>
+          <button
+            type="button"
+            {...anchors.close}
+            onClick={onClose}
+            className="ml-1 flex items-center gap-1 rounded-md bg-white px-2.5 py-1 font-bold text-slate-900 hover:bg-slate-100"
+          >
+            <X className="h-3.5 w-3.5" aria-hidden />
+            Close
+          </button>
+        </div>
+      </div>
+
+      {gone ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-1 p-6 text-center">
+          <p className="text-base font-semibold text-slate-800">{gone.title}</p>
+          <p className="text-sm text-slate-600">{gone.line}</p>
+        </div>
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+          {body}
+          <aside className="w-full shrink-0 overflow-y-auto border-t border-slate-200 bg-white p-4 pb-8 text-sm md:w-80 md:border-l md:border-t-0">
+            {aside}
+          </aside>
+        </div>
+      )}
+    </div>,
+    document.body
+  );
+
+/** Notify student when viewing, and Nudge with an optional note. */
+export const LiveViewControls: React.FC<{
+  /** Hidden when the admin setting always tells the student. */
+  showTell: boolean;
+  tell: boolean;
+  onTell: (next: boolean) => void;
+  /** The banner text the student sees, shown while they are told. */
+  notifyText: string | null;
+  canNudge: boolean;
+  canNudgeNote: boolean;
+  noteId: QuizNudgeNoteId | '';
+  onNoteId: (id: QuizNudgeNoteId | '') => void;
+  nudging: boolean;
+  onNudge: () => void;
+  anchors: {
+    tell: TourAnchorAttrs;
+    note: TourAnchorAttrs;
+    nudge: TourAnchorAttrs;
+  };
+  children?: React.ReactNode;
+}> = ({
+  showTell,
+  tell,
+  onTell,
+  notifyText,
+  canNudge,
+  canNudgeNote,
+  noteId,
+  onNoteId,
+  nudging,
+  onNudge,
+  anchors,
+  children,
+}) => (
+  <div className="mt-4 space-y-3 border-t border-slate-200 pt-4">
+    {showTell && (
+      <label className="flex items-center justify-between gap-3 font-semibold text-slate-800">
+        Notify student when viewing
+        <span {...anchors.tell}>
+          <Toggle
+            checked={tell}
+            onChange={onTell}
+            size="sm"
+            showLabels={false}
+            label="Notify student when viewing"
+          />
+        </span>
+      </label>
+    )}
+    {notifyText && (
+      <p className="text-xs text-slate-600">
+        The student sees &quot;{notifyText}&quot;.
+      </p>
+    )}
+    {canNudge && (
+      <div className="flex items-center gap-2">
+        {canNudgeNote && (
+          <select
+            {...anchors.note}
+            aria-label="Nudge note"
+            value={noteId}
+            onChange={(e) => onNoteId(e.target.value as QuizNudgeNoteId | '')}
+            className="min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-2 py-2 text-sm text-slate-800"
+          >
+            <option value="">No note</option>
+            {NUDGE_NOTE_IDS.map((id) => (
+              <option key={id} value={id}>
+                {NUDGE_NOTE_TEXT[id]}
+              </option>
+            ))}
+          </select>
+        )}
+        <button
+          type="button"
+          {...anchors.nudge}
+          onClick={onNudge}
+          disabled={nudging}
+          className={`flex min-h-11 items-center justify-center gap-1.5 rounded-md bg-brand-blue-primary px-3 font-semibold text-white hover:bg-brand-blue-dark disabled:opacity-60 ${canNudgeNote ? '' : 'flex-1'}`}
+        >
+          <BellRing className="h-4 w-4" aria-hidden />
+          Nudge
+        </button>
+      </div>
+    )}
+    {children}
   </div>
 );
 
@@ -326,235 +495,169 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
   const prev = index > 0 ? students[index - 1] : undefined;
   const next =
     index >= 0 && index < students.length - 1 ? students[index + 1] : undefined;
-  const navButton =
-    'flex items-center gap-1 rounded-md px-2 py-1 hover:bg-slate-800 disabled:opacity-40 disabled:hover:bg-transparent';
+  const gone = !student || !mirrorResponse || !stats;
 
-  return createPortal(
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Live view"
-      className="fixed inset-0 flex flex-col bg-slate-100"
-      style={{ zIndex: Z_INDEX.modalDeep }}
-    >
-      <div className="flex h-11 shrink-0 items-center gap-2 overflow-x-auto whitespace-nowrap bg-slate-900 px-3 text-xs text-slate-300">
-        <div className="flex items-center gap-1.5 border-r border-slate-700 pr-2 font-bold text-white">
-          <Eye className="h-4 w-4" aria-hidden />
-          Live view
-        </div>
-        <span className="truncate text-sm font-semibold text-white">
-          {student?.name ?? 'Student'}
-        </span>
-        <div className="ml-auto flex items-center gap-1 pl-2">
-          <button
-            type="button"
-            {...tourTypeAttr('quiz-live-view.previous', 'quiz')}
-            onClick={() => prev && onSelect(prev.key)}
-            disabled={!prev}
-            className={navButton}
-          >
-            <ChevronLeft className="h-3.5 w-3.5" aria-hidden />
-            Previous
-          </button>
-          <button
-            type="button"
-            {...tourTypeAttr('quiz-live-view.next', 'quiz')}
-            onClick={() => next && onSelect(next.key)}
-            disabled={!next}
-            className={navButton}
-          >
-            Next
-            <ChevronRight className="h-3.5 w-3.5" aria-hidden />
-          </button>
-          <button
-            type="button"
-            {...tourTypeAttr('quiz-live-view.close', 'quiz')}
-            onClick={onClose}
-            className="ml-1 flex items-center gap-1 rounded-md bg-white px-2.5 py-1 font-bold text-slate-900 hover:bg-slate-100"
-          >
-            <X className="h-3.5 w-3.5" aria-hidden />
-            Close
-          </button>
-        </div>
-      </div>
-
-      {!student || !mirrorResponse || !stats ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-1 p-6 text-center">
-          <p className="text-base font-semibold text-slate-800">
-            This student is no longer in progress
-          </p>
-          <p className="text-sm text-slate-600">
-            Open Results to see a turned-in attempt.
-          </p>
-        </div>
-      ) : (
-        <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-          {/* translateZ pins the player's fixed overlays to this frame; the scroller is outside the inert copy so it still scrolls. */}
-          <div className="relative min-h-[45%] flex-1 transform-[translateZ(0)] md:min-h-0">
-            <div className="absolute inset-0 overflow-y-auto bg-white pb-8">
-              <div ref={shotRef} className="min-h-full bg-white">
-                <p className="flex flex-wrap items-center gap-x-2 border-b border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600">
-                  <span className="font-semibold text-slate-800">
-                    {student.name}
-                  </span>
-                  {stats.questionNumber != null && (
-                    <span>Question {stats.questionNumber}</span>
-                  )}
-                  {shotAt != null && (
-                    <span>{new Date(shotAt).toLocaleString()}</span>
-                  )}
-                  <span className="ml-auto">
-                    Teacher&apos;s Live view, not the student&apos;s screen
-                  </span>
-                </p>
-                <div
-                  inert
-                  className="[&>.h-screen]:h-auto [&>.h-screen]:overflow-visible"
-                >
-                  <RecordingNoticeDrawingContext.Provider
-                    value={noticeDrawingForSession(
-                      mirrorSession,
-                      mirrorSession.publicQuestions
+  return (
+    <LiveViewFrame
+      name={student?.name ?? 'Student'}
+      onPrevious={prev ? () => onSelect(prev.key) : undefined}
+      onNext={next ? () => onSelect(next.key) : undefined}
+      onClose={onClose}
+      anchors={{
+        previous: tourTypeAttr('quiz-live-view.previous', 'quiz'),
+        next: tourTypeAttr('quiz-live-view.next', 'quiz'),
+        close: tourTypeAttr('quiz-live-view.close', 'quiz'),
+      }}
+      gone={
+        gone
+          ? {
+              title: 'This student is no longer in progress',
+              line: 'Open Results to see a turned-in attempt.',
+            }
+          : null
+      }
+      body={
+        gone ? null : (
+          <>
+            {/* translateZ pins the player's fixed overlays to this frame; the scroller is outside the inert copy so it still scrolls. */}
+            <div className="relative min-h-[45%] flex-1 transform-[translateZ(0)] md:min-h-0">
+              <div className="absolute inset-0 overflow-y-auto bg-white pb-8">
+                <div ref={shotRef} className="min-h-full bg-white">
+                  <p className="flex flex-wrap items-center gap-x-2 border-b border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600">
+                    <span className="font-semibold text-slate-800">
+                      {student.name}
+                    </span>
+                    {stats.questionNumber != null && (
+                      <span>Question {stats.questionNumber}</span>
                     )}
+                    {shotAt != null && (
+                      <span>{new Date(shotAt).toLocaleString()}</span>
+                    )}
+                    <span className="ml-auto">
+                      Teacher&apos;s Live view, not the student&apos;s screen
+                    </span>
+                  </p>
+                  <div
+                    inert
+                    className="[&>.h-screen]:h-auto [&>.h-screen]:overflow-visible"
                   >
-                    <ActiveQuiz
-                      key={`${studentKey}:${response?.completedAttempts ?? 0}`}
-                      session={mirrorSession}
-                      currentQuestion={undefined}
-                      alreadyAnswered={false}
-                      myResponse={mirrorResponse}
-                      onAnswer={noop}
-                      onCommitRecording={noop}
-                      onCommitWhiteboard={noop}
-                      onRetryRecordingUpload={noop}
-                      canRetryRecordingUpload={neverRetry}
-                      onMarkUnresponded={noop}
-                      noticeAckedAt={0}
-                      onAcknowledgeNotice={() => undefined}
-                      noticeRequired={false}
-                      onComplete={noop}
-                      reportTabSwitch={noTabSwitch}
-                      onSetHandRaised={noop}
-                      handRaised={false}
-                      warningCount={response?.tabSwitchWarnings ?? 0}
-                      onRecordStimulusPlay={noop}
-                      onReportStimulusError={noop}
-                      override={override}
-                      drawIds={liveViewDrawIds(session, response)}
-                      watchQuestionId={questionId ?? firstQuestionId}
-                      watchTabWarning={reported?.warning === true}
-                    />
-                  </RecordingNoticeDrawingContext.Provider>
+                    <RecordingNoticeDrawingContext.Provider
+                      value={noticeDrawingForSession(
+                        mirrorSession,
+                        mirrorSession.publicQuestions
+                      )}
+                    >
+                      <ActiveQuiz
+                        key={`${studentKey}:${response?.completedAttempts ?? 0}`}
+                        session={mirrorSession}
+                        currentQuestion={undefined}
+                        alreadyAnswered={false}
+                        myResponse={mirrorResponse}
+                        onAnswer={noop}
+                        onCommitRecording={noop}
+                        onCommitWhiteboard={noop}
+                        onRetryRecordingUpload={noop}
+                        canRetryRecordingUpload={neverRetry}
+                        onMarkUnresponded={noop}
+                        noticeAckedAt={0}
+                        onAcknowledgeNotice={() => undefined}
+                        noticeRequired={false}
+                        onComplete={noop}
+                        reportTabSwitch={noTabSwitch}
+                        onSetHandRaised={noop}
+                        handRaised={false}
+                        warningCount={response?.tabSwitchWarnings ?? 0}
+                        onRecordStimulusPlay={noop}
+                        onReportStimulusError={noop}
+                        override={override}
+                        drawIds={liveViewDrawIds(session, response)}
+                        watchQuestionId={questionId ?? firstQuestionId}
+                        watchTabWarning={reported?.warning === true}
+                      />
+                    </RecordingNoticeDrawingContext.Provider>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-
-          <aside className="w-full shrink-0 overflow-y-auto border-t border-slate-200 bg-white p-4 pb-8 text-sm md:w-80 md:border-l md:border-t-0">
+          </>
+        )
+      }
+      aside={
+        gone ? null : (
+          <>
             <dl className="divide-y divide-slate-100">
-              <Stat label="Started">{clock(stats.startedAt)}</Stat>
+              <LiveViewStat label="Started">
+                {liveViewClock(stats.startedAt)}
+              </LiveViewStat>
               {stats.deadline != null && (
-                <Stat label="Time left">
+                <LiveViewStat label="Time left">
                   {formatTimeLeft(stats.deadline - now)}
-                </Stat>
+                </LiveViewStat>
               )}
-              <Stat label="On question">
+              <LiveViewStat label="On question">
                 {stats.questionNumber != null
                   ? `${stats.questionNumber} of ${stats.questionCount}`
                   : 'Not known yet'}
-              </Stat>
+              </LiveViewStat>
               {reported && (
-                <Stat label="Time on this question">
+                <LiveViewStat label="Time on this question">
                   {formatAwayDuration(now - reported.at)}
-                </Stat>
+                </LiveViewStat>
               )}
-              <Stat label="Answered">
+              <LiveViewStat label="Answered">
                 {stats.answeredCount} of {stats.questionCount}
-              </Stat>
+              </LiveViewStat>
               {stats.lastActivityAt != null && (
-                <Stat label="Last activity">
+                <LiveViewStat label="Last activity">
                   {formatAwayDuration(now - stats.lastActivityAt)} ago
-                </Stat>
+                </LiveViewStat>
               )}
-              <Stat label="Tab exits">
+              <LiveViewStat label="Tab exits">
                 {stats.tabExits}
                 {stats.tabExits > 0 &&
                   `, ${formatAwayDuration(stats.awayMs)} away`}
-              </Stat>
+              </LiveViewStat>
               {stats.input ? (
                 <>
-                  <Stat label="Keys typed">{stats.input.keys}</Stat>
+                  <LiveViewStat label="Keys typed">
+                    {stats.input.keys}
+                  </LiveViewStat>
                   {showPastes && (
-                    <Stat label="Pastes">
+                    <LiveViewStat label="Pastes">
                       {stats.input.pastes}
                       {showPastedChars &&
                         stats.input.pastedChars > 0 &&
                         `, ${stats.input.pastedChars} characters`}
-                    </Stat>
+                    </LiveViewStat>
                   )}
-                  <Stat label="Deletions">{stats.input.deletions}</Stat>
-                  <Stat label="Clicks">{stats.input.clicks}</Stat>
+                  <LiveViewStat label="Deletions">
+                    {stats.input.deletions}
+                  </LiveViewStat>
+                  <LiveViewStat label="Clicks">
+                    {stats.input.clicks}
+                  </LiveViewStat>
                 </>
               ) : (
-                <Stat label="Input tracking">Off</Stat>
+                <LiveViewStat label="Input tracking">Off</LiveViewStat>
               )}
             </dl>
-
-            <div className="mt-4 space-y-3 border-t border-slate-200 pt-4">
-              {!alwaysNotify && (
-                <label className="flex items-center justify-between gap-3 font-semibold text-slate-800">
-                  Notify student when viewing
-                  <span
-                    {...tourTypeAttr('quiz-live-view.tell-student', 'quiz')}
-                  >
-                    <Toggle
-                      checked={tell}
-                      onChange={onTell}
-                      size="sm"
-                      showLabels={false}
-                      label="Notify student when viewing"
-                    />
-                  </span>
-                </label>
-              )}
-              {notify && (
-                <p className="text-xs text-slate-600">
-                  The student sees &quot;Your teacher is viewing your
-                  quiz&quot;.
-                </p>
-              )}
-              {canNudge && (
-                <div className="flex items-center gap-2">
-                  {canNudgeNote && (
-                    <select
-                      {...tourTypeAttr('quiz-live-view.nudge-note', 'quiz')}
-                      aria-label="Nudge note"
-                      value={noteId}
-                      onChange={(e) =>
-                        setNoteId(e.target.value as QuizNudgeNoteId | '')
-                      }
-                      className="min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-2 py-2 text-sm text-slate-800"
-                    >
-                      <option value="">No note</option>
-                      {NUDGE_NOTE_IDS.map((id) => (
-                        <option key={id} value={id}>
-                          {NUDGE_NOTE_TEXT[id]}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                  <button
-                    type="button"
-                    {...tourTypeAttr('quiz-live-view.nudge', 'quiz')}
-                    onClick={() => void onNudge()}
-                    disabled={nudging}
-                    className={`flex min-h-11 items-center justify-center gap-1.5 rounded-md bg-brand-blue-primary px-3 font-semibold text-white hover:bg-brand-blue-dark disabled:opacity-60 ${canNudgeNote ? '' : 'flex-1'}`}
-                  >
-                    <BellRing className="h-4 w-4" aria-hidden />
-                    Nudge
-                  </button>
-                </div>
-              )}
+            <LiveViewControls
+              showTell={!alwaysNotify}
+              tell={tell}
+              onTell={onTell}
+              notifyText={notify ? 'Your teacher is viewing your quiz' : null}
+              canNudge={canNudge}
+              canNudgeNote={canNudgeNote}
+              noteId={noteId}
+              onNoteId={setNoteId}
+              nudging={nudging}
+              onNudge={() => void onNudge()}
+              anchors={{
+                tell: tourTypeAttr('quiz-live-view.tell-student', 'quiz'),
+                note: tourTypeAttr('quiz-live-view.nudge-note', 'quiz'),
+                nudge: tourTypeAttr('quiz-live-view.nudge', 'quiz'),
+              }}
+            >
               {canScreenshot && (
                 <>
                   <button
@@ -576,8 +679,7 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
                   </p>
                 </>
               )}
-            </div>
-
+            </LiveViewControls>
             {entries.length > 0 && (
               <div className="mt-4 border-t border-slate-200 pt-4">
                 <h3 className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-500">
@@ -586,10 +688,9 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
                 <LiveLogList entries={entries} />
               </div>
             )}
-          </aside>
-        </div>
-      )}
-    </div>,
-    document.body
+          </>
+        )
+      }
+    />
   );
 };

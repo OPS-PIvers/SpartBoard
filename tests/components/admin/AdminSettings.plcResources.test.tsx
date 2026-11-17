@@ -28,9 +28,8 @@ vi.mock('react-i18next', () => ({
 }));
 
 const auth = vi.hoisted(() => ({
-  superAdmins: ['admin@s.edu'] as string[],
   isAdmin: true,
-  roleId: null as string | null,
+  roleId: 'super_admin',
   orgId: 'orono',
 }));
 
@@ -38,7 +37,6 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     isAdmin: auth.isAdmin,
     user: { uid: 'admin-1', email: 'admin@s.edu' },
-    userRoles: { superAdmins: auth.superAdmins },
     roleId: auth.roleId,
     orgId: auth.orgId,
     canAccessFeature: () => false,
@@ -97,7 +95,7 @@ describe('AdminSettings — PLC Resources tab wiring', () => {
   });
 
   it('hides the tab from an admin who is not a super admin', () => {
-    auth.superAdmins = [];
+    auth.roleId = 'domain_admin';
     window.localStorage.setItem('spart.adminSettings.lastTab', 'plc-resources');
     try {
       render(<AdminSettings onClose={vi.fn()} />);
@@ -112,14 +110,13 @@ describe('AdminSettings — PLC Resources tab wiring', () => {
         'true'
       );
     } finally {
-      auth.superAdmins = ['admin@s.edu'];
+      auth.roleId = 'super_admin';
       window.localStorage.removeItem('spart.adminSettings.lastTab');
     }
   });
 
   it('shows an admin of another org only the Organization tab', () => {
     Object.assign(auth, {
-      superAdmins: [],
       isAdmin: false,
       roleId: 'domain_admin',
       orgId: 'other-org',
@@ -135,9 +132,8 @@ describe('AdminSettings — PLC Resources tab wiring', () => {
       expect(screen.getByTestId('org-panel')).toBeInTheDocument();
     } finally {
       Object.assign(auth, {
-        superAdmins: ['admin@s.edu'],
         isAdmin: true,
-        roleId: null,
+        roleId: 'super_admin',
         orgId: 'orono',
       });
     }
@@ -153,7 +149,11 @@ describe('AdminSettings — PLC Resources tab wiring', () => {
       const { container } = render(<AdminSettings onClose={vi.fn()} />);
       expect(container).toBeEmptyDOMElement();
     } finally {
-      Object.assign(auth, { isAdmin: true, roleId: null, orgId: 'orono' });
+      Object.assign(auth, {
+        isAdmin: true,
+        roleId: 'super_admin',
+        orgId: 'orono',
+      });
     }
   });
 });

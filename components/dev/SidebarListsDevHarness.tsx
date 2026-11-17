@@ -10,6 +10,7 @@ import { DialogContainer } from '@/components/common/DialogContainer';
 import { AuthProvider } from '@/context/AuthContext';
 import { SidebarClasses } from '@/components/layout/sidebar/SidebarClasses';
 import { SidebarPlcs } from '@/components/layout/sidebar/SidebarPlcs';
+import { CourseLinkingDevFrame } from './CourseLinkingDevFrame';
 import type { ClassRoster, Plc, PlcMember, Student } from '@/types';
 
 const NOW = Date.UTC(2026, 9, 27);
@@ -142,6 +143,11 @@ export const SidebarListsDevHarness: React.FC = () => (
         <div className="flex min-h-screen items-start gap-6 bg-slate-100 p-6">
           <Frame testId="sidebar-lists-classes">
             <SidebarClasses isVisible />
+          </Frame>
+          <Frame testId="sidebar-lists-courses">
+            <div className="absolute inset-0 overflow-y-auto">
+              <CourseLinkingDevFrame />
+            </div>
           </Frame>
           <Frame testId="sidebar-lists-teams">
             <SidebarPlcs

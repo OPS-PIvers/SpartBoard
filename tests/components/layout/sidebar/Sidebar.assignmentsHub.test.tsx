@@ -35,6 +35,7 @@ vi.mock('@/context/useAuth', () => ({
     appSettings: {},
     isExternalUser: false,
     canAccessFeature: (id: string) => id === 'gradebook' && gradebookOn,
+    canAccessWidget: () => true,
     selectedBuildings: [],
   }),
 }));
