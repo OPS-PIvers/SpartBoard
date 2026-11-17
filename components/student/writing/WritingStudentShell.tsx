@@ -54,7 +54,7 @@ export interface WritingShellPiece {
 }
 
 /** Student-facing wording, listed in pr-b2-strings.md for review. */
-export const WRITING_STRINGS = {
+const WRITING_STRINGS = {
   status: {
     none: 'Not started',
     draft: 'In progress',
