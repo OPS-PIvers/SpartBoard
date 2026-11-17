@@ -135,6 +135,7 @@ import {
   type VersionImportBuild,
 } from '@/utils/quizDocumentImport/versionPlan';
 import { saveRubricDoc } from '@/hooks/useRubrics';
+import { applyRubricEdit } from '@/utils/rubricPoints';
 import { QuizEditorModal } from './components/QuizEditorModal';
 import { QuizPreview } from './components/QuizPreview';
 import { QuizResults } from './components/QuizResults';
@@ -3032,6 +3033,50 @@ const TeacherQuizWidget: React.FC<{
         <QuizResults
           key={`${config.activeAssignmentId ?? 'none'}-${resultsEnterToken}`}
           quiz={loadedQuizData}
+          onSaveRubric={async (rubric) => {
+            const meta =
+              quizzes.find((m) => m.id === config.selectedQuizId) ??
+              quizzes.find((m) => m.id === loadedQuizData.id);
+            if (!meta || !user)
+              throw new Error('This quiz is not in your library.');
+            // Edit the library quiz file itself, not the graded copy, which may hold drawn bank questions.
+            const stored = await loadQuizData(meta.driveFileId);
+            const inQuiz = applyRubricEdit(stored.questions, rubric);
+            if (inQuiz.changed) {
+              await saveQuiz(
+                {
+                  ...stored,
+                  questions: inQuiz.questions,
+                  updatedAt: Date.now(),
+                },
+                meta.driveFileId
+              );
+            }
+            const shownNow = applyRubricEdit(loadedQuizData.questions, rubric);
+            const libraryIds = new Set([
+              ...inQuiz.libraryIds,
+              ...shownNow.libraryIds,
+            ]);
+            setLoadedQuizData((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    questions: applyRubricEdit(prev.questions, rubric)
+                      .questions,
+                  }
+                : prev
+            );
+            const library = await Promise.allSettled(
+              [...libraryIds].map((id) =>
+                saveRubricDoc(user.uid, { ...rubric, id })
+              )
+            );
+            if (library.some((r) => r.status === 'rejected'))
+              throw new Error(
+                'Saved to this quiz, but your library rubric did not update.'
+              );
+            addToast('Rubric saved.', 'success');
+          }}
           paperSheetsEnabled={paperSheets.enabled}
           responses={responses}
           config={config}

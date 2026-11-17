@@ -7298,8 +7298,8 @@ const ScoredRubricDisplay: React.FC<{
             <div className="flex items-baseline justify-between gap-2 text-xs">
               <span className={bodyCls}>{criterion.name}</span>
               <span className={`font-mono font-semibold ${headingCls}`}>
-                {level && score ? (
-                  `${level.label} — ${t('quizStudent.rubric.points', { count: score.points })}`
+                {score ? (
+                  `${level ? `${level.label} — ` : ''}${t('quizStudent.rubric.points', { count: score.points })}`
                 ) : (
                   <span className={`italic ${bodyCls}`}>
                     {t('quizStudent.rubric.notScored')}

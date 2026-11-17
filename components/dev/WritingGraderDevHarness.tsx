@@ -1,7 +1,8 @@
-// `/writing-grader-dev?view=results|grader|student&grading=points|rubric|ungraded`: Writing results, grader and returned feedback on fixtures.
-import React, { useMemo } from 'react';
+// `/writing-grader-dev?view=results|grader|student|table[&structure=1]&grading=points|rubric|dreamhome|ungraded[&v2=1][&order=low-first]`: Writing results, grader and feedback on fixtures.
+import React, { useMemo, useState } from 'react';
 import type {
   Rubric,
+  RubricLevelOrder,
   WritingGrading,
   WritingResponse,
   WritingResponseStatus,
@@ -9,6 +10,9 @@ import type {
 import { DashboardContext } from '@/context/DashboardContextValue';
 import type { DashboardContextValue } from '@/context/DashboardContextValue';
 import { DialogProvider } from '@/context/DialogContext';
+import { AuthContext } from '@/context/AuthContextValue';
+import type { AuthContextType } from '@/context/AuthContextValue';
+import { mockAuth } from '@/components/student/studentMocks';
 import { DialogContainer } from '@/components/common/DialogContainer';
 import { WritingResultsView } from '@/components/widgets/Writing/components/results/WritingResultsView';
 import { WritingGrader } from '@/components/widgets/Writing/components/results/WritingGrader';
@@ -20,6 +24,7 @@ import {
   writingMaxPoints,
 } from '@/utils/writingGrading';
 import { buildWritingRecordSample } from './writingRecordSample';
+import { RubricTableModal } from '@/components/widgets/QuizWidget/components/RubricTableModal';
 
 const noop = () => undefined;
 const RECORD = buildWritingRecordSample();
@@ -52,9 +57,119 @@ const RUBRIC = {
   ],
 } as unknown as Rubric;
 
+const level = (
+  id: string,
+  label: string,
+  points: number,
+  description = ''
+) => ({
+  id,
+  label,
+  points,
+  ...(description ? { description } : {}),
+});
+
+const DREAM_HOME = {
+  id: 'r-dream',
+  title: 'Dream home presentation',
+  createdAt: 0,
+  updatedAt: 0,
+  criteria: [
+    {
+      id: 'design',
+      name: 'Physical Design of Dream Home',
+      description:
+        'Student has spent much time and effort in producing a fantastic home design. Design looks finished and polished, is of high quality, and is easy to read.',
+      levels: [
+        level('d0', 'Below Proficiency', 0),
+        level(
+          'd2',
+          'Approaching Proficiency',
+          2,
+          'Student has not spent any time or effort producing the home design; it is last minute. Design is difficult to read.'
+        ),
+        level(
+          'd3',
+          'Meets Proficiency',
+          3,
+          'Student has spent some time and effort producing a home design. Design is lacking details or quality, or may not be easy to read.'
+        ),
+        level(
+          'd4',
+          'Exceeds Proficiency',
+          4,
+          'Student has spent much time and effort producing a fantastic home design. Design looks finished and polished, is of high quality, and is easy to read.'
+        ),
+      ],
+    },
+    {
+      id: 'vocab',
+      name: 'Vocabulary and Grammar Requirements',
+      description:
+        'At least 6 rooms are included and labeled, with at least 2 items labeled per room. German contains minimal errors.',
+      levels: [
+        level('v0', 'Below Proficiency', 0),
+        level(
+          'v5',
+          'Approaching Proficiency',
+          5,
+          '2 or fewer rooms are included or labeled. Rooms do not have 2 items included and labeled. German contains many errors.'
+        ),
+        level(
+          'v8',
+          'Meets Proficiency',
+          8,
+          '3 to 5 rooms are included and labeled, or rooms have fewer than 2 items included and labeled. German contains some errors.'
+        ),
+        level(
+          'v10',
+          'Exceeds Proficiency',
+          10,
+          'At least 6 rooms are included and labeled, with at least 2 items per room. German contains minimal errors.'
+        ),
+      ],
+    },
+    {
+      id: 'oral',
+      name: 'Oral Tour of the Home (pronunciation, fluency and pacing)',
+      levels: [
+        level('o0', 'Below Proficiency', 0),
+        level(
+          'o3',
+          'Approaching Proficiency',
+          3,
+          'Frequent pauses; pronunciation often gets in the way.'
+        ),
+        level(
+          'o5',
+          'Meets Proficiency',
+          5,
+          'Some pauses; mostly clear pronunciation.'
+        ),
+        level('o6', 'Exceeds Proficiency', 6, 'Smooth and clear throughout.'),
+      ],
+    },
+    {
+      id: 'prepositions',
+      name: 'Use of Prepositions',
+      levels: [
+        level('p0', 'Below Proficiency', 0),
+        level('p2', 'Approaching Proficiency', 2),
+        level('p4', 'Meets Proficiency', 4),
+        level('p5', 'Exceeds Proficiency', 5),
+      ],
+    },
+  ],
+} as Rubric;
+
 const GRADINGS: Record<string, WritingGrading> = {
   points: { mode: 'points', points: 20 },
   rubric: { mode: 'rubric', rubricId: 'r1', rubricSnapshot: RUBRIC },
+  dreamhome: {
+    mode: 'rubric',
+    rubricId: 'r-dream',
+    rubricSnapshot: DREAM_HOME,
+  },
   ungraded: { mode: 'ungraded' },
 };
 
@@ -190,6 +305,25 @@ export const WritingGraderDevHarness: React.FC = () => {
       }) as unknown as DashboardContextValue,
     []
   );
+  const v2 = params.get('v2') === '1';
+  const [rubricLevelOrder, setRubricLevelOrder] = useState<RubricLevelOrder>(
+    params.get('order') === 'low-first' ? 'low-first' : 'high-first'
+  );
+  const auth = useMemo<AuthContextType | undefined>(
+    () =>
+      v2
+        ? {
+            ...mockAuth,
+            canAccessFeature: (id) => id === 'rubric-grading-v2',
+            rubricLevelOrder,
+            updateAccountPreferences: (u) => {
+              if (u.rubricLevelOrder) setRubricLevelOrder(u.rubricLevelOrder);
+              return Promise.resolve();
+            },
+          }
+        : undefined,
+    [v2, rubricLevelOrder, setRubricLevelOrder]
+  );
   const responses = NAMES.flatMap(([uid, , , status]) =>
     status ? [response(uid, status, grading)] : []
   );
@@ -221,52 +355,71 @@ export const WritingGraderDevHarness: React.FC = () => {
   };
 
   return (
-    <DashboardContext.Provider value={dashboard}>
-      <DialogProvider>
-        <div className="flex h-screen [height:100dvh] items-start justify-center overflow-y-auto bg-slate-700 p-8 pb-16">
-          {view === 'student' ? (
-            <div className="w-full max-w-3xl">
-              <WritingReturnedFeedbackView
-                drafts={[draft('2', 2, true, max), draft('1', 1, true, max)]}
-                grading={grading}
-              />
-            </div>
-          ) : (
-            <div
-              className="overflow-hidden rounded-2xl bg-white shadow-xl"
-              style={{
-                width: Number(params.get('w') ?? 640),
-                height: Number(params.get('h') ?? 480),
-                containerType: 'size',
-              }}
-            >
-              <WritingResultsView
-                title={session.title}
-                rows={rows}
-                maxPoints={max}
-                loading={false}
-                error={false}
-                onBack={noop}
-                onGrade={noop}
-              />
-            </div>
+    <AuthContext.Provider value={auth}>
+      <DashboardContext.Provider value={dashboard}>
+        <DialogProvider>
+          <div className="flex h-screen [height:100dvh] items-start justify-center overflow-y-auto bg-slate-700 p-8 pb-16">
+            {view === 'student' ? (
+              <div className="w-full max-w-3xl">
+                <WritingReturnedFeedbackView
+                  drafts={[draft('2', 2, true, max), draft('1', 1, true, max)]}
+                  grading={grading}
+                />
+              </div>
+            ) : (
+              <div
+                className="overflow-hidden rounded-2xl bg-white shadow-xl"
+                style={{
+                  width: Number(params.get('w') ?? 640),
+                  height: Number(params.get('h') ?? 480),
+                  containerType: 'size',
+                }}
+              >
+                <WritingResultsView
+                  title={session.title}
+                  rows={rows}
+                  maxPoints={max}
+                  loading={false}
+                  error={false}
+                  onBack={noop}
+                  onGrade={noop}
+                />
+              </div>
+            )}
+          </div>
+          {view === 'grader' && (
+            <WritingGrader
+              session={session}
+              rows={gradable}
+              initialUid="u1"
+              draftsByStudent={draftsByStudent}
+              teacherUid="t"
+              onSaveFeedback={() => Promise.resolve({ counts: true })}
+              onReturn={() => Promise.resolve()}
+              onClose={noop}
+              recordFixture={() => RECORD}
+            />
           )}
-        </div>
-        {view === 'grader' && (
-          <WritingGrader
-            session={session}
-            rows={gradable}
-            initialUid="u1"
-            draftsByStudent={draftsByStudent}
-            teacherUid="t"
-            onSaveFeedback={() => Promise.resolve({ counts: true })}
-            onReturn={() => Promise.resolve()}
-            onClose={noop}
-            recordFixture={() => RECORD}
-          />
-        )}
-        <DialogContainer />
-      </DialogProvider>
-    </DashboardContext.Provider>
+          {view === 'table' && (
+            <RubricTableModal
+              rubric={DREAM_HOME}
+              order={rubricLevelOrder}
+              onOrderChange={() =>
+                setRubricLevelOrder((o) =>
+                  o === 'high-first' ? 'low-first' : 'high-first'
+                )
+              }
+              scores={new Map()}
+              onClose={noop}
+              onSave={() => Promise.resolve()}
+              initialEditing={params.get('structure') === '1'}
+              editStructure={params.get('structure') === '1'}
+              saveLabel={params.get('structure') === '1' ? 'Done' : 'Save'}
+            />
+          )}
+          <DialogContainer />
+        </DialogProvider>
+      </DashboardContext.Provider>
+    </AuthContext.Provider>
   );
 };

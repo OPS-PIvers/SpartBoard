@@ -197,10 +197,9 @@ export const StudentAnswerLine: React.FC<{
           return {
             id: c.id,
             name: c.name,
-            value:
-              score && level
-                ? `${level.label} · ${formatExportPoints(score.points)} pt${score.points === 1 ? '' : 's'}`
-                : 'Not scored',
+            value: score
+              ? `${level ? `${level.label} · ` : ''}${formatExportPoints(score.points)} pt${score.points === 1 ? '' : 's'}`
+              : 'Not scored',
           };
         })
       : [];

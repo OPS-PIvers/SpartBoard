@@ -4543,6 +4543,87 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'quiz-grading.rubric-order': {
+    label: 'Rubric level order switch (highest or lowest first) in the grader',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-view-full': {
+    label: 'View rubric button in the grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-close': {
+    label: 'Close button on the full rubric table',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-order': {
+    label: 'Level order switch on the full rubric table',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-edit': {
+    label: 'Edit button on the full rubric table',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-save': {
+    label: 'Save button when editing the full rubric table',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-cancel': {
+    label: 'Cancel button when editing the full rubric table',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-x': {
+    label: 'Close (X) on the full rubric table',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-add-criterion': {
+    label: 'Add criterion when editing the full rubric table',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-add-level': {
+    label: 'Add level when editing the full rubric table, by criterion',
+    perField: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-remove-criterion': {
+    label: 'Remove criterion when editing the full rubric table, by criterion',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-remove-level': {
+    label: 'Remove level when editing the full rubric table, by level',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-field': {
+    label: 'Text or points field when editing the full rubric table, by field',
+    perField: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-criterion-toggle': {
+    label: 'Criterion open / close toggle in the grader, by criterion',
+    perField: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-criterion-score': {
+    label: 'Criterion score box in the grader, by criterion',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
   'quiz-grading.rubric-note': {
     label: 'Criterion note textarea in the Quiz grader, by position',
     perField: true,
@@ -4565,6 +4646,11 @@ export const TOUR_ANCHORS = {
   },
   'quiz-rubric.builder-close': {
     label: 'Close button on the Quiz rubric builder',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-rubric.builder-table': {
+    label: 'Edit as table button on the Quiz rubric builder',
     perWidgetType: true,
     panel: true,
   },

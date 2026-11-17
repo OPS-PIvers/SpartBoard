@@ -113,6 +113,7 @@ const mockAuthContext = (
   quizMonitorScoreDisplay: 'percent',
   quizGraderMode: 'question',
   quizGraderAutoAdvance: true,
+  rubricLevelOrder: 'high-first',
   spartyEnabled: true,
   alignmentGuidesEnabled: false,
   spellCheckEnabled: true,

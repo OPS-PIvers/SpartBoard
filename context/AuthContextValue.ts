@@ -15,6 +15,7 @@ import {
   UserTier,
   MaterialDefinition,
   MaterialsPreferences,
+  RubricLevelOrder,
 } from '@/types';
 import type { BuildingRecord } from '@/types/organization';
 import type { AdminDocProvenance } from '@/utils/superAdmin';
@@ -250,6 +251,8 @@ export interface AuthContextType {
   quizGraderMode: 'question' | 'student';
   /** Whether the Free Response grader moves on by itself once a grade is complete. */
   quizGraderAutoAdvance: boolean;
+  /** Rubric grading level order: highest proficiency first (left/top) or lowest first. */
+  rubricLevelOrder: RubricLevelOrder;
   /** Teacher's own "Show Sparty" switch. */
   spartyEnabled: boolean;
   /** Teacher's own alignment guides switch. */
@@ -280,6 +283,7 @@ export interface AuthContextType {
     quizMonitorScoreDisplay?: 'percent' | 'count' | 'hidden';
     quizGraderMode?: 'question' | 'student';
     quizGraderAutoAdvance?: boolean;
+    rubricLevelOrder?: RubricLevelOrder;
     spartyEnabled?: boolean;
     alignmentGuidesEnabled?: boolean;
     spellCheckEnabled?: boolean;

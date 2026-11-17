@@ -372,7 +372,11 @@ export const SURFACES: TourSurfaceMap = {
   'quiz.rubric-scoring': {
     label: 'Rubric scoring panel',
     kind: 'shared',
-    files: [`${C}RubricScoringPanel.tsx`],
+    files: [
+      `${C}RubricScoringPanel.tsx`,
+      `${C}RubricGradingPanel.tsx`,
+      `${C}RubricTableModal.tsx`,
+    ],
   },
   'quiz.student-results-control': {
     label: 'Per-student results visibility control',

@@ -222,6 +222,8 @@ export interface FreeResponseGraderProps {
   /** Whether a finished grade moves the grader on by itself. */
   autoAdvance?: boolean;
   onAutoAdvanceChange?: (enabled: boolean) => void;
+  /** Saves a rubric edited from the full rubric table; omitted keeps the table read-only. */
+  onSaveRubric?: (rubric: Rubric) => Promise<void>;
   /** Open on this student's answer to this question instead of the first in the queue. */
   initialTarget?: { questionId: string; responseKey: string };
   /** PLC norming flag under the answer; omitted when the quiz isn't PLC-shared or the flag is off. */
@@ -329,6 +331,9 @@ const readRailCollapsed = (): boolean => {
 const PANE_WIDTHS_KEY = 'spart:freeResponseGrader:paneWidths';
 const MIN_PANE_PX = 180;
 const PANE_KEY_STEP_PX = 16;
+// The score pane can grow wider so a rubric's levels fit side by side.
+const paneMaxFraction = (pane: keyof PaneWidths) =>
+  pane === 'score' ? 0.6 : 0.45;
 
 type PaneWidths = { list: number | null; score: number | null };
 
@@ -609,6 +614,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   onGraderModeChange,
   autoAdvance = true,
   onAutoAdvanceChange,
+  onSaveRubric,
   initialTarget,
   renderNormingFlag,
   paperPrivate,
@@ -670,7 +676,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
       pane,
       startX: e.clientX,
       startWidth: paneEl.getBoundingClientRect().width,
-      maxWidth: grid.getBoundingClientRect().width * 0.45,
+      maxWidth: grid.getBoundingClientRect().width * paneMaxFraction(pane),
     };
   };
   const movePaneDrag = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -710,7 +716,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
             (grow ? PANE_KEY_STEP_PX : -PANE_KEY_STEP_PX),
           MIN_PANE_PX
         ),
-        grid.getBoundingClientRect().width * 0.45
+        grid.getBoundingClientRect().width * paneMaxFraction(pane)
       )
     );
     const updated = { ...paneWidthsRef.current, [pane]: next };
@@ -2065,7 +2071,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                 : 'minmax(180px, 1fr)'
           } 0px minmax(0, 2.4fr) 0px ${
             paneWidths.score !== null
-              ? `clamp(${MIN_PANE_PX}px, ${paneWidths.score}px, 45%)`
+              ? `clamp(${MIN_PANE_PX}px, ${paneWidths.score}px, 60%)`
               : 'minmax(0, 1.2fr)'
           }`,
         }}
@@ -2781,6 +2787,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                       tagCounts={tagCounts}
                       onJumpToTagged={handleJumpToTagged}
                       tagCountKind={isMedia ? 'note' : 'highlight'}
+                      onSaveRubric={onSaveRubric}
                     />
                   </div>
                 )}
