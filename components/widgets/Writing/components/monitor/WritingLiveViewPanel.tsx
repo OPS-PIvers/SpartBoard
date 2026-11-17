@@ -117,8 +117,8 @@ export const WritingLiveViewPanel: React.FC<{
   };
 
   const prev = index > 0 ? students[index - 1] : undefined;
-  const next =
-    index >= 0 && index < students.length - 1 ? students[index + 1] : undefined;
+  // A student who turned in leaves the list; Next then starts from the top.
+  const next = index < students.length - 1 ? students[index + 1] : undefined;
   const navButton =
     'flex items-center gap-1 rounded-md px-2 py-1 hover:bg-slate-800 disabled:opacity-40 disabled:hover:bg-transparent';
   const summary = response?.summary;

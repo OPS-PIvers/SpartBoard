@@ -4,6 +4,7 @@ import { collection, doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type { WritingAssignmentSession, WritingResponse } from '@/types';
 import { logError } from '@/utils/logError';
+import { getServerNow } from '@/utils/serverTime';
 
 export interface WritingMonitorState {
   session: WritingAssignmentSession | null;
@@ -11,6 +12,8 @@ export interface WritingMonitorState {
   loading: boolean;
   /** The session doc is gone (deleted) or could not be read. */
   missing: boolean;
+  /** This tab's clock when each student's save count last moved; the student's own clock can be off. */
+  seenAt: Record<string, number>;
 }
 
 const EMPTY: WritingMonitorState = {
@@ -18,6 +21,7 @@ const EMPTY: WritingMonitorState = {
   responses: [],
   loading: true,
   missing: false,
+  seenAt: {},
 };
 
 export function useWritingMonitor(
@@ -65,9 +69,24 @@ export function useWritingMonitor(
         );
       }
     );
+    // A save seen after the first snapshot is timed by this tab's clock.
+    const counts = new Map<string, number>();
+    let first = true;
     const stopResponses = onSnapshot(
       collection(sessionRef, 'responses'),
-      (snap) =>
+      (snap) => {
+        const responses = snap.docs.map(
+          (d) => ({ ...d.data(), studentUid: d.id }) as WritingResponse
+        );
+        const at = getServerNow();
+        const moved: Record<string, number> = {};
+        for (const r of responses) {
+          const count = r.saveCount ?? 0;
+          if (!first && counts.get(r.studentUid) !== count)
+            moved[r.studentUid] = at;
+          counts.set(r.studentUid, count);
+        }
+        first = false;
         setState((prev) =>
           prev.id !== sessionId
             ? prev
@@ -75,13 +94,12 @@ export function useWritingMonitor(
                 id: sessionId,
                 value: {
                   ...prev.value,
-                  responses: snap.docs.map(
-                    (d) =>
-                      ({ ...d.data(), studentUid: d.id }) as WritingResponse
-                  ),
+                  responses,
+                  seenAt: { ...prev.value.seenAt, ...moved },
                 },
               }
-        ),
+        );
+      },
       (err) => logError('useWritingMonitor.responses', err, { sessionId })
     );
     return () => {

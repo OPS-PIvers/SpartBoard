@@ -72,7 +72,8 @@ export const WritingMonitor: React.FC<{
   onBack: () => void;
 }> = ({ sessionId, record, onBack }) => {
   const { orgId } = useAuth();
-  const { session, responses, loading, missing } = useWritingMonitor(sessionId);
+  const { session, responses, loading, missing, seenAt } =
+    useWritingMonitor(sessionId);
   const [classId, setClassId] = useState('');
   const classIds = useMemo(
     () => session?.classIds ?? record?.classIds ?? [],
@@ -101,14 +102,23 @@ export const WritingMonitor: React.FC<{
     () => new Set((record?.excludedTargets ?? []).map(studentTargetRefKey)),
     [record?.excludedTargets]
   );
+  // Without the targeting record, or with picked students (refs carry no class), roster rows would list the wrong students.
+  const rosterKnown =
+    !!record && !roster.loading && !(classId && targetStudents);
   const rosterUids = useMemo(() => {
     const out: string[] = [];
+    if (!rosterKnown) return out;
     for (const uid of roster.byStudentUid.keys()) {
       const ref = roster.targetRefKeyByStudentUid.get(uid);
       if (!ref || !excluded.has(ref)) out.push(uid);
     }
     return out;
-  }, [roster.byStudentUid, roster.targetRefKeyByStudentUid, excluded]);
+  }, [
+    rosterKnown,
+    roster.byStudentUid,
+    roster.targetRefKeyByStudentUid,
+    excluded,
+  ]);
   return (
     <WritingMonitorView
       session={session}
@@ -120,6 +130,7 @@ export const WritingMonitor: React.FC<{
       responses={responses}
       names={all.byStudentUid}
       rosterUids={rosterUids}
+      seenAt={seenAt}
       loading={loading}
       missing={missing}
       classId={classId}
@@ -137,6 +148,7 @@ export const WritingMonitorView: React.FC<{
   responses: WritingResponse[];
   names: Map<string, StudentName>;
   rosterUids: string[];
+  seenAt?: Record<string, number>;
   loading: boolean;
   missing: boolean;
   classId: string;
@@ -149,6 +161,7 @@ export const WritingMonitorView: React.FC<{
   responses,
   names,
   rosterUids,
+  seenAt,
   loading,
   missing,
   classId,
@@ -171,8 +184,9 @@ export const WritingMonitorView: React.FC<{
         rosterUids,
         classId,
         now,
+        seenAt,
       }),
-    [responses, names, rosterUids, classId, now]
+    [responses, names, rosterUids, classId, now, seenAt]
   );
   const counts = countWritingBuckets(rows);
   const idleCount = rows.filter((r) => r.idleMs != null).length;

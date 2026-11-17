@@ -461,7 +461,7 @@ describe('responses: Live view and Nudge (D15)', () => {
     );
   });
 
-  it('the teacher writes nothing but liveView, and liveView must be a map', async () => {
+  it('the teacher writes nothing but liveView, a map of at most three keys', async () => {
     await assertFails(
       updateDoc(doc(asTeacher(TEACHER), RESP), { ...watch, wordCount: 3 })
     );
@@ -470,6 +470,11 @@ describe('responses: Live view and Nudge (D15)', () => {
     );
     await assertFails(
       updateDoc(doc(asTeacher(TEACHER), RESP), { liveView: 'on' })
+    );
+    await assertFails(
+      updateDoc(doc(asTeacher(TEACHER), RESP), {
+        liveView: { until: 1, notify: false, nudge: { at: 1 }, pad: 'x' },
+      })
     );
   });
 

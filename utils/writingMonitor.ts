@@ -60,8 +60,10 @@ export function buildWritingMonitorRows(params: {
   /** Keep only responses from this class; '' keeps every class. */
   classId: string;
   now: number;
+  /** When this tab saw each student's last save; beats the student's own clock. */
+  seenAt?: Record<string, number>;
 }): WritingMonitorRow[] {
-  const { responses, names, rosterUids, classId, now } = params;
+  const { responses, names, rosterUids, classId, now, seenAt = {} } = params;
   const rows: WritingMonitorRow[] = [];
   const seen = new Set<string>();
   for (const r of responses) {
@@ -69,10 +71,12 @@ export function buildWritingMonitorRows(params: {
     if (classId && r.classId !== classId) continue;
     const status = deriveWritingStatus(r);
     const bucket = bucketOf(status, r);
+    // The student's clock can be off, so it never reads as later than now.
     const savedAt =
-      typeof r.summary?.savedAt === 'number' && (r.saveCount ?? 0) > 0
-        ? r.summary.savedAt
-        : null;
+      seenAt[r.studentUid] ??
+      (typeof r.summary?.savedAt === 'number' && (r.saveCount ?? 0) > 0
+        ? Math.min(r.summary.savedAt, now)
+        : null);
     const since = savedAt ?? r.startedAt;
     rows.push({
       key: r.studentUid,

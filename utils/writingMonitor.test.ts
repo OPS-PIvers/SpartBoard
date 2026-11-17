@@ -146,3 +146,29 @@ describe('savedAgo', () => {
     expect(savedAgo(NOW - 3 * 3_600_000, NOW)).toBe('Saved 3 hr ago');
   });
 });
+
+describe('buildWritingMonitorRows clock', () => {
+  it('times saves by when this tab saw them, and never past now', () => {
+    const ahead = response('u1', {
+      saveCount: 2,
+      summary: { ...response('u1').summary, savedAt: NOW + 5 * 60_000 },
+    });
+    const [row] = buildWritingMonitorRows({
+      responses: [ahead],
+      names,
+      rosterUids: [],
+      classId: '',
+      now: NOW,
+    });
+    expect(row.savedAt).toBe(NOW);
+    const [seen] = buildWritingMonitorRows({
+      responses: [ahead],
+      names,
+      rosterUids: [],
+      classId: '',
+      now: NOW,
+      seenAt: { u1: NOW - 3 * 60_000 },
+    });
+    expect(seen.idleMs).toBe(3 * 60_000);
+  });
+});

@@ -8,7 +8,6 @@ import {
 export const saveKeyOf = (tabId: string, saveCount: number): string =>
   `${tabId}:${saveCount}`;
 
-/** The log goes up every 20 s, slowing to once a minute past 30 KB (AB-201). */
 /** A save goes this long after typing stops, and at least every max wait while typing. */
 export const SAVE_IDLE_MS = 1_500;
 export const SAVE_MAX_WAIT_MS = 10_000;
@@ -28,6 +27,7 @@ export function saveDelayMs(a: {
   return Math.max(0, Math.min(SAVE_IDLE_MS, a.firstAt + maxWait - a.now));
 }
 
+/** The log goes up every 20 s, slowing to once a minute past 30 KB (AB-201). */
 export const LOG_EVERY_MS = 20_000;
 export const BIG_LOG_BYTES = 30_000;
 export const BIG_LOG_EVERY_MS = 60_000;
