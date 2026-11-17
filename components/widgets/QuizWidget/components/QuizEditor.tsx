@@ -1475,6 +1475,12 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
               : undefined
           }
           onClose={() => setRubricBuilder(null)}
+          {...(rubricBuilder === 'modified'
+            ? {
+                heading: 'Modified rubric',
+                attachLabel: 'Attach as modified rubric',
+              }
+            : {})}
           teacherUid={user?.uid ?? ''}
         />
       )}

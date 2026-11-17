@@ -45,6 +45,7 @@ export interface RubricBuilderPanelProps {
   attachLabel?: string;
   /** Attaching needs this total, so a modified rubric scores out of the same points. */
   requiredTotal?: number;
+  heading?: string;
 }
 
 const labelClass =
@@ -294,6 +295,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
   teacherUid,
   attachLabel = 'Attach to question',
   requiredTotal,
+  heading = 'Rubric',
 }) => {
   const { rubrics, saveRubric, shareRubric, importSharedRubric } =
     useRubrics(teacherUid);
@@ -618,7 +620,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
         className="absolute inset-y-0 left-0 w-1.5 cursor-col-resize hover:bg-brand-blue-primary/30 focus:outline-hidden focus:bg-brand-blue-primary/40 z-30 touch-none"
       />
       <header className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
-        <h3 className="font-bold text-slate-900 text-sm">Rubric</h3>
+        <h3 className="font-bold text-slate-900 text-sm">{heading}</h3>
         <button
           ref={focusCloseButton}
           onClick={onClose}
