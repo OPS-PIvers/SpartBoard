@@ -412,6 +412,38 @@ describe('useQuizSessionStudent — draft autosave vs transactional writes', () 
     expect(updateMock()).not.toHaveBeenCalled();
     expect(server.answers.some((a) => a.questionId === 'q5')).toBe(false);
   });
+
+  it('writes no recording take or unresponded entry for a hybrid paper question', async () => {
+    const result = await joinWith([draftQ1], {
+      session: { paperWrittenQuestionIds: ['q5'] },
+      response: { paperWrittenBatchId: 'batch-1' },
+    });
+    updateMock().mockClear();
+    txMock().mockClear();
+    await act(async () => {
+      await result.current.commitRecordingTake({
+        questionId: 'q5',
+        artifact: makeTestArtifact({ id: 'take-1' }),
+      });
+      await result.current.markUnresponded('q5', 'passed');
+    });
+    expect(server.answers.some((a) => a.questionId === 'q5')).toBe(false);
+  });
+
+  it('writes no unresponded entry over a scanned paper answer', async () => {
+    const scanned = {
+      questionId: 'q3',
+      answer: 'scanned',
+      answeredAt: 1,
+      status: 'submitted',
+      paperScanId: 'scan-1',
+    };
+    const result = await joinWith([draftQ1, scanned]);
+    await act(async () => {
+      await result.current.markUnresponded('q3', 'passed');
+    });
+    expect(server.answers.find((a) => a.questionId === 'q3')).toEqual(scanned);
+  });
 });
 
 describe('isWriteAtAfter', () => {

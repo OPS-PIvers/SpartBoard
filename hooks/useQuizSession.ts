@@ -2334,6 +2334,16 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
   const paperWrittenIdsRef = useRef<readonly string[]>([]);
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   paperWrittenIdsRef.current = session?.paperWrittenQuestionIds ?? [];
+  // A device write for a paper-answered question is refused by the rules; skip it.
+  const isPaperAnswered = useCallback(
+    (existing: QuizResponse, questionId: string) =>
+      !!existing.answers?.some(
+        (a) => a.questionId === questionId && a.paperScanId
+      ) ||
+      (!!existing.paperWrittenBatchId &&
+        paperWrittenIdsRef.current.includes(questionId)),
+    []
+  );
 
   // Per-questionId timestamp of the most recent history snapshot write.
   // Used to throttle snapshots — see HISTORY_SNAPSHOT_THROTTLE_MS.
@@ -3493,12 +3503,9 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           (a) => a.questionId === questionId
         );
         // An imported paper answer is server-written; the rules refuse a student rewrite of it.
-        if (
-          priorEntry?.paperScanId ||
-          (existing.paperWrittenBatchId &&
-            paperWrittenIdsRef.current.includes(questionId))
-        )
+        if (isPaperAnswered(existing, questionId)) {
           return { skip: true, snapshot: null };
+        }
 
         // #1 guard — see `isUnsafeBlankDraft` doc. Refuses a draft autosave
         // that would silently clobber a non-empty saved answer with ''.
@@ -3749,7 +3756,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         });
       }
     },
-    [runAnswersTx]
+    [runAnswersTx, isPaperAnswered]
   );
 
   /**
@@ -3791,6 +3798,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           if (!snap.exists()) return;
           const existing = snap.data() as QuizResponse;
           if (isAnswerLocked(existing)) return;
+          if (isPaperAnswered(existing, input.questionId)) return;
           const existingAnswers = existing.answers ?? [];
           // Symmetric to markUnresponded: a closed slot never accepts a take.
           if (isRecordingSlotClosed(existingAnswers, input.questionId)) return;
@@ -3953,6 +3961,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           if (!snap.exists()) return;
           const existing = snap.data() as QuizResponse;
           if (isAnswerLocked(existing)) return;
+          if (isPaperAnswered(existing, questionId)) return;
           const existingAnswers = existing.answers ?? [];
           // Never overwrite a real response — a student who already recorded a
           // take on this question has answered it.
@@ -3992,7 +4001,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         })
       );
     },
-    [runAnswersTx]
+    [runAnswersTx, isPaperAnswered]
   );
 
   const completeQuiz = useCallback(async (opts?: { timeUp?: boolean }) => {
