@@ -59,6 +59,11 @@ import type {
   AssignmentKind,
   UnifiedAssignmentRow,
 } from '@/components/assignmentsHub/useUnifiedAssignments';
+import {
+  endWritingSession,
+  updateWritingSession,
+  type UpdateWritingSessionInput,
+} from './useWritingAssignmentSessions';
 
 const ASSIGNMENT_COLLECTION_BY_KIND: Record<AssignmentKind, string> = {
   quiz: 'quiz_assignments',
@@ -66,6 +71,7 @@ const ASSIGNMENT_COLLECTION_BY_KIND: Record<AssignmentKind, string> = {
   'guided-learning': 'guided_learning_assignments',
   'mini-app': 'miniapp_assignments',
   flashcards: 'flashcard_assignments',
+  writing: 'writing_assignment_records',
 };
 
 const SESSION_COLLECTION_BY_KIND: Record<AssignmentKind, string> = {
@@ -74,6 +80,7 @@ const SESSION_COLLECTION_BY_KIND: Record<AssignmentKind, string> = {
   'guided-learning': 'guided_learning_sessions',
   'mini-app': 'mini_app_sessions',
   flashcards: 'flashcard_sessions',
+  writing: 'writing_assignment_sessions',
 };
 
 export interface SaveAssignmentEditResult {
@@ -185,6 +192,49 @@ export function useAssignmentDetailActions(): UseAssignmentDetailActionsResult {
         skippedExclusions = result.skippedExclusions ?? [];
       }
 
+      const unskippedKeys = new Set(
+        (payload.unskipped ?? []).map(studentTargetRefKey)
+      );
+      // An un-skip deletes a marker pointer; it is not a de-targeting, so it
+      // must never be archived as a removed student.
+      const deTargeted = payload.remove.filter(
+        (ref) => !unskippedKeys.has(studentTargetRefKey(ref))
+      );
+      const rowCaps = dueLockRowCaps(row, payload.window);
+
+      // No client writes a Writing session or its record; the server applies the same edit.
+      if (row.kind === 'writing') {
+        const window: UpdateWritingSessionInput['window'] = {};
+        if ('openAt' in payload.window)
+          window.openAt = effective.openAt ?? null;
+        if ('closeAt' in payload.window)
+          window.closeAt = effective.closeAt ?? null;
+        if ('dueAt' in payload.window) window.dueAt = effective.dueAt ?? null;
+        const overrides: Record<string, StudentOverride | null> = {};
+        for (const key of new Set([
+          ...Object.keys(previous.overridesByKey),
+          ...Object.keys(effective.overridesByKey),
+        ]))
+          overrides[key] = effective.overridesByKey[key] ?? null;
+        await updateWritingSession({
+          sessionId: row.sessionId,
+          window,
+          ...(rowCaps ? { periodAccess: rowCaps } : {}),
+          record: {
+            targetGroupIds: effective.targetGroupIds,
+            overrides,
+            ...(payload.excludedTargets
+              ? { excludedTargets: payload.excludedTargets }
+              : {}),
+            ...(callCf ? { targetSkippedCount: skipped.length } : {}),
+            ...(deTargeted.length > 0
+              ? { removedStudentRefs: deTargeted }
+              : {}),
+          },
+        });
+        return { skipped, skippedExclusions };
+      }
+
       const assignmentRef = doc(
         db,
         'users',
@@ -229,14 +279,6 @@ export function useAssignmentDetailActions(): UseAssignmentDetailActionsResult {
         assignmentPatch.closeAt = effective.closeAt ?? null;
       if ('dueAt' in payload.window)
         assignmentPatch.dueAt = effective.dueAt ?? null;
-      // An un-skip deletes a marker pointer; it is not a de-targeting, so it
-      // must never be archived as a removed student.
-      const unskippedKeys = new Set(
-        (payload.unskipped ?? []).map(studentTargetRefKey)
-      );
-      const deTargeted = payload.remove.filter(
-        (ref) => !unskippedKeys.has(studentTargetRefKey(ref))
-      );
       if (deTargeted.length > 0) {
         assignmentPatch.removedStudentRefs = arrayUnion(...deTargeted);
       }
@@ -248,7 +290,6 @@ export function useAssignmentDetailActions(): UseAssignmentDetailActionsResult {
         sessionPatch.closeAt = effective.closeAt ?? null;
       if ('dueAt' in payload.window)
         sessionPatch.dueAt = effective.dueAt ?? null;
-      const rowCaps = dueLockRowCaps(row, payload.window);
       if (rowCaps) {
         sessionPatch.periodAccess = rowCaps;
         assignmentPatch.periodAccess = rowCaps;
@@ -272,6 +313,11 @@ export function useAssignmentDetailActions(): UseAssignmentDetailActionsResult {
       userId: string,
       classContext?: ClassTargetingContext
     ): Promise<void> => {
+      // Writing's close is the teacher's End, which the server stamps on the session and record.
+      if (row.kind === 'writing') {
+        await endWritingSession(row.sessionId);
+        return;
+      }
       const current = assignmentRowToTargetingValue(row);
       await saveEdit(
         row,

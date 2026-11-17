@@ -2030,11 +2030,13 @@
       "tabAway": "Limite d'absence : {{seconds}} s",
       "windowShifted": "Fenêtre décalée",
       "readAloud": "Lecture à voix haute",
+      "spellingHelp": "Aide à l'orthographe",
       "language": "{{language}}",
       "copyPastePrintBlocked": "Pas de copier, coller ni imprimer",
       "copyPastePrintAllowed": "Copier, coller et imprimer autorisés"
     },
     "language": "Langue",
+    "spellingHelp": "Aide à l'orthographe",
     "noChanges": "Aucun changement",
     "copyPastePrint": "Copier, coller et imprimer",
     "copyPastePrintBlock": "Bloquer",
@@ -2112,7 +2114,8 @@
       "videoActivity": "Activité Vidéo",
       "guidedLearning": "Apprentissage Guidé",
       "miniApp": "Mini App",
-      "flashcards": "Cartes mémoire"
+      "flashcards": "Cartes mémoire",
+      "writing": "Écriture"
     },
     "flashcardKind": {
       "check": "Contrôle",

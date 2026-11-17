@@ -75,6 +75,7 @@ const PROTECTED_STUDENT_PATH_PREFIXES: readonly string[] = [
   '/my-assignments',
   '/student/assignments', // Reserved for future use.
   '/flashcards/a/',
+  '/writing/',
 ];
 
 const isProtectedStudentRoute = (pathname: string): boolean =>
@@ -205,6 +206,7 @@ function redirectToLoginIfProtected(
   // Assignment deep links return to the same page after sign-in.
   if (
     window.location.pathname.startsWith('/flashcards/a/') ||
+    window.location.pathname.startsWith('/writing/') ||
     isCourseLinkPath(window.location.pathname)
   ) {
     params.set('next', window.location.pathname);

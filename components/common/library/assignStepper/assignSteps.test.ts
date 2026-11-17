@@ -168,3 +168,25 @@ describe('getAssignStepTitle', () => {
     );
   });
 });
+
+describe('writing', () => {
+  it('always collects work: classes, when, writing rules, integrity', () => {
+    for (const kind of ['work', 'resource'] as const) {
+      expect(getAssignSteps('writing', { kind, inPlc: true })).toEqual([
+        'classes',
+        'when',
+        'writing',
+        'integrity',
+      ]);
+    }
+    expect(getAssignStepTitle('writing', 'writing', { kind: 'work' })).toBe(
+      'Writing rules'
+    );
+    expect(getAssignStepTitle('integrity', 'writing', { kind: 'work' })).toBe(
+      'Integrity'
+    );
+    expect(getAssignStepTitle('when', 'writing', { kind: 'resource' })).toBe(
+      'When'
+    );
+  });
+});

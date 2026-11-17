@@ -41,6 +41,14 @@ export interface PeriodAccessCollections {
   refreshIdle?: boolean;
   /** The hub mirror's doc id, for kinds whose assignment id is not the session id. */
   assignmentId?: string;
+  /** Kinds whose session no client writes (Writing) send the period and Let in patches through this instead. */
+  commit?: (patch: PeriodAccessPatch) => Promise<void>;
+}
+
+/** Per-period field patches and Let in passes, for a kind that saves them through a callable. */
+export interface PeriodAccessPatch {
+  periodAccess?: Record<string, Partial<PeriodAccess>>;
+  studentAccess?: Record<string, number>;
 }
 
 type PeriodSession = PeriodAccessSessionFields & {
@@ -130,6 +138,7 @@ export function usePeriodAccess(
     assignmentCollection,
     refreshIdle = true,
     assignmentId,
+    commit,
   }: PeriodAccessCollections,
   rosters: readonly BellRoster[] | undefined
 ) {
@@ -176,6 +185,20 @@ export function usePeriodAccess(
     [refs]
   );
 
+  const write = useCallback(
+    async (rows: Record<string, Partial<PeriodAccess>>) => {
+      if (Object.keys(rows).length === 0) return;
+      if (commit) {
+        await commit({ periodAccess: rows });
+        return;
+      }
+      const batch = writeBatch(db);
+      for (const [key, patch] of Object.entries(rows)) stage(batch, key, patch);
+      await batch.commit();
+    },
+    [commit, stage]
+  );
+
   // Mirrors resumeAssignment: a period that sat frozen must not finalize the moment it opens.
   const refreshStaleResponses = useCallback(
     async (keys: readonly string[]) => {
@@ -212,7 +235,7 @@ export function usePeriodAccess(
       await refreshStaleResponses(keys);
       const now = Date.now();
       const untimed: string[] = [];
-      const batch = writeBatch(db);
+      const rows: Record<string, Partial<PeriodAccess>> = {};
       for (const key of keys) {
         const access = periodAccess[key];
         if (!access) continue;
@@ -228,7 +251,7 @@ export function usePeriodAccess(
           (lockAt(session) ?? now) <= now
         )
           untimed.push(key);
-        stage(batch, key, {
+        rows[key] = {
           state: 'open',
           openAt: null,
           closeAt: capAtDue(
@@ -236,9 +259,9 @@ export function usePeriodAccess(
             lockAt(session),
             now
           ),
-        });
+        };
       }
-      await batch.commit();
+      await write(rows);
       return untimed;
     },
     [
@@ -247,7 +270,7 @@ export function usePeriodAccess(
       refreshStaleResponses,
       rosters,
       featurePermissions,
-      stage,
+      write,
     ]
   );
 
@@ -255,32 +278,31 @@ export function usePeriodAccess(
     async (keys: readonly string[]) => {
       if (!periodAccess || keys.length === 0) return;
       const now = Date.now();
-      const batch = writeBatch(db);
+      const rows: Record<string, Partial<PeriodAccess>> = {};
       for (const key of keys)
-        if (periodAccess[key])
-          stage(batch, key, { state: 'paused', pausedAt: now });
-      await batch.commit();
+        if (periodAccess[key]) rows[key] = { state: 'paused', pausedAt: now };
+      await write(rows);
     },
-    [periodAccess, stage]
+    [periodAccess, write]
   );
 
   const extend = useCallback(
     async (key: string, by: number | null) => {
       const access = periodAccess?.[key];
       if (!access) return;
-      const batch = writeBatch(db);
-      stage(batch, key, {
-        closeAt: capAtDue(
-          by == null
-            ? null
-            : Math.max(access.closeAt ?? Date.now(), Date.now()) + by,
-          lockAt(session),
-          Date.now()
-        ),
+      await write({
+        [key]: {
+          closeAt: capAtDue(
+            by == null
+              ? null
+              : Math.max(access.closeAt ?? Date.now(), Date.now()) + by,
+            lockAt(session),
+            Date.now()
+          ),
+        },
       });
-      await batch.commit();
     },
-    [periodAccess, stage, session]
+    [periodAccess, write, session]
   );
 
   const letIn = useCallback(
@@ -292,9 +314,15 @@ export function usePeriodAccess(
         featurePermissions,
         Date.now()
       );
-      await updateDoc(refs.session, new FieldPath('studentAccess', uid), until);
+      if (commit) await commit({ studentAccess: { [uid]: until } });
+      else
+        await updateDoc(
+          refs.session,
+          new FieldPath('studentAccess', uid),
+          until
+        );
     },
-    [refs, periodAccess, rosters, featurePermissions]
+    [refs, periodAccess, rosters, featurePermissions, commit]
   );
 
   const keys = useMemo(() => Object.keys(periodAccess ?? {}), [periodAccess]);

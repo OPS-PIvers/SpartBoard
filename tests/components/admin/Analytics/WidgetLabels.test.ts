@@ -72,6 +72,7 @@ const ALL_WIDGET_TYPES = [
   'routineGuide',
   'arts-letters-agenda',
   'focus',
+  'writing',
   'agenda',
 ] as const;
 

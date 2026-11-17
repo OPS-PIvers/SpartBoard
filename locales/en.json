@@ -2477,7 +2477,8 @@
         "map": "Map",
         "camera": "Camera"
       }
-    }
+    },
+    "writing": {}
   },
   "widgetWindow": {
     "closeWidget": "Close widget? Data will be lost.",
@@ -3324,11 +3325,13 @@
       "tabAway": "Away limit: {{seconds}}s",
       "windowShifted": "Window shifted",
       "readAloud": "Read aloud",
+      "spellingHelp": "Spelling help",
       "language": "{{language}}",
       "copyPastePrintBlocked": "No copy, paste or print",
       "copyPastePrintAllowed": "Copy, paste and print allowed"
     },
     "language": "Language",
+    "spellingHelp": "Spelling help",
     "noChanges": "No changes",
     "copyPastePrint": "Copy, paste and print",
     "copyPastePrintBlock": "Block",
@@ -3406,7 +3409,8 @@
       "videoActivity": "Video Activity",
       "guidedLearning": "Guided Learning",
       "miniApp": "Mini App",
-      "flashcards": "Flashcards"
+      "flashcards": "Flashcards",
+      "writing": "Writing"
     },
     "flashcardKind": {
       "check": "Check",

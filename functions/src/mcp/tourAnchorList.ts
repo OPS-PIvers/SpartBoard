@@ -969,7 +969,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "weather#content",
       "weather#display",
       "webcam#behavior",
-      "work-symbols#display"
+      "work-symbols#display",
+      "writing#content"
     ],
     "routes": [
       {
@@ -5105,6 +5106,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-step.writing",
+    "label": "Writing rules step header in the Writing Assign dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "assign-step.sharing",
     "label": "Sharing step header in the Assign dialog",
     "scope": "board",
@@ -5282,7 +5296,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "assign#shuffle-questions",
       "assign#stimulus-quotes",
       "assign#tab-switch-auto-submit",
-      "assign#time-limit"
+      "assign#time-limit",
+      "assign#writing-allow-paste",
+      "assign#writing-block-print",
+      "assign#writing-recording-notice",
+      "assign#writing-spell-check",
+      "assign#writing-student-record"
     ],
     "routes": [
       {
@@ -10081,7 +10100,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "keys": [
-      "quiz"
+      "quiz",
+      "writing"
     ],
     "routes": [
       {
@@ -10103,7 +10123,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "keys": [
-      "quiz"
+      "quiz",
+      "writing"
     ],
     "routes": [
       {
@@ -10125,7 +10146,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "keys": [
-      "quiz"
+      "quiz",
+      "writing"
     ],
     "routes": [
       {
@@ -10323,7 +10345,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "keys": [
-      "quiz"
+      "quiz",
+      "writing"
     ],
     "routes": [
       {
@@ -10345,7 +10368,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "keys": [
-      "quiz"
+      "quiz",
+      "writing"
     ],
     "routes": [
       {
@@ -10367,7 +10391,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "keys": [
-      "quiz"
+      "quiz",
+      "writing"
     ],
     "routes": [
       {
@@ -10389,7 +10414,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "keys": [
-      "quiz"
+      "quiz",
+      "writing"
     ],
     "routes": [
       {
@@ -10411,7 +10437,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "keys": [
-      "quiz"
+      "quiz",
+      "writing"
     ],
     "routes": [
       {
@@ -14803,7 +14830,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "keys": [
-      "quiz"
+      "quiz",
+      "writing"
     ],
     "routes": [
       {
@@ -15038,7 +15066,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "keys": [
-      "quiz"
+      "quiz",
+      "writing"
     ],
     "routes": [
       {
@@ -15060,7 +15089,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "keys": [
-      "quiz"
+      "quiz",
+      "writing"
     ],
     "routes": [
       {
@@ -15263,7 +15293,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "keys": [
-      "quiz"
+      "quiz",
+      "writing"
     ],
     "routes": [
       {
@@ -15287,7 +15318,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "keys": [
-      "quiz"
+      "quiz",
+      "writing"
     ],
     "routes": [
       {
@@ -63789,6 +63821,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "override-row.spelling-help",
+    "label": "Spelling help checkbox in the override editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.override-row",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "override-row.copy-paste-print",
     "label": "Copy, paste and print choice in the override editor",
     "scope": "board",
@@ -75350,6 +75395,371 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "projects",
         "path": [
           "library-shell.card-open:projects#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing.stepper-class-picker",
+    "label": "Class list in the Writing assign dialog",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.assign",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.card-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "class",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing.stepper-class-row",
+    "label": "Class checkbox in the Writing assign dialog class list",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.assign",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.card-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "class",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing.stepper-student-menu",
+    "label": "Student picker button for one class in the Writing assign dialog",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.assign",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.card-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "class",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing.selection-mode",
+    "label": "Select button in the Writing library",
+    "scope": "widget",
+    "requires": "widget-restored",
+    "routes": [
+      {
+        "surface": "widgets.writing.face",
+        "kind": "widget",
+        "widget_type": "writing",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing.bulk-move",
+    "label": "Move to folder button in the Writing bulk action bar",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.face",
+        "kind": "widget",
+        "widget_type": "writing",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing.bulk-delete",
+    "label": "Delete button in the Writing bulk action bar",
+    "scope": "board",
+    "panel": true,
+    "destructive": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.face",
+        "kind": "widget",
+        "widget_type": "writing",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing.bulk-clear",
+    "label": "Clear selection button in the Writing bulk action bar",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.face",
+        "kind": "widget",
+        "widget_type": "writing",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-editor.tab-prompt",
+    "label": "Prompt tab in the Writing editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.editor",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.card-open:writing#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-editor.tab-stimuli",
+    "label": "Stimuli tab in the Writing editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.editor",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.card-open:writing#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-editor.prompt",
+    "label": "Prompt box in the Writing editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.editor",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.card-open:writing#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-editor.grading-ungraded",
+    "label": "Ungraded option in the Writing editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.editor",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.card-open:writing#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-editor.grading-points",
+    "label": "Points option in the Writing editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.editor",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.card-open:writing#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-editor.grading-rubric",
+    "label": "Rubric option in the Writing editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.editor",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.card-open:writing#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-editor.points",
+    "label": "Points box in the Writing editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.editor",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.card-open:writing#row-1",
+          "writing-editor.grading-points"
+        ],
+        "reveal": "writing-editor.grading-points",
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-editor.rubric-edit",
+    "label": "Rubric: Edit in the Writing editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.editor",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.card-open:writing#row-1",
+          "writing-editor.grading-rubric"
+        ],
+        "reveal": "writing-editor.grading-rubric",
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-editor.rubric-detach",
+    "label": "Rubric: Detach in the Writing editor",
+    "scope": "board",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.editor",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.card-open:writing#row-1",
+          "writing-editor.grading-rubric"
+        ],
+        "reveal": "writing-editor.grading-rubric",
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-editor.folder",
+    "label": "Folder picker in the Writing editor header",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.editor",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.card-open:writing#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-editor.save",
+    "label": "Save button in the Writing editor",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.editor",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.card-open:writing#row-1"
         ],
         "needs": [
           "library-item",

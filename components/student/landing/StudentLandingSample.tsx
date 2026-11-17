@@ -7,7 +7,10 @@ import type {
 } from '@/hooks/useStudentAssignments';
 import type { TurnInMap } from '@/hooks/useStudentTurnIns';
 import type { StudentGradesState } from '@/hooks/useStudentGrades';
-import { DEFAULT_PROFICIENCY_SCALE } from '@/utils/gradebook/gradebookCore';
+import {
+  DEFAULT_PROFICIENCY_SCALE,
+  type GradebookKind,
+} from '@/utils/gradebook/gradebookCore';
 import {
   seenMarksFor,
   studentGradeRows,
@@ -349,7 +352,7 @@ function toSummary(f: Fixture, nowMs: number): AssignmentSummary {
 type GradeFixture = [
   id: string,
   cls: string,
-  kind: SessionKind,
+  kind: GradebookKind,
   title: string,
   dueDays: number,
   points: number | null,

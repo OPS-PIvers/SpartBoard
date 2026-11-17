@@ -67,6 +67,12 @@ describe('resolveNextTarget', () => {
     expect(resolveNextTarget('/flashcards/share-1')).toBeNull();
     expect(resolveNextTarget('/flashcards/a/../admin')).toBeNull();
   });
+
+  it('allows a Writing assignment page only', () => {
+    expect(resolveNextTarget('/writing/2f0c-a1')).toBe('/writing/2f0c-a1');
+    expect(resolveNextTarget('/writing/../admin')).toBeNull();
+    expect(resolveNextTarget('/writing')).toBeNull();
+  });
 });
 
 describe('shouldGateToSso', () => {

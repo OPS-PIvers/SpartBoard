@@ -9,6 +9,7 @@ import {
   Compass,
   Blocks,
   Layers3,
+  NotebookPen,
   Search,
   X,
 } from 'lucide-react';
@@ -68,6 +69,11 @@ const KIND_META: Record<
     labelKey: 'assignmentsHub.kind.flashcards',
     fallback: 'Flashcards',
   },
+  writing: {
+    icon: NotebookPen,
+    labelKey: 'assignmentsHub.kind.writing',
+    fallback: 'Writing',
+  },
 };
 
 const KIND_ORDER: AssignmentKind[] = [
@@ -76,6 +82,7 @@ const KIND_ORDER: AssignmentKind[] = [
   'guided-learning',
   'mini-app',
   'flashcards',
+  'writing',
 ];
 
 function formatWindowSummary(

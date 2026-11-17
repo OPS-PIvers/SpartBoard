@@ -35,6 +35,7 @@ const KIND_INK: Record<SessionKind, string> = {
   'activity-wall': 'text-orange-700',
   flashcards: 'text-pink-700',
   projects: 'text-blue-700',
+  writing: 'text-teal-700',
 };
 
 export const KindIcon: React.FC<{ kind: SessionKind }> = ({ kind }) => {
