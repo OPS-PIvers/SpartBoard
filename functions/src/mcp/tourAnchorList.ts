@@ -18872,6 +18872,59 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-grading.rubric-table-order",
+    "label": "Level order switch on the full rubric table",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-edit",
+    "label": "Edit button on the full rubric table",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-save",
+    "label": "Save button when editing the full rubric table",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-cancel",
+    "label": "Cancel button when editing the full rubric table",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-x",
+    "label": "Close (X) on the full rubric table",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-field",
+    "label": "Text or points field when editing the full rubric table, by field",
+    "scope": "field",
+    "panel": true
+  },
+  {
     "id": "quiz-grading.rubric-criterion-toggle",
     "label": "Criterion open / close toggle in the grader, by criterion",
     "scope": "field",

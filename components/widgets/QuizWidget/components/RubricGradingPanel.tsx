@@ -39,6 +39,8 @@ export interface RubricScoringPanelProps {
   onJumpToTagged?: (criterionId: string) => void;
   /** Whether the tagged evidence is text highlights or audio timestamp notes. */
   tagCountKind?: 'highlight' | 'note';
+  /** Saves a rubric edited in the full rubric table; without it the table is read-only. */
+  onSaveRubric?: (rubric: Rubric) => Promise<void>;
 }
 
 const ptsLabel = (points: number) => `${points} pt${points === 1 ? '' : 's'}`;
@@ -55,6 +57,7 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
   tagCounts,
   onJumpToTagged,
   tagCountKind = 'highlight',
+  onSaveRubric,
 }) => {
   const { t } = useTranslation();
   const auth = useContext(AuthContext);
@@ -520,7 +523,9 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
         <RubricTableModal
           rubric={rubric}
           order={order}
+          onOrderChange={switchOrder}
           scores={byCriterion}
+          onSave={onSaveRubric}
           onClose={() => setTableOpen(false)}
         />
       )}

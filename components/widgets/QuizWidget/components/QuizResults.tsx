@@ -337,6 +337,8 @@ interface QuizResultsProps {
    * keep re-triggering the regenerate flow against the stale URL.
    */
   onPlcSheetUrlReplaced?: (newUrl: string) => Promise<void> | void;
+  /** Saves a rubric edited from the grader's full rubric table. */
+  onSaveRubric?: (rubric: import('@/types').Rubric) => Promise<void>;
   /**
    * Previously saved export URL for this assignment, read from the
    * `quiz_assignments` doc. When present, the Export button is replaced by
@@ -497,6 +499,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   onUnlockTabLockedStudent,
   onSubmitStudent,
   onPlcSheetUrlReplaced,
+  onSaveRubric,
   initialExportUrl,
   plcSheetUrl: assignmentPlcSheetUrl,
   onExportUrlSaved,
@@ -3110,6 +3113,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
               quizGraderAutoAdvance: enabled,
             }).catch(() => undefined)
           }
+          onSaveRubric={onSaveRubric}
           {...(graderAttempt === null
             ? {
                 classFilter: periodFilter,

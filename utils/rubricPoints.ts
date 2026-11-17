@@ -36,3 +36,34 @@ export const orderRubricLevels = (
 
 export const criterionMaxPoints = (criterion: RubricCriterion): number =>
   criterion.levels.reduce((max, l) => Math.max(max, l.points), 0);
+
+/** Swaps an edited rubric into every question that carries it, keeping a rubric question's points equal to its max. */
+export const applyRubricEdit = <
+  Q extends {
+    rubricId?: string;
+    rubricSnapshot?: Rubric;
+    modifiedRubricId?: string;
+    modifiedRubricSnapshot?: Rubric;
+    points?: number;
+  },
+>(
+  questions: Q[],
+  rubric: Rubric
+): { questions: Q[]; changed: boolean; libraryIds: string[] } => {
+  let changed = false;
+  const libraryIds = new Set<string>();
+  const next = questions.map((q) => {
+    let out = q;
+    if (q.rubricSnapshot?.id === rubric.id) {
+      out = { ...out, rubricSnapshot: rubric, points: rubricMaxPoints(rubric) };
+      if (q.rubricId) libraryIds.add(q.rubricId);
+    }
+    if (q.modifiedRubricSnapshot?.id === rubric.id) {
+      out = { ...out, modifiedRubricSnapshot: rubric };
+      if (q.modifiedRubricId) libraryIds.add(q.modifiedRubricId);
+    }
+    if (out !== q) changed = true;
+    return out;
+  });
+  return { questions: next, changed, libraryIds: [...libraryIds] };
+};

@@ -4543,6 +4543,38 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-grading.rubric-table-order': {
+    label: 'Level order switch on the full rubric table',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-edit': {
+    label: 'Edit button on the full rubric table',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-save': {
+    label: 'Save button when editing the full rubric table',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-cancel': {
+    label: 'Cancel button when editing the full rubric table',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-x': {
+    label: 'Close (X) on the full rubric table',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-field': {
+    label: 'Text or points field when editing the full rubric table, by field',
+    perField: true,
+    panel: true,
+  },
   'quiz-grading.rubric-criterion-toggle': {
     label: 'Criterion open / close toggle in the grader, by criterion',
     perField: true,

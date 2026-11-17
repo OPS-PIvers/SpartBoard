@@ -1,4 +1,4 @@
-// `/writing-grader-dev?view=results|grader|student&grading=points|rubric|dreamhome|ungraded[&v2=1][&order=low-first]`: Writing results, grader and feedback on fixtures.
+// `/writing-grader-dev?view=results|grader|student|table&grading=points|rubric|dreamhome|ungraded[&v2=1][&order=low-first]`: Writing results, grader and feedback on fixtures.
 import React, { useMemo, useState } from 'react';
 import type {
   Rubric,
@@ -24,6 +24,7 @@ import {
   writingMaxPoints,
 } from '@/utils/writingGrading';
 import { buildWritingRecordSample } from './writingRecordSample';
+import { RubricTableModal } from '@/components/widgets/QuizWidget/components/RubricTableModal';
 
 const noop = () => undefined;
 const RECORD = buildWritingRecordSample();
@@ -321,7 +322,7 @@ export const WritingGraderDevHarness: React.FC = () => {
             },
           }
         : undefined,
-    [v2, rubricLevelOrder]
+    [v2, rubricLevelOrder, setRubricLevelOrder]
   );
   const responses = NAMES.flatMap(([uid, , , status]) =>
     status ? [response(uid, status, grading)] : []
@@ -397,6 +398,16 @@ export const WritingGraderDevHarness: React.FC = () => {
               onReturn={() => Promise.resolve()}
               onClose={noop}
               recordFixture={() => RECORD}
+            />
+          )}
+          {view === 'table' && (
+            <RubricTableModal
+              rubric={DREAM_HOME}
+              order={rubricLevelOrder}
+              onOrderChange={setRubricLevelOrder}
+              scores={new Map()}
+              onClose={noop}
+              onSave={() => Promise.resolve()}
             />
           )}
           <DialogContainer />

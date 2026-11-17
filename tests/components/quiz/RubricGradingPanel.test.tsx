@@ -188,3 +188,81 @@ describe('RubricGradingPanel (rubric-grading-v2)', () => {
     ).toBeInTheDocument();
   });
 });
+
+describe('applyRubricEdit', () => {
+  it('swaps the rubric into matching questions and resets their points', async () => {
+    const { applyRubricEdit } = await import('@/utils/rubricPoints');
+    const edited = {
+      ...rubric,
+      criteria: rubric.criteria.map((c) =>
+        c.id === 'c2'
+          ? {
+              ...c,
+              levels: [...c.levels, { id: 'c2l3', label: 'Top', points: 5 }],
+            }
+          : c
+      ),
+    };
+    const out = applyRubricEdit(
+      [
+        { id: 'q1', rubricId: 'lib1', rubricSnapshot: rubric, points: 6 },
+        { id: 'q2', points: 3 },
+      ],
+      edited
+    );
+    expect(out.changed).toBe(true);
+    expect(out.libraryIds).toEqual(['lib1']);
+    expect(out.questions[0]).toMatchObject({
+      rubricSnapshot: edited,
+      points: 9,
+    });
+    expect(out.questions[1]).toEqual({ id: 'q2', points: 3 });
+  });
+});
+
+describe('Full rubric table editing', () => {
+  it('edits a level description and saves the rubric', async () => {
+    const onSave = vi
+      .fn<(r: Rubric) => Promise<void>>()
+      .mockResolvedValue(undefined);
+    const { RubricTableModal } =
+      await import('@/components/widgets/QuizWidget/components/RubricTableModal');
+    render(
+      <RubricTableModal
+        rubric={rubric}
+        order="high-first"
+        onOrderChange={vi.fn()}
+        scores={new Map()}
+        onClose={vi.fn()}
+        onSave={onSave}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Edit/ }));
+    fireEvent.change(screen.getByLabelText('Criterion 1 name'), {
+      target: { value: 'Claim' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await vi.waitFor(() => expect(onSave).toHaveBeenCalled());
+    expect(onSave.mock.calls[0][0].criteria[0].name).toBe('Claim');
+  });
+
+  it('blocks saving when two levels share points', async () => {
+    const { RubricTableModal } =
+      await import('@/components/widgets/QuizWidget/components/RubricTableModal');
+    render(
+      <RubricTableModal
+        rubric={rubric}
+        order="high-first"
+        onOrderChange={vi.fn()}
+        scores={new Map()}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Edit/ }));
+    fireEvent.change(screen.getByLabelText('Criterion 2 level 1 points'), {
+      target: { value: '1' },
+    });
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+  });
+});

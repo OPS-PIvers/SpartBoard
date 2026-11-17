@@ -221,6 +221,8 @@ export interface FreeResponseGraderProps {
   /** Whether a finished grade moves the grader on by itself. */
   autoAdvance?: boolean;
   onAutoAdvanceChange?: (enabled: boolean) => void;
+  /** Saves a rubric edited from the full rubric table; omitted keeps the table read-only. */
+  onSaveRubric?: (rubric: Rubric) => Promise<void>;
   /** Open on this student's answer to this question instead of the first in the queue. */
   initialTarget?: { questionId: string; responseKey: string };
   /** PLC norming flag under the answer; omitted when the quiz isn't PLC-shared or the flag is off. */
@@ -606,6 +608,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   onGraderModeChange,
   autoAdvance = true,
   onAutoAdvanceChange,
+  onSaveRubric,
   initialTarget,
   renderNormingFlag,
   paperPrivate,
@@ -2772,6 +2775,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                       tagCounts={tagCounts}
                       onJumpToTagged={handleJumpToTagged}
                       tagCountKind={isMedia ? 'note' : 'highlight'}
+                      onSaveRubric={onSaveRubric}
                     />
                   </div>
                 )}
