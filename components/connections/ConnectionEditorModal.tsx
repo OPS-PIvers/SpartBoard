@@ -605,7 +605,7 @@ export const ConnectionEditorModal: React.FC<{
           type="button"
           {...tourAttr('connections.editor.delete')}
           onClick={remove}
-          className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-brand-red-primary hover:bg-brand-red-lighter/40"
+          className="mr-6 flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-brand-red-primary hover:bg-brand-red-lighter/40"
         >
           <Trash2 className="h-4 w-4" aria-hidden="true" />
           {t('connections.editor.delete', {
