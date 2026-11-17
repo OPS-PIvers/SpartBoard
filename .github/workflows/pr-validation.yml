@@ -76,11 +76,11 @@ jobs:
             core.setOutput('release', String(release));
             require('fs').writeFileSync('changed-files.txt', files.map((f) => f.filename).join('\n'));
             core.setOutput('complete', String(complete));
-      # Docs-only PRs skip Code Quality, so check their Markdown formatting here.
-      - name: Markdown format (docs-only PRs)
+      # Docs-only PRs skip Code Quality, so check the formatting of their changed files here.
+      - name: Format check (docs-only PRs)
         if: steps.classify.outputs.docs_only == 'true'
         run: |
-          mapfile -t md < <(grep -E '\.md$' changed-files.txt | while read -r f; do [[ -f "$f" ]] && echo "$f"; done)
+          mapfile -t md < <(grep -E '\.(ts|tsx|js|jsx|json|css|md)$' changed-files.txt | while read -r f; do [[ -f "$f" ]] && echo "$f"; done)
           (( ${#md[@]} == 0 )) || npx --yes "prettier@$(node -p "require('./package.json').devDependencies.prettier")" --check "${md[@]}"
       # Rules tests run only when the rules, their tests or app code those tests import changed.
       - id: rules
