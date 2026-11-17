@@ -4,6 +4,7 @@ import {
   printedGroupForPrint,
   printedGroupQuiz,
   printedGroupRecord,
+  printedReprintGroups,
   printedSupports,
 } from '@/utils/paperPrintedVersions';
 import {
@@ -132,5 +133,28 @@ describe('printed supports', () => {
     expect(
       buildPaperTestHtml({ quizTitle: 'Gravity', questions: [] })
     ).not.toContain('Supports');
+  });
+});
+
+describe('printedReprintGroups', () => {
+  it('orders stacks by group and rebuilds each version', () => {
+    const q = quiz([mc('q1', { modifiedText: 'Easier' })]);
+    const batch = (id: string, number: number, modified: boolean) =>
+      ({
+        id,
+        printedGroup: {
+          number,
+          answerChoices: 'two',
+          ...(modified ? { modifiedQuestions: true } : {}),
+        },
+      }) as unknown as import('@/types').PaperBatch;
+    const groups = printedReprintGroups(q, [
+      batch('b2', 2, false),
+      batch('b1', 1, true),
+    ]);
+    expect(groups.map((g) => g.label)).toEqual(['Group 1', 'Group 2']);
+    expect(groups[0].quiz.questions[0].text).toBe('Easier');
+    expect(groups[1].quiz.questions[0].text).toBe('Question q1');
+    expect(groups[1].quiz.questions[0].incorrectAnswers).toHaveLength(1);
   });
 });

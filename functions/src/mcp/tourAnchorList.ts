@@ -13862,6 +13862,26 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-reprint.group",
+    "label": "Group checkbox when printing paper copies again",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.paper-copies-reprint",
+        "kind": "modal",
+        "path": [
+          "library-shell.archive-menu:quiz#row-1",
+          "quiz-library.reprint-paper-copies:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-reprint.student",
     "label": "Student checkbox when printing response sheets again",
     "scope": "field",
@@ -79105,6 +79125,52 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-library.reprint-sheets",
     "label": "Print response sheets item in a paper assignment menu",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [
+          "library-shell.archive-menu:quiz#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:quiz#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-library.import-paper-copies",
+    "label": "Import paper responses item in a quiz assignment menu, for printed group copies",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [
+          "library-shell.archive-menu:quiz#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:quiz#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-library.reprint-paper-copies",
+    "label": "Print paper copies item in a quiz assignment menu, for printed group copies",
     "scope": "widget type",
     "panel": true,
     "keys": [
