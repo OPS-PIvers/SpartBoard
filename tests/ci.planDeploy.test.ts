@@ -1,6 +1,6 @@
 // Guards plan-deploy.sh: per-branch hosting sites and the shared-backend guard.
 import { describe, it, expect } from 'vitest';
-import { mkdtempSync, readFileSync, rmSync } from 'fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join, resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -12,10 +12,17 @@ const script = resolve(repoRoot, '.github/scripts/plan-deploy.sh');
 function plan(
   branch: string,
   files: string[],
-  { containsDevPaul = true, full = false, otherDeployedLast = false } = {}
+  {
+    containsDevPaul = true,
+    full = false,
+    otherDeployedLast = false,
+    oldIndex = undefined as string | undefined,
+  } = {}
 ): Record<string, string> {
   const dir = mkdtempSync(join(tmpdir(), 'plan-deploy-'));
   const out = join(dir, 'out');
+  const oldIndexFile = join(dir, 'old-index.ts');
+  if (oldIndex !== undefined) writeFileSync(oldIndexFile, oldIndex);
   try {
     const result = spawnSync('bash', [script, branch, 'abc', String(full)], {
       env: {
@@ -24,6 +31,7 @@ function plan(
         CHANGED_FILES: files.join('\n'),
         CONTAINS_DEV_PAUL: String(containsDevPaul),
         OTHER_BRANCH_DEPLOYED_LAST: String(otherDeployedLast),
+        OLD_INDEX_FILE: oldIndex === undefined ? '' : oldIndexFile,
       },
     });
     expect(result.status).toBe(0);
@@ -111,6 +119,18 @@ describe('plan-deploy.sh', () => {
       backend: 'true',
       deploy_only: 'functions:fetchLinkPreview,storage',
     });
+  });
+
+  it('names just the new export when index.ts only added one', () => {
+    const index = readFileSync(
+      join(repoRoot, 'functions/src/index.ts'),
+      'utf-8'
+    );
+    const oldIndex = index.replace(/^.*\bfetchLinkPreview\b.*$/m, '');
+    expect(oldIndex).not.toBe(index);
+    expect(
+      plan('main', ['functions/src/index.ts'], { oldIndex }).deploy_only
+    ).toBe('functions:fetchLinkPreview');
   });
 
   it('deploys every function from other dev branches, which diff against dev-paul', () => {
