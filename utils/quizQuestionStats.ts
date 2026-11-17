@@ -45,9 +45,10 @@ export function gradeQuestionForResponse(
   response: QuizResponse,
   fibGrading?: FibGradingContext | null
 ): GradeResult {
-  const manualGrade = isFreeResponseType(question.type)
-    ? readSlotGrade(response.grading, question.id)
-    : undefined;
+  const manualGrade =
+    isFreeResponseType(question.type) || question.type === 'FIB'
+      ? readSlotGrade(response.grading, question.id)
+      : undefined;
   return applyMediaSlots(
     question,
     response,

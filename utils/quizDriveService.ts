@@ -56,7 +56,7 @@ export function makeQuizGradeFn(fibGrading?: FibGradingContext | null) {
     response?: QuizResponse
   ) => {
     const manualGrade =
-      isFreeResponseType(question.type) && response
+      (isFreeResponseType(question.type) || question.type === 'FIB') && response
         ? readSlotGrade(response.grading, question.id)
         : undefined;
     const base = gradeAnswer(
