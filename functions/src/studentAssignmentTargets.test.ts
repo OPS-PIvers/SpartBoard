@@ -167,15 +167,29 @@ function makeDb(state: StubState) {
     runTransaction: async (
       fn: (tx: {
         get: (ref: { __path: string }) => Promise<unknown>;
-        set: (ref: { __path: string }, data: Record<string, unknown>) => void;
+        set: (
+          ref: { __path: string },
+          data: Record<string, unknown>,
+          options?: { merge?: boolean; mergeFields?: string[] }
+        ) => void;
         delete: (ref: { __path: string }) => void;
       }) => Promise<unknown>
     ) =>
       fn({
         get: (ref) => Promise.resolve(snapFor(ref.__path)),
-        set: (ref, data) => {
+        set: (ref, data, options) => {
           state.writes.push({ path: ref.__path, op: 'set', data });
-          applyMerge(state, ref.__path, data);
+          if (options?.mergeFields) {
+            const flat: Record<string, unknown> = {};
+            for (const f of options.mergeFields) flat[f] = data[f];
+            const next = { ...(state.docs.get(ref.__path) ?? {}) };
+            for (const [k, v] of Object.entries(flat)) {
+              if ((v as { __delete?: boolean })?.__delete === true)
+                delete next[k];
+              else next[k] = v;
+            }
+            state.docs.set(ref.__path, next);
+          } else applyMerge(state, ref.__path, data);
         },
         delete: (ref) => {
           state.writes.push({ path: ref.__path, op: 'delete' });
@@ -608,6 +622,46 @@ describe('handleSetAssignmentTargets', () => {
     );
     await run(baseInput({ overridesBySourcedId: {} }));
     expect(pointerFor()).toMatchObject({ override: { timeMultiplier: 2 } });
+  });
+
+  it('drops supports from the pointer when a new override has none', async () => {
+    const supports = [{ kind: 'text', title: 'Word bank', text: 'cell' }];
+    await run(
+      baseInput({
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { readAloud: true, supports },
+        },
+      })
+    );
+    expect(pointerFor().override).toEqual({ readAloud: true, supports });
+    await run(
+      baseInput({
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { readAloud: true },
+        },
+      })
+    );
+    expect(pointerFor().override).toEqual({ readAloud: true });
+  });
+
+  it('leaves supports out of the assignment-doc mirror', async () => {
+    await run(
+      baseInput({
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: {
+            readAloud: true,
+            supports: [{ kind: 'text', title: 'Word bank', text: 'cell' }],
+          },
+        },
+      })
+    );
+    const uid = computeStudentUid(SOURCED_A, HMAC);
+    const mirror = (
+      state.docs.get(assignmentPath()) as {
+        overridesByStudentUid: Record<string, unknown>;
+      }
+    ).overridesByStudentUid[uid];
+    expect(mirror).toEqual({ readAloud: true });
   });
 
   it('clears a stored override on an explicit null for that key', async () => {

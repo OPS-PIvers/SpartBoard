@@ -30,6 +30,7 @@ import type { QuizSupport } from '@/types';
 import type { ModificationsQuizContext } from './ModificationsView';
 import { usePickMenu } from './usePickMenu';
 import { SupportsEditor } from './SupportsEditor';
+import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import {
   groupRuleLabels,
   hiddenOptionIdsForRule,
@@ -52,6 +53,8 @@ export interface ModificationGroupsStepProps {
   timeLimitLabel?: string;
   /** Current per-student overrides, for the translation advisory. */
   overridesByKey: Parameters<typeof effectiveClassOverride>[1];
+  /** True while a support's Drive file is still being shared. */
+  onSharingChange?: (sharing: boolean) => void;
 }
 
 const Row: React.FC<{ label: string; children: React.ReactNode }> = ({
@@ -205,8 +208,15 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
   quizContext,
   timeLimitLabel,
   overridesByKey,
+  onSharingChange,
 }) => {
   const { t } = useTranslation();
+  const { driveService } = useGoogleDrive();
+  const deleteDriveCopies = (supports: QuizSupport[] | undefined) => {
+    for (const s of supports ?? [])
+      if (s.kind === 'drive')
+        void driveService?.deleteFile(s.fileId).catch(() => undefined);
+  };
   const auth = useContext(AuthContext);
   const readAloudOn =
     auth?.canAccessFeature?.(QUIZ_READ_ALOUD_FEATURE) === true;
@@ -241,7 +251,11 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
     update: (prev: QuizSupport[]) => QuizSupport[]
   ) => {
     const current = latest.current;
-    if (!current.some((g) => g.id === id)) return;
+    if (!current.some((g) => g.id === id)) {
+      // The group was removed while its file was sharing.
+      deleteDriveCopies(update([]));
+      return;
+    }
     const next = current.map((g) =>
       g.id === id ? { ...g, supports: update(g.supports ?? []) } : g
     );
@@ -453,12 +467,14 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
             <SupportsEditor
               supports={group.supports ?? []}
               onChange={(update) => updateSupports(group.id, update)}
+              onSharingChange={onSharingChange}
             />
             {list.length > 1 && (
               <div className="pt-2">
                 <button
                   type="button"
                   onClick={() => {
+                    deleteDriveCopies(group.supports);
                     onChange(list.filter((g) => g.id !== group.id));
                     setOpenId(null);
                   }}

@@ -124,6 +124,7 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   const { t } = useTranslation();
   const gates = useQuizRuleGates();
   const [modsOpen, setModsOpen] = useState(false);
+  const [sharingCount, setSharingCount] = useState(0);
   const auth = useContext(AuthContext);
   const groupsOn =
     !!modifications && auth?.canAccessFeature?.('modification-groups') === true;
@@ -286,6 +287,9 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
           quizContext={modifications.quizContext}
           timeLimitLabel={timeLimitLabel}
           overridesByKey={modifications.targeting.overridesByKey}
+          onSharingChange={(sharing) =>
+            setSharingCount((n) => Math.max(0, n + (sharing ? 1 : -1)))
+          }
         />
       ),
     };
@@ -328,16 +332,18 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
           : undefined
       }
       onSubmit={onSubmit}
-      disabled={needsPlc || backwards}
+      disabled={needsPlc || backwards || sharingCount > 0}
       disabledReason={
         needsPlc
           ? PICK_A_PLC
-          : backwards
-            ? t(
-                'assignAvailability.closesBeforeOpens',
-                'Closes before it opens.'
-              )
-            : undefined
+          : sharingCount > 0
+            ? 'Still sharing a Drive file.'
+            : backwards
+              ? t(
+                  'assignAvailability.closesBeforeOpens',
+                  'Closes before it opens.'
+                )
+              : undefined
       }
       overlayView={
         modifications && modsOpen ? (

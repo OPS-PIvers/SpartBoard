@@ -49,13 +49,15 @@ export const SupportsEditor: React.FC<{
   supports: QuizSupport[];
   /** Takes an updater so a slow Drive share applies to the latest list. */
   onChange: (update: (prev: QuizSupport[]) => QuizSupport[]) => void;
-}> = ({ supports, onChange }) => {
+  /** True while a Drive file is being copied and shared. */
+  onSharingChange?: (sharing: boolean) => void;
+}> = ({ supports, onChange, onSharingChange }) => {
   const { open, setOpen, rootRef, onKeyDown } = usePickMenu();
   const menuId = useId();
   const titleId = useId();
   const bodyId = useId();
   const { openPicker } = useGooglePicker();
-  const { driveService, userDomain } = useGoogleDrive();
+  const { driveService } = useGoogleDrive();
   const { ensureGoogleScope } = useAuth();
   const [draft, setDraft] = useState<{
     kind: DraftKind;
@@ -89,6 +91,7 @@ export const SupportsEditor: React.FC<{
     if (!file || !driveService) return;
     const picked = file;
     setBusy(true);
+    onSharingChange?.(true);
     let copyId: string | null = null;
     try {
       // Share a copy so the teacher's original keeps its own sharing.
@@ -98,7 +101,8 @@ export const SupportsEditor: React.FC<{
         'Assets/QuizSupports'
       );
       copyId = copy.id;
-      await driveService.makePublic(copy.id, userDomain);
+      // Anyone with the link, like quiz stimuli, so every student can open it.
+      await driveService.makePublic(copy.id, undefined);
       onChange((prev) =>
         prev.length >= MAX_SUPPORTS
           ? prev
@@ -116,6 +120,7 @@ export const SupportsEditor: React.FC<{
       setError('Couldn’t share that file. Try again.');
     } finally {
       setBusy(false);
+      onSharingChange?.(false);
     }
   };
 

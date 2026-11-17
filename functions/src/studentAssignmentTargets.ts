@@ -728,6 +728,14 @@ function sameIdSet(a: readonly string[], b: readonly string[]): boolean {
   return setA.size === new Set(b).size && b.every((id) => setA.has(id));
 }
 
+/** Scoring never reads supports, so the assignment-doc mirror leaves them out. */
+function withoutSupports(override: StudentOverride): StudentOverride {
+  if (!override.supports) return override;
+  const rest = { ...override };
+  delete rest.supports;
+  return rest;
+}
+
 // ── handler ────────────────────────────────────────────────────────────────
 
 /**
@@ -823,7 +831,8 @@ async function commitPointerOps(
         if (!op.payload) {
           if (snap.exists) tx.delete(op.ref);
         } else if (snap.exists || !op.requireExisting) {
-          tx.set(op.ref, op.payload, { merge: true });
+          // Named fields replace whole, so a dropped override key is removed.
+          tx.set(op.ref, op.payload, { mergeFields: Object.keys(op.payload) });
         }
       });
       return lost;
@@ -1306,7 +1315,9 @@ export async function handleSetAssignmentTargets(
   for (const [uid, value] of overrideChangesByUid) {
     if (conflicts.has(uid)) continue;
     overridesByStudentUid[uid] =
-      value === null ? admin.firestore.FieldValue.delete() : value;
+      value === null
+        ? admin.firestore.FieldValue.delete()
+        : withoutSupports(value);
   }
   // Write-once record of the language each student was served. Never cleared,
   // so de-targeting one still grades their submitted work in the right locale.
