@@ -67,3 +67,6 @@ export const applyRubricEdit = <
   });
   return { questions: next, changed, libraryIds: [...libraryIds] };
 };
+
+export const RUBRIC_MIN_LEVELS = 2;
+export const RUBRIC_MAX_LEVELS = 6;

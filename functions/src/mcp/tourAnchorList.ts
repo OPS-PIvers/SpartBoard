@@ -18879,6 +18879,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "persists": true,
     "keys": [
       "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
     ]
   },
   {
@@ -18888,6 +18895,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "keys": [
       "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
     ]
   },
   {
@@ -18898,6 +18912,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "persists": true,
     "keys": [
       "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
     ]
   },
   {
@@ -18907,6 +18928,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "keys": [
       "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
     ]
   },
   {
@@ -18916,13 +18944,84 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "keys": [
       "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-add-criterion",
+    "label": "Add criterion when editing the full rubric table",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-add-level",
+    "label": "Add level when editing the full rubric table, by criterion",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-remove-criterion",
+    "label": "Remove criterion when editing the full rubric table, by criterion",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-remove-level",
+    "label": "Remove level when editing the full rubric table, by level",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
     ]
   },
   {
     "id": "quiz-grading.rubric-table-field",
     "label": "Text or points field when editing the full rubric table, by field",
     "scope": "field",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
   },
   {
     "id": "quiz-grading.rubric-criterion-toggle",
@@ -19027,6 +19126,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-rubric.builder-close",
     "label": "Close button on the Quiz rubric builder",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-builder",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-rubric.builder-table",
+    "label": "Edit as table button on the Quiz rubric builder",
     "scope": "widget type",
     "panel": true,
     "keys": [

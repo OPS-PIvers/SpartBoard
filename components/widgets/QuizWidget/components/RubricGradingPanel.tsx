@@ -1,5 +1,5 @@
 // Rubric grading (rubric-grading-v2): one-tap level buttons, expandable criteria, per-criterion score override.
-import React, { useCallback, useContext, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowLeftRight,
@@ -12,10 +12,9 @@ import type {
   Rubric,
   RubricCriterion,
   RubricLevel,
-  RubricLevelOrder,
   WrittenAnswerRubricScore,
 } from '@/types';
-import { AuthContext } from '@/context/AuthContextValue';
+import { useRubricLevelOrder } from '@/hooks/useRubricLevelOrder';
 import {
   criterionMaxPoints,
   orderRubricLevels,
@@ -60,9 +59,7 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
   onSaveRubric,
 }) => {
   const { t } = useTranslation();
-  const auth = useContext(AuthContext);
-  const [localOrder, setLocalOrder] = useState<RubricLevelOrder>('high-first');
-  const order = auth?.rubricLevelOrder ?? localOrder;
+  const [order, switchOrder] = useRubricLevelOrder();
   const [scores, setScores] = useState<WrittenAnswerRubricScore[]>(
     () => initialScores ?? []
   );
@@ -201,18 +198,6 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
       if (remember) openCriteriaMemory.set(remember, next);
       return next;
     });
-
-  const switchOrder = () => {
-    const next: RubricLevelOrder =
-      order === 'high-first' ? 'low-first' : 'high-first';
-    if (auth) {
-      auth.updateAccountPreferences({ rubricLevelOrder: next }).catch(() => {
-        // Saved locally for this session even if the profile write fails.
-      });
-    } else {
-      setLocalOrder(next);
-    }
-  };
 
   const rubricMax = useMemo(() => rubricMaxPoints(rubric), [rubric]);
   const derivedPoints = sumRubricScorePoints(scores);

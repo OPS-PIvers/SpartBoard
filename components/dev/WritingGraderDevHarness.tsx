@@ -1,4 +1,4 @@
-// `/writing-grader-dev?view=results|grader|student|table&grading=points|rubric|dreamhome|ungraded[&v2=1][&order=low-first]`: Writing results, grader and feedback on fixtures.
+// `/writing-grader-dev?view=results|grader|student|table[&structure=1]&grading=points|rubric|dreamhome|ungraded[&v2=1][&order=low-first]`: Writing results, grader and feedback on fixtures.
 import React, { useMemo, useState } from 'react';
 import type {
   Rubric,
@@ -404,10 +404,17 @@ export const WritingGraderDevHarness: React.FC = () => {
             <RubricTableModal
               rubric={DREAM_HOME}
               order={rubricLevelOrder}
-              onOrderChange={setRubricLevelOrder}
+              onOrderChange={() =>
+                setRubricLevelOrder((o) =>
+                  o === 'high-first' ? 'low-first' : 'high-first'
+                )
+              }
               scores={new Map()}
               onClose={noop}
               onSave={() => Promise.resolve()}
+              initialEditing={params.get('structure') === '1'}
+              editStructure={params.get('structure') === '1'}
+              saveLabel={params.get('structure') === '1' ? 'Done' : 'Save'}
             />
           )}
           <DialogContainer />

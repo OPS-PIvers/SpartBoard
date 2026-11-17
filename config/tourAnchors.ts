@@ -4570,6 +4570,28 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-grading.rubric-table-add-criterion': {
+    label: 'Add criterion when editing the full rubric table',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-add-level': {
+    label: 'Add level when editing the full rubric table, by criterion',
+    perField: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-remove-criterion': {
+    label: 'Remove criterion when editing the full rubric table, by criterion',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-remove-level': {
+    label: 'Remove level when editing the full rubric table, by level',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
   'quiz-grading.rubric-table-field': {
     label: 'Text or points field when editing the full rubric table, by field',
     perField: true,
@@ -4608,6 +4630,11 @@ export const TOUR_ANCHORS = {
   },
   'quiz-rubric.builder-close': {
     label: 'Close button on the Quiz rubric builder',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-rubric.builder-table': {
+    label: 'Edit as table button on the Quiz rubric builder',
     perWidgetType: true,
     panel: true,
   },

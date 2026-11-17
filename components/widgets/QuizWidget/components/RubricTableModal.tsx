@@ -1,6 +1,6 @@
 // Full rubric as a table, opened from the grader's rubric panel; picks are highlighted and the rubric can be edited in place.
 import React, { useState } from 'react';
-import { ArrowLeftRight, Check, Pencil, X } from 'lucide-react';
+import { ArrowLeftRight, Check, Pencil, Plus, Trash2, X } from 'lucide-react';
 import type {
   Rubric,
   RubricCriterion,
@@ -15,6 +15,8 @@ import { RubricGuideExamples } from '@/components/quiz/RubricGuideExamples';
 import {
   criterionMaxPoints,
   orderRubricLevels,
+  RUBRIC_MAX_LEVELS,
+  RUBRIC_MIN_LEVELS,
   rubricMaxPoints,
 } from '@/utils/rubricPoints';
 
@@ -26,6 +28,11 @@ interface RubricTableModalProps {
   onClose: () => void;
   /** Saves an edited rubric; the Edit button shows only when this is given. */
   onSave?: (rubric: Rubric) => Promise<void>;
+  /** Opens straight into editing; Cancel and Save then close the table. */
+  initialEditing?: boolean;
+  /** Lets editing add and remove criteria and levels. */
+  editStructure?: boolean;
+  saveLabel?: string;
 }
 
 const pts = (n: number) => `${n} pt${n === 1 ? '' : 's'}`;
@@ -53,11 +60,33 @@ const duplicatePointCriteria = (rubric: Rubric): Set<string> =>
       .map((c) => c.id)
   );
 
-const fieldBase =
-  'w-full rounded-md border border-slate-300 bg-white px-2 py-1 text-slate-900 placeholder:text-slate-400 focus:border-brand-blue-primary focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/30';
+const removeButton =
+  'flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-red-50 hover:text-brand-red-primary focus-visible:outline-2 focus-visible:outline-brand-blue-primary';
+const textButton =
+  'flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-semibold text-brand-blue-primary transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-brand-blue-primary';
+
+const fieldCore =
+  'rounded-md border border-slate-300 bg-white px-2 py-1 text-slate-900 placeholder:text-slate-400 focus:border-brand-blue-primary focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/30';
+const fieldBase = `w-full ${fieldCore}`;
+// field-sizing keeps text boxes fitted as columns are added or resized.
+const growField = `${fieldBase} resize-none [field-sizing:content]`;
+
+const clone = (r: Rubric): Rubric => JSON.parse(JSON.stringify(r)) as Rubric;
+
+const newLevel = (points: number, label = ''): RubricLevel => ({
+  id: crypto.randomUUID(),
+  label,
+  points,
+});
+
+const nextPoints = (levels: RubricLevel[]) =>
+  levels.reduce((m, l) => Math.max(m, l.points), -1) + 1;
+
+const fieldSizing =
+  typeof CSS !== 'undefined' && CSS.supports?.('field-sizing', 'content');
 
 const autoGrow = (el: HTMLTextAreaElement | null) => {
-  if (!el) return;
+  if (!el || fieldSizing) return;
   el.style.height = 'auto';
   el.style.height = `${el.scrollHeight}px`;
 };
@@ -69,8 +98,20 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
   scores,
   onClose,
   onSave,
+  initialEditing = false,
+  editStructure = false,
+  saveLabel = 'Save',
 }) => {
-  const [draft, setDraft] = useState<Rubric | null>(null);
+  const [draft, setDraft] = useState<Rubric | null>(() =>
+    initialEditing ? clone(rubric) : null
+  );
+  // Fixed when editing starts, so typing a label or adding a level doesn't switch layouts.
+  const [editShared, setEditShared] = useState(
+    () =>
+      sharedLabels(
+        rubric.criteria.map((c) => orderRubricLevels(c.levels, order))
+      ) !== null
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
@@ -79,10 +120,11 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
 
   const rows = shown.criteria.map((c) => orderRubricLevels(c.levels, order));
   const columns = rows.reduce((n, r) => Math.max(n, r.length), 0);
-  // Column headers come from the saved rubric so typing a label doesn't split the table.
-  const headers = sharedLabels(
-    rubric.criteria.map((c) => orderRubricLevels(c.levels, order))
-  );
+  const headers = editing
+    ? editShared
+      ? (rows[0]?.map((l) => l.label) ?? null)
+      : null
+    : sharedLabels(rows);
   const scored = rubric.criteria.filter((c) => scores.has(c.id));
   const earned = scored.reduce(
     (sum, c) => sum + (scores.get(c.id)?.points ?? 0),
@@ -144,40 +186,106 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
         : d
     );
 
-  const draftHeaders =
-    editing && headers
-      ? headers.map(
-          (_, i) =>
-            orderRubricLevels(shown.criteria[0].levels, order)[i]?.label ?? ''
-        )
-      : headers;
+  const draftHeaders = headers;
+  const structure = editing && editStructure;
+  const addColumn = structure && editShared && columns < RUBRIC_MAX_LEVELS;
+
+  const startEditing = () => {
+    setError(null);
+    setEditShared(sharedLabels(rows) !== null);
+    setDraft(clone(rubric));
+  };
+  const stopEditing = () => {
+    setError(null);
+    if (initialEditing) onClose();
+    else setDraft(null);
+  };
+
+  const addCriterion = () =>
+    setDraft((d) => {
+      if (!d) return d;
+      const template = d.criteria[0]?.levels ?? [newLevel(0), newLevel(1)];
+      return {
+        ...d,
+        criteria: [
+          ...d.criteria,
+          {
+            id: crypto.randomUUID(),
+            name: '',
+            levels: template.map((l) =>
+              newLevel(l.points, editShared ? l.label : '')
+            ),
+          },
+        ],
+      };
+    });
+  const removeCriterion = (id: string) =>
+    setDraft((d) =>
+      d ? { ...d, criteria: d.criteria.filter((c) => c.id !== id) } : d
+    );
+  // With shared columns a level is added to or removed from every criterion.
+  const addLevel = (criterionId?: string) =>
+    setDraft((d) =>
+      d
+        ? {
+            ...d,
+            criteria: d.criteria.map((c) =>
+              (criterionId === undefined || c.id === criterionId) &&
+              c.levels.length < RUBRIC_MAX_LEVELS
+                ? {
+                    ...c,
+                    levels: [...c.levels, newLevel(nextPoints(c.levels))],
+                  }
+                : c
+            ),
+          }
+        : d
+    );
+  const removeLevel = (index: number, criterionId?: string) =>
+    setDraft((d) =>
+      d
+        ? {
+            ...d,
+            criteria: d.criteria.map((c) => {
+              if (criterionId !== undefined && c.id !== criterionId) return c;
+              const target = orderRubricLevels(c.levels, order)[index];
+              return target && c.levels.length > RUBRIC_MIN_LEVELS
+                ? { ...c, levels: c.levels.filter((l) => l.id !== target.id) }
+                : c;
+            }),
+          }
+        : d
+    );
 
   const save = async () => {
     if (!draft || !onSave) return;
     setSaving(true);
     setError(null);
     try {
+      // The builder validates blanks itself; the grader fills them so a saved rubric stays readable.
+      const fill = !editStructure;
       const clean: Rubric = {
         ...draft,
-        title: draft.title.trim() || rubric.title,
+        title: draft.title.trim() || (fill ? rubric.title : ''),
         updatedAt: Date.now(),
         criteria: draft.criteria.map((c) => ({
           ...c,
-          name: c.name.trim() || 'Untitled criterion',
+          name: c.name.trim() || (fill ? 'Untitled criterion' : ''),
           ...(c.description?.trim()
             ? { description: c.description.trim() }
             : { description: undefined }),
           levels: c.levels.map((l) => ({
             ...l,
-            label: l.label.trim() || 'Untitled level',
+            label: l.label.trim() || (fill ? 'Untitled level' : ''),
             ...(l.description?.trim()
               ? { description: l.description.trim() }
               : { description: undefined }),
           })),
         })),
       };
-      await onSave(JSON.parse(JSON.stringify(clean)) as Rubric);
-      setDraft(null);
+      await onSave(clone(clean));
+      if (initialEditing) onClose();
+      else setDraft(null);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'The rubric could not be saved.'
@@ -197,6 +305,7 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
               onChange={(e) =>
                 setDraft((d) => (d ? { ...d, title: e.target.value } : d))
               }
+              placeholder="Rubric title"
               aria-label="Rubric title"
               {...tourFieldAttr(
                 'quiz-grading.rubric-table-field',
@@ -207,16 +316,13 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
             />
           ) : (
             <h3 className="break-words text-lg font-bold text-slate-900">
-              {rubric.title}
+              {shown.title}
             </h3>
           )}
-          {onSave && !editing && (
+          {onSave && !editing && !initialEditing && (
             <button
               type="button"
-              onClick={() => {
-                setError(null);
-                setDraft(JSON.parse(JSON.stringify(rubric)) as Rubric);
-              }}
+              onClick={startEditing}
               {...tourTypeAttr('quiz-grading.rubric-table-edit', 'quiz')}
               className="flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-sm font-semibold text-brand-blue-primary transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
             >
@@ -280,10 +386,7 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
             <div className="flex justify-center gap-3">
               <button
                 type="button"
-                onClick={() => {
-                  setDraft(null);
-                  setError(null);
-                }}
+                onClick={stopEditing}
                 disabled={saving}
                 {...tourTypeAttr('quiz-grading.rubric-table-cancel', 'quiz')}
                 className="rounded-lg border border-slate-300 bg-white px-6 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
@@ -297,7 +400,7 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
                 {...tourTypeAttr('quiz-grading.rubric-table-save', 'quiz')}
                 className="rounded-lg bg-brand-blue-primary px-8 py-2.5 text-sm font-bold text-white transition-colors hover:bg-brand-blue-dark disabled:opacity-50"
               >
-                {saving ? 'Saving…' : 'Save'}
+                {saving ? 'Saving…' : saveLabel}
               </button>
             </div>
           ) : (
@@ -330,7 +433,7 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
             'quiz',
             'description'
           )}
-          className={`${fieldBase} mb-4 max-w-3xl resize-none text-sm`}
+          className={`${growField} mb-4 max-w-3xl text-sm`}
         />
       ) : (
         rubric.description && (
@@ -340,12 +443,20 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
         )
       )}
       <div className="overflow-x-auto rounded-xl border border-slate-200">
-        <table className="w-full min-w-[44rem] table-fixed border-collapse text-left">
+        <table
+          className="w-full min-w-[44rem] table-fixed border-collapse text-left"
+          style={
+            editing
+              ? { minWidth: `${15 + columns * 12 + (addColumn ? 3.5 : 0)}rem` }
+              : undefined
+          }
+        >
           <colgroup>
             <col className="w-60" />
             {Array.from({ length: columns }, (_, i) => (
               <col key={i} />
             ))}
+            {addColumn && <col className="w-14" />}
           </colgroup>
           {draftHeaders && (
             <thead>
@@ -363,22 +474,66 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
                     className="border-l border-slate-200 px-4 py-3 text-sm font-bold text-slate-800"
                   >
                     {editing ? (
-                      <input
-                        value={label}
-                        onChange={(e) => renameColumn(i, e.target.value)}
-                        aria-label={`Level ${i + 1} name`}
-                        {...tourFieldAttr(
-                          'quiz-grading.rubric-table-field',
-                          'quiz',
-                          `column-${i + 1}`
+                      <span className="flex items-start gap-1">
+                        <textarea
+                          ref={autoGrow}
+                          rows={1}
+                          value={label}
+                          onChange={(e) => {
+                            renameColumn(i, e.target.value);
+                            autoGrow(e.target);
+                          }}
+                          placeholder="Level name"
+                          aria-label={`Level ${i + 1} name`}
+                          {...tourFieldAttr(
+                            'quiz-grading.rubric-table-field',
+                            'quiz',
+                            `column-${i + 1}`
+                          )}
+                          className={`${growField} min-w-0 flex-1 text-sm font-bold`}
+                        />
+                        {structure && columns > RUBRIC_MIN_LEVELS && (
+                          <button
+                            type="button"
+                            onClick={() => removeLevel(i)}
+                            aria-label={`Remove level ${i + 1}`}
+                            {...tourFieldAttr(
+                              'quiz-grading.rubric-table-remove-level',
+                              'quiz',
+                              String(i + 1)
+                            )}
+                            className={removeButton}
+                          >
+                            <Trash2 className="h-4 w-4" aria-hidden />
+                          </button>
                         )}
-                        className={`${fieldBase} text-sm font-bold`}
-                      />
+                      </span>
                     ) : (
                       label
                     )}
                   </th>
                 ))}
+                {addColumn && (
+                  <th
+                    scope="col"
+                    className="border-l border-slate-200 px-1 py-3"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => addLevel()}
+                      aria-label="Add level"
+                      title="Add level"
+                      {...tourFieldAttr(
+                        'quiz-grading.rubric-table-add-level',
+                        'quiz',
+                        'all'
+                      )}
+                      className="mx-auto flex h-9 w-9 items-center justify-center rounded-md text-brand-blue-primary transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
+                    >
+                      <Plus className="h-5 w-5" aria-hidden />
+                    </button>
+                  </th>
+                )}
               </tr>
             </thead>
           )}
@@ -399,24 +554,42 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
                   >
                     {editing ? (
                       <>
-                        <textarea
-                          ref={autoGrow}
-                          rows={1}
-                          value={criterion.name}
-                          onChange={(e) => {
-                            patchCriterion(criterion.id, {
-                              name: e.target.value,
-                            });
-                            autoGrow(e.target);
-                          }}
-                          aria-label={`Criterion ${ri + 1} name`}
-                          {...tourFieldAttr(
-                            'quiz-grading.rubric-table-field',
-                            'quiz',
-                            `${ri + 1}-name`
+                        <span className="flex items-start gap-1">
+                          <textarea
+                            ref={autoGrow}
+                            rows={1}
+                            placeholder="Criterion name"
+                            value={criterion.name}
+                            onChange={(e) => {
+                              patchCriterion(criterion.id, {
+                                name: e.target.value,
+                              });
+                              autoGrow(e.target);
+                            }}
+                            aria-label={`Criterion ${ri + 1} name`}
+                            {...tourFieldAttr(
+                              'quiz-grading.rubric-table-field',
+                              'quiz',
+                              `${ri + 1}-name`
+                            )}
+                            className={`${growField} min-w-0 flex-1 text-sm font-bold`}
+                          />
+                          {structure && shown.criteria.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeCriterion(criterion.id)}
+                              aria-label={`Remove criterion ${ri + 1}`}
+                              {...tourFieldAttr(
+                                'quiz-grading.rubric-table-remove-criterion',
+                                'quiz',
+                                String(ri + 1)
+                              )}
+                              className={removeButton}
+                            >
+                              <Trash2 className="h-4 w-4" aria-hidden />
+                            </button>
                           )}
-                          className={`${fieldBase} resize-none text-sm font-bold`}
-                        />
+                        </span>
                         <textarea
                           ref={autoGrow}
                           rows={2}
@@ -434,8 +607,25 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
                             'quiz',
                             `${ri + 1}-description`
                           )}
-                          className={`${fieldBase} mt-2 resize-none text-xs leading-relaxed`}
+                          className={`${growField} mt-2 min-h-14 text-xs leading-relaxed`}
                         />
+                        {structure &&
+                          !editShared &&
+                          criterion.levels.length < RUBRIC_MAX_LEVELS && (
+                            <button
+                              type="button"
+                              onClick={() => addLevel(criterion.id)}
+                              {...tourFieldAttr(
+                                'quiz-grading.rubric-table-add-level',
+                                'quiz',
+                                String(ri + 1)
+                              )}
+                              className={`${textButton} mt-2`}
+                            >
+                              <Plus className="h-4 w-4" aria-hidden />
+                              Add level
+                            </button>
+                          )}
                       </>
                     ) : (
                       <>
@@ -479,6 +669,24 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
                           className="border-l border-slate-200 bg-slate-50/50"
                         />
                       );
+                    const cellRemove = structure &&
+                      !editShared &&
+                      levels.length > RUBRIC_MIN_LEVELS && (
+                        // eslint-disable-next-line no-restricted-syntax -- a remove button per rubric level cell, not a number picker
+                        <button
+                          type="button"
+                          onClick={() => removeLevel(i, criterion.id)}
+                          aria-label={`Remove criterion ${ri + 1} level ${i + 1}`}
+                          {...tourFieldAttr(
+                            'quiz-grading.rubric-table-remove-level',
+                            'quiz',
+                            `${ri + 1}-${i + 1}`
+                          )}
+                          className={removeButton}
+                        >
+                          <Trash2 className="h-4 w-4" aria-hidden />
+                        </button>
+                      );
                     const isPicked = picked?.levelId === level.id;
                     if (editing) {
                       return (
@@ -487,21 +695,28 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
                           className="border-l border-slate-200 bg-white px-3 py-3"
                         >
                           {!draftHeaders && (
-                            <input
-                              value={level.label}
-                              onChange={(e) =>
-                                patchLevel(criterion.id, level.id, {
-                                  label: e.target.value,
-                                })
-                              }
-                              aria-label={`Criterion ${ri + 1} level ${i + 1} name`}
-                              {...tourFieldAttr(
-                                'quiz-grading.rubric-table-field',
-                                'quiz',
-                                `${ri + 1}-${i + 1}-label`
-                              )}
-                              className={`${fieldBase} mb-2 text-sm font-bold`}
-                            />
+                            <span className="mb-2 flex items-start gap-1">
+                              <textarea
+                                ref={autoGrow}
+                                rows={1}
+                                value={level.label}
+                                onChange={(e) => {
+                                  patchLevel(criterion.id, level.id, {
+                                    label: e.target.value,
+                                  });
+                                  autoGrow(e.target);
+                                }}
+                                aria-label={`Criterion ${ri + 1} level ${i + 1} name`}
+                                {...tourFieldAttr(
+                                  'quiz-grading.rubric-table-field',
+                                  'quiz',
+                                  `${ri + 1}-${i + 1}-label`
+                                )}
+                                placeholder="Level name"
+                                className={`${growField} min-w-0 flex-1 text-sm font-bold`}
+                              />
+                              {cellRemove}
+                            </span>
                           )}
                           <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
                             <input
@@ -523,7 +738,7 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
                                 'quiz',
                                 `${ri + 1}-${i + 1}-points`
                               )}
-                              className={`${fieldBase} w-16 text-right text-sm font-bold tabular-nums aria-[invalid]:border-brand-red-primary`}
+                              className={`${fieldCore} w-16 text-right text-sm font-bold tabular-nums aria-[invalid]:border-brand-red-primary`}
                             />
                             pts
                           </label>
@@ -544,7 +759,7 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
                               'quiz',
                               `${ri + 1}-${i + 1}-description`
                             )}
-                            className={`${fieldBase} mt-2 resize-none text-[13px] leading-relaxed`}
+                            className={`${growField} mt-2 min-h-16 text-[13px] leading-relaxed`}
                           />
                         </td>
                       );
@@ -596,12 +811,26 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
                       </td>
                     );
                   })}
+                  {addColumn && (
+                    <td className="border-l border-slate-200 bg-slate-50/50" />
+                  )}
                 </tr>
               );
             })}
           </tbody>
         </table>
       </div>
+      {structure && (
+        <button
+          type="button"
+          onClick={addCriterion}
+          {...tourTypeAttr('quiz-grading.rubric-table-add-criterion', 'quiz')}
+          className={`${textButton} mt-3`}
+        >
+          <Plus className="h-4 w-4" aria-hidden />
+          Add criterion
+        </button>
+      )}
     </Modal>
   );
 };

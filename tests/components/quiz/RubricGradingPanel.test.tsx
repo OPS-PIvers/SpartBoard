@@ -265,4 +265,48 @@ describe('Full rubric table editing', () => {
     });
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
   });
+
+  it('adds and removes criteria and levels in the builder table', async () => {
+    const onSave = vi
+      .fn<(r: Rubric) => Promise<void>>()
+      .mockResolvedValue(undefined);
+    const onClose = vi.fn();
+    const shared: Rubric = {
+      ...rubric,
+      criteria: rubric.criteria.map((c) => ({
+        ...c,
+        levels: c.levels.slice(0, 2).map((l, i) => ({
+          ...l,
+          label: i ? 'Meets' : 'Below',
+        })),
+      })),
+    };
+    const { RubricTableModal } =
+      await import('@/components/widgets/QuizWidget/components/RubricTableModal');
+    render(
+      <RubricTableModal
+        rubric={shared}
+        order="high-first"
+        onOrderChange={vi.fn()}
+        scores={new Map()}
+        onClose={onClose}
+        onSave={onSave}
+        initialEditing
+        editStructure
+        saveLabel="Done"
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Add level' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add criterion' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove criterion 1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
+    const saved = onSave.mock.calls[0][0];
+    expect(saved.criteria.map((c) => c.levels.length)).toEqual([3, 3]);
+    expect(saved.criteria[1].levels.map((l) => l.label)).toEqual([
+      'Below',
+      'Meets',
+      '',
+    ]);
+  });
 });
