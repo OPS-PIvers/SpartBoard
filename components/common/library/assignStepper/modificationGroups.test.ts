@@ -243,6 +243,14 @@ describe('formatModificationGroupsValue', () => {
       )
     ).toBe('1 student: modified questions');
   });
+  it('names a printed version', () => {
+    expect(
+      formatModificationGroupsValue(
+        [group({ studentKeys: ['a'], printed: true })],
+        scope
+      )
+    ).toBe('1 student: printed version');
+  });
   it('counts several groups', () => {
     expect(
       formatModificationGroupsValue(

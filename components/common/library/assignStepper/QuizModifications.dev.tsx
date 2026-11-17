@@ -105,6 +105,7 @@ const Preview: React.FC = () => {
         hasManualGrading={false}
         handRaiseMode="teacher-choice"
         submitLabel="Assign"
+        printedVersionsAvailable
         onClose={() => undefined}
         onSubmit={() => undefined}
       />

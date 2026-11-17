@@ -47,8 +47,10 @@ import {
   formatModificationGroupsValue,
   newModificationGroup,
   overridesFromGroups,
+  printedGroupPicks,
   rowsInClasses,
   type ModificationGroup,
+  type PrintedGroupPick,
 } from '@/components/common/library/assignStepper/modificationGroups';
 import { tourTypeAttr } from '@/config/tourAnchors';
 import {
@@ -99,8 +101,12 @@ export interface QuizAssignStepperProps {
   written?: React.ComponentProps<typeof WrittenAnswersStep>;
   /** Leaves the stepper for the paper print flow; omit when paper sheets are off. */
   onAssignOnPaper?: () => void;
+  /** A modification group can print its version (`paper-printed-versions`). */
+  printedVersionsAvailable?: boolean;
   onClose: () => void;
-  onSubmit: () => void | Promise<void>;
+  onSubmit: (extra: {
+    printedGroups: PrintedGroupPick[];
+  }) => void | Promise<void>;
 }
 
 export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
@@ -121,6 +127,7 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   submitLabel,
   written,
   onAssignOnPaper,
+  printedVersionsAvailable = false,
   onClose,
   onSubmit,
 }) => {
@@ -294,6 +301,7 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
           onSharingChange={(sharing) =>
             setSharingCount((n) => Math.max(0, n + (sharing ? 1 : -1)))
           }
+          printedAvailable={printedVersionsAvailable}
         />
       ),
     };
@@ -305,7 +313,12 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
       body: <WrittenAnswersStep {...written} />,
     };
   }
-  const onPaper = written?.value.where === 'paper';
+  const modsShown = stepIds.includes('modifications');
+  const printedGroups =
+    printedVersionsAvailable && modsShown
+      ? printedGroupPicks(groups, groupRows)
+      : [];
+  const onPaper = written?.value.where === 'paper' || printedGroups.length > 0;
   const steps: AssignStepDef[] = stepIds.map((id) => {
     const step = ruleSteps.get(id) ?? {
       id,
@@ -346,7 +359,7 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
             }
           : undefined
       }
-      onSubmit={onSubmit}
+      onSubmit={() => onSubmit({ printedGroups })}
       disabled={needsPlc || backwards || sharingCount > 0}
       disabledReason={
         needsPlc

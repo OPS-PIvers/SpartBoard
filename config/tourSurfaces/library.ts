@@ -135,6 +135,7 @@ export const SURFACES: TourSurfaceMap = {
       'assign-mods.answer-choices': 'assign-step.modifications',
       'assign-mods.time': 'assign-step.modifications',
       'assign-mods.read-aloud': 'assign-step.modifications',
+      'assign-mods.printed': 'assign-step.modifications',
       'assign-mods.language': 'assign-step.modifications',
       'assign-mods.group': 'assign-step.modifications',
       'assign-mods.add-group': 'assign-step.modifications',

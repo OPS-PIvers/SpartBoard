@@ -7479,6 +7479,8 @@ export interface QuizAssignment
   paperWrittenSeats?: number;
   /** Responses carrying a scan from that stack, recounted by each import. */
   paperWrittenScanned?: number;
+  /** Stacks printed for modification groups of this device assignment (`paper-printed-versions`). */
+  paperCopyBatchIds?: string[];
   /** D37 mode last chosen in Publish Scores; mirrored on the session and cleared on unpublish. */
   writtenReturnMode?: WrittenReturnMode;
   createdAt: number;
@@ -11701,6 +11703,8 @@ export type GlobalFeature =
   /** Quiz setting that shows students their score as soon as they submit. */
   | 'quiz-score-on-submit'
   | 'modification-groups'
+  /** Quiz assign: a modification group can get a printed version, scanned back into the same results. */
+  | 'paper-printed-versions'
   /** Projects: a group submits its project; the teacher sees Submitted, Late or Missing and can reopen. */
   | 'project-submit'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */

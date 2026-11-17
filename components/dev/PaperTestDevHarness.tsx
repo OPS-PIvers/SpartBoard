@@ -15,6 +15,7 @@ import {
 } from '@/components/widgets/QuizWidget/components/QuizManager';
 import { PaperImportModal } from '@/components/widgets/QuizWidget/components/PaperImportModal';
 import { PaperPrintModal } from '@/components/widgets/QuizWidget/components/PaperPrintModal';
+import { printedGroupQuiz } from '@/utils/paperPrintedVersions';
 import { PaperReprintModal } from '@/components/widgets/QuizWidget/components/PaperReprintModal';
 import type {
   ClassRoster,
@@ -264,6 +265,23 @@ const VIEWS = {
         initialSharing: { plcMode: false, plcId: '' },
         onCreateAssignment: () => Promise.resolve(),
       }}
+      onSaveBatch={() => Promise.resolve()}
+      onClose={noop}
+      onError={noop}
+    />
+  ),
+  'printed-group': () => (
+    <PaperPrintModal
+      quiz={printedGroupQuiz(ASSIGN_QUIZ, {
+        answerChoices: 'two',
+        modifiedQuestions: true,
+      })}
+      group={{
+        label: 'Group 1',
+        students: { r1: ['r1-s0', 'r1-s3'], r2: ['r2-s5'] },
+        supports: [{ title: 'Word bank', body: 'nucleus, ribosome' }],
+      }}
+      rosters={ROSTERS}
       onSaveBatch={() => Promise.resolve()}
       onClose={noop}
       onError={noop}

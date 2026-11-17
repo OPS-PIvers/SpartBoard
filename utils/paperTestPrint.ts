@@ -38,6 +38,8 @@ export interface PaperTestJob {
     label: string;
     questions: readonly PaperTestQuestion[];
   }[];
+  /** A printed group's supports, on a page after the questions. */
+  supports?: readonly { title: string; body: string }[];
 }
 
 const STYLES = `
@@ -64,6 +66,11 @@ const STYLES = `
   .version { break-before: page; }
   .version:first-child { break-before: auto; }
   .version-label { font-size: 12pt; font-weight: bold; margin: -2mm 0 4mm; }
+  .supports { break-before: page; }
+  .supports h2 { font-size: 13pt; margin: 0 0 4mm; }
+  .supports section { break-inside: avoid; margin-bottom: 5mm; }
+  .supports h3 { font-size: 11pt; margin: 0 0 1mm; }
+  .supports p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 `;
 
 function choiceHtml(text: string, picture: ChoicePicture | null | undefined) {
@@ -104,6 +111,16 @@ function testHtml(
 <ol class="q">${questions.map(questionHtml).join('')}</ol>`;
 }
 
+function supportsHtml(supports: PaperTestJob['supports']): string {
+  if (!supports?.length) return '';
+  return `<div class="supports"><h2>Supports</h2>${supports
+    .map(
+      (s) =>
+        `<section><h3>${escapeHtml(s.title)}</h3><p>${escapeHtml(s.body)}</p></section>`
+    )
+    .join('')}</div>`;
+}
+
 /** The document `printPaperTest` would write. Exported for tests. */
 export function buildPaperTestHtml(job: PaperTestJob): string {
   if (job.versions?.length) {
@@ -114,7 +131,7 @@ export function buildPaperTestHtml(job: PaperTestJob): string {
       )
       .join('');
   }
-  return testHtml(job.quizTitle, job.questions);
+  return testHtml(job.quizTitle, job.questions) + supportsHtml(job.supports);
 }
 
 export function printPaperTest(

@@ -7,6 +7,7 @@
  */
 
 import {
+  arrayUnion,
   collection,
   deleteDoc,
   deleteField,
@@ -39,6 +40,18 @@ export async function savePaperBatch(
   batch: PaperBatch
 ): Promise<void> {
   await setDoc(doc(batchesRef(userId), batch.id), batch);
+}
+
+/** Records a printed group's stack on its device assignment, so the card can import it. */
+export async function linkPrintedCopyBatch(
+  userId: string,
+  assignmentId: string,
+  batchId: string
+): Promise<void> {
+  await updateDoc(doc(db, 'users', userId, 'quiz_assignments', assignmentId), {
+    paperCopyBatchIds: arrayUnion(batchId),
+    updatedAt: Date.now(),
+  });
 }
 
 /** One batch by id, or null when it was never saved or has been deleted. */
