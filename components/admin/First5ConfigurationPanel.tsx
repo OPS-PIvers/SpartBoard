@@ -27,10 +27,12 @@ export const First5ConfigurationPanel: React.FC<
     .toISOString()
     .split('T')[0];
 
+  const normalizeDayNumber = (num: number) => Math.max(1, Math.floor(num));
+
   const handleDayNumberChange = (num: number) => {
     onChange({
       ...config,
-      activeDayNumber: Math.max(1, Math.floor(num)),
+      activeDayNumber: normalizeDayNumber(num),
       referenceDate: localTodayISO,
     });
   };
@@ -60,6 +62,7 @@ export const First5ConfigurationPanel: React.FC<
             min="1"
             value={todaysDayNumber ?? (activeDayNumber || undefined)}
             onCommit={handleDayNumberChange}
+            normalize={normalizeDayNumber}
             placeholder="e.g. 777"
             {...tourFieldAttr(
               'admin.widget-config.field',

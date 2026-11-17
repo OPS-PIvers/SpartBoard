@@ -35,4 +35,15 @@ describe('First5ConfigurationPanel day number', () => {
       expect.objectContaining({ activeDayNumber: 12 })
     );
   });
+
+  it('shows the clamped value when the admin types 0', () => {
+    const onChange = vi.fn();
+    render(<Harness onChange={onChange} />);
+    const input = screen.getByLabelText(/Today's Day Number/i);
+    fireEvent.change(input, { target: { value: '0' } });
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ activeDayNumber: 1 })
+    );
+    expect((input as HTMLInputElement).value).toBe('1');
+  });
 });
