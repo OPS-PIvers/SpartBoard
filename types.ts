@@ -8393,6 +8393,8 @@ export interface VideoActivityResponse extends StaffResponseFields {
   resultsLockedOutAt?: number;
   /** Teacher marks for short-answer questions, keyed by question id. Teacher-written only. */
   grading?: Record<string, WrittenAnswerGrade>;
+  /** Set when the last publish kept right/wrong off `answers`, so the student sees only `score`. */
+  verdictsWithheld?: boolean;
 }
 
 /**
@@ -11789,7 +11791,9 @@ export type GlobalFeature =
   | 'assign-due-date'
   /** Reopen an ended quiz for selected students only. */
   | 'reopen-selected-students'
-  | 'share-import-confirm';
+  | 'share-import-confirm'
+  /** A score-only Video Activity publish keeps right/wrong off students' answers. */
+  | 'va-score-only-verdicts';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

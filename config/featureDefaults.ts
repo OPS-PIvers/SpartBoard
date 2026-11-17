@@ -1781,6 +1781,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'va-score-only-verdicts': {
+    label: 'Video Activity: score-only publish hides right/wrong',
+    icon: Video,
+    description:
+      'Publishing Video Activity scores at Score only stops showing students which answers were right or wrong.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
 };
 
 /** Retired global ids the Dock reads until a Widgets-page doc exists (plan D3). */

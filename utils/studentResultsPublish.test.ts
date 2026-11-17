@@ -40,6 +40,8 @@ import {
   publishGuidedLearningResultsForStudents,
   publishVideoActivityResultsForStudents,
   unlockResultsForStudent,
+  vaPublishedAnswers,
+  vaPublishPatch,
 } from './studentResultsPublish';
 
 const vaQ = (id: string, correctAnswer: string, points = 1) =>
@@ -189,6 +191,240 @@ describe('VA graded entry is the first by list position', () => {
       true
     );
     expect(recorded.score).toBe(100);
+  });
+});
+
+describe('VA score-only publish keeps right/wrong off responses', () => {
+  const graded = [
+    { questionId: 'q1', answer: 'a', answeredAt: 1, isCorrect: true },
+  ];
+  const bare = [{ questionId: 'q1', answer: 'a', answeredAt: 1 }];
+
+  it('strips verdicts at score-only on a results-hidden session', () => {
+    expect(
+      vaPublishedAnswers(
+        { answers: [], completedAt: 5 },
+        graded,
+        'score-only',
+        1,
+        false
+      )
+    ).toEqual(bare);
+  });
+
+  it('keeps them when responses are shown, by class or override', () => {
+    expect(
+      vaPublishedAnswers(
+        { answers: [], completedAt: 5 },
+        graded,
+        'score-and-responses',
+        1,
+        false
+      )
+    ).toEqual(graded);
+    expect(
+      vaPublishedAnswers(
+        {
+          answers: [],
+          completedAt: 5,
+          resultsOverride: {
+            mode: 'shown',
+            visibility: 'score-and-responses',
+            publishedAt: 1,
+            expiresAt: null,
+          },
+        } as unknown as VideoActivityResponse,
+        graded,
+        'score-only',
+        1,
+        false
+      )
+    ).toEqual(graded);
+  });
+
+  it('lets a score-only override beat a class level that shows responses', () => {
+    expect(
+      vaPublishedAnswers(
+        {
+          answers: [],
+          completedAt: 5,
+          resultsOverride: {
+            mode: 'shown',
+            visibility: 'score-only',
+            publishedAt: 1,
+            expiresAt: null,
+          },
+        } as unknown as VideoActivityResponse,
+        graded,
+        'score-and-responses',
+        1,
+        false
+      )
+    ).toEqual(bare);
+  });
+
+  it('gives an open attempt no new verdicts', () => {
+    expect(
+      vaPublishedAnswers(
+        { answers: bare, completedAt: null },
+        graded,
+        'score-and-responses',
+        1,
+        true
+      )
+    ).toEqual(bare);
+  });
+
+  it('keeps session-shown verdicts for a uid-keyed self-paced response only', () => {
+    const done = { answers: [], completedAt: 5 };
+    expect(
+      vaPublishedAnswers(done, graded, 'score-only', 1, true, 'u1', 'u1')
+    ).toEqual(graded);
+    expect(
+      vaPublishedAnswers(done, graded, 'score-only', 1, true, 'pin-p-01', 'u1')
+    ).toEqual(bare);
+  });
+
+  it('writes graded answers unchanged with the flag off', () => {
+    const data = {
+      studentUid: 'u1',
+      answers: bare,
+      completedAt: 5,
+    } as unknown as VideoActivityResponse;
+    expect(
+      vaPublishPatch(
+        data,
+        { score: 100, answers: graded },
+        {
+          withholdVerdicts: false,
+          visibility: 'score-only',
+          now: 1,
+          sessionShowsResults: false,
+          responseKey: 'u1',
+        }
+      )
+    ).toEqual({ score: 100, answers: graded });
+  });
+
+  it('clears an old marker with the flag off', () => {
+    const data = {
+      studentUid: 'u1',
+      answers: bare,
+      completedAt: 5,
+      verdictsWithheld: true,
+    } as unknown as VideoActivityResponse;
+    expect(
+      vaPublishPatch(
+        data,
+        { score: 100, answers: graded },
+        {
+          withholdVerdicts: false,
+          visibility: 'score-and-responses',
+          now: 1,
+          sessionShowsResults: false,
+          responseKey: 'u1',
+        }
+      )
+    ).toEqual({ score: 100, answers: graded, verdictsWithheld: DELETE });
+  });
+
+  it('marks the response when the flag withholds verdicts, and clears it otherwise', () => {
+    const data = {
+      studentUid: 'u1',
+      answers: bare,
+      completedAt: 5,
+    } as unknown as VideoActivityResponse;
+    const opts = {
+      withholdVerdicts: true,
+      now: 1,
+      sessionShowsResults: false,
+      responseKey: 'u1',
+    };
+    expect(
+      vaPublishPatch(
+        data,
+        { score: 100, answers: graded },
+        { ...opts, visibility: 'score-only' }
+      )
+    ).toEqual({ score: 100, answers: bare, verdictsWithheld: true });
+    expect(
+      vaPublishPatch(
+        data,
+        { score: 100, answers: graded },
+        { ...opts, visibility: 'score-and-responses' }
+      )
+    ).toEqual({ score: 100, answers: graded, verdictsWithheld: DELETE });
+  });
+
+  it('writes no isCorrect in a flagged per-student score-only publish', async () => {
+    docs.set('video_activity_sessions/s2', {
+      sessionOptions: { answerRulesSet: true, showResultToStudent: false },
+    });
+    docs.set('video_activity_sessions/s2/responses/done', {
+      studentUid: 'done',
+      completedAt: 5,
+      answers: [{ questionId: 'q1', answer: 'a' }],
+    });
+    await publishVideoActivityResultsForStudents(
+      's2',
+      [vaQ('q1', 'a')],
+      ['done'],
+      'score-only',
+      null,
+      undefined,
+      true
+    );
+    expect(writes[0].patch.score).toBe(100);
+    expect(writes[0].patch.answers).toEqual([
+      { questionId: 'q1', answer: 'a' },
+    ]);
+    expect(writes[0].patch.verdictsWithheld).toBe(true);
+  });
+
+  it('keeps isCorrect in an unflagged per-student score-only publish', async () => {
+    docs.set('video_activity_sessions/s3', {
+      sessionOptions: { answerRulesSet: true, showResultToStudent: false },
+    });
+    docs.set('video_activity_sessions/s3/responses/done', {
+      studentUid: 'done',
+      completedAt: 5,
+      answers: [{ questionId: 'q1', answer: 'a' }],
+    });
+    await publishVideoActivityResultsForStudents(
+      's3',
+      [vaQ('q1', 'a')],
+      ['done'],
+      'score-only',
+      null
+    );
+    expect(writes[0].patch.answers).toEqual([
+      { questionId: 'q1', answer: 'a', isCorrect: true },
+    ]);
+    expect(writes[0].patch).not.toHaveProperty('verdictsWithheld');
+  });
+
+  it('writes no verdicts for an unrevealed live question at score-only', async () => {
+    docs.set('video_activity_sessions/live1', {
+      sessionMode: 'teacher',
+      sessionOptions: { answerRulesSet: true, showResultToStudent: true },
+    });
+    docs.set('video_activity_sessions/live1/responses/u1', {
+      studentUid: 'u1',
+      completedAt: 5,
+      answers: [{ questionId: 'q1', answer: 'a' }],
+    });
+    await publishVideoActivityResultsForStudents(
+      'live1',
+      [vaQ('q1', 'a')],
+      ['u1'],
+      'score-only',
+      null,
+      undefined,
+      true
+    );
+    expect(writes[0].patch.answers).toEqual([
+      { questionId: 'q1', answer: 'a' },
+    ]);
   });
 });
 
