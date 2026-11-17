@@ -51,12 +51,13 @@ interface ClassStudentPagePreviewProps {
 export const ClassStudentPagePreview: React.FC<
   ClassStudentPagePreviewProps
 > = ({ roster, onClose }) => {
-  const { user, canAccessFeature } = useAuth();
+  const { user, canAccessFeature, canAccessWidget } = useAuth();
   const { enabled: projectsEnabled } = useProjectsWidgetSettings();
   const { status, assignments } = useClassStudentPagePreview(
     user?.uid,
     studentPageClassId(roster) ?? '',
-    projectsEnabled
+    projectsEnabled,
+    canAccessWidget('writing')
   );
   // Only this teacher's own copy, as the preview leaves out a co-teacher's work.
   const classPage = useClassPageAgendas(

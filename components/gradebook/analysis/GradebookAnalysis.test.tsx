@@ -16,6 +16,9 @@ vi.mock('@/utils/plcPath', async (orig) => ({
   ...(await orig<typeof import('@/utils/plcPath')>()),
   spaNavigate: nav,
 }));
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({ canAccessWidget: () => true }),
+}));
 vi.mock('@/hooks/useStandardsCatalog', () => ({
   useStandardsCatalog: () => ({ benchmarks: [], loading: false, error: null }),
 }));
