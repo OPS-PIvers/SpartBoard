@@ -101,9 +101,7 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
   ]);
 
   // In a Connection Sequence, the first unchecked row is the current one, highlighted and checked off by "next".
-  const inSequence =
-    canAccessFeature('widget-connections') &&
-    liveConnections(
+  const inSequence = liveConnections(
       activeDashboard?.connections,
       activeDashboard?.widgets ?? []
     ).some(

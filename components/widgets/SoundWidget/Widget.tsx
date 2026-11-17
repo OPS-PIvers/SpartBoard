@@ -116,23 +116,22 @@ export const SoundWidget: React.FC<{
     pro && isActive && isCalibrating(widget.config as SoundConfig);
 
   // Follows win: this meter Follows one Expectations, Traffic Lights Follow it; the old toggles apply unless this widget was migrated.
-  const connectionsOn = canAccessFeature('widget-connections');
-  const useLegacy = usesLegacyToggles(connectionsOn, widget.config);
+  const useLegacy = usesLegacyToggles(true, widget.config);
   const boardWidgets = activeDashboard?.widgets ?? EMPTY_WIDGETS;
-  const followedExpectations = connectionsOn
-    ? boardWidgets.find(
-        (w) =>
-          w.id ===
-          followLeaderId(activeDashboard?.connections, boardWidgets, widget.id)
-      )
-    : undefined;
+  const followedExpectations = boardWidgets.find(
+    (w) =>
+      w.id ===
+      followLeaderId(activeDashboard?.connections, boardWidgets, widget.id)
+  );
   const syncExpectations = followedExpectations
     ? true
     : useLegacy && legacySyncExpectations;
   const trafficTargets = useMemo(() => {
-    const ids = connectionsOn
-      ? followerIds(activeDashboard?.connections, boardWidgets, widget.id)
-      : [];
+    const ids = followerIds(
+      activeDashboard?.connections,
+      boardWidgets,
+      widget.id
+    );
     const targets = boardWidgets.filter(
       (w) => w.type === 'traffic' && ids.includes(w.id)
     );
@@ -142,7 +141,6 @@ export const SoundWidget: React.FC<{
     }
     return targets;
   }, [
-    connectionsOn,
     useLegacy,
     activeDashboard?.connections,
     boardWidgets,
@@ -472,13 +470,11 @@ export const SoundWidget: React.FC<{
         activeDashboard.widgets,
         quietGoalScoreboardId,
         quietGoalTeamId,
-        connectionsOn
-          ? connectedScoreboardIds(
-              activeDashboard.connections,
-              activeDashboard.widgets,
-              widget.id
-            )
-          : []
+        connectedScoreboardIds(
+          activeDashboard.connections,
+          activeDashboard.widgets,
+          widget.id
+        )
       );
       if (!scoreboard) return;
       updateWidget(scoreboard.id, {

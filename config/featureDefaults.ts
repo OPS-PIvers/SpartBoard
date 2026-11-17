@@ -1396,18 +1396,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Widget Connections (docs/adr/0002). Admin-only until Paul has run it in class.
-  'widget-connections': {
-    label: 'Widget connections',
-    icon: Workflow,
-    description:
-      'A Connect button on each widget links widgets so one starts or changes another.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Focus on SpartBoard pages (CHROME_EXTENSION.md F14, F15). Admin-only until Paul has tested it in prod.
   'focus-sessions': {
     label: 'Focus: page protections',

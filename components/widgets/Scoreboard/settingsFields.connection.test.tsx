@@ -89,12 +89,6 @@ describe('ScoreboardSettings connected to a Randomizer', () => {
     });
   });
 
-  it('keeps the old Import card when the flag is off', () => {
-    renderWith(false, [follow]);
-    expect(screen.queryByText(/Teams come from/)).toBeNull();
-    expect(screen.getByTestId('import-groups-btn')).toBeInTheDocument();
-  });
-
   it('keeps the old Import card when nothing is connected', () => {
     renderWith(true, []);
     expect(screen.getByTestId('import-groups-btn')).toBeInTheDocument();

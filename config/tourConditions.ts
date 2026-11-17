@@ -65,6 +65,7 @@ export const RETIRED_TOUR_FEATURES: readonly string[] = [
   'tour-steps-view',
   'video-activity-editor-arrows',
   'video-activity-stops',
+  'widget-connections',
   'youtube-paste-picker',
 ];
 

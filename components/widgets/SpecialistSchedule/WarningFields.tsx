@@ -20,7 +20,6 @@ export const SpecialistWarningFields: React.FC<{
   hasEnd: boolean;
   onChange: (warning: ScheduleItemWarning | undefined) => void;
 }> = ({ ctx, idPrefix, warning, hasEnd, onChange }) => {
-  if (!ctx.canAccessFeature('widget-connections')) return null;
   const t = (leaf: string, options?: Record<string, unknown>) =>
     ctx.t(`widgetSettings.specialist-schedule.${leaf}`, options);
   const active = hasEnd ? warning : undefined;

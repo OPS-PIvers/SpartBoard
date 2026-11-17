@@ -183,22 +183,6 @@ describe('Schedule settings drawer fields', () => {
     expect(saved?.warning).toEqual({ minutes: 5, sound: 'Chime' });
   });
 
-  it('hides the warning toggle when Connections are off', () => {
-    setup();
-    const ctx = makeCtx({
-      items: [item('art', 'Art', '09:00')],
-      settingsSelectedScheduleId: 'default',
-    });
-    (
-      ctx.canAccessFeature as unknown as ReturnType<typeof vi.fn>
-    ).mockReturnValue(false);
-    render(React.createElement(ScheduleListField, { ctx }));
-
-    expect(
-      screen.queryByRole('button', { name: 'Warn before this ends' })
-    ).toBeNull();
-  });
-
   it('renaming a stored schedule keeps its events and its siblings', () => {
     const updateConfig = vi.fn();
     setup();

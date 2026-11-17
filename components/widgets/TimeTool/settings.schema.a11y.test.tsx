@@ -75,7 +75,7 @@ const renderDrawer = () =>
       updateConfig={vi.fn()}
       globalStyle={{ windowTransparency: 0.5 } as GlobalStyle}
       schema={schema}
-      canAccessFeature={(id) => id !== 'widget-connections'}
+      canAccessFeature={() => true}
       defaults={WIDGET_DEFAULTS['time-tool'].config as Record<string, unknown>}
     />
   );
@@ -91,7 +91,7 @@ describe('time-tool settings drawer accessibility', () => {
     const dialog = screen.getByRole('dialog');
     // FieldRenderer's disabled-state <fieldset> wrappers carry the group role without being controls.
     const notWrapper = (el: HTMLElement) => el.tagName !== 'FIELDSET';
-    for (const role of ['radiogroup', 'switch', 'spinbutton', 'group']) {
+    for (const role of ['radiogroup', 'spinbutton', 'group']) {
       const all = within(dialog).getAllByRole(role).filter(notWrapper);
       const named = within(dialog)
         .getAllByRole(role, { name: /\S/ })
@@ -114,27 +114,16 @@ describe('time-tool settings drawer accessibility', () => {
       within(dialog).getByRole('spinbutton', { name: 'Adjust Step (seconds)' })
     ).toBeInTheDocument();
     expect(
-      within(dialog).getByRole('radiogroup', {
+      within(dialog).queryByRole('radiogroup', {
         name: 'Switch to Voice Level when finished',
       })
-    ).toBeInTheDocument();
+    ).toBeNull();
     expect(
-      within(dialog).getByRole('radiogroup', { name: 'Auto-set Traffic Light' })
-    ).toBeInTheDocument();
-    expect(
-      within(dialog).getByRole('switch', { name: 'Auto-Pick Random Student' })
-    ).toBeInTheDocument();
+      within(dialog).queryByRole('button', { name: /^Add .* widget$/ })
+    ).toBeNull();
     expect(
       within(dialog).queryByRole('group', { name: 'Color Palette' })
     ).not.toBeInTheDocument();
-    // Expectations is on the board, so only the other four partner cards offer an add button.
-    expect(
-      within(dialog).getAllByRole('button', { name: /^Add .* widget$/ })
-    ).toHaveLength(4);
-    expect(within(dialog).getByRole('radio', { name: 'Lvl 2' })).toBeEnabled();
-    expect(
-      within(dialog).getByRole('switch', { name: 'Auto-rotate stations' })
-    ).toBeDisabled();
   });
 
   it('shows the building default length while the teacher has none saved', () => {

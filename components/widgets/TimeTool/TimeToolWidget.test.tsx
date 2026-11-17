@@ -1038,12 +1038,6 @@ describe('TimeToolWidget', () => {
       mockAuth.canAccessFeature.mockReturnValue(true);
     });
 
-    it('stays hidden while widget connections is off', () => {
-      mockAuth.canAccessFeature.mockReturnValue(false);
-      renderWidget(withBoard());
-      expect(screen.queryByLabelText('Add linked music')).toBeNull();
-    });
-
     it('adds a Music widget that follows this timer', () => {
       const timer = withBoard();
       renderWidget(timer);

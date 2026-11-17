@@ -565,8 +565,6 @@ export const TimeToolWidget: React.FC<{
 
   const effectiveAdjustStep = Math.max(5, Math.min(60, adjustStepSeconds));
 
-  const { canAccessFeature } = useAuth();
-  const connectionsOn = canAccessFeature('widget-connections');
 
   const showAdjustControls = mode === 'timer' && !isEditing && !isNarrow;
   const isExpired = clockStateOf(config).phase === 'expired';
@@ -730,13 +728,11 @@ export const TimeToolWidget: React.FC<{
             clockStyle === 'lcd' ? 'bg-black/5' : ''
           }`}
         >
-          {connectionsOn && (
-            <TimerMusicLauncher
-              widget={widget}
-              isEditing={isEditing}
-              themeColor={themeColor}
-            />
-          )}
+          <TimerMusicLauncher
+            widget={widget}
+            isEditing={isEditing}
+            themeColor={themeColor}
+          />
           {isEditing ? (
             <Keypad
               widget={widget}

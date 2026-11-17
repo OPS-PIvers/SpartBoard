@@ -99,7 +99,6 @@ import {
 import { teamsFromGroups } from '@/components/widgets/Scoreboard/groupTeams';
 import { usesLegacyToggles } from '@/utils/legacyConnections';
 import { useNamesFromStations } from './useNamesFromStations';
-import { useAuth } from '@/context/useAuth';
 
 import { WidgetLayout } from '../WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
@@ -186,19 +185,15 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     () => (Array.isArray(config.doneNames) ? config.doneNames : []),
     [config.doneNames]
   );
-  const { canAccessFeature } = useAuth();
-  const connectionsOn = canAccessFeature('widget-connections');
-  useNamesFromStations(widget, connectionsOn);
+  useNamesFromStations(widget, true);
   const avoidRecentPartners = config.avoidRecentPartners === true;
   // Read in the deferred pick callback; a migrated widget's auto-start became a Sequence.
-  const useLegacy = usesLegacyToggles(connectionsOn, widget.config);
+  const useLegacy = usesLegacyToggles(true, widget.config);
   const useLegacyRef = useRef(useLegacy);
   useLayoutEffect(() => {
     useLegacyRef.current = useLegacy;
   }, [useLegacy]);
-  const inSequence =
-    connectionsOn &&
-    liveConnections(
+  const inSequence = liveConnections(
       activeDashboard?.connections,
       activeDashboard?.widgets ?? []
     ).some(
@@ -961,9 +956,9 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       return;
     }
 
-    // With Connections on, the Scoreboard it fills or creates follows this Randomizer.
+    // The Scoreboard it fills or creates follows this Randomizer.
     const boardWidgets = activeDashboard?.widgets ?? [];
-    if (connectionsOn && boardWidgets.some((w) => w.id === widget.id)) {
+    if (boardWidgets.some((w) => w.id === widget.id)) {
       connectScoreboard(groups);
       return;
     }

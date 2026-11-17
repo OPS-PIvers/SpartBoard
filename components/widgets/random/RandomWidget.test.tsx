@@ -497,9 +497,7 @@ describe('RandomWidget', () => {
         config: { teams },
       }) as unknown as WidgetData;
     const renderOn = (widgets: WidgetData[], connections: unknown[] = []) => {
-      canAccessFeatureMock.mockImplementation(
-        (id: string) => id === 'widget-connections'
-      );
+      canAccessFeatureMock.mockReturnValue(false);
       (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
         ...mockDashboardContext,
         activeDashboard: {
@@ -918,9 +916,7 @@ describe('RandomWidget — class groups', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    canAccessFeatureMock.mockImplementation(
-      (id: string) => id !== 'widget-connections'
-    );
+    canAccessFeatureMock.mockReturnValue(true);
     rosterGroupsRolloutMock.mockReturnValue({ enabled: true });
     (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       ...mockDashboardContext,

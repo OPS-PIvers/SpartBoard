@@ -40,7 +40,7 @@ const makeCtx = (config: Record<string, unknown>): FieldCtx => ({
   config,
   widget: { ...widget, config },
   isAdmin: false,
-  canAccessFeature: (id: string) => id !== 'widget-connections',
+  canAccessFeature: () => true,
   t,
 });
 
@@ -121,50 +121,6 @@ describe('mode field', () => {
     expect(
       screen.getByRole('radiogroup', { name: 'Mode' })
     ).toBeInTheDocument();
-  });
-});
-
-describe('nullable timer-end fields', () => {
-  it('writes null for "None" and a number for a voice level', () => {
-    boardWith('expectations');
-    const updateConfig = renderKey('timerEndVoiceLevel', {
-      timerEndVoiceLevel: 2,
-    });
-    expect(screen.getByRole('radio', { name: 'Lvl 2' })).toHaveAttribute(
-      'aria-checked',
-      'true'
-    );
-    fireEvent.click(screen.getByRole('radio', { name: 'None' }));
-    expect(updateConfig).toHaveBeenCalledWith({ timerEndVoiceLevel: null });
-    fireEvent.click(screen.getByRole('radio', { name: 'Lvl 4' }));
-    expect(updateConfig).toHaveBeenCalledWith({ timerEndVoiceLevel: 4 });
-  });
-
-  it('disables the voice level control inside its partner card when Expectations is absent', () => {
-    renderKey('timerEndVoiceLevel', { timerEndVoiceLevel: 2 });
-    expect(screen.getByRole('radio', { name: 'Lvl 2' })).toBeDisabled();
-    fireEvent.click(screen.getByRole('button'));
-    expect(addWidget).toHaveBeenCalledWith('expectations');
-  });
-
-  it('treats an absent traffic color as "None" and writes color names', () => {
-    boardWith('traffic');
-    const updateConfig = renderKey('timerEndTrafficColor', {});
-    expect(screen.getByRole('radio', { name: 'None' })).toHaveAttribute(
-      'aria-checked',
-      'true'
-    );
-    fireEvent.click(screen.getByRole('radio', { name: 'Slow' }));
-    expect(updateConfig).toHaveBeenCalledWith({
-      timerEndTrafficColor: 'yellow',
-    });
-  });
-
-  it('disables the traffic color control inside its partner card when Traffic Light is absent', () => {
-    renderKey('timerEndTrafficColor', {});
-    expect(screen.getByRole('radio', { name: 'Slow' })).toBeDisabled();
-    fireEvent.click(screen.getByRole('button'));
-    expect(addWidget).toHaveBeenCalledWith('traffic');
   });
 });
 

@@ -59,13 +59,6 @@ test.describe('time-tool settings drawer at 1280x800', () => {
   test('edits one field per group, reflects it on the board, and keeps values on reopen', async ({
     page,
   }) => {
-    // The timer-end partner cards are the old toggles, which Widget Connections hides from the mock admin.
-    await page.addInitScript(() =>
-      localStorage.setItem(
-        'authBypassFeatureOverrides',
-        JSON.stringify({ 'widget-connections': false })
-      )
-    );
     await page.goto('/');
     const widget = await addTimerWidget(page);
     let drawer = await openDrawer(page);
@@ -82,11 +75,6 @@ test.describe('time-tool settings drawer at 1280x800', () => {
     await expect(step).toHaveValue('60');
     await step.fill('30');
     await expect(step).toHaveValue('30');
-
-    // Behavior: every partner card offers a one-tap add on an empty board.
-    await expect(
-      drawer.getByRole('button', { name: /^Add .* widget$/ })
-    ).toHaveCount(5);
 
     // Display group lives on the Style tab: visual ring draws the progress ring behind the digits.
     await dismissWelcomeToast(page);

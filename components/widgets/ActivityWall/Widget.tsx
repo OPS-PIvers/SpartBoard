@@ -125,16 +125,12 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   const isActiveBoardReadOnly = useIsActiveBoardReadOnly();
   const { user, canAccessFeature, featurePermissions, selectedBuildings } =
     useAuth();
-  const connectionsFlag = canAccessFeature('widget-connections');
   // Only the wall on the board itself, not a student or announcement copy.
   const isOnBoard = useDashboardCanvasSelector(
-    (s) =>
-      connectionsFlag &&
-      !!s.activeDashboard?.widgets.some((w) => w.id === widget.id)
+    (s) => !!s.activeDashboard?.widgets.some((w) => w.id === widget.id)
   );
   const hasTab = useDashboardCanvasSelector(
     (s) =>
-      connectionsFlag &&
       hasConnectionTab(
         s.activeDashboard?.connections,
         s.activeDashboard?.widgets ?? [],
@@ -515,7 +511,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   }, [addToast, studentUrl]);
 
   // A QR code that Follows this wall keeps showing its current student link.
-  const connectionsOn = connectionsFlag && isOnBoard;
+  const connectionsOn = isOnBoard;
   usePublishWidgetShareLink(
     widget.id,
     connectionsOn && studentUrl ? studentUrl : undefined

@@ -1034,7 +1034,6 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       // With Connections, a QR that Follows this app gets the new link instead of adding another.
       // Only while this app's board is still the one on screen, so another board's connections are never replaced.
       const linked =
-        canAccessFeature('widget-connections') &&
         mountedRef.current &&
         !!startBoardId &&
         latestBoard?.id === startBoardId &&
@@ -1939,9 +1938,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
           <div className="relative flex flex-col w-full h-full min-h-0">
             <MiniAppManager
               userId={user?.uid}
-              clearsConnectionTab={
-                canAccessFeature('widget-connections') &&
-                hasConnectionTab(
+              clearsConnectionTab={hasConnectionTab(
                   activeDashboard?.connections,
                   activeDashboard?.widgets ?? [],
                   widget.id

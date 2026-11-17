@@ -11765,8 +11765,6 @@ export type GlobalFeature =
   | 'music-my-songs'
   /** Embed widget setting that stops the embedded page from opening new tabs. */
   | 'embed-block-new-tabs'
-  /** Connect button on widget toolbars: Sequences and Follows between widgets (docs/adr/0002). */
-  | 'widget-connections'
   /** Copy, paste and print blocking and fullscreen on quiz and video activity pages (CHROME_EXTENSION.md F14). */
   | 'focus-sessions'
   | 'input-signals'

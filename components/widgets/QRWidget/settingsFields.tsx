@@ -14,9 +14,8 @@ export const QRDestinationField: React.FC<{ ctx: CustomRenderCtx }> = ({
 }) => {
   const { activeDashboard } = useDashboard();
   const config = ctx.config as QRConfig;
-  const connectionsOn = ctx.canAccessFeature('widget-connections');
   const { followedTextId, linkLeaderId } = resolveQRSource(
-    connectionsOn,
+    true,
     activeDashboard?.connections,
     activeDashboard?.widgets ?? [],
     ctx.widget.id,
@@ -115,8 +114,7 @@ export const QRSettingsFields: React.FC<{ widget: WidgetData }> = ({
     config: config as Record<string, unknown>,
     widget,
     isAdmin: false,
-    // The old toggle this panel shows only exists without Connections.
-    canAccessFeature: (id: string) => id !== 'widget-connections',
+    canAccessFeature: () => false,
     t,
     updateConfig,
     describedBy: undefined,

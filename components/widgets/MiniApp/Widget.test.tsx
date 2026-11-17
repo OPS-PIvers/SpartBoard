@@ -316,7 +316,7 @@ describe('MiniAppWidget — QR Share with Connections', () => {
     vi.mocked(useAuth).mockReturnValue({
       user: { uid: 'teacher-1' },
       getAssignmentMode: () => 'submissions',
-      canAccessFeature: (id: string) => id === 'widget-connections',
+      canAccessFeature: () => true,
     } as unknown as ReturnType<typeof useAuth>);
     vi.mocked(useMiniAppSessionTeacher).mockReturnValue({
       ...vi.mocked(useMiniAppSessionTeacher)(),

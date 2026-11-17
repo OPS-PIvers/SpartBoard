@@ -189,10 +189,9 @@ export const SettingsDrawerHost: React.FC = () => {
         null)
       : null
   );
-  const connectionsOn = canAccessFeature('widget-connections');
   const followLeader = useDashboardCanvasSelector((s) => {
     const board = s.activeDashboard;
-    if (!connectionsOn || !activeWidgetId || !board) return null;
+    if (!activeWidgetId || !board) return null;
     const id = followLeaderId(board.connections, board.widgets, activeWidgetId);
     return id ? (board.widgets.find((w) => w.id === id) ?? null) : null;
   });
