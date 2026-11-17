@@ -2523,6 +2523,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // Load dashboards on mount and subscribe to changes
   useEffect(() => {
     if (!user) {
+      defaultBoardStartedForUidRef.current = null;
       // eslint-disable-next-line react-hooks/set-state-in-effect -- state synced from an external system or reset on open
       setLoading(false);
       return;
@@ -2606,6 +2607,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           lastPiiRestoredIdRef.current = null;
           setPiiRestoreNonce((n) => n + 1);
         }
+
+        // The default board has landed, so a later empty snapshot may create another.
+        if (updatedDashboards.length > 0)
+          defaultBoardStartedForUidRef.current = null;
 
         // Update saving status: clear when Firestore confirms no pending writes
         // and we have no local saves in flight

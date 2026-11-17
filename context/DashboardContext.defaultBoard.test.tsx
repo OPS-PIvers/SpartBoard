@@ -16,6 +16,7 @@ const authMock = {
     uid: 'test-user',
     displayName: 'Test User',
     email: 'test@example.com',
+    metadata: {},
   },
   isAdmin: false,
   featurePermissions: [],
@@ -169,5 +170,32 @@ describe('DashboardProvider default board creation', () => {
       await new Promise((r) => setTimeout(r, 20));
     });
     expect(saveDashboardMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('creates a new default board after the teacher deletes every board', async () => {
+    render(
+      <DashboardProvider>
+        <div />
+      </DashboardProvider>
+    );
+    const board: Dashboard = {
+      id: 'b1',
+      name: 'Existing',
+      background: 'bg-slate-900',
+      widgets: [],
+      createdAt: 1,
+    };
+    await act(async () => {
+      capturedSnapshotCb?.([], false);
+      await new Promise((r) => setTimeout(r, 20));
+      capturedSnapshotCb?.([board], false);
+      await new Promise((r) => setTimeout(r, 20));
+      capturedSnapshotCb?.([], false);
+      await new Promise((r) => setTimeout(r, 20));
+    });
+    const created = saveDashboardMock.mock.calls.filter(
+      ([db]) => (db as Dashboard).name === 'My First Board'
+    );
+    expect(created).toHaveLength(2);
   });
 });
