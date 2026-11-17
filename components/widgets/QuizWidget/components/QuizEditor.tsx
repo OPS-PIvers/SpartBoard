@@ -104,6 +104,7 @@ import {
 } from './QuestionFields';
 import { questionTypeChangeUpdates } from './questionFieldUpdates';
 import { rubricMaxPoints } from '@/utils/rubricPoints';
+import { withOwnCriterionIds } from '@/utils/rubricOverrideResolution';
 import {
   countQuestionsNeedingKey,
   questionNeedsKey,
@@ -889,9 +890,13 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
     (rubric: Rubric, rubricId?: string) => {
       if (!selectedQuestionId) return;
       if (rubricBuilder === 'modified') {
+        const modified = withOwnCriterionIds(
+          rubric,
+          selectedQuestion?.rubricSnapshot
+        );
         updateQuestion(selectedQuestionId, {
           modifiedRubricId: rubricId ?? rubric.id,
-          modifiedRubricSnapshot: rubric,
+          modifiedRubricSnapshot: modified,
         });
         setRubricBuilder(null);
         return;
@@ -922,6 +927,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
       selectedHasRubric,
       selectedQuestion?.points,
       selectedQuestion?.modifiedRubricSnapshot,
+      selectedQuestion?.rubricSnapshot,
       updateQuestion,
     ]
   );

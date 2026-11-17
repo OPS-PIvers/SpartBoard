@@ -70,3 +70,20 @@ export function resolveRubricForResponse(
     overrideMode: 'rubric',
   };
 }
+
+/** A modified rubric started from the main one gets fresh criterion ids, so a score set always names the rubric it was graded on. */
+export function withOwnCriterionIds(
+  modified: Rubric,
+  main: Rubric | undefined
+): Rubric {
+  const taken = new Set((main?.criteria ?? []).map((c) => c.id));
+  if (!modified.criteria.some((c) => taken.has(c.id))) return modified;
+  return {
+    ...modified,
+    criteria: modified.criteria.map((c) =>
+      taken.has(c.id)
+        ? { ...c, id: `${c.id}-mod-${crypto.randomUUID().slice(0, 8)}` }
+        : c
+    ),
+  };
+}

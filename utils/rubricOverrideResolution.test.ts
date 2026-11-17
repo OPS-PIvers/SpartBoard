@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import type { Rubric, StudentOverride } from '@/types';
-import { resolveRubricForResponse } from './rubricOverrideResolution';
+import {
+  resolveRubricForResponse,
+  withOwnCriterionIds,
+} from './rubricOverrideResolution';
 
 const base = { id: 'base-rubric' } as unknown as Rubric;
 const alt = { id: 'alt-rubric' } as unknown as Rubric;
@@ -88,5 +91,22 @@ describe('resolveRubricForResponse', () => {
         ...fallback,
       });
     });
+  });
+});
+
+describe('withOwnCriterionIds', () => {
+  const rubric = (ids: string[]) =>
+    ({
+      id: 'r',
+      criteria: ids.map((id) => ({ id, name: id, levels: [] })),
+    }) as unknown as Rubric;
+  it('renames criteria shared with the main rubric', () => {
+    const out = withOwnCriterionIds(rubric(['a', 'z']), rubric(['a', 'b']));
+    expect(out.criteria[0].id).not.toBe('a');
+    expect(out.criteria[1].id).toBe('z');
+  });
+  it('leaves a rubric with its own ids alone', () => {
+    const mod = rubric(['x']);
+    expect(withOwnCriterionIds(mod, rubric(['a']))).toBe(mod);
   });
 });
