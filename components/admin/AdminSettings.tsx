@@ -340,21 +340,9 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   onClose,
   tabRequest,
 }) => {
-  const {
-    isAdmin,
-    user,
-    userRoles,
-    roleId,
-    orgId,
-    adminDoc,
-    canAccessFeature,
-  } = useAuth();
-  const isSuperAdmin = isSuperAdminActor(
-    user?.email,
-    userRoles?.superAdmins,
-    roleId,
-    orgId
-  );
+  const { isAdmin, user, roleId, orgId, adminDoc, canAccessFeature } =
+    useAuth();
+  const isSuperAdmin = isSuperAdminActor(user?.email, roleId, orgId);
   const orgOnly = isOrgOnlyAdmin(isAdmin, roleId, orgId);
   const groups = orgOnly
     ? [
