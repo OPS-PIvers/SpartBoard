@@ -3057,8 +3057,6 @@ const TeacherQuizWidget: React.FC<{
               ...inQuiz.libraryIds,
               ...shownNow.libraryIds,
             ]);
-            for (const id of libraryIds)
-              await saveRubricDoc(user.uid, { ...rubric, id });
             setLoadedQuizData((prev) =>
               prev
                 ? {
@@ -3068,6 +3066,15 @@ const TeacherQuizWidget: React.FC<{
                   }
                 : prev
             );
+            const library = await Promise.allSettled(
+              [...libraryIds].map((id) =>
+                saveRubricDoc(user.uid, { ...rubric, id })
+              )
+            );
+            if (library.some((r) => r.status === 'rejected'))
+              throw new Error(
+                'Saved to this quiz, but your library rubric did not update.'
+              );
             addToast('Rubric saved.', 'success');
           }}
           paperSheetsEnabled={paperSheets.enabled}
