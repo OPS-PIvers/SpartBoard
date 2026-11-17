@@ -110,6 +110,8 @@ export interface QuizAssignStepperProps {
   }) => void | Promise<void>;
 }
 
+const SELECT_A_CLASS_FIRST = 'Select a class first';
+
 export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   title,
   rosters,
@@ -280,8 +282,20 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   );
 
   const stepIds = getAssignSteps('quiz', ctx);
-  if (groupsOn && modifications && !staff && picked.length > 0) {
+  // The step stays listed before a class is picked so later steps keep their numbers.
+  const modsListed = groupsOn && !!modifications && !staff;
+  const modsShown = modsListed && picked.length > 0;
+  if (modsListed) {
     stepIds.splice(stepIds.indexOf('classes') + 1, 0, 'modifications');
+  }
+  if (modsListed && !modsShown) {
+    bodies.modifications = {
+      value: SELECT_A_CLASS_FIRST,
+      body: null,
+      disabled: true,
+    };
+  }
+  if (modsShown && modifications) {
     bodies.modifications = {
       value: formatModificationGroupsValue(
         withTime(groups),
@@ -321,7 +335,6 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
       body: <WrittenAnswersStep {...written} />,
     };
   }
-  const modsShown = stepIds.includes('modifications');
   const printedGroups =
     printedVersionsAvailable && modsShown
       ? printedGroupPicks(groups, groupRows)

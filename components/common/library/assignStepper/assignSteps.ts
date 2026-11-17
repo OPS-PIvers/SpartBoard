@@ -41,6 +41,8 @@ export interface AssignStepDef {
   /** One-line summary shown on the right while the step is closed (D13). */
   value: string;
   body: React.ReactNode;
+  /** Shown greyed out with its value until it applies, so later steps keep their numbers. */
+  disabled?: boolean;
 }
 
 /** Quiz, Video Activity and Writing always collect work (D3). */
