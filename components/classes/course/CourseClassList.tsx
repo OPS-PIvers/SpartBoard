@@ -83,7 +83,11 @@ export function CourseClassList<R extends CourseRoster>({
                   ))}
                 </ul>
               )}
-              <AgendaSetup group={group} saveCourse={saveCourse} />
+              <AgendaSetup
+                group={group}
+                courses={courses}
+                saveCourse={saveCourse}
+              />
               <FamilyLinkSetup group={group} saveCourse={saveCourse} />
             </li>
           );

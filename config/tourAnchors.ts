@@ -6440,6 +6440,79 @@ export const TOUR_ANCHORS = {
     rows: true,
     rowList: 'classes',
   },
+  'classes.agenda-open': {
+    label: 'Open the Agenda dialog for a class or Course in My Classes',
+    panel: true,
+  },
+  'classes.agenda-done': {
+    label: 'Done button in the Agenda dialog in My Classes',
+    panel: true,
+    closes: 'own',
+  },
+  'classes.agenda-change': {
+    label: 'Change the Agenda deck in the Agenda dialog',
+    panel: true,
+  },
+  'classes.agenda-paste': {
+    label: 'Paste a Google Slides link for the Agenda deck',
+    panel: true,
+  },
+  'classes.agenda-paste-use': {
+    label: 'Use the pasted Google Slides link as the Agenda deck',
+    persists: true,
+    panel: true,
+  },
+  'classes.agenda-pick': {
+    label: 'Select or change the Agenda Google Slides deck in My Classes',
+    persists: true,
+    panel: true,
+  },
+  'classes.agenda-open-deck': {
+    label: 'Open the Agenda deck in Google Slides from My Classes',
+    panel: true,
+  },
+  'classes.agenda-remove': {
+    label: 'Remove the Agenda deck in My Classes',
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'classes.agenda-fix-sharing': {
+    label: 'Fix who can open the Agenda deck in My Classes',
+    persists: true,
+    panel: true,
+  },
+  'classes.agenda-copy-link': {
+    label: 'Copy Class page link button in My Classes',
+    panel: true,
+  },
+  'classes.agenda-link-add': {
+    label: 'Add link button for a Course in My Classes',
+    panel: true,
+  },
+  'classes.agenda-link-title': {
+    label: 'Link title field for a Course in My Classes',
+    panel: true,
+  },
+  'classes.agenda-link-url': {
+    label: 'Link address field for a Course in My Classes',
+    panel: true,
+  },
+  'classes.agenda-link-cancel': {
+    label: 'Cancel adding a Course link in My Classes',
+    panel: true,
+  },
+  'classes.agenda-link-save': {
+    label: 'Save a new Course link in My Classes',
+    persists: true,
+    panel: true,
+  },
+  'classes.agenda-link-remove': {
+    label: 'Remove a Course link in My Classes',
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
   'classes.course-edit': {
     label: 'Edit Course button on a linked Course in My Classes',
     perField: true,

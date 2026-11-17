@@ -4,6 +4,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { CourseClassList } from './CourseClassList';
 import type { Course } from '@/utils/course/contract';
 
+vi.mock('./AgendaSetup', () => ({ AgendaSetup: () => null }));
 const addToast = vi.fn();
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({ addToast }),
