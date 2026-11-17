@@ -237,6 +237,15 @@ describe('responses: student writes', () => {
     await assertSucceeds(updateDoc(doc(asStudent(STUDENT), RESP), save()));
   });
 
+  it('refuses draft text too long to freeze', async () => {
+    await assertFails(
+      updateDoc(
+        doc(asStudent(STUDENT), RESP),
+        save({ html: 'x'.repeat(130_001) })
+      )
+    );
+  });
+
   it('cannot create a response; openWritingV1 does', async () => {
     await assertFails(
       setDoc(

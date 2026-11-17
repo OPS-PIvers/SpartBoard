@@ -62,6 +62,7 @@ import { useFolderViewSidebar } from '@/components/common/library/useFolderViewS
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { tourAttr } from '@/config/tourAnchors';
 import {
+  MAX_WRITING_STIMULI,
   newWritingAssignment,
   writingGradingLabel,
 } from '@/utils/writingAssignments';
@@ -125,7 +126,11 @@ interface SetAssignmentTargetsCallableInput {
   remove: StudentTargetRef[];
   overridesBySourcedId: Record<string, StudentOverride | null>;
   excludedTargets?: StudentTargetRef[];
-  window: { openAt?: number | null; closeAt?: number | null; dueAt?: number | null };
+  window: {
+    openAt?: number | null;
+    closeAt?: number | null;
+    dueAt?: number | null;
+  };
   targetMode?: 'class' | 'students';
   studentTargetClassIds?: string[];
 }
@@ -177,8 +182,7 @@ export const WritingManager: React.FC<{ widget: WidgetData }> = ({
       selection.clear();
     }
     update({
-      managerTab:
-        next === 'active' || next === 'archive' ? next : 'library',
+      managerTab: next === 'active' || next === 'archive' ? next : 'library',
     });
   };
 
@@ -723,6 +727,9 @@ export const WritingManager: React.FC<{ widget: WidgetData }> = ({
           teacherUid={userId ?? ''}
           onSave={handleSave}
           onClose={() => setEditingId(null)}
+          onStimulusLimit={() =>
+            addToast(`Up to ${MAX_WRITING_STIMULI} stimuli.`, 'info')
+          }
         />
       )}
     </>

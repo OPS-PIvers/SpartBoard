@@ -526,7 +526,7 @@ export async function handleTakeBackWriting(
         draft.feedback != null ||
         isNum(draft.feedbackAt) ||
         draft.grade != null,
-      timed: isNum(session.timeLimitMinutes) && session.timeLimitMinutes > 0,
+      timed: isNum(r.deadlineAt),
       closeAt: resolveWritingCloseAt(session, pointer.closeAt),
     };
     const status = deriveWritingStatus(r);

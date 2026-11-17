@@ -7065,7 +7065,7 @@ service cloud.firestore {
         // D7: no save past the clock plus 30 s; Manual classes save only while started or let in.
         allow update: if wrMine() && existing().status in ['draft', 'revising']
           && changedOnly(['html', 'summary', 'saveCount', 'saveKey', 'tabId', 'tabAt', 'logChunk'])
-          && isStr('html')
+          && isStr('html') && incoming().html.size() <= 130000
           && incoming().saveCount > existing().saveCount
           && incoming().saveKey == incoming().tabId + ':' + string(incoming().saveCount)
           && (unchanged('tabId') || incoming().tabAt == request.time)

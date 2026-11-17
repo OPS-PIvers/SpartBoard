@@ -113,7 +113,7 @@ export function sessionSettings(d: Data): Data {
 
 const PERIOD_STATES = ['open', 'paused', 'closed'];
 const PERIOD_FIELDS = ['state', 'openAt', 'closeAt', 'pausedAt'] as const;
-const PERIOD_KEY_RE = /^[^/.]{1,300}$/;
+const PERIOD_KEY_RE = /^[^/]{1,300}$/;
 
 /** A Manual assign's per-class gate (the stepper's buildPeriodGate), kept to its known fields. */
 export function sanitizePeriodAccess(v: unknown): Data | undefined {
@@ -345,10 +345,7 @@ function patchPeriods(stored: unknown, patch: unknown): Data | null {
   return changed ? next : null;
 }
 
-/**
- * The teacher's edits from the Assignments hub and the class Start/Pause controls, since no client writes a Writing
- * session: the window, period rows, Let in passes, and the record's targeting siblings.
- */
+/** Teacher edits from the hub and Start/Pause/Let in; no client writes a Writing session. */
 export async function handleUpdateWritingSession(
   db: Firestore,
   caller: AssignWritingCaller | null,

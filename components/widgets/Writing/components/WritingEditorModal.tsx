@@ -15,6 +15,7 @@ import { tourAttr } from '@/config/tourAnchors';
 import { rubricMaxPoints } from '@/utils/rubricPoints';
 import {
   MAX_WRITING_POINTS,
+  MAX_WRITING_STIMULI,
   clampWritingPoints,
   writingGradingLabel,
   writingPointsLabel,
@@ -85,6 +86,8 @@ interface WritingEditorModalProps {
   teacherUid: string;
   onSave: (next: WritingAssignmentDefinition) => Promise<void>;
   onClose: () => void;
+  /** Called when a teacher tries to add a stimulus past the cap. */
+  onStimulusLimit?: () => void;
 }
 
 export const WritingEditorModal: React.FC<WritingEditorModalProps> = ({
@@ -94,6 +97,7 @@ export const WritingEditorModal: React.FC<WritingEditorModalProps> = ({
   teacherUid,
   onSave,
   onClose,
+  onStimulusLimit,
 }) => {
   const [draft, setDraft] = useState(assignment);
   const [tab, setTab] = useState<EditorTab>('prompt');
@@ -134,7 +138,13 @@ export const WritingEditorModal: React.FC<WritingEditorModalProps> = ({
       );
     return {
       stimuli: stimuli ?? [],
-      addStimulus: (s) => setStimuli((list) => [...list, s]),
+      addStimulus: (s) => {
+        if ((stimuli?.length ?? 0) >= MAX_WRITING_STIMULI) {
+          onStimulusLimit?.();
+          return;
+        }
+        setStimuli((list) => [...list, s]);
+      },
       updateStimulus: (id, updates) =>
         setStimuli((list) =>
           list.map((s) => (s.id === id ? { ...s, ...updates } : s))
@@ -142,7 +152,7 @@ export const WritingEditorModal: React.FC<WritingEditorModalProps> = ({
       deleteStimulus: (id) =>
         setStimuli((list) => list.filter((s) => s.id !== id)),
     };
-  }, [stimuli]);
+  }, [stimuli, onStimulusLimit]);
 
   if (!draft) return null;
 

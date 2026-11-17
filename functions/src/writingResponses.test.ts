@@ -355,9 +355,15 @@ describe('takeBackWritingV1', () => {
 
   it('refuses timed work', async () => {
     store.set(SESSION, { ...store.get(SESSION), timeLimitMinutes: 5 });
+    store.set(RESP, { ...store.get(RESP), deadlineAt: Date.now() + 60_000 });
     await expect(takeBack()).rejects.toMatchObject({
       details: { reason: 'timed' },
     });
+  });
+
+  it('allows taking back an untimed revision of timed work', async () => {
+    store.set(SESSION, { ...store.get(SESSION), timeLimitMinutes: 5 });
+    await expect(takeBack()).resolves.toBeTruthy();
   });
 
   it('goes back to revising when an earlier draft stays', async () => {

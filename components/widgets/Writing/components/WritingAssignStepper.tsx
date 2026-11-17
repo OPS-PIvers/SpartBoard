@@ -26,15 +26,17 @@ import {
   whenBackwards,
 } from '@/components/common/library/assignStepper/assignWhenValue';
 import {
-  DEFAULT_WRITING_INTEGRITY,
-  DEFAULT_WRITING_RULES,
   WritingIntegrityStep,
   WritingRulesStep,
+} from '@/components/common/library/assignStepper/WritingAssignSteps';
+import {
+  DEFAULT_WRITING_INTEGRITY,
+  DEFAULT_WRITING_RULES,
   formatWritingIntegrityValue,
   formatWritingRulesValue,
   type WritingIntegrityValue,
   type WritingRulesValue,
-} from '@/components/common/library/assignStepper/WritingAssignSteps';
+} from '@/components/common/library/assignStepper/writingAssignValues';
 import { useQuizRuleGates } from '@/components/common/library/assignStepper/QuizRuleStepGates';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { applyWhen } from '@/utils/assignAvailability';
