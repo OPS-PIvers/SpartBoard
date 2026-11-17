@@ -152,6 +152,13 @@ import { AssignToClassroomModal } from '@/components/classroomAddon/AssignToClas
 import { requestClassroomFinalGradeToken } from '@/components/classroomAddon/gisOAuth';
 import { doc, getDoc, writeBatch } from 'firebase/firestore';
 import { loadAssignedStudentView } from '@/utils/quizAssignedStudentViewLoad';
+import { languageNativeLabel } from '@/utils/languageNativeLabel';
+import { QUIZ_TIME_LIMIT_FEATURE } from '@/utils/quizTimeLimit';
+import {
+  versionsFromOverrides,
+  versionsWithOptionText,
+  type StudentViewVersion,
+} from '@/utils/quizStudentViewVersions';
 import type { AssignedStudentView } from '@/utils/quizStudentViewSession';
 import { functions, db, storage, isAuthBypass } from '@/config/firebase';
 import { isStaffAudience } from '@/utils/staffAudience';
@@ -911,8 +918,10 @@ const TeacherQuizWidget: React.FC<{
   // Local state for views that need loaded data
   const [loadedQuizData, setLoadedQuizData] = useState<QuizData | null>(null);
   const [studentView, setStudentView] = useState<
-    | { quiz: QuizData; behavior: QuizBehaviorSettings }
-    | { assigned: AssignedStudentView }
+    | ((
+        | { quiz: QuizData; behavior: QuizBehaviorSettings }
+        | { assigned: AssignedStudentView }
+      ) & { versions?: StudentViewVersion[]; initialVersionId?: string })
     | null
   >(null);
   const [loadingQuizData, setLoadingQuizData] = useState(false);
@@ -3529,8 +3538,11 @@ const TeacherQuizWidget: React.FC<{
                   quiz: studentView.quiz,
                   behavior: studentView.behavior,
                   crossOutOn: canAccessFeature('quiz-cross-out'),
+                  timeLimitOn: canAccessFeature(QUIZ_TIME_LIMIT_FEATURE),
                 })}
             tabAwayTimerOn={canAccessFeature('tab-away-timer')}
+            versions={studentView.versions}
+            initialVersionId={studentView.initialVersionId}
             onExit={() => setStudentView(null)}
           />
         </Suspense>
@@ -3753,12 +3765,21 @@ const TeacherQuizWidget: React.FC<{
         }}
         onStudentView={
           canAccessFeature('quiz-student-view')
-            ? async (meta) => {
+            ? async (meta, preview) => {
                 const data = await loadQuiz(meta);
                 if (data)
                   setStudentView({
                     quiz: await withSampleBankDraw(data),
-                    behavior: getQuizBehavior(meta),
+                    behavior: preview?.behavior ?? getQuizBehavior(meta),
+                    ...(preview
+                      ? {
+                          versions: versionsWithOptionText(
+                            preview.versions,
+                            data.questions
+                          ),
+                          initialVersionId: preview.initialVersionId,
+                        }
+                      : {}),
                   });
               }
             : undefined
@@ -4782,7 +4803,18 @@ const TeacherQuizWidget: React.FC<{
             ? async (a) => {
                 try {
                   const assigned = await loadAssignedStudentView(a.id);
-                  if (assigned) setStudentView({ assigned });
+                  if (assigned)
+                    setStudentView({
+                      assigned,
+                      ...(canAccessFeature('modification-groups')
+                        ? {
+                            versions: versionsFromOverrides(
+                              a.overridesByStudentUid,
+                              languageNativeLabel
+                            ),
+                          }
+                        : {}),
+                    });
                   else addToast('This assignment could not be found.', 'error');
                 } catch (err) {
                   logError('QuizWidget.assignedStudentView', err, {

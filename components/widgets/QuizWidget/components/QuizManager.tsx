@@ -85,6 +85,7 @@ import {
   QuizWidgetKind,
 } from '@/types';
 import type { BankSource } from '@/hooks/useBankSources';
+import type { StudentViewVersion } from '@/utils/quizStudentViewVersions';
 import { QuizBanksTab } from './QuizBanksTab';
 import { useBankMenuActions } from './useBankMenuActions';
 import { LibraryKindIcon } from './LibraryKindIcon';
@@ -352,7 +353,15 @@ interface QuizManagerProps {
   onEdit: (quiz: QuizMetadata) => void;
   onPreview: (quiz: QuizMetadata) => void;
   /** Take the quiz as students see it. Absent when the feature is off. */
-  onStudentView?: (quiz: QuizMetadata) => void;
+  onStudentView?: (
+    quiz: QuizMetadata,
+    /** From Assign: the settings being picked and each modification group's version. */
+    preview?: {
+      behavior: QuizBehaviorSettings;
+      versions: StudentViewVersion[];
+      initialVersionId: string;
+    }
+  ) => void;
   /**
    * Assign callback. `behavior` is the per-assignment behavior snapshot —
    * seeded from the quiz's saved settings and possibly overridden by the
@@ -3267,6 +3276,16 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
               (assignQuizData?.questions ?? []).some(
                 (q) => !!q.modifiedText?.trim() || !!q.modifiedRubricSnapshot
               ) || (assignQuizData?.bankSlots?.length ?? 0) > 0,
+            ...(onStudentView
+              ? {
+                  onPreviewVersions: (versions, initialVersionId) =>
+                    onStudentView(assignTarget, {
+                      behavior: assignBehavior,
+                      versions,
+                      initialVersionId,
+                    }),
+                }
+              : {}),
           }}
           sharing={{
             value: assignOptions,

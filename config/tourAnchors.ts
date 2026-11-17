@@ -1614,6 +1614,10 @@ export const TOUR_ANCHORS = {
     destructive: true,
     panel: true,
   },
+  'assign-mods.preview-group': {
+    label: 'Preview button on a group in the Assign dialog Modifications step',
+    panel: true,
+  },
   'assign-mods.remove-group': {
     label: 'Remove group button in the Assign dialog Modifications step',
     destructive: true,

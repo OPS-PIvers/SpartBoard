@@ -366,6 +366,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'assign-mods.support-file-url': ['library.assign-stepper'],
     'assign-mods.support-file-url-add': ['library.assign-stepper'],
     'assign-mods.support-remove': ['library.assign-stepper'],
+    'assign-mods.preview-group': ['library.assign-stepper'],
     'assign-mods.remove-group': ['library.assign-stepper'],
     'assign-mods.open': ['library.assign-stepper'],
     'assign-mods.back': ['library.assign-stepper'],
