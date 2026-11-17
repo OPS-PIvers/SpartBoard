@@ -4102,6 +4102,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'writing-results.student-row': ['widgets.writing.results'],
     'writing-grading.return': ['widgets.writing.grader'],
     'writing-grading.return-revision': ['widgets.writing.grader'],
+    'writing-grading.writing-record': ['widgets.writing.grader'],
     'writing-grading.student-record': ['widgets.writing.grader'],
     'gl-ai.attach-doc': ['guidedLearning.ai-generator'],
     'dock.magic-layout-attach': ['board.magic-layout'],
