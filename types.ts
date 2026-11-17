@@ -10610,6 +10610,8 @@ export interface WritingConfig {
   libraryViewMode?: 'grid' | 'list';
   /** Persisted folder-panel state; `'auto'` derives it from widget width. */
   folderPanelMode?: 'auto' | 'full' | 'rail' | 'hidden';
+  /** The monitor's Word counts switch; off by default. */
+  monitorShowWordCounts?: boolean;
 }
 
 export type { WritingResponseStatus, WritingTurnedInBy };

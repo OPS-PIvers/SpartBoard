@@ -75704,6 +75704,26 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "writing-monitor.word-counts",
+    "label": "Word counts switch in the Writing monitor",
+    "scope": "widget type",
+    "routes": [
+      {
+        "surface": "widgets.writing.monitor",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
     "id": "writing-monitor.live-view",
     "label": "Live view button on a student in the Writing monitor",
     "scope": "field",

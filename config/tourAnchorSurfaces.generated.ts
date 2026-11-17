@@ -4080,6 +4080,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'writing-monitor.period-more-time': ['widgets.writing.monitor'],
     'writing-monitor.period-extend': ['widgets.writing.monitor'],
     'writing-monitor.status-bucket': ['widgets.writing.monitor'],
+    'writing-monitor.word-counts': ['widgets.writing.monitor'],
     'writing-monitor.live-view': ['widgets.writing.monitor'],
     'writing-live-view.previous': ['widgets.writing.live-view'],
     'writing-live-view.next': ['widgets.writing.live-view'],

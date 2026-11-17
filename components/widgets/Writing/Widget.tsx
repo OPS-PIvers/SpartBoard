@@ -20,6 +20,12 @@ const WritingMonitorView: React.FC<{
     <WritingMonitor
       sessionId={sessionId}
       record={records.find((r) => r.id === sessionId)}
+      showWordCounts={config.monitorShowWordCounts ?? false}
+      onShowWordCounts={(on) =>
+        updateWidget(widget.id, {
+          config: { ...widget.config, monitorShowWordCounts: on },
+        })
+      }
       onBack={() =>
         updateWidget(widget.id, {
           config: { ...config, view: 'manager' },

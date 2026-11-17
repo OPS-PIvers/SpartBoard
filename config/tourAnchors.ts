@@ -17199,6 +17199,10 @@ export const TOUR_ANCHORS = {
     label: 'Student status count in the Writing monitor',
     perField: true,
   },
+  'writing-monitor.word-counts': {
+    label: 'Word counts switch in the Writing monitor',
+    perWidgetType: true,
+  },
   'writing-monitor.live-view': {
     label: 'Live view button on a student in the Writing monitor',
     perField: true,

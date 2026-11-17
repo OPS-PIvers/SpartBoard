@@ -41,6 +41,7 @@ import {
 import {
   RosterIdleChip,
   RosterRow,
+  ToggleChip,
 } from '@/components/widgets/QuizWidget/components/monitor/RosterParts';
 import { hasPeriodAccess } from '@/utils/periodAccess';
 import {
@@ -67,8 +68,10 @@ export type WritingPeriodBar = Pick<
 export const WritingMonitor: React.FC<{
   sessionId: string;
   record: WritingAssignmentRecord | undefined;
+  showWordCounts?: boolean;
+  onShowWordCounts?: (on: boolean) => void;
   onBack: () => void;
-}> = ({ sessionId, record, onBack }) => {
+}> = ({ sessionId, record, showWordCounts, onShowWordCounts, onBack }) => {
   const { orgId } = useAuth();
   const { session, responses, loading, missing, seenAt } =
     useWritingMonitor(sessionId);
@@ -183,6 +186,8 @@ export const WritingMonitor: React.FC<{
     <WritingMonitorView
       session={session}
       periodBar={periodBar}
+      showWordCounts={showWordCounts}
+      onShowWordCounts={onShowWordCounts}
       fallbackTitle={record?.title}
       fallbackClasses={{
         classIds,
@@ -206,6 +211,8 @@ export const WritingMonitorView: React.FC<{
   session: WritingAssignmentSession | null;
   /** Per-class access; null shows the plain class picker. */
   periodBar?: WritingPeriodBar | null;
+  showWordCounts?: boolean;
+  onShowWordCounts?: (on: boolean) => void;
   fallbackTitle?: string;
   fallbackClasses: { classIds: string[]; periodNames: string[] };
   responses: WritingResponse[];
@@ -220,6 +227,8 @@ export const WritingMonitorView: React.FC<{
 }> = ({
   session,
   periodBar = null,
+  showWordCounts = false,
+  onShowWordCounts,
   fallbackTitle,
   fallbackClasses,
   responses,
@@ -347,8 +356,22 @@ export const WritingMonitorView: React.FC<{
             }
             labels={BUCKET_LABELS}
           />
+          {openBucket && onShowWordCounts && (
+            <div
+              className="flex flex-wrap items-center"
+              style={{ gap: 'min(6px, 1.5cqmin)' }}
+            >
+              <ToggleChip
+                label="Word counts"
+                anchor={tourTypeAttr('writing-monitor.word-counts', TYPE)}
+                on={showWordCounts}
+                onToggle={() => onShowWordCounts(!showWordCounts)}
+              />
+            </div>
+          )}
           {openBucket && (
             <WritingRosterList
+              showWordCounts={showWordCounts}
               rows={rows.filter((r) => r.bucket === openBucket)}
               watchable={watchable}
               onLiveView={canLiveView ? setWatching : undefined}
@@ -386,7 +409,8 @@ const WritingRosterList: React.FC<{
   rows: WritingMonitorRow[];
   watchable: WritingMonitorRow[];
   onLiveView?: (key: string) => void;
-}> = ({ rows, watchable, onLiveView }) => {
+  showWordCounts: boolean;
+}> = ({ rows, watchable, onLiveView, showWordCounts }) => {
   if (rows.length === 0)
     return (
       <p
@@ -425,7 +449,7 @@ const WritingRosterList: React.FC<{
                 Away {formatAwayDuration(row.awayMs)}
               </span>
             )}
-            {row.bucket !== 'notStarted' && (
+            {showWordCounts && row.bucket !== 'notStarted' && (
               <span
                 className="font-sans tabular-nums text-brand-gray-primary"
                 style={fact}

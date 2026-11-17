@@ -121,6 +121,7 @@ const PERIOD_BAR = {
 export const WritingMonitorDev: React.FC = () => {
   const [classId, setClassId] = useState('');
   const [width, setWidth] = useState(520);
+  const [words, setWords] = useState(false);
   if (import.meta.env.VITE_AUTH_BYPASS !== 'true')
     return <p className="p-6">Set VITE_AUTH_BYPASS=true for this page.</p>;
   const names = new Map(
@@ -178,6 +179,8 @@ export const WritingMonitorDev: React.FC = () => {
                     missing={false}
                     classId={classId}
                     onClassChange={setClassId}
+                    showWordCounts={words}
+                    onShowWordCounts={setWords}
                     onBack={() => undefined}
                   />
                 </div>
