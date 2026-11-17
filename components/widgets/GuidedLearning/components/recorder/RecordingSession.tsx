@@ -64,7 +64,7 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
   origin = 'widget',
 }) => {
   const { t } = useTranslation();
-  const { user, canAccessFeature, userRoles, roleId, orgId } = useAuth();
+  const { user, canAccessFeature, roleId, orgId } = useAuth();
   const canDraftText =
     canAccessFeature('gemini-functions') &&
     canAccessFeature('guided-learning-ai');
@@ -108,12 +108,7 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
       uid: user.uid,
       email: user.email ?? null,
       orgId: orgId ?? null,
-      isSuperAdmin: isSuperAdminActor(
-        user.email,
-        userRoles?.superAdmins,
-        roleId,
-        orgId
-      ),
+      isSuperAdmin: isSuperAdminActor(user.email, roleId, orgId),
     };
     if (!author.isSuperAdmin && !author.orgId) {
       dashboard?.addToast(

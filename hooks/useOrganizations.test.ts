@@ -59,10 +59,12 @@ describe('useOrganizations', () => {
     mockCall.mockResolvedValue(undefined);
   });
 
-  it('does not subscribe when user is not a super admin', () => {
+  it('does not subscribe for an address only on the legacy super admin list', () => {
     mockUseAuth.mockReturnValue({
       user: { email: 'teacher@orono.k12.mn.us' },
-      userRoles: { superAdmins: ['someone-else@example.com'] },
+      userRoles: { superAdmins: ['teacher@orono.k12.mn.us'] },
+      roleId: 'teacher',
+      orgId: 'orono',
     });
 
     const { result } = renderHook(() => useOrganizations());
@@ -75,7 +77,8 @@ describe('useOrganizations', () => {
   it('subscribes and loads orgs for a super admin', async () => {
     mockUseAuth.mockReturnValue({
       user: { email: 'paul.ivers@orono.k12.mn.us' },
-      userRoles: { superAdmins: ['paul.ivers@orono.k12.mn.us'] },
+      roleId: 'super_admin',
+      orgId: 'orono',
     });
 
     mockOnSnapshot.mockImplementation(
@@ -106,7 +109,8 @@ describe('useOrganizations', () => {
   it('createOrg writes a new doc with a derived id + defaults', async () => {
     mockUseAuth.mockReturnValue({
       user: { email: 'super@spartboard.io' },
-      userRoles: { superAdmins: ['super@spartboard.io'] },
+      roleId: 'super_admin',
+      orgId: 'orono',
     });
     mockOnSnapshot.mockReturnValue(() => undefined);
 
@@ -143,7 +147,8 @@ describe('useOrganizations', () => {
   it('createOrg rejects when name is missing', async () => {
     mockUseAuth.mockReturnValue({
       user: { email: 'super@spartboard.io' },
-      userRoles: { superAdmins: ['super@spartboard.io'] },
+      roleId: 'super_admin',
+      orgId: 'orono',
     });
     mockOnSnapshot.mockReturnValue(() => undefined);
 
@@ -158,7 +163,8 @@ describe('useOrganizations', () => {
   it('archiveOrg sets status to archived', async () => {
     mockUseAuth.mockReturnValue({
       user: { email: 'super@spartboard.io' },
-      userRoles: { superAdmins: ['super@spartboard.io'] },
+      roleId: 'super_admin',
+      orgId: 'orono',
     });
     mockOnSnapshot.mockReturnValue(() => undefined);
 

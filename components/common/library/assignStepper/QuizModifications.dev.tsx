@@ -96,6 +96,7 @@ const Preview: React.FC = () => {
         modifications={{
           targeting,
           onTargetingChange: setTargeting,
+          hasModifiedQuestions: true,
           quizContext: {
             questions: [mc('q1', 3), mc('q2', 3), mc('q3', 1)],
             rubrics: [],

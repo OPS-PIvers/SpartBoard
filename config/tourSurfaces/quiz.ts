@@ -115,6 +115,7 @@ export const SURFACES: TourSurfaceMap = {
     ],
     inner: {
       'quiz-editor.ai-close': 'quiz-editor.draft-ai:quiz',
+      'quiz-editor.modified-text': 'quiz-editor.modified:quiz',
       'quiz-editor.ai-generate': 'quiz-editor.draft-ai:quiz',
       'quiz-editor.ai-prompt': 'quiz-editor.draft-ai:quiz',
       'quiz-editor.ai-count-dec': 'quiz-editor.draft-ai:quiz',

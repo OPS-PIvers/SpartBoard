@@ -7,7 +7,6 @@ const roles = (overrides: Partial<UserRolesConfig> = {}): UserRolesConfig => ({
   teachers: [],
   betaTeachers: [],
   admins: [],
-  superAdmins: [],
   ...overrides,
 });
 
@@ -26,14 +25,9 @@ describe('isBetaUser', () => {
     ).toBe(true);
   });
 
-  it('grants access via userRoles.superAdmins, independent of betaUsers', () => {
-    expect(
-      isBetaUser(
-        [],
-        'admin@school.edu',
-        roles({ superAdmins: ['admin@school.edu'] })
-      )
-    ).toBe(true);
+  it('ignores the retired legacy superAdmins list', () => {
+    const legacy = { ...roles(), superAdmins: ['admin@school.edu'] };
+    expect(isBetaUser([], 'admin@school.edu', legacy)).toBe(false);
   });
 
   it('grants access via roleId === "super_admin", independent of any list', () => {
@@ -62,9 +56,11 @@ describe('isBetaUser', () => {
     expect(isBetaUser([''], undefined)).toBe(false);
   });
 
-  it('denies a null/undefined email even when betaTeachers/superAdmins carry a blank entry', () => {
+  it('denies a null/undefined email even when betaTeachers carries a blank entry', () => {
     expect(isBetaUser([], null, roles({ betaTeachers: [''] }))).toBe(false);
-    expect(isBetaUser([], undefined, roles({ superAdmins: [''] }))).toBe(false);
+    expect(isBetaUser([], undefined, roles({ betaTeachers: [''] }))).toBe(
+      false
+    );
   });
 
   it('still grants access via roleId === "super_admin" with no email', () => {

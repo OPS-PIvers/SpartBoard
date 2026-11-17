@@ -250,7 +250,34 @@ export interface FreeResponseGraderProps {
   };
   /** Earlier attempt being graded (its saved copy's number); reads that attempt's writing playback. */
   attemptNumber?: number;
+  /** Writing reuses this grader: its own title, step wording, comments-only mode, Excuse and Return buttons. */
+  title?: string;
+  labels?: GraderLabels;
+  scoreless?: boolean;
+  allowExcuse?: boolean;
+  /** Header color; defaults to brand blue. */
+  headerAccent?: string;
+  renderFooterActions?: (ctx: GraderFooterContext) => React.ReactNode;
   onClose: () => void;
+}
+
+export interface GraderLabels {
+  questionLabel?: string;
+  questionStep?: (index: number, total: number, responseKey?: string) => string;
+  modeQuestion?: string;
+}
+
+const GraderFooterSlot: React.FC<
+  GraderFooterContext & {
+    render: (ctx: GraderFooterContext) => React.ReactNode;
+  }
+> = ({ render, ...ctx }) => <>{render(ctx)}</>;
+
+export interface GraderFooterContext {
+  responseKey: string | undefined;
+  questionId: string | undefined;
+  /** Writes the open grade and every queued one; false when any write failed. */
+  flush: () => Promise<boolean>;
 }
 
 /** Marks drawn on an answer that has no score yet. */
@@ -578,6 +605,12 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   onClassFilterChange,
   countedChoices,
   attemptNumber,
+  title,
+  labels,
+  scoreless = false,
+  allowExcuse = false,
+  headerAccent = BRAND_BLUE_HEADER,
+  renderFooterActions,
   onClose,
 }) => {
   const { t } = useTranslation();
@@ -942,11 +975,12 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
         kind: target.kind,
         captureUnavailable: isUnavailable,
         maxPoints,
-        rubricCriteriaCount,
+        rubricCriteriaCount: scoreless ? 0 : rubricCriteriaCount,
         teacherUid,
         answerText: textEntry?.answer ?? '',
         existingSnapshot: savedGrade?.gradingSnapshot,
         gradedTakeIndex: activeTake?.takeIndex,
+        ...(scoreless ? { scoreless: true } : {}),
       }
     : null;
 
@@ -1559,6 +1593,32 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     });
   }, [leaveTarget, flushAll, tg, showConfirm]);
 
+  const flushForFooter = useCallback(async (): Promise<boolean> => {
+    cancelPendingWrite();
+    commitDraft(true);
+    const failures = await flushAll();
+    return failures.length === 0;
+  }, [cancelPendingWrite, commitDraft, flushAll]);
+
+  const handleExcuse = useCallback(() => {
+    const info = writeInfoRef.current;
+    if (!info.responseKey || !info.key) return;
+    cancelPendingWrite();
+    editSourceRef.current = 'none';
+    setPointsInput('');
+    enqueue(
+      info.responseKey,
+      info.key,
+      {
+        pointsAwarded: 0,
+        excused: true,
+        gradedBy: teacherUid,
+        gradedAt: Date.now(),
+      },
+      info.studentLabel
+    );
+  }, [cancelPendingWrite, enqueue, teacherUid, setPointsInput]);
+
   const classFilterSelect = showClassFilter ? (
     <select
       value={activeClass}
@@ -1671,7 +1731,8 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     isFreeResponseType(question.type) &&
     !!studentAnswer &&
     isBackTranslatableLocale(answerLocale);
-  const showPoints = !isUnavailable || adjudication === 'substitute';
+  const showPoints =
+    !scoreless && (!isUnavailable || adjudication === 'substitute');
   const mediaTargets = targets.filter((x) => x.kind === 'media');
   const showAllGraded = allGradedUntil > 0;
 
@@ -1806,7 +1867,9 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                 : 'text-slate-600 hover:bg-white/60'
           }`}
         >
-          {tg(`mode.${m}`)}
+          {m === 'question' && labels?.modeQuestion
+            ? labels.modeQuestion
+            : tg(`mode.${m}`)}
         </button>
       ))}
     </div>
@@ -1937,13 +2000,23 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   return (
     <EditorModalShell
       isOpen
-      title={tg('title')}
+      title={title ?? tg('title')}
       headerExtras={headerExtras}
       isDirty={false}
       hideSaveButton
       hideHeaderClose
-      headerAccent={BRAND_BLUE_HEADER}
+      headerAccent={headerAccent}
       footerEnd={footerNav}
+      footerExtras={
+        renderFooterActions ? (
+          <GraderFooterSlot
+            render={renderFooterActions}
+            responseKey={responseKey}
+            questionId={question?.id}
+            flush={flushForFooter}
+          />
+        ) : undefined
+      }
       onSave={() => undefined}
       onClose={handleClose}
       bodyClassName="p-0! overflow-hidden!"
@@ -2172,7 +2245,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
         <section className="overflow-y-auto bg-white">
           <div className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-6 py-3 backdrop-blur-sm">
             <div className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-              {tg('questionLabel')}
+              {labels?.questionLabel ?? tg('questionLabel')}
               <span className="text-slate-300">·</span>
               {question.recording?.mode === 'whiteboard' ? (
                 <PenTool aria-hidden className="h-3 w-3" />
@@ -2192,7 +2265,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
               </span>
               <span
                 role="group"
-                aria-label={tg('questionLabel')}
+                aria-label={labels?.questionLabel ?? tg('questionLabel')}
                 className="ml-auto inline-flex items-center gap-0.5 normal-case tracking-normal"
               >
                 <button
@@ -2207,10 +2280,16 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                   <ChevronLeft aria-hidden className="h-4 w-4" />
                 </button>
                 <span className="min-w-18 text-center text-xs font-bold text-slate-700">
-                  {tg('questionStep', {
-                    index: questionIdx + 1,
-                    total: questions.length,
-                  })}
+                  {labels?.questionStep
+                    ? labels.questionStep(
+                        questionIdx + 1,
+                        questions.length,
+                        responseKey
+                      )
+                    : tg('questionStep', {
+                        index: questionIdx + 1,
+                        total: questions.length,
+                      })}
                 </span>
                 <button
                   type="button"
@@ -2717,6 +2796,19 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                 rubric={taggableRubric}
               />
             </div>
+          )}
+
+          {allowExcuse && target && !isMedia && !savedGrade?.excused && (
+            <button
+              type="button"
+              onClick={handleExcuse}
+              {...tourTypeAttr('quiz-grading.excuse', 'quiz')}
+              title={tg('unavailable.excuseHelp')}
+              className="inline-flex items-center gap-1.5 self-start rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-50"
+            >
+              <Ban aria-hidden className="h-3.5 w-3.5" />
+              {tg('unavailable.excuse')}
+            </button>
           )}
 
           {savedGrade?.excused && (

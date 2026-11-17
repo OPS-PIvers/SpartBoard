@@ -8,9 +8,8 @@ const mockUser = { email: 'admin@example.com', uid: 'admin-uid' };
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: mockUser,
-    orgId: null,
-    roleId: null,
-    userRoles: { superAdmins: ['admin@example.com'] },
+    orgId: 'orono',
+    roleId: 'super_admin',
   }),
 }));
 

@@ -5244,7 +5244,6 @@
       "tabSubmitTitle": "You left the page too many times",
       "submittingAnswers": "Submitting your answers…",
       "forcedTab": "You left the page too many times. Your assignment has been submitted. Ask your teacher if you think this was a mistake.",
-      "tryAgain": "Try again",
       "tryAgainError": "Couldn't start a new attempt. Try again.",
       "tabWarningOf": "Warning {{count}} of {{limit}}."
     },
@@ -6550,5 +6549,11 @@
         "unavailable": "This page isn't available right now"
       }
     }
+  },
+  "quizSupports": {
+    "button": "Supports",
+    "title": "Supports",
+    "close": "Close",
+    "resize": "Resize supports"
   }
 }
