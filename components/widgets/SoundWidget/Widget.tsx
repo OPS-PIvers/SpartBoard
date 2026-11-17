@@ -7,6 +7,7 @@ import React, {
   useRef,
   useMemo,
 } from 'react';
+import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 import {
   AlertTriangle,
   BarChart3,
@@ -116,7 +117,7 @@ export const SoundWidget: React.FC<{
     pro && isActive && isCalibrating(widget.config as SoundConfig);
 
   // Follows win: this meter Follows one Expectations, Traffic Lights Follow it; the old toggles apply unless this widget was migrated.
-  const connectionsOn = canAccessFeature('widget-connections');
+  const connectionsOn = useConnectionsEnabled();
   const useLegacy = usesLegacyToggles(connectionsOn, widget.config);
   const boardWidgets = activeDashboard?.widgets ?? EMPTY_WIDGETS;
   const followedExpectations = connectionsOn

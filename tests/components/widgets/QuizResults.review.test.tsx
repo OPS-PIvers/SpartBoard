@@ -13,7 +13,6 @@ vi.mock('@/context/useDashboard', () => ({
     rosters: [],
   }),
 }));
-const mockFlags = vi.hoisted(() => ({ connections: true }));
 // The quiz final-score overlay reads Firestore; these tests don't cover it.
 vi.mock('@/hooks/gradebook/useFinalScoreOverlay', async (importOriginal) => ({
   ...(await importOriginal<
@@ -30,9 +29,7 @@ vi.mock('@/context/useAuth', () => ({
     orgId: null,
     // The grade-push button is additionally gated on the admin-managed
     // `google-classroom` feature doc; default-allow in this suite.
-    canAccessFeature: (id: string) =>
-      id !== 'gradebook' &&
-      (id !== 'widget-connections' || mockFlags.connections),
+    canAccessFeature: (id: string) => id !== 'gradebook',
   }),
 }));
 // Auto-confirm the "Push grades?" dialog so the handler proceeds.
@@ -263,29 +260,5 @@ describe('QuizResults, Review variant', () => {
     expect(
       screen.queryByRole('button', { name: 'Send to Scoreboard' })
     ).toBeNull();
-  });
-
-  it('keeps Send to Scoreboard on Quiz while Connections is off', () => {
-    mockFlags.connections = false;
-    try {
-      render(
-        <QuizResults
-          quiz={quiz}
-          responses={responses}
-          config={config}
-          onBack={vi.fn()}
-          session={{
-            ...gameSession,
-            sessionMode: 'student',
-            widgetKind: 'quiz',
-          }}
-        />
-      );
-      expect(
-        screen.getByRole('button', { name: 'Send to Scoreboard' })
-      ).toBeInTheDocument();
-    } finally {
-      mockFlags.connections = true;
-    }
   });
 });

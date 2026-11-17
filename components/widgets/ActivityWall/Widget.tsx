@@ -1,5 +1,6 @@
 // Activity Wall front face — a live preview of the active wall plus its toolbar.
 
+import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
@@ -125,7 +126,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   const isActiveBoardReadOnly = useIsActiveBoardReadOnly();
   const { user, canAccessFeature, featurePermissions, selectedBuildings } =
     useAuth();
-  const connectionsFlag = canAccessFeature('widget-connections');
+  const connectionsFlag = useConnectionsEnabled();
   // Only the wall on the board itself, not a student or announcement copy.
   const isOnBoard = useDashboardCanvasSelector(
     (s) =>

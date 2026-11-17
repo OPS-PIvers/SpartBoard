@@ -5,6 +5,7 @@ import React, {
   useReducer,
   useRef,
 } from 'react';
+import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/useAuth';
 import { useToolLabel } from '@/hooks/useToolLabel';
@@ -189,7 +190,7 @@ export const SettingsDrawerHost: React.FC = () => {
         null)
       : null
   );
-  const connectionsOn = canAccessFeature('widget-connections');
+  const connectionsOn = useConnectionsEnabled();
   const followLeader = useDashboardCanvasSelector((s) => {
     const board = s.activeDashboard;
     if (!connectionsOn || !activeWidgetId || !board) return null;
