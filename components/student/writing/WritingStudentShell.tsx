@@ -73,7 +73,8 @@ export const WRITING_STRINGS = {
   notSaved: 'Not saved',
   notSavedBody:
     "Your writing isn't saved yet. Keep this tab open, or copy your text somewhere safe.",
-  notSavedNotice: "Your writing didn't save. Check your connection and try again.",
+  notSavedNotice:
+    "Your writing didn't save. Check your connection and try again.",
   offline:
     "You're offline. Keep this tab open and your writing will save when you reconnect.",
   takenOverTitle: 'This writing is open in another tab',
@@ -98,7 +99,8 @@ export const WRITING_STRINGS = {
   takingBack: 'Taking back...',
   takeBackFeedback:
     'Your teacher has started on feedback, so this can no longer be taken back.',
-  takeBackPastDue: 'This is past its due date, so it can no longer be taken back.',
+  takeBackPastDue:
+    'This is past its due date, so it can no longer be taken back.',
   takeBackFailed: "Couldn't take this back. Try again.",
   turnInFailed: "Couldn't turn this in. Try again.",
   tooLarge: 'This piece is too long to turn in. Shorten it and try again.',
@@ -481,8 +483,7 @@ export const WritingStudentShell: React.FC<{
                       type="button"
                       onClick={piece.onTurnIn}
                       disabled={
-                        view.turnInBlockedBy !== null ||
-                        piece.busy !== null
+                        view.turnInBlockedBy !== null || piece.busy !== null
                       }
                       className={PRIMARY_BTN}
                     >

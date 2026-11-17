@@ -104,20 +104,22 @@ describe('decideDeviceCopy (D24)', () => {
   });
 
   it('never sends over locked work', () => {
-    expect(decideDeviceCopy(copy(), { ...server, status: 'turned-in' }, false)).toBe(
-      'unsent'
-    );
-    expect(decideDeviceCopy(copy(), { ...server, status: 'returned' }, false)).toBe(
-      'unsent'
-    );
+    expect(
+      decideDeviceCopy(copy(), { ...server, status: 'turned-in' }, false)
+    ).toBe('unsent');
+    expect(
+      decideDeviceCopy(copy(), { ...server, status: 'returned' }, false)
+    ).toBe('unsent');
   });
 
   it('clears a copy the server already has, wherever the piece is now', () => {
     const same = { ...server, html: '<p>offline   words</p>' };
-    expect(decideDeviceCopy(copy(), { ...same, tabId: 'tabB' }, false)).toBe('landed');
-    expect(decideDeviceCopy(copy(), { ...same, status: 'turned-in' }, false)).toBe(
+    expect(decideDeviceCopy(copy(), { ...same, tabId: 'tabB' }, false)).toBe(
       'landed'
     );
+    expect(
+      decideDeviceCopy(copy(), { ...same, status: 'turned-in' }, false)
+    ).toBe('landed');
     expect(decideDeviceCopy(copy(), same, false)).toBe('send');
   });
 
@@ -134,7 +136,11 @@ describe('decideDeviceCopy (D24)', () => {
   it('shows the copy as unsent once the assignment has closed', () => {
     expect(decideDeviceCopy(copy(), server, true)).toBe('unsent');
     expect(
-      decideDeviceCopy(copy(), { ...server, html: '<p>offline words</p>' }, true)
+      decideDeviceCopy(
+        copy(),
+        { ...server, html: '<p>offline words</p>' },
+        true
+      )
     ).toBe('landed');
   });
 

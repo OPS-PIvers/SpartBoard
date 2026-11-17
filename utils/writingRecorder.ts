@@ -134,7 +134,11 @@ export class WritingRecorder {
     if (this.lastT !== null)
       c.writingMs += Math.min(Math.max(0, t - this.lastT), PAUSE_CAP_MS);
     const lastSeen = this.lastWall ?? (this.baseSavedAt || null);
-    if (c.sessions === 0 || lastSeen === null || wall - lastSeen >= SESSION_GAP_MS)
+    if (
+      c.sessions === 0 ||
+      lastSeen === null ||
+      wall - lastSeen >= SESSION_GAP_MS
+    )
       c.sessions += 1;
     this.lastT = t;
     this.lastWall = wall;

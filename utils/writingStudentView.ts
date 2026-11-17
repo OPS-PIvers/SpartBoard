@@ -141,8 +141,10 @@ export function deriveWritingView(args: {
   if (!isWritingUnlocked(status) || !(tab.holding && mine))
     return { ...base, mode: mine ? 'loading' : 'taken-over', status };
   const { min, max } = wordLimitBounds(session);
-  const tooShort = session.enforceWordLimit === true && min !== undefined && wordCount < min;
-  const tooLong = session.enforceWordLimit === true && max !== undefined && wordCount > max;
+  const tooShort =
+    session.enforceWordLimit === true && min !== undefined && wordCount < min;
+  const tooLong =
+    session.enforceWordLimit === true && max !== undefined && wordCount > max;
   return {
     ...base,
     mode: 'writing',
@@ -159,7 +161,12 @@ export function deriveWritingView(args: {
             : !tab.online
               ? 'offline'
               : null,
-    wordGap: tooShort && min !== undefined ? min - wordCount : tooLong && max !== undefined ? wordCount - max : 0,
+    wordGap:
+      tooShort && min !== undefined
+        ? min - wordCount
+        : tooLong && max !== undefined
+          ? wordCount - max
+          : 0,
     saveState: saveStateOf(tab),
   };
 }

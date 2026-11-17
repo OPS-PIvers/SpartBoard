@@ -27,7 +27,9 @@ const tab: WritingTabFacts = {
   turningIn: false,
   html: '<p>one two three four</p>',
 };
-const response = (over: Partial<WritingResponseFacts> = {}): WritingResponseFacts => ({
+const response = (
+  over: Partial<WritingResponseFacts> = {}
+): WritingResponseFacts => ({
   status: 'draft',
   tabId: 'me',
   classId: 'c1',
@@ -52,8 +54,13 @@ const derive = (
 describe('deriveWritingView', () => {
   it('waits for the response before deciding', () => {
     expect(
-      deriveWritingView({ session, response: undefined, pointer: null, tab, now: NOW })
-        .mode
+      deriveWritingView({
+        session,
+        response: undefined,
+        pointer: null,
+        tab,
+        now: NOW,
+      }).mode
     ).toBe('loading');
   });
 
@@ -77,9 +84,10 @@ describe('deriveWritingView', () => {
       turnInBlockedBy: 'too-short',
       wordGap: 2,
     });
-    expect(
-      derive({ tab: { html: '<p>1 2 3 4 5 6 7 8</p>' } })
-    ).toMatchObject({ turnInBlockedBy: 'too-long', wordGap: 2 });
+    expect(derive({ tab: { html: '<p>1 2 3 4 5 6 7 8</p>' } })).toMatchObject({
+      turnInBlockedBy: 'too-long',
+      wordGap: 2,
+    });
     expect(
       derive({
         session: { enforceWordLimit: false },
@@ -145,9 +153,9 @@ describe('deriveWritingView', () => {
   });
 
   it('locks turned-in work and offers Take back while it is allowed (D12)', () => {
-    expect(derive({ response: response({ status: 'turned-in' }) })).toMatchObject(
-      { mode: 'turned-in', editable: false, showTakeBack: true }
-    );
+    expect(
+      derive({ response: response({ status: 'turned-in' }) })
+    ).toMatchObject({ mode: 'turned-in', editable: false, showTakeBack: true });
     expect(
       derive({
         response: response({ status: 'turned-in' }),
@@ -176,12 +184,12 @@ describe('deriveWritingView', () => {
   });
 
   it('shows returned work read-only and a revision as writable again', () => {
-    expect(derive({ response: response({ status: 'returned' }) })).toMatchObject(
-      { mode: 'returned', editable: false, showTakeBack: false }
-    );
-    expect(derive({ response: response({ status: 'revising' }) })).toMatchObject(
-      { mode: 'writing', status: 'revising', editable: true }
-    );
+    expect(
+      derive({ response: response({ status: 'returned' }) })
+    ).toMatchObject({ mode: 'returned', editable: false, showTakeBack: false });
+    expect(
+      derive({ response: response({ status: 'revising' }) })
+    ).toMatchObject({ mode: 'writing', status: 'revising', editable: true });
   });
 
   it('closes when the session ends or the close passes', () => {

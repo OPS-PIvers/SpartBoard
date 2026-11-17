@@ -161,20 +161,20 @@ export const WritingDevHarness: React.FC = () => {
   return (
     <div className="relative">
       {bar && (
-      <div className="fixed bottom-3 left-1/2 z-50 flex max-w-[95vw] -translate-x-1/2 flex-wrap justify-center gap-1 rounded-xl bg-slate-900/90 p-1 text-xs font-semibold text-white shadow-lg">
-        {STATES.map((s) => (
-          // no-tour-anchor: dev-only harness
-          <button
-            key={s}
-            type="button"
-            data-state={s}
-            onClick={() => setState(s)}
-            className={`rounded-lg px-3 py-1.5 ${s === state ? 'bg-white text-slate-900' : 'hover:bg-white/10'}`}
-          >
-            {s}
-          </button>
-        ))}
-      </div>
+        <div className="fixed bottom-3 left-1/2 z-50 flex max-w-[95vw] -translate-x-1/2 flex-wrap justify-center gap-1 rounded-xl bg-slate-900/90 p-1 text-xs font-semibold text-white shadow-lg">
+          {STATES.map((s) => (
+            // no-tour-anchor: dev-only harness
+            <button
+              key={s}
+              type="button"
+              data-state={s}
+              onClick={() => setState(s)}
+              className={`rounded-lg px-3 py-1.5 ${s === state ? 'bg-white text-slate-900' : 'hover:bg-white/10'}`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
       )}
       <WritingStudentShell session={SESSION} piece={piece} onDone={noop} />
     </div>

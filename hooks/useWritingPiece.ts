@@ -345,7 +345,8 @@ export function useWritingPiece(args: {
         ? {
             tabId: server.tabId,
             status: deriveWritingStatus(server),
-            saveCount: typeof server.saveCount === 'number' ? server.saveCount : 0,
+            saveCount:
+              typeof server.saveCount === 'number' ? server.saveCount : 0,
           }
         : null,
       myTabId,
@@ -435,7 +436,8 @@ export function useWritingPiece(args: {
       );
       // A copy shown after a failed open is settled now, one way or the other.
       setUnsent((prev) => prev.filter((u) => u.stored));
-      if (decision === 'landed') clearDeviceCopy(storage, studentUid, sessionId);
+      if (decision === 'landed')
+        clearDeviceCopy(storage, studentUid, sessionId);
       if (decision === 'unsent' && copy) {
         putUnsent(copy.html);
         clearDeviceCopy(storage, studentUid, sessionId);
@@ -463,7 +465,10 @@ export function useWritingPiece(args: {
         saveCount,
         saveKey: saveKeyOf(myTabId, saveCount),
         ...(send
-          ? { html: htmlStart, summary: rec.summary(countWords(htmlStart), now) }
+          ? {
+              html: htmlStart,
+              summary: rec.summary(countWords(htmlStart), now),
+            }
           : {}),
       });
       if (fromCopy)
@@ -700,7 +705,8 @@ export function useWritingPiece(args: {
 
   const dismissUnsent = useCallback(
     (savedAt: number) => {
-      if (studentUid) removeUnsent(safeStorage(), studentUid, sessionId, savedAt);
+      if (studentUid)
+        removeUnsent(safeStorage(), studentUid, sessionId, savedAt);
       setUnsent((prev) => prev.filter((u) => u.savedAt !== savedAt));
     },
     [studentUid, sessionId]
@@ -740,7 +746,10 @@ export function useWritingPiece(args: {
         countWords(flush.html),
         Date.now()
       );
-      await httpsCallable(functions, 'turnInWritingV1')({
+      await httpsCallable(
+        functions,
+        'turnInWritingV1'
+      )({
         sessionId,
         tabId: myTabId,
         html: flush.html,

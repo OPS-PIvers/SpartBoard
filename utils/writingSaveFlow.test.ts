@@ -54,9 +54,9 @@ describe('refusedSaveAction', () => {
 
   it('retries from the server counter while the piece is still ours and open', () => {
     expect(refusedSaveAction(server, 'me', false)).toBe('retry');
-    expect(refusedSaveAction({ ...server, status: 'revising' }, 'me', false)).toBe(
-      'retry'
-    );
+    expect(
+      refusedSaveAction({ ...server, status: 'revising' }, 'me', false)
+    ).toBe('retry');
   });
 
   it('lets go once another tab claimed it, it locked, or it closed', () => {

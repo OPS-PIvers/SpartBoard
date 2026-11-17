@@ -30,7 +30,11 @@ export function isLogDue(a: {
 
 /** After the rules refuse a save: try once more from the server's counter if the piece is still ours, else let it go. */
 export function refusedSaveAction(
-  server: { tabId: string; status: WritingResponseStatus; saveCount: number } | null,
+  server: {
+    tabId: string;
+    status: WritingResponseStatus;
+    saveCount: number;
+  } | null,
   myTabId: string,
   closed: boolean
 ): 'retry' | 'lost' {

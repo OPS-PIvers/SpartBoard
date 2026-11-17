@@ -6,7 +6,9 @@ import {
 } from './writingRecorder';
 import { parseWritingLog, textAfter } from './writingLog';
 
-const fresh = (over: Partial<ConstructorParameters<typeof WritingRecorder>[0]> = {}) =>
+const fresh = (
+  over: Partial<ConstructorParameters<typeof WritingRecorder>[0]> = {}
+) =>
   new WritingRecorder({
     log: '',
     startText: '',

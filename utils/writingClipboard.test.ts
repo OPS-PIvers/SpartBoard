@@ -19,7 +19,10 @@ describe('InsideClipboard', () => {
 
   it('knows the student own unsent writing, whole or a long part of it', () => {
     const clip = new InsideClipboard();
-    clip.noteCopy('I walked to the lake every morning that summer.', 'own-unsent');
+    clip.noteCopy(
+      'I walked to the lake every morning that summer.',
+      'own-unsent'
+    );
     expect(clip.sourceOf('I walked to the lake every morning')).toBe(
       'own-unsent'
     );

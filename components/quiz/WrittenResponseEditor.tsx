@@ -92,7 +92,10 @@ interface WrittenResponseEditorProps {
   /** Shows the Insert equation button (quiz math keyboard). */
   mathEnabled?: boolean;
   /** Writing (D8): decides each paste or drop; false blocks it. Absent keeps quiz behaviour. */
-  allowInsert?: (text: string, via: 'paste' | 'drop' | 'drag-inside') => boolean;
+  allowInsert?: (
+    text: string,
+    via: 'paste' | 'drop' | 'drag-inside'
+  ) => boolean;
   /** Writing (D8): the text of each copy or cut from the editor, so pasting it back counts as a move. */
   onCopyText?: (text: string) => void;
   /** Writing (D4): turns off the right-click menu, and with it the spelling suggestions. */
@@ -656,12 +659,12 @@ const WrittenResponseEditorInner: React.FC<
             disabled && !dimWhenDisabled
               ? 'border-slate-200 text-slate-800 cursor-default'
               : disabled
-              ? light
-                ? 'border-slate-200 text-slate-400 cursor-not-allowed'
-                : 'border-slate-700 text-slate-400 cursor-not-allowed'
-              : light
-                ? 'border-slate-300 text-slate-900 focus:outline-hidden focus:border-brand-blue-light focus-visible:ring-2 focus-visible:ring-brand-blue-light'
-                : 'border-slate-700 text-white focus:outline-hidden focus:border-violet-500 focus-visible:ring-2 focus-visible:ring-violet-400'
+                ? light
+                  ? 'border-slate-200 text-slate-400 cursor-not-allowed'
+                  : 'border-slate-700 text-slate-400 cursor-not-allowed'
+                : light
+                  ? 'border-slate-300 text-slate-900 focus:outline-hidden focus:border-brand-blue-light focus-visible:ring-2 focus-visible:ring-brand-blue-light'
+                  : 'border-slate-700 text-white focus:outline-hidden focus:border-violet-500 focus-visible:ring-2 focus-visible:ring-violet-400'
           } rounded-b-2xl text-base leading-relaxed overflow-y-auto [&_[data-math]]:inline-block [&_[data-math]]:px-1.5 [&_[data-math]]:mx-0.5 [&_[data-math]]:rounded [&_[data-math]]:align-middle [&_[data-math]]:cursor-pointer ${
             light
               ? '[&_[data-math]]:bg-slate-100 [&_[data-math]]:text-slate-900'
