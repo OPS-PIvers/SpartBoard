@@ -256,9 +256,9 @@ import { MAX_PAGE } from '@/utils/paperSheetMarker';
 import {
   deletePaperBatch,
   deletePaperBatchesForQuiz,
-  linkPrintedCopyBatch,
   subscribePaperBatchIndex,
   savePaperBatch,
+  savePrintedCopyBatch,
   listPaperBatchesForQuiz,
   savePendingReview,
 } from '@/utils/paperBatchStore';
@@ -4099,7 +4099,11 @@ const TeacherQuizWidget: React.FC<{
             );
             assignmentSaved = true;
             printWritten?.();
-            if (printedVersionsOn && stepper?.printedGroups?.length) {
+            if (
+              printedVersionsOn &&
+              stepper?.printedGroups?.length &&
+              !quizHasBankSlots(data)
+            ) {
               const assigned = { ...data, questions: assignQuestions };
               setPrintedQueue({
                 assignmentId,
@@ -5393,15 +5397,10 @@ const TeacherQuizWidget: React.FC<{
           group={printedGroupForPrint(printedQueue.groups[0].pick)}
           rosters={rosters}
           onSaveBatch={async (batch) => {
-            await savePaperBatch(user.uid, {
+            await savePrintedCopyBatch(user.uid, printedQueue.assignmentId, {
               ...batch,
               printedGroup: printedGroupRecord(printedQueue.groups[0].pick),
             });
-            await linkPrintedCopyBatch(
-              user.uid,
-              printedQueue.assignmentId,
-              batch.id
-            );
           }}
           onClose={() =>
             setPrintedQueue((prev) =>

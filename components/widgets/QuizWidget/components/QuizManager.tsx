@@ -3292,7 +3292,9 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
             : {})}
           // A bank draw differs per student, so there is no one version to print.
           printedVersionsAvailable={
-            printedVersionsAvailable && !assignQuizData?.bankSlots?.length
+            printedVersionsAvailable &&
+            !!assignQuizData &&
+            !assignQuizData.bankSlots?.length
           }
           onClose={resetAssign}
           onSubmit={handleStepperAssign}

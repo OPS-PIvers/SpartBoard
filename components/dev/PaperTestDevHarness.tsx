@@ -258,6 +258,18 @@ const PaperImport: React.FC = () => {
   );
 };
 
+const GROUP_SEATS: Record<number, PaperBatch['seats']> = {
+  1: {
+    1: { rosterId: 'r1', studentId: 'r1-s1' },
+    2: { rosterId: 'r1', studentId: 'r1-s4' },
+    3: { rosterId: 'r2', studentId: 'r2-s2' },
+  },
+  2: {
+    1: { rosterId: 'r1', studentId: 'r1-s6' },
+    2: { rosterId: 'r2', studentId: 'r2-s3' },
+  },
+};
+
 const VIEWS = {
   library: () => <Manager tab="library" assignments={IN_PROGRESS} />,
   assign: () => <PaperAssign />,
@@ -306,17 +318,7 @@ const VIEWS = {
           ...BATCH,
           id: `batch-g${n}`,
           questionCount: 2,
-          seats:
-            n === 1
-              ? {
-                  1: { rosterId: 'r1', studentId: 'r1-s1' },
-                  2: { rosterId: 'r1', studentId: 'r1-s4' },
-                  3: { rosterId: 'r2', studentId: 'r2-s2' },
-                }
-              : {
-                  1: { rosterId: 'r1', studentId: 'r1-s6' },
-                  2: { rosterId: 'r2', studentId: 'r2-s3' },
-                },
+          seats: GROUP_SEATS[n],
           spareSeats: [],
           printedGroup: {
             number: n,

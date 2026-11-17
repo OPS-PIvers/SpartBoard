@@ -42,16 +42,19 @@ export async function savePaperBatch(
   await setDoc(doc(batchesRef(userId), batch.id), batch);
 }
 
-/** Records a printed group's stack on its device assignment, so the card can import it. */
-export async function linkPrintedCopyBatch(
+/** Saves a printed group's stack and records it on its device assignment in one commit, so a failed link leaves no stray stack. */
+export async function savePrintedCopyBatch(
   userId: string,
   assignmentId: string,
-  batchId: string
+  batch: PaperBatch
 ): Promise<void> {
-  await updateDoc(doc(db, 'users', userId, 'quiz_assignments', assignmentId), {
-    paperCopyBatchIds: arrayUnion(batchId),
+  const commit = writeBatch(db);
+  commit.set(doc(batchesRef(userId), batch.id), batch);
+  commit.update(doc(db, 'users', userId, 'quiz_assignments', assignmentId), {
+    paperCopyBatchIds: arrayUnion(batch.id),
     updatedAt: Date.now(),
   });
+  await commit.commit();
 }
 
 /** One batch by id, or null when it was never saved or has been deleted. */
