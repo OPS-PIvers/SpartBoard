@@ -2856,12 +2856,14 @@
     {
       "id": "quiz-assign-to-classroom-2026-11-17",
       "widget": "quiz",
+      "feature": "google-classroom",
       "date": "2026-11-17",
       "text": "Assign to Google Classroom is in each assignment's menu. It posts with your due date, and published scores go to Classroom when your account allows."
     },
     {
       "id": "video-activity-assign-to-classroom-2026-11-17",
       "widget": "video-activity",
+      "feature": "google-classroom",
       "date": "2026-11-17",
       "text": "Assign to Google Classroom is in each assignment's menu. It posts with your due date, and published scores go to Classroom when your account allows."
     },
