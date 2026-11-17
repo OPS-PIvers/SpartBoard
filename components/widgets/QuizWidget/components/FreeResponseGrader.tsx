@@ -255,6 +255,8 @@ export interface FreeResponseGraderProps {
   labels?: GraderLabels;
   scoreless?: boolean;
   allowExcuse?: boolean;
+  /** Header color; defaults to brand blue. */
+  headerAccent?: string;
   renderFooterActions?: (ctx: GraderFooterContext) => React.ReactNode;
   onClose: () => void;
 }
@@ -607,6 +609,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   labels,
   scoreless = false,
   allowExcuse = false,
+  headerAccent = BRAND_BLUE_HEADER,
   renderFooterActions,
   onClose,
 }) => {
@@ -2002,7 +2005,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
       isDirty={false}
       hideSaveButton
       hideHeaderClose
-      headerAccent={BRAND_BLUE_HEADER}
+      headerAccent={headerAccent}
       footerEnd={footerNav}
       footerExtras={
         renderFooterActions ? (

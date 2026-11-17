@@ -6,6 +6,7 @@ import {
   type GraderFooterContext,
 } from '@/components/widgets/QuizWidget/components/FreeResponseGrader';
 import { tourTypeAttr } from '@/config/tourAnchors';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 import { writingEventAllowed } from '@/utils/writingResponseState';
 import {
   writingCallReason,
@@ -230,6 +231,7 @@ export const WritingGrader: React.FC<WritingGraderProps> = ({
       labels={labels}
       scoreless={ungraded}
       allowExcuse={!ungraded}
+      headerAccent={LIBRARY_HEADER_ACCENTS.writing}
       renderFooterActions={renderFooterActions}
       onClose={onClose}
     />
