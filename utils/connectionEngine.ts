@@ -144,7 +144,10 @@ export const isStepFinished = (
 };
 
 // A step that holds the Run: a pause, the Next button, or a widget it waits on.
-const stepWaits = (step: ConnectionStep, widgets: WidgetData[]): boolean => {
+export const stepWaits = (
+  step: ConnectionStep,
+  widgets: WidgetData[]
+): boolean => {
   if (step.actions.length === 0) return (step.waitSeconds ?? 0) > 0;
   if (step.advance === 'next') return true;
   if (step.advance === 'now') return false;

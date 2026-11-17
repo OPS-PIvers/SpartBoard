@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { ClassRoster, Dashboard, WidgetData } from '@/types';
 import { CHECKLIST_ROSTER_ORDER } from './checklistCurrent';
-import { engineWidgets, type RosterView } from './connectionRosterView';
+import {
+  engineView,
+  engineWidgets,
+  type RosterView,
+} from './connectionRosterView';
 
 const checklist = (config: Record<string, unknown> = {}): WidgetData => ({
   id: 'cl',
@@ -83,5 +87,13 @@ describe('engineWidgets', () => {
         )
       )
     ).toEqual(['s2']);
+  });
+
+  it('names the loading Checklist and leaves the other widgets usable', () => {
+    const b = board(checklist());
+    const timer = { ...checklist(), id: 't', type: 'time-tool' as const };
+    const r = engineView({ ...b, widgets: [...b.widgets, timer] }, view({ rosters: [] }));
+    expect([...r.waiting]).toEqual(['cl']);
+    expect(r.widgets.map((w) => w.id)).toEqual(['cl', 't']);
   });
 });

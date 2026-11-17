@@ -32,7 +32,12 @@ import { connectionDefFor } from '@/config/widgetConnections';
 import { TOOLS } from '@/config/tools';
 import { useConnectionWidgetTitle } from '@/hooks/useConnectionWidgetTitle';
 import { Z_INDEX } from '@/config/zIndex';
-import { isConnectionLive, sharesFollowSlot } from '@/utils/connectionEngine';
+import {
+  isConnectionLive,
+  liveSteps,
+  sharesFollowSlot,
+  stepWaits,
+} from '@/utils/connectionEngine';
 import { sendRunCommand } from '@/utils/connectionSignals';
 import {
   advanceChoice,
@@ -168,7 +173,10 @@ export const ConnectionEditorModal: React.FC<{
     (c): c is SequenceConnection => c.kind === 'sequence'
   );
   const [seq, setSeq] = useState(initialSeq);
-  const [initial] = useState(() => toCards(initialSeq?.steps ?? []));
+  // A deleted widget's actions drop out, so a step's next live action leads its card and an emptied step goes.
+  const [initial] = useState(() =>
+    toCards(initialSeq ? liveSteps(initialSeq, board.widgets) : [])
+  );
   const [cards, setCards] = useState<EditorCard[]>(initial.cards);
   const stepsOf = (cs: EditorCard[]) =>
     fromCards({ cards: cs, leadingPause: initial.leadingPause }, newId);
@@ -360,6 +368,12 @@ export const ConnectionEditorModal: React.FC<{
   };
 
   const runsOut = loopRunsOut({ steps: stepsOf(cards) }, board.widgets);
+  // A Sequence where nothing waits runs once, so the repeat choice only shows when a step waits.
+  const canRepeat =
+    !!seq &&
+    liveSteps({ ...seq, steps: stepsOf(cards) }, board.widgets).some((s) =>
+      stepWaits(s, board.widgets)
+    );
   const untilLabel =
     runsOut === 'names'
       ? t('connections.editor.repeatUntilNames', {
@@ -822,7 +836,7 @@ export const ConnectionEditorModal: React.FC<{
           );
         })}
 
-        {seq && cards.length > 0 && (
+        {seq && canRepeat && (
           <div className="flex min-h-14 flex-wrap items-center gap-2.5 rounded-xl bg-slate-50 px-3 py-2.5">
             <Repeat
               className="ml-1 h-4 w-4 shrink-0 text-slate-500"

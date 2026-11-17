@@ -23,11 +23,11 @@ const isClassRosterChecklist = (w: WidgetData) =>
   checklistUsesClassRoster(w.config as ChecklistConfig);
 
 // The board's widgets as the engine needs them: a class-roster Checklist gets its rows' student ids, in the order the widget shows.
-// Null while a class roster in a Connection isn't loaded yet, so no step acts on an empty or unfiltered list.
-export const engineWidgets = (
+// `waiting` holds class-roster Checklists in a Connection whose class isn't loaded yet; no step may act on them until it is.
+export const engineView = (
   board: Dashboard,
   view: RosterView
-): WidgetData[] | null => {
+): { widgets: WidgetData[]; waiting: Set<string> } => {
   const roster = view.rosters.find((r) => r.id === view.activeRosterId);
   const connected = new Set(
     (board.connections ?? []).flatMap((c) =>
@@ -36,17 +36,21 @@ export const engineWidgets = (
         : []
     )
   );
-  const waiting = board.widgets.some(
-    (w) =>
-      connected.has(w.id) &&
-      isClassRosterChecklist(w) &&
-      (!roster ||
-        roster.students.length === 0 ||
-        (!!(w.config as ChecklistConfig).rosterPoolGroupId &&
-          !view.groupsReady))
+  const waiting = new Set(
+    board.widgets
+      .filter(
+        (w) =>
+          connected.has(w.id) &&
+          isClassRosterChecklist(w) &&
+          (!roster ||
+            roster.students.length === 0 ||
+            (!!(w.config as ChecklistConfig).rosterPoolGroupId &&
+              !view.groupsReady))
+      )
+      .map((w) => w.id)
   );
-  if (waiting) return null;
-  return board.widgets.map((w) => {
+  const widgets = board.widgets.map((w) => {
+    if (waiting.has(w.id)) return w;
     if (w.type !== 'checklist') return w;
     const c = w.config as ChecklistConfig;
     if (!checklistUsesClassRoster(c)) return w;
@@ -63,4 +67,14 @@ export const engineWidgets = (
       config: { ...c, [CHECKLIST_ROSTER_ORDER]: order },
     };
   });
+  return { widgets, waiting };
+};
+
+// The engine's widgets, or null while any class roster in a Connection is still loading.
+export const engineWidgets = (
+  board: Dashboard,
+  view: RosterView
+): WidgetData[] | null => {
+  const { widgets, waiting } = engineView(board, view);
+  return waiting.size > 0 ? null : widgets;
 };
