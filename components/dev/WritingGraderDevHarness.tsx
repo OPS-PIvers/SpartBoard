@@ -19,8 +19,10 @@ import {
   isGradable,
   writingMaxPoints,
 } from '@/utils/writingGrading';
+import { buildWritingRecordSample } from './writingRecordSample';
 
 const noop = () => undefined;
+const RECORD = buildWritingRecordSample();
 const T0 = Date.UTC(2026, 10, 14, 15, 2);
 
 const RUBRIC = {
@@ -260,6 +262,7 @@ export const WritingGraderDevHarness: React.FC = () => {
             onSaveFeedback={() => Promise.resolve({ counts: true })}
             onReturn={() => Promise.resolve()}
             onClose={noop}
+            recordFixture={() => RECORD}
           />
         )}
         <DialogContainer />

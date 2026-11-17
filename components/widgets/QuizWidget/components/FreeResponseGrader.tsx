@@ -258,7 +258,18 @@ export interface FreeResponseGraderProps {
   /** Header color; defaults to brand blue. */
   headerAccent?: string;
   renderFooterActions?: (ctx: GraderFooterContext) => React.ReactNode;
+  /** Replaces answer playback with the caller's own record (Writing's), behind the same toggle. */
+  writingRecord?: GraderWritingRecord;
   onClose: () => void;
+}
+
+export interface GraderWritingRecord {
+  label: string;
+  anchor: Record<string, string>;
+  render: (ctx: {
+    responseKey: string;
+    questionId: string | undefined;
+  }) => React.ReactNode;
 }
 
 export interface GraderLabels {
@@ -611,6 +622,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   allowExcuse = false,
   headerAccent = BRAND_BLUE_HEADER,
   renderFooterActions,
+  writingRecord,
   onClose,
 }) => {
   const { t } = useTranslation();
@@ -985,7 +997,12 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     : null;
 
   const targetKey = `${responseKey ?? ''}::${target?.key ?? ''}`;
-  const showPlayback = !!writingPlayback && playbackOpenKey === targetKey;
+  const recordView =
+    writingRecord && responseKey
+      ? writingRecord.render({ responseKey, questionId: question?.id })
+      : null;
+  const hasReplay = !!writingPlayback || recordView != null;
+  const showPlayback = hasReplay && playbackOpenKey === targetKey;
   const isPaperAnswer = !!textEntry && isPaperWrittenAnswer(textEntry);
   // A landed or edited transcript rewrites the snapshot server-side; rehydrate so stale highlights never save back.
   const hydrateKey = isPaperAnswer
@@ -2439,7 +2456,9 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                     {gradedChip}
                   </div>
                 )}
-                {showPlayback && writingPlayback ? (
+                {showPlayback && recordView != null ? (
+                  <div key={targetKey}>{recordView}</div>
+                ) : showPlayback && writingPlayback ? (
                   <AnswerWritingPlayback
                     key={targetKey}
                     playback={writingPlayback}
@@ -2464,7 +2483,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                     {tg('noTextAnswer')}
                   </div>
                 )}
-                {(studentAnswer || writingPlayback) && (
+                {(studentAnswer || hasReplay) && (
                   <div className="-mt-2 flex flex-wrap items-center justify-end gap-1">
                     {studentAnswer &&
                       !showPlayback &&
@@ -2474,18 +2493,24 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                           onToggle={() => setShowQuotes((v) => !v)}
                         />
                       )}
-                    {writingPlayback && (
+                    {hasReplay && (
                       <button
                         type="button"
                         onClick={() =>
                           setPlaybackOpenKey(showPlayback ? null : targetKey)
                         }
                         aria-pressed={showPlayback}
-                        title={tg('writingPlaybackHint')}
-                        {...tourTypeAttr(
-                          'quiz-grading.writing-playback',
-                          'quiz'
-                        )}
+                        title={
+                          recordView != null
+                            ? undefined
+                            : tg('writingPlaybackHint')
+                        }
+                        {...(recordView != null
+                          ? writingRecord?.anchor
+                          : tourTypeAttr(
+                              'quiz-grading.writing-playback',
+                              'quiz'
+                            ))}
                         className={`touch-target-expand relative inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-xs font-semibold transition-colors ${
                           showPlayback
                             ? 'bg-brand-blue-primary/10 text-brand-blue-dark'
@@ -2495,7 +2520,9 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                         <History aria-hidden className="h-3.5 w-3.5" />
                         {showPlayback
                           ? tg('backToAnswer')
-                          : tg('writingPlayback')}
+                          : recordView != null && writingRecord
+                            ? writingRecord.label
+                            : tg('writingPlayback')}
                       </button>
                     )}
                     {studentAnswer && (

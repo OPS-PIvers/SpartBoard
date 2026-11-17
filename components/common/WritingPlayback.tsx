@@ -13,6 +13,7 @@ import {
   textAt,
   writingSessions,
   SESSION_GAP_MS,
+  type ParsedWritingLog,
   type WritingEdit,
 } from '@/utils/writingLog';
 import { BadgePopover } from './BadgePopover';
@@ -55,15 +56,39 @@ const EDIT_LABEL: Record<WritingEdit['kind'], string | null> = {
   format: null,
 };
 
+/** A Writing record's facts-only playback (D9): no stats or signs of its own, plus marks like each turn in. */
+export interface WritingPlayerFacts {
+  marks: { at: number; label: string }[];
+  /** Shown once playback reaches the end, such as where recording stopped. */
+  endNote?: string;
+  /** Jumps playback to an edit; a new `n` jumps again to the same place. */
+  seek?: { at: number; n: number };
+}
+
+const FACT_LABEL: Record<WritingEdit['kind'], string | null> = {
+  ...EDIT_LABEL,
+  sync: 'Added without typing',
+};
+
 /** Replays one written answer edit by edit; `hidePasted` and `hideUnkeyed` follow signs an admin switched off. */
 export const WritingPlayer: React.FC<{
-  log: string;
+  log: string | ParsedWritingLog;
   hidePasted?: boolean;
   hideUnkeyed?: boolean;
   /** Height of the replayed text box. */
   boxHeight?: string;
-}> = ({ log, hidePasted = false, hideUnkeyed = false, boxHeight = 'h-64' }) => {
-  const { edits, stamps, cutOff } = useMemo(() => parseWritingLog(log), [log]);
+  facts?: WritingPlayerFacts;
+}> = ({
+  log,
+  hidePasted = false,
+  hideUnkeyed = false,
+  boxHeight = 'h-64',
+  facts,
+}) => {
+  const { edits, stamps, cutOff } = useMemo(
+    () => (typeof log === 'string' ? parseWritingLog(log) : log),
+    [log]
+  );
   const summary = useMemo(() => summarizeWriting(edits), [edits]);
   const sessions = useMemo(
     () => writingSessions(edits, stamps),
@@ -77,6 +102,16 @@ export const WritingPlayer: React.FC<{
   const [index, setIndex] = useState(edits.length);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(2);
+  const [seekN, setSeekN] = useState(facts?.seek?.n);
+  if (facts?.seek && facts.seek.n !== seekN) {
+    setSeekN(facts.seek.n);
+    setPlaying(false);
+    setIndex(Math.max(0, Math.min(facts.seek.at, edits.length)));
+  }
+  const markAt = useMemo(
+    () => new Map((facts?.marks ?? []).map((m) => [m.at, m.label])),
+    [facts]
+  );
 
   const atEnd = index >= edits.length;
   useEffect(() => {
@@ -113,11 +148,14 @@ export const WritingPlayer: React.FC<{
   const nextSession = sessionAt.get(index);
   const inPause =
     !!next && next.dt >= LONG_PAUSE_MS && nextSession === undefined;
+  const labels = facts ? FACT_LABEL : EDIT_LABEL;
   const note =
+    (atEnd && facts?.endNote ? facts.endNote : null) ??
+    markAt.get(index) ??
     (nextSession !== undefined
       ? `Session ${nextSession} starts ${formatWhen(sessions[nextSession - 1].start)}`
       : null) ??
-    (last && shownKind(last.kind) ? EDIT_LABEL[last.kind] : null) ??
+    (last && shownKind(last.kind) ? labels[last.kind] : null) ??
     (inPause && next ? `Paused for ${formatSpan(next.dt)} here` : null);
 
   const pauses = useMemo(
@@ -136,28 +174,30 @@ export const WritingPlayer: React.FC<{
 
   return (
     <div className="space-y-3">
-      <dl className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
-        {[
-          ['Writing time', formatSpan(summary.writingMs)],
-          ...(sessions.length > 0
-            ? [['Sessions', sessions.length.toLocaleString()]]
-            : []),
-          ['Edits', summary.edits.toLocaleString()],
-          [
-            'Deletions',
-            `${summary.deletions.toLocaleString()} (${count(summary.deletedChars, 'character')})`,
-          ],
-          ['Full words replaced', summary.wordsReplaced.toLocaleString()],
-        ].map(([label, value]) => (
-          <div key={label}>
-            <dt className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              {label}
-            </dt>
-            <dd className="font-semibold text-slate-800">{value}</dd>
-          </div>
-        ))}
-      </dl>
-      {sessions.length > 0 && (
+      {!facts && (
+        <dl className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+          {[
+            ['Writing time', formatSpan(summary.writingMs)],
+            ...(sessions.length > 0
+              ? [['Sessions', sessions.length.toLocaleString()]]
+              : []),
+            ['Edits', summary.edits.toLocaleString()],
+            [
+              'Deletions',
+              `${summary.deletions.toLocaleString()} (${count(summary.deletedChars, 'character')})`,
+            ],
+            ['Full words replaced', summary.wordsReplaced.toLocaleString()],
+          ].map(([label, value]) => (
+            <div key={label}>
+              <dt className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                {label}
+              </dt>
+              <dd className="font-semibold text-slate-800">{value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {!facts && sessions.length > 0 && (
         <ol className="space-y-0.5 text-sm text-slate-700">
           {sessions.map((x, i) => (
             <li key={x.at}>
@@ -167,25 +207,26 @@ export const WritingPlayer: React.FC<{
           ))}
         </ol>
       )}
-      {((summary.pastedChars > 0 && !hidePasted) ||
-        (summary.syncChars > 0 && !hideUnkeyed) ||
-        summary.restoredChars > 0) && (
-        <p className="text-sm text-slate-700">
-          {[
-            summary.pastedChars > 0 &&
-              !hidePasted &&
-              `${count(summary.pastedChars, 'character')} pasted`,
-            summary.restoredChars > 0 &&
-              `${count(summary.restoredChars, 'character')} typed just before a page reload were not recorded`,
-            summary.syncChars > 0 &&
-              !hideUnkeyed &&
-              `${count(summary.syncChars, 'character')} appeared without typing`,
-          ]
-            .filter(Boolean)
-            .join('; ')}
-          .
-        </p>
-      )}
+      {!facts &&
+        ((summary.pastedChars > 0 && !hidePasted) ||
+          (summary.syncChars > 0 && !hideUnkeyed) ||
+          summary.restoredChars > 0) && (
+          <p className="text-sm text-slate-700">
+            {[
+              summary.pastedChars > 0 &&
+                !hidePasted &&
+                `${count(summary.pastedChars, 'character')} pasted`,
+              summary.restoredChars > 0 &&
+                `${count(summary.restoredChars, 'character')} typed just before a page reload were not recorded`,
+              summary.syncChars > 0 &&
+                !hideUnkeyed &&
+                `${count(summary.syncChars, 'character')} appeared without typing`,
+            ]
+              .filter(Boolean)
+              .join('; ')}
+            .
+          </p>
+        )}
       <div
         aria-live="off"
         className={`${boxHeight} overflow-y-auto whitespace-pre-wrap break-words rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-900`}
@@ -202,7 +243,7 @@ export const WritingPlayer: React.FC<{
       </div>
       <div className="flex h-6 items-center gap-2">
         <p
-          className={`text-xs font-semibold ${nextSession !== undefined ? 'text-brand-blue-primary' : 'text-amber-700'}`}
+          className={`text-xs font-semibold ${atEnd && facts?.endNote ? 'text-slate-700' : markAt.has(index) ? 'text-teal-800' : nextSession !== undefined ? 'text-brand-blue-primary' : 'text-amber-700'}`}
         >
           {note}
         </p>
@@ -270,6 +311,25 @@ export const WritingPlayer: React.FC<{
                 <span className="h-3 w-1 rounded-full bg-brand-blue-primary group-hover:bg-brand-blue-dark" />
               </button>
             ))}
+            {(facts?.marks ?? []).map((m) => (
+              // no-tour-anchor: one turn in on one student's record, nothing a tour walks to
+              <button
+                key={`m${m.at}-${m.label}`}
+                type="button"
+                onClick={() => {
+                  setPlaying(false);
+                  setIndex(m.at);
+                }}
+                title={m.label}
+                aria-label={m.label}
+                style={{
+                  left: `calc(8px + (100% - 16px) * ${m.at / Math.max(edits.length, 1)})`,
+                }}
+                className="group absolute inset-y-0 flex w-4 -translate-x-1/2 justify-center focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+              >
+                <span className="h-4 w-1 rounded-full bg-teal-700 group-hover:bg-teal-800" />
+              </button>
+            ))}
             {pauses.map((p) => (
               // no-tour-anchor: one pause in one student's answer, nothing a tour walks to
               <button
@@ -307,7 +367,7 @@ export const WritingPlayer: React.FC<{
           ))}
         </select>
       </div>
-      {cutOff && (
+      {cutOff && !facts && (
         <p className="text-xs text-slate-600">
           Recording stopped at its size limit before the end.
         </p>

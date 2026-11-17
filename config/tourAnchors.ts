@@ -17392,6 +17392,11 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'writing-grading.writing-record': {
+    label: 'Writing record button in the Writing grader',
+    perWidgetType: true,
+    panel: true,
+  },
   'writing-grading.student-record': {
     label:
       'Students can replay their own writing checkbox in the Writing grader',

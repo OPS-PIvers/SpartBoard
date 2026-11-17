@@ -228,6 +228,11 @@ export class WritingLogWriter {
         : 0;
   }
 
+  /** A chunk that continues a log mid-page: text it never saw is untyped, not restored. */
+  continueLive(): void {
+    this.started = true;
+  }
+
   /** The text the log has reached. */
   get current(): string {
     return this.text;

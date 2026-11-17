@@ -48,6 +48,8 @@ export interface UseTabAwayTrackerArgs {
   onAwayTooLong: () => void;
   /** The page requires fullscreen: leaving it counts as an exit, which stays open until fullscreen is back. */
   fullscreenRequired?: boolean;
+  /** Every closed exit, including those past the log's cap. */
+  onExitClosed?: (outcome: TabExitOutcome, durationMs: number) => void;
 }
 
 interface OpenExit {
@@ -118,6 +120,7 @@ export function useTabAwayTracker(args: UseTabAwayTrackerArgs) {
       if (!open) return;
       openRef.current = null;
       setAway({ leftAtPerf: open.leftAtPerf, durationMs, outcome });
+      argsRef.current.onExitClosed?.(outcome, durationMs);
       const exits = currentExits();
       const last = exits[exits.length - 1];
       // Past the cap the exit was never logged.

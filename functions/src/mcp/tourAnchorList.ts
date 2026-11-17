@@ -76584,6 +76584,31 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "writing-grading.writing-record",
+    "label": "Writing record button in the Writing grader",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.grader",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-results.grade:writing"
+        ],
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "writing-grading.student-record",
     "label": "Students can replay their own writing checkbox in the Writing grader",
     "scope": "widget type",

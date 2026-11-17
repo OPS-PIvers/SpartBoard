@@ -206,6 +206,27 @@ describe('useTabAwayTracker', () => {
     expect(saveExits).not.toHaveBeenCalled();
   });
 
+  it('reports every closed exit, past the cap too, for time away counts', async () => {
+    const full = Array.from({ length: TAB_EXITS_MAX }, (_, i) => ({
+      leftAt: i,
+      attempt: 0,
+      durationMs: 1,
+      outcome: 'returned' as const,
+    }));
+    const onExitClosed = vi.fn();
+    const { saveExits } = setup({ serverExits: full, onExitClosed });
+    leave();
+    await flush();
+    act(() => {
+      vi.advanceTimersByTime(3_000);
+    });
+    comeBack();
+    expect(saveExits).not.toHaveBeenCalled();
+    expect(onExitClosed).toHaveBeenCalledTimes(1);
+    expect(onExitClosed.mock.calls[0][0]).toBe('returned');
+    expect(onExitClosed.mock.calls[0][1]).toBeGreaterThanOrEqual(3_000);
+  });
+
   describe('reopen check', () => {
     const stale: TabExit = { leftAt: 1_000_000 - 60_000, attempt: 0 };
 

@@ -158,3 +158,23 @@ describe('WritingRecorder', () => {
     expect(rec.logDirty).toBe(false);
   });
 });
+
+describe('WritingRecorder.stopLog (D21)', () => {
+  it('stops logging after the yearly deletion while the summary keeps counting', () => {
+    const rec = new WritingRecorder({
+      log: '',
+      startText: '',
+      chunk: 0,
+      base: null,
+    });
+    rec.edit('', 'a', 1, 'typed', 1_000);
+    rec.stopLog(5_000);
+    const before = rec.openChunk.log;
+    rec.edit('a', 'ab', 2, 'pasted', 1_001);
+    expect(rec.openChunk.log).toBe(before);
+    expect(rec.logDirty).toBe(false);
+    const s = rec.summary(1, 2_000);
+    expect(s.logStoppedAt).toBe(5_000);
+    expect(s.pasteCount).toBe(1);
+  });
+});
