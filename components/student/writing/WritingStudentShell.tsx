@@ -51,6 +51,8 @@ export interface WritingShellPiece {
   allowInsert: (text: string, via: 'paste' | 'drop' | 'drag-inside') => boolean;
   onEditorCopy: (text: string) => void;
   bindEditor: (el: HTMLElement | null) => void;
+  /** The teacher's returned feedback; renders nothing until a copy is returned. */
+  feedback?: React.ReactNode;
 }
 
 /** Student-facing wording, listed in pr-b2-strings.md for review. */
@@ -449,6 +451,7 @@ export const WritingStudentShell: React.FC<{
         {view.mode === 'returned' && (
           <p className="text-sm text-slate-700">{S.returned}</p>
         )}
+        {piece?.feedback}
         {view.mode === 'writing' && piece && !piece.online && (
           <div
             role="status"

@@ -31,11 +31,8 @@ import { isSuperAdminActor } from '@/utils/superAdmin';
 
 // True when the rules refuse this switch's write for the signed-in admin.
 const useSuperAdminLock = (sw: RolloutSwitch): boolean => {
-  const { user, userRoles, roleId, orgId } = useAuth();
-  return (
-    !!sw.superAdminOnly &&
-    !isSuperAdminActor(user?.email, userRoles?.superAdmins, roleId, orgId)
-  );
+  const { user, roleId, orgId } = useAuth();
+  return !!sw.superAdminOnly && !isSuperAdminActor(user?.email, roleId, orgId);
 };
 
 const DistrictSwitch: React.FC<{

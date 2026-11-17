@@ -86,35 +86,16 @@ describe('isStrictSuperAdmin', () => {
     }
   });
 
-  it('admits the legacy superAdmins list with no orono doc or a live one', async () => {
-    expect(await isStrictSuperAdmin(fakeDb(null, [email]), email)).toBe(true);
+  it('ignores the retired legacy superAdmins list', async () => {
+    expect(await isStrictSuperAdmin(fakeDb(null, [email]), email)).toBe(false);
     for (const status of ['active', 'invited', undefined]) {
       expect(
         await isStrictSuperAdmin(
           fakeDb({ roleId: 'teacher', status }, [email]),
           email
         )
-      ).toBe(true);
+      ).toBe(false);
     }
-  });
-
-  it('refuses a listed email whose orono member doc is deactivated', async () => {
-    expect(
-      await isStrictSuperAdmin(
-        fakeDb({ roleId: 'super_admin', status: 'inactive' }, [email]),
-        email
-      )
-    ).toBe(false);
-  });
-
-  it('still counts a deactivated listed email when includeRevoked is set', async () => {
-    expect(
-      await isStrictSuperAdmin(
-        fakeDb({ roleId: 'super_admin', status: 'inactive' }, [email]),
-        email,
-        { includeRevoked: true }
-      )
-    ).toBe(true);
   });
 
   it('refuses domain_admin', async () => {

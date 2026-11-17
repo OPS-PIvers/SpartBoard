@@ -31,6 +31,8 @@ export interface GradeDraftContext {
   existingSnapshot?: string;
   /** Take the media grade is about; ignored for text targets. */
   gradedTakeIndex?: number;
+  /** Comments only (ungraded Writing): no score is asked for, and a comment or highlight completes it. */
+  scoreless?: boolean;
 }
 
 export type GradeDraftError =
@@ -78,6 +80,9 @@ export function isGradeComplete(
     }
     return false;
   }
+  if (ctx.scoreless) {
+    return draft.comment.trim() !== '' || draft.annotations.length > 0;
+  }
   if (rubricActive(ctx)) {
     return draft.rubricScores.length === ctx.rubricCriteriaCount;
   }
@@ -114,7 +119,7 @@ export function buildGradeFromDraft(
     };
   }
 
-  const trimmed = draft.pointsInput.trim();
+  const trimmed = ctx.scoreless ? '0' : draft.pointsInput.trim();
   let points: number;
   if (trimmed === '') {
     // A rubric with any selection banks its running sum, no typed total needed.

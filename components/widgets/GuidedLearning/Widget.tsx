@@ -266,7 +266,6 @@ const TeacherGuidedLearningWidget: React.FC<{
     getAssignmentMode,
     canAccessFeature,
     appSettings,
-    userRoles,
     orgId,
     roleId,
   } = useAuth();
@@ -774,12 +773,7 @@ const TeacherGuidedLearningWidget: React.FC<{
           uid: user.uid,
           email: user.email,
           orgId,
-          isSuperAdmin: isSuperAdminActor(
-            user.email,
-            userRoles?.superAdmins,
-            roleId,
-            orgId
-          ),
+          isSuperAdmin: isSuperAdminActor(user.email, roleId, orgId),
         }
       : null;
 

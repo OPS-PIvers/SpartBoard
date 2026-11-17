@@ -43,7 +43,11 @@ import {
   pullSyncedVideoActivityContent,
 } from './useSyncedVideoActivityGroups';
 import { logError } from '@/utils/logError';
-import { gradeVideoActivityResponseForPublish } from '@/utils/studentResultsPublish';
+import {
+  gradeVideoActivityResponseForPublish,
+  vaPublishPatch,
+  vaSessionShowsResults,
+} from '@/utils/studentResultsPublish';
 import {
   isLiveVideoActivitySession,
   scoredVideoActivityQuestions,
@@ -57,7 +61,6 @@ import type {
   PlcAssignmentIndexEntry,
   ResultsProtection,
   SharedVideoActivityAssignment,
-  VideoActivityAnswer,
   VideoActivityAssignment,
   VideoActivityAssignmentSettings,
   VideoActivityAssignmentSyncLinkage,
@@ -255,7 +258,9 @@ export interface UseVideoActivityAssignmentsResult {
     assignmentId: string,
     activityData: VideoActivityData,
     visibility: Exclude<VideoActivityScoreVisibility, 'none'>,
-    protection?: ResultsProtection
+    protection?: ResultsProtection,
+    /** The `va-score-only-verdicts` flag: keep right/wrong off where results stay hidden. */
+    withholdVerdicts?: boolean
   ) => Promise<{
     responsesUpdated: number;
     /** The questions scores were computed over (asked ones only in a live session). */
@@ -1163,7 +1168,13 @@ export const useVideoActivityAssignments = (
   const publishAssignmentScores = useCallback<
     UseVideoActivityAssignmentsResult['publishAssignmentScores']
   >(
-    async (assignmentId, activityData, visibility, protection) => {
+    async (
+      assignmentId,
+      activityData,
+      visibility,
+      protection,
+      withholdVerdicts = false
+    ) => {
       if (!userId) throw new Error('Not authenticated');
       // Belt-and-suspenders against a future caller that bypasses the
       // type-level `Exclude<…, 'none'>` (see Quiz hook for the same
@@ -1196,6 +1207,7 @@ export const useVideoActivityAssignments = (
       );
       const questionsById = new Map(scoredQuestions.map((q) => [q.id, q]));
       const live = isLiveVideoActivitySession(sessionSnap.data());
+      const sessionShowsResults = vaSessionShowsResults(sessionSnap.data());
 
       // Read responses in bounded pages (limit + documentId cursor) rather
       // than one unbounded `getDocs` so a PLC-shared assignment with
@@ -1213,16 +1225,24 @@ export const useVideoActivityAssignments = (
 
       interface ResponseUpdate {
         ref: ReturnType<typeof doc>;
-        patch: { score: number | null; answers: VideoActivityAnswer[] };
+        patch: Record<string, unknown>;
       }
       const updates: ResponseUpdate[] = [];
       for (const d of responseDocs) {
         const data = d.data() as VideoActivityResponse;
-        const { score, answers: gradedAnswers } =
-          gradeVideoActivityResponseForPublish(data, questionsById, live);
         updates.push({
           ref: d.ref,
-          patch: { score, answers: gradedAnswers },
+          patch: vaPublishPatch(
+            data,
+            gradeVideoActivityResponseForPublish(data, questionsById, live),
+            {
+              withholdVerdicts,
+              visibility,
+              now,
+              sessionShowsResults,
+              responseKey: d.id,
+            }
+          ),
         });
       }
 

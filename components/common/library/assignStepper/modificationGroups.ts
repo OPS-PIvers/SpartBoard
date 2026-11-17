@@ -1,5 +1,5 @@
 // Modification groups: students who share one set of rules, expanded into per-student overrides at assign time.
-import type { ClassRoster, StudentOverride } from '@/types';
+import type { ClassRoster, QuizSupport, StudentOverride } from '@/types';
 import type { ClassStudentRow } from '@/utils/studentTargetRef';
 import type { OverrideEditorQuestion } from '../OverrideEditorRow';
 import type { AssignClassesValue } from './assignClassesValue';
@@ -20,7 +20,11 @@ export interface ModificationGroup {
   readAloud: boolean;
   /** BCP-47 code; absent = each student's own. */
   language?: string;
+  supports?: QuizSupport[];
+  modifiedQuestions?: boolean;
 }
+
+export const MAX_SUPPORTS = 5;
 
 let groupSeq = 0;
 export const newModificationGroup = (): ModificationGroup => ({
@@ -103,6 +107,8 @@ export function overrideForGroup(
   if (hidden) next.hiddenOptionIdsByQuestion = hidden;
   if (group.readAloud) next.readAloud = true;
   if (group.language) next.language = group.language;
+  if (group.supports?.length) next.supports = group.supports;
+  if (group.modifiedQuestions) next.modifiedQuestions = true;
   return next;
 }
 
@@ -148,9 +154,13 @@ export function groupRuleLabels(
   else if (group.time !== 'standard') parts.push(`${group.time}x time`);
   if (group.answerChoices === 'drop-one') parts.push('1 wrong answer removed');
   if (group.answerChoices === 'two') parts.push('2 answer choices');
+  if (group.modifiedQuestions) parts.push('modified questions');
   if (group.readAloud) parts.push('read aloud');
   if (group.language)
     parts.push(languageLabel ? languageLabel(group.language) : group.language);
+  const supports = group.supports?.length ?? 0;
+  if (supports > 0)
+    parts.push(supports === 1 ? '1 support' : `${supports} supports`);
   return parts;
 }
 
