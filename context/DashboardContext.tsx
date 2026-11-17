@@ -1220,6 +1220,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // below cause re-runs as `roleResolved`/`roleId`/`isStudentRole` resolve).
   // Scoped per-uid so a sign-out → sign-in as a different user re-arms it.
   const migrationStartedForUidRef = useRef<string | null>(null);
+  // Per-uid guard so repeated empty snapshots or effect re-runs create only one default board.
+  const defaultBoardStartedForUidRef = useRef<string | null>(null);
 
   // Cross-device dock sync. `dockItems`, `libraryOrder`, and `isDockInitialized`
   // are mirrored to `/users/{uid}/userProfile/profile`. Hydration tracks two
@@ -3067,6 +3069,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             setLoading(false);
             return;
           }
+          if (defaultBoardStartedForUidRef.current === user.uid) {
+            setLoading(false);
+            return;
+          }
+          defaultBoardStartedForUidRef.current = user.uid;
           void saveDashboardRef
             .current(defaultDb)
             .then(() => {
@@ -3081,7 +3088,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 },
               ]);
             })
-            .catch(console.error);
+            .catch((err) => {
+              defaultBoardStartedForUidRef.current = null;
+              console.error(err);
+            });
         }
 
         setLoading(false);
