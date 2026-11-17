@@ -511,6 +511,9 @@ claude/project-thread-dmpjbw
 feat/quiz-live-view
 claude/project-thread-ucbftr
 claude/project-thread-ldt8ev
+claude/project-thread-4b5o66 (#6056)
+claude/project-thread-4b5o66-connections (#6057)
+claude/project-thread-4b5o66-ab112 (this docs PR, delete after it merges)
 
 ```
 git push origin --delete claude/project-thread-1ylvse
