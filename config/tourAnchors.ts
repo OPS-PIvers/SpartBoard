@@ -1546,6 +1546,37 @@ export const TOUR_ANCHORS = {
     label: 'Another group with different changes button in the Assign dialog',
     panel: true,
   },
+  'assign-mods.supports-add': {
+    label: 'Add support button for a modification group',
+    panel: true,
+  },
+  'assign-mods.supports-kind': {
+    label: 'Text, Link or Drive file choice in the Add support menu',
+    perField: true,
+    panel: true,
+  },
+  'assign-mods.support-title': {
+    label: 'Support title field for a modification group',
+    panel: true,
+  },
+  'assign-mods.support-body': {
+    label: 'Support text or link field for a modification group',
+    panel: true,
+  },
+  'assign-mods.support-save': {
+    label: 'Add button that saves a new support',
+    panel: true,
+  },
+  'assign-mods.support-cancel': {
+    label: 'Cancel button for a new support',
+    panel: true,
+  },
+  'assign-mods.support-remove': {
+    label: 'Remove support button for a modification group',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
   'assign-mods.remove-group': {
     label: 'Remove group button in the Assign dialog Modifications step',
     destructive: true,
