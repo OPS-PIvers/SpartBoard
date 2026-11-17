@@ -1,6 +1,7 @@
 // Admin Settings > District library with folders: folder tree, folder audience, and rows filed by folder.
 import React, { useMemo, useState } from 'react';
 import {
+  CheckSquare,
   ChevronDown,
   ChevronRight,
   Eye,
@@ -21,7 +22,6 @@ import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { OverflowMenu } from '@/components/common/library/LibraryOverflowMenu';
 import { FolderPickerPopover } from '@/components/common/library/FolderPickerPopover';
 import { BulkActionBar } from '@/components/common/library/BulkActionBar';
-import { LibrarySelectToggle } from '@/components/common/library/LibrarySelectToggle';
 import { useLibrarySelection } from '@/components/common/library/useLibrarySelection';
 import { itemsAtFolderLevel } from '@/utils/folderLevel';
 import type { LibraryMenuAction } from '@/components/common/library/types';
@@ -702,14 +702,19 @@ export const DistrictLibraryFolderView: React.FC<Props> = ({
             {all ? 'Select none' : 'Select all'}
           </button>
         )}
-        <LibrarySelectToggle
-          selectionMode={selecting}
-          onChange={(next) => {
-            setSelecting(next);
-            if (!next) selection.clear();
+        <button
+          type="button"
+          aria-pressed={selecting}
+          onClick={() => {
+            if (selecting) selection.clear();
+            setSelecting(!selecting);
           }}
-          anchor={tourAttr('admin.district-library.select')}
-        />
+          {...tourAttr('admin.district-library.select')}
+          className={`${iconButton} ${selecting ? 'bg-slate-100 text-slate-900' : ''}`}
+        >
+          <CheckSquare className="h-3.5 w-3.5" aria-hidden />
+          {selecting ? 'Cancel' : 'Select'}
+        </button>
       </>
     );
   };
@@ -748,33 +753,37 @@ export const DistrictLibraryFolderView: React.FC<Props> = ({
               </span>
             </div>
           </div>
-          {selectControls(direct)}
-          <button
-            type="button"
-            disabled={working}
-            aria-expanded={audienceOpen}
-            onClick={() =>
-              setEditing(audienceOpen ? null : { kind: 'folder', id: folderId })
-            }
-            {...tourFieldAttr(
-              'admin.district-library.folder-targeting',
-              'admin',
-              folderId
-            )}
-            className={`${iconButton} ${audienceOpen ? 'bg-slate-100 text-slate-900' : ''}`}
-          >
-            <Users className="h-3.5 w-3.5" aria-hidden />
-            Who sees this folder
-          </button>
-          <OverflowMenu
-            actions={folderActions(folderId)}
-            widgetType="admin"
-            anchor={tourFieldAttr(
-              'admin.district-library.folder-menu',
-              'admin',
-              folderId
-            )}
-          />
+          <div className="flex shrink-0 items-center gap-1">
+            {selectControls(direct)}
+            <button
+              type="button"
+              disabled={working}
+              aria-expanded={audienceOpen}
+              onClick={() =>
+                setEditing(
+                  audienceOpen ? null : { kind: 'folder', id: folderId }
+                )
+              }
+              {...tourFieldAttr(
+                'admin.district-library.folder-targeting',
+                'admin',
+                folderId
+              )}
+              className={`${iconButton} ${audienceOpen ? 'bg-slate-100 text-slate-900' : ''}`}
+            >
+              <Users className="h-3.5 w-3.5" aria-hidden />
+              Access
+            </button>
+            <OverflowMenu
+              actions={folderActions(folderId)}
+              widgetType="admin"
+              anchor={tourFieldAttr(
+                'admin.district-library.folder-menu',
+                'admin',
+                folderId
+              )}
+            />
+          </div>
         </div>
         {audienceOpen && (
           <div className="mb-3">

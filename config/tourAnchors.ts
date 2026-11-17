@@ -10391,7 +10391,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'admin.district-library.folder-targeting': {
-    label: 'Who sees this folder button, by folder id',
+    label: 'Folder Access button, by folder id',
     perField: true,
     panel: true,
   },

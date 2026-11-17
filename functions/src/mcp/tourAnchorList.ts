@@ -45255,7 +45255,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "admin.district-library.folder-targeting",
-    "label": "Who sees this folder button, by folder id",
+    "label": "Folder Access button, by folder id",
     "scope": "field",
     "panel": true,
     "routes": [
