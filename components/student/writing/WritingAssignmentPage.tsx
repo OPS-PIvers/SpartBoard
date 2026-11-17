@@ -12,6 +12,7 @@ import { PageProtectionGuards } from '@/components/common/PageProtectionGuards';
 import { effectivePageProtections } from '@/utils/pageProtections';
 import { deriveWritingView, writingClosed } from '@/utils/writingStudentView';
 import { WritingStudentShell } from './WritingStudentShell';
+import { WritingReturnedFeedback } from './WritingReturnedFeedback';
 
 const SESSIONS = 'writing_assignment_sessions';
 
@@ -138,6 +139,15 @@ const WritingPiecePage: React.FC<{
           allowInsert: piece.allowInsert,
           onEditorCopy: piece.onEditorCopy,
           bindEditor: piece.bindEditor,
+          feedback: (
+            <WritingReturnedFeedback
+              sessionId={session.id}
+              studentUid={studentUid}
+              grading={session.grading}
+              draftSeq={response?.draftSeq}
+              returnedAt={response?.returnedAt}
+            />
+          ),
         }}
       />
       {writing && (
