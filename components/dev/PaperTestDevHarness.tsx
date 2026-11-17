@@ -16,7 +16,10 @@ import {
 import { PaperImportModal } from '@/components/widgets/QuizWidget/components/PaperImportModal';
 import { PaperPrintModal } from '@/components/widgets/QuizWidget/components/PaperPrintModal';
 import { printedGroupQuiz } from '@/utils/paperPrintedVersions';
-import { PaperReprintModal } from '@/components/widgets/QuizWidget/components/PaperReprintModal';
+import {
+  PaperGroupReprintModal,
+  PaperReprintModal,
+} from '@/components/widgets/QuizWidget/components/PaperReprintModal';
 import type {
   ClassRoster,
   PaperBatch,
@@ -89,6 +92,10 @@ const PAPER: QuizAssignment = {
 };
 
 const IN_PROGRESS = [PAPER, base(1), { ...base(2), status: 'paused' as const }];
+const WITH_COPIES = [
+  { ...base(1), paperCopyBatchIds: ['batch-g1', 'batch-g2'] },
+  base(2),
+];
 const COMPLETED = [
   { ...PAPER, status: 'inactive' as const, hasPaperResponses: true },
   { ...base(3), status: 'inactive' as const },
@@ -288,6 +295,32 @@ const VIEWS = {
     />
   ),
   'in-progress': () => <Manager tab="active" assignments={IN_PROGRESS} />,
+  copies: () => <Manager tab="active" assignments={WITH_COPIES} />,
+  'group-reprint': () => (
+    <PaperGroupReprintModal
+      groups={[1, 2].map((n) => ({
+        label: `Group ${n}`,
+        quiz: printedGroupQuiz(
+          { ...ASSIGN_QUIZ, questions: ASSIGN_QUIZ.questions.slice(0, 2) },
+          { answerChoices: n === 1 ? 'two' : 'drop-one' }
+        ),
+        batch: {
+          ...BATCH,
+          id: `batch-g${n}`,
+          questionCount: 2,
+          seats: { 1: { rosterId: 'r1', studentId: `r1-s${n}` } },
+          spareSeats: [],
+          printedGroup: {
+            number: n,
+            answerChoices: n === 1 ? 'two' : 'drop-one',
+          },
+        },
+      }))}
+      rosters={ROSTERS}
+      onClose={noop}
+      onError={noop}
+    />
+  ),
   import: () => <PaperImport />,
   completed: () => <Manager tab="archive" assignments={COMPLETED} />,
   reprint: () => (
