@@ -73,7 +73,10 @@ import { PresentSession } from '@/components/widgets/QuizWidget/components/prese
 import { boardRankRows, rankOrdinal } from '@/utils/reviewLaunch';
 import { useMonitorData } from './useMonitorData';
 import type { MonitorRosterTargets, NotJoinedStudent } from './rosterNotJoined';
-import { usePaperCopySeats } from '@/hooks/usePaperCopySeats';
+import {
+  usePaperCopySeats,
+  type LoadPaperBatch,
+} from '@/hooks/usePaperCopySeats';
 import { getLocalIsoDate } from '@/utils/localDate';
 import { CurrentQuestionCard } from './CurrentQuestionCard';
 import { useGameClockControls } from './useGameClockControls';
@@ -152,6 +155,8 @@ export interface QuizLiveMonitorProps {
   rosterTargets?: MonitorRosterTargets | null;
   /** False until the responses listener first delivers; roster rows wait for it. */
   responsesLoaded?: boolean;
+  /** Reads a printed group stack; the dev harness passes a fixture. */
+  loadPaperBatch?: LoadPaperBatch;
   /** Opens the picker that reopens this ended quiz for chosen students. */
   reopenPicker?: {
     /** Cancel: leave without reopening. */
@@ -219,6 +224,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     rosterTargets = null,
     responsesLoaded = true,
     reopenPicker = null,
+    loadPaperBatch,
   } = props;
   // Any Quiz-kind session is an assessment, including PLC mounts that omit the prop.
   const assessmentOnly = assessmentOnlyProp || !isReviewGame(session);
@@ -256,7 +262,8 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     authContext.user?.uid === session.teacherUid;
   const paperSeats = usePaperCopySeats(
     session.teacherUid,
-    paperCopiesOn ? rosterTargets?.paperCopyBatchIds : null
+    paperCopiesOn ? rosterTargets?.paperCopyBatchIds : null,
+    loadPaperBatch
   );
   const paperBatchIds = useMemo(
     () =>

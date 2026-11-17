@@ -39,6 +39,7 @@ import { SAMPLE_ROSTERS } from '@/components/common/library/assignStepper/assign
 import { Results as VideoActivityResults } from '@/components/widgets/VideoActivityWidget/components/Results';
 import { toVideoActivityPublicQuestion } from '@/utils/videoActivityPublicQuestions';
 import type {
+  QuizResponse,
   VideoActivityPublicQuestion,
   VideoActivityQuestion,
 } from '@/types';
@@ -224,6 +225,21 @@ const VaMonitorDev: React.FC<
   );
 };
 
+// Two printed group copies; Katherine (1003) has been scanned back in.
+const PAPER_BATCH_ID = 'paper-group-1';
+const loadHarnessPaperBatch = () =>
+  Promise.resolve({
+    seats: {
+      1: { rosterId: 'roster-p3', studentId: 's-3' },
+      2: { rosterId: 'roster-p3', studentId: 's-6' },
+      3: { rosterId: 'roster-p3', studentId: 's-9' },
+    },
+  });
+const withPaperScan = (responses: QuizResponse[]): QuizResponse[] =>
+  responses.map((r) =>
+    r.pin === '1003' ? { ...r, paperBatchId: PAPER_BATCH_ID, paperSeat: 1 } : r
+  );
+
 const PRESENT_STANDINGS = [
   { studentUid: 'u1', name: 'Ada Lovelace', score: 940, rank: 1 },
   { studentUid: 'u2', name: 'Grace Hopper', score: 880, rank: 2 },
@@ -301,6 +317,7 @@ const SessionView: React.FC<{
     const status =
       state === 'paused' ? 'paused' : state === 'ended' ? 'ended' : 'active';
     const timed = state === 'timed';
+    const paperCopies = state === 'paper-copies';
     const responses =
       state === 'waiting'
         ? []
@@ -308,7 +325,9 @@ const SessionView: React.FC<{
           ? makeTimedQuizResponses()
           : state === 'stop'
             ? makeStopQuizResponses()
-            : makeQuizResponses();
+            : paperCopies
+              ? withPaperScan(makeQuizResponses())
+              : makeQuizResponses();
     const pastDue = state === 'past-due';
     const perPeriod = state === 'per-period' || pastDue;
     const period = (label: string, state: 'open' | 'paused' | 'closed') => ({
@@ -354,7 +373,10 @@ const SessionView: React.FC<{
         responses={responses}
         quizData={makeQuizData()}
         rosters={[makeQuizMonitorRoster()]}
-        rosterTargets={{}}
+        rosterTargets={
+          paperCopies ? { paperCopyBatchIds: [PAPER_BATCH_ID] } : {}
+        }
+        loadPaperBatch={loadHarnessPaperBatch}
         onAdvance={noop}
         onEnd={noop}
         onPause={noop}
@@ -464,7 +486,12 @@ const SessionView: React.FC<{
   }
 
   if (view === 'quiz-results') {
-    const responses = state === 'empty' ? [] : makeQuizResponses();
+    const responses =
+      state === 'empty'
+        ? []
+        : state === 'paper-copies'
+          ? withPaperScan(makeQuizResponses())
+          : makeQuizResponses();
     return (
       <QuizAttemptSourceContext.Provider
         value={(_sessionId, key) => makeQuizAttemptCopies(key)}
@@ -474,6 +501,9 @@ const SessionView: React.FC<{
           responses={responses}
           config={makeQuizConfig()}
           session={makeQuizSession('ended')}
+          paperCopyBatchIds={
+            state === 'paper-copies' ? [PAPER_BATCH_ID] : undefined
+          }
           onBack={() => undefined}
           onSubmitStudent={noop}
           studentResultsActions={HARNESS_RESULTS_ACTIONS}

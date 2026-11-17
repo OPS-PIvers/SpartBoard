@@ -1,13 +1,20 @@
 import { useEffect, useState } from 'react';
 import { getPaperBatch } from '@/utils/paperBatchStore';
 import { paperCopySeatKeys } from '@/utils/paperCopySeats';
+import type { PaperBatch } from '@/types';
+
+export type LoadPaperBatch = (
+  teacherUid: string,
+  batchId: string
+) => Promise<Pick<PaperBatch, 'seats'> | null>;
 
 const EMPTY: ReadonlySet<string> = new Set();
 
 /** Roster students holding a printed group copy of this assignment, as `rosterId:studentId` keys. */
 export function usePaperCopySeats(
   teacherUid: string | null | undefined,
-  batchIds: readonly string[] | null | undefined
+  batchIds: readonly string[] | null | undefined,
+  load: LoadPaperBatch = getPaperBatch
 ): ReadonlySet<string> {
   const idsKey = [...(batchIds ?? [])].sort().join(',');
   const [loaded, setLoaded] = useState<{
@@ -19,7 +26,7 @@ export function usePaperCopySeats(
     let cancelled = false;
     void Promise.all(
       idsKey.split(',').map((id) =>
-        getPaperBatch(teacherUid, id).catch((err: unknown) => {
+        load(teacherUid, id).catch((err: unknown) => {
           console.error('[usePaperCopySeats] batch read failed', err);
           return null;
         })
@@ -34,7 +41,7 @@ export function usePaperCopySeats(
     return () => {
       cancelled = true;
     };
-  }, [teacherUid, idsKey]);
+  }, [teacherUid, idsKey, load]);
   return loaded && loaded.key === `${teacherUid}|${idsKey}`
     ? loaded.seats
     : EMPTY;

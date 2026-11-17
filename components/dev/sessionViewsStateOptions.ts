@@ -57,6 +57,7 @@ export type StateKey =
   | 'ordering'
   | 'picture-only'
   | 'choose-n'
+  | 'paper-copies'
   | AudioCaptureStateKey
   | RecordingControlStateKey
   | QuizEditorStateKey
@@ -118,6 +119,7 @@ const SESSION_STATE_LABELS: Record<string, string> = {
   ordering: 'Ordering question (results)',
   'picture-only': 'Picture-only answers (results)',
   'choose-n': 'Answer any 2 of 3, answered extra (results)',
+  'paper-copies': 'Printed group copies (monitor, results)',
 };
 
 export const STATES: StateOption[] = [
