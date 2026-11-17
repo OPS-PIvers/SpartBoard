@@ -32,6 +32,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-score-on-submit',
   'modification-groups',
   'paper-printed-versions',
+  'paper-fill-in-blank',
   'project-submit',
   'gradebook',
   'student-gradebook',

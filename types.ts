@@ -6649,6 +6649,8 @@ export type PaperPageItem =
       lines: number;
       /** Absent = lines, as every map printed before box styles. */
       style?: PaperBoxStyle;
+      /** Fill in the blank: one write-in line per blank (`paper-fill-in-blank`). */
+      blanks?: number;
     };
 
 /** Positions of everything on one physical page; `page` is 1-based and absolute. */
@@ -11727,6 +11729,8 @@ export type GlobalFeature =
   | 'modification-groups'
   /** Quiz assign: a modification group can get a printed version, scanned back into the same results. */
   | 'paper-printed-versions'
+  /** Paper sheets: fill-in-the-blank prints a write-in line per blank, read back on import. */
+  | 'paper-fill-in-blank'
   /** Projects: a group submits its project; the teacher sees Submitted, Late or Missing and can reopen. */
   | 'project-submit'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */

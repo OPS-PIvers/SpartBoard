@@ -129,6 +129,7 @@ import { RubricStrandPills } from './RubricStrandChips';
 import { PaperCropPanel } from '@/components/quiz/paper/PaperCropPanel';
 import {
   handwritingArtifact,
+  isPaperFibOwed,
   isPaperWrittenAnswer,
 } from '@/utils/paperWritten';
 import {
@@ -532,21 +533,26 @@ function buildQueue(
         !!entry &&
         (hasSubmittedContent(entry.answer ?? '') ||
           isPaperWrittenAnswer(entry));
+      // Fill in the blank is graded here only while its paper box is unread.
       targets =
-        answered || grade
-          ? [
-              {
-                kind: 'text',
-                key: question.id,
-                entry: entry ?? {
-                  questionId: question.id,
-                  answer: '',
-                  answeredAt: 0,
+        question.type === 'FIB'
+          ? entry && isPaperFibOwed(entry)
+            ? [{ kind: 'text', key: question.id, entry, grade }]
+            : []
+          : answered || grade
+            ? [
+                {
+                  kind: 'text',
+                  key: question.id,
+                  entry: entry ?? {
+                    questionId: question.id,
+                    answer: '',
+                    answeredAt: 0,
+                  },
+                  grade,
                 },
-                grade,
-              },
-            ]
-          : [];
+              ]
+            : [];
     }
     if (targets.length > 0) {
       rows.push({ response, responseKey: responseKeyOf(response), targets });
@@ -751,11 +757,17 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     () =>
       quiz.questions.filter(
         (q) =>
-          isFreeResponseType(q.type) &&
+          (isFreeResponseType(q.type) ||
+            (q.type === 'FIB' &&
+              allResponses.some((r) =>
+                r.answers.some(
+                  (a) => a.questionId === q.id && isPaperFibOwed(a)
+                )
+              ))) &&
           (mediaEnabled || !q.recording) &&
           (q.recording?.mode !== 'whiteboard' || whiteboardEnabled)
       ),
-    [quiz.questions, mediaEnabled, whiteboardEnabled]
+    [quiz.questions, allResponses, mediaEnabled, whiteboardEnabled]
   );
 
   // Option counts match the rail: students with something to grade, per class.

@@ -99,6 +99,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'ocr',
   'org-admin-writes',
   'paper-answer-sheets',
+  'paper-fill-in-blank',
   'paper-handwriting-ai',
   'paper-handwritten-responses',
   'paper-image-markup',
