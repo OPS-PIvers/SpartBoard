@@ -43,6 +43,8 @@ const primaryLanguage = (language: string): string =>
 const normalizeAlways = (value: string, language: string): string => {
   const normalized = value
     .normalize('NFC')
+    // Typing "(small) town" with its parentheses matches too; they only mark optional words.
+    .replace(/[()]/gu, ' ')
     .trim()
     .replace(/\s+/gu, ' ')
     .toLocaleLowerCase(language || undefined)
