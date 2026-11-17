@@ -368,7 +368,10 @@ describe('fill in the blank on paper', () => {
     const html = buildPaperSheetsHtml(
       job(maps, {
         columnsPerPage: 'questions',
-        questionTexts: [{ text: 'One ___' }, { text: 'Two ___ and ___' }],
+        questionTexts: [
+          { text: 'One ___', choices: [] },
+          { text: 'Two ___ and ___', choices: [] },
+        ],
       })
     );
     const letters = [
@@ -379,7 +382,10 @@ describe('fill in the blank on paper', () => {
       buildPaperSheetsHtml(
         job(maps, {
           columnsPerPage: 'questions',
-          questionTexts: [{ text: 'One ___' }, { text: 'Two ___ and ___' }],
+          questionTexts: [
+            { text: 'One ___', choices: [] },
+            { text: 'Two ___ and ___', choices: [] },
+          ],
           sheets: [sheet({ isKeySheet: true, displayName: 'ANSWER KEY' })],
           blankAnswers: { q1: ['x'], q2: ['y', 'z'] },
         })
