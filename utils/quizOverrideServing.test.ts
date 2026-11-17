@@ -5,6 +5,7 @@ import {
   applyTimeMultiplier,
   serveLocalizedQuestion,
   applyModifiedWording,
+  applyModifiedRubric,
 } from './quizOverrideServing';
 import type { QuizPublicQuestion } from '@/types';
 
@@ -229,5 +230,35 @@ describe('applyModifiedWording', () => {
     expect(applyModifiedWording(base, undefined)).toBe(base);
     const plain = q('2');
     expect(applyModifiedWording(plain, true)).toBe(plain);
+  });
+});
+
+describe('applyModifiedRubric', () => {
+  const rubric = (id: string) => ({
+    id,
+    title: id,
+    createdAt: 0,
+    updatedAt: 0,
+    criteria: [],
+  });
+  const base: QuizPublicQuestion = {
+    id: 'w',
+    type: 'free-response',
+    text: 'Explain.',
+    timeLimit: 0,
+    rubricSnapshot: rubric('main'),
+    modifiedRubricSnapshot: rubric('mod'),
+    localized: { es: { text: 'Explica.', rubricSnapshot: rubric('main-es') } },
+  };
+  it('serves the modified rubric in every language', () => {
+    const out = applyModifiedRubric(base, true);
+    expect(out.rubricSnapshot?.id).toBe('mod');
+    expect(out.localized?.es.rubricSnapshot?.id).toBe('mod');
+    expect(out.text).toBe('Explain.');
+  });
+  it('keeps the main rubric when off or when there is none to replace', () => {
+    expect(applyModifiedRubric(base, false)).toBe(base);
+    const noMain = { ...base, rubricSnapshot: undefined };
+    expect(applyModifiedRubric(noMain, true)).toBe(noMain);
   });
 });

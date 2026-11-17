@@ -2174,6 +2174,22 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-editor.modified-rubric-attach': {
+    label: 'Modified rubric: Attach in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.modified-rubric-edit': {
+    label: 'Modified rubric: Edit in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.modified-rubric-detach': {
+    label: 'Modified rubric: Detach in the Quiz editor',
+    perWidgetType: true,
+    destructive: true,
+    panel: true,
+  },
   'quiz-editor.fib-answer': {
     label: 'Correct answer input (FIB / short answer) in the Quiz editor',
     perWidgetType: true,

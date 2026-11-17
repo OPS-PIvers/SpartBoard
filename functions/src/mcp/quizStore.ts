@@ -154,6 +154,8 @@ const TYPE_BOUND_EXTRAS = [
   'rubricId',
   'rubricSnapshot',
   'rubricVisibleToStudents',
+  'modifiedRubricId',
+  'modifiedRubricSnapshot',
   'enforceWordLimit',
   'noSpellCheck',
   'answerKeyboard',

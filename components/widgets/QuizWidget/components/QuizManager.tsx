@@ -3206,7 +3206,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
             // A bank draw may bring modified questions in too.
             hasModifiedQuestions:
               (assignQuizData?.questions ?? []).some(
-                (q) => !!q.modifiedText?.trim()
+                (q) => !!q.modifiedText?.trim() || !!q.modifiedRubricSnapshot
               ) || (assignQuizData?.bankSlots?.length ?? 0) > 0,
           }}
           sharing={{

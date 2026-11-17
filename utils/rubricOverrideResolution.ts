@@ -20,7 +20,11 @@ export interface ResolvedQuestionRubric {
  * — this is the "no overrides configured" and "unmatched uid" fallback path.
  */
 export function resolveRubricForResponse(
-  question: { id: string; rubricSnapshot?: Rubric },
+  question: {
+    id: string;
+    rubricSnapshot?: Rubric;
+    modifiedRubricSnapshot?: Rubric;
+  },
   responseStudentUid: string | null | undefined,
   overridesBySourcedId: Record<string, StudentOverride> | null | undefined,
   targetRefKeyByStudentUid: Map<string, string> | null | undefined
@@ -42,7 +46,21 @@ export function resolveRubricForResponse(
   if (!targetRefKey) return fallback;
   const override = overridesBySourcedId[targetRefKey];
   const questionOverride = override?.rubricOverrideByQuestion?.[question.id];
-  if (questionOverride === undefined) return fallback;
+  if (questionOverride === undefined) {
+    // A student-specific rubric wins; otherwise a modified-questions group gets the modified rubric.
+    if (
+      override?.modifiedQuestions === true &&
+      baseRubric &&
+      question.modifiedRubricSnapshot
+    ) {
+      return {
+        rubric: question.modifiedRubricSnapshot,
+        isOverridden: true,
+        overrideMode: 'rubric',
+      };
+    }
+    return fallback;
+  }
   if (questionOverride === 'points') {
     return { rubric: undefined, isOverridden: true, overrideMode: 'points' };
   }

@@ -711,6 +711,10 @@ export function toPublicQuestion(
         ? rubricForScoredResults(q.rubricSnapshot)
         : stripRubricExamples(q.rubricSnapshot);
       if (hideRubric) base.rubricHidden = true;
+      if (q.modifiedRubricSnapshot)
+        base.modifiedRubricSnapshot = hideRubric
+          ? rubricForScoredResults(q.modifiedRubricSnapshot)
+          : stripRubricExamples(q.modifiedRubricSnapshot);
     }
     for (const [loc, tr] of entries) {
       if (base.placeholder && tr.placeholder)
@@ -816,7 +820,7 @@ function longestOrderedSubsequenceLength(
  * A grade with no `rubricScores` at all is a plain manual score, not partial.
  */
 function isPartialRubricGrade(
-  question: Pick<QuizQuestion, 'rubricSnapshot'>,
+  question: Pick<QuizQuestion, 'rubricSnapshot' | 'modifiedRubricSnapshot'>,
   grade: import('@/types').WrittenAnswerGrade
 ): boolean {
   const criteria = question.rubricSnapshot?.criteria;
@@ -824,7 +828,13 @@ function isPartialRubricGrade(
   const scores = grade.rubricScores;
   if (!scores || scores.length === 0) return false;
   const scoredIds = new Set(scores.map((s) => s.criterionId));
-  return criteria.some((c) => !scoredIds.has(c.id));
+  const covers = (rubric: Rubric | undefined) =>
+    !!rubric?.criteria?.length &&
+    rubric.criteria.every((c) => scoredIds.has(c.id));
+  // A modified-group student is scored on the modified rubric instead.
+  return (
+    !covers(question.rubricSnapshot) && !covers(question.modifiedRubricSnapshot)
+  );
 }
 
 /**
@@ -859,7 +869,8 @@ export function hasSubmittedContent(studentAnswer: string): boolean {
  * check and partial-rubric rule instead of re-deriving them.
  */
 export function isWrittenAnswerAwaitingGrade(
-  question: Pick<QuizQuestion, 'rubricSnapshot'> | undefined,
+  question:
+    Pick<QuizQuestion, 'rubricSnapshot' | 'modifiedRubricSnapshot'> | undefined,
   studentAnswer: string,
   grade: import('@/types').WrittenAnswerGrade | undefined,
   paperTranscript?: import('@/types').PaperTranscriptState

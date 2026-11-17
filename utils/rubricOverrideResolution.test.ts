@@ -56,4 +56,37 @@ describe('resolveRubricForResponse', () => {
       { rubric: undefined, isOverridden: false, overrideMode: null }
     );
   });
+
+  describe('modified-questions group', () => {
+    const mod = { id: 'mod-rubric' } as unknown as Rubric;
+    const withMod = { ...question, modifiedRubricSnapshot: mod };
+    const group = (extra: Partial<StudentOverride> = {}) =>
+      ({ 'ref-1': { modifiedQuestions: true, ...extra } }) as Record<
+        string,
+        StudentOverride
+      >;
+
+    it('grades the group on the modified rubric', () => {
+      expect(
+        resolveRubricForResponse(withMod, 'uid-1', group(), uidMap)
+      ).toEqual({ rubric: mod, isOverridden: true, overrideMode: 'rubric' });
+    });
+
+    it('lets a student-specific rubric win', () => {
+      expect(
+        resolveRubricForResponse(
+          withMod,
+          'uid-1',
+          group({ rubricOverrideByQuestion: { q1: alt } }),
+          uidMap
+        ).rubric
+      ).toBe(alt);
+    });
+
+    it('keeps the main rubric for students outside the group', () => {
+      expect(resolveRubricForResponse(withMod, 'uid-1', {}, uidMap)).toEqual({
+        ...fallback,
+      });
+    });
+  });
 });
