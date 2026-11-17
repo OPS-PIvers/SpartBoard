@@ -6448,7 +6448,20 @@
   "course": {
     "linking": {
       "sectionCount_one": "{{count}} section",
-      "sectionCount_other": "{{count}} sections"
+      "sectionCount_other": "{{count}} sections",
+      "editCourse": "Edit Course",
+      "linkClasses": "Link classes",
+      "nameLabel": "Course name",
+      "classesLabel": "Classes",
+      "inCourse": "In {{name}}",
+      "link": "Link",
+      "notNow": "Not now",
+      "linked": "Classes linked",
+      "saved": "Course saved",
+      "saveFailed": "Couldn’t save the Course. Try again.",
+      "suggestNew": "{{name}}: link these {{count}} classes?",
+      "suggestAdd_one": "{{name}}: add {{count}} matching class?",
+      "suggestAdd_other": "{{name}}: add {{count}} matching classes?"
     },
     "family": {
       "label": "Family link",
