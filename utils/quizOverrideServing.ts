@@ -74,6 +74,30 @@ export function applyModifiedWording(
   return { ...question, text, ...(localized ? { localized } : {}) };
 }
 
+/** The modified rubric in place of the original, in every language until it has its own translation. */
+export function applyModifiedRubric(
+  question: QuizPublicQuestion,
+  on: boolean | undefined
+): QuizPublicQuestion {
+  const rubric = question.modifiedRubricSnapshot;
+  if (!on || !rubric || !question.rubricSnapshot) return question;
+  const localized = question.localized
+    ? Object.fromEntries(
+        Object.entries(question.localized).map(([loc, strings]) => [
+          loc,
+          strings.rubricSnapshot
+            ? { ...strings, rubricSnapshot: rubric }
+            : strings,
+        ])
+      )
+    : undefined;
+  return {
+    ...question,
+    rubricSnapshot: rubric,
+    ...(localized ? { localized } : {}),
+  };
+}
+
 const LOCALIZED_ARRAY_FIELDS = [
   'choices',
   'matchingLeft',

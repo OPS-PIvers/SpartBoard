@@ -1110,7 +1110,13 @@ export function buildRevealedRubricExamples(
   const out: RevealedRubricExamples = {};
   for (const q of dedupeQuestionsById(quizData.questions)) {
     if (!q.rubricSnapshot) continue;
-    const examples = rubricExamplesByCriterion(q.rubricSnapshot);
+    // Modified-rubric criteria carry their own ids, so both share the question's map.
+    const examples = {
+      ...rubricExamplesByCriterion(q.rubricSnapshot),
+      ...(q.modifiedRubricSnapshot
+        ? rubricExamplesByCriterion(q.modifiedRubricSnapshot)
+        : {}),
+    };
     if (Object.keys(examples).length > 0) out[q.id] = examples;
   }
   return Object.keys(out).length > 0 ? out : null;

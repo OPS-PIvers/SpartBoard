@@ -43,6 +43,9 @@ export interface RubricBuilderPanelProps {
   onClose: () => void;
   teacherUid: string;
   attachLabel?: string;
+  /** Attaching needs this total, so a modified rubric scores out of the same points. */
+  requiredTotal?: number;
+  heading?: string;
 }
 
 const labelClass =
@@ -291,6 +294,8 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
   onClose,
   teacherUid,
   attachLabel = 'Attach to question',
+  requiredTotal,
+  heading = 'Rubric',
 }) => {
   const { rubrics, saveRubric, shareRubric, importSharedRubric } =
     useRubrics(teacherUid);
@@ -421,6 +426,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
     setDraft((prev) => convertRubricTemplate(prev, toGuide));
   };
   const maxSum = rubricMaxPoints(draft);
+  const totalMismatch = requiredTotal !== undefined && maxSum !== requiredTotal;
 
   // Risk 2: attached snapshot older than the library copy it came from.
   const libraryCopy = rubrics.find((r) => r.id === existingSnapshot?.id);
@@ -506,7 +512,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
   const savedInLibrary = rubrics.find((r) => r.id === draft.id);
 
   const handleAttach = () => {
-    if (errors.length > 0) return;
+    if (errors.length > 0 || totalMismatch) return;
     // A new rubric joins the library so other widgets can reuse it; saving first keeps the snapshot from reading as stale.
     if (!savedInLibrary) {
       saveRubric({ ...draft, updatedAt: Date.now() }).catch((err: unknown) =>
@@ -614,7 +620,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
         className="absolute inset-y-0 left-0 w-1.5 cursor-col-resize hover:bg-brand-blue-primary/30 focus:outline-hidden focus:bg-brand-blue-primary/40 z-30 touch-none"
       />
       <header className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
-        <h3 className="font-bold text-slate-900 text-sm">Rubric</h3>
+        <h3 className="font-bold text-slate-900 text-sm">{heading}</h3>
         <button
           ref={focusCloseButton}
           onClick={onClose}
@@ -1098,6 +1104,11 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
         <p className="text-xs text-slate-600 font-bold">
           Total points: {maxSum}
         </p>
+        {totalMismatch && (
+          <p className="text-xs font-bold text-rose-700" role="alert">
+            {`Total must be ${requiredTotal} points to match the main rubric.`}
+          </p>
+        )}
         <div className="flex gap-2">
           <button
             onClick={() => void handleSaveToLibrary()}
@@ -1110,7 +1121,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
           <button
             onClick={handleAttach}
             {...tourTypeAttr('quiz-rubric.attach', 'quiz')}
-            disabled={errors.length > 0}
+            disabled={errors.length > 0 || totalMismatch}
             className="flex-1 px-3 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-lg text-xs font-bold transition-colors disabled:opacity-40"
           >
             {attachLabel}

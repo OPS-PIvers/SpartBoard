@@ -12,9 +12,27 @@ import {
 } from '@/components/widgets/QuizWidget/components/QuizEditorModal';
 import { BankEditorModal } from '@/components/widgets/QuizWidget/components/BankEditorModal';
 import { DEFAULT_RECORDING_CONFIG } from '@/config/quizRecordingDefaults';
-import type { QuestionBankData, QuizData, QuizStimulus } from '@/types';
+import type { QuestionBankData, QuizData, QuizStimulus, Rubric } from '@/types';
 import { type QuizEditorStateKey } from './devViewStates';
 import { devRichStartingPage } from './whiteboardStartingPageFixtures';
+
+const devRubric = (id: string, title: string, names: string[]): Rubric => {
+  const per = 6 / names.length;
+  return {
+    id,
+    title,
+    createdAt: 1,
+    updatedAt: 1,
+    criteria: names.map((name, i) => ({
+      id: `${id}-c${i}`,
+      name,
+      levels: [
+        { id: `${id}-c${i}-lo`, label: 'Beginning', points: 0 },
+        { id: `${id}-c${i}-hi`, label: 'Meets', points: per },
+      ],
+    })),
+  };
+};
 
 const quiz = (): QuizData => ({
   id: 'dev-quiz',
@@ -90,6 +108,18 @@ const quiz = (): QuizData => ({
       minWords: 100,
       maxWords: 200,
       enforceWordLimit: true,
+      points: 6,
+      rubricId: 'dev-rubric',
+      rubricSnapshot: devRubric('dev-rubric', 'Problem solving', [
+        'Strategy',
+        'Accuracy',
+      ]),
+      modifiedRubricId: 'dev-rubric-mod',
+      modifiedRubricSnapshot: devRubric(
+        'dev-rubric-mod',
+        'Problem solving, modified',
+        ['Shows work']
+      ),
     },
     {
       id: 'q-fr-spoken',

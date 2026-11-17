@@ -4632,6 +4632,10 @@ export interface QuizQuestion {
   rubricSnapshot?: Rubric;
   /** Free Response only. Students see the attached rubric while answering; hidden unless true. */
   rubricVisibleToStudents?: boolean;
+  /** Free Response only. Library id of `modifiedRubricSnapshot`; informational. */
+  modifiedRubricId?: string;
+  /** Free Response only. Rubric for students in a group with modified questions; totals the same points as `rubricSnapshot`. */
+  modifiedRubricSnapshot?: Rubric;
   /**
    * Ids of `QuizData.stimuli` entries shown alongside this question.
    * Empty/missing = no stimuli. The shared-pointer array is the grouping:
@@ -5414,6 +5418,8 @@ export interface QuizPublicQuestion {
   rubricSnapshot?: Rubric;
   /** Free Response only. The teacher hid the rubric while answering; the snapshot carries only what scored results show. */
   rubricHidden?: boolean;
+  /** Free Response only. The modified rubric, projected like `rubricSnapshot`, for students whose override asks for it. */
+  modifiedRubricSnapshot?: Rubric;
   /** Ids into `QuizSession.stimuli` shown alongside this question. */
   stimulusIds?: string[];
   /**

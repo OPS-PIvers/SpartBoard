@@ -214,7 +214,9 @@ const questionsEqual = (a: QuizQuestion[], b: QuizQuestion[]): boolean => {
         (qb.rubricVisibleToStudents === true) ||
       recordingKey(qa.recording) !== recordingKey(qb.recording) ||
       rubricSnapshotKey(qa.rubricSnapshot) !==
-        rubricSnapshotKey(qb.rubricSnapshot)
+        rubricSnapshotKey(qb.rubricSnapshot) ||
+      rubricSnapshotKey(qa.modifiedRubricSnapshot) !==
+        rubricSnapshotKey(qb.modifiedRubricSnapshot)
     ) {
       return false;
     }

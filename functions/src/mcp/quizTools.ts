@@ -272,6 +272,8 @@ async function attachRubrics(
       delete q.rubricId;
       delete q.rubricSnapshot;
       delete q.rubricVisibleToStudents;
+      delete q.modifiedRubricId;
+      delete q.modifiedRubricSnapshot;
       continue;
     }
     if (wanted && !(q.rubricId === wanted && q.rubricSnapshot)) {
@@ -286,6 +288,17 @@ async function attachRubrics(
     const snapshot = q.rubricSnapshot as Rubric | undefined;
     if (q.type === 'free-response' && Array.isArray(snapshot?.criteria)) {
       q.points = rubricMaxPoints(snapshot.criteria);
+    }
+    // The modified rubric must total the same points, as the editor requires.
+    const modified = q.modifiedRubricSnapshot as Rubric | undefined;
+    if (
+      q.modifiedRubricSnapshot &&
+      (!Array.isArray(snapshot?.criteria) ||
+        !Array.isArray(modified?.criteria) ||
+        rubricMaxPoints(modified.criteria) !== q.points)
+    ) {
+      delete q.modifiedRubricId;
+      delete q.modifiedRubricSnapshot;
     }
   }
 }

@@ -224,6 +224,30 @@ describe('rubric_id on free_response questions', () => {
     expect(after.points).toBe(7);
   });
 
+  it('keeps a modified rubric with the same total and drops it with the rubric', async () => {
+    const { call } = await connect();
+    const res = await call('create_quiz', {
+      title: 'Cells',
+      questions: [fr({ rubric_id: 'r1' })],
+    });
+    const id = res.quiz_id as string;
+    const modified = { ...RUBRIC, id: 'r2', title: 'Shorter' };
+    stored(id)[0].modifiedRubricSnapshot = modified;
+    const q = (
+      (await call('get_quiz', { quiz_id: id })).questions as Data[]
+    )[0];
+    await call('update_quiz', {
+      quiz_id: id,
+      questions: [{ ...q, text: 'Explain diffusion.' }],
+    });
+    expect(stored(id)[0].modifiedRubricSnapshot).toMatchObject({ id: 'r2' });
+    await call('update_quiz', {
+      quiz_id: id,
+      questions: [{ ...q, rubric_id: null }],
+    });
+    expect(stored(id)[0].modifiedRubricSnapshot).toBeUndefined();
+  });
+
   it('refuses a rubric on another question type', async () => {
     const { call } = await connect();
     const res = await call('create_quiz', {

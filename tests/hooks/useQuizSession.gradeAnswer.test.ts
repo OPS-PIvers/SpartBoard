@@ -499,3 +499,30 @@ describe('gradeAnswer — paper transcripts', () => {
     );
   });
 });
+
+describe('isWrittenAnswerAwaitingGrade with a modified rubric', () => {
+  const withModified = (): QuizQuestion => {
+    const main = rubricQuestion(['c1', 'c2']);
+    const modified = rubricQuestion(['m1']).rubricSnapshot;
+    return { ...main, modifiedRubricSnapshot: modified };
+  };
+  const scored = (ids: string[]) =>
+    grade({
+      pointsAwarded: 3,
+      rubricScores: ids.map((criterionId) => ({
+        criterionId,
+        levelId: `${criterionId}-hi`,
+        points: 3,
+      })),
+    });
+  it('treats a grade complete on the modified rubric as final', () => {
+    expect(
+      isWrittenAnswerAwaitingGrade(withModified(), 'x', scored(['m1']))
+    ).toBe(false);
+  });
+  it('still waits on a grade complete on neither rubric', () => {
+    expect(
+      isWrittenAnswerAwaitingGrade(withModified(), 'x', scored(['c1']))
+    ).toBe(true);
+  });
+});

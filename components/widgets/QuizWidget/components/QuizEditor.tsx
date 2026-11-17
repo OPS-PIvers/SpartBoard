@@ -104,6 +104,7 @@ import {
 } from './QuestionFields';
 import { questionTypeChangeUpdates } from './questionFieldUpdates';
 import { rubricMaxPoints } from '@/utils/rubricPoints';
+import { withOwnCriterionIds } from '@/utils/rubricOverrideResolution';
 import {
   countQuestionsNeedingKey,
   questionNeedsKey,
@@ -870,7 +871,9 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
     readPrompt,
     readTargets
   );
-  const [showRubricBuilder, setShowRubricBuilder] = useState(false);
+  const [rubricBuilder, setRubricBuilder] = useState<
+    'base' | 'modified' | null
+  >(null);
   // Manual points held aside per question while a rubric owns its points.
   const manualPointsByQuestion = useRef<Map<string, number>>(new Map());
 
@@ -878,7 +881,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   const [lastSelectedId, setLastSelectedId] = useState(selectedQuestionId);
   if (lastSelectedId !== selectedQuestionId) {
     setLastSelectedId(selectedQuestionId);
-    setShowRubricBuilder(false);
+    setRubricBuilder(null);
   }
 
   const selectedHasRubric = !!selectedQuestion?.rubricSnapshot;
@@ -886,26 +889,57 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   const handleAttachRubric = useCallback(
     (rubric: Rubric, rubricId?: string) => {
       if (!selectedQuestionId) return;
+      if (rubricBuilder === 'modified') {
+        const modified = withOwnCriterionIds(
+          rubric,
+          selectedQuestion?.rubricSnapshot
+        );
+        updateQuestion(selectedQuestionId, {
+          modifiedRubricId: rubricId ?? rubric.id,
+          modifiedRubricSnapshot: modified,
+        });
+        setRubricBuilder(null);
+        return;
+      }
       if (!selectedHasRubric) {
         manualPointsByQuestion.current.set(
           selectedQuestionId,
           selectedQuestion?.points ?? 1
         );
       }
+      const points = rubricMaxPoints(rubric);
+      const modified = selectedQuestion?.modifiedRubricSnapshot;
+      // The modified rubric has to keep the same total as the main one.
+      const dropModified = !!modified && rubricMaxPoints(modified) !== points;
       updateQuestion(selectedQuestionId, {
         rubricId: rubricId ?? rubric.id,
         rubricSnapshot: rubric,
-        points: rubricMaxPoints(rubric),
+        points,
+        ...(dropModified
+          ? { modifiedRubricId: undefined, modifiedRubricSnapshot: undefined }
+          : {}),
       });
-      setShowRubricBuilder(false);
+      setRubricBuilder(null);
     },
     [
+      rubricBuilder,
       selectedQuestionId,
       selectedHasRubric,
       selectedQuestion?.points,
+      selectedQuestion?.modifiedRubricSnapshot,
+      selectedQuestion?.rubricSnapshot,
       updateQuestion,
     ]
   );
+
+  const handleDetachModifiedRubric = useCallback(() => {
+    if (!selectedQuestionId) return;
+    updateQuestion(selectedQuestionId, {
+      modifiedRubricId: undefined,
+      modifiedRubricSnapshot: undefined,
+    });
+    setRubricBuilder(null);
+  }, [selectedQuestionId, updateQuestion]);
 
   const handleDetachRubric = useCallback(() => {
     if (!selectedQuestionId) return;
@@ -915,10 +949,12 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
       rubricId: undefined,
       rubricSnapshot: undefined,
       rubricVisibleToStudents: undefined,
+      modifiedRubricId: undefined,
+      modifiedRubricSnapshot: undefined,
       points: stashed ?? selectedQuestion?.points ?? 1,
     });
     manualPointsByQuestion.current.delete(selectedQuestionId);
-    setShowRubricBuilder(false);
+    setRubricBuilder(null);
   }, [selectedQuestionId, selectedQuestion?.points, updateQuestion]);
 
   if (selectedSlot) {
@@ -1286,7 +1322,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                     {q.rubricSnapshot.title || 'Untitled rubric'}
                   </span>
                   <button
-                    onClick={() => setShowRubricBuilder(true)}
+                    onClick={() => setRubricBuilder('base')}
                     className="px-2.5 py-1 border border-slate-300 rounded-lg text-xs font-bold text-slate-700"
                     {...tourTypeAttr('quiz-editor.rubric-edit', 'quiz')}
                   >
@@ -1323,12 +1359,57 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                 </div>
               ) : (
                 <button
-                  onClick={() => setShowRubricBuilder(true)}
+                  onClick={() => setRubricBuilder('base')}
                   className="px-3 py-2 border border-slate-300 rounded-lg text-xs font-bold text-slate-700"
                   {...tourTypeAttr('quiz-editor.rubric-attach', 'quiz')}
                 >
                   Attach Rubric
                 </button>
+              )}
+              {q.rubricSnapshot && canAccessFeature('modification-groups') && (
+                <div className="mt-2 flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-bold text-slate-500">
+                    Modified rubric
+                  </span>
+                  {q.modifiedRubricSnapshot ? (
+                    <>
+                      <span className="text-sm text-slate-700 font-bold">
+                        {q.modifiedRubricSnapshot.title || 'Untitled rubric'}
+                      </span>
+                      <button
+                        onClick={() => setRubricBuilder('modified')}
+                        className="px-2.5 py-1 border border-slate-300 rounded-lg text-xs font-bold text-slate-700"
+                        {...tourTypeAttr(
+                          'quiz-editor.modified-rubric-edit',
+                          'quiz'
+                        )}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={handleDetachModifiedRubric}
+                        className="px-2.5 py-1 border border-rose-200 rounded-lg text-xs font-bold text-rose-700"
+                        {...tourTypeAttr(
+                          'quiz-editor.modified-rubric-detach',
+                          'quiz'
+                        )}
+                      >
+                        Detach
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => setRubricBuilder('modified')}
+                      className="px-2.5 py-1 border border-slate-300 rounded-lg text-xs font-bold text-slate-700"
+                      {...tourTypeAttr(
+                        'quiz-editor.modified-rubric-attach',
+                        'quiz'
+                      )}
+                    >
+                      Attach
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -1379,14 +1460,33 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
         />
       </div>
 
-      {showRubricBuilder && isFreeResponseType(q.type) && (
+      {rubricBuilder && isFreeResponseType(q.type) && (
         <RubricBuilderPanel
-          key={q.id}
+          key={`${q.id}:${rubricBuilder}`}
           questionId={q.id}
-          existingSnapshot={q.rubricSnapshot}
+          existingSnapshot={
+            rubricBuilder === 'modified'
+              ? q.modifiedRubricSnapshot
+              : q.rubricSnapshot
+          }
           onAttach={handleAttachRubric}
-          onDetach={handleDetachRubric}
-          onClose={() => setShowRubricBuilder(false)}
+          onDetach={
+            rubricBuilder === 'modified'
+              ? handleDetachModifiedRubric
+              : handleDetachRubric
+          }
+          requiredTotal={
+            rubricBuilder === 'modified' && q.rubricSnapshot
+              ? rubricMaxPoints(q.rubricSnapshot)
+              : undefined
+          }
+          onClose={() => setRubricBuilder(null)}
+          {...(rubricBuilder === 'modified'
+            ? {
+                heading: 'Modified rubric',
+                attachLabel: 'Attach as modified rubric',
+              }
+            : {})}
           teacherUid={user?.uid ?? ''}
         />
       )}
