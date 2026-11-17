@@ -18382,6 +18382,32 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-grading.excuse",
+    "label": "Excuse button in the grader",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.grader",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-grading.undo-excuse",
     "label": "Undo excuse in the Quiz grader",
     "scope": "widget type",
@@ -75815,10 +75841,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "writing-results.student-row",
-    "label": "Student row in Writing results",
-    "scope": "field",
-    "row_wildcard": true,
+    "id": "writing-results.hide-names",
+    "label": "Hide names button in Writing results",
+    "scope": "widget type",
+    "keys": [
+      "writing"
+    ],
     "routes": [
       {
         "surface": "widgets.writing.results",
@@ -75836,169 +75864,65 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "writing-grading.student-select",
-    "label": "Student row in the Writing grader",
+    "id": "writing-results.drill-students",
+    "label": "Students row in Writing results",
+    "scope": "widget type",
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.results",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-results.sort",
+    "label": "Student sort in Writing results",
     "scope": "field",
-    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.results",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-results.drill-students:writing"
+        ],
+        "reveal": "writing-results.drill-students:writing",
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-results.student-row",
+    "label": "Student row in Writing results",
+    "scope": "field",
     "row_wildcard": true,
     "routes": [
       {
-        "surface": "widgets.writing.grader",
-        "kind": "modal",
+        "surface": "widgets.writing.results",
+        "kind": "panel",
         "widget_type": "writing",
         "path": [
           "library-shell.archive-primary-action:writing#row-1",
-          "writing-results.grade:writing"
+          "writing-results.drill-students:writing"
         ],
-        "needs": [
-          "library-item",
-          "student-data",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "writing-grading.draft-select",
-    "label": "Draft picker in the Writing grader",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "writing"
-    ],
-    "routes": [
-      {
-        "surface": "widgets.writing.grader",
-        "kind": "modal",
-        "widget_type": "writing",
-        "path": [
-          "library-shell.archive-primary-action:writing#row-1",
-          "writing-results.grade:writing"
-        ],
-        "needs": [
-          "library-item",
-          "student-data",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "writing-grading.points",
-    "label": "Score box in the Writing grader",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "writing"
-    ],
-    "routes": [
-      {
-        "surface": "widgets.writing.grader",
-        "kind": "modal",
-        "widget_type": "writing",
-        "path": [
-          "library-shell.archive-primary-action:writing#row-1",
-          "writing-results.grade:writing"
-        ],
-        "needs": [
-          "library-item",
-          "student-data",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "writing-grading.excused",
-    "label": "Excused checkbox in the Writing grader",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "writing"
-    ],
-    "routes": [
-      {
-        "surface": "widgets.writing.grader",
-        "kind": "modal",
-        "widget_type": "writing",
-        "path": [
-          "library-shell.archive-primary-action:writing#row-1",
-          "writing-results.grade:writing"
-        ],
-        "needs": [
-          "library-item",
-          "student-data",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "writing-grading.comment",
-    "label": "Overall comment box in the Writing grader",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "writing"
-    ],
-    "routes": [
-      {
-        "surface": "widgets.writing.grader",
-        "kind": "modal",
-        "widget_type": "writing",
-        "path": [
-          "library-shell.archive-primary-action:writing#row-1",
-          "writing-results.grade:writing"
-        ],
-        "needs": [
-          "library-item",
-          "student-data",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "writing-grading.highlight-select",
-    "label": "Highlight list item in the Writing grader",
-    "scope": "field",
-    "panel": true,
-    "row_wildcard": true,
-    "routes": [
-      {
-        "surface": "widgets.writing.grader",
-        "kind": "modal",
-        "widget_type": "writing",
-        "path": [
-          "library-shell.archive-primary-action:writing#row-1",
-          "writing-results.grade:writing"
-        ],
-        "needs": [
-          "library-item",
-          "student-data",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "writing-grading.save",
-    "label": "Save button in the Writing grader",
-    "scope": "widget type",
-    "panel": true,
-    "persists": true,
-    "keys": [
-      "writing"
-    ],
-    "routes": [
-      {
-        "surface": "widgets.writing.grader",
-        "kind": "modal",
-        "widget_type": "writing",
-        "path": [
-          "library-shell.archive-primary-action:writing#row-1",
-          "writing-results.grade:writing"
-        ],
+        "reveal": "writing-results.drill-students:writing",
         "needs": [
           "library-item",
           "student-data",
