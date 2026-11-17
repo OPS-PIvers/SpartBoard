@@ -36,6 +36,15 @@
           ]
         },
         {
+          "type": "feature",
+          "subtitle": "Google Classroom",
+          "items": [
+            {
+              "text": "Assign to Google Classroom is in each quiz and video activity assignment's menu. It posts with your due date, and published scores go to Classroom when your account allows."
+            }
+          ]
+        },
+        {
           "type": "improvement",
           "subtitle": "Improvements",
           "items": [
@@ -2844,6 +2853,20 @@
     }
   ],
   "widgetNotes": [
+    {
+      "id": "quiz-assign-to-classroom-2026-11-17",
+      "widget": "quiz",
+      "feature": "google-classroom",
+      "date": "2026-11-17",
+      "text": "Assign to Google Classroom is in each assignment's menu. It posts with your due date, and published scores go to Classroom when your account allows."
+    },
+    {
+      "id": "video-activity-assign-to-classroom-2026-11-17",
+      "widget": "video-activity",
+      "feature": "google-classroom",
+      "date": "2026-11-17",
+      "text": "Assign to Google Classroom is in each assignment's menu. It posts with your due date, and published scores go to Classroom when your account allows."
+    },
     {
       "id": "quiz-pick-counted-2026-11-17",
       "widget": "quiz",
