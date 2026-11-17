@@ -553,7 +553,7 @@ describe('gradeAnswer — fill in the blank on paper', () => {
 describe('gradeAnswer — paper FIB trust and teacher marks', () => {
   const fib = q({ type: 'FIB', correctAnswer: 'cell\u001Fwall', points: 2 });
 
-  it("lets the teacher's mark win over a later AI read", () => {
+  it('scores a read paper FIB from its blanks, not a stray mark', () => {
     expect(
       gradeAnswer(
         fib,
@@ -562,7 +562,7 @@ describe('gradeAnswer — paper FIB trust and teacher marks', () => {
         [],
         'done'
       )
-    ).toMatchObject({ pointsEarned: 1, state: 'scored' });
+    ).toMatchObject({ isCorrect: true, state: 'scored' });
   });
 
   it('trusts a FIB paperTranscript only on an imported paper response', () => {

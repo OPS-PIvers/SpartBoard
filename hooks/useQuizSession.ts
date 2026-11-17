@@ -984,13 +984,10 @@ export function gradeAnswer(
     };
   }
 
-  // Paper fill-in-the-blank: the teacher's mark wins; unread and unmarked is owed a grade.
+  // Paper fill-in-the-blank not read yet: owed a grade until the teacher's mark.
   if (
     question.type === 'FIB' &&
-    paperTranscript !== undefined &&
-    (manualGrade !== undefined ||
-      paperTranscript === 'pending' ||
-      paperTranscript === 'image')
+    (paperTranscript === 'pending' || paperTranscript === 'image')
   ) {
     if (!manualGrade) {
       return {

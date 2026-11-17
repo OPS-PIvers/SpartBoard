@@ -21,12 +21,8 @@ export function blankAnswerFromTranscript(
     const one = lines.filter((l) => l.length > 0).join(' ');
     return one.toLowerCase() === BLANK_LINE_MARK ? '' : one;
   }
-  // Lines map by position, so an empty interior line stays its own blank.
-  let start = 0;
-  let end = lines.length;
-  while (start < end && lines[start] === '') start++;
-  while (end > start && lines[end - 1] === '') end--;
-  const kept = lines.slice(start, end);
+  // Bare empty lines are spacing; an unwritten blank arrives as the [empty] mark.
+  const kept = lines.filter((l) => l.length > 0);
   const out = Array.from({ length: blanks }, (_, i) => {
     const line = kept[i] ?? '';
     return line.toLowerCase() === BLANK_LINE_MARK ? '' : line;

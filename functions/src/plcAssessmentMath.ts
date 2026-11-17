@@ -687,12 +687,8 @@ export function gradeGroupAnswer(
 ): LocalGrade {
   const max = question.points;
   const attempted = hasSubmittedContent(studentAnswer);
-  // Paper fill-in-the-blank: the teacher's mark wins; unread and unmarked is owed a grade.
-  if (
-    question.type === 'FIB' &&
-    paperTranscript !== undefined &&
-    (manual !== undefined || paperAnswerOwed(paperTranscript))
-  ) {
+  // Paper fill-in-the-blank not read yet: owed a grade until the teacher's mark.
+  if (question.type === 'FIB' && paperAnswerOwed(paperTranscript)) {
     if (manual === undefined) {
       return {
         isCorrect: false,

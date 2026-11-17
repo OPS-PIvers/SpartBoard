@@ -282,6 +282,40 @@ describe('runPaperTranscriptionJob', () => {
     expect(answerOf(s, 'q1')).toMatchObject({ paperTranscript: 'image' });
   });
 
+  it("keeps a teacher's mark on a fill-in-the-blank box when the read lands later", async () => {
+    const seeded = seed();
+    const s = setup(
+      {
+        [JOB]: {
+          ...seeded[JOB],
+          boxes: [{ questionId: 'q1', storagePath: crop('q1'), blanks: 2 }],
+        },
+        [RESPONSE]: {
+          ...seeded[RESPONSE],
+          grading: { q1: { pointsAwarded: 1 } },
+        },
+      },
+      {
+        transcribe: () =>
+          Promise.resolve({
+            model: 'gemini-standard',
+            boxes: [
+              {
+                questionId: 'q1',
+                ok: true as const,
+                rawTranscript: 'nucleus\nwall',
+                html: '<p>nucleus</p>',
+                uncertainSpans: [],
+                illegibleCount: 0,
+              },
+            ],
+          }),
+      }
+    );
+    await runPaperTranscriptionJob('t1', 'scan1_3_1_0', s.deps);
+    expect(answerOf(s, 'q1')).toMatchObject({ paperTranscript: 'pending' });
+  });
+
   it('does not double-charge or re-transcribe on replay', async () => {
     const s = setup();
     await runPaperTranscriptionJob('t1', 'scan1_3_1_0', s.deps);

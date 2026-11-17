@@ -283,9 +283,9 @@ describe('fill in the blank boxes', () => {
     );
   });
 
-  it('keeps each line in its own blank when an interior line is empty', () => {
-    expect(blankAnswerFromTranscript('\ncell\n\nwall\n\n', 3)).toBe(
-      'cell\u001F\u001Fwall'
+  it('skips spacer lines and keeps an [empty] blank in place', () => {
+    expect(blankAnswerFromTranscript('\nParis\n\nRome\n\n', 2)).toBe(
+      'Paris\u001FRome'
     );
     expect(blankAnswerFromTranscript('cell\n[empty]\nwall', 3)).toBe(
       'cell\u001F\u001Fwall'

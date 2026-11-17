@@ -930,12 +930,15 @@ describe('gradeGroupAnswer', () => {
     ).toMatchObject({ pointsEarned: 4, state: 'scored' });
   });
 
-  it("lets a teacher's mark on a paper FIB win over a later AI read", () => {
+  it("uses a teacher's mark only while a paper FIB is unread", () => {
     const fib = q({ type: 'FIB', correctAnswer: 'cell\u001Fwall' });
     const mark = { pointsAwarded: 1, scoredCriterionIds: [] };
+    expect(gradeGroupAnswer(fib, '', mark, undefined, 'pending')).toMatchObject(
+      { pointsEarned: 1, state: 'scored' }
+    );
     expect(
       gradeGroupAnswer(fib, 'cell\u001Fwall', mark, undefined, 'done')
-    ).toMatchObject({ pointsEarned: 1, state: 'scored' });
+    ).toMatchObject({ pointsEarned: 4, state: 'scored' });
     // A typed FIB (no transcript) ignores a stray grade.
     expect(
       gradeGroupAnswer(fib, 'cell\u001Fwall', mark, undefined, undefined)
