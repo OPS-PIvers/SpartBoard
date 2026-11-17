@@ -8,9 +8,7 @@ import { Dashboard } from '@/types';
 // Mocks (default board creation)
 // ---------------------------------------------------------------------------
 
-// Stable singleton — see firestoreMock note. Returning a fresh object/fns each
-// render churns identity-sensitive deps (driveService memo, load effect) and
-// keeps `loading` pinned true.
+// Stable singleton so identity-sensitive effect deps don't churn.
 const authMock = {
   user: {
     uid: 'test-user',
@@ -48,16 +46,9 @@ vi.mock('@/hooks/useGoogleDrive', () => ({
 
 type SnapshotCb = (dashboards: Dashboard[], hasPendingWrites: boolean) => void;
 let capturedSnapshotCb: SnapshotCb | null = null;
-// Latest dashboards pushed via the snapshot. Replayed synchronously on every
-// (re)subscribe, mirroring real Firestore — without this the load effect's
-// re-subscriptions leave `loading` stuck true (no snapshot to clear it).
 const saveDashboardMock = vi.fn().mockResolvedValue(Date.now());
 
-// IMPORTANT: the mock returns a STABLE singleton object. The DashboardProvider
-// load effect depends on `subscribeToDashboards`, so returning fresh function
-// identities each render (as a naive `() => ({...})` mock does) would make that
-// effect re-run every render, re-calling `setLoading(true)` forever and
-// trapping the auto-save effect behind its `loading` guard.
+// Stable singleton so the load effect doesn't re-subscribe every render.
 const firestoreMock = {
   saveDashboard: saveDashboardMock,
   saveDashboards: vi.fn().mockResolvedValue(undefined),
