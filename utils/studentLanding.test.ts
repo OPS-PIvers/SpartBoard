@@ -69,6 +69,28 @@ describe('landingRowState', () => {
     ).toBe('missing');
   });
 
+  it('never marks a printed copy Missing before its scan', () => {
+    const open = a({
+      dueAt: NOW - DAY,
+      closeAt: NOW + DAY,
+      override: { onPaper: true },
+    });
+    expect(landingRowState(open, checked(open, 'not-started'), NOW)).toBe(
+      'open'
+    );
+    const closed = a({
+      dueAt: NOW - 2 * DAY,
+      endedAt: NOW - DAY,
+      override: { onPaper: true },
+    });
+    expect(landingRowState(closed, checked(closed, 'not-started'), NOW)).toBe(
+      null
+    );
+    expect(landingRowState(closed, checked(closed, 'turned-in'), NOW)).toBe(
+      'turned-in'
+    );
+  });
+
   it('marks past-due open work as missing still open, never before its check', () => {
     const row = a({ dueAt: NOW - DAY, closeAt: NOW + DAY });
     expect(landingRowState(row, {}, NOW)).toBe('open');
