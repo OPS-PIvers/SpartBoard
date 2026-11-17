@@ -345,6 +345,43 @@ describe('usePeriodAccess', () => {
     expect(until).toBe(at(9, 5) + BELL_CLOSE_CUSHION_MS);
   });
 
+  it('sends Start, Pause and Let in through commit when the kind saves by callable', async () => {
+    const send = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderHook(() =>
+      usePeriodAccess(
+        session,
+        {
+          sessionCollection: 'writing_assignment_sessions',
+          assignmentCollection: 'writing_assignment_records',
+          refreshIdle: false,
+          commit: send,
+        },
+        rosters
+      )
+    );
+    await act(async () => {
+      await result.current.startPeriod('cl-1');
+      await result.current.pausePeriod('cl-1');
+      await result.current.letIn('student-9');
+    });
+    expect(writeBatch).not.toHaveBeenCalled();
+    expect(updateDoc).not.toHaveBeenCalled();
+    expect(getDocs).not.toHaveBeenCalled();
+    expect(send.mock.calls.map(([p]: unknown[]) => p)).toEqual([
+      {
+        periodAccess: {
+          'cl-1': {
+            state: 'open',
+            openAt: null,
+            closeAt: at(9, 5) + BELL_CLOSE_CUSHION_MS,
+          },
+        },
+      },
+      { periodAccess: { 'cl-1': { state: 'paused', pausedAt: at(8, 30) } } },
+      { studentAccess: { 'student-9': at(9, 5) + BELL_CLOSE_CUSHION_MS } },
+    ]);
+  });
+
   it('extends a live period by ten minutes or clears its close', async () => {
     const live = {
       ...session,

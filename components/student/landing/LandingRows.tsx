@@ -35,6 +35,7 @@ const KIND_INK: Record<SessionKind, string> = {
   'activity-wall': 'text-orange-700',
   flashcards: 'text-pink-700',
   projects: 'text-blue-700',
+  writing: 'text-teal-700',
 };
 
 export const KindIcon: React.FC<{ kind: SessionKind }> = ({ kind }) => {
@@ -442,6 +443,12 @@ function completedRight(
       <span className="inline-flex items-center gap-1 text-xs font-semibold text-rose-700">
         <Lock className="h-3 w-3" aria-hidden="true" />
         Locked
+      </span>
+    );
+  if (item.kind === 'writing')
+    return (
+      <span className="text-xs text-slate-500">
+        {check?.returned ? 'Returned' : 'Turned in'}
       </span>
     );
   return item.row && areResultsShared(item.row.assignment, check, nowMs) ? (

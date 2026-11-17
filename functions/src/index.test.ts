@@ -3889,6 +3889,20 @@ describe('index barrel — deployed export set', () => {
     'cleanupGuidedLearningAssignmentPointers',
     'cleanupMiniAppAssignmentPointers',
     'cleanupFlashcardAssignmentPointers',
+    'cleanupWritingAssignmentPointers',
+    // Writing assignment
+    'assignWritingV1',
+    'deleteWritingSessionV1',
+    'endWritingSessionV1',
+    'updateWritingSessionV1',
+    'cleanupWritingSessionData',
+    'openWritingV1',
+    'turnInWritingV1',
+    'takeBackWritingV1',
+    'turnInTimedWritingV1',
+    'returnWritingV1',
+    'returnWritingForRevisionV1',
+    'saveWritingFeedbackV1',
     // Substitute shares
     'launchSubAssignmentV1',
     // Flashcards Check submission

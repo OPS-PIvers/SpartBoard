@@ -246,6 +246,7 @@ export const VideoAssignStepper: React.FC<VideoAssignStepperProps> = ({
     study: () => null,
     sheets: () => null,
     written: () => null,
+    writing: () => null,
     cards: () => null,
   };
   const steps = getAssignSteps('video', ctx)

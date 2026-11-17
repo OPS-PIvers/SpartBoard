@@ -503,6 +503,7 @@ export const SURFACES: TourSurfaceMap = {
     files: [
       'components/layout/sidebar/SidebarClasses.tsx',
       'components/layout/sidebar/SidebarClassRow.tsx',
+      'components/classes/course/',
     ],
     opensWith: 'sidebar.classes',
     parent: 'board.sidebar',
@@ -512,6 +513,32 @@ export const SURFACES: TourSurfaceMap = {
       'classes.classroom-confirm': 'classes.link-classroom:classes',
       'classes.classroom-retry': 'classes.link-classroom:classes',
       'classes.classroom-course-row': 'classes.link-classroom:classes',
+      'classes.family-link-deck-private': 'classes.family-link-toggle',
+      'classes.family-link-cancel': 'classes.family-link-toggle',
+      'classes.family-link-confirm': 'classes.family-link-toggle',
+    },
+  },
+  // Course and Agenda (thread B): the Agenda line under each class or Course, and its dialog.
+  'board.course-agenda': {
+    label: 'Agenda line in My Classes',
+    kind: 'sidebar',
+    files: ['components/classes/course/AgendaSetup.tsx'],
+    opensWith: 'sidebar.classes',
+    parent: 'board.sidebar',
+    needs: ['class'],
+  },
+  'board.course-agenda-dialog': {
+    label: 'Agenda dialog',
+    kind: 'modal',
+    files: ['components/classes/course/agenda/'],
+    opensWith: 'classes.agenda-open',
+    parent: 'board.course-agenda',
+    needs: ['class'],
+    inner: {
+      'classes.agenda-link-title': 'classes.agenda-link-add',
+      'classes.agenda-link-url': 'classes.agenda-link-add',
+      'classes.agenda-link-cancel': 'classes.agenda-link-add',
+      'classes.agenda-link-save': 'classes.agenda-link-add',
     },
   },
   'board.sidebar-plcs': {

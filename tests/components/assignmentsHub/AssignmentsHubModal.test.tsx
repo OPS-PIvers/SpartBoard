@@ -8,6 +8,7 @@ import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments
 import { useGuidedLearningAssignments } from '@/hooks/useGuidedLearningAssignments';
 import { useMiniAppAssignments } from '@/hooks/useMiniAppAssignments';
 import { useFlashcardAssignments } from '@/hooks/useFlashcardAssignments';
+import { useWritingAssignmentSessions } from '@/hooks/useWritingAssignmentSessions';
 import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
 import { useAssignmentRosterStatus } from '@/hooks/useAssignmentRosterStatus';
 
@@ -31,6 +32,9 @@ vi.mock('@/hooks/useMiniAppAssignments', () => ({
 }));
 vi.mock('@/hooks/useFlashcardAssignments', () => ({
   useFlashcardAssignments: vi.fn(),
+}));
+vi.mock('@/hooks/useWritingAssignmentSessions', () => ({
+  useWritingAssignmentSessions: vi.fn(),
 }));
 vi.mock('@/hooks/useAssignmentPseudonyms', async () => {
   const actual = await vi.importActual<
@@ -68,10 +72,12 @@ function setupHooks({
   quizAssignments = [quizAssignment],
   vaAssignments = [vaAssignment],
   flashcardAssignments = [],
+  writingRecords = [],
 }: {
   quizAssignments?: unknown[];
   vaAssignments?: unknown[];
   flashcardAssignments?: unknown[];
+  writingRecords?: unknown[];
 } = {}) {
   (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
     user: { uid: 'teacher-1' },
@@ -100,6 +106,9 @@ function setupHooks({
     useFlashcardAssignments as unknown as ReturnType<typeof vi.fn>
   ).mockReturnValue({ ...emptyReturn, assignments: flashcardAssignments });
   (
+    useWritingAssignmentSessions as unknown as ReturnType<typeof vi.fn>
+  ).mockReturnValue({ records: writingRecords, loading: false });
+  (
     useAssignmentPseudonymsMulti as unknown as ReturnType<typeof vi.fn>
   ).mockReturnValue({
     byStudentUid: new Map(),
@@ -127,6 +136,27 @@ describe('AssignmentsHubModal', () => {
     expect(screen.getByText('Volcano Video')).toBeInTheDocument();
     expect(screen.getByText('Individual')).toBeInTheDocument();
     expect(screen.getByText('2 skipped')).toBeInTheDocument();
+  });
+
+  it('lists Writing assignments from the teacher records', () => {
+    setupHooks({
+      writingRecords: [
+        {
+          id: 'w-1',
+          sessionId: 'w-1',
+          itemId: 'item-1',
+          title: 'Argument essay',
+          teacherUid: 'teacher-1',
+          status: 'active',
+          createdAt: 200,
+          updatedAt: 200,
+          periodNames: ['Period 4'],
+        },
+      ],
+    });
+    render(<AssignmentsHubModal onClose={vi.fn()} />);
+    expect(screen.getByText('Argument essay')).toBeInTheDocument();
+    expect(screen.getAllByText('Writing').length).toBeGreaterThan(0);
   });
 
   it('lists flashcard assignments with a Check or Study badge', () => {

@@ -52,6 +52,8 @@ export interface ModificationsListProps extends ModificationsScope {
   readAloudAvailable?: boolean;
   /** Quiz and Video Activity: shows the copy, paste and print choice (focus-sessions flag). */
   pageProtectionsAvailable?: boolean;
+  /** Writing: shows the spelling help choice (D22). */
+  writingMode?: boolean;
   /** False when the host has no class picker, changing the empty-state copy. */
   canPickClasses?: boolean;
   /** Sizes text with `cqmin` for the one consumer inside a container-query face. */
@@ -76,6 +78,7 @@ const StudentModificationRow: React.FC<{
   answerChoicesAvailable: boolean;
   readAloudAvailable: boolean;
   pageProtectionsAvailable: boolean;
+  writingMode: boolean;
   questions: OverrideEditorQuestion[];
   rubrics: Rubric[];
   peers: OverrideEditorPeer[];
@@ -92,6 +95,7 @@ const StudentModificationRow: React.FC<{
   answerChoicesAvailable,
   readAloudAvailable,
   pageProtectionsAvailable,
+  writingMode,
   questions,
   rubrics,
   peers,
@@ -143,6 +147,7 @@ const StudentModificationRow: React.FC<{
           answerChoicesAvailable={answerChoicesAvailable}
           readAloudAvailable={readAloudAvailable}
           pageProtectionsAvailable={pageProtectionsAvailable}
+          writingMode={writingMode}
           questions={questions}
           rubrics={rubrics}
           peers={peers}
@@ -165,6 +170,7 @@ export const ModificationsList: React.FC<ModificationsListProps> = ({
   answerChoicesAvailable = false,
   readAloudAvailable = false,
   pageProtectionsAvailable = false,
+  writingMode = false,
   canPickClasses = true,
   cqScaled = false,
   showAll: showAllProp,
@@ -438,6 +444,7 @@ export const ModificationsList: React.FC<ModificationsListProps> = ({
                 answerChoicesAvailable={answerChoicesAvailable}
                 readAloudAvailable={readAloudAvailable}
                 pageProtectionsAvailable={pageProtectionsAvailable}
+                writingMode={writingMode}
                 questions={quizContext?.questions ?? []}
                 rubrics={quizContext?.rubrics ?? []}
                 peers={viewRows
@@ -578,6 +585,7 @@ export const ModificationsList: React.FC<ModificationsListProps> = ({
                     answerChoicesAvailable={answerChoicesAvailable}
                     readAloudAvailable={readAloudAvailable}
                     pageProtectionsAvailable={pageProtectionsAvailable}
+                    writingMode={writingMode}
                     questions={quizContext?.questions ?? []}
                     rubrics={quizContext?.rubrics ?? []}
                     peers={visibleRows

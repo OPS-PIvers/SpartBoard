@@ -1839,6 +1839,9 @@ export const WIDGET_DEFAULT_ACCESS_LEVEL: Partial<
   routineGuide: 'admin',
   'arts-letters-agenda': 'admin',
   focus: 'admin',
+  // Writing assignment plan D19: admins first.
+  writing: 'admin',
+  agenda: 'admin',
 };
 
 export const getWidgetDefaultAccessLevel = (

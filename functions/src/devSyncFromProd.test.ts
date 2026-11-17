@@ -265,6 +265,7 @@ describe('SYNCED_USER_COLLECTIONS folders', () => {
       'miniapp_folders',
       'projects_folders',
       'flashcard_folders',
+      'writing_folders',
     ]) {
       expect(SYNCED_USER_COLLECTIONS).toContain(name);
     }

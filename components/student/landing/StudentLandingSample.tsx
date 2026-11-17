@@ -7,7 +7,10 @@ import type {
 } from '@/hooks/useStudentAssignments';
 import type { TurnInMap } from '@/hooks/useStudentTurnIns';
 import type { StudentGradesState } from '@/hooks/useStudentGrades';
-import { DEFAULT_PROFICIENCY_SCALE } from '@/utils/gradebook/gradebookCore';
+import {
+  DEFAULT_PROFICIENCY_SCALE,
+  type GradebookKind,
+} from '@/utils/gradebook/gradebookCore';
 import {
   seenMarksFor,
   studentGradeRows,
@@ -349,7 +352,7 @@ function toSummary(f: Fixture, nowMs: number): AssignmentSummary {
 type GradeFixture = [
   id: string,
   cls: string,
-  kind: SessionKind,
+  kind: GradebookKind,
   title: string,
   dueDays: number,
   points: number | null,
@@ -431,6 +434,8 @@ interface StudentLandingSampleProps {
   initialTab?: LandingTab;
   /** Fill the parent box instead of the viewport. */
   embedded?: boolean;
+  /** Fixture Agenda and links per class, on the dev harness only. */
+  classTopFor?: (classId: string) => React.ReactNode;
 }
 
 export const StudentLandingSample: React.FC<StudentLandingSampleProps> = ({
@@ -439,6 +444,7 @@ export const StudentLandingSample: React.FC<StudentLandingSampleProps> = ({
   initialClassId,
   initialTab = 'assignments',
   embedded,
+  classTopFor,
 }) => {
   const nowMs = inClass ? IN_CLASS : AFTER_SCHOOL;
   const [selected, setSelected] = useState<string | null>(
@@ -507,6 +513,7 @@ export const StudentLandingSample: React.FC<StudentLandingSampleProps> = ({
       onLockedClick={() => undefined}
       onOpenGradeOnly={() => undefined}
       embedded={embedded}
+      classTop={selected && classTopFor ? classTopFor(selected) : undefined}
     />
   );
 };

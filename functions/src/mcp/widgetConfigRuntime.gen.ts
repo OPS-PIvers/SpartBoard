@@ -1034,6 +1034,19 @@ var WIDGET_DEFAULTS = {
       minutes: 30,
     },
   },
+  writing: {
+    ...LIBRARY_WIDGET_SIZE,
+    config: {
+      view: 'manager',
+      managerTab: 'library',
+      libraryViewMode: 'list',
+    },
+  },
+  agenda: {
+    w: 560,
+    h: 360,
+    config: {},
+  },
 };
 var BUILT_IN_MATERIALS = [
   {
@@ -1805,6 +1818,8 @@ const TABLES = {
     routineGuide: 'admin',
     'arts-letters-agenda': 'admin',
     focus: 'admin',
+    writing: 'admin',
+    agenda: 'admin',
   },
   minTiers: { calendar: 'org' },
 };

@@ -75,6 +75,8 @@ export interface OverrideEditorRowProps {
   readAloudAvailable?: boolean;
   /** Quiz and Video Activity only; the row also needs the focus-sessions flag. */
   pageProtectionsAvailable?: boolean;
+  /** Writing only. Shows "Spelling help" (D22). */
+  writingMode?: boolean;
   /** Set false on standing-default surfaces (e.g. roster accommodations) where openAt/closeAt are absolute timestamps that must never be copied onto future assignments. */
   allowWindowShift?: boolean;
   /** Controlled open state; uncontrolled when omitted. */
@@ -144,6 +146,7 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
   defaultExpanded = false,
   readAloudAvailable = false,
   pageProtectionsAvailable = false,
+  writingMode = false,
   allowWindowShift = true,
   expanded: expandedProp,
   onExpandedChange,
@@ -433,6 +436,20 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
                 />
               </div>
             </div>
+          )}
+
+          {writingMode && (
+            <label className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+              <input
+                type="checkbox"
+                checked={override.spellingHelp === true}
+                {...tourAttr('override-row.spelling-help')}
+                onChange={(e) =>
+                  patch({ spellingHelp: e.target.checked ? true : undefined })
+                }
+              />
+              {t('studentOverride.spellingHelp', 'Spelling help')}
+            </label>
           )}
 
           {quizMode && readAloudAvailable && (

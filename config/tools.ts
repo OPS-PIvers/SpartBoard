@@ -32,6 +32,7 @@ import {
   FileText,
   ClipboardList,
   FolderKanban,
+  NotebookPen,
   Gamepad2,
   Wand2,
   Quote,
@@ -51,6 +52,7 @@ import {
   Triangle,
   Workflow,
   Crosshair,
+  Presentation,
 } from 'lucide-react';
 import { ToolMetadata, WidgetCategory } from '@/types';
 
@@ -648,5 +650,21 @@ export const TOOLS: ToolMetadata[] = [
       'extension',
       'on task',
     ],
+  },
+  {
+    type: 'writing',
+    icon: NotebookPen,
+    label: 'Writing',
+    color: 'bg-teal-600',
+    category: 'instruction',
+    keywords: ['essay', 'writing assignment', 'prompt', 'draft', 'rubric'],
+  },
+  {
+    type: 'agenda',
+    icon: Presentation,
+    label: 'Agenda',
+    color: 'bg-amber-600',
+    category: 'instruction',
+    keywords: ['agenda', 'daily', 'slides', 'course', 'today', 'plan'],
   },
 ];

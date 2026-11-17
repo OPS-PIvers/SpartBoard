@@ -8,6 +8,13 @@ export const SURFACES: TourSurfaceMap = {
     widgetType: 'arts-letters-agenda',
     needs: ['widget-on-stage'],
   },
+  'widgets.agenda.face': {
+    label: 'Agenda widget',
+    kind: 'widget',
+    files: ['components/widgets/Agenda/'],
+    widgetType: 'agenda',
+    needs: ['widget-on-stage'],
+  },
   'widgets.blooms-taxonomy.face': {
     label: "Bloom's Taxonomy widget",
     kind: 'widget',
@@ -388,6 +395,13 @@ export const SURFACES: TourSurfaceMap = {
     opensWith: 'widget.settings-opener',
     parent: 'widgets.projects.face',
     widgetType: 'projects',
+    needs: ['widget-on-stage'],
+  },
+  'widgets.writing.face': {
+    label: 'Writing widget',
+    kind: 'widget',
+    files: ['components/widgets/Writing/'],
+    widgetType: 'writing',
     needs: ['widget-on-stage'],
   },
   'widgets.qr.face': {
@@ -794,6 +808,29 @@ export const SURFACES: TourSurfaceMap = {
       'projects-editor.bulk-apply': 'projects-editor.paste-steps',
       'projects-editor.bulk-cancel': 'projects-editor.paste-steps',
     },
+  },
+  'widgets.writing.editor': {
+    label: 'Writing assignment editor',
+    kind: 'modal',
+    files: ['components/widgets/Writing/components/WritingEditorModal.tsx'],
+    opensWith: 'library-shell.card-open:writing#row-1',
+    parent: 'widgets.writing.face',
+    widgetType: 'writing',
+    needs: ['library-item'],
+    inner: {
+      'writing-editor.points': 'writing-editor.grading-points',
+      'writing-editor.rubric-edit': 'writing-editor.grading-rubric',
+      'writing-editor.rubric-detach': 'writing-editor.grading-rubric',
+    },
+  },
+  'widgets.writing.assign': {
+    label: 'Writing assign stepper',
+    kind: 'modal',
+    files: ['components/widgets/Writing/components/WritingAssignStepper.tsx'],
+    opensWith: 'library-shell.card-primary-action:writing#row-1',
+    parent: 'widgets.writing.face',
+    widgetType: 'writing',
+    needs: ['library-item', 'class'],
   },
   'widgets.projects.groups-manager': {
     label: 'Projects groups manager',
