@@ -27,6 +27,12 @@ import {
   gradeVideoActivityAnswer,
   liveScoredResponse,
 } from '@/utils/videoActivityGrading';
+import { videoActivityAnswerRules } from '@/utils/videoActivityAnswerRules';
+import {
+  activeResultsOverride,
+  answersWithoutVerdicts,
+  visibilityShowsResponses,
+} from '@/utils/quizResultsVisibility';
 import {
   dedupeStepsById,
   isAnswerCorrect,
@@ -120,6 +126,104 @@ export function gradeVideoActivityResponseForPublish(
   return { score, answers: gradedAnswers };
 }
 
+/** True when a self-paced session already shows right/wrong as students answer. */
+export function vaSessionShowsResults(
+  session: Partial<VideoActivitySession> | undefined
+): boolean {
+  return (
+    !isLiveVideoActivitySession(session) &&
+    videoActivityAnswerRules(session ?? null).showResult
+  );
+}
+
+/** Keeps only verdicts the response already carried (live reveals and free identities never get new ones). */
+function priorVerdictsOnly(
+  graded: VideoActivityAnswer[],
+  before: VideoActivityAnswer[] | undefined
+): VideoActivityAnswer[] {
+  const prior = Array.isArray(before) ? before : [];
+  return answersWithoutVerdicts(graded).map((a, i) =>
+    typeof prior[i]?.isCorrect === 'boolean'
+      ? { ...a, isCorrect: prior[i].isCorrect }
+      : a
+  );
+}
+
+/** Graded answers for the student doc; verdicts kept only where results are shown. */
+export function vaPublishedAnswers(
+  data: Pick<
+    VideoActivityResponse,
+    'answers' | 'completedAt' | 'resultsOverride'
+  >,
+  graded: VideoActivityAnswer[],
+  visibility: QuizScoreVisibility,
+  now: number,
+  sessionShowsResults: boolean,
+  responseKey?: string,
+  studentUid?: string
+): VideoActivityAnswer[] {
+  if (typeof data.completedAt !== 'number') {
+    return priorVerdictsOnly(graded, data.answers);
+  }
+  const override = activeResultsOverride(data.resultsOverride, now);
+  const free =
+    responseKey !== undefined &&
+    studentUid !== undefined &&
+    responseKey !== studentUid;
+  if (override?.mode === 'hidden') return answersWithoutVerdicts(graded);
+  const levelShows =
+    visibilityShowsResponses(visibility) ||
+    (override?.mode === 'shown' &&
+      visibilityShowsResponses(override.visibility));
+  if (levelShows) return graded;
+  return sessionShowsResults && !free
+    ? graded
+    : priorVerdictsOnly(graded, data.answers);
+}
+
+/** True when the published answers dropped a verdict the grader produced. */
+export function vaVerdictsWithheld(
+  graded: VideoActivityAnswer[],
+  published: VideoActivityAnswer[]
+): boolean {
+  return graded.some(
+    (a, i) =>
+      typeof a.isCorrect === 'boolean' &&
+      typeof published[i]?.isCorrect !== 'boolean'
+  );
+}
+
+/** The response patch for a VA publish; `withholdVerdicts` is the `va-score-only-verdicts` flag. */
+export function vaPublishPatch(
+  data: VideoActivityResponse,
+  graded: { score: number | null; answers: VideoActivityAnswer[] },
+  opts: {
+    withholdVerdicts: boolean;
+    visibility: QuizScoreVisibility;
+    now: number;
+    sessionShowsResults: boolean;
+    responseKey: string;
+  }
+): Record<string, unknown> {
+  if (!opts.withholdVerdicts) return { ...graded };
+  const answers = vaPublishedAnswers(
+    data,
+    graded.answers,
+    opts.visibility,
+    opts.now,
+    opts.sessionShowsResults,
+    opts.responseKey,
+    data.studentUid
+  );
+  return {
+    score: graded.score,
+    answers,
+    verdictsWithheld: vaVerdictsWithheld(graded.answers, answers)
+      ? true
+      : deleteField(),
+  };
+}
+
 /** Grades one GL response the way a class publish does. */
 export function gradeGuidedLearningResponseForPublish(
   data: GuidedLearningResponse,
@@ -185,7 +289,7 @@ async function publishForStudents<T extends { completedAt: number | null }>(
   collectionName: string,
   sessionId: string,
   responseKeys: string[],
-  buildPatch: (data: T) => Record<string, unknown>
+  buildPatch: (data: T, key: string) => Record<string, unknown>
 ): Promise<PublishForStudentsResult> {
   const snaps = await Promise.all(
     Array.from(new Set(responseKeys)).map((key) =>
@@ -202,7 +306,7 @@ async function publishForStudents<T extends { completedAt: number | null }>(
       skipped += 1;
       continue;
     }
-    patches.push({ ref: snap.ref, patch: buildPatch(data) });
+    patches.push({ ref: snap.ref, patch: buildPatch(data, snap.id) });
   }
   await commitPatches(patches);
   return { responsesUpdated: patches.length, skipped };
@@ -215,24 +319,37 @@ export async function publishVideoActivityResultsForStudents(
   responseKeys: string[],
   visibility: ShownVisibility,
   expiresAt: number | null,
-  protection?: ResultsProtection
+  protection?: ResultsProtection,
+  withholdVerdicts = false
 ): Promise<PublishForStudentsResult> {
   const sessionSnap = await getDoc(doc(db, VA_SESSIONS_COLLECTION, sessionId));
   const deduped = dedupeQuestionsById(questions);
-  const scored = scoredVideoActivityQuestions(
-    sessionSnap.data() as Partial<VideoActivitySession> | undefined,
-    deduped
-  );
+  const sessionData = sessionSnap.data() as
+    Partial<VideoActivitySession> | undefined;
+  const scored = scoredVideoActivityQuestions(sessionData, deduped);
   const questionsById = new Map(scored.map((q) => [q.id, q]));
-  const live = isLiveVideoActivitySession(sessionSnap.data());
+  const live = isLiveVideoActivitySession(sessionData);
+  const sessionShowsResults = vaSessionShowsResults(sessionData);
+  const now = Date.now();
   const revealedAnswers: Record<string, string> = {};
   for (const q of deduped) revealedAnswers[q.id] = q.correctAnswer;
   return publishForStudents<VideoActivityResponse>(
     VA_SESSIONS_COLLECTION,
     sessionId,
     responseKeys,
-    (data) => ({
-      ...gradeVideoActivityResponseForPublish(data, questionsById, live),
+    (data, key) => ({
+      // The new override replaces the old one, so the level alone decides.
+      ...vaPublishPatch(
+        { ...data, resultsOverride: undefined },
+        gradeVideoActivityResponseForPublish(data, questionsById, live),
+        {
+          withholdVerdicts,
+          visibility,
+          now,
+          sessionShowsResults,
+          responseKey: key,
+        }
+      ),
       resultsOverride: shownOverride(
         visibility,
         expiresAt,

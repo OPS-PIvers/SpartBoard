@@ -155,6 +155,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'student-gradebook',
   'tab-away-timer',
   'universal-import',
+  'va-score-only-verdicts',
   'video-activity-ai',
   'video-activity-audio-transcription',
   'video-activity-live',
