@@ -93,41 +93,55 @@ const NOT_YET_ADOPTED: Record<string, Piece[]> = {
   ],
 };
 
-// Local components that copy a shared piece, and the piece to use instead.
-const CLONES: { name: RegExp; use: string }[] = [
-  {
-    name: /(?:Roster(?:List|Row|Toolbar|RowMenu)|RowMenu|PercentPill)$/,
-    use: `RosterList, or RosterRow/RosterToolbar/RosterRowMenu/RosterScorePill from ${Q}/monitor/RosterParts`,
-  },
-  {
-    name: /StatusBuckets?$/,
-    use: `StatusBuckets from ${Q}/monitor/StatusBuckets`,
-  },
-  {
-    name: /(?:PeriodBar|ClassPicker|PeriodAccess\w*)$/,
-    use: `ClassPicker/PeriodBar from ${Q}/monitor/PeriodBar and PeriodAccessStrip from ${Q}/monitor/PeriodAccessStrip`,
-  },
-  {
-    name: /(?:QuestionDetail|QuestionResults|ItemResults\w*|ItemDetail\w*)$/,
-    use: `QuestionResults/QuestionDetail/ItemResultsList/ItemDetailView from ${Q}/monitor/QuestionResults`,
-  },
-  {
-    name: /(?:LiveView\w*|LiveLog\w*)$/,
-    use: `LiveViewPanel from ${Q}/monitor/LiveViewPanel and LiveLogList from ${Q}/monitor/LiveLogList`,
-  },
-  {
-    name: /(?:DrillRow|SummaryCard|ScoreDistribution\w*|ResultsHome)$/,
-    use: `ResultsSummaryCard/ScoreDistributionBars/ResultsDrillRow from ${Q}/results/ResultsHome`,
-  },
-  {
-    name: /(?:AnswerLine|ProgressLine|BulkBar|ResultsControl)$/,
-    use: `StudentAnswerLine, StudentResultsControl and StudentResultsBulkBar from ${Q}/results/`,
-  },
-  {
-    name: /(?:Grader|Marking|MarkRow|ScoringPanel)$/,
-    use: `FreeResponseGrader from ${Q}/FreeResponseGrader and RubricScoringPanel from ${Q}/RubricScoringPanel`,
-  },
+// Grader files that don't render FreeResponseGrader today. Only shrinks.
+const OWN_GRADER_FILES: string[] = [
+  // AB-249
+  'components/widgets/VideoActivityWidget/components/results/VaShortAnswerMarking.tsx',
 ];
+
+// Local components that copy a shared piece, and the piece to use instead.
+// wrapper/via: a thin wrapper named like the shell is fine when the file renders that shell itself.
+const CLONES: { name: RegExp; use: string; wrapper?: RegExp; via?: RegExp }[] =
+  [
+    {
+      name: /(?:Roster(?:List|Row|Toolbar|RowMenu)|RowMenu|PercentPill)$/,
+      use: `RosterList, or RosterRow/RosterToolbar/RosterRowMenu/RosterScorePill from ${Q}/monitor/RosterParts`,
+      wrapper: /RosterList$/,
+      via: /'[^']*QuizWidget\/components\/monitor\/Roster(?:List|Parts)'/,
+    },
+    {
+      name: /StatusBuckets?$/,
+      use: `StatusBuckets from ${Q}/monitor/StatusBuckets`,
+    },
+    {
+      name: /(?:PeriodBar|ClassPicker|PeriodAccess\w*)$/,
+      use: `ClassPicker/PeriodBar from ${Q}/monitor/PeriodBar and PeriodAccessStrip from ${Q}/monitor/PeriodAccessStrip`,
+    },
+    {
+      name: /(?:QuestionDetail|QuestionResults|ItemResults\w*|ItemDetail\w*)$/,
+      use: `QuestionResults/QuestionDetail/ItemResultsList/ItemDetailView from ${Q}/monitor/QuestionResults`,
+    },
+    {
+      name: /(?:LiveView\w*|LiveLog\w*)$/,
+      use: `LiveViewPanel from ${Q}/monitor/LiveViewPanel and LiveLogList from ${Q}/monitor/LiveLogList`,
+      wrapper: /LiveViewPanel$/,
+      via: /'[^']*QuizWidget\/components\/monitor\/LiveViewPanel'/,
+    },
+    {
+      name: /(?:DrillRow|SummaryCard|ScoreDistribution\w*|ResultsHome)$/,
+      use: `ResultsSummaryCard/ScoreDistributionBars/ResultsDrillRow from ${Q}/results/ResultsHome`,
+    },
+    {
+      name: /(?:AnswerLine|ProgressLine|BulkBar|ResultsControl)$/,
+      use: `StudentAnswerLine, StudentResultsControl and StudentResultsBulkBar from ${Q}/results/`,
+    },
+    {
+      name: /(?:Grader|Grading\w*|GradeQueue|Marking|MarkRow|ScoringPanel|Score(?:Input|Field)|ResponsePane|StudentQueue)$/,
+      use: `FreeResponseGrader from ${Q}/FreeResponseGrader and RubricScoringPanel from ${Q}/RubricScoringPanel`,
+      wrapper: /Grader$/,
+      via: /'[^']*QuizWidget\/components\/FreeResponseGrader'/,
+    },
+  ];
 
 // Old sessionViews pieces the Quiz layout replaced; ScorePill, SessionBadge, LaunchedBySubTag and OverflowMenu are still shared.
 const LEGACY_IMPORT =
@@ -223,7 +237,9 @@ const findCopies = (text: string): { name: string; use: string }[] => {
   for (const m of text.matchAll(COMPONENT_DEF)) {
     const name = m[1];
     const clone = CLONES.find((c) => c.name.test(name));
-    if (clone) found.push({ name, use: clone.use });
+    if (!clone) continue;
+    if (clone.wrapper?.test(name) && clone.via?.test(text)) continue;
+    found.push({ name, use: clone.use });
   }
   for (const m of text.matchAll(LEGACY_IMPORT)) {
     for (const n of m[1].matchAll(LEGACY_NAMES))
@@ -278,6 +294,25 @@ describe('assignment widgets reuse the Quiz shells', () => {
     ).toEqual(sortedRecord(KNOWN_COPIES));
   });
 
+  it('grades inside FreeResponseGrader, not a shell of its own', () => {
+    const own: string[] = [];
+    for (const file of files) {
+      const kind = kindOf(file);
+      if (
+        kind &&
+        WRITTEN_ANSWERS.has(kind) &&
+        file.endsWith('.tsx') &&
+        /Grad(?:er|ing)|Marking/.test(basename(file)) &&
+        !PIECE_IMPORT.FreeResponseGrader.test(read(file))
+      )
+        own.push(file);
+    }
+    expect(
+      own.sort(),
+      `A grader file must render ${Q}/FreeResponseGrader itself (its student list, drag handles, inline Score, graded checks and Auto-advance). Wrapping only the outer modal or RubricScoringPanel and hand-building the panes inside misses every Quiz grader change; add a prop or slot to FreeResponseGrader instead.\n\n${FIX}`
+    ).toEqual(OWN_GRADER_FILES);
+  });
+
   it('imports the shared pieces each assignment widget needs', () => {
     const text: Record<string, string> = {};
     const names: Record<string, string[]> = {};
@@ -320,11 +355,17 @@ describe('assignment widgets reuse the Quiz shells', () => {
   it('spots copies in the self-check', () => {
     const names = (src: string) => findCopies(src).map((f) => f.name);
     expect(
+      names(`import { FreeResponseGrader } from '@/components/widgets/QuizWidget/components/FreeResponseGrader';
+export const WritingGrader: React.FC = () => <FreeResponseGrader />;
+const WritingStudentQueue: React.FC = () => null;`)
+    ).toEqual(['WritingStudentQueue']);
+    expect(
       names(`
 const WritingLiveViewPanel: React.FC<P> = () => null;
 export function WritingRosterList(props: P) { return null; }
 const DrillRow = ({ a }: P) => null;
 const Grader = React.memo(() => null);
+const WritingGradingPanel: React.FC = () => null;
 const Fine: React.FC = () => null;
 const ROW_STYLE = { a: 1 };
 import { SessionRow, ScorePill } from '@/components/common/sessionViews';
@@ -341,6 +382,7 @@ import { SegmentedTabs } from '../../common/sessionViews';`)
       'StatTile',
       'WritingDrillRow',
       'WritingGrader',
+      'WritingGradingPanel',
       'WritingLiveViewPanel',
       'WritingRosterList',
       'WritingStudentRosterRow',
