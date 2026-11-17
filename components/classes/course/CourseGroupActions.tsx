@@ -71,11 +71,9 @@ export const CourseEditor: React.FC<CourseEditorProps> = ({
   const { t } = useTranslation();
   const { addToast } = useDashboard();
   const nameId = useId();
+  // The Course as the editor opened it, so a change saved elsewhere since is refused, not overwritten.
+  const [opened] = useState(course);
   const [name, setName] = useState(initialName ?? course?.name ?? '');
-  // Classes added to the Course after the editor opened (another tab, a suggestion) are kept, never unlinked.
-  const [openedWith] = useState<readonly string[]>(
-    () => course?.rosterIds ?? []
-  );
   const [selected, setSelected] = useState<string[]>(() => [
     ...(initialSelected ?? course?.rosterIds ?? []),
   ]);
@@ -108,17 +106,10 @@ export const CourseEditor: React.FC<CourseEditorProps> = ({
   const handleSave = async () => {
     if (!canSave) return;
     // Classes deleted since the editor opened are dropped by the server; keep them in the Course.
-    const kept = course
-      ? [
-          ...picked,
-          ...course.rosterIds.filter(
-            (id) =>
-              (!visible.has(id) || !openedWith.includes(id)) &&
-              !picked.includes(id)
-          ),
-        ]
+    const kept = opened
+      ? [...picked, ...opened.rosterIds.filter((id) => !visible.has(id))]
       : picked;
-    const requests = courseEditRequests(groups, course, trimmed, kept);
+    const requests = courseEditRequests(groups, opened, trimmed, kept);
     if (requests.length === 0) {
       onDone();
       return;

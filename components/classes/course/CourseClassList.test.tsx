@@ -206,7 +206,7 @@ describe('CourseClassList', () => {
     expect(screen.queryByText('English 9: link these 2 classes?')).toBeNull();
   });
 
-  it('keeps a class added to the Course after the editor opened', async () => {
+  it('saves against the Course as the editor opened it, so the server refuses a stale edit', async () => {
     const saveCourse = vi.fn().mockResolvedValue({
       courseId: 'c1',
       rostersWithoutClassPage: [],
@@ -236,7 +236,25 @@ describe('CourseClassList', () => {
     await vi.waitFor(() => expect(saveCourse).toHaveBeenCalledTimes(1));
     expect(saveCourse.mock.calls[0][0]).toEqual({
       action: 'save',
-      course: { id: 'c1', name: 'Eng 9', expectedUpdatedAt: 9 },
+      course: { id: 'c1', name: 'Eng 9', expectedUpdatedAt: 0 },
     });
+  });
+
+  it('keeps only one Course editor open at a time', () => {
+    render(
+      <CourseClassList
+        rosters={[...rosters, { id: 'p7', name: 'Speech P7' }]}
+        courses={[course]}
+        saveCourse={vi.fn()}
+        renderRow={(r) => <li>{r.name}</li>}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Link classes' }));
+    expect(screen.getAllByLabelText('Course name')).toHaveLength(1);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Edit Course: English 9' })
+    );
+    expect(screen.getAllByLabelText('Course name')).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
   });
 });

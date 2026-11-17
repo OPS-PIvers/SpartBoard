@@ -41,15 +41,19 @@ function writeDismissed(keys: Set<string>) {
 export interface CourseLinkingProps {
   groups: CourseGroup<CourseRoster>[];
   saveCourse: CourseGroupProps['saveCourse'];
+  /** The Link classes editor is open; the list keeps one editor open at a time. */
+  editing: boolean;
+  onEditingChange: (open: boolean) => void;
 }
 
 export const CourseLinking: React.FC<CourseLinkingProps> = ({
   groups,
   saveCourse,
+  editing,
+  onEditingChange,
 }) => {
   const { t } = useTranslation();
   const [dismissed, setDismissed] = useState(readDismissed);
-  const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const { addToast } = useDashboard();
   const suggestions = useMemo(
@@ -165,13 +169,13 @@ export const CourseLinking: React.FC<CourseLinkingProps> = ({
           groups={groups}
           course={null}
           saveCourse={saveCourse}
-          onDone={() => setEditing(false)}
+          onDone={() => onEditingChange(false)}
         />
       ) : (
         unlinked >= 2 && (
           <button
             type="button"
-            onClick={() => setEditing(true)}
+            onClick={() => onEditingChange(true)}
             {...tourAttr('classes.link-classes')}
             className="flex items-center gap-1.5 px-1 py-1 text-xs font-bold text-brand-blue-primary hover:underline"
           >

@@ -42,6 +42,7 @@ describe('cleanClassName', () => {
     ],
     ['Biology (Honors)', undefined, 'Biology (Honors)'],
     ['Spanish - 2', undefined, 'Spanish - 2'],
+    ['English - 10', undefined, 'English - 10'],
     ['AP Computer Science - Section B', undefined, 'AP Computer Science'],
     ['3rd Hour Physics', undefined, 'Physics'],
     ['Physics 1', undefined, 'Physics 1'],
@@ -84,12 +85,31 @@ describe('linkSuggestions', () => {
     expect(s[0].rosters.map((x) => x.id)).toEqual(['d']);
   });
 
-  it('treats a Course of one class as unlinked', () => {
+  it('leaves out a class with its own saved Course, so unlinking never brings the suggestion back', () => {
     const s = linkSuggestions(
       courseGroups([course('k', 'Solo', ['a'])], rosters)
     );
     expect(s[0].courseId).toBeNull();
-    expect(s[0].rosters.map((x) => x.id)).toEqual(['a', 'c', 'd']);
+    expect(s[0].rosters.map((x) => x.id)).toEqual(['c', 'd']);
+    expect(
+      linkSuggestions(
+        courseGroups(
+          [course('k', 'A', ['a']), course('m', 'C', ['c'])],
+          rosters.filter((x) => x.id !== 'd')
+        )
+      )
+    ).toEqual([]);
+  });
+
+  it('keeps grade numbers after a dash apart', () => {
+    expect(
+      linkSuggestions(
+        courseGroups(
+          [],
+          [r('x', 'English - 10', 'English'), r('y', 'English - 11', 'English')]
+        )
+      )
+    ).toEqual([]);
   });
 
   it('suggests nothing once every match is linked, or when matches sit in two Courses', () => {

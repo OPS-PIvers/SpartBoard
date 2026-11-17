@@ -503,6 +503,7 @@ export const SURFACES: TourSurfaceMap = {
     files: [
       'components/layout/sidebar/SidebarClasses.tsx',
       'components/layout/sidebar/SidebarClassRow.tsx',
+      'components/classes/course/',
     ],
     opensWith: 'sidebar.classes',
     parent: 'board.sidebar',

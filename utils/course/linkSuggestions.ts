@@ -41,8 +41,8 @@ export function cleanClassName(
   );
   text = text.replace(/\b(?:block|blk|sec|sect|section)\.?\s+[a-z]\b/gi, ' ');
   text = text.replace(/\b\d+(?:st|nd|rd|th)\s+(?:period|hour|block)\b/gi, ' ');
-  // A two-digit section number after a dash at the end ("English 9 - 03"); "Spanish - 2" is a level.
-  text = text.replace(/\s[-–—]\s*\d{2,}[a-z]?\s*$/i, ' ');
+  // A zero-led section number after a dash at the end ("English 9 - 03"); "English - 10" is a grade.
+  text = text.replace(/\s[-–—]\s*0\d+[a-z]?\s*$/i, ' ');
   text = text.replace(/\s+[-–—:]\s+/g, ' - ');
   text = text.replace(/\s+/g, ' ').trim();
   text = text.replace(/^[-–—:\s]+|[-–—:\s]+$/g, '').trim();
@@ -93,7 +93,7 @@ export function linkSuggestions<R extends SuggestRoster>(
         first: i,
       };
       if (linkedId) b.linked.add(linkedId);
-      // A class with its own saved Course (often one just unlinked) is only suggested for a new Course.
+      // A class with its own saved Course (often one just unlinked) is never suggested.
       else b.singles.push(r);
       if (!linkedId && g.course) b.ownCourse.add(r.id);
       buckets.set(k, b);
@@ -103,7 +103,7 @@ export function linkSuggestions<R extends SuggestRoster>(
   for (const b of buckets.values()) {
     if (b.linked.size > 1) continue;
     const courseId = b.linked.size === 1 ? [...b.linked][0] : null;
-    if (courseId) b.singles = b.singles.filter((r) => !b.ownCourse.has(r.id));
+    b.singles = b.singles.filter((r) => !b.ownCourse.has(r.id));
     if (b.singles.length < (courseId ? 1 : 2)) continue;
     const key = [...b.singles.map((r) => r.id)].sort().join(',');
     if (dismissed.has(key)) continue;

@@ -8,6 +8,9 @@ import { CourseRow } from './CourseRow';
 import { FamilyLinkSetup } from './FamilyLinkSetup';
 import type { CourseClassListProps, CourseRoster } from './types';
 
+/** Course ids never hold a space, so this can't match one. */
+const LINK_EDITOR = ' link';
+
 export function CourseClassList<R extends CourseRoster>({
   rosters,
   courses,
@@ -26,7 +29,12 @@ export function CourseClassList<R extends CourseRoster>({
   const [editingId, setEditingId] = useState<string | null>(null);
   return (
     <>
-      <CourseLinking groups={groups} saveCourse={saveCourse} />
+      <CourseLinking
+        groups={groups}
+        saveCourse={saveCourse}
+        editing={editingId === LINK_EDITOR}
+        onEditingChange={(open) => setEditingId(open ? LINK_EDITOR : null)}
+      />
       <ul
         className="divide-y divide-slate-200 border-y border-slate-200"
         {...listAttrs}
