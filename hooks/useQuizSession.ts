@@ -3842,7 +3842,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       );
       return writtenTakeIndex;
     },
-    [runAnswersTx]
+    [runAnswersTx, isPaperAnswered]
   );
 
   /**
