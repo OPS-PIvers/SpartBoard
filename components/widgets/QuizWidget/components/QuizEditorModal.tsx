@@ -205,6 +205,7 @@ const questionsEqual = (a: QuizQuestion[], b: QuizQuestion[]): boolean => {
         JSON.stringify(qb.imageOnlyAnswers ?? []) ||
       targetIdsKey(qa.targets) !== targetIdsKey(qb.targets) ||
       (qa.explanation ?? '') !== (qb.explanation ?? '') ||
+      (qa.modifiedText ?? '') !== (qb.modifiedText ?? '') ||
       JSON.stringify(qa.optionExplanations ?? {}) !==
         JSON.stringify(qb.optionExplanations ?? {}) ||
       qa.dok !== qb.dok ||

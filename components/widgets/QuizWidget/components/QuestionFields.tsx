@@ -466,6 +466,71 @@ export const QuestionTargetsField: React.FC<QuestionTargetsFieldProps> = ({
   </div>
 );
 
+/** The question's modified wording, served to students in a modification group. */
+export const QuestionModifiedField: React.FC<{
+  question: Pick<QuizQuestion, 'id' | 'modifiedText'>;
+  onChange: (modifiedText: string | undefined) => void;
+  metaList?: boolean;
+}> = ({ question: q, onChange, metaList = false }) => {
+  const value = q.modifiedText ?? '';
+  const [open, setOpen] = React.useState(() => !metaList && value.length > 0);
+  const baseId = React.useId();
+  const toggleId = `${baseId}-modified`;
+  const textId = `${baseId}-modified-text`;
+  const expanded = open;
+  const textarea = (
+    <textarea
+      id={textId}
+      value={value}
+      onChange={(e) => onChange(e.target.value || undefined)}
+      rows={2}
+      aria-label="Modified version"
+      placeholder="The question in simpler words"
+      className={`${inputClass} resize-y`}
+      {...tourTypeAttr('quiz-editor.modified-text', 'quiz')}
+    />
+  );
+  if (!metaList) {
+    return (
+      <div>
+        <button
+          type="button"
+          aria-expanded={expanded}
+          aria-controls={textId}
+          onClick={() => setOpen((o) => !o)}
+          className={`${labelClass} flex items-center gap-1`}
+          {...tourTypeAttr('quiz-editor.modified', 'quiz')}
+        >
+          Modified version
+          <MetaChevron open={expanded} />
+        </button>
+        {expanded && textarea}
+      </div>
+    );
+  }
+  return (
+    <div>
+      <MetaItem label="Modified version" htmlFor={toggleId}>
+        <button
+          id={toggleId}
+          type="button"
+          aria-expanded={open}
+          aria-controls={textId}
+          onClick={() => setOpen((o) => !o)}
+          className={`${metaValueClass} max-w-full`}
+          {...tourTypeAttr('quiz-editor.modified', 'quiz')}
+        >
+          <span className={`min-w-0 truncate ${value ? '' : 'text-slate-400'}`}>
+            {value || 'None'}
+          </span>
+          <MetaChevron open={open} />
+        </button>
+      </MetaItem>
+      {open && <div className="pb-2">{textarea}</div>}
+    </div>
+  );
+};
+
 interface QuestionExplanationFieldProps {
   question: QuizQuestion;
   onChange: (updates: Partial<QuizQuestion>) => void;

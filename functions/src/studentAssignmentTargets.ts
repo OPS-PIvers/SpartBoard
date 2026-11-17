@@ -184,6 +184,7 @@ export interface StudentOverride {
   /** BCP-47 code. Shape-validated only — membership in the org list is enforced elsewhere. */
   language?: string;
   supports?: QuizSupport[];
+  modifiedQuestions?: boolean;
 }
 
 export type QuizSupport =
@@ -530,6 +531,7 @@ export function sanitizeOverride(raw: unknown): StudentOverride | null {
     out.answerChoices = src.answerChoices;
 
   if (src.readAloud === true) out.readAloud = true;
+  if (src.modifiedQuestions === true) out.modifiedQuestions = true;
   const supports = sanitizeSupports(src.supports);
   if (supports) out.supports = supports;
   if (typeof src.blockCopyPaste === 'boolean')

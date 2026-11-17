@@ -589,6 +589,7 @@ export function toPublicQuestion(
     timeLimit: q.timeLimit,
   };
   if (q.targets?.length) base.targets = q.targets.map((t) => ({ ...t }));
+  if (q.modifiedText?.trim()) base.modifiedText = q.modifiedText.trim();
   if (
     (q.type === 'FIB' || isFreeResponseType(q.type)) &&
     isAnswerKeyboard(q.answerKeyboard)

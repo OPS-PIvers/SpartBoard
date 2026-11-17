@@ -2157,6 +2157,13 @@ describe('sanitizeOverride', () => {
     expect(long?.kind === 'text' && long.text.length).toBe(1000);
   });
 
+  it('keeps modified questions only when true', () => {
+    expect(sanitizeOverride({ modifiedQuestions: true })).toEqual({
+      modifiedQuestions: true,
+    });
+    expect(sanitizeOverride({ modifiedQuestions: 'yes' })).toBeNull();
+  });
+
   it('drops supports that are not a list', () => {
     expect(sanitizeOverride({ supports: 'x' })).toBeNull();
   });
