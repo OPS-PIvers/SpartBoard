@@ -948,7 +948,7 @@ export function gradeAnswer(
    * assignment doc. Normalized the same way the English comparison is.
    */
   acceptedAnswers?: readonly string[],
-  /** Paper written answers only: the answer's public `paperTranscript` state. */
+  /** Paper written answers only: the answer's public `paperTranscript` state, via `gradingPaperTranscript` in utils/paperWritten. */
   paperTranscript?: import('@/types').PaperTranscriptState
 ): GradeResult {
   const max = question.points ?? 1;
@@ -984,10 +984,13 @@ export function gradeAnswer(
     };
   }
 
-  // Paper fill-in-the-blank not read yet: owed a grade until the AI read or the teacher's mark.
+  // Paper fill-in-the-blank: the teacher's mark wins; unread and unmarked is owed a grade.
   if (
     question.type === 'FIB' &&
-    (paperTranscript === 'pending' || paperTranscript === 'image')
+    paperTranscript !== undefined &&
+    (manualGrade !== undefined ||
+      paperTranscript === 'pending' ||
+      paperTranscript === 'image')
   ) {
     if (!manualGrade) {
       return {

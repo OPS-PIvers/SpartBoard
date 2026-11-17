@@ -18,6 +18,7 @@ import {
   transcriptToHtml,
   type PaperTranscribeDeps,
 } from './paperTranscribe';
+import { cleanBlanks, MAX_FIB_BLANKS } from './paperWrittenTypes';
 
 describe('transcriptToHtml', () => {
   it('makes one paragraph per blank-line break and joins wrapped lines', () => {
@@ -270,7 +271,7 @@ describe('fill in the blank boxes', () => {
   });
 
   it('stores one answer per line, joined like a typed answer', () => {
-    expect(blankAnswerFromTranscript(' cell \n\n wall ', 2)).toBe(
+    expect(blankAnswerFromTranscript(' cell \n wall ', 2)).toBe(
       'cell\u001Fwall'
     );
     expect(blankAnswerFromTranscript('[EMPTY]\nwall\nextra', 2)).toBe(
@@ -280,5 +281,22 @@ describe('fill in the blank boxes', () => {
     expect(blankAnswerFromTranscript('the cell\nmembrane', 1)).toBe(
       'the cell membrane'
     );
+  });
+
+  it('keeps each line in its own blank when an interior line is empty', () => {
+    expect(blankAnswerFromTranscript('\ncell\n\nwall\n\n', 3)).toBe(
+      'cell\u001F\u001Fwall'
+    );
+    expect(blankAnswerFromTranscript('cell\n[empty]\nwall', 3)).toBe(
+      'cell\u001F\u001Fwall'
+    );
+  });
+
+  it('caps a blank count at MAX_FIB_BLANKS and rejects junk', () => {
+    expect(cleanBlanks(3)).toBe(3);
+    expect(cleanBlanks(500)).toBe(MAX_FIB_BLANKS);
+    expect(cleanBlanks(0)).toBeUndefined();
+    expect(cleanBlanks(1.5)).toBeUndefined();
+    expect(cleanBlanks('3')).toBeUndefined();
   });
 });

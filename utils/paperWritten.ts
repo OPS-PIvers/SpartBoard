@@ -339,6 +339,19 @@ export function canTransitionPaperPrivate(
   return PRIVATE_TRANSITIONS[from].includes(to);
 }
 
+/** An answer's `paperTranscript` for grading; on FIB it counts only on a server-imported paper response. */
+export function gradingPaperTranscript(
+  question: Pick<QuizQuestion, 'type'>,
+  response:
+    Pick<QuizResponse, 'paperBatchId' | 'paperWrittenBatchId'> | undefined,
+  state: PaperTranscriptState | undefined
+): PaperTranscriptState | undefined {
+  if (question.type !== 'FIB') return state;
+  return response?.paperBatchId || response?.paperWrittenBatchId
+    ? state
+    : undefined;
+}
+
 /** A paper fill-in-the-blank box not read yet, so the teacher marks it from the picture. */
 export function isPaperFibOwed(
   answer: Pick<QuizResponseAnswer, 'paperTranscript'>

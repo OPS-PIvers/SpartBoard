@@ -215,7 +215,7 @@ export async function handleGetMyQuizAttempts(
               a.answer,
               parsed.manualGrades?.[q.id],
               q.type === 'FIB' ? fib[q.id] : undefined,
-              a.paperTranscript
+              parsed.paperAttested === true ? a.paperTranscript : undefined
             )
           : null;
       return {

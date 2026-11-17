@@ -155,6 +155,7 @@ import { logError } from '@/utils/logError';
 import { migrateQuizMetadataShape } from '@/utils/quizSyncMigration';
 import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
 import { applyMediaSlots, readSlotGrade } from '@/utils/mediaGrading';
+import { gradingPaperTranscript } from '@/utils/paperWritten';
 import { responseHasArtifacts } from '@/utils/responseArtifacts';
 import { AuthContext } from '@/context/AuthContextValue';
 import {
@@ -1229,7 +1230,7 @@ export function gradeResponseForPublish(
         a.answer,
         manualGrade,
         fibAcceptedAnswers(localizedFibAnswers, q.id, servedLocale),
-        a.paperTranscript
+        gradingPaperTranscript(q, data, a.paperTranscript)
       )
     );
     if (

@@ -3,6 +3,7 @@ import {
   gradeAnswer,
   isWrittenAnswerAwaitingGrade,
 } from '@/hooks/useQuizSession';
+import { gradingPaperTranscript } from '@/utils/paperWritten';
 import type { QuizQuestion, WrittenAnswerGrade } from '@/types';
 
 const q = (overrides: Partial<QuizQuestion> = {}): QuizQuestion => ({
@@ -546,5 +547,41 @@ describe('gradeAnswer — fill in the blank on paper', () => {
     expect(
       gradeAnswer(fib, 'Cell\u001Fwall', undefined, undefined, 'done')
     ).toMatchObject({ pointsEarned: 2, isCorrect: true, state: 'scored' });
+  });
+});
+
+describe('gradeAnswer — paper FIB trust and teacher marks', () => {
+  const fib = q({ type: 'FIB', correctAnswer: 'cell\u001Fwall', points: 2 });
+
+  it("lets the teacher's mark win over a later AI read", () => {
+    expect(
+      gradeAnswer(
+        fib,
+        'cell\u001Fwall',
+        grade({ pointsAwarded: 1 }),
+        [],
+        'done'
+      )
+    ).toMatchObject({ pointsEarned: 1, state: 'scored' });
+  });
+
+  it('trusts a FIB paperTranscript only on an imported paper response', () => {
+    expect(gradingPaperTranscript(fib, {}, 'pending')).toBeUndefined();
+    expect(gradingPaperTranscript(fib, { paperBatchId: 'b1' }, 'pending')).toBe(
+      'pending'
+    );
+    expect(
+      gradingPaperTranscript(fib, { paperWrittenBatchId: 'b1' }, 'image')
+    ).toBe('image');
+    expect(gradingPaperTranscript(q(), {}, 'pending')).toBe('pending');
+    expect(
+      gradeAnswer(
+        fib,
+        '',
+        undefined,
+        [],
+        gradingPaperTranscript(fib, {}, 'pending')
+      )
+    ).toMatchObject({ state: 'not-attempted' });
   });
 });

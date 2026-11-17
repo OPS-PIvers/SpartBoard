@@ -930,6 +930,18 @@ describe('gradeGroupAnswer', () => {
     ).toMatchObject({ pointsEarned: 4, state: 'scored' });
   });
 
+  it("lets a teacher's mark on a paper FIB win over a later AI read", () => {
+    const fib = q({ type: 'FIB', correctAnswer: 'cell\u001Fwall' });
+    const mark = { pointsAwarded: 1, scoredCriterionIds: [] };
+    expect(
+      gradeGroupAnswer(fib, 'cell\u001Fwall', mark, undefined, 'done')
+    ).toMatchObject({ pointsEarned: 1, state: 'scored' });
+    // A typed FIB (no transcript) ignores a stray grade.
+    expect(
+      gradeGroupAnswer(fib, 'cell\u001Fwall', mark, undefined, undefined)
+    ).toMatchObject({ pointsEarned: 4, state: 'scored' });
+  });
+
   it('accepts FIB alternate answers from the synced key', () => {
     const fib = q({
       type: 'FIB',

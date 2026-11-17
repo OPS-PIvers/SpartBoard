@@ -40,6 +40,7 @@ import {
   PAPER_PRIVATE_SUBCOLLECTION,
   PAPER_TRANSCRIPTION_JOBS,
   PAPER_WRITTEN_CROP_PREFIX,
+  cleanBlanks,
   paperTranscriptionJobId,
   type PaperPrivateStatus,
   type PaperTranscriptionJob,
@@ -150,13 +151,14 @@ export function parseJob(
     responseKey,
     scanId,
     page,
-    boxes: cleanBoxes.map((b) => ({
-      questionId: b.questionId,
-      storagePath: b.storagePath,
-      ...(typeof b.blanks === 'number' && b.blanks > 0
-        ? { blanks: b.blanks }
-        : {}),
-    })),
+    boxes: cleanBoxes.map((b) => {
+      const blanks = cleanBlanks(b.blanks);
+      return {
+        questionId: b.questionId,
+        storagePath: b.storagePath,
+        ...(blanks ? { blanks } : {}),
+      };
+    }),
     status: status as PaperTranscriptionJobStatus,
     attempt,
     leaseUntil:
@@ -613,7 +615,9 @@ export async function runPaperTranscriptionJob(
         answer: box.blanks
           ? blankAnswerFromTranscript(result.rawTranscript, box.blanks)
           : result.html,
-        paperTranscript: 'done',
+        // An unreadable blank is never auto-scored; the teacher marks it from the picture.
+        paperTranscript:
+          box.blanks && result.illegibleCount > 0 ? 'image' : 'done',
       };
       tx.set(
         privateRef,

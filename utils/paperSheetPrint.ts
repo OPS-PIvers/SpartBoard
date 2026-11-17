@@ -698,7 +698,9 @@ function writtenItemHtml(
   }
   const b = item.boxMm;
   const box = `left:${mm(b.x)};top:${mm(b.y)};width:${mm(b.w)};height:${mm(b.h)}`;
-  const blankYs = item.blanks ? writtenRuleYsMm(item) : [];
+  // A box rounded up to whole slots has spare lines; only the first `blanks` are blanks.
+  const ruleYs = item.blanks ? writtenRuleYsMm(item) : [];
+  const blankYs = item.blanks ? ruleYs.slice(0, item.blanks) : [];
   // Several blanks: each line gets its letter just left of the box, outside the ink check.
   if (blankYs.length > 1) {
     blankYs.forEach((y, i) =>
@@ -714,7 +716,11 @@ function writtenItemHtml(
       parts.push(
         `<div class="wr-blank-key" style="left:${mm(b.x + 2)};top:${mm(
           y - 6
-        )};width:${mm(b.w - 4)}">${escapeHtml(blankAnswers?.[i] ?? '')}</div>`,
+        )};width:${mm(b.w - 4)}">${escapeHtml(blankAnswers?.[i] ?? '')}</div>`
+      )
+    );
+    ruleYs.forEach((y) =>
+      parts.push(
         `<div class="wr-rule" style="left:${mm(b.x)};top:${mm(
           y - WRITTEN_RULE_LINE_MM
         )};width:${mm(b.w)};height:${mm(WRITTEN_RULE_LINE_MM)}"></div>`
