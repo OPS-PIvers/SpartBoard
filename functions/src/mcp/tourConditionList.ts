@@ -139,6 +139,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'reopen-selected-students',
   'roster-groups',
   'routine-guide',
+  'rubric-grading-v2',
   'schoology-quiz-import',
   'screen-recording',
   'seating-chart-plans',

@@ -18823,6 +18823,82 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-grading.rubric-order",
+    "label": "Rubric level order switch (highest or lowest first) in the grader",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-view-full",
+    "label": "View rubric button in the grader",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-close",
+    "label": "Close button on the full rubric table",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-criterion-toggle",
+    "label": "Criterion open / close toggle in the grader, by criterion",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-criterion-score",
+    "label": "Criterion score box in the grader, by criterion",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "quiz-grading.rubric-note",
     "label": "Criterion note textarea in the Quiz grader, by position",
     "scope": "field",
