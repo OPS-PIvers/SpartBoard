@@ -4,6 +4,13 @@ import { useTranslation } from 'react-i18next';
 import { LifeBuoy, X } from 'lucide-react';
 import type { QuizSupport } from '@/types';
 import { embeddableSupportUrl } from '@/utils/quizSupportEmbed';
+import {
+  SUPPORTS_PCT_DEFAULT,
+  SUPPORTS_PCT_MAX,
+  SUPPORTS_PCT_MIN,
+  clampSupportsPct,
+  supportsPctForKey,
+} from '@/utils/quizSupportsPanel';
 
 export const SupportsButton: React.FC<{
   light: boolean;
@@ -177,5 +184,64 @@ export const SupportsPanel: React.FC<{
         </div>
       ))}
     </aside>
+  );
+};
+
+/** Drag bar between Supports and the sources in the left panel. */
+export const SupportsDivider: React.FC<{
+  pct: number;
+  onChange: (pct: number) => void;
+  light: boolean;
+}> = ({ pct, onChange, light }) => {
+  const { t } = useTranslation();
+  const dragging = useRef(false);
+  const moveTo = (e: React.PointerEvent<HTMLDivElement>) => {
+    const col = e.currentTarget.parentElement?.getBoundingClientRect();
+    if (!col || col.height <= 0) return;
+    onChange(clampSupportsPct(((e.clientY - col.top) / col.height) * 100));
+  };
+  return (
+    <div
+      // no-tour-anchor: student quiz screen; tours walk teachers
+      role="separator"
+      aria-orientation="horizontal"
+      aria-label={t('quizSupports.resize', 'Resize supports')}
+      aria-valuenow={Math.round(pct)}
+      aria-valuemin={SUPPORTS_PCT_MIN}
+      aria-valuemax={SUPPORTS_PCT_MAX}
+      tabIndex={0}
+      onPointerDown={(e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        dragging.current = true;
+        e.currentTarget.setPointerCapture(e.pointerId);
+      }}
+      onPointerMove={(e) => {
+        if (dragging.current) moveTo(e);
+      }}
+      onPointerUp={() => {
+        dragging.current = false;
+      }}
+      onPointerCancel={() => {
+        dragging.current = false;
+      }}
+      onDoubleClick={() => onChange(SUPPORTS_PCT_DEFAULT)}
+      onKeyDown={(e) => {
+        const next = supportsPctForKey(e.key, pct);
+        if (next === null) return;
+        e.preventDefault();
+        onChange(next);
+      }}
+      className="group relative hidden h-4 shrink-0 cursor-row-resize touch-none select-none items-center justify-center touch-target-expand [-webkit-tap-highlight-color:transparent] focus-visible:outline-hidden lg:flex"
+    >
+      <span
+        aria-hidden
+        className={`h-px w-full transition-colors group-hover:bg-brand-blue-primary group-focus-visible:bg-brand-blue-primary ${light ? 'bg-slate-300' : 'bg-slate-600'}`}
+      />
+      <span
+        aria-hidden
+        className={`absolute h-1.5 w-14 rounded-full transition-colors group-hover:bg-brand-blue-primary group-focus-visible:bg-brand-blue-primary group-focus-visible:ring-2 group-focus-visible:ring-brand-blue-primary/40 ${light ? 'bg-slate-400' : 'bg-slate-500'}`}
+      />
+    </div>
   );
 };

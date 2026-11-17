@@ -5102,6 +5102,7 @@
   "quizSupports": {
     "button": "Apoyos",
     "title": "Apoyos",
-    "close": "Cerrar"
+    "close": "Cerrar",
+    "resize": "Cambiar el tamaño de los apoyos"
   }
 }

@@ -159,7 +159,7 @@ export const StudentQuizDevView: React.FC<{ state: StudentQuizStateKey }> = ({
                   ? makeOptionImagesQuizSession('Matching')
                   : state === 'sq-images-mc'
                     ? makeOptionImagesQuizSession('MC')
-                    : state === 'sq-stimuli'
+                    : state === 'sq-stimuli' || state === 'sq-supports-stimuli'
                       ? makeStimulusQuizSession()
                       : state === 'sq-picture' || state === 'sq-pictures'
                         ? makePictureStimulusQuizSession(
@@ -280,7 +280,11 @@ export const StudentQuizDevView: React.FC<{ state: StudentQuizStateKey }> = ({
         onRecordStimulusPlay={noop}
         onReportStimulusError={noop}
         fullscreenRequired={state === 'sq-fullscreen'}
-        override={state === 'sq-supports' ? SUPPORTS_OVERRIDE : undefined}
+        override={
+          state === 'sq-supports' || state === 'sq-supports-stimuli'
+            ? SUPPORTS_OVERRIDE
+            : undefined
+        }
       />
     </div>
   );

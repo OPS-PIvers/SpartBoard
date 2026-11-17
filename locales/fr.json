@@ -5102,6 +5102,7 @@
   "quizSupports": {
     "button": "Aides",
     "title": "Aides",
-    "close": "Fermer"
+    "close": "Fermer",
+    "resize": "Redimensionner les aides"
   }
 }

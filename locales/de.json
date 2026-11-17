@@ -5102,6 +5102,7 @@
   "quizSupports": {
     "button": "Hilfen",
     "title": "Hilfen",
-    "close": "Schließen"
+    "close": "Schließen",
+    "resize": "Größe der Hilfen ändern"
   }
 }
