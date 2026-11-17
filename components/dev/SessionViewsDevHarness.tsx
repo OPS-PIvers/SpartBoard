@@ -77,6 +77,8 @@ import {
   makePictureOnlyQuizData,
   makePictureOnlyResponses,
   makeOrderingResponses,
+  makeBankDrawQuizData,
+  makeBankDrawResponses,
   makeQuizConfig,
   makeVaSession,
   makeVaResponses,
@@ -442,6 +444,31 @@ const SessionView: React.FC<{
         responses={makePictureOnlyResponses()}
         config={makeQuizConfig()}
         session={makeQuizSession('ended')}
+        onBack={() => undefined}
+        onSubmitStudent={noop}
+        studentResultsActions={HARNESS_RESULTS_ACTIONS}
+      />
+    );
+  }
+
+  if (view === 'quiz-results' && state === 'bank-draw') {
+    return (
+      <QuizResults
+        quiz={makeBankDrawQuizData()}
+        responses={makeBankDrawResponses()}
+        config={makeQuizConfig()}
+        session={{
+          ...makeQuizSession('ended'),
+          bankSlots: [
+            {
+              id: 'slot-1',
+              count: 2,
+              points: 1,
+              poolQuestionIds: ['bank-q2', 'bank-q3', 'bank-q4', 'bank-q5'],
+              position: 1,
+            },
+          ],
+        }}
         onBack={() => undefined}
         onSubmitStudent={noop}
         studentResultsActions={HARNESS_RESULTS_ACTIONS}

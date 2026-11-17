@@ -106,14 +106,16 @@ describe('computeStudentDrilldown', () => {
     expect(o.correctAnswerText).toBe('1. a; 2. b; 3. c');
   });
 
-  it('lists only the questions a bank quiz served, numbered by quiz order', () => {
+  it('lists only the questions a bank quiz served, as the student saw them', () => {
     const d = computeStudentDrilldown(
       [q('q1', 'MC', 'a'), q('q2', 'MC', 'b'), q('q3', 'MC', 'c')],
-      response({ q3: 'c' }, { servedQuestionIds: ['q3', 'q1'] })
+      response({ q3: 'c' }, { servedQuestionIds: ['q3', 'q1'] }),
+      undefined,
+      { drawOrder: true }
     );
     expect(d.lines.map((l) => [l.questionId, l.number, l.mark])).toEqual([
-      ['q1', 1, 'noAnswer'],
-      ['q3', 3, 'correct'],
+      ['q3', 1, 'correct'],
+      ['q1', 2, 'noAnswer'],
     ]);
     expect(d.pointsMax).toBe(2);
   });
@@ -356,5 +358,27 @@ describe('buildStudentReportHtml', () => {
     expect(html).not.toContain('Correct answer');
     expect(html).not.toContain('Learning targets');
     expect(html).toContain('Answer: Rome');
+  });
+});
+
+describe('computeStudentDrilldown numbering', () => {
+  const questions = ['a', 'b', 'c', 'd', 'e'].map((id) => q(id, 'FIB', 'x'));
+  const ids = (r: QuizResponse, opts = {}) =>
+    computeStudentDrilldown(questions, r, undefined, opts).lines.map(
+      (l) => `${l.number}:${l.questionId}`
+    );
+
+  it('numbers bank draws in the order the student got them', () => {
+    const r = response({}, { servedQuestionIds: ['a', 'd', 'c'] });
+    expect(ids(r, { drawOrder: true })).toEqual(['1:a', '2:d', '3:c']);
+  });
+
+  it('keeps a modification subset in quiz order, whatever order its ids were saved in', () => {
+    const r = response({}, { servedQuestionIds: ['e', 'b'] });
+    expect(ids(r)).toEqual(['1:b', '2:e']);
+  });
+
+  it('keeps quiz order and numbers for everyone else', () => {
+    expect(ids(response({}))).toEqual(['1:a', '2:b', '3:c', '4:d', '5:e']);
   });
 });

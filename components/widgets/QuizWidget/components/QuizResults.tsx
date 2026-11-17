@@ -3022,6 +3022,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           targetsFor={printTargets}
           gradeFn={printGradeFn}
           rubricFor={printRubric}
+          drawOrder={!!session?.bankSlots?.length}
           periodOrder={printPeriodOrder}
           sessionLive={!!session && session.status !== 'ended'}
           sheetsAvailable={paperSheetsEnabled}
@@ -4157,6 +4158,8 @@ const StudentDrilldownPanel: React.FC<{
     response: QuizResponse,
     question: QuizQuestion
   ) => Rubric | undefined;
+  /** Bank session: list questions in the order the student drew them. */
+  drawOrder: boolean;
   id: string;
   quizTitle: string;
   response: QuizResponse;
@@ -4180,6 +4183,7 @@ const StudentDrilldownPanel: React.FC<{
   onSaveCountedChoices?: SaveCountedChoices;
 }> = ({
   rubricFor,
+  drawOrder,
   id,
   quizTitle,
   response: liveResponse,
@@ -4249,22 +4253,42 @@ const StudentDrilldownPanel: React.FC<{
         questions,
         response,
         makeQuestionGradeFn(fibGrading),
-        { showExtraAnswers: true, rubricFor: (q) => rubricFor(response, q) }
+        {
+          showExtraAnswers: true,
+          rubricFor: (q) => rubricFor(response, q),
+          drawOrder,
+        }
       ),
-    [questions, response, fibGrading, rubricFor]
+    [questions, response, fibGrading, rubricFor, drawOrder]
   );
   const questionById = useMemo(
     () => new Map(questions.map((q) => [q.id, q])),
     [questions]
   );
   const responseKey = getResponseDocKey(response) as string;
-  const overAnswered = useMemo(
-    () =>
-      onSaveCountedChoices && !picked
-        ? countedChoiceSections(liveResponse, sections, questions)
-        : [],
-    [onSaveCountedChoices, picked, liveResponse, sections, questions]
-  );
+  const overAnswered = useMemo(() => {
+    if (!onSaveCountedChoices || picked) return [];
+    // The picker uses the same Q numbers as the lines below it.
+    const numberOf = new Map(
+      drilldown.lines.map((l) => [l.questionId, l.number])
+    );
+    return countedChoiceSections(liveResponse, sections, questions).map(
+      (o) => ({
+        ...o,
+        options: o.options.map((x) => ({
+          ...x,
+          number: numberOf.get(x.questionId) ?? x.number,
+        })),
+      })
+    );
+  }, [
+    onSaveCountedChoices,
+    picked,
+    liveResponse,
+    sections,
+    questions,
+    drilldown,
+  ]);
   const saveCounted = async (sectionId: string, ids: string[] | null) => {
     if (!onSaveCountedChoices) return;
     try {
@@ -5272,6 +5296,7 @@ const StudentsScreen: React.FC<{
               {isExpanded && (
                 <StudentDrilldownPanel
                   rubricFor={rubricFor}
+                  drawOrder={!!session?.bankSlots?.length}
                   id={panelId}
                   quizTitle={quizTitle}
                   response={r}
