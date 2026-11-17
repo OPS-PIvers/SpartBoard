@@ -11,6 +11,7 @@ import { useWritingPiece } from '@/hooks/useWritingPiece';
 import { PageProtectionGuards } from '@/components/common/PageProtectionGuards';
 import { effectivePageProtections } from '@/utils/pageProtections';
 import { deriveWritingView, writingClosed } from '@/utils/writingStudentView';
+import { LiveViewNotice } from '@/components/quiz/LiveViewNotice';
 import { WritingStudentShell } from './WritingStudentShell';
 
 const SESSIONS = 'writing_assignment_sessions';
@@ -117,6 +118,15 @@ const WritingPiecePage: React.FC<{
       <WritingStudentShell
         session={session}
         onDone={onDone}
+        liveNotice={
+          writing && (
+            <LiveViewNotice
+              liveView={response?.liveView}
+              language={session.language}
+              subject="writing"
+            />
+          )
+        }
         piece={{
           view,
           editorKey: writing
