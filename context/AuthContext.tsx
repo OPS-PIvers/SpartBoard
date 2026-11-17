@@ -3804,10 +3804,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   return (
     <AuthContext.Provider value={value}>
-      <AppPickersSwitch
-        canAccessFeature={canAccessFeature}
-        isStudentRole={isStudentRole}
-      />
+      <AppPickersSwitch isStudentRole={isStudentRole} />
       {children}
     </AuthContext.Provider>
   );

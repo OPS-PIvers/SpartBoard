@@ -10,17 +10,11 @@ const clearPendingRubricShare = vi.fn();
 const importSharedRubric = vi.fn();
 
 let pendingRubricShareId: string | null = 'share-abc';
-let confirmFlag = true;
-let permsLoaded = true;
 
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'uid-1' },
     orgId: 'orono',
-    isAdmin: false,
-    globalPermissionsLoaded: permsLoaded,
-    canAccessFeature: (id: string) =>
-      id === 'share-import-confirm' && confirmFlag,
   }),
 }));
 
@@ -107,8 +101,6 @@ describe('DeepLinkShareImporter — rubric deep link', () => {
     clearPendingRubricShare.mockReset();
     importSharedRubric.mockReset();
     pendingRubricShareId = 'share-abc';
-    confirmFlag = true;
-    permsLoaded = true;
   });
 
   it('imports the pending rubric share and toasts its title', async () => {
@@ -141,32 +133,6 @@ describe('DeepLinkShareImporter — rubric deep link', () => {
         'error'
       )
     );
-  });
-
-  it('imports silently with no dialog when the confirm flag is off', async () => {
-    confirmFlag = false;
-    importSharedRubric.mockResolvedValue({ id: 'r1', title: 'Paragraph' });
-    render(<DeepLinkShareImporter />);
-
-    await waitFor(() =>
-      expect(importSharedRubric).toHaveBeenCalledWith('share-abc')
-    );
-    expect(screen.queryByRole('button', { name: 'Import' })).toBeNull();
-    expect(screen.queryByText('Sam Rivera')).toBeNull();
-  });
-
-  it('neither imports nor shows the dialog until permissions load', async () => {
-    permsLoaded = false;
-    const { rerender } = render(<DeepLinkShareImporter />);
-    await new Promise((r) => setTimeout(r, 20));
-    expect(importSharedRubric).not.toHaveBeenCalled();
-    expect(clearPendingRubricShare).not.toHaveBeenCalled();
-    expect(screen.queryByRole('button', { name: 'Import' })).toBeNull();
-
-    permsLoaded = true;
-    rerender(<DeepLinkShareImporter />);
-    await screen.findByRole('button', { name: 'Import' });
-    expect(importSharedRubric).not.toHaveBeenCalled();
   });
 
   it('does nothing when no rubric share is pending', () => {

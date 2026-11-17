@@ -911,7 +911,6 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       isReview ||
       !user?.uid ||
       user.uid !== session?.teacherUid ||
-      !canAccessFeature('choose-n-pick-counted') ||
       !session.sections?.some((s) => s.chooseCount)
     ) {
       return undefined;
@@ -921,15 +920,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       ((responseKey, sectionId, picked) =>
         saveCountedChoices({ sessionId, responseKey, sectionId, picked, quiz }))
     );
-  }, [
-    session,
-    plcView,
-    isReview,
-    user?.uid,
-    canAccessFeature,
-    quiz,
-    countedChoicesSaver,
-  ]);
+  }, [session, plcView, isReview, user?.uid, quiz, countedChoicesSaver]);
 
   // Same teacher-owner path as the grade write; a dotted path keeps the other hashes.
   const saveBackTranslation = useCallback(
@@ -4208,8 +4199,6 @@ const StudentDrilldownPanel: React.FC<{
   onSaveCountedChoices,
 }) => {
   const [includeAnswers, setIncludeAnswers] = useState(true);
-  const { canAccessFeature } = useAuth();
-  const showExtraAnswers = canAccessFeature('choose-n-pick-counted');
   const liveKey = getResponseDocKey(liveResponse) as string;
   const copies = useQuizResponseAttempts(sessionId, liveKey, true);
   const earlier = useMemo(
@@ -4261,9 +4250,9 @@ const StudentDrilldownPanel: React.FC<{
         questions,
         response,
         makeQuestionGradeFn(fibGrading),
-        { showExtraAnswers, rubricFor: (q) => rubricFor(response, q) }
+        { showExtraAnswers: true, rubricFor: (q) => rubricFor(response, q) }
       ),
-    [questions, response, fibGrading, showExtraAnswers, rubricFor]
+    [questions, response, fibGrading, rubricFor]
   );
   const questionById = useMemo(
     () => new Map(questions.map((q) => [q.id, q])),

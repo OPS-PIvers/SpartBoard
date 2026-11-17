@@ -192,29 +192,37 @@ export interface DueReminder {
   at: number;
 }
 
-/** Reminders whose show time (time minus lead) passed today, within the late window. */
+/** Reminders whose show time (time minus lead) passed (today, or across midnight), within the late window. */
 export function dueReminders(
   rosters: ClassRoster[],
   now: number
 ): DueReminder[] {
-  const today = new Date(now);
-  const dateKey = toLocalDateKey(today);
+  const nowDate = new Date(now);
   const due: DueReminder[] = [];
-  for (const roster of rosters) {
-    for (const group of roster.groups ?? []) {
-      const reminder = group.reminder;
-      if (!reminder || !reminderFallsOn(reminder, today)) continue;
-      for (const alert of reminder.alerts) {
-        const at = timeOn(alert.time, today);
-        const showAt = at - alert.leadMinutes * 60_000;
-        if (now < showAt || now - showAt > LATE_WINDOW_MS) continue;
-        due.push({
-          key: `${roster.id}:${group.id}:${dateKey}:${alert.time}`,
-          rosterId: roster.id,
-          group,
-          time: alert.time,
-          at,
-        });
+  // Yesterday and tomorrow too: a lead or late window can cross midnight.
+  for (const offset of [-1, 0, 1]) {
+    const day = new Date(
+      nowDate.getFullYear(),
+      nowDate.getMonth(),
+      nowDate.getDate() + offset
+    );
+    const dateKey = toLocalDateKey(day);
+    for (const roster of rosters) {
+      for (const group of roster.groups ?? []) {
+        const reminder = group.reminder;
+        if (!reminder || !reminderFallsOn(reminder, day)) continue;
+        for (const alert of reminder.alerts) {
+          const at = timeOn(alert.time, day);
+          const showAt = at - alert.leadMinutes * 60_000;
+          if (now < showAt || now - showAt > LATE_WINDOW_MS) continue;
+          due.push({
+            key: `${roster.id}:${group.id}:${dateKey}:${alert.time}`,
+            rosterId: roster.id,
+            group,
+            time: alert.time,
+            at,
+          });
+        }
       }
     }
   }

@@ -395,6 +395,21 @@ describe('handleControlSubAssignment — pausing', () => {
     expect(lastWrite.toMillis()).toBe(NOW);
   });
 
+  it('does not refresh idle responses when resuming a run that is not paused', async () => {
+    const stale = { toMillis: () => NOW - 3_600_000 };
+    const resumed = control(
+      {
+        session: stamped({ status: 'active' }),
+        responses: { a: { status: 'in-progress', lastWriteAt: stale } },
+      },
+      input({ action: 'resume' })
+    );
+    await resumed.run();
+    expect(
+      resumed.written.filter((w) => w.path.includes('/responses/'))
+    ).toEqual([]);
+  });
+
   // The other three kinds have no paused state, so a pause would write a
   // status nothing reads.
   it('refuses to pause anything but a quiz', async () => {

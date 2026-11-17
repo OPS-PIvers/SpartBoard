@@ -1550,12 +1550,11 @@ const TeacherQuizWidget: React.FC<{
       after: QuizData,
       meta: QuizMetadata
     ): Promise<void> => {
-      if (!canAccessFeature('choose-n-pick-counted')) return;
       const changes = chooseCountChanges(before, after);
       if (changes.size === 0) return;
       await applyChooseCounts(changes, after, meta);
     },
-    [canAccessFeature, applyChooseCounts]
+    [applyChooseCounts]
   );
 
   // D12: clear the PLC results link on an assignment (confirm first).
@@ -2598,7 +2597,6 @@ const TeacherQuizWidget: React.FC<{
       canImportDocuments,
       loadStandardCodes: loadCatalogCodes,
       pickDocument,
-      equations: canAccessFeature('quiz-import-equations'),
       ...(canUseAiReader ? { aiExtract: extractQuizFromDocument } : {}),
       ...(canImportDocuments
         ? {
