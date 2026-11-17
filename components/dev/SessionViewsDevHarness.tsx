@@ -28,6 +28,7 @@ import { DashboardProvider } from '@/context/DashboardContext';
 import { QuizLiveMonitor } from '@/components/widgets/QuizWidget/components/QuizLiveMonitor';
 import { QuizResults } from '@/components/widgets/QuizWidget/components/QuizResults';
 import { withNotChosen } from '@/utils/quizSections';
+import { getAssignmentWidgetKind } from '@/utils/quizWidgetKind';
 import { countedChoicesPatch } from '@/utils/quizCountedChoices';
 import { QuizAttemptSourceContext } from '@/hooks/useQuizResponseAttempts';
 import { VideoActivityLiveMonitor } from '@/components/widgets/VideoActivityWidget/components/VideoActivityLiveMonitor';
@@ -58,6 +59,7 @@ import {
 import {
   NOW,
   makeQuizSession,
+  makeReviewSession,
   makeQuizMonitorRoster,
   makeQuizResponses,
   makeQuizAttemptCopies,
@@ -326,7 +328,6 @@ const SessionView: React.FC<{
       : perPeriod
         ? {
             ...makeQuizSession(status),
-            sessionMode: 'student' as const,
             periodAccess: {
               'cl-1': period('Period 1', 'paused'),
               'cl-3': period('Period 3', 'open'),
@@ -345,14 +346,19 @@ const SessionView: React.FC<{
           : state === 'multi-class'
             ? {
                 ...makeQuizSession(status),
-                sessionMode: 'student' as const,
                 periodNames: ['Period 1', 'Period 3'],
               }
-            : makeQuizSession(status);
+            : state === 'review'
+              ? makeReviewSession(status)
+              : makeQuizSession(status);
+    // Same kind rule as QuizWidget, so a Quiz fixture never shows the Review monitor.
+    const quizKind = getAssignmentWidgetKind(session) === 'quiz';
     return (
       <QuizMonitorDev
         session={{ ...session, rosterIds: ['roster-p3'] }}
-        assessmentOnly={perPeriod}
+        assessmentOnly={quizKind}
+        hideLiveScoreboard={quizKind}
+        responsesLoaded
         responses={responses}
         quizData={makeQuizData()}
         rosters={[makeQuizMonitorRoster()]}
@@ -383,7 +389,7 @@ const SessionView: React.FC<{
             ? 'ended'
             : 'active';
     const session = {
-      ...makeQuizSession(status),
+      ...makeReviewSession(status),
       sessionMode: state === 'self-paced' ? 'student' : 'teacher',
       questionPhase: state === 'reviewing' ? 'reviewing' : 'answering',
       pauseMessage: state === 'paused' ? 'Back in 5 minutes' : undefined,
