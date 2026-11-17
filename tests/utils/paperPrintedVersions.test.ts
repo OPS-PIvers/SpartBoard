@@ -3,6 +3,7 @@ import type { QuizData, QuizQuestion } from '@/types';
 import {
   printedGroupForPrint,
   printedGroupQuiz,
+  printedGroupRecord,
   printedSupports,
 } from '@/utils/paperPrintedVersions';
 import {
@@ -98,6 +99,10 @@ describe('printed group picks', () => {
     expect(picks).toHaveLength(1);
     expect(picks[0].number).toBe(2);
     expect(picks[0].students).toEqual([{ rosterId: 'r2', studentId: 's-k2' }]);
+    expect(printedGroupRecord(picks[0])).toEqual({
+      number: 2,
+      answerChoices: 'all',
+    });
     expect(printedGroupForPrint(picks[0])).toMatchObject({
       label: 'Group 2',
       students: { r2: ['s-k2'] },
