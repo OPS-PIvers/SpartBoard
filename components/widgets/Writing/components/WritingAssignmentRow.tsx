@@ -1,6 +1,13 @@
 // One assigned Writing session on the In Progress or Completed tab.
 import React, { useCallback } from 'react';
-import { Calendar, Pause, PowerOff, Rocket, Trash2 } from 'lucide-react';
+import {
+  BarChart3,
+  Calendar,
+  Pause,
+  PowerOff,
+  Rocket,
+  Trash2,
+} from 'lucide-react';
 import type { WritingAssignmentRecord } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import {
@@ -28,7 +35,8 @@ export const WritingAssignmentRow: React.FC<{
   tourIndex: number;
   onEnd: (record: WritingAssignmentRecord) => void;
   onDelete: (record: WritingAssignmentRecord) => void;
-}> = ({ record: r, mode, tourIndex, onEnd, onDelete }) => {
+  onResults: (record: WritingAssignmentRecord) => void;
+}> = ({ record: r, mode, tourIndex, onEnd, onDelete, onResults }) => {
   const { rosters, addToast } = useDashboard();
   // Manual: each class starts paused; Start and Pause go through the server, as no client writes the session.
   const perPeriod = mode === 'active' && hasPeriodAccess(r);
@@ -62,7 +70,14 @@ export const WritingAssignmentRow: React.FC<{
         ? `${classes.length} classes`
         : null;
   const icon = { width: 'min(12px, 3cqmin)', height: 'min(12px, 3cqmin)' };
+  const results = {
+    id: 'results',
+    label: 'Results',
+    icon: BarChart3,
+    onClick: () => onResults(r),
+  };
   const secondaries: LibraryMenuAction[] = [
+    ...(mode === 'active' ? [results] : []),
     ...(perPeriod && !paused
       ? [
           {
@@ -138,7 +153,9 @@ export const WritingAssignmentRow: React.FC<{
               icon: Rocket,
               onClick: () => void runPeriod(periods.startAll),
             }
-          : undefined
+          : mode === 'archive'
+            ? results
+            : undefined
       }
       secondaryActions={secondaries}
     />

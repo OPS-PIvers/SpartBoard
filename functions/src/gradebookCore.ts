@@ -8,7 +8,8 @@ export type GradebookKind =
   | 'flashcards'
   | 'projects'
   | 'mini-app'
-  | 'activity-wall';
+  | 'activity-wall'
+  | 'writing';
 
 export const GRADEBOOK_KINDS: readonly GradebookKind[] = [
   'quiz',
@@ -18,6 +19,7 @@ export const GRADEBOOK_KINDS: readonly GradebookKind[] = [
   'projects',
   'mini-app',
   'activity-wall',
+  'writing',
 ];
 
 /** D6: columns that only show a check when work exists and never count. */
@@ -35,6 +37,7 @@ export const GRADEBOOK_SESSION_COLLECTIONS: Record<GradebookKind, string> = {
   projects: 'project_runs',
   'mini-app': 'mini_app_sessions',
   'activity-wall': 'activity_wall_sessions',
+  writing: 'writing_assignment_sessions',
 };
 
 /** RR-06 grade state: awaiting-grade is never shown or pushed as 0. */

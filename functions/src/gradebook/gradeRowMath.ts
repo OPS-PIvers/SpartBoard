@@ -90,6 +90,7 @@ const TITLE_FIELDS: Record<GradeKind, string[]> = {
   projects: ['title'],
   'mini-app': ['assignmentName', 'appTitle', 'title'],
   'activity-wall': ['title', 'prompt'],
+  writing: ['title'],
 };
 
 /** Session fields every row carries; `assignment` supplies quiz per-class due dates. */
@@ -739,6 +740,45 @@ export function scoreProjectMember(
     max,
     state: scored ? 'scored' : 'awaiting-grade',
     submittedAt: toMillis(grade.gradedAt),
+    attemptNumber: null,
+  };
+}
+
+/** Writing (D14): the returned score that counts, out of the points total or the rubric total; turned-in work awaits one. */
+export function scoreWritingResponse(
+  maxPoints: number | null,
+  response: Doc
+): RowScore {
+  const grade = asRecord(response.grade);
+  const status = asString(response.status);
+  const submittedAt = toMillis(response.turnedInAt);
+  const points =
+    typeof grade.pointsAwarded === 'number' ? grade.pointsAwarded : null;
+  const max =
+    typeof grade.maxPoints === 'number' && grade.maxPoints > 0
+      ? grade.maxPoints
+      : maxPoints;
+  const excused = grade.excused === true;
+  const scored = excused || (points !== null && max !== null);
+  return {
+    classId: asString(response.classId) || null,
+    // Response grades are written only at Return, which is when the student sees them.
+    published: true,
+    targetEvidence: [],
+    rawPct:
+      !excused && scored && max !== null && max > 0
+        ? round2(((points as number) / max) * 100)
+        : null,
+    points: excused ? null : points,
+    max,
+    state: scored
+      ? 'scored'
+      : submittedAt !== null
+        ? 'awaiting-grade'
+        : status
+          ? 'in-progress'
+          : 'not-attempted',
+    submittedAt,
     attemptNumber: null,
   };
 }

@@ -17209,6 +17209,75 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'writing-results.back': {
+    label: 'Back button in Writing results',
+    perWidgetType: true,
+  },
+  'writing-results.grade': {
+    label: 'Grade button in Writing results',
+    perWidgetType: true,
+  },
+  'writing-results.student-row': {
+    label: 'Student row in Writing results',
+    perField: true,
+    rows: true,
+  },
+  'writing-grading.student-select': {
+    label: 'Student row in the Writing grader',
+    perField: true,
+    panel: true,
+    rows: true,
+  },
+  'writing-grading.draft-select': {
+    label: 'Draft picker in the Writing grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'writing-grading.points': {
+    label: 'Score box in the Writing grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'writing-grading.excused': {
+    label: 'Excused checkbox in the Writing grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'writing-grading.comment': {
+    label: 'Overall comment box in the Writing grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'writing-grading.highlight-select': {
+    label: 'Highlight list item in the Writing grader',
+    perField: true,
+    panel: true,
+    rows: true,
+  },
+  'writing-grading.save': {
+    label: 'Save button in the Writing grader',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'writing-grading.return': {
+    label: 'Return button in the Writing grader',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'writing-grading.return-revision': {
+    label: 'Return for revision button in the Writing grader',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'writing-grading.student-record': {
+    label:
+      'Students can replay their own writing checkbox in the Writing grader',
+    perWidgetType: true,
+    panel: true,
+  },
   'gl-ai.attach-doc': {
     label: 'Attach context doc button in the Guided Learning AI generator',
     panel: true,

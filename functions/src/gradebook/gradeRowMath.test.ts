@@ -35,6 +35,7 @@ import {
   toMillis,
   trustedTurnInMs,
   type QuizContext,
+  scoreWritingResponse,
 } from './gradeRowMath';
 import type { RowScore } from './types';
 
@@ -970,5 +971,46 @@ describe('scoreMiniAppBest', () => {
         'c1'
       )
     ).toMatchObject({ published: false });
+  });
+});
+
+describe('scoreWritingResponse', () => {
+  it('scores the returned grade out of its own total', () => {
+    expect(
+      scoreWritingResponse(20, {
+        status: 'returned',
+        classId: 'c1',
+        turnedInAt: 1_000,
+        grade: { draftId: '2', pointsAwarded: 15, maxPoints: 20 },
+      })
+    ).toMatchObject({
+      state: 'scored',
+      points: 15,
+      max: 20,
+      rawPct: 75,
+      submittedAt: 1_000,
+      classId: 'c1',
+      published: true,
+    });
+  });
+
+  it('awaits a grade once turned in, and is in progress before', () => {
+    expect(
+      scoreWritingResponse(20, { status: 'turned-in', turnedInAt: 5 })
+    ).toMatchObject({ state: 'awaiting-grade', points: null, max: 20 });
+    expect(scoreWritingResponse(20, { status: 'draft' })).toMatchObject({
+      state: 'in-progress',
+      submittedAt: null,
+    });
+  });
+
+  it('keeps an excused piece out of the average', () => {
+    expect(
+      scoreWritingResponse(20, {
+        status: 'returned',
+        turnedInAt: 5,
+        grade: { draftId: '1', excused: true },
+      })
+    ).toMatchObject({ state: 'scored', points: null, rawPct: null });
   });
 });

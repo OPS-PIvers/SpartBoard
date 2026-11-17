@@ -10600,8 +10600,10 @@ export interface WritingAssignmentDefinition {
 
 /** Per-board state only; Writing assignments live in the teacher's library. */
 export interface WritingConfig {
-  /** Which face the widget shows; later PRs add the monitor and grader views. */
-  view?: 'manager';
+  /** Which face the widget shows; `results` grades `resultsSessionId`. */
+  view?: 'manager' | 'results';
+  /** The session the results face shows. */
+  resultsSessionId?: string;
   /** Tab within the manager view. */
   managerTab?: 'library' | 'active' | 'archive';
   /** Persisted library grid/list toggle. */

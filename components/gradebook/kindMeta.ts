@@ -5,6 +5,7 @@ import {
   GraduationCap,
   Layers,
   MessagesSquare,
+  NotebookPen,
   PlayCircle,
   type LucideIcon,
 } from 'lucide-react';
@@ -29,4 +30,5 @@ export const GRADEBOOK_KIND_META: Record<
     letter: 'W',
     icon: MessagesSquare,
   },
+  writing: { label: 'Writing', letter: 'Wr', icon: NotebookPen },
 };
