@@ -5,6 +5,8 @@
  * tested in isolation and reused by both the login page and the join flow.
  */
 
+import { isCourseLinkPath } from './myAssignmentsPath';
+
 /**
  * Validate a post-login redirect target read from a `?next=` query param.
  *
@@ -15,7 +17,8 @@
  *   - must contain no backslash (some engines normalise `\` to `/`),
  *   - its path (sans query/hash) must be exactly `/quiz`, `/join`, a
  *     `/flashcards/a/{assignmentId}` or `/writing/{sessionId}` page, a `/activity/{sessionId}` Video Activity,
- *     or a `/activity-wall/{sessionId}` submission page.
+ *     a `/activity-wall/{sessionId}` submission page, or a Course's
+ *     `/my-assignments/course/{linkId}` Class page link.
  *
  * Anything else returns `null` and the caller should fall back to its default
  * destination.
@@ -35,6 +38,7 @@ export function resolveNextTarget(rawNext: string | null): string | null {
   if (/^\/flashcards\/a\/[A-Za-z0-9_-]+$/.test(path)) return rawNext;
   if (/^\/writing\/[A-Za-z0-9_-]+$/.test(path)) return rawNext;
   if (/^\/activity\/[A-Za-z0-9_-]+$/.test(path)) return rawNext;
+  if (isCourseLinkPath(path)) return rawNext;
   // Activity Wall submission pages: `/activity-wall/{sessionId}` only. The
   // gallery sub-route is public and never a post-login destination.
   return /^\/activity-wall\/[A-Za-z0-9_-]+$/.test(path) &&

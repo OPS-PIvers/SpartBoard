@@ -1841,6 +1841,7 @@ export const WIDGET_DEFAULT_ACCESS_LEVEL: Partial<
   focus: 'admin',
   // Writing assignment plan D19: admins first.
   writing: 'admin',
+  agenda: 'admin',
 };
 
 export const getWidgetDefaultAccessLevel = (

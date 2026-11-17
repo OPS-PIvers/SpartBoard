@@ -434,6 +434,8 @@ interface StudentLandingSampleProps {
   initialTab?: LandingTab;
   /** Fill the parent box instead of the viewport. */
   embedded?: boolean;
+  /** Fixture Agenda and links per class, on the dev harness only. */
+  classTopFor?: (classId: string) => React.ReactNode;
 }
 
 export const StudentLandingSample: React.FC<StudentLandingSampleProps> = ({
@@ -442,6 +444,7 @@ export const StudentLandingSample: React.FC<StudentLandingSampleProps> = ({
   initialClassId,
   initialTab = 'assignments',
   embedded,
+  classTopFor,
 }) => {
   const nowMs = inClass ? IN_CLASS : AFTER_SCHOOL;
   const [selected, setSelected] = useState<string | null>(
@@ -510,6 +513,7 @@ export const StudentLandingSample: React.FC<StudentLandingSampleProps> = ({
       onLockedClick={() => undefined}
       onOpenGradeOnly={() => undefined}
       embedded={embedded}
+      classTop={selected && classTopFor ? classTopFor(selected) : undefined}
     />
   );
 };

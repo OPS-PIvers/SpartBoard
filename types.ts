@@ -77,7 +77,8 @@ export type WidgetType =
   | 'routineGuide'
   | 'arts-letters-agenda'
   | 'focus'
-  | 'writing';
+  | 'writing'
+  | 'agenda';
 
 // --- ROSTER SYSTEM TYPES ---
 
@@ -2117,6 +2118,14 @@ export interface FocusConfig {
   savedSiteLists?: FocusSavedSiteList[];
   /** Counts only on the face, for projecting. */
   hideNames?: boolean;
+}
+
+/** The Agenda widget (docs/plans/COURSE_AND_AGENDA.md D16): which Course's deck it shows. */
+export interface AgendaConfig {
+  /** The picked Course; absent while the picked class is in no saved Course yet. */
+  courseId?: string;
+  /** A class in that Course, so the pick survives the Course being merged or re-made. */
+  rosterId?: string;
 }
 
 export interface ArtsLettersAgendaConfig {
@@ -10875,7 +10884,8 @@ export type WidgetConfig =
   | ProjectsConfig
   | ArtsLettersAgendaConfig
   | FocusConfig
-  | WritingConfig;
+  | WritingConfig
+  | AgendaConfig;
 
 // Helper type to get config type for a specific widget
 export type ConfigForWidget<T extends WidgetType> = T extends 'url'
@@ -11018,7 +11028,9 @@ export type ConfigForWidget<T extends WidgetType> = T extends 'url'
                                                                                                                                           ? FocusConfig
                                                                                                                                           : T extends 'writing'
                                                                                                                                             ? WritingConfig
-                                                                                                                                            : never;
+                                                                                                                                            : T extends 'agenda'
+                                                                                                                                              ? AgendaConfig
+                                                                                                                                              : never;
 
 export interface WidgetComponentProps {
   widget: WidgetData;

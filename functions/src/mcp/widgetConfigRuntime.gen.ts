@@ -1042,6 +1042,11 @@ var WIDGET_DEFAULTS = {
       libraryViewMode: 'list',
     },
   },
+  agenda: {
+    w: 560,
+    h: 360,
+    config: {},
+  },
 };
 var BUILT_IN_MATERIALS = [
   {
@@ -1814,6 +1819,7 @@ const TABLES = {
     'arts-letters-agenda': 'admin',
     focus: 'admin',
     writing: 'admin',
+    agenda: 'admin',
   },
   minTiers: { calendar: 'org' },
 };

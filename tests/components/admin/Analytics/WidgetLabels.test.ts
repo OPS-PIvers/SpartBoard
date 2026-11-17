@@ -73,6 +73,7 @@ const ALL_WIDGET_TYPES = [
   'arts-letters-agenda',
   'focus',
   'writing',
+  'agenda',
 ] as const;
 
 // Compile-time guard — adding a WidgetType without updating this array fails to compile.

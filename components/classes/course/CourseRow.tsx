@@ -27,16 +27,16 @@ export function CourseRow<R extends CourseRoster>({
   const listId = useId();
   return (
     <>
-      <div className="flex items-center gap-1 py-2 px-1 hover:bg-slate-50 transition-colors">
+      <div className="flex items-center gap-1 py-2 px-1">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
           aria-controls={listId}
           {...tourFieldAttr('classes.course-expand', 'classes', rowKey)}
-          className="flex flex-1 min-w-0 items-center gap-1 text-left"
+          className="group flex flex-1 min-w-0 items-center gap-1 text-left"
         >
-          <span className="shrink-0 p-1.5 text-slate-400">
+          <span className="shrink-0 p-1.5 rounded-lg text-slate-400 group-hover:text-brand-blue-primary group-hover:bg-brand-blue-lighter transition-colors">
             <ChevronRight
               className={`w-4 h-4 transition-transform ${open ? 'rotate-90' : ''}`}
               aria-hidden="true"
@@ -60,7 +60,7 @@ export function CourseRow<R extends CourseRoster>({
       {open && (
         <ul
           id={listId}
-          className="divide-y divide-slate-200 border-t border-slate-200 pl-6"
+          className="divide-y divide-slate-200 border-t border-slate-200 [&>li]:pl-7"
         >
           {group.rosters.map((r) => (
             <React.Fragment key={r.id}>{renderSection(r)}</React.Fragment>

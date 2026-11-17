@@ -254,4 +254,8 @@ export const WIDGET_CATALOGUE: Readonly<
     name: 'Writing',
     category: 'Instruction',
   },
+  agenda: {
+    name: 'Agenda',
+    category: 'Instruction',
+  },
 };

@@ -52,6 +52,7 @@ import {
   Triangle,
   Workflow,
   Crosshair,
+  Presentation,
 } from 'lucide-react';
 import { ToolMetadata, WidgetCategory } from '@/types';
 
@@ -657,5 +658,13 @@ export const TOOLS: ToolMetadata[] = [
     color: 'bg-teal-600',
     category: 'instruction',
     keywords: ['essay', 'writing assignment', 'prompt', 'draft', 'rubric'],
+  },
+  {
+    type: 'agenda',
+    icon: Presentation,
+    label: 'Agenda',
+    color: 'bg-amber-600',
+    category: 'instruction',
+    keywords: ['agenda', 'daily', 'slides', 'course', 'today', 'plan'],
   },
 ];

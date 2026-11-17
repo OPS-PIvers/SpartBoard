@@ -15,6 +15,7 @@ import {
   ArtsLettersAgendaConfig,
   FocusConfig,
   WritingConfig,
+  AgendaConfig,
 } from '@/types';
 import { STICKY_NOTE_COLORS } from './colors';
 import {
@@ -774,5 +775,10 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       managerTab: 'library',
       libraryViewMode: 'list',
     } satisfies WritingConfig,
+  },
+  agenda: {
+    w: 560,
+    h: 360,
+    config: {} satisfies AgendaConfig,
   },
 };

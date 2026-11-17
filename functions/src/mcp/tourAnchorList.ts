@@ -874,6 +874,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "requires": "settings-open",
     "keys": [
       "activity-wall#content",
+      "agenda#content",
       "arts-letters-agenda#content",
       "blending-board#content",
       "breathing#content",
@@ -3813,6 +3814,134 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "widgets.checklist.face",
         "kind": "widget",
         "widget_type": "checklist",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "agenda.pick-course",
+    "label": "A course in the Agenda course list",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.agenda.face",
+        "kind": "widget",
+        "widget_type": "agenda",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "agenda.picker-back",
+    "label": "Back button in the Agenda course list",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.agenda.face",
+        "kind": "widget",
+        "widget_type": "agenda",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "agenda.change-course",
+    "label": "Change course button in Agenda",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.agenda.face",
+        "kind": "widget",
+        "widget_type": "agenda",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "agenda.reload",
+    "label": "Reload agenda button in Agenda",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.agenda.face",
+        "kind": "widget",
+        "widget_type": "agenda",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "agenda.open-slides",
+    "label": "Open in Google Slides button in Agenda",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.agenda.face",
+        "kind": "widget",
+        "widget_type": "agenda",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "agenda.set-up",
+    "label": "Set up in My Classes button in Agenda",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.agenda.face",
+        "kind": "widget",
+        "widget_type": "agenda",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "agenda.fix-sharing",
+    "label": "Fix in My Classes button on the Agenda sharing notice",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.agenda.face",
+        "kind": "widget",
+        "widget_type": "agenda",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "agenda.open-classes",
+    "label": "Open My Classes button in Agenda",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.agenda.face",
+        "kind": "widget",
+        "widget_type": "agenda",
         "path": [],
         "needs": [
           "widget-on-stage"
@@ -26237,20 +26366,235 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "row_list": "classes",
     "routes": [
       {
-        "surface": "board.roster-editor",
-        "kind": "modal",
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.course-edit",
+    "label": "Edit Course button on a linked Course in My Classes",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "row_list": "classes",
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.link-classes",
+    "label": "Link classes button in My Classes",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.course-suggestion-link",
+    "label": "Link button on a suggested Course in My Classes",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.course-suggestion-dismiss",
+    "label": "Not now button on a suggested Course in My Classes",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.course-name",
+    "label": "Course name field when linking classes in My Classes",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.course-class",
+    "label": "Class checkbox when linking classes in My Classes",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.course-save",
+    "label": "Link or Save button when linking classes in My Classes",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.course-cancel",
+    "label": "Cancel button when linking classes in My Classes",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.family-link-toggle",
+    "label": "Family link switch for a Course in My Classes",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.family-link-copy",
+    "label": "Copy family link button for a Course in My Classes",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.family-link-deck-private",
+    "label": "Stop sharing the deck outside Orono checkbox when turning off a family link",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster:classes"
+          "classes.family-link-toggle"
         ],
-        "opened_by": [
-          "classes.new-class",
-          "classes.new-class-empty"
+        "reveal": "classes.family-link-toggle"
+      }
+    ]
+  },
+  {
+    "id": "classes.family-link-cancel",
+    "label": "Cancel button in the family link confirm",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.family-link-toggle"
         ],
-        "needs": [
-          "class"
-        ]
+        "reveal": "classes.family-link-toggle"
+      }
+    ]
+  },
+  {
+    "id": "classes.family-link-confirm",
+    "label": "Turn on or off button in the family link confirm",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.family-link-toggle"
+        ],
+        "reveal": "classes.family-link-toggle"
       }
     ]
   },

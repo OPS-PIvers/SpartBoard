@@ -11,6 +11,7 @@ import {
   type User,
 } from 'firebase/auth';
 import { Loader2 } from 'lucide-react';
+import { isCourseLinkPath } from '@/utils/myAssignmentsPath';
 import { StudentIdleWarning } from '@/components/student/StudentIdleWarning';
 import { auth, isAuthBypass } from '@/config/firebase';
 import {
@@ -205,7 +206,8 @@ function redirectToLoginIfProtected(
   // Assignment deep links return to the same page after sign-in.
   if (
     window.location.pathname.startsWith('/flashcards/a/') ||
-    window.location.pathname.startsWith('/writing/')
+    window.location.pathname.startsWith('/writing/') ||
+    isCourseLinkPath(window.location.pathname)
   ) {
     params.set('next', window.location.pathname);
   }
