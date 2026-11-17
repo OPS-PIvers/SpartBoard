@@ -5139,3 +5139,13 @@ rather than "no data") is also still open.
   - Ready: #5938, #5935, #5939, #5934, #5924.
   - Ready with minor notes: #5937 (settings panel stays editable while the load has failed), #5936 (no cycle test for `flattenCollections`), #5918 (the "Branches to delete" summary count is stale).
 - Notes: GitHub access went through MCP. All diffs were reviewed inline, with no subagents. No local lint, type-check or test runs were needed because nothing was changed.
+
+## 2026-11-17
+
+- PRs reviewed (5): #6046 docs(debugger): run 126 log; #6045 fix(sub): resume on an active quiz no longer resets idle clocks; #6044 fix(admin): First 5 Today's Day Number can be cleared to retype; #6043 fix(reminders): alerts that cross midnight were dropped by dueReminders; #6042 fix(timetool): start button decided from a stale config after audio resume
+- Comments processed: 1 total, 1 fixed, 0 explained. There were no inline review threads. The bot's "typing 0 shows 0 until blur" note on #6044 was fixed. The other bot notes (#6045, #6042) found no issues.
+- Fixes pushed: #6044 `nightly/admin-2026-11-17` eaf9c609, which passes `normalize` to `DraftNumberField` so a typed 0 shows the clamped 1 right away. A new test fails before the change and passes after.
+- Reviews posted: 5
+  - Ready: #6045, #6044, #6043, #6042.
+  - Ready with minor notes: #6046 (new Run Log rows have 3 cells in a 4-column table, with the PR number inside the Bug cell).
+- Notes: GitHub access went through MCP, and diffs were reviewed inline. The #6044 fix passed the scoped `vitest related` run (11 tests) and the pre-commit lint hook. I didn't run full lint or type-check, per CLAUDE.md.
