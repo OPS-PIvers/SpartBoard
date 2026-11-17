@@ -58,6 +58,7 @@ export type StateKey =
   | 'picture-only'
   | 'choose-n'
   | 'paper-copies'
+  | 'bank-draw'
   | AudioCaptureStateKey
   | RecordingControlStateKey
   | QuizEditorStateKey
@@ -120,6 +121,7 @@ const SESSION_STATE_LABELS: Record<string, string> = {
   'picture-only': 'Picture-only answers (results)',
   'choose-n': 'Answer any 2 of 3, answered extra (results)',
   'paper-copies': 'Printed group copies (monitor, results)',
+  'bank-draw': 'Bank draw, 3 of 5 questions (results)',
 };
 
 export const STATES: StateOption[] = [

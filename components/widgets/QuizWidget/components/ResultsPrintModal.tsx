@@ -85,6 +85,8 @@ export interface ResultsPrintModalProps {
     response: QuizResponse,
     question: QuizQuestion
   ) => Rubric | undefined;
+  /** Bank session: list each student's questions in the order they drew them. */
+  drawOrder?: boolean;
   periodOrder: readonly string[];
   /** The assignment is still taking answers. */
   sessionLive: boolean;
@@ -230,6 +232,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
   targetsFor,
   gradeFn,
   rubricFor,
+  drawOrder = false,
   periodOrder,
   sessionLive,
   sheetsAvailable = false,
@@ -357,6 +360,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
             : undefined,
           recordedChoices: batch?.choiceOrder,
           rubricFor: (q) => rubricFor(r, q),
+          drawOrder,
         }),
         targets: targetsFor(r),
         lettered: !!batch?.choiceOrder,
@@ -382,6 +386,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
     quiz,
     gradeFn,
     rubricFor,
+    drawOrder,
     targetsFor,
     periodOrder,
   ]);
@@ -407,6 +412,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
                   includeExplanations: true,
                   showExtraAnswers: true,
                   rubricFor: (q) => rubricFor(r, q),
+                  drawOrder,
                 }),
                 sheet: undefined,
               },
