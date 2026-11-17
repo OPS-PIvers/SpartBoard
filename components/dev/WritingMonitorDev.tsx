@@ -96,6 +96,28 @@ const RESPONSES: WritingResponse[] = [
   response('s8', 'draft', 205, 1, 0, 0, 'p3'),
 ];
 
+const gate = (label: string, state: 'open' | 'paused') => ({
+  state,
+  openAt: null,
+  closeAt: null,
+  bellPeriodId: null,
+  verified: true,
+  label,
+});
+
+// ?classes=manual shows the per-class Start and Pause bar.
+const PERIOD_BAR = {
+  periodAccess: {
+    p1: gate('Period 1', 'open'),
+    p3: gate('Period 3', 'paused'),
+  },
+  onStart: () => Promise.resolve(),
+  onPause: () => Promise.resolve(),
+  onExtend: () => Promise.resolve(),
+  extendMs: 600_000,
+  dueAt: null,
+};
+
 export const WritingMonitorDev: React.FC = () => {
   const [classId, setClassId] = useState('');
   const [width, setWidth] = useState(520);
@@ -141,6 +163,13 @@ export const WritingMonitorDev: React.FC = () => {
                 >
                   <WritingMonitorView
                     session={SESSION}
+                    periodBar={
+                      new URLSearchParams(window.location.search).get(
+                        'classes'
+                      ) === 'manual'
+                        ? PERIOD_BAR
+                        : null
+                    }
                     fallbackClasses={{ classIds: [], periodNames: [] }}
                     responses={RESPONSES}
                     names={names}

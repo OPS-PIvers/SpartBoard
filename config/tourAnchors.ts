@@ -17176,6 +17176,25 @@ export const TOUR_ANCHORS = {
     label: 'Class picker in the Writing monitor',
     perWidgetType: true,
   },
+  'writing-monitor.period-start': {
+    label: 'Start button for the picked class in the Writing monitor',
+    perWidgetType: true,
+    persists: true,
+  },
+  'writing-monitor.period-pause': {
+    label: 'Pause button for the picked class in the Writing monitor',
+    perWidgetType: true,
+    persists: true,
+  },
+  'writing-monitor.period-more-time': {
+    label: 'More time button in the Writing monitor',
+    perWidgetType: true,
+  },
+  'writing-monitor.period-extend': {
+    label: 'Extend time option in the Writing monitor More time menu',
+    perWidgetType: true,
+    persists: true,
+  },
   'writing-monitor.status-bucket': {
     label: 'Student status count in the Writing monitor',
     perField: true,

@@ -75564,9 +75564,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "writing-monitor.back",
     "label": "Back button in the Writing monitor",
     "scope": "widget type",
-    "keys": [
-      "writing"
-    ],
     "routes": [
       {
         "surface": "widgets.writing.monitor",
@@ -75587,9 +75584,89 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "writing-monitor.class-picker",
     "label": "Class picker in the Writing monitor",
     "scope": "widget type",
-    "keys": [
-      "writing"
-    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.monitor",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-monitor.period-start",
+    "label": "Start button for the picked class in the Writing monitor",
+    "scope": "widget type",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.monitor",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-monitor.period-pause",
+    "label": "Pause button for the picked class in the Writing monitor",
+    "scope": "widget type",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.monitor",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-monitor.period-more-time",
+    "label": "More time button in the Writing monitor",
+    "scope": "widget type",
+    "routes": [
+      {
+        "surface": "widgets.writing.monitor",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-monitor.period-extend",
+    "label": "Extend time option in the Writing monitor More time menu",
+    "scope": "widget type",
+    "persists": true,
     "routes": [
       {
         "surface": "widgets.writing.monitor",
