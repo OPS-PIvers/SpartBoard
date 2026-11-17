@@ -76,6 +76,7 @@ export class WritingRecorder {
   private version = 0;
   private savedVersion = 0;
   private chunkBytes: number;
+  private purged = false;
 
   constructor(opts: {
     log: string;
@@ -161,6 +162,7 @@ export class WritingRecorder {
     wall: number
   ): void {
     if (this.counts.logStoppedAt !== undefined) return;
+    if (this.purged) return;
     const need =
       encodedLength(ins) +
       EDIT_OVERHEAD +
@@ -195,8 +197,17 @@ export class WritingRecorder {
     this.closing.push({ index: this.chunk, log: this.writer.value });
     this.chunk += 1;
     this.writer = new WritingLogWriter('', text);
+    this.writer.continueLive();
     this.version += 1;
     return true;
+  }
+
+  /** D21: the yearly deletion took the log; nothing more is logged or written, the summary keeps counting. */
+  stopLog(at: number): void {
+    this.counts.logStoppedAt ??= at;
+    this.purged = true;
+    this.closing = [];
+    this.savedVersion = this.version;
   }
 
   /** The plain text as of the last edit, for an input that came with no beforeinput. */
@@ -223,6 +234,7 @@ export class WritingRecorder {
   }
 
   get logDirty(): boolean {
+    if (this.purged) return false;
     return this.savedVersion < this.version || this.closing.length > 0;
   }
 

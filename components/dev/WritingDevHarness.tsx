@@ -7,7 +7,11 @@ import {
   type WritingShellSession,
 } from '@/components/student/writing/WritingStudentShell';
 import { deriveWritingView } from '@/utils/writingStudentView';
+import { StudentWritingRecordButton } from '@/components/student/writing/StudentWritingRecord';
 import type { WritingResponseStatus } from '@/types';
+import { WritingRecordDemo, type RecordDemoId } from './WritingRecordDemo';
+
+const RECORD_DEMOS: RecordDemoId[] = ['teacher', 'full', 'purged', 'student'];
 import { LiveViewNotice } from '@/components/quiz/LiveViewNotice';
 import { WritingMonitorDev } from './WritingMonitorDev';
 
@@ -117,12 +121,21 @@ const initialState = (): StateId => {
 
 const noop = () => undefined;
 
-export const WritingDevHarness: React.FC = () =>
-  new URLSearchParams(window.location.search).get('view') === 'monitor' ? (
+const recordDemo = (): RecordDemoId | null => {
+  const q = new URLSearchParams(window.location.search).get('record');
+  return RECORD_DEMOS.includes(q as RecordDemoId) ? (q as RecordDemoId) : null;
+};
+
+export const WritingDevHarness: React.FC = () => {
+  const [record] = useState(recordDemo);
+  if (record) return <WritingRecordDemo id={record} />;
+  return new URLSearchParams(window.location.search).get('view') ===
+    'monitor' ? (
     <WritingMonitorDev />
   ) : (
     <StudentPageDev />
   );
+};
 
 const StudentPageDev: React.FC = () => {
   const [state, setState] = useState<StateId>(initialState);
@@ -193,6 +206,15 @@ const StudentPageDev: React.FC = () => {
         session={SESSION}
         piece={piece}
         onDone={noop}
+        record={
+          f.status !== null && f.status !== 'draft' ? (
+            <StudentWritingRecordButton
+              sessionId="dev"
+              studentUid="dev"
+              facts={{ summary: undefined }}
+            />
+          ) : undefined
+        }
         liveNotice={
           LIVE ? (
             <LiveViewNotice liveView={LIVE_STAMP} subject="writing" />

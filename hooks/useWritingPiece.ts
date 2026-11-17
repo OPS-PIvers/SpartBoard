@@ -231,6 +231,7 @@ export function useWritingPiece(args: {
   // The response, and D23: another tab's claim or a lock ends this tab's hold.
   const onServer = useEffectEvent((r: WritingResponse | null) => {
     setResponse(r);
+    if (r && isNum(r.logPurgedAt)) recorderRef.current?.stopLog(r.logPurgedAt);
     watchedUntilRef.current = r?.liveView?.until ?? 0;
     if (!r || !holdingRef.current) return;
     if (r.tabId === myTabId && isWritingUnlocked(deriveWritingStatus(r)))
@@ -468,13 +469,18 @@ export function useWritingPiece(args: {
       if (fromServer.chunk !== logChunk)
         throw new Error('log chunk moved during open');
       const send = decision === 'send' && copy ? copy : null;
-      const fromCopy = send && copyLogFits(send, logChunk) ? send : null;
+      // D21: a copy from before the yearly deletion never writes its log back.
+      const fromCopy =
+        send && !isNum(s.logPurgedAt) && copyLogFits(send, logChunk)
+          ? send
+          : null;
       const rec = new WritingRecorder({
         log: fromCopy ? fromCopy.log : fromServer.log,
         startText: fromServer.startText,
         chunk: logChunk,
         base: send ? send.summary : s.summary,
       });
+      if (isNum(s.logPurgedAt)) rec.stopLog(s.logPurgedAt);
       const htmlStart = send ? send.html : (s.html ?? '');
       const saveCount = serverCount + 1;
       const now = Date.now();

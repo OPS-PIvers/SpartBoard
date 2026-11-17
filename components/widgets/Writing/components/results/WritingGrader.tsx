@@ -1,11 +1,22 @@
 // Writing grades in Quiz's own grader (each draft is a step), with Return and Return for revision in its footer (D11-D14).
 import React, { useMemo, useState } from 'react';
-import type { WritingAssignmentSession, WrittenAnswerGrade } from '@/types';
+import type {
+  WritingAssignmentSession,
+  WritingDraft,
+  WritingResponse,
+  WrittenAnswerGrade,
+} from '@/types';
 import {
   FreeResponseGrader,
   type GraderFooterContext,
+  type GraderWritingRecord,
 } from '@/components/widgets/QuizWidget/components/FreeResponseGrader';
 import { tourTypeAttr } from '@/config/tourAnchors';
+import {
+  WritingRecord,
+  WritingRecordView,
+} from '@/components/common/WritingRecord';
+import type { WritingRecordChunk } from '@/utils/writingRecord';
 import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 import { writingEventAllowed } from '@/utils/writingResponseState';
 import {
@@ -44,6 +55,14 @@ export interface WritingGraderProps {
     studentCanViewRecord: boolean
   ) => Promise<void>;
   onClose: () => void;
+  /** Dev harness only: a record built in memory instead of read from Firestore. */
+  recordFixture?: (uid: string) =>
+    | {
+        chunks: readonly WritingRecordChunk[];
+        summary: WritingResponse['summary'];
+        drafts: Pick<WritingDraft, 'number' | 'logMark'>[];
+      }
+    | undefined;
 }
 
 const latestNumber = (drafts: readonly WritingDraftWithId[]): number =>
@@ -58,6 +77,7 @@ export const WritingGrader: React.FC<WritingGraderProps> = ({
   onSaveFeedback,
   onReturn,
   onClose,
+  recordFixture,
 }) => {
   const ungraded = session.grading.mode === 'ungraded';
   const quiz = useMemo(
@@ -217,6 +237,35 @@ export const WritingGrader: React.FC<WritingGraderProps> = ({
     );
   };
 
+  const writingRecord: GraderWritingRecord = {
+    label: 'Writing record',
+    anchor: tourTypeAttr('writing-grading.writing-record', 'writing'),
+    render: ({ responseKey: uid }) => {
+      const fixture = recordFixture?.(uid);
+      if (fixture)
+        return (
+          <WritingRecordView
+            chunks={fixture.chunks}
+            facts={{ summary: fixture.summary }}
+            drafts={fixture.drafts}
+          />
+        );
+      const response = rows.find((r) => r.studentUid === uid)?.response;
+      if (!response) return null;
+      return (
+        <WritingRecord
+          sessionId={session.id}
+          studentUid={uid}
+          facts={{
+            summary: response.summary,
+            logPurgedAt: response.logPurgedAt,
+          }}
+          drafts={draftsByStudent.get(uid)}
+        />
+      );
+    },
+  };
+
   return (
     <FreeResponseGrader
       quiz={quiz}
@@ -233,6 +282,7 @@ export const WritingGrader: React.FC<WritingGraderProps> = ({
       allowExcuse={!ungraded}
       headerAccent={LIBRARY_HEADER_ACCENTS.writing}
       renderFooterActions={renderFooterActions}
+      writingRecord={writingRecord}
       onClose={onClose}
     />
   );

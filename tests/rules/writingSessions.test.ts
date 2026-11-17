@@ -270,6 +270,37 @@ describe('responses: student writes', () => {
     }
   });
 
+  it('the summary takes only the Writing record keys (D9)', async () => {
+    const full = {
+      wordCount: 3,
+      savedAt: 2,
+      writingMs: 1000,
+      sessions: 1,
+      pasteCount: 1,
+      pastedChars: 12,
+      untypedCount: 1,
+      untypedChars: 4,
+      awayMs: 500,
+      awayCount: 2,
+      logStoppedAt: 2,
+    };
+    await assertSucceeds(
+      updateDoc(doc(asStudent(STUDENT), RESP), save({ summary: full }))
+    );
+    for (const extra of [
+      { suspicious: true },
+      { grade: 10 },
+      { logPurgedAt: 1 },
+    ]) {
+      await assertFails(
+        updateDoc(
+          doc(asStudent(STUDENT), RESP),
+          save({ summary: { ...full, ...extra }, saveCount: 9 })
+        )
+      );
+    }
+  });
+
   it('cannot write a locked response', async () => {
     for (const status of ['turned-in', 'returned']) {
       await seed(RESP, response({ status }));
@@ -508,6 +539,38 @@ describe('log chunks (D25)', () => {
     await assertFails(
       setDoc(doc(asStudent(CLASSMATE), chunk(0)), { log: 'x', closed: false })
     );
+  });
+
+  it('the student reads their own chunks only when the teacher lets them (D11)', async () => {
+    await seed(chunk(0), { log: 'ab', closed: false, updatedAt: 1 });
+    await seed(`${SESSION}/responses/${CLASSMATE}/log/0`, {
+      log: 'cd',
+      closed: false,
+      updatedAt: 1,
+    });
+    await assertFails(getDoc(doc(asStudent(STUDENT), chunk(0))));
+    await seed(SESSION, session({ studentCanViewRecord: true }));
+    await assertSucceeds(getDoc(doc(asStudent(STUDENT), chunk(0))));
+    await assertSucceeds(
+      getDocs(collection(asStudent(STUDENT), `${RESP}/log`))
+    );
+    await assertFails(
+      getDoc(doc(asStudent(STUDENT), `${SESSION}/responses/${CLASSMATE}/log/0`))
+    );
+    await assertFails(getDoc(doc(asTeacher(OTHER_TEACHER), chunk(0))));
+    await assertSucceeds(getDoc(doc(asTeacher(TEACHER), chunk(0))));
+    // Reading never lets the student write a chunk outside a save.
+    await assertFails(
+      setDoc(doc(asStudent(STUDENT), chunk(0)), { log: 'x', closed: false })
+    );
+  });
+
+  it('no log writes once the yearly deletion stamped the piece (D21)', async () => {
+    await seed(RESP, response({ logPurgedAt: 5 }));
+    await assertFails(
+      logWrite(asStudent(STUDENT), 0, { log: 'ab', closed: false })
+    );
+    await assertSucceeds(updateDoc(doc(asStudent(STUDENT), RESP), save()));
   });
 
   it('a chunk write alone, without a response save in its batch, is refused', async () => {
