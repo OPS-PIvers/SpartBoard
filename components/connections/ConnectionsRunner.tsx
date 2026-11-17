@@ -5,6 +5,7 @@ import { useAuth } from '@/context/useAuth';
 import type { DashboardContextValue } from '@/context/DashboardContextValue';
 import type {
   ChecklistConfig,
+  ConnectionStep,
   Dashboard,
   FeaturePermission,
   ScheduleConfig,
@@ -24,7 +25,7 @@ import { resolveBuildingConfig } from '@/components/widgets/SpecialistSchedule/u
 import { resolveWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
 import { useRosterGroupsIntegrationSettingsState } from '@/hooks/useRosterGroupsIntegrationSettings';
 import { checklistUsesClassRoster } from '@/utils/checklistCurrent';
-import { engineWidgets } from '@/utils/connectionRosterView';
+import { engineView } from '@/utils/connectionRosterView';
 import {
   advanceRun,
   isStepFinished,
@@ -32,6 +33,7 @@ import {
   startRun,
   joinRunByHand,
   liveSteps,
+  nextStepIndex,
   warningScheduleOf,
   type WidgetPatches,
 } from '@/utils/connectionEngine';
@@ -52,6 +54,12 @@ const TAKEOVER_MS = 5000;
 const STALE_RUN_MS = 10 * 60 * 1000;
 // The longest a page waits before starting a block warning, so one of several open pages starts it.
 const WARN_JITTER_MS = 1500;
+// A remote Timer start: the page carrying the Run joins at once; others wait long enough to see its write first.
+const JOIN_JITTER_MS = 1500;
+const HIDDEN_JOIN_DELAY_MS = 3000;
+const OTHER_PAGE_JOIN_DELAY_MS = 4000;
+// A legacy conversion whose write hasn't shown up on the board after this long is tried again.
+const CONVERT_RETRY_MS = 10000;
 
 // Runs move on their own, so they're left out of the comparison.
 const sameConnections = (a: WidgetConnection[], b: WidgetConnection[]) => {
@@ -61,6 +69,22 @@ const sameConnections = (a: WidgetConnection[], b: WidgetConnection[]) => {
     );
   return strip(a) === strip(b);
 };
+
+// A step that acts on a class-roster Checklist whose class is still loading has to wait for it.
+const touches = (step: ConnectionStep | undefined, waiting: Set<string>) =>
+  !!step && step.actions.some((a) => waiting.has(a.widgetId));
+
+// True when a press on this widget could run a step that waits on a loading class.
+const pressWaits = (
+  seq: SequenceConnection,
+  widgets: WidgetData[],
+  widgetId: string,
+  waiting: Set<string>
+) =>
+  waiting.size > 0 &&
+  liveSteps(seq, widgets).some(
+    (s) => s.actions.some((a) => a.widgetId === widgetId) && touches(s, waiting)
+  );
 
 const hasRun = (d: Dashboard) =>
   (d.connections ?? []).some((c) => c.kind === 'sequence' && !!c.run);
@@ -188,14 +212,18 @@ export const ConnectionsRunner: React.FC = () => {
             d.widgets.some((w) => w.id === widgetId)
           );
       if (!board) return;
-      const widgets = engineWidgets(board, latest.current.roster);
-      if (!widgets) return;
+      const { widgets, waiting } = engineView(board, latest.current.roster);
       const now = Date.now();
       const patches: WidgetPatches = {};
       const updated = new Map<string, WidgetConnection>();
       let finished = false;
+      let held = false;
       for (const c of board.connections ?? []) {
         if (c.kind !== 'sequence') continue;
+        if (pressWaits(c, widgets, widgetId, waiting)) {
+          held = true;
+          continue;
+        }
         const joined = joinRunByHand(
           c,
           widgets,
@@ -217,11 +245,25 @@ export const ConnectionsRunner: React.FC = () => {
           'info'
         );
       }
+      if (held) {
+        latest.current.addToast(
+          latest.current.t('connections.classNotLoaded'),
+          'info'
+        );
+      }
     });
   }, [enabled]);
 
   // A Timer started from the phone remote, a routine or a linked widget joins the Run like a hand press.
   const wasRunning = useRef(new Map<string, boolean>());
+  const joinWaits = useRef(new Set<number>());
+  useEffect(() => {
+    const waits = joinWaits.current;
+    return () => {
+      waits.forEach((id) => window.clearTimeout(id));
+      waits.clear();
+    };
+  }, []);
   useEffect(() => {
     if (!enabled) return;
     const board = activeDashboard;
@@ -240,30 +282,54 @@ export const ConnectionsRunner: React.FC = () => {
     }
     if (started.length === 0 || !board.connections?.length) return;
     if (board.linkedShareRole === 'viewer' && !board.linkedShareEnded) return;
-    const widgets = engineWidgets(board, latest.current.roster);
-    if (!widgets) return;
-    const patches: WidgetPatches = {};
-    const updated = new Map<string, WidgetConnection>();
-    for (const c of board.connections) {
-      if (c.kind !== 'sequence') continue;
-      let seq: SequenceConnection = c;
-      for (const id of started) {
-        const joined = joinRunByHand(
-          seq,
-          widgets,
-          id,
-          'start',
-          now,
-          CONNECTION_DEVICE_ID
-        );
-        if (!joined) continue;
-        seq = joined.sequence;
-        updated.set(c.id, seq);
-        Object.assign(patches, joined.patches);
+    // Every open page sees the start, so only one should join: the Run's own page first, then whichever page is first to wait it out.
+    const runDevices = board.connections.flatMap((c) =>
+      c.kind === 'sequence' && c.run ? [c.run.deviceId] : []
+    );
+    const delay = runDevices.includes(CONNECTION_DEVICE_ID)
+      ? 0
+      : (runDevices.length > 0 ? OTHER_PAGE_JOIN_DELAY_MS : 0) +
+        Math.random() * JOIN_JITTER_MS +
+        (document.visibilityState === 'hidden' ? HIDDEN_JOIN_DELAY_MS : 0);
+    const wait = window.setTimeout(() => {
+      joinWaits.current.delete(wait);
+      const current = latest.current.activeDashboard;
+      if (current?.id !== board.id || !current.connections?.length) return;
+      // A Timer stopped again before the wait ended doesn't join.
+      const stillRunning = started.filter((id) =>
+        current.widgets.some(
+          (w) =>
+            w.id === id && !!(w.config as { isRunning?: boolean }).isRunning
+        )
+      );
+      if (stillRunning.length === 0) return;
+      const { widgets, waiting } = engineView(current, latest.current.roster);
+      const at = Date.now();
+      const patches: WidgetPatches = {};
+      const updated = new Map<string, WidgetConnection>();
+      for (const c of current.connections) {
+        if (c.kind !== 'sequence') continue;
+        let seq: SequenceConnection = c;
+        for (const id of stillRunning) {
+          if (pressWaits(seq, widgets, id, waiting)) continue;
+          const joined = joinRunByHand(
+            seq,
+            widgets,
+            id,
+            'start',
+            at,
+            CONNECTION_DEVICE_ID
+          );
+          if (!joined) continue;
+          seq = joined.sequence;
+          updated.set(c.id, seq);
+          Object.assign(patches, joined.patches);
+        }
       }
-    }
-    if (updated.size > 0)
-      write(latest.current.applyConnectionChanges, board, patches, updated);
+      if (updated.size > 0)
+        write(latest.current.applyConnectionChanges, current, patches, updated);
+    }, delay);
+    joinWaits.current.add(wait);
   }, [enabled, activeDashboard]);
 
   // Start, Stop and Next from a step badge.
@@ -306,8 +372,11 @@ export const ConnectionsRunner: React.FC = () => {
         );
         return;
       }
-      const widgets = engineWidgets(board, latest.current.roster);
-      if (!widgets) {
+      const { widgets, waiting } = engineView(board, latest.current.roster);
+      const steps = liveSteps(seq, widgets);
+      const nextIndex =
+        command === 'next' ? nextStepIndex(seq, steps, widgets) : 0;
+      if (nextIndex !== null && touches(steps[nextIndex], waiting)) {
         latest.current.addToast(
           latest.current.t('connections.classNotLoaded'),
           'info'
@@ -367,9 +436,10 @@ export const ConnectionsRunner: React.FC = () => {
   }, [enabled]);
 
   // Old nexus toggles become Connections, once per widget (the marker stops a repeat).
-  const converting = useRef(new Set<string>());
+  const converting = useRef(new Map<string, number>());
   useEffect(() => {
     if (!enabled) return;
+    const now = Date.now();
     for (const board of dashboards) {
       if (board.linkedShareRole === 'viewer' && !board.linkedShareEnded) {
         continue;
@@ -377,8 +447,10 @@ export const ConnectionsRunner: React.FC = () => {
       const result = convertLegacyConnections(board);
       if (!result) continue;
       const key = `${board.id}:${Object.keys(result.markers).sort().join(',')}`;
-      if (converting.current.has(key)) continue;
-      converting.current.add(key);
+      // A write that never landed (refused or overwritten) leaves the board unmarked, so it is tried again later.
+      const triedAt = converting.current.get(key);
+      if (triedAt !== undefined && now - triedAt < CONVERT_RETRY_MS) continue;
+      converting.current.set(key, now);
       applyConnectionChanges?.(board.id, result.markers, [
         ...(board.connections ?? []),
         ...result.connections,
@@ -393,6 +465,7 @@ export const ConnectionsRunner: React.FC = () => {
   const seenSteps = useRef(new Set<string>());
   const warnEligibleAt = useRef(new Map<string, number>());
   const staleSteps = useRef(new Set<string>());
+  const heldToasts = useRef(new Set<string>());
 
   useEffect(() => {
     if (!anyRun) return;
@@ -407,9 +480,7 @@ export const ConnectionsRunner: React.FC = () => {
         const patches: WidgetPatches = {};
         const updated = new Map<string, WidgetConnection>();
         let finishedAny = false;
-        const widgets = engineWidgets(board, latest.current.roster);
-        // Wait for the class to load rather than act on an empty list.
-        if (!widgets) continue;
+        const { widgets, waiting } = engineView(board, latest.current.roster);
         for (const c of board.connections ?? []) {
           if (c.kind !== 'sequence' || !c.run) continue;
           const key = `${board.id}:${c.id}`;
@@ -423,16 +494,36 @@ export const ConnectionsRunner: React.FC = () => {
             continue;
           }
           const stepKey = `${key}:${run.stepIndex}:${run.stepStartedAt}`;
+          // Counted as seen only once the step isn't held, so a held stale step is still caught later.
           const firstLook = !seenSteps.current.has(stepKey);
-          seenSteps.current.add(stepKey);
           const steps = liveSteps(seq, board.widgets);
           const step = steps[run.stepIndex];
+          // Wait for the class to load rather than act on an empty list; the steps around it keep going.
+          const held = () => {
+            if (heldToasts.current.has(stepKey)) return;
+            heldToasts.current.add(stepKey);
+            latest.current.addToast(
+              latest.current.t('connections.classNotLoaded'),
+              'info'
+            );
+          };
+          if (touches(step, waiting)) {
+            held();
+            continue;
+          }
           const done =
             !step || isStepFinished(step, widgets, run.stepStartedAt, now);
           if (!done) {
+            seenSteps.current.add(stepKey);
             overdueSince.current.delete(key);
             continue;
           }
+          const next = nextStepIndex(seq, steps, widgets);
+          if (next !== null && touches(steps[next], waiting)) {
+            held();
+            continue;
+          }
+          seenSteps.current.add(stepKey);
           if (
             firstLook &&
             run.deviceId !== CONNECTION_DEVICE_ID &&
@@ -485,8 +576,7 @@ export const ConnectionsRunner: React.FC = () => {
       const board = latest.current.activeDashboard;
       if (!board) return;
       if (board.linkedShareRole === 'viewer' && !board.linkedShareEnded) return;
-      const widgets = engineWidgets(board, latest.current.roster);
-      if (!widgets) return;
+      const { widgets, waiting } = engineView(board, latest.current.roster);
       const now = Date.now();
       const patches: WidgetPatches = {};
       const updated = new Map<string, WidgetConnection>();
@@ -496,6 +586,8 @@ export const ConnectionsRunner: React.FC = () => {
         if (c.kind !== 'sequence' || c.run) continue;
         const schedule = warningScheduleOf(c, widgets);
         if (!schedule) continue;
+        // A Sequence whose first step needs a loading class waits for it and starts on a later check.
+        if (touches(liveSteps(c, widgets)[0], waiting)) continue;
         if (!due.has(schedule.id)) {
           due.set(
             schedule.id,

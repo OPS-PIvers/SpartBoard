@@ -19,7 +19,7 @@
   },
   "main": "lib/index.js",
   "dependencies": {
-    "@anthropic-ai/sdk": "^1.8.0",
+    "@anthropic-ai/sdk": "^1.9.0",
     "@echogarden/espeak-ng-emscripten": "0.3.5",
     "@google-cloud/functions-framework": "^5.0.5",
     "@google-cloud/text-to-speech": "^7.2.0",
@@ -64,7 +64,8 @@
       "@opentelemetry/core@<2.8.0": "^2.8.0",
       "ip-address@<10.7.4": "^10.7.4",
       "glob@>=9 <14.0.2": "^14.0.2",
-      "minimatch@>=7 <11.0.1": "^11.0.1"
+      "minimatch@>=7 <11.0.1": "^11.0.1",
+      "fast-xml-parser@<5.12.0": "^5.12.0"
     },
     "onlyBuiltDependencies": [
       "ffmpeg-static"

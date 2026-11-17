@@ -63,11 +63,7 @@ describe('browser picker guard', () => {
     );
   });
 
-  it('runs the app pickers only behind the app-pickers flag', () => {
-    expect(
-      read('components/common/AppPickersSwitch.tsx'),
-      "The switch turns the app's pickers on only from canAccessFeature('app-pickers')."
-    ).toContain("canAccessFeature('app-pickers')");
+  it('mounts the app pickers switch in the auth provider', () => {
     expect(
       read('context/AuthContext.tsx'),
       'AuthProvider mounts the switch; routes without it keep the browser pickers.'

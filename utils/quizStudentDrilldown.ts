@@ -98,7 +98,7 @@ export interface StudentDrilldownOptions {
   includeExplanations?: boolean;
   /** The rubric after per-student overrides; defaults to the question's snapshot. */
   rubricFor?: (question: QuizQuestion) => Rubric | undefined;
-  /** Keep the text of an extra answer that doesn't count (choose-n-pick-counted). */
+  /** Keep the text of an extra answer that doesn't count. */
   showExtraAnswers?: boolean;
 }
 

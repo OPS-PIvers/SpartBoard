@@ -6,7 +6,7 @@ import { installSuggestionLists, isSuggestionListOpen } from './suggestionList';
 import { appPickersEnabled } from './pickerPanel';
 import { switchAppPickers } from './appPickers';
 
-// With the app-pickers flag off the browser's own pickers must show: no preventDefault, no panel.
+// With the app pickers off (student routes) the browser's own pickers must show: no preventDefault, no panel.
 let uninstall: Array<() => void>;
 beforeEach(() => {
   vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(

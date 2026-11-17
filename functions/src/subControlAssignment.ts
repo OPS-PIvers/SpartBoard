@@ -238,7 +238,9 @@ export async function handleControlSubAssignment(
     hasOpenPause(session.pauseSpans, session.pausedAt);
   if (repeatPause) delete patches.session.pausedAt;
   if (kind === 'quiz' && action === 'resume') {
-    await refreshIdleResponses(db, sessionId, now);
+    if (session.status === 'paused') {
+      await refreshIdleResponses(db, sessionId, now);
+    }
     const spans =
       session.status === 'paused'
         ? appendPauseSpan(session.pauseSpans, session.pausedAt, now)

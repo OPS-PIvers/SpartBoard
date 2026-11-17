@@ -442,7 +442,6 @@ const VideoActivityArchiveRow: React.FC<VideoActivityArchiveRowProps> = ({
   // aggregation per visible card per dashboard tab-focus, gated behind the
   // `share-link-tracking` global permission.
   const trackingEnabled = canSeeShareTracking();
-  const classList = canAccessFeature('assignment-class-list');
   const { count } = useSessionViewCount(
     'video_activity_sessions',
     assignment.id,
@@ -471,14 +470,12 @@ const VideoActivityArchiveRow: React.FC<VideoActivityArchiveRowProps> = ({
                 {assignment.targetSkippedCount} skipped
               </span>
             )}
-          {classList && (
-            <AssignmentClassNames
-              names={
-                assignment.periodNames ??
-                (assignment.periodName ? [assignment.periodName] : [])
-              }
-            />
-          )}
+          <AssignmentClassNames
+            names={
+              assignment.periodNames ??
+              (assignment.periodName ? [assignment.periodName] : [])
+            }
+          />
         </>
       }
       primaryAction={
