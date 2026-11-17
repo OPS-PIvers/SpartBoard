@@ -18,6 +18,10 @@ import {
   ScheduleListField,
 } from './settingsFields';
 
+vi.mock('@/hooks/useConnectionsEnabled', () => ({
+  useConnectionsEnabled: () => true,
+}));
+
 vi.mock('@/context/useDashboard', () => ({ useDashboard: vi.fn() }));
 vi.mock('@/context/useDialog', () => ({ useDialog: vi.fn() }));
 vi.mock('@/hooks/useFeaturePermissions', () => ({

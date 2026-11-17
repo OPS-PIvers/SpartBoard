@@ -19,6 +19,10 @@ import { SubShareContentContext } from '@/context/SubShareContentContextValue';
 import { noSubShareKey } from '@/tests/testHelpers/subShareContent';
 import { subShareContextValue } from '@/tests/helpers/subShareContext';
 
+vi.mock('@/hooks/useConnectionsEnabled', () => ({
+  useConnectionsEnabled: () => true,
+}));
+
 vi.mock('@/context/useDashboard', () => ({ useDashboard: vi.fn() }));
 vi.mock('@/hooks/useClaudeReview', () => ({
   useClaudeReview: () => ({

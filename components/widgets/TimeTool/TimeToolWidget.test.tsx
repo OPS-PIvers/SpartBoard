@@ -14,6 +14,10 @@ import { WidgetData, TimeToolConfig, DEFAULT_GLOBAL_STYLE } from '@/types';
 import { TimeToolWidget } from './TimeToolWidget';
 import { useTimeTool } from './useTimeTool';
 
+vi.mock('@/hooks/useConnectionsEnabled', () => ({
+  useConnectionsEnabled: () => true,
+}));
+
 // useTimeTool still reads the legacy context (updateWidget + activeDashboard);
 // TimeToolWidget itself now reads globalStyle from the mount-stable store.
 vi.mock('@/context/useDashboard');

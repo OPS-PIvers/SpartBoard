@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 import { useTranslation } from 'react-i18next';
 import { BellRing } from 'lucide-react';
 import { useDashboard } from '@/context/useDashboard';
@@ -18,15 +19,18 @@ const FRESH_MS = 20_000;
 export const ScheduleWarningBanner: React.FC = () => {
   const { t } = useTranslation();
   const { activeDashboard } = useDashboard();
+  const enabled = useConnectionsEnabled();
   const handled = useRef(new Set<string>());
   const [shown, setShown] = useState<ScheduleWarningAlert | null>(null);
   const [soundBlocked, setSoundBlocked] = useState(false);
 
   let latest: ScheduleWarningAlert | undefined;
-  for (const w of activeDashboard?.widgets ?? []) {
-    if (w.type !== 'schedule' && w.type !== 'specialist-schedule') continue;
-    const a = (w.config as ScheduleConfig).warningAlert;
-    if (a && (!latest || a.at > latest.at)) latest = a;
+  if (enabled) {
+    for (const w of activeDashboard?.widgets ?? []) {
+      if (w.type !== 'schedule' && w.type !== 'specialist-schedule') continue;
+      const a = (w.config as ScheduleConfig).warningAlert;
+      if (a && (!latest || a.at > latest.at)) latest = a;
+    }
   }
 
   const alertId = latest?.id;

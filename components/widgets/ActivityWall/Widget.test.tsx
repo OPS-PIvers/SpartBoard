@@ -143,6 +143,10 @@ vi.mock('@/utils/googleOAuthRefresh', () => ({
 
 import type { SharedWallEditRequest } from './sharedWallEdit';
 
+vi.mock('@/hooks/useConnectionsEnabled', () => ({
+  useConnectionsEnabled: () => true,
+}));
+
 vi.mock('./sharedWallEdit', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./sharedWallEdit')>()),
   saveSharedActivityWall: mockSaveSharedWall,

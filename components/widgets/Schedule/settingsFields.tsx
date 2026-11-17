@@ -5,6 +5,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 import {
   ArrowUpDown,
   CalendarDays,
@@ -217,6 +218,7 @@ export const ScheduleCalendarImportField: React.FC<{
 export const ScheduleListField: React.FC<{
   ctx: CustomRenderCtx;
 }> = ({ ctx }) => {
+  const connectionsOn = useConnectionsEnabled();
   const { addToast } = useDashboard();
   const { showConfirm } = useDialog();
   const { subscribeToPermission } = useFeaturePermissions();
@@ -661,7 +663,7 @@ export const ScheduleListField: React.FC<{
                           })
                         }
                         autoFocus={item.id === autoFocusItem?.itemId}
-                        showWarning
+                        showWarning={connectionsOn}
                       />
                     ))}
                   </SortableContext>

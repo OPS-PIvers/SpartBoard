@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useRef, useLayoutEffect } from 'react';
+import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { hexToRgba } from '@/utils/styles';
@@ -100,15 +101,18 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
     rosterGroupsEnabled,
   ]);
 
+  const connectionsOn = useConnectionsEnabled();
   // In a Connection Sequence, the first unchecked row is the current one, highlighted and checked off by "next".
-  const inSequence = liveConnections(
-    activeDashboard?.connections,
-    activeDashboard?.widgets ?? []
-  ).some(
-    (c) =>
-      c.kind === 'sequence' &&
-      c.steps.some((st) => st.actions.some((a) => a.widgetId === widget.id))
-  );
+  const inSequence =
+    connectionsOn &&
+    liveConnections(
+      activeDashboard?.connections,
+      activeDashboard?.widgets ?? []
+    ).some(
+      (c) =>
+        c.kind === 'sequence' &&
+        c.steps.some((st) => st.actions.some((a) => a.widgetId === widget.id))
+    );
   const firstOpenId =
     mode === 'manual'
       ? items.find((i) => !i.completed)?.id

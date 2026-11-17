@@ -1,4 +1,5 @@
 import { copyText } from '@/utils/copyText';
+import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 import React, {
   useState,
   useRef,
@@ -458,6 +459,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   } = useDashboard();
   const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
   const { user, getAssignmentMode, canAccessFeature } = useAuth();
+  const connectionsOn = useConnectionsEnabled();
   const assignmentMode: AssignmentMode = getAssignmentMode('miniApp');
   // View-only shares a link with no classes, so it keeps its own dialog (D20).
   const stepperOn = assignmentMode === 'submissions';
@@ -1034,6 +1036,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       // With Connections, a QR that Follows this app gets the new link instead of adding another.
       // Only while this app's board is still the one on screen, so another board's connections are never replaced.
       const linked =
+        connectionsOn &&
         mountedRef.current &&
         !!startBoardId &&
         latestBoard?.id === startBoardId &&
@@ -1072,6 +1075,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     createAssignment,
     addWidget,
     addToast,
+    connectionsOn,
     updateDashboard,
     updateWidget,
     widget.id,
@@ -1937,11 +1941,14 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
           <div className="relative flex flex-col w-full h-full min-h-0">
             <MiniAppManager
               userId={user?.uid}
-              clearsConnectionTab={hasConnectionTab(
-                activeDashboard?.connections,
-                activeDashboard?.widgets ?? [],
-                widget.id
-              )}
+              clearsConnectionTab={
+                connectionsOn &&
+                hasConnectionTab(
+                  activeDashboard?.connections,
+                  activeDashboard?.widgets ?? [],
+                  widget.id
+                )
+              }
               tab={managerTab}
               onTabChange={setManagerTab}
               personalLibrary={library}

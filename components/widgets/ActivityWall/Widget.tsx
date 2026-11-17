@@ -1,5 +1,6 @@
 // Activity Wall front face — a live preview of the active wall plus its toolbar.
 
+import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
@@ -125,16 +126,21 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   const isActiveBoardReadOnly = useIsActiveBoardReadOnly();
   const { user, canAccessFeature, featurePermissions, selectedBuildings } =
     useAuth();
+  const connectionsFlag = useConnectionsEnabled();
   // Only the wall on the board itself, not a student or announcement copy.
   const isOnBoard = useDashboardCanvasSelector(
-    (s) => !!s.activeDashboard?.widgets.some((w) => w.id === widget.id)
+    (s) =>
+      connectionsFlag &&
+      !!s.activeDashboard?.widgets.some((w) => w.id === widget.id)
   );
-  const hasTab = useDashboardCanvasSelector((s) =>
-    hasConnectionTab(
-      s.activeDashboard?.connections,
-      s.activeDashboard?.widgets ?? [],
-      widget.id
-    )
+  const hasTab = useDashboardCanvasSelector(
+    (s) =>
+      connectionsFlag &&
+      hasConnectionTab(
+        s.activeDashboard?.connections,
+        s.activeDashboard?.widgets ?? [],
+        widget.id
+      )
   );
   const { showConfirm } = useDialog();
   const claudeReview = useClaudeReview('activity_wall_activities');
@@ -510,7 +516,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   }, [addToast, studentUrl]);
 
   // A QR code that Follows this wall keeps showing its current student link.
-  const connectionsOn = isOnBoard;
+  const connectionsOn = connectionsFlag && isOnBoard;
   usePublishWidgetShareLink(
     widget.id,
     connectionsOn && studentUrl ? studentUrl : undefined
