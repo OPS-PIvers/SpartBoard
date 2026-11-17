@@ -303,10 +303,7 @@ export const ConnectionsRunner: React.FC = () => {
         )
       );
       if (stillRunning.length === 0) return;
-      const { widgets, waiting } = engineView(
-        current,
-        latest.current.roster
-      );
+      const { widgets, waiting } = engineView(current, latest.current.roster);
       const at = Date.now();
       const patches: WidgetPatches = {};
       const updated = new Map<string, WidgetConnection>();

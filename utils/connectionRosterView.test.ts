@@ -94,7 +94,10 @@ describe('engineWidgets', () => {
   it('names the loading Checklist and leaves the other widgets usable', () => {
     const b = board(checklist());
     const timer = { ...checklist(), id: 't', type: 'time-tool' as const };
-    const r = engineView({ ...b, widgets: [...b.widgets, timer] }, view({ rosters: [] }));
+    const r = engineView(
+      { ...b, widgets: [...b.widgets, timer] },
+      view({ rosters: [] })
+    );
     expect([...r.waiting]).toEqual(['cl']);
     expect(r.widgets.map((w) => w.id)).toEqual(['cl', 't']);
   });
