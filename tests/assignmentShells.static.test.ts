@@ -72,19 +72,23 @@ const SURFACES: { files: RegExp; pieces: Piece[]; writtenOnly?: Piece[] }[] = [
 ];
 // Kinds whose students write answers a teacher marks by hand.
 const WRITTEN_ANSWERS = new Set(['video-activity', 'writing']);
+// Kinds with one piece of work and no questions, so no per-question view.
+const NO_ITEMS = new Set(['writing']);
 
 // Shared pieces a widget doesn't use yet. Only shrinks: delete the entry in the PR that adopts the piece.
 const NOT_YET_ADOPTED: Record<string, Piece[]> = {
-  // AB-249
+  // AB-261
+  writing: ['StudentResultsControl'],
+  // AB-257
   'video-activity': [
     'FreeResponseGrader',
     'QuestionResults',
     'ResultsHome',
     'Roster',
   ],
-  // AB-250
+  // AB-258
   'guided-learning': ['QuestionResults', 'ResultsHome', 'Roster'],
-  // AB-251
+  // AB-259
   'mini-app': [
     'QuestionResults',
     'ResultsHome',
@@ -95,7 +99,7 @@ const NOT_YET_ADOPTED: Record<string, Piece[]> = {
 
 // Grader files that don't render FreeResponseGrader today. Only shrinks.
 const OWN_GRADER_FILES: string[] = [
-  // AB-249
+  // AB-257
   'components/widgets/VideoActivityWidget/components/results/VaShortAnswerMarking.tsx',
 ];
 
@@ -151,7 +155,7 @@ const LEGACY_NAMES =
 
 // Copies that exist today, per file. Only shrinks: delete the entry in the PR that moves the file onto the shared piece.
 const KNOWN_COPIES: Record<string, string[]> = {
-  // AB-252
+  // AB-260
   'components/widgets/Flashcards/results/FlashcardMonitor.tsx': ['PercentPill'],
   'components/widgets/Flashcards/results/FlashcardResultsView.tsx': [
     'SessionViewHeader',
@@ -165,15 +169,15 @@ const KNOWN_COPIES: Record<string, string[]> = {
     'SessionRow',
     'StatTile',
   ],
-  // AB-250
+  // AB-258
   'components/widgets/GuidedLearning/components/results/StudentProgressLine.tsx':
     ['StudentProgressLine'],
-  // AB-251
+  // AB-259
   'components/widgets/MiniApp/components/MiniAppResultsView.tsx': ['DrillRow'],
   'components/widgets/MiniApp/components/SubmissionsModal.tsx': [
     'PeriodAccessControls',
   ],
-  // AB-249
+  // AB-257
   'components/widgets/VideoActivityWidget/components/Results.tsx': [
     'SessionRow',
   ],
@@ -335,7 +339,9 @@ describe('assignment widgets reuse the Quiz shells', () => {
           [
             ...s.pieces,
             ...(WRITTEN_ANSWERS.has(kind) ? (s.writtenOnly ?? []) : []),
-          ].forEach((p) => needed.add(p));
+          ]
+            .filter((p) => !(p === 'QuestionResults' && NO_ITEMS.has(kind)))
+            .forEach((p) => needed.add(p));
       missing[kind] = [...needed].filter(
         (p) => !PIECE_IMPORT[p].test(text[kind])
       );

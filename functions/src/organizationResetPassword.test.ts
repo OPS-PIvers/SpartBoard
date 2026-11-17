@@ -160,7 +160,7 @@ function buildFirestoreStub(opts: {
       ? (callerDoc.data().roleId as string)
       : (targetDoc.data().roleId as string);
   return {
-    // isStrictSuperAdmin(): operator-org member doc and legacy user_roles list.
+    // isStrictSuperAdmin() reads the operator-org member doc; the target check also reads user_roles.
     doc: (path: string) => ({
       get: () => {
         if (path === 'admin_settings/user_roles') {
@@ -425,7 +425,7 @@ describe('resetOrganizationUserPassword — role check on the target', () => {
     await expect(call()).resolves.toMatchObject({ sent: false });
   });
 
-  it('legacy-list super admin with a domain_admin member doc can reset a super admin', async () => {
+  it('the legacy list no longer lets a domain_admin caller reset a super admin', async () => {
     firestoreMock.mockReturnValue(
       buildFirestoreStub({
         emailEnabled: false,
@@ -434,7 +434,7 @@ describe('resetOrganizationUserPassword — role check on the target', () => {
         legacySuperAdmins: ['admin@orono.k12.mn.us'],
       })
     );
-    await expect(call()).resolves.toMatchObject({ sent: false });
+    await expect(call()).rejects.toMatchObject({ code: 'permission-denied' });
   });
 
   it("another org's super_admin cannot reset a super admin on its own domain", async () => {

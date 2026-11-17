@@ -87,15 +87,9 @@ const message = (err: unknown) =>
   err instanceof Error ? err.message : String(err);
 
 export const HelpCenterManager: React.FC = () => {
-  const { user, userRoles, orgId, roleId, isAdmin, canAccessFeature } =
-    useAuth();
+  const { user, orgId, roleId, isAdmin, canAccessFeature } = useAuth();
   const { showConfirm } = useDialog();
-  const isSuperAdmin = isSuperAdminActor(
-    user?.email,
-    userRoles?.superAdmins,
-    roleId,
-    orgId
-  );
+  const isSuperAdmin = isSuperAdminActor(user?.email, roleId, orgId);
   const {
     items,
     categories,

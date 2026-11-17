@@ -535,6 +535,42 @@ describe('saveWritingFeedbackV1', () => {
     });
   });
 
+  it('caps a rubric score at the rubric total and keeps that total on the score', async () => {
+    store.set(SESSION, {
+      ...store.get(SESSION),
+      grading: {
+        mode: 'rubric',
+        rubricId: 'r1',
+        rubricSnapshot: {
+          criteria: [
+            { levels: [{ points: 1 }, { points: 4 }] },
+            { levels: [{ points: 2 }, { points: 3 }] },
+          ],
+        },
+      },
+    });
+    await expect(feedback('1', { pointsAwarded: 8 })).rejects.toMatchObject({
+      code: 'invalid-argument',
+    });
+    await feedback('1', { pointsAwarded: 7 });
+    expect(store.get(`${RESP}/drafts/1`).grade.maxPoints).toBe(7);
+  });
+
+  it('takes comments but no score on ungraded work', async () => {
+    store.set(SESSION, {
+      ...store.get(SESSION),
+      grading: { mode: 'ungraded' },
+    });
+    await expect(feedback('1', { excused: true })).rejects.toMatchObject({
+      code: 'invalid-argument',
+    });
+    await feedback('1', { overallComment: 'Nice opening.' });
+    expect(store.get(`${RESP}/drafts/1`)).toMatchObject({
+      feedback: { overallComment: 'Nice opening.' },
+    });
+    expect(store.get(`${RESP}/drafts/1`).grade).toBeUndefined();
+  });
+
   it('keeps the latest graded draft counting (D14)', async () => {
     await ret(true);
     store.set(RESP, { ...store.get(RESP), saveCount: 9 });

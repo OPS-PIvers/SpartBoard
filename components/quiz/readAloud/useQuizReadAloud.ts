@@ -75,6 +75,8 @@ interface Args {
   stimulusTextById?: Record<string, string>;
   /** Translation locale being rendered; audio then comes from the locale's manifest slice. */
   locale?: string;
+  /** The student sees a modified prompt with no recording, so only its choices are read. */
+  promptRewritten?: boolean;
 }
 
 interface Resolved {
@@ -138,6 +140,7 @@ export function useQuizReadAloud({
   nextQuestion,
   stimulusTextById,
   locale,
+  promptRewritten = false,
 }: Args): QuizReadAloudController {
   const [playingPart, setPlayingPart] = useState<QuizReadAloudPart | null>(
     null
@@ -262,6 +265,11 @@ export function useQuizReadAloud({
   const start = useCallback(
     (part: QuizReadAloudPart, keepQueue: boolean) => {
       if (!enabled || !questionId || denied) return;
+      if (
+        promptRewritten &&
+        (part.kind === 'question' || part.kind === 'whole')
+      )
+        return;
       const queue = keepQueue ? queueRef.current : [];
       const wasReading = keepQueue && readingQuestion;
       stop();
@@ -318,6 +326,7 @@ export function useQuizReadAloud({
       resolvePart,
       getAudio,
       rate,
+      promptRewritten,
     ]
   );
 
@@ -341,12 +350,52 @@ export function useQuizReadAloud({
     for (const sid of question?.stimulusIds ?? []) {
       if (stimulusText(sid)) parts.push({ kind: 'stimulus', stimulusId: sid });
     }
-    parts.push({ kind: 'whole' });
+    if (promptRewritten && question) {
+      // Only what this student sees, in screen order, keyed by canonical index.
+      const shown = (
+        kind: 'choice' | ReadAloudItemKind,
+        served: string[] | undefined,
+        all: string[] | undefined
+      ) =>
+        (served ?? []).forEach((text) => {
+          const index = all?.indexOf(text) ?? -1;
+          if (index >= 0) parts.push({ kind, index });
+        });
+      if (question.type === 'MC' || question.type === 'MA')
+        shown('choice', question.choices, canonical?.choices);
+      if (question.type === 'FIB' && canonical)
+        shown(
+          'choice',
+          spokenBlankChoices(question),
+          spokenBlankChoices(canonical)
+        );
+      if (question.type === 'Matching') {
+        shown('matchingLeft', question.matchingLeft, canonical?.matchingLeft);
+        shown(
+          'matchingRight',
+          question.matchingRight,
+          canonical?.matchingRight
+        );
+      }
+      if (question.type === 'Ordering')
+        shown('orderingItem', question.orderingItems, canonical?.orderingItems);
+      if (parts.length === 0) return;
+    } else parts.push({ kind: 'whole' });
     stop();
     queueRef.current = parts.slice(1);
     setReadingQuestion(true);
     start(parts[0], true);
-  }, [enabled, questionId, denied, question, stimulusText, stop, start]);
+  }, [
+    enabled,
+    questionId,
+    denied,
+    question,
+    stimulusText,
+    stop,
+    start,
+    promptRewritten,
+    canonical,
+  ]);
 
   // The ended handler below starts queued parts through this ref.
   const startRef = useRef(start);

@@ -161,19 +161,19 @@ const STORAGE_KEY = 'adm.section';
 
 // Resolve the actor's role. The member doc (`/organizations/{orgId}/members/{email}.roleId`)
 // is authoritative — it's what Firestore rules use to gate writes. Super admin
-// comes from isSuperAdminActor, which folds the legacy superAdmins list and the
-// member doc exactly as the rules do. Fall back to the legacy `isAdmin` flag
+// comes from isSuperAdminActor, which checks the operator-org member doc
+// exactly as the rules do. Fall back to the legacy `isAdmin` flag
 // only when there's no member doc yet, so a pre-Phase-4 admin still sees the
 // panel while their membership hydrates.
 const resolveActorRole = (
-  legacySuperAdmin: boolean,
+  superAdmin: boolean,
   legacyIsAdmin: boolean | null,
   memberRoleId: string | null
 ): ActorRole => {
-  // `legacySuperAdmin` already folds the operator-org check, so a raw
+  // `superAdmin` already folds the operator-org check, so a raw
   // `super_admin` roleId is not re-promoted here — outside the operator org the
   // rules would refuse those writes.
-  if (legacySuperAdmin) return 'super_admin';
+  if (superAdmin) return 'super_admin';
   if (memberRoleId === 'domain_admin') return 'domain_admin';
   if (memberRoleId === 'building_admin') return 'building_admin';
   if (memberRoleId) return 'building_admin'; // teacher/student fall through to least-privileged
@@ -184,19 +184,13 @@ const resolveActorRole = (
 export const OrganizationPanel: React.FC = () => {
   const {
     isAdmin,
-    userRoles,
     user,
     orgId: authOrgId,
     roleId: memberRoleId,
     buildingIds: memberBuildingIds,
     canAccessFeature,
   } = useAuth();
-  const isSuperAdmin = isSuperAdminActor(
-    user?.email,
-    userRoles?.superAdmins,
-    memberRoleId,
-    authOrgId
-  );
+  const isSuperAdmin = isSuperAdminActor(user?.email, memberRoleId, authOrgId);
   const actorRole = resolveActorRole(isSuperAdmin, isAdmin, memberRoleId);
   const viewAsSettings = useViewAsSettings(isSuperAdmin);
 

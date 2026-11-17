@@ -5,6 +5,7 @@ import { callOrgAdmin } from '@/utils/orgAdminClient';
 import { useAuth } from '@/context/useAuth';
 import type { OrgRecord } from '@/types/organization';
 import { slugOrFallback } from '@/utils/slug';
+import { isSuperAdminActor } from '@/utils/superAdmin';
 
 /**
  * Subscribes to the top-level `/organizations` collection.
@@ -20,16 +21,11 @@ import { slugOrFallback } from '@/utils/slug';
  * super-admin, but we keep archive non-destructive by default.
  */
 export const useOrganizations = () => {
-  const { user, userRoles } = useAuth();
+  const { user, roleId, orgId } = useAuth();
   const [organizations, setOrganizations] = useState<OrgRecord[]>([]);
   const [error, setError] = useState<Error | null>(null);
 
-  const isSuperAdmin = Boolean(
-    user?.email &&
-    userRoles?.superAdmins?.some(
-      (e) => e.toLowerCase() === user.email?.toLowerCase()
-    )
-  );
+  const isSuperAdmin = isSuperAdminActor(user?.email, roleId, orgId);
 
   const shouldSubscribe = !isAuthBypass && Boolean(user) && isSuperAdmin;
   const [loading, setLoading] = useState<boolean>(shouldSubscribe);

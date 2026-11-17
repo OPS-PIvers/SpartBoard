@@ -107,6 +107,28 @@ describe('overridesFromGroups', () => {
     expect(out.a.timeMultiplier).toBe(1.5);
   });
 
+  it('gives every grouped student the group’s supports', () => {
+    const supports = [
+      { kind: 'text' as const, title: 'Word bank', text: 'cell, nucleus' },
+    ];
+    const out = overridesFromGroups(
+      [group({ studentKeys: ['a', 'b'], supports })],
+      rows,
+      QUESTIONS
+    );
+    expect(out.a.supports).toEqual(supports);
+    expect(out.b).toEqual({ supports, language: 'es' });
+  });
+
+  it('turns on modified questions for grouped students', () => {
+    const out = overridesFromGroups(
+      [group({ studentKeys: ['a'], modifiedQuestions: true })],
+      rows,
+      QUESTIONS
+    );
+    expect(out.a.modifiedQuestions).toBe(true);
+  });
+
   it('ignores students no longer in the checked classes', () => {
     expect(
       overridesFromGroups(
@@ -196,6 +218,30 @@ describe('formatModificationGroupsValue', () => {
         scope
       )
     ).toBe('2 students: 1.5x time, 2 answer choices');
+  });
+  it('counts supports', () => {
+    expect(
+      formatModificationGroupsValue(
+        [
+          group({
+            studentKeys: ['a'],
+            supports: [
+              { kind: 'link', title: 'Notes', url: 'https://example.org' },
+              { kind: 'drive', title: 'Map', fileId: '1AbCdEfGhIjK' },
+            ],
+          }),
+        ],
+        scope
+      )
+    ).toBe('1 student: 2 supports');
+  });
+  it('names modified questions', () => {
+    expect(
+      formatModificationGroupsValue(
+        [group({ studentKeys: ['a'], modifiedQuestions: true })],
+        scope
+      )
+    ).toBe('1 student: modified questions');
   });
   it('counts several groups', () => {
     expect(

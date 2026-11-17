@@ -57,6 +57,12 @@ import {
   SectionCapNotice,
   SectionIntroDialog,
 } from './QuizSectionParts';
+import {
+  SupportsButton,
+  SupportsDivider,
+  SupportsPanel,
+} from './QuizSupportsParts';
+import { SUPPORTS_PCT_DEFAULT } from '@/utils/quizSupportsPanel';
 import { QuizStopScreen } from './QuizStopScreen';
 import { StudentExplanation } from './StudentExplanation';
 import {
@@ -287,6 +293,7 @@ import {
 import {
   serveQuestionSubset,
   applyHiddenOptions,
+  applyModifiedWording,
   applyTimeMultiplier,
   serveLocalizedQuestion,
 } from '@/utils/quizOverrideServing';
@@ -2565,7 +2572,10 @@ export const ActiveQuiz: React.FC<{
   const currentQuestion = useMemo(() => {
     if (!baseQuestion) return baseQuestion;
     const served = isStudentPaced
-      ? applyHiddenOptions(baseQuestion, override?.hiddenOptionIdsByQuestion)
+      ? applyHiddenOptions(
+          applyModifiedWording(baseQuestion, override?.modifiedQuestions),
+          override?.hiddenOptionIdsByQuestion
+        )
       : baseQuestion;
     if (!answerOptionShuffleEnabled) return served;
     return shuffleQuestionForStudent(served, studentShuffleSeed);
@@ -2573,9 +2583,15 @@ export const ActiveQuiz: React.FC<{
     baseQuestion,
     isStudentPaced,
     override?.hiddenOptionIdsByQuestion,
+    override?.modifiedQuestions,
     answerOptionShuffleEnabled,
     studentShuffleSeed,
   ]);
+  const modifiedServed =
+    !!baseQuestion &&
+    isStudentPaced &&
+    applyModifiedWording(baseQuestion, override?.modifiedQuestions) !==
+      baseQuestion;
   // Live view (QUIZ_LIVE_VIEW.md D12): position is reported only while the teacher's stamp is ahead.
   const liveView = watching ? null : myResponse?.liveView;
   const liveViewUntil = liveView?.until ?? 0;
@@ -2604,6 +2620,8 @@ export const ActiveQuiz: React.FC<{
     () => new Set()
   );
   const [directionsOpen, setDirectionsOpen] = useState(false);
+  const [supportsOpen, setSupportsOpen] = useState(false);
+  const [supportsPct, setSupportsPct] = useState(SUPPORTS_PCT_DEFAULT);
   const [clearingAnswer, setClearingAnswer] = useState(false);
   // The student's accommodation language; the toggle resets to it on advance (§4.6).
   const assignedLocale = override?.language;
@@ -2646,6 +2664,7 @@ export const ActiveQuiz: React.FC<{
     manifest: session.readAloud,
     locale: readAloudLocale,
     canonicalQuestions: session.publicQuestions,
+    promptRewritten: modifiedServed,
     // Nothing to read behind the review screen.
     question:
       reviewOn && reviewOpen && !isAttemptSubmitted(myResponse)
@@ -4042,6 +4061,8 @@ export const ActiveQuiz: React.FC<{
   // when `light`, so they use the light palette directly; the violet teacher-
   // paced affordances and the gamified AnswerFeedbackBanner stay dark.
   const light = isStudentPaced;
+  const supports = override?.supports ?? [];
+  const supportsPanelOpen = supportsOpen && supports.length > 0;
   const sectionAnswers = myResponse?.answers ?? [];
   const sectionServedIds =
     isStudentPaced && (drawIds || override?.questionIds)
@@ -4185,9 +4206,16 @@ export const ActiveQuiz: React.FC<{
     );
   const currentReviewRows = () =>
     reviewRows(
-      orderedPublicQuestions.map((q) =>
-        applyLocalizedStrings(q, serveLocalizedQuestion(q, assignedLocale))
-      ),
+      orderedPublicQuestions.map((base) => {
+        const q = applyModifiedWording(
+          base,
+          isStudentPaced && override?.modifiedQuestions
+        );
+        return applyLocalizedStrings(
+          q,
+          serveLocalizedQuestion(q, assignedLocale)
+        );
+      }),
       myResponse?.answers ?? [],
       answerCache,
       markedIds,
@@ -4431,7 +4459,7 @@ export const ActiveQuiz: React.FC<{
         className={
           splitPanel
             ? 'flex flex-col lg:flex-row lg:items-start mx-auto w-full max-w-[1920px]'
-            : sideStimuli.length > 0
+            : sideStimuli.length > 0 || supportsPanelOpen
               ? 'flex flex-col lg:flex-row lg:items-start mx-auto w-full max-w-[1700px]'
               : 'contents'
         }
@@ -4440,9 +4468,13 @@ export const ActiveQuiz: React.FC<{
           stacked (height-capped, scrollable) above the question on
           narrow ones. One DOM node for both breakpoints so crossing a
           breakpoint never remounts a viewer mid-read. */}
-        {sideStimuli.length > 0 && (
+        {(sideStimuli.length > 0 || supportsPanelOpen) && (
           <div
-            className={`shrink-0 w-full p-4 pb-0 lg:p-6 lg:sticky lg:top-0 lg:h-screen lg:overflow-auto max-h-[45vh] lg:max-h-none overflow-y-auto flex flex-col gap-3 ${
+            className={`shrink-0 w-full p-4 pb-0 lg:p-6 lg:sticky lg:top-0 lg:h-screen max-h-[45vh] lg:max-h-none overflow-y-auto flex flex-col gap-3 ${
+              supportsPanelOpen && sideStimuli.length > 0
+                ? 'lg:overflow-hidden'
+                : 'lg:overflow-auto'
+            } ${
               splitPanel
                 ? 'lg:w-[var(--stimulus-panel-w)] lg:pr-3'
                 : 'lg:w-[44%] lg:min-w-[320px] lg:max-w-[65%] lg:resize-x'
@@ -4453,33 +4485,64 @@ export const ActiveQuiz: React.FC<{
                 : undefined
             }
           >
-            {stimulusTabsOn ? (
-              <StimulusTabsPanel
-                stimuli={sideStimuli}
+            {/* Supports sit on top of the sources, with a drag bar between them. */}
+            {supportsPanelOpen && (
+              <div
+                className={`flex min-h-0 flex-col ${
+                  sideStimuli.length > 0
+                    ? 'lg:h-[var(--supports-h)] lg:shrink-0'
+                    : 'flex-1'
+                }`}
+                style={{ ['--supports-h' as string]: `${supportsPct}%` }}
+              >
+                <SupportsPanel
+                  supports={supports}
+                  light={light}
+                  onClose={() => setSupportsOpen(false)}
+                />
+              </div>
+            )}
+            {supportsPanelOpen && sideStimuli.length > 0 && (
+              <SupportsDivider
+                pct={supportsPct}
+                onChange={setSupportsPct}
                 light={light}
-                renderStimulus={(s) => (
-                  <StimulusRenderer
-                    stimulus={s}
-                    light={light}
-                    onLoadError={handleStimulusLoadError}
-                    readAloud={stimulusReadAloudFor(s)}
-                    selectableText={session.allowStimulusQuotes === true}
-                    fill
-                  />
-                )}
               />
-            ) : (
-              sideStimuli.map((s) => (
-                <div key={s.id} className="flex-1 min-h-[280px] flex flex-col">
-                  <StimulusRenderer
-                    stimulus={s}
+            )}
+            {sideStimuli.length > 0 && (
+              <div className="flex min-h-0 flex-1 flex-col gap-3 lg:overflow-auto">
+                {stimulusTabsOn ? (
+                  <StimulusTabsPanel
+                    stimuli={sideStimuli}
                     light={light}
-                    onLoadError={handleStimulusLoadError}
-                    readAloud={stimulusReadAloudFor(s)}
-                    selectableText={session.allowStimulusQuotes === true}
+                    renderStimulus={(s) => (
+                      <StimulusRenderer
+                        stimulus={s}
+                        light={light}
+                        onLoadError={handleStimulusLoadError}
+                        readAloud={stimulusReadAloudFor(s)}
+                        selectableText={session.allowStimulusQuotes === true}
+                        fill
+                      />
+                    )}
                   />
-                </div>
-              ))
+                ) : (
+                  sideStimuli.map((s) => (
+                    <div
+                      key={s.id}
+                      className="flex-1 min-h-[280px] flex flex-col"
+                    >
+                      <StimulusRenderer
+                        stimulus={s}
+                        light={light}
+                        onLoadError={handleStimulusLoadError}
+                        readAloud={stimulusReadAloudFor(s)}
+                        selectableText={session.allowStimulusQuotes === true}
+                      />
+                    </div>
+                  ))
+                )}
+              </div>
             )}
           </div>
         )}
@@ -4495,7 +4558,7 @@ export const ActiveQuiz: React.FC<{
           {...clipboardGuards}
           className={`flex flex-col w-full min-w-0 ${
             whiteboardConfig ? 'flex-1 px-6 py-4' : 'p-6'
-          } ${splitPanel ? 'lg:flex-1 lg:mx-auto' : sideStimuli.length > 0 ? 'lg:flex-1' : 'mx-auto'} ${
+          } ${splitPanel ? 'lg:flex-1 lg:mx-auto' : sideStimuli.length > 0 || supportsPanelOpen ? 'lg:flex-1' : 'mx-auto'} ${
             // Free Response gets elbow room for long-form writing; structured
             // inputs read worse stretched across a widescreen.
             whiteboardConfig
@@ -4549,6 +4612,13 @@ export const ActiveQuiz: React.FC<{
               </span>
               {attemptDeadline != null && !isAttemptSubmitted(myResponse) && (
                 <QuizTimeLimitClock deadline={attemptDeadline} light={light} />
+              )}
+              {supports.length > 0 && (
+                <SupportsButton
+                  light={light}
+                  open={supportsPanelOpen}
+                  onToggle={() => setSupportsOpen((o) => !o)}
+                />
               )}
               {whiteboardConfig && currentStimuli.length > 0 && (
                 <StimulusDrawerButton
@@ -4650,8 +4720,8 @@ export const ActiveQuiz: React.FC<{
             </div>
           )}
 
-          {/* Question */}
-          {readAloudOn ? (
+          {/* Question; the recorded audio is the original wording, so a modified prompt has none yet. */}
+          {readAloudOn && !modifiedServed ? (
             <div
               ref={promptWrapRef}
               tabIndex={-1}
@@ -6436,9 +6506,16 @@ export const PublishedScoreReview: React.FC<{
   // entirely when the quiz has no auto-graded questions at all. Restricted
   // to the served subset (M17 §3a-F) — an unmodified question the student
   // was never served must not count toward this denominator.
-  const publicQuestions = drawIds
-    ? orderServedQuestions(session.publicQuestions ?? [], drawIds)
-    : serveQuestionSubset(session.publicQuestions ?? [], override?.questionIds);
+  const modifiedOn =
+    session.sessionMode === 'student' && override?.modifiedQuestions === true;
+  const publicQuestions = (
+    drawIds
+      ? orderServedQuestions(session.publicQuestions ?? [], drawIds)
+      : serveQuestionSubset(
+          session.publicQuestions ?? [],
+          override?.questionIds
+        )
+  ).map((q) => applyModifiedWording(q, modifiedOn));
   const publicQuestionIndex = new Map(
     publicQuestions.map((question, index) => [question.id, index])
   );

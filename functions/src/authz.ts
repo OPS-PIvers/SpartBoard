@@ -58,59 +58,46 @@ export const OPERATOR_ORG_ID = 'orono';
 /** Role ids the strict gate admits; domain_admin and a missing roleId are deliberately out. */
 export const STRICT_SUPER_ADMIN_ROLE_IDS: readonly string[] = ['super_admin'];
 
-/** Strict super admin, mirroring the rules' isSuperAdmin(): an active operator-org super_admin member or the legacy user_roles list (refused once their operator-org doc is deactivated, unless includeRevoked). */
+/** Strict super admin, mirroring the rules' isMemberSuperAdmin(): an active operator-org super_admin member. */
 export async function isStrictSuperAdmin(
   db: admin.firestore.Firestore,
-  emailLower: string,
-  opts: { includeRevoked?: boolean } = {}
+  emailLower: string
 ): Promise<boolean> {
-  const [operatorSnap, legacySnap] = await Promise.all([
-    db.doc(`organizations/${OPERATOR_ORG_ID}/members/${emailLower}`).get(),
-    db.doc('admin_settings/user_roles').get(),
-  ]);
+  const operatorSnap = await db
+    .doc(`organizations/${OPERATOR_ORG_ID}/members/${emailLower}`)
+    .get();
   return isStrictSuperAdminData(
-    emailLower,
     operatorSnap.exists
       ? {
           roleId: operatorSnap.get('roleId') as unknown,
           status: operatorSnap.get('status') as unknown,
         }
-      : undefined,
-    legacySnap.exists
-      ? { superAdmins: legacySnap.get('superAdmins') as unknown }
-      : undefined,
-    opts
+      : undefined
   );
 }
 
-/** isStrictSuperAdmin over docs the caller already read (e.g. inside a transaction). */
+// Protects the rules' legacy super admin grant until firestore.rules drops isLegacySuperAdmin(); delete with it.
+export async function isOnLegacySuperAdminList(
+  db: admin.firestore.Firestore,
+  emailLower: string
+): Promise<boolean> {
+  const snap = await db.doc('admin_settings/user_roles').get();
+  const list: unknown = snap.exists ? snap.get('superAdmins') : undefined;
+  return Array.isArray(list) && list.includes(emailLower);
+}
+
+/** isStrictSuperAdmin over an operator-org member doc the caller already read (e.g. inside a transaction). */
 export function isStrictSuperAdminData(
-  emailLower: string,
-  operator: Record<string, unknown> | undefined,
-  legacyRoles: Record<string, unknown> | undefined,
-  opts: { includeRevoked?: boolean } = {}
+  operator: Record<string, unknown> | undefined
 ): boolean {
-  if (operator) {
-    const roleId = operator.roleId;
-    const status = operator.status;
-    if (
-      typeof roleId === 'string' &&
-      STRICT_SUPER_ADMIN_ROLE_IDS.includes(roleId) &&
-      (status === undefined || status === 'active')
-    ) {
-      return true;
-    }
-  }
-  if (!legacyRoles) return false;
-  if (
-    !opts.includeRevoked &&
-    operator &&
-    isRevokedMemberStatus(operator.status)
-  ) {
-    return false;
-  }
-  const legacy: unknown = legacyRoles.superAdmins;
-  return Array.isArray(legacy) && legacy.includes(emailLower);
+  if (!operator) return false;
+  const roleId = operator.roleId;
+  const status = operator.status;
+  return (
+    typeof roleId === 'string' &&
+    STRICT_SUPER_ADMIN_ROLE_IDS.includes(roleId) &&
+    (status === undefined || status === 'active')
+  );
 }
 
 /** Custom claim set on a deactivated operator-org member's Auth account, so the uid stays revoked whatever its email claim. */

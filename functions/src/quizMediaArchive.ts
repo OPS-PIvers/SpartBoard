@@ -725,7 +725,7 @@ export async function deriveTeacherTier(
   return member?.exists ? 'org' : 'free';
 }
 
-/** Server twin of `utils/betaAccess.isBetaUser` — same four grant sources. */
+/** Server twin of `utils/betaAccess.isBetaUser` — same grant sources. */
 export async function isBetaTeacher(
   db: Firestore,
   betaUsers: readonly unknown[],
@@ -740,10 +740,7 @@ export async function isBetaTeacher(
     .doc('admin_settings/user_roles')
     .get()
     .catch(() => null);
-  if (roles?.exists) {
-    if (listHas(roles.get('betaTeachers'))) return true;
-    if (listHas(roles.get('superAdmins'))) return true;
-  }
+  if (roles?.exists && listHas(roles.get('betaTeachers'))) return true;
   const domain = normalizeEmailDomain(emailLower);
   const orgId = domain
     ? await resolveOrgIdForDomain(db, domain).catch(() => null)

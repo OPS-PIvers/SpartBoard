@@ -200,12 +200,12 @@ describe('startViewAsSessionV1', () => {
     expect(writes).toHaveLength(0);
   });
 
-  it('admits a legacy super admin', async () => {
+  it('refuses an address only on the retired legacy super admin list', async () => {
     delete docs[`organizations/orono/members/${boss}`];
     docs['admin_settings/user_roles'] = { superAdmins: [boss] };
     await expect(
       start({ auth: BOSS, data: { targetEmail: teacher } })
-    ).resolves.toMatchObject({ token: 'tok' });
+    ).rejects.toMatchObject({ code: 'permission-denied' });
   });
 
   it('refuses an unverified email', async () => {

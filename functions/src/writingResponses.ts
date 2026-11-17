@@ -26,6 +26,7 @@ import {
   turnInBlock,
   writingDeadline,
   writingEventAllowed,
+  writingGradingMax,
   writingTransition,
   type WritingEvent,
   type WritingResponseStatus,
@@ -793,10 +794,8 @@ function sanitizeFeedback(raw: unknown, caller: WritingCaller, now: number) {
   return out;
 }
 
-const maxPointsOf = (session: Data): number | undefined => {
-  const g = (session.grading ?? {}) as Data;
-  return g.mode === 'points' && isNum(g.points) ? g.points : undefined;
-};
+const maxPointsOf = (session: Data): number | undefined =>
+  writingGradingMax(session.grading) ?? undefined;
 
 /** D12/D13: feedback lands only on the frozen copy the teacher saw; a taken-back copy is never recreated. */
 export async function handleSaveWritingFeedback(
@@ -819,6 +818,13 @@ export async function handleSaveWritingFeedback(
   const session = await sessionForTeacher(db, caller, sid);
   const feedback = sanitizeFeedback(d.feedback, caller, now);
   const maxPoints = maxPointsOf(session);
+  if (
+    ((session.grading ?? {}) as Data).mode === 'ungraded' &&
+    (feedback.pointsAwarded !== undefined ||
+      feedback.rubricScores !== undefined ||
+      feedback.excused !== undefined)
+  )
+    throw new HttpsError('invalid-argument', 'This piece is ungraded.');
   if (
     maxPoints !== undefined &&
     isNum(feedback.pointsAwarded) &&
