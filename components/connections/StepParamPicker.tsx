@@ -49,7 +49,7 @@ const WorkSymbolPicker: React.FC<PickerProps> = ({
       {...tourAttr('connections.editor.step-choice')}
       aria-label={label}
       onChange={(e) => onChange({ symbolId: e.target.value || null })}
-      className="h-8 rounded-lg border border-slate-300 bg-white px-2 text-sm text-slate-700 hover:border-slate-400"
+      className="h-9 min-w-0 max-w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm text-slate-700 hover:border-slate-300"
     >
       <option value="">
         {t('connections.editor.pickSymbol', { defaultValue: 'Pick a symbol' })}
@@ -116,7 +116,7 @@ const MaterialsPicker: React.FC<PickerProps> = ({
         aria-label={label}
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-        className="flex h-8 max-w-56 items-center gap-1 rounded-lg border border-slate-300 bg-white px-2 text-left text-sm text-slate-700 hover:border-slate-400"
+        className="flex h-9 max-w-56 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 text-left text-sm text-slate-700 hover:border-slate-300"
       >
         <span className="truncate">{summary}</span>
         <ChevronDown className="h-4 w-4 shrink-0" aria-hidden="true" />
