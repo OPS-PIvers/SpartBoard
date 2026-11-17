@@ -4,7 +4,7 @@ import * as admin from './firebaseAdmin';
 import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import { loadSessionContext } from './gradebook/gradeIndex';
-import { gradeGroupAnswer } from './plcAssessmentMath';
+import { gradeGroupAnswer, trustedPaperTranscript } from './plcAssessmentMath';
 import { parseCompletedResponse } from './recomputePlcAssessments';
 import { representativeAnswers } from './quizScoreOnSubmit';
 import {
@@ -215,7 +215,7 @@ export async function handleGetMyQuizAttempts(
               a.answer,
               parsed.manualGrades?.[q.id],
               q.type === 'FIB' ? fib[q.id] : undefined,
-              parsed.paperAttested === true ? a.paperTranscript : undefined
+              trustedPaperTranscript(q, parsed.paperAttested, a)
             )
           : null;
       return {

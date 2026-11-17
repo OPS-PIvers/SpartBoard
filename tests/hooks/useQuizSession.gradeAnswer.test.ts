@@ -565,22 +565,37 @@ describe('gradeAnswer — paper FIB trust and teacher marks', () => {
     ).toMatchObject({ isCorrect: true, state: 'scored' });
   });
 
-  it('trusts a FIB paperTranscript only on an imported paper response', () => {
-    expect(gradingPaperTranscript(fib, {}, 'pending')).toBeUndefined();
-    expect(gradingPaperTranscript(fib, { paperBatchId: 'b1' }, 'pending')).toBe(
+  it('trusts a FIB paperTranscript only on a server-scanned answer of an imported paper response', () => {
+    const scanned = { paperTranscript: 'pending' as const, paperScanId: 's1' };
+    expect(gradingPaperTranscript(fib, {}, scanned)).toBeUndefined();
+    expect(gradingPaperTranscript(fib, { paperBatchId: 'b1' }, scanned)).toBe(
       'pending'
     );
     expect(
-      gradingPaperTranscript(fib, { paperWrittenBatchId: 'b1' }, 'image')
+      gradingPaperTranscript(
+        fib,
+        { paperWrittenBatchId: 'b1' },
+        { paperTranscript: 'image', paperScanId: 's1' }
+      )
     ).toBe('image');
-    expect(gradingPaperTranscript(q(), {}, 'pending')).toBe('pending');
+    // A student-written FIB entry on a hybrid paper response has no scan id.
+    expect(
+      gradingPaperTranscript(
+        fib,
+        { paperWrittenBatchId: 'b1' },
+        { paperTranscript: 'pending' }
+      )
+    ).toBeUndefined();
+    expect(
+      gradingPaperTranscript(q(), {}, { paperTranscript: 'pending' })
+    ).toBe('pending');
     expect(
       gradeAnswer(
         fib,
         '',
         undefined,
         [],
-        gradingPaperTranscript(fib, {}, 'pending')
+        gradingPaperTranscript(fib, {}, scanned)
       )
     ).toMatchObject({ state: 'not-attempted' });
   });

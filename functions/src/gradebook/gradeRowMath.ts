@@ -10,6 +10,7 @@ import {
   type QuestionTargetSnapshot,
   type RawAnswer,
   paperAnswerOwed,
+  trustedPaperTranscript,
 } from '../plcAssessmentMath';
 import {
   currentShortAnswerGrading,
@@ -332,7 +333,7 @@ export function scoreQuestions(input: QuestionScoreInput): QuestionScore {
       answer?.answer ?? '',
       input.manualGrades?.[q.id],
       q.type === 'FIB' ? input.fibAnswersByQuestion?.[q.id] : undefined,
-      input.paperAttested === true ? answer?.paperTranscript : undefined
+      trustedPaperTranscript(q, input.paperAttested, answer)
     );
     const pointsEarned = g.pointsEarned;
     let state: string = g.state;
