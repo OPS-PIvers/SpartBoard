@@ -6670,6 +6670,15 @@ export interface PaperBatchVersion {
   swaps: Record<string, string>;
 }
 
+/** The modification rules a printed group's stack was built with (`paper-printed-versions`). */
+export interface PaperPrintedGroupRecord {
+  /** 1-based group position at assign, for "Group 2". */
+  number: number;
+  answerChoices: 'all' | 'drop-one' | 'two';
+  modifiedQuestions?: boolean;
+  supports?: QuizSupport[];
+}
+
 export interface PaperBatch {
   id: string;
   /** Quiz these sheets were printed for. Deleted with the quiz. */
@@ -6710,6 +6719,8 @@ export interface PaperBatch {
   versions?: PaperBatchVersion[];
   /** Seat -> index into `versions`; the key sheet is absent and reads as version 0. */
   seatVersions?: Record<number, number>;
+  /** Printed for a modification group of a device assignment: the rules its version applied, so a reprint matches. */
+  printedGroup?: PaperPrintedGroupRecord;
   createdAt: number;
   /** A review the teacher left unfinished, resumable from any device (plan Q26). */
   pendingReview?: PaperPendingReview;
@@ -7479,6 +7490,8 @@ export interface QuizAssignment
   paperWrittenSeats?: number;
   /** Responses carrying a scan from that stack, recounted by each import. */
   paperWrittenScanned?: number;
+  /** Stacks printed for modification groups of this device assignment (`paper-printed-versions`). */
+  paperCopyBatchIds?: string[];
   /** D37 mode last chosen in Publish Scores; mirrored on the session and cleared on unpublish. */
   writtenReturnMode?: WrittenReturnMode;
   createdAt: number;
@@ -11701,6 +11714,8 @@ export type GlobalFeature =
   /** Quiz setting that shows students their score as soon as they submit. */
   | 'quiz-score-on-submit'
   | 'modification-groups'
+  /** Quiz assign: a modification group can get a printed version, scanned back into the same results. */
+  | 'paper-printed-versions'
   /** Projects: a group submits its project; the teacher sees Submitted, Late or Missing and can reopen. */
   | 'project-submit'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */

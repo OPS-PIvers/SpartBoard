@@ -57,6 +57,8 @@ export interface ModificationGroupsStepProps {
   overridesByKey: Parameters<typeof effectiveClassOverride>[1];
   /** True while a support's Drive file is still being shared. */
   onSharingChange?: (sharing: boolean) => void;
+  /** Shows the Printed version row (`paper-printed-versions`). */
+  printedAvailable?: boolean;
 }
 
 const Row: React.FC<{ label: string; children: React.ReactNode }> = ({
@@ -212,6 +214,7 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
   hasModifiedQuestions = false,
   overridesByKey,
   onSharingChange,
+  printedAvailable = false,
 }) => {
   const { t } = useTranslation();
   const { driveService } = useGoogleDrive();
@@ -478,6 +481,17 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
                     </option>
                   ))}
                 </select>
+              </Row>
+            )}
+            {printedAvailable && (
+              <Row label="Printed version">
+                <Toggle
+                  size="sm"
+                  checked={group.printed === true}
+                  onChange={(printed) => set(group.id, { printed })}
+                  label="Printed version"
+                  anchor={tourAttr('assign-mods.printed')}
+                />
               </Row>
             )}
             <SupportsEditor

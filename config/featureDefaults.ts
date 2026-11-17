@@ -966,6 +966,22 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // A modification group prints its own version of a device quiz; needs paper sheets too.
+  'paper-printed-versions': {
+    label: 'Printed versions for groups',
+    icon: Printer,
+    description:
+      'A modification group can get a printed copy of a quiz. Scanned answers join the same results as students on devices.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    modalLabel: 'Printed versions for groups',
+    group: 'assigning',
+    requires: 'modification-groups',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'project-submit': {
     label: 'Project submit',
     icon: ClipboardCheck,

@@ -235,6 +235,13 @@ import {
   planHybridWrittenBatch,
 } from '@/utils/paperWrittenHybrid';
 import {
+  PAPER_PRINTED_VERSIONS_FEATURE,
+  printedGroupForPrint,
+  printedGroupQuiz,
+  printedGroupRecord,
+} from '@/utils/paperPrintedVersions';
+import type { PrintedGroupPick } from '@/components/common/library/assignStepper/modificationGroups';
+import {
   browserStimulusImageDeps,
   resolveStimulusImages,
   stimulusLoadErrorMessage,
@@ -244,6 +251,7 @@ import { MAX_PAGE } from '@/utils/paperSheetMarker';
 import {
   deletePaperBatch,
   deletePaperBatchesForQuiz,
+  linkPrintedCopyBatch,
   subscribePaperBatchIndex,
   savePaperBatch,
   listPaperBatchesForQuiz,
@@ -1023,6 +1031,16 @@ const TeacherQuizWidget: React.FC<{
     !!paperUid &&
     canAccessFeature(PAPER_HANDWRITTEN_FEATURE) &&
     canAccessFeature(PAPER_WRITTEN_HYBRID_FEATURE);
+  // A modification group's printed version, scanned back into the device assignment.
+  const printedVersionsOn =
+    !!paperUid &&
+    canAccessFeature('modification-groups') &&
+    canAccessFeature(PAPER_PRINTED_VERSIONS_FEATURE);
+  // Printed groups still to print after an assign, one print dialog at a time.
+  const [printedQueue, setPrintedQueue] = useState<{
+    assignmentId: string;
+    groups: { pick: PrintedGroupPick; quiz: QuizData }[];
+  } | null>(null);
   useEffect(() => {
     if (!paperUid) return;
     return subscribePaperBatchIndex(paperUid, setPaperBatchIndex, (err) =>
@@ -1043,6 +1061,7 @@ const TeacherQuizWidget: React.FC<{
       createdAt: assignment.createdAt,
       updatedAt: assignment.createdAt,
     };
+  // Printed group stacks stay loose until the card can import them, so the library import attaches them.
   const linkedPaperBatchIds = new Set(
     assignments.flatMap((a) => (a.paperBatchId ? [a.paperBatchId] : []))
   );
@@ -3536,6 +3555,7 @@ const TeacherQuizWidget: React.FC<{
         }
         hasLooseStack={(quizId) => looseStackQuizIds.has(quizId)}
         writtenOnPaperAvailable={writtenOnPaperOn}
+        printedVersionsAvailable={printedVersionsOn}
         onAddAnswerKey={
           canImportDocuments
             ? async (meta) => {
@@ -4047,6 +4067,16 @@ const TeacherQuizWidget: React.FC<{
             );
             assignmentSaved = true;
             printWritten?.();
+            if (printedVersionsOn && stepper?.printedGroups?.length) {
+              const assigned = { ...data, questions: assignQuestions };
+              setPrintedQueue({
+                assignmentId,
+                groups: stepper.printedGroups.map((pick) => ({
+                  pick,
+                  quiz: printedGroupQuiz(assigned, pick.group),
+                })),
+              });
+            }
             const finalScore = behavior.finalScore ?? 'latest';
             if (finalScore !== 'latest' && attemptLimit !== 1 && user?.uid) {
               saveAttemptPolicy(
@@ -5321,6 +5351,33 @@ const TeacherQuizWidget: React.FC<{
             setPaperPrintBanks(null);
             setPaperPrintMeta(null);
           }}
+          onError={(message) => addToast(message, 'error')}
+        />
+      )}
+      {printedQueue && user?.uid && printedQueue.groups[0] && (
+        <PaperPrintModal
+          key={`${printedQueue.assignmentId}-${printedQueue.groups[0].pick.number}`}
+          quiz={printedQueue.groups[0].quiz}
+          group={printedGroupForPrint(printedQueue.groups[0].pick)}
+          rosters={rosters}
+          onSaveBatch={async (batch) => {
+            await savePaperBatch(user.uid, {
+              ...batch,
+              printedGroup: printedGroupRecord(printedQueue.groups[0].pick),
+            });
+            await linkPrintedCopyBatch(
+              user.uid,
+              printedQueue.assignmentId,
+              batch.id
+            );
+          }}
+          onClose={() =>
+            setPrintedQueue((prev) =>
+              prev && prev.groups.length > 1
+                ? { ...prev, groups: prev.groups.slice(1) }
+                : null
+            )
+          }
           onError={(message) => addToast(message, 'error')}
         />
       )}

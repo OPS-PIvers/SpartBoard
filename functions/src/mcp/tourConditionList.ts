@@ -104,6 +104,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'paper-image-markup',
   'paper-kept-pages',
   'paper-pages-student-view',
+  'paper-printed-versions',
   'paper-reword-sync',
   'paper-written-hybrid',
   'personal-spotify',

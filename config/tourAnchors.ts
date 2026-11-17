@@ -1533,6 +1533,10 @@ export const TOUR_ANCHORS = {
     label: 'Read aloud switch for a modification group',
     panel: true,
   },
+  'assign-mods.printed': {
+    label: 'Printed version switch for a modification group',
+    panel: true,
+  },
   'assign-mods.language': {
     label: 'Language dropdown for a modification group',
     panel: true,

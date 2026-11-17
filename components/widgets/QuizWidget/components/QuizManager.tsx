@@ -147,6 +147,7 @@ import { earliestDueAt } from '@/utils/perClassDueDates';
 import { AssignmentClassNames } from '@/components/common/library/AssignmentClassNames';
 import { applyWhen } from '@/utils/assignAvailability';
 import { QuizAssignStepper } from './QuizAssignStepper';
+import type { PrintedGroupPick } from '@/components/common/library/assignStepper/modificationGroups';
 import {
   DEFAULT_WRITTEN_ANSWERS,
   type WrittenAnswersValue,
@@ -217,6 +218,8 @@ export interface QuizStepperAssign {
     boxSizes: Record<string, PaperBoxSize>;
     boxStyles: Record<string, PaperBoxStylePick>;
   };
+  /** Modification groups that print their version at assign (`paper-printed-versions`). */
+  printedGroups?: PrintedGroupPick[];
 }
 
 interface QuizAssignOptions {
@@ -338,6 +341,8 @@ interface QuizManagerProps {
   hasLooseStack?: (quizId: string) => boolean;
   /** Assign can put written questions on paper (`paper-written-hybrid` and the paper gates). */
   writtenOnPaperAvailable?: boolean;
+  /** A modification group can print its version at assign (`paper-printed-versions` and the paper gates). */
+  printedVersionsAvailable?: boolean;
   onEdit: (quiz: QuizMetadata) => void;
   onPreview: (quiz: QuizMetadata) => void;
   /** Take the quiz as students see it. Absent when the feature is off. */
@@ -784,6 +789,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onImportLooseStack,
   hasLooseStack,
   writtenOnPaperAvailable = false,
+  printedVersionsAvailable = false,
   onEdit,
   onPreview,
   onStudentView,
@@ -2266,7 +2272,9 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     () => paperBoxImageChoices(assignQuizData?.stimuli ?? []),
     [assignQuizData]
   );
-  const handleStepperAssign = (): void => {
+  const handleStepperAssign = (extra?: {
+    printedGroups: PrintedGroupPick[];
+  }): void => {
     if (!assignTarget) return;
     if (plcs.length > 0 && sharingNeedsPlc(assignOptions, plcs)) return;
     const behavior: QuizBehaviorSettings = {
@@ -2338,6 +2346,9 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                 boxStyles: assignWritten.boxStyles,
               },
             }
+          : {}),
+        ...(!assignToStaff && extra?.printedGroups.length
+          ? { printedGroups: extra.printedGroups }
           : {}),
       }
     );
@@ -3242,6 +3253,10 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                 },
               }
             : {})}
+          // A bank draw differs per student, so there is no one version to print.
+          printedVersionsAvailable={
+            printedVersionsAvailable && !assignQuizData?.bankSlots?.length
+          }
           onClose={resetAssign}
           onSubmit={handleStepperAssign}
         />

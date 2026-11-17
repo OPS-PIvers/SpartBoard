@@ -6314,6 +6314,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-mods.printed",
+    "label": "Printed version switch for a modification group",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-step.modifications"
+        ],
+        "reveal": "assign-step.modifications"
+      }
+    ]
+  },
+  {
     "id": "assign-mods.language",
     "label": "Language dropdown for a modification group",
     "scope": "board",
