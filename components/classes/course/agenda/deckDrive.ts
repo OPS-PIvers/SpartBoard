@@ -169,6 +169,23 @@ export class DeckDrive implements DeckSharingDrive {
       throw deckErrorFor(response.status, await response.text());
   }
 
+  /** The file's name and whether it is a Google Slides deck; a file this app can't see throws DeckAccessError. */
+  async getDeckInfo(
+    fileId: string
+  ): Promise<{ name: string; isSlides: boolean }> {
+    const response = await this.ok(
+      `${DRIVE_API_URL}/files/${encodeURIComponent(fileId)}?fields=name,mimeType&supportsAllDrives=true`
+    );
+    const data = (await response.json()) as {
+      name?: unknown;
+      mimeType?: unknown;
+    };
+    return {
+      name: typeof data.name === 'string' ? data.name : '',
+      isSlides: data.mimeType === 'application/vnd.google-apps.presentation',
+    };
+  }
+
   async getFileModifiedTime(fileId: string): Promise<number | null> {
     const response = await this.ok(
       `${DRIVE_API_URL}/files/${encodeURIComponent(fileId)}?fields=modifiedTime&supportsAllDrives=true`

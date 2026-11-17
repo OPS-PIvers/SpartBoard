@@ -1,9 +1,10 @@
 // Pure rules behind Agenda setup (docs/plans/COURSE_AND_AGENDA.md D9, D10, D18, D24).
-import type {
-  Course,
-  CourseDeckCheck,
-  CourseDeckSharing,
-  CourseInput,
+import {
+  isDriveFileId,
+  type Course,
+  type CourseDeckCheck,
+  type CourseDeckSharing,
+  type CourseInput,
 } from '@/utils/course/contract';
 import type { CourseGroup } from '@/utils/course/courseGroups';
 import type { CourseRoster } from '../types';
@@ -79,4 +80,21 @@ export function classPageLink(
 /** The deck in Google Slides. */
 export function deckUrl(fileId: string): string {
   return `https://docs.google.com/presentation/d/${encodeURIComponent(fileId)}/edit`;
+}
+
+/** The deck id in a pasted Google Slides link (or a bare id), or null; a published /d/e/ link has no usable id. */
+export function slidesIdFromText(text: string): string | null {
+  const typed = text.trim();
+  // Real Drive ids are 25+ characters, so a short word is never taken for one.
+  if (typed.length >= 25 && isDriveFileId(typed)) return typed;
+  let url: URL;
+  try {
+    url = new URL(/^https?:\/\//i.test(typed) ? typed : `https://${typed}`);
+  } catch {
+    return null;
+  }
+  if (url.hostname !== 'docs.google.com') return null;
+  const match = /^\/presentation(?:\/u\/\d+)?\/d\/([^/]+)/.exec(url.pathname);
+  const id = match?.[1];
+  return id && id !== 'e' && isDriveFileId(id) ? id : null;
 }

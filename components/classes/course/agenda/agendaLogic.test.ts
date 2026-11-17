@@ -6,6 +6,7 @@ import {
   neededSharing,
   sharingProblem,
   shouldRecordCheck,
+  slidesIdFromText,
 } from './agendaLogic';
 import type { Course } from '@/utils/course/contract';
 
@@ -96,5 +97,32 @@ describe('agendaLogic', () => {
     expect(
       classPageLink({ ...course, rosterClassIds: { p2: 'cl1' } }, 'https://x')
     ).toBe('https://x/my-assignments/course/link1');
+  });
+
+  it('reads the deck id from a pasted Slides link', () => {
+    expect(
+      slidesIdFromText(
+        'https://docs.google.com/presentation/d/1AbCdEfGhIjK_lm-no/edit#slide=id.p'
+      )
+    ).toBe('1AbCdEfGhIjK_lm-no');
+    expect(
+      slidesIdFromText(' docs.google.com/presentation/u/1/d/1AbCdEfGhIjK/view ')
+    ).toBe('1AbCdEfGhIjK');
+    expect(slidesIdFromText('1AbCdEfGhIjKlMnOpQrStUvWxYz0123456')).toBe(
+      '1AbCdEfGhIjKlMnOpQrStUvWxYz0123456'
+    );
+    expect(slidesIdFromText('Homework12')).toBeNull();
+    expect(
+      slidesIdFromText(
+        'https://docs.google.com/presentation/d/e/2PACX-1vabc/pub'
+      )
+    ).toBeNull();
+    expect(
+      slidesIdFromText('https://docs.google.com/document/d/1AbCdEfGhIjK/edit')
+    ).toBeNull();
+    expect(
+      slidesIdFromText('https://evil.com/presentation/d/1AbCdEfGhIjK/edit')
+    ).toBeNull();
+    expect(slidesIdFromText('not a link')).toBeNull();
   });
 });

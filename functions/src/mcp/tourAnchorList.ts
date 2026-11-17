@@ -26073,6 +26073,67 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "classes.agenda-change",
+    "label": "Change the Agenda deck in the Agenda dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.course-agenda-dialog",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.agenda-open"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.agenda-paste",
+    "label": "Paste a Google Slides link for the Agenda deck",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.course-agenda-dialog",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.agenda-open"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.agenda-paste-use",
+    "label": "Use the pasted Google Slides link as the Agenda deck",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.course-agenda-dialog",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.agenda-open"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
     "id": "classes.agenda-pick",
     "label": "Select or change the Agenda Google Slides deck in My Classes",
     "scope": "board",

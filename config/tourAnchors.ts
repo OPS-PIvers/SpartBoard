@@ -6364,6 +6364,19 @@ export const TOUR_ANCHORS = {
     panel: true,
     closes: 'own',
   },
+  'classes.agenda-change': {
+    label: 'Change the Agenda deck in the Agenda dialog',
+    panel: true,
+  },
+  'classes.agenda-paste': {
+    label: 'Paste a Google Slides link for the Agenda deck',
+    panel: true,
+  },
+  'classes.agenda-paste-use': {
+    label: 'Use the pasted Google Slides link as the Agenda deck',
+    persists: true,
+    panel: true,
+  },
   'classes.agenda-pick': {
     label: 'Select or change the Agenda Google Slides deck in My Classes',
     persists: true,

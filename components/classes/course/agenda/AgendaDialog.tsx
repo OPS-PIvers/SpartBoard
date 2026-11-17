@@ -1,5 +1,5 @@
 // The Agenda dialog for one class or Course: deck, who can open it, links and the Class page link.
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   AlertTriangle,
@@ -19,6 +19,7 @@ import {
 import { tourAttr } from '@/config/tourAnchors';
 import type { CourseAgenda, CoursePinnedLink } from '@/utils/course/contract';
 import { PinnedLinksEditor } from './PinnedLinksEditor';
+import { DeckChooser } from './DeckChooser';
 import { deckUrl, type SharingProblem } from './agendaLogic';
 
 interface AgendaDialogProps {
@@ -37,7 +38,9 @@ interface AgendaDialogProps {
   copied: boolean;
   busy: boolean;
   error: string | null;
-  onPick: () => void;
+  /** Each resolves true once a deck is saved. */
+  onPick: () => Promise<boolean>;
+  onPaste: (text: string) => Promise<boolean>;
   onRemove: () => void;
   onFix: () => void;
   onSaveLinks: (links: CoursePinnedLink[]) => Promise<boolean>;
@@ -62,12 +65,14 @@ export const AgendaDialog: React.FC<AgendaDialogProps> = ({
   busy,
   error,
   onPick,
+  onPaste,
   onRemove,
   onFix,
   onSaveLinks,
   onCopy,
 }) => {
   const { t } = useTranslation();
+  const [changing, setChanging] = useState(false);
 
   const sharingText =
     problem === 'students'
@@ -133,8 +138,9 @@ export const AgendaDialog: React.FC<AgendaDialogProps> = ({
               <button
                 type="button"
                 disabled={busy}
-                onClick={onPick}
-                {...tourAttr('classes.agenda-pick')}
+                onClick={() => setChanging((v) => !v)}
+                aria-expanded={changing}
+                {...tourAttr('classes.agenda-change')}
                 className={`${secondaryBtn} shrink-0 disabled:opacity-50`}
               >
                 {t('course.agenda.change', { defaultValue: 'Change' })}
@@ -155,18 +161,19 @@ export const AgendaDialog: React.FC<AgendaDialogProps> = ({
                 <Trash2 className="h-4 w-4" aria-hidden="true" />
               </button>
             </div>
-          ) : (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={onPick}
-              {...tourAttr('classes.agenda-pick')}
-              className={`${primaryBtn} mt-2 w-full disabled:opacity-50`}
-            >
-              {t('course.agenda.pick', {
-                defaultValue: 'Select a Google Slides deck',
-              })}
-            </button>
+          ) : null}
+          {(!agenda || changing) && (
+            <DeckChooser
+              busy={busy}
+              onPick={async () => {
+                if (await onPick()) setChanging(false);
+              }}
+              onPaste={async (text) => {
+                const ok = await onPaste(text);
+                if (ok) setChanging(false);
+                return ok;
+              }}
+            />
           )}
           <p className={`mt-2 text-xs ${chromeMuted}`}>
             {t('course.agenda.firstSlide', {

@@ -30,6 +30,7 @@ import {
   courseSaveInput,
   neededSharing,
   sharingProblem,
+  slidesIdFromText,
 } from './agenda/agendaLogic';
 import type { CourseGroupProps } from './types';
 
@@ -213,28 +214,84 @@ export const AgendaSetup: React.FC<CourseGroupProps> = ({
     }
   };
 
-  const pickDeck = () =>
-    run(async () => {
-      let picked;
-      try {
-        picked = await openPicker({ mode: 'slides' });
-      } catch (err) {
-        setError(err instanceof Error ? err.message : String(err));
+  // Saves the chosen deck, offers the sharing it needs, then offers to un-share the one it replaced.
+  const applyDeck = async (next: CourseAgenda) => {
+    if (next.fileId === agenda?.fileId) return true;
+    const old = agenda;
+    if (!(await save({ agenda: next }))) return false;
+    if (drive && domain) {
+      const { sharing } = await readDeckState(drive, next.fileId, domain);
+      const fix = sharingProblem(sharing, needed);
+      if (fix === 'students' || fix === 'families')
+        await share(next.fileId, next.title, needed);
+    }
+    if (old) await offerStopSharing(old);
+    recheck();
+    return true;
+  };
+
+  const openDeckPicker = async (fileIds?: string[]) => {
+    try {
+      return await openPicker({ mode: 'slides', fileIds });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      return null;
+    }
+  };
+
+  const pickDeck = async () => {
+    let done = false;
+    await run(async () => {
+      const picked = await openDeckPicker();
+      if (picked)
+        done = await applyDeck({ fileId: picked.id, title: picked.name });
+    });
+    return done;
+  };
+
+  // A pasted link this app hasn't opened yet needs one Picker click, since Drive only lets it see files picked there.
+  const pasteDeck = async (text: string) => {
+    let done = false;
+    await run(async () => {
+      const fileId = slidesIdFromText(text);
+      if (!fileId) {
+        setError(
+          t('course.agenda.badSlidesLink', {
+            defaultValue: 'Paste a Google Slides link.',
+          })
+        );
         return;
       }
-      if (!picked || picked.id === agenda?.fileId) return;
-      const old = agenda;
-      const next: CourseAgenda = { fileId: picked.id, title: picked.name };
-      if (!(await save({ agenda: next }))) return;
-      if (drive && domain) {
-        const { sharing } = await readDeckState(drive, next.fileId, domain);
-        const fix = sharingProblem(sharing, needed);
-        if (fix === 'students' || fix === 'families')
-          await share(next.fileId, next.title, needed);
+      let title: string | null = null;
+      if (drive) {
+        try {
+          const info = await drive.getDeckInfo(fileId);
+          if (!info.isSlides) {
+            setError(
+              t('course.agenda.notSlides', {
+                defaultValue: "That link isn't a Google Slides deck.",
+              })
+            );
+            return;
+          }
+          title = info.name;
+        } catch (err) {
+          if (!(err instanceof DeckAccessError)) {
+            setError(shareErrorText(t, err));
+            return;
+          }
+        }
       }
-      if (old) await offerStopSharing(old);
-      recheck();
+      if (title === null) {
+        const picked = await openDeckPicker([fileId]);
+        if (!picked) return;
+        if (picked.id !== fileId) return;
+        title = picked.name;
+      }
+      done = await applyDeck({ fileId, title: title || 'Agenda' });
     });
+    return done;
+  };
 
   const removeDeck = () =>
     run(async () => {
@@ -322,7 +379,8 @@ export const AgendaSetup: React.FC<CourseGroupProps> = ({
         copied={copied}
         busy={busy}
         error={error}
-        onPick={() => void pickDeck()}
+        onPick={pickDeck}
+        onPaste={pasteDeck}
         onRemove={() => void removeDeck()}
         onFix={() => void fixSharing()}
         onSaveLinks={saveLinks}

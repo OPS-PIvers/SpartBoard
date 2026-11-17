@@ -65,10 +65,23 @@ function fakeDrive(
     const file = decodeURIComponent(m?.[1] ?? '');
     const method = init?.method ?? 'GET';
     calls.push(`${method} ${file}${m?.[2] ? ' perms' : ''}`);
-    if (!m?.[2])
+    if (!m?.[2]) {
+      if (u.searchParams.get('fields')?.includes('mimeType')) {
+        if (!perms[file])
+          return Promise.resolve(new Response('{}', { status: 404 }));
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              name: `Deck ${file}`,
+              mimeType: 'application/vnd.google-apps.presentation',
+            })
+          )
+        );
+      }
       return Promise.resolve(
         new Response(JSON.stringify({ modifiedTime: '2026-11-16T10:00:00Z' }))
       );
+    }
     const list = perms[file];
     if (!list)
       return Promise.resolve(
@@ -147,7 +160,7 @@ describe('AgendaSetup', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: /add agenda/i }));
     fireEvent.click(
-      screen.getByRole('button', { name: 'Select a Google Slides deck' })
+      screen.getByRole('button', { name: 'Select from Google Drive' })
     );
     await waitFor(() => expect(showConfirm).toHaveBeenCalledTimes(1));
     expect(saveCourse).toHaveBeenCalledWith({
@@ -197,7 +210,7 @@ describe('AgendaSetup', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: /add agenda/i }));
     fireEvent.click(
-      screen.getByRole('button', { name: 'Select a Google Slides deck' })
+      screen.getByRole('button', { name: 'Select from Google Drive' })
     );
     await waitFor(() => expect(showConfirm).toHaveBeenCalled());
     expect(saveCourse.mock.calls[0]).toEqual([
@@ -249,6 +262,9 @@ describe('AgendaSetup', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: /old deck/i }));
     fireEvent.click(screen.getByRole('button', { name: 'Change' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Select from Google Drive' })
+    );
     await waitFor(() => expect(drive.perms.oldDeck12345).toHaveLength(1));
     expect(showConfirm).toHaveBeenCalledTimes(1);
     expect(showConfirm.mock.calls[0][1]).toMatchObject({
@@ -399,7 +415,7 @@ describe('AgendaSetup', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: /add agenda/i }));
     fireEvent.click(
-      screen.getByRole('button', { name: 'Select a Google Slides deck' })
+      screen.getByRole('button', { name: 'Select from Google Drive' })
     );
     await waitFor(() =>
       expect(drive.perms.newDeck1234).toContainEqual(
@@ -473,7 +489,102 @@ describe('AgendaSetup', () => {
       />
     );
     expect(
-      screen.getByRole('button', { name: 'Select a Google Slides deck' })
+      screen.getByRole('button', { name: 'Select from Google Drive' })
     ).toBeInTheDocument();
+  });
+
+  it('uses a pasted Slides link the app can already see, with no Drive picker', async () => {
+    fakeDrive({
+      pastedDeck123: [
+        { id: 'd', type: 'domain', domain: DOMAIN, role: 'reader' },
+      ],
+    });
+    const saveCourse = vi.fn(() =>
+      Promise.resolve({
+        courseId: 'c1',
+        rostersWithoutClassPage: [],
+        classLinkUnavailable: false,
+      })
+    );
+    render(
+      <AgendaSetup
+        group={{ course: makeCourse(), rosters: [{ id: 'p2', name: 'P2' }] }}
+        saveCourse={saveCourse}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /add agenda/i }));
+    fireEvent.change(screen.getByLabelText('Or paste a Google Slides link'), {
+      target: {
+        value:
+          'https://docs.google.com/presentation/d/pastedDeck123/edit#slide=id.p',
+      },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Use link' }));
+    await waitFor(() =>
+      expect(saveCourse).toHaveBeenCalledWith({
+        action: 'save',
+        course: {
+          id: 'c1',
+          expectedUpdatedAt: 7,
+          agenda: { fileId: 'pastedDeck123', title: 'Deck pastedDeck123' },
+        },
+      })
+    );
+    expect(openPicker).not.toHaveBeenCalled();
+  });
+
+  it('asks Drive for access with the picker on just that deck when the app cannot see a pasted link', async () => {
+    fakeDrive({});
+    openPicker.mockResolvedValue({
+      id: 'hiddenDeck123',
+      name: 'Hidden deck',
+      mimeType: '',
+    });
+    const saveCourse = vi.fn(() =>
+      Promise.resolve({
+        courseId: 'c1',
+        rostersWithoutClassPage: [],
+        classLinkUnavailable: false,
+      })
+    );
+    render(
+      <AgendaSetup
+        group={{ course: makeCourse(), rosters: [{ id: 'p2', name: 'P2' }] }}
+        saveCourse={saveCourse}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /add agenda/i }));
+    fireEvent.change(screen.getByLabelText('Or paste a Google Slides link'), {
+      target: { value: 'docs.google.com/presentation/d/hiddenDeck123/edit' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Use link' }));
+    await waitFor(() => expect(saveCourse).toHaveBeenCalled());
+    expect(openPicker).toHaveBeenCalledWith({
+      mode: 'slides',
+      fileIds: ['hiddenDeck123'],
+    });
+    expect(saveCourse.mock.calls[0][0]).toMatchObject({
+      course: { agenda: { fileId: 'hiddenDeck123', title: 'Hidden deck' } },
+    });
+  });
+
+  it('refuses a link that is not a Slides deck', async () => {
+    fakeDrive({});
+    const saveCourse = vi.fn();
+    render(
+      <AgendaSetup
+        group={{ course: makeCourse(), rosters: [{ id: 'p2', name: 'P2' }] }}
+        saveCourse={saveCourse}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /add agenda/i }));
+    fireEvent.change(screen.getByLabelText('Or paste a Google Slides link'), {
+      target: { value: 'https://docs.google.com/document/d/someDoc12345/edit' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Use link' }));
+    expect(
+      await screen.findByText('Paste a Google Slides link.')
+    ).toBeInTheDocument();
+    expect(saveCourse).not.toHaveBeenCalled();
   });
 });
