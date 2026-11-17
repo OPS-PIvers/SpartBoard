@@ -40,6 +40,7 @@ import { clampQuizTimeLimitMinutes } from '@/utils/quizTimeLimit';
 import { languageNativeLabel } from '@/utils/languageNativeLabel';
 import {
   countUnresolvableStudents,
+  modificationClassGroups,
   modificationRows,
 } from '@/components/common/library/assignStepper/ModificationsView.helpers';
 import { ModificationGroupsStep } from '@/components/common/library/assignStepper/ModificationGroupsStep';
@@ -290,6 +291,11 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
           groups={groups}
           onChange={applyGroups}
           rows={groupRows}
+          classGroups={modificationClassGroups(
+            usable,
+            classes.classIds,
+            groupRows
+          )}
           unresolvableCount={countUnresolvableStudents({
             rosters: usable,
             selectedRosterIds: classes.classIds,

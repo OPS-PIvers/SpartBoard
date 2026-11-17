@@ -6266,6 +6266,54 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-mods.students-clear",
+    "label": "Clear button in the modification group Students menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.students"
+        ],
+        "reveal": "assign-mods.students"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.students-done",
+    "label": "Done button that closes the modification group Students menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.students"
+        ],
+        "reveal": "assign-mods.students"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.class-group",
+    "label": "Class group button in the modification group Students menu",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.students"
+        ],
+        "reveal": "assign-mods.students"
+      }
+    ]
+  },
+  {
     "id": "assign-mods.answer-choices",
     "label": "Answer choices rule for a modification group",
     "scope": "board",
@@ -78702,6 +78750,167 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "roster-editor.group-remove",
     "label": "Remove group button on a roster editor group",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes"
+        ],
+        "opened_by": [
+          "classes.new-class",
+          "classes.new-class-empty"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-editor.accommodations-group",
+    "label": "Group row on the roster editor Accommodations tab",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes"
+        ],
+        "opened_by": [
+          "classes.new-class",
+          "classes.new-class-empty"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-editor.accommodations-add",
+    "label": "Add menu for students and groups on the roster editor Accommodations tab",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes"
+        ],
+        "opened_by": [
+          "classes.new-class",
+          "classes.new-class-empty"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-editor.accommodations-search",
+    "label": "Search box in the Accommodations Add menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-editor.accommodations-add"
+        ],
+        "reveal": "roster-editor.accommodations-add",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-editor.accommodations-pick-group",
+    "label": "Group checkbox in the Accommodations Add menu",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-editor.accommodations-add"
+        ],
+        "reveal": "roster-editor.accommodations-add",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-editor.accommodations-pick-student",
+    "label": "Student checkbox in the Accommodations Add menu",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-editor.accommodations-add"
+        ],
+        "reveal": "roster-editor.accommodations-add",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-editor.accommodations-done",
+    "label": "Done button that closes the Accommodations Add menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-editor.accommodations-add"
+        ],
+        "reveal": "roster-editor.accommodations-add",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-editor.accommodations-remove",
+    "label": "Remove button on a row of the roster editor Accommodations tab",
     "scope": "field",
     "panel": true,
     "destructive": true,

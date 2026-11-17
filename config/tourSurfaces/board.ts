@@ -580,7 +580,15 @@ export const SURFACES: TourSurfaceMap = {
     opensWith: 'classes.edit-roster:classes',
     alsoOpensWith: ['classes.new-class', 'classes.new-class-empty'],
     needs: ['class'],
-    inner: { 'classes.restrictions-filter': 'classes.restrictions-trigger' },
+    inner: {
+      'classes.restrictions-filter': 'classes.restrictions-trigger',
+      'roster-editor.accommodations-search': 'roster-editor.accommodations-add',
+      'roster-editor.accommodations-pick-group':
+        'roster-editor.accommodations-add',
+      'roster-editor.accommodations-pick-student':
+        'roster-editor.accommodations-add',
+      'roster-editor.accommodations-done': 'roster-editor.accommodations-add',
+    },
   },
   'board.roster-groups': {
     label: 'Roster editor Groups tab',

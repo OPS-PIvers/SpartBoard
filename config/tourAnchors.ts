@@ -1521,6 +1521,19 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'assign-mods.students-clear': {
+    label: 'Clear button in the modification group Students menu',
+    panel: true,
+  },
+  'assign-mods.students-done': {
+    label: 'Done button that closes the modification group Students menu',
+    panel: true,
+  },
+  'assign-mods.class-group': {
+    label: 'Class group button in the modification group Students menu',
+    perField: true,
+    panel: true,
+  },
   'assign-mods.answer-choices': {
     label: 'Answer choices rule for a modification group',
     panel: true,
@@ -17944,6 +17957,40 @@ export const TOUR_ANCHORS = {
   },
   'roster-editor.group-remove': {
     label: 'Remove group button on a roster editor group',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'roster-editor.accommodations-group': {
+    label: 'Group row on the roster editor Accommodations tab',
+    perField: true,
+    panel: true,
+  },
+  'roster-editor.accommodations-add': {
+    label:
+      'Add menu for students and groups on the roster editor Accommodations tab',
+    panel: true,
+  },
+  'roster-editor.accommodations-search': {
+    label: 'Search box in the Accommodations Add menu',
+    panel: true,
+  },
+  'roster-editor.accommodations-pick-group': {
+    label: 'Group checkbox in the Accommodations Add menu',
+    perField: true,
+    panel: true,
+  },
+  'roster-editor.accommodations-pick-student': {
+    label: 'Student checkbox in the Accommodations Add menu',
+    perField: true,
+    panel: true,
+  },
+  'roster-editor.accommodations-done': {
+    label: 'Done button that closes the Accommodations Add menu',
+    panel: true,
+  },
+  'roster-editor.accommodations-remove': {
+    label: 'Remove button on a row of the roster editor Accommodations tab',
     perField: true,
     destructive: true,
     panel: true,

@@ -34,6 +34,10 @@ const ROSTERS: ClassRoster[] = [
       person('f', 'J', 'Erickson'),
     ],
     defaultOverridesByStudentId: { c: { timeMultiplier: 1.5 } },
+    groups: [
+      { id: 'mods', name: 'Modified Assessments', studentIds: ['b', 'c', 'f'] },
+      { id: 'table', name: 'Table 2', studentIds: ['a', 'd'] },
+    ],
   },
   {
     id: 'r2',

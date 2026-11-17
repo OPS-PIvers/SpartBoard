@@ -86,8 +86,10 @@ export interface OverrideEditorRowProps {
   extraChips?: string[];
   /** Rendered at the end of the open body. */
   footer?: React.ReactNode;
-  /** 'card' is the assign stepper's row: rounded-xl, slate chips, "No changes". */
-  appearance?: 'default' | 'card';
+  /** 'card' is the assign stepper's row: rounded-xl, slate chips, "No changes". 'row' is a hairline row with a plain-text summary. */
+  appearance?: 'default' | 'card' | 'row';
+  /** Rendered beside the row's header button, e.g. a remove button. */
+  trailing?: React.ReactNode;
 }
 
 /** `labelKey`/`labelDefault` are absent for the bare multiplier units (1.5x, 2x), which read the same in every locale. */
@@ -153,8 +155,10 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
   extraChips = [],
   footer,
   appearance = 'default',
+  trailing,
 }) => {
   const card = appearance === 'card';
+  const row = appearance === 'row';
   const { t } = useTranslation();
   // Read via context so a provider-less host denies instead of throwing.
   const authContext = useContext(AuthContext);
@@ -253,85 +257,122 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
   const writtenQuestions = questions.filter((q) => q.isWritten);
   const mcQuestions = questions.filter((q) => !!q.options);
 
+  const header = row ? (
+    <button
+      type="button"
+      onClick={() => setExpanded(!expanded)}
+      aria-expanded={expanded}
+      {...tourAttr('override-row.toggle')}
+      className="flex min-w-0 flex-1 items-center gap-3 py-2.5 text-left"
+    >
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-semibold text-slate-800">
+          {studentName}
+        </span>
+        <span className="block truncate text-xs text-slate-500">
+          {chips.length > 0
+            ? chips.join(', ')
+            : t('studentOverride.noAccommodations', 'No accommodations')}
+        </span>
+      </span>
+      {expanded ? (
+        <ChevronUp className="h-4 w-4 shrink-0 text-slate-400" />
+      ) : (
+        <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
+      )}
+    </button>
+  ) : null;
+
   return (
     <div
       className={
-        card
-          ? 'rounded-xl border border-slate-200 bg-white'
-          : 'rounded-lg border border-slate-200 bg-white'
+        row
+          ? ''
+          : card
+            ? 'rounded-xl border border-slate-200 bg-white'
+            : 'rounded-lg border border-slate-200 bg-white'
       }
     >
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        aria-expanded={expanded}
-        {...tourAttr('override-row.toggle')}
-        className={
-          card
-            ? 'w-full flex items-center justify-between gap-3 px-3 py-2.5 text-left'
-            : 'w-full flex items-center justify-between gap-2 px-3 py-2 text-left'
-        }
-      >
-        <span className="min-w-0 flex-1">
-          <span
-            className={
-              card
-                ? 'block text-sm font-bold text-slate-800 truncate'
-                : 'block text-sm font-semibold text-slate-900 truncate'
-            }
-          >
-            {studentName}
-          </span>
-          {chips.length > 0 ? (
+      {row ? (
+        <div className="flex items-center gap-1">
+          {header}
+          {trailing}
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          aria-expanded={expanded}
+          {...tourAttr('override-row.toggle')}
+          className={
+            card
+              ? 'w-full flex items-center justify-between gap-3 px-3 py-2.5 text-left'
+              : 'w-full flex items-center justify-between gap-2 px-3 py-2 text-left'
+          }
+        >
+          <span className="min-w-0 flex-1">
             <span
               className={
                 card
-                  ? 'flex flex-wrap gap-1.5 mt-1'
-                  : 'flex flex-wrap gap-1 mt-1'
+                  ? 'block text-sm font-bold text-slate-800 truncate'
+                  : 'block text-sm font-semibold text-slate-900 truncate'
               }
             >
-              {chips.map((chip) => (
-                <span
-                  key={chip}
-                  className={
-                    card
-                      ? 'inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700'
-                      : 'inline-flex items-center rounded-full bg-brand-blue-lighter/30 px-2 py-0.5 text-xs font-semibold text-brand-blue-dark'
-                  }
-                >
-                  {chip}
-                </span>
-              ))}
+              {studentName}
             </span>
-          ) : card ? (
-            <span className="block text-xs text-slate-400 mt-1">
-              {t('studentOverride.noChanges', 'No changes')}
-            </span>
+            {chips.length > 0 ? (
+              <span
+                className={
+                  card
+                    ? 'flex flex-wrap gap-1.5 mt-1'
+                    : 'flex flex-wrap gap-1 mt-1'
+                }
+              >
+                {chips.map((chip) => (
+                  <span
+                    key={chip}
+                    className={
+                      card
+                        ? 'inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700'
+                        : 'inline-flex items-center rounded-full bg-brand-blue-lighter/30 px-2 py-0.5 text-xs font-semibold text-brand-blue-dark'
+                    }
+                  >
+                    {chip}
+                  </span>
+                ))}
+              </span>
+            ) : card ? (
+              <span className="block text-xs text-slate-400 mt-1">
+                {t('studentOverride.noChanges', 'No changes')}
+              </span>
+            ) : (
+              <span className="block text-xs text-slate-500 mt-0.5">
+                {t('studentOverride.noAccommodations', 'No accommodations')}
+              </span>
+            )}
+          </span>
+          {card ? (
+            expanded ? (
+              <ChevronDown className="w-4 h-4 shrink-0 text-slate-400" />
+            ) : (
+              <ChevronRight className="w-4 h-4 shrink-0 text-slate-400" />
+            )
+          ) : expanded ? (
+            <ChevronUp className="w-4 h-4 shrink-0 text-slate-500" />
           ) : (
-            <span className="block text-xs text-slate-500 mt-0.5">
-              {t('studentOverride.noAccommodations', 'No accommodations')}
-            </span>
+            <ChevronDown className="w-4 h-4 shrink-0 text-slate-500" />
           )}
-        </span>
-        {card ? (
-          expanded ? (
-            <ChevronDown className="w-4 h-4 shrink-0 text-slate-400" />
-          ) : (
-            <ChevronRight className="w-4 h-4 shrink-0 text-slate-400" />
-          )
-        ) : expanded ? (
-          <ChevronUp className="w-4 h-4 shrink-0 text-slate-500" />
-        ) : (
-          <ChevronDown className="w-4 h-4 shrink-0 text-slate-500" />
-        )}
-      </button>
+        </button>
+      )}
 
       {expanded && (
         <div
           className={
-            card
-              ? 'px-3 py-3 border-t border-slate-100 flex flex-col gap-3'
-              : 'px-3 pb-3 pt-1 border-t border-slate-100 flex flex-col gap-3'
+            row
+              ? 'pb-3 pt-1 flex flex-col gap-3'
+              : card
+                ? 'px-3 py-3 border-t border-slate-100 flex flex-col gap-3'
+                : 'px-3 pb-3 pt-1 border-t border-slate-100 flex flex-col gap-3'
           }
         >
           {peers.length > 0 && (
