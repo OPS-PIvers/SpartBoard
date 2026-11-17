@@ -457,7 +457,18 @@ const SessionView: React.FC<{
         quiz={makeBankDrawQuizData()}
         responses={makeBankDrawResponses()}
         config={makeQuizConfig()}
-        session={makeQuizSession('ended')}
+        session={{
+          ...makeQuizSession('ended'),
+          bankSlots: [
+            {
+              id: 'slot-1',
+              count: 2,
+              points: 1,
+              poolQuestionIds: ['bank-q2', 'bank-q3', 'bank-q4', 'bank-q5'],
+              position: 1,
+            },
+          ],
+        }}
         onBack={() => undefined}
         onSubmitStudent={noop}
         studentResultsActions={HARNESS_RESULTS_ACTIONS}

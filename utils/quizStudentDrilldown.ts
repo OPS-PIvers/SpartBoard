@@ -101,8 +101,8 @@ export interface StudentDrilldownOptions {
   rubricFor?: (question: QuizQuestion) => Rubric | undefined;
   /** Keep the text of an extra answer that doesn't count. */
   showExtraAnswers?: boolean;
-  /** Questions a modification group served this student; absent serves them all. */
-  servedSubset?: readonly string[];
+  /** Bank session: list served questions in the order they were drawn, as the student saw them. */
+  drawOrder?: boolean;
 }
 
 export interface StudentDrilldown {
@@ -230,12 +230,10 @@ export function computeStudentDrilldown(
   const lines: StudentQuestionLine[] = [];
 
   const drawn = response.servedQuestionIds;
-  const subset = options.servedSubset ? new Set(options.servedSubset) : null;
-  // Same order and numbers as the student's own results: draw order for bank quizzes, quiz order otherwise.
-  const ordered = drawn?.length
-    ? orderServedQuestions(questions, drawn)
-    : subset
-      ? questions.filter((q) => subset.has(q.id))
+  // Numbered 1..n like the student's own results: draw order for bank sessions, quiz order otherwise.
+  const ordered =
+    options.drawOrder && drawn?.length
+      ? orderServedQuestions(questions, drawn)
       : questions;
 
   ordered.forEach((q) => {

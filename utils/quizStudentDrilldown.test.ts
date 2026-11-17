@@ -109,7 +109,9 @@ describe('computeStudentDrilldown', () => {
   it('lists only the questions a bank quiz served, as the student saw them', () => {
     const d = computeStudentDrilldown(
       [q('q1', 'MC', 'a'), q('q2', 'MC', 'b'), q('q3', 'MC', 'c')],
-      response({ q3: 'c' }, { servedQuestionIds: ['q3', 'q1'] })
+      response({ q3: 'c' }, { servedQuestionIds: ['q3', 'q1'] }),
+      undefined,
+      { drawOrder: true }
     );
     expect(d.lines.map((l) => [l.questionId, l.number, l.mark])).toEqual([
       ['q3', 1, 'correct'],
@@ -368,14 +370,12 @@ describe('computeStudentDrilldown numbering', () => {
 
   it('numbers bank draws in the order the student got them', () => {
     const r = response({}, { servedQuestionIds: ['a', 'd', 'c'] });
-    expect(ids(r)).toEqual(['1:a', '2:d', '3:c']);
+    expect(ids(r, { drawOrder: true })).toEqual(['1:a', '2:d', '3:c']);
   });
 
-  it('numbers a modification subset in quiz order, skipping hidden questions', () => {
-    expect(ids(response({}), { servedSubset: ['e', 'b'] })).toEqual([
-      '1:b',
-      '2:e',
-    ]);
+  it('keeps a modification subset in quiz order, whatever order its ids were saved in', () => {
+    const r = response({}, { servedQuestionIds: ['e', 'b'] });
+    expect(ids(r)).toEqual(['1:b', '2:e']);
   });
 
   it('keeps quiz order and numbers for everyone else', () => {

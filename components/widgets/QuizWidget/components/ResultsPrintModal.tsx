@@ -85,8 +85,8 @@ export interface ResultsPrintModalProps {
     response: QuizResponse,
     question: QuizQuestion
   ) => Rubric | undefined;
-  /** Questions a modification group served this student; absent serves them all. */
-  servedSubsetFor?: (response: QuizResponse) => readonly string[] | undefined;
+  /** Bank session: list each student's questions in the order they drew them. */
+  drawOrder?: boolean;
   periodOrder: readonly string[];
   /** The assignment is still taking answers. */
   sessionLive: boolean;
@@ -232,7 +232,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
   targetsFor,
   gradeFn,
   rubricFor,
-  servedSubsetFor,
+  drawOrder = false,
   periodOrder,
   sessionLive,
   sheetsAvailable = false,
@@ -360,7 +360,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
             : undefined,
           recordedChoices: batch?.choiceOrder,
           rubricFor: (q) => rubricFor(r, q),
-          servedSubset: servedSubsetFor?.(r),
+          drawOrder,
         }),
         targets: targetsFor(r),
         lettered: !!batch?.choiceOrder,
@@ -386,7 +386,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
     quiz,
     gradeFn,
     rubricFor,
-    servedSubsetFor,
+    drawOrder,
     targetsFor,
     periodOrder,
   ]);
@@ -412,7 +412,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
                   includeExplanations: true,
                   showExtraAnswers: true,
                   rubricFor: (q) => rubricFor(r, q),
-                  servedSubset: servedSubsetFor?.(r),
+                  drawOrder,
                 }),
                 sheet: undefined,
               },
