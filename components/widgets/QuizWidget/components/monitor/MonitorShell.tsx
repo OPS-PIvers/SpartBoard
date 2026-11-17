@@ -73,6 +73,7 @@ import { PresentSession } from '@/components/widgets/QuizWidget/components/prese
 import { boardRankRows, rankOrdinal } from '@/utils/reviewLaunch';
 import { useMonitorData } from './useMonitorData';
 import type { MonitorRosterTargets, NotJoinedStudent } from './rosterNotJoined';
+import { usePaperCopySeats } from '@/hooks/usePaperCopySeats';
 import { getLocalIsoDate } from '@/utils/localDate';
 import { CurrentQuestionCard } from './CurrentQuestionCard';
 import { useGameClockControls } from './useGameClockControls';
@@ -250,6 +251,18 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
       ),
       authContext?.selectedBuildings ?? []
     );
+  const paperCopiesOn =
+    authContext?.canAccessFeature?.('paper-printed-versions') === true &&
+    authContext.user?.uid === session.teacherUid;
+  const paperSeats = usePaperCopySeats(
+    session.teacherUid,
+    paperCopiesOn ? rosterTargets?.paperCopyBatchIds : null
+  );
+  const paperBatchIds = useMemo(
+    () =>
+      new Set(paperCopiesOn ? (rosterTargets?.paperCopyBatchIds ?? []) : []),
+    [paperCopiesOn, rosterTargets?.paperCopyBatchIds]
+  );
   const data = useMonitorData(
     session,
     responses,
@@ -262,7 +275,9 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     rosterTargets,
     responsesLoaded &&
       (!!reopenPicker ||
-        authContext?.canAccessFeature?.('quiz-monitor-roster') === true)
+        authContext?.canAccessFeature?.('quiz-monitor-roster') === true),
+    paperSeats,
+    responsesLoaded
   );
   const reopenOptions = useMemo(
     () => buildReopenOptions(data.allNames, data.allNotJoined, session),
@@ -1098,6 +1113,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                 notJoined={
                   openBucket === 'notStarted' ? data.notJoined : undefined
                 }
+                paperBatchIds={paperBatchIds}
                 onSetAbsent={
                   !outward.locked && session.status !== 'ended'
                     ? markAbsent

@@ -13,6 +13,7 @@ import {
   studentTargetRefKey,
 } from '@/utils/studentTargetRef';
 import { periodKeyForRoster } from '@/utils/periodPlan';
+import { paperSeatKey } from '@/utils/paperCopySeats';
 
 /** A roster student with no response on this session yet. */
 export interface NotJoinedStudent {
@@ -29,6 +30,8 @@ export interface NotJoinedStudent {
   /** Roster and student ids, for marking absent; null for a targeted student on no roster. */
   rosterId: string | null;
   studentId: string | null;
+  /** Holds a printed group copy that hasn't been scanned yet. */
+  onPaper: boolean;
 }
 
 /** The assignment's targeting, from the teacher's own assignment doc. */
@@ -36,6 +39,8 @@ export interface MonitorRosterTargets {
   targetMode?: 'class' | 'students';
   targetStudents?: StudentTargetRef[];
   excludedTargets?: StudentTargetRef[];
+  /** Stacks printed for modification groups (`paper-printed-versions`). */
+  paperCopyBatchIds?: string[];
 }
 
 const nameKey = (s: string): string =>
@@ -75,6 +80,8 @@ export function buildNotJoined(params: {
   responseName: (r: QuizResponse) => string;
   /** Local date (YYYY-MM-DD); a roster's absent list counts only on its own date. '' ignores absences. */
   today: string;
+  /** `rosterId:studentId` keys of students with a printed group copy. */
+  paperSeats?: ReadonlySet<string>;
 }): NotJoinedStudent[] {
   const {
     session,
@@ -86,6 +93,7 @@ export function buildNotJoined(params: {
     lookupReady,
     responseName,
     today,
+    paperSeats,
   } = params;
   const studentsMode = targets?.targetMode === 'students';
   // Without the assignment's targeting, skipped or untargeted students would show.
@@ -234,5 +242,9 @@ export function buildNotJoined(params: {
       absent: c.absent,
       rosterId: c.rosterId,
       studentId: c.studentId,
+      onPaper:
+        !!c.rosterId &&
+        !!c.studentId &&
+        !!paperSeats?.has(paperSeatKey(c.rosterId, c.studentId)),
     }));
 }

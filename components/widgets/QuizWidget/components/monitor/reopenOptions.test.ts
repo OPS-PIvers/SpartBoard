@@ -20,6 +20,7 @@ const notJoined = (over: Partial<NotJoinedStudent>): NotJoinedStudent => ({
   absent: false,
   rosterId: 'r',
   studentId: 's',
+  onPaper: false,
   ...over,
 });
 
@@ -65,5 +66,17 @@ describe('buildReopenOptions', () => {
       {}
     );
     expect(out.map((o) => o.uid)).toEqual(['u9']);
+  });
+
+  it('lists an unscanned printed-copy student as On paper, not Missing', () => {
+    const out = buildReopenOptions(
+      [],
+      [
+        notJoined({ onPaper: true }),
+        notJoined({ key: 'k2', studentUid: 'n2', onPaper: true, absent: true }),
+      ],
+      {}
+    );
+    expect(out.map((o) => o.status)).toEqual(['on-paper', 'absent']);
   });
 });

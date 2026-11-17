@@ -9,6 +9,7 @@ import {
   Monitor,
   MousePointerClick,
   Unlock,
+  FileScan,
 } from 'lucide-react';
 import { QuizSession, QuizConfig, StudentOverride } from '@/types';
 import {
@@ -59,6 +60,8 @@ interface RosterListProps {
   notJoined?: NotJoinedStudent[];
   /** Marks a student who hasn't joined absent for today, or present again. */
   onSetAbsent?: (student: NotJoinedStudent, absent: boolean) => void;
+  /** Printed group stacks; a response scanned from one shows a Paper badge. */
+  paperBatchIds?: ReadonlySet<string>;
   session: QuizSession;
   config: QuizConfig;
   isGamified: boolean;
@@ -229,6 +232,7 @@ export const RosterList: React.FC<RosterListProps> = ({
   students,
   notJoined = [],
   onSetAbsent,
+  paperBatchIds,
   session,
   config,
   isGamified,
@@ -434,6 +438,18 @@ export const RosterList: React.FC<RosterListProps> = ({
             {r.status !== 'completed' && deadline != null && (
               <TimeLeft deadline={deadline} />
             )}
+            {r.paperBatchId && paperBatchIds?.has(r.paperBatchId) && (
+              <span
+                className="inline-flex items-center text-brand-gray-primary font-sans"
+                style={{
+                  gap: 'min(2px, 0.5cqmin)',
+                  fontSize: 'min(11px, 3.8cqmin)',
+                }}
+              >
+                <FileScan aria-hidden style={iconSize} />
+                Paper
+              </span>
+            )}
             {bucket === 'done' && r.timeUp && (
               <span
                 className="inline-flex items-center text-brand-gray-primary font-sans"
@@ -617,7 +633,7 @@ export const RosterList: React.FC<RosterListProps> = ({
                 className="font-sans text-brand-gray-primary"
                 style={{ fontSize: 'min(11px, 3.8cqmin)' }}
               >
-                Not joined
+                {s.onPaper ? 'On paper' : 'Not joined'}
               </span>
             )}
             {canMark ? (

@@ -89,6 +89,8 @@ export interface MonitorData {
   now: number;
 }
 
+const NO_PAPER_SEATS: ReadonlySet<string> = new Set();
+
 const responseDocKey = (r: QuizResponse): string =>
   r._responseKey ?? r.studentUid;
 
@@ -105,7 +107,11 @@ export function useMonitorData(
   /** The assignment's targeting; null leaves per-student assignments without roster rows. */
   rosterTargets: MonitorRosterTargets | null = null,
   /** Lists roster students who haven't joined: the quiz-monitor-roster flag, once responses have loaded. */
-  showRoster = false
+  showRoster = false,
+  /** Students with an unscanned printed group copy; listed as On paper even without the roster flag. */
+  paperSeats: ReadonlySet<string> = NO_PAPER_SEATS,
+  /** False until responses load; paper rows wait for it like roster rows. */
+  responsesLoaded = true
 ): MonitorData {
   const { orgId } = useAuth();
 
@@ -250,36 +256,40 @@ export function useMonitorData(
     ]
   );
 
-  const allNotJoined = useMemo(
-    () =>
-      showRoster
-        ? buildNotJoined({
-            session,
-            rosters,
-            responses,
-            targets: rosterTargets,
-            byStudentUid,
-            targetRefKeyByStudentUid,
-            lookupReady: !namesLoading && !namesError,
-            // An ended quiz may be from another day, so today's absences don't apply.
-            today: session.status === 'ended' ? '' : getLocalIsoDate(),
-            responseName: (r) =>
-              resolveResponseDisplayName(r, pinToName, byStudentUid),
-          })
-        : [],
-    [
-      showRoster,
-      session,
-      rosters,
-      responses,
-      rosterTargets,
-      byStudentUid,
-      targetRefKeyByStudentUid,
-      namesLoading,
-      namesError,
-      pinToName,
-    ]
-  );
+  const buildRoster = showRoster || (responsesLoaded && paperSeats.size > 0);
+  const allNotJoined = useMemo(() => {
+    const rows = buildRoster
+      ? buildNotJoined({
+          session,
+          rosters,
+          responses,
+          targets: rosterTargets,
+          byStudentUid,
+          targetRefKeyByStudentUid,
+          lookupReady: !namesLoading && !namesError,
+          // An ended quiz may be from another day, so today's absences don't apply.
+          today: session.status === 'ended' ? '' : getLocalIsoDate(),
+          responseName: (r) =>
+            resolveResponseDisplayName(r, pinToName, byStudentUid),
+          paperSeats,
+        })
+      : [];
+    // Without the roster flag only printed-copy students are listed.
+    return showRoster ? rows : rows.filter((s) => s.onPaper);
+  }, [
+    buildRoster,
+    showRoster,
+    paperSeats,
+    session,
+    rosters,
+    responses,
+    rosterTargets,
+    byStudentUid,
+    targetRefKeyByStudentUid,
+    namesLoading,
+    namesError,
+    pinToName,
+  ]);
   const allNames = useMemo(
     () =>
       responses.map((r) => ({

@@ -257,4 +257,25 @@ describe('buildNotJoined', () => {
     });
     expect(out.filter((s) => s.studentUid === 'uid-a')).toHaveLength(1);
   });
+
+  it('marks a student holding a printed copy until their sheet is scanned', () => {
+    const run = (responses: QuizResponse[]) =>
+      buildNotJoined({
+        ...base,
+        responses,
+        paperSeats: new Set(['r1:s2']),
+      }).map((s) => [s.name, s.onPaper]);
+    expect(run([])).toEqual([
+      ['Ana Lee', false],
+      ['Ben Lee', true],
+      ['Cy Lee', false],
+    ]);
+    // A scan writes Ben's response under his uid, so he leaves the list.
+    expect(
+      run([response({ studentUid: 'uid-b', status: 'completed' })])
+    ).toEqual([
+      ['Ana Lee', false],
+      ['Cy Lee', false],
+    ]);
+  });
 });

@@ -2970,6 +2970,9 @@ const TeacherQuizWidget: React.FC<{
           }}
           tabWarningsEnabled={liveSession?.tabWarningsEnabled ?? true}
           session={liveSession}
+          paperCopyBatchIds={
+            printedVersionsOn ? activeAssignment?.paperCopyBatchIds : undefined
+          }
           onDeleteResponse={removeStudent}
           onUnlockResultsForStudent={unlockResultsForStudent}
           onReopenStudent={reopenStudentAttempt}
