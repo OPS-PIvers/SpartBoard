@@ -227,10 +227,13 @@ export function createChromeEnforcer(deps: {
 
   // Set synchronously when the tab is made, so its first navigation already sees it.
   const openedNow = new Set<number>();
+  // Tabs already marked spent, so each tab's marker is written once.
+  const spentNow = new Set<number>();
   // A popup window's tab always may; another opened tab only until it shows a real page or the student loads one.
   const mayShowBlank = async (tabId: number) => {
     const tab = await chrome.tabs.get(tabId).catch(() => undefined);
     if (await isPopupWindow(tab?.windowId)) return true;
+    if (spentNow.has(tabId)) return false;
     const spentKey = `${SPENT_KEY_PREFIX}${tabId}`;
     if ((await chrome.storage.session.get(spentKey))[spentKey]) return false;
     if (openedNow.has(tabId)) return true;
@@ -407,11 +410,14 @@ export function createChromeEnforcer(deps: {
     // Recorded outside a session too, since a tab can load before Lock starts.
     if (
       committed &&
+      !spentNow.has(tabId) &&
       (!isBlank(url) || STUDENT_TRANSITIONS.has(transition ?? ''))
-    )
+    ) {
+      spentNow.add(tabId);
       await chrome.storage.session
         .set({ [`${SPENT_KEY_PREFIX}${tabId}`]: true })
         .catch(() => undefined);
+    }
     const state = await deps.load();
     const now = deps.now();
     if (!isBlocking(state, now)) return false;
@@ -503,6 +509,7 @@ export function createChromeEnforcer(deps: {
     tabClosed: (tabId: number) => {
       noticeOnLoad.delete(tabId);
       openedNow.delete(tabId);
+      spentNow.delete(tabId);
       void chrome.storage.session
         .remove([`${OPENED_KEY_PREFIX}${tabId}`, `${SPENT_KEY_PREFIX}${tabId}`])
         .catch(() => undefined);
