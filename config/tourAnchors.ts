@@ -4527,6 +4527,33 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'quiz-grading.rubric-order': {
+    label: 'Rubric level order switch (highest or lowest first) in the grader',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-view-full': {
+    label: 'View rubric button in the grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-close': {
+    label: 'Close button on the full rubric table',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-criterion-toggle': {
+    label: 'Criterion open / close toggle in the grader, by criterion',
+    perField: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-criterion-score': {
+    label: 'Criterion score box in the grader, by criterion',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
   'quiz-grading.rubric-note': {
     label: 'Criterion note textarea in the Quiz grader, by position',
     perField: true,

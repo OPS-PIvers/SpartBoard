@@ -580,10 +580,9 @@ function writtenAnswer(
             const level = score
               ? c.levels.find((l) => l.id === score.levelId)
               : undefined;
-            const cell =
-              score && level
-                ? `${escapeHtml(level.label)} · ${formatExportPoints(score.points)} pt${score.points === 1 ? '' : 's'}`
-                : '<em>not scored</em>';
+            const cell = score
+              ? `${level ? `${escapeHtml(level.label)} · ` : ''}${formatExportPoints(score.points)} pt${score.points === 1 ? '' : 's'}`
+              : '<em>not scored</em>';
             const note = score?.note?.trim()
               ? `<div class="pts">${escapeHtml(score.note.trim())}</div>`
               : '';

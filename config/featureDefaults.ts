@@ -966,6 +966,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'rubric-grading-v2': {
+    label: 'Rubric grading redesign',
+    icon: Table2,
+    description:
+      'Rubric grading shows one-tap level buttons, criteria that open to show descriptions, a highest or lowest first switch and a full rubric table.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // A modification group prints its own version of a device quiz; needs paper sheets too.
   'paper-printed-versions': {
     label: 'Printed versions for groups',

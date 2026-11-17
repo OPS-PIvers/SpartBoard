@@ -6969,6 +6969,9 @@ export interface RubricLevel {
   description?: string;
 }
 
+/** Teacher's rubric grading order: highest proficiency first (left/top) or lowest first. */
+export type RubricLevelOrder = 'high-first' | 'low-first';
+
 /** A single scoring dimension in a rubric (e.g. "Thesis & Argument"). */
 export interface RubricCriterion {
   id: string;
@@ -11725,6 +11728,8 @@ export type GlobalFeature =
   /** Quiz setting that shows students their score as soon as they submit. */
   | 'quiz-score-on-submit'
   | 'modification-groups'
+  /** Rubric grading redesign: one-tap level buttons, expandable criteria, level order switch, full-rubric table. */
+  | 'rubric-grading-v2'
   /** Quiz assign: a modification group can get a printed version, scanned back into the same results. */
   | 'paper-printed-versions'
   /** Projects: a group submits its project; the teacher sees Submitted, Late or Missing and can reopen. */

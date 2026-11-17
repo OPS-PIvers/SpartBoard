@@ -1,0 +1,176 @@
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent, within } from '@testing-library/react';
+
+import { RubricScoringPanel } from '@/components/widgets/QuizWidget/components/RubricScoringPanel';
+import { AuthContext } from '@/context/AuthContextValue';
+import { mockAuth } from '@/components/student/studentMocks';
+import type { AuthContextType } from '@/context/AuthContextValue';
+import type { Rubric, RubricLevelOrder } from '@/types';
+
+const rubric: Rubric = {
+  id: 'r1',
+  title: 'Essay rubric',
+  createdAt: 0,
+  updatedAt: 0,
+  criteria: [
+    {
+      id: 'c1',
+      name: 'Thesis',
+      description: 'Clarity of the claim',
+      levels: [
+        { id: 'c1l1', label: 'Below', points: 1, description: 'No thesis' },
+        { id: 'c1l2', label: 'Meets', points: 3 },
+        { id: 'c1l3', label: 'Exceeds', points: 4 },
+      ],
+    },
+    {
+      id: 'c2',
+      name: 'Evidence',
+      levels: [
+        { id: 'c2l1', label: 'Below', points: 1 },
+        { id: 'c2l2', label: 'Meets', points: 2 },
+      ],
+    },
+  ],
+};
+
+const renderPanel = (
+  opts: {
+    flag?: boolean;
+    order?: RubricLevelOrder;
+    onChange?: ReturnType<typeof vi.fn>;
+    updateAccountPreferences?: AuthContextType['updateAccountPreferences'];
+  } = {}
+) => {
+  const onChange = opts.onChange ?? vi.fn();
+  const auth: AuthContextType = {
+    ...mockAuth,
+    canAccessFeature: (id) =>
+      id === 'rubric-grading-v2' ? opts.flag !== false : true,
+    rubricLevelOrder: opts.order ?? 'high-first',
+    updateAccountPreferences:
+      opts.updateAccountPreferences ?? vi.fn().mockResolvedValue(undefined),
+  };
+  render(
+    <AuthContext.Provider value={auth}>
+      <RubricScoringPanel rubric={rubric} maxPoints={6} onChange={onChange} />
+    </AuthContext.Provider>
+  );
+  return { onChange };
+};
+
+const levelButtons = (criterionName: string) =>
+  within(
+    screen.getByRole('group', { name: new RegExp(criterionName) })
+  ).getAllByRole('button', { pressed: false });
+
+describe('RubricGradingPanel (rubric-grading-v2)', () => {
+  it('keeps the legacy radio panel when the flag is off', () => {
+    renderPanel({ flag: false });
+    expect(screen.getAllByRole('radio').length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: /View rubric/ })).toBeNull();
+  });
+
+  it('shows collapsed point buttons, highest first by default', () => {
+    renderPanel();
+    expect(levelButtons('Thesis').map((b) => b.textContent)).toEqual([
+      '4',
+      '3',
+      '1',
+    ]);
+  });
+
+  it('shows lowest first when the teacher prefers it', () => {
+    renderPanel({ order: 'low-first' });
+    expect(levelButtons('Thesis').map((b) => b.textContent)).toEqual([
+      '1',
+      '3',
+      '4',
+    ]);
+  });
+
+  it('saves the order switch to the teacher preferences', () => {
+    const updateAccountPreferences = vi.fn().mockResolvedValue(undefined);
+    renderPanel({ updateAccountPreferences });
+    fireEvent.click(screen.getByRole('button', { name: /Level order/ }));
+    expect(updateAccountPreferences).toHaveBeenCalledWith({
+      rubricLevelOrder: 'low-first',
+    });
+  });
+
+  it('selects a level, then deselects it on a second tap', () => {
+    const { onChange } = renderPanel();
+    const meets = screen.getByRole('button', { name: 'Meets, 3 pts' });
+    fireEvent.click(meets);
+    expect(onChange).toHaveBeenLastCalledWith(
+      [{ criterionId: 'c1', levelId: 'c1l2', points: 3 }],
+      3
+    );
+    expect(meets).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(meets);
+    expect(onChange).toHaveBeenLastCalledWith([], 0);
+    expect(meets).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('expands a criterion to show its description and level descriptions', () => {
+    renderPanel();
+    expect(screen.queryByText('Clarity of the claim')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /^Thesis/ }));
+    expect(screen.getByText('Clarity of the claim')).toBeInTheDocument();
+    expect(screen.getByText('No thesis')).toBeInTheDocument();
+    // Open criteria carry over to the next student; close it for later tests.
+    fireEvent.click(screen.getByRole('button', { name: /^Thesis/ }));
+  });
+
+  it('takes a score override in the criterion box and keeps the level', () => {
+    const { onChange } = renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: 'Meets, 3 pts' }));
+    fireEvent.change(screen.getByLabelText('Score for Thesis'), {
+      target: { value: '2.5' },
+    });
+    expect(onChange).toHaveBeenLastCalledWith(
+      [{ criterionId: 'c1', levelId: 'c1l2', points: 2.5 }],
+      2.5
+    );
+  });
+
+  it('picks the matching level when a typed score equals one', () => {
+    const { onChange } = renderPanel();
+    fireEvent.change(screen.getByLabelText('Score for Thesis'), {
+      target: { value: '4' },
+    });
+    expect(onChange).toHaveBeenLastCalledWith(
+      [{ criterionId: 'c1', levelId: 'c1l3', points: 4 }],
+      4
+    );
+  });
+
+  it('scores with no level when the typed score matches none', () => {
+    const { onChange } = renderPanel();
+    fireEvent.change(screen.getByLabelText('Score for Evidence'), {
+      target: { value: '1.5' },
+    });
+    expect(onChange).toHaveBeenLastCalledWith(
+      [{ criterionId: 'c2', levelId: '', points: 1.5 }],
+      1.5
+    );
+  });
+
+  it('ignores a score above the criterion max', () => {
+    const { onChange } = renderPanel();
+    const box = screen.getByLabelText('Score for Evidence');
+    fireEvent.change(box, { target: { value: '9' } });
+    expect(onChange).not.toHaveBeenCalled();
+    expect(box).toHaveAttribute('aria-invalid', 'true');
+  });
+
+  it('opens the full rubric as a table', () => {
+    renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: /View rubric/ }));
+    const table = screen.getByRole('table');
+    expect(within(table).getAllByRole('row')).toHaveLength(2);
+    expect(
+      within(table).getByRole('rowheader', { name: /Thesis/ })
+    ).toBeInTheDocument();
+  });
+});
