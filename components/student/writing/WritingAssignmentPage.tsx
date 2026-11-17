@@ -13,7 +13,7 @@ import { WritingStudentShell } from './WritingStudentShell';
 
 const SESSIONS = 'writing_assignment_sessions';
 
-export const writingSessionIdFromPath = (pathname: string): string =>
+const writingSessionIdFromPath = (pathname: string): string =>
   decodeURIComponent(pathname.replace(/^\/writing\//, '').split('/')[0] ?? '');
 
 type View =
