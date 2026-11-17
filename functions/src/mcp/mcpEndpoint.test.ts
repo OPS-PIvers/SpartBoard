@@ -336,10 +336,10 @@ describe('mcpServer handler — early-exit branches', () => {
     expect(out.statusCode).toBe(401);
   });
 
-  it('refuses a deactivated member whose access token is still valid', async () => {
+  it('refuses a removed member whose access token is still valid', async () => {
     const stub = seedDb();
     const token = await grantToken(stub, 'u-deact', 'g-deact');
-    await stub.db.doc(MEMBER_PATH).update({ status: 'inactive' });
+    await stub.db.doc(MEMBER_PATH).delete();
     const { out, res } = makeRes();
     await handler(
       { method: 'POST', headers: { authorization: `Bearer ${token}` } },
