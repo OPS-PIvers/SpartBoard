@@ -5,6 +5,10 @@ import { MusicWidget } from '@/components/widgets/MusicWidget/Widget';
 import type { WidgetData } from '@/types';
 
 const canAccessFeature = vi.fn<(id: string) => boolean>();
+const connectionsOn = vi.fn(() => false);
+vi.mock('@/hooks/useConnectionsEnabled', () => ({
+  useConnectionsEnabled: () => connectionsOn(),
+}));
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     canAccessFeature,
@@ -70,6 +74,7 @@ const timer = (id: string) =>
 beforeEach(() => {
   vi.clearAllMocks();
   canAccessFeature.mockReturnValue(true);
+  connectionsOn.mockReturnValue(false);
   boardWidgets = [];
   readOnly = false;
   stationUrl = 'https://www.youtube.com/watch?v=jfKfPfyJRdk';
@@ -79,12 +84,24 @@ const button = () =>
   screen.queryByRole('button', { name: 'Add a linked timer' });
 
 describe('Music launch timer button', () => {
-  it('opens a Timer beside the widget that Music Follows', () => {
+  it('opens a Timer beside the widget and links it', () => {
     render(<MusicWidget widget={music()} />);
     fireEvent.click(screen.getByRole('button', { name: 'Add a linked timer' }));
     const [type, overrides] = addWidget.mock.calls[0];
     expect(type).toBe('time-tool');
     expect(overrides).toMatchObject({ x: 330, y: 20 });
+    expect(updateWidget).toHaveBeenCalledWith(
+      'm1',
+      { config: { syncWithTimeTool: true, linkedTimerId: overrides.id } },
+      { skipHistory: true }
+    );
+  });
+
+  it('on the teacher board, makes the new Timer the one Music Follows', () => {
+    connectionsOn.mockReturnValue(true);
+    render(<MusicWidget widget={music()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Add a linked timer' }));
+    const [, overrides] = addWidget.mock.calls[0];
     expect(updateWidget).not.toHaveBeenCalled();
     expect(updateDashboard).toHaveBeenCalledWith({
       connections: [

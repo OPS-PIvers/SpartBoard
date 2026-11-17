@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 import { useTranslation } from 'react-i18next';
 import { Link, Music, Pause, Play, Radio, Timer } from 'lucide-react';
 import { WidgetData, MusicConfig, MusicSource, TimeToolConfig } from '@/types';
@@ -136,12 +137,11 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // Nexus connection: watch Time Tool running state
   const widgets = activeDashboard?.widgets ?? [];
   // A Follow names the Timer; otherwise the old toggle applies unless this widget was migrated.
-  const useLegacy = usesLegacyToggles(true, config);
-  const leaderId = followLeaderId(
-    activeDashboard?.connections,
-    widgets,
-    widget.id
-  );
+  const connectionsOn = useConnectionsEnabled();
+  const useLegacy = usesLegacyToggles(connectionsOn, config);
+  const leaderId = connectionsOn
+    ? followLeaderId(activeDashboard?.connections, widgets, widget.id)
+    : undefined;
   const syncWithTimer = leaderId
     ? true
     : useLegacy && !!config.syncWithTimeTool;
@@ -216,6 +216,7 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   }, [isTimeToolRunning, syncWithTimer, youtubeId, isPlayerReady]);
 
   const showsConnectionTab =
+    connectionsOn &&
     hasConnectionTab(activeDashboard?.connections, widgets, widget.id);
   const canLaunchTimer =
     !!youtubeId &&
@@ -231,17 +232,26 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       x: widget.x + widget.w + 20,
       y: widget.y,
     });
-    updateDashboard({
-      connections: [
-        ...(activeDashboard?.connections ?? []),
-        {
-          id: crypto.randomUUID(),
-          kind: 'follow',
-          leaderId: timerId,
-          followerId: widget.id,
-        },
-      ],
-    });
+    if (connectionsOn) {
+      updateDashboard({
+        connections: [
+          ...(activeDashboard?.connections ?? []),
+          {
+            id: crypto.randomUUID(),
+            kind: 'follow',
+            leaderId: timerId,
+            followerId: widget.id,
+          },
+        ],
+      });
+      return;
+    }
+    // Rides the add's undo entry, so one undo removes the Timer.
+    updateWidget(
+      widget.id,
+      { config: { syncWithTimeTool: true, linkedTimerId: timerId } },
+      { skipHistory: true }
+    );
   };
 
   const togglePlay = () => {

@@ -57,7 +57,6 @@ import {
   Calculator,
   Utensils,
   CloudSun,
-  Workflow,
   SquareChevronDown,
   Split,
   ImagePlus,

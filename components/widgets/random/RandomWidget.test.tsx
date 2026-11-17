@@ -15,6 +15,10 @@ const canAccessFeatureMock = vi.fn<(id: string) => boolean>(() => false);
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({ canAccessFeature: canAccessFeatureMock }),
 }));
+const connectionsOnMock = vi.fn(() => false);
+vi.mock('@/hooks/useConnectionsEnabled', () => ({
+  useConnectionsEnabled: () => connectionsOnMock(),
+}));
 const rosterGroupsRolloutMock = vi.fn(() => ({ enabled: false }));
 vi.mock('@/hooks/useRosterGroupsIntegrationSettings', () => ({
   useRosterGroupsIntegrationSettings: () => rosterGroupsRolloutMock(),
@@ -77,6 +81,7 @@ const mockDashboardContext = {
 describe('RandomWidget', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    connectionsOnMock.mockReturnValue(false);
     (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
       mockDashboardContext
     );
@@ -497,7 +502,7 @@ describe('RandomWidget', () => {
         config: { teams },
       }) as unknown as WidgetData;
     const renderOn = (widgets: WidgetData[], connections: unknown[] = []) => {
-      canAccessFeatureMock.mockReturnValue(false);
+      connectionsOnMock.mockReturnValue(true);
       (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
         ...mockDashboardContext,
         activeDashboard: {

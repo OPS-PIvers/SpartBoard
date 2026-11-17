@@ -6,6 +6,7 @@ import React, {
   useCallback,
   useLayoutEffect,
 } from 'react';
+import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
 import { useBoardTriggerClaim } from '@/hooks/useBoardTriggerClaim';
@@ -185,15 +186,18 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     () => (Array.isArray(config.doneNames) ? config.doneNames : []),
     [config.doneNames]
   );
-  useNamesFromStations(widget, true);
+  const connectionsOn = useConnectionsEnabled();
+  useNamesFromStations(widget, connectionsOn);
   const avoidRecentPartners = config.avoidRecentPartners === true;
   // Read in the deferred pick callback; a migrated widget's auto-start became a Sequence.
-  const useLegacy = usesLegacyToggles(true, widget.config);
+  const useLegacy = usesLegacyToggles(connectionsOn, widget.config);
   const useLegacyRef = useRef(useLegacy);
   useLayoutEffect(() => {
     useLegacyRef.current = useLegacy;
   }, [useLegacy]);
-  const inSequence = liveConnections(
+  const inSequence =
+    connectionsOn &&
+    liveConnections(
       activeDashboard?.connections,
       activeDashboard?.widgets ?? []
     ).some(
@@ -956,9 +960,9 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       return;
     }
 
-    // The Scoreboard it fills or creates follows this Randomizer.
+    // With Connections on, the Scoreboard it fills or creates follows this Randomizer.
     const boardWidgets = activeDashboard?.widgets ?? [];
-    if (boardWidgets.some((w) => w.id === widget.id)) {
+    if (connectionsOn && boardWidgets.some((w) => w.id === widget.id)) {
       connectScoreboard(groups);
       return;
     }

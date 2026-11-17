@@ -1,6 +1,9 @@
 import { useContext } from 'react';
 import { AuthContext } from '@/context/AuthContextValue';
+import { useSubShareHost } from '@/context/SubShareHostContextValue';
 
-// Connections run wherever the teacher app runs; hosts without AuthProvider (tests, harness pages) keep the old toggles.
-export const useConnectionsEnabled = (): boolean =>
-  useContext(AuthContext) !== undefined;
+// Connections run on the teacher's board; the sub portal (no runner), tests and harness pages keep the old toggles.
+export const useConnectionsEnabled = (): boolean => {
+  const sub = useSubShareHost();
+  return useContext(AuthContext) !== undefined && sub === null;
+};
