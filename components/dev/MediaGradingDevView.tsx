@@ -398,7 +398,8 @@ function makeResponses(state: MediaGradingStateKey): QuizResponse[] {
                 0: {
                   q3: {
                     log: devWritingLog(
-                      text.replace(/<[^>]+>/g, ''),
+                      new DOMParser().parseFromString(text, 'text/html').body
+                        .textContent ?? '',
                       key === 'r-kath' ? 120 : undefined
                     ),
                   },

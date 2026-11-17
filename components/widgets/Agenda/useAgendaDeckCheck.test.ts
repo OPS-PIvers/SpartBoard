@@ -4,15 +4,27 @@ import type { Course } from '@/utils/course/contract';
 import { useAgendaDeckCheck } from './useAgendaDeckCheck';
 
 const h = vi.hoisted(() => ({
-  drive: null as object | null,
+  token: null as string | null,
   readDeckState: vi.fn(),
 }));
 
+const refresh = vi.fn();
+
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ user: { email: 'teacher@orono.k12.mn.us' } }),
+  useAuth: () => ({
+    user: { email: 'teacher@orono.k12.mn.us' },
+    googleAccessToken: h.token,
+    refreshGoogleToken: refresh,
+  }),
 }));
-vi.mock('@/hooks/useGoogleDrive', () => ({
-  useGoogleDrive: () => ({ driveService: h.drive }),
+vi.mock('@/components/classes/course/agenda/deckDrive', () => ({
+  DeckDrive: class {
+    token: string;
+    constructor(token: string) {
+      this.token = token;
+    }
+  },
+  readDeckForCheck: h.readDeckState,
 }));
 vi.mock('@/config/firebase', () => ({ isAuthBypass: false }));
 vi.mock('@/utils/viewAsTab', () => ({
@@ -20,7 +32,6 @@ vi.mock('@/utils/viewAsTab', () => ({
 }));
 vi.mock('@/utils/course/deckSharing', () => ({
   emailDomain: (e: string) => e.split('@')[1],
-  readDeckState: h.readDeckState,
 }));
 
 const course = (over: Partial<Course> = {}): Course => ({
@@ -43,7 +54,7 @@ const course = (over: Partial<Course> = {}): Course => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
-  h.drive = {};
+  h.token = 'tok';
   h.readDeckState.mockResolvedValue({ sharing: 'domain', modifiedAt: 42 });
 });
 
@@ -60,10 +71,18 @@ describe('useAgendaDeckCheck', () => {
       })
     );
     expect(h.readDeckState).toHaveBeenCalledWith(
-      h.drive,
+      expect.objectContaining({ token: 'tok' }),
       '1AbCdEfGhIjKlMnOp',
       'orono.k12.mn.us'
     );
+  });
+
+  it('records nothing when the check could not read the deck', async () => {
+    h.readDeckState.mockResolvedValue(null);
+    const save = vi.fn();
+    renderHook(() => useAgendaDeckCheck(course(), save));
+    await waitFor(() => expect(h.readDeckState).toHaveBeenCalled());
+    expect(save).not.toHaveBeenCalled();
   });
 
   it('skips a deck checked moments ago', () => {
@@ -92,9 +111,9 @@ describe('useAgendaDeckCheck', () => {
   });
 
   it('does nothing without Drive or an Agenda', () => {
-    h.drive = null;
+    h.token = null;
     renderHook(() => useAgendaDeckCheck(course(), vi.fn()));
-    h.drive = {};
+    h.token = 'tok';
     renderHook(() => useAgendaDeckCheck(course({ agenda: null }), vi.fn()));
     renderHook(() => useAgendaDeckCheck(null, vi.fn()));
     expect(h.readDeckState).not.toHaveBeenCalled();
