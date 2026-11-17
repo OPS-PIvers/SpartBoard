@@ -10,8 +10,8 @@ import {
 } from './config';
 import { verifyAccessToken, type AccessClaims } from './tokens';
 import {
+  isActiveOrgMemberOrAdmin,
   isConnectorFeatureGranted,
-  isDeactivatedOperatorMember,
 } from './eligibility';
 import { grantRef } from './grants';
 import { BoundedLruMap } from '../utils/boundedLruMap';
@@ -31,7 +31,7 @@ const callCounts = new BoundedLruMap<string, { day: string; count: number }>(
   5000
 );
 
-/** Grant still live, teacher not deactivated and the gate still open; cached per instance so a normal call reads nothing (CC-D16). */
+/** Grant still live, caller still active staff or admin and the gate still open; cached per instance so a normal call reads nothing (CC-D16). */
 export async function isGrantActive(
   db: Firestore,
   claims: AccessClaims,
@@ -44,7 +44,7 @@ export async function isGrantActive(
   const ok =
     grant.exists &&
     grant.get('revokedAt') == null &&
-    !(await isDeactivatedOperatorMember(db, claims.email)) &&
+    (await isActiveOrgMemberOrAdmin(db, claims.email)).ok &&
     (await isConnectorFeatureGranted(db, claims.email, claims.uid));
   statusCache.set(key, { ok, at: now });
   return ok;
