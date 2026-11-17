@@ -131,16 +131,6 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
     0
   );
   const dupes = editing ? duplicatePointCriteria(shown) : new Set<string>();
-  const savedPoints = new Map(
-    rubric.criteria.flatMap((c) => c.levels.map((l) => [l.id, l.points]))
-  );
-  // Grades already given keep their points, so say so when points change in the grader.
-  const pointsChanged =
-    editing &&
-    !editStructure &&
-    shown.criteria.some((c) =>
-      c.levels.some((l) => savedPoints.get(l.id) !== l.points)
-    );
 
   const patchCriterion = (id: string, patch: Partial<RubricCriterion>) =>
     setDraft((d) =>
@@ -389,11 +379,6 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
       ariaLabel={rubric.title}
       footer={
         <div className="flex flex-col items-center gap-2">
-          {pointsChanged && (
-            <p className="text-sm text-slate-600">
-              Scores already given keep their points.
-            </p>
-          )}
           {error && (
             <p className="text-sm font-semibold text-brand-red-dark">{error}</p>
           )}

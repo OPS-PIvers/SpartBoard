@@ -234,6 +234,42 @@ describe('applyRubricEdit', () => {
   });
 });
 
+describe('rescoreRubricGrades', () => {
+  it('moves picked levels to their new points and leaves overrides', async () => {
+    const { rescoreRubricGrades } = await import('@/utils/rubricPoints');
+    const after = {
+      ...rubric,
+      criteria: rubric.criteria.map((c) =>
+        c.id === 'c1'
+          ? {
+              ...c,
+              levels: c.levels.map((l) =>
+                l.id === 'c1l2' ? { ...l, points: 3.5 } : l
+              ),
+            }
+          : c
+      ),
+    };
+    const grade = (points: number) => ({
+      pointsAwarded: points + 2,
+      gradedBy: 't',
+      gradedAt: 1,
+      rubricScores: [
+        { criterionId: 'c1', levelId: 'c1l2', points },
+        { criterionId: 'c2', levelId: 'c2l2', points: 2 },
+      ],
+    });
+    const out = rescoreRubricGrades(rubric, after, {
+      q1: grade(3),
+      q2: grade(2.5),
+    });
+    expect(out).toHaveLength(1);
+    expect(out[0][0]).toBe('q1');
+    expect(out[0][1].pointsAwarded).toBe(5.5);
+    expect(out[0][1].rubricScores?.[0].points).toBe(3.5);
+  });
+});
+
 describe('Full rubric table editing', () => {
   it('edits a level description and saves the rubric', async () => {
     const onSave = vi

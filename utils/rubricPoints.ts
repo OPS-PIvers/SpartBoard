@@ -3,6 +3,7 @@ import type {
   RubricCriterion,
   RubricLevel,
   RubricLevelOrder,
+  WrittenAnswerGrade,
   WrittenAnswerRubricScore,
 } from '@/types';
 
@@ -38,7 +39,7 @@ export const criterionMaxPoints = (criterion: RubricCriterion): number =>
   criterion.levels.reduce((max, l) => Math.max(max, l.points), 0);
 
 // Same rubric and same criteria: a modified copy of one library rubric shares its id but renames criteria.
-const sameRubric = (a: Rubric | undefined, b: Rubric): boolean =>
+export const sameRubric = (a: Rubric | undefined, b: Rubric): boolean =>
   a?.id === b.id &&
   a.criteria.length === b.criteria.length &&
   a.criteria.every((c) => b.criteria.some((d) => d.id === c.id));
@@ -72,6 +73,55 @@ export const applyRubricEdit = <
     return out;
   });
   return { questions: next, changed, libraryIds: [...libraryIds] };
+};
+
+/** Grades whose picked levels changed points; typed overrides (points not equal to the old level) are left alone. */
+export const rescoreRubricGrades = (
+  before: Rubric,
+  after: Rubric,
+  grading: Record<string, WrittenAnswerGrade>
+): Array<[string, WrittenAnswerGrade]> => {
+  const levelPoints = (r: Rubric) =>
+    new Map(
+      r.criteria.flatMap((c) =>
+        c.levels.map((l): [string, number] => [`${c.id}|${l.id}`, l.points])
+      )
+    );
+  const oldPoints = levelPoints(before);
+  const newPoints = levelPoints(after);
+  const out: Array<[string, WrittenAnswerGrade]> = [];
+  for (const [key, grade] of Object.entries(grading)) {
+    if (!grade.rubricScores?.length) continue;
+    let delta = 0;
+    const rubricScores = grade.rubricScores.map((s) => {
+      const id = `${s.criterionId}|${s.levelId}`;
+      const was = oldPoints.get(id);
+      const now = newPoints.get(id);
+      if (
+        was === undefined ||
+        now === undefined ||
+        s.points !== was ||
+        now === was
+      )
+        return s;
+      delta += now - was;
+      return { ...s, points: now };
+    });
+    if (
+      delta === 0 &&
+      rubricScores.every((s, i) => s === grade.rubricScores?.[i])
+    )
+      continue;
+    out.push([
+      key,
+      {
+        ...grade,
+        rubricScores,
+        pointsAwarded: Math.max(0, grade.pointsAwarded + delta),
+      },
+    ]);
+  }
+  return out;
 };
 
 export const RUBRIC_MIN_LEVELS = 2;
