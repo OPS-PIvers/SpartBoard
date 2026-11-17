@@ -1,5 +1,5 @@
 // Quiz assign on the accordion stepper (docs/plans/shipped/ASSIGN_STEPPER.md PR 3).
-import { useGoogleDrive } from '@/hooks/useGoogleDrive';
+import { GoogleDriveService } from '@/utils/googleDriveService';
 import React, { useContext, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ClassRoster, Plc, QuizBehaviorSettings } from '@/types';
@@ -126,7 +126,6 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   const gates = useQuizRuleGates();
   const [modsOpen, setModsOpen] = useState(false);
   const [sharingCount, setSharingCount] = useState(0);
-  const { driveService } = useGoogleDrive();
   const auth = useContext(AuthContext);
   const groupsOn =
     !!modifications && auth?.canAccessFeature?.('modification-groups') === true;
@@ -320,10 +319,14 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
       isOpen
       onClose={() => {
         // Closing without assigning leaves the shared support copies unused.
+        const token = auth?.googleAccessToken;
+        const drive = token
+          ? new GoogleDriveService(token, auth.refreshGoogleToken)
+          : null;
         for (const g of groups)
           for (const sup of g.supports ?? [])
             if (sup.kind === 'drive')
-              void driveService?.deleteFile(sup.fileId).catch(() => undefined);
+              void drive?.deleteFile(sup.fileId).catch(() => undefined);
         onClose();
       }}
       title={title}
