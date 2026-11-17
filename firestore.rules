@@ -4711,14 +4711,14 @@ service cloud.firestore {
           return (to == 'in-progress' && (from != 'completed' || e.get('unlocked', false))) ||
                  (to == 'completed' && from != 'completed' && d.get('completedAttempts', 0) == done + 1 &&
                   nearServerNow(d.get('submittedAt', null)) && d.get('unlocked', false) == false) ||
-                 (to == 'joined' && from == 'completed' && d.get('answers', []).size() == 0 && keyGone(d) &&
+                 (to == 'joined' && from == 'completed' && d.get('answers', []).size() == 0 &&
                   (limit == null || (done < limit && limit > 1)));
         }
         // The published answer key fields, on the response and its per-student override.
         function keyFields() {
           return ['revealedAnswers', 'revealedRubricExamples', 'revealedExplanations'];
         }
-        // A retake starts without the published key (#5811).
+        // A write that touches the key leaves none of it behind (#5811).
         function keyGone(d) {
           return !d.keys().hasAny(keyFields()) && !d.get('resultsOverride', {}).keys().hasAny(keyFields());
         }
@@ -4925,9 +4925,9 @@ service cloud.firestore {
             responseKey.matches('pin-' + keySeg(incoming().get('classPeriod', '')) + '-.*')) &&
            // shorthands: on
            k.hasOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt', 'stimulusPlays', 'stimulusErrors', 'servedQuestionIds', 'recordingNoticeAckedAt', 'tabExits', 'attemptStartedAt', 'timeUp', 'partsDone', 'partHeld', 'revealedAnswers', 'revealedRubricExamples', 'revealedExplanations', 'resultsOverride']) &&
-           // Only a retake (completed -> joined; statusMoveOk checks the key is gone) strips the key, and the override keeps everything else.
+           // Only a retake (completed -> joined) strips the key, re-adds none, and the override keeps everything else.
            (!k.hasAny(['revealedAnswers', 'revealedRubricExamples', 'revealedExplanations', 'resultsOverride']) ||
-            (existing().get('status', '') == 'completed' && incoming().get('status', '') == 'joined' &&
+            (existing().get('status', '') == 'completed' && incoming().get('status', '') == 'joined' && keyGone(incoming()) &&
              (!k.hasAny(['resultsOverride']) ||
               (existing().get('resultsOverride', null) is map && incoming().get('resultsOverride', null) is map &&
                incoming().resultsOverride.diff(existing().resultsOverride).affectedKeys().hasOnly(keyFields()))))) &&

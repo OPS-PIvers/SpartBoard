@@ -1238,8 +1238,9 @@ export function retakeKeyStrip(
     'revealedRubricExamples',
     'revealedExplanations',
   ] as const) {
-    if (r[f] != null) patch[f] = deleteField();
-    if (override?.[f] != null) patch[`resultsOverride.${f}`] = deleteField();
+    if (f in r) patch[f] = deleteField();
+    if (override && f in override)
+      patch[`resultsOverride.${f}`] = deleteField();
   }
   return patch;
 }

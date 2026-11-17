@@ -214,9 +214,36 @@ describe('quiz response retake — the published key stays behind (#5811)', () =
     );
   });
 
-  it('a retake that leaves the key in place is REJECTED', async () => {
+  // AB-249 refuses this once old clients are gone; until then it lands as before.
+  it('a retake that leaves the key in place is still allowed', async () => {
     await seedResponse(keyed);
-    await assertFails(updateDoc(doc(asAnonStudent(), RESPONSE_PATH), retake));
+    await assertSucceeds(
+      updateDoc(doc(asAnonStudent(), RESPONSE_PATH), retake)
+    );
+  });
+
+  it('a retake that writes revealedAnswers onto a doc with none is REJECTED', async () => {
+    await seedResponse({ completedAttempts: 1 });
+    await assertFails(
+      updateDoc(doc(asAnonStudent(), RESPONSE_PATH), {
+        ...retake,
+        revealedAnswers: { q1: 'A' },
+      })
+    );
+  });
+
+  it('a retake that adds a key to the override is REJECTED', async () => {
+    await seedResponse({
+      completedAttempts: 1,
+      resultsOverride: shownOverride,
+    });
+    await assertFails(
+      updateDoc(doc(asAnonStudent(), RESPONSE_PATH), {
+        ...retake,
+        'resultsOverride.revealedAnswers': deleteField(),
+        'resultsOverride.revealedExplanations': { q1: 'Because' },
+      })
+    );
   });
 
   it('a retake that keeps revealedAnswers is REJECTED', async () => {
