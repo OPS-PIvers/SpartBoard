@@ -156,10 +156,16 @@ describe('deriveWritingView', () => {
     ).toBe(false);
     expect(
       derive({
-        response: response({ status: 'turned-in' }),
+        response: response({ status: 'turned-in', deadlineAt: NOW + 60_000 }),
         session: { timeLimitMinutes: 30 },
       }).showTakeBack
     ).toBe(false);
+    expect(
+      derive({
+        response: response({ status: 'turned-in' }),
+        session: { timeLimitMinutes: 30 },
+      }).showTakeBack
+    ).toBe(true);
     expect(
       derive({
         response: response({ status: 'turned-in' }),

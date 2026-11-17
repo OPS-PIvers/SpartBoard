@@ -130,7 +130,7 @@ export function deriveWritingView(args: {
       now,
       dueAt: resolveWritingDueAt(session, response.classId, pointer?.dueAt),
       hasFeedback: false,
-      timed: isNum(session.timeLimitMinutes) && session.timeLimitMinutes > 0,
+      timed: isNum(response.deadlineAt),
     });
     return { ...base, mode: 'turned-in', status, showTakeBack: block === null };
   }
