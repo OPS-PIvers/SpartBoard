@@ -253,6 +253,7 @@ export function assembleRow(input: AssembleInput): IndexRow {
     assigned: input.assigned,
     ...(score.gradedBy ? { gradedBy: score.gradedBy } : {}),
     ...(score.excused ? { excused: true as const } : {}),
+    ...(score.onPaper ? { onPaper: true as const } : {}),
     schemaVersion: GRADE_INDEX_SCHEMA_VERSION,
     updatedAt: input.now,
   };
@@ -426,6 +427,8 @@ export interface QuizContext {
   questions: GroupQuestion[];
   fibAnswersByStudent: (studentUid: string) => Record<string, string[]>;
   overrideQuestionIds: (studentUid: string) => string[];
+  /** Stacks printed for modification groups (`paper-printed-versions`). */
+  paperCopyBatchIds?: ReadonlySet<string>;
 }
 
 /** Quiz: stored `score` (publish or score-on-submit) when present, else computed live against the key. */
@@ -462,9 +465,13 @@ export function scoreQuizResponse(
       asString(response.paperBatchId) !== '' ||
       asString(response.paperWrittenBatchId) !== '',
   });
+  const paperBatchId = asString(response.paperBatchId);
   const base = {
     classId: parsed.classId ?? null,
     published: isPublished(session, response),
+    ...(paperBatchId && ctx.paperCopyBatchIds?.has(paperBatchId)
+      ? { onPaper: true as const }
+      : {}),
     targetEvidence: completed ? q.evidence : [],
   };
   if (!completed) {

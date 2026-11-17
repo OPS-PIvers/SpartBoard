@@ -129,6 +129,15 @@ describe('overridesFromGroups', () => {
     expect(out.a.modifiedQuestions).toBe(true);
   });
 
+  it('marks a printed group’s students as on paper', () => {
+    const out = overridesFromGroups(
+      [group({ studentKeys: ['a'], printed: true })],
+      rows,
+      QUESTIONS
+    );
+    expect(out.a.onPaper).toBe(true);
+  });
+
   it('ignores students no longer in the checked classes', () => {
     expect(
       overridesFromGroups(

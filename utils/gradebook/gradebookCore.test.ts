@@ -261,6 +261,12 @@ describe('auto Late and Missing around the class-close cushion', () => {
     ]);
   });
 
+  it('never flags a printed-copy scan Late or Missing', () => {
+    const late = due + BELL_CLOSE_CUSHION_MS + 60_000;
+    expect(flags({ ...rowAt(late), onPaper: true }, late)).toEqual([]);
+    expect(flags({ ...rowAt(null), onPaper: true }, late)).toEqual([]);
+  });
+
   it('shows an excused Writing piece as Excused, out of the average', () => {
     const row = {
       ...rowAt(due),

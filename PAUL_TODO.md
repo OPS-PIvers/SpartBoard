@@ -136,7 +136,6 @@ Test on your real prod account, then set the row to Public (Previews, or Widgets
 
 Each prompt starts a grilling; the agent writes your answers into the plan and moves approved work into AGENT_BACKLOG.md.
 
-- [ ] **PT-237 Should students on a printed copy stop showing Missing after the due date?** Since #6070 quiz Results show them, but the Gradebook's automatic Missing and the student's My Assignments still mark a printed-copy student Missing until their paper is scanned. Fixing it is a server change. Answer the open decision card, or tell an agent yes or no (AB-264).
 - [ ] **PT-235 🤖 Modified questions with their own answer key (quiz modifications part 3c).** On hold by your choice (2026-11-17) until you've tried modified wording and rubrics with a class (PT-228). The design is five flagged PRs, and every score path changes: student serving, all graders and score-on-submit, results and item analysis, the editor, then paper sheets. Say go when you want it.
   > Start quiz modifications part 3c from /mnt/project-files/assign-modifications/PART3-PLAN.md ("3c design"), one flagged PR per piece behind modification-groups.
 - [ ] **PT-230 Should PIN joiners stop seeing right/wrong and the answer key during a video activity?** In self-paced sessions with "show result" and "reveal answer" on, students who join by PIN still see both (security finding). Fixing it changes what they see. Put the fix behind a preview flag, or ship it for everyone? Tell an agent your choice (AB-254).

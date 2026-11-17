@@ -111,6 +111,7 @@ export function overrideForGroup(
   if (group.language) next.language = group.language;
   if (group.supports?.length) next.supports = group.supports;
   if (group.modifiedQuestions) next.modifiedQuestions = true;
+  if (group.printed) next.onPaper = true;
   return next;
 }
 

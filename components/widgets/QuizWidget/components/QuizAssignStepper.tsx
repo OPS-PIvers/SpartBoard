@@ -196,7 +196,9 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
     modifications.onTargetingChange({
       ...modifications.targeting,
       overridesByKey: overridesFromGroups(
-        next,
+        printedVersionsAvailable
+          ? next
+          : next.map((g) => ({ ...g, printed: false })),
         allRows,
         modifications.quizContext.questions
       ),

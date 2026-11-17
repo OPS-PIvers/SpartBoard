@@ -109,6 +109,8 @@ export interface GradeIndexRow {
   gradedBy?: 'server' | 'app';
   /** Writing: the teacher excused this piece, shown as the Excused flag. */
   excused?: true;
+  /** Quiz: scanned from a printed group copy, so never auto Late or Missing. */
+  onPaper?: true;
   updatedAt: number;
 }
 
@@ -401,7 +403,7 @@ export function activeFlags(
     out.push({ id: 'excused', auto: true });
     seen.add('excused');
   }
-  if (!autoFlagsOn || !row || !row.assigned) return out;
+  if (!autoFlagsOn || !row || !row.assigned || row.onPaper) return out;
   const suppressed = new Set(mark?.suppressedAuto ?? []);
   const addAuto = (id: BuiltInFlagId): void => {
     if (on.has(id) && !seen.has(id) && !suppressed.has(id)) {
