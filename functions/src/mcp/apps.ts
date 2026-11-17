@@ -1,8 +1,8 @@
-// MCP Apps preview cards: the ui:// page, the per-teacher flag and the data each card draws.
+// MCP Apps preview cards: the ui:// page and the data each card draws.
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import type { ToolContext } from './activity';
-import { APPS_FEATURE_ID, publicOrigin } from './config';
+import { publicOrigin } from './config';
 import {
   questionNeedsKey,
   toFriendlyQuestion,
@@ -75,22 +75,6 @@ export const previewMeta: Record<string, unknown> = {
 const PREVIEW_NOTE =
   'The teacher sees this as a preview card in the chat, so do not repeat its questions or criteria. Messages that start with "From the preview card" come from that card.';
 
-const flagCache = new WeakMap<ToolContext, Promise<boolean>>();
-
-/** Whether this teacher gets preview cards; read once per request. */
-export function appsOn(ctx: ToolContext): Promise<boolean> {
-  let pending = flagCache.get(ctx);
-  if (!pending) {
-    pending = import('../quizMediaArchive')
-      .then(({ isGlobalFeatureGranted }) =>
-        isGlobalFeatureGranted(ctx.db, APPS_FEATURE_ID, ctx.email, ctx.uid)
-      )
-      .catch(() => false);
-    flagCache.set(ctx, pending);
-  }
-  return pending;
-}
-
 export function registerAppResources(server: McpServer): void {
   server.registerResource(
     'SpartBoard preview',
@@ -123,7 +107,7 @@ export function registerAppResources(server: McpServer): void {
   );
 }
 
-/** run() plus the card data, attached only when this teacher has previews on. */
+/** run() plus the card data the preview card draws. */
 export async function runWithPreview(
   name: string,
   ctx: ToolContext,
@@ -134,8 +118,7 @@ export async function runWithPreview(
 ): Promise<CallToolResult> {
   let view: Record<string, unknown> | null = null;
   const out = await run(name, ctx, async () => {
-    const [made, on] = await Promise.all([body(), appsOn(ctx)]);
-    if (!on) return made.result;
+    const made = await body();
     view = made.view;
     return { ...made.result, preview_shown: PREVIEW_NOTE };
   });

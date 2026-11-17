@@ -2,7 +2,7 @@
 
 let pickersEnabled = false;
 
-/** Off by default so the browser's own pickers show; the teacher app switches it on behind the app-pickers flag. */
+/** Off by default so the browser's own pickers show; the teacher app switches it on for everyone but students. */
 export const setAppPickersEnabled = (on: boolean) => {
   pickersEnabled = on;
 };
