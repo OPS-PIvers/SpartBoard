@@ -26334,19 +26334,11 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "row_list": "classes",
     "routes": [
       {
-        "surface": "board.roster-editor",
-        "kind": "modal",
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
         "path": [
           "sidebar.open-menu",
-          "sidebar.classes",
-          "classes.edit-roster:classes"
-        ],
-        "opened_by": [
-          "classes.new-class",
-          "classes.new-class-empty"
-        ],
-        "needs": [
-          "class"
+          "sidebar.classes"
         ]
       }
     ]
@@ -26683,6 +26675,141 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         ],
         "needs": [
           "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.course-edit",
+    "label": "Edit Course button on a linked Course in My Classes",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "row_list": "classes",
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.link-classes",
+    "label": "Link classes button in My Classes",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.course-suggestion-link",
+    "label": "Link button on a suggested Course in My Classes",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.course-suggestion-dismiss",
+    "label": "Not now button on a suggested Course in My Classes",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.course-name",
+    "label": "Course name field when linking classes in My Classes",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.course-class",
+    "label": "Class checkbox when linking classes in My Classes",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.course-save",
+    "label": "Link or Save button when linking classes in My Classes",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.course-cancel",
+    "label": "Cancel button when linking classes in My Classes",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
         ]
       }
     ]

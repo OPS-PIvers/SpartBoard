@@ -6513,6 +6513,49 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'classes.course-edit': {
+    label: 'Edit Course button on a linked Course in My Classes',
+    perField: true,
+    panel: true,
+    rows: true,
+    rowList: 'classes',
+  },
+  'classes.link-classes': {
+    label: 'Link classes button in My Classes',
+    panel: true,
+  },
+  'classes.course-suggestion-link': {
+    label: 'Link button on a suggested Course in My Classes',
+    persists: true,
+    perField: true,
+    panel: true,
+    rows: true,
+  },
+  'classes.course-suggestion-dismiss': {
+    label: 'Not now button on a suggested Course in My Classes',
+    perField: true,
+    panel: true,
+    rows: true,
+  },
+  'classes.course-name': {
+    label: 'Course name field when linking classes in My Classes',
+    panel: true,
+  },
+  'classes.course-class': {
+    label: 'Class checkbox when linking classes in My Classes',
+    perField: true,
+    panel: true,
+    rows: true,
+  },
+  'classes.course-save': {
+    label: 'Link or Save button when linking classes in My Classes',
+    persists: true,
+    panel: true,
+  },
+  'classes.course-cancel': {
+    label: 'Cancel button when linking classes in My Classes',
+    panel: true,
+  },
   'classes.family-link-toggle': {
     label: 'Family link switch for a Course in My Classes',
     persists: true,
