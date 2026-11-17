@@ -6269,7 +6269,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "assign-mods.class-group",
     "label": "Class group button in the modification group Students menu",
     "scope": "field",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.students"
+        ],
+        "reveal": "assign-mods.students"
+      }
+    ]
   },
   {
     "id": "assign-mods.answer-choices",
@@ -78718,7 +78728,25 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "roster-editor.accommodations-group",
     "label": "Group menu on the roster editor Accommodations tab",
     "scope": "board",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes"
+        ],
+        "opened_by": [
+          "classes.new-class",
+          "classes.new-class-empty"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
   },
   {
     "id": "roster-editor.accommodations-add-student",
