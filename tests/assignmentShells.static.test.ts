@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { execFileSync } from 'child_process';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { resolve, dirname, basename } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -10,7 +10,7 @@ const Q = 'components/widgets/QuizWidget/components';
 
 const FIX = [
   'Assignment widgets (Quiz, Writing, Video Activity, Flashcards, Mini Apps, Guided Learning and any new one) reuse the Quiz shells for the monitor, Live view, results and grader. Never build one from scratch: when the shared piece lacks something, extend it (a prop, a slot, a label) and keep Quiz working.',
-  `Shared pieces: ${Q}/monitor/ (ClassPicker and PeriodBar, PeriodAccessStrip, StatusBuckets, RosterList, RosterParts, QuestionResults, LiveViewPanel, LiveLogList), ${Q}/results/ (ResultsHome, StudentAnswerLine, StudentResultsControl, StudentResultsBulkBar, ShowResultsDialog, SegmentedToggle), ${Q}/FreeResponseGrader, ${Q}/RubricScoringPanel and ${Q}/ResultsPrintModal. Flashcards (components/widgets/Flashcards/results/) is the worked example.`,
+  `Shared pieces: ${Q}/monitor/ (ClassPicker and PeriodBar, PeriodAccessStrip, StatusBuckets, RosterList, RosterParts, QuestionResults, LiveViewPanel, LiveLogList), ${Q}/results/ (ResultsHome, StudentAnswerLine, StudentResultsControl, StudentResultsBulkBar, ShowResultsDialog, SegmentedToggle), ${Q}/FreeResponseGrader, ${Q}/RubricScoringPanel and ${Q}/ResultsPrintModal. Flashcards' FlashcardMonitor.tsx and FlashcardCheckRoster.tsx are the worked example.`,
   "Read .claude/rules/assignment-shells.md. The allowlists below only shrink: an entry needs Paul's OK named in the PR.",
 ].join('\n');
 
@@ -38,6 +38,7 @@ const ASSIGNMENT_WIDGETS: Record<string, { dir: string; prefixes: string[] }> =
 const PIECES = {
   ClassPicker: `${Q}/monitor/PeriodBar`,
   StatusBuckets: `${Q}/monitor/StatusBuckets`,
+  QuestionResults: `${Q}/monitor/QuestionResults`,
   Roster: `${Q}/monitor/RosterList or ${Q}/monitor/RosterParts`,
   ResultsHome: `${Q}/results/ResultsHome`,
   StudentResultsControl: `${Q}/results/StudentResultsControl`,
@@ -49,6 +50,7 @@ const PIECE_IMPORT: Record<Piece, RegExp> = {
   ClassPicker: /'[^']*QuizWidget\/components\/monitor\/PeriodBar'/,
   StatusBuckets: /'[^']*QuizWidget\/components\/monitor\/StatusBuckets'/,
   Roster: /'[^']*QuizWidget\/components\/monitor\/Roster(?:List|Parts)'/,
+  QuestionResults: /'[^']*QuizWidget\/components\/monitor\/QuestionResults'/,
   ResultsHome: /'[^']*QuizWidget\/components\/results\/ResultsHome'/,
   StudentResultsControl:
     /'[^']*QuizWidget\/components\/results\/StudentResultsControl'/,
@@ -57,7 +59,10 @@ const PIECE_IMPORT: Record<Piece, RegExp> = {
 };
 // Once a widget has a file for a surface (by name), it must import that surface's shared pieces.
 const SURFACES: { files: RegExp; pieces: Piece[]; writtenOnly?: Piece[] }[] = [
-  { files: /Monitor/, pieces: ['ClassPicker', 'StatusBuckets', 'Roster'] },
+  {
+    files: /Monitor|Roster|Submission/,
+    pieces: ['ClassPicker', 'StatusBuckets', 'Roster', 'QuestionResults'],
+  },
   {
     files: /Results|Grad(?:er|ing)|Marking/,
     pieces: ['ResultsHome', 'StudentResultsControl'],
@@ -71,11 +76,21 @@ const WRITTEN_ANSWERS = new Set(['video-activity', 'writing']);
 // Shared pieces a widget doesn't use yet. Only shrinks: delete the entry in the PR that adopts the piece.
 const NOT_YET_ADOPTED: Record<string, Piece[]> = {
   // AB-249
-  'video-activity': ['FreeResponseGrader', 'ResultsHome', 'Roster'],
+  'video-activity': [
+    'FreeResponseGrader',
+    'QuestionResults',
+    'ResultsHome',
+    'Roster',
+  ],
   // AB-250
-  'guided-learning': ['ResultsHome', 'Roster'],
+  'guided-learning': ['QuestionResults', 'ResultsHome', 'Roster'],
   // AB-251
-  'mini-app': ['ResultsHome', 'Roster', 'StudentResultsControl'],
+  'mini-app': [
+    'QuestionResults',
+    'ResultsHome',
+    'Roster',
+    'StudentResultsControl',
+  ],
 };
 
 // Local components that copy a shared piece, and the piece to use instead.
@@ -116,7 +131,7 @@ const CLONES: { name: RegExp; use: string }[] = [
 
 // Old sessionViews pieces the Quiz layout replaced; ScorePill, SessionBadge, LaunchedBySubTag and OverflowMenu are still shared.
 const LEGACY_IMPORT =
-  /import\s+(?:type\s+)?\{([^}]*)\}\s+from\s+'@\/components\/common\/sessionViews(?:\/\w+)?'/g;
+  /import\s+(?:type\s+)?\{([^}]*)\}\s+from\s+'(?:@\/|(?:\.\.?\/)+)[\w/]*sessionViews(?:\/\w+)?'/g;
 const LEGACY_NAMES =
   /\b(SessionRow|SessionViewHeader|StatTile|SegmentedTabs|ActionButton|PeriodAccessControls)\b/g;
 
@@ -181,11 +196,18 @@ const componentFiles = (): string[] =>
       (f) =>
         /\.tsx?$/.test(f) &&
         !f.includes('.test.') &&
-        !f.startsWith('components/dev/')
+        !f.includes('.dev.') &&
+        !f.startsWith('components/dev/') &&
+        existsSync(resolve(repoRoot, f))
     );
+
+// Student-side apps, whose files share the prefixes but are not teacher views.
+const STUDENT_DIRS =
+  /^components\/(?:student|quiz|flashcards|miniApp|guidedLearning|videoActivity)\//;
 
 const kindOf = (file: string): string | null => {
   const name = basename(file);
+  if (STUDENT_DIRS.test(file)) return null;
   for (const [kind, { dir, prefixes }] of Object.entries(ASSIGNMENT_WIDGETS)) {
     if (file.startsWith(dir + '/')) return kind;
     if (prefixes.some((p) => new RegExp(`^${p}[A-Z]`).test(name))) return kind;
@@ -194,12 +216,12 @@ const kindOf = (file: string): string | null => {
 };
 
 const COMPONENT_DEF =
-  /(?:^|\n)\s*(?:export\s+)?(?:const\s+([A-Z]\w*)\s*(?::\s*React\.FC\b|=\s*(?:React\.)?(?:memo|forwardRef)\b|=\s*(?:async\s*)?\([^)]*\)\s*(?::[^=]*)?=>)|function\s+([A-Z]\w*)\s*[(<])/g;
+  /(?:^|\n)\s*(?:export\s+(?:default\s+)?)?(?:const|let|function|class)\s+([A-Z]\w*)/g;
 
-export const findCopies = (text: string): { name: string; use: string }[] => {
+const findCopies = (text: string): { name: string; use: string }[] => {
   const found: { name: string; use: string }[] = [];
   for (const m of text.matchAll(COMPONENT_DEF)) {
-    const name = m[1] ?? m[2];
+    const name = m[1];
     const clone = CLONES.find((c) => c.name.test(name));
     if (clone) found.push({ name, use: clone.use });
   }
@@ -306,14 +328,22 @@ const Grader = React.memo(() => null);
 const Fine: React.FC = () => null;
 const ROW_STYLE = { a: 1 };
 import { SessionRow, ScorePill } from '@/components/common/sessionViews';
-import { StatTile } from '@/components/common/sessionViews/StatTile';`)
+import { StatTile } from '@/components/common/sessionViews/StatTile';
+export default function WritingGrader() { return null; }
+const WritingStudentRosterRow: FC<P> = () => null;
+const WritingDrillRow = <R,>(props: R) => null;
+import { SegmentedTabs } from '../../common/sessionViews';`)
     ).toEqual([
       'DrillRow',
       'Grader',
+      'SegmentedTabs',
       'SessionRow',
       'StatTile',
+      'WritingDrillRow',
+      'WritingGrader',
       'WritingLiveViewPanel',
       'WritingRosterList',
+      'WritingStudentRosterRow',
     ]);
   });
 });

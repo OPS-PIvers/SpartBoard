@@ -478,7 +478,7 @@ tests before (or with) the component.
 
 ### Assignment widgets reuse the Quiz shells
 
-A widget students turn work in on (Quiz, Writing, Video Activity, Flashcards,
+This applies to every assignment widget, lifecycle or not. A widget students turn work in on (Quiz, Writing, Video Activity, Flashcards,
 Mini Apps, Guided Learning, any new `AssignmentKind`) never builds its own
 monitor, Live view, results page or grader. Compose them from the Quiz pieces
 in `components/widgets/QuizWidget/components/`: `monitor/PeriodBar`
@@ -486,8 +486,8 @@ in `components/widgets/QuizWidget/components/`: `monitor/PeriodBar`
 `monitor/RosterParts`, `monitor/QuestionResults`, `monitor/LiveViewPanel`,
 `results/ResultsHome`, `results/StudentAnswerLine`,
 `results/StudentResultsControl`, `FreeResponseGrader`, `RubricScoringPanel` and
-`ResultsPrintModal`. Flashcards (`components/widgets/Flashcards/results/`) is
-the worked example. When a piece can't do what the widget needs, add a prop or
+`ResultsPrintModal`. Flashcards' `results/FlashcardMonitor.tsx` and
+`results/FlashcardCheckRoster.tsx` are the worked example. When a piece can't do what the widget needs, add a prop or
 slot to it and keep Quiz working. The full table is in
 `.claude/rules/assignment-shells.md`; `tests/assignmentShells.static.test.ts`
 fails CI on a local copy and names the shared component to use.

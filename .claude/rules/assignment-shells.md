@@ -28,12 +28,12 @@ Paul's rule: every assignment widget (Quiz, Writing, Video Activity, Flashcards,
 | Grader              | `FreeResponseGrader`, `RubricScoringPanel`                                                               | `FreeResponseGrader`, `RubricScoringPanel`                                                  |
 | Print               | `ResultsPrintModal`                                                                                      | `ResultsPrintModal`                                                                         |
 
-Flashcards (`components/widgets/Flashcards/results/`) is the worked example of a non-quiz widget on these pieces. `ScorePill`, `SessionBadge`, `LaunchedBySubTag` and `OverflowMenu` from `components/common/sessionViews` are still shared; its `SessionRow`, `SessionViewHeader`, `StatTile`, `SegmentedTabs`, `ActionButton` and `PeriodAccessControls` are the old layout and are not used in new work.
+Flashcards' `results/FlashcardMonitor.tsx` and `results/FlashcardCheckRoster.tsx` are the worked example of a non-quiz widget on these pieces (its other results files still have AB-252 to do). `ScorePill`, `SessionBadge`, `LaunchedBySubTag` and `OverflowMenu` from `components/common/sessionViews` are still shared; its `SessionRow`, `SessionViewHeader`, `StatTile`, `SegmentedTabs`, `ActionButton` and `PeriodAccessControls` are the old layout and are not used in new work.
 
 **The guard:** `tests/assignmentShells.static.test.ts` fails CI when:
 
 - an assignment widget's file defines its own copy of a shared piece (a component named like `*RosterList`, `*LiveViewPanel`, `DrillRow`, `*Grader`, `*AnswerLine`, `StatusBuckets`, `ClassPicker` …) or imports an old-layout `sessionViews` piece. The error names the shared component to use.
-- a widget has a monitor, results, grader or Live view file (by name) but doesn't import that surface's shared pieces.
+- a widget has a monitor, roster or submissions file, a results, grader or marking file, or a Live view file (by name) but doesn't import that surface's shared pieces.
 - a new `AssignmentKind` appears without an entry in the guard.
 
 `KNOWN_COPIES` and `NOT_YET_ADOPTED` list today's bypasses, each tied to an `AGENT_BACKLOG.md` item. They only shrink: delete an entry in the PR that moves the file onto the shared piece. Adding one needs Paul's OK, named in the PR.
