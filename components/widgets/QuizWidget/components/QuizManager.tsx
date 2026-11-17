@@ -1959,7 +1959,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         });
       }
       if (a.paperCopyBatchIds?.length || a.paperCopyGroups?.length) {
-        if (onImportPaperResponses)
+        if (onImportPaperResponses && a.paperCopyBatchIds?.length)
           secondaries.push(importCopiesAction(a, onImportPaperResponses));
         if (onReprintPaperSheets)
           secondaries.push(reprintCopiesAction(a, onReprintPaperSheets));
@@ -2095,7 +2095,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       });
     }
     if (a.paperCopyBatchIds?.length || a.paperCopyGroups?.length) {
-      if (onImportPaperResponses)
+      if (onImportPaperResponses && a.paperCopyBatchIds?.length)
         secondaries.push(importCopiesAction(a, onImportPaperResponses));
       if (onReprintPaperSheets)
         secondaries.push(reprintCopiesAction(a, onReprintPaperSheets));

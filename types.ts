@@ -6677,12 +6677,13 @@ export interface PaperPrintedGroupRecord {
   answerChoices: 'all' | 'drop-one' | 'two';
   modifiedQuestions?: boolean;
   supports?: QuizSupport[];
+  /** The group's language, so a reprint prints the same translation. */
+  language?: string;
 }
 
 /** A printed group planned at assign, kept so a version closed before printing can still print. */
 export interface PaperCopyGroupPlan extends PaperPrintedGroupRecord {
   students: { rosterId: string; studentId: string }[];
-  language?: string;
 }
 
 export interface PaperBatch {

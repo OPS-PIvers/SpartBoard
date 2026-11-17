@@ -245,6 +245,8 @@ import {
   printedGroupRecord,
   printedReprintGroups,
   printedCopyPlan,
+  printedStackOrder,
+  recordPick,
   unprintedCopyPicks,
   type PrintedTranslation,
 } from '@/utils/paperPrintedVersions';
@@ -1059,6 +1061,8 @@ const TeacherQuizWidget: React.FC<{
       quiz: QuizData;
       translation?: PrintedTranslation;
     }[];
+    /** Already printed groups, offered for reprint once the queue is done. */
+    then?: PaperReprintGroup[];
   } | null>(null);
   useEffect(() => {
     if (!paperUid) return;
@@ -1071,21 +1075,41 @@ const TeacherQuizWidget: React.FC<{
     batch: PaperBatch;
     writtenOnly: boolean;
   } | null>(null);
+  const translationLoader = () =>
+    isAuthBypass
+      ? new MockQuizDriveService(user?.uid ?? '')
+      : googleAccessToken
+        ? new QuizDriveService(googleAccessToken)
+        : null;
+  // Printed stacks in group order, each with its group's language for the sheets.
+  const reprintGroupsFor = async (
+    quiz: QuizData,
+    copies: PaperBatch[],
+    index: QuizMetadata['translations']
+  ) => {
+    const ordered = printedStackOrder(copies);
+    const translations = await printedGroupTranslations(
+      quiz,
+      ordered.map((b, i) =>
+        recordPick(b.printedGroup ?? { number: i + 1, answerChoices: 'all' })
+      ),
+      index,
+      translationLoader()
+    );
+    return printedReprintGroups(quiz, ordered, translations);
+  };
   const queuePrintedGroups = async (
     assignmentId: string,
     quiz: QuizData,
     picks: PrintedGroupPick[],
-    index: QuizMetadata['translations']
+    index: QuizMetadata['translations'],
+    then?: PaperReprintGroup[]
   ) => {
     const translations = await printedGroupTranslations(
       quiz,
       picks,
       index,
-      isAuthBypass
-        ? new MockQuizDriveService(user?.uid ?? '')
-        : googleAccessToken
-          ? new QuizDriveService(googleAccessToken)
-          : null
+      translationLoader()
     );
     setPrintedQueue({
       assignmentId,
@@ -1094,6 +1118,7 @@ const TeacherQuizWidget: React.FC<{
         quiz: printedGroupQuiz(quiz, pick.group),
         ...(translations[i] ? { translation: translations[i] } : {}),
       })),
+      ...(then?.length ? { then } : {}),
     });
   };
   const paperAssignmentMeta = (assignment: QuizAssignment): QuizMetadata =>
@@ -3596,12 +3621,14 @@ const TeacherQuizWidget: React.FC<{
                 const unprinted = opts?.copies
                   ? unprintedCopyPicks(assignment.paperCopyGroups, copies)
                   : [];
+                const index = paperAssignmentMeta(assignment).translations;
                 if (unprinted.length > 0) {
                   await queuePrintedGroups(
                     assignment.id,
                     data,
                     unprinted,
-                    paperAssignmentMeta(assignment).translations
+                    index,
+                    await reprintGroupsFor(data, copies, index)
                   );
                   return;
                 }
@@ -3609,10 +3636,7 @@ const TeacherQuizWidget: React.FC<{
                   copyIds.length > 0 &&
                   (opts?.copies || !assignment.paperBatchId)
                 ) {
-                  const groups = printedReprintGroups(
-                    data,
-                    stacks.filter((b) => copyIds.includes(b.id))
-                  );
+                  const groups = await reprintGroupsFor(data, copies, index);
                   if (groups.length > 0) setPaperGroupReprint(groups);
                   else
                     addToast('Could not find these response sheets.', 'error');
@@ -4162,8 +4186,9 @@ const TeacherQuizWidget: React.FC<{
               stepper?.printedGroups?.length &&
               !quizHasBankSlots(data)
             ) {
+              // Neither the plan write nor the translation load holds up the rest of assign.
               if (user?.uid)
-                await savePrintedCopyPlan(
+                void savePrintedCopyPlan(
                   user.uid,
                   assignmentId,
                   stepper.printedGroups.map(printedCopyPlan)
@@ -4173,11 +4198,13 @@ const TeacherQuizWidget: React.FC<{
                     err
                   )
                 );
-              await queuePrintedGroups(
+              void queuePrintedGroups(
                 assignmentId,
                 { ...data, questions: assignQuestions },
                 stepper.printedGroups,
                 meta.translations
+              ).catch((err: unknown) =>
+                console.warn('[QuizWidget] printed groups not queued:', err)
               );
             }
             const finalScore = behavior.finalScore ?? 'latest';
@@ -5472,13 +5499,17 @@ const TeacherQuizWidget: React.FC<{
               printedGroup: printedGroupRecord(printedQueue.groups[0].pick),
             });
           }}
-          onClose={() =>
-            setPrintedQueue((prev) =>
-              prev && prev.groups.length > 1
-                ? { ...prev, groups: prev.groups.slice(1) }
-                : null
-            )
-          }
+          onClose={() => {
+            if (printedQueue.groups.length > 1)
+              setPrintedQueue({
+                ...printedQueue,
+                groups: printedQueue.groups.slice(1),
+              });
+            else {
+              setPrintedQueue(null);
+              if (printedQueue.then) setPaperGroupReprint(printedQueue.then);
+            }
+          }}
           onError={(message) => addToast(message, 'error')}
         />
       )}

@@ -74,6 +74,19 @@ export function printedSupports(
   });
 }
 
+/** "Group 2 · Spanish", or "Group 2 · English" when that language has nothing reviewed to print. */
+export function printedGroupLabel(
+  number: number,
+  language: string | undefined,
+  translated: boolean
+): string {
+  const name = QUIZ_TRANSLATION_LANGUAGES.find(
+    (l) => l.code === language
+  )?.label;
+  if (!name) return `Group ${number}`;
+  return `Group ${number} · ${translated ? name : 'English'}`;
+}
+
 /** What the print dialog needs for one printed group. */
 export function printedGroupForPrint(
   pick: PrintedGroupPick,
@@ -87,14 +100,8 @@ export function printedGroupForPrint(
   const students: Record<string, string[]> = {};
   for (const s of pick.students)
     (students[s.rosterId] ??= []).push(s.studentId);
-  const language = translation
-    ? QUIZ_TRANSLATION_LANGUAGES.find((l) => l.code === pick.group.language)
-        ?.label
-    : undefined;
   return {
-    label: language
-      ? `Group ${pick.number} · ${language}`
-      : `Group ${pick.number}`,
+    label: printedGroupLabel(pick.number, pick.group.language, !!translation),
     students,
     supports: printedSupports(pick.group.supports),
     ...(translation ? { translation } : {}),
@@ -105,22 +112,19 @@ export function printedGroupForPrint(
 export function printedGroupRecord(
   pick: PrintedGroupPick
 ): PaperPrintedGroupRecord {
-  const { answerChoices, modifiedQuestions, supports } = pick.group;
+  const { answerChoices, modifiedQuestions, supports, language } = pick.group;
   return {
     number: pick.number,
     answerChoices,
     ...(modifiedQuestions ? { modifiedQuestions: true } : {}),
     ...(supports?.length ? { supports } : {}),
+    ...(language ? { language } : {}),
   };
 }
 
 /** What the assignment keeps about a printed group, so it can print later. */
 export function printedCopyPlan(pick: PrintedGroupPick): PaperCopyGroupPlan {
-  return {
-    ...printedGroupRecord(pick),
-    students: pick.students,
-    ...(pick.group.language ? { language: pick.group.language } : {}),
-  };
+  return { ...printedGroupRecord(pick), students: pick.students };
 }
 
 /** Planned groups with no stack yet, as picks for the print dialog. */
@@ -131,50 +135,67 @@ export function unprintedCopyPicks(
   const printed = new Set(batches.map((b) => b.printedGroup?.number));
   return (plans ?? [])
     .filter((p) => !printed.has(p.number))
-    .map(
-      ({
-        number,
-        students,
-        answerChoices,
-        modifiedQuestions,
-        supports,
-        language,
-      }) => ({
-        number,
-        students,
-        group: {
-          id: `printed-${number}`,
-          studentKeys: [],
-          answerChoices,
-          time: 'standard',
-          readAloud: false,
-          printed: true,
-          ...(modifiedQuestions ? { modifiedQuestions } : {}),
-          ...(supports?.length ? { supports } : {}),
-          ...(language ? { language } : {}),
-        },
-      })
-    );
+    .map((p) => recordPick(p, p.students));
+}
+
+/** A saved group record back as a pick, for the print dialog or its translation. */
+export function recordPick(
+  record: PaperPrintedGroupRecord,
+  students: PrintedGroupPick['students'] = []
+): PrintedGroupPick {
+  const { number, answerChoices, modifiedQuestions, supports, language } =
+    record;
+  return {
+    number,
+    students,
+    group: {
+      id: `printed-${number}`,
+      studentKeys: [],
+      answerChoices,
+      time: 'standard',
+      readAloud: false,
+      printed: true,
+      ...(modifiedQuestions ? { modifiedQuestions } : {}),
+      ...(supports?.length ? { supports } : {}),
+      ...(language ? { language } : {}),
+    },
+  };
 }
 
 /** A device assignment's printed stacks in group order, each with the quiz version it printed. */
 export function printedReprintGroups(
   quiz: QuizData,
-  batches: readonly PaperBatch[]
-): { label: string; quiz: QuizData; batch: PaperBatch }[] {
-  return [...batches]
-    .sort(
-      (a, b) => (a.printedGroup?.number ?? 0) - (b.printedGroup?.number ?? 0)
-    )
-    .map((batch, i) => ({
-      label: `Group ${batch.printedGroup?.number ?? i + 1}`,
-      quiz: printedGroupQuiz(
-        quiz,
-        batch.printedGroup ?? { answerChoices: 'all' }
+  batches: readonly PaperBatch[],
+  translations: readonly (PrintedTranslation | undefined)[] = []
+): {
+  label: string;
+  quiz: QuizData;
+  batch: PaperBatch;
+  translation?: PrintedTranslation;
+}[] {
+  return printedStackOrder(batches).map((batch, i) => {
+    const record = batch.printedGroup;
+    const translation = translations[i];
+    return {
+      label: printedGroupLabel(
+        record?.number ?? i + 1,
+        record?.language,
+        !!translation
       ),
+      quiz: printedGroupQuiz(quiz, record ?? { answerChoices: 'all' }),
       batch,
-    }));
+      ...(translation ? { translation } : {}),
+    };
+  });
 }
+
+/** Printed stacks in group order; `printedReprintGroups` translations follow this order. */
+export const printedStackOrder = (
+  batches: readonly PaperBatch[]
+): PaperBatch[] =>
+  [...batches].sort(
+    (a, b) => (a.printedGroup?.number ?? 0) - (b.printedGroup?.number ?? 0)
+  );
 
 /** A group's language for the printed test paper: display text only, so the answer sheet and its import stay in English. */
 export interface PrintedTranslation {

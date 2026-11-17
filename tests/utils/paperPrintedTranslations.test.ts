@@ -9,7 +9,10 @@ import type {
 import {
   printedCopyPlan,
   printedGroupForPrint,
+  printedGroupRecord,
+  printedReprintGroups,
   printedTranslation,
+  recordPick,
   unprintedCopyPicks,
 } from '@/utils/paperPrintedVersions';
 import { printedGroupTranslations } from '@/utils/paperPrintedTranslations';
@@ -157,7 +160,8 @@ describe('printedGroupTranslations', () => {
       loadTranslation: () => Promise.resolve(payload),
     });
     expect(printedGroupForPrint(p, tr).label).toBe('Group 2 · Spanish');
-    expect(printedGroupForPrint(p).label).toBe('Group 2');
+    expect(printedGroupForPrint(p).label).toBe('Group 2 · English');
+    expect(printedGroupForPrint(pick(3)).label).toBe('Group 3');
   });
 });
 
@@ -187,5 +191,32 @@ describe('printed copy plans', () => {
 
   it('has nothing to print without a plan', () => {
     expect(unprintedCopyPicks(undefined, [])).toEqual([]);
+  });
+});
+
+describe('reprinting a translated group', () => {
+  it('keeps the language on the stack and labels the reprint with it', () => {
+    const record = printedGroupRecord(pick(2, { language: 'es' }));
+    expect(record.language).toBe('es');
+    expect(recordPick(record).group.language).toBe('es');
+    const batch: PaperBatch = {
+      id: 'b2',
+      quizId: 'quiz-1',
+      rosterIds: ['r1'],
+      questionCount: 2,
+      choiceCount: 3,
+      seats: {},
+      spareSeats: [],
+      pagesPerSheet: 1,
+      createdAt: 0,
+      printedGroup: record,
+    };
+    const tr = printedTranslation(QUIZ, ES, {});
+    const [withTr] = printedReprintGroups(QUIZ, [batch], [tr]);
+    expect(withTr.label).toBe('Group 2 · Spanish');
+    expect(withTr.translation).toBe(tr);
+    expect(printedReprintGroups(QUIZ, [batch])[0].label).toBe(
+      'Group 2 · English'
+    );
   });
 });

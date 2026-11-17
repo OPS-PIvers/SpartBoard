@@ -21,6 +21,7 @@ import {
   promptQuestionIds,
 } from '@/utils/paperSheetVersions';
 import { PAPER_HANDWRITTEN_FEATURE } from '@/utils/paperWritten';
+import type { PrintedTranslation } from '@/utils/paperPrintedVersions';
 import { writtenOnlyAnalysis } from '@/utils/paperWrittenHybrid';
 import {
   reprintBlocker,
@@ -32,6 +33,8 @@ import {
 export interface ReprintStack {
   quiz: QuizData;
   batch: PaperBatch;
+  /** A printed group's language, for the question text on its sheets. */
+  translation?: PrintedTranslation;
 }
 
 /** What a header above the student list can read and change. */
@@ -230,7 +233,7 @@ export const PaperStacksReprintDialog: React.FC<ReprintDialogProps> = ({
     }
     const stackIndex = pickedStacks[0];
     if (stackIndex === undefined) return;
-    const { quiz, batch } = stacks[stackIndex];
+    const { quiz, batch, translation } = stacks[stackIndex];
     const analysis = analyses[stackIndex];
     const { ids: promptIds, pages: promptPages } = prompts[stackIndex];
     const versionQuestions = new Map(quiz.questions.map((q) => [q.id, q]));
@@ -267,10 +270,15 @@ export const PaperStacksReprintDialog: React.FC<ReprintDialogProps> = ({
           : {}),
         ...(batch.sheetLayout === 'questions'
           ? {
-              questionTexts: sheetQuestions.map((q) => ({
-                text: q.text,
-                choices: batch.choiceOrder?.[q.id] ?? [],
-              })),
+              questionTexts: sheetQuestions.map((q) => {
+                const tr = translation?.questions[q.id];
+                return {
+                  text: tr?.text ?? q.text,
+                  choices: (batch.choiceOrder?.[q.id] ?? []).map(
+                    (c) => tr?.choices?.[c] ?? c
+                  ),
+                };
+              }),
             }
           : {}),
         ...(analysis.rows.some((r) => r.sourceLabel)

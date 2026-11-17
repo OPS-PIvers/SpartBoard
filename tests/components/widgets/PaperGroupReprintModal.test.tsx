@@ -176,4 +176,35 @@ describe('PaperGroupReprintModal', () => {
     );
     auth.written = false;
   });
+
+  it("prints a translated group's question text in its language", () => {
+    const print = vi.fn<(job: PaperPrintJob) => void>();
+    render(
+      <PaperGroupReprintModal
+        groups={[
+          {
+            ...GROUPS[0],
+            batch: { ...GROUPS[0].batch, sheetLayout: 'questions' },
+            translation: {
+              questions: {
+                q1: { text: 'Pregunta q1', choices: { a: 'una' } },
+              },
+            },
+          },
+        ]}
+        rosters={[ROSTER]}
+        onClose={vi.fn()}
+        onError={vi.fn()}
+        print={print}
+      />
+    );
+    fireEvent.click(screen.getByLabelText('Baker, Jo'));
+    fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
+    const texts = print.mock.calls[0][0].questionTexts;
+    expect(texts?.[0]).toEqual({
+      text: 'Pregunta q1',
+      choices: ['una', 'b', 'c', 'd'],
+    });
+    expect(texts?.[1].text).toBe('Question q2');
+  });
 });
