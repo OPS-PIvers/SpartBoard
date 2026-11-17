@@ -1011,6 +1011,17 @@ describe('scoreWritingResponse', () => {
         turnedInAt: 5,
         grade: { draftId: '1', excused: true },
       })
-    ).toMatchObject({ state: 'scored', points: null, rawPct: null });
+    ).toMatchObject({
+      state: 'scored',
+      points: null,
+      rawPct: null,
+      excused: true,
+    });
+  });
+
+  it('shows a piece under revision as in progress until it is scored', () => {
+    expect(
+      scoreWritingResponse(20, { status: 'revising', turnedInAt: 5 })
+    ).toMatchObject({ state: 'in-progress' });
   });
 });

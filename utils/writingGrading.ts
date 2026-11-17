@@ -10,6 +10,7 @@ import type {
   WritingResponseStatus,
 } from '@/types';
 import { sumRubricScorePoints } from '@/utils/rubricPoints';
+import { stableStringify } from '@/utils/stableStringify';
 import { writingGradingMax } from '@/utils/writingResponseState';
 import { parsePoints } from '@/utils/gradeDraft';
 
@@ -157,7 +158,7 @@ export function buildWritingFeedback(
   return { ok: true, feedback: out };
 }
 
-const stable = (v: unknown): string => JSON.stringify(v ?? null);
+const stable = (v: unknown): string => stableStringify(v ?? null);
 
 /** The form differs from what is saved on the copy. */
 export function feedbackFormDirty(

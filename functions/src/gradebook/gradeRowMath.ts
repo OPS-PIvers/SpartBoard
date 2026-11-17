@@ -252,6 +252,7 @@ export function assembleRow(input: AssembleInput): IndexRow {
     published: score.published,
     assigned: input.assigned,
     ...(score.gradedBy ? { gradedBy: score.gradedBy } : {}),
+    ...(score.excused ? { excused: true as const } : {}),
     schemaVersion: GRADE_INDEX_SCHEMA_VERSION,
     updatedAt: input.now,
   };
@@ -773,13 +774,14 @@ export function scoreWritingResponse(
     max,
     state: scored
       ? 'scored'
-      : submittedAt !== null
+      : submittedAt !== null && status !== 'revising'
         ? 'awaiting-grade'
         : status
           ? 'in-progress'
           : 'not-attempted',
     submittedAt,
     attemptNumber: null,
+    ...(excused ? { excused: true as const } : {}),
   };
 }
 

@@ -109,7 +109,11 @@ export const WritingGrader: React.FC<WritingGraderProps> = ({
     tone: 'error' | 'saved';
     text: string;
   } | null>(null);
-  const shownMessage = message?.key === formKey ? message : null;
+  // A take-back drops the open copy, so its message is keyed to the student, not the copy.
+  const shownMessage =
+    message?.key === formKey || message?.key === `student:${selectedUid}`
+      ? message
+      : null;
   const [studentView, setStudentView] = useState(session.studentCanViewRecord);
 
   const status = row?.response?.status ?? null;
@@ -122,7 +126,7 @@ export const WritingGrader: React.FC<WritingGraderProps> = ({
   const fail = (err: unknown, fallback: string): void => {
     const reason = writingCallReason(err);
     setMessage({
-      key: formKey,
+      key: reason === 'taken-back' ? `student:${selectedUid}` : formKey,
       tone: 'error',
       text:
         reason === 'taken-back'

@@ -107,6 +107,8 @@ export interface GradeIndexRow {
   assigned: boolean;
   /** Mini App results v2: who scored the best attempt; absent on completion rows. */
   gradedBy?: 'server' | 'app';
+  /** Writing: the teacher excused this piece, shown as the Excused flag. */
+  excused?: true;
   updatedAt: number;
 }
 
@@ -394,6 +396,10 @@ export function activeFlags(
       out.push({ id, auto: false });
       seen.add(id);
     }
+  }
+  if (row?.excused && on.has('excused') && !seen.has('excused')) {
+    out.push({ id: 'excused', auto: true });
+    seen.add('excused');
   }
   if (!autoFlagsOn || !row || !row.assigned) return out;
   const suppressed = new Set(mark?.suppressedAuto ?? []);

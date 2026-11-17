@@ -65,6 +65,13 @@ describe('scores', () => {
     ).toBe(7);
     expect(writingMaxPoints({ mode: 'points', points: 20 })).toBe(20);
     expect(writingMaxPoints({ mode: 'ungraded' })).toBeNull();
+    expect(
+      writingMaxPoints({
+        mode: 'rubric',
+        rubricId: 'r',
+        rubricSnapshot: { criteria: [] } as unknown as Rubric,
+      })
+    ).toBeNull();
   });
 
   it('formats a score, an excused piece, and nothing', () => {
@@ -136,6 +143,18 @@ describe('helpers', () => {
     const form = feedbackForm(saved);
     expect(feedbackFormDirty(form, saved)).toBe(false);
     expect(feedbackFormDirty({ ...form, pointsInput: '6' }, saved)).toBe(true);
+    const local = [
+      { id: 'a', from: 0, to: 2, comment: 'x', highlightColor: 'green' },
+    ];
+    const echoed = [
+      { comment: 'x', from: 0, highlightColor: 'green', id: 'a', to: 2 },
+    ];
+    expect(
+      feedbackFormDirty(
+        { ...feedbackForm(undefined), annotations: local as never },
+        { annotations: echoed } as never
+      )
+    ).toBe(false);
   });
 
   it('orders copies newest first and reads a refusal reason', () => {

@@ -277,5 +277,5 @@ export function writingGradingMax(grading: unknown): number | null {
     }
     total += top;
   }
-  return total;
+  return total > 0 ? total : null;
 }
