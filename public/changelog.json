@@ -2871,6 +2871,20 @@
   ],
   "widgetNotes": [
     {
+      "id": "quiz-rubric-grading-2026-11-17",
+      "widget": "quiz",
+      "date": "2026-11-17",
+      "text": "Grade with a rubric in one tap per criterion, and open the full rubric table while you grade.",
+      "feature": "rubric-grading-v2"
+    },
+    {
+      "id": "quiz-paper-fill-in-blank-2026-11-17",
+      "widget": "quiz",
+      "date": "2026-11-17",
+      "text": "Fill-in-the-blank questions now print on paper answer sheets with a line for each blank, and are scored when you import the sheets.",
+      "feature": "paper-fill-in-blank"
+    },
+    {
       "id": "time-tool-connect-2026-11-17",
       "widget": "time-tool",
       "date": "2026-11-17",

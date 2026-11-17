@@ -2774,7 +2774,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                 slot?.slot !== 'addendum' && (
                   <div className="mt-4">
                     <RubricScoringPanel
-                      key={targetKey}
+                      key={`${targetKey}::${effectiveRubric.criteria.map((c) => c.levels.map((l) => l.points).join(',')).join('|')}`}
                       rubric={effectiveRubric}
                       maxPoints={maxPoints}
                       initialScores={savedGrade?.rubricScores}
