@@ -221,7 +221,7 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
   const orderLabel = order === 'high-first' ? 'Highest first' : 'Lowest first';
 
   return (
-    <section aria-label="Rubric scoring" className="flex flex-col">
+    <section aria-label="Rubric scoring" className="@container flex flex-col">
       <header className="pb-2">
         <div className="flex flex-wrap items-center justify-center gap-x-1 gap-y-1">
           <button
@@ -368,7 +368,7 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
                       />
                     </div>
                   )}
-                  <div className="mt-2 flex flex-col divide-y divide-slate-200 border-t border-slate-200">
+                  <div className="mt-2 flex flex-col divide-y divide-slate-200 border-t border-slate-200 @lg:flex-row @lg:divide-x @lg:divide-y-0 @lg:border-b">
                     {levels.map((level) => {
                       const isSelected = selected?.levelId === level.id;
                       return (
@@ -382,7 +382,7 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
                             'quiz',
                             `${criterion.id}-${level.id}`
                           )}
-                          className={`block w-full px-2.5 py-2 text-left transition-colors [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-blue-primary ${
+                          className={`block w-full px-2.5 py-2 text-left @lg:flex @lg:min-w-0 @lg:flex-1 @lg:flex-col transition-colors [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-blue-primary ${
                             isSelected
                               ? 'bg-brand-blue-primary text-white'
                               : 'text-slate-900 hover:bg-slate-100'
