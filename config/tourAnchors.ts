@@ -10321,7 +10321,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'admin.district-library.targeting': {
-    label: 'Who sees it button in a District library row',
+    label: 'Access button in a District library row',
     perField: true,
     panel: true,
   },
@@ -10408,7 +10408,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'admin.district-library.folder-targeting': {
-    label: 'Who sees this folder button, by folder id',
+    label: 'Folder Access button, by folder id',
     perField: true,
     panel: true,
   },
@@ -10443,6 +10443,23 @@ export const TOUR_ANCHORS = {
   'admin.district-library.row-menu': {
     label: 'More actions menu in a District library row',
     perField: true,
+    panel: true,
+  },
+  'admin.district-library.select': {
+    label: 'Select button for District library bulk actions',
+    panel: true,
+  },
+  'admin.district-library.select-all': {
+    label: 'Select all in District library selection',
+    panel: true,
+  },
+  'admin.district-library.select-row': {
+    label: 'Checkbox on a District library row',
+    perField: true,
+    panel: true,
+  },
+  'admin.district-library.bulk-move': {
+    label: 'Move button for selected District library items',
     panel: true,
   },
   'admin.district-library.move': {
