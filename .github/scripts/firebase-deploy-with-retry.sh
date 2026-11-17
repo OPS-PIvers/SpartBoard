@@ -50,6 +50,18 @@ RULES_LOG="$(mktemp)"
 RULES_OUT="$(mktemp)"
 rules_pid=""
 # The rules release runs beside the CLI deploy; the script's exit waits for it and fails if either failed.
+# Cloud Functions allows 60 changes a minute per region; the CLI waits out each 429 itself, so the log shows one total.
+quota_waits=0
+quota_functions=""
+quota_summary() {
+  (( quota_waits > 0 )) || return 0
+  local count outcome="all retried by the Firebase CLI"
+  count="$(tr ',' '\n' <<<"$quota_functions" | grep -c . || true)"
+  if (( $1 != 0 )); then outcome="the deploy still failed; see the error above"; fi
+  local line="Cloud Functions rate limit: ${quota_waits} quota waits across ${count} functions, ${outcome}."
+  echo "::notice::${line}"
+  if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then echo "$line" >>"$GITHUB_STEP_SUMMARY"; fi
+}
 on_exit() {
   local code=$?
   if [[ -n "$rules_pid" ]]; then
@@ -58,6 +70,7 @@ on_exit() {
     cat "$RULES_OUT"
     if (( code == 0 )); then code=$rules_code; fi
   fi
+  quota_summary "$code"
   rm -f "$LOG_FILE" "$RULES_LOG" "$RULES_OUT"
   exit "$code"
 }
@@ -159,6 +172,8 @@ while true; do
   pnpm exec firebase deploy --only "$only" --project "$PROJECT_ID" --force 2>&1 | tee "$LOG_FILE"
   code=${PIPESTATUS[0]}
   echo "::endgroup::"
+  quota_waits=$(( quota_waits + $(grep -c 'Got "Quota Exceeded" error' "$LOG_FILE" || true) ))
+  quota_functions="$(printf '%s\n%s\n' "$(tr ',' '\n' <<<"$quota_functions")" "$(grep -oE 'Got "Quota Exceeded" error while trying to [a-z]+ [^ ]*/functions/[A-Za-z0-9_-]+' "$LOG_FILE" | sed 's|.*/||')" | grep -v '^$' | sort -u | paste -sd, -)"
 
   if [[ "$code" -eq 0 && -n "$forced_functions" && ",$DEPLOY_ONLY," == *,functions,* ]]; then
     # The quota-failed attempt skipped deletes; one full pass does them and
