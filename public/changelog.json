@@ -1,6 +1,23 @@
 {
   "entries": [
     {
+      "version": "2026.11.18",
+      "date": "2026-11-18",
+      "title": "Assign to Google Classroom",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Google Classroom",
+          "items": [
+            {
+              "text": "Assign to Google Classroom is now in the menu of each quiz and video activity assignment. It posts with your due date, and published scores go to Classroom."
+            }
+          ]
+        }
+      ],
+      "details": []
+    },
+    {
       "version": "2026.11.17",
       "date": "2026-11-17",
       "title": "Quiz points, calmer quizzes and late work",
@@ -2794,6 +2811,18 @@
     }
   ],
   "widgetNotes": [
+    {
+      "id": "quiz-assign-to-classroom-2026-11-18",
+      "widget": "quiz",
+      "date": "2026-11-18",
+      "text": "Assign to Google Classroom is in each assignment's menu. It posts with your due date, and published scores go to Classroom."
+    },
+    {
+      "id": "video-activity-assign-to-classroom-2026-11-18",
+      "widget": "video-activity",
+      "date": "2026-11-18",
+      "text": "Assign to Google Classroom is in each assignment's menu. It posts with your due date, and published scores go to Classroom."
+    },
     {
       "id": "quiz-answer-keyboards-2026-11-15",
       "widget": "quiz",
