@@ -73,15 +73,18 @@ function setupHooks({
   vaAssignments = [vaAssignment],
   flashcardAssignments = [],
   writingRecords = [],
+  writingOn = true,
 }: {
   quizAssignments?: unknown[];
   vaAssignments?: unknown[];
   flashcardAssignments?: unknown[];
   writingRecords?: unknown[];
+  writingOn?: boolean;
 } = {}) {
   (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
     user: { uid: 'teacher-1' },
     canAccessFeature: () => false,
+    canAccessWidget: () => writingOn,
   });
   (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
     rosters: [],
@@ -157,6 +160,13 @@ describe('AssignmentsHubModal', () => {
     render(<AssignmentsHubModal onClose={vi.fn()} />);
     expect(screen.getByText('Argument essay')).toBeInTheDocument();
     expect(screen.getAllByText('Writing').length).toBeGreaterThan(0);
+  });
+
+  it('skips the Writing listener and filter when the Writing widget is off', () => {
+    setupHooks({ writingOn: false });
+    render(<AssignmentsHubModal onClose={vi.fn()} />);
+    expect(useWritingAssignmentSessions).toHaveBeenCalledWith(undefined);
+    expect(screen.queryByText('Writing')).not.toBeInTheDocument();
   });
 
   it('lists flashcard assignments with a Check or Study badge', () => {

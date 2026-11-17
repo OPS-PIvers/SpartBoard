@@ -95,7 +95,8 @@ function resolveClassName(
 
 export const useUnifiedAssignments = (
   userId: string | undefined,
-  rosters: ClassRoster[]
+  rosters: ClassRoster[],
+  writingEnabled = true
 ): {
   rows: UnifiedAssignmentRow[];
   loading: boolean;
@@ -106,7 +107,9 @@ export const useUnifiedAssignments = (
   const gl = useGuidedLearningAssignments(userId);
   const miniApp = useMiniAppAssignments(userId);
   const flashcards = useFlashcardAssignments(userId);
-  const writing = useWritingAssignmentSessions(userId);
+  const writing = useWritingAssignmentSessions(
+    writingEnabled ? userId : undefined
+  );
 
   const rosterNamesById = useMemo(() => {
     const map = new Map<string, string>();

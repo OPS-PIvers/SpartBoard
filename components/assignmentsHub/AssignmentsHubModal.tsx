@@ -235,11 +235,13 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
   onClose,
 }) => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, canAccessWidget } = useAuth();
   const { rosters } = useDashboard();
+  const writingEnabled = canAccessWidget('writing');
   const { rows, loading, quizPlcActions } = useUnifiedAssignments(
     user?.uid,
-    rosters
+    rosters,
+    writingEnabled
   );
 
   const [search, setSearch] = useState('');
@@ -302,7 +304,9 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
     [rows, kindFilter, activeClassFilter, activeStatusFilter, searchTerm]
   );
 
-  const kindOptions: AssignmentFilterOption[] = KIND_ORDER.map((kind) => ({
+  const kindOptions: AssignmentFilterOption[] = KIND_ORDER.filter(
+    (kind) => kind !== 'writing' || writingEnabled
+  ).map((kind) => ({
     value: kind,
     label: t(KIND_META[kind].labelKey, {
       defaultValue: KIND_META[kind].fallback,
