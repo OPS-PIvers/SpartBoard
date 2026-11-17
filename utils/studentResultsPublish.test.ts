@@ -242,6 +242,27 @@ describe('VA score-only publish keeps right/wrong off responses', () => {
     ).toEqual(graded);
   });
 
+  it('lets a score-only override beat a class level that shows responses', () => {
+    expect(
+      vaPublishedAnswers(
+        {
+          answers: [],
+          completedAt: 5,
+          resultsOverride: {
+            mode: 'shown',
+            visibility: 'score-only',
+            publishedAt: 1,
+            expiresAt: null,
+          },
+        } as unknown as VideoActivityResponse,
+        graded,
+        'score-and-responses',
+        1,
+        false
+      )
+    ).toEqual(bare);
+  });
+
   it('gives an open attempt no new verdicts', () => {
     expect(
       vaPublishedAnswers(
@@ -283,6 +304,28 @@ describe('VA score-only publish keeps right/wrong off responses', () => {
         }
       )
     ).toEqual({ score: 100, answers: graded });
+  });
+
+  it('clears an old marker with the flag off', () => {
+    const data = {
+      studentUid: 'u1',
+      answers: bare,
+      completedAt: 5,
+      verdictsWithheld: true,
+    } as unknown as VideoActivityResponse;
+    expect(
+      vaPublishPatch(
+        data,
+        { score: 100, answers: graded },
+        {
+          withholdVerdicts: false,
+          visibility: 'score-and-responses',
+          now: 1,
+          sessionShowsResults: false,
+          responseKey: 'u1',
+        }
+      )
+    ).toEqual({ score: 100, answers: graded, verdictsWithheld: DELETE });
   });
 
   it('marks the response when the flag withholds verdicts, and clears it otherwise', () => {

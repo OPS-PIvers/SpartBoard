@@ -171,10 +171,9 @@ export function vaPublishedAnswers(
     studentUid !== undefined &&
     responseKey !== studentUid;
   if (override?.mode === 'hidden') return answersWithoutVerdicts(graded);
-  const levelShows =
-    visibilityShowsResponses(visibility) ||
-    (override?.mode === 'shown' &&
-      visibilityShowsResponses(override.visibility));
+  const levelShows = visibilityShowsResponses(
+    override?.mode === 'shown' ? override.visibility : visibility
+  );
   if (levelShows) return graded;
   return sessionShowsResults && !free
     ? graded
@@ -205,7 +204,11 @@ export function vaPublishPatch(
     responseKey: string;
   }
 ): Record<string, unknown> {
-  if (!opts.withholdVerdicts) return { ...graded };
+  if (!opts.withholdVerdicts) {
+    return data.verdictsWithheld === undefined
+      ? { ...graded }
+      : { ...graded, verdictsWithheld: deleteField() };
+  }
   const answers = vaPublishedAnswers(
     data,
     graded.answers,
