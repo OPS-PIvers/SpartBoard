@@ -50,7 +50,7 @@ export const WritingReturnedFeedbackView: React.FC<{
           </span>
         )}
         {score && (
-          <span className="ml-auto text-lg font-bold tabular-nums text-lime-800">
+          <span className="ml-auto text-lg font-bold tabular-nums text-yellow-800">
             {score}
           </span>
         )}

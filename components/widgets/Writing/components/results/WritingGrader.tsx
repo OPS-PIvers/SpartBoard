@@ -30,7 +30,7 @@ import type {
   WritingDraftWithId,
 } from '@/hooks/useWritingResults';
 
-const ACCENT = LIBRARY_HEADER_ACCENTS.writing ?? '#3f6212';
+const ACCENT = LIBRARY_HEADER_ACCENTS.writing ?? '#854d0e';
 
 const when = (ms: number): string =>
   new Date(ms).toLocaleString(undefined, {
@@ -219,7 +219,7 @@ export const WritingGrader: React.FC<WritingGraderProps> = ({
           className={`inline-flex items-center gap-1 text-xs font-bold ${
             shownMessage.tone === 'error'
               ? 'text-brand-red-dark'
-              : 'text-lime-800'
+              : 'text-yellow-800'
           }`}
         >
           {shownMessage.tone === 'error' ? (
@@ -247,7 +247,7 @@ export const WritingGrader: React.FC<WritingGraderProps> = ({
         onClick={() => void handleReturn(true)}
         disabled={!isLatest || !canRevise || busy !== null}
         {...tourTypeAttr('writing-grading.return-revision', 'writing')}
-        className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-lime-800 bg-white px-3 text-sm font-bold text-lime-800 transition-colors hover:bg-lime-50 disabled:cursor-not-allowed disabled:opacity-50"
+        className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-yellow-800 bg-white px-3 text-sm font-bold text-yellow-800 transition-colors hover:bg-yellow-50 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {busy === 'revision' && (
           <Loader2 aria-hidden className="h-4 w-4 animate-spin" />
@@ -259,7 +259,7 @@ export const WritingGrader: React.FC<WritingGraderProps> = ({
         onClick={() => void handleReturn(false)}
         disabled={!isLatest || !canReturn || busy !== null}
         {...tourTypeAttr('writing-grading.return', 'writing')}
-        className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg bg-lime-800 px-3 text-sm font-bold text-white transition-colors hover:bg-lime-800 disabled:cursor-not-allowed disabled:opacity-50"
+        className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg bg-yellow-800 px-3 text-sm font-bold text-white transition-colors hover:bg-yellow-800 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {busy === 'return' && (
           <Loader2 aria-hidden className="h-4 w-4 animate-spin" />
@@ -276,7 +276,7 @@ export const WritingGrader: React.FC<WritingGraderProps> = ({
         checked={studentView}
         onChange={(e) => setStudentView(e.target.checked)}
         {...tourTypeAttr('writing-grading.student-record', 'writing')}
-        className="h-4 w-4 accent-lime-800"
+        className="h-4 w-4 accent-yellow-800"
       />
       Students can replay their own writing
     </label>
@@ -326,7 +326,7 @@ export const WritingGrader: React.FC<WritingGraderProps> = ({
                       aria-current={selected ? 'true' : undefined}
                       className={`flex w-full items-center gap-2 px-4 py-2 text-left text-sm transition-colors ${
                         selected
-                          ? 'bg-lime-800 font-bold text-white'
+                          ? 'bg-yellow-800 font-bold text-white'
                           : 'text-slate-700 hover:bg-slate-200/60'
                       }`}
                     >
@@ -334,7 +334,7 @@ export const WritingGrader: React.FC<WritingGraderProps> = ({
                         {r.name}
                       </span>
                       <span
-                        className={`shrink-0 text-xs ${selected ? 'text-lime-50' : 'text-slate-500'}`}
+                        className={`shrink-0 text-xs ${selected ? 'text-yellow-50' : 'text-slate-500'}`}
                       >
                         {score ?? WRITING_ROW_LABELS[r.state]}
                       </span>
@@ -348,7 +348,7 @@ export const WritingGrader: React.FC<WritingGraderProps> = ({
 
         <section className="flex min-h-0 flex-col gap-3 overflow-y-auto bg-slate-100 p-5 pb-8">
           {draftsLoading ? (
-            <div className="flex flex-1 items-center justify-center text-lime-800">
+            <div className="flex flex-1 items-center justify-center text-yellow-800">
               <Loader2 aria-label="Loading" className="h-6 w-6 animate-spin" />
             </div>
           ) : !draft ? (
@@ -436,7 +436,7 @@ export const WritingGrader: React.FC<WritingGraderProps> = ({
                   {...tourTypeAttr('writing-grading.points', 'writing')}
                   aria-invalid={!built.ok || undefined}
                   placeholder="0"
-                  className="w-24 rounded-lg border-2 border-lime-700/30 bg-white px-3 py-2 text-lg font-bold text-lime-900 focus:border-lime-700 focus:outline-hidden aria-[invalid]:border-brand-red-primary/60"
+                  className="w-24 rounded-lg border-2 border-yellow-700/30 bg-white px-3 py-2 text-lg font-bold text-yellow-900 focus:border-yellow-700 focus:outline-hidden aria-[invalid]:border-brand-red-primary/60"
                 />
                 <span className="whitespace-nowrap font-mono text-base text-slate-500">
                   / {max}
@@ -468,7 +468,7 @@ export const WritingGrader: React.FC<WritingGraderProps> = ({
                 checked={form.excused}
                 onChange={(e) => setForm({ excused: e.target.checked })}
                 {...tourTypeAttr('writing-grading.excused', 'writing')}
-                className="h-4 w-4 accent-lime-800"
+                className="h-4 w-4 accent-yellow-800"
               />
               <Ban aria-hidden className="h-4 w-4 text-slate-500" />
               Excused
@@ -490,7 +490,7 @@ export const WritingGrader: React.FC<WritingGraderProps> = ({
                 rows={5}
                 placeholder="Feedback for this student…"
                 {...tourTypeAttr('writing-grading.comment', 'writing')}
-                className="w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-lime-700 focus:outline-hidden focus:ring-2 focus:ring-lime-700/30"
+                className="w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-yellow-700 focus:outline-hidden focus:ring-2 focus:ring-yellow-700/30"
               />
             </div>
           )}
@@ -520,7 +520,7 @@ export const WritingGrader: React.FC<WritingGraderProps> = ({
                           )}
                           className={`w-full py-2 text-left text-xs leading-relaxed ${
                             a.id === activeAnnotation
-                              ? 'font-semibold text-lime-900'
+                              ? 'font-semibold text-yellow-900'
                               : 'text-slate-700'
                           }`}
                         >

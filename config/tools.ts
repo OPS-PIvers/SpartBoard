@@ -655,7 +655,7 @@ export const TOOLS: ToolMetadata[] = [
     type: 'writing',
     icon: NotebookPen,
     label: 'Writing',
-    color: 'bg-lime-700',
+    color: 'bg-yellow-700',
     category: 'instruction',
     keywords: ['essay', 'writing assignment', 'prompt', 'draft', 'rubric'],
   },
