@@ -874,6 +874,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "requires": "settings-open",
     "keys": [
       "activity-wall#content",
+      "agenda#content",
       "arts-letters-agenda#content",
       "blending-board#content",
       "breathing#content",
@@ -3812,6 +3813,134 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "widgets.checklist.face",
         "kind": "widget",
         "widget_type": "checklist",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "agenda.pick-course",
+    "label": "A course in the Agenda course list",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.agenda.face",
+        "kind": "widget",
+        "widget_type": "agenda",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "agenda.picker-back",
+    "label": "Back button in the Agenda course list",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.agenda.face",
+        "kind": "widget",
+        "widget_type": "agenda",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "agenda.change-course",
+    "label": "Change course button in Agenda",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.agenda.face",
+        "kind": "widget",
+        "widget_type": "agenda",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "agenda.reload",
+    "label": "Reload agenda button in Agenda",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.agenda.face",
+        "kind": "widget",
+        "widget_type": "agenda",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "agenda.open-slides",
+    "label": "Open in Google Slides button in Agenda",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.agenda.face",
+        "kind": "widget",
+        "widget_type": "agenda",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "agenda.set-up",
+    "label": "Set up in My Classes button in Agenda",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.agenda.face",
+        "kind": "widget",
+        "widget_type": "agenda",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "agenda.fix-sharing",
+    "label": "Fix in My Classes button on the Agenda sharing notice",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.agenda.face",
+        "kind": "widget",
+        "widget_type": "agenda",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "agenda.open-classes",
+    "label": "Open My Classes button in Agenda",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.agenda.face",
+        "kind": "widget",
+        "widget_type": "agenda",
         "path": [],
         "needs": [
           "widget-on-stage"

@@ -14,6 +14,7 @@ import {
   ProjectsConfig,
   ArtsLettersAgendaConfig,
   FocusConfig,
+  AgendaConfig,
 } from '@/types';
 import { STICKY_NOTE_COLORS } from './colors';
 import {
@@ -765,5 +766,10 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       level: 'redirect',
       minutes: 30,
     } satisfies FocusConfig,
+  },
+  agenda: {
+    w: 560,
+    h: 360,
+    config: {} satisfies AgendaConfig,
   },
 };

@@ -886,6 +886,38 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     destructive: true,
   },
+  'agenda.pick-course': {
+    label: 'A course in the Agenda course list',
+    perWidget: true,
+  },
+  'agenda.picker-back': {
+    label: 'Back button in the Agenda course list',
+    perWidget: true,
+  },
+  'agenda.change-course': {
+    label: 'Change course button in Agenda',
+    perWidget: true,
+  },
+  'agenda.reload': {
+    label: 'Reload agenda button in Agenda',
+    perWidget: true,
+  },
+  'agenda.open-slides': {
+    label: 'Open in Google Slides button in Agenda',
+    perWidget: true,
+  },
+  'agenda.set-up': {
+    label: 'Set up in My Classes button in Agenda',
+    perWidget: true,
+  },
+  'agenda.fix-sharing': {
+    label: 'Fix in My Classes button on the Agenda sharing notice',
+    perWidget: true,
+  },
+  'agenda.open-classes': {
+    label: 'Open My Classes button in Agenda',
+    perWidget: true,
+  },
   'focus.class': {
     label: 'Class picker in Focus',
     perWidget: true,

@@ -1,5 +1,6 @@
 import type { WidgetType } from '@/types';
 import { customWidgetStub } from './customWidget';
+import { agendaStub } from './agenda';
 import { focusStub } from './focus';
 import { installFakeMedia } from './media';
 import { miniAppStub } from './miniApp';
@@ -19,4 +20,6 @@ export const WIDGET_STUBS: Partial<Record<WidgetType, WidgetStub>> = {
   'custom-widget': customWidgetStub,
   // Chrome extension FS8
   focus: focusStub,
+  // Course and Agenda slice D
+  agenda: agendaStub,
 };

@@ -1839,6 +1839,7 @@ export const WIDGET_DEFAULT_ACCESS_LEVEL: Partial<
   routineGuide: 'admin',
   'arts-letters-agenda': 'admin',
   focus: 'admin',
+  agenda: 'admin',
 };
 
 export const getWidgetDefaultAccessLevel = (

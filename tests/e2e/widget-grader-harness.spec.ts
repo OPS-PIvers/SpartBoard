@@ -41,7 +41,7 @@ const S5B_WIDGETS = [
   'stickers',
   'talking-tool',
 ];
-const NEW_WIDGETS = ['arts-letters-agenda', 'focus'];
+const NEW_WIDGETS = ['arts-letters-agenda', 'focus', 'agenda'];
 const FIXTURES = ['empty', 'typical', 'stress'];
 
 const S5A_WIDGETS = [
