@@ -27,13 +27,9 @@ const lastFirst = (s: Student) =>
 const byLastName = (a: Student, b: Student) =>
   lastFirst(a).localeCompare(lastFirst(b));
 const canonical = (o: StudentOverride | undefined) => {
-  const compact: Record<string, unknown> =
-    setRosterDefaultOverride({}, 'x', o ?? {}).x ?? {};
-  return JSON.stringify(
-    Object.keys(compact)
-      .sort()
-      .map((k) => [k, compact[k]])
-  );
+  const compact = setRosterDefaultOverride({}, 'x', o ?? {}).x ?? {};
+  const entries: Array<[string, unknown]> = Object.entries(compact);
+  return JSON.stringify(entries.sort(([a], [b]) => a.localeCompare(b)));
 };
 const sameOverride = (a: StudentOverride | undefined, b: StudentOverride) =>
   canonical(a) === canonical(b);
