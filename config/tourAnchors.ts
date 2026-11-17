@@ -1521,6 +1521,11 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'assign-mods.class-group': {
+    label: 'Class group button in the modification group Students menu',
+    perField: true,
+    panel: true,
+  },
   'assign-mods.answer-choices': {
     label: 'Answer choices rule for a modification group',
     panel: true,
@@ -17942,6 +17947,10 @@ export const TOUR_ANCHORS = {
     label: 'Remove group button on a roster editor group',
     perField: true,
     destructive: true,
+    panel: true,
+  },
+  'roster-editor.accommodations-group': {
+    label: 'Group menu on the roster editor Accommodations tab',
     panel: true,
   },
   'roster-editor.accommodations-add-student': {

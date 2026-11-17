@@ -6266,6 +6266,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-mods.class-group",
+    "label": "Class group button in the modification group Students menu",
+    "scope": "field",
+    "panel": true
+  },
+  {
     "id": "assign-mods.answer-choices",
     "label": "Answer choices rule for a modification group",
     "scope": "board",
@@ -78707,6 +78713,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         ]
       }
     ]
+  },
+  {
+    "id": "roster-editor.accommodations-group",
+    "label": "Group menu on the roster editor Accommodations tab",
+    "scope": "board",
+    "panel": true
   },
   {
     "id": "roster-editor.accommodations-add-student",

@@ -8,7 +8,7 @@ import React, {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, Plus, Search, Trash2, User } from 'lucide-react';
+import { ChevronDown, Plus, Search, Trash2, User, Users } from 'lucide-react';
 import { AuthContext } from '@/context/AuthContextValue';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { Toggle } from '@/components/common/Toggle';
@@ -28,6 +28,7 @@ import {
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import type { QuizSupport } from '@/types';
 import type { ModificationsQuizContext } from './ModificationsView';
+import type { ModificationClassGroup } from './ModificationsView.helpers';
 import { usePickMenu } from './usePickMenu';
 import { SupportsEditor } from './SupportsEditor';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
@@ -46,6 +47,8 @@ export interface ModificationGroupsStepProps {
   onChange: (next: ModificationGroup[]) => void;
   /** Targetable students the Classes step sends the quiz to. */
   rows: ClassStudentRow[];
+  /** Saved class groups, offered above the students in the Students menu. */
+  classGroups?: ModificationClassGroup[];
   /** Students in those classes with no school sign-in. */
   unresolvableCount: number;
   quizContext: ModificationsQuizContext;
@@ -80,9 +83,10 @@ const studentsLabel = (n: number) => (n === 1 ? '1 student' : `${n} students`);
 
 const StudentsMenu: React.FC<{
   rows: ClassStudentRow[];
+  classGroups: ModificationClassGroup[];
   picked: string[];
   onChange: (keys: string[]) => void;
-}> = ({ rows, picked, onChange }) => {
+}> = ({ rows, classGroups, picked, onChange }) => {
   const { t } = useTranslation();
   const { open, setOpen, rootRef, onKeyDown } = usePickMenu();
   const menuId = useId();
@@ -96,9 +100,29 @@ const StudentsMenu: React.FC<{
   for (const row of shown)
     byClass.set(row.rosterName, [...(byClass.get(row.rosterName) ?? []), row]);
   const multiClass = new Set(rows.map((r) => r.rosterId)).size > 1;
+  const shownGroups = classGroups.filter(
+    (g) => !q || g.name.toLocaleLowerCase().includes(q)
+  );
+  const exactGroup =
+    picked.length > 0
+      ? classGroups.find(
+          (g) =>
+            g.keys.length === picked.length &&
+            g.keys.every((k) => pickedSet.has(k))
+        )
+      : undefined;
+  const dupNames = new Set(
+    classGroups.map((g) => g.name).filter((n, i, all) => all.indexOf(n) !== i)
+  );
+  const sectionLabel =
+    'truncate px-2 pt-2 pb-0.5 text-xxs font-bold uppercase tracking-widest text-slate-400';
 
   return (
-    <div ref={rootRef} className="relative w-44 shrink-0" onKeyDown={onKeyDown}>
+    <div
+      ref={rootRef}
+      className="relative min-w-44 max-w-60 shrink-0"
+      onKeyDown={onKeyDown}
+    >
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -112,9 +136,17 @@ const StudentsMenu: React.FC<{
             : 'border-slate-300 bg-white text-slate-700'
         }`}
       >
-        <User className="h-3.5 w-3.5 shrink-0 text-slate-500" aria-hidden />
+        {exactGroup ? (
+          <Users className="h-3.5 w-3.5 shrink-0 text-slate-500" aria-hidden />
+        ) : (
+          <User className="h-3.5 w-3.5 shrink-0 text-slate-500" aria-hidden />
+        )}
         <span className="min-w-0 flex-1 truncate text-left">
-          {picked.length > 0 ? studentsLabel(picked.length) : 'Select students'}
+          {exactGroup
+            ? exactGroup.name
+            : picked.length > 0
+              ? studentsLabel(picked.length)
+              : 'Select students'}
         </span>
         <ChevronDown
           className="h-3.5 w-3.5 shrink-0 text-slate-400"
@@ -141,13 +173,71 @@ const StudentsMenu: React.FC<{
             />
           </div>
           <div className="custom-scrollbar max-h-64 overflow-y-auto pb-1">
+            {shownGroups.length > 0 && (
+              <>
+                <div className={sectionLabel}>Groups</div>
+                {shownGroups.map((group) => {
+                  const added =
+                    group.keys.length > 0 &&
+                    group.keys.every((k) => pickedSet.has(k));
+                  return (
+                    <button
+                      key={group.id}
+                      type="button"
+                      disabled={group.keys.length === 0}
+                      title={
+                        group.keys.length === 0
+                          ? 'No one in this group has a school sign-in'
+                          : undefined
+                      }
+                      aria-pressed={added}
+                      onClick={() => {
+                        const keys = new Set(group.keys);
+                        onChange(
+                          added
+                            ? picked.filter((k) => !keys.has(k))
+                            : [
+                                ...picked,
+                                ...group.keys.filter((k) => !pickedSet.has(k)),
+                              ]
+                        );
+                      }}
+                      {...tourFieldAttr(
+                        'assign-mods.class-group',
+                        'assign',
+                        group.id
+                      )}
+                      className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Users
+                        className="h-4 w-4 shrink-0 text-brand-blue-primary"
+                        aria-hidden
+                      />
+                      <span className="min-w-0 flex-1 truncate font-semibold text-slate-800">
+                        {group.name}
+                        {dupNames.has(group.name) && (
+                          <span className="font-normal text-slate-400">
+                            {' '}
+                            {group.rosterName}
+                          </span>
+                        )}
+                      </span>
+                      <span
+                        className={`shrink-0 text-xs ${added ? 'font-bold text-brand-blue-primary' : 'text-slate-400'}`}
+                      >
+                        {added ? 'Added' : group.keys.length}
+                      </span>
+                    </button>
+                  );
+                })}
+                {shown.length > 0 && !multiClass && (
+                  <div className={sectionLabel}>Students</div>
+                )}
+              </>
+            )}
             {[...byClass.entries()].map(([rosterName, classRows]) => (
               <div key={rosterName}>
-                {multiClass && (
-                  <div className="truncate px-2 pt-2 pb-0.5 text-xxs font-bold uppercase tracking-widest text-slate-400">
-                    {rosterName}
-                  </div>
-                )}
+                {multiClass && <div className={sectionLabel}>{rosterName}</div>}
                 {classRows.map((row) => {
                   const standing = row.defaultOverride
                     ? summarizeOverride(row.defaultOverride, t).join(', ')
@@ -190,7 +280,7 @@ const StudentsMenu: React.FC<{
                 })}
               </div>
             ))}
-            {shown.length === 0 && (
+            {shown.length === 0 && shownGroups.length === 0 && (
               <p className="px-2 py-2 text-sm text-slate-500">
                 No students found
               </p>
@@ -206,6 +296,7 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
   groups,
   onChange,
   rows,
+  classGroups = [],
   unresolvableCount,
   quizContext,
   timeLimitLabel,
@@ -375,6 +466,7 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
               <Row label="Students">
                 <StudentsMenu
                   rows={rows}
+                  classGroups={classGroups}
                   picked={group.studentKeys.filter((k) => rowByKey.has(k))}
                   onChange={(keys) =>
                     onChange(
