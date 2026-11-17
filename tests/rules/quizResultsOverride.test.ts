@@ -214,7 +214,7 @@ describe('quiz response retake — the published key stays behind (#5811)', () =
     );
   });
 
-  // AB-249 refuses this once old clients are gone; until then it lands as before.
+  // AB-250 refuses this once old clients are gone; until then it lands as before.
   it('a retake that leaves the key in place is still allowed', async () => {
     await seedResponse(keyed);
     await assertSucceeds(
