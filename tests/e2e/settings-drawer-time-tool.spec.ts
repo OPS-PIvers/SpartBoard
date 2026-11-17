@@ -79,12 +79,16 @@ test.describe('time-tool settings drawer at 1280x800', () => {
     // Display group lives on the Style tab: visual ring draws the progress ring behind the digits.
     await dismissWelcomeToast(page);
     await drawer.getByRole('tab', { name: 'Style' }).click();
-    await expect(widget.locator('svg circle')).toHaveCount(0);
+    await expect(
+      widget.locator('svg[viewBox="0 0 220 220"] circle')
+    ).toHaveCount(0);
     await drawer
       .getByRole('radiogroup', { name: 'Display Style' })
       .getByRole('radio', { name: /visual/i })
       .click();
-    await expect(widget.locator('svg circle').first()).toBeVisible();
+    await expect(
+      widget.locator('svg[viewBox="0 0 220 220"] circle').first()
+    ).toBeVisible();
 
     // Display: LCD number style applies its tracking class to the digits.
     await drawer
