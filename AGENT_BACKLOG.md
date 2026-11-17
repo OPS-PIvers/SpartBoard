@@ -9,7 +9,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
 - **Release review findings.** Fix small (S) findings inside the release as `release fix:` PRs. File an item here only for work that is M or larger, needs a flag or rules design, or can't ship in that release.
 - **Agent-only means agent-only.** An item in Ready needs nothing from Paul. When an item needs new wording, the agent builds it and asks Paul with a screenshot and a decision card in its thread; when it needs a real decision, it goes to PAUL_TODO.md and the item moves to Blocked.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-263**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-264**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -214,6 +214,7 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
 ### Build hygiene
 
+- **AB-263 Slow PDF import test times out in CI** (S). `tests/utils/quizDocumentImport/plainVersions.test.ts` "splits each version with its own key" hit the 5000ms default on the dev-paul push for f86dc870 (a docs-only commit; the run before and after passed). Profile the PDF parse it does, make the fixture smaller or give that one test an explicit timeout with a one-line reason. Never skip it.
 - **AB-121 Carry-forward should warn on missing assets** (S). `scripts/carryForwardAssets.mjs` exits 0 when old chunks can't be fetched (30s timeout, 32 workers since #5253), so an old tab can 404 on a dropped chunk. Emit `::warning::` with the count when `missing.length > 0`, and fail above a set share.
 
 - **AB-33 Unused-locals strictness** (L). `tsconfig.json:38-39` has `noUnusedLocals`/`noUnusedParameters` false. Flip them and clear TS6133/TS6196 in per-directory batches.
@@ -514,6 +515,13 @@ claude/project-thread-ldt8ev
 claude/project-thread-4b5o66 (#6056)
 claude/project-thread-4b5o66-connections (#6057)
 claude/project-thread-4b5o66-ab112 (this docs PR, delete after it merges)
+claude/project-thread-69hrdw (#6052, #6054; this docs PR reuses it, delete after it merges)
+nightly/widgets-2026-11-17 (#6042)
+nightly/state-2026-11-17 (#6043)
+nightly/admin-2026-11-17 (#6044)
+nightly/build-2026-11-17 (#6045)
+nightly/debugger-log-2026-11-17 (#6046)
+claude/funny-wozniak-97qwkg (#6051)
 
 ```
 git push origin --delete claude/project-thread-1ylvse
