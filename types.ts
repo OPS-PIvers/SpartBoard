@@ -7341,6 +7341,8 @@ export interface StudentOverride {
   modifiedQuestions?: boolean;
   /** Quiz only: teacher-provided supports shown in the student's Supports panel. */
   supports?: QuizSupport[];
+  /** Quiz only: takes a printed copy, so never Missing before the scan (`paper-printed-versions`). */
+  onPaper?: boolean;
 }
 
 /** A word bank, a link or a Drive file the teacher gives a student during a quiz. */

@@ -152,6 +152,24 @@ describe('trustedTurnInMs', () => {
 });
 
 describe('scoreQuizResponse', () => {
+  it('marks a scan from a printed group copy as on paper', () => {
+    const response = {
+      status: 'completed',
+      studentUid: 's1',
+      answers,
+      completedAttempts: 1,
+      submittedAt: 5,
+    };
+    const ctx = { ...quizCtx(), paperCopyBatchIds: new Set(['b1']) };
+    expect(
+      scoreQuizResponse({}, { ...response, paperBatchId: 'b1' }, ctx).onPaper
+    ).toBe(true);
+    // A whole-class paper stack keeps its usual Late and Missing.
+    expect(
+      scoreQuizResponse({}, { ...response, paperBatchId: 'b2' }, ctx).onPaper
+    ).toBeUndefined();
+  });
+
   it('waits for the teacher while a written answer is ungraded', () => {
     const r = scoreQuizResponse(
       {},
