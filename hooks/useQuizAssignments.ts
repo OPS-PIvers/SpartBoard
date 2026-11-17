@@ -1230,7 +1230,7 @@ export function gradeResponseForPublish(
         a.answer,
         manualGrade,
         fibAcceptedAnswers(localizedFibAnswers, q.id, servedLocale),
-        gradingPaperTranscript(q, data, a.paperTranscript)
+        gradingPaperTranscript(q, data, a)
       )
     );
     if (

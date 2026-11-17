@@ -4,7 +4,7 @@ import {
   type QuizQuestion,
   type QuizResponse,
 } from '@/types';
-import { gradeAnswer, paperTranscriptFor } from '@/hooks/useQuizSession';
+import { gradeAnswer, paperAnswerFor } from '@/hooks/useQuizSession';
 import { gradingPaperTranscript } from '@/utils/paperWritten';
 import {
   fibAnswersForResponse,
@@ -61,7 +61,7 @@ export function gradeQuestionForResponse(
       gradingPaperTranscript(
         question,
         response,
-        paperTranscriptFor(response, question.id)
+        paperAnswerFor(response, question.id)
       )
     )
   );

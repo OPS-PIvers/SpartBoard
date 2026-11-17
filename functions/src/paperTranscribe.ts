@@ -21,8 +21,9 @@ export function blankAnswerFromTranscript(
     const one = lines.filter((l) => l.length > 0).join(' ');
     return one.toLowerCase() === BLANK_LINE_MARK ? '' : one;
   }
-  // Bare empty lines are spacing; an unwritten blank arrives as the [empty] mark.
-  const kept = lines.filter((l) => l.length > 0);
+  // Exactly one line per blank keeps position; otherwise bare empty lines are spacing.
+  const kept =
+    lines.length === blanks ? lines : lines.filter((l) => l.length > 0);
   const out = Array.from({ length: blanks }, (_, i) => {
     const line = kept[i] ?? '';
     return line.toLowerCase() === BLANK_LINE_MARK ? '' : line;

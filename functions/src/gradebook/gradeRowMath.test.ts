@@ -317,11 +317,24 @@ describe('scoreQuestions: written answers on paper', () => {
     ).toBe(true);
   });
 
-  it('holds a paper FIB as owed only on an imported paper response', () => {
+  it('holds a paper FIB as owed only on a scanned answer of an imported paper response', () => {
     const questions = keyQuestions(key.slice(0, 2));
-    const fib = [
+    const unscanned = [
       { questionId: 'q1', answer: 'A' },
       { questionId: 'q2', answer: '', paperTranscript: 'pending' as const },
+    ];
+    expect(
+      scoreQuestions({ questions, answers: unscanned, paperAttested: true })
+        .awaiting
+    ).toBe(false);
+    const fib = [
+      { questionId: 'q1', answer: 'A' },
+      {
+        questionId: 'q2',
+        answer: '',
+        paperTranscript: 'pending' as const,
+        paperScanId: 's1',
+      },
     ];
     expect(scoreQuestions({ questions, answers: fib })).toMatchObject({
       awaiting: false,

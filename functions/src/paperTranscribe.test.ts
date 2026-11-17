@@ -292,6 +292,14 @@ describe('fill in the blank boxes', () => {
     );
   });
 
+  it('keeps an empty line in place when the read has exactly one line per blank', () => {
+    expect(blankAnswerFromTranscript('\nwall', 2)).toBe('\u001Fwall');
+    expect(blankAnswerFromTranscript('cell\n\nwall', 3)).toBe(
+      'cell\u001F\u001Fwall'
+    );
+    expect(blankAnswerFromTranscript('cell\n', 2)).toBe('cell\u001F');
+  });
+
   it('caps a blank count at MAX_FIB_BLANKS and rejects junk', () => {
     expect(cleanBlanks(3)).toBe(3);
     expect(cleanBlanks(500)).toBe(MAX_FIB_BLANKS);
