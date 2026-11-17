@@ -24,7 +24,11 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
-import type { PaperBatch, PaperPendingReview } from '@/types';
+import type {
+  PaperBatch,
+  PaperCopyGroupPlan,
+  PaperPendingReview,
+} from '@/types';
 
 const PAPER_BATCHES_COLLECTION = 'paper_batches';
 
@@ -55,6 +59,18 @@ export async function savePrintedCopyBatch(
     updatedAt: Date.now(),
   });
   await commit.commit();
+}
+
+/** Records the printed groups planned at assign, so any closed before printing stay printable from the card. */
+export async function savePrintedCopyPlan(
+  userId: string,
+  assignmentId: string,
+  groups: PaperCopyGroupPlan[]
+): Promise<void> {
+  await updateDoc(doc(db, 'users', userId, 'quiz_assignments', assignmentId), {
+    paperCopyGroups: groups,
+    updatedAt: Date.now(),
+  });
 }
 
 /** One batch by id, or null when it was never saved or has been deleted. */

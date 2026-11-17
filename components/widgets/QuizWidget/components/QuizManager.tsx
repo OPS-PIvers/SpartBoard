@@ -332,9 +332,15 @@ interface QuizManagerProps {
   /** Open the paper assign flow for a library quiz. Absent when the feature is off. */
   onAssignOnPaper?: (quiz: QuizMetadata) => void;
   /** Open the scan import for a paper assignment. */
-  onImportPaperResponses?: (assignment: QuizAssignment) => void;
+  onImportPaperResponses?: (
+    assignment: QuizAssignment,
+    opts?: PaperStackChoice
+  ) => void;
   /** Print a paper assignment's sheets again, same seats, for lost sheets. */
-  onReprintPaperSheets?: (assignment: QuizAssignment) => void;
+  onReprintPaperSheets?: (
+    assignment: QuizAssignment,
+    opts?: PaperStackChoice
+  ) => void;
   /** Import a stack with no Paper card (a teammate's print, or one from before Assign on paper). */
   onImportLooseStack?: (quiz: QuizMetadata) => void;
   /** The quiz has a printed stack that no paper assignment owns. */
@@ -608,26 +614,31 @@ interface QuizManagerProps {
 
 /* ─── Printed group copies on a device assignment card ─────────────────────── */
 
+/** `copies` picks the printed versions over the written-answer stack on the same card. */
+export interface PaperStackChoice {
+  copies?: boolean;
+}
+
 const importCopiesAction = (
   a: QuizAssignment,
-  onImport: (a: QuizAssignment) => void
+  onImport: (a: QuizAssignment, opts?: PaperStackChoice) => void
 ): LibraryMenuAction => ({
   id: 'import-copies',
   label: 'Import paper responses',
   icon: ScanLine,
   anchor: tourTypeAttr('quiz-library.import-paper-copies', 'quiz'),
-  onClick: () => onImport(a),
+  onClick: () => onImport(a, { copies: true }),
 });
 
 const reprintCopiesAction = (
   a: QuizAssignment,
-  onReprint: (a: QuizAssignment) => void
+  onReprint: (a: QuizAssignment, opts?: PaperStackChoice) => void
 ): LibraryMenuAction => ({
   id: 'reprint-copies',
   label: 'Print paper copies',
   icon: Printer,
   anchor: tourTypeAttr('quiz-library.reprint-paper-copies', 'quiz'),
-  onClick: () => onReprint(a),
+  onClick: () => onReprint(a, { copies: true }),
 });
 
 /* ─── Status resolver for archive cards ───────────────────────────────────── */
@@ -1947,7 +1958,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           onClick: () => onImportPaperResponses(a),
         });
       }
-      if (a.paperCopyBatchIds?.length) {
+      if (a.paperCopyBatchIds?.length || a.paperCopyGroups?.length) {
         if (onImportPaperResponses)
           secondaries.push(importCopiesAction(a, onImportPaperResponses));
         if (onReprintPaperSheets)
@@ -2083,7 +2094,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         onClick: () => onImportPaperResponses(a),
       });
     }
-    if (a.paperCopyBatchIds?.length) {
+    if (a.paperCopyBatchIds?.length || a.paperCopyGroups?.length) {
       if (onImportPaperResponses)
         secondaries.push(importCopiesAction(a, onImportPaperResponses));
       if (onReprintPaperSheets)

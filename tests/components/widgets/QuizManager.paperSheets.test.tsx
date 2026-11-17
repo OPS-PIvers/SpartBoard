@@ -338,7 +338,31 @@ describe('QuizManager — printed group copies card', () => {
     expect(screen.queryByText('Import responses')).toBeNull();
     fireEvent.click(screen.getByText('Print paper copies'));
     expect(onReprintPaperSheets).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'qa-copies' })
+      expect.objectContaining({ id: 'qa-copies' }),
+      { copies: true }
+    );
+  });
+
+  it('tells written answers and printed copies apart on one card', () => {
+    const onImportPaperResponses = vi.fn();
+    const onReprintPaperSheets = vi.fn();
+    renderTab(
+      'active',
+      { ...HYBRID, paperBatchId: 'b-written', paperCopyBatchIds: ['b-g1'] },
+      { onImportPaperResponses, onReprintPaperSheets }
+    );
+    openRowMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Paper' }));
+    fireEvent.click(screen.getByText('Import written answers'));
+    expect(onImportPaperResponses).toHaveBeenLastCalledWith(
+      expect.objectContaining({ id: 'qa-hybrid' })
+    );
+    openRowMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Paper' }));
+    fireEvent.click(screen.getByText('Import paper responses'));
+    expect(onImportPaperResponses).toHaveBeenLastCalledWith(
+      expect.objectContaining({ id: 'qa-hybrid' }),
+      { copies: true }
     );
   });
 

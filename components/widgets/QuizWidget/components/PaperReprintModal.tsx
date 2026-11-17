@@ -173,37 +173,34 @@ export const PaperStacksReprintDialog: React.FC<ReprintDialogProps> = ({
   }, [stacks, analyses, rosters]);
   const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
 
-  // Prompt pages and pictures come from the base quiz, which every version shares.
-  const first = stacks[0];
-  const firstAnalysis = analyses[0];
-  const questionsById = useMemo(
-    () => new Map((first?.quiz.questions ?? []).map((q) => [q.id, q])),
-    [first]
-  );
-  const quizStimuli = useMemo(() => first?.quiz.stimuli ?? [], [first]);
-  const promptIds = useMemo(
+  // Each version keeps its own prompt pages, since a group's wording or questions can differ.
+  const prompts = useMemo(
     () =>
-      writtenOnly || !firstAnalysis
-        ? new Set<string>()
-        : promptQuestionIds(firstAnalysis, questionsById, quizStimuli),
-    [writtenOnly, firstAnalysis, questionsById, quizStimuli]
-  );
-  const promptPages = useMemo(
-    () => promptPagesFor(promptIds, questionsById, quizStimuli),
-    [promptIds, questionsById, quizStimuli]
+      stacks.map(({ quiz }, i) => {
+        const byId = new Map(quiz.questions.map((q) => [q.id, q]));
+        const stimuli = quiz.stimuli ?? [];
+        const ids =
+          writtenOnly || !analyses[i]
+            ? new Set<string>()
+            : promptQuestionIds(analyses[i], byId, stimuli);
+        return { ids, pages: promptPagesFor(ids, byId, stimuli) };
+      }),
+    [stacks, analyses, writtenOnly]
   );
   const sheetStimuli = useMemo(
-    () => (writtenOnly ? [] : (first?.quiz.paperSheetStimuli ?? [])),
-    [writtenOnly, first]
+    () => (writtenOnly ? [] : (stacks[0]?.quiz.paperSheetStimuli ?? [])),
+    [writtenOnly, stacks]
   );
   const imageStimuli = useMemo(() => {
     const seen = new Set(sheetStimuli.map((s) => s.id));
-    const prompts = Object.values(promptPages).flatMap((p) => p.stimuli);
+    const promptStimuli = prompts.flatMap((p) =>
+      Object.values(p.pages).flatMap((page) => page.stimuli)
+    );
     return [
       ...sheetStimuli,
-      ...prompts.filter((s) => !seen.has(s.id) && !!seen.add(s.id)),
+      ...promptStimuli.filter((s) => !seen.has(s.id) && !!seen.add(s.id)),
     ];
-  }, [sheetStimuli, promptPages]);
+  }, [sheetStimuli, prompts]);
   const sheetImages = usePaperSheetStimulusImages(imageStimuli);
 
   const toggle = (key: string) => {
@@ -235,6 +232,7 @@ export const PaperStacksReprintDialog: React.FC<ReprintDialogProps> = ({
     if (stackIndex === undefined) return;
     const { quiz, batch } = stacks[stackIndex];
     const analysis = analyses[stackIndex];
+    const { ids: promptIds, pages: promptPages } = prompts[stackIndex];
     const versionQuestions = new Map(quiz.questions.map((q) => [q.id, q]));
     const sheetQuestions = analysis.rows.flatMap((r) => {
       const q = versionQuestions.get(r.questionId);

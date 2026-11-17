@@ -304,6 +304,37 @@ const VIEWS = {
       onError={noop}
     />
   ),
+  'printed-translated': () => (
+    <PaperPrintModal
+      quiz={ASSIGN_QUIZ}
+      group={{
+        label: 'Group 2 · Spanish',
+        students: { r1: ['r1-s1', 'r1-s2'] },
+        supports: [],
+        translation: {
+          title: 'Unidad 3: La célula',
+          questions: Object.fromEntries(
+            ASSIGN_QUIZ.questions.map((q, i) => [
+              q.id,
+              {
+                text: `Pregunta ${i + 1}: ¿Qué parte de la célula guarda el ADN?`,
+                choices: {
+                  Nucleus: 'Núcleo',
+                  Ribosome: 'Ribosoma',
+                  Vacuole: 'Vacuola',
+                  'Cell wall': 'Pared celular',
+                },
+              },
+            ])
+          ),
+        },
+      }}
+      rosters={ROSTERS}
+      onSaveBatch={() => Promise.resolve()}
+      onClose={noop}
+      onError={noop}
+    />
+  ),
   'in-progress': () => <Manager tab="active" assignments={IN_PROGRESS} />,
   copies: () => <Manager tab="active" assignments={WITH_COPIES} />,
   'group-reprint': () => (

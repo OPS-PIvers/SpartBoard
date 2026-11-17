@@ -1,12 +1,16 @@
 // A modification group's printed version of a device quiz (`paper-printed-versions`).
 import type {
   PaperBatch,
+  PaperCopyGroupPlan,
   PaperPrintedGroupRecord,
+  QuestionTranslation,
   QuizData,
   QuizQuestion,
   QuizSupport,
 } from '@/types';
 import { toOverrideEditorQuestions } from '@/components/common/library/toOverrideEditorQuestions';
+import { multiAnswerOptions } from '@/utils/quizMultiAnswer';
+import { QUIZ_TRANSLATION_LANGUAGES } from '@/config/quizTranslation';
 import {
   hiddenOptionIdsForRule,
   type ModificationGroup,
@@ -71,18 +75,29 @@ export function printedSupports(
 }
 
 /** What the print dialog needs for one printed group. */
-export function printedGroupForPrint(pick: PrintedGroupPick): {
+export function printedGroupForPrint(
+  pick: PrintedGroupPick,
+  translation?: PrintedTranslation
+): {
   label: string;
   students: Record<string, string[]>;
   supports: PrintedSupport[];
+  translation?: PrintedTranslation;
 } {
   const students: Record<string, string[]> = {};
   for (const s of pick.students)
     (students[s.rosterId] ??= []).push(s.studentId);
+  const language = translation
+    ? QUIZ_TRANSLATION_LANGUAGES.find((l) => l.code === pick.group.language)
+        ?.label
+    : undefined;
   return {
-    label: `Group ${pick.number}`,
+    label: language
+      ? `Group ${pick.number} · ${language}`
+      : `Group ${pick.number}`,
     students,
     supports: printedSupports(pick.group.supports),
+    ...(translation ? { translation } : {}),
   };
 }
 
@@ -97,6 +112,49 @@ export function printedGroupRecord(
     ...(modifiedQuestions ? { modifiedQuestions: true } : {}),
     ...(supports?.length ? { supports } : {}),
   };
+}
+
+/** What the assignment keeps about a printed group, so it can print later. */
+export function printedCopyPlan(pick: PrintedGroupPick): PaperCopyGroupPlan {
+  return {
+    ...printedGroupRecord(pick),
+    students: pick.students,
+    ...(pick.group.language ? { language: pick.group.language } : {}),
+  };
+}
+
+/** Planned groups with no stack yet, as picks for the print dialog. */
+export function unprintedCopyPicks(
+  plans: readonly PaperCopyGroupPlan[] | undefined,
+  batches: readonly Pick<PaperBatch, 'printedGroup'>[]
+): PrintedGroupPick[] {
+  const printed = new Set(batches.map((b) => b.printedGroup?.number));
+  return (plans ?? [])
+    .filter((p) => !printed.has(p.number))
+    .map(
+      ({
+        number,
+        students,
+        answerChoices,
+        modifiedQuestions,
+        supports,
+        language,
+      }) => ({
+        number,
+        students,
+        group: {
+          id: `printed-${number}`,
+          studentKeys: [],
+          answerChoices,
+          time: 'standard',
+          readAloud: false,
+          printed: true,
+          ...(modifiedQuestions ? { modifiedQuestions } : {}),
+          ...(supports?.length ? { supports } : {}),
+          ...(language ? { language } : {}),
+        },
+      })
+    );
 }
 
 /** A device assignment's printed stacks in group order, each with the quiz version it printed. */
@@ -116,4 +174,51 @@ export function printedReprintGroups(
       ),
       batch,
     }));
+}
+
+/** A group's language for the printed test paper: display text only, so the answer sheet and its import stay in English. */
+export interface PrintedTranslation {
+  title?: string;
+  questions: Record<
+    string,
+    { text?: string; choices?: Record<string, string> }
+  >;
+}
+
+const englishChoices = (q: QuizQuestion): string[] | null => {
+  if (q.type === 'MC')
+    return [q.correctAnswer, ...q.incorrectAnswers.filter(Boolean)];
+  if (q.type === 'MA') return multiAnswerOptions(q);
+  return null;
+};
+
+/** The printed test paper's strings in one language, from reviewed and current translations only. */
+export function printedTranslation(
+  quiz: QuizData,
+  entries: Readonly<Record<string, QuestionTranslation>>,
+  group: Pick<ModificationGroup, 'modifiedQuestions'>,
+  title?: string
+): PrintedTranslation | undefined {
+  const questions: PrintedTranslation['questions'] = {};
+  for (const q of quiz.questions) {
+    const tr = entries[q.id];
+    if (!tr) continue;
+    const out: { text?: string; choices?: Record<string, string> } = {};
+    // A group's modified wording is the teacher's own text, so it prints as written.
+    const modified = group.modifiedQuestions && !!q.modifiedText?.trim();
+    if (!modified && tr.text) out.text = tr.text;
+    const english = englishChoices(q);
+    const localized = tr.choices;
+    if (
+      english &&
+      localized?.length === english.length &&
+      new Set(english).size === english.length
+    )
+      out.choices = Object.fromEntries(
+        english.map((e, i) => [e, localized[i]])
+      );
+    if (out.text || out.choices) questions[q.id] = out;
+  }
+  if (Object.keys(questions).length === 0) return undefined;
+  return { ...(title ? { title } : {}), questions };
 }

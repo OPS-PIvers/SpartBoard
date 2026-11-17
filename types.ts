@@ -6679,6 +6679,12 @@ export interface PaperPrintedGroupRecord {
   supports?: QuizSupport[];
 }
 
+/** A printed group planned at assign, kept so a version closed before printing can still print. */
+export interface PaperCopyGroupPlan extends PaperPrintedGroupRecord {
+  students: { rosterId: string; studentId: string }[];
+  language?: string;
+}
+
 export interface PaperBatch {
   id: string;
   /** Quiz these sheets were printed for. Deleted with the quiz. */
@@ -7492,6 +7498,8 @@ export interface QuizAssignment
   paperWrittenScanned?: number;
   /** Stacks printed for modification groups of this device assignment (`paper-printed-versions`). */
   paperCopyBatchIds?: string[];
+  /** Every printed group planned at assign, printed or not. */
+  paperCopyGroups?: PaperCopyGroupPlan[];
   /** D37 mode last chosen in Publish Scores; mirrored on the session and cleared on unpublish. */
   writtenReturnMode?: WrittenReturnMode;
   createdAt: number;
