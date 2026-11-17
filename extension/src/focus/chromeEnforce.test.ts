@@ -362,8 +362,6 @@ describe('createChromeEnforcer non-web pages', () => {
     expect(
       await e.navigated(1, `${BASE}?notice=blocked`, undefined, true)
     ).toBe(false);
-    tabs[0].openerTabId = 7;
-    expect(await e.navigated(1, 'about:blank', undefined, true)).toBe(false);
     expect(c.updates.length).toBe(before);
   });
 
@@ -404,6 +402,104 @@ describe('createChromeEnforcer non-web pages', () => {
     tabs[0].url = 'about:blank';
     await e.sync(current);
     expect(c.updates.slice(before).map((u) => u.id)).toEqual([1]);
+  });
+
+  it("allows about:blank only as an opened tab's first, page-started load", async () => {
+    const tabs: FakeTab[] = [
+      {
+        id: 1,
+        windowId: 1,
+        url: 'https://desmos.com/',
+        active: false,
+        lastAccessed: 1,
+      },
+      {
+        id: 2,
+        windowId: 1,
+        url: 'about:blank',
+        active: true,
+        lastAccessed: 2,
+        openerTabId: 1,
+      },
+      {
+        id: 3,
+        windowId: 1,
+        url: 'about:blank',
+        active: false,
+        lastAccessed: 3,
+        openerTabId: 1,
+      },
+    ];
+    const c = fakeChrome(tabs, [{ id: 1, type: 'normal', state: 'normal' }]);
+    const e = enforcer();
+    e.opened(2);
+    e.opened(3);
+    // Before any session: the link-opened tab shows a real page, which is recorded anyway.
+    expect(
+      await e.navigated(2, 'https://desmos.com/x', undefined, true, 'link')
+    ).toBe(false);
+    current = local(session());
+    expect(await e.navigated(3, 'about:blank', undefined, true, 'link')).toBe(
+      false
+    );
+    expect(c.updates.length).toBe(0);
+    tabs[1].url = 'about:blank';
+    expect(await e.activeOpened()).toBe(false);
+    expect(await e.navigated(2, 'about:blank', undefined, true, 'link')).toBe(
+      true
+    );
+    expect(c.removed).toEqual([2]);
+    // Typed, even as the opened tab's first load.
+    expect(await e.navigated(3, 'about:blank', undefined, true, 'typed')).toBe(
+      true
+    );
+    expect(c.removed).toEqual([2, 3]);
+    tabs[1].url = 'about:blank';
+    tabs[2].url = 'about:blank';
+    const before = c.updates.length;
+    await e.sync(current);
+    expect(c.updates.slice(before).map((u) => u.id)).toEqual([2, 3]);
+  });
+
+  it.each(['typed', 'auto_bookmark', 'generated', 'keyword', 'reload'])(
+    "sends an opened tab's %s about:blank away",
+    async (transition) => {
+      const tabs: FakeTab[] = [
+        {
+          id: 2,
+          windowId: 1,
+          url: 'about:blank',
+          active: true,
+          lastAccessed: 2,
+          openerTabId: 1,
+        },
+      ];
+      fakeChrome(tabs, [{ id: 1, type: 'normal', state: 'normal' }]);
+      const e = enforcer();
+      e.opened(2);
+      current = local(session());
+      expect(
+        await e.navigated(2, 'about:blank', undefined, true, transition)
+      ).toBe(true);
+    }
+  );
+
+  it("keeps a popup window's blank tab after it showed a page", async () => {
+    const tabs: FakeTab[] = [
+      { id: 1, windowId: 2, url: 'about:blank', active: true, lastAccessed: 1 },
+    ];
+    const c = fakeChrome(tabs, [
+      { id: 1, type: 'normal', state: 'normal' },
+      { id: 2, type: 'popup', state: 'normal' },
+    ]);
+    const e = enforcer();
+    current = local(session());
+    await e.navigated(1, 'https://accounts.google.com/', undefined, true);
+    expect(await e.navigated(1, 'about:blank', undefined, true, 'link')).toBe(
+      false
+    );
+    await e.sync(current);
+    expect(c.updates.length).toBe(0);
   });
 
   it('leaves a blank tab in a popup window, such as a sign-in popup', async () => {
