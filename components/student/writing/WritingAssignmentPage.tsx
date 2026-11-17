@@ -203,7 +203,7 @@ export const WritingAssignmentPage: React.FC = () => {
       <div className="flex h-screen h-dvh items-center justify-center bg-slate-100 text-slate-700">
         <Loader2
           aria-hidden="true"
-          className="mr-2 h-5 w-5 animate-spin text-teal-700"
+          className="mr-2 h-5 w-5 animate-spin text-lime-800"
         />
         Loading
       </div>

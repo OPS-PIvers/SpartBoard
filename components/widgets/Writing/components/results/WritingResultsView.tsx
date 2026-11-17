@@ -24,7 +24,7 @@ import {
   type WritingResultRow,
 } from '@/utils/writingGrading';
 
-const ACCENT = LIBRARY_HEADER_ACCENTS.writing ?? '#0f766e';
+const ACCENT = LIBRARY_HEADER_ACCENTS.writing ?? '#3f6212';
 
 export interface WritingResultsViewProps {
   title: string;
@@ -166,7 +166,7 @@ export const WritingResultsView: React.FC<WritingResultsViewProps> = ({
       </div>
 
       {loading ? (
-        <div className="flex flex-1 items-center justify-center text-teal-700">
+        <div className="flex flex-1 items-center justify-center text-lime-800">
           <Loader2
             aria-label="Loading"
             className="animate-spin"
@@ -275,7 +275,7 @@ export const WritingResultsView: React.FC<WritingResultsViewProps> = ({
                         {shownName(r)}
                       </p>
                       <p
-                        className={`truncate ${r.state === 'turned-in' ? 'font-semibold text-teal-800' : 'text-brand-gray-primary'}`}
+                        className={`truncate ${r.state === 'turned-in' ? 'font-semibold text-lime-800' : 'text-brand-gray-primary'}`}
                         style={{ fontSize: 'min(11px, 3.8cqmin)' }}
                       >
                         {draftCount > 0
