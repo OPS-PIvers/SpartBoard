@@ -238,6 +238,8 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
   <details><summary>Branches to delete (178, checked 2026-11-01)</summary>
 
+claude/project-thread-dln4ez (#6074)
+claude/project-thread-dln4ez-branches (this docs PR, delete after it merges)
 claude/project-thread-h6p64t (#6069; this docs PR reuses it, delete after it merges)
 claude/project-thread-dtdhr9 (#6065)
 claude/project-thread-dtdhr9-ab112 (this docs PR, delete after it merges)
