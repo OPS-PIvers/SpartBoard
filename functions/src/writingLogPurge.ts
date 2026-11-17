@@ -83,40 +83,43 @@ const PARALLEL = 20;
 const ms = (t: { toMillis: () => number } | undefined): number =>
   t ? t.toMillis() : 0;
 
-/** One response: its log and its stamp in a single batch, so a failed write never stamps a log it left whole. */
+/** One response, in a transaction: a save that lands meanwhile retries it with fresh write times. */
 async function purgeResponse(
   db: Firestore,
   ref: DocumentReference,
-  data: Data,
-  writtenAt: number,
   cutoff: number,
   now: number
 ): Promise<boolean> {
-  const logs = await ref.collection(WRITING_LOG).get();
-  const lastWriteAt = Math.max(
-    writtenAt,
-    ...logs.docs.map((d) => ms(d.updateTime))
-  );
-  const plan = planLogPurge(
-    data,
-    logs.docs.map((d) => ({ id: d.id, log: d.get('log') as unknown })),
-    lastWriteAt,
-    cutoff,
-    now
-  );
-  if (!plan) return false;
-  const batch = db.batch();
-  for (const c of plan.rewrite)
-    batch.update(ref.collection(WRITING_LOG).doc(c.id), {
-      log: c.log,
-      updatedAt: now,
-    });
-  for (const id of plan.remove)
-    batch.delete(ref.collection(WRITING_LOG).doc(id));
-  batch.update(ref, plan.patch);
-  await batch.commit();
-  return true;
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) return false;
+    const logs = await tx.get(ref.collection(WRITING_LOG));
+    const lastWriteAt = Math.max(
+      ms(snap.updateTime),
+      ...logs.docs.map((d) => ms(d.updateTime))
+    );
+    const plan = planLogPurge(
+      snap.data() ?? {},
+      logs.docs.map((d) => ({ id: d.id, log: d.get('log') as unknown })),
+      lastWriteAt,
+      cutoff,
+      now
+    );
+    if (!plan) return false;
+    for (const c of plan.rewrite)
+      tx.update(ref.collection(WRITING_LOG).doc(c.id), {
+        log: c.log,
+        updatedAt: now,
+      });
+    for (const id of plan.remove)
+      tx.delete(ref.collection(WRITING_LOG).doc(id));
+    tx.update(ref, plan.patch);
+    return true;
+  });
 }
+
+/** Where this August's scan stands, so a run cut short resumes instead of starting over. Server only. */
+const PURGE_RUNS = 'writing_log_purge_runs';
 
 export async function runWritingLogPurge(
   db: Firestore,
@@ -124,12 +127,17 @@ export async function runWritingLogPurge(
   deadline: number
 ): Promise<{ purged: number; checked: number; done: boolean }> {
   const cutoff = purgeCutoff(now);
+  const runRef = db
+    .collection(PURGE_RUNS)
+    .doc(String(new Date(now).getUTCFullYear()));
+  const run = await runRef.get();
+  if (run.get('done') === true) return { purged: 0, checked: 0, done: true };
+  let after: string | null =
+    typeof run.get('after') === 'string' ? (run.get('after') as string) : null;
   let purged = 0;
   let checked = 0;
-  let after: string | null = null;
+  let failed = 0;
   for (;;) {
-    // A run that nears its time limit stops; the next day's run picks up the pieces not yet stamped.
-    if (Date.now() > deadline) return { purged, checked, done: false };
     let q = db
       .collection(WRITING_SESSIONS)
       .orderBy(FieldPath.documentId())
@@ -139,30 +147,41 @@ export async function runWritingLogPurge(
     const sessions = await q.get();
     if (sessions.empty) break;
     for (const s of sessions.docs) {
-      const responses = await s.ref.collection(WRITING_RESPONSES).get();
+      // Near the time limit: save the place; the next day's run goes on from here.
+      if (Date.now() > deadline) {
+        await runRef.set({ after, done: false, updatedAt: now });
+        return { purged, checked, done: false };
+      }
+      const responses = await s.ref
+        .collection(WRITING_RESPONSES)
+        .select('logPurgedAt')
+        .get();
       const todo = responses.docs.filter((r) => !isNum(r.get('logPurgedAt')));
       checked += responses.size;
       for (let i = 0; i < todo.length; i += PARALLEL) {
         const results = await Promise.allSettled(
           todo
             .slice(i, i + PARALLEL)
-            .map((r) =>
-              purgeResponse(db, r.ref, r.data(), ms(r.updateTime), cutoff, now)
-            )
+            .map((r) => purgeResponse(db, r.ref, cutoff, now))
         );
         for (const res of results) {
           if (res.status === 'fulfilled') purged += res.value ? 1 : 0;
-          else logger.error('purgeWritingLogs response', res.reason);
+          else {
+            failed += 1;
+            logger.error('purgeWritingLogs response', res.reason);
+          }
         }
       }
+      after = s.id;
     }
-    after = sessions.docs[sessions.docs.length - 1].id;
     if (sessions.size < SESSION_PAGE) break;
   }
-  return { purged, checked, done: true };
+  // A piece that failed sends the next day's run over every session again.
+  await runRef.set({ after: null, done: failed === 0, updatedAt: now });
+  return { purged, checked, done: failed === 0 };
 }
 
-// D21: the first week of August, daily, so a run cut short or a failed piece is picked up the next day.
+// D21: daily through the first week of August, so a run cut short carries on the next day.
 export const purgeWritingLogs = onSchedule(
   {
     schedule: '0 3 1-7 8 *',
