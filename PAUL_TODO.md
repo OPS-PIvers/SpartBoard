@@ -24,7 +24,6 @@ Last audited 2026-11-01. Items removed as done: PT-51, PT-94, PT-111, PT-151, PT
 
 ## 2. Waiting on your prod test
 
-
 Reply OK or send new wording and an agent updates `public/changelog.json`.
 
 - [ ] **PT-227 You: one end-to-end check of Course and Agenda on spartboard-dev** (D27, after the five build PRs merge). Its code reached prod in release 2026.11.17, switched off: you asked at 03:57 to promote everything in dev, so `/goodnight` shipped it behind `course-agenda` and the Agenda widget row at Admin instead of reverting it. This check still gates opening PT-225. Link two classes, set an Agenda from a deck in the "SpartBoard Dev" Drive folder, open the Class page as the mock student, add the Agenda widget to a board, and switch the family link on and off. Report anything off to an agent; fixes go out as small PRs.
