@@ -6459,7 +6459,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "assign-mods.supports-kind",
-    "label": "Text, Link or Drive file choice in the Add support menu",
+    "label": "Text, Link or File choice in the Add support menu",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -6534,6 +6534,70 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "assign-mods.supports-add"
         ],
         "reveal": "assign-mods.supports-add"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.support-file-choose",
+    "label": "Choose file button for a file support",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.supports-kind:assign#drive"
+        ],
+        "reveal": "assign-mods.supports-kind:assign#drive"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.support-file-drive",
+    "label": "Choose from Drive button for a file support",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.supports-kind:assign#drive"
+        ],
+        "reveal": "assign-mods.supports-kind:assign#drive"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.support-file-url",
+    "label": "Paste a link field for a file support",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.supports-kind:assign#drive"
+        ],
+        "reveal": "assign-mods.supports-kind:assign#drive"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.support-file-url-add",
+    "label": "Add button for a pasted file link",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.supports-kind:assign#drive"
+        ],
+        "reveal": "assign-mods.supports-kind:assign#drive"
       }
     ]
   },

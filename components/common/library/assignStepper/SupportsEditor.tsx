@@ -1,12 +1,14 @@
-// A modification group's supports: text, links and Drive files the student opens during the quiz.
-import React, { useId, useState } from 'react';
+// A modification group's supports: text, links and files the student opens during the quiz.
+import React, { useCallback, useId, useRef, useState } from 'react';
 import {
   ChevronDown,
   FileText,
   HardDrive,
   Link2,
   Loader2,
+  Paperclip,
   Plus,
+  Upload,
   X,
 } from 'lucide-react';
 import type { QuizSupport } from '@/types';
@@ -14,15 +16,32 @@ import { useGooglePicker } from '@/hooks/useGooglePicker';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useAuth } from '@/context/useAuth';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { useFilesDrop } from '@/hooks/useFileDrop';
+import { extractGoogleFileId } from '@/utils/urlHelpers';
+import {
+  FileSourceButtons,
+  UrlAddRow,
+} from '@/components/common/fileAdd/FileAddSources';
+import { usePasteFiles } from '@/components/common/fileAdd/usePasteFiles';
 import { usePickMenu } from './usePickMenu';
 import { MAX_SUPPORTS } from './modificationGroups';
 
 const TITLE_MAX = 80;
 const TEXT_MAX = 1000;
 
-type DraftKind = 'text' | 'link';
+type DraftKind = 'text' | 'link' | 'file';
 
 const KIND_ICON = { text: FileText, link: Link2, drive: HardDrive } as const;
+
+const FILE_ACCEPT = 'image/*,audio/*,video/*,application/pdf,.pdf';
+const MAX_FILE_BYTES = 200 * 1024 * 1024;
+
+const isSupportedFile = (f: File): boolean =>
+  /^(image|audio|video)\//.test(f.type) ||
+  f.type === 'application/pdf' ||
+  /\.pdf$/i.test(f.name);
+
+const safeName = (name: string): string => name.replace(/[^\w.-]+/g, '_');
 
 const detailOf = (s: QuizSupport): string => {
   if (s.kind === 'text') return s.text;
@@ -74,8 +93,49 @@ export const SupportsEditor: React.FC<{
     setDraft({ kind, title: '', body: '' });
   };
 
+  // Adds a Drive file as a support unless the list filled up meanwhile.
+  const addDriveSupport = (fileId: string, title: string) =>
+    onChange((prev) =>
+      prev.length >= MAX_SUPPORTS
+        ? prev
+        : [...prev, { kind: 'drive', title: title.slice(0, TITLE_MAX), fileId }]
+    );
+
+  // Runs one Drive step with the busy state, and closes the file form when it worked.
+  const runBusy = async (work: () => Promise<boolean>) => {
+    setBusy(true);
+    onSharingChange?.(true);
+    try {
+      if (await work()) setDraft(null);
+    } finally {
+      setBusy(false);
+      onSharingChange?.(false);
+    }
+  };
+
+  // Shares a copy so the teacher's original keeps its own sharing.
+  const shareCopy = async (fileId: string, name: string): Promise<boolean> => {
+    if (!driveService) return false;
+    let copyId: string | null = null;
+    try {
+      const copy = await driveService.copyFile(
+        fileId,
+        name,
+        'Assets/QuizSupports'
+      );
+      copyId = copy.id;
+      // Anyone with the link, like quiz stimuli, so every student can open it.
+      await driveService.makePublic(copy.id, undefined);
+      addDriveSupport(copy.id, name);
+      return true;
+    } catch {
+      if (copyId) await driveService.deleteFile(copyId).catch(() => undefined);
+      setError('Couldn’t share that file. Try again.');
+      return false;
+    }
+  };
+
   const pickDriveFile = async () => {
-    setOpen(false);
     setError(null);
     let file;
     try {
@@ -90,49 +150,111 @@ export const SupportsEditor: React.FC<{
     }
     if (!file || !driveService) return;
     const picked = file;
-    setBusy(true);
-    onSharingChange?.(true);
-    let copyId: string | null = null;
-    try {
-      // Share a copy so the teacher's original keeps its own sharing.
-      const copy = await driveService.copyFile(
-        picked.id,
-        picked.name,
-        'Assets/QuizSupports'
-      );
-      copyId = copy.id;
-      // Anyone with the link, like quiz stimuli, so every student can open it.
-      await driveService.makePublic(copy.id, undefined);
+    await runBusy(() => shareCopy(picked.id, picked.name));
+  };
+
+  const uploadFiles = async (files: File[], pasted = false) => {
+    setError(null);
+    if (!driveService) {
+      setError('Connect Google Drive to add files.');
+      return;
+    }
+    const usable = files.filter(isSupportedFile);
+    if (usable.length === 0) {
+      setError('Use an image, PDF, audio or video file.');
+      return;
+    }
+    const room = MAX_SUPPORTS - supports.length;
+    await runBusy(async () => {
+      let added = 0;
+      for (const f of usable.slice(0, room)) {
+        if (f.size > MAX_FILE_BYTES) {
+          setError(`"${f.name}" is too large (max 200 MB).`);
+          continue;
+        }
+        let id: string | null = null;
+        try {
+          const up = await driveService.uploadFile(
+            f,
+            `support-${Date.now()}-${safeName(f.name)}`,
+            'Assets/QuizSupports'
+          );
+          id = up.id;
+          await driveService.makePublic(up.id, undefined);
+          addDriveSupport(
+            up.id,
+            pasted && f.type.startsWith('image/') ? 'Pasted image' : f.name
+          );
+          added += 1;
+        } catch {
+          if (id) await driveService.deleteFile(id).catch(() => undefined);
+          setError('Couldn’t upload that file. Try again.');
+        }
+      }
+      return added > 0;
+    });
+  };
+
+  const addFromUrl = async (raw: string) => {
+    setError(null);
+    const url = raw.trim();
+    if (!isHttpsUrl(url)) {
+      setError('Paste a link that starts with https://');
+      return;
+    }
+    const isGoogle = /^https:\/\/(drive|docs)\.google\.com\//.test(url);
+    const fileId = isGoogle ? extractGoogleFileId(url) : null;
+    if (!fileId) {
+      // Any other web page goes in as a plain link support.
+      const title = new URL(url).host.slice(0, TITLE_MAX);
       onChange((prev) =>
         prev.length >= MAX_SUPPORTS
           ? prev
-          : [
-              ...prev,
-              {
-                kind: 'drive',
-                title: picked.name.slice(0, TITLE_MAX),
-                fileId: copy.id,
-              },
-            ]
+          : [...prev, { kind: 'link', title, url }]
       );
-    } catch {
-      if (copyId) await driveService.deleteFile(copyId).catch(() => undefined);
-      setError('Couldn’t share that file. Try again.');
-    } finally {
-      setBusy(false);
-      onSharingChange?.(false);
+      setDraft(null);
+      return;
     }
+    if (!driveService) {
+      setError('Connect Google Drive to add files.');
+      return;
+    }
+    await runBusy(async () => {
+      const name = await driveService
+        .getFileMetadata(fileId)
+        .then((m) => m.name)
+        .catch(() => 'Drive file');
+      return shareCopy(fileId, name);
+    });
   };
+
+  const fileOpen = draft?.kind === 'file';
+  const fileZoneRef = useRef<HTMLDivElement | null>(null);
+  // Focus lands on the zone so Ctrl+V works right after picking File.
+  const setFileZone = useCallback((el: HTMLDivElement | null) => {
+    el?.focus();
+    fileZoneRef.current = el;
+  }, []);
+  usePasteFiles(
+    (files) => void uploadFiles(files, true),
+    !fileOpen || busy,
+    fileZoneRef
+  );
+  const drop = useFilesDrop(
+    (files) => void uploadFiles(files),
+    busy || !fileOpen
+  );
 
   const draftValid =
     !!draft &&
+    draft.kind !== 'file' &&
     draft.title.trim().length > 0 &&
     (draft.kind === 'text'
       ? draft.body.trim().length > 0
       : isHttpsUrl(draft.body));
 
   const save = () => {
-    if (!draft || !draftValid) return;
+    if (!draft || !draftValid || draft.kind === 'file') return;
     const title = draft.title.trim();
     const added: QuizSupport =
       draft.kind === 'text'
@@ -176,10 +298,10 @@ export const SupportsEditor: React.FC<{
                   [
                     ['text', 'Text', () => start('text')],
                     ['link', 'Link', () => start('link')],
-                    ['drive', 'Drive file', () => void pickDriveFile()],
+                    ['drive', 'File', () => start('file')],
                   ] as const
                 ).map(([kind, label, onPick]) => {
-                  const Icon = KIND_ICON[kind];
+                  const Icon = kind === 'drive' ? Paperclip : KIND_ICON[kind];
                   return (
                     <button
                       key={kind}
@@ -246,7 +368,63 @@ export const SupportsEditor: React.FC<{
           })}
         </ul>
       )}
-      {draft && (
+      {fileOpen && (
+        <div className="space-y-2 pt-2">
+          <div
+            ref={setFileZone}
+            tabIndex={-1}
+            {...drop.dropProps}
+            data-testid="support-file-drop-zone"
+            className={`flex flex-col items-center gap-2.5 rounded-lg border-2 border-dashed px-4 py-4 transition-colors focus:outline-hidden ${
+              drop.dragging
+                ? 'border-brand-blue-primary bg-brand-blue-lighter'
+                : 'border-slate-300 bg-white'
+            }`}
+          >
+            <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-600">
+              {busy ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              ) : (
+                <Upload className="h-4 w-4" aria-hidden />
+              )}
+              {drop.dragging ? 'Drop it here' : 'Drag a file or paste an image'}
+            </p>
+            <div className="flex flex-wrap justify-center gap-2">
+              <FileSourceButtons
+                onFiles={(files) => void uploadFiles(files)}
+                onDrive={() => void pickDriveFile()}
+                busy={busy}
+                accept={FILE_ACCEPT}
+                inputTestId="support-file-input"
+                anchors={{
+                  file: tourAttr('assign-mods.support-file-choose'),
+                  drive: tourAttr('assign-mods.support-file-drive'),
+                }}
+              />
+            </div>
+          </div>
+          <UrlAddRow
+            onAdd={addFromUrl}
+            busy={busy}
+            anchors={{
+              input: tourAttr('assign-mods.support-file-url'),
+              add: tourAttr('assign-mods.support-file-url-add'),
+            }}
+          />
+          <div className="flex justify-end">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => setDraft(null)}
+              {...tourAttr('assign-mods.support-cancel')}
+              className="h-9 rounded-lg px-3 text-sm font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-60"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+      {draft && draft.kind !== 'file' && (
         <div className="space-y-2 pt-2">
           <label
             htmlFor={titleId}
