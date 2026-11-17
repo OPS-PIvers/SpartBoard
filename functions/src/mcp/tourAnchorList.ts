@@ -13815,12 +13815,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "quiz-reprint.group",
-    "label": "Group picker when printing paper copies again",
-    "scope": "widget type",
+    "label": "Group checkbox when printing paper copies again",
+    "scope": "field",
     "panel": true,
-    "keys": [
-      "quiz"
-    ],
     "routes": [
       {
         "surface": "quiz.paper-copies-reprint",

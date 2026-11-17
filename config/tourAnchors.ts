@@ -3418,8 +3418,8 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'quiz-reprint.group': {
-    label: 'Group picker when printing paper copies again',
-    perWidgetType: true,
+    label: 'Group checkbox when printing paper copies again',
+    perField: true,
     panel: true,
   },
   'quiz-reprint.student': {

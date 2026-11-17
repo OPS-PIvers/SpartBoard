@@ -6,7 +6,7 @@ import { Modal } from '@/components/common/Modal';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { useAuth } from '@/context/useAuth';
 import { usePaperSheetStimulusImages } from '@/hooks/usePaperSheetStimulusImages';
-import type { ClassRoster, PaperBatch, QuizData } from '@/types';
+import type { ClassRoster, PaperBatch, QuizData, Student } from '@/types';
 import { analyzePaperQuiz } from '@/utils/paperSheetPlan';
 import { paperGridOf } from '@/utils/paperSheetLayout';
 import { printPaperSheets } from '@/utils/paperSheetPrint';
@@ -24,17 +24,37 @@ import {
   reprintSheets,
 } from '@/utils/paperReprint';
 
-export interface PaperReprintModalProps {
+/** One saved stack and the quiz version it printed from. */
+export interface ReprintStack {
   quiz: QuizData;
   batch: PaperBatch;
+}
+
+/** What a header above the student list can read and change. */
+export interface ReprintPicks {
+  picked: ReadonlySet<string>;
+  setPicked: (next: ReadonlySet<string>) => void;
+  keysOf: (stackIndex: number) => string[];
+}
+
+interface ReprintDialogProps {
+  stacks: readonly ReprintStack[];
   rosters: ClassRoster[];
   onClose: () => void;
   onError: (message: string) => void;
   /** Written answers on paper: the stack holds only written boxes, with no prompt pages or sheet stimuli. */
   writtenOnly?: boolean;
-  /** Shown above the student list, e.g. the printed group picker. */
-  header?: React.ReactNode;
+  /** Shown above the student list, e.g. the printed group checkboxes. */
+  header?: (picks: ReprintPicks) => React.ReactNode;
   print?: typeof printPaperSheets;
+}
+
+export interface PaperReprintModalProps extends Omit<
+  ReprintDialogProps,
+  'stacks' | 'header'
+> {
+  quiz: QuizData;
+  batch: PaperBatch;
 }
 
 const BLOCKED_MESSAGE = {
@@ -43,9 +63,23 @@ const BLOCKED_MESSAGE = {
     'This quiz changed after these sheets printed, so they can’t be printed again.',
 } as const;
 
+const pickKey = (stackIndex: number, seat: number) => `${stackIndex}:${seat}`;
+
+const studentName = (s: Student) =>
+  [s.lastName, s.firstName].filter(Boolean).join(', ');
+
 export const PaperReprintModal: React.FC<PaperReprintModalProps> = ({
   quiz,
   batch,
+  ...rest
+}) => {
+  const stacks = useMemo(() => [{ quiz, batch }], [quiz, batch]);
+  return <PaperStacksReprintDialog stacks={stacks} {...rest} />;
+};
+
+/** Reprint one or more stacks: students from every stack in one list, each printing on its own stack's version. */
+export const PaperStacksReprintDialog: React.FC<ReprintDialogProps> = ({
+  stacks,
   rosters,
   onClose,
   onError,
@@ -55,39 +89,67 @@ export const PaperReprintModal: React.FC<PaperReprintModalProps> = ({
 }) => {
   const { canAccessFeature } = useAuth();
   const writtenOn = canAccessFeature(PAPER_HANDWRITTEN_FEATURE);
-  const analysis = useMemo(
+  const analyses = useMemo(
     () =>
-      writtenOnly
-        ? writtenOnlyAnalysis(quiz)
-        : promptAnalysis(quiz, analyzePaperQuiz(quiz, { written: writtenOn })),
-    [quiz, writtenOn, writtenOnly]
+      stacks.map(({ quiz }) =>
+        writtenOnly
+          ? writtenOnlyAnalysis(quiz)
+          : promptAnalysis(quiz, analyzePaperQuiz(quiz, { written: writtenOn }))
+      ),
+    [stacks, writtenOn, writtenOnly]
   );
-  const blocker = reprintBlocker(batch, analysis);
-  const classes = useMemo(
-    () => reprintClasses(batch, rosters),
-    [batch, rosters]
-  );
-  const [picked, setPicked] = useState<Set<number>>(new Set());
+  const blockers = stacks.map((s, i) => reprintBlocker(s.batch, analyses[i]));
+  const open = blockers.flatMap((b, i) => (b ? [] : [i]));
+  const blocker = open.length === 0 ? blockers[0] : null;
+  const classes = useMemo(() => {
+    const byRoster = new Map<
+      string,
+      {
+        roster: ClassRoster;
+        rows: { key: string; stack: number; seat: number; student: Student }[];
+      }
+    >();
+    stacks.forEach(({ batch }, stack) => {
+      if (reprintBlocker(batch, analyses[stack])) return;
+      for (const { roster, seats } of reprintClasses(batch, rosters)) {
+        const entry = byRoster.get(roster.id) ?? { roster, rows: [] };
+        for (const { seat, student } of seats)
+          entry.rows.push({ key: pickKey(stack, seat), stack, seat, student });
+        byRoster.set(roster.id, entry);
+      }
+    });
+    const out = [...byRoster.values()];
+    if (stacks.length > 1)
+      for (const c of out)
+        c.rows.sort((a, b) =>
+          studentName(a.student).localeCompare(studentName(b.student))
+        );
+    return out;
+  }, [stacks, analyses, rosters]);
+  const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
 
+  // Prompt pages and pictures come from the base quiz, which every version shares.
+  const first = stacks[0];
+  const firstAnalysis = analyses[0];
   const questionsById = useMemo(
-    () => new Map((quiz.questions ?? []).map((q) => [q.id, q])),
-    [quiz.questions]
+    () => new Map((first?.quiz.questions ?? []).map((q) => [q.id, q])),
+    [first]
   );
-  const quizStimuli = useMemo(() => quiz.stimuli ?? [], [quiz.stimuli]);
+  const quizStimuli = useMemo(() => first?.quiz.stimuli ?? [], [first]);
   const promptIds = useMemo(
     () =>
-      writtenOnly
+      writtenOnly || !firstAnalysis
         ? new Set<string>()
-        : promptQuestionIds(analysis, questionsById, quizStimuli),
-    [writtenOnly, analysis, questionsById, quizStimuli]
+        : promptQuestionIds(firstAnalysis, questionsById, quizStimuli),
+    [writtenOnly, firstAnalysis, questionsById, quizStimuli]
   );
   const promptPages = useMemo(
     () => promptPagesFor(promptIds, questionsById, quizStimuli),
     [promptIds, questionsById, quizStimuli]
   );
   const sheetStimuli = useMemo(
-    () => (writtenOnly ? [] : (quiz.paperSheetStimuli ?? [])),
-    [writtenOnly, quiz.paperSheetStimuli]
+    () => (writtenOnly ? [] : (first?.quiz.paperSheetStimuli ?? [])),
+    [writtenOnly, first]
   );
   const imageStimuli = useMemo(() => {
     const seen = new Set(sheetStimuli.map((s) => s.id));
@@ -99,13 +161,23 @@ export const PaperReprintModal: React.FC<PaperReprintModalProps> = ({
   }, [sheetStimuli, promptPages]);
   const sheetImages = usePaperSheetStimulusImages(imageStimuli);
 
-  const toggle = (seat: number) =>
-    setPicked((prev) => {
-      const next = new Set(prev);
-      if (next.has(seat)) next.delete(seat);
-      else next.add(seat);
-      return next;
-    });
+  const toggle = (key: string) => {
+    const next = new Set(picked);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    setPicked(next);
+  };
+  const keysOf = (stack: number) =>
+    classes.flatMap((c) =>
+      c.rows.filter((r) => r.stack === stack).map((r) => r.key)
+    );
+  const pickedStacks = [
+    ...new Set(
+      classes.flatMap((c) =>
+        c.rows.filter((r) => picked.has(r.key)).map((r) => r.stack)
+      )
+    ),
+  ].sort((a, b) => a - b);
 
   const canPrint = !blocker && picked.size > 0 && !sheetImages.loading;
 
@@ -114,18 +186,33 @@ export const PaperReprintModal: React.FC<PaperReprintModalProps> = ({
       onError(stimulusLoadErrorMessage(sheetImages.failed));
       return;
     }
+    const stackIndex = pickedStacks[0];
+    if (stackIndex === undefined) return;
+    const { quiz, batch } = stacks[stackIndex];
+    const analysis = analyses[stackIndex];
+    const versionQuestions = new Map(quiz.questions.map((q) => [q.id, q]));
     const sheetQuestions = analysis.rows.flatMap((r) => {
-      const q = questionsById.get(r.questionId);
+      const q = versionQuestions.get(r.questionId);
       return q ? [q] : [];
     });
     const writtenTexts = Object.fromEntries(
       analysis.written.flatMap((w) => {
-        const text = questionsById.get(w.questionId)?.text;
+        const text = versionQuestions.get(w.questionId)?.text;
         return text && !promptIds.has(w.questionId)
           ? [[w.questionId, text]]
           : [];
       })
     );
+    const seats = new Set(
+      [...picked].flatMap((k) => {
+        const [s, seat] = k.split(':').map(Number);
+        return s === stackIndex ? [seat] : [];
+      })
+    );
+    const remaining = new Set(
+      [...picked].filter((k) => !k.startsWith(`${stackIndex}:`))
+    );
+    const done = remaining.size === 0;
     try {
       print({
         batchId: batch.id,
@@ -158,12 +245,13 @@ export const PaperReprintModal: React.FC<PaperReprintModalProps> = ({
               ...(sheetStimuli.length > 0 ? { sheetStimuli } : {}),
               stimulusImageSrc: sheetImages.src,
               // Closing revokes the image URLs, so wait until the print window has them.
-              onImagesReady: onClose,
+              ...(done ? { onImagesReady: onClose } : {}),
             }
           : {}),
-        sheets: reprintSheets(classes, picked),
+        sheets: reprintSheets(reprintClasses(batch, rosters), seats),
       });
-      if (imageStimuli.length === 0) onClose();
+      if (!done) setPicked(remaining);
+      else if (imageStimuli.length === 0) onClose();
     } catch (err) {
       onError(
         err instanceof Error ? err.message : 'Could not print response sheets.'
@@ -197,13 +285,14 @@ export const PaperReprintModal: React.FC<PaperReprintModalProps> = ({
             className="inline-flex items-center gap-2 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-blue-dark disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Printer className="h-4 w-4" />
-            Print
+            {pickedStacks.length > 1
+              ? `Print 1 of ${pickedStacks.length}`
+              : 'Print'}
           </button>
         </div>
       }
     >
       <div className="space-y-3 pb-2">
-        {header}
         {blocker ? (
           <p className="flex items-start gap-2 text-sm text-slate-700">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
@@ -215,20 +304,21 @@ export const PaperReprintModal: React.FC<PaperReprintModalProps> = ({
               Pick the students who need a new sheet.
             </p>
             <div className="max-h-72 divide-y divide-slate-200 overflow-y-auto border-y border-slate-200 pb-2">
-              {classes.map(({ roster, seats }) => (
+              {header?.({ picked, setPicked, keysOf })}
+              {classes.map(({ roster, rows }) => (
                 <div key={roster.id} className="py-2">
                   <p className="px-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
                     {roster.name}
                   </p>
-                  {seats.map(({ seat, student }) => (
+                  {rows.map(({ key, seat, student }) => (
                     <label
-                      key={seat}
+                      key={key}
                       className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 text-sm text-slate-800 hover:bg-slate-50"
                     >
                       <input
                         type="checkbox"
-                        checked={picked.has(seat)}
-                        onChange={() => toggle(seat)}
+                        checked={picked.has(key)}
+                        onChange={() => toggle(key)}
                         {...tourFieldAttr(
                           'quiz-reprint.student',
                           'quiz',
@@ -236,11 +326,7 @@ export const PaperReprintModal: React.FC<PaperReprintModalProps> = ({
                         )}
                         className="h-4 w-4 rounded-sm border-slate-300"
                       />
-                      <span className="truncate">
-                        {[student.lastName, student.firstName]
-                          .filter(Boolean)
-                          .join(', ')}
-                      </span>
+                      <span className="truncate">{studentName(student)}</span>
                     </label>
                   ))}
                 </div>

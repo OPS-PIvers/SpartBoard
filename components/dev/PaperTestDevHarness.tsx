@@ -306,7 +306,17 @@ const VIEWS = {
           ...BATCH,
           id: `batch-g${n}`,
           questionCount: 2,
-          seats: { 1: { rosterId: 'r1', studentId: `r1-s${n}` } },
+          seats:
+            n === 1
+              ? {
+                  1: { rosterId: 'r1', studentId: 'r1-s1' },
+                  2: { rosterId: 'r1', studentId: 'r1-s4' },
+                  3: { rosterId: 'r2', studentId: 'r2-s2' },
+                }
+              : {
+                  1: { rosterId: 'r1', studentId: 'r1-s6' },
+                  2: { rosterId: 'r2', studentId: 'r2-s3' },
+                },
           spareSeats: [],
           printedGroup: {
             number: n,
