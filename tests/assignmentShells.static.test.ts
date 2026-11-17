@@ -106,7 +106,7 @@ const CLONES: { name: RegExp; use: string; wrapper?: RegExp; via?: RegExp }[] =
     {
       name: /(?:Roster(?:List|Row|Toolbar|RowMenu)|RowMenu|PercentPill)$/,
       use: `RosterList, or RosterRow/RosterToolbar/RosterRowMenu/RosterScorePill from ${Q}/monitor/RosterParts`,
-      wrapper: /RosterList$/,
+      wrapper: /Roster(?:List)?$/,
       via: /'[^']*QuizWidget\/components\/monitor\/Roster(?:List|Parts)'/,
     },
     {
@@ -124,7 +124,7 @@ const CLONES: { name: RegExp; use: string; wrapper?: RegExp; via?: RegExp }[] =
     {
       name: /(?:LiveView\w*|LiveLog\w*)$/,
       use: `LiveViewPanel from ${Q}/monitor/LiveViewPanel and LiveLogList from ${Q}/monitor/LiveLogList`,
-      wrapper: /LiveViewPanel$/,
+      wrapper: /LiveView(?:Panel)?$/,
       via: /'[^']*QuizWidget\/components\/monitor\/LiveViewPanel'/,
     },
     {
@@ -191,6 +191,10 @@ const KNOWN_COPIES: Record<string, string[]> = {
 
 const read = (path: string) => readFileSync(resolve(repoRoot, path), 'utf8');
 
+// Type-only imports don't render anything, so they don't count as using a shared piece.
+const valueImports = (text: string) =>
+  text.replace(/import\s+type\s+[^;]*?from\s+'[^']+';?/g, '');
+
 // Tracked and new untracked files, so a fresh draft is caught before its first commit.
 const componentFiles = (): string[] =>
   execFileSync(
@@ -238,7 +242,8 @@ const findCopies = (text: string): { name: string; use: string }[] => {
     const name = m[1];
     const clone = CLONES.find((c) => c.name.test(name));
     if (!clone) continue;
-    if (clone.wrapper?.test(name) && clone.via?.test(text)) continue;
+    if (clone.wrapper?.test(name) && clone.via?.test(valueImports(text)))
+      continue;
     found.push({ name, use: clone.use });
   }
   for (const m of text.matchAll(LEGACY_IMPORT)) {
@@ -303,7 +308,7 @@ describe('assignment widgets reuse the Quiz shells', () => {
         WRITTEN_ANSWERS.has(kind) &&
         file.endsWith('.tsx') &&
         /Grad(?:er|ing)|Marking/.test(basename(file)) &&
-        !PIECE_IMPORT.FreeResponseGrader.test(read(file))
+        !PIECE_IMPORT.FreeResponseGrader.test(valueImports(read(file)))
       )
         own.push(file);
     }
@@ -319,7 +324,7 @@ describe('assignment widgets reuse the Quiz shells', () => {
     for (const file of files) {
       const kind = kindOf(file);
       if (!kind || kind === 'quiz') continue;
-      text[kind] = (text[kind] ?? '') + read(file);
+      text[kind] = (text[kind] ?? '') + valueImports(read(file));
       (names[kind] ??= []).push(basename(file));
     }
     const missing: Record<string, Piece[]> = {};
@@ -359,6 +364,14 @@ describe('assignment widgets reuse the Quiz shells', () => {
 export const WritingGrader: React.FC = () => <FreeResponseGrader />;
 const WritingStudentQueue: React.FC = () => null;`)
     ).toEqual(['WritingStudentQueue']);
+    expect(
+      names(`import { LiveViewPanel } from '@/components/widgets/QuizWidget/components/monitor/LiveViewPanel';
+export const WritingLiveView: React.FC = () => <LiveViewPanel />;`)
+    ).toEqual([]);
+    expect(
+      names(`import type { LiveViewPanelProps } from '@/components/widgets/QuizWidget/components/monitor/LiveViewPanel';
+export const WritingLiveView: React.FC = () => null;`)
+    ).toEqual(['WritingLiveView']);
     expect(
       names(`
 const WritingLiveViewPanel: React.FC<P> = () => null;
