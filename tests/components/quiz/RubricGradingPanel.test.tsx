@@ -218,6 +218,20 @@ describe('applyRubricEdit', () => {
     });
     expect(out.questions[1]).toEqual({ id: 'q2', points: 3 });
   });
+
+  it('leaves a modified copy with renamed criteria alone', async () => {
+    const { applyRubricEdit } = await import('@/utils/rubricPoints');
+    const modified = {
+      ...rubric,
+      criteria: rubric.criteria.map((c) => ({ ...c, id: `${c.id}-mod-1` })),
+    };
+    const out = applyRubricEdit(
+      [{ id: 'q1', rubricSnapshot: rubric, modifiedRubricSnapshot: modified }],
+      { ...rubric, title: 'Renamed' }
+    );
+    expect(out.questions[0].rubricSnapshot?.title).toBe('Renamed');
+    expect(out.questions[0].modifiedRubricSnapshot).toBe(modified);
+  });
 });
 
 describe('Full rubric table editing', () => {
