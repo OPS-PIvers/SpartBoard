@@ -629,13 +629,8 @@ export const PollResponsesPanel: React.FC<{
 };
 
 export const AnnouncementsManager: React.FC = () => {
-  const { user, orgId, roleId, userRoles } = useAuth();
-  const isSuperAdmin = isSuperAdminActor(
-    user?.email,
-    userRoles?.superAdmins,
-    roleId,
-    orgId
-  );
+  const { user, orgId, roleId } = useAuth();
+  const isSuperAdmin = isSuperAdminActor(user?.email, roleId, orgId);
   const { addToast } = useDashboard();
   const BUILDINGS = useAdminBuildings();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);

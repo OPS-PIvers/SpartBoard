@@ -167,15 +167,29 @@ function makeDb(state: StubState) {
     runTransaction: async (
       fn: (tx: {
         get: (ref: { __path: string }) => Promise<unknown>;
-        set: (ref: { __path: string }, data: Record<string, unknown>) => void;
+        set: (
+          ref: { __path: string },
+          data: Record<string, unknown>,
+          options?: { merge?: boolean; mergeFields?: string[] }
+        ) => void;
         delete: (ref: { __path: string }) => void;
       }) => Promise<unknown>
     ) =>
       fn({
         get: (ref) => Promise.resolve(snapFor(ref.__path)),
-        set: (ref, data) => {
+        set: (ref, data, options) => {
           state.writes.push({ path: ref.__path, op: 'set', data });
-          applyMerge(state, ref.__path, data);
+          if (options?.mergeFields) {
+            const flat: Record<string, unknown> = {};
+            for (const f of options.mergeFields) flat[f] = data[f];
+            const next = { ...(state.docs.get(ref.__path) ?? {}) };
+            for (const [k, v] of Object.entries(flat)) {
+              if ((v as { __delete?: boolean })?.__delete === true)
+                delete next[k];
+              else next[k] = v;
+            }
+            state.docs.set(ref.__path, next);
+          } else applyMerge(state, ref.__path, data);
         },
         delete: (ref) => {
           state.writes.push({ path: ref.__path, op: 'delete' });
@@ -608,6 +622,48 @@ describe('handleSetAssignmentTargets', () => {
     );
     await run(baseInput({ overridesBySourcedId: {} }));
     expect(pointerFor()).toMatchObject({ override: { timeMultiplier: 2 } });
+  });
+
+  it('drops supports from the pointer when a new override has none', async () => {
+    const supports = [
+      { kind: 'text' as const, title: 'Word bank', text: 'cell' },
+    ];
+    await run(
+      baseInput({
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { readAloud: true, supports },
+        },
+      })
+    );
+    expect(pointerFor().override).toEqual({ readAloud: true, supports });
+    await run(
+      baseInput({
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: { readAloud: true },
+        },
+      })
+    );
+    expect(pointerFor().override).toEqual({ readAloud: true });
+  });
+
+  it('leaves supports out of the assignment-doc mirror', async () => {
+    await run(
+      baseInput({
+        overridesBySourcedId: {
+          [`classlink:${SOURCED_A}`]: {
+            readAloud: true,
+            supports: [{ kind: 'text', title: 'Word bank', text: 'cell' }],
+          },
+        },
+      })
+    );
+    const uid = computeStudentUid(SOURCED_A, HMAC);
+    const mirror = (
+      state.docs.get(assignmentPath()) as {
+        overridesByStudentUid: Record<string, unknown>;
+      }
+    ).overridesByStudentUid[uid];
+    expect(mirror).toEqual({ readAloud: true });
   });
 
   it('clears a stored override on an explicit null for that key', async () => {
@@ -2009,11 +2065,11 @@ describe('isTestClassAuthority', () => {
     await expect(check()).resolves.toBe(false);
   });
 
-  it('allows a super admin listed only in the legacy user_roles list', async () => {
+  it('refuses an address listed only in the retired legacy user_roles list', async () => {
     state.docs.set('admin_settings/user_roles', {
       superAdmins: ['Teacher@Orono.k12.mn.us'],
     });
-    await expect(check()).resolves.toBe(true);
+    await expect(check()).resolves.toBe(false);
   });
 
   it('refuses a legacy-listed email whose operator member doc is deactivated', async () => {
@@ -2075,6 +2131,43 @@ describe('refKey', () => {
 });
 
 describe('sanitizeOverride', () => {
+  it('keeps text, https link and Drive file supports, capped', () => {
+    const out = sanitizeOverride({
+      supports: [
+        { kind: 'text', title: ' Word bank ', text: 'cell, nucleus' },
+        { kind: 'link', title: 'Notes', url: 'https://example.org/a' },
+        { kind: 'drive', title: 'Diagram', fileId: '1AbCdEfGhIjKlMnOp' },
+        { kind: 'link', title: 'Bad', url: 'javascript:alert(1)' },
+        { kind: 'link', title: 'Plain', url: 'http://example.org' },
+        { kind: 'drive', title: 'Bad id', fileId: '../../x' },
+        { kind: 'text', title: '', text: 'no title' },
+        { kind: 'text', title: 'Long', text: 'x'.repeat(5000) },
+        { kind: 'text', title: 'Fifth', text: 'ok' },
+        { kind: 'text', title: 'Sixth', text: 'over the cap' },
+      ],
+    });
+    expect(out?.supports?.map((s) => s.title)).toEqual([
+      'Word bank',
+      'Notes',
+      'Diagram',
+      'Long',
+      'Fifth',
+    ]);
+    const long = out?.supports?.[3];
+    expect(long?.kind === 'text' && long.text.length).toBe(1000);
+  });
+
+  it('keeps modified questions only when true', () => {
+    expect(sanitizeOverride({ modifiedQuestions: true })).toEqual({
+      modifiedQuestions: true,
+    });
+    expect(sanitizeOverride({ modifiedQuestions: 'yes' })).toBeNull();
+  });
+
+  it('drops supports that are not a list', () => {
+    expect(sanitizeOverride({ supports: 'x' })).toBeNull();
+  });
+
   it('drops unknown keys', () => {
     expect(sanitizeOverride({ timeMultiplier: 2, evil: 'x' })).toEqual({
       timeMultiplier: 2,

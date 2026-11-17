@@ -30,6 +30,12 @@ vi.mock('firebase/firestore', () => ({
   deleteField: mockDeleteField,
 }));
 vi.mock('@/config/firebase', () => ({ db: {} }));
+const mockUpdateWriting = vi.hoisted(() => vi.fn());
+const mockEndWriting = vi.hoisted(() => vi.fn());
+vi.mock('@/hooks/useWritingAssignmentSessions', () => ({
+  updateWritingSession: mockUpdateWriting,
+  endWritingSession: mockEndWriting,
+}));
 
 function makeRow(
   overrides: Partial<UnifiedAssignmentRow> = {}
@@ -415,5 +421,56 @@ describe('dueLockRowCaps', () => {
     ).toBeNull();
     expect(dueLockRowCaps(assignment, { dueAt: 100 })).toBeNull();
     expect(dueLockRowCaps(assignment, {})).toBeNull();
+  });
+});
+
+describe('useAssignmentDetailActions: Writing rows go through the server', () => {
+  beforeEach(() => {
+    mockSetAssignmentTargets.mockReset().mockResolvedValue({
+      written: 0,
+      removed: 0,
+      skipped: [],
+    });
+    mockSet.mockReset();
+    mockCommit.mockReset().mockResolvedValue(undefined);
+    mockUpdateWriting.mockReset().mockResolvedValue(undefined);
+    mockEndWriting.mockReset().mockResolvedValue(undefined);
+  });
+
+  it('saves a window and override edit with updateWritingSessionV1, never a client write', async () => {
+    const row = makeRow({
+      kind: 'writing',
+      targetMode: 'class',
+      targetStudents: [],
+    });
+    const { result } = renderHook(() => useAssignmentDetailActions());
+    await result.current.saveEdit(row, 'teacher-1', {
+      targetMode: 'class',
+      targetStudents: [],
+      targetGroupIds: [],
+      overridesByKey: {},
+      closeAt: 5_000,
+    });
+    expect(mockSet).not.toHaveBeenCalled();
+    expect(mockCommit).not.toHaveBeenCalled();
+    expect(mockUpdateWriting).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: 'assign-1',
+        window: { closeAt: 5_000 },
+        record: expect.objectContaining({
+          targetGroupIds: [],
+          overrides: { 'classlink:SID-1': null },
+        }),
+      })
+    );
+  });
+
+  it('Close now ends a Writing assignment', async () => {
+    const row = makeRow({ kind: 'writing' });
+    const { result } = renderHook(() => useAssignmentDetailActions());
+    await result.current.closeNow(row, 'teacher-1');
+    expect(mockEndWriting).toHaveBeenCalledWith('assign-1');
+    expect(mockUpdateWriting).not.toHaveBeenCalled();
+    expect(mockCommit).not.toHaveBeenCalled();
   });
 });

@@ -161,6 +161,54 @@ describe('useVideoActivityAssignments — publishAssignmentScores duplicate ques
     expect(q0Answer?.isCorrect).toBe(true);
   });
 
+  it.each([
+    [false, true],
+    [true, undefined],
+  ])(
+    'with the score-only verdict flag %s, a hidden-results publish writes isCorrect %s',
+    async (withhold, expected) => {
+      const refStudent = { id: 'r-flag' };
+      (getDoc as Mock).mockResolvedValue({
+        data: () => ({
+          sessionOptions: { answerRulesSet: true, showResultToStudent: false },
+        }),
+      });
+      mockGetDocs.mockResolvedValueOnce({
+        docs: [
+          {
+            id: 's1',
+            ref: refStudent,
+            data: () => ({
+              studentUid: 's1',
+              completedAt: 5,
+              answers: [{ questionId: 'q1', answer: 'x', answeredAt: 1 }],
+            }),
+          },
+        ],
+      });
+      const { result } = renderHook(() =>
+        useVideoActivityAssignments(TEACHER_UID)
+      );
+      await act(async () => {
+        await result.current.publishAssignmentScores(
+          ASSIGNMENT_ID,
+          activityData,
+          'score-only',
+          undefined,
+          withhold
+        );
+      });
+      const patch = batchUpdate.mock.calls.find(
+        ([ref]) => ref === refStudent
+      )?.[1] as {
+        answers: Array<{ isCorrect?: boolean }>;
+        verdictsWithheld?: unknown;
+      };
+      expect(patch.answers[0].isCorrect).toBe(expected);
+      expect(patch.verdictsWithheld).toBe(withhold ? true : undefined);
+    }
+  );
+
   it.each(['score-only', 'score-responses-and-answers'] as const)(
     'never puts an answer key on the student-readable session at %s',
     async (visibility) => {

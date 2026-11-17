@@ -3,6 +3,7 @@ import React, { Suspense, lazy, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Eye, Loader2, ScrollText, X } from 'lucide-react';
 import { Z_INDEX } from '@/config/zIndex';
+import { WritingStudentShell } from '@/components/student/writing/WritingStudentShell';
 import type { StudentPagePreviewItem } from '@/utils/studentPagePreviewLoad';
 import type { GuidedLearningSet, ProjectGroup } from '@/types';
 import { LayoutRouter } from '@/components/activityWall/render';
@@ -297,5 +298,7 @@ export const StudentItemPreview: React.FC<{
           <ProjectPreview item={item} />
         </Frame>
       );
+    case 'writing':
+      return <WritingStudentShell session={item.session} onDone={onExit} />;
   }
 };

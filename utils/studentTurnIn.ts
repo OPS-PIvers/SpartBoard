@@ -42,6 +42,10 @@ export function readTurnInState(
       return isNum(response.submittedAt) && response.submittedAt > 0
         ? 'turned-in'
         : 'in-progress';
+    case 'writing':
+      return response.status === 'turned-in' || response.status === 'returned'
+        ? 'turned-in'
+        : 'in-progress';
     default:
       return 'not-started';
   }

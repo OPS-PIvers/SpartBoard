@@ -245,7 +245,7 @@ export const useGooglePicker = () => {
                 : mode === 'sheets'
                   ? 'Select a Google Sheet'
                   : mode === 'slides'
-                    ? 'Select a Google Slides deck'
+                    ? 'Select a Google Slides File'
                     : mode === 'scans'
                       ? 'Select a scanned PDF'
                       : mode === 'documents'

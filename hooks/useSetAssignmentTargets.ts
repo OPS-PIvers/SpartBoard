@@ -12,7 +12,12 @@ import { functions } from '@/config/firebase';
 import type { StudentOverride, StudentTargetRef } from '@/types';
 
 export type AssignmentTargetKind =
-  'quiz' | 'video-activity' | 'guided-learning' | 'mini-app' | 'flashcards';
+  | 'quiz'
+  | 'video-activity'
+  | 'guided-learning'
+  | 'mini-app'
+  | 'flashcards'
+  | 'writing';
 
 export interface SetAssignmentTargetsCallInput {
   assignmentId: string;

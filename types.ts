@@ -1,4 +1,8 @@
 import type { WorkKind } from '@/utils/gradebook/gradebookCore';
+import type {
+  WritingResponseStatus,
+  WritingTurnedInBy,
+} from '@/utils/writingResponseState';
 import type { FocusSite } from '@/utils/focus/contract';
 import type { ImportAttribution } from '@/utils/import/contract';
 import type { TourConditionRef, TourDoneFact } from '@/config/tourConditions';
@@ -72,7 +76,9 @@ export type WidgetType =
   | 'review'
   | 'routineGuide'
   | 'arts-letters-agenda'
-  | 'focus';
+  | 'focus'
+  | 'writing'
+  | 'agenda';
 
 // --- ROSTER SYSTEM TYPES ---
 
@@ -2112,6 +2118,14 @@ export interface FocusConfig {
   savedSiteLists?: FocusSavedSiteList[];
   /** Counts only on the face, for projecting. */
   hideNames?: boolean;
+}
+
+/** The Agenda widget (docs/plans/COURSE_AND_AGENDA.md D16): which Course's deck it shows. */
+export interface AgendaConfig {
+  /** The picked Course; absent while the picked class is in no saved Course yet. */
+  courseId?: string;
+  /** A class in that Course, so the pick survives the Course being merged or re-made. */
+  rosterId?: string;
 }
 
 export interface ArtsLettersAgendaConfig {
@@ -4517,6 +4531,8 @@ export interface QuizQuestion {
   /** Time limit in seconds. 0 = no time limit. */
   timeLimit: number;
   text: string;
+  /** Modified wording of the prompt for students in a group with modified questions; same answer key. */
+  modifiedText?: string;
   type: QuizQuestionType;
   /**
    * MC/FIB: the correct answer text. Multi-blank FIB: one answer per blank joined by `FIB_BLANK_SEP`.
@@ -5340,6 +5356,8 @@ export interface QuizPublicQuestion {
   id: string;
   type: QuizQuestion['type'];
   text: string;
+  /** The teacher's modified prompt, shown only to students whose override asks for it. */
+  modifiedText?: string;
   timeLimit: number;
   /** MC/MA: all answer choices pre-shuffled (correct identity unknown) */
   choices?: string[];
@@ -7296,11 +7314,23 @@ export interface StudentOverride {
   readAloud?: boolean; // quiz only; signed-in students, needs 'quiz-read-aloud'
   /** Block (true) or allow (false) copy, paste and print for this student; absent = the session's rule. */
   blockCopyPaste?: boolean;
+  /** Writing only (D22): leaves the right-click spelling menu on. */
+  spellingHelp?: boolean;
   openAt?: number;
   closeAt?: number; // per-student window shift (epoch ms)
   /** BCP-47 code, e.g. 'es' | 'so' | 'hmn'. Absent = English. Shape-validated only. */
   language?: string;
+  /** Quiz only: serve each question's modified wording where the teacher wrote one. */
+  modifiedQuestions?: boolean;
+  /** Quiz only: teacher-provided supports shown in the student's Supports panel. */
+  supports?: QuizSupport[];
 }
+
+/** A word bank, a link or a Drive file the teacher gives a student during a quiz. */
+export type QuizSupport =
+  | { kind: 'text'; title: string; text: string }
+  | { kind: 'link'; title: string; url: string }
+  | { kind: 'drive'; title: string; fileId: string };
 
 /**
  * Server-fan-out pointer doc at `/student_assignments/{studentUid}/items/{assignmentId}`.
@@ -7309,7 +7339,12 @@ export interface StudentOverride {
  */
 export interface StudentAssignmentPointer {
   kind:
-    'quiz' | 'video-activity' | 'guided-learning' | 'mini-app' | 'flashcards';
+    | 'quiz'
+    | 'video-activity'
+    | 'guided-learning'
+    | 'mini-app'
+    | 'flashcards'
+    | 'writing';
   sessionId: string;
   teacherUid: string;
   classId: string;
@@ -8364,6 +8399,8 @@ export interface VideoActivityResponse extends StaffResponseFields {
   resultsLockedOutAt?: number;
   /** Teacher marks for short-answer questions, keyed by question id. Teacher-written only. */
   grading?: Record<string, WrittenAnswerGrade>;
+  /** Set when the last publish kept right/wrong off `answers`, so the student sees only `score`. */
+  verdictsWithheld?: boolean;
 }
 
 /**
@@ -10546,6 +10583,255 @@ export interface ProjectsConfig {
   cardOpacity?: number;
 }
 
+// --- WRITING WIDGET TYPES (docs/plans/WRITING_ASSIGNMENT.md) ---
+
+/** How a Writing assignment is graded (D14); a rubric is a snapshot, like quiz `rubricSnapshot`. */
+export type WritingGrading =
+  | { mode: 'ungraded' }
+  | { mode: 'points'; points: number }
+  | { mode: 'rubric'; rubricId: string; rubricSnapshot: Rubric };
+
+/** Library item at `/users/{uid}/writing_assignments/{id}`; doc id === `id`. */
+export interface WritingAssignmentDefinition {
+  id: string;
+  title: string;
+  /** Prompt in the quiz prompt's text marks (bold, italic, underline, lists). */
+  prompt: string;
+  /** Stimulus tabs shown beside the editor (D6). */
+  stimuli?: QuizStimulus[];
+  /** Optional word limits, as on a quiz written answer (D7). */
+  minWords?: number;
+  maxWords?: number;
+  /** Turn in is refused outside the word limits. */
+  enforceWordLimit?: boolean;
+  grading: WritingGrading;
+  /** Library folder; absent or null means the root. */
+  folderId?: string | null;
+  /** Manual library order; absent sorts after everything ordered. */
+  order?: number;
+  createdAt: number;
+  updatedAt: number;
+  archivedAt?: number | null;
+}
+
+/** Per-board state only; Writing assignments live in the teacher's library. */
+export interface WritingConfig {
+  /** Which face the widget shows; `results` grades `resultsSessionId`. */
+  view?: 'manager' | 'results';
+  /** The session the results face shows. */
+  resultsSessionId?: string;
+  /** Tab within the manager view. */
+  managerTab?: 'library' | 'active' | 'archive';
+  /** Persisted library grid/list toggle. */
+  libraryViewMode?: 'grid' | 'list';
+  /** Persisted folder-panel state; `'auto'` derives it from widget width. */
+  folderPanelMode?: 'auto' | 'full' | 'rail' | 'hidden';
+}
+
+export type { WritingResponseStatus, WritingTurnedInBy };
+
+/** Session at `writing_assignment_sessions/{id}`; created by `assignWritingV1` with the Library item snapshotted. */
+export interface WritingAssignmentSession
+  extends PeriodAccessSessionFields, SessionWorkKindFields {
+  id: string;
+  teacherUid: string;
+  /** The Library item at `/users/{teacherUid}/writing_assignments/{itemId}`. */
+  itemId: string;
+  title: string;
+  prompt: string;
+  stimuli?: QuizStimulus[];
+  minWords?: number;
+  maxWords?: number;
+  enforceWordLimit?: boolean;
+  /** Snapshot at assign time, rubric included (D14). */
+  grading: WritingGrading;
+  /** D8: paste and drop from outside the piece; off blocks both. */
+  allowPaste: boolean;
+  /** D10: the line telling students their writing is recorded. */
+  recordingNotice: boolean;
+  /** D11: students can open their own Writing record; the teacher can change it when returning. */
+  studentCanViewRecord: boolean;
+  /** D4: Chrome's red underlines. */
+  spellCheck: boolean;
+  /** D7: minutes from the student opening it; absent means no limit and the work can span days. */
+  timeLimitMinutes?: number;
+  /** Focus mode (glossary): counting time away, plus fullscreen at the lock level. */
+  tabWarningsEnabled?: boolean;
+  tabAwayLimitSeconds?: number;
+  blockPrint?: boolean;
+  focusLevel?: FocusLevel;
+  /** D5: read aloud of the prompt and sources for every student (F wires it). */
+  readAloudAll?: boolean;
+  /** BCP-47 language of the prompt, for read aloud; absent = 'en-US'. */
+  language?: string;
+  classIds: string[];
+  classId?: string;
+  periodNames?: string[];
+  rosterIds?: string[];
+  /** Classes narrowed to picked students (D5b), written by `setAssignmentTargetsV1`. */
+  studentTargetClassIds?: string[];
+  individualTargeting?: boolean;
+  status: 'active' | 'ended';
+  openAt?: number | null;
+  closeAt?: number | null;
+  dueAt?: number | null;
+  /** Per-class due dates, as quizzes have them. */
+  dueAtByClassId?: Record<string, number>;
+  /** D16: grades published to students; the grade shows once returned or published, whichever is first. */
+  scorePublishedAt?: number;
+  createdAt: number;
+  updatedAt: number;
+  endedAt?: number;
+}
+
+/** `users/{uid}/writing_assignment_records/{sessionId}`: the teacher's server-written record, the targeting archive. */
+export interface WritingAssignmentRecord {
+  id: string;
+  sessionId: string;
+  itemId: string;
+  title: string;
+  teacherUid: string;
+  status: 'active' | 'ended';
+  createdAt: number;
+  updatedAt: number;
+  endedAt?: number;
+  rosterIds?: string[];
+  classIds?: string[];
+  periodNames?: string[];
+  openAt?: number | null;
+  closeAt?: number | null;
+  dueAt?: number | null;
+  dueAtByClassId?: Record<string, number>;
+  timeLimitMinutes?: number;
+  /** Manual assign: each class starts paused; mirrored from the session by `updateWritingSessionV1`. */
+  accessMode?: AccessMode;
+  periodAccess?: Record<string, PeriodAccess>;
+  dueLocks?: boolean;
+  targetMode?: 'class' | 'students';
+  targetStudents?: StudentTargetRef[];
+  targetGroupIds?: string[];
+  overridesBySourcedId?: Record<string, StudentOverride>;
+  excludedTargets?: StudentTargetRef[];
+  overridesByStudentUid?: Record<string, StudentOverride>;
+  targetSkippedCount?: number;
+  removedStudentRefs?: StudentTargetRef[];
+}
+
+/** The Writing record summary (D9), kept on the response and copied onto each frozen copy. */
+export interface WritingResponseSummary {
+  wordCount: number;
+  /** Client ms of the last save. */
+  savedAt: number;
+  /** Time spent writing, pauses capped as in `summarizeWriting`. */
+  writingMs: number;
+  /** Writing sessions (glossary): stretches with no gap over 15 minutes. */
+  sessions: number;
+  pasteCount: number;
+  pastedChars: number;
+  /** Text added without typing or pasting (an extension, dictation). */
+  untypedCount: number;
+  untypedChars: number;
+  /** Time away from the tab and how many times. */
+  awayMs: number;
+  awayCount: number;
+  /** D25: when recording stopped because the log was full; the summary keeps counting. */
+  logStoppedAt?: number;
+}
+
+/** A frozen copy's or the response's teacher feedback (D13); offsets index the frozen copy's plain text. */
+export interface WritingFeedback {
+  pointsAwarded?: number;
+  overallComment?: string;
+  annotations?: WrittenAnswerAnnotation[];
+  rubricScores?: WrittenAnswerRubricScore[];
+  excused?: boolean;
+  gradedBy: string;
+  gradedAt: number;
+}
+
+/** A frozen copy's score (D14). On the copy from `saveWritingFeedbackV1`; on the response only once returned. */
+export interface WritingGrade {
+  draftId: string;
+  draftNumber: number;
+  pointsAwarded?: number;
+  maxPoints?: number;
+  rubricScores?: WrittenAnswerRubricScore[];
+  excused?: boolean;
+  gradedAt: number;
+}
+
+/**
+ * `writing_assignment_sessions/{sid}/responses/{studentUid}`, created by `openWritingV1`.
+ * The student writes only html, summary, saveCount, saveKey, tabId, tabAt and logChunk; functions write the rest.
+ */
+export interface WritingResponse {
+  studentUid: string;
+  /** The class the student reached it through, from their claim or pointer. */
+  classId: string;
+  /** Sanitized editor HTML; sanitize again on render and export. */
+  html: string;
+  summary: WritingResponseSummary;
+  status: WritingResponseStatus;
+  /** D23/D24: rises with every save; the rules refuse a write that does not raise it. */
+  saveCount: number;
+  /** D23: `${tabId}:${saveCount}`, sent with every student save so the save names its tab. */
+  saveKey?: string;
+  /** D23: the tab that holds the piece; a write from another tab is refused unless it claims the piece. */
+  tabId: string;
+  /** Server time of the last claim; a claiming write sets it to the request time. */
+  tabAt?: { toMillis: () => number } | null;
+  /** D25: index of the open log chunk, 0 to 9; never moves back. */
+  logChunk: number;
+  startedAt: number;
+  /** D7: the clock's start and end on timed work, stamped by `openWritingV1`; the end includes extra time. */
+  timerStartedAt?: number;
+  deadlineAt?: number;
+  /** Frozen copies that still exist (take back lowers it). */
+  draftCount: number;
+  /** Copy ids handed out so far; never lowered, so a taken-back id is never reused (`drafts/{String(seq)}`). */
+  draftSeq?: number;
+  /** The newest copy; each copy links to the one before through `prevDraftId`. */
+  latestDraftId?: string;
+  turnedInAt?: number;
+  turnedInBy?: WritingTurnedInBy;
+  returnedAt?: number;
+  /** The returned score that counts (D14), copied at Return; teacher scores before Return stay on the copies. */
+  grade?: WritingGrade;
+  /** D21: the 1 August deletion removed this piece's log chunks. */
+  logPurgedAt?: number;
+  updatedAt: number;
+}
+
+/** `.../responses/{studentUid}/log/{index}`: one chunk of the edit log (D25). */
+export interface WritingLogChunk {
+  /** `WritingLogWriter` encoding; at most `WRITING_LOG_CHUNK_BYTES` bytes. */
+  log: string;
+  /** Closed chunks never change; the next one opens at index + 1. */
+  closed: boolean;
+  updatedAt: number;
+}
+
+/** `.../responses/{studentUid}/drafts/{seq}`: the frozen copy one turn in makes, with its feedback. */
+export interface WritingDraft {
+  /** Shown as "Draft n": the count of copies at turn in. */
+  number: number;
+  /** The id's number; ids are never reused. */
+  seq?: number;
+  prevDraftId?: string;
+  html: string;
+  summary: WritingResponseSummary;
+  turnedInAt: number;
+  turnedInBy: WritingTurnedInBy;
+  /** Where the edit log stood at turn in, so the record can mark each draft. */
+  logMark: { chunk: number; length: number };
+  feedback?: WritingFeedback;
+  feedbackAt?: number;
+  /** This copy's own score; the student reads it once the copy is returned. */
+  grade?: WritingGrade;
+  returnedAt?: number;
+  returnKind?: 'return' | 'revision';
+}
+
 // Union of all widget configs
 export type WidgetConfig =
   | RoutineGuideConfig
@@ -10615,7 +10901,9 @@ export type WidgetConfig =
   | FlashcardsConfig
   | ProjectsConfig
   | ArtsLettersAgendaConfig
-  | FocusConfig;
+  | FocusConfig
+  | WritingConfig
+  | AgendaConfig;
 
 // Helper type to get config type for a specific widget
 export type ConfigForWidget<T extends WidgetType> = T extends 'url'
@@ -10756,7 +11044,11 @@ export type ConfigForWidget<T extends WidgetType> = T extends 'url'
                                                                                                                                         ? ArtsLettersAgendaConfig
                                                                                                                                         : T extends 'focus'
                                                                                                                                           ? FocusConfig
-                                                                                                                                          : never;
+                                                                                                                                          : T extends 'writing'
+                                                                                                                                            ? WritingConfig
+                                                                                                                                            : T extends 'agenda'
+                                                                                                                                              ? AgendaConfig
+                                                                                                                                              : never;
 
 export interface WidgetComponentProps {
   widget: WidgetData;
@@ -10903,7 +11195,6 @@ export interface UserRolesConfig {
   teachers: string[];
   betaTeachers: string[];
   admins: string[];
-  superAdmins: string[];
 }
 
 /**
@@ -11508,7 +11799,9 @@ export type GlobalFeature =
   | 'assign-due-date'
   /** Reopen an ended quiz for selected students only. */
   | 'reopen-selected-students'
-  | 'share-import-confirm';
+  | 'share-import-confirm'
+  /** A score-only Video Activity publish keeps right/wrong off students' answers. */
+  | 'va-score-only-verdicts';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {
@@ -12724,7 +13017,8 @@ export type LibraryFolderWidget =
   | 'guided_learning'
   | 'miniapp'
   | 'flashcards'
-  | 'projects';
+  | 'projects'
+  | 'writing';
 
 /**
  * A folder record stored at

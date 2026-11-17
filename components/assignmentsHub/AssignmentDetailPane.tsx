@@ -199,7 +199,7 @@ export const AssignmentDetailPane: React.FC<{
       const next = applyWindowEdit(
         draft,
         row,
-        row.kind === 'quiz',
+        row.kind === 'quiz' || row.kind === 'writing',
         rowWorkKind(row)
       );
       const result = await saveEdit(row, user.uid, next, classContext);

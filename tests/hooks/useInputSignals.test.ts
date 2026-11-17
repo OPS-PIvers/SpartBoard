@@ -172,6 +172,56 @@ describe('useInputSignals', () => {
     expect(textAfter(edits, edits.length)).toBe('cat');
   });
 
+  it('holds a large log back on a question change and hide, but not on a turn-in', () => {
+    const big = `0:${'a'.repeat(40_000)}`;
+    const { save, rerender } = setup({
+      serverSignals: { '0': { q1: { log: big } } },
+    });
+    const box = document.createElement('textarea');
+    box.value = 'a'.repeat(40_000);
+    document.body.appendChild(box);
+    box.dispatchEvent(new InputEvent('beforeinput', { bubbles: true }));
+    box.value += 'b';
+    box.dispatchEvent(
+      new InputEvent('input', { bubbles: true, inputType: 'insertText' })
+    );
+    rerender({
+      enabled: true,
+      ready: true,
+      attempt: 0,
+      questionId: 'q2',
+      serverSignals: { '0': { q1: { log: big } } },
+      save,
+    });
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      value: 'hidden',
+    });
+    document.dispatchEvent(new Event('visibilitychange'));
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      value: 'visible',
+    });
+    expect(save).not.toHaveBeenCalled();
+    document.dispatchEvent(new CustomEvent(INPUT_SIGNALS_FLUSH_EVENT));
+    expect(save).toHaveBeenCalledOnce();
+  });
+
+  it('saves a large log on pagehide without the throttle', () => {
+    const big = `0:${'a'.repeat(40_000)}`;
+    const { save } = setup({ serverSignals: { '0': { q1: { log: big } } } });
+    const box = document.createElement('textarea');
+    box.value = 'a'.repeat(40_000);
+    document.body.appendChild(box);
+    box.dispatchEvent(new InputEvent('beforeinput', { bubbles: true }));
+    box.value += 'b';
+    box.dispatchEvent(
+      new InputEvent('input', { bubbles: true, inputType: 'insertText' })
+    );
+    window.dispatchEvent(new Event('pagehide'));
+    expect(save).toHaveBeenCalledOnce();
+  });
+
   it('logs no unkeyed text when the editor turns a new line into a paragraph', () => {
     const { save, unmount } = setup();
     const box = document.createElement('div');

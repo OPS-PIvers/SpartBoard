@@ -3,6 +3,7 @@ import {
   deriveQuizStudentStatus,
   deriveCompletedAtStudentStatus,
   deriveSubmissionStudentStatus,
+  deriveWritingStudentStatus,
 } from '@/utils/assignmentStudentStatus';
 
 describe('deriveQuizStudentStatus', () => {
@@ -53,5 +54,19 @@ describe('deriveSubmissionStudentStatus', () => {
   it('not-started with no submission, submitted otherwise', () => {
     expect(deriveSubmissionStudentStatus(false)).toBe('not-started');
     expect(deriveSubmissionStudentStatus(true)).toBe('submitted');
+  });
+});
+
+describe('deriveWritingStudentStatus', () => {
+  it('maps the piece status: none, draft or revising, turned in, returned', () => {
+    expect(deriveWritingStudentStatus(undefined)).toBe('not-started');
+    expect(deriveWritingStudentStatus({ status: 'draft' })).toBe('in-progress');
+    expect(deriveWritingStudentStatus({ status: 'revising' })).toBe(
+      'in-progress'
+    );
+    expect(deriveWritingStudentStatus({ status: 'turned-in' })).toBe(
+      'submitted'
+    );
+    expect(deriveWritingStudentStatus({ status: 'returned' })).toBe('graded');
   });
 });

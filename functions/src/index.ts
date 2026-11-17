@@ -159,7 +159,26 @@ export {
   cleanupGuidedLearningAssignmentPointers,
   cleanupMiniAppAssignmentPointers,
   cleanupFlashcardAssignmentPointers,
+  cleanupWritingAssignmentPointers,
 } from './studentAssignmentCleanup';
+
+// ── Writing assignment (docs/plans/WRITING_ASSIGNMENT.md): assign, delete and every status change ─
+export {
+  assignWritingV1,
+  deleteWritingSessionV1,
+  endWritingSessionV1,
+  updateWritingSessionV1,
+  cleanupWritingSessionData,
+} from './writingSessions';
+export {
+  openWritingV1,
+  turnInWritingV1,
+  takeBackWritingV1,
+  turnInTimedWritingV1,
+  returnWritingV1,
+  returnWritingForRevisionV1,
+  saveWritingFeedbackV1,
+} from './writingResponses';
 
 // ── Flashcards Check submission (server-graded; docs/plans/shipped/FLASHCARDS.md §7) ─
 export {
@@ -277,6 +296,7 @@ export {
   gradeIndexProjectGrade,
   gradeIndexMiniAppSubmission,
   gradeIndexWallSubmission,
+  gradeIndexWritingResponse,
   gradeIndexQuizSession,
   gradeIndexVideoSession,
   gradeIndexGuidedLearningSession,
@@ -284,6 +304,7 @@ export {
   gradeIndexProjectRun,
   gradeIndexMiniAppSession,
   gradeIndexWallSession,
+  gradeIndexWritingSession,
   gradeIndexQuizKey,
   gradeIndexQuizAssignment,
   gradeIndexVideoKey,

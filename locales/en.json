@@ -1241,6 +1241,7 @@
     }
   },
   "widgetSettings": {
+    "agenda": {},
     "qr": {
       "destinationUrl": "Destination URL",
       "linkRepeater": "Link repeater",
@@ -2476,7 +2477,8 @@
         "map": "Map",
         "camera": "Camera"
       }
-    }
+    },
+    "writing": {}
   },
   "widgetWindow": {
     "closeWidget": "Close widget? Data will be lost.",
@@ -3323,11 +3325,13 @@
       "tabAway": "Away limit: {{seconds}}s",
       "windowShifted": "Window shifted",
       "readAloud": "Read aloud",
+      "spellingHelp": "Spelling help",
       "language": "{{language}}",
       "copyPastePrintBlocked": "No copy, paste or print",
       "copyPastePrintAllowed": "Copy, paste and print allowed"
     },
     "language": "Language",
+    "spellingHelp": "Spelling help",
     "noChanges": "No changes",
     "copyPastePrint": "Copy, paste and print",
     "copyPastePrintBlock": "Block",
@@ -3405,7 +3409,8 @@
       "videoActivity": "Video Activity",
       "guidedLearning": "Guided Learning",
       "miniApp": "Mini App",
-      "flashcards": "Flashcards"
+      "flashcards": "Flashcards",
+      "writing": "Writing"
     },
     "flashcardKind": {
       "check": "Check",
@@ -5239,7 +5244,6 @@
       "tabSubmitTitle": "You left the page too many times",
       "submittingAnswers": "Submitting your answers…",
       "forcedTab": "You left the page too many times. Your assignment has been submitted. Ask your teacher if you think this was a mistake.",
-      "tryAgain": "Try again",
       "tryAgainError": "Couldn't start a new attempt. Try again.",
       "tabWarningOf": "Warning {{count}} of {{limit}}."
     },
@@ -6447,7 +6451,109 @@
   "course": {
     "linking": {
       "sectionCount_one": "{{count}} section",
-      "sectionCount_other": "{{count}} sections"
+      "sectionCount_other": "{{count}} sections",
+      "editCourse": "Edit Course",
+      "linkClasses": "Link classes",
+      "nameLabel": "Course name",
+      "classesLabel": "Classes",
+      "inCourse": "In {{name}}",
+      "link": "Link",
+      "notNow": "Not now",
+      "linked": "Classes linked",
+      "saved": "Course saved",
+      "saveFailed": "Couldn’t save the Course. Try again.",
+      "suggestNew": "{{name}}: link these {{count}} classes?",
+      "suggestAdd_one": "{{name}}: add {{count}} matching class?",
+      "suggestAdd_other": "{{name}}: add {{count}} matching classes?"
+    },
+    "agenda": {
+      "add": "Add agenda",
+      "addLink": "Add link",
+      "addLinkSave": "Add",
+      "badSlidesLink": "Paste a Google Slides link.",
+      "badUrl": "Enter a web address, like https://example.com",
+      "cantCheckHint": "Only the deck's owner can see and change who can open it.",
+      "change": "Change",
+      "changedElsewhere": "This course changed. Try again.",
+      "copied": "Copied",
+      "copyFailed": "Couldn't copy the link.",
+      "copyLink": "Copy link",
+      "done": "Done",
+      "familiesCantOpen": "Families can't open this deck.",
+      "firstSlide": "Students see the first slide. Add each new day at the top.",
+      "keepSharing": "Keep sharing",
+      "label": "Agenda",
+      "lineFamiliesCantOpen": "Families can't open the agenda",
+      "lineStudentsCantOpen": "Students can't open the agenda",
+      "linkTitle": "Title",
+      "linkUrl": "Web address",
+      "links": "Links",
+      "notSlides": "That link isn't a Google Slides deck.",
+      "pageLinkLabel": "Class page link",
+      "pasteLabel": "Or paste a Google Slides link",
+      "pasteUse": "Use link",
+      "pick": "Select from Google Drive",
+      "remove": "Remove deck",
+      "removeLink": "Remove {{title}}",
+      "saveFailed": "Couldn't save. Try again.",
+      "shareAnyone": "Share with anyone",
+      "shareAnyoneMessage": "Anyone with the link, outside Orono too, will see every slide in {{title}}, past days included.",
+      "shareAnyoneTitle": "Share with anyone?",
+      "shareConfirm": "Share",
+      "shareFailed": "Couldn't change sharing. Try again.",
+      "shareNoAccess": "Only the deck's owner can change its sharing.",
+      "shareOrono": "Share with Orono",
+      "shareOronoMessage": "Anyone in Orono with the link will be able to view {{title}}. Nothing else changes.",
+      "shareOronoTitle": "Share with Orono?",
+      "sharePolicy": "Your district's Google settings don't allow this sharing.",
+      "sharedAnyone": "Anyone with the link can view it.",
+      "sharedOrono": "Anyone in Orono with the link can view it.",
+      "stillPublic": "The deck is still public. Check its sharing in Google Slides.",
+      "stopSharing": "Stop sharing",
+      "stopSharingMessage": "{{title}} is shared with anyone who has the link. Set it back to anyone in Orono with the link?",
+      "stopSharingTitle": "Stop sharing the old deck outside Orono?",
+      "studentsCantOpen": "Students can't open this deck."
+    },
+    "family": {
+      "label": "Family link",
+      "copy": "Copy link",
+      "copied": "Copied",
+      "saving": "Saving",
+      "cancel": "Cancel",
+      "confirmOn": {
+        "title": "Turn on the family link?",
+        "body": "Anyone with the link can see this course's agenda and links without signing in.",
+        "deck": "Every slide in the agenda deck, past days included, becomes public.",
+        "action": "Turn on"
+      },
+      "confirmOff": {
+        "title": "Turn off the family link?",
+        "body": "The link stops working until you turn it on again. The address stays the same.",
+        "unshare": "Also stop sharing the deck outside Orono",
+        "action": "Turn off"
+      },
+      "problem": {
+        "noDrive": "Sign in to Google Drive again, then turn it on.",
+        "shareFailed": "Google didn't allow sharing the deck outside Orono. The link is still off.",
+        "stale": "This course changed in another tab. Try again.",
+        "saveFailed": "Couldn't save. Try again.",
+        "stillPublic": "The link is off, but the deck is still public. Change its sharing in Google Slides.",
+        "unshareFailed": "The link is off, but the deck's sharing didn't change. Change it in Google Slides.",
+        "deckStillUsed": "The link is off. The deck stays public because another course's family link shows it."
+      },
+      "page": {
+        "agenda": "Agenda",
+        "links": "Links",
+        "openInSlides": "Open in Google Slides",
+        "loading": "Loading",
+        "unavailable": "This page isn't available right now"
+      }
     }
+  },
+  "quizSupports": {
+    "button": "Supports",
+    "title": "Supports",
+    "close": "Close",
+    "resize": "Resize supports"
   }
 }

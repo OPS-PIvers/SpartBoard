@@ -242,7 +242,8 @@ export const Results: React.FC<ResultsProps> = ({
           keys,
           visibility,
           expiresAt,
-          protection
+          protection,
+          canAccessFeature('va-score-only-verdicts')
         );
       },
       hide: (keys) =>

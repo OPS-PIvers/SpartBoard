@@ -11,7 +11,6 @@ import '@testing-library/jest-dom/vitest';
 // building adds a duplicate canonical id instead of removing it.
 
 const mockUser = { email: 'admin@example.com', uid: 'admin-uid' };
-const mockUserRoles = { superAdmins: ['admin@example.com'] };
 const mockBuildings = [
   { id: 'high', name: 'Orono High School', gradeLabel: '9-12' },
 ];
@@ -19,9 +18,8 @@ const mockBuildings = [
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: mockUser,
-    orgId: null,
-    roleId: null,
-    userRoles: mockUserRoles,
+    orgId: 'orono',
+    roleId: 'super_admin',
   }),
 }));
 

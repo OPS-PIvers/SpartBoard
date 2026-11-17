@@ -250,7 +250,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
       setCourseLoadState('loaded');
     } catch (err) {
       setCourseLoadError(
-        err instanceof Error ? err.message : 'Failed to load courses.'
+        err instanceof Error ? err.message : 'Failed to load Classroom courses.'
       );
       setCourseLoadState('error');
     }
@@ -742,7 +742,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
                 <div>
                   <p className="text-sm font-bold text-slate-700">
                     {t('sidebar.classes.linkGoogleClassroom.errorTitle', {
-                      defaultValue: 'Could not load courses',
+                      defaultValue: 'Could not load Classroom courses',
                     })}
                   </p>
                   {courseLoadError && (
@@ -769,7 +769,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
                 <div className="text-center">
                   <p className="text-sm font-bold text-slate-600">
                     {t('sidebar.classes.linkGoogleClassroom.emptyTitle', {
-                      defaultValue: 'No active courses found',
+                      defaultValue: 'No active Classroom courses found',
                     })}
                   </p>
                   <p className="text-xs text-slate-400 mt-0.5 max-w-xs">

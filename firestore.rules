@@ -4377,7 +4377,8 @@ service cloud.firestore {
         'flashcards': 'flashcard_sessions',
         'projects': 'project_runs',
         'mini-app': 'mini_app_sessions',
-        'activity-wall': 'activity_wall_sessions'
+        'activity-wall': 'activity_wall_sessions',
+        'writing': 'writing_assignment_sessions'
       }[d.kind])/$(d.sessionId)).data.teacherUid == authUid();
     }
     function gbCreateOk(d) {
@@ -4714,6 +4715,14 @@ service cloud.firestore {
                  (to == 'joined' && from == 'completed' && d.get('answers', []).size() == 0 &&
                   (limit == null || (done < limit && limit > 1)));
         }
+        // The published answer key fields, on the response and its per-student override.
+        function keyFields() {
+          return ['revealedAnswers', 'revealedRubricExamples', 'revealedExplanations'];
+        }
+        // A write that touches the key leaves none of it behind (#5811).
+        function keyGone(d) {
+          return !d.keys().hasAny(keyFields()) && !d.get('resultsOverride', {}).keys().hasAny(keyFields());
+        }
 
         // A timed self-paced attempt takes answers only once its server clock has started (cheapest check first).
         function clockOk(s) {
@@ -4916,7 +4925,13 @@ service cloud.firestore {
            (responseKey == request.auth.uid || !k.hasAny(['classPeriod']) ||
             responseKey.matches('pin-' + keySeg(incoming().get('classPeriod', '')) + '-.*')) &&
            // shorthands: on
-           k.hasOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt', 'stimulusPlays', 'stimulusErrors', 'servedQuestionIds', 'recordingNoticeAckedAt', 'tabExits', 'attemptStartedAt', 'timeUp', 'partsDone', 'partHeld']) &&
+           k.hasOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt', 'stimulusPlays', 'stimulusErrors', 'servedQuestionIds', 'recordingNoticeAckedAt', 'tabExits', 'attemptStartedAt', 'timeUp', 'partsDone', 'partHeld', 'revealedAnswers', 'revealedRubricExamples', 'revealedExplanations', 'resultsOverride']) &&
+           // Only a retake (completed -> joined) strips the key, re-adds none, and the override keeps everything else.
+           (!k.hasAny(['revealedAnswers', 'revealedRubricExamples', 'revealedExplanations', 'resultsOverride']) ||
+            (existing().get('status', '') == 'completed' && incoming().get('status', '') == 'joined' && keyGone(incoming()) &&
+             (!k.hasAny(['resultsOverride']) ||
+              (existing().get('resultsOverride', null) is map && incoming().get('resultsOverride', null) is map &&
+               incoming().resultsOverride.diff(existing().resultsOverride).affectedKeys().hasOnly(keyFields()))))) &&
            tabExitsOk() &&
            // Stop checkpoints: a part count, and a held flag that is true or cleared.
            (!k.hasAny(['partsDone']) || incoming().get('partsDone', 0) is int) &&
@@ -7028,6 +7043,69 @@ service cloud.firestore {
                     && isList('steps')
                     && incoming().steps.size() <= 32
                     && isInt('updatedAt');
+    }
+
+    // Writing library (docs/plans/WRITING_ASSIGNMENT.md); students see a session copy, never the library.
+    match /users/{userId}/writing_assignments/{itemId} {
+      allow read, delete: if ownsUserTeacher(userId);
+      allow create, update: if ownsUserTeacher(userId)
+                            && incoming().id == itemId
+                            && isStr('title')
+                            && isMap('grading')
+                            && optListMax('stimuli', 10)
+                            && isInt('updatedAt');
+    }
+    match /users/{userId}/writing_folders/{folderId} {
+      allow read, write: if ownsUserTeacher(userId);
+    }
+    // The server-written record of each Writing session; deleteWritingSessionV1 deletes it.
+    match /users/{userId}/writing_assignment_records/{id} {
+      allow read: if ownsUserTeacher(userId);
+    }
+    // Writing sessions (WRITING_ASSIGNMENT.md §4.2). Server functions create responses and own every
+    // status change and frozen copy; a student's own write changes only the draft text, the summary
+    // and the open log chunk.
+    match /writing_assignment_sessions/{sid} {
+      allow get: if myOldTeacher() ||
+        existing().get('classIds', []).hasAny(tok().get('classIds', [])) ||
+        dbExists4('student_assignments', authUid(), 'items', sid);
+      allow list: if sessionListScoped();
+      function wrS() { return dbGet('writing_assignment_sessions', sid).data; }
+      function wrTeacher() { return liveUid(wrS().teacherUid); }
+      // Open, or still open for this student through their pointer's later closeAt (read only past the session close).
+      function wrOpen(s) {
+        return runOpen(s) || (s.get('status', '') != 'ended' &&
+          nowMs() < dbGet4('student_assignments', authUid(), 'items', sid).data.get('closeAt', 0) + 120000);
+      }
+      match /responses/{uid} {
+        function wrMine() { return uid == authUid(); }
+        function wrR() { return dbGet4('writing_assignment_sessions', sid, 'responses', uid).data; }
+        allow read: if wrMine() || wrTeacher();
+        // D23: saveKey is "tabId:saveCount", so every save names its tab; another tab must claim (tabAt now).
+        // D7: no save past the clock plus 30 s; Manual classes save only while started or let in.
+        allow update: if wrMine() && existing().status in ['draft', 'revising']
+          && changedOnly(['html', 'summary', 'saveCount', 'saveKey', 'tabId', 'tabAt', 'logChunk'])
+          && isStr('html') && incoming().html.size() <= 130000
+          && incoming().saveCount > existing().saveCount
+          && incoming().saveKey == incoming().tabId + ':' + string(incoming().saveCount)
+          && (unchanged('tabId') || incoming().tabAt == request.time)
+          && incoming().logChunk >= existing().logChunk && incoming().logChunk < 10
+          && nowMs() - 30000 < existing().get('deadlineAt', nowMs())
+          && wrOpen(wrS()) && (studentLetIn(wrS()) || periodOpen(wrS(), existing().classId));
+        // D25: only the open chunk is writable, a closed chunk never changes, and each write rides a
+        // response save in the same batch (which carries that save's tab, lock and clock checks).
+        match /log/{n} {
+          allow read: if wrTeacher();
+          allow create, update: if wrMine() && n == string(wrR().logChunk)
+            && dbGetAfter4('writing_assignment_sessions', sid, 'responses', uid).data.saveCount > wrR().saveCount
+            && (noDoc() || existing().closed != true)
+            && isBool('closed') && incoming().log.size() <= 200000;
+        }
+        // Frozen copies, with their feedback and score; the student sees one only after it is returned.
+        match /drafts/{d} {
+          allow read: if wrTeacher() || (wrMine() && 'returnedAt' in existing());
+        }
+      }
     }
 
     // Projects runs (docs/plans/shipped/PROJECTS_WIDGET.md §5.2). One doc per group is

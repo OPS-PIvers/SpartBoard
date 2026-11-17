@@ -15,6 +15,8 @@ interface EditorWorkspaceProps {
   titlePlaceholder?: string;
   /** Pass-through to `EditorModalShell.headerExtras`. */
   headerExtras?: React.ReactNode;
+  /** Pass-through to `EditorModalShell.headerAccent`. */
+  headerAccent?: string;
   isDirty: boolean;
   isSaving?: boolean;
   saveLabel?: string;

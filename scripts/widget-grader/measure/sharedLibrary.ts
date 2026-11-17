@@ -5,11 +5,14 @@ const ACCOUNT_LIBRARY_COLLECTIONS = new Set([
   'projects',
   'quizzes',
   'flashcard_sets',
+  'writing_assignments',
+  'writing_assignment_records',
 ]);
 
 // Widget type mapped to the fixed row wording its library list shows.
 const LIBRARY_ROW_WORDS: Record<string, string[]> = {
   projects: ['steps', 'Updated', 'Set up groups'],
+  writing: ['Ungraded', 'points', 'Updated', 'Assign'],
 };
 
 /** Titles and row wording of fixture docs in a per-account library collection. */

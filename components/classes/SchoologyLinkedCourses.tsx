@@ -51,7 +51,7 @@ export const SchoologyLinkedCourses: React.FC<SchoologyLinkedCoursesProps> = ({
       addToast(
         err instanceof Error && err.message
           ? err.message
-          : 'Failed to unlink the course.',
+          : 'Failed to unlink the Schoology course.',
         'error'
       );
     } finally {

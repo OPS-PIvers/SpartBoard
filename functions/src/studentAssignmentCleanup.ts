@@ -166,3 +166,14 @@ export const cleanupFlashcardAssignmentPointers = onDocumentDeleted(
       event.data?.data()
     )
 );
+
+export const cleanupWritingAssignmentPointers = onDocumentDeleted(
+  triggerOptions('users/{userId}/writing_assignment_records/{assignmentId}'),
+  (event) =>
+    handleAssignmentDeleted(
+      event.params.assignmentId,
+      event.params.userId,
+      'writing',
+      event.data?.data()
+    )
+);

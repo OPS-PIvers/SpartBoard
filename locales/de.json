@@ -2030,11 +2030,13 @@
       "tabAway": "Abwesenheitslimit: {{seconds}} s",
       "windowShifted": "Zeitfenster verschoben",
       "readAloud": "Vorlesen",
+      "spellingHelp": "Rechtschreibhilfe",
       "language": "{{language}}",
       "copyPastePrintBlocked": "Kein Kopieren, Einfügen oder Drucken",
       "copyPastePrintAllowed": "Kopieren, Einfügen und Drucken erlaubt"
     },
     "language": "Sprache",
+    "spellingHelp": "Rechtschreibhilfe",
     "noChanges": "Keine Änderungen",
     "copyPastePrint": "Kopieren, Einfügen und Drucken",
     "copyPastePrintBlock": "Sperren",
@@ -2112,7 +2114,8 @@
       "videoActivity": "Videoaktivität",
       "guidedLearning": "Geführtes Lernen",
       "miniApp": "Mini-App",
-      "flashcards": "Karteikarten"
+      "flashcards": "Karteikarten",
+      "writing": "Schreiben"
     },
     "flashcardKind": {
       "check": "Überprüfung",
@@ -3925,7 +3928,6 @@
       "tabSubmitTitle": "Du hast die Seite zu oft verlassen",
       "submittingAnswers": "Deine Antworten werden abgegeben…",
       "forcedTab": "Du hast die Seite zu oft verlassen. Deine Aufgabe wurde abgegeben. Sprich mit deiner Lehrkraft, wenn du denkst, dass das ein Fehler war.",
-      "tryAgain": "Erneut versuchen",
       "tryAgainError": "Ein neuer Versuch konnte nicht gestartet werden. Versuche es erneut.",
       "tabWarningOf": "Warnung {{count}} von {{limit}}."
     },
@@ -5099,5 +5101,11 @@
     "hour": "Stunde",
     "minute": "Minute",
     "period": "Vormittag oder Nachmittag"
+  },
+  "quizSupports": {
+    "button": "Hilfen",
+    "title": "Hilfen",
+    "close": "Schließen",
+    "resize": "Größe der Hilfen ändern"
   }
 }

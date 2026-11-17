@@ -115,7 +115,7 @@ export function parseDeletePayload(data: unknown): DeleteUserPayload {
 // ── Authorization ──────────────────────────────────────────────────────────
 
 /**
- * Fails closed. Mirrors `isMemberSuperAdmin()` / `isLegacySuperAdmin()` in
+ * Fails closed. Mirrors `isMemberSuperAdmin()` in
  * firestore.rules: the member doc is read from the OPERATOR org by fixed path,
  * never the target org, because a `super_admin` roleId in any other org grants
  * nothing server-side. An `/admins/{email}` doc is deliberately not a source —
