@@ -65,7 +65,7 @@ export type WritingResponseFacts = Pick<
   WritingResponse,
   'status' | 'tabId' | 'classId'
 > &
-  Partial<Pick<WritingResponse, 'turnedInAt'>>;
+  Partial<Pick<WritingResponse, 'turnedInAt' | 'deadlineAt'>>;
 
 export interface WritingPageView {
   mode: WritingPageMode;
