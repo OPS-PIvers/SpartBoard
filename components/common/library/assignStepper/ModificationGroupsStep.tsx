@@ -51,6 +51,8 @@ export interface ModificationGroupsStepProps {
   quizContext: ModificationsQuizContext;
   /** First time option's label ("15 min", "Standard"); absent hides the row. */
   timeLimitLabel?: string;
+  /** Some question has a modified version; shows the Modified questions row. */
+  hasModifiedQuestions?: boolean;
   /** Current per-student overrides, for the translation advisory. */
   overridesByKey: Parameters<typeof effectiveClassOverride>[1];
   /** True while a support's Drive file is still being shared. */
@@ -207,6 +209,7 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
   unresolvableCount,
   quizContext,
   timeLimitLabel,
+  hasModifiedQuestions = false,
   overridesByKey,
   onSharingChange,
 }) => {
@@ -430,6 +433,19 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
                     { value: '2', label: '2x' },
                     { value: 'unlimited', label: 'None' },
                   ]}
+                />
+              </Row>
+            )}
+            {hasModifiedQuestions && (
+              <Row label="Modified questions">
+                <Toggle
+                  size="sm"
+                  checked={group.modifiedQuestions === true}
+                  onChange={(modifiedQuestions) =>
+                    set(group.id, { modifiedQuestions })
+                  }
+                  label="Modified questions"
+                  anchor={tourAttr('assign-mods.modified-questions')}
                 />
               </Row>
             )}

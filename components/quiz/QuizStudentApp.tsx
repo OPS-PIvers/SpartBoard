@@ -293,6 +293,7 @@ import {
 import {
   serveQuestionSubset,
   applyHiddenOptions,
+  applyModifiedWording,
   applyTimeMultiplier,
   serveLocalizedQuestion,
 } from '@/utils/quizOverrideServing';
@@ -2571,7 +2572,10 @@ export const ActiveQuiz: React.FC<{
   const currentQuestion = useMemo(() => {
     if (!baseQuestion) return baseQuestion;
     const served = isStudentPaced
-      ? applyHiddenOptions(baseQuestion, override?.hiddenOptionIdsByQuestion)
+      ? applyHiddenOptions(
+          applyModifiedWording(baseQuestion, override?.modifiedQuestions),
+          override?.hiddenOptionIdsByQuestion
+        )
       : baseQuestion;
     if (!answerOptionShuffleEnabled) return served;
     return shuffleQuestionForStudent(served, studentShuffleSeed);
@@ -2579,9 +2583,15 @@ export const ActiveQuiz: React.FC<{
     baseQuestion,
     isStudentPaced,
     override?.hiddenOptionIdsByQuestion,
+    override?.modifiedQuestions,
     answerOptionShuffleEnabled,
     studentShuffleSeed,
   ]);
+  const modifiedServed =
+    !!baseQuestion &&
+    isStudentPaced &&
+    applyModifiedWording(baseQuestion, override?.modifiedQuestions) !==
+      baseQuestion;
   // Live view (QUIZ_LIVE_VIEW.md D12): position is reported only while the teacher's stamp is ahead.
   const liveView = watching ? null : myResponse?.liveView;
   const liveViewUntil = liveView?.until ?? 0;
@@ -2654,6 +2664,7 @@ export const ActiveQuiz: React.FC<{
     manifest: session.readAloud,
     locale: readAloudLocale,
     canonicalQuestions: session.publicQuestions,
+    promptRewritten: modifiedServed,
     // Nothing to read behind the review screen.
     question:
       reviewOn && reviewOpen && !isAttemptSubmitted(myResponse)
@@ -4195,9 +4206,16 @@ export const ActiveQuiz: React.FC<{
     );
   const currentReviewRows = () =>
     reviewRows(
-      orderedPublicQuestions.map((q) =>
-        applyLocalizedStrings(q, serveLocalizedQuestion(q, assignedLocale))
-      ),
+      orderedPublicQuestions.map((base) => {
+        const q = applyModifiedWording(
+          base,
+          isStudentPaced && override?.modifiedQuestions
+        );
+        return applyLocalizedStrings(
+          q,
+          serveLocalizedQuestion(q, assignedLocale)
+        );
+      }),
       myResponse?.answers ?? [],
       answerCache,
       markedIds,
@@ -4702,8 +4720,8 @@ export const ActiveQuiz: React.FC<{
             </div>
           )}
 
-          {/* Question */}
-          {readAloudOn ? (
+          {/* Question; the recorded audio is the original wording, so a modified prompt has none yet. */}
+          {readAloudOn && !modifiedServed ? (
             <div
               ref={promptWrapRef}
               tabIndex={-1}
@@ -6488,9 +6506,16 @@ export const PublishedScoreReview: React.FC<{
   // entirely when the quiz has no auto-graded questions at all. Restricted
   // to the served subset (M17 §3a-F) — an unmodified question the student
   // was never served must not count toward this denominator.
-  const publicQuestions = drawIds
-    ? orderServedQuestions(session.publicQuestions ?? [], drawIds)
-    : serveQuestionSubset(session.publicQuestions ?? [], override?.questionIds);
+  const modifiedOn =
+    session.sessionMode === 'student' && override?.modifiedQuestions === true;
+  const publicQuestions = (
+    drawIds
+      ? orderServedQuestions(session.publicQuestions ?? [], drawIds)
+      : serveQuestionSubset(
+          session.publicQuestions ?? [],
+          override?.questionIds
+        )
+  ).map((q) => applyModifiedWording(q, modifiedOn));
   const publicQuestionIndex = new Map(
     publicQuestions.map((question, index) => [question.id, index])
   );

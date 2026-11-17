@@ -98,6 +98,7 @@ import {
   NeedsAnswerNotice,
   QuestionPromptField,
   QuestionTargetsField,
+  QuestionModifiedField,
   QuestionExplanationField,
   QuestionTypeSelect,
 } from './QuestionFields';
@@ -1007,6 +1008,16 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             onPickerOpenChange={setPickerOpen}
             metaList={metaList}
           />
+
+          {canAccessFeature('modification-groups') && (
+            <QuestionModifiedField
+              question={q}
+              onChange={(modifiedText) =>
+                updateQuestion(q.id, { modifiedText })
+              }
+              metaList={metaList}
+            />
+          )}
         </div>
 
         {/* Type / format / time / points row */}

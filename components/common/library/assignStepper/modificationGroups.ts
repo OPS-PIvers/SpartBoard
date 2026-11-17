@@ -21,6 +21,7 @@ export interface ModificationGroup {
   /** BCP-47 code; absent = each student's own. */
   language?: string;
   supports?: QuizSupport[];
+  modifiedQuestions?: boolean;
 }
 
 export const MAX_SUPPORTS = 5;
@@ -107,6 +108,7 @@ export function overrideForGroup(
   if (group.readAloud) next.readAloud = true;
   if (group.language) next.language = group.language;
   if (group.supports?.length) next.supports = group.supports;
+  if (group.modifiedQuestions) next.modifiedQuestions = true;
   return next;
 }
 
@@ -152,6 +154,7 @@ export function groupRuleLabels(
   else if (group.time !== 'standard') parts.push(`${group.time}x time`);
   if (group.answerChoices === 'drop-one') parts.push('1 wrong answer removed');
   if (group.answerChoices === 'two') parts.push('2 answer choices');
+  if (group.modifiedQuestions) parts.push('modified questions');
   if (group.readAloud) parts.push('read aloud');
   if (group.language)
     parts.push(languageLabel ? languageLabel(group.language) : group.language);

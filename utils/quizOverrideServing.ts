@@ -1,3 +1,4 @@
+import { countTextBlanks } from './quizFibBlanks';
 /**
  * Student-side application of a `StudentOverride` to a quiz session's public
  * questions (M17 spec §5 C3). Kept out of `QuizStudentApp.tsx` so the subset
@@ -47,6 +48,30 @@ export function applyHiddenOptions(
     .filter((i) => i >= 0);
   if (kept.length === question.choices.length) return question;
   return reindexChoiceArray(question, 'choices', kept);
+}
+
+/** The teacher's modified prompt in place of the original, in every language until it has its own translation. */
+export function applyModifiedWording(
+  question: QuizPublicQuestion,
+  on: boolean | undefined
+): QuizPublicQuestion {
+  const text = question.modifiedText;
+  if (!on || !text) return question;
+  // Fill-in-the-blank wording must keep the same blanks, or the boxes misnumber.
+  if (
+    question.type === 'FIB' &&
+    countTextBlanks(text) !== countTextBlanks(question.text)
+  )
+    return question;
+  const localized = question.localized
+    ? Object.fromEntries(
+        Object.entries(question.localized).map(([loc, strings]) => [
+          loc,
+          { ...strings, text },
+        ])
+      )
+    : undefined;
+  return { ...question, text, ...(localized ? { localized } : {}) };
 }
 
 const LOCALIZED_ARRAY_FIELDS = [

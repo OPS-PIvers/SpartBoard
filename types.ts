@@ -4531,6 +4531,8 @@ export interface QuizQuestion {
   /** Time limit in seconds. 0 = no time limit. */
   timeLimit: number;
   text: string;
+  /** Modified wording of the prompt for students in a group with modified questions; same answer key. */
+  modifiedText?: string;
   type: QuizQuestionType;
   /**
    * MC/FIB: the correct answer text. Multi-blank FIB: one answer per blank joined by `FIB_BLANK_SEP`.
@@ -5354,6 +5356,8 @@ export interface QuizPublicQuestion {
   id: string;
   type: QuizQuestion['type'];
   text: string;
+  /** The teacher's modified prompt, shown only to students whose override asks for it. */
+  modifiedText?: string;
   timeLimit: number;
   /** MC/MA: all answer choices pre-shuffled (correct identity unknown) */
   choices?: string[];
@@ -7316,6 +7320,8 @@ export interface StudentOverride {
   closeAt?: number; // per-student window shift (epoch ms)
   /** BCP-47 code, e.g. 'es' | 'so' | 'hmn'. Absent = English. Shape-validated only. */
   language?: string;
+  /** Quiz only: serve each question's modified wording where the teacher wrote one. */
+  modifiedQuestions?: boolean;
   /** Quiz only: teacher-provided supports shown in the student's Supports panel. */
   supports?: QuizSupport[];
 }

@@ -80,6 +80,8 @@ export interface QuizAssignStepperProps {
     quizContext: ModificationsQuizContext;
     /** Any question carries its own time limit, so the time rule applies without a quiz-wide one. */
     hasQuestionTimeLimits?: boolean;
+    /** Some question has a modified version, so groups can opt into it. */
+    hasModifiedQuestions?: boolean;
   };
   /** Omit when sharing is fixed (PLC quiz assign, D21): no Sharing step. */
   sharing?: {
@@ -287,6 +289,7 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
           })}
           quizContext={modifications.quizContext}
           timeLimitLabel={timeLimitLabel}
+          hasModifiedQuestions={modifications.hasModifiedQuestions === true}
           overridesByKey={modifications.targeting.overridesByKey}
           onSharingChange={(sharing) =>
             setSharingCount((n) => Math.max(0, n + (sharing ? 1 : -1)))

@@ -97,6 +97,7 @@ export const STUDENT_QUIZ_STATES = [
   'sq-cross-out',
   'sq-supports',
   'sq-supports-stimuli',
+  'sq-modified',
   'sq-reopened',
   'sq-unlocked',
   'sq-images-ordering',

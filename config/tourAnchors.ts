@@ -1546,6 +1546,10 @@ export const TOUR_ANCHORS = {
     label: 'Another group with different changes button in the Assign dialog',
     panel: true,
   },
+  'assign-mods.modified-questions': {
+    label: 'Modified questions switch for a modification group',
+    panel: true,
+  },
   'assign-mods.supports-add': {
     label: 'Add support button for a modification group',
     panel: true,
@@ -2010,6 +2014,16 @@ export const TOUR_ANCHORS = {
   },
   'quiz-editor.explanation': {
     label: 'Explanation box in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.modified': {
+    label: 'Modified version row under Learning targets in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.modified-text': {
+    label: 'Modified version wording box in the Quiz editor',
     perWidgetType: true,
     panel: true,
   },

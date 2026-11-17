@@ -140,6 +140,7 @@ export const SURFACES: TourSurfaceMap = {
       'assign-mods.add-group': 'assign-step.modifications',
       'assign-mods.group-generate-translation': 'assign-step.modifications',
       'assign-mods.supports-add': 'assign-step.modifications',
+      'assign-mods.modified-questions': 'assign-step.modifications',
       'assign-mods.supports-kind': 'assign-mods.supports-add',
       'assign-mods.support-title': 'assign-mods.supports-add',
       'assign-mods.support-body': 'assign-mods.supports-add',

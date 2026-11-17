@@ -120,6 +120,15 @@ describe('overridesFromGroups', () => {
     expect(out.b).toEqual({ supports, language: 'es' });
   });
 
+  it('turns on modified questions for grouped students', () => {
+    const out = overridesFromGroups(
+      [group({ studentKeys: ['a'], modifiedQuestions: true })],
+      rows,
+      QUESTIONS
+    );
+    expect(out.a.modifiedQuestions).toBe(true);
+  });
+
   it('ignores students no longer in the checked classes', () => {
     expect(
       overridesFromGroups(
@@ -225,6 +234,14 @@ describe('formatModificationGroupsValue', () => {
         scope
       )
     ).toBe('1 student: 2 supports');
+  });
+  it('names modified questions', () => {
+    expect(
+      formatModificationGroupsValue(
+        [group({ studentKeys: ['a'], modifiedQuestions: true })],
+        scope
+      )
+    ).toBe('1 student: modified questions');
   });
   it('counts several groups', () => {
     expect(
