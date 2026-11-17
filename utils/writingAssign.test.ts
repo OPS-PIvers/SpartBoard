@@ -3,24 +3,23 @@ import type { ClassRoster } from '@/types';
 import { EMPTY_ASSIGN_TARGETING_VALUE } from '@/utils/studentTargetRef';
 import { buildWritingAssignSubmission } from './writingAssign';
 
-const roster = (id: string, classId: string, name: string): ClassRoster =>
-  ({
-    id,
-    name,
-    driveFileId: null,
-    studentCount: 1,
-    createdAt: 0,
-    classlinkClassId: classId,
-    students: [
-      {
-        id: `${id}-s`,
-        firstName: 'Avery',
-        lastName: 'S',
-        pin: '1',
-        classLinkSourcedId: `SID-${id}`,
-      },
-    ],
-  }) as ClassRoster;
+const roster = (id: string, classId: string, name: string): ClassRoster => ({
+  id,
+  name,
+  driveFileId: null,
+  studentCount: 1,
+  createdAt: 0,
+  classlinkClassId: classId,
+  students: [
+    {
+      id: `${id}-s`,
+      firstName: 'Avery',
+      lastName: 'S',
+      pin: '1',
+      classLinkSourcedId: `SID-${id}`,
+    },
+  ],
+});
 
 const ROSTERS = [
   roster('r1', 'cl-1', 'Period 1'),
