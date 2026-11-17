@@ -1,5 +1,10 @@
 // A modification group's printed version of a device quiz (`paper-printed-versions`).
-import type { QuizData, QuizQuestion, QuizSupport } from '@/types';
+import type {
+  PaperPrintedGroupRecord,
+  QuizData,
+  QuizQuestion,
+  QuizSupport,
+} from '@/types';
 import { toOverrideEditorQuestions } from '@/components/common/library/toOverrideEditorQuestions';
 import {
   hiddenOptionIdsForRule,
@@ -77,5 +82,18 @@ export function printedGroupForPrint(pick: PrintedGroupPick): {
     label: `Group ${pick.number}`,
     students,
     supports: printedSupports(pick.group.supports),
+  };
+}
+
+/** What a printed group's stack records about its version. */
+export function printedGroupRecord(
+  pick: PrintedGroupPick
+): PaperPrintedGroupRecord {
+  const { answerChoices, modifiedQuestions, supports } = pick.group;
+  return {
+    number: pick.number,
+    answerChoices,
+    ...(modifiedQuestions ? { modifiedQuestions: true } : {}),
+    ...(supports?.length ? { supports } : {}),
   };
 }

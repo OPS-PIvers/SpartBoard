@@ -238,6 +238,7 @@ import {
   PAPER_PRINTED_VERSIONS_FEATURE,
   printedGroupForPrint,
   printedGroupQuiz,
+  printedGroupRecord,
 } from '@/utils/paperPrintedVersions';
 import type { PrintedGroupPick } from '@/components/common/library/assignStepper/modificationGroups';
 import {
@@ -5361,7 +5362,10 @@ const TeacherQuizWidget: React.FC<{
           group={printedGroupForPrint(printedQueue.groups[0].pick)}
           rosters={rosters}
           onSaveBatch={async (batch) => {
-            await savePaperBatch(user.uid, batch);
+            await savePaperBatch(user.uid, {
+              ...batch,
+              printedGroup: printedGroupRecord(printedQueue.groups[0].pick),
+            });
             await linkPrintedCopyBatch(
               user.uid,
               printedQueue.assignmentId,
