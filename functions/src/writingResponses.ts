@@ -897,34 +897,57 @@ const OPTIONS = {
   invoker: 'public' as const,
 };
 
-type Handler<T> = (
-  db: Firestore,
-  caller: WritingCaller | null,
-  data: unknown,
-  now: number
-) => Promise<T>;
+const run = <T>(
+  request: CallableRequest,
+  handler: (
+    db: Firestore,
+    caller: WritingCaller | null,
+    data: unknown,
+    now: number
+  ) => Promise<T>
+) =>
+  handler(
+    admin.firestore(),
+    writingCallerFrom(request.auth),
+    request.data,
+    Date.now()
+  );
 
-const callable = <T>(handler: Handler<T>, outward = false) =>
-  onCall(OPTIONS, async (request) => {
-    await assertViewAsAllowed(request, outward ? { outward: true } : undefined);
-    return handler(
-      admin.firestore(),
-      writingCallerFrom(request.auth),
-      request.data,
-      Date.now()
-    );
-  });
+export const openWritingV1 = onCall(OPTIONS, async (request) => {
+  await assertViewAsAllowed(request);
+  return run(request, handleOpenWriting);
+});
 
-export const openWritingV1 = callable(handleOpenWriting);
-export const turnInWritingV1 = callable(handleTurnInWriting);
-export const takeBackWritingV1 = callable(handleTakeBackWriting);
-export const turnInTimedWritingV1 = callable(handleTimedTurnIn);
-export const returnWritingV1 = callable(
-  (db, c, d, now) => handleReturnWriting(db, c, d, now, false),
-  true
-);
-export const returnWritingForRevisionV1 = callable(
-  (db, c, d, now) => handleReturnWriting(db, c, d, now, true),
-  true
-);
-export const saveWritingFeedbackV1 = callable(handleSaveWritingFeedback, true);
+export const turnInWritingV1 = onCall(OPTIONS, async (request) => {
+  await assertViewAsAllowed(request);
+  return run(request, handleTurnInWriting);
+});
+
+export const takeBackWritingV1 = onCall(OPTIONS, async (request) => {
+  await assertViewAsAllowed(request);
+  return run(request, handleTakeBackWriting);
+});
+
+export const turnInTimedWritingV1 = onCall(OPTIONS, async (request) => {
+  await assertViewAsAllowed(request);
+  return run(request, handleTimedTurnIn);
+});
+
+export const returnWritingV1 = onCall(OPTIONS, async (request) => {
+  await assertViewAsAllowed(request, { outward: true });
+  return run(request, (db, c, d, now) =>
+    handleReturnWriting(db, c, d, now, false)
+  );
+});
+
+export const returnWritingForRevisionV1 = onCall(OPTIONS, async (request) => {
+  await assertViewAsAllowed(request, { outward: true });
+  return run(request, (db, c, d, now) =>
+    handleReturnWriting(db, c, d, now, true)
+  );
+});
+
+export const saveWritingFeedbackV1 = onCall(OPTIONS, async (request) => {
+  await assertViewAsAllowed(request, { outward: true });
+  return run(request, handleSaveWritingFeedback);
+});
