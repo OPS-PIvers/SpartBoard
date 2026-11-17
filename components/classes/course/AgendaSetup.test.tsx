@@ -274,6 +274,101 @@ describe('AgendaSetup', () => {
     expect(drive.perms.oldDeck12345[0].type).toBe('domain');
   });
 
+  it('does not offer to stop sharing a deck another Course shows to families', async () => {
+    const drive = fakeDrive({
+      oldDeck12345: [{ id: 'anyoneWithLink', type: 'anyone', role: 'reader' }],
+      newDeck1234: [
+        { id: 'd2', type: 'domain', domain: DOMAIN, role: 'reader' },
+      ],
+    });
+    openPicker.mockResolvedValue({
+      id: 'newDeck1234',
+      name: 'New',
+      mimeType: '',
+    });
+    showConfirm.mockResolvedValue(true);
+    const saveCourse = vi.fn(() =>
+      Promise.resolve({
+        courseId: 'c1',
+        rostersWithoutClassPage: [],
+        classLinkUnavailable: false,
+      })
+    );
+    const course = makeCourse({
+      agenda: { fileId: 'oldDeck12345', title: 'Old deck' },
+    });
+    const other = makeCourse({
+      id: 'c2',
+      agenda: { fileId: 'oldDeck12345', title: 'Old deck' },
+      familyLink: { shareId: 's', on: true },
+    });
+    render(
+      <AgendaSetup
+        group={{ course, rosters: [{ id: 'p2', name: 'P2' }] }}
+        courses={[course, other]}
+        saveCourse={saveCourse}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /old deck/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Change' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Select from Google Drive' })
+    );
+    await waitFor(() => expect(saveCourse).toHaveBeenCalled());
+    await act(() => new Promise((r) => setTimeout(r, 100)));
+    expect(showConfirm).not.toHaveBeenCalled();
+    expect(drive.perms.oldDeck12345).toHaveLength(1);
+  });
+
+  it('stays busy after creating a Course until it arrives, so a second save cannot create another', async () => {
+    fakeDrive({
+      deck12345: [{ id: 'd', type: 'domain', domain: DOMAIN, role: 'reader' }],
+    });
+    openPicker.mockResolvedValue({
+      id: 'deck12345',
+      name: 'Daily',
+      mimeType: '',
+    });
+    const saveCourse = vi.fn(() =>
+      Promise.resolve({
+        courseId: 'c9',
+        rostersWithoutClassPage: [],
+        classLinkUnavailable: false,
+      })
+    );
+    const rosters = [{ id: 'p3', name: 'Speech P3' }];
+    const { rerender } = render(
+      <AgendaSetup group={{ course: null, rosters }} saveCourse={saveCourse} />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /add agenda/i }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Select from Google Drive' })
+    );
+    await waitFor(() => expect(saveCourse).toHaveBeenCalledTimes(1));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.getByRole('button', { name: 'Add link' })).toBeDisabled();
+    rerender(
+      <AgendaSetup
+        group={{
+          course: makeCourse({
+            id: 'c9',
+            rosterIds: ['p3'],
+            agenda: { fileId: 'deck12345', title: 'Daily' },
+          }),
+          rosters,
+        }}
+        saveCourse={saveCourse}
+      />
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Add link' })
+      ).not.toBeDisabled()
+    );
+  });
+
   it('shows a deck students cannot open with a fix, and records the check', async () => {
     fakeDrive({ deck12345678: [{ id: 'o', type: 'user', role: 'owner' }] });
     const saveCourse = vi.fn(() =>

@@ -7,6 +7,8 @@ export interface AgendaStatus {
   open: boolean;
   /** The Course `updatedAt` a save started from; controls stay busy until the saved Course arrives. */
   savedFrom: number | null;
+  /** A save created this class's Course, which has not arrived yet. */
+  creating: boolean;
 }
 
 const IDLE: AgendaStatus = {
@@ -14,6 +16,7 @@ const IDLE: AgendaStatus = {
   error: null,
   open: false,
   savedFrom: null,
+  creating: false,
 };
 const statuses = new Map<string, AgendaStatus>();
 const listeners = new Set<() => void>();

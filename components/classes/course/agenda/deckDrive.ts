@@ -58,6 +58,10 @@ export function deckErrorFor(status: number, body: string): Error {
     if (reasons.some((r) => AUTH_REASONS.has(r))) {
       return authError('Google Drive access expired. Please sign in again.');
     }
+    // A rate limit is a passing failure, not a refusal.
+    if (reasons.some((r) => /rateLimitExceeded/i.test(r))) {
+      return new Error('Drive is busy (rate limit).');
+    }
     if (
       reasons.some((r) =>
         /policy|publishOutNotPermitted|cannotShare|sharingRestricted/i.test(r)

@@ -1,5 +1,5 @@
 // Thread B owns this file: the Agenda deck, its sharing, pinned links and the Class page link (D6 to D12, D18, D24).
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, Presentation } from 'lucide-react';
 import { FirebaseError } from 'firebase/app';
@@ -17,6 +17,7 @@ import {
   setDeckSharing,
 } from '@/utils/course/deckSharing';
 import type {
+  Course,
   CourseAgenda,
   CourseInput,
   CoursePinnedLink,
@@ -73,10 +74,9 @@ function shareErrorText(t: TFn, err: unknown): string | null {
   });
 }
 
-export const AgendaSetup: React.FC<CourseGroupProps> = ({
-  group,
-  saveCourse,
-}) => {
+export const AgendaSetup: React.FC<
+  CourseGroupProps & { courses?: readonly Course[] }
+> = ({ group, saveCourse, courses = [] }) => {
   const { t } = useTranslation();
   const { user, googleAccessToken, refreshGoogleToken } = useAuth();
   const { showConfirm } = useDialog();
@@ -91,8 +91,12 @@ export const AgendaSetup: React.FC<CourseGroupProps> = ({
   // Stays busy until the saved Course arrives, so the next save sends its new updatedAt.
   const busy =
     status.busy ||
+    (status.creating && !course) ||
     (status.savedFrom !== null &&
       (course?.updatedAt ?? null) === status.savedFrom);
+  useEffect(() => {
+    if (course && status.creating) setStatus({ creating: false });
+  }, [course, status.creating, setStatus]);
   const agenda = course?.agenda ?? null;
   const domain = emailDomain(user?.email);
   const drive = useMemo(
@@ -120,7 +124,8 @@ export const AgendaSetup: React.FC<CourseGroupProps> = ({
         action: 'save',
         course: courseSaveInput(group, patch),
       });
-      setStatus({ savedFrom: course?.updatedAt ?? null });
+      // A new Course keeps the controls busy until it arrives, so a second save can't create another.
+      setStatus({ savedFrom: course?.updatedAt ?? null, creating: !course });
       return true;
     } catch (err) {
       logError('AgendaSetup.save', err);
@@ -175,6 +180,16 @@ export const AgendaSetup: React.FC<CourseGroupProps> = ({
   // Default plan: a replaced public deck gets the D23 offer to go back to Orono only.
   const offerStopSharing = async (old: CourseAgenda) => {
     if (!drive || !domain) return;
+    // Another Course's families still need the deck public.
+    if (
+      courses.some(
+        (c) =>
+          c.id !== course?.id &&
+          c.agenda?.fileId === old.fileId &&
+          c.familyLink?.on
+      )
+    )
+      return;
     const { sharing } = await readDeckState(drive, old.fileId, domain);
     if (sharing !== 'anyone') return;
     const ok = await showConfirm(
@@ -277,7 +292,7 @@ export const AgendaSetup: React.FC<CourseGroupProps> = ({
           title = info.name;
         } catch (err) {
           if (!(err instanceof DeckAccessError)) {
-            setError(shareErrorText(t, err));
+            if (!isDriveAuthError(err)) setError(saveErrorText(t, err));
             return;
           }
         }

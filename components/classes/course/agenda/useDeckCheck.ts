@@ -4,6 +4,8 @@ import type { DeckState } from '@/utils/course/deckSharing';
 import type { Course } from '@/utils/course/contract';
 import type { UseCoursesResult } from '@/hooks/useCourses';
 import { logError } from '@/utils/logError';
+import { isAuthBypass } from '@/config/firebase';
+import { viewAsSuppressesBackgroundWrites } from '@/utils/viewAsTab';
 import { readDeckForCheck, type DeckDrive } from './deckDrive';
 import { shouldRecordCheck } from './agendaLogic';
 
@@ -31,6 +33,7 @@ export function useDeckCheck(
   const [round, setRound] = useState(0);
 
   const record = useEffectEvent((state: DeckState) => {
+    if (isAuthBypass || viewAsSuppressesBackgroundWrites()) return;
     if (!course || !shouldRecordCheck(course.deckCheck, state, Date.now()))
       return;
     saveCourse({

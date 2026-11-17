@@ -205,4 +205,15 @@ describe('deckErrorFor', () => {
       'no-access'
     );
   });
+
+  it('treats a Drive rate limit as a passing failure, not a refusal or sign-in error', () => {
+    const err = deckErrorFor(
+      403,
+      JSON.stringify({
+        error: { code: 403, errors: [{ reason: 'userRateLimitExceeded' }] },
+      })
+    );
+    expect(err).not.toBeInstanceOf(DeckAccessError);
+    expect(err).not.toBeInstanceOf(DriveAuthError);
+  });
 });
