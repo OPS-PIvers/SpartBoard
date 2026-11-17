@@ -20,6 +20,7 @@ import {
   isFreeResponseType,
 } from '@/types';
 import { gradeAnswer, paperTranscriptFor } from '@/hooks/useQuizSession';
+import { gradingPaperTranscript } from '@/utils/paperWritten';
 import { DRIVE_APP_FOLDER } from '@/config/devProject';
 import { DevProdDriveWriteError } from './devDriveWriteGuard';
 import { authError } from './driveAuthErrors';
@@ -56,7 +57,7 @@ export function makeQuizGradeFn(fibGrading?: FibGradingContext | null) {
     response?: QuizResponse
   ) => {
     const manualGrade =
-      isFreeResponseType(question.type) && response
+      (isFreeResponseType(question.type) || question.type === 'FIB') && response
         ? readSlotGrade(response.grading, question.id)
         : undefined;
     const base = gradeAnswer(
@@ -64,7 +65,11 @@ export function makeQuizGradeFn(fibGrading?: FibGradingContext | null) {
       studentAnswer,
       manualGrade,
       response ? fibAnswersForResponse(fibGrading, response, question.id) : [],
-      paperTranscriptFor(response, question.id)
+      gradingPaperTranscript(
+        question,
+        response,
+        paperTranscriptFor(response, question.id)
+      )
     );
     return response ? applyMediaSlots(question, response, base) : base;
   };

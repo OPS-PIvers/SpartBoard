@@ -6459,7 +6459,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "assign-mods.supports-kind",
-    "label": "Text, Link or Drive file choice in the Add support menu",
+    "label": "Text, Link or File choice in the Add support menu",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -6538,11 +6538,91 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-mods.support-file-choose",
+    "label": "Choose file button for a file support",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.supports-kind:assign#drive"
+        ],
+        "reveal": "assign-mods.supports-kind:assign#drive"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.support-file-drive",
+    "label": "Choose from Drive button for a file support",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.supports-kind:assign#drive"
+        ],
+        "reveal": "assign-mods.supports-kind:assign#drive"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.support-file-url",
+    "label": "Paste a link field for a file support",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.supports-kind:assign#drive"
+        ],
+        "reveal": "assign-mods.supports-kind:assign#drive"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.support-file-url-add",
+    "label": "Add button for a pasted file link",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.supports-kind:assign#drive"
+        ],
+        "reveal": "assign-mods.supports-kind:assign#drive"
+      }
+    ]
+  },
+  {
     "id": "assign-mods.support-remove",
     "label": "Remove support button for a modification group",
     "scope": "field",
     "panel": true,
     "destructive": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-step.modifications"
+        ],
+        "reveal": "assign-step.modifications"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.preview-group",
+    "label": "Preview button on a group in the Assign dialog Modifications step",
+    "scope": "board",
+    "panel": true,
     "routes": [
       {
         "surface": "library.assign-stepper",
@@ -18823,6 +18903,234 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-grading.rubric-order",
+    "label": "Rubric level order switch (highest or lowest first) in the grader",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-view-full",
+    "label": "View rubric button in the grader",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-close",
+    "label": "Close button on the full rubric table",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-order",
+    "label": "Level order switch on the full rubric table",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-edit",
+    "label": "Edit button on the full rubric table",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-save",
+    "label": "Save button when editing the full rubric table",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-cancel",
+    "label": "Cancel button when editing the full rubric table",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-x",
+    "label": "Close (X) on the full rubric table",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-add-criterion",
+    "label": "Add criterion when editing the full rubric table",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-add-level",
+    "label": "Add level when editing the full rubric table, by criterion",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-remove-criterion",
+    "label": "Remove criterion when editing the full rubric table, by criterion",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-remove-level",
+    "label": "Remove level when editing the full rubric table, by level",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-field",
+    "label": "Text or points field when editing the full rubric table, by field",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-criterion-toggle",
+    "label": "Criterion open / close toggle in the grader, by criterion",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-criterion-score",
+    "label": "Criterion score box in the grader, by criterion",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "quiz-grading.rubric-note",
     "label": "Criterion note textarea in the Quiz grader, by position",
     "scope": "field",
@@ -18898,6 +19206,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-rubric.builder-close",
     "label": "Close button on the Quiz rubric builder",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-builder",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-rubric.builder-table",
+    "label": "Edit as table button on the Quiz rubric builder",
     "scope": "widget type",
     "panel": true,
     "keys": [

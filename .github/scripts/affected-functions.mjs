@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // Usage: affected-functions.mjs <repo-root> < changed-paths; prints ALL, nothing, or the affected exports (any doubt is ALL).
+// AFFECTED_FUNCTIONS_OLD_INDEX names a copy of the deployed index.ts, so an index.ts that only adds or repoints exports names just those.
 
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -92,8 +93,8 @@ function closure(entry) {
 }
 
 // export name -> defining module, from the barrel's `export { a, b as c } from './m'` lines.
-function barrelExports() {
-  const source = read(indexFile).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+function barrelExports(raw = read(indexFile)) {
+  const source = raw.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
   const statements = source.split(';').map((s) => s.trim()).filter(Boolean);
   const exports = new Map();
   for (const statement of statements) {
@@ -103,11 +104,23 @@ function barrelExports() {
     for (const part of match[1].split(',').map((p) => p.trim()).filter(Boolean)) {
       const name = part.split(/\s+as\s+/).pop().trim();
       if (!/^[A-Za-z_$][\w$]*$/.test(name)) throw new Ambiguous(`odd export '${part}'`);
-      exports.set(name, module);
+      exports.set(name, { module, local: part.split(/\s+as\s+/)[0].trim() });
     }
   }
   if (exports.size === 0) throw new Ambiguous('no exports found in index.ts');
   return exports;
+}
+
+// Exports that index.ts added or repointed since the deployed copy; a removed one needs the full pass that deletes it.
+function changedBarrelExports(exports) {
+  const oldIndex = process.env.AFFECTED_FUNCTIONS_OLD_INDEX;
+  if (!oldIndex || !existsSync(oldIndex)) throw new Ambiguous('functions/src/index.ts');
+  const before = barrelExports(read(oldIndex));
+  for (const name of before.keys()) {
+    if (!exports.has(name)) throw new Ambiguous(`index.ts removed ${name}`);
+  }
+  const key = (entry) => `${entry.module}#${entry.local}`;
+  return [...exports].filter(([name, entry]) => !before.has(name) || key(before.get(name)) !== key(entry)).map(([name]) => name);
 }
 
 function affected(changed) {
@@ -121,15 +134,17 @@ function affected(changed) {
     const file = join(repoRoot, path);
     // Files outside src, deleted files, the barrel and shared init can touch every function.
     if (!path.startsWith('functions/src/') || !existsSync(file)) throw new Ambiguous(path);
-    if (path === 'functions/src/index.ts' || path === 'functions/src/functionsInit.ts') throw new Ambiguous(path);
+    if (path === 'functions/src/index.ts') continue;
+    if (path === 'functions/src/functionsInit.ts') throw new Ambiguous(path);
     if (/setGlobalOptions\s*\(/.test(read(file))) throw new Ambiguous(`${path} sets global options`);
     changedSources.add(file);
   }
 
-  const names = [];
-  const unattributed = new Set(changedSources);
   const exports = barrelExports();
-  for (const [name, module] of exports) {
+  const names = relevant.includes('functions/src/index.ts') ? changedBarrelExports(exports) : [];
+  const unattributed = new Set(changedSources);
+  for (const [name, { module }] of exports) {
+    if (names.includes(name)) continue;
     if (!closures.has(module)) closures.set(module, closure(module));
     const files = closures.get(module);
     const hits = [...changedSources].filter((file) => files.has(file));

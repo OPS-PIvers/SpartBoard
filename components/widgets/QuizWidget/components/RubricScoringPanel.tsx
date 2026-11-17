@@ -5,31 +5,33 @@
  * every edit. Remount (via `key`) to re-seed from a different saved grade.
  */
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MessageSquarePlus, X } from 'lucide-react';
-import { Rubric, RubricCriterion, RubricLevel } from '@/types';
+import { RubricCriterion, RubricLevel } from '@/types';
 import type { WrittenAnswerRubricScore } from '@/types';
 import { rubricMaxPoints, sumRubricScorePoints } from '@/utils/rubricPoints';
 import { tourFieldAttr } from '@/config/tourAnchors';
 import { RubricGuideExamples } from '@/components/quiz/RubricGuideExamples';
+import { AuthContext } from '@/context/AuthContextValue';
+import {
+  RubricGradingPanel,
+  type RubricScoringPanelProps,
+} from './RubricGradingPanel';
 
-interface RubricScoringPanelProps {
-  rubric: Rubric;
-  maxPoints: number;
-  initialScores?: WrittenAnswerRubricScore[];
-  onChange: (scores: WrittenAnswerRubricScore[], derivedPoints: number) => void;
-  /** Discreet teacher-facing note (e.g. "Alternate rubric for this student", M17 §5 C4). */
-  overrideNote?: string;
-  /** Highlights tagged as evidence, per criterion id. Projects passes none. */
-  tagCounts?: Record<string, number>;
-  /** Cycles the grader through that strand's tagged passages, in text order. */
-  onJumpToTagged?: (criterionId: string) => void;
-  /** Whether the tagged evidence is text highlights or audio timestamp notes. */
-  tagCountKind?: 'highlight' | 'note';
-}
+/** The `rubric-grading-v2` preview gets the redesigned panel; everyone else keeps this one. */
+export const RubricScoringPanel: React.FC<RubricScoringPanelProps> = (
+  props
+) => {
+  const auth = useContext(AuthContext);
+  return auth?.canAccessFeature('rubric-grading-v2') ? (
+    <RubricGradingPanel {...props} />
+  ) : (
+    <LegacyRubricScoringPanel {...props} />
+  );
+};
 
-export const RubricScoringPanel: React.FC<RubricScoringPanelProps> = ({
+const LegacyRubricScoringPanel: React.FC<RubricScoringPanelProps> = ({
   rubric,
   maxPoints,
   initialScores,

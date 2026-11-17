@@ -100,6 +100,7 @@ export const mockAuth: AuthContextType = {
   quizMonitorScoreDisplay: 'percent',
   quizGraderMode: 'question',
   quizGraderAutoAdvance: true,
+  rubricLevelOrder: 'high-first',
   spartyEnabled: false,
   alignmentGuidesEnabled: false,
   spellCheckEnabled: true,

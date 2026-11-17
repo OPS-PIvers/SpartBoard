@@ -4158,8 +4158,8 @@ export const ActiveQuiz: React.FC<{
     ? 'border-brand-blue-primary bg-brand-blue-lighter text-brand-blue-primary'
     : 'border-violet-500 bg-violet-500/20 text-white';
   const mcCrossedOutCls = light
-    ? 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
-    : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-500';
+    ? 'border-slate-300 bg-slate-200 text-slate-500 hover:border-slate-400'
+    : 'border-slate-800 bg-slate-900 text-slate-500 hover:border-slate-600';
   const mcUnselectedCls = light
     ? 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
     : 'border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-500 hover:bg-slate-700/50';
@@ -7298,8 +7298,8 @@ const ScoredRubricDisplay: React.FC<{
             <div className="flex items-baseline justify-between gap-2 text-xs">
               <span className={bodyCls}>{criterion.name}</span>
               <span className={`font-mono font-semibold ${headingCls}`}>
-                {level && score ? (
-                  `${level.label} — ${t('quizStudent.rubric.points', { count: score.points })}`
+                {score ? (
+                  `${level ? `${level.label} — ` : ''}${t('quizStudent.rubric.points', { count: score.points })}`
                 ) : (
                   <span className={`italic ${bodyCls}`}>
                     {t('quizStudent.rubric.notScored')}

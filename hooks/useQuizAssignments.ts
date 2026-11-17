@@ -155,6 +155,7 @@ import { logError } from '@/utils/logError';
 import { migrateQuizMetadataShape } from '@/utils/quizSyncMigration';
 import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
 import { applyMediaSlots, readSlotGrade } from '@/utils/mediaGrading';
+import { gradingPaperTranscript } from '@/utils/paperWritten';
 import { responseHasArtifacts } from '@/utils/responseArtifacts';
 import { AuthContext } from '@/context/AuthContextValue';
 import {
@@ -1217,9 +1218,10 @@ export function gradeResponseForPublish(
     // a quiz that contained essays would freeze them at 0 points
     // and the archive would silently disagree with the live results
     // view forever after.
-    const manualGrade = isFreeResponseType(q.type)
-      ? readSlotGrade(data.grading, q.id)
-      : undefined;
+    const manualGrade =
+      isFreeResponseType(q.type) || q.type === 'FIB'
+        ? readSlotGrade(data.grading, q.id)
+        : undefined;
     const result = applyMediaSlots(
       q,
       data,
@@ -1228,7 +1230,7 @@ export function gradeResponseForPublish(
         a.answer,
         manualGrade,
         fibAcceptedAnswers(localizedFibAnswers, q.id, servedLocale),
-        a.paperTranscript
+        gradingPaperTranscript(q, data, a.paperTranscript)
       )
     );
     if (

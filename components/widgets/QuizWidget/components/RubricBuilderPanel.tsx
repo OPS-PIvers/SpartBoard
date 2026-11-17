@@ -1,6 +1,12 @@
 // Rubric library + criteria/levels builder slide-over (M12 spec §6.1).
 
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   AlertCircle,
   ArrowDown,
@@ -12,6 +18,7 @@ import {
   Loader2,
   Plus,
   Share2,
+  Table2,
   Trash2,
   Upload,
   X,
@@ -24,7 +31,14 @@ import {
 import { useDialog } from '@/context/useDialog';
 import { useRubrics } from '@/hooks/useRubrics';
 import { parseRubricCsv, rubricToCsv } from '@/utils/rubricCsv';
-import { rubricMaxPoints } from '@/utils/rubricPoints';
+import {
+  RUBRIC_MAX_LEVELS,
+  RUBRIC_MIN_LEVELS,
+  rubricMaxPoints,
+} from '@/utils/rubricPoints';
+import { AuthContext } from '@/context/AuthContextValue';
+import { useRubricLevelOrder } from '@/hooks/useRubricLevelOrder';
+import { RubricTableModal } from './RubricTableModal';
 import {
   GUIDE_MAX_POINTS,
   convertRubricTemplate,
@@ -53,8 +67,8 @@ const labelClass =
 const inputClass =
   'w-full bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary px-3 py-2 text-sm';
 
-const MIN_LEVELS = 2;
-const MAX_LEVELS = 6;
+const MIN_LEVELS = RUBRIC_MIN_LEVELS;
+const MAX_LEVELS = RUBRIC_MAX_LEVELS;
 const MIN_CRITERIA = 1;
 
 const PANEL_WIDTH_KEY = 'spartboard_rubric_builder_width';
@@ -328,6 +342,10 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
   const [panelWidth, setPanelWidth] = useState<number>(readStoredPanelWidth);
   const [showCsvHelp, setShowCsvHelp] = useState(false);
   const [csvDragOver, setCsvDragOver] = useState(false);
+  const [tableOpen, setTableOpen] = useState(false);
+  const tableEditor =
+    useContext(AuthContext)?.canAccessFeature('rubric-grading-v2') ?? false;
+  const [levelOrder, switchLevelOrder] = useRubricLevelOrder();
 
   // Clamp against the containing block (the editor modal body), not the DOM
   // parent — the panel may stretch across both editor panes.
@@ -741,32 +759,45 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
           />
         </div>
 
-        <div
-          role="radiogroup"
-          aria-label="Rubric type"
-          {...tourTypeAttr('quiz-rubric.template', 'quiz')}
-          className="inline-flex rounded-lg border border-slate-300 bg-white p-0.5"
-        >
-          {[
-            { value: false, label: 'Levels' },
-            { value: true, label: 'Scoring guide' },
-          ].map((opt) => (
-            // no-tour-anchor: one option of the Levels / Scoring guide switch, rendered from a list
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div
+            role="radiogroup"
+            aria-label="Rubric type"
+            {...tourTypeAttr('quiz-rubric.template', 'quiz')}
+            className="inline-flex rounded-lg border border-slate-300 bg-white p-0.5"
+          >
+            {[
+              { value: false, label: 'Levels' },
+              { value: true, label: 'Scoring guide' },
+            ].map((opt) => (
+              // no-tour-anchor: one option of the Levels / Scoring guide switch, rendered from a list
+              <button
+                key={opt.label}
+                type="button"
+                role="radio"
+                aria-checked={guide === opt.value}
+                onClick={() => void switchTemplate(opt.value)}
+                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${
+                  guide === opt.value
+                    ? 'bg-brand-blue-primary text-white'
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          {tableEditor && !guide && (
             <button
-              key={opt.label}
               type="button"
-              role="radio"
-              aria-checked={guide === opt.value}
-              onClick={() => void switchTemplate(opt.value)}
-              className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${
-                guide === opt.value
-                  ? 'bg-brand-blue-primary text-white'
-                  : 'text-slate-600 hover:bg-slate-100'
-              }`}
+              onClick={() => setTableOpen(true)}
+              {...tourTypeAttr('quiz-rubric.builder-table', 'quiz')}
+              className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-bold text-brand-blue-primary transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
             >
-              {opt.label}
+              <Table2 className="h-4 w-4" aria-hidden />
+              Edit as table
             </button>
-          ))}
+          )}
         </div>
 
         {draft.criteria.map((c, ci) => (
@@ -1224,6 +1255,25 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
               </p>
             </div>
           </div>
+        </div>
+      )}
+      {tableOpen && (
+        // Keeps Escape in the table from also closing the builder.
+        <div onKeyDown={(e) => e.stopPropagation()}>
+          <RubricTableModal
+            rubric={draft}
+            order={levelOrder}
+            onOrderChange={switchLevelOrder}
+            scores={new Map()}
+            onClose={() => setTableOpen(false)}
+            onSave={(next) => {
+              setDraft(next);
+              return Promise.resolve();
+            }}
+            initialEditing
+            editStructure
+            saveLabel="Done"
+          />
         </div>
       )}
     </aside>

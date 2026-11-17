@@ -317,6 +317,22 @@ describe('scoreQuestions: written answers on paper', () => {
     ).toBe(true);
   });
 
+  it('holds a paper FIB as owed only on an imported paper response', () => {
+    const questions = keyQuestions(key.slice(0, 2));
+    const fib = [
+      { questionId: 'q1', answer: 'A' },
+      { questionId: 'q2', answer: '', paperTranscript: 'pending' as const },
+    ];
+    expect(scoreQuestions({ questions, answers: fib })).toMatchObject({
+      awaiting: false,
+      earned: 2,
+      max: 3,
+    });
+    expect(
+      scoreQuestions({ questions, answers: fib, paperAttested: true }).awaiting
+    ).toBe(true);
+  });
+
   it('ignores a student-written paperTranscript on a response the import never wrote, or on a non-written question', () => {
     const questions = keyQuestions(key);
     const forged = [

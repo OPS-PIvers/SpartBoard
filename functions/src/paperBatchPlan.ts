@@ -143,6 +143,8 @@ export type PaperSheetEntry =
       label: string;
       size: PaperBoxSize;
       style?: PaperBoxStyle;
+      /** Fill in the blank: one line per blank. */
+      blanks?: number;
     };
 
 export interface PaperQuizAnalysis {
@@ -158,6 +160,8 @@ export interface PaperQuizAnalysis {
 export interface AnalyzePaperQuizOptions {
   /** Print free-response questions as handwritten boxes. */
   written?: boolean;
+  /** With `written`: fill in the blank prints a write-in line per blank. */
+  fib?: boolean;
   /** The quiz's raw `sections` and `order`, read tolerantly for choose-N sections. */
   sections?: unknown;
   order?: unknown;
@@ -403,6 +407,25 @@ export function analyzePaperQuiz(
       });
       return;
     }
+    if (options.written && options.fib && question.type === 'FIB') {
+      if (chooseIds.has(question.id)) {
+        writtenRefusals.push(
+          `${label}. ${question.text || 'Untitled question'}`
+        );
+        return;
+      }
+      // Mirrors `fibBlankCount`: blanks are joined by U+001F.
+      const blanks = (question.correctAnswer ?? '').split('\u001F').length;
+      written.push({ questionId: question.id, label, size: blanks });
+      entries.push({
+        kind: 'written',
+        questionId: question.id,
+        label,
+        size: blanks,
+        blanks,
+      });
+      return;
+    }
     if (question.type !== 'MC') return;
     rows.push({
       row: rows.length + 1,
@@ -483,8 +506,12 @@ const headerRows = (stems: boolean): number =>
   stems ? WRITTEN_HEADER_ROWS_WITH_STEM : WRITTEN_HEADER_ROWS_NUMBER_ONLY;
 
 /** Mirrors `styleOf` in `utils/paperPageMap.ts`: lines stays absent. */
-const styleOf = (entry: WrittenEntry): { style?: PaperBoxStyle } =>
-  entry.style && entry.style !== 'lines' ? { style: entry.style } : {};
+const styleOf = (
+  entry: WrittenEntry
+): { style?: PaperBoxStyle; blanks?: number } => ({
+  ...(entry.style && entry.style !== 'lines' ? { style: entry.style } : {}),
+  ...(entry.blanks ? { blanks: entry.blanks } : {}),
+});
 
 function writtenBlock(
   entry: WrittenEntry,

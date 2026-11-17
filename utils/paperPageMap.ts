@@ -70,6 +70,8 @@ export type PaperSheetEntry =
       size: PaperBoxSize;
       /** Absent = lines. */
       style?: PaperBoxStyle;
+      /** Fill in the blank: one line per blank. */
+      blanks?: number;
     };
 
 export interface PlanPaperPagesInput {
@@ -98,11 +100,13 @@ const ONE_COLUMN_BOX_BOTTOM_MM = PAGE_HEIGHT_MM - CORNER_WINDOW_H_MM;
 const headerRows = (stems: boolean): number =>
   stems ? WRITTEN_HEADER_ROWS_WITH_STEM : WRITTEN_HEADER_ROWS_NUMBER_ONLY;
 
-/** A non-lines style rides on the item; lines stays absent so older maps are unchanged. */
+/** A non-lines style and a blank count ride on the item; absent keeps older maps unchanged. */
 const styleOf = (
   entry: Extract<PaperSheetEntry, { kind: 'written' }>
-): { style?: PaperBoxStyle } =>
-  entry.style && entry.style !== 'lines' ? { style: entry.style } : {};
+): { style?: PaperBoxStyle; blanks?: number } => ({
+  ...(entry.style && entry.style !== 'lines' ? { style: entry.style } : {}),
+  ...(entry.blanks ? { blanks: entry.blanks } : {}),
+});
 
 /** Header then box, starting at `top`; the block leaves a bubble-sized gap before the next row. */
 function writtenBlock(

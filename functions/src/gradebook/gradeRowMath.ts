@@ -331,7 +331,8 @@ export function scoreQuestions(input: QuestionScoreInput): QuestionScore {
       q,
       answer?.answer ?? '',
       input.manualGrades?.[q.id],
-      q.type === 'FIB' ? input.fibAnswersByQuestion?.[q.id] : undefined
+      q.type === 'FIB' ? input.fibAnswersByQuestion?.[q.id] : undefined,
+      input.paperAttested === true ? answer?.paperTranscript : undefined
     );
     const pointsEarned = g.pointsEarned;
     let state: string = g.state;

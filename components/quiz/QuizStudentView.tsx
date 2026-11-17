@@ -8,10 +8,17 @@ import type {
   QuizResponseAnswer,
   QuizSession,
   ResponseArtifact,
+  StudentOverride,
   TabExit,
   UnrespondedReason,
 } from '@/types';
+import { Timestamp } from 'firebase/firestore';
 import type { AudioTake } from '@/hooks/useAudioRecording';
+import { useEphemeralAppLanguage } from '@/hooks/useEphemeralAppLanguage';
+import {
+  STANDARD_VERSION_ID,
+  type StudentViewVersion,
+} from '@/utils/quizStudentViewVersions';
 import type { WhiteboardTake } from '@/hooks/useWhiteboardRecording';
 import { nextTakeIndex } from '@/utils/answerTakeOrdering';
 import {
@@ -47,6 +54,8 @@ interface LibraryStudentViewProps {
   behavior: QuizBehaviorSettings;
   /** Teacher has quiz-cross-out, so choices get the cross-out button as Assign stamps it. */
   crossOutOn?: boolean;
+  /** Teacher has the quiz time limit, so a quiz-wide limit runs as Assign stamps it. */
+  timeLimitOn?: boolean;
   assigned?: undefined;
 }
 
@@ -56,6 +65,7 @@ interface AssignedStudentViewProps {
   quiz?: undefined;
   behavior?: undefined;
   crossOutOn?: undefined;
+  timeLimitOn?: undefined;
 }
 
 type QuizStudentViewProps = (
@@ -63,6 +73,9 @@ type QuizStudentViewProps = (
 ) & {
   /** Mirrors Assign: the away limit exists only with the tab-away-timer flag. */
   tabAwayTimerOn: boolean;
+  /** Standard plus each modified version; the toolbar switches between them. */
+  versions?: StudentViewVersion[];
+  initialVersionId?: string;
   onExit: () => void;
 };
 
@@ -89,8 +102,15 @@ export const QuizStudentView: React.FC<QuizStudentViewProps> = ({
   assigned,
   tabAwayTimerOn: teacherAwayTimerOn,
   crossOutOn = false,
+  timeLimitOn = false,
+  versions,
+  initialVersionId,
   onExit,
 }) => {
+  const [versionId, setVersionId] = useState(
+    initialVersionId ?? STANDARD_VERSION_ID
+  );
+  const version = versions?.find((v) => v.id === versionId);
   // An assignment carries the away limit only when it was stamped with the flag.
   const tabAwayTimerOn = assigned
     ? assigned.session.tabAwayLimitSeconds !== undefined
@@ -102,8 +122,9 @@ export const QuizStudentView: React.FC<QuizStudentViewProps> = ({
         : buildStudentViewSession(quiz, behavior, tabAwayTimerOn, {
             stimulusTabs: true,
             crossOut: crossOutOn,
+            timeLimit: timeLimitOn,
           }),
-    [assigned, quiz, behavior, tabAwayTimerOn, crossOutOn]
+    [assigned, quiz, behavior, tabAwayTimerOn, crossOutOn, timeLimitOn]
   );
   const saved = useMemo(
     () =>
@@ -137,13 +158,17 @@ export const QuizStudentView: React.FC<QuizStudentViewProps> = ({
         sampleDraw={!!assigned?.drawIds}
         onRestart={() => setRun((n) => n + 1)}
         onExit={onExit}
+        versions={versions}
+        versionId={versionId}
+        onVersionChange={setVersionId}
       />
       {/* translateZ keeps the player's fixed overlays under the toolbar; the arbitrary variants fit its full-screen root to this box. */}
       <div className="relative flex-1 min-h-0 overflow-y-auto transform-[translateZ(0)] [&>.h-screen]:h-full [&>.min-h-screen]:min-h-full">
         <StudentViewAttempt
-          key={run}
+          key={`${run}-${versionId}`}
           session={session}
           drawIds={assigned?.drawIds}
+          override={version?.override}
         />
       </div>
     </div>,
@@ -154,7 +179,9 @@ export const QuizStudentView: React.FC<QuizStudentViewProps> = ({
 const StudentViewAttempt: React.FC<{
   session: QuizSession;
   drawIds?: string[];
-}> = ({ session, drawIds }) => {
+  override?: StudentOverride;
+}> = ({ session, drawIds, override }) => {
+  useEphemeralAppLanguage(override?.language);
   const [response, setResponse] = useState<QuizResponse>(() => ({
     studentUid: STUDENT_VIEW_UID,
     joinedAt: Date.now(),
@@ -213,6 +240,10 @@ const StudentViewAttempt: React.FC<{
     return Promise.resolve();
   }, []);
   const noop = useCallback(() => Promise.resolve(), []);
+  const startAttemptClock = useCallback(() => {
+    setResponse((r) => ({ ...r, attemptStartedAt: Timestamp.now() }));
+    return Promise.resolve();
+  }, []);
   // A take is kept in memory as uploaded, so the recorder and submit gate behave as for a student.
   const appendTake = useCallback(
     (
@@ -287,6 +318,10 @@ const StudentViewAttempt: React.FC<{
   );
 
   if (response.status === 'completed') {
+    const servedIds =
+      drawIds ??
+      override?.questionIds ??
+      session.publicQuestions.map((q) => q.id);
     return (
       <QuizSubmittedWaitScreen
         session={session}
@@ -294,9 +329,10 @@ const StudentViewAttempt: React.FC<{
         pin=""
         answeredCount={countAnsweredQuestions(
           response.answers,
-          drawIds ?? session.publicQuestions.map((q) => q.id),
+          servedIds,
           session.paperWrittenQuestionIds
         )}
+        totalQuestions={servedIds.length}
         hideReturnButton
       />
     );
@@ -329,6 +365,11 @@ const StudentViewAttempt: React.FC<{
         onRecordStimulusPlay={noop}
         onReportStimulusError={noop}
         drawIds={drawIds}
+        override={override}
+        onStartAttemptClock={startAttemptClock}
+        readAloudRequested={
+          override?.readAloud === true || session.readAloudAll === true
+        }
       />
     </RecordingNoticeDrawingContext.Provider>
   );
@@ -346,6 +387,9 @@ const StudentViewToolbar: React.FC<{
   onExit: () => void;
   assigned: boolean;
   sampleDraw: boolean;
+  versions?: StudentViewVersion[];
+  versionId: string;
+  onVersionChange: (id: string) => void;
 }> = ({
   focus,
   onChange,
@@ -356,6 +400,9 @@ const StudentViewToolbar: React.FC<{
   onExit,
   assigned,
   sampleDraw,
+  versions,
+  versionId,
+  onVersionChange,
 }) => {
   const focusOn = focus.tabWarningsEnabled ?? true;
   const threshold = focus.tabWarningThreshold ?? DEFAULT_TAB_WARNING_THRESHOLD;
@@ -403,6 +450,24 @@ const StudentViewToolbar: React.FC<{
           </span>
         )}
       </div>
+      {versions && versions.length > 1 && (
+        <div className="flex items-center gap-1.5 border-r border-slate-700 pr-2">
+          {/* no-tour-anchor: lives in the full-screen Student view, which tours don't open */}
+          <select
+            value={versionId}
+            onChange={(e) => onVersionChange(e.target.value)}
+            aria-label="Version"
+            title={versions.find((v) => v.id === versionId)?.label}
+            className="h-7 max-w-md truncate rounded-md border border-slate-600 bg-slate-800 px-2 font-semibold text-white"
+          >
+            {versions.map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       <label className="flex items-center gap-2 font-semibold text-white">
         <Toggle
           checked={focusOn}

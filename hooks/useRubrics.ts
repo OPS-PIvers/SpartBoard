@@ -42,6 +42,17 @@ export const saveRubricDoc = (userId: string, rubric: Rubric): Promise<void> =>
     updatedAt: Date.now(),
   });
 
+/** The teacher's library rubric with this id, or null when it is not in their library. */
+export const getRubricDoc = async (
+  userId: string,
+  rubricId: string
+): Promise<Rubric | null> => {
+  const snap = await getDoc(
+    doc(db, 'users', userId, RUBRICS_COLLECTION, rubricId)
+  );
+  return snap.exists() ? (snap.data() as Rubric) : null;
+};
+
 export const useRubrics = (userId: string | undefined): UseRubricsResult => {
   const [rubrics, setRubrics] = useState<Rubric[]>([]);
   const [loading, setLoading] = useState<boolean>(!!userId);

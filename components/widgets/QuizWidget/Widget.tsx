@@ -134,7 +134,8 @@ import {
   SHUFFLED_BEHAVIOR,
   type VersionImportBuild,
 } from '@/utils/quizDocumentImport/versionPlan';
-import { saveRubricDoc } from '@/hooks/useRubrics';
+import { getRubricDoc, saveRubricDoc } from '@/hooks/useRubrics';
+import { applyRubricEdit, sameRubricContent } from '@/utils/rubricPoints';
 import { QuizEditorModal } from './components/QuizEditorModal';
 import { QuizPreview } from './components/QuizPreview';
 import { QuizResults } from './components/QuizResults';
@@ -151,6 +152,13 @@ import { AssignToClassroomModal } from '@/components/classroomAddon/AssignToClas
 import { requestClassroomFinalGradeToken } from '@/components/classroomAddon/gisOAuth';
 import { doc, getDoc, writeBatch } from 'firebase/firestore';
 import { loadAssignedStudentView } from '@/utils/quizAssignedStudentViewLoad';
+import { languageNativeLabel } from '@/utils/languageNativeLabel';
+import { QUIZ_TIME_LIMIT_FEATURE } from '@/utils/quizTimeLimit';
+import {
+  versionsFromOverrides,
+  versionsWithOptionText,
+  type StudentViewVersion,
+} from '@/utils/quizStudentViewVersions';
 import type { AssignedStudentView } from '@/utils/quizStudentViewSession';
 import { functions, db, storage, isAuthBypass } from '@/config/firebase';
 import { isStaffAudience } from '@/utils/staffAudience';
@@ -910,8 +918,10 @@ const TeacherQuizWidget: React.FC<{
   // Local state for views that need loaded data
   const [loadedQuizData, setLoadedQuizData] = useState<QuizData | null>(null);
   const [studentView, setStudentView] = useState<
-    | { quiz: QuizData; behavior: QuizBehaviorSettings }
-    | { assigned: AssignedStudentView }
+    | ((
+        | { quiz: QuizData; behavior: QuizBehaviorSettings }
+        | { assigned: AssignedStudentView }
+      ) & { versions?: StudentViewVersion[]; initialVersionId?: string })
     | null
   >(null);
   const [loadingQuizData, setLoadingQuizData] = useState(false);
@@ -3032,6 +3042,75 @@ const TeacherQuizWidget: React.FC<{
         <QuizResults
           key={`${config.activeAssignmentId ?? 'none'}-${resultsEnterToken}`}
           quiz={loadedQuizData}
+          onSaveRubric={async (rubric) => {
+            const meta =
+              quizzes.find((m) => m.id === config.selectedQuizId) ??
+              quizzes.find((m) => m.id === loadedQuizData.id);
+            if (!meta || !user)
+              throw new Error('This quiz is not in your library.');
+            // Edit the library quiz file itself, not the graded copy, which may hold drawn bank questions.
+            const stored = await loadQuizData(meta.driveFileId);
+            const inQuiz = applyRubricEdit(stored.questions, rubric);
+            const shownNow = applyRubricEdit(loadedQuizData.questions, rubric);
+            const requiredTotal =
+              inQuiz.requiredTotal ?? shownNow.requiredTotal;
+            if (requiredTotal !== undefined)
+              throw new Error(
+                `Both versions of this rubric must total ${requiredTotal} points.`
+              );
+            if (inQuiz.changed) {
+              await saveQuiz(
+                {
+                  ...stored,
+                  questions: inQuiz.questions,
+                  updatedAt: Date.now(),
+                },
+                meta.driveFileId
+              );
+            }
+            const before = inQuiz.before ?? shownNow.before;
+            const libraryIds = new Set([
+              ...inQuiz.libraryIds,
+              ...shownNow.libraryIds,
+            ]);
+            setLoadedQuizData((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    questions: applyRubricEdit(prev.questions, rubric)
+                      .questions,
+                  }
+                : prev
+            );
+            const library = await Promise.allSettled(
+              [...libraryIds].map(async (id) => {
+                const current = await getRubricDoc(user.uid, id);
+                // Missing (deleted or another teacher's) or edited since: leave the library alone.
+                if (!current) return 'skipped';
+                if (!before || !sameRubricContent(current, before))
+                  return 'kept';
+                await saveRubricDoc(user.uid, {
+                  ...rubric,
+                  id,
+                  createdAt: current.createdAt,
+                });
+                return 'saved';
+              })
+            );
+            const libraryKept = library.some(
+              (r) => r.status === 'fulfilled' && r.value === 'kept'
+            );
+            if (library.some((r) => r.status === 'rejected'))
+              throw new Error(
+                'Saved to this quiz, but your library rubric did not update.'
+              );
+            addToast(
+              libraryKept
+                ? 'Rubric saved to this quiz. Your library copy has newer edits, so it was left as is.'
+                : 'Rubric saved.',
+              'success'
+            );
+          }}
           paperSheetsEnabled={paperSheets.enabled}
           responses={responses}
           config={config}
@@ -3484,8 +3563,13 @@ const TeacherQuizWidget: React.FC<{
                   quiz: studentView.quiz,
                   behavior: studentView.behavior,
                   crossOutOn: canAccessFeature('quiz-cross-out'),
+                  timeLimitOn:
+                    canAccessFeature(QUIZ_TIME_LIMIT_FEATURE) &&
+                    canAccessFeature('modification-groups'),
                 })}
             tabAwayTimerOn={canAccessFeature('tab-away-timer')}
+            versions={studentView.versions}
+            initialVersionId={studentView.initialVersionId}
             onExit={() => setStudentView(null)}
           />
         </Suspense>
@@ -3708,12 +3792,21 @@ const TeacherQuizWidget: React.FC<{
         }}
         onStudentView={
           canAccessFeature('quiz-student-view')
-            ? async (meta) => {
+            ? async (meta, preview) => {
                 const data = await loadQuiz(meta);
                 if (data)
                   setStudentView({
                     quiz: await withSampleBankDraw(data),
-                    behavior: getQuizBehavior(meta),
+                    behavior: preview?.behavior ?? getQuizBehavior(meta),
+                    ...(preview
+                      ? {
+                          versions: versionsWithOptionText(
+                            preview.versions,
+                            data.questions
+                          ),
+                          initialVersionId: preview.initialVersionId,
+                        }
+                      : {}),
                   });
               }
             : undefined
@@ -4737,7 +4830,18 @@ const TeacherQuizWidget: React.FC<{
             ? async (a) => {
                 try {
                   const assigned = await loadAssignedStudentView(a.id);
-                  if (assigned) setStudentView({ assigned });
+                  if (assigned)
+                    setStudentView({
+                      assigned,
+                      ...(canAccessFeature('modification-groups')
+                        ? {
+                            versions: versionsFromOverrides(
+                              a.overridesByStudentUid,
+                              languageNativeLabel
+                            ),
+                          }
+                        : {}),
+                    });
                   else addToast('This assignment could not be found.', 'error');
                 } catch (err) {
                   logError('QuizWidget.assignedStudentView', err, {

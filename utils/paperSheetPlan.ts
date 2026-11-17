@@ -30,6 +30,7 @@ import type { PaperSheetEntry } from './paperPageMap';
 import { paperBoxSizeOf, paperBoxStyleOf } from './paperWritten';
 import { rowsFromQuestion } from './quizChoiceRows';
 import { effectiveChooseCount, sessionSectionsFor } from './quizSections';
+import { fibBlankCount } from './quizFibBlanks';
 
 /** Small deterministic PRNG so an option set always shuffles the same way. */
 function seededRandom(seed: string): () => number {
@@ -148,6 +149,8 @@ export interface PaperWrittenPlan {
 export interface AnalyzePaperQuizOptions {
   /** Print free-response questions as handwritten boxes (`paper-handwritten-responses`). */
   written?: boolean;
+  /** With `written`: fill in the blank prints a write-in line per blank (`paper-fill-in-blank`). */
+  fib?: boolean;
 }
 
 /** Nothing to print from the quiz itself, so the teacher builds a stub. */
@@ -224,6 +227,25 @@ export function analyzePaperQuiz(
         label,
         size,
         ...(style !== 'lines' ? { style } : {}),
+      });
+      return;
+    }
+    if (options.written && options.fib && question.type === 'FIB') {
+      if (chooseSectionIds.has(question.id)) {
+        writtenRefusals.push({
+          reason: 'choose-section',
+          label: `${label}. ${question.text || 'Untitled question'}`,
+        });
+        return;
+      }
+      const blanks = fibBlankCount(question);
+      written.push({ questionId: question.id, label, size: blanks });
+      entries.push({
+        kind: 'written',
+        questionId: question.id,
+        label,
+        size: blanks,
+        blanks,
       });
       return;
     }

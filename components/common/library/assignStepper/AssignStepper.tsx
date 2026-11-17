@@ -65,7 +65,20 @@ export const AssignStepper: React.FC<AssignStepperProps> = ({
   const stepRefs = useRef<(HTMLDivElement | null)[]>([]);
   const scrollPending = useRef(false);
 
-  const current = Math.min(openIndex, Math.max(steps.length - 1, 0));
+  const enabledAtOrBefore = (index: number) => {
+    for (let i = Math.min(index, steps.length - 1); i >= 0; i--)
+      if (!steps[i].disabled) return i;
+    return 0;
+  };
+  // A step that turns disabled while open hands the open slot back to the step before it.
+  const current = enabledAtOrBefore(openIndex);
+  if (current !== openIndex && steps[openIndex]?.disabled)
+    setOpenIndex(current);
+  const continueTo = steps.map((_, index) => {
+    for (let i = index + 1; i < steps.length; i++)
+      if (!steps[i].disabled) return i;
+    return undefined;
+  });
 
   const openStep = (index: number) => {
     scrollPending.current = true;
@@ -194,8 +207,13 @@ export const AssignStepper: React.FC<AssignStepperProps> = ({
           title={step.title}
           value={step.value}
           open={i === current}
+          disabled={step.disabled}
           onOpen={() => openStep(i)}
-          onContinue={i < steps.length - 1 ? () => openStep(i + 1) : undefined}
+          onContinue={
+            continueTo[i] === undefined
+              ? undefined
+              : () => openStep(continueTo[i] as number)
+          }
         >
           {step.body}
         </AssignStep>
