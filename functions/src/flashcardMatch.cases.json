@@ -222,5 +222,53 @@
     "language": "es-US",
     "strict": true,
     "result": "wrong"
+  },
+  {
+    "name": "accepts an answer without its optional words",
+    "response": "town",
+    "expected": "(small) town",
+    "language": "en-US",
+    "strict": true,
+    "result": "exact"
+  },
+  {
+    "name": "accepts an answer with its optional words",
+    "response": "small town",
+    "expected": "(small) town",
+    "language": "en-US",
+    "strict": true,
+    "result": "exact"
+  },
+  {
+    "name": "accepts an answer typed with its parentheses",
+    "response": "(small) town",
+    "expected": "(small) town",
+    "language": "en-US",
+    "strict": true,
+    "result": "exact"
+  },
+  {
+    "name": "accepts optional words after the answer",
+    "response": "town",
+    "expected": "town (small)",
+    "language": "en-US",
+    "strict": true,
+    "result": "exact"
+  },
+  {
+    "name": "still marks a different answer wrong around optional words",
+    "response": "village",
+    "expected": "(small) town",
+    "language": "en-US",
+    "strict": true,
+    "result": "wrong"
+  },
+  {
+    "name": "accepts a typo in an answer without its optional words",
+    "response": "twon",
+    "expected": "(small) town",
+    "language": "en-US",
+    "strict": false,
+    "result": "accepted"
   }
 ]
