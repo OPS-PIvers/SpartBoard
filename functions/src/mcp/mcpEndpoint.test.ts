@@ -19,9 +19,7 @@ vi.mock('../functionsInit', () => ({}));
 // worth dragging into a unit test of the auth gate. Stub it directly so
 // `isGrantActive`'s own caching/gating behavior is what's under test.
 vi.mock('./eligibility', async (importOriginal) => ({
-  isDeactivatedOperatorMember: (
-    await importOriginal<typeof import('./eligibility')>()
-  ).isDeactivatedOperatorMember,
+  ...(await importOriginal<typeof import('./eligibility')>()),
   isConnectorFeatureGranted: () => Promise.resolve(state.featureGranted),
 }));
 
@@ -30,9 +28,17 @@ import { resetSigningKeyCache, signAccessToken } from './tokens';
 import { isGrantActive, mcpServer, takeCall } from './mcpEndpoint';
 
 const TEACHER = 'teacher@orono.k12.mn.us';
+const MEMBER_PATH = `organizations/orono/members/${TEACHER}`;
+const STAFF = {
+  'organizations/orono/domains/d1': {
+    domain: '@orono.k12.mn.us',
+    status: 'verified',
+  },
+  [MEMBER_PATH]: { roleId: 'teacher', status: 'active' },
+};
 
 function seedDb(overrides: Record<string, Record<string, unknown>> = {}) {
-  const stub = makeStubFirestore({ ...overrides });
+  const stub = makeStubFirestore({ ...STAFF, ...overrides });
   state.db = stub.db;
   return stub;
 }
@@ -160,7 +166,7 @@ describe('isGrantActive', () => {
   it('is false once the teacher is deactivated in the operator org', async () => {
     const stub = seedDb({
       'users/deactivated/mcp_grants/g': { revokedAt: null },
-      [`organizations/orono/members/${TEACHER}`]: { status: 'inactive' },
+      [MEMBER_PATH]: { roleId: 'teacher', status: 'inactive' },
     });
     const ok = await isGrantActive(
       stub.db as unknown as Parameters<typeof isGrantActive>[0],
@@ -173,7 +179,7 @@ describe('isGrantActive', () => {
   it('stays true for an active operator-org member', async () => {
     const stub = seedDb({
       'users/member-active/mcp_grants/g': { revokedAt: null },
-      [`organizations/orono/members/${TEACHER}`]: { status: 'active' },
+      [MEMBER_PATH]: { roleId: 'teacher', status: 'active' },
     });
     const ok = await isGrantActive(
       stub.db as unknown as Parameters<typeof isGrantActive>[0],
@@ -181,6 +187,39 @@ describe('isGrantActive', () => {
       1_000
     );
     expect(ok).toBe(true);
+  });
+
+  it('is false once the member doc is removed', async () => {
+    const stub = seedDb({ 'users/removed/mcp_grants/g': { revokedAt: null } });
+    await stub.db.doc(MEMBER_PATH).delete();
+    const ok = await isGrantActive(
+      stub.db as unknown as Parameters<typeof isGrantActive>[0],
+      { uid: 'removed', email: TEACHER, grantId: 'g' },
+      1_000
+    );
+    expect(ok).toBe(false);
+  });
+
+  it('is false for a student member', async () => {
+    const stub = seedDb({
+      'users/student/mcp_grants/g': { revokedAt: null },
+      [MEMBER_PATH]: { roleId: 'student', status: 'active' },
+    });
+    const ok = await isGrantActive(
+      stub.db as unknown as Parameters<typeof isGrantActive>[0],
+      { uid: 'student', email: TEACHER, grantId: 'g' },
+      1_000
+    );
+    expect(ok).toBe(false);
+  });
+
+  it('re-checks membership once the cache expires', async () => {
+    const stub = seedDb({ 'users/later/mcp_grants/g': { revokedAt: null } });
+    const db = stub.db as unknown as Parameters<typeof isGrantActive>[0];
+    const claims = { uid: 'later', email: TEACHER, grantId: 'g' };
+    expect(await isGrantActive(db, claims, 1_000)).toBe(true);
+    await stub.db.doc(MEMBER_PATH).update({ status: 'inactive' });
+    expect(await isGrantActive(db, claims, 62_000)).toBe(false);
   });
 
   it('caches a result per instance and only re-queries after the cache expires', async () => {
@@ -289,6 +328,18 @@ describe('mcpServer handler — early-exit branches', () => {
       stub.db as unknown as Parameters<typeof signAccessToken>[0],
       { uid: 'u3', email: TEACHER, grantId: 'g3' }
     );
+    const { out, res } = makeRes();
+    await handler(
+      { method: 'POST', headers: { authorization: `Bearer ${token}` } },
+      res
+    );
+    expect(out.statusCode).toBe(401);
+  });
+
+  it('refuses a deactivated member whose access token is still valid', async () => {
+    const stub = seedDb();
+    const token = await grantToken(stub, 'u-deact', 'g-deact');
+    await stub.db.doc(MEMBER_PATH).update({ status: 'inactive' });
     const { out, res } = makeRes();
     await handler(
       { method: 'POST', headers: { authorization: `Bearer ${token}` } },
