@@ -1,6 +1,13 @@
 // One assigned Writing session on the In Progress or Completed tab.
 import React, { useCallback } from 'react';
-import { Calendar, Pause, PowerOff, Rocket, Trash2 } from 'lucide-react';
+import {
+  Calendar,
+  Monitor,
+  Pause,
+  PowerOff,
+  Rocket,
+  Trash2,
+} from 'lucide-react';
 import type { WritingAssignmentRecord } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import {
@@ -10,6 +17,7 @@ import {
 import { usePeriodRunner } from '@/hooks/usePeriodRunner';
 import { updateWritingSession } from '@/hooks/useWritingAssignmentSessions';
 import { hasPeriodAccess } from '@/utils/periodAccess';
+import { tourTypeAttr } from '@/config/tourAnchors';
 import {
   AssignmentArchiveCard,
   type LibraryMenuAction,
@@ -28,7 +36,8 @@ export const WritingAssignmentRow: React.FC<{
   tourIndex: number;
   onEnd: (record: WritingAssignmentRecord) => void;
   onDelete: (record: WritingAssignmentRecord) => void;
-}> = ({ record: r, mode, tourIndex, onEnd, onDelete }) => {
+  onMonitor?: (record: WritingAssignmentRecord) => void;
+}> = ({ record: r, mode, tourIndex, onEnd, onDelete, onMonitor }) => {
   const { rosters, addToast } = useDashboard();
   // Manual: each class starts paused; Start and Pause go through the server, as no client writes the session.
   const perPeriod = mode === 'active' && hasPeriodAccess(r);
@@ -62,7 +71,20 @@ export const WritingAssignmentRow: React.FC<{
         ? `${classes.length} classes`
         : null;
   const icon = { width: 'min(12px, 3cqmin)', height: 'min(12px, 3cqmin)' };
+  const monitor =
+    mode === 'active' && onMonitor
+      ? { label: 'Monitor', icon: Monitor, onClick: () => onMonitor(r) }
+      : undefined;
   const secondaries: LibraryMenuAction[] = [
+    ...(monitor && paused
+      ? [
+          {
+            id: 'monitor',
+            ...monitor,
+            anchor: tourTypeAttr('writing.archive-monitor', 'writing'),
+          },
+        ]
+      : []),
     ...(perPeriod && !paused
       ? [
           {
@@ -138,7 +160,7 @@ export const WritingAssignmentRow: React.FC<{
               icon: Rocket,
               onClick: () => void runPeriod(periods.startAll),
             }
-          : undefined
+          : monitor
       }
       secondaryActions={secondaries}
     />

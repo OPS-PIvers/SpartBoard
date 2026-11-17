@@ -8,6 +8,7 @@ import {
 } from '@/components/student/writing/WritingStudentShell';
 import { deriveWritingView } from '@/utils/writingStudentView';
 import type { WritingResponseStatus } from '@/types';
+import { WritingMonitorDev } from './WritingMonitorDev';
 
 const NOW = Date.UTC(2026, 10, 18, 15, 0);
 
@@ -111,7 +112,14 @@ const initialState = (): StateId => {
 
 const noop = () => undefined;
 
-export const WritingDevHarness: React.FC = () => {
+export const WritingDevHarness: React.FC = () =>
+  new URLSearchParams(window.location.search).get('view') === 'monitor' ? (
+    <WritingMonitorDev />
+  ) : (
+    <StudentPageDev />
+  );
+
+const StudentPageDev: React.FC = () => {
   const [state, setState] = useState<StateId>(initialState);
   const [bar] = useState(
     () => !new URLSearchParams(window.location.search).has('shot')

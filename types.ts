@@ -10600,8 +10600,10 @@ export interface WritingAssignmentDefinition {
 
 /** Per-board state only; Writing assignments live in the teacher's library. */
 export interface WritingConfig {
-  /** Which face the widget shows; later PRs add the monitor and grader views. */
-  view?: 'manager';
+  /** Which face the widget shows; later PRs add the grader view. */
+  view?: 'manager' | 'monitor';
+  /** The session the monitor shows. */
+  monitorSessionId?: string;
   /** Tab within the manager view. */
   managerTab?: 'library' | 'active' | 'archive';
   /** Persisted library grid/list toggle. */
@@ -10781,6 +10783,8 @@ export interface WritingResponse {
   grade?: WritingGrade;
   /** D21: the 1 August deletion removed this piece's log chunks. */
   logPurgedAt?: number;
+  /** D15: Live view's watch and Nudge; only the session's teacher writes it. */
+  liveView?: QuizLiveViewStamp | null;
   updatedAt: number;
 }
 

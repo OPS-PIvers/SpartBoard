@@ -75541,6 +75541,267 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "writing.archive-monitor",
+    "label": "Monitor item in a Writing assignment row menu",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.face",
+        "kind": "widget",
+        "widget_type": "writing",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-monitor.back",
+    "label": "Back button in the Writing monitor",
+    "scope": "widget type",
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.monitor",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-monitor.class-picker",
+    "label": "Class picker in the Writing monitor",
+    "scope": "widget type",
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.monitor",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-monitor.status-bucket",
+    "label": "Student status count in the Writing monitor",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "widgets.writing.monitor",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-monitor.live-view",
+    "label": "Live view button on a student in the Writing monitor",
+    "scope": "field",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.monitor",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-live-view.previous",
+    "label": "Previous student button in Writing Live view",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.live-view",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-monitor.live-view:writing"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-live-view.next",
+    "label": "Next student button in Writing Live view",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.live-view",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-monitor.live-view:writing"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-live-view.close",
+    "label": "Close button in Writing Live view",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.live-view",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-monitor.live-view:writing"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-live-view.tell-student",
+    "label": "Notify student when viewing switch in Writing Live view",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.live-view",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-monitor.live-view:writing"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-live-view.nudge-note",
+    "label": "Nudge note picker in Writing Live view",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.live-view",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-monitor.live-view:writing"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-live-view.nudge",
+    "label": "Nudge button in Writing Live view",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "writing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.writing.live-view",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-monitor.live-view:writing"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
     "id": "writing-editor.tab-prompt",
     "label": "Prompt tab in the Writing editor",
     "scope": "board",

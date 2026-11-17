@@ -832,6 +832,26 @@ export const SURFACES: TourSurfaceMap = {
     widgetType: 'writing',
     needs: ['library-item', 'class'],
   },
+  'widgets.writing.monitor': {
+    label: 'Writing monitor',
+    kind: 'panel',
+    // On the In Progress tab a live row's primary action is Monitor.
+    files: ['components/widgets/Writing/components/monitor/WritingMonitor.tsx'],
+    opensWith: 'library-shell.archive-primary-action:writing#row-1',
+    parent: 'widgets.writing.face',
+    widgetType: 'writing',
+    needs: ['widget-on-stage', 'library-item', 'live-session'],
+  },
+  'widgets.writing.live-view': {
+    label: 'Writing Live view of one student',
+    kind: 'panel',
+    files: [
+      'components/widgets/Writing/components/monitor/WritingLiveViewPanel.tsx',
+    ],
+    opensWith: 'writing-monitor.live-view:writing',
+    parent: 'widgets.writing.monitor',
+    widgetType: 'writing',
+  },
   'widgets.projects.groups-manager': {
     label: 'Projects groups manager',
     kind: 'modal',
