@@ -1,8 +1,5 @@
 // Teacher grading of Writing assignments (WRITING_ASSIGNMENT.md D12-D14): result rows, scores and feedback payloads.
 import type {
-  WrittenAnswerAnnotation,
-  WrittenAnswerRubricScore,
-  WritingDraft,
   WritingFeedback,
   WritingGrade,
   WritingGrading,
@@ -10,9 +7,7 @@ import type {
   WritingResponseStatus,
 } from '@/types';
 import { sumRubricScorePoints } from '@/utils/rubricPoints';
-import { stableStringify } from '@/utils/stableStringify';
 import { writingGradingMax } from '@/utils/writingResponseState';
-import { parsePoints } from '@/utils/gradeDraft';
 
 export interface WritingStudentName {
   givenName: string;
@@ -101,96 +96,12 @@ export function formatWritingScore(
   return max === null ? String(points) : `${points} / ${max}`;
 }
 
-/** What the grader holds for one frozen copy. */
-export interface WritingFeedbackForm {
-  pointsInput: string;
-  comment: string;
-  annotations: WrittenAnswerAnnotation[];
-  rubricScores: WrittenAnswerRubricScore[];
-  excused: boolean;
-}
-
-export function feedbackForm(
-  feedback: WritingFeedback | undefined
-): WritingFeedbackForm {
-  return {
-    pointsInput:
-      typeof feedback?.pointsAwarded === 'number'
-        ? String(feedback.pointsAwarded)
-        : '',
-    comment: feedback?.overallComment ?? '',
-    annotations: feedback?.annotations ?? [],
-    rubricScores: feedback?.rubricScores ?? [],
-    excused: feedback?.excused === true,
-  };
-}
-
 export type WritingFeedbackPayload = Omit<
   WritingFeedback,
   'gradedBy' | 'gradedAt'
 >;
 
-export type WritingFeedbackBuild =
-  | { ok: true; feedback: WritingFeedbackPayload }
-  | { ok: false; error: 'range' };
-
-/** The callable's `feedback`; a rubric with no typed total banks its running sum. */
-export function buildWritingFeedback(
-  form: WritingFeedbackForm,
-  grading: WritingGrading
-): WritingFeedbackBuild {
-  const out: WritingFeedbackPayload = {};
-  const comment = form.comment.trim();
-  if (comment) out.overallComment = comment;
-  if (form.annotations.length > 0) out.annotations = form.annotations;
-  const max = writingMaxPoints(grading);
-  if (max === null) return { ok: true, feedback: out };
-  if (form.excused) return { ok: true, feedback: { ...out, excused: true } };
-  if (grading.mode === 'rubric' && form.rubricScores.length > 0)
-    out.rubricScores = form.rubricScores;
-  if (form.pointsInput.trim() !== '') {
-    const points = parsePoints(form.pointsInput, max);
-    if (points === null) return { ok: false, error: 'range' };
-    out.pointsAwarded = points;
-  } else if (out.rubricScores) {
-    out.pointsAwarded = Math.min(sumRubricScorePoints(out.rubricScores), max);
-  }
-  return { ok: true, feedback: out };
-}
-
-const stable = (v: unknown): string => stableStringify(v ?? null);
-
-/** The form differs from what is saved on the copy. */
-export function feedbackFormDirty(
-  form: WritingFeedbackForm,
-  saved: WritingFeedback | undefined
-): boolean {
-  const base = feedbackForm(saved);
-  return (
-    form.pointsInput.trim() !== base.pointsInput ||
-    form.comment.trim() !== base.comment.trim() ||
-    form.excused !== base.excused ||
-    stable(form.annotations) !== stable(base.annotations) ||
-    stable(form.rubricScores) !== stable(base.rubricScores)
-  );
-}
-
-/** A copy with a score or any written feedback. */
-export function draftHasFeedback(
-  draft: Pick<WritingDraft, 'feedback'>
-): boolean {
-  const f = draft.feedback;
-  if (!f) return false;
-  return (
-    typeof f.pointsAwarded === 'number' ||
-    f.excused === true ||
-    (f.rubricScores?.length ?? 0) > 0 ||
-    (f.annotations?.length ?? 0) > 0 ||
-    Boolean(f.overallComment?.trim())
-  );
-}
-
-/** Copies newest first; the order the grader lists them in. */
+/** Copies newest first; the order the student page lists them in. */
 export function sortDraftsNewestFirst<
   T extends { number: number; seq?: number },
 >(drafts: readonly T[]): T[] {

@@ -5,7 +5,7 @@ import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
 import {
   returnWriting,
   saveWritingFeedback,
-  useWritingDrafts,
+  useWritingAllDrafts,
   useWritingRecord,
   useWritingResults,
 } from '@/hooks/useWritingResults';
@@ -37,7 +37,15 @@ export const WritingResults: React.FC<{
   );
   const gradable = useMemo(() => rows.filter(isGradable), [rows]);
   const [grading, setGrading] = useState<string | null>(null);
-  const drafts = useWritingDrafts(grading ? sessionId : null, grading);
+  const gradableUids = useMemo(
+    () => gradable.map((r) => r.studentUid),
+    [gradable]
+  );
+  const drafts = useWritingAllDrafts(grading ? sessionId : null, gradableUids);
+  // Opens once every copy has loaded, then stays open while new copies arrive.
+  const [opened, setOpened] = useState<string | null>(null);
+  if (grading && !drafts.loading && opened !== grading) setOpened(grading);
+  if (!grading && opened !== null) setOpened(null);
   const sessionGrading = session?.grading ?? { mode: 'ungraded' as const };
 
   return (
@@ -51,14 +59,12 @@ export const WritingResults: React.FC<{
         onBack={onBack}
         onGrade={setGrading}
       />
-      {grading && session && (
+      {opened && session && (
         <WritingGrader
           session={session}
           rows={gradable}
-          selectedUid={grading}
-          onSelect={setGrading}
-          drafts={drafts.drafts}
-          draftsLoading={drafts.loading}
+          initialUid={opened}
+          draftsByStudent={drafts.byStudent}
           teacherUid={user?.uid ?? ''}
           onSaveFeedback={saveWritingFeedback}
           onReturn={(studentUid, revise, studentCanViewRecord) =>

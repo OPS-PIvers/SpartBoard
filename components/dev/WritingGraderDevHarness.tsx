@@ -1,5 +1,5 @@
 // `/writing-grader-dev?view=results|grader|student&grading=points|rubric|ungraded`: Writing results, grader and returned feedback on fixtures.
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import type {
   Rubric,
   WritingGrading,
@@ -195,14 +195,25 @@ export const WritingGraderDevHarness: React.FC = () => {
     responses,
     new Map(NAMES.map(([uid, g, f]) => [uid, { givenName: g, familyName: f }]))
   );
-  const [selected, setSelected] = useState('u1');
-  const drafts =
-    selected === 'u1'
-      ? [draft('2', 2, false, max), draft('1', 1, true, max)]
-      : [draft('1', 1, selected !== 'u5', max)];
+  const gradable = rows.filter(isGradable);
+  const draftsByStudent = useMemo(
+    () =>
+      new Map(
+        gradable.map((r) => [
+          r.studentUid,
+          r.studentUid === 'u1'
+            ? [draft('2', 2, false, max), draft('1', 1, true, max)]
+            : [draft('1', 1, r.studentUid !== 'u5', max)],
+        ])
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fixtures are fixed per page load
+    [max]
+  );
   const session = {
     id: 's1',
     title: 'Personal narrative: a moment that changed you',
+    prompt:
+      'Write about a moment that changed you. Show how you felt, not just what happened.',
     grading,
     studentCanViewRecord: false,
   };
@@ -242,11 +253,9 @@ export const WritingGraderDevHarness: React.FC = () => {
         {view === 'grader' && (
           <WritingGrader
             session={session}
-            rows={rows.filter(isGradable)}
-            selectedUid={selected}
-            onSelect={setSelected}
-            drafts={drafts}
-            draftsLoading={false}
+            rows={gradable}
+            initialUid="u1"
+            draftsByStudent={draftsByStudent}
             teacherUid="t"
             onSaveFeedback={() => Promise.resolve({ counts: true })}
             onReturn={() => Promise.resolve()}

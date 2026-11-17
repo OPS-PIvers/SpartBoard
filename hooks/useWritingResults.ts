@@ -1,5 +1,5 @@
 // Teacher side of one Writing session: the session, every response, one student's frozen copies, and the grading callables.
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { collection, doc, onSnapshot } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
@@ -145,6 +145,55 @@ export function useWritingDrafts(
   return {
     drafts: state.key === key ? state.drafts : [],
     loading: key !== null && state.key !== key,
+  };
+}
+
+/** Every listed student's frozen copies, live, keyed by student uid; for the grader's whole rail. */
+export function useWritingAllDrafts(
+  sessionId: string | null,
+  studentUids: readonly string[]
+): { byStudent: ReadonlyMap<string, WritingDraftWithId[]>; loading: boolean } {
+  const uidsKey = [...studentUids].sort().join(',');
+  // Keyed by session only, so a student turning in mid-grading keeps everyone else's copies.
+  const key = sessionId;
+  const [state, setState] = useState<{
+    key: string | null;
+    byStudent: Record<string, WritingDraftWithId[]>;
+  }>({ key: null, byStudent: {} });
+
+  useEffect(() => {
+    if (!sessionId) return undefined;
+    const k = sessionId;
+    const uids = uidsKey ? uidsKey.split(',') : [];
+    if (uids.length === 0) return undefined;
+    const offs = uids.map((uid) =>
+      onSnapshot(
+        collection(db, SESSIONS, sessionId, 'responses', uid, 'drafts'),
+        (snap) =>
+          setState((prev) => ({
+            key: k,
+            byStudent: {
+              ...(prev.key === k ? prev.byStudent : {}),
+              [uid]: snap.docs.map(
+                (d) => ({ ...d.data(), id: d.id }) as WritingDraftWithId
+              ),
+            },
+          })),
+        (err) => logError('useWritingAllDrafts', err, { sessionId })
+      )
+    );
+    return () => offs.forEach((off) => off());
+  }, [sessionId, uidsKey]);
+
+  const current = state.key === key ? state.byStudent : null;
+  const byStudent = useMemo(
+    () => new Map(Object.entries(current ?? {})),
+    [current]
+  );
+  return {
+    byStudent,
+    loading:
+      key !== null && studentUids.some((uid) => current?.[uid] === undefined),
   };
 }
 

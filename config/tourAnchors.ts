@@ -4410,6 +4410,12 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'quiz-grading.excuse': {
+    label: 'Excuse button in the grader',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
   'quiz-grading.undo-excuse': {
     label: 'Undo excuse in the Quiz grader',
     perWidgetType: true,
@@ -17233,44 +17239,6 @@ export const TOUR_ANCHORS = {
     label: 'Student row in Writing results',
     perField: true,
     rows: true,
-  },
-  'writing-grading.student-select': {
-    label: 'Student row in the Writing grader',
-    perField: true,
-    panel: true,
-    rows: true,
-  },
-  'writing-grading.draft-select': {
-    label: 'Draft picker in the Writing grader',
-    perWidgetType: true,
-    panel: true,
-  },
-  'writing-grading.points': {
-    label: 'Score box in the Writing grader',
-    perWidgetType: true,
-    panel: true,
-  },
-  'writing-grading.excused': {
-    label: 'Excused checkbox in the Writing grader',
-    perWidgetType: true,
-    panel: true,
-  },
-  'writing-grading.comment': {
-    label: 'Overall comment box in the Writing grader',
-    perWidgetType: true,
-    panel: true,
-  },
-  'writing-grading.highlight-select': {
-    label: 'Highlight list item in the Writing grader',
-    perField: true,
-    panel: true,
-    rows: true,
-  },
-  'writing-grading.save': {
-    label: 'Save button in the Writing grader',
-    perWidgetType: true,
-    persists: true,
-    panel: true,
   },
   'writing-grading.return': {
     label: 'Return button in the Writing grader',

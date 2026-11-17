@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Rubric, WritingResponse } from '@/types';
 import {
-  buildWritingFeedback,
   buildWritingRows,
-  feedbackForm,
-  feedbackFormDirty,
   formatWritingScore,
   sortDraftsNewestFirst,
   writingCallReason,
@@ -82,81 +79,7 @@ describe('scores', () => {
   });
 });
 
-describe('buildWritingFeedback', () => {
-  const points = { mode: 'points', points: 10 } as const;
-
-  it('sends a typed score and trims the comment', () => {
-    const form = {
-      ...feedbackForm(undefined),
-      pointsInput: '8',
-      comment: ' Good ',
-    };
-    expect(buildWritingFeedback(form, points)).toEqual({
-      ok: true,
-      feedback: { pointsAwarded: 8, overallComment: 'Good' },
-    });
-  });
-
-  it('refuses a score over the total', () => {
-    const form = { ...feedbackForm(undefined), pointsInput: '11' };
-    expect(buildWritingFeedback(form, points)).toEqual({
-      ok: false,
-      error: 'range',
-    });
-  });
-
-  it('banks a rubric sum when no total is typed, and drops scores when excused', () => {
-    const grading = {
-      mode: 'rubric',
-      rubricId: 'r',
-      rubricSnapshot: rubric,
-    } as const;
-    const scores = [{ criterionId: 'a', levelId: 'x', points: 4 }] as never;
-    const form = { ...feedbackForm(undefined), rubricScores: scores };
-    expect(buildWritingFeedback(form, grading)).toEqual({
-      ok: true,
-      feedback: { rubricScores: scores, pointsAwarded: 4 },
-    });
-    expect(buildWritingFeedback({ ...form, excused: true }, grading)).toEqual({
-      ok: true,
-      feedback: { excused: true },
-    });
-  });
-
-  it('sends only comments on ungraded work', () => {
-    const form = {
-      ...feedbackForm(undefined),
-      pointsInput: '3',
-      excused: true,
-      comment: 'Nice',
-    };
-    expect(buildWritingFeedback(form, { mode: 'ungraded' })).toEqual({
-      ok: true,
-      feedback: { overallComment: 'Nice' },
-    });
-  });
-});
-
 describe('helpers', () => {
-  it('tracks unsaved changes against the saved feedback', () => {
-    const saved = { pointsAwarded: 5, gradedBy: 't', gradedAt: 1 };
-    const form = feedbackForm(saved);
-    expect(feedbackFormDirty(form, saved)).toBe(false);
-    expect(feedbackFormDirty({ ...form, pointsInput: '6' }, saved)).toBe(true);
-    const local = [
-      { id: 'a', from: 0, to: 2, comment: 'x', highlightColor: 'green' },
-    ];
-    const echoed = [
-      { comment: 'x', from: 0, highlightColor: 'green', id: 'a', to: 2 },
-    ];
-    expect(
-      feedbackFormDirty(
-        { ...feedbackForm(undefined), annotations: local as never },
-        { annotations: echoed } as never
-      )
-    ).toBe(false);
-  });
-
   it('orders copies newest first and reads a refusal reason', () => {
     expect(
       sortDraftsNewestFirst([
