@@ -7084,7 +7084,7 @@ service cloud.firestore {
         // D11: the student reads their own record only while the teacher lets them.
         match /log/{n} {
           allow read: if wrTeacher() || (wrMine() && wrS().get('studentCanViewRecord', false) == true);
-          allow create, update: if wrMine() && n == string(wrR().logChunk)
+          allow create, update: if wrMine() && n == string(wrR().logChunk) && !('logPurgedAt' in wrR())
             && dbGetAfter4('writing_assignment_sessions', sid, 'responses', uid).data.saveCount > wrR().saveCount
             && (noDoc() || existing().closed != true)
             && isBool('closed') && incoming().log.size() <= 200000;

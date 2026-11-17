@@ -508,6 +508,14 @@ describe('log chunks (D25)', () => {
     );
   });
 
+  it('no log writes once the yearly deletion stamped the piece (D21)', async () => {
+    await seed(RESP, response({ logPurgedAt: 5 }));
+    await assertFails(
+      logWrite(asStudent(STUDENT), 0, { log: 'ab', closed: false })
+    );
+    await assertSucceeds(updateDoc(doc(asStudent(STUDENT), RESP), save()));
+  });
+
   it('a chunk write alone, without a response save in its batch, is refused', async () => {
     await assertFails(
       setDoc(doc(asStudent(STUDENT), chunk(0)), { log: 'x', closed: false })

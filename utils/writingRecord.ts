@@ -16,6 +16,8 @@ export interface WritingRecordChunk {
 export interface JoinedWritingLog extends ParsedWritingLog {
   /** Edits before each chunk, by chunk index. */
   chunkStarts: number[];
+  /** The text's length where each chunk starts. */
+  chunkStartLengths: number[];
 }
 
 const byIndex = (a: WritingRecordChunk, b: WritingRecordChunk) =>
@@ -30,12 +32,14 @@ export function joinWritingLog(
     stamps: [],
     cutOff: false,
     chunkStarts: [],
+    chunkStartLengths: [],
   };
   let text = '';
   for (const c of [...chunks].sort(byIndex)) {
     // A missing chunk would misplace every edit after it, so the log ends there.
     if (c.index !== out.chunkStarts.length) break;
     out.chunkStarts.push(out.edits.length);
+    out.chunkStartLengths.push(text.length);
     const parsed = parseWritingLog(c.log, text.length);
     const offset = out.edits.length;
     for (const s of parsed.stamps)
@@ -62,7 +66,10 @@ export function draftMarkAt(
   const chunk = chunks.find((c) => c.index === mark.chunk);
   if (!chunk) return null;
   const length = Math.max(0, Math.min(mark.length, chunk.log.length));
-  const before = parseWritingLog(chunk.log.slice(0, length), 0).edits.length;
+  const before = parseWritingLog(
+    chunk.log.slice(0, length),
+    joined.chunkStartLengths[mark.chunk]
+  ).edits.length;
   return Math.min(start + before, joined.edits.length);
 }
 

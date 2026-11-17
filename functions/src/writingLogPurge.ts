@@ -1,7 +1,11 @@
 // D21 / ADR 0010: each 1 August, delete the edit log of every Writing piece with no writing since 1 July.
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { logger } from 'firebase-functions';
-import { FieldPath, type Firestore } from 'firebase-admin/firestore';
+import {
+  FieldPath,
+  type DocumentReference,
+  type Firestore,
+} from 'firebase-admin/firestore';
 import * as admin from './firebaseAdmin';
 import './functionsInit';
 import {
@@ -32,7 +36,6 @@ export function compactPurgedLog(log: string): string {
 export interface PurgeChunk {
   id: string;
   log: unknown;
-  updatedAt?: unknown;
 }
 
 export interface PurgePlan {
@@ -41,25 +44,22 @@ export interface PurgePlan {
   patch: Data;
 }
 
-/** What one response's purge writes, or null when it keeps its log this year. */
+/** What one response's purge writes, or null when it keeps its log this year. `lastWriteAt` is server time. */
 export function planLogPurge(
   response: Data,
   chunks: readonly PurgeChunk[],
+  lastWriteAt: number,
   cutoff: number,
   now: number
 ): PurgePlan | null {
   if (isNum(response.logPurgedAt) || chunks.length === 0) return null;
+  // A piece written since 1 July keeps its log until the next 1 August.
+  if (lastWriteAt >= cutoff) return null;
   const summary = (
     typeof response.summary === 'object' && response.summary !== null
       ? response.summary
       : {}
   ) as Data;
-  // The last save or log write; a piece still being written keeps its log until the next 1 August.
-  const last = Math.max(
-    isNum(summary.savedAt) ? summary.savedAt : 0,
-    ...chunks.map((c) => (isNum(c.updatedAt) ? c.updatedAt : 0))
-  );
-  if (last >= cutoff) return null;
   const plan: PurgePlan = {
     rewrite: [],
     remove: [],
@@ -76,18 +76,60 @@ export function planLogPurge(
   return plan;
 }
 
-const SESSION_PAGE = 200;
+const SESSION_PAGE = 100;
+/** Responses purged at once; each is one batch of at most eleven writes. */
+const PARALLEL = 20;
+
+const ms = (t: { toMillis: () => number } | undefined): number =>
+  t ? t.toMillis() : 0;
+
+/** One response: its log and its stamp in a single batch, so a failed write never stamps a log it left whole. */
+async function purgeResponse(
+  db: Firestore,
+  ref: DocumentReference,
+  data: Data,
+  writtenAt: number,
+  cutoff: number,
+  now: number
+): Promise<boolean> {
+  const logs = await ref.collection(WRITING_LOG).get();
+  const lastWriteAt = Math.max(
+    writtenAt,
+    ...logs.docs.map((d) => ms(d.updateTime))
+  );
+  const plan = planLogPurge(
+    data,
+    logs.docs.map((d) => ({ id: d.id, log: d.get('log') as unknown })),
+    lastWriteAt,
+    cutoff,
+    now
+  );
+  if (!plan) return false;
+  const batch = db.batch();
+  for (const c of plan.rewrite)
+    batch.update(ref.collection(WRITING_LOG).doc(c.id), {
+      log: c.log,
+      updatedAt: now,
+    });
+  for (const id of plan.remove)
+    batch.delete(ref.collection(WRITING_LOG).doc(id));
+  batch.update(ref, plan.patch);
+  await batch.commit();
+  return true;
+}
 
 export async function runWritingLogPurge(
   db: Firestore,
-  now: number
-): Promise<{ purged: number; checked: number }> {
+  now: number,
+  deadline: number
+): Promise<{ purged: number; checked: number; done: boolean }> {
   const cutoff = purgeCutoff(now);
-  const writer = db.bulkWriter();
   let purged = 0;
   let checked = 0;
   let after: string | null = null;
   for (;;) {
+    // A run that nears its time limit stops; the next day's run picks up the pieces not yet stamped.
+    if (Date.now() > deadline) return { purged, checked, done: false };
     let q = db
       .collection(WRITING_SESSIONS)
       .orderBy(FieldPath.documentId())
@@ -98,52 +140,44 @@ export async function runWritingLogPurge(
     if (sessions.empty) break;
     for (const s of sessions.docs) {
       const responses = await s.ref.collection(WRITING_RESPONSES).get();
-      for (const r of responses.docs) {
-        checked += 1;
-        const data = r.data();
-        if (isNum(data.logPurgedAt)) continue;
-        const logs = await r.ref.collection(WRITING_LOG).get();
-        const plan = planLogPurge(
-          data,
-          logs.docs.map((d) => ({
-            id: d.id,
-            log: d.get('log') as unknown,
-            updatedAt: d.get('updatedAt') as unknown,
-          })),
-          cutoff,
-          now
+      const todo = responses.docs.filter((r) => !isNum(r.get('logPurgedAt')));
+      checked += responses.size;
+      for (let i = 0; i < todo.length; i += PARALLEL) {
+        const results = await Promise.allSettled(
+          todo
+            .slice(i, i + PARALLEL)
+            .map((r) =>
+              purgeResponse(db, r.ref, r.data(), ms(r.updateTime), cutoff, now)
+            )
         );
-        if (!plan) continue;
-        for (const c of plan.rewrite)
-          void writer.update(r.ref.collection(WRITING_LOG).doc(c.id), {
-            log: c.log,
-            updatedAt: now,
-          });
-        for (const id of plan.remove)
-          void writer.delete(r.ref.collection(WRITING_LOG).doc(id));
-        // Stamped last, so a run cut short tries this piece again next time.
-        await writer.flush();
-        await r.ref.update(plan.patch);
-        purged += 1;
+        for (const res of results) {
+          if (res.status === 'fulfilled') purged += res.value ? 1 : 0;
+          else logger.error('purgeWritingLogs response', res.reason);
+        }
       }
     }
     after = sessions.docs[sessions.docs.length - 1].id;
     if (sessions.size < SESSION_PAGE) break;
   }
-  await writer.close();
-  return { purged, checked };
+  return { purged, checked, done: true };
 }
 
+// D21: the first week of August, daily, so a run cut short or a failed piece is picked up the next day.
 export const purgeWritingLogs = onSchedule(
   {
-    schedule: '0 3 1 8 *',
+    schedule: '0 3 1-7 8 *',
     timeZone: 'America/Chicago',
     timeoutSeconds: 540,
     memory: '512MiB',
     region: 'us-central1',
   },
   async () => {
-    const result = await runWritingLogPurge(admin.firestore(), Date.now());
+    const started = Date.now();
+    const result = await runWritingLogPurge(
+      admin.firestore(),
+      started,
+      started + 480_000
+    );
     logger.info('purgeWritingLogs', result);
   }
 );

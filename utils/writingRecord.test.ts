@@ -95,6 +95,44 @@ describe('draftMarkAt', () => {
   });
 });
 
+describe('draftMarkAt in a later chunk', () => {
+  it('counts deletions before the mark, which name positions past the chunk start', () => {
+    const rec = new WritingRecorder({
+      log: '',
+      startText: '',
+      chunk: 0,
+      base: null,
+      chunkBytes: 200,
+    });
+    const chunks: WritingRecordChunk[] = [];
+    let text = '';
+    let t = 0;
+    const step = (next: string) => {
+      t += 100;
+      rec.edit(text, next, t, 'typed', 1_000_000 + t);
+      text = next;
+      for (let c = rec.nextClosing; c; c = rec.nextClosing) {
+        chunks.push({ index: c.index, log: c.log });
+        rec.confirmClosed(c.index);
+      }
+    };
+    for (const ch of 'a long opening that fills the first chunk of the log ')
+      step(text + ch);
+    expect(rec.openChunk.index).toBeGreaterThan(0);
+    step(text + 'x');
+    step(text.slice(0, -1));
+    step(text + 'y');
+    const mark = {
+      chunk: rec.openChunk.index,
+      length: rec.openChunk.log.length,
+    };
+    step(text + 'z');
+    const all = [...chunks, rec.openChunk];
+    const joined = joinWritingLog(all);
+    expect(draftMarkAt(joined, all, mark)).toBe(joined.edits.length - 1);
+  });
+});
+
 describe('readWritingRecord', () => {
   it('marks where a full log stopped (D25)', () => {
     const { chunks } = record(400);

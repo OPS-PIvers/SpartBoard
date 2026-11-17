@@ -31,17 +31,12 @@ describe('compactPurgedLog', () => {
 
 describe('planLogPurge', () => {
   const chunks = [
-    { id: '0', log: 'Tabc;0:Hi;P0,2,,pasted', updatedAt: JUNE },
-    { id: '1', log: '0:more typing', updatedAt: JUNE },
+    { id: '0', log: 'Tabc;0:Hi;P0,2,,pasted' },
+    { id: '1', log: '0:more typing' },
   ];
 
   it('purges a piece with no writing since 1 July: keeps pastes, deletes typing, stops recording', () => {
-    const plan = planLogPurge(
-      { summary: { savedAt: JUNE } },
-      chunks,
-      CUTOFF,
-      AUG_1
-    );
+    const plan = planLogPurge({ summary: {} }, chunks, JUNE, CUTOFF, AUG_1);
     expect(plan).toEqual({
       rewrite: [{ id: '0', log: 'P0,2,,pasted' }],
       remove: ['1'],
@@ -51,39 +46,29 @@ describe('planLogPurge', () => {
 
   it('keeps an earlier stop time from a full log', () => {
     const plan = planLogPurge(
-      { summary: { savedAt: JUNE, logStoppedAt: 5 } },
+      { summary: { logStoppedAt: 5 } },
       chunks,
+      JUNE,
       CUTOFF,
       AUG_1
     );
     expect(plan?.patch).toEqual({ logPurgedAt: AUG_1 });
   });
 
-  it('leaves a piece written since 1 July until next year', () => {
+  it('leaves a piece written since 1 July (server time) until next year', () => {
     expect(
-      planLogPurge({ summary: { savedAt: JULY } }, chunks, CUTOFF, AUG_1)
+      planLogPurge({ summary: {} }, chunks, JULY, CUTOFF, AUG_1)
     ).toBeNull();
+    // A device clock set to the past does not count: only server write times do.
     expect(
-      planLogPurge(
-        { summary: { savedAt: JUNE } },
-        [{ id: '0', log: '0:x', updatedAt: JULY }],
-        CUTOFF,
-        AUG_1
-      )
+      planLogPurge({ summary: { savedAt: JUNE } }, chunks, JULY, CUTOFF, AUG_1)
     ).toBeNull();
   });
 
   it('skips a piece already purged or with no log', () => {
     expect(
-      planLogPurge(
-        { summary: { savedAt: JUNE }, logPurgedAt: 1 },
-        chunks,
-        CUTOFF,
-        AUG_1
-      )
+      planLogPurge({ summary: {}, logPurgedAt: 1 }, chunks, JUNE, CUTOFF, AUG_1)
     ).toBeNull();
-    expect(
-      planLogPurge({ summary: { savedAt: JUNE } }, [], CUTOFF, AUG_1)
-    ).toBeNull();
+    expect(planLogPurge({ summary: {} }, [], JUNE, CUTOFF, AUG_1)).toBeNull();
   });
 });

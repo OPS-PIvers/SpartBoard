@@ -17,7 +17,7 @@ import {
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
-import type { WritingResponse, WritingResponseSummary } from '@/types';
+import type { WritingResponse } from '@/types';
 import { editorPlainText } from '@/hooks/useInputSignals';
 import { countWords } from '@/utils/wordCount';
 import { logError } from '@/utils/logError';
@@ -119,15 +119,6 @@ const codeOf = (err: unknown): string => {
 
 const isOnline = () =>
   typeof navigator === 'undefined' ? true : navigator.onLine;
-
-/** D21: once the yearly deletion took a piece's log, recording stays stopped and the summary keeps counting. */
-function purgedBase(
-  base: WritingResponseSummary | undefined,
-  purgedAt: number | undefined
-): WritingResponseSummary | undefined {
-  if (!isNum(purgedAt) || !base || isNum(base.logStoppedAt)) return base;
-  return { ...base, logStoppedAt: purgedAt };
-}
 
 export function useWritingPiece(args: {
   sessionId: string;
@@ -240,6 +231,7 @@ export function useWritingPiece(args: {
   // The response, and D23: another tab's claim or a lock ends this tab's hold.
   const onServer = useEffectEvent((r: WritingResponse | null) => {
     setResponse(r);
+    if (r && isNum(r.logPurgedAt)) recorderRef.current?.stopLog(r.logPurgedAt);
     if (!r || !holdingRef.current) return;
     if (r.tabId === myTabId && isWritingUnlocked(deriveWritingStatus(r)))
       return;
@@ -476,13 +468,18 @@ export function useWritingPiece(args: {
       if (fromServer.chunk !== logChunk)
         throw new Error('log chunk moved during open');
       const send = decision === 'send' && copy ? copy : null;
-      const fromCopy = send && copyLogFits(send, logChunk) ? send : null;
+      // D21: a copy from before the yearly deletion never writes its log back.
+      const fromCopy =
+        send && !isNum(s.logPurgedAt) && copyLogFits(send, logChunk)
+          ? send
+          : null;
       const rec = new WritingRecorder({
         log: fromCopy ? fromCopy.log : fromServer.log,
         startText: fromServer.startText,
         chunk: logChunk,
-        base: purgedBase(send ? send.summary : s.summary, s.logPurgedAt),
+        base: send ? send.summary : s.summary,
       });
+      if (isNum(s.logPurgedAt)) rec.stopLog(s.logPurgedAt);
       const htmlStart = send ? send.html : (s.html ?? '');
       const saveCount = serverCount + 1;
       const now = Date.now();
