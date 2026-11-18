@@ -262,8 +262,9 @@ function resolveDefaultPlcSelection(
   if (groupPlcId && plcs.some((p) => p.id === groupPlcId)) {
     return { plcMode: true, plcId: groupPlcId };
   }
-  // Sharing starts on when there is one PLC to share with.
-  if (plcs.length === 1) return { plcMode: true, plcId: plcs[0].id };
+  // Sharing starts on when there is one PLC, unless the quiz came from a different one.
+  if (plcs.length === 1 && !groupPlcId)
+    return { plcMode: true, plcId: plcs[0].id };
   return { plcMode: config.plcMode ?? false, plcId: '' };
 }
 
