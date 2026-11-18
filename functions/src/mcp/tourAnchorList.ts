@@ -18926,6 +18926,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "keys": [
       "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
     ]
   },
   {
