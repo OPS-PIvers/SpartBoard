@@ -16,6 +16,7 @@ export function CourseClassList<R extends CourseRoster>({
   courses,
   saveCourse,
   renderRow,
+  renderCourseMenu,
   listAttrs,
 }: CourseClassListProps<R>): React.ReactElement {
   const groups = useMemo(
@@ -54,13 +55,20 @@ export function CourseClassList<R extends CourseRoster>({
                   <CourseRow
                     group={group}
                     rowKey={rowKey}
-                    renderSection={(r) => renderRow(r, indexOf.get(r.id) ?? 0)}
+                    renderSection={(r) =>
+                      renderRow(r, indexOf.get(r.id) ?? 0, true)
+                    }
                     actions={
                       <CourseEditButton
                         rowKey={rowKey}
                         courseName={group.course.name}
                         open={editing}
                         onClick={() => setEditingId(editing ? null : courseId)}
+                        menu={renderCourseMenu?.(
+                          group.rosters,
+                          rowKey,
+                          group.course.name
+                        )}
                       />
                     }
                   />
@@ -78,7 +86,7 @@ export function CourseClassList<R extends CourseRoster>({
                 <ul>
                   {group.rosters.map((r) => (
                     <Fragment key={r.id}>
-                      {renderRow(r, indexOf.get(r.id) ?? 0)}
+                      {renderRow(r, indexOf.get(r.id) ?? 0, false)}
                     </Fragment>
                   ))}
                 </ul>

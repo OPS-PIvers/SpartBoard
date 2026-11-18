@@ -42,6 +42,7 @@ import { useSchoologySeenSections } from '@/hooks/useSchoologySeenSections';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { SidebarClassRow } from './SidebarClassRow';
 import { CourseClassList } from '@/components/classes/course/CourseClassList';
+import { CourseActionsMenu } from '@/components/classes/course/CourseActionsMenu';
 import { useCourses } from '@/hooks/useCourses';
 
 /** Google Classroom OAuth scope for read-only course listing. */
@@ -147,8 +148,10 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
   const studentPageOn = canAccessFeature('class-student-page');
   const coursesOn = canAccessFeature('course-agenda');
   const { courses: spartCourses, saveCourse } = useCourses(coursesOn);
-  const [studentPageRoster, setStudentPageRoster] =
-    useState<ClassRoster | null>(null);
+  const [studentPage, setStudentPage] = useState<{
+    roster: ClassRoster;
+    sections?: ClassRoster[];
+  } | null>(null);
   const [classLinkMode, setClassLinkMode] =
     useState<ClassLinkDialogMode | null>(null);
 
@@ -457,7 +460,11 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
     }
   };
 
-  const renderRosterRow = (r: ClassRoster, rosterIndex: number) => (
+  const renderRosterRow = (
+    r: ClassRoster,
+    rosterIndex: number,
+    inCourse = false
+  ) => (
     <SidebarClassRow
       key={r.id}
       roster={r}
@@ -474,12 +481,36 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
       onLinkClassroom={() => setLinkingRoster(r)}
       onViewStudentPage={
         studentPageOn && studentPageClassId(r)
-          ? () => setStudentPageRoster(r)
+          ? () => setStudentPage({ roster: r })
           : undefined
       }
       onDelete={() => void handleDelete(r)}
+      inCourse={inCourse}
     />
   );
+
+  const renderCourseMenu = (
+    sections: readonly ClassRoster[],
+    rowKey: string,
+    courseName: string
+  ) => {
+    const withPage = studentPageOn
+      ? sections.filter((s) => studentPageClassId(s))
+      : [];
+    return (
+      <CourseActionsMenu
+        courseName={courseName}
+        sections={sections}
+        rowKey={rowKey}
+        classLinkEnabled={classLinkEnabled}
+        onViewStudentPage={
+          withPage.length > 0
+            ? () => setStudentPage({ roster: withPage[0], sections: withPage })
+            : undefined
+        }
+      />
+    );
+  };
 
   return (
     <>
@@ -604,6 +635,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
                     courses={spartCourses}
                     saveCourse={saveCourse}
                     renderRow={renderRosterRow}
+                    renderCourseMenu={renderCourseMenu}
                     listAttrs={tourAttr('classes.roster-list')}
                   />
                 ) : (
@@ -611,7 +643,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
                     className="divide-y divide-slate-200 border-y border-slate-200"
                     {...tourAttr('classes.roster-list')}
                   >
-                    {rosters.map(renderRosterRow)}
+                    {rosters.map((r, i) => renderRosterRow(r, i))}
                   </ul>
                 )}
               </div>
@@ -634,10 +666,11 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
         />
       )}
 
-      {studentPageRoster && (
+      {studentPage && (
         <ClassStudentPagePreview
-          roster={studentPageRoster}
-          onClose={() => setStudentPageRoster(null)}
+          roster={studentPage.roster}
+          sections={studentPage.sections}
+          onClose={() => setStudentPage(null)}
         />
       )}
 

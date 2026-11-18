@@ -1,6 +1,7 @@
 // The My Classes list with Courses on fixture data, for /sidebar-lists-dev; saves change local state only.
 import React, { useCallback, useState } from 'react';
 import { CourseClassList } from '@/components/classes/course/CourseClassList';
+import { CourseActionsMenu } from '@/components/classes/course/CourseActionsMenu';
 import { SidebarClassRow } from '@/components/layout/sidebar/SidebarClassRow';
 import type { ClassRoster } from '@/types';
 import type {
@@ -125,7 +126,16 @@ export const CourseLinkingDevFrame: React.FC = () => {
         rosters={ROSTERS}
         courses={courses}
         saveCourse={saveCourse}
-        renderRow={(r, i) => (
+        renderCourseMenu={(sections, rowKey, name) => (
+          <CourseActionsMenu
+            courseName={name}
+            sections={sections}
+            rowKey={rowKey}
+            classLinkEnabled
+            onViewStudentPage={() => undefined}
+          />
+        )}
+        renderRow={(r, i, inCourse) => (
           <SidebarClassRow
             key={r.id}
             roster={r}
@@ -136,7 +146,9 @@ export const CourseLinkingDevFrame: React.FC = () => {
             onEdit={() => undefined}
             onSyncClassLink={() => undefined}
             onLinkClassroom={() => undefined}
+            onViewStudentPage={() => undefined}
             onDelete={() => undefined}
+            inCourse={inCourse}
           />
         )}
       />
