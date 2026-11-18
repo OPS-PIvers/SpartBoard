@@ -395,4 +395,36 @@ describe('Full rubric table editing', () => {
     expect(saved.criteria[0].levels.map((l) => l.id)).toEqual(['c1l2', 'c1l3']);
     expect(saved.criteria[1].levels.map((l) => l.points)).toEqual([1, 2, 3]);
   });
+
+  it('switches the table to a scoring guide and saves guide rows', async () => {
+    const onSave = vi
+      .fn<(r: Rubric) => Promise<void>>()
+      .mockResolvedValue(undefined);
+    const onClose = vi.fn();
+    const { RubricTableModal } =
+      await import('@/components/widgets/QuizWidget/components/RubricTableModal');
+    render(
+      <RubricTableModal
+        rubric={rubric}
+        order="high-first"
+        onOrderChange={vi.fn()}
+        scores={new Map()}
+        onClose={onClose}
+        onSave={onSave}
+        initialEditing
+        editLevels
+      />
+    );
+    fireEvent.click(screen.getByRole('radio', { name: 'Scoring guide' }));
+    const points = await screen.findByRole('spinbutton', {
+      name: 'Part 2 points',
+    });
+    fireEvent.change(points, { target: { value: '3' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
+    const saved = onSave.mock.calls[0][0];
+    expect(saved.criteria.every((c) => c.guide)).toBe(true);
+    expect(saved.criteria.map((c) => c.id)).toEqual(['c1', 'c2']);
+    expect(saved.criteria[1].levels.map((l) => l.points)).toEqual([0, 1, 2, 3]);
+  });
 });

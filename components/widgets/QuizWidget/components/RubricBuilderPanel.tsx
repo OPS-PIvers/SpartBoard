@@ -40,13 +40,12 @@ import { AuthContext } from '@/context/AuthContextValue';
 import { useRubricLevelOrder } from '@/hooks/useRubricLevelOrder';
 import { RubricTableModal } from './RubricTableModal';
 import {
-  GUIDE_MAX_POINTS,
-  convertRubricTemplate,
-  guideLevels,
-  guideRowMax,
-  isScoringGuide,
-  newGuideRow,
-} from '@/utils/rubricGuide';
+  GuideRowFields,
+  RubricTemplateSwitch,
+  type GuideFieldAnchor,
+} from './RubricGuideFields';
+import { useRubricTemplateSwitch } from '@/hooks/useRubricTemplateSwitch';
+import { isScoringGuide, newGuideRow } from '@/utils/rubricGuide';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 export interface RubricBuilderPanelProps {
@@ -173,104 +172,19 @@ const validateRubric = (rubric: Rubric): string[] => {
   return errors;
 };
 
-const GuideRowFields: React.FC<{
-  criterion: RubricCriterion;
-  index: number;
-  onPatch: (patch: Partial<RubricCriterion>) => void;
-}> = ({ criterion: c, index, onPatch }) => {
-  const examples = c.guide?.examples ?? [];
-  const part = String(index + 1);
-  const setExamples = (next: string[]) =>
-    onPatch({ guide: { ...c.guide, examples: next } });
-  return (
-    <div className="space-y-2">
-      <textarea
-        rows={2}
-        ref={autoGrow}
-        value={c.description ?? ''}
-        onChange={(e) => {
-          onPatch({ description: e.target.value || undefined });
-          autoGrow(e.target);
-        }}
-        placeholder="Scoring guidelines"
-        aria-label={`Part ${part} scoring guidelines`}
-        {...tourFieldAttr('quiz-rubric.guide-guidelines', 'quiz', part)}
-        className={`${inputClass} resize-y overflow-hidden min-h-[60px]`}
-      />
-      <div className="space-y-1.5">
-        <p className={labelClass}>Example responses</p>
-        {examples.map((example, ei) => (
-          <React.Fragment key={ei}>
-            {ei > 0 && (
-              <p className="text-center text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                or
-              </p>
-            )}
-            <div className="flex items-start gap-2">
-              <textarea
-                rows={1}
-                ref={autoGrow}
-                value={example}
-                onChange={(e) => {
-                  setExamples(
-                    examples.map((x, xi) => (xi === ei ? e.target.value : x))
-                  );
-                  autoGrow(e.target);
-                }}
-                placeholder="A response that earns the point"
-                aria-label={`Part ${part} example ${ei + 1}`}
-                {...tourFieldAttr(
-                  'quiz-rubric.guide-example',
-                  'quiz',
-                  `${part}-${ei + 1}`
-                )}
-                className={`${inputClass} resize-y overflow-hidden min-h-[38px] italic`}
-              />
-              <button
-                onClick={() =>
-                  setExamples(examples.filter((_, xi) => xi !== ei))
-                }
-                aria-label={`Remove part ${part} example ${ei + 1}`}
-                {...tourFieldAttr(
-                  'quiz-rubric.guide-example-remove',
-                  'quiz',
-                  `${part}-${ei + 1}`
-                )}
-                className="p-1 rounded-lg text-slate-500 hover:text-red-500 hover:bg-red-50 transition-colors focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-          </React.Fragment>
-        ))}
-        <button
-          onClick={() => setExamples([...examples, ''])}
-          {...tourFieldAttr('quiz-rubric.guide-example-add', 'quiz', part)}
-          className="flex items-center gap-1.5 text-xs font-bold text-brand-blue-primary hover:text-brand-blue-dark transition-colors"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Add example
-        </button>
-      </div>
-      <label className="flex items-center gap-2 text-xs font-bold text-slate-600">
-        Points
-        <input
-          type="number"
-          min={1}
-          max={GUIDE_MAX_POINTS}
-          value={guideRowMax(c)}
-          onChange={(e) =>
-            onPatch({
-              levels: guideLevels(parseInt(e.target.value, 10) || 1, c.levels),
-            })
-          }
-          aria-label={`Part ${part} points`}
-          {...tourFieldAttr('quiz-rubric.guide-points', 'quiz', part)}
-          className={`${inputClass} w-20`}
-        />
-      </label>
-    </div>
-  );
+const builderGuideAnchor: GuideFieldAnchor = (field, key) => {
+  switch (field) {
+    case 'guidelines':
+      return tourFieldAttr('quiz-rubric.guide-guidelines', 'quiz', key);
+    case 'example':
+      return tourFieldAttr('quiz-rubric.guide-example', 'quiz', key);
+    case 'example-add':
+      return tourFieldAttr('quiz-rubric.guide-example-add', 'quiz', key);
+    case 'example-remove':
+      return tourFieldAttr('quiz-rubric.guide-example-remove', 'quiz', key);
+    case 'points':
+      return tourFieldAttr('quiz-rubric.guide-points', 'quiz', key);
+  }
 };
 
 // Accepts a bare share id or a pasted share URL (`/share/rubric/{id}`) and
@@ -414,35 +328,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
   const errors = useMemo(() => validateRubric(draft), [draft]);
   const guide = isScoringGuide(draft);
 
-  const switchTemplate = async (toGuide: boolean) => {
-    if (toGuide === guide) return;
-    const hasLevelText = draft.criteria.some((c) =>
-      c.levels.some((l) => l.label.trim() || l.description?.trim())
-    );
-    if (toGuide && hasLevelText) {
-      const ok = await showConfirm(
-        'A scoring guide scores each part from 0 to its points, so level labels and descriptions are removed.',
-        {
-          title: 'Switch to a scoring guide?',
-          variant: 'warning',
-          confirmLabel: 'Switch',
-        }
-      );
-      if (!ok) return;
-    }
-    if (!toGuide && draft.criteria.some((c) => c.guide?.examples?.length)) {
-      const ok = await showConfirm(
-        'Levels rubrics have no example responses, so the examples are removed.',
-        {
-          title: 'Switch to levels?',
-          variant: 'warning',
-          confirmLabel: 'Switch',
-        }
-      );
-      if (!ok) return;
-    }
-    setDraft((prev) => convertRubricTemplate(prev, toGuide));
-  };
+  const switchTemplate = useRubricTemplateSwitch(draft, setDraft);
   const maxSum = rubricMaxPoints(draft);
   const totalMismatch = requiredTotal !== undefined && maxSum !== requiredTotal;
 
@@ -760,33 +646,11 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div
-            role="radiogroup"
-            aria-label="Rubric type"
-            {...tourTypeAttr('quiz-rubric.template', 'quiz')}
-            className="inline-flex rounded-lg border border-slate-300 bg-white p-0.5"
-          >
-            {[
-              { value: false, label: 'Levels' },
-              { value: true, label: 'Scoring guide' },
-            ].map((opt) => (
-              // no-tour-anchor: one option of the Levels / Scoring guide switch, rendered from a list
-              <button
-                key={opt.label}
-                type="button"
-                role="radio"
-                aria-checked={guide === opt.value}
-                onClick={() => void switchTemplate(opt.value)}
-                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${
-                  guide === opt.value
-                    ? 'bg-brand-blue-primary text-white'
-                    : 'text-slate-600 hover:bg-slate-100'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
+          <RubricTemplateSwitch
+            guide={guide}
+            onSwitch={(toGuide) => void switchTemplate(toGuide)}
+            anchor={tourTypeAttr('quiz-rubric.template', 'quiz')}
+          />
           {tableEditor && !guide && (
             <button
               type="button"
@@ -886,6 +750,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
                 criterion={c}
                 index={ci}
                 onPatch={(patch) => patchCriterion(c.id, patch)}
+                anchor={builderGuideAnchor}
               />
             ) : (
               <>
