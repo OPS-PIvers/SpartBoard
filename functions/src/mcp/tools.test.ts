@@ -15,6 +15,7 @@ import {
 } from '../pronunciation/fitSpeakToDoc';
 
 const mocks = vi.hoisted(() => ({
+  picturesOn: vi.fn(),
   speakGranted: vi.fn(() => Promise.resolve(false)),
   compute: vi.fn(),
   isAdmin: vi.fn(),
@@ -51,6 +52,10 @@ vi.mock('./miniAppTools', () => ({
   miniAppResultsOn: mocks.resultsOn,
 }));
 vi.mock('./resultsTools', () => ({ registerResultsTools: vi.fn() }));
+vi.mock('./pictureUploads', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./pictureUploads')>()),
+  picturesOn: mocks.picturesOn,
+}));
 vi.mock('../featureGrant', () => ({
   isGlobalFeatureGranted: mocks.speakGranted,
 }));
@@ -1191,6 +1196,7 @@ describe('hiddenToolsFor', () => {
   it('hides admin-only and results-only tools from a plain teacher', async () => {
     mocks.isAdmin.mockResolvedValue(false);
     mocks.resultsOn.mockResolvedValue(false);
+    mocks.picturesOn.mockResolvedValue(false);
     const hidden = await hiddenToolsFor(ctxFor(fakeDb().db));
     expect([...hidden].sort()).toEqual([
       'create_live_tour',
@@ -1198,7 +1204,9 @@ describe('hiddenToolsFor', () => {
       'get_mini_app_results_summary',
       'get_web_tour',
       'get_web_tour_step_picture',
+      'list_uploaded_pictures',
       'list_web_tours',
+      'start_picture_upload',
       'update_web_tour_steps',
       'update_web_tour_text',
     ]);
@@ -1207,15 +1215,18 @@ describe('hiddenToolsFor', () => {
   it('shows admin tools to admins and results tools when results are on', async () => {
     mocks.isAdmin.mockResolvedValue(true);
     mocks.resultsOn.mockResolvedValue(true);
+    mocks.picturesOn.mockResolvedValue(true);
     expect((await hiddenToolsFor(ctxFor(fakeDb().db))).size).toBe(0);
   });
 
   it('fails closed when either check throws', async () => {
     mocks.isAdmin.mockRejectedValue(new Error('boom'));
     mocks.resultsOn.mockRejectedValue(new Error('boom'));
+    mocks.picturesOn.mockRejectedValue(new Error('boom'));
     const hidden = await hiddenToolsFor(ctxFor(fakeDb().db));
     expect(hidden.has('create_live_tour')).toBe(true);
     expect(hidden.has('get_mini_app_results_summary')).toBe(true);
     expect(hidden.has('get_mini_app_spec')).toBe(false);
+    expect(hidden.has('start_picture_upload')).toBe(true);
   });
 });
