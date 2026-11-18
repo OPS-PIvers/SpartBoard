@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   getCentralDayKey,
+  classLacksSentDetails,
   hasSubmittedToday,
   lacksSentDetails,
   mergeSentDetails,
@@ -125,9 +126,72 @@ describe('Lunch Count submitted marker', () => {
     const a = { [classA]: { notes: 'A', extraPizza: 0, sentAt: 1 } };
     const b = { [classB]: { notes: 'B', extraPizza: 0, sentAt: 2 } };
     expect(mergeSentDetails(a, b)).toEqual({ ...a, ...b });
-    const newerA = { [classA]: { notes: 'A2', extraPizza: 1, sentAt: 5 } };
-    expect(mergeSentDetails(newerA, a)?.[classA].notes).toBe('A2');
-    expect(mergeSentDetails(a, newerA)?.[classA].notes).toBe('A2');
+  });
+
+  it("lets the incoming copy win a class, whatever each device's clock said", () => {
+    // A device with a fast clock stamped its older notes far in the future.
+    const fastClockOld = {
+      [classA]: { notes: 'old', extraPizza: 0, sentAt: 9_999_999_999_999 },
+    };
+    const driveNewer = { [classA]: { notes: 'new', extraPizza: 1, sentAt: 5 } };
+    expect(mergeSentDetails(fastClockOld, driveNewer)?.[classA].notes).toBe(
+      'new'
+    );
+  });
+
+  it('keeps the copy that holds the send the board synced', () => {
+    const local = {
+      [classA]: { notes: 'resent here', extraPizza: 0, sentAt: 7 },
+    };
+    const loaded = { [classA]: { notes: 'earlier', extraPizza: 0, sentAt: 3 } };
+    const sends = { [classA]: { sentAt: 7, notesBlank: false } };
+    expect(mergeSentDetails(local, loaded, sends)?.[classA].notes).toBe(
+      'resent here'
+    );
+    const synced = { [classA]: { sentAt: 3, notesBlank: false } };
+    expect(mergeSentDetails(local, loaded, synced)?.[classA].notes).toBe(
+      'earlier'
+    );
+  });
+
+  it('records whether each send had notes, in a key the board syncs', () => {
+    const sent = sentA();
+    expect(sent.lastSubmittedSends?.[classA]).toEqual({
+      sentAt: sent.lastSubmittedDetails?.[classA].sentAt,
+      notesBlank: false,
+    });
+    const blank = submittedMarker(sent, 'w1', getCentralDayKey(), classB, {
+      notes: '  ',
+      extraPizza: 2,
+    });
+    expect(blank.lastSubmittedSends?.[classB].notesBlank).toBe(true);
+    expect(blank.lastSubmittedSends?.[classA].notesBlank).toBe(false);
+  });
+
+  it('offers a blank send for resend without its notes, but never a send that had notes', () => {
+    const blank = submittedMarker({}, 'w1', getCentralDayKey(), classA, {
+      notes: '',
+      extraPizza: 2,
+    });
+    const { lastSubmittedDetails: _blankNotes, ...blankSynced } = blank;
+    expect(sentDetailsToday(blankSynced, 'w1', classA)).toEqual({
+      notes: '',
+      extraPizza: 2,
+    });
+    expect(lacksSentDetails(blankSynced, 'w1')).toBe(false);
+    const { lastSubmittedDetails: _notes, ...synced } = sentA();
+    expect(sentDetailsToday(synced, 'w1', classA)).toBeUndefined();
+    expect(classLacksSentDetails(synced, 'w1', classA)).toBe(true);
+  });
+
+  it('never prefills notes from an earlier send of the class', () => {
+    const sent = sentA();
+    const resentElsewhere = {
+      ...sent,
+      lastSubmittedSends: { [classA]: { sentAt: 1, notesBlank: false } },
+    };
+    expect(sentDetailsToday(resentElsewhere, 'w1', classA)).toBeUndefined();
+    expect(lacksSentDetails(resentElsewhere, 'w1')).toBe(true);
   });
 
   it('sending class B on a copy that loaded class A keeps both', () => {

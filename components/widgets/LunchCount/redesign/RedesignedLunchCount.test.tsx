@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
+  act,
   render,
   screen,
   within,
@@ -14,6 +15,7 @@ import { WidgetData, LunchCountConfig } from '@/types';
 import { mockPointerEvent } from '@/tests/testHelpers/mocks';
 import { SubShareHostContext } from '@/context/SubShareHostContextValue';
 import { getCentralDayKey, submittedMarker } from './lunchCountFormat';
+import { resetSentDetailsReads } from '../useSentDetails';
 
 // Mock dependencies
 vi.mock('@/context/useDashboard');
@@ -521,22 +523,47 @@ describe('LunchCountRedesign — class group pool', () => {
 
     describe('on a second device, where the notes live only in Drive', () => {
       const classKey = '11:30 - GR1 #roster-1';
-      const fromDevice1 = submittedMarker(
+      const otherKey = '10:45 - GR1 #roster-1';
+      const sendFrom = (
+        config: LunchCountConfig,
+        key: string,
+        notes: string
+      ): LunchCountConfig => ({
+        ...config,
+        ...submittedMarker(config, assigned.id, getCentralDayKey(), key, {
+          notes,
+          extraPizza: 4,
+        }),
+      });
+      // What Firestore hands the other device: the marker, pizza count and send record, no notes.
+      const firestoreCopy = (config: LunchCountConfig): LunchCountConfig => {
+        const { lastSubmittedDetails: _notes, ...rest } = config;
+        return rest;
+      };
+      const driveCopy = (config: LunchCountConfig) =>
+        ({ lastSubmittedDetails: config.lastSubmittedDetails }) as Record<
+          string,
+          unknown
+        >;
+      const sentA = sendFrom(
         assigned.config as LunchCountConfig,
-        assigned.id,
-        getCentralDayKey(),
         classKey,
-        { notes: '2 gluten free', extraPizza: 4 }
+        '2 gluten free'
       );
-      // What Firestore hands the other device: the marker and pizza count, no notes.
-      const { lastSubmittedDetails: driveOnly, ...markerOnly } = fromDevice1;
+      const readMock =
+        vi.fn<(widgetId: string, boardId: string) => Promise<unknown>>();
       const useDrive = (
-        readWidgetPii: () => Promise<Record<string, unknown> | null>
-      ) =>
+        read: (() => Promise<unknown>) | undefined,
+        boardId = 'board-1'
+      ) => {
+        readMock.mockReset();
+        if (read) readMock.mockImplementation(read);
         (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
           ...mockDashboardContext,
-          readWidgetPii: vi.fn(readWidgetPii),
+          activeDashboard: { id: boardId, widgets: [{ id: assigned.id }] },
+          readWidgetPii: read ? readMock : undefined,
         });
+      };
       const signIn = () =>
         (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
           user: { displayName: 'Sam Substitute', uid: 'u1' },
@@ -551,77 +578,143 @@ describe('LunchCountRedesign — class group pool', () => {
             },
           ],
         });
-
-      it('prefills Review and Resend from the Drive copy', async () => {
-        signIn();
-        useDrive(() =>
-          Promise.resolve({ lastSubmittedDetails: driveOnly } as Record<
-            string,
-            unknown
-          >)
-        );
-        render(
-          <LunchCountWidget
-            widget={{
-              ...assigned,
-              config: { ...assigned.config, ...markerOnly },
-            }}
-          />
-        );
+      const renderWith = (config: LunchCountConfig) =>
+        render(<LunchCountWidget widget={{ ...assigned, config }} />);
+      const openReport = () =>
         fireEvent.click(screen.getByRole('button', { name: /Report/i }));
-        fireEvent.click(await screen.findByText('Review and Resend'));
-        expect(screen.getByDisplayValue('2 gluten free')).toBeTruthy();
+      const resendButton = () =>
+        screen.queryByRole('button', { name: 'Review and Resend' });
+
+      beforeEach(() => {
+        resetSentDetailsReads();
+        signIn();
       });
 
-      it('offers no blank resend when the notes cannot be loaded', async () => {
-        signIn();
+      afterEach(() => {
+        vi.useRealTimers();
+      });
+
+      it('prefills Review and Resend from this board’s Drive copy', async () => {
+        useDrive(() => Promise.resolve(driveCopy(sentA)));
+        renderWith(firestoreCopy(sentA));
+        openReport();
+        fireEvent.click(await screen.findByText('Review and Resend'));
+        expect(screen.getByDisplayValue('2 gluten free')).toBeTruthy();
+        expect(readMock).toHaveBeenCalledWith(assigned.id, 'board-1');
+      });
+
+      it('reads the copied board’s own Drive file, not the original’s', () => {
+        useDrive(() => new Promise(() => undefined), 'copied-board');
+        renderWith(firestoreCopy(sentA));
+        openReport();
+        expect(readMock).toHaveBeenCalledWith(assigned.id, 'copied-board');
+      });
+
+      it('offers no blank resend when notes it had cannot be loaded', async () => {
         useDrive(() => Promise.resolve(null));
-        render(
-          <LunchCountWidget
-            widget={{
-              ...assigned,
-              config: { ...assigned.config, ...markerOnly },
-            }}
-          />
-        );
-        fireEvent.click(screen.getByRole('button', { name: /Report/i }));
+        renderWith(firestoreCopy(sentA));
+        openReport();
         expect(
           await screen.findByText('Lunch Count Already Submitted')
         ).toBeTruthy();
-        expect(screen.queryByText('Review and Resend')).toBeNull();
+        expect(resendButton()).toBeNull();
       });
 
-      it('sending another class keeps the first class’s notes', async () => {
-        signIn();
+      it('offers Review and Resend for a blank send without reading Drive', () => {
+        const blank = sendFrom(
+          assigned.config as LunchCountConfig,
+          classKey,
+          ''
+        );
+        useDrive(() => Promise.resolve(null));
+        renderWith(firestoreCopy(blank));
+        openReport();
+        expect(screen.getByText('Lunch Count Already Sent')).toBeTruthy();
+        expect(readMock).not.toHaveBeenCalled();
+        fireEvent.click(screen.getByText('Review and Resend'));
+        expect(screen.getByText('Resend Lunch Report')).toBeTruthy();
+      });
+
+      it('offers Review and Resend for a blank send with no Drive at all', () => {
+        const blank = sendFrom(
+          assigned.config as LunchCountConfig,
+          classKey,
+          '   '
+        );
+        useDrive(undefined);
+        renderWith(firestoreCopy(blank));
+        openReport();
+        expect(screen.getByText('Review and Resend')).toBeTruthy();
+      });
+
+      it('opens at once and waits on slow Drive with the resend busy', async () => {
+        let answer: (value: unknown) => void = () => undefined;
+        useDrive(
+          () =>
+            new Promise((resolve) => {
+              answer = resolve;
+            })
+        );
+        renderWith(firestoreCopy(sentA));
+        openReport();
+        expect(screen.getByText('Lunch Count Already Sent')).toBeTruthy();
+        expect(resendButton()).toBeDisabled();
+        answer(driveCopy(sentA));
+        await waitFor(() => expect(resendButton()).not.toBeDisabled());
+      });
+
+      it('shares one read across clicks and never reopens a closed modal', async () => {
+        let answer: (value: unknown) => void = () => undefined;
+        useDrive(
+          () =>
+            new Promise((resolve) => {
+              answer = resolve;
+            })
+        );
+        renderWith(firestoreCopy(sentA));
+        openReport();
+        fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+        openReport();
+        fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+        expect(readMock).toHaveBeenCalledTimes(1);
+        answer(driveCopy(sentA));
+        await waitFor(() => expect(readMock).toHaveBeenCalledTimes(1));
+        expect(screen.queryByText('Lunch Count Already Sent')).toBeNull();
+        openReport();
+        expect(resendButton()).not.toBeDisabled();
+      });
+
+      it('stops waiting after the timeout and remembers the failed read', async () => {
+        vi.useFakeTimers();
+        useDrive(() => new Promise(() => undefined));
+        renderWith(firestoreCopy(sentA));
+        openReport();
+        expect(resendButton()).toBeDisabled();
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(5000);
+        });
+        expect(screen.getByText('Lunch Count Already Submitted')).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+        openReport();
+        expect(readMock).toHaveBeenCalledTimes(1);
+        expect(screen.getByText('Lunch Count Already Submitted')).toBeTruthy();
+      });
+
+      it('opens the form for a class not sent yet without waiting on Drive', async () => {
         global.fetch = vi.fn().mockResolvedValue({
           ok: true,
           text: () => Promise.resolve('Success'),
         });
-        const otherClass = submittedMarker(
+        const sentOther = sendFrom(
           assigned.config as LunchCountConfig,
-          assigned.id,
-          getCentralDayKey(),
-          '10:45 - GR1 #roster-1',
-          { notes: 'Class A notes', extraPizza: 0 }
+          otherKey,
+          'Class A notes'
         );
-        const { lastSubmittedDetails: otherNotes, ...otherMarker } = otherClass;
-        useDrive(() =>
-          Promise.resolve({ lastSubmittedDetails: otherNotes } as Record<
-            string,
-            unknown
-          >)
-        );
-        render(
-          <LunchCountWidget
-            widget={{
-              ...assigned,
-              config: { ...assigned.config, ...otherMarker },
-            }}
-          />
-        );
+        useDrive(() => new Promise(() => undefined));
+        renderWith(firestoreCopy(sentOther));
         fireEvent.click(screen.getByRole('button', { name: /Submit Report/i }));
         fireEvent.click(
-          await screen.findByRole('button', { name: /Confirm & Submit/i })
+          screen.getByRole('button', { name: /Confirm & Submit/i })
         );
         await waitFor(() =>
           expect(mockDashboardContext.updateWidget).toHaveBeenCalled()
@@ -630,12 +723,45 @@ describe('LunchCountRedesign — class group pool', () => {
           -1
         ) as [string, { config: LunchCountConfig }];
         expect(update.config.lastSubmittedClasses).toEqual([
-          '10:45 - GR1 #roster-1',
+          otherKey,
           classKey,
         ]);
-        expect(
-          update.config.lastSubmittedDetails?.['10:45 - GR1 #roster-1']?.notes
-        ).toBe('Class A notes');
+        // The Drive backup keeps class A's notes; this copy never had them.
+        expect(Object.keys(update.config.lastSubmittedSends ?? {})).toEqual([
+          otherKey,
+          classKey,
+        ]);
+      });
+
+      it('keeps the first class’s notes once they have loaded', async () => {
+        global.fetch = vi.fn().mockResolvedValue({
+          ok: true,
+          text: () => Promise.resolve('Success'),
+        });
+        const sentOther = sendFrom(
+          assigned.config as LunchCountConfig,
+          otherKey,
+          'Class A notes'
+        );
+        useDrive(() => Promise.resolve(driveCopy(sentOther)));
+        renderWith(firestoreCopy(sentOther));
+        fireEvent.click(screen.getByRole('button', { name: /Submit Report/i }));
+        await waitFor(() => expect(readMock).toHaveBeenCalled());
+        await act(async () => {
+          await Promise.resolve();
+        });
+        fireEvent.click(
+          screen.getByRole('button', { name: /Confirm & Submit/i })
+        );
+        await waitFor(() =>
+          expect(mockDashboardContext.updateWidget).toHaveBeenCalled()
+        );
+        const [, update] = mockDashboardContext.updateWidget.mock.calls.at(
+          -1
+        ) as [string, { config: LunchCountConfig }];
+        expect(update.config.lastSubmittedDetails?.[otherKey]?.notes).toBe(
+          'Class A notes'
+        );
         expect(update.config.lastSubmittedDetails?.[classKey]).toBeDefined();
       });
     });

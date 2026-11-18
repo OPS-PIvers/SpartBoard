@@ -3686,6 +3686,8 @@ export interface LunchCountConfig {
   >;
   /** Extra pizza count sent today, by class key; it names no one, so it syncs with the board. */
   lastSubmittedPizza?: Record<string, number>;
+  /** When each class was sent today and whether its notes were blank; it names no one, so it syncs with the board. */
+  lastSubmittedSends?: Record<string, { sentAt: number; notesBlank: boolean }>;
   cardColor?: string;
   cardOpacity?: number;
   fontFamily?: GlobalFontFamily;

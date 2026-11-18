@@ -5,10 +5,15 @@ import {
   mergeDashboardPII,
   dashboardHasPII,
   lunchNotesBehindKey,
+  boardLacksLunchNotes,
+  keepDriveLunchNotes,
   DashboardPiiSupplement,
 } from '@/utils/dashboardPII';
 import { Dashboard } from '@/types';
-import { getCentralDayKey } from '@/components/widgets/LunchCount/redesign/lunchCountFormat';
+import {
+  getCentralDayKey,
+  submittedMarker,
+} from '@/components/widgets/LunchCount/redesign/lunchCountFormat';
 
 describe('dashboardPII utilities', () => {
   const mockDashboard = {
@@ -360,5 +365,105 @@ describe('lunch report notes', () => {
     expect(dashboardHasPII(lunch(today), { includeScoreboard: false })).toBe(
       false
     );
+  });
+
+  const withConfig = (config: Record<string, unknown>): Dashboard => ({
+    ...lunch(today),
+    widgets: [{ ...lunch(today).widgets[0], config }],
+  });
+  const configOf = (board: Dashboard) =>
+    board.widgets[0].config as Record<string, unknown> & {
+      lastSubmittedDetails?: Record<string, { notes: string }>;
+    };
+
+  it("lets Drive's copy of a class win on restore, even over a fast clock's stamp", () => {
+    const local = withConfig({
+      ...lunch(today).widgets[0].config,
+      lastSubmittedDetails: {
+        '11:00|1st': {
+          notes: 'old',
+          extraPizza: 0,
+          sentAt: 9_999_999_999_999,
+        },
+      },
+    });
+    const merged = mergeDashboardPII(local, {
+      w1: {
+        lastSubmittedDetails: {
+          '11:00|1st': { notes: 'new', extraPizza: 0, sentAt: 5 },
+        },
+      },
+    });
+    expect(configOf(merged).lastSubmittedDetails?.['11:00|1st'].notes).toBe(
+      'new'
+    );
+  });
+
+  it('keeps blank sends out of Drive once the board syncs that they were blank', () => {
+    const blank = submittedMarker({}, 'w1', today, '11:00|1st', {
+      notes: '',
+      extraPizza: 0,
+    });
+    const board = withConfig({ ...blank });
+    expect(extractDashboardPII(board)).toEqual({});
+    expect(dashboardHasPII(board)).toBe(false);
+    const legacyBlank = withConfig({
+      ...blank,
+      lastSubmittedSends: undefined,
+    });
+    expect(Object.keys(extractDashboardPII(legacyBlank))).toEqual(['w1']);
+  });
+
+  it('flags a new send of the same class again', () => {
+    const first = submittedMarker({}, 'w1', today, '11:00|1st', {
+      notes: 'a',
+      extraPizza: 0,
+    });
+    const widget = (config: Record<string, unknown>) =>
+      scrubDashboardPII(withConfig(config)).widgets[0];
+    const key1 = lunchNotesBehindKey(widget({ ...first }), undefined);
+    const again = {
+      ...first,
+      lastSubmittedSends: {
+        '11:00|1st': { sentAt: 123, notesBlank: false },
+      },
+    };
+    const key2 = lunchNotesBehindKey(widget(again), undefined);
+    expect(key1).not.toBeNull();
+    expect(key2).not.toBeNull();
+    expect(key2).not.toBe(key1);
+  });
+
+  it("keeps Drive's notes for a sent class this copy never loaded", () => {
+    const fromLaptop = submittedMarker({}, 'w1', today, '11:00|1st', {
+      notes: 'laptop notes',
+      extraPizza: 0,
+    });
+    const both = submittedMarker(fromLaptop, 'w1', today, '12:00|2nd', {
+      notes: 'board notes',
+      extraPizza: 0,
+    });
+    // This device never loaded the laptop's notes.
+    const local = withConfig({
+      ...both,
+      lastSubmittedDetails: {
+        '12:00|2nd': both.lastSubmittedDetails?.['12:00|2nd'],
+      },
+    });
+    expect(boardLacksLunchNotes(local)).toBe(true);
+    const kept = keepDriveLunchNotes(local, {
+      w1: { lastSubmittedDetails: fromLaptop.lastSubmittedDetails },
+    });
+    expect(boardLacksLunchNotes(kept)).toBe(false);
+    const supplement = extractDashboardPII(kept).w1 as {
+      lastSubmittedDetails: Record<string, { notes: string }>;
+    };
+    expect(supplement.lastSubmittedDetails['11:00|1st'].notes).toBe(
+      'laptop notes'
+    );
+    expect(supplement.lastSubmittedDetails['12:00|2nd'].notes).toBe(
+      'board notes'
+    );
+    expect(boardLacksLunchNotes(withConfig({ ...both }))).toBe(false);
   });
 });

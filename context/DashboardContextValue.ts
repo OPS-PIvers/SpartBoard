@@ -226,8 +226,11 @@ export interface DashboardContextValue {
   discardTourWidgets?: (ids: readonly string[]) => void;
   /** Live tours only: makes widgets the app adds unsaved tour widgets until switched off. */
   setTourTransientSpawns?: (on: boolean) => void;
-  /** One widget's names from the board's Drive copy: null without Drive, {} when it holds none. */
-  readWidgetPii?: (widgetId: string) => Promise<Record<string, unknown> | null>;
+  /** One widget's names from that board's Drive copy: null without Drive or when the board lacks the widget, {} when it holds none. */
+  readWidgetPii?: (
+    widgetId: string,
+    boardId: string
+  ) => Promise<Record<string, unknown> | null>;
   clearAllStickers: () => void;
   clearAllWidgets: () => void;
   updateWidget: (

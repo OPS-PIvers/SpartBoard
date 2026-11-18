@@ -45,7 +45,7 @@ export function useLunchCountModel(widget: WidgetData) {
   const reportName = subShareHost
     ? (subShareHost.teacherName ?? 'Staff')
     : (user?.displayName ?? 'Staff');
-  const { config, needsSentDetails, ensureSentDetails } = useSentDetails(
+  const { config, loadSentDetails, isLoadingSentDetails } = useSentDetails(
     widget.id,
     widget.config as LunchCountConfig
   );
@@ -277,7 +277,6 @@ export function useLunchCountModel(widget: WidgetData) {
 
     setIsSubmitting(true);
     try {
-      const sentConfig = await ensureSentDetails();
       const payload = {
         timestamp,
         label,
@@ -307,7 +306,7 @@ export function useLunchCountModel(widget: WidgetData) {
       }
 
       updateWidget(widget.id, {
-        config: submittedMarker(sentConfig, widget.id, dayKey, sentClass, {
+        config: submittedMarker(config, widget.id, dayKey, sentClass, {
           notes,
           extraPizza: payload.extraPizza,
         }),
@@ -329,13 +328,10 @@ export function useLunchCountModel(widget: WidgetData) {
     }
   };
 
-  // Opens at once unless another device's notes for today still need loading.
+  // Opens at once; notes another device sent today load behind it for Review and Resend.
   const openReportModal = () => {
-    if (!needsSentDetails) {
-      setIsModalOpen(true);
-      return;
-    }
-    void ensureSentDetails().then(() => setIsModalOpen(true));
+    setIsModalOpen(true);
+    loadSentDetails();
   };
 
   const handleOpenReport = () => {
@@ -427,6 +423,7 @@ export function useLunchCountModel(widget: WidgetData) {
     reportData,
     alreadySubmitted: hasSubmittedToday(config, widget.id, sentClass),
     sentDetails: sentDetailsToday(config, widget.id, sentClass),
+    sentDetailsLoading: isLoadingSentDetails(sentClass),
   };
 }
 

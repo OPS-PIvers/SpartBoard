@@ -244,7 +244,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
   const reportName = subShareHost
     ? (subShareHost.teacherName ?? 'Staff')
     : (user?.displayName ?? 'Staff');
-  const { config, needsSentDetails, ensureSentDetails } = useSentDetails(
+  const { config, loadSentDetails, isLoadingSentDetails } = useSentDetails(
     widget.id,
     widget.config as LunchCountConfig
   );
@@ -567,7 +567,6 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
 
     setIsSubmitting(true);
     try {
-      const sentConfig = await ensureSentDetails();
       const payload = {
         timestamp,
         label,
@@ -597,7 +596,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
       }
 
       updateWidget(widget.id, {
-        config: submittedMarker(sentConfig, widget.id, dayKey, sentClass, {
+        config: submittedMarker(config, widget.id, dayKey, sentClass, {
           notes,
           extraPizza: payload.extraPizza,
         }),
@@ -619,13 +618,10 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
     }
   };
 
-  // Opens at once unless another device's notes for today still need loading.
+  // Opens at once; notes another device sent today load behind it for Review and Resend.
   const openReportModal = () => {
-    if (!needsSentDetails) {
-      setIsModalOpen(true);
-      return;
-    }
-    void ensureSentDetails().then(() => setIsModalOpen(true));
+    setIsModalOpen(true);
+    loadSentDetails();
   };
 
   const handleOpenReport = () => {
@@ -1248,6 +1244,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
         isSubmitting={isSubmitting}
         alreadySubmitted={hasSubmittedToday(config, widget.id, sentClass)}
         sentDetails={sentDetailsToday(config, widget.id, sentClass)}
+        sentDetailsLoading={isLoadingSentDetails(sentClass)}
       />
       <Modal
         isOpen={!!peekedItem}

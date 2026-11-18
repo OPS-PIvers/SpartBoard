@@ -88,6 +88,7 @@ interface SubmittedMarker {
   lastSubmittedClasses?: string[];
   lastSubmittedDetails?: Record<string, SentDetails>;
   lastSubmittedPizza?: Record<string, number>;
+  lastSubmittedSends?: Record<string, SentRecord>;
 }
 
 /** What a resend has to carry over, because it replaces the whole sheet row. */
@@ -97,30 +98,44 @@ export interface SentDetails {
   sentAt?: number;
 }
 
+/** A send as the board syncs it: when, and whether its notes were blank; never the notes. */
+export interface SentRecord {
+  sentAt: number;
+  notesBlank: boolean;
+}
+
 const isSentDetails = (value: unknown): value is SentDetails =>
   typeof value === 'object' &&
   value !== null &&
   typeof (value as SentDetails).notes === 'string';
 
-const sentDetailsEntries = (value: unknown): [string, SentDetails][] =>
+export const sentDetailsEntries = (value: unknown): [string, SentDetails][] =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
     ? Object.entries(value).filter((entry): entry is [string, SentDetails] =>
         isSentDetails(entry[1])
       )
     : [];
 
-/** Two copies of the sent details, merged per class; the later send of a class wins, and `b` wins a tie. */
+/** Merges two copies per class: `incoming` wins, unless only `local` holds the send `sends` names; a class `incoming` lacks is kept. */
 export function mergeSentDetails(
-  a: unknown,
-  b: unknown
+  local: unknown,
+  incoming: unknown,
+  sends?: Record<string, SentRecord>
 ): Record<string, SentDetails> | undefined {
-  const fromA = sentDetailsEntries(a);
-  const fromB = sentDetailsEntries(b);
-  if (fromA.length === 0 && fromB.length === 0) return undefined;
-  const merged: Record<string, SentDetails> = Object.fromEntries(fromA);
-  for (const [key, value] of fromB) {
+  const fromLocal = sentDetailsEntries(local);
+  const fromIncoming = sentDetailsEntries(incoming);
+  if (fromLocal.length === 0 && fromIncoming.length === 0) return undefined;
+  const merged: Record<string, SentDetails> = Object.fromEntries(fromLocal);
+  for (const [key, value] of fromIncoming) {
     const held = merged[key];
-    if (!held || (value.sentAt ?? 0) >= (held.sentAt ?? 0)) merged[key] = value;
+    const want = sends?.[key]?.sentAt;
+    if (
+      !held ||
+      want === undefined ||
+      value.sentAt === want ||
+      held.sentAt !== want
+    )
+      merged[key] = value;
   }
   return merged;
 }
@@ -135,18 +150,42 @@ const detailsFromToday = (
     ? details
     : undefined;
 
+// The notes this copy holds for a class, only when they belong to the send the board last synced.
+const currentDetails = (
+  config: SubmittedMarker,
+  classKey: string
+): SentDetails | undefined => {
+  const details = detailsFromToday(config.lastSubmittedDetails?.[classKey]);
+  const send = config.lastSubmittedSends?.[classKey];
+  if (!details || !send || details.sentAt === undefined) return details;
+  return details.sentAt === send.sentAt ? details : undefined;
+};
+
+const sentToday = (config: SubmittedMarker, widgetId: string): boolean =>
+  config.lastSubmittedDate === getCentralDayKey() &&
+  config.lastSubmittedWidgetId === widgetId;
+
+/** True when today's send of this class had notes that this copy of the config doesn't hold. */
+export function classLacksSentDetails(
+  config: SubmittedMarker,
+  widgetId: string,
+  classKey: string
+): boolean {
+  return (
+    sentToday(config, widgetId) &&
+    (config.lastSubmittedClasses ?? []).includes(classKey) &&
+    !currentDetails(config, classKey) &&
+    config.lastSubmittedSends?.[classKey]?.notesBlank !== true
+  );
+}
+
 /** True when today's marker lists a class whose notes this copy of the config lacks. */
 export function lacksSentDetails(
   config: SubmittedMarker,
   widgetId: string
 ): boolean {
-  if (
-    config.lastSubmittedDate !== getCentralDayKey() ||
-    config.lastSubmittedWidgetId !== widgetId
-  )
-    return false;
-  return (config.lastSubmittedClasses ?? []).some(
-    (key) => !detailsFromToday(config.lastSubmittedDetails?.[key])
+  return (config.lastSubmittedClasses ?? []).some((key) =>
+    classLacksSentDetails(config, widgetId, key)
   );
 }
 
@@ -157,8 +196,7 @@ export function hasSubmittedToday(
   classKey: string
 ): boolean {
   return (
-    config.lastSubmittedDate === getCentralDayKey() &&
-    config.lastSubmittedWidgetId === widgetId &&
+    sentToday(config, widgetId) &&
     (config.lastSubmittedClasses === undefined ||
       config.lastSubmittedClasses.includes(classKey))
   );
@@ -170,19 +208,18 @@ export function sentDetailsToday(
   widgetId: string,
   classKey: string
 ): SentDetails | undefined {
-  if (
-    config.lastSubmittedDate !== getCentralDayKey() ||
-    config.lastSubmittedWidgetId !== widgetId
-  ) {
-    return undefined;
-  }
-  const details = detailsFromToday(config.lastSubmittedDetails?.[classKey]);
-  if (!details) return undefined;
+  if (!sentToday(config, widgetId)) return undefined;
   const pizza = config.lastSubmittedPizza?.[classKey];
-  return {
-    notes: details.notes,
-    extraPizza: typeof pizza === 'number' ? pizza : details.extraPizza,
-  };
+  const details = currentDetails(config, classKey);
+  if (details)
+    return {
+      notes: details.notes,
+      extraPizza: typeof pizza === 'number' ? pizza : details.extraPizza,
+    };
+  // Blank notes need no Drive copy, so a resend can still offer them.
+  if (config.lastSubmittedSends?.[classKey]?.notesBlank === true)
+    return { notes: '', extraPizza: typeof pizza === 'number' ? pizza : 0 };
+  return undefined;
 }
 
 /** The marker to save after a successful submit; it keeps today's earlier classes. */
@@ -204,16 +241,21 @@ export function submittedMarker(
       ? earlier
       : [...earlier, classKey],
   };
+  const sentAt = Date.now();
   return {
     ...marker,
     lastSubmittedDetails: {
       ...(sameDay ? config.lastSubmittedDetails : undefined),
-      [classKey]: { ...details, sentAt: Date.now() },
+      [classKey]: { ...details, sentAt },
     },
-    // The pizza count holds no names, so it syncs through the board like the marker.
+    // The pizza count and send record hold no names, so they sync through the board like the marker.
     lastSubmittedPizza: {
       ...(sameDay ? config.lastSubmittedPizza : undefined),
       [classKey]: details.extraPizza,
+    },
+    lastSubmittedSends: {
+      ...(sameDay ? config.lastSubmittedSends : undefined),
+      [classKey]: { sentAt, notesBlank: details.notes.trim() === '' },
     },
   };
 }

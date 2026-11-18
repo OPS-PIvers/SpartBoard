@@ -15,9 +15,11 @@
 
 import { Dashboard, LunchCountConfig, WidgetData } from '@/types';
 import {
+  classLacksSentDetails,
   getCentralDayKey,
   lacksSentDetails,
   mergeSentDetails,
+  sentDetailsEntries,
 } from '@/components/widgets/LunchCount/redesign/lunchCountFormat';
 
 /** Widget config keys that may contain student PII and must never reach Firestore. */
@@ -125,6 +127,23 @@ export const isLegacyHiddenWordKey = (key: unknown): boolean =>
 const staleLunchDetails = (config: Record<string, unknown>): boolean =>
   config.lastSubmittedDate !== getCentralDayKey();
 
+// Blank notes the board's synced send record already marks blank need no Drive copy.
+const lunchDetailsNeedDrive = (config: Record<string, unknown>): boolean => {
+  const sends = (config as LunchCountConfig).lastSubmittedSends;
+  return sentDetailsEntries(config.lastSubmittedDetails).some(
+    ([key, details]) =>
+      details.notes.trim() !== '' || sends?.[key]?.notesBlank !== true
+  );
+};
+
+const fieldHasPii = (
+  field: string,
+  config: Record<string, unknown>
+): boolean =>
+  field === 'lastSubmittedDetails'
+    ? lunchDetailsNeedDrive(config)
+    : field in config && hasPiiContent(config[field]);
+
 // Empty strings/arrays are widget defaults, not PII — treating them as content made every save abort when Drive was unavailable.
 function hasPiiContent(value: unknown): boolean {
   if (value === undefined || value === null) return false;
@@ -178,7 +197,7 @@ export function extractDashboardPII(
     for (const field of widgetPiiKeys(widget.type, config)) {
       if (field === 'lastSubmittedDetails' && staleLunchDetails(config))
         continue;
-      if (field in config && hasPiiContent(config[field])) {
+      if (fieldHasPii(field, config)) {
         piiFields[field] = config[field];
         hasPii = true;
       }
@@ -219,7 +238,7 @@ export function mergeWidgetsPII(
     const piiFields = supplement[widget.id];
     if (!piiFields || Object.keys(piiFields).length === 0) return widget;
     const config = widget.config as Record<string, unknown>;
-    // Lunch notes merge per class, so a copy missing another device's send never erases it.
+    // Lunch notes merge per class: Drive's copy of a class wins, and a class it lacks is kept.
     const lunchDetails =
       'lastSubmittedDetails' in piiFields
         ? {
@@ -251,7 +270,7 @@ export function dashboardHasPII(
     for (const field of widgetPiiKeys(widget.type, config)) {
       // Lunch report notes are retyped on a resend, so they never block a save without Drive either.
       if (!includeScoreboard && field === 'lastSubmittedDetails') continue;
-      if (field in config && hasPiiContent(config[field])) return true;
+      if (fieldHasPii(field, config)) return true;
     }
   }
   return false;
@@ -269,10 +288,58 @@ export function lunchNotesBehindKey(
     ...config,
     lastSubmittedDetails: mergeSentDetails(
       localConfig?.lastSubmittedDetails,
-      config.lastSubmittedDetails
+      config.lastSubmittedDetails,
+      config.lastSubmittedSends
     ),
   };
   if (!lacksSentDetails(merged, server.id)) return null;
-  const classes = (config.lastSubmittedClasses ?? []).join(',');
+  const classes = (config.lastSubmittedClasses ?? [])
+    .map((key) => {
+      const sentAt = config.lastSubmittedSends?.[key]?.sentAt;
+      return sentAt === undefined ? key : `${key}@${sentAt}`;
+    })
+    .join(',');
   return `${server.id}|${config.lastSubmittedDate ?? ''}|${classes}`;
+}
+
+/** True when a Lunch Count on the board lists a sent class whose notes this copy lacks, so a backup must not drop Drive's. */
+export function boardLacksLunchNotes(dashboard: Dashboard): boolean {
+  return dashboard.widgets.some(
+    (widget) =>
+      widget.type === 'lunchCount' &&
+      lacksSentDetails(widget.config as LunchCountConfig, widget.id)
+  );
+}
+
+/** Lays Drive's notes back on for each sent class this copy lacks, so writing the backup keeps another device's send. */
+export function keepDriveLunchNotes(
+  dashboard: Dashboard,
+  drivePii: unknown
+): Dashboard {
+  if (typeof drivePii !== 'object' || drivePii === null) return dashboard;
+  const supplement = drivePii as Record<string, unknown>;
+  return {
+    ...dashboard,
+    widgets: dashboard.widgets.map((widget) => {
+      if (widget.type !== 'lunchCount') return widget;
+      const config = widget.config as LunchCountConfig;
+      const entry = supplement[widget.id];
+      const fromDrive = sentDetailsEntries(
+        typeof entry === 'object' && entry !== null
+          ? (entry as Record<string, unknown>).lastSubmittedDetails
+          : undefined
+      ).filter(([key]) => classLacksSentDetails(config, widget.id, key));
+      if (fromDrive.length === 0) return widget;
+      return {
+        ...widget,
+        config: {
+          ...config,
+          lastSubmittedDetails: {
+            ...config.lastSubmittedDetails,
+            ...Object.fromEntries(fromDrive),
+          },
+        },
+      };
+    }),
+  };
 }

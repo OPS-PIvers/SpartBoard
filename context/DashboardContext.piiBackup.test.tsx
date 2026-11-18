@@ -11,7 +11,10 @@ import {
   WidgetData,
   WidgetType,
 } from '@/types';
-import { getCentralDayKey } from '@/components/widgets/LunchCount/redesign/lunchCountFormat';
+import {
+  getCentralDayKey,
+  submittedMarker,
+} from '@/components/widgets/LunchCount/redesign/lunchCountFormat';
 
 // ---------------------------------------------------------------------------
 // Mocks (mirrors DashboardContext.immediate.test.tsx)
@@ -175,6 +178,10 @@ interface ContextSnapshot {
   renameDashboard: (id: string, name: string) => Promise<void>;
   toasts: Toast[];
   saveRetrying: boolean;
+  readWidgetPii?: (
+    widgetId: string,
+    boardId: string
+  ) => Promise<Record<string, unknown> | null>;
 }
 
 const TestConsumer: React.FC<{
@@ -192,6 +199,7 @@ const TestConsumer: React.FC<{
       renameDashboard: ctx.renameDashboard,
       toasts: ctx.toasts,
       saveRetrying: ctx.saveRetrying,
+      readWidgetPii: ctx.readWidgetPii,
     };
   });
   return null;
@@ -1506,5 +1514,163 @@ describe('DashboardContext quiz Scoreboard teams when Drive fails', () => {
     await settleSnapshot(stateRef, [makeDashboard('dash-1', []), quizBoard()]);
     saveDashboardsMock.mockClear();
     await saveAndEcho(stateRef);
+  });
+});
+
+describe('DashboardContext lunch notes on copied boards and partial loads', () => {
+  const lunchWidget = (
+    version: number,
+    config: Record<string, unknown>
+  ): WidgetData =>
+    ({
+      id: 'w-lunch',
+      type: 'lunchCount',
+      x: 0,
+      y: 0,
+      w: 1,
+      h: 1,
+      z: 1,
+      flipped: false,
+      version,
+      config,
+    }) as unknown as WidgetData;
+  const classA = '10:45 - GR1';
+  const classB = '11:30 - GR1';
+  const driveWrites = async () =>
+    Promise.all(
+      [
+        ...updateFileContentMock.mock.calls.map((c) => c[1] as Blob),
+        ...uploadFileMock.mock.calls.map((c) => c[0] as Blob),
+      ].map(
+        async (blob) => JSON.parse(await blob.text()) as Record<string, unknown>
+      )
+    );
+
+  beforeEach(() => {
+    capturedSnapshotCb = null;
+    saveDashboardMock.mockClear();
+    uploadFileMock.mockClear();
+    updateFileContentMock.mockClear();
+    listFilesMock.mockReset();
+    downloadFileMock.mockReset();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    listFilesMock.mockResolvedValue([]);
+    vi.useRealTimers();
+  });
+
+  it("reads a copied board's own Drive file even though it shares the widget id", async () => {
+    listFilesMock.mockResolvedValue([
+      { id: 'pii-orig', name: 'dash-1-pii.json' },
+      { id: 'pii-copy', name: 'dash-copy-pii.json' },
+    ]);
+    downloadFileMock.mockImplementation((id: string) =>
+      Promise.resolve(
+        piiBlob({
+          'w-lunch': {
+            lastSubmittedDetails: {
+              [classA]: {
+                notes: id === 'pii-orig' ? 'original notes' : 'copy notes',
+                extraPizza: 0,
+              },
+            },
+          },
+        })
+      )
+    );
+    const stateRef = setup();
+    await settleSnapshot(stateRef, [
+      makeDashboard('dash-1', [lunchWidget(1, {})]),
+      makeDashboard('dash-copy', [lunchWidget(1, {})]),
+    ]);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    const read = stateRef.current?.readWidgetPii;
+    let copy: Record<string, unknown> | null | undefined;
+    let missing: Record<string, unknown> | null | undefined;
+    await act(async () => {
+      copy = await read?.('w-lunch', 'dash-copy');
+      missing = await read?.('w-lunch', 'dash-gone');
+    });
+    expect(JSON.stringify(copy)).toContain('copy notes');
+    expect(JSON.stringify(copy)).not.toContain('original notes');
+    expect(missing).toBeNull();
+  });
+
+  async function loadLaptopSend() {
+    const day = getCentralDayKey();
+    const fromLaptop = submittedMarker({}, 'w-lunch', day, classA, {
+      notes: 'Ada: no dairy',
+      extraPizza: 0,
+    });
+    const { lastSubmittedDetails: laptopNotes, ...marker } = fromLaptop;
+    listFilesMock.mockResolvedValue([{ id: 'pii-1', name: 'dash-1-pii.json' }]);
+    // Drive hasn't got the laptop's notes yet while this board loads.
+    downloadFileMock.mockResolvedValue(piiBlob({}));
+    const stateRef = setup();
+    await settleSnapshot(stateRef, [
+      makeDashboard('dash-1', [lunchWidget(1, marker)]),
+    ]);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(
+      configOf(stateRef.current?.activeDashboard, 'w-lunch')
+        .lastSubmittedDetails
+    ).toBeUndefined();
+    return { stateRef, day, laptopNotes };
+  }
+
+  it("keeps another device's notes in the Drive copy when a send here never loaded them", async () => {
+    const { stateRef, day, laptopNotes } = await loadLaptopSend();
+    downloadFileMock.mockResolvedValue(
+      piiBlob({ 'w-lunch': { lastSubmittedDetails: laptopNotes } })
+    );
+
+    act(() => {
+      const config = configOf(stateRef.current?.activeDashboard, 'w-lunch');
+      stateRef.current?.updateWidget('w-lunch', {
+        config: submittedMarker(config, 'w-lunch', day, classB, {
+          notes: 'Ben: gluten free',
+          extraPizza: 0,
+        }),
+      });
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4000);
+    });
+
+    const writes = await driveWrites();
+    expect(writes).toHaveLength(1);
+    expect(JSON.stringify(writes[0])).toContain('Ada: no dairy');
+    expect(JSON.stringify(writes[0])).toContain('Ben: gluten free');
+    expect(saveDashboardMock).toHaveBeenCalled();
+  });
+
+  it('leaves the Drive copy alone, and still saves, when it cannot read the notes to keep', async () => {
+    const { stateRef, day } = await loadLaptopSend();
+    downloadFileMock.mockRejectedValue(new Error('Drive is down'));
+
+    act(() => {
+      const config = configOf(stateRef.current?.activeDashboard, 'w-lunch');
+      stateRef.current?.updateWidget('w-lunch', {
+        config: submittedMarker(config, 'w-lunch', day, classB, {
+          notes: 'Ben: gluten free',
+          extraPizza: 0,
+        }),
+      });
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4000);
+    });
+
+    expect(await driveWrites()).toHaveLength(0);
+    expect(saveDashboardMock).toHaveBeenCalled();
+    const saved = saveDashboardMock.mock.calls.at(-1)?.[0] as Dashboard;
+    expect(JSON.stringify(saved)).not.toContain('gluten');
   });
 });

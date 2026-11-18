@@ -128,6 +128,8 @@ import {
   mergeDashboardPII,
   dashboardHasPII,
   lunchNotesBehindKey,
+  boardLacksLunchNotes,
+  keepDriveLunchNotes,
   PII_WIDGET_FIELDS,
   type DashboardPiiSupplement,
 } from '@/utils/dashboardPII';
@@ -784,6 +786,24 @@ async function findPiiFile(
         )[0]
       : undefined;
   return devPiiFile ?? files.find((f) => f.name === `${dashboardId}-pii.json`);
+}
+
+// The board's whole names file, {} when Drive has none; remembers the file id for later writes.
+async function readPiiSupplement(
+  driveService: GoogleDriveService,
+  dashboardId: string,
+  fileIds: Map<string, string>
+): Promise<Record<string, unknown>> {
+  const known = fileIds.get(dashboardId);
+  const fileId = known ?? (await findPiiFile(driveService, dashboardId))?.id;
+  if (!fileId) return {};
+  if (!known) fileIds.set(dashboardId, fileId);
+  const pii: unknown = JSON.parse(
+    await (await driveService.downloadFile(fileId)).text()
+  );
+  return typeof pii === 'object' && pii !== null && !Array.isArray(pii)
+    ? (pii as Record<string, unknown>)
+    : {};
 }
 
 export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
@@ -1973,9 +1993,28 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Backs up PII before a caller scrubs it for Firestore; throws so callers abort rather than silently lose it.
   const backupDashboardPIIToDrive = useCallback(
-    async (dashboard: Dashboard): Promise<void> => {
+    async (board: Dashboard): Promise<void> => {
+      let dashboard = board;
+      // A Lunch Count send whose notes never loaded here keeps Drive's copy; unread, the file is left alone.
+      let keepDriveFile = false;
+      if (driveService && boardLacksLunchNotes(board)) {
+        try {
+          dashboard = keepDriveLunchNotes(
+            board,
+            await readPiiSupplement(
+              driveService,
+              board.id,
+              piiDriveFileIdRef.current
+            )
+          );
+        } catch (e) {
+          console.warn('[PII] Could not read the Drive copy to keep:', e);
+          keepDriveFile = true;
+        }
+      }
       const cached = dashboardPiiRef.current.get(dashboard.id);
       if (!dashboardHasPII(dashboard)) {
+        if (keepDriveFile) return;
         // Nothing cached means the names were never loaded here (or a snapshot dropped them), not cleared; writing {} would wipe another device's copy.
         const clearPending = pendingPiiClearRef.current.has(dashboard.id);
         if (
@@ -2029,6 +2068,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         );
       }
 
+      if (keepDriveFile) {
+        if (onlyQuizTeams) return keepQuizTeamsLocal();
+        throw new Error(
+          '[PII] Aborted dashboard save because PII supplement could not be saved to Drive'
+        );
+      }
       const pii = extractDashboardPII(dashboard);
       // Unchanged since this device last wrote or read it: rewriting would put this copy over a newer one from another device.
       if (
@@ -2075,25 +2120,22 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     [driveService]
   );
 
-  // Reads one widget's names straight from Drive; null when Drive isn't connected, {} when it holds none.
+  // Reads one widget's names straight from Drive; null when Drive isn't connected or the board doesn't hold the widget, {} when it holds none.
   const readWidgetPii = useCallback(
-    async (widgetId: string): Promise<Record<string, unknown> | null> => {
+    async (
+      widgetId: string,
+      boardId: string
+    ): Promise<Record<string, unknown> | null> => {
       if (!driveService) return null;
-      const board = dashboardsRef.current.find((d) =>
-        d.widgets.some((w) => w.id === widgetId)
+      // By board id: a copied board keeps its widget ids, and must never read the original's notes.
+      const board = dashboardsRef.current.find((d) => d.id === boardId);
+      if (!board?.widgets.some((w) => w.id === widgetId)) return null;
+      const pii = await readPiiSupplement(
+        driveService,
+        board.id,
+        piiDriveFileIdRef.current
       );
-      if (!board) return null;
-      const known = piiDriveFileIdRef.current.get(board.id);
-      const fileId = known ?? (await findPiiFile(driveService, board.id))?.id;
-      if (!fileId) return {};
-      if (!known) piiDriveFileIdRef.current.set(board.id, fileId);
-      const pii: unknown = JSON.parse(
-        await (await driveService.downloadFile(fileId)).text()
-      );
-      const entry: unknown =
-        typeof pii === 'object' && pii !== null
-          ? (pii as Record<string, unknown>)[widgetId]
-          : undefined;
+      const entry: unknown = pii[widgetId];
       return typeof entry === 'object' && entry !== null
         ? (entry as Record<string, unknown>)
         : {};
