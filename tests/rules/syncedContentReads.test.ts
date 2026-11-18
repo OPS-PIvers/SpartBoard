@@ -234,26 +234,20 @@ describe('writes are unchanged by the read gate', () => {
     );
   });
 
-  it('synced_quizzes: staff stand up their own group; an outside account cannot (security #12)', async () => {
+  it('an outside teacher keeps their own share group, but only while it is theirs alone (security #12)', async () => {
+    const own = (version: number) =>
+      quizDoc({
+        id: 'own',
+        version,
+        updatedAt: version,
+        participants: { [OUTSIDER_UID]: { joinedAt: 1 } },
+        updatedBy: OUTSIDER_UID,
+      });
     await assertSucceeds(
-      setDoc(
-        doc(asStaff(), 'synced_quizzes/fresh'),
-        quizDoc({
-          id: 'fresh',
-          participants: { [STAFF_UID]: { joinedAt: 1 } },
-          updatedBy: STAFF_UID,
-        })
-      )
+      setDoc(doc(asOutsider(), 'synced_quizzes/own'), own(1))
     );
-    await assertFails(
-      setDoc(
-        doc(asOutsider(), 'synced_quizzes/other'),
-        quizDoc({
-          id: 'other',
-          participants: { [OUTSIDER_UID]: { joinedAt: 1 } },
-          updatedBy: OUTSIDER_UID,
-        })
-      )
+    await assertSucceeds(
+      setDoc(doc(asOutsider(), 'synced_quizzes/own'), own(2))
     );
   });
 
