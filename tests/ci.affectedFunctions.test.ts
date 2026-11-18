@@ -284,8 +284,9 @@ describe('affected-functions.mjs edge cases', () => {
 });
 
 describe('function-targets.mjs', () => {
-  function targets(deployOnly: string, lib: string): string {
+  function targets(deployOnly: string, lib: string, cwd = repoRoot): string {
     return execFileSync('node', [targetsScript, deployOnly, lib], {
+      cwd,
       encoding: 'utf-8',
       stdio: ['ignore', 'pipe', 'ignore'],
     }).trim();
@@ -300,7 +301,7 @@ describe('function-targets.mjs', () => {
       (root) => {
         const lib = join(root, 'lib/index.js');
         expect(targets('functions:fn,functions:__helper,storage', lib)).toBe(
-          'functions:fn,storage'
+          'functions:default:fn,storage'
         );
         expect(targets('functions,storage', lib)).toBe('functions,storage');
         expect(targets('', lib)).toBe('');
@@ -336,6 +337,50 @@ describe('function-targets.mjs', () => {
   it('deploys every function when the build cannot be loaded', () => {
     expect(targets('functions:fn,storage', join(tmpdir(), 'nope.js'))).toBe(
       'functions,storage'
+    );
+  });
+
+  it('names each function under the codebase the manifest gives it', () => {
+    withFixture(
+      {
+        'lib/index.js': [
+          'const fn = () => Object.assign(() => {}, { __endpoint: {} });',
+          'exports.orgAdminV1 = fn();',
+          'exports.fetchLinkPreview = fn();',
+        ].join('\n'),
+        'firebase.json': JSON.stringify({
+          functions: [
+            { source: 'functions/deploy/default', codebase: 'default' },
+            { source: 'functions/deploy/admin', codebase: 'admin' },
+          ],
+        }),
+        'functions/codebases.json': JSON.stringify({
+          codebases: { admin: ['orgAdminV1'] },
+        }),
+      },
+      (root) => {
+        const lib = join(root, 'lib/index.js');
+        // A bare name or a stale codebase is rewritten to the manifest's codebase.
+        expect(
+          targets(
+            'functions:orgAdminV1,functions:default:fetchLinkPreview,storage',
+            lib,
+            root
+          )
+        ).toBe(
+          'functions:admin:orgAdminV1,functions:default:fetchLinkPreview,storage'
+        );
+        expect(targets('functions:default:orgAdminV1', lib, root)).toBe(
+          'functions:admin:orgAdminV1'
+        );
+        // A whole codebase passes through, and a codebase firebase.json lacks deploys everything.
+        expect(targets('functions:admin,storage', lib, root)).toBe(
+          'functions:admin,storage'
+        );
+        expect(targets('functions:nope:fn,storage', lib, root)).toBe(
+          'functions,storage'
+        );
+      }
     );
   });
 });

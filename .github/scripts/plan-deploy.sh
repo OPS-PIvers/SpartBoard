@@ -9,6 +9,7 @@
 # branch would delete functions dev-paul added).
 #
 # Usage: plan-deploy.sh <branch> <last-deployed-sha> <full-backend:true|false>
+# CODEBASE=<name> deploys that whole functions codebase (a full-backend dispatch still deploys every one).
 # OTHER_BRANCH_DEPLOYED_LAST=true (dev-paul only) redeploys rules, indexes and Storage, which another branch may have overwritten.
 # For dev-paul and main the diff base is the last successfully deployed commit, so a cancelled or
 # failed run's backend changes carry into the next run instead of being dropped.
@@ -21,6 +22,7 @@ BRANCH="${1:?usage: $0 <branch> <last-deployed-sha> <full-backend>}"
 BASE_SHA="${2:-}"
 FULL="${3:-false}"
 OUT="${GITHUB_OUTPUT:-/dev/stdout}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 case "$BRANCH" in
   dev-paul | dev-paul-*) SITE_SUFFIX=dev ;;
@@ -60,7 +62,7 @@ has() { grep -qE "$1" <<<"$FILES"; }
 
 # What the functions target deploys: every function, or (dev-paul and main) just the affected ones.
 FUNCTION_TARGETS=functions
-DEPLOY_SCRIPTS='firebase-deploy-with-retry\.sh|affected-functions\.mjs|function-targets\.mjs'
+DEPLOY_SCRIPTS='firebase-deploy-with-retry\.sh|affected-functions\.mjs|function-targets\.mjs|codebases\.mjs'
 if [[ "$FULL" == "true" ]] || has "^__ALL__\$|^\.github/scripts/(${DEPLOY_SCRIPTS})\$"; then
   FUNCTIONS=true INDEXES=true STORAGE=true RULES=true
 else
@@ -72,7 +74,8 @@ else
   if has '^firestore\.rules$|^scripts/(releaseFirestoreRules|stripRulesComments|minifyRules)\.mjs$|^scripts/rulesAst/(RulesAst\.java|emulatorJar\.mjs)$'; then RULES=true; fi
 
   # Other dev branches deploy every function; any doubt (or a failed script) keeps every function.
-  if [[ "$FUNCTIONS" == "true" && ( "$BRANCH" == "dev-paul" || "$BRANCH" == "main" ) ]] && ! has '^firebase\.json$'; then
+  # A codebase change deploys every codebase in one command, so each moved name is claimed by its new one.
+  if [[ "$FUNCTIONS" == "true" && ( "$BRANCH" == "dev-paul" || "$BRANCH" == "main" ) ]] && ! has '^firebase\.json$|^functions/codebases\.json$'; then
     root="${AFFECTED_FUNCTIONS_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
     old_index="$(mktemp)"
     if [[ -n "${OLD_INDEX_FILE:-}" ]]; then
@@ -85,9 +88,23 @@ else
     if [[ -z "$names" ]]; then
       FUNCTIONS=false
     elif [[ "$names" != "ALL" ]]; then
-      FUNCTION_TARGETS="$(sed 's/[^,]*/functions:&/g' <<<"$names")"
+      # functions:<codebase>:<name>; a plain functions:<name> means the default codebase.
+      FUNCTION_TARGETS="$(cd "$root" && node "$SCRIPT_DIR/codebases.mjs" qualify "$names")" || FUNCTION_TARGETS=functions
+      [[ -n "$FUNCTION_TARGETS" ]] || FUNCTION_TARGETS=functions
     fi
   fi
+fi
+
+if [[ -n "${CODEBASE:-}" && "$FULL" != "true" ]]; then
+  root="${AFFECTED_FUNCTIONS_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
+  if ! (cd "$root" && node "$SCRIPT_DIR/codebases.mjs" list) | grep -qxF -- "$CODEBASE"; then
+    echo "::error::firebase.json has no functions codebase named '$CODEBASE'."
+    exit 1
+  fi
+  FUNCTIONS=true
+  FUNCTION_TARGETS="functions:$CODEBASE"
+elif [[ -n "${CODEBASE:-}" ]]; then
+  echo "::notice::full_backend deploys every codebase, so the codebase input is ignored."
 fi
 
 if [[ "$BRANCH" == "dev-paul" && "${OTHER_BRANCH_DEPLOYED_LAST:-}" == "true" ]]; then
