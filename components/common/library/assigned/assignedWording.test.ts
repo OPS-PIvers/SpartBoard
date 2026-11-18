@@ -61,8 +61,8 @@ const derive = (
   );
 const line = (s: AssignedStatus) =>
   statusLineSegments(s, NOW)
-    .map((x) => x.text)
-    .join(' · ');
+    .map((x, i) => (i === 0 ? '' : x.glued ? ' ' : ' · ') + x.text)
+    .join('');
 
 const three = {
   P1: row('P1', { closedAt: NOW - 1000 }),

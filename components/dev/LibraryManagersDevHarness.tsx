@@ -18,6 +18,14 @@ import {
   type ReopenStudentOption,
 } from '@/components/widgets/QuizWidget/components/ReopenStudentsDialog';
 import { QuizPreview } from '@/components/widgets/QuizWidget/components/QuizPreview';
+import { AssignedResponsesFixture } from '@/components/widgets/QuizWidget/components/assignedResponsesFixture';
+import {
+  ASSIGNED_FIXTURES,
+  ASSIGNED_QUIZZES,
+  ASSIGNED_RESPONSES,
+  ASSIGNED_ROSTERS,
+  loadAssignedQuiz,
+} from './assignedTabFixtures';
 import type { BankSource } from '@/utils/questionBankRecords';
 import type { QuizData } from '@/types';
 import { VideoActivityManager } from '@/components/widgets/VideoActivityWidget/components/VideoActivityManager';
@@ -321,6 +329,7 @@ const WALLS: ActivityWallLibraryEntry[] = range((i) => ({
 
 const LIBRARY_HARNESS_VIEWS = [
   'quiz',
+  'quiz-assigned',
   'video-activity',
   'guided-learning',
   'mini-app',
@@ -414,9 +423,14 @@ const districtPreview = (source: BankSource): QuizData => ({
   ],
 });
 
-const QuizView: React.FC<{ variant?: 'quiz' | 'review' }> = ({ variant }) => {
+const QuizView: React.FC<{
+  variant?: 'quiz' | 'review';
+  assigned?: boolean;
+}> = ({ variant, assigned = false }) => {
   const [previewing, setPreviewing] = useState<QuizData | null>(null);
-  const [tab, setTab] = useState<QuizManagerTab>('library');
+  const [tab, setTab] = useState<QuizManagerTab>(
+    assigned ? 'active' : 'library'
+  );
   const [reopening, setReopening] = useState(false);
   const [quizzes, setQuizzes] = useState(QUIZZES);
   const [banks, setBanks] = useState(BANKS);
@@ -514,6 +528,21 @@ const QuizView: React.FC<{ variant?: 'quiz' | 'review' }> = ({ variant }) => {
         onArchiveDelete={asyncNoop}
         onImportPaperResponses={noop}
         onReprintPaperSheets={noop}
+        {...(assigned
+          ? {
+              quizzes: [...quizzes, ...ASSIGNED_QUIZZES],
+              rosters: ASSIGNED_ROSTERS,
+              assignments: ASSIGNED_FIXTURES,
+              onLoadQuizData: loadAssignedQuiz,
+              config: { ...QUIZ_CONFIG, activeAssignmentId: 'eco' },
+              classLifecycle: {
+                pauseAssignment: asyncNoop,
+                resumeAssignment: asyncNoop,
+                deactivateAssignment: asyncNoop,
+                reopenAssignment: asyncNoop,
+              },
+            }
+          : {})}
       />
       <ReopenStudentsDialog
         isOpen={reopening}
@@ -933,6 +962,11 @@ const ActivityWallView: React.FC = () => (
 );
 
 const ReviewView: React.FC = () => <QuizView variant="review" />;
+const QuizAssignedView: React.FC = () => (
+  <AssignedResponsesFixture.Provider value={ASSIGNED_RESPONSES}>
+    <QuizView assigned />
+  </AssignedResponsesFixture.Provider>
+);
 
 const VIEW_COMPONENTS: Record<HarnessView, React.FC> = {
   quiz: QuizView,
@@ -942,6 +976,7 @@ const VIEW_COMPONENTS: Record<HarnessView, React.FC> = {
   flashcards: FlashcardsView,
   'activity-wall': ActivityWallView,
   review: ReviewView,
+  'quiz-assigned': QuizAssignedView,
 };
 
 const SIZE = new URLSearchParams(window.location.search);

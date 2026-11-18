@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import {
   collection,
   doc,
@@ -42,7 +42,15 @@ import {
 import { BELL_CLOSE_CUSHION_MS, type EpochWindow } from '@/utils/periodPlan';
 import { logError } from '@/utils/logError';
 import { isResponseAwaitingGrade } from '../utils/quizScoreboard';
-import { CheckCircle2, Pause, Play, PowerOff, RotateCcw } from 'lucide-react';
+import { AssignedResponsesFixture } from './assignedResponsesFixture';
+import {
+  CheckCircle2,
+  Monitor,
+  Pause,
+  Play,
+  PowerOff,
+  RotateCcw,
+} from 'lucide-react';
 
 /** What the row's main button does beyond the class actions. */
 export interface QuizAssignedHandlers {
@@ -87,7 +95,8 @@ const wantsLiveData = (a: QuizAssignment) =>
     Object.values(a.periodAccess ?? {}).some((r) => r.closedAt != null));
 
 function useResponsesById(ids: readonly string[]) {
-  const key = ids.join('|');
+  const fixture = useContext(AssignedResponsesFixture);
+  const key = fixture ? '' : ids.join('|');
   const [byId, setById] = useState<Record<string, QuizResponse[]>>({});
   useEffect(() => {
     if (!key) return undefined;
@@ -107,7 +116,7 @@ function useResponsesById(ids: readonly string[]) {
     );
     return () => unsubs.forEach((u) => u());
   }, [key]);
-  return byId;
+  return fixture ?? byId;
 }
 
 const questionCache = new Map<string, Promise<QuizQuestion[] | null>>();
@@ -455,6 +464,15 @@ const QuizAssignedRowHost: React.FC<RowHostProps> = ({
         withUndo(() => actions.moveToDone(), `${a.quizTitle} moved to Done.`),
     });
   const today = menu(a).filter((m) => !REPLACED_MENU_IDS.has(m.id));
+  // D7: Monitor is always one menu row away, and opening it changes nothing.
+  if (!viewOnly && !today.some((m) => m.id === 'monitor'))
+    today.unshift({
+      id: 'monitor',
+      label: 'Monitor',
+      icon: Monitor,
+      anchor: tourTypeAttr('quiz-library.archive-monitor', 'quiz'),
+      onClick: () => onMonitor(a),
+    });
   const firstDestructive = today.findIndex((m) => m.destructive);
   const menuActions =
     firstDestructive < 0

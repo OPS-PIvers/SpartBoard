@@ -11,6 +11,8 @@ export type LineTone = 'open' | 'paused' | 'alert' | 'warn' | 'plain';
 export interface LineSegment {
   text: string;
   tone: LineTone;
+  /** Joins the previous segment with a space instead of " · ". */
+  glued?: boolean;
 }
 
 const plural = (n: number, one: string, many: string) =>
@@ -47,21 +49,18 @@ export function statusLineSegments(
       // Every open class gets its own count, as in the prototype.
       const open = s.classes.filter((c) => c.status === 'open');
       const shown = open.length > 0 ? open : [];
-      const segs: LineSegment[] = shown.length
-        ? shown.map((c) => ({
-            text: `${forClass('Open', named(c))} ${turnedIn(c.submitted, c.total)}`,
-            tone: 'open' as const,
-          }))
-        : [
-            {
-              text: `${forClass('Open', line.classLabel)} ${turnedIn(line.submitted, line.total)}`,
-              tone: 'open',
-            },
-          ];
-      for (const c of s.classes.filter((x) => x.status === 'paused'))
+      const openOnes = shown.length
+        ? shown.map((c) => [named(c), c.submitted, c.total] as const)
+        : ([[line.classLabel, line.submitted, line.total]] as const);
+      const segs: LineSegment[] = openOnes.flatMap(([label, n, total]) => [
+        { text: forClass('Open', label), tone: 'open' as const },
+        { text: turnedIn(n, total), tone: 'plain' as const, glued: true },
+      ]);
+      const paused = s.classes.filter((x) => x.status === 'paused');
+      for (const c of paused)
         segs.push({ text: forClass('Paused', named(c)), tone: 'paused' });
       const toGo = s.classes.filter((c) => c.status !== 'closed').length;
-      const left = toGo - segs.length;
+      const left = toGo - openOnes.length - paused.length;
       if (left > 0)
         segs.push({
           text: `${plural(left, 'class', 'classes')} to go`,

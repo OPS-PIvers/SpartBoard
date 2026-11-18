@@ -149,8 +149,11 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
             <span>
               {segments.map((seg, i) => (
                 <React.Fragment key={i}>
-                  {i > 0 && ' · '}
-                  <span className={TONE_CLASS[seg.tone]}>{seg.text}</span>
+                  {i > 0 && ' '}
+                  <span className="whitespace-nowrap">
+                    {i > 0 && !seg.glued && '· '}
+                    <span className={TONE_CLASS[seg.tone]}>{seg.text}</span>
+                  </span>
                 </React.Fragment>
               ))}
             </span>
