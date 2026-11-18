@@ -1434,9 +1434,17 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'library-shell.card-icon-action': ['library.shell'],
     'library-shell.card-menu': ['library.shell'],
     'library-shell.card-menu-item': ['library.shell'],
-    'library-shell.archive-primary-action': ['library.assignments'],
+    'library-shell.archive-primary-action': [
+      'library.assignments',
+      'library.shell',
+    ],
     'library-shell.archive-menu': ['library.shell'],
     'library-shell.archive-menu-item': ['library.shell'],
+    'library-shell.assigned-classes': ['library.shell'],
+    'library-shell.assigned-class-action': ['library.shell'],
+    'library-shell.assigned-done-section': ['library.shell'],
+    'library-shell.assigned-close-all': ['quiz.face'],
+    'library-shell.assigned-move-to-done': ['quiz.face'],
     'widget-settings.calendar.remove-calendar': ['widgets.calendar.settings'],
     'widget-settings.hotspot-image.load-library-item': [
       'widgets.hotspot-image.settings',

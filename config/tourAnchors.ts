@@ -6672,6 +6672,35 @@ export const TOUR_ANCHORS = {
     panel: true,
     rowList: 'assignment-rows',
   },
+  'library-shell.assigned-classes': {
+    label: 'Classes button on an Assigned tab row; shows each class',
+    perField: true,
+    rows: true,
+    rowList: 'assignment-rows',
+  },
+  'library-shell.assigned-class-action': {
+    label:
+      'Open, Pause, Resume, Close, Reopen or Monitor for one class in an expanded Assigned row',
+    persists: true,
+    perField: true,
+    panel: true,
+    keyPattern: '[a-z-]+#(open|pause|resume|close|reopen|monitor)-[1-9]\\d*',
+    keyHint: 'quiz#open-2 is Open for the second class in the open row',
+  },
+  'library-shell.assigned-done-section': {
+    label: 'Done section header on the Assigned tab',
+    perField: true,
+  },
+  'library-shell.assigned-close-all': {
+    label: 'Close for all classes, in an Assigned row menu',
+    persists: true,
+    panel: true,
+  },
+  'library-shell.assigned-move-to-done': {
+    label: 'Move to Done, in an Assigned row menu',
+    persists: true,
+    panel: true,
+  },
   'widget-settings.calendar.remove-calendar': {
     label: 'Remove a personal calendar in Calendar settings',
     perField: true,

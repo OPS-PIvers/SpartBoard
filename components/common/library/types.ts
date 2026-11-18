@@ -262,6 +262,8 @@ export interface LibraryShellProps {
   folderViewMode?: LibraryViewMode;
   /** Keeps the header's last button clear of the connection corner tab. */
   clearsConnectionTab?: boolean;
+  /** ASSIGNED_TAB.md D12: Library (and Banks) plus one Assigned tab, which takes the `active` key; `archive` folds into it. */
+  assignedLayout?: boolean;
 }
 
 /* ─── LibraryToolbar (search / sort / filter / view-mode) ─────────────────── */

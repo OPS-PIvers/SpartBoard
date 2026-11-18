@@ -13,6 +13,7 @@ export const SURFACES: TourSurfaceMap = {
       'library-shell.secondary-menu-item': 'library-shell.secondary-action',
       'library-shell.sort-option': 'library-shell.sort',
       'library-shell.card-menu-item': 'library-shell.card-menu',
+      'library-shell.assigned-class-action': 'library-shell.assigned-classes',
       'library-shell.folder-menu-rename': 'library-shell.folder-menu',
       'library-shell.folder-menu-new-subfolder': 'library-shell.folder-menu',
       'library-shell.folder-menu-move-to-root': 'library-shell.folder-menu',

@@ -4733,6 +4733,7 @@ const TeacherQuizWidget: React.FC<{
         }}
         // ─── Archive tab ─────────────────────────────────────────────────────
         managerTab={config.managerTab ?? 'library'}
+        classLifecycle={assignedTabLifecycle}
         revealRequest={revealRequest}
         onTabChange={(tab) => handleUpdateQuizConfig({ managerTab: tab })}
         // ─── Banks tab ───────────────────────────────────────────────────────
