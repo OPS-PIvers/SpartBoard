@@ -302,6 +302,14 @@ export function lunchNotesBehindKey(
   return `${server.id}|${config.lastSubmittedDate ?? ''}|${classes}`;
 }
 
+/** One key for the board's sent classes whose notes this copy lacks (class and send time), or null when it lacks none. */
+export function lackingLunchNotesKey(dashboard: Dashboard): string | null {
+  const keys = dashboard.widgets
+    .map((widget) => lunchNotesBehindKey(widget, undefined))
+    .filter((key): key is string => key !== null);
+  return keys.length > 0 ? keys.join(';') : null;
+}
+
 /** True when a Lunch Count on the board lists a sent class whose notes this copy lacks, so a backup must not drop Drive's. */
 export function boardLacksLunchNotes(dashboard: Dashboard): boolean {
   return dashboard.widgets.some(

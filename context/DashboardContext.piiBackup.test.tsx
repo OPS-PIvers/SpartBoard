@@ -1651,6 +1651,43 @@ describe('DashboardContext lunch notes on copied boards and partial loads', () =
     expect(saveDashboardMock).toHaveBeenCalled();
   });
 
+  it('reads Drive once for a sent list, however many autosaves follow', async () => {
+    const { stateRef, day } = await loadLaptopSend();
+    // The laptop had no Drive, so Drive never gets class A's notes.
+    downloadFileMock.mockClear();
+    downloadFileMock.mockResolvedValue(piiBlob({}));
+    listFilesMock.mockClear();
+
+    act(() => {
+      const config = configOf(stateRef.current?.activeDashboard, 'w-lunch');
+      stateRef.current?.updateWidget('w-lunch', {
+        config: submittedMarker(config, 'w-lunch', day, classB, {
+          notes: 'Ben: gluten free',
+          extraPizza: 0,
+        }),
+      });
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4000);
+    });
+    for (const minute of ['01', '02', '03']) {
+      act(() => {
+        stateRef.current?.updateWidget('w-lunch', {
+          config: { lastSyncDate: `2026-10-20T12:${minute}:00.000Z` },
+        });
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(4000);
+      });
+    }
+
+    expect(saveDashboardMock.mock.calls.length).toBeGreaterThanOrEqual(4);
+    expect(downloadFileMock).toHaveBeenCalledTimes(1);
+    const writes = await driveWrites();
+    expect(writes.length).toBeGreaterThanOrEqual(1);
+    expect(JSON.stringify(writes.at(-1))).toContain('Ben: gluten free');
+  });
+
   it('leaves the Drive copy alone, and still saves, when it cannot read the notes to keep', async () => {
     const { stateRef, day } = await loadLaptopSend();
     downloadFileMock.mockRejectedValue(new Error('Drive is down'));

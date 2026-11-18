@@ -128,7 +128,7 @@ import {
   mergeDashboardPII,
   dashboardHasPII,
   lunchNotesBehindKey,
-  boardLacksLunchNotes,
+  lackingLunchNotesKey,
   keepDriveLunchNotes,
   PII_WIDGET_FIELDS,
   type DashboardPiiSupplement,
@@ -1965,6 +1965,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const [piiRestoreNonce, setPiiRestoreNonce] = useState(0);
   // Lunch Count sends whose notes another device wrote; each is re-read from Drive once.
   const lunchNotesReadRef = useRef<Set<string>>(new Set());
+  // Per board, the Drive copy a backup read to keep another device's lunch notes, by the sent list it was read for.
+  const lunchNotesKeptRef = useRef<
+    Map<string, { key: string; drivePii: Record<string, unknown> }>
+  >(new Map());
   // Boards whose names were cleared here but whose `{}` Drive write has not landed; restores skip them.
   const pendingPiiClearRef = useRef<Set<string>>(new Set());
   // Boards whose cached supplement holds quiz Scoreboard teams Drive hasn't got yet.
@@ -1997,16 +2001,24 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       let dashboard = board;
       // A Lunch Count send whose notes never loaded here keeps Drive's copy; unread, the file is left alone.
       let keepDriveFile = false;
-      if (driveService && boardLacksLunchNotes(board)) {
+      const lackingKey = driveService ? lackingLunchNotesKey(board) : null;
+      if (driveService && lackingKey) {
         try {
-          dashboard = keepDriveLunchNotes(
-            board,
-            await readPiiSupplement(
-              driveService,
-              board.id,
-              piiDriveFileIdRef.current
-            )
-          );
+          // Read once per sent list: Drive's answer, notes or none, stands until the list changes.
+          const known = lunchNotesKeptRef.current.get(board.id);
+          const drivePii =
+            known?.key === lackingKey
+              ? known.drivePii
+              : await readPiiSupplement(
+                  driveService,
+                  board.id,
+                  piiDriveFileIdRef.current
+                );
+          lunchNotesKeptRef.current.set(board.id, {
+            key: lackingKey,
+            drivePii,
+          });
+          dashboard = keepDriveLunchNotes(board, drivePii);
         } catch (e) {
           console.warn('[PII] Could not read the Drive copy to keep:', e);
           keepDriveFile = true;
