@@ -18,6 +18,7 @@ vi.mock('./videoClassTurnIn', () => ({
 }));
 
 import {
+  LIVE_PAUSE_REASON,
   LIVE_REOPEN_REASON,
   VIDEO_ACTIVITY_RUN_COLLECTIONS,
   videoActivityLifecycle,
@@ -72,6 +73,18 @@ describe('videoActivityLifecycle', () => {
       LIVE_REOPEN_REASON
     );
     expect(h.reactivateAssignment).not.toHaveBeenCalled();
+  });
+
+  it('refuses to pause a live run, since a video Pause ends the session for good', async () => {
+    docs['video_activity_sessions/a1'] = {
+      status: 'active',
+      sessionMode: 'teacher',
+    };
+    const h = hook();
+    await expect(videoActivityLifecycle(h).pause('a1')).rejects.toThrow(
+      LIVE_PAUSE_REASON
+    );
+    expect(h.pauseAssignment).not.toHaveBeenCalled();
   });
 
   it('turns a class in through the video turn-in', async () => {

@@ -32,6 +32,19 @@ export interface VideoActivityLifecycle {
 
 export const LIVE_REOPEN_REASON =
   'A live video run cannot be reopened. Assign it again.';
+export const LIVE_PAUSE_REASON = 'A live video run cannot be paused.';
+
+/** A board-paced run: rules keep it ended once ended, and a VA Pause ends the session. */
+async function isLiveRun(
+  assignmentId: string
+): Promise<{ live: boolean; ended: boolean }> {
+  const snap = await getDoc(
+    doc(db, VIDEO_ACTIVITY_RUN_COLLECTIONS.sessionCollection, assignmentId)
+  );
+  const s = snap.data() as
+    { sessionMode?: unknown; status?: unknown } | undefined;
+  return { live: s?.sessionMode === 'teacher', ended: s?.status === 'ended' };
+}
 
 /** Builds the Video Activity lifecycle from the assignments hook's existing writes. */
 export function videoActivityLifecycle(
@@ -44,18 +57,16 @@ export function videoActivityLifecycle(
   >
 ): VideoActivityLifecycle {
   return {
-    pause: hook.pauseAssignment,
+    pause: async (assignmentId) => {
+      if ((await isLiveRun(assignmentId)).live)
+        throw new Error(LIVE_PAUSE_REASON);
+      await hook.pauseAssignment(assignmentId);
+    },
     resume: hook.resumeAssignment,
     end: hook.deactivateAssignment,
     reopen: async (assignmentId) => {
-      // Rules keep an ended teacher-paced run ended, so say why instead of a permission error.
-      const snap = await getDoc(
-        doc(db, VIDEO_ACTIVITY_RUN_COLLECTIONS.sessionCollection, assignmentId)
-      );
-      const s = snap.data() as
-        { sessionMode?: unknown; status?: unknown } | undefined;
-      if (s?.sessionMode === 'teacher' && s.status === 'ended')
-        throw new Error(LIVE_REOPEN_REASON);
+      const run = await isLiveRun(assignmentId);
+      if (run.live && run.ended) throw new Error(LIVE_REOPEN_REASON);
       await hook.reactivateAssignment(assignmentId);
     },
     turnInClass: (sessionId, classKey, closedAt) =>
