@@ -90,7 +90,7 @@ describe('end', () => {
     await lc.end('g1');
 
     expect(archiveAssignment).toHaveBeenCalledWith('g1');
-    expect(updateDoc).not.toHaveBeenCalled();
+    expect(updateDoc).toHaveBeenCalledWith(ROW, { closedAt: NOW });
     expect(finalizeOpenGuidedLearningResponses).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(lc.turnInDelayMs);
     expect(finalizeOpenGuidedLearningResponses).toHaveBeenCalledWith(
@@ -107,10 +107,19 @@ describe('end', () => {
     await lc.end('g1');
 
     expect(updateDoc).toHaveBeenCalledWith(ROW, {
+      closedAt: NOW,
       closeAtBeforeEnd: NOW + 86_400_000,
     });
     await vi.advanceTimersByTimeAsync(lc.turnInDelayMs);
     expect(finalizeOpenGuidedLearningResponses).toHaveBeenCalledWith('g1', NOW);
+  });
+  it('keeps a close mark the Assigned tab already wrote', async () => {
+    docs[SESSION] = { closeAt: NOW - 10_000 };
+    docs[ROW] = { closedAt: NOW - 5_000 };
+
+    await make().end('g1');
+
+    expect(updateDoc).not.toHaveBeenCalled();
   });
 });
 

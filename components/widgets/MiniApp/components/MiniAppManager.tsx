@@ -1357,6 +1357,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
           assignmentSecondary(a, a.status === 'inactive' ? 'archive' : 'active')
         }
         replacedMenuIds={['end', 'reactivate']}
+        publishes={(a) => a.resultsVersion === 2}
       />
     );
   } else if (tab === 'active') {

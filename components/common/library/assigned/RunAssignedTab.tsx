@@ -79,17 +79,27 @@ export interface RunAssignedTabProps<A extends RunAssignment> {
   replacedMenuIds: readonly string[];
   /** Shown under the Active and Done sections, e.g. a Show older button. */
   footer?: React.ReactNode;
+  /** False where the row never publishes scores; defaults to true. */
+  publishes?: (a: A) => boolean;
+  /** Reads a stored row as the tab should, e.g. a close time that has passed as ended. */
+  normalize?: (a: A, nowMs: number) => A;
 }
 
 const TICK_MS = 30_000;
 const PIN_MS = 15 * 60_000;
 
 /** A row still being worked: anything not ended before the Assigned tab handled it (D20). */
-function wantsLiveData(a: RunAssignment, viewOnly: boolean): boolean {
+function wantsLiveData(
+  a: RunAssignment,
+  viewOnly: boolean,
+  publishes: boolean
+): boolean {
   if (viewOnly) return false;
   const ended = runStatus(a.status) === 'inactive';
   if (!ended) return true;
-  if (a.doneAt != null || scoresShown(a.scoreVisibility)) return false;
+  // An ended row with nothing to publish is Done once closed, so it needs no count.
+  if (!publishes || a.doneAt != null || scoresShown(a.scoreVisibility))
+    return false;
   return (
     a.closedAt != null ||
     Object.values(a.periodAccess ?? {}).some((r) => r.closedAt != null)
@@ -180,7 +190,7 @@ export function RunAssignedTab<A extends RunAssignment>(
   props: RunAssignedTabProps<A>
 ): React.ReactElement {
   const {
-    assignments,
+    assignments: stored,
     loading,
     rosters,
     tourWidgetType,
@@ -191,16 +201,18 @@ export function RunAssignedTab<A extends RunAssignment>(
     responsesPath,
     toResponses,
     footer,
+    publishes,
+    normalize,
   } = props;
   const { featurePermissions } = useAuth();
   const now = useNow();
-  const live = assignments.filter((a) => wantsLiveData(a, viewOnly(a)));
+  const assignments = normalize ? stored.map((a) => normalize(a, now)) : stored;
+  const wants = (a: A) => wantsLiveData(a, viewOnly(a), publishes?.(a) ?? true);
+  const live = assignments.filter(wants);
   const responsesById = useRunResponses(live, responsesPath, toResponses);
 
   const rows: RowModel<A>[] = assignments.map((a) => {
-    const responses = wantsLiveData(a, viewOnly(a))
-      ? (responsesById[a.id] ?? null)
-      : [];
+    const responses = wants(a) ? (responsesById[a.id] ?? null) : [];
     const bellFor = (access: { rosterId?: string }) =>
       todaysBell(access, rosters, featurePermissions, now);
     const sizeOf = (rosterId: string | undefined) => {

@@ -72,7 +72,10 @@ import {
   guidedLearningAssignedInput,
   guidedLearningAssignedResponse,
 } from '@/utils/assignedAdapters';
-import { GL_CLASS_COLLECTIONS } from '../utils/glClassLifecycle';
+import {
+  GL_CLASS_COLLECTIONS,
+  isGuidedLearningEnded,
+} from '../utils/glClassLifecycle';
 import { AuthContext } from '@/context/AuthContextValue';
 import { useDialog } from '@/context/useDialog';
 import { FolderSidebar } from '@/components/common/library/FolderSidebar';
@@ -317,6 +320,18 @@ export interface GuidedLearningManagerProps {
 }
 
 const NO_ROSTERS: readonly ClassRoster[] = [];
+
+/** D20: a run whose own close time passed with no Assigned tab mark ended before the tab handled it. */
+const readClockEnded = (
+  a: GuidedLearningAssignment,
+  nowMs: number
+): GuidedLearningAssignment =>
+  a.status === 'active' &&
+  !('closedAt' in a && a.closedAt != null) &&
+  isGuidedLearningEnded(a, nowMs) &&
+  !Object.values(a.periodAccess ?? {}).some((r) => r.closedAt != null)
+    ? { ...a, status: 'archived' }
+    : a;
 
 /* ─── Sort / filter config ────────────────────────────────────────────────── */
 
@@ -1530,6 +1545,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         assignmentSecondary(a, a.status === 'archived' ? 'archive' : 'active')
       }
       replacedMenuIds={['archive', 'unarchive']}
+      normalize={readClockEnded}
       footer={
         hasOlderAssignments && onShowOlderAssignments ? (
           <button
