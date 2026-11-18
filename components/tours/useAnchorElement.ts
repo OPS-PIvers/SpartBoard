@@ -67,8 +67,16 @@ const unionRect = (rects: readonly DOMRect[]): DOMRect => {
   return new DOMRect(left, top, right - left, bottom - top);
 };
 
-/** A checkbox row is lit with its label, so the name beside each box shows too. */
-const rowBox = (el: Element): Element => el.closest('label') ?? el;
+/** A row's control with its labels, wrapping or tied by id, so the name beside a checkbox is part of the row. */
+export const rowParts = (el: Element): Element[] => {
+  const wrap = el.closest('label');
+  const tied = el instanceof HTMLInputElement ? [...(el.labels ?? [])] : [];
+  return [...new Set([el, ...(wrap ? [wrap] : []), ...tied])];
+};
+
+/** Whether a press landed on a row's control or its label. */
+export const inRow = (el: Element, hit: Element): boolean =>
+  rowParts(el).some((part) => part.contains(hit));
 
 /** The part of an element its scrolling panels let show. */
 const shownPart = (el: Element): DOMRect => {
@@ -298,8 +306,8 @@ export function useAnchorElement(
         publish({
           element: el,
           rect:
-            matches.length > 1 || (anyRow && rowBox(el) !== el)
-              ? unionRect(matches.map((m) => shownPart(rowBox(m))))
+            matches.length > 1 || (anyRow && rowParts(el).length > 1)
+              ? unionRect(matches.flatMap(rowParts).map(shownPart))
               : next,
           status: 'found',
           ...(anyRow ? { matches } : {}),

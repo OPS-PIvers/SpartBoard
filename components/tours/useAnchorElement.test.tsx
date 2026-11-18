@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   ANCHOR_SEARCH_MS,
   ANCHOR_SEARCH_THROTTLE_MS,
+  inRow,
   useAnchorElement,
 } from './useAnchorElement';
 
@@ -496,5 +497,17 @@ describe('useAnchorElement with a #row-* ref', () => {
     expect(result.current.status).toBe('found');
     expect(result.current.element).toBe(second);
     expect(result.current.matches).toEqual([second]);
+  });
+});
+
+describe('inRow', () => {
+  it('counts a press on a wrapping label or one tied by id as the row', () => {
+    document.body.innerHTML =
+      '<label><input id="a" type="checkbox" /><span id="a-name">Ada</span></label>' +
+      '<input id="b" type="checkbox" /><label for="b"><span id="b-name">Bo</span></label>';
+    const at = (id: string) => document.getElementById(id) as HTMLElement;
+    expect(inRow(at('a'), at('a-name'))).toBe(true);
+    expect(inRow(at('b'), at('b-name'))).toBe(true);
+    expect(inRow(at('a'), at('b-name'))).toBe(false);
   });
 });
