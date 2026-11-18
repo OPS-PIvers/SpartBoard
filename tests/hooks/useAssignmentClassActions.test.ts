@@ -306,4 +306,23 @@ describe('useAssignmentClassActions', () => {
     await act(() => x.current.reopenClass(null));
     expect(onWindowCleared).toHaveBeenCalledWith('a1', { closeAt: null });
   });
+
+  it('tells the kind which class opened or reopened', async () => {
+    const onClassOpened = vi.fn(() => Promise.resolve());
+    const x = setup(
+      run({
+        periodAccess: {
+          c1: row({ state: 'closed', closedAt: 9 }),
+          c2: row(),
+        },
+      }),
+      lifecycleOf({ onClassOpened })
+    );
+    await act(() => x.current.reopenClass('c1'));
+    await act(() => x.current.openClass('c2'));
+    expect(onClassOpened.mock.calls).toEqual([
+      ['a1', 'c1'],
+      ['a1', 'c2'],
+    ]);
+  });
 });

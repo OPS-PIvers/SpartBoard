@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
   deleteField,
   doc,
@@ -41,10 +41,16 @@ const QUIZ_COLLECTIONS = {
   assignmentCollection: 'quiz_assignments',
 };
 
-/** Per-student window shifts that would still hold a student out once Open clears the class window; null clears the override. */
+/** Which per-student window shifts to drop: every close, only expired closes, and starts still ahead. */
+export interface StaleWindowRule {
+  closeAt: 'all' | 'expired' | 'keep';
+  futureOpenAt: boolean;
+}
+
+/** Per-student window shifts that would still hold a student out once the teacher opens the quiz; null clears the override. */
 export function staleWindowOverrides(
   assignment: Pick<QuizAssignment, 'overridesBySourcedId' | 'targetStudents'>,
-  patch: { openAt?: null; closeAt?: null },
+  rule: StaleWindowRule,
   now: number
 ): Record<string, StudentOverride | null> {
   const targeted = new Set(
@@ -56,10 +62,14 @@ export function staleWindowOverrides(
   )) {
     if (!targeted.has(key) || !override) continue;
     const next: StudentOverride = { ...override };
-    // Once the class close is gone, any per-student close (even one not yet reached) would cut that student off alone.
-    if ('closeAt' in patch) delete next.closeAt;
+    const close = next.closeAt;
     if (
-      'openAt' in patch &&
+      typeof close === 'number' &&
+      (rule.closeAt === 'all' || (rule.closeAt === 'expired' && close <= now))
+    )
+      delete next.closeAt;
+    if (
+      rule.futureOpenAt &&
       typeof next.openAt === 'number' &&
       next.openAt > now
     )
@@ -84,6 +94,55 @@ export function useQuizClassActions(
     reopenAssignment,
   } = lifecycle;
   const { setAssignmentTargets } = useSetAssignmentTargets();
+  // Accommodated and skipped students read the window off their pointer docs.
+  const syncStudentWindows = useCallback(
+    async (
+      assignmentId: string,
+      patch: { openAt?: null; closeAt?: null } | null,
+      rule: StaleWindowRule
+    ) => {
+      if (!assignment || !hasStudentPointers(assignment)) return;
+      // A failed pointer sync must not stop Open from letting the class in.
+      try {
+        const ref = doc(
+          db,
+          'users',
+          assignment.teacherUid,
+          'quiz_assignments',
+          assignmentId
+        );
+        const stored = (await getDoc(ref)).data() as QuizAssignment | undefined;
+        const stale = staleWindowOverrides(
+          stored ?? assignment,
+          rule,
+          Date.now()
+        );
+        if (!patch && Object.keys(stale).length === 0) return;
+        await setAssignmentTargets({
+          assignmentId,
+          kind: 'quiz',
+          sessionId: assignmentId,
+          targetMode: assignment.targetMode,
+          add: [],
+          remove: [],
+          overridesBySourcedId: stale,
+          window: patch ?? {},
+        });
+        const fields = Object.entries(stale).flatMap(([key, value]) => [
+          new FieldPath('overridesBySourcedId', key),
+          value ?? deleteField(),
+        ]);
+        if (fields.length > 0) {
+          const [first, firstValue, ...rest] = fields;
+          await updateDoc(ref, first as FieldPath, firstValue, ...rest);
+        }
+      } catch (err) {
+        console.error('Pointer window sync failed', err);
+      }
+    },
+    [assignment, setAssignmentTargets]
+  );
+
   const quizLifecycle = useMemo<AssignmentLifecycle>(
     () => ({
       pause: pauseAssignment,
@@ -94,56 +153,25 @@ export function useQuizClassActions(
       turnInDelayMs: END_TURN_IN_DELAY_MS,
       endTurnsIn: true,
       reopenClearsMarks: true,
-      // Accommodated and skipped students read the window off their pointer docs.
-      onWindowCleared: async (assignmentId, patch) => {
-        if (!assignment || !hasStudentPointers(assignment)) return;
-        // A failed pointer sync must not stop Open from letting the class in.
-        try {
-          const ref = doc(
-            db,
-            'users',
-            assignment.teacherUid,
-            'quiz_assignments',
-            assignmentId
-          );
-          const stored = (await getDoc(ref)).data() as
-            QuizAssignment | undefined;
-          // An expired extra-time close (or a later start) would still win over the cleared class window.
-          const stale = staleWindowOverrides(
-            stored ?? assignment,
-            patch,
-            Date.now()
-          );
-          await setAssignmentTargets({
-            assignmentId,
-            kind: 'quiz',
-            sessionId: assignmentId,
-            targetMode: assignment.targetMode,
-            add: [],
-            remove: [],
-            overridesBySourcedId: stale,
-            window: patch,
-          });
-          const fields = Object.entries(stale).flatMap(([key, value]) => [
-            new FieldPath('overridesBySourcedId', key),
-            value ?? deleteField(),
-          ]);
-          if (fields.length > 0) {
-            const [first, firstValue, ...rest] = fields;
-            await updateDoc(ref, first as FieldPath, firstValue, ...rest);
-          }
-        } catch (err) {
-          console.error('Pointer window sync failed', err);
-        }
-      },
+      // Once the class close is gone, any per-student close (even one not yet reached) would cut that student off alone.
+      onWindowCleared: (assignmentId, patch) =>
+        syncStudentWindows(assignmentId, patch, {
+          closeAt: 'closeAt' in patch ? 'all' : 'keep',
+          futureOpenAt: 'openAt' in patch,
+        }),
+      // A class row has its own clock; only a student's expired close or later start still holds them out.
+      onClassOpened: (assignmentId) =>
+        syncStudentWindows(assignmentId, null, {
+          closeAt: 'expired',
+          futureOpenAt: true,
+        }),
     }),
     [
       pauseAssignment,
       resumeAssignment,
       deactivateAssignment,
       reopenAssignment,
-      assignment,
-      setAssignmentTargets,
+      syncStudentWindows,
     ]
   );
   return useAssignmentClassActions(

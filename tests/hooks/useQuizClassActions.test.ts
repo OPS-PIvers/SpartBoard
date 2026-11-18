@@ -574,6 +574,43 @@ describe('window cleared pointers', () => {
     expect(touched).toBe(false);
   });
 
+  it('clears an expired extra-time close when one class reopens', async () => {
+    const now = Date.now();
+    const x = setup(
+      assignment({
+        targetMode: 'students',
+        targetStudents: [ref],
+        periodAccess: { c1: row(), c2: row({ state: 'open' }) },
+        overridesBySourcedId: {
+          'classlink:s1': { closeAt: now - 60_000, readAloud: true },
+        },
+      })
+    );
+    await act(() => x.current.reopenClass('c1'));
+    expect(store.calls).toContain('reopen:c1');
+    expect(setTargets).toHaveBeenCalledWith(
+      expect.objectContaining({
+        window: {},
+        overridesBySourcedId: { 'classlink:s1': { readAloud: true } },
+      })
+    );
+  });
+
+  it('makes no pointer call when one class opens and no student window is stale', async () => {
+    const x = setup(
+      assignment({
+        targetMode: 'students',
+        targetStudents: [ref],
+        periodAccess: { c1: row(), c2: row({ state: 'open' }) },
+        overridesBySourcedId: {
+          'classlink:s1': { closeAt: Date.now() + 60_000 },
+        },
+      })
+    );
+    await act(() => x.current.openClass('c1'));
+    expect(setTargets).not.toHaveBeenCalled();
+  });
+
   it('skips the pointer update when there are no student pointers', async () => {
     const x = setup(
       assignment({ status: 'paused', openAt: Date.now() + 60_000 })
@@ -591,43 +628,58 @@ describe('staleWindowOverrides', () => {
       targetStudents: [ref],
       overridesBySourcedId: { 'classlink:s1': o },
     }) as unknown as QuizAssignment;
+  const all = { closeAt: 'all', futureOpenAt: false } as const;
+  const expired = { closeAt: 'expired', futureOpenAt: true } as const;
 
-  it('drops an expired close only when the class close was cleared', () => {
-    expect(
-      staleWindowOverrides(of({ closeAt: now - 1 }), { closeAt: null }, now)
-    ).toEqual({ 'classlink:s1': null });
-    expect(
-      staleWindowOverrides(of({ closeAt: now - 1 }), { openAt: null }, now)
-    ).toEqual({});
-  });
-
-  it('drops an extension that has not run out yet, since the class no longer closes', () => {
+  it('drops every close, run out or not, when the class close is gone', () => {
+    expect(staleWindowOverrides(of({ closeAt: now - 1 }), all, now)).toEqual({
+      'classlink:s1': null,
+    });
     expect(
       staleWindowOverrides(
         of({ closeAt: now + 1, timeMultiplier: 2 }),
-        { closeAt: null },
+        all,
         now
       )
     ).toEqual({ 'classlink:s1': { timeMultiplier: 2 } });
   });
 
-  it('leaves an override with no window shift alone', () => {
+  it('keeps closes when only the class start was cleared', () => {
     expect(
-      staleWindowOverrides(of({ timeMultiplier: 2 }), { closeAt: null }, now)
+      staleWindowOverrides(
+        of({ closeAt: now - 1 }),
+        { closeAt: 'keep', futureOpenAt: true },
+        now
+      )
     ).toEqual({});
   });
 
-  it('drops a later start when Open clears the class start', () => {
+  it('drops only an expired close when one class opens', () => {
+    expect(
+      staleWindowOverrides(of({ closeAt: now - 1 }), expired, now)
+    ).toEqual({ 'classlink:s1': null });
+    expect(
+      staleWindowOverrides(of({ closeAt: now + 1 }), expired, now)
+    ).toEqual({});
+  });
+
+  it('drops a later start, never one already passed', () => {
     expect(
       staleWindowOverrides(
         of({ openAt: now + 5, language: 'es' }),
-        { openAt: null },
+        expired,
         now
       )
     ).toEqual({ 'classlink:s1': { language: 'es' } });
-    expect(
-      staleWindowOverrides(of({ openAt: now - 5 }), { openAt: null }, now)
-    ).toEqual({});
+    expect(staleWindowOverrides(of({ openAt: now - 5 }), expired, now)).toEqual(
+      {}
+    );
+  });
+
+  it('leaves an override with no window shift alone', () => {
+    expect(staleWindowOverrides(of({ timeMultiplier: 2 }), all, now)).toEqual(
+      {}
+    );
   });
 
   it('ignores overrides for students no longer targeted', () => {
@@ -635,7 +687,7 @@ describe('staleWindowOverrides', () => {
       targetStudents: [],
       overridesBySourcedId: { 'classlink:s1': { closeAt: now - 1 } },
     } as unknown as QuizAssignment;
-    expect(staleWindowOverrides(a, { closeAt: null }, now)).toEqual({});
+    expect(staleWindowOverrides(a, all, now)).toEqual({});
   });
 });
 
