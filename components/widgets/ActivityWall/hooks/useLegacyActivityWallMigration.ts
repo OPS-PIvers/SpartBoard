@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import { viewAsSuppressesBackgroundWrites } from '@/utils/viewAsTab';
 import type {
   ActivityWallActivity,
   ActivityWallConfig,
@@ -49,7 +50,9 @@ export const useLegacyActivityWallMigration = ({
 }: MigrationArgs): void => {
   const migrationRanRef = useRef(false);
   useEffect(() => {
-    if (migrationRanRef.current || !uid) return;
+    if (migrationRanRef.current || !uid || viewAsSuppressesBackgroundWrites()) {
+      return;
+    }
     const legacy = config.activities ?? [];
     if (legacy.length === 0) return;
     migrationRanRef.current = true;
@@ -74,7 +77,7 @@ export const useLegacyActivityWallMigration = ({
 
   const recoveryRanRef = useRef(false);
   useEffect(() => {
-    if (!uid || libraryLoading) return;
+    if (!uid || libraryLoading || viewAsSuppressesBackgroundWrites()) return;
     const flagKey = `aw_library_recovery_v1_${uid}`;
     // Any wall we have already seen proves the library exists; deleting the last one must not resurrect it.
     if (libraryCount > 0 || (config.activities ?? []).length > 0) {

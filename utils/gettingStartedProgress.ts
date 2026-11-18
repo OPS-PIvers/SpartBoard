@@ -1,7 +1,7 @@
 import { doc, runTransaction, setDoc } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { logError } from '@/utils/logError';
-import { viewAsBlocksWrite } from '@/utils/viewAsTab';
+import { viewAsSuppressesBackgroundWrites } from '@/utils/viewAsTab';
 
 /** Per-teacher progress, readable across devices because a tour's `runs/{uid}` is write-only (D13). */
 export interface GettingStartedProgress {
@@ -70,7 +70,7 @@ export function normalizeGettingStartedProgress(
 
 /** Records that every Essentials tour is done, which ends quiet start; a lost write only keeps it until the 7-day limit. */
 export async function markEssentialsDone(uid: string): Promise<void> {
-  if (isAuthBypass || viewAsBlocksWrite()) return;
+  if (isAuthBypass || viewAsSuppressesBackgroundWrites()) return;
   try {
     await setDoc(
       gettingStartedProgressRef(uid),
@@ -87,7 +87,7 @@ export async function markFirstRun(
   uid: string,
   accountCreatedAt: number | null
 ): Promise<void> {
-  if (isAuthBypass || viewAsBlocksWrite()) return;
+  if (isAuthBypass || viewAsSuppressesBackgroundWrites()) return;
   if (
     accountCreatedAt === null ||
     !Number.isFinite(accountCreatedAt) ||
@@ -113,7 +113,7 @@ export async function markFirstRun(
 
 /** Start or Later on the welcome; it never pops up again after this (D5). */
 export async function dismissWelcome(uid: string): Promise<void> {
-  if (isAuthBypass || viewAsBlocksWrite()) return;
+  if (isAuthBypass || viewAsSuppressesBackgroundWrites()) return;
   try {
     await setDoc(
       gettingStartedProgressRef(uid),
@@ -130,7 +130,7 @@ export async function recordTourFinished(
   uid: string,
   setId: string
 ): Promise<void> {
-  if (isAuthBypass || viewAsBlocksWrite()) return;
+  if (isAuthBypass || viewAsSuppressesBackgroundWrites()) return;
   try {
     await setDoc(
       gettingStartedProgressRef(uid),
@@ -144,7 +144,7 @@ export async function recordTourFinished(
 
 /** Clears this teacher's own checkmarks and brings the welcome back, so an admin can test the flow again (D29). */
 export async function resetGettingStartedProgress(uid: string): Promise<void> {
-  if (isAuthBypass || viewAsBlocksWrite()) return;
+  if (isAuthBypass || viewAsSuppressesBackgroundWrites()) return;
   await setDoc(gettingStartedProgressRef(uid), {
     finished: {},
     welcome: 'pending',
