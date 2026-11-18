@@ -1,4 +1,4 @@
-// D24: re-reads the Agenda deck's sharing when My Classes opens and records the check on the Course.
+// D24: re-reads the Agenda deck's sharing and slide shape when My Classes opens and records them on the Course.
 import { useCallback, useEffect, useEffectEvent, useState } from 'react';
 import type { DeckState } from '@/utils/course/deckSharing';
 import type { Course } from '@/utils/course/contract';
@@ -8,6 +8,7 @@ import { isAuthBypass } from '@/config/firebase';
 import { viewAsSuppressesBackgroundWrites } from '@/utils/viewAsTab';
 import { readDeckForCheck, type DeckDrive } from './deckDrive';
 import { shouldRecordCheck } from './agendaLogic';
+import { aspectChanged } from '@/utils/course/agendaFrame';
 
 export interface DeckCheckResult {
   /** The live reading, or null before the first one comes back. */
@@ -56,6 +57,33 @@ export function useDeckCheck(
       live = false;
     };
   }, [key, drive, fileId, domain, round]);
+
+  // A deck saved before its shape was read, or resized since, gets its shape saved so every frame fits it.
+  const saveAspect = useEffectEvent((forFileId: string, aspect: number) => {
+    if (isAuthBypass || viewAsSuppressesBackgroundWrites()) return;
+    const agenda = course?.agenda;
+    if (!course || !agenda || agenda.fileId !== forFileId) return;
+    if (!aspectChanged(agenda.aspect, aspect)) return;
+    saveCourse({
+      action: 'save',
+      course: {
+        id: course.id,
+        agenda: { ...agenda, aspect },
+        expectedUpdatedAt: course.updatedAt,
+      },
+    }).catch((err: unknown) => logError('AgendaSetup.saveAspect', err));
+  });
+
+  useEffect(() => {
+    if (!key || !drive || !fileId) return;
+    let live = true;
+    void drive.getDeckAspect(fileId).then((aspect) => {
+      if (live && aspect !== null) saveAspect(fileId, aspect);
+    });
+    return () => {
+      live = false;
+    };
+  }, [key, drive, fileId]);
 
   const recheck = useCallback(() => setRound((n) => n + 1), []);
   return {
