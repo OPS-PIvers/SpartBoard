@@ -54,44 +54,44 @@ const va = (over: Partial<VideoActivityAssignment> = {}) =>
     status: 'active',
     ...over,
   }) as VideoActivityAssignment;
-const gl = (over: Partial<GuidedLearningAssignment> = {}) =>
-  ({
-    ...base,
-    setId: 's1',
-    setTitle: 'Cell parts',
-    sessionId: 'a1',
-    status: 'active',
-    ...over,
-  });
-const ma = (over: Partial<MiniAppAssignment> = {}) =>
-  ({
-    ...base,
-    sessionId: 'sess1',
-    appId: 'm1',
-    appTitle: 'Fractions app',
-    assignmentName: '',
-    status: 'active',
-    ...over,
-  });
-const fc = (over: Partial<FlashcardAssignment> = {}) =>
-  ({
-    ...base,
-    sessionId: 'a1',
-    setId: 's1',
-    setTitle: 'Spanish verbs',
-    kind: 'check',
-    status: 'active',
-    ...over,
-  });
-const wr = (over: Partial<WritingAssignmentRecord> = {}) =>
-  ({
-    ...base,
-    sessionId: 'a1',
-    itemId: 'w1',
-    title: 'My summer',
-    status: 'active',
-    ...over,
-  });
+const gl = (
+  over: Partial<GuidedLearningAssignment> = {}
+): GuidedLearningAssignment => ({
+  ...base,
+  setId: 's1',
+  setTitle: 'Cell parts',
+  sessionId: 'a1',
+  status: 'active',
+  ...over,
+});
+const ma = (over: Partial<MiniAppAssignment> = {}): MiniAppAssignment => ({
+  ...base,
+  sessionId: 'sess1',
+  appId: 'm1',
+  appTitle: 'Fractions app',
+  assignmentName: '',
+  status: 'active',
+  ...over,
+});
+const fc = (over: Partial<FlashcardAssignment> = {}): FlashcardAssignment => ({
+  ...base,
+  sessionId: 'a1',
+  setId: 's1',
+  setTitle: 'Spanish verbs',
+  kind: 'check',
+  status: 'active',
+  ...over,
+});
+const wr = (
+  over: Partial<WritingAssignmentRecord> = {}
+): WritingAssignmentRecord => ({
+  ...base,
+  sessionId: 'a1',
+  itemId: 'w1',
+  title: 'My summer',
+  status: 'active',
+  ...over,
+});
 
 describe('runStatus', () => {
   it('reads every ended spelling as inactive', () => {
