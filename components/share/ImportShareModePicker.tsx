@@ -119,7 +119,7 @@ export const ImportShareModePicker: React.FC = () => {
   const hostWarning = driveBacked
     ? undefined
     : notStaff
-      ? 'Not shared by district staff, so you can only import a copy.'
+      ? 'Only a copy can be imported.'
       : hostStaff === undefined && !hostChecking
         ? "We couldn't confirm who shared this board."
         : undefined;
@@ -133,7 +133,7 @@ export const ImportShareModePicker: React.FC = () => {
   const liveDisabledReason = driveBacked
     ? 'Live sync needs the host to share again from an updated version. Older share links can only be copied.'
     : notStaff
-      ? 'Live sync is only for boards shared by district staff.'
+      ? 'Live sync works only for boards shared by staff.'
       : undefined;
 
   // Confirmation mode: host already picked the mode; show a single card +

@@ -813,7 +813,7 @@ const AppContent: React.FC = () => {
     driveService,
     onPartialFailure: () => {
       addToast(
-        'Some expired substitute-share Drive permissions could not be revoked. Substitutes keep read access to those rosters until you reconnect Google Drive to retry.',
+        'A substitute can still open some class lists. Reconnect Google Drive to remove their access.',
         'error'
       );
     },

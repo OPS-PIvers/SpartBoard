@@ -579,7 +579,7 @@ function driveGrantRevoker(): GrantRevoker {
         { ...auth(token), params: { supportsAllDrives: true } }
       );
     },
-    notifyHost: async (hostUid, shareKey, grantCount) => {
+    notifyHost: async (hostUid, shareKey) => {
       const email = (await admin.auth().getUser(hostUid)).email;
       if (!email) return false;
       try {
@@ -590,12 +590,10 @@ function driveGrantRevoker(): GrantRevoker {
           .create({
             to: [email],
             message: {
-              subject: 'Substitute access to your class lists is still on',
+              subject: 'A substitute can still open your class lists',
               text:
-                `A substitute share ended more than ${ORPHAN_GRACE_DAYS} days ago, but SpartBoard ` +
-                `could not remove ${grantCount} Google Drive permission(s) it gave your ` +
-                `substitute on your class list files. Open SpartBoard and connect Google ` +
-                `Drive to remove them.`,
+                'A substitute share has ended. The substitute can still open some of your class list files. ' +
+                'Open SpartBoard and connect Google Drive to remove this access.',
             },
           });
         return true;
