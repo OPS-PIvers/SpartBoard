@@ -4,6 +4,11 @@ import type { GuidedLearningAssignment } from '@/types';
 import { END_TURN_IN_DELAY_MS } from '@/utils/quizFinalizeOpenResponses';
 import { invalidateSessionViewCount } from '@/hooks/useSessionViewCount';
 import type { UseGuidedLearningAssignmentsResult } from '@/hooks/useGuidedLearningAssignments';
+import type {
+  AssignmentClassCollections,
+  AssignmentLifecycle,
+  AssignmentRun,
+} from '@/hooks/useAssignmentClassActions';
 import type { UseSetAssignmentTargetsResult } from '@/hooks/useSetAssignmentTargets';
 import { hasStudentPointers } from '@/utils/studentTargetRef';
 import {
@@ -18,10 +23,10 @@ export const GL_CLASS_COLLECTIONS = {
   sessionCollection: SESSIONS,
   assignmentCollection: ASSIGNMENTS,
   refreshIdle: false,
-} as const;
+} as const satisfies AssignmentClassCollections;
 
 /** The whole-run writes the Assigned tab's class actions drive for one Guided Learning assignment. */
-export interface GuidedLearningLifecycle {
+export interface GuidedLearningLifecycle extends AssignmentLifecycle {
   end: (id: string) => Promise<void>;
   reopen: (id: string) => Promise<void>;
   turnInClass: (
@@ -31,7 +36,7 @@ export interface GuidedLearningLifecycle {
   ) => Promise<void>;
   turnInDelayMs: number;
   endTurnsIn: true;
-  isEnded: (a: Pick<GuidedLearningAssignment, 'status' | 'closeAt'>) => boolean;
+  isEnded: (a: Pick<AssignmentRun, 'status' | 'closeAt'>) => boolean;
   /** Keeps each targeted student's own pointer window in step with a cleared run window. */
   onWindowCleared: (
     id: string,
@@ -41,7 +46,7 @@ export interface GuidedLearningLifecycle {
 
 /** An archived run, or a single-line run whose own close time has passed. */
 export function isGuidedLearningEnded(
-  a: Pick<GuidedLearningAssignment, 'status' | 'closeAt'>,
+  a: Pick<AssignmentRun, 'status' | 'closeAt'>,
   now: number = Date.now()
 ): boolean {
   return a.status === 'archived' || (a.closeAt != null && a.closeAt <= now);

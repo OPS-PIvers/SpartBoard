@@ -2,6 +2,11 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type { MiniAppAssignment } from '@/types';
 import type { UseMiniAppAssignmentsResult } from '@/hooks/useMiniAppAssignments';
+import type {
+  AssignmentClassCollections,
+  AssignmentLifecycle,
+  AssignmentRun,
+} from '@/hooks/useAssignmentClassActions';
 import type { UseSetAssignmentTargetsResult } from '@/hooks/useSetAssignmentTargets';
 import { hasStudentPointers } from '@/utils/studentTargetRef';
 
@@ -11,14 +16,14 @@ export const MINI_APP_CLASS_COLLECTIONS = {
   sessionCollection: 'mini_app_sessions',
   assignmentCollection: ASSIGNMENTS,
   refreshIdle: false,
-} as const;
+} as const satisfies AssignmentClassCollections;
 
 /** The whole-run writes the Assigned tab's class actions drive for one Mini App assignment. */
-export interface MiniAppLifecycle {
+export interface MiniAppLifecycle extends AssignmentLifecycle {
   end: (assignmentId: string) => Promise<void>;
   /** D9: flips the row and session back to active, so the link works at once. */
   reopen: (assignmentId: string) => Promise<void>;
-  isEnded: (a: Pick<MiniAppAssignment, 'status'>) => boolean;
+  isEnded: (a: Pick<AssignmentRun, 'status'>) => boolean;
   /** Keeps each targeted student's own pointer window in step with a cleared run window. */
   onWindowCleared: (
     assignmentId: string,
