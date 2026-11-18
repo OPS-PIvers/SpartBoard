@@ -58,7 +58,10 @@ vi.mock('firebase/firestore', () => {
   };
 });
 
-import { finalizeOpenQuizResponses } from '@/utils/quizFinalizeOpenResponses';
+import {
+  finalizeClassQuizResponses,
+  finalizeOpenQuizResponses,
+} from '@/utils/quizFinalizeOpenResponses';
 
 const NOW = 1_700_000_000_000;
 const S = 'quiz_sessions/s1';
@@ -168,5 +171,57 @@ describe('finalizeOpenQuizResponses', () => {
     await finalizeOpenQuizResponses('s1', NOW);
     expect(store.updates).toHaveLength(0);
     expect(store.queries).toHaveLength(0);
+  });
+});
+
+describe('finalizeClassQuizResponses', () => {
+  const closedP1 = (p1: Doc) => ({
+    status: 'active',
+    publicQuestions: [{ id: 'q1' }],
+    periodAccess: { p1, p2: { state: 'open' } },
+  });
+
+  it("turns in only the closed class's open rows", async () => {
+    store.docs[S] = closedP1({ state: 'closed', closedAt: 5 });
+    store.docs[`${S}/responses/a`] = {
+      status: 'in-progress',
+      classId: 'p1',
+      answers: [],
+    };
+    store.docs[`${S}/responses/b`] = {
+      status: 'in-progress',
+      classId: 'p2',
+      answers: [],
+    };
+    await finalizeClassQuizResponses('s1', 'p1', NOW);
+    expect(store.updates.map(([p]) => p.split('/').pop())).toEqual(['a']);
+    expect(store.updates[0][1]).toMatchObject({ status: 'completed' });
+  });
+
+  it('does nothing once the class was reopened, or is only Ready', async () => {
+    store.docs[`${S}/responses/a`] = {
+      status: 'in-progress',
+      classId: 'p1',
+      answers: [],
+    };
+    store.docs[S] = closedP1({ state: 'open', closedAt: null });
+    await finalizeClassQuizResponses('s1', 'p1', NOW);
+    store.docs[S] = closedP1({ state: 'closed' });
+    await finalizeClassQuizResponses('s1', 'p1', NOW);
+    expect(store.updates).toHaveLength(0);
+  });
+
+  it('skips rows once the class reopens while the turn-in runs', async () => {
+    store.docs[S] = closedP1({ state: 'closed', closedAt: 5 });
+    store.docs[`${S}/responses/a`] = {
+      status: 'in-progress',
+      classId: 'p1',
+      answers: [],
+    };
+    store.onQuery = () => {
+      store.docs[S] = closedP1({ state: 'open', closedAt: null });
+    };
+    await finalizeClassQuizResponses('s1', 'p1', NOW);
+    expect(store.updates).toHaveLength(0);
   });
 });

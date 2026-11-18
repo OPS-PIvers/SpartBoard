@@ -260,9 +260,14 @@ async function commitQuizLifecycle(
             ])
           )
         : {};
+    // A reopened or resumed quiz is no longer closed or moved to Done (ASSIGNED_TAB D24).
+    const clearMarks =
+      event.type === 'reopen' || event.type === 'resume'
+        ? { closedAt: deleteField(), doneAt: deleteField() }
+        : {};
     tx.update(
       doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
-      { ...patches.assignment, ...clearPicks }
+      { ...patches.assignment, ...clearPicks, ...clearMarks }
     );
     // A repeat Pause, or a Reopen after a paused End, keeps the open pause's start.
     const sessionPatch = { ...patches.session };

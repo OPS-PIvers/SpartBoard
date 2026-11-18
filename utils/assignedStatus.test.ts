@@ -45,12 +45,19 @@ const resp = (
   status,
 });
 
+type Extras = Partial<QuizAssignedExtras>;
+const loaded = (extras?: Extras): QuizAssignedExtras => ({
+  responses: [],
+  needsGrading: 0,
+  ...extras,
+});
+
 const derive = (
   a: Partial<QuizAssignment>,
-  extras?: QuizAssignedExtras,
+  extras?: Extras,
   now = NOW
 ): AssignedStatus =>
-  deriveAssignedStatus(quizAssignedInput(quiz(a), extras), now);
+  deriveAssignedStatus(quizAssignedInput(quiz(a), loaded(extras)), now);
 
 const three = (
   p1: Partial<PeriodAccess>,
@@ -202,7 +209,7 @@ describe('single line (D15, D20)', () => {
 
 describe('bucket (D5, D16, D20)', () => {
   const closed = three({ closedAt: 10 }, { closedAt: 20 }, { closedAt: 30 });
-  const done = (a: Partial<QuizAssignment>, extras?: QuizAssignedExtras) =>
+  const done = (a: Partial<QuizAssignment>, extras?: Extras) =>
     derive(a, extras).bucket;
 
   it('is Active while any class is not closed, Ready included', () => {
@@ -295,6 +302,49 @@ describe('bucket (D5, D16, D20)', () => {
     const live = derive({ mode: 'view-only' });
     expect(live.line).toEqual({ kind: 'view-only', closed: false });
     expect(live.bucket).toBe('active');
+  });
+});
+
+describe('responses not loaded yet', () => {
+  const closed = three({ closedAt: 1 }, { closedAt: 2 }, { closedAt: 3 });
+
+  it('keeps a closed row Active rather than reading it as nothing to grade', () => {
+    for (const extras of [
+      { responses: null, needsGrading: 0 },
+      { responses: [], needsGrading: null },
+    ]) {
+      const s = derive(closed, extras);
+      expect(s).toMatchObject({
+        bucket: 'active',
+        grading: 'unknown',
+        line: { kind: 'grading-unknown' },
+      });
+      expect(s.action.kind).toBe('results');
+    }
+  });
+
+  it('still lets the D20 and Move to Done rules decide an ended row', () => {
+    const unknown = { responses: null, needsGrading: null };
+    expect(derive({ status: 'inactive' }, unknown).bucket).toBe('done');
+    expect(
+      derive({ ...closed, status: 'inactive', doneAt: 5 }, unknown).bucket
+    ).toBe('done');
+  });
+});
+
+describe('assignment-level close mark', () => {
+  it('keeps a per-class quiz ended by a sub or a paper import out of the D20 rule', () => {
+    const s = derive(
+      { ...three({ state: 'open' }, {}, {}), status: 'inactive', closedAt: 70 },
+      { responses: [resp('c1', 'completed')] }
+    );
+    expect(s.legacyDone).toBe(false);
+    expect(s.bucket).toBe('active');
+    expect(s.classes.map((c) => [c.closedBy, c.closedAt])).toEqual([
+      ['teacher', 70],
+      ['teacher', 70],
+      ['teacher', 70],
+    ]);
   });
 });
 
@@ -448,7 +498,7 @@ describe('sort (D13)', () => {
   it('puts Open first, then Paused, Ready or Scheduled, Closed, then Done; newest first within a group', () => {
     const mk = (id: string, createdAt: number, a: Partial<QuizAssignment>) =>
       deriveAssignedStatus(
-        quizAssignedInput(quiz({ id, createdAt, ...a })),
+        quizAssignedInput(quiz({ id, createdAt, ...a }), loaded()),
         NOW
       );
     const rows = [
@@ -471,7 +521,7 @@ describe('sort (D13)', () => {
           createdAt: 500,
           ...three({ closedAt: 1 }, { closedAt: 2 }, { closedAt: 3 }),
         }),
-        { responses: [resp('c1', 'completed')] }
+        loaded({ responses: [resp('c1', 'completed')] })
       ),
       NOW
     );

@@ -131,6 +131,13 @@ export function startCloseAt(
     : null;
 }
 
+/** D24's Close patch: closedAt marks it apart from Ready, pausedAt keeps a just-flushed draft. */
+export const closedRow = (now: number): Partial<PeriodAccess> => ({
+  state: 'closed',
+  closedAt: now,
+  pausedAt: now,
+});
+
 /** Teacher writes for the per-period chips and Let in now, generic over the session collection. */
 export function usePeriodAccess(
   session: PeriodSession | null,
@@ -288,15 +295,12 @@ export function usePeriodAccess(
     [periodAccess, write]
   );
 
-  // D24: Close stamps closedAt so it reads apart from Ready; pausedAt keeps a just-flushed draft.
   const close = useCallback(
     async (keys: readonly string[]) => {
       if (!periodAccess || keys.length === 0) return;
       const now = Date.now();
       const rows: Record<string, Partial<PeriodAccess>> = {};
-      for (const key of keys)
-        if (periodAccess[key])
-          rows[key] = { state: 'closed', closedAt: now, pausedAt: now };
+      for (const key of keys) if (periodAccess[key]) rows[key] = closedRow(now);
       await write(rows);
     },
     [periodAccess, write]

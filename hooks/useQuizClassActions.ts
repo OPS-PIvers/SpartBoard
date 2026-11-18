@@ -1,11 +1,22 @@
-import { useCallback } from 'react';
-import { doc, updateDoc } from 'firebase/firestore';
+import { useCallback, useMemo } from 'react';
+import {
+  doc,
+  FieldPath,
+  getDoc,
+  runTransaction,
+  updateDoc,
+  writeBatch,
+} from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import type { ClassRoster, QuizAssignment } from '@/types';
-import { usePeriodAccess } from '@/hooks/usePeriodAccess';
+import { closedRow, usePeriodAccess } from '@/hooks/usePeriodAccess';
 import type { UseQuizAssignmentsResult } from '@/hooks/useQuizAssignments';
 import { isClassClosed } from '@/utils/assignedStatus';
+import {
+  END_TURN_IN_DELAY_MS,
+  finalizeClassQuizResponses,
+} from '@/utils/quizFinalizeOpenResponses';
 
 /** The whole-assignment writes `useQuizAssignments` already owns; D21 drives them. */
 export type QuizLifecycle = Pick<
@@ -39,7 +50,8 @@ export function useQuizClassActions(
   const { user } = useAuth();
   const uid = user?.uid ?? null;
   const pa = assignment?.periodAccess;
-  const perClass = !!pa && Object.keys(pa).length > 0;
+  const keys = useMemo(() => Object.keys(pa ?? {}), [pa]);
+  const perClass = keys.length > 0;
   const periods = usePeriodAccess(
     perClass ? assignment : null,
     {
@@ -55,95 +67,183 @@ export function useQuizClassActions(
     reopenAssignment,
   } = lifecycle;
   const id = assignment?.id ?? null;
-  const status = assignment?.status;
+  const teacherUid = assignment?.teacherUid;
+
+  const refs = useMemo(() => {
+    if (!id || !uid || uid !== teacherUid) return null;
+    return {
+      session: doc(db, 'quiz_sessions', id),
+      assignment: doc(db, 'users', uid, 'quiz_assignments', id),
+    };
+  }, [id, uid, teacherUid]);
+
+  const owned = useCallback(() => {
+    if (!refs) throw new Error('Only the assigning teacher can change this.');
+    return refs;
+  }, [refs]);
+
+  // Decisions read the stored doc, never this render's snapshot, so a second tab or a quick double click can't race.
+  const fresh = useCallback(async () => {
+    const snap = await getDoc(owned().assignment);
+    return snap.data() as QuizAssignment | undefined;
+  }, [owned]);
+
+  /** A perClass row key; a null key means the sole class (D15). */
+  const classKey = useCallback(
+    (key: string | null): string | null => {
+      if (!perClass) return null;
+      if (key != null) return key;
+      if (keys.length === 1) return keys[0];
+      throw new Error('Pick a class: this assignment has more than one.');
+    },
+    [perClass, keys]
+  );
 
   const mark = useCallback(
     async (fields: Partial<Pick<QuizAssignment, 'closedAt' | 'doneAt'>>) => {
-      if (!uid || !id || uid !== assignment?.teacherUid) return;
-      await updateDoc(doc(db, 'users', uid, 'quiz_assignments', id), fields);
+      await updateDoc(owned().assignment, fields);
     },
-    [uid, id, assignment?.teacherUid]
+    [owned]
   );
 
-  // D21: any class opening makes the assignment active; an ended run reopens first.
-  const ensureActive = useCallback(async () => {
-    if (!id || status === 'active') return;
-    if (status === 'inactive') await reopenAssignment(id);
-    await resumeAssignment(id);
-  }, [id, status, reopenAssignment, resumeAssignment]);
+  // D21: any class opening makes the assignment active.
+  const ensureActive = useCallback(
+    async (opened: string | null) => {
+      if (!id) return;
+      const a = await fresh();
+      if (!a || a.status === 'active') return;
+      if (a.status === 'inactive') {
+        // An ended run's other classes were Closed (D20); stamp them so they stay closed, not Ready.
+        const now = Date.now();
+        for (const [k, row] of Object.entries(a.periodAccess ?? {}))
+          if (k !== opened && !isClassClosed(row, now))
+            await periods.closePeriod(k);
+        await reopenAssignment(id);
+      } else {
+        // A whole-run pause froze every open class; only the one opened comes back.
+        for (const [k, row] of Object.entries(a.periodAccess ?? {}))
+          if (k !== opened && row.state === 'open')
+            await periods.pausePeriod(k);
+      }
+      await resumeAssignment(id);
+    },
+    [id, fresh, periods, reopenAssignment, resumeAssignment]
+  );
 
-  const end = useCallback(async () => {
-    if (id && status !== 'inactive') await deactivateAssignment(id);
-  }, [id, status, deactivateAssignment]);
+  const endIfLive = useCallback(async () => {
+    if (!id) return;
+    const a = await fresh();
+    if (a && a.status !== 'inactive') await deactivateAssignment(id);
+  }, [id, fresh, deactivateAssignment]);
+
+  // A single line's own clock must not hold students out once the teacher opens it.
+  const clearSingleGate = useCallback(async () => {
+    const a = await fresh();
+    const now = Date.now();
+    const patch: Record<string, null> = {};
+    if (a?.openAt != null && a.openAt > now) patch.openAt = null;
+    if (a?.closeAt != null && a.closeAt <= now) patch.closeAt = null;
+    if (Object.keys(patch).length === 0) return;
+    const { session, assignment: assignmentRef } = owned();
+    const batch = writeBatch(db);
+    batch.update(session, patch);
+    batch.update(assignmentRef, patch);
+    await batch.commit();
+  }, [fresh, owned]);
 
   const open = useCallback(
     async (key: string | null, reopen: boolean): Promise<string[]> => {
       if (!id) return [];
-      if (!perClass || key == null) {
-        if (assignment?.closedAt != null || assignment?.doneAt != null)
-          await mark({ closedAt: null, doneAt: null });
-        await ensureActive();
+      const k = classKey(key);
+      owned();
+      if (k == null) {
+        await clearSingleGate();
+        await ensureActive(null);
         return [];
       }
-      // An ended run's other classes were Closed (D20); they stay closed when this one reopens.
-      if (status === 'inactive')
-        for (const [k, access] of Object.entries(pa ?? {}))
-          if (k !== key && access.state !== 'closed')
-            await periods.closePeriod(k);
       const untimed = reopen
-        ? await periods.reopenPeriod(key)
-        : await periods.startPeriod(key);
-      if (assignment?.doneAt != null) await mark({ doneAt: null });
-      await ensureActive();
+        ? await periods.reopenPeriod(k)
+        : await periods.startPeriod(k);
+      await ensureActive(k);
       return untimed;
     },
-    [id, perClass, pa, status, assignment, mark, ensureActive, periods]
+    [id, classKey, owned, clearSingleGate, ensureActive, periods]
+  );
+
+  // Closes one class and reports, from the same transaction, whether it was the last one open (D21).
+  const closeOne = useCallback(
+    async (key: string): Promise<boolean> => {
+      const { session, assignment: assignmentRef } = owned();
+      return runTransaction(db, async (tx) => {
+        const a = (await tx.get(assignmentRef)).data() as
+          QuizAssignment | undefined;
+        const rows = a?.periodAccess ?? {};
+        if (!rows[key]) return false;
+        const now = Date.now();
+        const [first, firstValue, ...rest] = Object.entries(
+          closedRow(now)
+        ).flatMap(([f, v]) => [new FieldPath('periodAccess', key, f), v]);
+        for (const ref of [session, assignmentRef])
+          tx.update(ref, first as FieldPath, firstValue, ...rest);
+        const othersClosed = Object.entries(rows).every(
+          ([k, row]) => k === key || isClassClosed(row, now)
+        );
+        return othersClosed && a?.status !== 'inactive';
+      });
+    },
+    [owned]
   );
 
   const closeClass = useCallback(
     async (key: string | null) => {
       if (!id) return;
-      if (!perClass || key == null) {
+      const k = classKey(key);
+      if (k == null) {
         await mark({ closedAt: Date.now() });
-        await end();
+        await endIfLive();
         return;
       }
-      const now = Date.now();
-      const othersClosed = Object.entries(pa ?? {}).every(
-        ([k, access]) => k === key || isClassClosed(access, now)
-      );
-      await periods.closePeriod(key);
-      if (othersClosed) await end();
+      if (await closeOne(k)) {
+        await deactivateAssignment(id);
+        return;
+      }
+      // Close means that class is finished: turn its open attempts in once their write grace runs out.
+      setTimeout(() => {
+        finalizeClassQuizResponses(id, k).catch((err: unknown) =>
+          console.error('[useQuizClassActions] Close turn-in failed:', err)
+        );
+      }, END_TURN_IN_DELAY_MS);
     },
-    [id, perClass, pa, periods, mark, end]
+    [id, classKey, mark, endIfLive, closeOne, deactivateAssignment]
   );
 
   const closeAll = useCallback(async () => {
     if (!id) return;
     if (perClass) await periods.closeAllPeriods();
     else await mark({ closedAt: Date.now() });
-    await end();
-  }, [id, perClass, periods, mark, end]);
+    await endIfLive();
+  }, [id, perClass, periods, mark, endIfLive]);
 
   const moveToDone = useCallback(async () => {
     if (!id) return;
     if (perClass) await periods.closeAllPeriods();
+    const a = await fresh();
+    const now = Date.now();
     await mark({
-      doneAt: Date.now(),
-      ...(perClass || assignment?.closedAt != null
-        ? {}
-        : { closedAt: Date.now() }),
+      doneAt: now,
+      ...(perClass || a?.closedAt != null ? {} : { closedAt: now }),
     });
-    await end();
-  }, [id, perClass, periods, mark, end, assignment?.closedAt]);
+    await endIfLive();
+  }, [id, perClass, periods, fresh, mark, endIfLive]);
 
   const pauseClass = useCallback(
     async (key: string | null) => {
       if (!id) return;
-      if (!perClass || key == null) await pauseAssignment(id);
-      else await periods.pausePeriod(key);
+      const k = classKey(key);
+      if (k == null) await pauseAssignment(id);
+      else await periods.pausePeriod(k);
     },
-    [id, perClass, periods, pauseAssignment]
+    [id, classKey, periods, pauseAssignment]
   );
 
   return {

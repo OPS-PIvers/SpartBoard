@@ -1,5 +1,5 @@
-import type { AssignmentKind } from '@/components/assignmentsHub/useUnifiedAssignments';
 import type {
+  AssignmentKind,
   PeriodAccess,
   QuizAssignment,
   QuizAssignmentStatus,
@@ -16,7 +16,12 @@ export type AssignedBucket = 'active' | 'done';
 
 /** D4: the per-assignment grading and publishing track. */
 export type GradingTrack =
-  'needs-grading' | 'scores-unpublished' | 'scores-published' | 'no-scores';
+  | 'needs-grading'
+  | 'scores-unpublished'
+  | 'scores-published'
+  | 'no-scores'
+  /** Responses not loaded yet: never read as nothing to grade, so the row stays Active. */
+  | 'unknown';
 
 type GateFields = Pick<PeriodAccess, 'state' | 'openAt' | 'closeAt'> & {
   closedAt?: number | null;
@@ -48,7 +53,7 @@ export interface AssignedInput {
   /** True when `classes` come from `periodAccess`; false is one whole-assignment line (D15, D20). */
   perClass: boolean;
   classes: readonly AssignedClassInput[];
-  /** Single-line close mark, standing in for D24's per-class `closedAt`. */
+  /** Assignment-level close mark: a single-line Close, a sub End or a paper import end (D24). */
   closedAt: number | null;
   /** Move to Done by hand (D5); counts only while the assignment is ended. */
   doneAt: number | null;
@@ -57,7 +62,8 @@ export interface AssignedInput {
   closeAt: number | null;
   /** D16: a view-only share has no grading and is Done once closed. */
   viewOnly: boolean;
-  needsGrading: number;
+  /** Responses awaiting a grade; null while responses are still loading. */
+  needsGrading: number | null;
   /** False where the kind or mode never publishes scores. */
   publishesScores: boolean;
   scoresPublished: boolean;
@@ -112,6 +118,7 @@ export type AssignedStatusLine =
       closedCount: number;
     }
   | { kind: 'needs-grading'; count: number }
+  | { kind: 'grading-unknown' }
   | { kind: 'scores-unpublished'; submitted: number }
   | { kind: 'view-only'; closed: boolean }
   | { kind: 'done'; scoresPublished: boolean; legacy: boolean };
@@ -178,7 +185,10 @@ function classOf(
   };
   const closesAt = gate.closeAt ?? null;
   const opensAt = gate.openAt ?? null;
-  const markedAt = cls.access ? (cls.access.closedAt ?? null) : item.closedAt;
+  const markedAt = cls.access
+    ? (cls.access.closedAt ??
+      (item.status === 'inactive' ? item.closedAt : null))
+    : item.closedAt;
   if (item.status === 'inactive')
     return {
       ...base,
@@ -245,21 +255,23 @@ export function deriveAssignedStatus(
     classes.filter((c) => c.status === s).length;
   const allClosed = classes.every((c) => c.status === 'closed');
   const submitted = classes.reduce((n, c) => n + c.submitted, 0);
-  const marked = item.perClass
-    ? item.classes.some((c) => c.access?.closedAt != null)
-    : item.closedAt != null;
+  const marked =
+    item.closedAt != null ||
+    item.classes.some((c) => c.access?.closedAt != null);
   const legacyDone = item.status === 'inactive' && !marked;
   const movedToDone = item.status === 'inactive' && item.doneAt != null;
 
   const grading: GradingTrack = item.viewOnly
     ? 'no-scores'
-    : item.needsGrading > 0
-      ? 'needs-grading'
-      : !item.publishesScores || submitted === 0
-        ? 'no-scores'
-        : item.scoresPublished
-          ? 'scores-published'
-          : 'scores-unpublished';
+    : item.needsGrading == null
+      ? 'unknown'
+      : item.needsGrading > 0
+        ? 'needs-grading'
+        : !item.publishesScores || submitted === 0
+          ? 'no-scores'
+          : item.scoresPublished
+            ? 'scores-published'
+            : 'scores-unpublished';
   const gradingDone = grading === 'no-scores' || grading === 'scores-published';
   const bucket: AssignedBucket =
     legacyDone || movedToDone || (allClosed && gradingDone) ? 'done' : 'active';
@@ -312,8 +324,9 @@ export function deriveAssignedStatus(
       scoresPublished: grading === 'scores-published',
       legacy: legacyDone,
     };
+  else if (grading === 'unknown') line = { kind: 'grading-unknown' };
   else if (grading === 'needs-grading')
-    line = { kind: 'needs-grading', count: item.needsGrading };
+    line = { kind: 'needs-grading', count: item.needsGrading ?? 0 };
   else line = { kind: 'scores-unpublished', submitted };
 
   const act = (
@@ -382,14 +395,12 @@ export function compareAssigned(a: AssignedStatus, b: AssignedStatus): number {
   return a.sortKey.group - b.sortKey.group || b.sortKey.at - a.sortKey.at;
 }
 
-/** What the quiz adapter reads beyond the assignment doc. */
+/** What the quiz adapter reads beyond the assignment doc; pass null while responses load. */
 export interface QuizAssignedExtras {
-  responses?: readonly Pick<
-    QuizResponse,
-    'status' | 'classId' | 'classPeriod'
-  >[];
+  responses:
+    readonly Pick<QuizResponse, 'status' | 'classId' | 'classPeriod'>[] | null;
   /** Responses awaiting a teacher grade (`isResponseAwaitingGrade`). */
-  needsGrading?: number;
+  needsGrading: number | null;
   /** Students expected per class key; key '' for a single-line assignment. */
   classSizes?: Readonly<Record<string, number>>;
   /** Today's bell window for a roster (`todaysBell` from `hooks/usePeriodAccess`). */
@@ -399,7 +410,7 @@ export interface QuizAssignedExtras {
 /** Normalizes a quiz assignment and its responses for `deriveAssignedStatus`. */
 export function quizAssignedInput(
   a: QuizAssignment,
-  extras: QuizAssignedExtras = {}
+  extras: QuizAssignedExtras
 ): AssignedInput {
   const responses = extras.responses ?? [];
   const pa = a.periodAccess;
@@ -451,7 +462,7 @@ export function quizAssignedInput(
     openAt: a.openAt ?? null,
     closeAt: a.closeAt ?? null,
     viewOnly,
-    needsGrading: extras.needsGrading ?? 0,
+    needsGrading: extras.responses == null ? null : extras.needsGrading,
     publishesScores: !viewOnly,
     scoresPublished: !!a.scoreVisibility && a.scoreVisibility !== 'none',
   };

@@ -744,6 +744,18 @@ describe('Close and Reopen a class (ASSIGNED_TAB D9, D24)', () => {
     await assertFails(updateDoc(doc(db, assignmentPath), closeRow(1)));
   });
 
+  it("never lets another teacher write closedAt on someone else's quiz", async () => {
+    const db = testEnv
+      .authenticatedContext('other-teacher', {
+        email: 'other@example.org',
+        email_verified: true,
+      })
+      .firestore();
+    await assertFails(updateDoc(doc(db, sessionPath), closeRow(Date.now())));
+    await assertFails(updateDoc(doc(db, assignmentPath), closeRow(1)));
+    await assertFails(getDoc(doc(db, assignmentPath)));
+  });
+
   it('refuses answers once the class is closed, past the flush grace', async () => {
     await seedResponse(S, OTHER_UID, {
       studentUid: OTHER_UID,

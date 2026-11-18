@@ -5541,6 +5541,15 @@ export interface SubLaunchedSessionFields {
   subMonitorUntil?: number;
 }
 
+/** Every assignment widget kind; tests/assignmentShells.static.test.ts reads this union. */
+export type AssignmentKind =
+  | 'quiz'
+  | 'video-activity'
+  | 'guided-learning'
+  | 'mini-app'
+  | 'flashcards'
+  | 'writing';
+
 /** Per-period gate state (docs/plans/shipped/PER_PERIOD_ASSIGNMENT_ACCESS.md). */
 export type PeriodAccessState = 'closed' | 'open' | 'paused';
 

@@ -597,7 +597,7 @@ describe('handlePublishPaperResults', () => {
     );
     expect(
       ended.docs[`users/${UID}/quiz_assignments/${ASSIGNMENT}`]
-    ).toMatchObject({ status: 'inactive', updatedAt: NOW });
+    ).toMatchObject({ status: 'inactive', updatedAt: NOW, closedAt: NOW });
 
     const mixed = withResponses();
     mixed[`quiz_sessions/${ASSIGNMENT}`] = {
