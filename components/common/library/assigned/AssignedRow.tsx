@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import { tourFieldAttr } from '@/config/tourAnchors';
+import { tourFieldAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
 import type { AssignedClass, AssignedStatus } from '@/utils/assignedStatus';
 import { OverflowMenu } from '../LibraryOverflowMenu';
 import type { LibraryMenuAction } from '../types';
 import {
   CLASS_ACTION_LABEL,
+  CLASS_STATUS_WORD,
   classActions,
   classDetail,
   statusLineSegments,
@@ -46,6 +47,10 @@ export interface AssignedRowProps {
   selected?: boolean;
   /** Clicking the title also picks the row, as in the hub. */
   onSelect?: () => void;
+  /** Tour anchor for the title when it picks the row. */
+  selectAnchor?: TourAnchorAttrs;
+  /** Drops turned-in counts the caller can't place in a class. */
+  hideCounts?: boolean;
 }
 
 const TONE_CLASS: Record<LineTone, string> = {
@@ -129,13 +134,16 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
   tourWidgetType,
   selected = false,
   onSelect,
+  selectAnchor,
+  hideCounts = false,
 }) => {
   const [expanded, setExpanded] = useState(false);
   const rowKey = `row-${tourIndex + 1}`;
   const done = status.bucket === 'done';
   const canExpand = classControls && !status.singleLine;
   const live = status.classes.some((c) => c.status === 'open');
-  const segments = lineOverride ?? statusLineSegments(status, nowMs);
+  const derived = lineOverride ?? statusLineSegments(status, nowMs);
+  const segments = hideCounts ? derived.filter((seg) => !seg.glued) : derived;
   const toggle = () => {
     if (canExpand) setExpanded((v) => !v);
   };
@@ -174,6 +182,7 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
           onClick={pick}
           {...(onSelect
             ? {
+                ...selectAnchor,
                 role: 'button',
                 tabIndex: 0,
                 onKeyDown: (e: React.KeyboardEvent) => {
@@ -329,7 +338,9 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
                   className="text-slate-500 tabular-nums"
                   style={{ fontSize: 'min(11.5px, 3.3cqmin)' }}
                 >
-                  {classDetail(c, nowMs, bellLabel?.(c) ?? null)}
+                  {hideCounts
+                    ? CLASS_STATUS_WORD[c.status]
+                    : classDetail(c, nowMs, bellLabel?.(c) ?? null)}
                 </div>
               </div>
               <div

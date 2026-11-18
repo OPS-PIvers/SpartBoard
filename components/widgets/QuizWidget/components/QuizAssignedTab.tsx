@@ -26,7 +26,7 @@ import {
   mainActionLabel,
 } from '@/components/common/library/assigned';
 import type { LibraryMenuAction } from '@/components/common/library/types';
-import { tourTypeAttr } from '@/config/tourAnchors';
+import { tourTypeAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
 import { todaysBell } from '@/hooks/usePeriodAccess';
 import { usePeriodRunner } from '@/hooks/usePeriodRunner';
 import {
@@ -356,6 +356,7 @@ export interface QuizAssignedRowHostProps extends QuizAssignedHandlers {
   /** Hub selection, passed through to the row. */
   selected?: boolean;
   onSelect?: () => void;
+  selectAnchor?: TourAnchorAttrs;
 }
 
 /** Puts back what Close for all classes or Move to Done changed (D10 Undo). */
@@ -402,6 +403,7 @@ export const QuizAssignedRowHost: React.FC<QuizAssignedRowHostProps> = ({
   meta,
   selected,
   onSelect,
+  selectAnchor,
 }) => {
   const { assignment: a, status, needsGrading, bells } = row;
   const { user } = useAuth();
@@ -628,6 +630,7 @@ export const QuizAssignedRowHost: React.FC<QuizAssignedRowHostProps> = ({
       meta={meta}
       selected={selected}
       onSelect={onSelect}
+      selectAnchor={selectAnchor}
     />
   );
 };

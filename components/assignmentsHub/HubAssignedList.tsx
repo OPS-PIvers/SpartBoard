@@ -9,7 +9,11 @@ import {
 } from 'firebase/firestore';
 import { CheckCircle2, Pause, Play, PowerOff, RotateCcw } from 'lucide-react';
 import { db } from '@/config/firebase';
-import { tourTypeAttr } from '@/config/tourAnchors';
+import {
+  tourFieldAttr,
+  tourTypeAttr,
+  type TourAnchorAttrs,
+} from '@/config/tourAnchors';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import type {
@@ -103,6 +107,7 @@ type OtherRun = AssignmentRun & {
   scoreVisibility?: string | null;
   sessionId?: string;
   rosterIds?: string[];
+  resultsVersion?: number;
 };
 
 interface OtherRowModel {
@@ -128,6 +133,10 @@ function wantsLiveData(run: OtherRun): boolean {
     Object.values(run.periodAccess ?? {}).some((r) => r.closedAt != null)
   );
 }
+
+/** A Mini App assigned to several classes: its submissions can't be placed in one. */
+const miniAppByClass = (kind: OtherKind, run: OtherRun) =>
+  kind === 'mini-app' && Object.keys(run.periodAccess ?? {}).length > 1;
 
 const pathOf = (kind: OtherKind, sessionId: string) =>
   `${SESSIONS_COLLECTION_BY_KIND[kind]}/${sessionId}/${SUBCOLLECTION_BY_KIND[kind]}`;
@@ -176,7 +185,9 @@ function useResponsesByPath(paths: readonly string[]) {
 /** One kind's responses as the row counts them, plus how many await a grade (null when unknown). */
 function tally(
   kind: OtherKind,
-  docs: readonly unknown[]
+  docs: readonly unknown[],
+  /** The one class a Mini App's classless submissions belong to, when it has just one. */
+  onlyClass?: string
 ): { responses: AssignedResponse[]; needsGrading: number | null } {
   switch (kind) {
     case 'video-activity': {
@@ -198,9 +209,7 @@ function tally(
       };
     case 'mini-app':
       return {
-        responses: (docs as { classId?: string; classPeriod?: string }[]).map(
-          (d) => miniAppAssignedResponse(d.classId, d.classPeriod)
-        ),
+        responses: docs.map(() => miniAppAssignedResponse(onlyClass)),
         needsGrading: 0,
       };
     case 'flashcards':
@@ -225,7 +234,8 @@ interface HubAssignedListProps {
   loading: boolean;
   rosters: ClassRoster[];
   selectedId: string | null;
-  onSelect: (id: string) => void;
+  /** `open` asks for the roster too, which a phone shows in place of the list. */
+  onSelect: (id: string, open?: boolean) => void;
   /** The kind's name, shown after each row's status line. */
   kindLabel: (kind: AssignmentKind) => string;
 }
@@ -328,7 +338,13 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
         const docs = wantsLiveData(run)
           ? (responsesByPath[pathOf(kind, run.sessionId ?? run.id)] ?? null)
           : [];
-        const counted = docs ? tally(kind, docs) : null;
+        const classKeys = Object.keys(run.periodAccess ?? {});
+        const counted = docs
+          ? tally(kind, docs, classKeys.length === 1 ? classKeys[0] : undefined)
+          : null;
+        // Submissions carry no class, so a scored per-class Mini App can't tell what's turned in.
+        if (counted && miniAppByClass(kind, run) && run.resultsVersion === 2)
+          counted.needsGrading = docs && docs.length > 0 ? null : 0;
         const sizeOf = (rosterId: string | undefined) => {
           const r = rosters.find((x) => x.id === rosterId);
           return r && r.students.length > 0 ? r.students.length : undefined;
@@ -454,6 +470,10 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
   );
 
   const pick = (id: string) => () => onSelect(id);
+  const monitor = (id: string) => () => onSelect(id, true);
+  // The old list's row anchor carries over to each row's title (it opens the detail pane).
+  const rowAnchor = (index: number) =>
+    tourFieldAttr('assignments-hub.row', HUB, `row-${index + 1}`);
 
   return (
     <AssignedList<HubItem>
@@ -470,8 +490,8 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
             now={now}
             rosters={rosters}
             lifecycle={quizLifecycle}
-            onMonitor={() => onSelect(item.quiz.id)}
-            onResults={() => onSelect(item.quiz.id)}
+            onMonitor={monitor(item.quiz.id)}
+            onResults={monitor(item.quiz.id)}
             legacyPrimary={() => null}
             menu={() => []}
             tourWidgetType={HUB}
@@ -479,6 +499,7 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
             meta={<KindMeta label={kindLabel('quiz')} />}
             selected={selectedId === item.quiz.id}
             onSelect={pick(item.quiz.id)}
+            selectAnchor={rowAnchor(index)}
           />
         ) : (
           <OtherRowHost
@@ -490,6 +511,8 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
             meta={<KindMeta label={kindLabel(item.other.kind)} />}
             selected={selectedId === item.other.id}
             onSelect={pick(item.other.id)}
+            onMonitor={monitor(item.other.id)}
+            selectAnchor={rowAnchor(index)}
           />
         )
       }
@@ -562,6 +585,8 @@ interface OtherRowHostProps {
   meta: React.ReactNode;
   selected: boolean;
   onSelect: () => void;
+  onMonitor: () => void;
+  selectAnchor: TourAnchorAttrs;
 }
 
 /** A Video Activity, Guided Learning, Mini App, Flashcards or Writing row in the hub. */
@@ -574,6 +599,8 @@ const OtherRowHost: React.FC<OtherRowHostProps> = ({
   meta,
   selected,
   onSelect,
+  onMonitor,
+  selectAnchor,
 }) => {
   const { status, run, title } = row;
   const { addToast } = useDashboard();
@@ -597,7 +624,7 @@ const OtherRowHost: React.FC<OtherRowHostProps> = ({
   };
 
   const onClassAction = (kind: ClassActionKind, key: string | null) => {
-    if (kind === 'monitor' || !actions) return onSelect();
+    if (kind === 'monitor' || !actions) return onMonitor();
     switch (kind) {
       case 'open':
       case 'resume':
@@ -679,7 +706,7 @@ const OtherRowHost: React.FC<OtherRowHostProps> = ({
   const onMain = () => {
     const { kind, classKey } = status.action;
     if (kind === 'open' || kind === 'resume') onClassAction(kind, classKey);
-    else onSelect();
+    else onMonitor();
   };
 
   return (
@@ -698,6 +725,8 @@ const OtherRowHost: React.FC<OtherRowHostProps> = ({
       tourWidgetType={HUB}
       selected={selected}
       onSelect={onSelect}
+      selectAnchor={selectAnchor}
+      hideCounts={miniAppByClass(row.kind, run)}
     />
   );
 };

@@ -3,6 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  ChevronLeft,
   ClipboardList,
   FileQuestion,
   Film,
@@ -255,6 +256,8 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
     []
   );
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Phones show the roster in place of the list after Monitor.
+  const [phoneDetail, setPhoneDetail] = useState(false);
 
   React.useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
@@ -426,7 +429,7 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
           {/* Left: filters + list */}
           {/* No overflow-hidden here — the filter dropdowns overlay the list. */}
           <div
-            className={`w-full ${assignedOn ? 'md:w-[500px]' : 'md:w-[380px]'} shrink-0 border-r border-slate-200 flex flex-col min-h-0`}
+            className={`w-full ${assignedOn ? 'md:w-[500px]' : 'md:w-[380px]'} ${assignedOn && phoneDetail && selectedRow ? 'hidden md:flex' : 'flex'} shrink-0 border-r border-slate-200 flex-col min-h-0`}
           >
             <div className="relative z-10 p-3 border-b border-slate-100 flex flex-col gap-2">
               <div className="relative">
@@ -577,7 +580,10 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
                   loading={loading}
                   rosters={rosters}
                   selectedId={selectedRow?.id ?? null}
-                  onSelect={setSelectedId}
+                  onSelect={(id, open) => {
+                    setSelectedId(id);
+                    if (open) setPhoneDetail(true);
+                  }}
                   kindLabel={(kind) =>
                     t(KIND_META[kind].labelKey, {
                       defaultValue: KIND_META[kind].fallback,
@@ -605,12 +611,27 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
           </div>
 
           {/* Right: detail pane — per-student status roster (M17 §5 D2). */}
-          <div className="hidden md:flex flex-1 min-w-0 bg-slate-50/60">
+          <div
+            className={`${assignedOn && phoneDetail && selectedRow ? 'flex' : 'hidden md:flex'} flex-1 min-w-0 flex-col bg-slate-50/60`}
+          >
+            {assignedOn && phoneDetail && selectedRow && (
+              // no-tour-anchor: phone-only way back to the list
+              <button
+                type="button"
+                onClick={() => setPhoneDetail(false)}
+                className="md:hidden flex shrink-0 items-center gap-1 px-4 py-3 text-sm font-semibold text-brand-blue-primary border-b border-slate-200"
+              >
+                <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                {t('common.back', { defaultValue: 'Back' })}
+              </button>
+            )}
             {selectedRow ? (
-              <AssignmentDetailPane
-                row={selectedRow}
-                quizPlcActions={quizPlcActions}
-              />
+              <div className="flex flex-1 min-h-0">
+                <AssignmentDetailPane
+                  row={selectedRow}
+                  quizPlcActions={quizPlcActions}
+                />
+              </div>
             ) : (
               <div className="flex flex-1 items-center justify-center p-8">
                 <p className="text-sm text-slate-400">

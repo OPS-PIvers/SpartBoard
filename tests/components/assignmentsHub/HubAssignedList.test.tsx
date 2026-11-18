@@ -71,6 +71,24 @@ const va = {
   status: 'paused',
   createdAt: 2,
 };
+const pa = (label: string, state: 'open' | 'closed') => ({
+  state,
+  openAt: null,
+  closeAt: null,
+  bellPeriodId: null,
+  verified: true,
+  label,
+  rosterId: label,
+});
+const mini = {
+  id: 'm1',
+  sessionId: 'm1-session',
+  appTitle: 'Rock Sort',
+  teacherUid: 't1',
+  status: 'active',
+  createdAt: 4,
+  periodAccess: { P1: pa('P1', 'open'), P2: pa('P2', 'open') },
+};
 const flash = {
   id: 'f1',
   sessionId: 'f1',
@@ -98,7 +116,7 @@ const sources = {
   },
   guidedLearning: { assignments: [], archiveAssignment: vi.fn() },
   miniApp: {
-    assignments: [],
+    assignments: [mini],
     endAssignment: vi.fn(),
     reactivateAssignment: vi.fn(),
   },
@@ -191,5 +209,22 @@ describe('HubAssignedList', () => {
       await Promise.resolve();
     });
     expect(classActions.moveToDone).toHaveBeenCalled();
+  });
+
+  it('a Mini App in several classes shows no per-class counts, since submissions carry no class', () => {
+    renderList([row('m1', 'mini-app')]);
+    expect(screen.getByText('Rock Sort')).toBeInTheDocument();
+    expect(screen.queryByText(/turned in/)).toBeNull();
+  });
+
+  it('Monitor asks the hub to show the roster, and the title keeps the row tour anchor', () => {
+    const onSelect = renderList([row('v1', 'video-activity')]);
+    expect(
+      screen
+        .getByText('Volcano Video')
+        .closest('[data-tour="assignments-hub.row"]')
+    ).not.toBeNull();
+    fireEvent.click(screen.getByText('Volcano Video'));
+    expect(onSelect).toHaveBeenLastCalledWith('v1');
   });
 });
