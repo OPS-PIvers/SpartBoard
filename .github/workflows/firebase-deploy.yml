@@ -347,23 +347,11 @@ jobs:
           exit "$(cat "$RUNNER_TEMP/carry-forward.exit")"
 
       # Repo firebase-tools rather than action-hosting-deploy, whose bundled CLI hits "premature close".
-      # An identical bundle is rejected as "the current active version": a no-op success.
       - name: Deploy to Firebase Hosting (Live)
         id: hosting
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/service-account.json
-        run: |
-          set +e
-          OUT=$(pnpm exec firebase deploy --only hosting --project spartboard 2>&1)
-          CODE=$?
-          echo "$OUT"
-          if [ "$CODE" -ne 0 ]; then
-            if echo "$OUT" | grep -q "is the current active version"; then
-              echo "::notice::Hosting bundle unchanged — already live; nothing to release."
-              exit 0
-            fi
-            exit "$CODE"
-          fi
+        run: ./.github/scripts/hosting-deploy-with-retry.sh spartboard
 
       # The runner's preinstalled Chrome skips a download whose apt step has stalled for up to 13 minutes.
       - name: Install Chromium for the smoke test
