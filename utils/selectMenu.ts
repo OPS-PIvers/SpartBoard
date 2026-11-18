@@ -142,7 +142,14 @@ const fieldRect = (select: HTMLSelectElement): DOMRect => {
   const others = Array.from(parent.querySelectorAll(OTHER_CONTROLS)).some(
     (el) => el !== select
   );
+  // A display: contents wrapper (the settings drawer's fieldset) has an empty box at 0,0.
+  const wraps =
+    box.left <= rect.left + 1 &&
+    box.top <= rect.top + 1 &&
+    box.right >= rect.right - 1 &&
+    box.bottom >= rect.bottom - 1;
   return !others &&
+    wraps &&
     box.height <= rect.height + 12 &&
     box.width <= rect.width + 80
     ? box
