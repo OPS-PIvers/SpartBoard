@@ -17,6 +17,10 @@ export const TURN_IN_DELAY_MS = 125_000;
 /** A marker that keeps failing is dropped after this long. */
 export const GIVE_UP_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
 
+/** A failed marker waits this long times its attempt count, capped, so it can't crowd newer ones out. */
+export const RETRY_BACKOFF_MS = 15 * 60 * 1000;
+const MAX_BACKOFF_MS = 6 * 60 * 60 * 1000;
+
 export const MAX_MARKERS_PER_RUN = 100;
 
 interface Row {
@@ -53,26 +57,34 @@ export function newlyClosed(
   return out;
 }
 
-/** Queues a turn-in for each class this session write closed. */
+/** Queues a turn-in for each class this session write closed; `serverNow` is the event's server time, so the teacher's clock never sets the stamp. */
 export async function queueClosedClasses(
   db: Firestore,
   sessionId: string,
   before: Doc | undefined,
-  after: Doc | undefined
+  after: Doc | undefined,
+  serverNow: number
 ): Promise<number> {
   const closed = newlyClosed(before, after);
   await Promise.all(
-    closed.map(([classKey, closedAt]) =>
-      db
-        .collection(TURN_INS)
-        .doc(markerId(sessionId, classKey))
-        .set({
+    closed.map(([classKey, closedAt]) => {
+      const ref = db.collection(TURN_INS).doc(markerId(sessionId, classKey));
+      // A retried or late event for an older Close must not replace a newer one.
+      return db.runTransaction(async (tx) => {
+        const prev = (await tx.get(ref)).data();
+        if (typeof prev?.closedAt === 'number' && prev.closedAt > closedAt)
+          return;
+        tx.set(ref, {
           sessionId,
           classKey,
           closedAt,
-          dueAt: closedAt + TURN_IN_DELAY_MS,
-        })
-    )
+          serverClosedAt: serverNow,
+          queuedAt: serverNow,
+          attempts: 0,
+          dueAt: serverNow + TURN_IN_DELAY_MS,
+        });
+      });
+    })
   );
   return closed.length;
 }
@@ -112,7 +124,8 @@ export async function turnInClosedVideoClass(
   sessionId: string,
   classKey: string,
   closedAt: number,
-  now: number
+  now: number,
+  serverClosedAt: number = now
 ): Promise<{ outcome: TurnInOutcome; turnedIn: number }> {
   const sessionRef = db.collection(SESSIONS).doc(sessionId);
   const session = (await sessionRef.get()).data();
@@ -129,7 +142,7 @@ export async function turnInClosedVideoClass(
     return inClass(r, classKey, label) && !staysOpen(session, r, now);
   });
   // Turned in when the teacher's tab would have done it, so a late sweep doesn't make on-time work Late.
-  const at = Math.min(now, closedAt + TURN_IN_DELAY_MS);
+  const at = Math.min(now, serverClosedAt + TURN_IN_DELAY_MS);
   const results = await Promise.allSettled(
     picked.map((d) =>
       db.runTransaction(async (tx) => {
@@ -188,7 +201,7 @@ export async function runVideoClassTurnIns(
     gaveUp: 0,
   };
   for (const marker of due.docs) {
-    const m = marker.data();
+    const m: Doc = marker.data();
     const { sessionId, classKey, closedAt } = m;
     // Only the marker as read is cleared; a newer Close rewrites it and keeps its own.
     const clear = () =>
@@ -201,13 +214,18 @@ export async function runVideoClassTurnIns(
       await clear();
       continue;
     }
+    const serverClosedAt =
+      typeof m.serverClosedAt === 'number' ? m.serverClosedAt : closedAt;
+    const queuedAt = typeof m.queuedAt === 'number' ? m.queuedAt : closedAt;
+    const attempts = typeof m.attempts === 'number' ? m.attempts : 0;
     try {
       const r = await turnInClosedVideoClass(
         db,
         sessionId,
         classKey,
         closedAt,
-        now
+        now,
+        serverClosedAt
       );
       if (r.outcome === 'stale') result.stale++;
       result.turnedIn += r.turnedIn;
@@ -219,9 +237,21 @@ export async function runVideoClassTurnIns(
         classKey,
         err: String(err),
       });
-      if (now - closedAt > GIVE_UP_AFTER_MS) {
+      if (now - queuedAt > GIVE_UP_AFTER_MS) {
         result.gaveUp++;
         await clear();
+      } else {
+        await marker.ref
+          .update(
+            {
+              attempts: attempts + 1,
+              dueAt:
+                now +
+                Math.min(MAX_BACKOFF_MS, RETRY_BACKOFF_MS * (attempts + 1)),
+            },
+            { lastUpdateTime: marker.updateTime }
+          )
+          .catch(() => {});
       }
     }
   }
@@ -236,7 +266,8 @@ export const queueVideoClassTurnIns = onDocumentUpdated(
       admin.firestore(),
       event.params.sessionId,
       event.data?.before.data(),
-      event.data?.after.data()
+      event.data?.after.data(),
+      Date.parse(event.time) || Date.now()
     );
   }
 );

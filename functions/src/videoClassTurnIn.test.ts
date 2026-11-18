@@ -13,6 +13,7 @@ vi.mock('firebase-functions', () => ({
 
 import {
   GIVE_UP_AFTER_MS,
+  RETRY_BACKOFF_MS,
   TURN_IN_DELAY_MS,
   TURN_INS,
   markerId,
@@ -45,6 +46,16 @@ function makeDb(store: Store) {
       store.versions.set(path, (store.versions.get(path) ?? 0) + 1);
       return Promise.resolve();
     },
+    update: (data: Doc, pre?: { lastUpdateTime?: number }) => {
+      if (
+        pre?.lastUpdateTime !== undefined &&
+        pre.lastUpdateTime !== store.versions.get(path)
+      )
+        return Promise.reject(new Error('precondition'));
+      store.docs.set(path, { ...store.docs.get(path), ...data });
+      store.versions.set(path, (store.versions.get(path) ?? 0) + 1);
+      return Promise.resolve();
+    },
     delete: (pre?: { lastUpdateTime?: number }) => {
       if (
         pre?.lastUpdateTime !== undefined &&
@@ -62,6 +73,7 @@ function makeDb(store: Store) {
     collection: (n: string) => unknown;
     get: () => Promise<unknown>;
     set: (d: Doc) => Promise<void>;
+    update: (d: Doc, pre?: { lastUpdateTime?: number }) => Promise<void>;
     delete: (pre?: { lastUpdateTime?: number }) => Promise<void>;
   }
   const snap = (path: string) => ({
@@ -111,14 +123,18 @@ function makeDb(store: Store) {
     collection: (name: string) => coll(name),
     runTransaction: async <T>(
       fn: (tx: {
-        get: (r: Ref) => Promise<unknown>;
+        get: (r: Ref) => Promise<ReturnType<typeof snap>>;
         update: (r: Ref, d: Doc) => void;
+        set: (r: Ref, d: Doc) => void;
       }) => Promise<T>
     ) => {
       store.onTx?.();
       if (store.failTx) throw new Error('tx failed');
       return fn({
         get: (r) => Promise.resolve(snap(r.path)),
+        set: (r, d) => {
+          void r.set(d);
+        },
         update: (r, d) => {
           store.updates.push([r.path, d]);
           store.docs.set(r.path, { ...store.docs.get(r.path), ...d });
@@ -154,7 +170,7 @@ const turnedIn = () =>
     .sort((a, b) => String(a).localeCompare(String(b)));
 // Typed loosely: the stub covers only what the module calls.
 const run = (key = 'p1', closedAt = CLOSED_AT, now = NOW) =>
-  turnInClosedVideoClass(db as never, 's1', key, closedAt, now);
+  turnInClosedVideoClass(db as never, 's1', key, closedAt, now, closedAt);
 
 beforeEach(() => {
   store = { docs: new Map(), versions: new Map(), updates: [], deletes: [] };
@@ -297,12 +313,13 @@ describe('newlyClosed', () => {
 
 describe('queue and sweep', () => {
   const marker = (key = 'p1') => `${TURN_INS}/${markerId('s1', key)}`;
-  const queueClose = (closedAt = CLOSED_AT) =>
+  const queueClose = (closedAt = CLOSED_AT, serverNow = closedAt) =>
     queueClosedClasses(
       db as never,
       's1',
       session({ state: 'open' }),
-      session({ state: 'closed', closedAt })
+      session({ state: 'closed', closedAt }),
+      serverNow
     );
 
   it('queues one marker per close and a later close replaces it', async () => {
@@ -311,6 +328,9 @@ describe('queue and sweep', () => {
       sessionId: 's1',
       classKey: 'p1',
       closedAt: CLOSED_AT,
+      serverClosedAt: CLOSED_AT,
+      queuedAt: CLOSED_AT,
+      attempts: 0,
       dueAt: CLOSED_AT + TURN_IN_DELAY_MS,
     });
     await queueClose(CLOSED_AT + 5);
@@ -345,20 +365,40 @@ describe('queue and sweep', () => {
     expect(store.docs.has(marker())).toBe(false);
   });
 
-  it('keeps a failed marker for the next run, and drops it after a week', async () => {
+  it('backs a failed marker off so newer ones run, and drops it after a week', async () => {
     store.docs.set(S, session({ state: 'closed', closedAt: CLOSED_AT }));
     open('a', { classId: 'p1' });
     await queueClose();
     store.failTx = true;
     const r = await runVideoClassTurnIns(db as never, NOW);
     expect(r).toMatchObject({ failed: 1, gaveUp: 0 });
-    expect(store.docs.has(marker())).toBe(true);
+    expect(store.docs.get(marker())).toMatchObject({
+      attempts: 1,
+      dueAt: NOW + RETRY_BACKOFF_MS,
+    });
+    expect((await runVideoClassTurnIns(db as never, NOW + 1)).markers).toBe(0);
     const late = await runVideoClassTurnIns(
       db as never,
       CLOSED_AT + GIVE_UP_AFTER_MS + 1
     );
     expect(late).toMatchObject({ failed: 1, gaveUp: 1 });
     expect(store.docs.has(marker())).toBe(false);
+  });
+
+  it('stamps from the server time, not the teacher clock', async () => {
+    const skewed = CLOSED_AT + 60 * 60_000;
+    store.docs.set(S, session({ state: 'closed', closedAt: skewed }));
+    open('a', { classId: 'p1' });
+    await queueClose(skewed, CLOSED_AT);
+    expect(store.docs.get(marker())?.dueAt).toBe(CLOSED_AT + TURN_IN_DELAY_MS);
+    await runVideoClassTurnIns(db as never, NOW);
+    expect(store.updates[0][1].completedAt).toBe(CLOSED_AT + TURN_IN_DELAY_MS);
+  });
+
+  it('a late event for an older close keeps the newer marker', async () => {
+    await queueClose(CLOSED_AT + 5);
+    await queueClose(CLOSED_AT);
+    expect(store.docs.get(marker())?.closedAt).toBe(CLOSED_AT + 5);
   });
 
   it('keeps a marker a newer close rewrote during the run', async () => {
