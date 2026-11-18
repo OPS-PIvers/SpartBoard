@@ -345,6 +345,38 @@ describe('wildcard row refs', () => {
     );
   });
 
+  it('lands a later unbound step in the widget the row was picked in', () => {
+    const inWidget = (widget: string, html: string) =>
+      `<div data-tour-widget="${widget}">${html}</div>`;
+    mount(
+      inWidget('w1', keyed('plc-assessments.assign', ['a1', 'b2'])) +
+        inWidget(
+          'w2',
+          keyed('plc-assessments.assign', ['c3', 'd4']) +
+            keyed('plc-assessments.status', ['d4', 'c3'])
+        )
+    );
+    const picks: Record<string, string> = {};
+    notePickedRow(
+      picks,
+      'plc-assessments.assign:plc#row-*',
+      document.querySelectorAll('button')[3]
+    );
+    expect(
+      findTourAnchor({ anchor: 'plc-assessments.assign:plc' }, { picks })
+        ?.dataset.tourField
+    ).toBe('d4');
+    // The other control follows the record, and the first widget adds no row of its own.
+    expect(
+      findTourAnchors({ anchor: 'plc-assessments.status:plc#row-1' }, { picks })
+        .length
+    ).toBe(1);
+    expect(
+      findTourAnchor({ anchor: 'plc-assessments.status:plc#row-1' }, { picks })
+        ?.dataset.tourField
+    ).toBe('d4');
+  });
+
   it('keeps the newest pick when an older pick on the list shares its row number', () => {
     mount(
       keyed('plc-assessments.menu', ['a1', 'b2']) +

@@ -36,8 +36,16 @@ export function notePickedRow(
   const at = ref.slice(0, ref.indexOf('#'));
   delete picks[at];
   picks[at] = picked;
+  // Two widgets of one type each count their own rows, so the pick keeps its widget.
+  const widget =
+    el.closest('[data-tour-widget]')?.getAttribute('data-tour-widget') ?? '';
+  delete picks[PICKED_WIDGET + at];
+  if (widget) picks[PICKED_WIDGET + at] = widget;
   return true;
 }
+
+/** Key prefix in the picks record for the widget a pick was made in. */
+const PICKED_WIDGET = '@widget ';
 
 const ROW_KEY = /^row-(\d+)(?=$|-)/;
 const ROW_ONLY = /^row-([1-9]\d*)$/;
@@ -128,6 +136,11 @@ function rowByOrder(
       : undefined;
   const theirs = picked ? rowElements(picked.id, widgetType, root) : [];
   const byRecord = picked !== undefined && keyedByRecord(theirs);
+  // The widget the newest pick was made in comes first, so an unbound step lands there.
+  const pickedIn =
+    newest && newest.fieldKey === fieldKey
+      ? picks?.[`${PICKED_WIDGET}${newest.id}:${newest.widgetType}`]
+      : undefined;
   const found: HTMLElement[] = [];
   let lacksControl = false;
   for (const mine of byWidget(els)) {
@@ -135,6 +148,8 @@ function rowByOrder(
     const record = byRecord
       ? theirs.filter((o) => widgetHolding(o) === widget)[n - 1]
       : undefined;
+    // While a pick is followed, a widget without the picked row adds none of its own.
+    if (byRecord && !record) continue;
     const shared =
       record &&
       mine.some((el) => theirs.some((o) => fieldOf(o) === fieldOf(el)));
@@ -143,7 +158,8 @@ function rowByOrder(
       record && shared
         ? mine.find((el) => fieldOf(el) === fieldOf(record))
         : mine[n - 1];
-    if (row) found.push(row);
+    if (row && widget === pickedIn) found.unshift(row);
+    else if (row) found.push(row);
     else if (record && shared) lacksControl = true;
   }
   // The pick doesn't say which widget it was in, so one widget's missing control stops the step.
