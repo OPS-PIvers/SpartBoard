@@ -241,6 +241,10 @@ jobs:
         with:
           name: build-output
 
+      # Each codebase's deploy source (functions/deploy/<name>) is built from functions/lib here, not uploaded.
+      - name: Build function codebases
+        run: node functions/scripts/build-codebases.mjs
+
       # Runs beside the backend deploy; hosting is untouched until the wait step below, so it reads the same live build.
       - name: Start carrying recent builds' assets forward
         run: |
