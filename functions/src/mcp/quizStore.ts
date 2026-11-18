@@ -111,6 +111,9 @@ export interface FriendlyQuestion {
   option_explanations?: { option: string; explanation: string }[] | null;
   /** free_response: library rubric to attach; null removes the attached one. */
   rubric_id?: string | null;
+  /** A picture ref to attach to this question as a new image. */
+  add_picture?: string;
+  picture_placement?: 'beside' | 'in_question';
 }
 
 const TO_STORED: Record<FriendlyType, StoredQuestionType> = {
@@ -425,12 +428,17 @@ export function toStoredQuestion(
 /** Stored question → tool output (inverse of toStoredQuestion). */
 export function toFriendlyQuestion(
   q: StoredQuestion
-): FriendlyQuestion & { needs_answer_key?: boolean } {
-  const out: FriendlyQuestion & { needs_answer_key?: boolean } = {
+): FriendlyQuestion & { needs_answer_key?: boolean; attached_media?: number } {
+  const out: FriendlyQuestion & {
+    needs_answer_key?: boolean;
+    attached_media?: number;
+  } = {
     id: q.id,
     type: TO_FRIENDLY[q.type] ?? 'free_response',
     text: q.text,
   };
+  if (Array.isArray(q.stimulusIds) && q.stimulusIds.length > 0)
+    out.attached_media = q.stimulusIds.length;
   if (q.points !== undefined) out.points = q.points;
   if (q.timeLimit) out.time_limit_seconds = q.timeLimit;
   const standards = standardCodes(q.targets);
