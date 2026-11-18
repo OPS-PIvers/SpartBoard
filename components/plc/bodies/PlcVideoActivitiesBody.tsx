@@ -1148,6 +1148,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
           sharedByName={importTarget.sharedByName}
           onPick={(mode) => void handleImport(importTarget, mode)}
           onClose={() => setImportTarget(null)}
+          canSync={canEdit}
         />
       )}
       <VideoActivityEditorModal

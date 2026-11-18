@@ -15,11 +15,13 @@ interface PlcAssignmentImportModalProps {
   sharedByName?: string;
   onPick: (mode: SharedAssignmentImportMode) => void;
   onClose: () => void;
+  /** False for a team viewer: only the copy option is offered. */
+  canSync?: boolean;
 }
 
 export const PlcAssignmentImportModal: React.FC<
   PlcAssignmentImportModalProps
-> = ({ quizTitle, sharedByName, onPick, onClose }) => {
+> = ({ quizTitle, sharedByName, onPick, onClose, canSync = true }) => {
   const { t } = useTranslation();
   return (
     <Modal
@@ -73,7 +75,7 @@ export const PlcAssignmentImportModal: React.FC<
             defaultValue: 'The assignment arrives paused.',
           })}
         </p>
-        <PlcImportModeOptions onPick={onPick} />
+        <PlcImportModeOptions onPick={onPick} canSync={canSync} />
       </div>
     </Modal>
   );

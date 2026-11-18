@@ -21,6 +21,7 @@ import type {
   QuizLiveLogEntry,
   QuizLiveState,
   QuizNudgeNoteId,
+  QuizResponse,
   QuizSession,
   StudentOverride,
 } from '@/types';
@@ -45,6 +46,7 @@ import {
   LIVE_VIEW_RENEW_MS,
   liveViewClock,
   liveViewResponse,
+  liveViewPlace,
   liveViewSession,
   liveViewStats,
   newestAnswerQuestionId,
@@ -271,6 +273,82 @@ export const LiveViewControls: React.FC<{
   </div>
 );
 
+/** The ticking stats; the clock lives here so the mirror beside it doesn't redraw every second. */
+const LiveViewStatsList: React.FC<{
+  session: QuizSession;
+  response: QuizResponse;
+  questionId: string | null;
+  override?: StudentOverride;
+  reported: QuizLiveState | null;
+  showPastes: boolean;
+  showPastedChars: boolean;
+}> = ({
+  session,
+  response,
+  questionId,
+  override,
+  reported,
+  showPastes,
+  showPastedChars,
+}) => {
+  const now = useServerNow(1000);
+  const stats = useMemo(
+    () => liveViewStats(session, response, questionId, now, override, reported),
+    [session, response, questionId, now, override, reported]
+  );
+  return (
+    <dl className="divide-y divide-slate-100">
+      <LiveViewStat label="Started">
+        {liveViewClock(stats.startedAt)}
+      </LiveViewStat>
+      {stats.deadline != null && (
+        <LiveViewStat label="Time left">
+          {formatTimeLeft(stats.deadline - now)}
+        </LiveViewStat>
+      )}
+      <LiveViewStat label="On question">
+        {stats.questionNumber != null
+          ? `${stats.questionNumber} of ${stats.questionCount}`
+          : 'Not known yet'}
+      </LiveViewStat>
+      {reported && (
+        <LiveViewStat label="Time on this question">
+          {formatAwayDuration(now - reported.at)}
+        </LiveViewStat>
+      )}
+      <LiveViewStat label="Answered">
+        {stats.answeredCount} of {stats.questionCount}
+      </LiveViewStat>
+      {stats.lastActivityAt != null && (
+        <LiveViewStat label="Last activity">
+          {formatAwayDuration(now - stats.lastActivityAt)} ago
+        </LiveViewStat>
+      )}
+      <LiveViewStat label="Tab exits">
+        {stats.tabExits}
+        {stats.tabExits > 0 && `, ${formatAwayDuration(stats.awayMs)} away`}
+      </LiveViewStat>
+      {stats.input ? (
+        <>
+          <LiveViewStat label="Keys typed">{stats.input.keys}</LiveViewStat>
+          {showPastes && (
+            <LiveViewStat label="Pastes">
+              {stats.input.pastes}
+              {showPastedChars &&
+                stats.input.pastedChars > 0 &&
+                `, ${stats.input.pastedChars} characters`}
+            </LiveViewStat>
+          )}
+          <LiveViewStat label="Deletions">{stats.input.deletions}</LiveViewStat>
+          <LiveViewStat label="Clicks">{stats.input.clicks}</LiveViewStat>
+        </>
+      ) : (
+        <LiveViewStat label="Input tracking">Off</LiveViewStat>
+      )}
+    </dl>
+  );
+};
+
 /** One student's in-progress attempt, redrawn from saved data; only the assigning teacher opens it. */
 export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
   session,
@@ -285,7 +363,6 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
   const alwaysNotify = useQuizLiveViewAlwaysNotify();
   const [tell, setTell] = useState(false);
   const notify = alwaysNotify || tell;
-  const now = useServerNow(1000);
   const auth = useContext(AuthContext);
   const signs = readInputSignSettings(auth?.globalPermissions);
   const showPastedChars =
@@ -322,12 +399,29 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
   const questionId =
     reported?.questionId ??
     (response ? newestAnswerQuestionId(response) : null);
-  const stats = useMemo(
+  // The student's device reads the shuffle once per attempt, so the panel does too.
+  const attemptKey = `${studentKey}:${response?.completedAttempts ?? 0}`;
+  const [shuffleLatch, setShuffleLatch] = useState(() => ({
+    key: attemptKey,
+    questions: session.shuffleQuestions === true,
+  }));
+  if (shuffleLatch.key !== attemptKey) {
+    setShuffleLatch({
+      key: attemptKey,
+      questions: session.shuffleQuestions === true,
+    });
+  }
+  const watched = useMemo(
     () =>
-      response
-        ? liveViewStats(session, response, questionId, now, override, reported)
-        : null,
-    [session, response, questionId, now, override, reported]
+      (session.shuffleQuestions === true) === shuffleLatch.questions
+        ? session
+        : { ...session, shuffleQuestions: shuffleLatch.questions },
+    [session, shuffleLatch.questions]
+  );
+  const placed = useMemo(
+    () =>
+      response ? liveViewPlace(watched, response, questionId, override) : null,
+    [watched, response, questionId, override]
   );
 
   const record = useCallback(
@@ -351,7 +445,9 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
   );
   const place = () => ({
     ...(questionId ? { questionId } : {}),
-    ...(stats?.questionNumber ? { questionNumber: stats.questionNumber } : {}),
+    ...(placed?.questionNumber
+      ? { questionNumber: placed.questionNumber }
+      : {}),
   });
 
   const stamp = useEffectEvent(() => {
@@ -480,7 +576,7 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
     }
   };
 
-  const mirrorSession = useMemo(() => liveViewSession(session), [session]);
+  const mirrorSession = useMemo(() => liveViewSession(watched), [watched]);
   const mirrorResponse = useMemo(
     () => (response ? liveViewResponse(response) : null),
     [response]
@@ -488,14 +584,14 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
   const firstQuestionId = useMemo(
     () =>
       response
-        ? (studentQuestionOrder(session, response, override)[0]?.id ?? null)
+        ? (studentQuestionOrder(watched, response, override)[0]?.id ?? null)
         : null,
-    [session, response, override]
+    [watched, response, override]
   );
   const prev = index > 0 ? students[index - 1] : undefined;
   const next =
     index >= 0 && index < students.length - 1 ? students[index + 1] : undefined;
-  const gone = !student || !mirrorResponse || !stats;
+  const gone = !student || !mirrorResponse || !placed;
 
   return (
     <LiveViewFrame
@@ -527,8 +623,8 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
                     <span className="font-semibold text-slate-800">
                       {student.name}
                     </span>
-                    {stats.questionNumber != null && (
-                      <span>Question {stats.questionNumber}</span>
+                    {placed.questionNumber != null && (
+                      <span>Question {placed.questionNumber}</span>
                     )}
                     {shotAt != null && (
                       <span>{new Date(shotAt).toLocaleString()}</span>
@@ -570,7 +666,7 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
                         onRecordStimulusPlay={noop}
                         onReportStimulusError={noop}
                         override={override}
-                        drawIds={liveViewDrawIds(session, response)}
+                        drawIds={liveViewDrawIds(watched, response)}
                         watchQuestionId={questionId ?? firstQuestionId}
                         watchTabWarning={reported?.warning === true}
                       />
@@ -585,62 +681,15 @@ export const LiveViewPanel: React.FC<LiveViewPanelProps> = ({
       aside={
         gone ? null : (
           <>
-            <dl className="divide-y divide-slate-100">
-              <LiveViewStat label="Started">
-                {liveViewClock(stats.startedAt)}
-              </LiveViewStat>
-              {stats.deadline != null && (
-                <LiveViewStat label="Time left">
-                  {formatTimeLeft(stats.deadline - now)}
-                </LiveViewStat>
-              )}
-              <LiveViewStat label="On question">
-                {stats.questionNumber != null
-                  ? `${stats.questionNumber} of ${stats.questionCount}`
-                  : 'Not known yet'}
-              </LiveViewStat>
-              {reported && (
-                <LiveViewStat label="Time on this question">
-                  {formatAwayDuration(now - reported.at)}
-                </LiveViewStat>
-              )}
-              <LiveViewStat label="Answered">
-                {stats.answeredCount} of {stats.questionCount}
-              </LiveViewStat>
-              {stats.lastActivityAt != null && (
-                <LiveViewStat label="Last activity">
-                  {formatAwayDuration(now - stats.lastActivityAt)} ago
-                </LiveViewStat>
-              )}
-              <LiveViewStat label="Tab exits">
-                {stats.tabExits}
-                {stats.tabExits > 0 &&
-                  `, ${formatAwayDuration(stats.awayMs)} away`}
-              </LiveViewStat>
-              {stats.input ? (
-                <>
-                  <LiveViewStat label="Keys typed">
-                    {stats.input.keys}
-                  </LiveViewStat>
-                  {showPastes && (
-                    <LiveViewStat label="Pastes">
-                      {stats.input.pastes}
-                      {showPastedChars &&
-                        stats.input.pastedChars > 0 &&
-                        `, ${stats.input.pastedChars} characters`}
-                    </LiveViewStat>
-                  )}
-                  <LiveViewStat label="Deletions">
-                    {stats.input.deletions}
-                  </LiveViewStat>
-                  <LiveViewStat label="Clicks">
-                    {stats.input.clicks}
-                  </LiveViewStat>
-                </>
-              ) : (
-                <LiveViewStat label="Input tracking">Off</LiveViewStat>
-              )}
-            </dl>
+            <LiveViewStatsList
+              session={watched}
+              response={student.response}
+              questionId={questionId}
+              override={override}
+              reported={reported}
+              showPastes={showPastes}
+              showPastedChars={showPastedChars}
+            />
             <LiveViewControls
               showTell={!alwaysNotify}
               tell={tell}

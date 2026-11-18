@@ -455,8 +455,7 @@ service cloud.firestore {
 
     // ---- Organization helpers (see docs/organization_wiring_implementation.md) ----
 
-    // Super admins from EITHER source (LO2): legacy admin_settings/user_roles
-    // .superAdmins[], OR an operator-org member doc with roleId == 'super_admin'.
+    // Super admins: an operator-org member doc with roleId == 'super_admin'.
     // Mirrors OrganizationPanel.resolveActorRole. roleId is read from the operator
     // org (`orono`) by fixed path - CEL cannot resolve the caller's org dynamically.
     // email_verified is REQUIRED, same reason as isAdmin() above.
@@ -465,22 +464,7 @@ service cloud.firestore {
              request.auth.token.email != null &&
              request.auth.token.get('email_verified', false) == true &&
              viewAsAdminOk() &&
-             ((isLegacySuperAdmin() && notDeactivated()) || isMemberSuperAdmin());
-    }
-
-    // A status change must not touch an address on the legacy super admin list (a super admin may).
-    function legacyStatusSafe(emailLower) {
-      return incoming().get('status', '') == existing().get('status', '') ||
-             notLegacyListed(emailLower);
-    }
-    function notLegacyListed(emailLower) {
-      return !exists(/databases/$(database)/documents/admin_settings/user_roles) ||
-             !(emailLower in get(/databases/$(database)/documents/admin_settings/user_roles).data.get('superAdmins', []));
-    }
-    function isLegacySuperAdmin() {
-      return get(/databases/$(database)/documents/admin_settings/user_roles) != null &&
-             request.auth.token.email.lower() in
-               get(/databases/$(database)/documents/admin_settings/user_roles).data.get('superAdmins', []);
+             isMemberSuperAdmin();
     }
 
     // Deactivate keeps roleId, so the tier needs an active doc; sign-in turns an invited one active.
@@ -723,10 +707,8 @@ service cloud.firestore {
         // buildingIds intersect their own. Create pins doc id == lowercased email (so
         // isOrgMember()'s lookup resolves) and forces data.email == emailLower (F15).
         // Only a super admin may create a super_admin member (same anti-escalation as update).
-        // A domain admin may not create a non-live doc for a legacy-list address (delete then recreate would bypass legacyStatusSafe).
         allow create: if memberStatusOk() && (isSuperAdmin() ||
-                          (isDomainAdmin(orgId) && incoming().get('roleId', '') != 'super_admin' &&
-                           (liveStatus(incoming()) || notLegacyListed(emailLower)))) &&
+                          (isDomainAdmin(orgId) && incoming().get('roleId', '') != 'super_admin')) &&
           incoming().email == incoming().email.lower() &&
           incoming().email == emailLower &&
           incoming().orgId == orgId &&
@@ -735,10 +717,9 @@ service cloud.firestore {
             'email', 'orgId', 'roleId', 'buildingIds', 'status',
             'name', 'invitedAt', 'addedBy', 'addedBySource'
           ]);
-        // A domain admin may not remove a super_admin member, nor a deactivated legacy-list one (a missing doc counts as live).
+        // A domain admin may not remove a super_admin member.
         allow delete: if isSuperAdmin() ||
-          (isDomainAdmin(orgId) && existing().get('roleId', '') != 'super_admin' &&
-           (liveStatus(existing()) || notLegacyListed(emailLower)));
+          (isDomainAdmin(orgId) && existing().get('roleId', '') != 'super_admin');
         allow update: if memberStatusOk() && (isSuperAdmin() ||
           (isDomainAdmin(orgId) &&
            unchanged('email') &&
@@ -746,7 +727,6 @@ service cloud.firestore {
            changedOnly([
              'roleId', 'buildingIds', 'status', 'name', 'invitedAt', 'lastActive'
            ]) &&
-           legacyStatusSafe(emailLower) &&
            // No self-service role or status change (e.g. undoing a deactivation).
            (emailLower != myEmail() ||
             (incoming().get('roleId', '') == existing().get('roleId', '') &&
@@ -770,8 +750,7 @@ service cloud.firestore {
            existing().get('buildingIds', []).hasAny(orgMember(orgId).get('buildingIds', [])) &&
            // Deactivate only: reactivating is a domain admin's call.
            (liveStatus(existing()) || !liveStatus(incoming())) &&
-           changedOnly(['status']) &&
-           legacyStatusSafe(emailLower)) ||
+           changedOnly(['status'])) ||
           // Self-write: a user may stamp `lastActive` on their own member doc.
           // Strictly bound — email/orgId must match and only `lastActive` may
           // change, so it can't escalate role/buildingIds/status or touch another
@@ -5364,10 +5343,7 @@ service cloud.firestore {
           ? (isOrgMember(d.orgId) || isSuperAdmin())
           : isSuperAdmin();
       }
-      // isAdmin() alone misses a legacy super admin (admin_settings/user_roles
-      // .superAdmins[] with no /admins/{email} doc) — isSuperAdmin() already
-      // reads them for the read rule above, so the write gate must accept the
-      // same proof or their write access is narrower than their read access.
+      // isAdmin() alone misses a member super admin with no /admins/{email} doc; match the read gate.
       allow create: if (isAdmin() || isSuperAdmin())
         && announcementWriteScopeOk(incoming());
       // orgId is immutable through this path — a same-org admin editing their
@@ -5496,10 +5472,7 @@ service cloud.firestore {
           && (existing().orgId == null || isOrgMember(existing().orgId) || isSuperAdmin());
       }
       allow read: if helpReaderOk();
-      // isAdmin() alone misses a legacy super admin (admin_settings/user_roles
-      // .superAdmins[] with no /admins/{email} doc) — isSuperAdmin() already
-      // reads them for helpReaderOk() above, so the write gate must accept the
-      // same proof or their write access is narrower than their read access.
+      // isAdmin() alone misses a member super admin with no /admins/{email} doc; match the read gate.
       allow create: if (isAdmin() || isSuperAdmin()) && helpShapeOk(incoming())
         && helpScopeOk(incoming())
         && myCreatedBy()
