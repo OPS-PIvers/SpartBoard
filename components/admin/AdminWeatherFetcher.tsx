@@ -15,7 +15,10 @@ import {
   parseOpenWeatherDetails,
   readStationTemperature,
 } from '@/components/widgets/Weather/details';
-import { isStoredWeatherFresh } from './adminWeatherFreshness';
+import {
+  isStoredWeatherFresh,
+  isWeatherUnchanged,
+} from './adminWeatherFreshness';
 
 const EARTH_NETWORKS_API = {
   BASE_URL: 'https://owc.enterprise.earthnetworks.com/Data/GetData.ashx',
@@ -51,6 +54,7 @@ export const AdminWeatherFetcher: React.FC = () => {
     const source = config.source ?? 'openweather';
     const cityKey = config.city?.trim() ?? '';
     const weatherRef = doc(db, 'global_weather', 'current');
+    const checkedRef = doc(db, 'global_weather', 'status');
 
     const fetchOpenWeather = async (city?: string) => {
       const apiKey = import.meta.env.VITE_OPENWEATHER_API_KEY as
@@ -71,12 +75,17 @@ export const AdminWeatherFetcher: React.FC = () => {
 
     const fetchWeather = async () => {
       let storedUv: WeatherDetails['uvHours'] = null;
+      let stored: Record<string, unknown> | undefined;
       // A failed freshness read falls through to a normal fetch.
       try {
-        const snap = await getDoc(weatherRef);
+        const [snap, checkedSnap] = await Promise.all([
+          getDoc(weatherRef),
+          getDoc(checkedRef).catch(() => undefined),
+        ]);
         if (abortController.signal.aborted) return;
+        stored = snap.data();
         storedUv =
-          (snap.data() as { details?: WeatherDetails } | undefined)?.details
+          (stored as { details?: WeatherDetails } | undefined)?.details
             ?.uvHours ?? null;
         if (
           snap.exists() &&
@@ -85,6 +94,9 @@ export const AdminWeatherFetcher: React.FC = () => {
             cityKey,
             frequencyMinutes: frequency,
             now: Date.now(),
+            checkedAt: (
+              checkedSnap?.data() as { lastCheckedAt?: unknown } | undefined
+            )?.lastCheckedAt,
           })
         ) {
           return;
@@ -172,16 +184,21 @@ export const AdminWeatherFetcher: React.FC = () => {
 
         // Write to Firestore
         if (abortController.signal.aborted) return;
-        await setDoc(weatherRef, {
+        const next = {
           temp,
           feelsLike,
           condition,
           locationName,
-          updatedAt: Date.now(),
           source,
           city: cityKey,
           ...(details ? { details } : {}),
-        });
+        };
+        // Unchanged values only stamp lastCheckedAt, so open widgets aren't woken.
+        if (isWeatherUnchanged(stored, next)) {
+          await setDoc(checkedRef, { lastCheckedAt: Date.now() });
+          return;
+        }
+        await setDoc(weatherRef, { ...next, updatedAt: Date.now() });
 
         console.warn(
           `[AdminWeatherFetcher] Updated weather: ${temp}° (Feels like ${feelsLike}°) ${condition}`
