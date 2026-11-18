@@ -60,7 +60,10 @@ export async function verifiedTokenEmail(
   domain: string,
   message: string
 ): Promise<string> {
-  const info = await deps.tokenInfo(token).catch(() => null);
+  // 502 reads as offline in the extension; a 401 would make it drop the token.
+  const info = await deps.tokenInfo(token).catch(() => {
+    throw fail(502, 'Google sign-in check is unavailable. Try again shortly.');
+  });
   const email = typeof info?.email === 'string' ? info.email.toLowerCase() : '';
   if (
     !info ||

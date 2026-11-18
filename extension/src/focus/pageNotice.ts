@@ -106,9 +106,18 @@ export function showPageNotice(
     e.preventDefault();
     button.focus();
   });
+  // Deferred and capped, so a page with its own focus trap can't ping-pong with it.
+  let refocuses: number[] = [];
   box.addEventListener('focusout', (e) => {
-    if (host.isConnected && !root.contains(e.relatedTarget as Node | null))
-      button.focus();
+    if (!host.isConnected || root.contains(e.relatedTarget as Node | null))
+      return;
+    const at = Date.now();
+    refocuses = refocuses.filter((t) => at - t < 1000);
+    if (refocuses.length >= 3) return;
+    refocuses.push(at);
+    queueMicrotask(() => {
+      if (host.isConnected) button.focus();
+    });
   });
   box.append(title, text, button);
   root.append(box);

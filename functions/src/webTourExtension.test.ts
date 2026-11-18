@@ -119,6 +119,7 @@ describe('verifyCaller', () => {
     expect(await status(verifyCaller('t', info({ expires_in: '0' })))).toBe(
       401
     );
+    // A tokeninfo outage is not a refusal: 502 keeps the extension's token.
     expect(
       await status(
         verifyCaller(
@@ -126,7 +127,7 @@ describe('verifyCaller', () => {
           deps({ tokenInfo: () => Promise.reject(new Error()) })
         )
       )
-    ).toBe(401);
+    ).toBe(502);
   });
 
   it('refuses an unverified or outside email', async () => {

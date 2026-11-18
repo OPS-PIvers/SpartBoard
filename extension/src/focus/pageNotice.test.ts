@@ -24,6 +24,7 @@ afterEach(() => {
   coverHost()?.remove();
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe('showPageNotice', () => {
@@ -35,7 +36,7 @@ describe('showPageNotice', () => {
     expect(host()).toBeNull();
   });
 
-  it('keeps one cover per page, sends the fullscreen message from its button, and clears', () => {
+  it('keeps one cover per page, sends the fullscreen message from its button, and clears', async () => {
     const sendMessage = vi.fn(() => Promise.resolve());
     vi.stubGlobal('chrome', { runtime: { sendMessage } });
     const roots: ShadowRoot[] = [];
@@ -64,6 +65,7 @@ describe('showPageNotice', () => {
     const button = root?.querySelector('button');
     // Focus that slips out (a click on the background, a blur) comes straight back.
     button?.blur();
+    await Promise.resolve();
     expect(root?.activeElement).toBe(button);
     const tab = new KeyboardEvent('keydown', {
       key: 'Tab',
@@ -80,5 +82,35 @@ describe('showPageNotice', () => {
     });
     show('none');
     expect(coverHost()).toBeNull();
+  });
+
+  it("doesn't ping-pong with a page that traps focus itself", async () => {
+    vi.stubGlobal('chrome', { runtime: { sendMessage: vi.fn() } });
+    const real = Object.getOwnPropertyDescriptor(
+      Element.prototype,
+      'attachShadow'
+    )?.value as (this: Element, init: ShadowRootInit) => ShadowRoot;
+    vi.spyOn(Element.prototype, 'attachShadow').mockImplementation(function (
+      this: Element,
+      init: ShadowRootInit
+    ) {
+      return real.call(this, { ...init, mode: 'open' });
+    });
+    const trap = document.createElement('input');
+    document.body.append(trap);
+    const pulls = vi.spyOn(trap, 'focus');
+    // The page's modal pulls focus back whenever it lands on the cover.
+    const pull = (e: FocusEvent) => {
+      if ((e.target as Element).id === 'spartboard-focus-cover') trap.focus();
+    };
+    document.addEventListener('focusin', pull);
+    try {
+      show('cover');
+      await new Promise((r) => setTimeout(r, 20));
+      expect(pulls.mock.calls.length).toBeLessThanOrEqual(4);
+    } finally {
+      document.removeEventListener('focusin', pull);
+      trap.remove();
+    }
   });
 });
