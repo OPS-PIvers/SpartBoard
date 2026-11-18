@@ -1,7 +1,7 @@
 import React from 'react';
 import { Z_INDEX } from '@/config/zIndex';
 import { BadgePopover } from '@/components/common/BadgePopover';
-import { classCountLabel, uniqueClassNames } from './assignmentClassNames';
+import { classCountLabel, uniqueClassNames } from './assignmentClassLabels';
 
 interface AssignmentClassNamesProps {
   names: readonly (string | null | undefined)[];

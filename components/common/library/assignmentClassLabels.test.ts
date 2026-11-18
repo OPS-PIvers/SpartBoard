@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classCountLabel, uniqueClassNames } from './assignmentClassNames';
+import { classCountLabel, uniqueClassNames } from './assignmentClassLabels';
 
 describe('uniqueClassNames', () => {
   it('drops blanks, repeats and extra spaces', () => {
