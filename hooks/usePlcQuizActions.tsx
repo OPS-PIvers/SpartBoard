@@ -920,6 +920,7 @@ export function usePlcQuizActions(plc: Plc): PlcQuizActionsApi {
           sharedByName={importTarget.sharedByName ?? ''}
           onPick={(mode) => void handleImport(importTarget, mode)}
           onClose={() => setImportTarget(null)}
+          canSync={canEdit}
         />
       )}
       {assignTarget && (
@@ -928,6 +929,7 @@ export function usePlcQuizActions(plc: Plc): PlcQuizActionsApi {
           sharedByName={assignTarget.sharedByName ?? ''}
           onPick={(mode) => handlePickMode(assignTarget, mode)}
           onClose={() => setAssignTarget(null)}
+          canSync={canEdit}
         />
       )}
       {pickup && (

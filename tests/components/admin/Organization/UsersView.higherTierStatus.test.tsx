@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { UsersView } from '@/components/admin/Organization/views/UsersView';
 import {
   protectedRolesFor,
@@ -117,5 +117,96 @@ describe('higher-tier member status', () => {
     ]);
     expect(withoutProtectedMembers(ids, users, 'super_admin')).toEqual(ids);
     expect(protectedRolesFor('super_admin')).toEqual([]);
+  });
+});
+
+describe('own row', () => {
+  const lockedCells = (actorRole: ActorRole) => {
+    const self = makeUser(
+      'me',
+      actorRole === 'building_admin' ? 'teacher' : 'domain_admin'
+    );
+    const { container, unmount } = render(
+      <UsersView
+        users={[self]}
+        roles={[ROLE]}
+        buildings={[BUILDING]}
+        actorRole={actorRole}
+        actorBuildingIds={['b1']}
+        actorEmail="ME@example.com"
+        activityPartial={false}
+        onUpdate={vi.fn()}
+        onBulkUpdate={vi.fn()}
+        onRemove={vi.fn()}
+        onDeleteAccount={vi.fn()}
+        onInvite={vi.fn()}
+        onBulkInvite={vi.fn()}
+        onResendInvite={vi.fn()}
+        onResetPassword={vi.fn()}
+      />
+    );
+    const disabled = (anchor: string) =>
+      container.querySelector<HTMLButtonElement>(`[data-tour="${anchor}"]`)
+        ?.disabled;
+    const out = {
+      role: disabled('admin.org.user-role-cell'),
+      status: disabled('admin.org.user-status-cell'),
+      buildings: disabled('admin.org.user-buildings-cell'),
+    };
+    unmount();
+    return out;
+  };
+
+  it('locks role and status on a domain or building admin own row', () => {
+    expect(lockedCells('domain_admin')).toEqual({
+      role: true,
+      status: true,
+      buildings: false,
+    });
+    expect(lockedCells('building_admin').status).toBe(true);
+  });
+
+  it('leaves a super admin own row editable', () => {
+    expect(lockedCells('super_admin')).toEqual({
+      role: false,
+      status: false,
+      buildings: false,
+    });
+  });
+
+  it('disables the Edit modal role select on the actor own row only', () => {
+    const roleSelectDisabled = (actorEmail: string) => {
+      const { unmount } = render(
+        <UsersView
+          users={[makeUser('me', 'domain_admin')]}
+          roles={[ROLE]}
+          buildings={[BUILDING]}
+          actorRole="domain_admin"
+          actorBuildingIds={['b1']}
+          actorEmail={actorEmail}
+          activityPartial={false}
+          onUpdate={vi.fn()}
+          onBulkUpdate={vi.fn()}
+          onRemove={vi.fn()}
+          onDeleteAccount={vi.fn()}
+          onInvite={vi.fn()}
+          onBulkInvite={vi.fn()}
+          onResendInvite={vi.fn()}
+          onResetPassword={vi.fn()}
+        />
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Row actions' }));
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Edit' }));
+      const select = screen
+        .getByRole('dialog')
+        .querySelector<HTMLSelectElement>(
+          '[data-tour="admin.org.edit-user-role"]'
+        );
+      const disabled = select?.disabled;
+      unmount();
+      return disabled;
+    };
+    expect(roleSelectDisabled('me@example.com')).toBe(true);
+    expect(roleSelectDisabled('other@example.com')).toBe(false);
   });
 });

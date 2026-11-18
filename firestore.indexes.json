@@ -1289,6 +1289,12 @@
       "indexes": []
     },
     {
+      "collectionGroup": "focus_push_subscriptions",
+      "fieldPath": "focusExpiresAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
       "collectionGroup": "students",
       "fieldPath": "focusExpiresAt",
       "ttl": true,

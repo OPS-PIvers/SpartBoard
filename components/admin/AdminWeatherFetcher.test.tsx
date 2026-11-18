@@ -1,7 +1,10 @@
 import { render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminWeatherFetcher } from './AdminWeatherFetcher';
-import { isStoredWeatherFresh } from './adminWeatherFreshness';
+import {
+  isStoredWeatherFresh,
+  isWeatherUnchanged,
+} from './adminWeatherFreshness';
 
 const mocks = vi.hoisted(() => ({
   getDoc: vi.fn(),
@@ -68,7 +71,7 @@ describe('AdminWeatherFetcher freshness check', () => {
 
     render(<AdminWeatherFetcher />);
 
-    await waitFor(() => expect(mocks.getDoc).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mocks.getDoc).toHaveBeenCalledTimes(2));
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(mocks.proxy).not.toHaveBeenCalled();
     expect(mocks.setDoc).not.toHaveBeenCalled();
@@ -100,6 +103,66 @@ describe('AdminWeatherFetcher freshness check', () => {
 
     await waitFor(() => expect(mocks.setDoc).toHaveBeenCalledTimes(1));
     expect(mocks.proxy).toHaveBeenCalledTimes(1);
+  });
+
+  it('stamps lastCheckedAt instead of rewriting unchanged values', async () => {
+    mocks.getDoc.mockResolvedValue(snapshot(null));
+    const first = render(<AdminWeatherFetcher />);
+    await waitFor(() => expect(mocks.setDoc).toHaveBeenCalledTimes(1));
+    const written = mocks.setDoc.mock.calls[0][1] as Record<string, unknown>;
+    first.unmount();
+
+    mocks.setDoc.mockClear();
+    mocks.getDoc.mockResolvedValue(
+      snapshot({ ...written, updatedAt: Date.now() - FIFTEEN_MIN })
+    );
+    render(<AdminWeatherFetcher />);
+
+    await waitFor(() => expect(mocks.setDoc).toHaveBeenCalledTimes(1));
+    expect(mocks.setDoc.mock.calls[0][0]).toEqual({
+      path: 'global_weather/status',
+    });
+    expect(mocks.setDoc.mock.calls[0][1]).toHaveProperty('lastCheckedAt');
+  });
+
+  it('rewrites the current doc when a value changed', async () => {
+    mocks.getDoc.mockResolvedValue(
+      snapshot({
+        updatedAt: Date.now() - FIFTEEN_MIN,
+        source: 'earth_networks',
+        city: '',
+        temp: 12,
+        condition: 'sunny',
+      })
+    );
+
+    render(<AdminWeatherFetcher />);
+
+    await waitFor(() => expect(mocks.setDoc).toHaveBeenCalledTimes(1));
+    expect(mocks.setDoc.mock.calls[0][0]).toEqual({
+      path: 'global_weather/current',
+    });
+  });
+
+  it('skips the fetch when another tab recently stamped lastCheckedAt', async () => {
+    mocks.getDoc.mockImplementation((ref: { path: string }) =>
+      Promise.resolve(
+        ref.path === 'global_weather/status'
+          ? snapshot({ lastCheckedAt: Date.now() - 60 * 1000 })
+          : snapshot({
+              updatedAt: Date.now() - 2 * FIFTEEN_MIN,
+              source: 'earth_networks',
+              temp: 40,
+            })
+      )
+    );
+
+    render(<AdminWeatherFetcher />);
+
+    await waitFor(() => expect(mocks.getDoc).toHaveBeenCalledTimes(2));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(mocks.proxy).not.toHaveBeenCalled();
+    expect(mocks.setDoc).not.toHaveBeenCalled();
   });
 
   it('still fetches when the freshness read fails', async () => {
@@ -240,6 +303,72 @@ describe('isStoredWeatherFresh', () => {
     expect(isStoredWeatherFresh(undefined, base)).toBe(false);
     expect(
       isStoredWeatherFresh({ source: 'openweather', city: 'Orono' }, base)
+    ).toBe(false);
+  });
+});
+
+describe('isWeatherUnchanged', () => {
+  const stored = {
+    temp: 40,
+    feelsLike: 37,
+    condition: 'sunny',
+    locationName: 'Orono IS',
+    source: 'earth_networks',
+    city: '',
+    updatedAt: 1,
+    details: { high: 50, uvHours: { date: '2026-11-18', values: [0, 1] } },
+  };
+
+  it('ignores updatedAt, key order and undefined fields', () => {
+    expect(
+      isWeatherUnchanged(stored, {
+        city: '',
+        source: 'earth_networks',
+        details: { uvHours: { values: [0, 1], date: '2026-11-18' }, high: 50 },
+        locationName: 'Orono IS',
+        condition: 'sunny',
+        feelsLike: 37,
+        temp: 40,
+      })
+    ).toBe(true);
+  });
+
+  it('detects a changed value, nested detail or missing stored doc', () => {
+    const { temp: _t, ...rest } = stored;
+    expect(isWeatherUnchanged(stored, { ...rest, temp: 41 })).toBe(false);
+    expect(
+      isWeatherUnchanged(stored, {
+        ...rest,
+        temp: 40,
+        details: { high: 51, uvHours: { date: '2026-11-18', values: [0, 1] } },
+      })
+    ).toBe(false);
+    expect(isWeatherUnchanged(undefined, { ...rest, temp: 40 })).toBe(false);
+  });
+});
+
+describe('isStoredWeatherFresh with lastCheckedAt', () => {
+  const now = 1_000_000_000;
+  const opts = {
+    source: 'openweather',
+    cityKey: 'Orono',
+    frequencyMinutes: 15,
+    now,
+  };
+  const stored = {
+    updatedAt: now - 2 * FIFTEEN_MIN,
+    source: 'openweather',
+    city: 'Orono',
+    temp: 40,
+  };
+
+  it('is fresh when lastCheckedAt is recent and stale without it', () => {
+    expect(isStoredWeatherFresh(stored, opts)).toBe(false);
+    expect(
+      isStoredWeatherFresh(stored, { ...opts, checkedAt: now - 1000 })
+    ).toBe(true);
+    expect(
+      isStoredWeatherFresh(stored, { ...opts, checkedAt: now - FIFTEEN_MIN })
     ).toBe(false);
   });
 });

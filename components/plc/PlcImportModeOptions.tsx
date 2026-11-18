@@ -50,28 +50,32 @@ const ModeOption: React.FC<ModeOptionProps> = ({
 // Sync vs copy choice shared by the PLC quiz, video activity and assignment import modals.
 export const PlcImportModeOptions: React.FC<{
   onPick: (mode: PlcImportMode) => void;
-}> = ({ onPick }) => {
+  /** False for a team viewer: the sync join is refused for them, so only copy is offered. */
+  canSync?: boolean;
+}> = ({ onPick, canSync = true }) => {
   const { t } = useTranslation();
   return (
     <>
-      <ModeOption
-        mode="sync"
-        title={t('plcDashboard.quizImportModal.syncTitle', {
-          defaultValue: 'Synced',
-        })}
-        body={t('plcDashboard.quizImportModal.syncBody', {
-          defaultValue:
-            'Stays linked. Edits by anyone on the team, you included, reach everyone.',
-        })}
-        Icon={Cloud}
-        recommendedLabel={t(
-          'plcDashboard.quizImportModal.groupRecommendedLabel',
-          {
-            defaultValue: 'Recommended for teams',
-          }
-        )}
-        onPick={onPick}
-      />
+      {canSync && (
+        <ModeOption
+          mode="sync"
+          title={t('plcDashboard.quizImportModal.syncTitle', {
+            defaultValue: 'Synced',
+          })}
+          body={t('plcDashboard.quizImportModal.syncBody', {
+            defaultValue:
+              'Stays linked. Edits by anyone on the team, you included, reach everyone.',
+          })}
+          Icon={Cloud}
+          recommendedLabel={t(
+            'plcDashboard.quizImportModal.groupRecommendedLabel',
+            {
+              defaultValue: 'Recommended for teams',
+            }
+          )}
+          onPick={onPick}
+        />
+      )}
       <ModeOption
         mode="copy"
         title={t('plcDashboard.quizImportModal.copyTitle', {

@@ -82,7 +82,25 @@ export interface SkippedSheet {
   reason: SkipReason;
 }
 
-/** True when every choice kept its place and only its wording changed. */
+const grams = (s: string) => {
+  const chars = Array.from(s);
+  return new Set([...chars, ...chars.slice(1).map((c, i) => chars[i] + c)]);
+};
+
+/** Dice similarity of two normalized texts over their characters and character pairs, 0..1. */
+function similarity(a: string, b: string): number {
+  const x = grams(a);
+  const y = grams(b);
+  let shared = 0;
+  for (const g of x) if (y.has(g)) shared++;
+  return x.size + y.size === 0 ? 0 : (2 * shared) / (x.size + y.size);
+}
+
+/** A changed choice moved when another changed slot's old text beats its own by this much, or when two changed choices each lean to the other's. */
+const MOVE_MARGIN = 0.25;
+
+// Mirrors isRewordOnly in functions/src/paperRewordSync.ts, which adds blank and duplicate guards.
+/** True when every choice kept its letter: unchanged, or reworded without looking like another changed choice's old text (a letter stub has no wording to compare). */
 export function isRewordOnly(
   recorded: readonly string[],
   current: readonly string[]
@@ -91,9 +109,20 @@ export function isRewordOnly(
   const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
   const was = recorded.map(norm);
   const now = current.map(norm);
-  return now.every(
-    (text, i) =>
-      text === was[i] || (!was.includes(text) && !now.includes(was[i]))
+  const changed = now.flatMap((text, i) => (text === was[i] ? [] : [i]));
+  if (changed.some((i) => was.includes(now[i]) || now.includes(was[i]))) {
+    return false;
+  }
+  if (changed.length < 2 || isPlaceholderLetterChoices(recorded)) return true;
+  // How much closer a changed choice sits to slot j's old text than to its own.
+  const pull = (i: number, j: number) =>
+    similarity(now[i], was[j]) - similarity(now[i], was[i]);
+  return changed.every((i) =>
+    changed.every(
+      (j) =>
+        j === i ||
+        (pull(i, j) < MOVE_MARGIN && !(pull(i, j) > 0 && pull(j, i) > 0))
+    )
   );
 }
 
@@ -332,7 +361,19 @@ export function applyKeyToQuiz(
   const questions = quiz.questions.map((q) => {
     const choice = key[q.id];
     if (choice === null || choice === undefined) return q;
-    const options = printedOptionsFor(batch, q, q.id);
+    let options = printedOptionsFor(batch, q, q.id);
+    const current = rowsFromQuestion(q).map((r) => r.text);
+    // Printed text the quiz no longer has: keep its current wording by position, or leave the question alone.
+    if (!options.every((t) => current.includes(t))) {
+      if (
+        !(q.paperOwnTest || hasArrangedOrder(q)) ||
+        isPlaceholderLetterChoices(options) ||
+        !isRewordOnly(options, current)
+      ) {
+        return q;
+      }
+      options = current;
+    }
     const correct = options[choice];
     if (correct === undefined) return q;
     // Keep each option where the sheet lettered it, so a reprint letters it the same way.

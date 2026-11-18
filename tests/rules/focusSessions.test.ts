@@ -154,8 +154,8 @@ beforeEach(async () => {
       roleId: 'building_admin',
     });
     await setDoc(doc(db, `admins/${SUPER_EMAIL}`), {});
-    await setDoc(doc(db, 'admin_settings/user_roles'), {
-      superAdmins: [SUPER_EMAIL],
+    await setDoc(doc(db, `organizations/orono/members/${SUPER_EMAIL}`), {
+      roleId: 'super_admin',
     });
   });
   await seed();
