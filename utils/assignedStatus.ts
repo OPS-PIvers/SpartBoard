@@ -238,7 +238,7 @@ function classOf(
   }
 }
 
-/** D11: an open class with no close time whose bell has rung since it opened, or opened before today. */
+/** D11: an open class with no close time whose bell rang since it opened, or opened before today. */
 function leftOpenSince(
   item: AssignedInput,
   cls: AssignedClassInput,
@@ -246,11 +246,17 @@ function leftOpenSince(
   nowMs: number
 ): number | null {
   if (item.viewOnly || gate.closeAt != null) return null;
-  const since = gate.openedAt ?? gate.openAt ?? item.createdAt;
+  // The latest start that has passed: a stamped open or a scheduled window start.
+  const starts = [gate.openedAt, gate.openAt].filter(
+    (t): t is number => t != null && t <= nowMs
+  );
+  const stamped = starts.length > 0;
+  const since = stamped ? Math.max(...starts) : item.createdAt;
   const today = new Date(nowMs).setHours(0, 0, 0, 0);
   const bellRang =
     !!cls.bell && cls.bell.closeAt <= nowMs && since < cls.bell.closeAt;
-  return since < today || bellRang ? since : null;
+  // Without a stamp, only a bell that has rung today says it was left open.
+  return (stamped && since < today) || bellRang ? since : null;
 }
 
 const RANK: Record<ClassStatus, number> = {

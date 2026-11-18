@@ -581,12 +581,30 @@ describe('class left open (D11)', () => {
     expect(earlier[0].leftOpenSince).toBe(YESTERDAY);
   });
 
-  it('falls back to the window start, then the assigned time, for a class with no open stamp', () => {
-    const legacy = leftOpen({
+  it('reads an unstamped class as left open only once its bell has rung today', () => {
+    const quiet = leftOpen({
       createdAt: YESTERDAY,
       periodAccess: { c1: row({ state: 'open' }) },
     });
-    expect(legacy[0].leftOpenSince).toBe(YESTERDAY);
+    const rung = leftOpen(
+      { createdAt: YESTERDAY, periodAccess: { c1: row({ state: 'open' }) } },
+      { bellFor: bellAt(T - 3 * HOUR, T - 2 * HOUR) }
+    );
+    const windowed = leftOpen({
+      periodAccess: { c1: row({ state: 'open', openAt: YESTERDAY }) },
+    });
+    expect(quiet[0].leftOpenSince).toBeNull();
+    expect(rung[0].leftOpenSince).toBe(YESTERDAY);
+    expect(windowed[0].leftOpenSince).toBe(YESTERDAY);
+  });
+
+  it('measures from a later scheduled start, not an older open stamp', () => {
+    const [c] = leftOpen({
+      periodAccess: {
+        c1: row({ state: 'open', openedAt: YESTERDAY, openAt: T - HOUR }),
+      },
+    });
+    expect(c.leftOpenSince).toBeNull();
   });
 
   it('never flags a class that closes itself, a paused class, or a view-only share', () => {
@@ -601,11 +619,17 @@ describe('class left open (D11)', () => {
     expect(share[0].leftOpenSince).toBeNull();
   });
 
-  it('flags a single-line assignment open since an earlier day', () => {
-    const [c] = leftOpen({ createdAt: YESTERDAY });
-    expect(c.leftOpenSince).toBe(YESTERDAY);
-    const [paused] = leftOpen({ createdAt: YESTERDAY, status: 'paused' });
-    expect(paused.leftOpenSince).toBeNull();
+  it('flags a single-line assignment opened on an earlier day', () => {
+    const at = (a: Partial<QuizAssignment>, openedAt?: number) =>
+      deriveAssignedStatus(
+        quizAssignedInput({ ...quiz(a), openedAt }, loaded()),
+        T
+      ).classes[0].leftOpenSince;
+    expect(at({ createdAt: YESTERDAY }, YESTERDAY)).toBe(YESTERDAY);
+    expect(at({ createdAt: YESTERDAY })).toBeNull();
+    expect(
+      at({ createdAt: YESTERDAY, status: 'paused' }, YESTERDAY)
+    ).toBeNull();
   });
 });
 
