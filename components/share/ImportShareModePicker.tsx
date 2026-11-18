@@ -107,7 +107,8 @@ export const ImportShareModePicker: React.FC = () => {
 
   if (!pendingShareImport) return null;
 
-  const { preview, driveBacked, hostStaff, hostName } = pendingShareImport;
+  const { preview, driveBacked, hostStaff, hostName, hostChecking } =
+    pendingShareImport;
   const boardName = preview?.name ?? 'Shared board';
   // A board a non-staff account shares can only be copied; the server checked the host's account.
   const notStaff = !driveBacked && hostStaff === false;
@@ -119,9 +120,11 @@ export const ImportShareModePicker: React.FC = () => {
     ? undefined
     : notStaff
       ? 'Not shared by district staff, so you can only import a copy.'
-      : hostStaff === undefined
+      : hostStaff === undefined && !hostChecking
         ? "We couldn't confirm who shared this board."
         : undefined;
+  // Live modes wait for the host check; Copy never does.
+  const liveWaiting = !!hostChecking;
 
   const handlePick = (mode: SharedBoardImportMode) => {
     void importSharedBoard(mode);
@@ -206,8 +209,9 @@ export const ImportShareModePicker: React.FC = () => {
             <button
               type="button"
               onClick={() => handlePick(intendedMode)}
+              disabled={liveWaiting && intendedMode !== 'copy'}
               {...tourAttr('share-import.confirm')}
-              className="rounded-lg bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold text-sm px-4 py-2 transition-colors cursor-pointer"
+              className="rounded-lg bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold text-sm px-4 py-2 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-wait"
             >
               {copy.primary}
             </button>
@@ -267,7 +271,7 @@ export const ImportShareModePicker: React.FC = () => {
           title="Synced"
           body={MODE_COPY.synced.body}
           Icon={Cloud}
-          disabled={driveBacked || notStaff}
+          disabled={driveBacked || notStaff || liveWaiting}
           disabledReason={liveDisabledReason}
           onPick={handlePick}
           tourId="share-import.mode-synced"
@@ -277,7 +281,7 @@ export const ImportShareModePicker: React.FC = () => {
           title="View-Only"
           body={MODE_COPY['view-only'].body}
           Icon={Eye}
-          disabled={driveBacked || notStaff}
+          disabled={driveBacked || notStaff || liveWaiting}
           disabledReason={liveDisabledReason}
           onPick={handlePick}
           tourId="share-import.mode-view-only"

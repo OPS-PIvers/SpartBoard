@@ -13,8 +13,12 @@
  * and is a Record<widgetId, Partial<WidgetConfig>> containing only PII fields.
  */
 
-import { Dashboard, WidgetData } from '@/types';
-import { getCentralDayKey } from '@/components/widgets/LunchCount/redesign/lunchCountFormat';
+import { Dashboard, LunchCountConfig, WidgetData } from '@/types';
+import {
+  getCentralDayKey,
+  lacksSentDetails,
+  mergeSentDetails,
+} from '@/components/widgets/LunchCount/redesign/lunchCountFormat';
 
 /** Widget config keys that may contain student PII and must never reach Firestore. */
 export const PII_WIDGET_FIELDS = [
@@ -214,12 +218,20 @@ export function mergeWidgetsPII(
   return widgets.map((widget) => {
     const piiFields = supplement[widget.id];
     if (!piiFields || Object.keys(piiFields).length === 0) return widget;
+    const config = widget.config as Record<string, unknown>;
+    // Lunch notes merge per class, so a copy missing another device's send never erases it.
+    const lunchDetails =
+      'lastSubmittedDetails' in piiFields
+        ? {
+            lastSubmittedDetails: mergeSentDetails(
+              config.lastSubmittedDetails,
+              piiFields.lastSubmittedDetails
+            ),
+          }
+        : {};
     return {
       ...widget,
-      config: {
-        ...(widget.config as Record<string, unknown>),
-        ...piiFields,
-      },
+      config: { ...config, ...piiFields, ...lunchDetails },
     };
   });
 }
@@ -243,4 +255,24 @@ export function dashboardHasPII(
     }
   }
   return false;
+}
+
+/** A key for a Lunch Count send whose notes live only in another device's Drive copy, or null when this copy has them. */
+export function lunchNotesBehindKey(
+  server: WidgetData,
+  local: WidgetData | undefined
+): string | null {
+  if (server.type !== 'lunchCount') return null;
+  const config = server.config as LunchCountConfig;
+  const localConfig = local?.config as LunchCountConfig | undefined;
+  const merged: LunchCountConfig = {
+    ...config,
+    lastSubmittedDetails: mergeSentDetails(
+      localConfig?.lastSubmittedDetails,
+      config.lastSubmittedDetails
+    ),
+  };
+  if (!lacksSentDetails(merged, server.id)) return null;
+  const classes = (config.lastSubmittedClasses ?? []).join(',');
+  return `${server.id}|${config.lastSubmittedDate ?? ''}|${classes}`;
 }

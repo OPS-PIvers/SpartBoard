@@ -3680,7 +3680,12 @@ export interface LunchCountConfig {
   /** Classes (lunch time and grade) it sent that day, so another class can still submit */
   lastSubmittedClasses?: string[];
   /** Notes and pizza count sent today, by class key, so a resend can prefill them. */
-  lastSubmittedDetails?: Record<string, { notes: string; extraPizza: number }>;
+  lastSubmittedDetails?: Record<
+    string,
+    { notes: string; extraPizza: number; sentAt?: number }
+  >;
+  /** Extra pizza count sent today, by class key; it names no one, so it syncs with the board. */
+  lastSubmittedPizza?: Record<string, number>;
   cardColor?: string;
   cardOpacity?: number;
   fontFamily?: GlobalFontFamily;

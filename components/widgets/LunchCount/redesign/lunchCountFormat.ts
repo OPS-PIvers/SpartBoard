@@ -49,16 +49,16 @@ export function formatLunchTime(hour: string, minute: string): string {
 }
 
 /** Today as YYYY-MM-DD in Central time, the same day the sheet row uses. */
-export function getCentralDayKey(): string {
+export function getCentralDayKey(at: Date = new Date()): string {
   try {
     return new Intl.DateTimeFormat('en-CA', {
       timeZone: 'America/Chicago',
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
-    }).format(new Date());
+    }).format(at);
   } catch {
-    return new Date().toISOString().slice(0, 10);
+    return at.toISOString().slice(0, 10);
   }
 }
 
@@ -87,12 +87,67 @@ interface SubmittedMarker {
   lastSubmittedWidgetId?: string;
   lastSubmittedClasses?: string[];
   lastSubmittedDetails?: Record<string, SentDetails>;
+  lastSubmittedPizza?: Record<string, number>;
 }
 
 /** What a resend has to carry over, because it replaces the whole sheet row. */
 export interface SentDetails {
   notes: string;
   extraPizza: number;
+  sentAt?: number;
+}
+
+const isSentDetails = (value: unknown): value is SentDetails =>
+  typeof value === 'object' &&
+  value !== null &&
+  typeof (value as SentDetails).notes === 'string';
+
+const sentDetailsEntries = (value: unknown): [string, SentDetails][] =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? Object.entries(value).filter((entry): entry is [string, SentDetails] =>
+        isSentDetails(entry[1])
+      )
+    : [];
+
+/** Two copies of the sent details, merged per class; the later send of a class wins, and `b` wins a tie. */
+export function mergeSentDetails(
+  a: unknown,
+  b: unknown
+): Record<string, SentDetails> | undefined {
+  const fromA = sentDetailsEntries(a);
+  const fromB = sentDetailsEntries(b);
+  if (fromA.length === 0 && fromB.length === 0) return undefined;
+  const merged: Record<string, SentDetails> = Object.fromEntries(fromA);
+  for (const [key, value] of fromB) {
+    const held = merged[key];
+    if (!held || (value.sentAt ?? 0) >= (held.sentAt ?? 0)) merged[key] = value;
+  }
+  return merged;
+}
+
+// Entries carry their send time, so a class's notes from an earlier day never prefill today's resend.
+const detailsFromToday = (
+  details: SentDetails | undefined
+): SentDetails | undefined =>
+  details &&
+  (details.sentAt === undefined ||
+    getCentralDayKey(new Date(details.sentAt)) === getCentralDayKey())
+    ? details
+    : undefined;
+
+/** True when today's marker lists a class whose notes this copy of the config lacks. */
+export function lacksSentDetails(
+  config: SubmittedMarker,
+  widgetId: string
+): boolean {
+  if (
+    config.lastSubmittedDate !== getCentralDayKey() ||
+    config.lastSubmittedWidgetId !== widgetId
+  )
+    return false;
+  return (config.lastSubmittedClasses ?? []).some(
+    (key) => !detailsFromToday(config.lastSubmittedDetails?.[key])
+  );
 }
 
 /** True when this widget already sent this class today, so other classes and copies can still submit. */
@@ -121,7 +176,13 @@ export function sentDetailsToday(
   ) {
     return undefined;
   }
-  return config.lastSubmittedDetails?.[classKey];
+  const details = detailsFromToday(config.lastSubmittedDetails?.[classKey]);
+  if (!details) return undefined;
+  const pizza = config.lastSubmittedPizza?.[classKey];
+  return {
+    notes: details.notes,
+    extraPizza: typeof pizza === 'number' ? pizza : details.extraPizza,
+  };
 }
 
 /** The marker to save after a successful submit; it keeps today's earlier classes. */
@@ -147,7 +208,12 @@ export function submittedMarker(
     ...marker,
     lastSubmittedDetails: {
       ...(sameDay ? config.lastSubmittedDetails : undefined),
-      [classKey]: details,
+      [classKey]: { ...details, sentAt: Date.now() },
+    },
+    // The pizza count holds no names, so it syncs through the board like the marker.
+    lastSubmittedPizza: {
+      ...(sameDay ? config.lastSubmittedPizza : undefined),
+      [classKey]: details.extraPizza,
     },
   };
 }

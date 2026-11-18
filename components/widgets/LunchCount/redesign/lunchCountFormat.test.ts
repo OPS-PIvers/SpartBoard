@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   getCentralDayKey,
   hasSubmittedToday,
+  lacksSentDetails,
+  mergeSentDetails,
   reportClassKey,
   submittedClassKey,
   sentDetailsToday,
@@ -95,6 +97,59 @@ describe('Lunch Count submitted marker', () => {
     expect(sentDetailsToday(sent, 'w2', classA)).toBeUndefined();
     vi.setSystemTime(new Date('2026-11-06T15:00:00Z'));
     expect(sentDetailsToday(sent, 'w1', classA)).toBeUndefined();
+  });
+
+  it('keeps the pizza count in a key the board syncs, and reads it back', () => {
+    const sent = sentA();
+    expect(sent.lastSubmittedPizza).toEqual({ [classA]: 3 });
+    // Another device has only the synced count and older notes.
+    const synced = {
+      ...sent,
+      lastSubmittedPizza: { [classA]: 5 },
+    };
+    expect(sentDetailsToday(synced, 'w1', classA)).toEqual({
+      notes: '2 gluten free',
+      extraPizza: 5,
+    });
+  });
+
+  it("says when today's marker lists a class whose notes are missing", () => {
+    const sent = sentA();
+    expect(lacksSentDetails(sent, 'w1')).toBe(false);
+    const { lastSubmittedDetails: _notes, ...markerOnly } = sent;
+    expect(lacksSentDetails(markerOnly, 'w1')).toBe(true);
+    expect(lacksSentDetails(markerOnly, 'w2')).toBe(false);
+  });
+
+  it('merges per class so a copy missing one class never erases it', () => {
+    const a = { [classA]: { notes: 'A', extraPizza: 0, sentAt: 1 } };
+    const b = { [classB]: { notes: 'B', extraPizza: 0, sentAt: 2 } };
+    expect(mergeSentDetails(a, b)).toEqual({ ...a, ...b });
+    const newerA = { [classA]: { notes: 'A2', extraPizza: 1, sentAt: 5 } };
+    expect(mergeSentDetails(newerA, a)?.[classA].notes).toBe('A2');
+    expect(mergeSentDetails(a, newerA)?.[classA].notes).toBe('A2');
+  });
+
+  it('sending class B on a copy that loaded class A keeps both', () => {
+    const fromDevice1 = sentA();
+    const device2 = {
+      lastSubmittedDate: fromDevice1.lastSubmittedDate,
+      lastSubmittedWidgetId: 'w1',
+      lastSubmittedClasses: fromDevice1.lastSubmittedClasses,
+      lastSubmittedDetails: mergeSentDetails(
+        undefined,
+        fromDevice1.lastSubmittedDetails
+      ),
+    };
+    const next = submittedMarker(device2, 'w1', getCentralDayKey(), classB, {
+      notes: 'B',
+      extraPizza: 0,
+    });
+    expect(Object.keys(next.lastSubmittedDetails ?? {})).toEqual([
+      classA,
+      classB,
+    ]);
+    expect(next.lastSubmittedDetails?.[classA].notes).toBe('2 gluten free');
   });
 
   it('uses the Central date near UTC midnight', () => {

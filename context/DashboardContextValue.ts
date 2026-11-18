@@ -114,6 +114,8 @@ export interface PendingShareImport {
   hostStaff?: boolean;
   /** The host's name from their account, never from the share doc. */
   hostName?: string;
+  /** The server is still reading the host's account; live modes stay off until it answers. */
+  hostChecking?: boolean;
 }
 
 export interface AnnotationState {
@@ -224,6 +226,8 @@ export interface DashboardContextValue {
   discardTourWidgets?: (ids: readonly string[]) => void;
   /** Live tours only: makes widgets the app adds unsaved tour widgets until switched off. */
   setTourTransientSpawns?: (on: boolean) => void;
+  /** One widget's names from the board's Drive copy: null without Drive, {} when it holds none. */
+  readWidgetPii?: (widgetId: string) => Promise<Record<string, unknown> | null>;
   clearAllStickers: () => void;
   clearAllWidgets: () => void;
   updateWidget: (

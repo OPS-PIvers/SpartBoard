@@ -484,7 +484,14 @@ describe('LunchCountRedesign — class group pool', () => {
         -1
       ) as [string, { config: LunchCountConfig }];
       expect(update.config.lastSubmittedDetails).toEqual({
-        '11:30 - GR1 #roster-1': { notes: '', extraPizza: 0 },
+        '11:30 - GR1 #roster-1': {
+          notes: '',
+          extraPizza: 0,
+          sentAt: expect.any(Number) as number,
+        },
+      });
+      expect(update.config.lastSubmittedPizza).toEqual({
+        '11:30 - GR1 #roster-1': 0,
       });
     });
 
@@ -510,6 +517,127 @@ describe('LunchCountRedesign — class group pool', () => {
       expect(screen.getByText('Lunch Count Already Sent')).toBeTruthy();
       fireEvent.click(screen.getByText('Review and Resend'));
       expect(screen.getByDisplayValue('2 gluten free')).toBeTruthy();
+    });
+
+    describe('on a second device, where the notes live only in Drive', () => {
+      const classKey = '11:30 - GR1 #roster-1';
+      const fromDevice1 = submittedMarker(
+        assigned.config as LunchCountConfig,
+        assigned.id,
+        getCentralDayKey(),
+        classKey,
+        { notes: '2 gluten free', extraPizza: 4 }
+      );
+      // What Firestore hands the other device: the marker and pizza count, no notes.
+      const { lastSubmittedDetails: driveOnly, ...markerOnly } = fromDevice1;
+      const useDrive = (
+        readWidgetPii: () => Promise<Record<string, unknown> | null>
+      ) =>
+        (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+          ...mockDashboardContext,
+          readWidgetPii: vi.fn(readWidgetPii),
+        });
+      const signIn = () =>
+        (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+          user: { displayName: 'Sam Substitute', uid: 'u1' },
+          selectedBuildings: ['schumann'],
+          featurePermissions: [
+            {
+              widgetType: 'lunchCount',
+              config: {
+                submissionUrl: 'https://script.example/exec',
+                schumannSheetId: 'sheet-1',
+              },
+            },
+          ],
+        });
+
+      it('prefills Review and Resend from the Drive copy', async () => {
+        signIn();
+        useDrive(() =>
+          Promise.resolve({ lastSubmittedDetails: driveOnly } as Record<
+            string,
+            unknown
+          >)
+        );
+        render(
+          <LunchCountWidget
+            widget={{
+              ...assigned,
+              config: { ...assigned.config, ...markerOnly },
+            }}
+          />
+        );
+        fireEvent.click(screen.getByRole('button', { name: /Report/i }));
+        fireEvent.click(await screen.findByText('Review and Resend'));
+        expect(screen.getByDisplayValue('2 gluten free')).toBeTruthy();
+      });
+
+      it('offers no blank resend when the notes cannot be loaded', async () => {
+        signIn();
+        useDrive(() => Promise.resolve(null));
+        render(
+          <LunchCountWidget
+            widget={{
+              ...assigned,
+              config: { ...assigned.config, ...markerOnly },
+            }}
+          />
+        );
+        fireEvent.click(screen.getByRole('button', { name: /Report/i }));
+        expect(
+          await screen.findByText('Lunch Count Already Submitted')
+        ).toBeTruthy();
+        expect(screen.queryByText('Review and Resend')).toBeNull();
+      });
+
+      it('sending another class keeps the first class’s notes', async () => {
+        signIn();
+        global.fetch = vi.fn().mockResolvedValue({
+          ok: true,
+          text: () => Promise.resolve('Success'),
+        });
+        const otherClass = submittedMarker(
+          assigned.config as LunchCountConfig,
+          assigned.id,
+          getCentralDayKey(),
+          '10:45 - GR1 #roster-1',
+          { notes: 'Class A notes', extraPizza: 0 }
+        );
+        const { lastSubmittedDetails: otherNotes, ...otherMarker } = otherClass;
+        useDrive(() =>
+          Promise.resolve({ lastSubmittedDetails: otherNotes } as Record<
+            string,
+            unknown
+          >)
+        );
+        render(
+          <LunchCountWidget
+            widget={{
+              ...assigned,
+              config: { ...assigned.config, ...otherMarker },
+            }}
+          />
+        );
+        fireEvent.click(screen.getByRole('button', { name: /Submit Report/i }));
+        fireEvent.click(
+          await screen.findByRole('button', { name: /Confirm & Submit/i })
+        );
+        await waitFor(() =>
+          expect(mockDashboardContext.updateWidget).toHaveBeenCalled()
+        );
+        const [, update] = mockDashboardContext.updateWidget.mock.calls.at(
+          -1
+        ) as [string, { config: LunchCountConfig }];
+        expect(update.config.lastSubmittedClasses).toEqual([
+          '10:45 - GR1 #roster-1',
+          classKey,
+        ]);
+        expect(
+          update.config.lastSubmittedDetails?.['10:45 - GR1 #roster-1']?.notes
+        ).toBe('Class A notes');
+        expect(update.config.lastSubmittedDetails?.[classKey]).toBeDefined();
+      });
     });
   });
 });

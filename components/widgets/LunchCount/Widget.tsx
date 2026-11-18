@@ -39,6 +39,7 @@ import {
   submittedMarker,
   sheetRowKey,
 } from './redesign/lunchCountFormat';
+import { useSentDetails } from './useSentDetails';
 import { logError } from '@/utils/logError';
 import { toLunchCountSchoolSite } from '@/config/buildings';
 
@@ -243,7 +244,10 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
   const reportName = subShareHost
     ? (subShareHost.teacherName ?? 'Staff')
     : (user?.displayName ?? 'Staff');
-  const config = widget.config as LunchCountConfig;
+  const { config, needsSentDetails, ensureSentDetails } = useSentDetails(
+    widget.id,
+    widget.config as LunchCountConfig
+  );
   const {
     cachedMenu = null,
     assignments = {},
@@ -563,6 +567,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
 
     setIsSubmitting(true);
     try {
+      const sentConfig = await ensureSentDetails();
       const payload = {
         timestamp,
         label,
@@ -592,7 +597,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
       }
 
       updateWidget(widget.id, {
-        config: submittedMarker(config, widget.id, dayKey, sentClass, {
+        config: submittedMarker(sentConfig, widget.id, dayKey, sentClass, {
           notes,
           extraPizza: payload.extraPizza,
         }),
@@ -614,12 +619,21 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
     }
   };
 
+  // Opens at once unless another device's notes for today still need loading.
+  const openReportModal = () => {
+    if (!needsSentDetails) {
+      setIsModalOpen(true);
+      return;
+    }
+    void ensureSentDetails().then(() => setIsModalOpen(true));
+  };
+
   const handleOpenReport = () => {
     if (needsTime || needsGrade) {
       setIsMissingInfoOpen(true);
       return;
     }
-    setIsModalOpen(true);
+    openReportModal();
   };
 
   const handleSaveMissingInfo = (info: LunchInfo) => {
@@ -640,7 +654,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
       },
     });
     setIsMissingInfoOpen(false);
-    setIsModalOpen(true);
+    openReportModal();
   };
 
   const studentItemClass =

@@ -4,6 +4,7 @@ import {
   extractDashboardPII,
   mergeDashboardPII,
   dashboardHasPII,
+  lunchNotesBehindKey,
   DashboardPiiSupplement,
 } from '@/utils/dashboardPII';
 import { Dashboard } from '@/types';
@@ -293,6 +294,7 @@ describe('lunch report notes', () => {
             lastSubmittedDetails: {
               '11:00|1st': { notes: 'Sam: gluten free', extraPizza: 1 },
             },
+            lastSubmittedPizza: { '11:00|1st': 1 },
           },
         },
       ],
@@ -314,6 +316,39 @@ describe('lunch report notes', () => {
         },
       },
     });
+  });
+
+  it('keeps the extra pizza count in the Firestore copy so it syncs', () => {
+    const config = scrubDashboardPII(lunch(today)).widgets[0].config as Record<
+      string,
+      unknown
+    >;
+    expect(config.lastSubmittedPizza).toEqual({ '11:00|1st': 1 });
+  });
+
+  it("merges a Drive copy per class instead of replacing this device's", () => {
+    const local = lunch(today);
+    const merged = mergeDashboardPII(local, {
+      w1: {
+        lastSubmittedDetails: {
+          '12:00|2nd': { notes: 'from the laptop', extraPizza: 0 },
+        },
+      },
+    });
+    const details = (merged.widgets[0].config as Record<string, unknown>)
+      .lastSubmittedDetails as Record<string, { notes: string }>;
+    expect(Object.keys(details).sort()).toEqual(['11:00|1st', '12:00|2nd']);
+  });
+
+  it('flags a send whose notes are only on another device, once per marker', () => {
+    const board = lunch(today);
+    const server = board.widgets[0];
+    const scrubbed = scrubDashboardPII(board).widgets[0];
+    expect(lunchNotesBehindKey(scrubbed, undefined)).toBe(
+      `w1|${today}|11:00|1st`
+    );
+    expect(lunchNotesBehindKey(scrubbed, server)).toBeNull();
+    expect(lunchNotesBehindKey(server, undefined)).toBeNull();
   });
 
   it("drops an earlier day's notes instead of carrying them", () => {

@@ -1,7 +1,11 @@
 // Joining and leaving shared boards and collection links run here so firestore.rules no longer validates them.
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from './firebaseAdmin';
-import { OPERATOR_ORG_ID } from './authz';
+import {
+  hasDeactivatedClaim,
+  isRevokedMemberStatus,
+  OPERATOR_ORG_ID,
+} from './authz';
 import { isStaffMemberData } from './districtStaff';
 import { assertViewAsAllowed } from './viewAsGuard';
 
@@ -288,14 +292,32 @@ export function makeHostLookup(db: admin.firestore.Firestore): HostLookup {
       user.displayName && !user.displayName.includes('@')
         ? user.displayName.trim()
         : undefined;
-    const token = { email, email_verified: user.emailVerified };
+    // The host's own token would carry its custom claims, which the rules read.
+    const token: Data = {
+      ...(user.customClaims ?? {}),
+      email,
+      email_verified: user.emailVerified,
+    };
     const staff =
-      (await isDistrictStaff(db, token)) ||
-      (user.emailVerified &&
-        !!email &&
-        (await db.doc(`admins/${email}`).get()).exists);
+      (await isDistrictStaff(db, token)) || (await isLiveAdmin(db, token));
     return { staff, ...(name ? { name } : {}) };
   };
+}
+
+/** Rules' isAdmin() minus View-as: a verified email with an /admins doc, not deactivated by claim or member status. */
+async function isLiveAdmin(
+  db: admin.firestore.Firestore,
+  token: Data
+): Promise<boolean> {
+  const email =
+    typeof token.email === 'string' ? token.email.toLowerCase() : '';
+  if (token.email_verified !== true || !email || hasDeactivatedClaim(token))
+    return false;
+  if (!(await db.doc(`admins/${email}`).get()).exists) return false;
+  const member = await db
+    .doc(`organizations/${OPERATOR_ORG_ID}/members/${email}`)
+    .get();
+  return !member.exists || !isRevokedMemberStatus(member.get('status'));
 }
 
 /** Rules' isDistrictStaff(): a verified Orono address, no student claim, and a live non-student operator-org member doc. */
@@ -316,7 +338,13 @@ async function isDistrictStaff(
 export const shareMembershipV1 = onCall(
   { memory: '256MiB', timeoutSeconds: 60, maxInstances: 10 },
   async (request): Promise<{ changed: boolean } | ShareHostInfo> => {
-    await assertViewAsAllowed(request);
+    // shareHost only reads, so a locked View-as tab may still ask it.
+    const data: unknown = request.data;
+    const readOnly =
+      typeof data === 'object' &&
+      data !== null &&
+      (data as Data).action === 'shareHost';
+    await assertViewAsAllowed(request, readOnly ? { read: true } : {});
     if (!request.auth)
       throw new HttpsError('unauthenticated', 'Sign in first.');
     const db = admin.firestore();

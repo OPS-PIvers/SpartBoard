@@ -11,6 +11,7 @@ import {
   WidgetData,
   WidgetType,
 } from '@/types';
+import { getCentralDayKey } from '@/components/widgets/LunchCount/redesign/lunchCountFormat';
 
 // ---------------------------------------------------------------------------
 // Mocks (mirrors DashboardContext.immediate.test.tsx)
@@ -1010,6 +1011,86 @@ describe('DashboardContext stale PII supplement', () => {
     expect(configOf(stateRef.current?.activeDashboard, 'w-pii').names).toBe(
       'Alice'
     );
+  });
+});
+
+describe('DashboardContext lunch notes sent from another device', () => {
+  beforeEach(() => {
+    capturedSnapshotCb = null;
+    listFilesMock.mockReset();
+    downloadFileMock.mockReset();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    listFilesMock.mockResolvedValue([]);
+    vi.useRealTimers();
+  });
+
+  it('re-reads Drive once when the marker lists a class whose notes this device lacks', async () => {
+    listFilesMock.mockResolvedValue([]);
+    const stateRef = setup();
+    const lunch = (version: number, config: Record<string, unknown>) =>
+      ({
+        id: 'w-lunch',
+        type: 'lunchCount',
+        x: 0,
+        y: 0,
+        w: 1,
+        h: 1,
+        z: 1,
+        flipped: false,
+        version,
+        config,
+      }) as unknown as WidgetData;
+    await settleSnapshot(stateRef, [makeDashboard('dash-1', [lunch(1, {})])]);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    // The smartboard sent a class: Firestore carries the marker and pizza count, Drive the notes.
+    const day = getCentralDayKey();
+    const notes = {
+      '11:30 - GR1': { notes: 'Sam: gluten free', extraPizza: 2, sentAt: 1 },
+    };
+    listFilesMock.mockClear();
+    listFilesMock.mockResolvedValue([{ id: 'pii-1', name: 'dash-1-pii.json' }]);
+    downloadFileMock.mockResolvedValue(
+      piiBlob({ 'w-lunch': { lastSubmittedDetails: notes } })
+    );
+    const marker = {
+      lastSubmittedDate: day,
+      lastSubmittedWidgetId: 'w-lunch',
+      lastSubmittedClasses: ['11:30 - GR1'],
+      lastSubmittedPizza: { '11:30 - GR1': 2 },
+    };
+    await pushSnapshot([makeDashboard('dash-1', [lunch(2, marker)])]);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    expect(listFilesMock).toHaveBeenCalled();
+    const config = configOf(stateRef.current?.activeDashboard, 'w-lunch');
+    expect(config.lastSubmittedDetails).toEqual(notes);
+    expect(config.lastSubmittedPizza).toEqual({ '11:30 - GR1': 2 });
+
+    // A marker Drive has no notes for is read once, not on every snapshot.
+    const later = {
+      ...marker,
+      lastSubmittedClasses: ['11:30 - GR1', '12:00 - GR2'],
+    };
+    listFilesMock.mockResolvedValue([]);
+    await pushSnapshot([makeDashboard('dash-1', [lunch(3, later)])]);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(listFilesMock).toHaveBeenCalled();
+    listFilesMock.mockClear();
+    await pushSnapshot([makeDashboard('dash-1', [lunch(4, later)])]);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(listFilesMock).not.toHaveBeenCalled();
   });
 });
 
