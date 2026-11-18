@@ -397,18 +397,31 @@ export function compareAssigned(a: AssignedStatus, b: AssignedStatus): number {
 
 /** A response belongs to a class by its classId, else (anonymous PIN joiners) by the class label. */
 export function responseInClass(
-  r: Pick<QuizResponse, 'classId' | 'classPeriod'>,
+  r: { classId?: string; classPeriod?: string },
   key: string,
   label: string
 ): boolean {
   return r.classId ? r.classId === key : r.classPeriod === label;
 }
 
-/** What the quiz adapter reads beyond the assignment doc; pass null while responses load. */
-export interface QuizAssignedExtras {
-  responses:
-    readonly Pick<QuizResponse, 'status' | 'classId' | 'classPeriod'>[] | null;
-  /** Responses awaiting a teacher grade (`isResponseAwaitingGrade`). */
+/** A stored status of any kind (ended, archived, inactive) read as Quiz's three. */
+export function runStatus(status: string): QuizAssignmentStatus {
+  return status === 'active' || status === 'paused' ? status : 'inactive';
+}
+
+/** One response of any kind, reduced to what the row counts. */
+export interface AssignedResponse {
+  classId?: string;
+  classPeriod?: string;
+  /** Has begun work; a join asking to be let in has not. */
+  started: boolean;
+  submitted: boolean;
+}
+
+/** What every adapter reads beyond the assignment doc; pass null responses while they load. */
+export interface AssignedExtras {
+  responses: readonly AssignedResponse[] | null;
+  /** Responses awaiting a teacher grade. */
   needsGrading: number | null;
   /** Students expected per class key; key '' for a single-line assignment. */
   classSizes?: Readonly<Record<string, number>>;
@@ -416,19 +429,44 @@ export interface QuizAssignedExtras {
   bellFor?: (access: Pick<PeriodAccess, 'rosterId'>) => EpochWindow | null;
 }
 
-/** Normalizes a quiz assignment and its responses for `deriveAssignedStatus`. */
-export function quizAssignedInput(
-  a: QuizAssignment,
-  extras: QuizAssignedExtras
+/** The assignment doc fields every kind shares, as the core builder reads them. */
+export interface AssignedRunFields {
+  id: string;
+  status: string;
+  createdAt: number;
+  periodAccess?: Record<string, PeriodAccess>;
+  closedAt?: number | null;
+  doneAt?: number | null;
+  openAt?: number | null;
+  closeAt?: number | null;
+  rosterIds?: string[];
+  className?: string;
+  periodNames?: string[];
+}
+
+/** The kind-specific half of an `AssignedInput`. */
+export interface AssignedKindFields {
+  kind: AssignmentKind;
+  title: string;
+  viewOnly: boolean;
+  publishesScores: boolean;
+  scoresPublished: boolean;
+}
+
+/** Builds an `AssignedInput` from any kind's doc; D20 legacy reading lives in `deriveAssignedStatus`. */
+export function buildAssignedInput(
+  run: AssignedRunFields,
+  fields: AssignedKindFields,
+  extras: AssignedExtras
 ): AssignedInput {
   const responses = extras.responses ?? [];
-  const pa = a.periodAccess;
+  const pa = run.periodAccess;
   const perClass = !!pa && Object.keys(pa).length > 0;
-  const tally = (match: (r: (typeof responses)[number]) => boolean) => {
+  const tally = (match: (r: AssignedResponse) => boolean) => {
     const mine = responses.filter(match);
     return {
-      started: mine.filter((r) => r.status !== 'joined').length,
-      submitted: mine.filter((r) => r.status === 'completed').length,
+      started: mine.filter((r) => r.started).length,
+      submitted: mine.filter((r) => r.submitted).length,
     };
   };
   const classes: AssignedClassInput[] = perClass
@@ -443,34 +481,75 @@ export function quizAssignedInput(
     : [
         {
           key: '',
-          label: a.className?.trim()
-            ? a.className
-            : (a.periodNames ?? []).join(', '),
+          label: run.className?.trim()
+            ? run.className
+            : (run.periodNames ?? []).join(', '),
           access: null,
           ...tally(() => true),
           total: extras.classSizes?.[''] ?? null,
           bell:
-            a.rosterIds?.length === 1
-              ? (extras.bellFor?.({ rosterId: a.rosterIds[0] }) ?? null)
+            run.rosterIds?.length === 1
+              ? (extras.bellFor?.({ rosterId: run.rosterIds[0] }) ?? null)
               : null,
         },
       ];
-  const viewOnly = a.mode === 'view-only';
   return {
-    id: a.id,
-    kind: 'quiz',
-    title: a.quizTitle,
-    status: a.status,
-    createdAt: a.createdAt,
+    id: run.id,
+    kind: fields.kind,
+    title: fields.title,
+    status: runStatus(run.status),
+    createdAt: run.createdAt,
     perClass,
     classes,
-    closedAt: a.closedAt ?? null,
-    doneAt: a.doneAt ?? null,
-    openAt: a.openAt ?? null,
-    closeAt: a.closeAt ?? null,
-    viewOnly,
+    closedAt: run.closedAt ?? null,
+    doneAt: run.doneAt ?? null,
+    openAt: run.openAt ?? null,
+    closeAt: run.closeAt ?? null,
+    viewOnly: fields.viewOnly,
     needsGrading: extras.responses == null ? null : extras.needsGrading,
-    publishesScores: !viewOnly,
-    scoresPublished: !!a.scoreVisibility && a.scoreVisibility !== 'none',
+    publishesScores: fields.publishesScores,
+    scoresPublished: fields.scoresPublished,
   };
+}
+
+/** A published score level of any kind; absent or 'none' is unpublished. */
+export const scoresShown = (visibility: string | null | undefined): boolean =>
+  !!visibility && visibility !== 'none';
+
+/** What the quiz adapter reads beyond the assignment doc; pass null while responses load. */
+export interface QuizAssignedExtras extends Omit<AssignedExtras, 'responses'> {
+  responses:
+    readonly Pick<QuizResponse, 'status' | 'classId' | 'classPeriod'>[] | null;
+}
+
+/** A quiz response as the row counts it. */
+export const quizAssignedResponse = (
+  r: Pick<QuizResponse, 'status' | 'classId' | 'classPeriod'>
+): AssignedResponse => ({
+  classId: r.classId,
+  classPeriod: r.classPeriod,
+  started: r.status !== 'joined',
+  submitted: r.status === 'completed',
+});
+
+/** Normalizes a quiz assignment and its responses for `deriveAssignedStatus`. */
+export function quizAssignedInput(
+  a: QuizAssignment,
+  extras: QuizAssignedExtras
+): AssignedInput {
+  const viewOnly = a.mode === 'view-only';
+  return buildAssignedInput(
+    a,
+    {
+      kind: 'quiz',
+      title: a.quizTitle,
+      viewOnly,
+      publishesScores: !viewOnly,
+      scoresPublished: scoresShown(a.scoreVisibility),
+    },
+    {
+      ...extras,
+      responses: extras.responses?.map(quizAssignedResponse) ?? null,
+    }
+  );
 }
