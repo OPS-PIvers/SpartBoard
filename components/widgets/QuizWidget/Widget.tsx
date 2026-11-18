@@ -739,6 +739,15 @@ const TeacherQuizWidget: React.FC<{
     shareAssignmentWithPlc,
     stopSharingAssignmentWithPlc,
   } = useQuizAssignments(user?.uid);
+  const assignedTabLifecycle = useMemo(
+    () => ({
+      pauseAssignment,
+      resumeAssignment,
+      deactivateAssignment,
+      reopenAssignment,
+    }),
+    [pauseAssignment, resumeAssignment, deactivateAssignment, reopenAssignment]
+  );
 
   // M17 individual-assignment targeting (spec §5 B3). Skipped refs from the
   // most recent `setAssignmentTargetsV1` call, keyed by assignment id, so the
@@ -3535,6 +3544,17 @@ const TeacherQuizWidget: React.FC<{
           }
           rosterTargets={monitorActiveAssignment ?? null}
           responsesLoaded={liveResponsesLoaded}
+          assignedTab={
+            canAccessFeature('assigned-tab') &&
+            !isReview &&
+            monitorActiveAssignment &&
+            getAssignmentWidgetKind(monitorActiveAssignment) === 'quiz'
+              ? {
+                  assignment: monitorActiveAssignment,
+                  lifecycle: assignedTabLifecycle,
+                }
+              : null
+          }
           assignmentSettings={
             monitorActiveAssignment &&
             getAssignmentWidgetKind(monitorActiveAssignment) === 'quiz' ? (
