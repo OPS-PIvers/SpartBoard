@@ -26,6 +26,8 @@ export interface AssignedRowProps {
   mainBadgeAriaLabel?: string;
   /** Replaces the derived line, e.g. for paper quizzes. */
   lineOverride?: LineSegment[];
+  /** Colours the main button as this action; defaults to the derived one. */
+  mainTone?: MainKind;
   /** False hides the per-class panel, e.g. for a paper quiz. */
   classControls?: boolean;
   /** A null key acts on the whole single-line assignment (D15). */
@@ -48,6 +50,30 @@ const TONE_CLASS: Record<LineTone, string> = {
   alert: 'text-red-700 font-bold',
   warn: 'text-amber-700 font-bold',
   plain: '',
+};
+
+type MainKind = AssignedStatus['action']['kind'];
+const SOLID = 'text-white';
+// Main button color follows the row state.
+const PALETTE: Record<MainKind, string> = {
+  open: `${SOLID} bg-emerald-700 hover:bg-emerald-800`,
+  resume: `${SOLID} bg-emerald-700 hover:bg-emerald-800`,
+  monitor: `${SOLID} bg-brand-blue-primary hover:bg-brand-blue-dark`,
+  grade: `${SOLID} bg-red-700 hover:bg-red-800`,
+  publish: `${SOLID} bg-amber-700 hover:bg-amber-800`,
+  results: 'bg-slate-100 text-slate-700 hover:bg-slate-200',
+  'choose-class':
+    'bg-brand-blue-lighter text-brand-blue-dark hover:bg-brand-blue-light/40',
+};
+const CLASS_TONE: Record<ClassActionKind, string> = {
+  open: 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200',
+  resume: 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200',
+  pause: 'bg-amber-100 text-amber-800 hover:bg-amber-200',
+  close: 'bg-slate-200 text-slate-700 hover:bg-slate-300',
+  reopen:
+    'bg-brand-blue-lighter text-brand-blue-dark hover:bg-brand-blue-light/40',
+  monitor:
+    'bg-brand-blue-lighter text-brand-blue-dark hover:bg-brand-blue-light/40',
 };
 
 const ICON = { width: 'min(14px, 4cqmin)', height: 'min(14px, 4cqmin)' };
@@ -87,6 +113,7 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
   lineOverride,
   onClassAction,
   classControls = true,
+  mainTone,
   bellLabel,
   footer,
   meta,
@@ -174,7 +201,7 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
                 tourWidgetType,
                 rowKey
               )}
-              className="flex items-center justify-center whitespace-nowrap rounded-lg bg-brand-blue-primary font-bold text-white transition-all hover:bg-brand-blue-dark active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+              className={`flex items-center justify-center whitespace-nowrap rounded-lg font-bold transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 ${PALETTE[mainTone ?? status.action.kind]}`}
               style={{
                 minWidth: 'min(104px, 24cqmin)',
                 paddingInline: 'min(12px, 2.6cqmin)',
@@ -289,7 +316,7 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
                       tourWidgetType,
                       `${kind}-${ci + 1}`
                     )}
-                    className="whitespace-nowrap rounded-lg bg-brand-blue-lighter font-bold text-brand-blue-dark transition-colors hover:bg-brand-blue-light/40 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                    className={`whitespace-nowrap rounded-lg font-bold transition-colors active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 ${CLASS_TONE[kind]}`}
                     style={{
                       paddingInline: 'min(12px, 2.6cqmin)',
                       paddingBlock: 'min(7px, 1.6cqmin)',

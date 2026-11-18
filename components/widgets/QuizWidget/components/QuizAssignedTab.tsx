@@ -577,6 +577,7 @@ const QuizAssignedRowHost: React.FC<RowHostProps> = ({
       lineOverride={lineOverride}
       onClassAction={onClassAction}
       classControls={!onPaper}
+      mainTone={legacy ? 'monitor' : undefined}
       bellLabel={(c) => {
         const w = bells[c.key];
         return w

@@ -34,7 +34,7 @@ export const ASSIGNED_ROSTERS: ClassRoster[] = KEYS.map((id, i) => ({
   driveFileId: null,
   studentCount: 27,
   createdAt: now,
-  students: Array.from({ length: 26 + (i % 3) }, (_, n) => ({
+  students: Array.from({ length: 28 - (i % 2) }, (_, n) => ({
     id: `${id}-s${n}`,
     firstName: 'S',
     lastName: String(n),
