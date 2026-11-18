@@ -111,6 +111,9 @@ describe('isRewordOnly', () => {
     ).toBe(true);
   });
 
+  it('accepts any new wording over a letter stub', () => {
+    expect(isRewordOnly(['A', 'B'], ['one', 'two'])).toBe(true);
+  });
   it('accepts a typo fix, a plural and a tie the word count could not break', () => {
     expect(isRewordOnly(['Pariss', 'Lyon'], ['Paris', 'Lyon'])).toBe(true);
     expect(isRewordOnly(['cat', 'dog'], ['cats', 'dogs'])).toBe(true);

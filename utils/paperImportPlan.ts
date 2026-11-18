@@ -97,7 +97,11 @@ function similarity(a: string, b: string): number {
   return x.size + y.size === 0 ? 0 : (2 * shared) / (x.size + y.size);
 }
 
-/** True when every choice kept its letter and only its wording changed. */
+const isLetterStub = (order: readonly string[]) =>
+  order.every((text, i) => text.trim().toUpperCase() === 'ABCDEFGH'[i]);
+
+// Keep in sync with isRewordOnly in functions/src/paperRewordSync.ts.
+/** True when every choice kept its letter and only its wording changed (a letter stub has no wording to compare). */
 export function isRewordOnly(
   recorded: readonly string[],
   current: readonly string[]
@@ -106,9 +110,11 @@ export function isRewordOnly(
   const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
   const was = recorded.map(norm);
   const now = current.map(norm);
+  const stub = isLetterStub(recorded);
   return now.every((text, i) => {
     if (text === was[i]) return true;
     if (was.includes(text) || now.includes(was[i])) return false;
+    if (stub) return true;
     const own = similarity(text, was[i]);
     return own > 0 && was.every((w, j) => j === i || similarity(text, w) < own);
   });

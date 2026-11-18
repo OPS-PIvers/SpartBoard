@@ -75,6 +75,7 @@ function similarity(a: string, b: string): number {
 const isLetterStub = (order: readonly string[]) =>
   order.every((text, i) => text.trim().toUpperCase() === 'ABCDEFGH'[i]);
 
+// Keep in sync with isRewordOnly in utils/paperImportPlan.ts.
 /** True when every choice kept its letter: each is unchanged, or new text resembling its own old text more than any other's (a letter stub has no wording to compare). */
 export function isRewordOnly(
   recorded: readonly string[],
