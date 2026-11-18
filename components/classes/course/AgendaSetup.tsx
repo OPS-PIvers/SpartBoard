@@ -233,7 +233,9 @@ export const AgendaSetup: React.FC<
   const applyDeck = async (next: CourseAgenda) => {
     if (next.fileId === agenda?.fileId) return true;
     const old = agenda;
-    if (!(await save({ agenda: next }))) return false;
+    const aspect = drive ? await drive.getDeckAspect(next.fileId) : null;
+    if (!(await save({ agenda: aspect ? { ...next, aspect } : next })))
+      return false;
     if (drive && domain) {
       const { sharing } = await readDeckState(drive, next.fileId, domain);
       const fix = sharingProblem(sharing, needed);

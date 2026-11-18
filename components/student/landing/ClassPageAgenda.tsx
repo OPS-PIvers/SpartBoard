@@ -2,6 +2,11 @@
 import React from 'react';
 import { ExternalLink } from 'lucide-react';
 import type { ClassPageView } from '@/hooks/useClassPageAgendas';
+import {
+  agendaAspect,
+  previewBoxMaxWidth,
+  previewFrameStyle,
+} from '@/utils/course/agendaFrame';
 
 const slidesId = (fileId: string) => encodeURIComponent(fileId);
 
@@ -53,14 +58,18 @@ export const ClassPageAgenda: React.FC<ClassPageAgendaProps> = ({
                   {agenda.teacherName}
                 </h2>
               )}
-              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+              <div
+                className="overflow-hidden rounded-2xl border border-slate-200 bg-white [container-type:inline-size]"
+                style={{ maxWidth: previewBoxMaxWidth(agendaAspect(agenda)) }}
+              >
                 <iframe
                   src={embedUrlFor(agenda.fileId)}
                   title={agenda.title}
                   allowFullScreen
                   loading="lazy"
                   referrerPolicy="strict-origin-when-cross-origin"
-                  className="block aspect-video w-full border-0"
+                  className="block w-full border-0"
+                  style={previewFrameStyle(agendaAspect(agenda))}
                 />
               </div>
               <a

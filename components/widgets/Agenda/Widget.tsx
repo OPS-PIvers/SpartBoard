@@ -29,6 +29,7 @@ import {
   resolveAgendaChoice,
   type AgendaChoice,
 } from './agendaWidgetState';
+import { agendaAspect } from '@/utils/course/agendaFrame';
 import { AgendaFixtureContext } from './fixtureCourses';
 import { useAgendaDeckCheck } from './useAgendaDeckCheck';
 
@@ -155,6 +156,7 @@ const AgendaFace: React.FC<{
   const course = choice.course;
   const agenda = course?.agenda ?? null;
   const embedUrl = agenda ? agendaEmbedUrl(agenda.fileId) : null;
+  const aspect = agendaAspect(agenda);
   const openUrl = agenda ? agendaOpenUrl(agenda.fileId) : null;
   const blocked = deckBlocksStudents(course);
   // Too small for the controls: the slide alone, which is what a tiny agenda is for.
@@ -259,9 +261,8 @@ const AgendaFace: React.FC<{
             <div
               className="relative overflow-hidden rounded-lg bg-white shadow-sm"
               style={{
-                width:
-                  'min(100cqw - min(16px, 4cqmin), (100cqh - min(8px, 2cqmin)) * 16 / 9)',
-                aspectRatio: '16 / 9',
+                width: `min(100cqw - min(16px, 4cqmin), (100cqh - min(8px, 2cqmin)) * ${aspect})`,
+                aspectRatio: `${aspect}`,
               }}
             >
               {deckSrcDoc ? (
