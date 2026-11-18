@@ -1,4 +1,10 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { Layers, LogIn } from 'lucide-react';
 import { deleteField, doc, setDoc, updateDoc } from 'firebase/firestore';
@@ -144,6 +150,10 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const config = widget.config as FlashcardsConfig;
+  const configRef = useRef(config);
+  useLayoutEffect(() => {
+    configRef.current = config;
+  }, [config]);
   const {
     user,
     ensureGoogleScope,
@@ -522,11 +532,13 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
         }
       }
 
-      const nextRosterMap = { ...(config.lastRosterIdsBySetId ?? {}) };
+      const nextRosterMap = {
+        ...(configRef.current.lastRosterIdsBySetId ?? {}),
+      };
       if (rosterIds.length > 0) nextRosterMap[set.id] = rosterIds;
       else delete nextRosterMap[set.id];
       updateWidget(widget.id, {
-        config: { ...config, lastRosterIdsBySetId: nextRosterMap },
+        config: { lastRosterIdsBySetId: nextRosterMap },
       });
       setAssigningSet(null);
 

@@ -78,7 +78,40 @@
       "glBuildingIndexMirror",
       "rebuildGlBuildingIndexV1"
     ],
-    "gradebook": [],
+    "gradebook": [
+      "getGradebookRosterV1",
+      "gradeIndexClassSettings",
+      "gradeIndexColumn",
+      "gradeIndexConfig",
+      "gradeIndexDistrictConfig",
+      "gradeIndexFlashcardProgress",
+      "gradeIndexFlashcardSession",
+      "gradeIndexGuidedLearningAssignment",
+      "gradeIndexGuidedLearningResponse",
+      "gradeIndexGuidedLearningSession",
+      "gradeIndexMark",
+      "gradeIndexMiniAppSession",
+      "gradeIndexMiniAppSubmission",
+      "gradeIndexPlcConfig",
+      "gradeIndexProjectGrade",
+      "gradeIndexProjectGroup",
+      "gradeIndexProjectRun",
+      "gradeIndexProjection",
+      "gradeIndexQuizAssignment",
+      "gradeIndexQuizKey",
+      "gradeIndexQuizResponse",
+      "gradeIndexQuizSession",
+      "gradeIndexRecompute",
+      "gradeIndexStudentPointer",
+      "gradeIndexVideoKey",
+      "gradeIndexVideoResponse",
+      "gradeIndexVideoSession",
+      "gradeIndexWallSession",
+      "gradeIndexWallSubmission",
+      "gradeIndexWritingResponse",
+      "gradeIndexWritingSession",
+      "quizAttemptGradeWrite"
+    ],
     "integrations": [
       "ltiJwks",
       "ltiLogin",
@@ -184,6 +217,21 @@
       "sweepPlcRecordingAudio",
       "syncBuildingGroupV1"
     ],
-    "student": []
+    "student": [
+      "claimPollCodeV1",
+      "commitRosterPinIndexV1",
+      "focusReportV1",
+      "focusStatusV1",
+      "getAssignmentPseudonymV1",
+      "getPseudonymsForAssignmentV1",
+      "getStudentClassDirectoryV1",
+      "guidedLearningLateRevealKey",
+      "mintPollCodeV1",
+      "pinLoginV1",
+      "pollCodePointer",
+      "reportStudentLoadIssueV1",
+      "resolvePollCodeV1",
+      "studentLoginV1"
+    ]
   }
 }
