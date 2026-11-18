@@ -35,7 +35,10 @@ import {
   type PaperQuestion,
   type PaperSheetPlan,
 } from './paperBatchPlan';
-import { PAPER_HANDWRITTEN_FEATURE } from './paperWrittenTypes';
+import {
+  PAPER_FIB_FEATURE,
+  PAPER_HANDWRITTEN_FEATURE,
+} from './paperWrittenTypes';
 import {
   GOOGLE_OAUTH_CLIENT_ID,
   GOOGLE_OAUTH_CLIENT_SECRET,
@@ -120,6 +123,17 @@ function choicePicturesFor(
   return out.some(Boolean) ? out : undefined;
 }
 
+/** Mirrors `letteredBlanks` in utils/paperWritten.ts: "___ (a)" on a multi-blank stem. */
+function letteredBlanks(text: string): string {
+  const runs = text.match(/_{2,}/g)?.length ?? 0;
+  if (runs < 2) return text;
+  let i = 0;
+  return text.replace(
+    /_{2,}/g,
+    (run) => `${run} (${String.fromCharCode(97 + i++)})`
+  );
+}
+
 const testPaperRow = (
   row: number,
   q: PaperQuestion,
@@ -156,6 +170,8 @@ export interface CreateTeammatePaperBatchResult {
   /** Printed on every sheet so a stack cannot be handed to the wrong class (D17). */
   printedForTeacherName: string;
   testPaper: TeammateTestPaperRow[];
+  /** Fill in the blank: each blank's answer by question id, for the answer key. */
+  blankAnswers?: Record<string, string[]>;
   /** True when this run created the target's copy and joined it to the group (D9). */
   createdCopy: boolean;
   /** True when their copy is deferred to their next sign-in instead (D20). */
@@ -632,8 +648,17 @@ export async function handleCreateTeammatePaperBatch(
       actor.email ?? null,
       actor.uid
     ));
+  const fibOn =
+    writtenOn &&
+    !!deps.isFeatureGranted &&
+    (await deps.isFeatureGranted(
+      PAPER_FIB_FEATURE,
+      actor.email ?? null,
+      actor.uid
+    ));
   const analysis = analyzePaperQuiz(questions, {
     written: writtenOn,
+    fib: fibOn,
     sections: content.sections,
     order: content.order,
   });
@@ -798,8 +823,10 @@ export async function handleCreateTeammatePaperBatch(
         const q = questionsById.get(e.questionId);
         if (!q) return [];
         const row = Number(e.label);
+        const text =
+          q.type === 'FIB' ? letteredBlanks(q.text ?? '') : (q.text ?? '');
         return e.kind === 'written'
-          ? [{ row, text: q.text ?? '', choices: [], written: true }]
+          ? [{ row, text, choices: [], written: true }]
           : [testPaperRow(row, q, choicesOf(q))];
       })
     : analysis.rows.flatMap((r): TeammateTestPaperRow[] => {
@@ -807,12 +834,20 @@ export async function handleCreateTeammatePaperBatch(
         return q ? [testPaperRow(r.row, q, choicesOf(q))] : [];
       });
 
+  const blankAnswers: Record<string, string[]> = {};
+  for (const e of pageMaps ? analysis.entries : []) {
+    const q = questionsById.get(e.questionId);
+    if (e.kind === 'written' && e.blanks && q?.type === 'FIB')
+      blankAnswers[e.questionId] = q.correctAnswer.split('\u001F');
+  }
+
   return {
     batch,
     sheets: planned.sheets,
     quizTitle: content.title,
     printedForTeacherName: targetName,
     testPaper,
+    ...(Object.keys(blankAnswers).length > 0 ? { blankAnswers } : {}),
     createdCopy,
     pendingCopy: deferCopy,
   };
@@ -972,7 +1007,7 @@ export function buildLiveWriteDeps(): TeammatePrintWriteDeps {
       return created.data.id;
     },
     isFeatureGranted: async (featureId, email, uid) => {
-      const { isGlobalFeatureGranted } = await import('./quizMediaArchive');
+      const { isGlobalFeatureGranted } = await import('./featureGrant');
       return isGlobalFeatureGranted(admin.firestore(), featureId, email, uid);
     },
     trashDriveFile: async (accessToken, fileId) => {

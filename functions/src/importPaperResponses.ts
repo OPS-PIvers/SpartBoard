@@ -47,6 +47,7 @@ import {
   type PaperTranscriptionJob,
   type PaperWrittenImportResult,
   type PaperWrittenPayloadBox,
+  cleanBlanks,
 } from './paperWrittenTypes';
 import {
   readPaperHandwritingQuota,
@@ -100,6 +101,8 @@ export type ParsedWrittenBox = Omit<PaperWrittenPayloadBox, 'storagePath'> & {
   mimeType: CropMime;
   /** Set server-side from the batch map, never from the payload: a custom image box. */
   noTranscript?: true;
+  /** Set server-side from the batch map: a fill-in-the-blank box's line count. */
+  blanks?: number;
 };
 
 export interface ImportPaperResponsesInput {
@@ -389,6 +392,7 @@ function seatMapIndex(
       [...index.written].map(([id, page]) => [swap(id), page] as const)
     ),
     image: new Set([...index.image].map(swap)),
+    blanks: new Map([...index.blanks].map(([id, n]) => [swap(id), n] as const)),
   };
 }
 
@@ -398,6 +402,8 @@ interface BatchMapIndex {
   written: Map<string, number>;
   /** Written boxes that printed a custom image: graded from the scan, never transcribed. */
   image: Set<string>;
+  /** Fill-in-the-blank boxes: questionId -> write-in lines. */
+  blanks: Map<string, number>;
 }
 
 function indexPageMaps(pageMaps: unknown): BatchMapIndex {
@@ -405,6 +411,7 @@ function indexPageMaps(pageMaps: unknown): BatchMapIndex {
     mc: new Set(),
     written: new Map(),
     image: new Set(),
+    blanks: new Map(),
   };
   if (!Array.isArray(pageMaps)) return index;
   for (const map of pageMaps as Partial<PaperPageMap>[]) {
@@ -415,6 +422,8 @@ function indexPageMaps(pageMaps: unknown): BatchMapIndex {
       else if (item.kind === 'written' && typeof map.page === 'number') {
         index.written.set(item.questionId, map.page);
         if (item.style === 'image') index.image.add(item.questionId);
+        const blanks = cleanBlanks(item.blanks);
+        if (blanks) index.blanks.set(item.questionId, blanks);
       }
     }
   }
@@ -538,6 +547,8 @@ export async function handleImportPaperResponses(
       if (seatIndex?.written.get(box.questionId) !== box.page)
         invalid('A written answer is not a box on that page of this batch.');
       if (seatIndex?.image.has(box.questionId)) box.noTranscript = true;
+      const blanks = seatIndex?.blanks.get(box.questionId);
+      if (blanks) box.blanks = blanks;
     }
   }
 
@@ -988,6 +999,7 @@ async function importSeat(
               page: box.page,
               state: box.state,
               seat: sheet.seat,
+              ...(box.blanks ? { blanks: box.blanks } : {}),
             },
             updatedAt: ctx.now,
           },
@@ -1044,7 +1056,11 @@ async function importSeat(
     });
     // Blank boxes ride along so the worker archives them; it skips Gemini for them.
     const boxes = jobBoxes.get(box.page) ?? [];
-    boxes.push({ questionId: box.questionId, storagePath });
+    boxes.push({
+      questionId: box.questionId,
+      storagePath,
+      ...(box.blanks ? { blanks: box.blanks } : {}),
+    });
     jobBoxes.set(box.page, boxes);
     if (box.state === 'ink' && !box.noTranscript) inkPages.add(box.page);
   });
@@ -1373,7 +1389,7 @@ export const importPaperResponsesV1 = onCall(
       Date.now(),
       async () => {
         if (!caller) return false;
-        const { isGlobalFeatureGranted } = await import('./quizMediaArchive');
+        const { isGlobalFeatureGranted } = await import('./featureGrant');
         return isGlobalFeatureGranted(
           admin.firestore(),
           PAPER_HANDWRITING_AI_FEATURE,
@@ -1383,7 +1399,7 @@ export const importPaperResponsesV1 = onCall(
       },
       async () => {
         if (!caller) return false;
-        const { isGlobalFeatureGranted } = await import('./quizMediaArchive');
+        const { isGlobalFeatureGranted } = await import('./featureGrant');
         return isGlobalFeatureGranted(
           admin.firestore(),
           PAPER_KEPT_PAGES_FEATURE,

@@ -25,6 +25,7 @@ import {
   PAPER_PRIVATE_SUBCOLLECTION,
   PAPER_TRANSCRIPTION_JOBS,
   PAPER_WRITTEN_CROP_PREFIX,
+  cleanBlanks,
   paperCropStoragePath,
   paperTranscriptionJobId,
   serverSeat,
@@ -543,26 +544,22 @@ async function findLatestPageJob(
   return latest;
 }
 
-/** The page of the job that already lists this box, so a blank box re-queues on its own page. */
-async function findBoxPage(
+/** The job box that already lists this answer, so a re-queue keeps its page and blank count. */
+async function findBoxJob(
   db: Firestore,
   uid: string,
   scanId: string,
-  seat: number,
+  seat: number | null,
   responseKey: string,
   questionId: string
-): Promise<number | null> {
+): Promise<{ page: number; blanks?: number } | null> {
   const snap = await jobsOf(db, uid).where('scanId', '==', scanId).get();
   for (const doc of snap.docs) {
-    if (!doc.id.startsWith(`${scanId}_${seat}_`)) continue;
+    if (seat !== null && !doc.id.startsWith(`${scanId}_${seat}_`)) continue;
     const job = parseJob(doc.data());
-    if (
-      job &&
-      job.responseKey === responseKey &&
-      job.boxes.some((b) => b.questionId === questionId)
-    ) {
-      return job.page;
-    }
+    if (!job || job.responseKey !== responseKey) continue;
+    const box = job.boxes.find((b) => b.questionId === questionId);
+    if (box) return { page: job.page, blanks: box.blanks };
   }
   return null;
 }
@@ -583,7 +580,7 @@ async function queueBoxJob(
     scanId: string;
     seat: number;
     page: number;
-    box: { questionId: string; storagePath: string };
+    box: { questionId: string; storagePath: string; blanks?: number };
   },
   now: number
 ): Promise<{ write: () => void; jobId: string }> {
@@ -813,6 +810,24 @@ export async function handleApplyPaperNewerScan(
       'The newer scan of this answer is no longer available.'
     );
   }
+  // A fill-in-the-blank box keeps its blank count: the newer scan's, else the old scan's job.
+  const oldScanId = answersOf(response).find(
+    (a) => a.questionId === target.questionId
+  )?.paperScanId;
+  const blanks =
+    cleanBlanks(newer.blanks) ??
+    (typeof oldScanId === 'string' && oldScanId
+      ? (
+          await findBoxJob(
+            deps.db,
+            caller.uid,
+            oldScanId,
+            null,
+            target.responseKey,
+            target.questionId
+          )
+        )?.blanks
+      : undefined);
   const latest = await findLatestPageJob(
     deps.db,
     caller.uid,
@@ -853,7 +868,11 @@ export async function handleApplyPaperNewerScan(
         scanId: newScanId,
         seat,
         page,
-        box: { questionId: target.questionId, storagePath },
+        box: {
+          questionId: target.questionId,
+          storagePath,
+          ...(blanks ? { blanks } : {}),
+        },
       },
       now
     );
@@ -964,7 +983,7 @@ export async function handleTranscribePaperBlank(
       'Only handwritten paper answers can be transcribed.'
     );
   }
-  const page = await findBoxPage(
+  const boxJob = await findBoxJob(
     deps.db,
     caller.uid,
     scanId,
@@ -972,12 +991,13 @@ export async function handleTranscribePaperBlank(
     target.responseKey,
     target.questionId
   );
-  if (page === null) {
+  if (boxJob === null) {
     throw new HttpsError(
       'failed-precondition',
       'Could not find the page this answer was scanned on.'
     );
   }
+  const { page, blanks } = boxJob;
   const latest = await findLatestPageJob(
     deps.db,
     caller.uid,
@@ -1017,7 +1037,11 @@ export async function handleTranscribePaperBlank(
         scanId,
         seat,
         page,
-        box: { questionId: target.questionId, storagePath },
+        box: {
+          questionId: target.questionId,
+          storagePath,
+          ...(blanks ? { blanks } : {}),
+        },
       },
       now
     );

@@ -6459,7 +6459,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "assign-mods.supports-kind",
-    "label": "Text, Link or Drive file choice in the Add support menu",
+    "label": "Text, Link or File choice in the Add support menu",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -6538,11 +6538,91 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-mods.support-file-choose",
+    "label": "Choose file button for a file support",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.supports-kind:assign#drive"
+        ],
+        "reveal": "assign-mods.supports-kind:assign#drive"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.support-file-drive",
+    "label": "Choose from Drive button for a file support",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.supports-kind:assign#drive"
+        ],
+        "reveal": "assign-mods.supports-kind:assign#drive"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.support-file-url",
+    "label": "Paste a link field for a file support",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.supports-kind:assign#drive"
+        ],
+        "reveal": "assign-mods.supports-kind:assign#drive"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.support-file-url-add",
+    "label": "Add button for a pasted file link",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-mods.supports-kind:assign#drive"
+        ],
+        "reveal": "assign-mods.supports-kind:assign#drive"
+      }
+    ]
+  },
+  {
     "id": "assign-mods.support-remove",
     "label": "Remove support button for a modification group",
     "scope": "field",
     "panel": true,
     "destructive": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-step.modifications"
+        ],
+        "reveal": "assign-step.modifications"
+      }
+    ]
+  },
+  {
+    "id": "assign-mods.preview-group",
+    "label": "Preview button on a group in the Assign dialog Modifications step",
+    "scope": "board",
+    "panel": true,
     "routes": [
       {
         "surface": "library.assign-stepper",
@@ -18823,6 +18903,234 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-grading.rubric-order",
+    "label": "Rubric level order switch (highest or lowest first) in the grader",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-view-full",
+    "label": "View rubric button in the grader",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-close",
+    "label": "Close button on the full rubric table",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-order",
+    "label": "Level order switch on the full rubric table",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-edit",
+    "label": "Edit button on the full rubric table",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-save",
+    "label": "Save button when editing the full rubric table",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-cancel",
+    "label": "Cancel button when editing the full rubric table",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-x",
+    "label": "Close (X) on the full rubric table",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-add-criterion",
+    "label": "Add criterion when editing the full rubric table",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-add-level",
+    "label": "Add level when editing the full rubric table, by criterion",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-remove-criterion",
+    "label": "Remove criterion when editing the full rubric table, by criterion",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-remove-level",
+    "label": "Remove level when editing the full rubric table, by level",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-field",
+    "label": "Text or points field when editing the full rubric table, by field",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-criterion-toggle",
+    "label": "Criterion open / close toggle in the grader, by criterion",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-criterion-score",
+    "label": "Criterion score box in the grader, by criterion",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "quiz-grading.rubric-note",
     "label": "Criterion note textarea in the Quiz grader, by position",
     "scope": "field",
@@ -18898,6 +19206,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-rubric.builder-close",
     "label": "Close button on the Quiz rubric builder",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-builder",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-rubric.builder-table",
+    "label": "Edit as table button on the Quiz rubric builder",
     "scope": "widget type",
     "panel": true,
     "keys": [
@@ -68068,8 +68392,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "math-tool.add-piece",
-    "label": "Add piece button on a Math Tool (algebra tiles, base-10 blocks, pattern blocks, place value), by tool and piece",
+    "label": "Add piece button on a Math Tool (algebra tiles, base-10 blocks, pattern blocks), by tool and piece",
     "scope": "field",
+    "key_pattern": "mathTool#(algebra-tiles\\.(x2-pos|x2-neg|x-pos|x-neg|unit-pos|unit-neg)|base-10\\.(flat|rod|unit)|pattern-blocks\\.(hexagon|trapezoid|triangle|rhombus-wide|rhombus-narrow|square))",
+    "key_hint": "mathTool#base-10.rod, mathTool#algebra-tiles.x-pos",
     "routes": [
       {
         "surface": "widgets.math-tool.face",
@@ -68084,7 +68410,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "math-tool.clear",
-    "label": "Clear button on a Math Tool (coordinate plane, geoboard, place value)",
+    "label": "Clear button on a Math Tool (coordinate plane, geoboard)",
     "scope": "widget type",
     "destructive": true,
     "keys": [
@@ -68145,6 +68471,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "math-tool.calculator-key",
     "label": "Calculator key, by label (digits, operators, AC, =)",
     "scope": "field",
+    "key_pattern": "mathTool#([0-9]|AC|\\+/−|%|÷|×|−|\\+|⌫|\\.|=)",
+    "key_hint": "mathTool#7 is the 7 key; mathTool#AC is the clear key",
     "routes": [
       {
         "surface": "widgets.math-tool.face",
@@ -68161,6 +68489,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "math-tool.denominator",
     "label": "Denominator toggle in Fraction Tiles, by denominator",
     "scope": "field",
+    "key_pattern": "mathTool#(1|2|3|4|5|6|8|10|12)",
+    "key_hint": "mathTool#4 is the fourths toggle",
     "routes": [
       {
         "surface": "widgets.math-tool.face",
@@ -68177,6 +68507,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "math-tool.number-line-mode",
     "label": "Number line mode button (integers, decimals, fractions), by mode",
     "scope": "field",
+    "key_pattern": "mathTool#(integers|decimals|fractions)",
+    "key_hint": "mathTool#decimals",
     "routes": [
       {
         "surface": "widgets.math-tool.face",

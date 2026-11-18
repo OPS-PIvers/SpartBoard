@@ -5,7 +5,7 @@ import * as admin from './firebaseAdmin';
 import axios from 'axios';
 import type { Firestore } from 'firebase-admin/firestore';
 import { ALLOWED_ORIGINS } from './classlinkShared';
-import { isGlobalFeatureGranted } from './quizMediaArchive';
+import { isGlobalFeatureGranted } from './featureGrant';
 import { QUIZ_READ_ALOUD_FEATURE_ID } from './quizReadAloud';
 import './functionsInit';
 import { ANTHROPIC_API_KEY } from './secrets';

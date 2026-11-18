@@ -909,6 +909,42 @@ describe('gradeGroupAnswer', () => {
     });
   });
 
+  it('holds an unread paper FIB as owed until the teacher marks it, and scores a read one', () => {
+    const fib = q({ type: 'FIB', correctAnswer: 'cell\u001Fwall' });
+    for (const state of ['pending', 'image'] as const) {
+      expect(
+        gradeGroupAnswer(fib, '', undefined, undefined, state)
+      ).toMatchObject({ pointsEarned: 0, state: 'awaiting-grade' });
+      expect(
+        gradeGroupAnswer(
+          fib,
+          '',
+          { pointsAwarded: 3, scoredCriterionIds: [] },
+          undefined,
+          state
+        )
+      ).toMatchObject({ pointsEarned: 3, isCorrect: false, state: 'scored' });
+    }
+    expect(
+      gradeGroupAnswer(fib, 'Cell\u001Fwall', undefined, undefined, 'done')
+    ).toMatchObject({ pointsEarned: 4, state: 'scored' });
+  });
+
+  it("uses a teacher's mark only while a paper FIB is unread", () => {
+    const fib = q({ type: 'FIB', correctAnswer: 'cell\u001Fwall' });
+    const mark = { pointsAwarded: 1, scoredCriterionIds: [] };
+    expect(gradeGroupAnswer(fib, '', mark, undefined, 'pending')).toMatchObject(
+      { pointsEarned: 1, state: 'scored' }
+    );
+    expect(
+      gradeGroupAnswer(fib, 'cell\u001Fwall', mark, undefined, 'done')
+    ).toMatchObject({ pointsEarned: 4, state: 'scored' });
+    // A typed FIB (no transcript) ignores a stray grade.
+    expect(
+      gradeGroupAnswer(fib, 'cell\u001Fwall', mark, undefined, undefined)
+    ).toMatchObject({ pointsEarned: 4, state: 'scored' });
+  });
+
   it('accepts FIB alternate answers from the synced key', () => {
     const fib = q({
       type: 'FIB',

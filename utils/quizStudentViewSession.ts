@@ -17,6 +17,7 @@ import {
   readAloudTextByStimulusId,
 } from '@/utils/quizStimuli';
 import { tabAwaySessionFields } from '@/utils/tabAwayLimit';
+import { clampQuizTimeLimitMinutes } from '@/utils/quizTimeLimit';
 
 /** Focus-mode settings a teacher can flip from the Student view toolbar. */
 export type StudentViewFocusSettings = Pick<
@@ -113,9 +114,16 @@ export function buildStudentViewSession(
   quiz: QuizData,
   behavior: QuizBehaviorSettings,
   tabAwayTimerOn: boolean,
-  flags: { stimulusTabs?: boolean; crossOut?: boolean } = {}
+  flags: {
+    stimulusTabs?: boolean;
+    crossOut?: boolean;
+    timeLimit?: boolean;
+  } = {}
 ): QuizSession {
   const opts = behavior.sessionOptions;
+  const timeLimitMinutes = flags.timeLimit
+    ? clampQuizTimeLimitMinutes(opts.timeLimitMinutes)
+    : null;
   const questions = dedupeQuestionsById(quiz.questions);
   const publicQuestions = questions.map((q) => {
     const { targets, ...rest } = toPublicQuestion(q);
@@ -163,6 +171,7 @@ export function buildStudentViewSession(
     orderingList: true,
     ...(flags.stimulusTabs ? { stimulusTabs: true } : {}),
     ...(flags.crossOut ? { allowCrossOut: true } : {}),
+    ...(timeLimitMinutes != null ? { timeLimitMinutes } : {}),
     reviewStep: true,
     ...focusSessionFields(focusSettingsFrom(behavior), tabAwayTimerOn),
     showResultToStudent: opts.showResultToStudent ?? false,

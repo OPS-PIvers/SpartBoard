@@ -8,7 +8,15 @@ import React, {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, Plus, Search, Trash2, User, Users } from 'lucide-react';
+import {
+  ChevronDown,
+  Eye,
+  Plus,
+  Search,
+  Trash2,
+  User,
+  Users,
+} from 'lucide-react';
 import { AuthContext } from '@/context/AuthContextValue';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { Toggle } from '@/components/common/Toggle';
@@ -62,6 +70,8 @@ export interface ModificationGroupsStepProps {
   onSharingChange?: (sharing: boolean) => void;
   /** Shows the Printed version row (`paper-printed-versions`). */
   printedAvailable?: boolean;
+  /** Opens Student view on this group's version; absent hides Preview. */
+  onPreview?: (groupId: string) => void;
 }
 
 const Row: React.FC<{ label: string; children: React.ReactNode }> = ({
@@ -328,6 +338,7 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
   overridesByKey,
   onSharingChange,
   printedAvailable = false,
+  onPreview,
 }) => {
   const { t } = useTranslation();
   const { driveService } = useGoogleDrive();
@@ -613,21 +624,36 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
               onChange={(update) => updateSupports(group.id, update)}
               onSharingChange={onSharingChange}
             />
-            {list.length > 1 && (
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    deleteDriveCopies(group.supports);
-                    onChange(list.filter((g) => g.id !== group.id));
-                    setOpenId(null);
-                  }}
-                  {...tourAttr('assign-mods.remove-group')}
-                  className="touch-target-expand inline-flex items-center gap-1 text-xs font-bold text-brand-red-primary hover:underline"
-                >
-                  <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                  Remove group
-                </button>
+            {(!!onPreview || list.length > 1) && (
+              <div className="flex items-center justify-between gap-3 pt-2">
+                {onPreview ? (
+                  <button
+                    type="button"
+                    onClick={() => onPreview(group.id)}
+                    {...tourAttr('assign-mods.preview-group')}
+                    className="touch-target-expand inline-flex items-center gap-1 text-xs font-bold text-brand-blue-primary hover:underline"
+                  >
+                    <Eye className="h-3.5 w-3.5" aria-hidden />
+                    Preview
+                  </button>
+                ) : (
+                  <span />
+                )}
+                {list.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      deleteDriveCopies(group.supports);
+                      onChange(list.filter((g) => g.id !== group.id));
+                      setOpenId(null);
+                    }}
+                    {...tourAttr('assign-mods.remove-group')}
+                    className="touch-target-expand inline-flex items-center gap-1 text-xs font-bold text-brand-red-primary hover:underline"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                    Remove group
+                  </button>
+                )}
               </div>
             )}
           </div>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { QuizResponse, QuizSession } from '@/types';
 import { AuthContext } from '@/context/AuthContextValue';
@@ -15,8 +15,12 @@ vi.mock('@/hooks/useGoogleDrive', () => ({
 vi.mock('@/hooks/useQuizHandRaiseMode', () => ({
   useQuizLiveViewAlwaysNotify: () => false,
 }));
+const mirrorRenders = vi.hoisted(() => ({ count: 0 }));
 vi.mock('@/components/quiz/QuizStudentApp', () => ({
-  ActiveQuiz: () => null,
+  ActiveQuiz: () => {
+    mirrorRenders.count += 1;
+    return null;
+  },
 }));
 vi.mock('@/utils/quizLiveViewStore', () => ({
   addLiveLogEntry: vi.fn(() => new Promise(() => undefined)),
@@ -44,6 +48,32 @@ const student = {
     studentUid: 'u1',
     joinedAt: 1,
     answers: [],
+    status: 'in-progress',
+  } as unknown as QuizResponse,
+} as unknown as MonitorStudent;
+
+const question = (id: string) => ({
+  id,
+  type: 'MC',
+  text: id,
+  timeLimit: 0,
+  choices: ['a', 'b'],
+});
+const six = ['q1', 'q2', 'q3', 'q4', 'q5', 'q6'];
+const orderedSession = {
+  ...session,
+  publicQuestions: six.map(question),
+} as unknown as QuizSession;
+const answeredLast = {
+  key: 'r1',
+  name: 'Ada Lovelace',
+  response: {
+    studentUid: 'u1',
+    joinedAt: 1,
+    completedAttempts: 0,
+    answers: [
+      { questionId: 'q6', answer: 'a', answeredAt: 5, status: 'submitted' },
+    ],
     status: 'in-progress',
   } as unknown as QuizResponse,
 } as unknown as MonitorStudent;
@@ -97,5 +127,48 @@ describe('LiveViewPanel switches', () => {
     renderPanel(new Set(['quiz-live-view-nudge']));
     expect(screen.getByRole('button', { name: 'Nudge' })).toBeTruthy();
     expect(screen.queryByRole('combobox', { name: 'Nudge note' })).toBeNull();
+  });
+});
+
+describe('LiveViewPanel attempt', () => {
+  const panel = (sess: QuizSession) => (
+    <AuthContext.Provider
+      value={
+        {
+          canAccessFeature: () => false,
+          globalPermissions: [],
+          isAdmin: false,
+        } as unknown as React.ContextType<typeof AuthContext>
+      }
+    >
+      <LiveViewPanel
+        session={sess}
+        students={[answeredLast]}
+        studentKey="r1"
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+      />
+    </AuthContext.Provider>
+  );
+
+  it('keeps the question number when the shuffle is switched on mid-attempt', () => {
+    const { rerender } = render(panel(orderedSession));
+    expect(screen.getByText('Question 6')).toBeTruthy();
+    rerender(panel({ ...orderedSession, shuffleQuestions: true }));
+    expect(screen.getByText('Question 6')).toBeTruthy();
+  });
+
+  it('keeps the mirror still while the stats clock ticks', () => {
+    vi.useFakeTimers();
+    try {
+      render(panel(orderedSession));
+      const before = mirrorRenders.count;
+      act(() => {
+        vi.advanceTimersByTime(3000);
+      });
+      expect(mirrorRenders.count).toBe(before);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

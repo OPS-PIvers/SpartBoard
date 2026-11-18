@@ -708,6 +708,35 @@ describe('applyPaperNewerScanV1', () => {
     });
   });
 
+  it('carries a fill-in-the-blank box blank count into the new job', async () => {
+    const store = newerSeed();
+    store[PRIV('q1')] = {
+      ...store[PRIV('q1')],
+      newerScan: { scanId: 'scan2', page: 1, state: 'ink', blanks: 3 },
+    };
+    const { deps, stub } = makeDeps(store, scan2Crop);
+    await handleApplyPaperNewerScan(deps, TEACHER, target);
+    expect(stub.get(`${JOBS}/scan2_3_1_0`)?.boxes).toEqual([
+      { questionId: 'q1', storagePath: crop('q1', 'scan2'), blanks: 3 },
+    ]);
+  });
+
+  it('falls back to the old scan job for the blank count, capped', async () => {
+    const old = job('scan1', 1, 0, 'done', ['q1', 'q2']);
+    old.boxes = [
+      { questionId: 'q1', storagePath: crop('q1'), blanks: 999 },
+      { questionId: 'q2', storagePath: crop('q2') },
+    ];
+    const { deps, stub } = makeDeps(
+      newerSeed({ [`${JOBS}/scan1_3_1_0`]: old }),
+      scan2Crop
+    );
+    await handleApplyPaperNewerScan(deps, TEACHER, target);
+    expect(
+      (stub.get(`${JOBS}/scan2_3_1_0`)?.boxes as StubData[])[0]
+    ).toMatchObject({ blanks: 50 });
+  });
+
   it('folds into an unfinished job on the same page', async () => {
     const { deps, stub } = makeDeps(
       newerSeed({
@@ -791,6 +820,19 @@ describe('transcribePaperBlankV1', () => {
     });
     // A finished job is left alone.
     expect(stub.get(`${JOBS}/scan1_3_1_0`)?.status).toBe('done');
+  });
+
+  it('keeps a fill-in-the-blank box blank count on the re-queued job', async () => {
+    const old = job('scan1', 1, 0, 'done', ['q1', 'q2']);
+    old.boxes = [
+      { questionId: 'q1', storagePath: crop('q1') },
+      { questionId: 'q2', storagePath: crop('q2'), blanks: 2 },
+    ];
+    const { deps, stub } = makeDeps(seed({ [`${JOBS}/scan1_3_1_0`]: old }));
+    await handleTranscribePaperBlank(deps, TEACHER, blank);
+    expect(stub.get(`${JOBS}/scan1_3_1_1`)?.boxes).toEqual([
+      { questionId: 'q2', storagePath: crop('q2'), blanks: 2 },
+    ]);
   });
 
   it('refuses a blank answer whose artifact names another seat crop', async () => {

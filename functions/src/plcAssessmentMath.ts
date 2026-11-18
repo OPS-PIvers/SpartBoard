@@ -85,6 +85,18 @@ export interface ManualGrade {
   scoredCriterionIds: string[];
 }
 
+/** The `paperTranscript` grading trusts: a server-imported response, and on FIB a server-scanned answer. */
+export function trustedPaperTranscript(
+  question: Pick<GroupQuestion, 'type'>,
+  paperAttested: boolean | undefined,
+  answer: Pick<RawAnswer, 'paperTranscript' | 'paperScanId'> | undefined
+): RawAnswer['paperTranscript'] {
+  if (paperAttested !== true) return undefined;
+  if (question.type === 'FIB' && answer?.paperScanId === undefined)
+    return undefined;
+  return answer?.paperTranscript;
+}
+
 /** A scanned paper answer with no text yet (in transcription or kept as an image) waits for the teacher. */
 export const paperAnswerOwed = (state: RawAnswer['paperTranscript']): boolean =>
   state === 'pending' || state === 'image';
@@ -100,6 +112,8 @@ export interface RawAnswer {
   takeIndex?: number;
   /** Set on handwritten paper answers; `blank` is a scanned empty box. */
   paperTranscript?: 'pending' | 'blank' | 'done' | 'image';
+  /** Server-written scan id; students can't add it once a paper batch is stamped. */
+  paperScanId?: string;
 }
 
 export interface CompletedResponse {
@@ -681,10 +695,30 @@ export function gradeGroupAnswer(
   studentAnswer: string,
   manual: ManualGrade | undefined,
   /** FIB only: translated accepted answers for the locale served to this student. */
-  acceptedAnswers?: readonly string[]
+  acceptedAnswers?: readonly string[],
+  /** Paper answers only: the public `paperTranscript`, passed only for a `paperAttested` response. */
+  paperTranscript?: RawAnswer['paperTranscript']
 ): LocalGrade {
   const max = question.points;
   const attempted = hasSubmittedContent(studentAnswer);
+  // Paper fill-in-the-blank not read yet: owed a grade until the teacher's mark.
+  if (question.type === 'FIB' && paperAnswerOwed(paperTranscript)) {
+    if (manual === undefined) {
+      return {
+        isCorrect: false,
+        pointsEarned: 0,
+        pointsMax: max,
+        state: 'awaiting-grade',
+      };
+    }
+    const awarded = Math.min(max, Math.max(0, manual.pointsAwarded));
+    return {
+      isCorrect: awarded === max && max > 0,
+      pointsEarned: awarded,
+      pointsMax: max,
+      state: 'scored',
+    };
+  }
   if (question.type === 'free-response') {
     if (manual === undefined) {
       return {
@@ -1101,7 +1135,8 @@ export function computeAssessmentAggregate(
           r.manualGrades?.[sessionQid],
           question.type === 'FIB'
             ? servedFibAnswers(session, r.studentUid, sessionQid)
-            : undefined
+            : undefined,
+          trustedPaperTranscript(question, r.paperAttested, a)
         );
         // A paper answer not yet scanned or still untranscribed is owed a grade, never a 0.
         const paperOwed =

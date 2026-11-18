@@ -155,6 +155,7 @@ import { logError } from '@/utils/logError';
 import { migrateQuizMetadataShape } from '@/utils/quizSyncMigration';
 import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
 import { applyMediaSlots, readSlotGrade } from '@/utils/mediaGrading';
+import { gradingPaperTranscript } from '@/utils/paperWritten';
 import { responseHasArtifacts } from '@/utils/responseArtifacts';
 import { AuthContext } from '@/context/AuthContextValue';
 import {
@@ -1217,9 +1218,10 @@ export function gradeResponseForPublish(
     // a quiz that contained essays would freeze them at 0 points
     // and the archive would silently disagree with the live results
     // view forever after.
-    const manualGrade = isFreeResponseType(q.type)
-      ? readSlotGrade(data.grading, q.id)
-      : undefined;
+    const manualGrade =
+      isFreeResponseType(q.type) || q.type === 'FIB'
+        ? readSlotGrade(data.grading, q.id)
+        : undefined;
     const result = applyMediaSlots(
       q,
       data,
@@ -1228,7 +1230,7 @@ export function gradeResponseForPublish(
         a.answer,
         manualGrade,
         fibAcceptedAnswers(localizedFibAnswers, q.id, servedLocale),
-        a.paperTranscript
+        gradingPaperTranscript(q, data, a)
       )
     );
     if (
@@ -2398,12 +2400,24 @@ export const useQuizAssignments = (
           RESPONSES_COLLECTION
         )
       );
-      const BATCH_LIMIT = 500;
+      // Each response's Live view position doc goes with it; no rule reaches it once the session is gone.
+      const BATCH_LIMIT = 250;
       for (let i = 0; i < responseDocs.length; i += BATCH_LIMIT) {
         const batch = writeBatch(db);
-        responseDocs
-          .slice(i, i + BATCH_LIMIT)
-          .forEach((d) => batch.delete(d.ref));
+        responseDocs.slice(i, i + BATCH_LIMIT).forEach((d) => {
+          batch.delete(
+            doc(
+              db,
+              QUIZ_SESSIONS_COLLECTION,
+              assignmentId,
+              RESPONSES_COLLECTION,
+              d.id,
+              'live',
+              'state'
+            )
+          );
+          batch.delete(d.ref);
+        });
         await batch.commit();
       }
 

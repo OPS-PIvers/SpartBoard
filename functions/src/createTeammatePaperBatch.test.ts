@@ -737,6 +737,49 @@ describe('createTeammatePaperBatchV1 — handwritten boxes (layoutVersion 2)', (
     ]);
   });
 
+  it('prints fill in the blank as lettered write-in lines when the caller has that flag too', async () => {
+    const fibQuiz = {
+      questions: [
+        QUESTIONS[0],
+        {
+          id: 'q-fib',
+          type: 'FIB',
+          text: 'The ___ makes ___.',
+          correctAnswer: 'cell\u001Fenergy',
+        },
+      ],
+    };
+    const { run } = create(writtenState(fibQuiz), writtenDeps(), WRITTEN_INPUT);
+    const result = await run();
+    expect(granted).toHaveBeenCalledWith(
+      'paper-fill-in-blank',
+      null,
+      CALLER_UID
+    );
+    const items = result.batch.pageMaps?.[0].items ?? [];
+    expect(items.find((i) => i.questionId === 'q-fib')).toMatchObject({
+      kind: 'written',
+      blanks: 2,
+    });
+    expect(result.testPaper[1]).toMatchObject({
+      text: 'The ___ (a) makes ___ (b).',
+      written: true,
+    });
+    expect(result.blankAnswers).toEqual({ 'q-fib': ['cell', 'energy'] });
+
+    const off = create(
+      writtenState(fibQuiz),
+      writtenDeps({
+        isFeatureGranted: (id: string) =>
+          Promise.resolve(id !== 'paper-fill-in-blank'),
+      }),
+      WRITTEN_INPUT
+    );
+    const plain = await off.run();
+    expect('blankAnswers' in plain).toBe(false);
+    expect(plain.testPaper.map((r) => r.row)).toEqual([1]);
+  });
+
   it('prints exactly as before without the opt-in', async () => {
     const { run } = create(writtenState(), writtenDeps(), INPUT);
     const result = await run();
@@ -757,7 +800,15 @@ describe('createTeammatePaperBatchV1 — handwritten boxes (layoutVersion 2)', (
   });
 
   it('keeps an MC-only quiz on the classic layout even with the feature', async () => {
-    const { run } = create(baseState(), writtenDeps(), WRITTEN_INPUT);
+    // The base quiz's FIB stays off the sheet without the fill-in-the-blank flag.
+    const { run } = create(
+      baseState(),
+      writtenDeps({
+        isFeatureGranted: (id: string) =>
+          Promise.resolve(id !== 'paper-fill-in-blank'),
+      }),
+      WRITTEN_INPUT
+    );
     const result = await run();
     expect('layoutVersion' in result.batch).toBe(false);
   });

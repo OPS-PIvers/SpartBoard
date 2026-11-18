@@ -40,12 +40,12 @@ vi.mock('@google-cloud/text-to-speech', () => ({
 }));
 vi.mock('./functionsInit', () => ({}));
 vi.mock('./classlinkShared', () => ({ ALLOWED_ORIGINS: [] }));
-vi.mock('./quizMediaArchive', () => ({
+vi.mock('./featureGrant', () => ({
   isGlobalFeatureGranted: vi.fn(() => Promise.resolve(true)),
 }));
 
 import * as admin from './firebaseAdmin';
-import { isGlobalFeatureGranted } from './quizMediaArchive';
+import { isGlobalFeatureGranted } from './featureGrant';
 import {
   buildDefaultDeps,
   buildSsml,

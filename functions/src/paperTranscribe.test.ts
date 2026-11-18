@@ -8,6 +8,7 @@ vi.mock('./firebaseAdmin', () => ({
 }));
 
 import {
+  blankAnswerFromTranscript,
   buildTranscribeParts,
   buildTranscribeResponseSchema,
   cropMimeType,
@@ -17,6 +18,7 @@ import {
   transcriptToHtml,
   type PaperTranscribeDeps,
 } from './paperTranscribe';
+import { cleanBlanks, MAX_FIB_BLANKS } from './paperWrittenTypes';
 
 describe('transcriptToHtml', () => {
   it('makes one paragraph per blank-line break and joins wrapped lines', () => {
@@ -252,5 +254,57 @@ describe('transcribePaperPage', () => {
         deps
       )
     ).rejects.toThrow('503');
+  });
+});
+
+describe('fill in the blank boxes', () => {
+  it('labels a box with its write-in lines', () => {
+    const parts = buildTranscribeParts([
+      {
+        questionId: 'q3',
+        image: { data: Buffer.from('a'), mimeType: 'image/webp' },
+        blanks: 2,
+      },
+    ]);
+    expect(parts[0].text).toMatch(/one answer per line/i);
+    expect(parts[1]).toEqual({ text: 'questionId: q3 (2 write-in lines)' });
+  });
+
+  it('stores one answer per line, joined like a typed answer', () => {
+    expect(blankAnswerFromTranscript(' cell \n wall ', 2)).toBe(
+      'cell\u001Fwall'
+    );
+    expect(blankAnswerFromTranscript('[EMPTY]\nwall\nextra', 2)).toBe(
+      '\u001Fwall'
+    );
+    expect(blankAnswerFromTranscript('only', 3)).toBe('only\u001F\u001F');
+    expect(blankAnswerFromTranscript('the cell\nmembrane', 1)).toBe(
+      'the cell membrane'
+    );
+  });
+
+  it('skips spacer lines and keeps an [empty] blank in place', () => {
+    expect(blankAnswerFromTranscript('\nParis\n\nRome\n\n', 2)).toBe(
+      'Paris\u001FRome'
+    );
+    expect(blankAnswerFromTranscript('cell\n[empty]\nwall', 3)).toBe(
+      'cell\u001F\u001Fwall'
+    );
+  });
+
+  it('keeps an empty line in place when the read has exactly one line per blank', () => {
+    expect(blankAnswerFromTranscript('\nwall', 2)).toBe('\u001Fwall');
+    expect(blankAnswerFromTranscript('cell\n\nwall', 3)).toBe(
+      'cell\u001F\u001Fwall'
+    );
+    expect(blankAnswerFromTranscript('cell\n', 2)).toBe('cell\u001F');
+  });
+
+  it('caps a blank count at MAX_FIB_BLANKS and rejects junk', () => {
+    expect(cleanBlanks(3)).toBe(3);
+    expect(cleanBlanks(500)).toBe(MAX_FIB_BLANKS);
+    expect(cleanBlanks(0)).toBeUndefined();
+    expect(cleanBlanks(1.5)).toBeUndefined();
+    expect(cleanBlanks('3')).toBeUndefined();
   });
 });

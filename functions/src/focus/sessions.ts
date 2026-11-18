@@ -142,7 +142,7 @@ export async function canUseFocusWidget(
   if (isAdmin || data.accessLevel === 'public') return true;
   if (data.accessLevel !== 'beta') return false;
   // Lazy: quizMediaArchive pulls heavy deps the other focus paths don't need.
-  const { isBetaTeacher } = await import('../quizMediaArchive');
+  const { isBetaTeacher } = await import('../featureGrant');
   const betaUsers: unknown[] = Array.isArray(data.betaUsers)
     ? (data.betaUsers as unknown[])
     : [];

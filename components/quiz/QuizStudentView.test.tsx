@@ -93,3 +93,44 @@ describe('QuizStudentView on an assignment', () => {
     expect(screen.getByText('Assigned version, sample draw')).toBeTruthy();
   });
 });
+
+describe('QuizStudentView versions', () => {
+  it('switches between the standard and a modified version', async () => {
+    render(
+      <QuizStudentView
+        quiz={QUIZ}
+        behavior={BEHAVIOR}
+        tabAwayTimerOn={false}
+        versions={[
+          { id: 'standard', label: 'Standard' },
+          {
+            id: 'g1',
+            label: 'Group 1 · 1 wrong answer removed',
+            override: { hiddenOptionIdsByQuestion: { q1: ['Ribosome'] } },
+          },
+        ]}
+        initialVersionId="g1"
+        onExit={vi.fn()}
+      />
+    );
+    await screen.findByText('Which organelle makes energy?');
+    expect(screen.queryByText('Ribosome')).toBeNull();
+    fireEvent.change(screen.getByLabelText('Version'), {
+      target: { value: 'standard' },
+    });
+    expect(await screen.findByText('Ribosome')).toBeTruthy();
+  });
+
+  it('shows no version menu with only one version', async () => {
+    render(
+      <QuizStudentView
+        quiz={QUIZ}
+        behavior={BEHAVIOR}
+        tabAwayTimerOn={false}
+        onExit={vi.fn()}
+      />
+    );
+    await screen.findByText('Which organelle makes energy?');
+    expect(screen.queryByLabelText('Version')).toBeNull();
+  });
+});

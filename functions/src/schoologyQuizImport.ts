@@ -13,7 +13,7 @@ import {
   fetchTokenInfo,
   verifiedTokenEmail,
   type TokenInfo,
-} from './webTourExtension';
+} from './extensionAuth';
 import { trustedUidForEmail } from './trustedSignIn';
 
 type Firestore = admin.firestore.Firestore;
@@ -444,7 +444,7 @@ function defaultDeps(db: Firestore): ImporterDeps {
         (await isDistrictStaffEmail(db, email)) ||
         (await db.collection('admins').doc(email).get()).exists;
       if (!staff) return false;
-      const { isGlobalFeatureGranted } = await import('./quizMediaArchive');
+      const { isGlobalFeatureGranted } = await import('./featureGrant');
       return isGlobalFeatureGranted(
         db,
         SCHOOLOGY_QUIZ_IMPORT_FEATURE,

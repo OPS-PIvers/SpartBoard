@@ -39,6 +39,12 @@ import { AuthContext } from '@/context/AuthContextValue';
 import { clampQuizTimeLimitMinutes } from '@/utils/quizTimeLimit';
 import { languageNativeLabel } from '@/utils/languageNativeLabel';
 import {
+  previewOverride,
+  STANDARD_VERSION,
+  STANDARD_VERSION_ID,
+  type StudentViewVersion,
+} from '@/utils/quizStudentViewVersions';
+import {
   countUnresolvableStudents,
   modificationClassGroups,
   modificationRows,
@@ -46,7 +52,9 @@ import {
 import { ModificationGroupsStep } from '@/components/common/library/assignStepper/ModificationGroupsStep';
 import {
   formatModificationGroupsValue,
+  groupRuleLabels,
   newModificationGroup,
+  overrideForGroup,
   overridesFromGroups,
   printedGroupPicks,
   rowsInClasses,
@@ -85,6 +93,11 @@ export interface QuizAssignStepperProps {
     hasQuestionTimeLimits?: boolean;
     /** Some question has a modified version, so groups can opt into it. */
     hasModifiedQuestions?: boolean;
+    /** Opens Student view with Standard plus each group's version. */
+    onPreviewVersions?: (
+      versions: StudentViewVersion[],
+      initialVersionId: string
+    ) => void;
   };
   /** Omit when sharing is fixed (PLC quiz assign, D21): no Sharing step. */
   sharing?: {
@@ -109,6 +122,8 @@ export interface QuizAssignStepperProps {
     printedGroups: PrintedGroupPick[];
   }) => void | Promise<void>;
 }
+
+const SELECT_A_CLASS_FIRST = 'Select a class first';
 
 export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   title,
@@ -188,6 +203,28 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
     timeLimitLabel
       ? list
       : list.map((g) => ({ ...g, time: 'standard' as const }));
+  const previewGroup = (groupId: string) => {
+    if (!modifications?.onPreviewVersions) return;
+    const versions: StudentViewVersion[] = [STANDARD_VERSION];
+    withTime(groups).forEach((group, i) => {
+      const override = previewOverride(
+        overrideForGroup(group, undefined, modifications.quizContext.questions)
+      );
+      if (!override) return;
+      const rules = groupRuleLabels(group, languageNativeLabel).filter(
+        (rule) => rule !== 'printed version'
+      );
+      versions.push({
+        id: group.id,
+        label: `Group ${i + 1} · ${rules.join(', ')}`,
+        override,
+      });
+    });
+    modifications.onPreviewVersions(
+      versions,
+      versions.some((v) => v.id === groupId) ? groupId : STANDARD_VERSION_ID
+    );
+  };
   const applyGroups = (next: ModificationGroup[]) => {
     setGroups(next);
     if (!modifications) return;
@@ -280,8 +317,20 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   );
 
   const stepIds = getAssignSteps('quiz', ctx);
-  if (groupsOn && modifications && !staff && picked.length > 0) {
+  // The step stays listed before a class is picked so later steps keep their numbers.
+  const modsListed = groupsOn && !!modifications && !staff;
+  const modsShown = modsListed && picked.length > 0;
+  if (modsListed) {
     stepIds.splice(stepIds.indexOf('classes') + 1, 0, 'modifications');
+  }
+  if (modsListed && !modsShown) {
+    bodies.modifications = {
+      value: SELECT_A_CLASS_FIRST,
+      body: null,
+      disabled: true,
+    };
+  }
+  if (modsShown && modifications) {
     bodies.modifications = {
       value: formatModificationGroupsValue(
         withTime(groups),
@@ -310,6 +359,7 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
             setSharingCount((n) => Math.max(0, n + (sharing ? 1 : -1)))
           }
           printedAvailable={printedVersionsAvailable}
+          onPreview={modifications.onPreviewVersions ? previewGroup : undefined}
         />
       ),
     };
@@ -321,7 +371,6 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
       body: <WrittenAnswersStep {...written} />,
     };
   }
-  const modsShown = stepIds.includes('modifications');
   const printedGroups =
     printedVersionsAvailable && modsShown
       ? printedGroupPicks(groups, groupRows)

@@ -966,6 +966,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'rubric-grading-v2': {
+    label: 'Rubric grading redesign',
+    icon: Table2,
+    description:
+      'Rubric grading shows one-tap level buttons, criteria that open to show descriptions, a highest or lowest first switch and a full rubric table.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // A modification group prints its own version of a device quiz; needs paper sheets too.
   'paper-printed-versions': {
     label: 'Printed versions for groups',
@@ -978,6 +989,22 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     modalLabel: 'Printed versions for groups',
     group: 'assigning',
     requires: 'modification-groups',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Fill in the blank on paper sheets as write-in lines; needs handwritten answers too.
+  'paper-fill-in-blank': {
+    label: 'Fill-in-the-blank on paper',
+    icon: TextCursorInput,
+    description:
+      'Fill-in-the-blank questions print a write-in line for each blank and are scored on import.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    modalLabel: 'Fill-in-the-blank on paper',
+    group: 'questions',
+    requires: 'paper-handwritten-responses',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,

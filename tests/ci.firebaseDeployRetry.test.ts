@@ -137,10 +137,15 @@ describe('firebase-deploy-with-retry.sh transient classification', () => {
 // outcomes, and returns each `--only` the script deployed.
 function runWithStubbedDeploys(
   outcomes: { exit: number; log: string }[],
-  deployOnly?: string
+  deployOnly?: string,
+  {
+    checkExits = {},
+    manifest = '',
+  }: { checkExits?: { pre?: number; post?: number }; manifest?: string } = {}
 ): {
   status: number | null;
   onlys: string[];
+  checks: string[];
   stdout: string;
 } {
   const dir = mkdtempSync(join(tmpdir(), 'deploy-retry-'));
@@ -162,7 +167,21 @@ function runWithStubbedDeploys(
       `cat "${dir}/log$n" 2>/dev/null; exit $(cat "${dir}/exit$n" 2>/dev/null || echo 0)`,
     ].join('\n')
   );
-  stub('node', 'exit 0');
+  // codebases.mjs runs for real (against `manifest`); the delete and label checks are recorded.
+  stub(
+    'node',
+    [
+      `[[ $1 == *codebases.mjs ]] && exec "${process.execPath}" "$@"`,
+      `[[ $1 == *function-delete-check.mjs ]] || exit 0`,
+      `echo "$2 \${4:-}" >> "${dir}/checks"`,
+      `[[ $2 == pre ]] && exit ${checkExits.pre ?? 0}`,
+      `exit ${checkExits.post ?? 0}`,
+    ].join('\n')
+  );
+  if (manifest) {
+    mkdirSync(join(dir, 'functions'));
+    writeFileSync(join(dir, 'functions/codebases.json'), manifest);
+  }
   stub('sleep', 'exit 0');
   const result = spawnSync('bash', [scriptPath, 'demo'], {
     cwd: dir,
@@ -174,9 +193,22 @@ function runWithStubbedDeploys(
       ...(deployOnly === undefined ? {} : { FIREBASE_DEPLOY_ONLY: deployOnly }),
     },
   });
-  const onlys = readFileSync(join(dir, 'onlys'), 'utf-8').trim().split('\n');
+  const read = (name: string) => {
+    try {
+      return readFileSync(join(dir, name), 'utf-8').trim().split('\n');
+    } catch {
+      return [];
+    }
+  };
+  const onlys = read('onlys');
+  const checks = read('checks');
   rmSync(dir, { recursive: true, force: true });
-  return { status: result.status, onlys, stdout: String(result.stdout) };
+  return {
+    status: result.status,
+    onlys,
+    checks,
+    stdout: String(result.stdout),
+  };
 }
 
 describe('firebase-deploy-with-retry.sh CPU quota retry', () => {
@@ -194,7 +226,7 @@ describe('firebase-deploy-with-retry.sh CPU quota retry', () => {
     expect(status).toBe(0);
     expect(onlys).toEqual([
       'functions,firestore:indexes,storage',
-      'functions:revokeSpotifyAuth,functions:setGoogleTasksSyncV1,firestore:indexes,storage',
+      'functions:default:revokeSpotifyAuth,functions:default:setGoogleTasksSyncV1,firestore:indexes,storage',
       'functions,firestore:indexes,storage',
     ]);
   });
@@ -216,7 +248,7 @@ describe('firebase-deploy-with-retry.sh CPU quota retry', () => {
     expect(status).toBe(0);
     expect(onlys).toEqual([
       'functions,firestore:indexes,storage',
-      'functions:setGoogleTasksSyncV1,firestore:indexes,storage',
+      'functions:default:setGoogleTasksSyncV1,firestore:indexes,storage',
       'functions,firestore:indexes,storage',
     ]);
   });
@@ -240,8 +272,8 @@ describe('firebase-deploy-with-retry.sh CPU quota retry', () => {
     expect(status).toBe(0);
     expect(onlys).toEqual([
       'functions,firestore:indexes,storage',
-      'functions:getViewAsDriveTokenV1,functions:lookupSpeakReferencesV1,firestore:indexes,storage',
-      'functions:getViewAsDriveTokenV1,functions:lookupSpeakReferencesV1,firestore:indexes,storage',
+      'functions:default:getViewAsDriveTokenV1,functions:default:lookupSpeakReferencesV1,firestore:indexes,storage',
+      'functions:default:getViewAsDriveTokenV1,functions:default:lookupSpeakReferencesV1,firestore:indexes,storage',
       'functions,firestore:indexes,storage',
     ]);
   });
@@ -256,12 +288,12 @@ describe('firebase-deploy-with-retry.sh CPU quota retry', () => {
         { exit: 2, log: quotaLog },
         { exit: 0, log: '' },
       ],
-      'functions:fetchLinkPreview,functions:fetchImportImage,storage'
+      'functions:default:fetchLinkPreview,functions:default:fetchImportImage,storage'
     );
     expect(status).toBe(0);
     expect(onlys).toEqual([
-      'functions:fetchLinkPreview,functions:fetchImportImage,storage',
-      'functions:fetchLinkPreview,storage',
+      'functions:default:fetchLinkPreview,functions:default:fetchImportImage,storage',
+      'functions:default:fetchLinkPreview,storage',
     ]);
   });
 
@@ -487,5 +519,105 @@ describe('firebase-deploy-with-retry.sh rules release beside the deploy', () => 
 
   it('keeps the deploy failure when the release passed', () => {
     expect(runDeployAndRelease(3, 0).status).toBe(3);
+  });
+});
+
+describe('firebase-deploy-with-retry.sh function codebases', () => {
+  const quotaLog = [
+    'Could not create or update Cloud Run service orgadminv1, Container Healthcheck failed. Quota exceeded for total allowable CPU per project per region.',
+    '',
+    'Functions deploy had errors with the following functions:',
+    '\tadmin:orgAdminV1(us-central1)',
+    '\tfetchLinkPreview(us-central1)',
+  ].join('\n');
+
+  it('retries failed functions under their own codebase, never as a bare default name', () => {
+    const { status, onlys } = runWithStubbedDeploys(
+      [
+        { exit: 2, log: quotaLog },
+        { exit: 0, log: '' },
+        { exit: 0, log: '' },
+      ],
+      'functions,storage',
+      { manifest: '{ "codebases": { "admin": ["orgAdminV1"] } }' }
+    );
+    expect(status).toBe(0);
+    expect(onlys).toEqual([
+      'functions,storage',
+      'functions:default:fetchLinkPreview,functions:admin:orgAdminV1,storage',
+      'functions,storage',
+    ]);
+  });
+
+  it('runs the delete check before every attempt and the label check once after', () => {
+    const { status, checks } = runWithStubbedDeploys(
+      [
+        { exit: 2, log: quotaLog },
+        { exit: 0, log: '' },
+        { exit: 0, log: '' },
+      ],
+      'functions,storage'
+    );
+    expect(status).toBe(0);
+    expect(checks).toEqual([
+      'pre functions,storage',
+      'pre functions:default:fetchLinkPreview,functions:default:orgAdminV1,storage',
+      'pre functions,storage',
+      'post functions,storage',
+    ]);
+  });
+
+  it('deploys nothing when the delete check fails', () => {
+    const { status, onlys, checks } = runWithStubbedDeploys(
+      [{ exit: 0, log: '' }],
+      'functions:admin,storage',
+      { checkExits: { pre: 1 } }
+    );
+    expect(status).toBe(1);
+    expect(onlys).toEqual([]);
+    expect(checks).toEqual(['pre functions:admin,storage']);
+  });
+
+  it('fails a deploy whose live labels do not match the manifest afterwards', () => {
+    const { status, onlys } = runWithStubbedDeploys(
+      [{ exit: 0, log: '' }],
+      'functions',
+      { checkExits: { post: 1 } }
+    );
+    expect(status).toBe(1);
+    expect(onlys).toEqual(['functions']);
+  });
+
+  it('retries the delete check when live functions cannot be listed', () => {
+    const { status, onlys, checks } = runWithStubbedDeploys(
+      [{ exit: 0, log: '' }],
+      'functions',
+      { checkExits: { pre: 3 } }
+    );
+    // Every attempt fails to list, so nothing deploys and the job fails after the attempt budget.
+    expect(status).toBe(1);
+    expect(onlys).toEqual([]);
+    expect(checks).toHaveLength(6);
+  });
+
+  it('warns instead of failing when the label check cannot list functions after a deploy', () => {
+    const { status, onlys, checks, stdout } = runWithStubbedDeploys(
+      [{ exit: 0, log: '' }],
+      'functions',
+      { checkExits: { post: 3 } }
+    );
+    expect(status).toBe(0);
+    expect(onlys).toEqual(['functions']);
+    expect(checks.filter((c) => c.startsWith('post'))).toHaveLength(4);
+    expect(stdout).toContain('post-deploy label check did not run');
+  });
+
+  it('skips both checks when no functions deploy', () => {
+    const { status, checks } = runWithStubbedDeploys(
+      [{ exit: 0, log: '' }],
+      'firestore:indexes,storage'
+    );
+    expect(status).toBe(0);
+    expect(checks).toEqual([]);
   });
 });

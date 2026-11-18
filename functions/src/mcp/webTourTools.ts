@@ -97,7 +97,7 @@ const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 /** Admins with Guided Learning through Claude and the web-tours flag. */
 export async function assertWebTourAccess(ctx: ToolContext): Promise<void> {
   await assertAccess(ctx, 'building');
-  const { isGlobalFeatureGranted } = await import('../quizMediaArchive');
+  const { isGlobalFeatureGranted } = await import('../featureGrant');
   if (
     !(await isGlobalFeatureGranted(
       ctx.db,

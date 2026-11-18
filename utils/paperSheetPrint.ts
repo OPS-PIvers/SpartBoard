@@ -54,9 +54,11 @@ import {
 } from './paperSheetLayout';
 import {
   WRITTEN_OUTLINE_MM,
+  WRITTEN_RULE_LINE_MM,
   isStimulusFreePage,
   mcItemsOf,
   writtenBoxBandsMm,
+  writtenRuleYsMm,
 } from './paperPageMap';
 import { isPlaceholderLetterChoices } from './paperSheetPlan';
 import { encodePaperMarker, paperBatchTag } from './paperSheetMarker';
@@ -125,6 +127,8 @@ export interface PaperPrintJob {
   writtenTexts?: Readonly<Record<string, string>>;
   /** Image `src` per written question id, printed lightly inside a custom image box. */
   writtenImages?: Readonly<Record<string, string>>;
+  /** Fill in the blank: each blank's answer by question id, printed on the answer key's lines. */
+  blankAnswers?: Readonly<Record<string, readonly string[]>>;
   /** What each prompt page prints, by its page map's `prompt` id (QUIZ_IMPORT_VERSIONS.md V25). */
   prompts?: Readonly<Record<string, PaperPromptPage>>;
   /** Per-version text, chosen by each sheet's `versionIndex`; keys stay the page maps' ids (V24). */
@@ -666,7 +670,8 @@ function writtenItemHtml(
   stem?: string,
   fill?: SheetWrittenFill,
   prompt?: WrittenPrompt,
-  imageSrc?: string
+  imageSrc?: string,
+  blankAnswers?: readonly string[]
 ): string {
   const h = item.headerMm;
   const pointsW = fill?.points ? WRITTEN_POINTS_MM : 0;
@@ -693,6 +698,36 @@ function writtenItemHtml(
   }
   const b = item.boxMm;
   const box = `left:${mm(b.x)};top:${mm(b.y)};width:${mm(b.w)};height:${mm(b.h)}`;
+  // A box rounded up to whole slots has spare lines; only the first `blanks` are blanks.
+  const ruleYs = item.blanks ? writtenRuleYsMm(item) : [];
+  const blankYs = item.blanks ? ruleYs.slice(0, item.blanks) : [];
+  // Several blanks: each line gets its letter just left of the box, outside the ink check.
+  if (blankYs.length > 1) {
+    blankYs.forEach((y, i) =>
+      parts.push(
+        `<div class="wr-blank" style="left:${mm(b.x - 6)};top:${mm(
+          y - 5
+        )};width:${mm(5)}">${String.fromCharCode(97 + i)}</div>`
+      )
+    );
+  }
+  if (isKeySheet && blankYs.length > 0) {
+    blankYs.forEach((y, i) =>
+      parts.push(
+        `<div class="wr-blank-key" style="left:${mm(b.x + 2)};top:${mm(
+          y - 6
+        )};width:${mm(b.w - 4)}">${escapeHtml(blankAnswers?.[i] ?? '')}</div>`
+      )
+    );
+    ruleYs.forEach((y) =>
+      parts.push(
+        `<div class="wr-rule" style="left:${mm(b.x)};top:${mm(
+          y - WRITTEN_RULE_LINE_MM
+        )};width:${mm(b.w)};height:${mm(WRITTEN_RULE_LINE_MM)}"></div>`
+      )
+    );
+    return parts.join('');
+  }
   // The key never carries handwriting, so its boxes print as a band nobody writes in (D16).
   if (isKeySheet) {
     parts.push(`<div class="wr-key" style="${box}">Graded by teacher</div>`);
@@ -892,7 +927,8 @@ function mapPageBodyHtml(
           page && !ownPromptPage
             ? { page, label: versionLabel, imageSrc: job.stimulusImageSrc }
             : undefined,
-          job.writtenImages?.[item.questionId]
+          job.writtenImages?.[item.questionId],
+          job.blankAnswers?.[item.questionId]
         )
       );
     }
@@ -985,7 +1021,9 @@ const SHEET_STYLES = `
     color: #000;
   }
   .sheet:last-child { page-break-after: auto; }
-  .reg, .cell, .hdr, .num, .bub, .legend, .foot, .stim, .stim-cap, .qt-stem, .qt-stem-box, .qt-choice, .wr-rule, .wr-outline, .wr-img, .wr-key { position: absolute; }
+  .reg, .cell, .hdr, .num, .bub, .legend, .foot, .stim, .stim-cap, .qt-stem, .qt-stem-box, .qt-choice, .wr-rule, .wr-outline, .wr-img, .wr-key, .wr-blank, .wr-blank-key { position: absolute; }
+  .wr-blank { font-size: 10pt; font-weight: 700; text-align: right; color: #000; }
+  .wr-blank-key { font-size: 11pt; font-weight: 700; color: #000; white-space: nowrap; overflow: hidden; }
   .wr-rule { background: ${letterGrey()}; }
   .wr-img { object-fit: contain; opacity: 0.35; filter: grayscale(1); }
   .wr-outline { box-sizing: border-box; border: ${WRITTEN_OUTLINE_MM}mm solid ${letterGrey()}; }

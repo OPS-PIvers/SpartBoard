@@ -512,7 +512,7 @@ export async function assertAccess(
   ctx: ToolContext,
   source: Source | 'help_center'
 ): Promise<void> {
-  const { isGlobalFeatureGranted } = await import('../quizMediaArchive');
+  const { isGlobalFeatureGranted } = await import('../featureGrant');
   if (
     !(await isGlobalFeatureGranted(ctx.db, GL_FEATURE_ID, ctx.email, ctx.uid))
   ) {

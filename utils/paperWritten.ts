@@ -15,6 +15,8 @@ import type {
 
 /** Contracts for handwritten paper answers; see docs/plans/shipped/QUIZ_PAPER_HANDWRITTEN_RESPONSES.md §3. */
 export const PAPER_HANDWRITTEN_FEATURE = 'paper-handwritten-responses';
+/** Fill in the blank prints a write-in line per blank; needs the handwritten flag too. */
+export const PAPER_FIB_FEATURE = 'paper-fill-in-blank';
 /** Off: inked boxes import as `image` and teachers grade the crop. */
 export const PAPER_HANDWRITING_AI_FEATURE = 'paper-handwriting-ai';
 
@@ -337,6 +339,31 @@ export function canTransitionPaperPrivate(
   return PRIVATE_TRANSITIONS[from].includes(to);
 }
 
+/** An answer's `paperTranscript` for grading; on FIB it counts only on a server-imported scan of a paper response. */
+export function gradingPaperTranscript(
+  question: Pick<QuizQuestion, 'type'>,
+  response:
+    Pick<QuizResponse, 'paperBatchId' | 'paperWrittenBatchId'> | undefined,
+  answer:
+    Pick<QuizResponseAnswer, 'paperTranscript' | 'paperScanId'> | undefined
+): PaperTranscriptState | undefined {
+  const state = answer?.paperTranscript;
+  if (question.type !== 'FIB') return state;
+  return (response?.paperBatchId || response?.paperWrittenBatchId) &&
+    typeof answer?.paperScanId === 'string'
+    ? state
+    : undefined;
+}
+
+/** A paper fill-in-the-blank box not read yet, so the teacher marks it from the picture. */
+export function isPaperFibOwed(
+  answer: Pick<QuizResponseAnswer, 'paperTranscript'>
+): boolean {
+  return (
+    answer.paperTranscript === 'pending' || answer.paperTranscript === 'image'
+  );
+}
+
 export function isPaperWrittenAnswer(
   answer: Pick<QuizResponseAnswer, 'paperTranscript' | 'artifacts'>
 ): boolean {
@@ -411,4 +438,15 @@ export function paperWrittenView(
     transcript,
     placeholder,
   };
+}
+
+/** A multi-blank stem with each blank lettered to match its write-in line: "___ (a)". */
+export function letteredBlanks(text: string): string {
+  const runs = (text ?? '').match(/_{2,}/g)?.length ?? 0;
+  if (runs < 2) return text;
+  let i = 0;
+  return text.replace(
+    /_{2,}/g,
+    (run) => `${run} (${String.fromCharCode(97 + i++)})`
+  );
 }

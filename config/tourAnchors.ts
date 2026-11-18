@@ -1572,7 +1572,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'assign-mods.supports-kind': {
-    label: 'Text, Link or Drive file choice in the Add support menu',
+    label: 'Text, Link or File choice in the Add support menu',
     perField: true,
     panel: true,
   },
@@ -1592,10 +1592,30 @@ export const TOUR_ANCHORS = {
     label: 'Cancel button for a new support',
     panel: true,
   },
+  'assign-mods.support-file-choose': {
+    label: 'Choose file button for a file support',
+    panel: true,
+  },
+  'assign-mods.support-file-drive': {
+    label: 'Choose from Drive button for a file support',
+    panel: true,
+  },
+  'assign-mods.support-file-url': {
+    label: 'Paste a link field for a file support',
+    panel: true,
+  },
+  'assign-mods.support-file-url-add': {
+    label: 'Add button for a pasted file link',
+    panel: true,
+  },
   'assign-mods.support-remove': {
     label: 'Remove support button for a modification group',
     perField: true,
     destructive: true,
+    panel: true,
+  },
+  'assign-mods.preview-group': {
+    label: 'Preview button on a group in the Assign dialog Modifications step',
     panel: true,
   },
   'assign-mods.remove-group': {
@@ -4527,6 +4547,87 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'quiz-grading.rubric-order': {
+    label: 'Rubric level order switch (highest or lowest first) in the grader',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-view-full': {
+    label: 'View rubric button in the grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-close': {
+    label: 'Close button on the full rubric table',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-order': {
+    label: 'Level order switch on the full rubric table',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-edit': {
+    label: 'Edit button on the full rubric table',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-save': {
+    label: 'Save button when editing the full rubric table',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-cancel': {
+    label: 'Cancel button when editing the full rubric table',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-x': {
+    label: 'Close (X) on the full rubric table',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-add-criterion': {
+    label: 'Add criterion when editing the full rubric table',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-add-level': {
+    label: 'Add level when editing the full rubric table, by criterion',
+    perField: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-remove-criterion': {
+    label: 'Remove criterion when editing the full rubric table, by criterion',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-remove-level': {
+    label: 'Remove level when editing the full rubric table, by level',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-field': {
+    label: 'Text or points field when editing the full rubric table, by field',
+    perField: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-criterion-toggle': {
+    label: 'Criterion open / close toggle in the grader, by criterion',
+    perField: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-criterion-score': {
+    label: 'Criterion score box in the grader, by criterion',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
   'quiz-grading.rubric-note': {
     label: 'Criterion note textarea in the Quiz grader, by position',
     perField: true,
@@ -4549,6 +4650,11 @@ export const TOUR_ANCHORS = {
   },
   'quiz-rubric.builder-close': {
     label: 'Close button on the Quiz rubric builder',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-rubric.builder-table': {
+    label: 'Edit as table button on the Quiz rubric builder',
     perWidgetType: true,
     panel: true,
   },
@@ -15529,12 +15635,14 @@ export const TOUR_ANCHORS = {
   },
   'math-tool.add-piece': {
     label:
-      'Add piece button on a Math Tool (algebra tiles, base-10 blocks, pattern blocks, place value), by tool and piece',
+      'Add piece button on a Math Tool (algebra tiles, base-10 blocks, pattern blocks), by tool and piece',
     perField: true,
+    keyPattern:
+      'mathTool#(algebra-tiles\\.(x2-pos|x2-neg|x-pos|x-neg|unit-pos|unit-neg)|base-10\\.(flat|rod|unit)|pattern-blocks\\.(hexagon|trapezoid|triangle|rhombus-wide|rhombus-narrow|square))',
+    keyHint: 'mathTool#base-10.rod, mathTool#algebra-tiles.x-pos',
   },
   'math-tool.clear': {
-    label:
-      'Clear button on a Math Tool (coordinate plane, geoboard, place value)',
+    label: 'Clear button on a Math Tool (coordinate plane, geoboard)',
     perWidgetType: true,
     destructive: true,
   },
@@ -15550,14 +15658,20 @@ export const TOUR_ANCHORS = {
   'math-tool.calculator-key': {
     label: 'Calculator key, by label (digits, operators, AC, =)',
     perField: true,
+    keyPattern: 'mathTool#([0-9]|AC|\\+/−|%|÷|×|−|\\+|⌫|\\.|=)',
+    keyHint: 'mathTool#7 is the 7 key; mathTool#AC is the clear key',
   },
   'math-tool.denominator': {
     label: 'Denominator toggle in Fraction Tiles, by denominator',
     perField: true,
+    keyPattern: 'mathTool#(1|2|3|4|5|6|8|10|12)',
+    keyHint: 'mathTool#4 is the fourths toggle',
   },
   'math-tool.number-line-mode': {
     label: 'Number line mode button (integers, decimals, fractions), by mode',
     perField: true,
+    keyPattern: 'mathTool#(integers|decimals|fractions)',
+    keyHint: 'mathTool#decimals',
   },
   'math-tool.number-line-min': {
     label: 'Minimum value box on the Number Line tool',

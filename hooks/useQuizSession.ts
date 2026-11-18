@@ -925,13 +925,12 @@ export function hasPaperWrittenAwaiting(
   );
 }
 
-/** The `paperTranscript` state of a response's answer to one question, if any. */
-export function paperTranscriptFor(
+/** A response's answer to one question, if any. */
+export function paperAnswerFor(
   response: { answers?: readonly QuizResponseAnswer[] } | undefined,
   questionId: string
-): import('@/types').PaperTranscriptState | undefined {
-  return response?.answers?.find((a) => a.questionId === questionId)
-    ?.paperTranscript;
+): QuizResponseAnswer | undefined {
+  return response?.answers?.find((a) => a.questionId === questionId);
 }
 
 export function gradeAnswer(
@@ -948,7 +947,7 @@ export function gradeAnswer(
    * assignment doc. Normalized the same way the English comparison is.
    */
   acceptedAnswers?: readonly string[],
-  /** Paper written answers only: the answer's public `paperTranscript` state. */
+  /** Paper written answers only: the answer's public `paperTranscript` state, via `gradingPaperTranscript` in utils/paperWritten. */
   paperTranscript?: import('@/types').PaperTranscriptState
 ): GradeResult {
   const max = question.points ?? 1;
@@ -981,6 +980,28 @@ export function gradeAnswer(
       pointsEarned: awarded,
       pointsMax: max,
       state: awaiting ? 'awaiting-grade' : 'scored',
+    };
+  }
+
+  // Paper fill-in-the-blank not read yet: owed a grade until the teacher's mark.
+  if (
+    question.type === 'FIB' &&
+    (paperTranscript === 'pending' || paperTranscript === 'image')
+  ) {
+    if (!manualGrade) {
+      return {
+        isCorrect: false,
+        pointsEarned: 0,
+        pointsMax: max,
+        state: 'awaiting-grade',
+      };
+    }
+    const awarded = Math.min(max, Math.max(0, manualGrade.pointsAwarded));
+    return {
+      isCorrect: awarded === max && max > 0,
+      pointsEarned: awarded,
+      pointsMax: max,
+      state: 'scored',
     };
   }
 

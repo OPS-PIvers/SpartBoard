@@ -1,7 +1,7 @@
 // Icon-only 44×44 toggle beside a choice row; matches ReadAloudButton's footprint.
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Undo2 } from 'lucide-react';
+import { Undo2, X } from 'lucide-react';
 
 export const CrossOutChoiceButton: React.FC<{
   /** 1-based position of the choice as shown. */
@@ -39,13 +39,7 @@ export const CrossOutChoiceButton: React.FC<{
       {crossedOut ? (
         <Undo2 className="h-5 w-5" aria-hidden />
       ) : (
-        // Drawn like the editor strikethrough button: "abc" with a line through it.
-        <span
-          aria-hidden
-          className="text-base font-bold leading-none tracking-tight line-through decoration-2"
-        >
-          abc
-        </span>
+        <X className="h-5 w-5" strokeWidth={2.5} aria-hidden />
       )}
     </button>
   );

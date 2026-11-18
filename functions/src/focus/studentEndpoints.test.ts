@@ -32,10 +32,11 @@ vi.mock('../secrets', () => {
     STUDENT_PSEUDONYM_HMAC_SECRET: secret('hmac'),
   };
 });
-vi.mock('../webTourExtension', async () => {
-  const actual = await vi.importActual<typeof import('../webTourExtension')>(
-    '../webTourExtension'
-  );
+vi.mock('../extensionAuth', async () => {
+  const actual =
+    await vi.importActual<typeof import('../extensionAuth')>(
+      '../extensionAuth'
+    );
   return {
     ...actual,
     EXTENSION_OAUTH_CLIENTS: { 'spartboard-dev': 'client-dev' },
