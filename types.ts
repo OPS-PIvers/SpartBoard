@@ -11856,7 +11856,9 @@ export type GlobalFeature =
   /** Every widget's Settings tab can save its settings as the teacher's default for new copies. */
   | 'widget-settings-defaults'
   /** Library and Assigned tabs with a status per class (docs/plans/ASSIGNED_TAB.md D19). */
-  | 'assigned-tab';
+  | 'assigned-tab'
+  /** The sidebar Assignments hub; on for everyone until an admin narrows it. */
+  | 'assignments-hub';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {
