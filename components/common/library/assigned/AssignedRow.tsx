@@ -30,6 +30,8 @@ export interface AssignedRowProps {
   mainTone?: MainKind;
   /** False hides the per-class panel, e.g. for a paper quiz. */
   classControls?: boolean;
+  /** False drops turned-in counts, for work nobody turns in. */
+  showCounts?: boolean;
   /** A null key acts on the whole single-line assignment (D15). */
   onClassAction: (kind: ClassActionKind, classKey: string | null) => void;
   /** Today's bell time for a Ready class, e.g. "9:55 to 10:40". */
@@ -115,6 +117,7 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
   lineOverride,
   onClassAction,
   classControls = true,
+  showCounts = true,
   mainTone,
   bellLabel,
   footer,
@@ -129,7 +132,8 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
   const done = status.bucket === 'done';
   const canExpand = classControls && !status.singleLine;
   const live = status.classes.some((c) => c.status === 'open');
-  const segments = lineOverride ?? statusLineSegments(status, nowMs);
+  const segments =
+    lineOverride ?? statusLineSegments(status, nowMs, showCounts);
   const toggle = () => {
     if (canExpand) setExpanded((v) => !v);
   };
@@ -300,7 +304,7 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
                   className="text-slate-500 tabular-nums"
                   style={{ fontSize: 'min(11.5px, 3.3cqmin)' }}
                 >
-                  {classDetail(c, nowMs, bellLabel?.(c) ?? null)}
+                  {classDetail(c, nowMs, bellLabel?.(c) ?? null, showCounts)}
                 </div>
               </div>
               <div

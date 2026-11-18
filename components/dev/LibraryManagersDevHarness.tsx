@@ -35,6 +35,17 @@ import { MiniAppManager } from '@/components/widgets/MiniApp/components/MiniAppM
 import { MiniAppSubmissionsMonitor } from '@/components/widgets/MiniApp/components/MiniAppSubmissionsMonitor';
 import type { PeriodAccessActions } from '@/hooks/usePeriodAccess';
 import { FlashcardLibrary } from '@/components/widgets/Flashcards/FlashcardLibrary';
+import { FlashcardProgressFixture } from '@/components/widgets/Flashcards/utils/flashcardAssignedFixture';
+import { WritingAssignedTab } from '@/components/widgets/Writing/components/WritingAssignedTab';
+import { WritingAssignedFixture } from '@/components/widgets/Writing/components/writingAssignedFixture';
+import { LibraryShell } from '@/components/common/library';
+import {
+  FLASHCARD_ASSIGNED_FIXTURES,
+  FLASHCARD_ASSIGNED_PROGRESS,
+  WRITING_ASSIGNED_COUNTS,
+  WRITING_ASSIGNED_FIXTURES,
+  WRITING_ASSIGNED_GRADING,
+} from './assignedKindFixtures';
 import { FlashcardAssignmentSettingsModal } from '@/components/widgets/Flashcards/FlashcardAssignmentSettingsModal';
 import { WallLibraryModal } from '@/components/widgets/ActivityWall/WallLibraryModal';
 import type { LibraryTab } from '@/components/common/library/types';
@@ -330,6 +341,8 @@ const WALLS: ActivityWallLibraryEntry[] = range((i) => ({
 const LIBRARY_HARNESS_VIEWS = [
   'quiz',
   'quiz-assigned',
+  'flashcards-assigned',
+  'writing-assigned',
   'video-activity',
   'guided-learning',
   'mini-app',
@@ -884,8 +897,10 @@ const useFixtureFolders = (
   };
 };
 
-const FlashcardsView: React.FC = () => {
-  const [tab, setTab] = useState<LibraryTab>('library');
+const FlashcardsView: React.FC<{ assigned?: boolean }> = ({
+  assigned = false,
+}) => {
+  const [tab, setTab] = useState<LibraryTab>(assigned ? 'active' : 'library');
   const [sets, setSets] = useState(() =>
     FLASHCARD_SETS.map((set, i) => ({
       ...set,
@@ -916,8 +931,21 @@ const FlashcardsView: React.FC = () => {
         loading={false}
         error={null}
         folders={folders}
-        assignments={FLASHCARD_ASSIGNMENTS}
+        assignments={
+          assigned ? FLASHCARD_ASSIGNED_FIXTURES : FLASHCARD_ASSIGNMENTS
+        }
         assignmentsLoading={false}
+        {...(assigned
+          ? {
+              rosters: ASSIGNED_ROSTERS,
+              pinnedAssignmentId: 'new',
+              classLifecycle: {
+                end: asyncNoop,
+                reopen: asyncNoop,
+                onWindowCleared: asyncNoop,
+              },
+            }
+          : {})}
         tab={tab}
         onTabChange={setTab}
         onNew={noop}
@@ -968,6 +996,43 @@ const QuizAssignedView: React.FC = () => (
   </AssignedResponsesFixture.Provider>
 );
 
+const FlashcardsAssignedView: React.FC = () => (
+  <FlashcardProgressFixture.Provider value={FLASHCARD_ASSIGNED_PROGRESS}>
+    <FlashcardsView assigned />
+  </FlashcardProgressFixture.Provider>
+);
+
+const WRITING_FIXTURE = {
+  counts: WRITING_ASSIGNED_COUNTS,
+  grading: WRITING_ASSIGNED_GRADING,
+};
+const WritingAssignedView: React.FC = () => {
+  const [tab, setTab] = useState<LibraryTab>('active');
+  return (
+    <WritingAssignedFixture.Provider value={WRITING_FIXTURE}>
+      <LibraryShell
+        widgetLabel="Writing"
+        widgetType="writing"
+        tab={tab}
+        onTabChange={setTab}
+        counts={{ library: 4 }}
+        tabLabels={{ archive: 'Completed' }}
+        visibleTabs={['library', 'active', 'archive']}
+        assignedLayout
+      >
+        <WritingAssignedTab
+          records={WRITING_ASSIGNED_FIXTURES}
+          loading={false}
+          rosters={ASSIGNED_ROSTERS}
+          onMonitor={noop}
+          onResults={noop}
+          onDelete={noop}
+        />
+      </LibraryShell>
+    </WritingAssignedFixture.Provider>
+  );
+};
+
 const VIEW_COMPONENTS: Record<HarnessView, React.FC> = {
   quiz: QuizView,
   'video-activity': VideoActivityView,
@@ -977,6 +1042,8 @@ const VIEW_COMPONENTS: Record<HarnessView, React.FC> = {
   'activity-wall': ActivityWallView,
   review: ReviewView,
   'quiz-assigned': QuizAssignedView,
+  'flashcards-assigned': FlashcardsAssignedView,
+  'writing-assigned': WritingAssignedView,
 };
 
 const SIZE = new URLSearchParams(window.location.search);

@@ -31,6 +31,14 @@ export interface UpdateWritingSessionInput extends PeriodAccessPatch {
     /** Added to the stored list. */
     removedStudentRefs?: StudentTargetRef[];
   };
+  /** Assigned tab: brings an ended session back, clearing the record's marks. */
+  reopen?: boolean;
+  /** Assigned tab: ends the session (D21). */
+  end?: boolean;
+  /** Ends the session when this patch closes its last class (D21). */
+  endIfAllClosed?: boolean;
+  /** Record-only Assigned tab marks (D24, D5); null clears one. */
+  marks?: { closedAt?: number | null; doneAt?: number | null };
 }
 
 /** No client writes a Writing session or its record; these edits go through the server. */

@@ -273,6 +273,10 @@ export const SURFACES: TourSurfaceMap = {
     inner: {
       'library-shell.archive-primary-action':
         'library-shell.tab:flashcards#archive',
+      'library-shell.assigned-close-all':
+        'library-shell.archive-menu:flashcards#row-1',
+      'library-shell.assigned-move-to-done':
+        'library-shell.archive-menu:flashcards#row-1',
     },
   },
   'library.flashcards.editor': {

@@ -3,6 +3,15 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 vi.mock('./functionsInit', () => ({}));
 vi.mock('./firebaseAdmin', () => ({ firestore: () => ({}) }));
+vi.mock('firebase-admin/firestore', async () => {
+  const fakes = await import('./writingTestFakes');
+  return {
+    FieldValue: {
+      delete: () => fakes.DELETE,
+      serverTimestamp: () => fakes.SERVER_TS,
+    },
+  };
+});
 
 import { fakeFirestore } from './writingTestFakes';
 import {
@@ -310,6 +319,62 @@ describe('Manual assign and updateWritingSessionV1', () => {
     });
     expect(Object.keys(record.overridesBySourcedId)).toEqual(['classlink:b']);
     expect(record.removedStudentRefs).toHaveLength(2);
+  });
+
+  it('ends the session when the last class closes, and only then', async () => {
+    store.set(SESSION, {
+      ...store.get(SESSION),
+      periodAccess: { ...store.get(SESSION).periodAccess, c2: gate.c1 },
+    });
+    const closed = { state: 'closed', closedAt: 5, pausedAt: 5 };
+    await update({ periodAccess: { c1: closed }, endIfAllClosed: true });
+    expect(store.get(SESSION).status).toBe('active');
+    await update({ periodAccess: { c2: closed }, endIfAllClosed: true });
+    for (const path of [SESSION, RECORD])
+      expect(store.get(path)).toMatchObject({ status: 'ended', endedAt: 7 });
+  });
+
+  it('a Ready class (closed with no mark) keeps the session open', async () => {
+    store.set(SESSION, {
+      ...store.get(SESSION),
+      periodAccess: {
+        c1: { ...gate.c1, state: 'closed' },
+        c2: { ...gate.c1, state: 'closed', closedAt: 4 },
+      },
+    });
+    await update({ endIfAllClosed: true });
+    expect(store.get(SESSION).status).toBe('active');
+  });
+
+  it('reopens an ended session and clears the record marks', async () => {
+    await update({ end: true, marks: { closedAt: 5, doneAt: 6 } });
+    expect(store.get(RECORD)).toMatchObject({
+      status: 'ended',
+      closedAt: 5,
+      doneAt: 6,
+    });
+    await update({
+      reopen: true,
+      periodAccess: { c1: { state: 'open', closedAt: null } },
+    });
+    for (const path of [SESSION, RECORD]) {
+      expect(store.get(path).status).toBe('active');
+      expect(store.get(path).endedAt).toBeUndefined();
+      expect(store.get(path).periodAccess.c1.state).toBe('open');
+    }
+    expect(store.get(RECORD)).toMatchObject({ closedAt: null, doneAt: null });
+    expect(store.get(SESSION).closedAt).toBeUndefined();
+  });
+
+  it('a reopen of a live session and an end of an ended one change nothing', async () => {
+    await expect(update({ reopen: true })).resolves.toEqual({
+      updated: false,
+    });
+    await update({ end: true });
+    store.set(SESSION, { ...store.get(SESSION), endedAt: 1 });
+    await update({ end: true, marks: { doneAt: 9 } });
+    expect(store.get(SESSION).endedAt).toBe(1);
+    expect(store.get(RECORD).doneAt).toBe(9);
   });
 
   it('refuses anyone but the session teacher', async () => {

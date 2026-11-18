@@ -69,6 +69,7 @@ import {
 import { WritingEditorModal } from './WritingEditorModal';
 import { WritingAssignStepper } from './WritingAssignStepper';
 import { WritingAssignmentRow } from './WritingAssignmentRow';
+import { WritingAssignedTab } from './WritingAssignedTab';
 
 type Item = WritingAssignmentDefinition;
 
@@ -144,7 +145,9 @@ export const WritingManager: React.FC<{ widget: WidgetData }> = ({
 }) => {
   const config = widget.config as WritingConfig;
   const { updateWidget, addToast, rosters } = useDashboard();
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
+  // ASSIGNED_TAB.md D12/D19: Library and Assigned, behind the preview flag.
+  const assignedOn = canAccessFeature('assigned-tab');
   const confirmDelete = useLibraryDeleteConfirm();
   const userId = user?.uid;
 
@@ -160,7 +163,10 @@ export const WritingManager: React.FC<{ widget: WidgetData }> = ({
   const folderState = useFolders(userId, 'writing');
   const sessions = useWritingAssignmentSessions(userId);
 
-  const tab: LibraryTab = config.managerTab ?? 'library';
+  const storedTab: LibraryTab = config.managerTab ?? 'library';
+  const tab: LibraryTab =
+    assignedOn && storedTab === 'archive' ? 'active' : storedTab;
+  const [justAssignedId, setJustAssignedId] = useState<string | null>(null);
   const update = useCallback(
     (updates: Partial<WritingConfig>) =>
       updateWidget(widget.id, { config: { ...config, ...updates } }),
@@ -356,6 +362,8 @@ export const WritingManager: React.FC<{ widget: WidgetData }> = ({
       }
     }
     setAssigningId(null);
+    // D17: the new row sits on top of Assigned until a class opens.
+    if (assignedOn) setJustAssignedId(sessionId);
     update({ managerTab: 'active' });
     addToast('Assigned.', 'success');
     return true;
@@ -583,10 +591,12 @@ export const WritingManager: React.FC<{ widget: WidgetData }> = ({
       onTabChange={setTab}
       counts={{
         library: libraryItems.length,
-        active: activeRecords.length,
-        archive: endedRecords.length,
+        // The Assigned tab's Active section depends on grading, so it shows no count.
+        active: assignedOn ? undefined : activeRecords.length,
+        archive: assignedOn ? undefined : endedRecords.length,
       }}
       tabLabels={TAB_LABELS}
+      assignedLayout={assignedOn}
       visibleTabs={['library', 'active', 'archive']}
       primaryAction={
         tab === 'library'
@@ -673,6 +683,16 @@ export const WritingManager: React.FC<{ widget: WidgetData }> = ({
             }
           />
         </div>
+      ) : tab === 'active' && assignedOn ? (
+        <WritingAssignedTab
+          records={sessions.records}
+          loading={sessions.loading}
+          rosters={rosters}
+          pinnedId={justAssignedId}
+          onMonitor={(r) => update({ view: 'monitor', monitorSessionId: r.id })}
+          onResults={(r) => update({ view: 'results', resultsSessionId: r.id })}
+          onDelete={(r) => void handleDeleteRecord(r)}
+        />
       ) : tab === 'active' ? (
         renderRecords(activeRecords, 'active')
       ) : (

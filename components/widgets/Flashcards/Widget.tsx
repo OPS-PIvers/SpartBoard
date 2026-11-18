@@ -88,6 +88,8 @@ import {
   peekPastedFlashcards,
 } from './utils/pastedDrafts';
 import { FlashcardLibrary } from './FlashcardLibrary';
+import { flashcardLifecycle } from './utils/flashcardClassLifecycle';
+import { useSetAssignmentTargets } from '@/hooks/useSetAssignmentTargets';
 import { FlashcardResultsView } from './results';
 import {
   createFlashcardImportAdapter,
@@ -184,6 +186,22 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     updateAssignmentSettings,
     setPlcShare,
   } = useFlashcardAssignments(inShare ? undefined : user?.uid);
+  const { setAssignmentTargets } = useSetAssignmentTargets();
+  const uid = user?.uid;
+  // ASSIGNED_TAB.md D21: the Assigned tab's class actions drive these whole-run writes.
+  const classLifecycle = useMemo(
+    () =>
+      uid && !inShare
+        ? flashcardLifecycle(uid, {
+            endAssignment,
+            reopenAssignment,
+            setAssignmentTargets,
+          })
+        : undefined,
+    [uid, inShare, endAssignment, reopenAssignment, setAssignmentTargets]
+  );
+  const assignedOn = !!classLifecycle && canAccessFeature('assigned-tab');
+  const [justAssignedId, setJustAssignedId] = useState<string | null>(null);
   const plcSharing = useFlashcardPlcSharing({
     enabled: !inShare,
     addToast,
@@ -537,9 +555,14 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
       };
       if (rosterIds.length > 0) nextRosterMap[set.id] = rosterIds;
       else delete nextRosterMap[set.id];
+      // D17: after assigning, the teacher lands on Assigned with the new row on top.
       updateWidget(widget.id, {
-        config: { lastRosterIdsBySetId: nextRosterMap },
+        config: {
+          lastRosterIdsBySetId: nextRosterMap,
+          ...(assignedOn ? { libraryTab: 'active' as const } : {}),
+        },
       });
+      if (assignedOn) setJustAssignedId(sessionId);
       setAssigningSet(null);
 
       const url = flashcardAssignmentUrl(sessionId, input.audience);
@@ -877,6 +900,9 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                 onAssignmentMonitor={(a) => showResults(a, 'monitor')}
                 onAssignmentSettings={setSettingsTarget}
                 onBulkDelete={handleBulkDelete}
+                classLifecycle={assignedOn ? classLifecycle : undefined}
+                rosters={rosters}
+                pinnedAssignmentId={justAssignedId}
                 onAssignmentPublishScores={setPublishTarget}
                 onAssignmentUnpublishScores={(a) =>
                   void handleUnpublishScores(a)
