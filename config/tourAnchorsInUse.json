@@ -1,12 +1,210 @@
 {
   "spartboard": {
-    "refreshed": "2026-10-12",
+    "refreshed": "2026-11-18",
     "tours": [
+      {
+        "id": "385ae5e5-a1fd-4cf3-92bd-0579e2c055c2",
+        "title": "Add a picture to a quiz question",
+        "anchors": [
+          "board.whole",
+          "editor.close",
+          "library-shell.new",
+          "library-shell.new-menu-item",
+          "quiz-editor.add-question",
+          "quiz-editor.prompt",
+          "quiz-editor.tab-questions",
+          "quiz-editor.tab-stimuli",
+          "quiz-stimuli.attach-question",
+          "quiz-stimuli.choose-file",
+          "quiz-stimuli.placement"
+        ]
+      },
+      {
+        "id": "e6b6fa30-3cd5-42ba-addc-277817849ec5",
+        "title": "Add and arrange a widget",
+        "anchors": [
+          "board.whole",
+          "dock.item",
+          "dock.minimized-restore",
+          "dock.open-tools",
+          "settings.group",
+          "widget.close",
+          "widget.minimize",
+          "widget.resize-handle",
+          "widget.settings-opener",
+          "widget.window"
+        ]
+      },
+      {
+        "id": "9614f97c-f624-4462-ad24-814effc4043d",
+        "title": "Adding a PLC Shared Assessment",
+        "anchors": [
+          "plc-assessments.assign",
+          "plc-dashboard.section-tab",
+          "plc-import.mode",
+          "plcs.open-plc",
+          "sidebar.open-menu",
+          "sidebar.plcs"
+        ]
+      },
+      {
+        "id": "c46f4997-6fb1-4f87-bff7-6df714a81da3",
+        "title": "Adding an image or other stimuli to quiz questions",
+        "anchors": [
+          "library-shell.card-menu",
+          "library-shell.card-menu-item",
+          "quiz-stimuli.attach-toggle"
+        ]
+      },
+      {
+        "id": "d6208da5-80e0-4018-ac80-526d91496619",
+        "title": "Adjust your SpartBoard user settings",
+        "anchors": [
+          "behavior.alignment-guides-toggle",
+          "behavior.close-warning-toggle",
+          "behavior.spell-check-toggle",
+          "profile.tab-behavior",
+          "sidebar.open-menu",
+          "sidebar.profile-settings"
+        ]
+      },
+      {
+        "id": "4f0db24e-6b1a-424f-934e-1252d0280e69",
+        "title": "Assign a quiz to one student",
+        "anchors": [
+          "assign-classes.option",
+          "assign-classes.trigger",
+          "assign-stepper.submit",
+          "assign-students.option",
+          "assign-students.search",
+          "assign-students.trigger",
+          "board.whole",
+          "library-shell.card-primary-action"
+        ]
+      },
+      {
+        "id": "7f3ae48b-08e5-4173-9561-b042bb73e5cc",
+        "title": "Bring in your classes",
+        "anchors": [
+          "board.whole",
+          "classes.import-classlink",
+          "classes.link-schoology",
+          "classlink-import.import",
+          "schoology-link.cancel",
+          "sidebar.classes",
+          "sidebar.open-menu"
+        ]
+      },
+      {
+        "id": "8cf2c4dc-d236-4fbb-9deb-8a3e9f07e541",
+        "title": "Build a Mini App with AI",
+        "anchors": [
+          "dock.item",
+          "dock.open-tools",
+          "editor.close",
+          "editor.title",
+          "library-shell.card-icon-action",
+          "library-shell.new",
+          "mini-app.ai-generate",
+          "mini-app.ai-prompt",
+          "mini-app.draft-with-ai",
+          "mini-app.view-toggle",
+          "widget.window"
+        ]
+      },
+      {
+        "id": "95beac9e-b165-4a5a-9cc3-2a960dbf9b8e",
+        "title": "Build a Mini App with AI",
+        "anchors": [
+          "dock.item",
+          "dock.open-tools",
+          "editor.close",
+          "editor.title",
+          "library-shell.card-menu",
+          "library-shell.card-menu-item",
+          "library-shell.new",
+          "mini-app.ai-generate",
+          "mini-app.ai-prompt",
+          "mini-app.draft-with-ai",
+          "mini-app.view-toggle",
+          "widget.window"
+        ]
+      },
+      {
+        "id": "d36d9910-3470-471a-a618-d74e95d11b4c",
+        "title": "Build a Mini App with AI",
+        "anchors": [
+          "dock.item",
+          "dock.open-tools",
+          "editor.close",
+          "editor.title",
+          "library-shell.card-icon-action",
+          "library-shell.new",
+          "mini-app.ai-generate",
+          "mini-app.ai-prompt",
+          "mini-app.draft-with-ai",
+          "mini-app.view-toggle",
+          "widget.window"
+        ]
+      },
+      {
+        "id": "e94430cb-45dc-4d5f-b296-75009975b8eb",
+        "title": "Change your background",
+        "anchors": [
+          "backgrounds.close",
+          "backgrounds.rail-section",
+          "backgrounds.search",
+          "backgrounds.tile",
+          "board.whole",
+          "sidebar.backgrounds",
+          "sidebar.open-menu"
+        ]
+      },
+      {
+        "id": "0b6080e0-c368-43f8-bb1d-18076d2a4b9d",
+        "title": "Collect video responses with an Activity Wall",
+        "anchors": [
+          "activity-wall-editor.moderation",
+          "activity-wall-editor.prompt",
+          "activity-wall-editor.save",
+          "activity-wall-editor.section",
+          "activity-wall-editor.submission-type",
+          "activity-wall-editor.submission-types",
+          "activity-wall.empty-open-library",
+          "activity-wall.share",
+          "board.whole",
+          "editor.title",
+          "library-shell.new"
+        ]
+      },
+      {
+        "id": "d22be43b-2e23-4f76-9d10-d021ad29f68d",
+        "title": "Connect Google Drive",
+        "anchors": [
+          "board.whole",
+          "sidebar.drive-connect",
+          "sidebar.google-drive",
+          "sidebar.open-menu"
+        ]
+      },
+      {
+        "id": "11fbb5a2-68e2-4428-8a6f-2e5340c9cda8",
+        "title": "Connect the Timer to other widgets",
+        "anchors": [
+          "board.whole",
+          "settings.field",
+          "settings.toggle",
+          "time-tool.start-pause",
+          "widget-settings.music.sync-time-tool",
+          "widget.settings-opener"
+        ]
+      },
       {
         "id": "424ab204-90a1-41d0-913c-94ee2b5fbb27",
         "title": "Create a Spartboard Quiz",
         "anchors": [
           "dock.item",
+          "dock.open-tools",
           "editor.close",
           "editor.title",
           "library-shell.card-menu",
@@ -21,6 +219,35 @@
         ]
       },
       {
+        "id": "3e8fcd3c-d3d8-4154-94c3-c1300c08c57c",
+        "title": "Create or join a Team",
+        "anchors": [
+          "board.whole",
+          "plc-edit.group-type",
+          "plc-edit.name",
+          "plc-edit.save",
+          "plcs.invites",
+          "plcs.new-plc",
+          "sidebar.open-menu",
+          "sidebar.plcs"
+        ]
+      },
+      {
+        "id": "7414b9e0-728b-4f1f-8bfe-50229c53ad29",
+        "title": "Edit your Dock",
+        "anchors": [
+          "board.whole",
+          "dock.more-widgets",
+          "dock.open-tools",
+          "library.add-folder",
+          "library.close",
+          "library.done-editing",
+          "library.edit",
+          "library.root",
+          "library.search"
+        ]
+      },
+      {
         "id": "600985fc-93f9-49f4-b736-74b98e279c31",
         "title": "Find help in SpartBoard",
         "anchors": [
@@ -28,7 +255,6 @@
           "help-center.close",
           "help-center.guides.category",
           "help-center.guides.item",
-          "help-center.guides.kind-filter",
           "help-center.search",
           "help-center.shortcuts.gestures",
           "help-center.tab",
@@ -36,9 +262,44 @@
         ]
       },
       {
+        "id": "4d6dacc4-d062-4d00-8843-854d18f81dc9",
+        "title": "Give a class group standing quiz modifications",
+        "anchors": [
+          "board.whole",
+          "classes.edit-roster",
+          "group-wizard.finish",
+          "group-wizard.name",
+          "group-wizard.next",
+          "group-wizard.student-search",
+          "override-row.extended-time",
+          "roster-editor.accommodations-add",
+          "roster-editor.accommodations-done",
+          "roster-editor.accommodations-search",
+          "roster-editor.save",
+          "roster-editor.tab",
+          "roster-groups.new",
+          "sidebar.classes",
+          "sidebar.open-menu"
+        ]
+      },
+      {
+        "id": "bf794a3f-b8de-4f5d-bccd-0eea33a7dba1",
+        "title": "Group Maker",
+        "anchors": [
+          "dock.item",
+          "random.class-context",
+          "random.group-color",
+          "random.group-color-swatch",
+          "random.mark-absent",
+          "random.pick",
+          "widget.window"
+        ]
+      },
+      {
         "id": "3eabb4b6-9450-4bb0-ab02-4e138eab934d",
         "title": "Group-Maker",
         "anchors": [
+          "random.chip-lock",
           "random.class-context",
           "random.group-color",
           "random.group-color-swatch",
@@ -46,6 +307,95 @@
           "random.mode",
           "random.pick",
           "widget.window"
+        ]
+      },
+      {
+        "id": "1a4cbbce-6bf0-4bcd-9bea-d0cab326a495",
+        "title": "Import ClassLink Rosters",
+        "anchors": [
+          "classes.import-classlink",
+          "classlink-import.import",
+          "modal.close",
+          "sidebar.classes",
+          "sidebar.open-menu"
+        ]
+      },
+      {
+        "id": "e8166241-16d3-4927-9e44-ea2aeb923a27",
+        "title": "Make and switch boards and collections",
+        "anchors": [
+          "board-nav.collection-root",
+          "board-nav.next",
+          "board-nav.select-board",
+          "board-nav.select-collection",
+          "board.whole",
+          "boards-modal.close",
+          "boards-modal.color-done",
+          "boards-modal.color-swatch",
+          "boards-modal.new-board",
+          "boards-modal.new-collection",
+          "prompt-dialog.confirm",
+          "prompt-dialog.input",
+          "sidebar.boards",
+          "sidebar.open-menu"
+        ]
+      },
+      {
+        "id": "91d408ad-6221-4828-ac91-3234ac933776",
+        "title": "Make widgets work together",
+        "anchors": [
+          "board.whole",
+          "connections.editor.advance",
+          "connections.editor.repeat",
+          "connections.editor.save-start",
+          "dashboard.connect-done",
+          "widget.connect",
+          "widget.connect-pick",
+          "widget.connection-badge"
+        ]
+      },
+      {
+        "id": "f3d2e22a-f858-4037-b276-1bb33fdf566b",
+        "title": "Modify one quiz for some students when you assign it",
+        "anchors": [
+          "assign-classes.option",
+          "assign-mods.add-group",
+          "assign-mods.students",
+          "assign-mods.students-done",
+          "assign-mods.students-search",
+          "assign-mods.supports-add",
+          "assign-step.modifications",
+          "assign-stepper.submit",
+          "board.whole",
+          "library-shell.card-primary-action"
+        ]
+      },
+      {
+        "id": "6f583fa6-3612-4618-ae41-0095aeb838b8",
+        "title": "Reopen an ended quiz for absent students",
+        "anchors": [
+          "board.whole",
+          "library-shell.archive-menu",
+          "library-shell.archive-primary-action",
+          "library-shell.tab",
+          "quiz-library.archive-reopen"
+        ]
+      },
+      {
+        "id": "f6f59ad2-04b9-4481-93a7-59f4fc48d5a2",
+        "title": "Run the Group Maker, Timer and Music together",
+        "anchors": [
+          "board.whole",
+          "connections.editor.advance",
+          "connections.editor.repeat",
+          "connections.editor.repeat-count",
+          "connections.editor.save-start",
+          "connections.editor.step-action",
+          "connections.editor.wait-seconds",
+          "dashboard.connect-done",
+          "widget.connect",
+          "widget.connect-pick",
+          "widget.connection-badge"
         ]
       },
       {
@@ -60,13 +410,132 @@
         ]
       },
       {
+        "id": "cfb8af47-8d81-40f3-badb-fdfd0cb86192",
+        "title": "Set how SpartBoard behaves",
+        "anchors": [
+          "behavior.alignment-guides-toggle",
+          "behavior.close-warning-toggle",
+          "behavior.remote-control-toggle",
+          "behavior.sparty-toggle",
+          "behavior.spell-check-toggle",
+          "board.whole",
+          "profile.close",
+          "profile.tab-behavior",
+          "sidebar.open-menu",
+          "sidebar.profile-settings"
+        ]
+      },
+      {
+        "id": "d4c713f2-d729-4cac-b532-670ae0b42905",
+        "title": "Set up your profile",
+        "anchors": [
+          "board.whole",
+          "profile.buildings",
+          "profile.close",
+          "profile.grades",
+          "profile.subjects",
+          "profile.tab-profile",
+          "sidebar.open-menu",
+          "sidebar.profile-settings"
+        ]
+      },
+      {
+        "id": "7fcfe72d-ff9a-4e36-a08d-baccd76b627d",
+        "title": "Set your Quick Access tools",
+        "anchors": [
+          "board.whole",
+          "dock.quick-access-1",
+          "quick-access.close",
+          "quick-access.search",
+          "quick-access.tool",
+          "sidebar.open-menu",
+          "sidebar.quick-access"
+        ]
+      },
+      {
+        "id": "f2c74d19-16c2-4b0c-8a14-62834cda38d3",
+        "title": "Show students their quiz scores",
+        "anchors": [
+          "board.whole",
+          "library-shell.archive-menu",
+          "library-shell.tab",
+          "publish-scores.confirm",
+          "publish-scores.level",
+          "quiz-library.archive-publish-scores",
+          "quiz-library.archive-unpublish-scores"
+        ]
+      },
+      {
         "id": "f8c55c05-04ba-47a0-b0e4-d374daa9dd3d",
         "title": "Syncing your Google Calendar",
         "anchors": [
-          "settings.field",
           "widget-settings.calendar.add-calendar",
-          "widget-settings.calendar.connect-google",
-          "widget-settings.calendar.instructions",
+          "widget-settings.calendar.calendar-id",
+          "widget.settings-opener",
+          "widget.window"
+        ]
+      },
+      {
+        "id": "219c6e85-9c78-4359-98f3-ebeaa8e23d47",
+        "title": "Tour Boards & Collections",
+        "anchors": [
+          "board.whole",
+          "boards-modal.board-duplicate",
+          "boards-modal.board-edit",
+          "boards-modal.board-open",
+          "boards-modal.board-pin",
+          "boards-modal.close",
+          "boards-modal.new-board",
+          "boards-modal.search",
+          "boards-modal.tree-all-boards",
+          "sidebar.boards",
+          "sidebar.open-menu"
+        ]
+      },
+      {
+        "id": "5ae13502-a469-4c7f-b188-2d233b06da4a",
+        "title": "Use a custom roster with the Group Maker widget",
+        "anchors": [
+          "settings.close",
+          "settings.field",
+          "widget.settings-opener",
+          "widget.window"
+        ]
+      },
+      {
+        "id": "dbd3feb9-8477-4304-8785-915d7afb5b2d",
+        "title": "Use the Routine Guide",
+        "anchors": [
+          "board.whole",
+          "dock.item",
+          "dock.open-tools",
+          "routine-guide.back",
+          "routine-guide.favorite",
+          "routine-guide.filter",
+          "routine-guide.launch",
+          "routine-guide.next",
+          "routine-guide.routine",
+          "routine-guide.search",
+          "routine-guide.view"
+        ]
+      },
+      {
+        "id": "7c6f9c47-fe73-47ce-a105-c33f9efdabf2",
+        "title": "Using the Materials widget",
+        "anchors": [
+          "board.whole",
+          "dock.item",
+          "dock.open-tools",
+          "materials.tray-item",
+          "settings.close",
+          "widget-settings.materials.add-material",
+          "widget-settings.materials.form-color",
+          "widget-settings.materials.form-icon",
+          "widget-settings.materials.form-icon-search",
+          "widget-settings.materials.form-name",
+          "widget-settings.materials.form-save",
+          "widget-settings.materials.hide-item",
+          "widget-settings.materials.select-item",
           "widget.settings-opener",
           "widget.window"
         ]
@@ -74,17 +543,507 @@
     ]
   },
   "spartboard-dev": {
-    "refreshed": "2026-10-12",
+    "refreshed": "2026-11-18",
     "tours": [
       {
-        "id": "3d4f2415-918c-46cd-a568-aabad701b67f",
-        "title": "Sync My Teams tasks to Google Tasks",
+        "id": "385ae5e5-a1fd-4cf3-92bd-0579e2c055c2",
+        "title": "Add a picture to a quiz question",
         "anchors": [
+          "board.whole",
+          "editor.close",
+          "library-shell.new",
+          "library-shell.new-menu-item",
+          "quiz-editor.add-question",
+          "quiz-editor.prompt",
+          "quiz-editor.tab-questions",
+          "quiz-editor.tab-stimuli",
+          "quiz-stimuli.attach-question",
+          "quiz-stimuli.choose-file",
+          "quiz-stimuli.placement"
+        ]
+      },
+      {
+        "id": "e6b6fa30-3cd5-42ba-addc-277817849ec5",
+        "title": "Add and arrange a widget",
+        "anchors": [
+          "board.whole",
+          "dock.item",
+          "dock.minimized-restore",
+          "dock.open-tools",
+          "settings.group",
+          "widget.close",
+          "widget.minimize",
+          "widget.resize-handle",
+          "widget.settings-opener",
+          "widget.window"
+        ]
+      },
+      {
+        "id": "9614f97c-f624-4462-ad24-814effc4043d",
+        "title": "Adding a PLC Shared Assessment",
+        "anchors": [
+          "plc-assessments.assign",
+          "plc-dashboard.section-tab",
+          "plc-import.mode",
           "plcs.open-plc",
-          "profile.close",
-          "profile.tab-connected-apps",
+          "sidebar.open-menu",
+          "sidebar.plcs"
+        ]
+      },
+      {
+        "id": "c46f4997-6fb1-4f87-bff7-6df714a81da3",
+        "title": "Adding an image or other stimuli to quiz questions",
+        "anchors": [
+          "library-shell.card-menu",
+          "library-shell.card-menu-item",
+          "quiz-stimuli.attach-toggle"
+        ]
+      },
+      {
+        "id": "d6208da5-80e0-4018-ac80-526d91496619",
+        "title": "Adjust your SpartBoard user settings",
+        "anchors": [
+          "behavior.alignment-guides-toggle",
+          "behavior.close-warning-toggle",
+          "behavior.spell-check-toggle",
+          "profile.tab-behavior",
           "sidebar.open-menu",
           "sidebar.profile-settings"
+        ]
+      },
+      {
+        "id": "4f0db24e-6b1a-424f-934e-1252d0280e69",
+        "title": "Assign a quiz to one student",
+        "anchors": [
+          "assign-classes.option",
+          "assign-classes.trigger",
+          "assign-stepper.submit",
+          "assign-students.option",
+          "assign-students.search",
+          "assign-students.trigger",
+          "board.whole",
+          "library-shell.card-primary-action"
+        ]
+      },
+      {
+        "id": "7f3ae48b-08e5-4173-9561-b042bb73e5cc",
+        "title": "Bring in your classes",
+        "anchors": [
+          "board.whole",
+          "classes.import-classlink",
+          "classes.link-schoology",
+          "classlink-import.import",
+          "schoology-link.cancel",
+          "sidebar.classes",
+          "sidebar.open-menu"
+        ]
+      },
+      {
+        "id": "8cf2c4dc-d236-4fbb-9deb-8a3e9f07e541",
+        "title": "Build a Mini App with AI",
+        "anchors": [
+          "dock.item",
+          "dock.open-tools",
+          "editor.close",
+          "editor.title",
+          "library-shell.card-icon-action",
+          "library-shell.new",
+          "mini-app.ai-generate",
+          "mini-app.ai-prompt",
+          "mini-app.draft-with-ai",
+          "mini-app.view-toggle",
+          "widget.window"
+        ]
+      },
+      {
+        "id": "95beac9e-b165-4a5a-9cc3-2a960dbf9b8e",
+        "title": "Build a Mini App with AI",
+        "anchors": [
+          "dock.item",
+          "dock.open-tools",
+          "editor.close",
+          "editor.title",
+          "library-shell.card-menu",
+          "library-shell.card-menu-item",
+          "library-shell.new",
+          "mini-app.ai-generate",
+          "mini-app.ai-prompt",
+          "mini-app.draft-with-ai",
+          "mini-app.view-toggle",
+          "widget.window"
+        ]
+      },
+      {
+        "id": "d36d9910-3470-471a-a618-d74e95d11b4c",
+        "title": "Build a Mini App with AI",
+        "anchors": [
+          "dock.item",
+          "dock.open-tools",
+          "editor.close",
+          "editor.title",
+          "library-shell.card-icon-action",
+          "library-shell.new",
+          "mini-app.ai-generate",
+          "mini-app.ai-prompt",
+          "mini-app.draft-with-ai",
+          "mini-app.view-toggle",
+          "widget.window"
+        ]
+      },
+      {
+        "id": "e94430cb-45dc-4d5f-b296-75009975b8eb",
+        "title": "Change your background",
+        "anchors": [
+          "backgrounds.close",
+          "backgrounds.rail-section",
+          "backgrounds.search",
+          "backgrounds.tile",
+          "board.whole",
+          "sidebar.backgrounds",
+          "sidebar.open-menu"
+        ]
+      },
+      {
+        "id": "0b6080e0-c368-43f8-bb1d-18076d2a4b9d",
+        "title": "Collect video responses with an Activity Wall",
+        "anchors": [
+          "activity-wall-editor.moderation",
+          "activity-wall-editor.prompt",
+          "activity-wall-editor.save",
+          "activity-wall-editor.section",
+          "activity-wall-editor.submission-type",
+          "activity-wall-editor.submission-types",
+          "activity-wall.empty-open-library",
+          "activity-wall.share",
+          "board.whole",
+          "editor.title",
+          "library-shell.new"
+        ]
+      },
+      {
+        "id": "d22be43b-2e23-4f76-9d10-d021ad29f68d",
+        "title": "Connect Google Drive",
+        "anchors": [
+          "board.whole",
+          "sidebar.drive-connect",
+          "sidebar.google-drive",
+          "sidebar.open-menu"
+        ]
+      },
+      {
+        "id": "11fbb5a2-68e2-4428-8a6f-2e5340c9cda8",
+        "title": "Connect the Timer to other widgets",
+        "anchors": [
+          "board.whole",
+          "settings.field",
+          "settings.toggle",
+          "time-tool.start-pause",
+          "widget-settings.music.sync-time-tool",
+          "widget.settings-opener"
+        ]
+      },
+      {
+        "id": "424ab204-90a1-41d0-913c-94ee2b5fbb27",
+        "title": "Create a Spartboard Quiz",
+        "anchors": [
+          "dock.item",
+          "dock.open-tools",
+          "editor.close",
+          "editor.title",
+          "library-shell.card-menu",
+          "library-shell.card-menu-item",
+          "library-shell.new",
+          "library-shell.new-menu-item",
+          "library-shell.tab",
+          "quiz-editor.add-question",
+          "quiz-editor.correct",
+          "quiz-editor.option",
+          "quiz-editor.prompt"
+        ]
+      },
+      {
+        "id": "3e8fcd3c-d3d8-4154-94c3-c1300c08c57c",
+        "title": "Create or join a Team",
+        "anchors": [
+          "board.whole",
+          "plc-edit.group-type",
+          "plc-edit.name",
+          "plc-edit.save",
+          "plcs.invites",
+          "plcs.new-plc",
+          "sidebar.open-menu",
+          "sidebar.plcs"
+        ]
+      },
+      {
+        "id": "7414b9e0-728b-4f1f-8bfe-50229c53ad29",
+        "title": "Edit your Dock",
+        "anchors": [
+          "board.whole",
+          "dock.more-widgets",
+          "dock.open-tools",
+          "library.add-folder",
+          "library.close",
+          "library.done-editing",
+          "library.edit",
+          "library.root",
+          "library.search"
+        ]
+      },
+      {
+        "id": "600985fc-93f9-49f4-b736-74b98e279c31",
+        "title": "Find help in SpartBoard",
+        "anchors": [
+          "board-actions.help",
+          "help-center.close",
+          "help-center.guides.category",
+          "help-center.guides.item",
+          "help-center.search",
+          "help-center.shortcuts.gestures",
+          "help-center.tab",
+          "help-center.viewer.back"
+        ]
+      },
+      {
+        "id": "bf794a3f-b8de-4f5d-bccd-0eea33a7dba1",
+        "title": "Group Maker",
+        "anchors": [
+          "dock.item",
+          "random.class-context",
+          "random.group-color",
+          "random.group-color-swatch",
+          "random.mark-absent",
+          "random.pick",
+          "widget.window"
+        ]
+      },
+      {
+        "id": "3eabb4b6-9450-4bb0-ab02-4e138eab934d",
+        "title": "Group-Maker",
+        "anchors": [
+          "random.chip-lock",
+          "random.class-context",
+          "random.group-color",
+          "random.group-color-swatch",
+          "random.group-size",
+          "random.mode",
+          "random.pick",
+          "widget.window"
+        ]
+      },
+      {
+        "id": "1a4cbbce-6bf0-4bcd-9bea-d0cab326a495",
+        "title": "Import ClassLink Rosters",
+        "anchors": [
+          "classes.import-classlink",
+          "classlink-import.import",
+          "modal.close",
+          "sidebar.classes",
+          "sidebar.open-menu"
+        ]
+      },
+      {
+        "id": "e8166241-16d3-4927-9e44-ea2aeb923a27",
+        "title": "Make and switch boards and collections",
+        "anchors": [
+          "board-nav.collection-root",
+          "board-nav.next",
+          "board-nav.select-board",
+          "board-nav.select-collection",
+          "board.whole",
+          "boards-modal.close",
+          "boards-modal.color-done",
+          "boards-modal.color-swatch",
+          "boards-modal.new-board",
+          "boards-modal.new-collection",
+          "prompt-dialog.confirm",
+          "prompt-dialog.input",
+          "sidebar.boards",
+          "sidebar.open-menu"
+        ]
+      },
+      {
+        "id": "91d408ad-6221-4828-ac91-3234ac933776",
+        "title": "Make widgets work together",
+        "anchors": [
+          "board.whole",
+          "connections.editor.advance",
+          "connections.editor.repeat",
+          "connections.editor.save-start",
+          "dashboard.connect-done",
+          "widget.connect",
+          "widget.connect-pick",
+          "widget.connection-badge"
+        ]
+      },
+      {
+        "id": "6f583fa6-3612-4618-ae41-0095aeb838b8",
+        "title": "Reopen an ended quiz for absent students",
+        "anchors": [
+          "board.whole",
+          "library-shell.archive-menu",
+          "library-shell.archive-primary-action",
+          "library-shell.tab",
+          "quiz-library.archive-reopen"
+        ]
+      },
+      {
+        "id": "f6f59ad2-04b9-4481-93a7-59f4fc48d5a2",
+        "title": "Run the Group Maker, Timer and Music together",
+        "anchors": [
+          "board.whole",
+          "connections.editor.advance",
+          "connections.editor.repeat",
+          "connections.editor.repeat-count",
+          "connections.editor.save-start",
+          "connections.editor.step-action",
+          "connections.editor.wait-seconds",
+          "dashboard.connect-done",
+          "widget.connect",
+          "widget.connect-pick",
+          "widget.connection-badge"
+        ]
+      },
+      {
+        "id": "f1b4575b-3dcc-4786-90dc-e6534344ebd0",
+        "title": "Schedule & Timer",
+        "anchors": [
+          "schedule.start-timer",
+          "settings.group",
+          "settings.toggle",
+          "widget.settings-opener",
+          "widget.window"
+        ]
+      },
+      {
+        "id": "cfb8af47-8d81-40f3-badb-fdfd0cb86192",
+        "title": "Set how SpartBoard behaves",
+        "anchors": [
+          "behavior.alignment-guides-toggle",
+          "behavior.close-warning-toggle",
+          "behavior.remote-control-toggle",
+          "behavior.sparty-toggle",
+          "behavior.spell-check-toggle",
+          "board.whole",
+          "profile.close",
+          "profile.tab-behavior",
+          "sidebar.open-menu",
+          "sidebar.profile-settings"
+        ]
+      },
+      {
+        "id": "d4c713f2-d729-4cac-b532-670ae0b42905",
+        "title": "Set up your profile",
+        "anchors": [
+          "board.whole",
+          "profile.buildings",
+          "profile.close",
+          "profile.grades",
+          "profile.subjects",
+          "profile.tab-profile",
+          "sidebar.open-menu",
+          "sidebar.profile-settings"
+        ]
+      },
+      {
+        "id": "7fcfe72d-ff9a-4e36-a08d-baccd76b627d",
+        "title": "Set your Quick Access tools",
+        "anchors": [
+          "board.whole",
+          "dock.quick-access-1",
+          "quick-access.close",
+          "quick-access.search",
+          "quick-access.tool",
+          "sidebar.open-menu",
+          "sidebar.quick-access"
+        ]
+      },
+      {
+        "id": "f2c74d19-16c2-4b0c-8a14-62834cda38d3",
+        "title": "Show students their quiz scores",
+        "anchors": [
+          "board.whole",
+          "library-shell.archive-menu",
+          "library-shell.tab",
+          "publish-scores.confirm",
+          "publish-scores.level",
+          "quiz-library.archive-publish-scores",
+          "quiz-library.archive-unpublish-scores"
+        ]
+      },
+      {
+        "id": "f8c55c05-04ba-47a0-b0e4-d374daa9dd3d",
+        "title": "Syncing your Google Calendar",
+        "anchors": [
+          "widget-settings.calendar.add-calendar",
+          "widget-settings.calendar.calendar-id",
+          "widget.settings-opener",
+          "widget.window"
+        ]
+      },
+      {
+        "id": "219c6e85-9c78-4359-98f3-ebeaa8e23d47",
+        "title": "Tour Boards & Collections",
+        "anchors": [
+          "board.whole",
+          "boards-modal.board-duplicate",
+          "boards-modal.board-edit",
+          "boards-modal.board-open",
+          "boards-modal.board-pin",
+          "boards-modal.close",
+          "boards-modal.new-board",
+          "boards-modal.search",
+          "boards-modal.tree-all-boards",
+          "sidebar.boards",
+          "sidebar.open-menu"
+        ]
+      },
+      {
+        "id": "5ae13502-a469-4c7f-b188-2d233b06da4a",
+        "title": "Use a custom roster with the Group Maker widget",
+        "anchors": [
+          "settings.close",
+          "settings.field",
+          "widget.settings-opener",
+          "widget.window"
+        ]
+      },
+      {
+        "id": "dbd3feb9-8477-4304-8785-915d7afb5b2d",
+        "title": "Use the Routine Guide",
+        "anchors": [
+          "board.whole",
+          "dock.item",
+          "dock.open-tools",
+          "routine-guide.back",
+          "routine-guide.favorite",
+          "routine-guide.filter",
+          "routine-guide.launch",
+          "routine-guide.next",
+          "routine-guide.routine",
+          "routine-guide.search",
+          "routine-guide.view"
+        ]
+      },
+      {
+        "id": "7c6f9c47-fe73-47ce-a105-c33f9efdabf2",
+        "title": "Using the Materials widget",
+        "anchors": [
+          "board.whole",
+          "dock.item",
+          "dock.open-tools",
+          "materials.tray-item",
+          "settings.close",
+          "widget-settings.materials.add-material",
+          "widget-settings.materials.form-color",
+          "widget-settings.materials.form-icon",
+          "widget-settings.materials.form-icon-search",
+          "widget-settings.materials.form-name",
+          "widget-settings.materials.form-save",
+          "widget-settings.materials.hide-item",
+          "widget-settings.materials.select-item",
+          "widget.settings-opener",
+          "widget.window"
         ]
       }
     ]

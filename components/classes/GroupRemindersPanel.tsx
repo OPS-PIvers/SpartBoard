@@ -154,7 +154,7 @@ export const GroupRemindersPanel: React.FC<GroupRemindersPanelProps> = ({
           </p>
           <button
             onClick={openNew}
-            {...tourAttr('roster-groups.new-empty')}
+            {...tourAttr('roster-groups.new')}
             className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-white bg-brand-blue-primary rounded-lg hover:bg-brand-blue-dark transition-colors"
           >
             <Plus size={16} />

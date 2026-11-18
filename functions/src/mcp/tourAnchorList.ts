@@ -24316,29 +24316,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "roster-groups.new-empty",
-    "label": "New group button in the empty Groups tab",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.roster-groups",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.classes",
-          "classes.edit-roster:classes",
-          "roster-editor.tab:roster-editor#groups"
-        ],
-        "needs": [
-          "class"
-        ]
-      }
-    ]
-  },
-  {
     "id": "roster-groups.new",
-    "label": "New group button at the bottom of the Groups tab",
+    "label": "New group button on the Groups tab",
     "scope": "board",
     "panel": true,
     "routes": [
