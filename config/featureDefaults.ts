@@ -3,7 +3,6 @@ import type React from 'react';
 import {
   ClipboardList,
   MonitorPlay,
-  Users,
   Camera,
   PenLine,
   BarChart,
@@ -921,21 +920,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
     requires: 'quiz-live-view',
-  },
-  // Quiz Monitor roster: students who haven't joined show under Not started.
-  'quiz-monitor-roster': {
-    label: 'Quiz Monitor class roster',
-    icon: Users,
-    description:
-      "Monitor lists every student in the class, including those who haven't joined.",
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'quiz',
-    modalLabel: 'Class roster',
-    group: 'assigning',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
   },
   // Quiz "Show score on submit" setting. Admin-only until Paul has used it with a class.
   'quiz-score-on-submit': {

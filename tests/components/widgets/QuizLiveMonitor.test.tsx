@@ -252,7 +252,6 @@ describe('QuizLiveMonitor roster rows', () => {
       ],
     };
     renderMonitor({
-      features: ['quiz-monitor-roster'],
       session: { rosterIds: [roster.id] },
       rosters: [roster],
       responses: [
@@ -293,7 +292,6 @@ describe('QuizLiveMonitor roster rows', () => {
       ],
     };
     renderMonitor({
-      features: ['quiz-monitor-roster'],
       session: { rosterIds: [roster.id] },
       rosters: [roster],
     });
@@ -313,7 +311,6 @@ describe('QuizLiveMonitor roster rows', () => {
 
   it('adds no roster rows when the session names no rosters', () => {
     renderMonitor({
-      features: ['quiz-monitor-roster'],
       rosters: [
         {
           ...makeRoster('Period 1'),
@@ -325,22 +322,6 @@ describe('QuizLiveMonitor roster rows', () => {
     });
     expect(screen.queryByText('Not joined')).not.toBeInTheDocument();
   });
-});
-
-it('adds no roster rows without the Class roster preview', () => {
-  renderMonitor({
-    features: [],
-    session: { rosterIds: ['roster-Period 1'] },
-    rosters: [
-      {
-        ...makeRoster('Period 1'),
-        students: [
-          { id: 's1', firstName: 'Ana', lastName: 'Lee', pin: '9999' },
-        ],
-      },
-    ],
-  });
-  expect(screen.queryByText('Not joined')).not.toBeInTheDocument();
 });
 
 describe('QuizLiveMonitor (rebuilt)', () => {

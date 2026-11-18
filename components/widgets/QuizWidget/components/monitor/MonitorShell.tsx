@@ -280,9 +280,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     // Shared-Pause sessions open on All classes so Pause is in reach; per-period ones on the first class.
     !hasPeriodAccess(session) && session.sessionMode !== 'game',
     rosterTargets,
-    responsesLoaded &&
-      (!!reopenPicker ||
-        authContext?.canAccessFeature?.('quiz-monitor-roster') === true),
+    responsesLoaded,
     paperSeats,
     responsesLoaded
   );

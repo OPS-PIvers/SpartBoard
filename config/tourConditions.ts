@@ -51,6 +51,7 @@ export const RETIRED_TOUR_FEATURES: readonly string[] = [
   'quiz-import-google-doc-pdf',
   'quiz-import-pdf-answer-marks',
   'quiz-import-versions',
+  'quiz-monitor-roster',
   'quiz-ordering-images',
   'quiz-ordering-list',
   'quiz-ordering-results',
