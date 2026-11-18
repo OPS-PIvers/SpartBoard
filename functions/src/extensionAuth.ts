@@ -60,7 +60,10 @@ export async function verifiedTokenEmail(
   domain: string,
   message: string
 ): Promise<string> {
-  const info = await deps.tokenInfo(token).catch(() => null);
+  // 502 reads as offline in the extension; a 401 would make it drop the token.
+  const info = await deps.tokenInfo(token).catch(() => {
+    throw fail(502, 'Google sign-in check is unavailable. Try again shortly.');
+  });
   const email = typeof info?.email === 'string' ? info.email.toLowerCase() : '';
   if (
     !info ||
@@ -74,12 +77,15 @@ export async function verifiedTokenEmail(
   return email;
 }
 
-/** Google's tokeninfo for an access token, or null when Google refuses it. */
+const TOKENINFO_TIMEOUT_MS = 5_000;
+
+/** Google's tokeninfo for an access token, or null when Google refuses it; a slow answer throws. */
 export async function fetchTokenInfo(token: string): Promise<TokenInfo | null> {
   const res = await fetch('https://oauth2.googleapis.com/tokeninfo', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ access_token: token }).toString(),
+    signal: AbortSignal.timeout(TOKENINFO_TIMEOUT_MS),
   });
   return res.ok ? ((await res.json()) as TokenInfo) : null;
 }
