@@ -330,11 +330,12 @@ export const AssignWhenStep: React.FC<{
           )}
 
           {periodAccess &&
-            untagged.map((roster) => (
+            untagged.map((roster, rowIndex) => (
               <TagPrompt
                 key={roster.id}
                 roster={roster}
                 context={periodAccess}
+                rowIndex={rowIndex}
               />
             ))}
 
