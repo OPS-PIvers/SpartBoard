@@ -83,6 +83,10 @@ export interface RunAssignedTabProps<A extends RunAssignment> {
   publishes?: (a: A) => boolean;
   /** Reads a stored row as the tab should, e.g. a close time that has passed as ended. */
   normalize?: (a: A, nowMs: number) => A;
+  /** False where students never turn anything in (Flashcards study), so no counts show. */
+  submits?: (a: A) => boolean;
+  /** A first footer line naming the row's kind, e.g. "Check · Test". */
+  footerLead?: (a: A) => string | null;
 }
 
 const TICK_MS = 30_000;
@@ -330,6 +334,8 @@ function RunAssignedRowHost<A extends RunAssignment>({
   fallbackPrimary,
   menu,
   replacedMenuIds,
+  submits,
+  footerLead,
 }: RunAssignedTabProps<A> & {
   row: RowModel<A>;
   index: number;
@@ -503,18 +509,20 @@ function RunAssignedRowHost<A extends RunAssignment>({
   const onMain = derived ?? (() => fallback?.onClick());
 
   // Responses that carry no class can't be counted per class, so the line shows the total.
-  const counts = classCounts ? classCounts(a) : true;
+  const turnsIn = submits ? submits(a) : true;
+  const counts = turnsIn && (classCounts ? classCounts(a) : true);
   const submitted = status.classes.reduce((n, c) => n + c.submitted, 0);
   // Published rows skip the responses listener, so the line reads the doc.
   const lineOverride: LineSegment[] | undefined =
     status.bucket === 'done' && scoresShown(a.scoreVisibility) && !viewOnly
       ? [{ text: 'Scores published', tone: 'plain' }]
-      : !counts && !status.singleLine && !viewOnly
+      : !counts && (!status.singleLine || !turnsIn) && !viewOnly
         ? (() => {
             const segs = statusLineSegments(status, now).filter(
               (s) => !s.glued
             );
-            return submitted > 0 &&
+            return turnsIn &&
+              submitted > 0 &&
               status.classes.some((c) => c.status !== 'ready')
               ? [...segs, { text: `${submitted} turned in`, tone: 'plain' }]
               : segs;
@@ -524,7 +532,9 @@ function RunAssignedRowHost<A extends RunAssignment>({
   const endsAtBell = Object.values(a.periodAccess ?? {}).some(
     (r) => r.bellPeriodId != null
   );
+  const lead = footerLead?.(a);
   const footer = [
+    ...(lead ? [lead] : []),
     endsAtBell
       ? 'Closes at the end of each class'
       : 'Stays open until you close it',
