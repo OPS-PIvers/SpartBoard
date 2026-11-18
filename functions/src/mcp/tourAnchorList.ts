@@ -26965,6 +26965,18 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "needs": [
           "widget-on-stage"
         ]
+      },
+      {
+        "surface": "widgets.writing.face",
+        "kind": "widget",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-menu:writing#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:writing#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -27003,6 +27015,18 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.archive-menu:quiz#row-1"
         ],
         "reveal": "library-shell.archive-menu:quiz#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      },
+      {
+        "surface": "widgets.writing.face",
+        "kind": "widget",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-menu:writing#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:writing#row-1",
         "needs": [
           "widget-on-stage"
         ]

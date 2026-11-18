@@ -402,6 +402,12 @@ export const SURFACES: TourSurfaceMap = {
     files: ['components/widgets/Writing/'],
     widgetType: 'writing',
     needs: ['widget-on-stage'],
+    inner: {
+      'library-shell.assigned-close-all':
+        'library-shell.archive-menu:writing#row-1',
+      'library-shell.assigned-move-to-done':
+        'library-shell.archive-menu:writing#row-1',
+    },
   },
   'widgets.qr.face': {
     label: 'QR Code widget',

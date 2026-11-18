@@ -1447,11 +1447,13 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
       'library.shell',
       'library.video-activity',
       'quiz.face',
+      'widgets.writing.face',
     ],
     'library-shell.assigned-move-to-done': [
       'library.shell',
       'library.video-activity',
       'quiz.face',
+      'widgets.writing.face',
     ],
     'widget-settings.calendar.remove-calendar': ['widgets.calendar.settings'],
     'widget-settings.hotspot-image.load-library-item': [
