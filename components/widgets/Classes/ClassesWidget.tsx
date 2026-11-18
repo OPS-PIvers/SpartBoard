@@ -174,13 +174,13 @@ const ClassesWidget: React.FC<Props> = ({ widget: _widget }) => {
                 className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col"
                 style={{ gap: 'min(4px, 1cqmin)' }}
               >
-                {otherRosters.map((r) => (
+                {otherRosters.map((r, rowIndex) => (
                   <button
                     key={r.id}
                     {...tourFieldAttr(
                       'classes-widget.roster-row',
                       _widget.type,
-                      r.id
+                      `row-${rowIndex + 1}`
                     )}
                     onClick={() => setActiveRoster(r.id)}
                     className="flex items-center bg-white border border-slate-200 rounded-xl hover:border-brand-blue-primary hover:shadow-xs transition-all text-left group"

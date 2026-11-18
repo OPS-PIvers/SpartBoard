@@ -17,7 +17,7 @@ export interface ClassChecklistProps {
   /** Live-tour anchor for the list. */
   anchor?: TourAnchorAttrs;
   /** Live-tour anchor for one class's checkbox, keyed by class id. */
-  rowAnchor?: (classId: string) => TourAnchorAttrs;
+  rowAnchor?: (classId: string, rowIndex: number) => TourAnchorAttrs;
 }
 
 /** Classes as an inline checklist that scrolls after about six rows. */
@@ -88,7 +88,7 @@ export const ClassChecklist: React.FC<ClassChecklistProps> = ({
                   checked={value.classIds.includes(r.id)}
                   disabled={off}
                   onChange={() => toggle(r.id)}
-                  {...(rowAnchor?.(r.id) ??
+                  {...(rowAnchor?.(r.id, rowIndex) ??
                     tourFieldAttr(
                       'assign-classes.option',
                       'assign',

@@ -1381,6 +1381,8 @@ export const TOUR_ANCHORS = {
     label: 'Group button in the Assign dialog students menu',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'assign-students-group',
   },
   'assign-students.option': {
     label: 'Student checkbox in the Assign dialog students menu',
@@ -1725,11 +1727,15 @@ export const TOUR_ANCHORS = {
     label: 'Remove student button in the Choose students window',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'assign-students-legacy-remove-selected',
   },
   'assign-students-legacy.roster': {
     label: 'Class button in the Choose students window',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'assign-students-legacy-roster',
   },
   'assign-students-legacy.group': {
     label: 'Group button in the Choose students window',
@@ -1748,6 +1754,8 @@ export const TOUR_ANCHORS = {
     label: 'Student checkbox in the Choose students window',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'assign-students-legacy-student',
   },
   'assign-students-legacy.switch-roster': {
     label: 'Choose another class button in the Choose students window',
@@ -3576,6 +3584,8 @@ export const TOUR_ANCHORS = {
     label: 'Per-student checkbox in the Quiz widget',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'quiz-print-results-student-select',
   },
   'quiz-print.results-written-mode': {
     label: 'Written answers mode radios in the Quiz widget',
@@ -3586,11 +3596,15 @@ export const TOUR_ANCHORS = {
     label: 'Roster expand/collapse in the Quiz widget',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'quiz-print-roster-expand',
   },
   'quiz-print.roster-select': {
     label: 'Roster select-all checkbox in the Quiz widget',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'quiz-print-roster-select',
   },
   'quiz-print.share-and-print': {
     label: 'Share and print in the Quiz widget',
@@ -5030,6 +5044,8 @@ export const TOUR_ANCHORS = {
   'quiz-monitor.clear-hand': {
     label: 'Clear raised hand button in the Quiz monitor roster',
     perField: true,
+    rows: true,
+    rowList: 'quiz-monitor-clear-hand',
   },
   'quiz-monitor.period-class-picker': {
     label: 'Class picker select in the Quiz monitor',
@@ -7220,16 +7236,22 @@ export const TOUR_ANCHORS = {
     label: 'Teammate button in the teammate print dialog',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'plc-print-teammate',
   },
   'plc-print.roster-checkbox': {
     label: 'Roster checkbox checkbox in the teammate print dialog',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'plc-print-roster-checkbox',
   },
   'plc-print.roster-expand': {
     label: 'Roster expand button in the teammate print dialog',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'plc-print-roster-expand',
   },
   'plc-print.student-checkbox': {
     label: 'Student checkbox checkbox in the teammate print dialog',
@@ -7344,6 +7366,8 @@ export const TOUR_ANCHORS = {
     label: 'Role select in the PLC members tab',
     persists: true,
     perField: true,
+    rows: true,
+    rowList: 'plc-members-role',
   },
   'plc-members.transfer-lead': {
     label: 'Transfer lead button in the PLC members tab',
@@ -7524,6 +7548,8 @@ export const TOUR_ANCHORS = {
   'plc-comments.mention': {
     label: 'Mention button in the PLC comments thread',
     perField: true,
+    rows: true,
+    rowList: 'plc-comments-mention',
   },
   'plc-docs.add-close': {
     label: 'Add close button in the PLC docs tab',
@@ -8528,6 +8554,8 @@ export const TOUR_ANCHORS = {
     label: 'Role select for a member in the mentoring pairings settings',
     perField: true,
     persists: true,
+    rows: true,
+    rowList: 'teams-pairing-member-role',
   },
   'teams.pairing.mentee-select': {
     label: 'Mentee select in the mentoring pairings settings',
@@ -13879,6 +13907,8 @@ export const TOUR_ANCHORS = {
     label: 'Class row in the dock class menu',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'classes-roster-menu-item',
   },
   'classes.open-full-editor': {
     label: 'Open Full Editor button in the dock class menu',
@@ -14983,6 +15013,8 @@ export const TOUR_ANCHORS = {
   'classes-widget.roster-row': {
     label: 'Class to switch to in Classes',
     perField: true,
+    rows: true,
+    rowList: 'classes-widget-roster-row',
   },
   'classes-widget.editor-back': {
     label: 'Back button in the Classes roster editor',
@@ -16167,6 +16199,9 @@ export const TOUR_ANCHORS = {
     label: 'Student button in the absent students dialog',
     perField: true,
     panel: true,
+    persists: true,
+    rows: true,
+    rowList: 'absent-students-student',
   },
   // Video Activity shared-prop controls.
   'editor.save': {
@@ -16267,12 +16302,16 @@ export const TOUR_ANCHORS = {
     label: 'Class checkbox in the Flashcards assign dialog class list',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'flashcards-stepper-class-row',
   },
   'flashcards.stepper-student-menu': {
     label:
       'Student picker button for one class in the Flashcards assign dialog',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'flashcards-stepper-student-menu',
   },
   'flashcards-settings-modal.plc-results': {
     label:
@@ -16515,11 +16554,15 @@ export const TOUR_ANCHORS = {
     label: 'Class checkbox in the Mini App assign dialog class list',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'mini-app-stepper-class-row',
   },
   'mini-app.stepper-student-menu': {
     label: 'Student picker button for one class in the Mini App assign dialog',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'mini-app-stepper-student-menu',
   },
   'mini-app.stepper-kind-switch': {
     label:
@@ -16671,6 +16714,8 @@ export const TOUR_ANCHORS = {
   'gradebook.grid.student-name': {
     label: 'Student name button in the gradebook',
     perField: true,
+    rows: true,
+    rowList: 'gradebook-grid-student-name',
   },
   'gradebook.grid.cell': {
     label: 'Score cell in the gradebook',
@@ -17057,6 +17102,8 @@ export const TOUR_ANCHORS = {
     label: 'Not submitted student button in the assignment analysis window',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'gradebook-analyze-student',
   },
   'gradebook.student.back': {
     label: 'Back to Grades button in the student gradebook view',
@@ -17449,11 +17496,15 @@ export const TOUR_ANCHORS = {
     label: 'Class checkbox in the Writing assign dialog class list',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'writing-stepper-class-row',
   },
   'writing.stepper-student-menu': {
     label: 'Student picker button for one class in the Writing assign dialog',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'writing-stepper-student-menu',
   },
   'writing.selection-mode': {
     label: 'Select button in the Writing library',

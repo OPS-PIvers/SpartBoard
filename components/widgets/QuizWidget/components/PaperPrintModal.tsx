@@ -1902,7 +1902,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                 No classes yet. Print spares below.
               </p>
             )}
-            {rosters.map((roster) => {
+            {rosters.map((roster, rowIndex) => {
               const selected =
                 selectedStudentIds[roster.id] ?? new Set<string>();
               const expanded = expandedRosterId === roster.id;
@@ -1926,7 +1926,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                       {...tourFieldAttr(
                         'quiz-print.roster-select',
                         'quiz',
-                        roster.id
+                        `row-${rowIndex + 1}`
                       )}
                       disabled={sorted.length === 0}
                       className="h-4 w-4 rounded-sm border-slate-300"
@@ -1952,7 +1952,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                       {...tourFieldAttr(
                         'quiz-print.roster-expand',
                         'quiz',
-                        roster.id
+                        `row-${rowIndex + 1}`
                       )}
                       disabled={sorted.length === 0}
                       className="rounded-sm p-0.5 text-slate-400 hover:bg-slate-100 disabled:opacity-40"

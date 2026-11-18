@@ -315,7 +315,7 @@ export const RosterList: React.FC<RosterListProps> = ({
         />
       )}
 
-      {hands.map((s) => (
+      {hands.map((s, rowIndex) => (
         <div
           key={s.key}
           data-testid="hand-row"
@@ -355,7 +355,11 @@ export const RosterList: React.FC<RosterListProps> = ({
           {onClearHand && (
             <button
               onClick={() => onClearHand(s.key)}
-              {...tourFieldAttr('quiz-monitor.clear-hand', 'quiz', s.key)}
+              {...tourFieldAttr(
+                'quiz-monitor.clear-hand',
+                'quiz',
+                `row-${rowIndex + 1}`
+              )}
               className="shrink-0 rounded-md border border-brand-blue-primary text-brand-blue-primary hover:bg-brand-blue-primary hover:text-white font-sans font-medium transition-colors"
               style={fieldStyle}
             >

@@ -1127,7 +1127,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
               </button>
             </div>
             <ul className="mt-2 max-h-56 space-y-0.5 overflow-y-auto rounded-lg border border-slate-200 p-2">
-              {students.map(({ student, response }) => {
+              {students.map(({ student, response }, rowIndex) => {
                 const shown = resolveShownName(response);
                 return (
                   <li key={student.key}>
@@ -1139,7 +1139,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
                         {...tourFieldAttr(
                           'quiz-print.results-student-select',
                           'quiz',
-                          student.key
+                          `row-${rowIndex + 1}`
                         )}
                         className="accent-brand-blue-primary"
                       />
