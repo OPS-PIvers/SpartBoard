@@ -30,6 +30,8 @@ export interface AssignedRowProps {
   mainTone?: MainKind;
   /** False hides the per-class panel, e.g. for a paper quiz. */
   classControls?: boolean;
+  /** False drops per-class turned-in counts, for kinds whose responses carry no class. */
+  classCounts?: boolean;
   /** A null key acts on the whole single-line assignment (D15). */
   onClassAction: (kind: ClassActionKind, classKey: string | null) => void;
   /** Today's bell time for a Ready class, e.g. "9:55 to 10:40". */
@@ -115,6 +117,7 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
   lineOverride,
   onClassAction,
   classControls = true,
+  classCounts = true,
   mainTone,
   bellLabel,
   footer,
@@ -300,7 +303,7 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
                   className="text-slate-500 tabular-nums"
                   style={{ fontSize: 'min(11.5px, 3.3cqmin)' }}
                 >
-                  {classDetail(c, nowMs, bellLabel?.(c) ?? null)}
+                  {classDetail(c, nowMs, bellLabel?.(c) ?? null, classCounts)}
                 </div>
               </div>
               <div

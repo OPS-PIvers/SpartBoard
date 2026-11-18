@@ -26935,6 +26935,14 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "persists": true,
     "routes": [
       {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": [
+          "library-shell.archive-menu"
+        ],
+        "reveal": "library-shell.archive-menu"
+      },
+      {
         "surface": "library.video-activity",
         "kind": "widget",
         "widget_type": "video-activity",
@@ -26967,6 +26975,14 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "persists": true,
     "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": [
+          "library-shell.archive-menu"
+        ],
+        "reveal": "library-shell.archive-menu"
+      },
       {
         "surface": "library.video-activity",
         "kind": "widget",

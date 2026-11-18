@@ -9,7 +9,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
 - **Release review findings.** Fix small (S) findings inside the release as `release fix:` PRs. File an item here only for work that is M or larger, needs a flag or rules design, or can't ship in that release.
 - **Agent-only means agent-only.** An item in Ready needs nothing from Paul. When an item needs new wording, the agent builds it and asks Paul with a screenshot and a decision card in its thread; when it needs a real decision, it goes to PAUL_TODO.md and the item moves to Blocked.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-289**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-290**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -21,6 +21,7 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
 ### Security and correctness
 
+- **AB-289 Video Activity: turn in let-in and reopened students after their pass ends** (S, from #6238 review). A closed VA class's turn-in (teacher tab and `functions/src/videoClassTurnIn.ts`) skips students with a live `studentAccess` pass or on `reopenedFor`, then never looks again, so their attempt stays open for good. Quiz covers this through `classClosedOver` in the idle sweep. Re-queue the marker for the latest pass expiry (or re-check closed classes on a slow sweep), with functions tests.
 - **AB-284 Follow-ups from the 2026-11-18 security PR sweep** (S, #6151-#6154 reviews; nothing blocking). (1) Projects (#6152): migrate legacy `overridesByUid` maps on the server (grades trigger, legacy map wins over `grades/{groupId}/overrides/*`) so a released grade stays readable to members without a teacher visit and a previous-client edit isn't shadowed; do it before Projects opens beyond admins. (2) Lunch Count (#6154): the pre-save Drive read caches "Drive lacks these notes" per sent list, so another device's notes that reach Drive later are overwritten until the sent list changes; re-read on a negative result at most once a minute. (3) `shareMembershipV1` `shareHost` is behind the write View-as guard, so a locked View-as tab can't confirm a share host; add a mixed mode to `viewAsCallableCoverage.test.ts` and guard `shareHost` with `{ read: true }`. (4) Speak voices (#6153): `speakVoiceFill.ts` swallows `resource-exhausted`; stop retrying for the day, and don't charge terms the 420 s budget never reached. (5) `recomputePlcAssessments` retries a permanently failing item every 5 minutes forever; add an attempt cap, and a test for the `assignmentId` doc-id check. (6) `expireSubShares`: shares whose grants can never be revoked are kept and re-read every hour; give them a terminal state after N days so they can't fill the 5,000-doc window.
 
 - **AB-283 Follow-ups from release 2026.11.18** (S, #6138 review; nothing blocking). (1) `.github/scripts/affected-functions.mjs` `RUNTIME_FEATURE_ID_CALLERS` still names `quizMediaArchive.ts` and `aiGeneration.ts`, but the variable-id flag lookup now lives in `functions/src/featureGrant.ts` (`isGlobalFeatureGranted`); add it so a release that only adds a flag id to `ADMIN_PREVIEW_FEATURES` redeploys its callers. (2) The prod deploy starts the Firestore rules release before the function delete check, so a failed check leaves new rules live with old functions; run the delete check first.
@@ -249,8 +250,10 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
   <details><summary>Branches to delete (179, checked 2026-11-01)</summary>
 
+claude/project-thread-2xxi1c (Video Activity background turn-in PR; delete after it merges)
 claude/project-thread-kejiop (#6236; this docs PR reuses it, delete after it merges)
 claude/project-thread-30h9gb (Video Activity Assigned tab PR; delete after it merges)
+claude/project-thread-6nd30t (Mini Apps and Guided Learning Assigned tabs; delete after it merges)
 claude/assigned-tab-pr0 (#6216)
 claude/assigned-tab-reopen-turnin (#6225)
 claude/assigned-tab-quiz-window (#6233)
@@ -697,6 +700,7 @@ git push origin --delete nightly/unifier-log-2026-11-14 nightly/state-data-2026-
 git push origin --delete claude/project-thread-6hlkkz claude/project-thread-6hlkkz-ab112
 git push origin --delete claude/project-thread-776f0z claude/ab112-776f0z
 git push origin --delete claude/project-thread-hnyuke claude/project-thread-hnyuke-ab112
+git push origin --delete claude/project-thread-5qafu6
 ```
 
   </details>
