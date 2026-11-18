@@ -8,7 +8,7 @@ import {
   type Mock,
 } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
-import type { PeriodAccess, QuizAssignment } from '@/types';
+import type { PeriodAccess, QuizAssignment, StudentTargetRef } from '@/types';
 import { useQuizClassActions } from '@/hooks/useQuizClassActions';
 import {
   END_TURN_IN_DELAY_MS,
@@ -462,7 +462,7 @@ describe('single line (D15)', () => {
 });
 
 describe('window cleared pointers', () => {
-  const ref = { classId: 'c1', studentId: 's1' };
+  const ref: StudentTargetRef = { kind: 'classlink', sourcedId: 's1' };
 
   it('pushes the cleared window to student pointers when the assignment has them', async () => {
     const x = setup(
@@ -471,7 +471,7 @@ describe('window cleared pointers', () => {
         openAt: Date.now() + 60_000,
         targetMode: 'students',
         targetStudents: [ref],
-      } as Partial<QuizAssignment>)
+      })
     );
     await act(() => x.current.openClass(null));
     expect(setTargets).toHaveBeenCalledWith(
