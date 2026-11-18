@@ -22,6 +22,8 @@ export const GLOBAL_WINDOW_MS = 10 * MINUTE_MS;
 const JOIN_TTL_MS = 7 * 24 * 60 * MINUTE_MS;
 export const POLL_CODE_CALLER_MAX_MISSES = 10;
 export const POLL_CODE_GLOBAL_MAX_MISSES = 300;
+// At the global cap a caller's first codes still go through, so a flood can't lock out every student.
+export const POLL_CODE_GLOBAL_FREE_CODES = 2;
 // Mirrors utils/pollCode.ts.
 const ALPHABET = 'ACDEFGHJKMNPQRTUVWXY34679';
 const CODE_LENGTH = 5;
@@ -94,6 +96,7 @@ export async function takeLookupSlot(
     if (codes.includes(code)) return false;
     if (codes.length >= POLL_CODE_CALLER_MAX_MISSES) throw tooMany();
     if (
+      codes.length >= POLL_CODE_GLOBAL_FREE_CODES &&
       typeof globalMisses === 'number' &&
       globalMisses >= POLL_CODE_GLOBAL_MAX_MISSES
     ) {
@@ -119,13 +122,12 @@ export async function takeLookupSlot(
   return { callerRef, globalRef, fresh };
 }
 
-/** A hit gives the slot back, so only misses use up the caller's budget. */
+/** A hit gives the slot back, even after earlier misses on that code, so only misses use up the caller's budget. */
 async function refundSlot(
   db: Firestore,
   slot: LookupSlot,
   code: string
 ): Promise<void> {
-  if (!slot.fresh) return;
   try {
     await db.runTransaction(async (tx) => {
       const codes = codesOf((await tx.get(slot.callerRef)).data());

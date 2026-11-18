@@ -188,16 +188,18 @@ describe('resolvePollCode', () => {
     );
   });
 
-  it('refuses any new code once the shared count reaches the cap, and warns once (security #8)', async () => {
+  it('at the shared cap, refuses a caller with earlier misses but lets a fresh caller join (security #8)', async () => {
     const { resolve } = setup({
       ...live,
       [GLOBAL_DOC]: { misses: POLL_CODE_GLOBAL_MAX_MISSES },
-      [CALLER_DOC('missing')]: { codes: ['ZZZZZ'] },
+      [CALLER_DOC('missing')]: { codes: ['ZZZZZ', 'WWWWW'] },
     });
-    await expect(resolve('fresh-uid', 'K3F9Q')).rejects.toMatchObject({
+    // A student's first codes still go through, so a flood can't lock out every join.
+    expect(await resolve('fresh-uid', 'K3F9Q')).toBe('t1_K3F9Q');
+    await expect(resolve('missing', 'YYYYY')).rejects.toMatchObject({
       code: 'resource-exhausted',
     });
-    await expect(resolve('missing', 'YYYYY')).rejects.toMatchObject({
+    await expect(resolve('missing', 'K3F9Q')).rejects.toMatchObject({
       code: 'resource-exhausted',
     });
     // A code this caller already looked up is answered the same as before.
@@ -217,6 +219,15 @@ describe('resolvePollCode', () => {
 
   it('gives back the slot on a hit, so joining never uses up the budget', async () => {
     const { stub, resolve } = setup();
+    expect(await resolve('anon1', 'K3F9Q')).toBe('t1_K3F9Q');
+    expect(stub.get(CALLER_DOC('anon1'))?.codes).toEqual([]);
+  });
+
+  it('gives back a slot when a code that missed later hits', async () => {
+    const { stub, resolve } = setup({});
+    expect(await resolve('anon1', 'K3F9Q')).toBeNull();
+    stub.store.set('poll_codes/K3F9Q', live['poll_codes/K3F9Q']);
+    stub.store.set('poll_sessions/t1_K3F9Q', live['poll_sessions/t1_K3F9Q']);
     expect(await resolve('anon1', 'K3F9Q')).toBe('t1_K3F9Q');
     expect(stub.get(CALLER_DOC('anon1'))?.codes).toEqual([]);
   });
