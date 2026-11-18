@@ -224,4 +224,26 @@ describe('recordViewAsRawWrites', () => {
     expect(own.path).toBe('users/teacher-uid/rosters/r1');
     expect(tab.getViewAsTabState().savedNotice).toBe(2);
   });
+
+  it("keeps every path of a large batch and caps only each write's data", async () => {
+    window.history.replaceState({}, '', '/?viewAs=1');
+    const tab = await import('./viewAsTab');
+    tab.updateViewAsTabState({ unlocked: true, ended: false });
+    const { recordViewAsRawWrites } = await import('./viewAsAudit');
+    const big = 'x'.repeat(30_000);
+    await recordViewAsRawWrites(
+      Array.from({ length: 10 }, (_, i) => ({
+        op: 'set' as const,
+        path: `users/teacher-uid/miniapps/a${i}`,
+        data: { html: big, order: i },
+      }))
+    );
+    const [[, entry]] = auditWrites();
+    const writes = (entry.after as { writes: Record<string, unknown>[] })
+      .writes;
+    expect(writes.map((w) => w.path)).toEqual(
+      Array.from({ length: 10 }, (_, i) => `users/teacher-uid/miniapps/a${i}`)
+    );
+    expect(Object.keys(writes[0].data as object)).toEqual(['__viewAsOmitted']);
+  });
 });
