@@ -26,6 +26,13 @@ import {
   ASSIGNED_ROSTERS,
   loadAssignedQuiz,
 } from './assignedTabFixtures';
+import { RunAssignedResponsesFixture } from '@/components/common/library/assigned/runAssignedFixture';
+import {
+  GL_ASSIGNED,
+  MA_ASSIGNED,
+  NOOP_RUN_LIFECYCLE,
+  RUN_ASSIGNED_RESPONSES,
+} from './runAssignedFixtures';
 import type { BankSource } from '@/utils/questionBankRecords';
 import type { QuizData } from '@/types';
 import { VideoActivityManager } from '@/components/widgets/VideoActivityWidget/components/VideoActivityManager';
@@ -330,6 +337,8 @@ const WALLS: ActivityWallLibraryEntry[] = range((i) => ({
 const LIBRARY_HARNESS_VIEWS = [
   'quiz',
   'quiz-assigned',
+  'mini-app-assigned',
+  'guided-learning-assigned',
   'video-activity',
   'guided-learning',
   'mini-app',
@@ -620,13 +629,21 @@ const GuidedLearningView: React.FC = () => {
 
 const GuidedLearningManagerView: React.FC<{
   onAssignmentEditClasses: (a: GuidedLearningAssignment) => void;
-}> = ({ onAssignmentEditClasses }) => (
+  assigned?: boolean;
+}> = ({ onAssignmentEditClasses, assigned = false }) => (
   <GuidedLearningManager
     onAssignmentEditClasses={onAssignmentEditClasses}
+    {...(assigned
+      ? {
+          classLifecycle: NOOP_RUN_LIFECYCLE,
+          rosters: ASSIGNED_ROSTERS,
+          assignedFocusCounter: 1,
+        }
+      : {})}
     userId="mock-user-id"
     sets={GL_SETS}
     buildingSets={[]}
-    assignments={GL_ASSIGNMENTS}
+    assignments={assigned ? GL_ASSIGNED : GL_ASSIGNMENTS}
     loading={false}
     buildingLoading={false}
     assignmentsLoading={false}
@@ -669,8 +686,10 @@ const MONITOR_SUBMISSIONS = [0, 3].map((i) => ({
   payload: { completed: true, levelReached: i + 2 },
 }));
 
-const MiniAppView: React.FC = () => {
-  const [tab, setTab] = useState<LibraryTab>('library');
+const MiniAppView: React.FC<{ assigned?: boolean }> = ({
+  assigned = false,
+}) => {
+  const [tab, setTab] = useState<LibraryTab>(assigned ? 'active' : 'library');
   const [monitoring, setMonitoring] = useState<MiniAppAssignment | null>(null);
   const [periods, setPeriods] = useState<Record<string, PeriodAccess>>(() =>
     Object.fromEntries(
@@ -744,7 +763,10 @@ const MiniAppView: React.FC = () => {
         onTabChange={setTab}
         personalLibrary={MINI_APPS}
         globalLibrary={[]}
-        assignments={MINI_APP_ASSIGNMENTS}
+        assignments={assigned ? MA_ASSIGNED : MINI_APP_ASSIGNMENTS}
+        {...(assigned
+          ? { classLifecycle: NOOP_RUN_LIFECYCLE, rosters: ASSIGNED_ROSTERS }
+          : {})}
         onCreate={noop}
         onEdit={noop}
         onDelete={noop}
@@ -968,6 +990,17 @@ const QuizAssignedView: React.FC = () => (
   </AssignedResponsesFixture.Provider>
 );
 
+const MiniAppAssignedView: React.FC = () => (
+  <RunAssignedResponsesFixture.Provider value={RUN_ASSIGNED_RESPONSES}>
+    <MiniAppView assigned />
+  </RunAssignedResponsesFixture.Provider>
+);
+const GuidedLearningAssignedView: React.FC = () => (
+  <RunAssignedResponsesFixture.Provider value={RUN_ASSIGNED_RESPONSES}>
+    <GuidedLearningManagerView onAssignmentEditClasses={noop} assigned />
+  </RunAssignedResponsesFixture.Provider>
+);
+
 const VIEW_COMPONENTS: Record<HarnessView, React.FC> = {
   quiz: QuizView,
   'video-activity': VideoActivityView,
@@ -977,6 +1010,8 @@ const VIEW_COMPONENTS: Record<HarnessView, React.FC> = {
   'activity-wall': ActivityWallView,
   review: ReviewView,
   'quiz-assigned': QuizAssignedView,
+  'mini-app-assigned': MiniAppAssignedView,
+  'guided-learning-assigned': GuidedLearningAssignedView,
 };
 
 const SIZE = new URLSearchParams(window.location.search);
