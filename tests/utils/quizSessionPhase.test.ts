@@ -343,10 +343,18 @@ describe('quizSessionWrite patches', () => {
   });
 
   it('writes the shared end patch for End and drops the answer reveals', () => {
-    const write = quizSessionWrite(SESSIONS.pausedQuestion, { type: 'end' }, NOW);
+    const write = quizSessionWrite(
+      SESSIONS.pausedQuestion,
+      { type: 'end' },
+      NOW
+    );
     expect(write?.finalize).toBe(true);
     const { revealedAnswers, ...rest } = write?.patch ?? {};
-    expect(rest).toEqual({ status: 'ended', endedAt: NOW, autoProgressAt: null });
+    expect(rest).toEqual({
+      status: 'ended',
+      endedAt: NOW,
+      autoProgressAt: null,
+    });
     expect((revealedAnswers as FieldValue).isEqual(deleteField())).toBe(true);
   });
 

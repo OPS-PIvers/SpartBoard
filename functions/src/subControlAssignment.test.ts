@@ -178,7 +178,11 @@ describe('handleControlSubAssignment — ending a quiz', () => {
       `users/${HOST}/quiz_assignments/${SESSION}`,
     ]);
     const { revealedAnswers, ...ended } = written[0].data;
-    expect(ended).toEqual({ status: 'ended', endedAt: NOW, autoProgressAt: null });
+    expect(ended).toEqual({
+      status: 'ended',
+      endedAt: NOW,
+      autoProgressAt: null,
+    });
     // An ended run keeps no answer key on the doc every signed-in user can read.
     expect(
       (revealedAnswers as admin.firestore.FieldValue).isEqual(
