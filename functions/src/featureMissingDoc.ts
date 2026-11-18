@@ -28,6 +28,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-live-view-nudge-note',
   'quiz-live-view-screenshot',
   'drive-only-uploads',
+  'quick-sign-in',
   'quiz-score-on-submit',
   'modification-groups',
   'rubric-grading-v2',
