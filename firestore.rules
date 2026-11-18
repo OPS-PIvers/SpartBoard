@@ -2273,10 +2273,13 @@ service cloud.firestore {
         existing().get('ownerUid', '') == authUid() || isDistrictStaff() ||
         syncedBankPlcReader(existing().get('plcIds', [])) || isAdmin());
 
+      // synced_bank_owners (written by syncedBankOwnerRegistry) reserves a deleted id for its first owner.
       allow create: if staffSignedIn()
         && syncedBankKeysOk()
         && incoming().id == groupId
         && incoming().ownerUid == authUid()
+        && (!dbExists('synced_bank_owners', groupId)
+          || dbGet('synced_bank_owners', groupId).data.ownerUid == authUid())
         && incoming().version == 1
         && isList('plcIds')
         && isList('questions')
