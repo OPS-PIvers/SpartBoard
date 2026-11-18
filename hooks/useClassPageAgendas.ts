@@ -63,6 +63,9 @@ export function classPageView(
   const agendas = [...decks.values()].map((copy) => ({
     fileId: copy.agenda?.fileId ?? '',
     title: copy.agenda?.title ?? '',
+    ...(copy.agenda?.aspect !== undefined
+      ? { aspect: copy.agenda.aspect }
+      : {}),
     teacherName: several ? copy.teacherName || null : null,
   }));
   const seen = new Set<string>();

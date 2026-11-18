@@ -3,6 +3,7 @@ import {
   DeckAccessError,
   DeckDrive,
   deckErrorFor,
+  largeThumbnail,
   readDeckForCheck,
 } from './deckDrive';
 import {
@@ -36,6 +37,29 @@ describe('DeckDrive', () => {
   afterEach(() => {
     setDriveAuthErrorHandler(null);
     vi.unstubAllGlobals();
+  });
+
+  it('reads the deck shape from the Slides page size', async () => {
+    fetchMock.mockResolvedValue(
+      json(200, {
+        pageSize: {
+          width: { magnitude: 9144000, unit: 'EMU' },
+          height: { magnitude: 6858000, unit: 'EMU' },
+        },
+      })
+    );
+    const drive = new DeckDrive('tok', () => Promise.resolve(null));
+    expect(await drive.getDeckAspect('deck123456')).toBeCloseTo(4 / 3, 3);
+    expect(String(fetchMock.mock.calls[0][0])).toContain(
+      'slides.googleapis.com/v1/presentations/deck123456?fields=pageSize'
+    );
+  });
+
+  it('gives no shape and no sign-in toast when Google refuses both reads', async () => {
+    fetchMock.mockResolvedValue(forbidden('SERVICE_DISABLED'));
+    const drive = new DeckDrive('tok', () => Promise.resolve(null));
+    expect(await drive.getDeckAspect('deck123456')).toBeNull();
+    expect(toast).not.toHaveBeenCalled();
   });
 
   it('reads a deck the teacher cannot share as unknown, with no sign-in toast', async () => {
@@ -215,5 +239,16 @@ describe('deckErrorFor', () => {
     );
     expect(err).not.toBeInstanceOf(DeckAccessError);
     expect(err).not.toBeInstanceOf(DriveAuthError);
+  });
+});
+
+describe('largeThumbnail', () => {
+  it('asks Drive for a bigger thumbnail', () => {
+    expect(largeThumbnail('https://lh3.googleusercontent.com/x=s220')).toBe(
+      'https://lh3.googleusercontent.com/x=s1600'
+    );
+    expect(largeThumbnail('https://example.com/t.png')).toBe(
+      'https://example.com/t.png'
+    );
   });
 });

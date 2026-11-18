@@ -1,5 +1,7 @@
 // Drive calls for an Agenda deck: a 403 here means "not yours to share", not a lost sign-in, so it never fires the sign-in toast.
 import { authError } from '@/utils/driveAuthErrors';
+import { aspectFromPageSize } from '@/utils/course/agendaFrame';
+import { cleanAgendaAspect } from '@/utils/course/contract';
 import type { DrivePermission } from '@/utils/googleDriveService';
 import {
   deckSharingOf,
@@ -8,6 +10,8 @@ import {
 } from '@/utils/course/deckSharing';
 
 const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3';
+const SLIDES_API_URL = 'https://slides.googleapis.com/v1/presentations';
+const THUMBNAIL_TIMEOUT_MS = 10_000;
 const TIMEOUT_MS = 20_000;
 // Drive's 403 reasons that mean the token itself lacks Drive access.
 const AUTH_REASONS = new Set([
@@ -190,6 +194,33 @@ export class DeckDrive implements DeckSharingDrive {
     };
   }
 
+  /** The deck's slide width over height, or null when Google can't say. Never throws. */
+  async getDeckAspect(fileId: string): Promise<number | null> {
+    try {
+      const response = await this.send(
+        `${SLIDES_API_URL}/${encodeURIComponent(fileId)}?fields=pageSize`
+      );
+      if (response.ok) {
+        const data = (await response.json()) as { pageSize?: unknown };
+        const aspect = aspectFromPageSize(data.pageSize);
+        if (aspect !== null) return aspect;
+      }
+    } catch {
+      // Falls through to the thumbnail.
+    }
+    try {
+      const response = await this.send(
+        `${DRIVE_API_URL}/files/${encodeURIComponent(fileId)}?fields=thumbnailLink&supportsAllDrives=true`
+      );
+      if (!response.ok) return null;
+      const data = (await response.json()) as { thumbnailLink?: unknown };
+      if (typeof data.thumbnailLink !== 'string') return null;
+      return await imageAspect(largeThumbnail(data.thumbnailLink));
+    } catch {
+      return null;
+    }
+  }
+
   async getFileModifiedTime(fileId: string): Promise<number | null> {
     const response = await this.ok(
       `${DRIVE_API_URL}/files/${encodeURIComponent(fileId)}?fields=modifiedTime&supportsAllDrives=true`
@@ -201,6 +232,33 @@ export class DeckDrive implements DeckSharingDrive {
         : NaN;
     return Number.isFinite(ms) ? ms : null;
   }
+}
+
+// Drive thumbnails end in a size like "=s220"; a bigger one gives a more exact shape.
+export function largeThumbnail(link: string): string {
+  return /=s\d+$/.test(link) ? link.replace(/=s\d+$/, '=s1600') : link;
+}
+
+function imageAspect(src: string): Promise<number | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const timer = setTimeout(() => finish(null), THUMBNAIL_TIMEOUT_MS);
+    function finish(value: number | null) {
+      clearTimeout(timer);
+      img.onload = null;
+      img.onerror = null;
+      resolve(value);
+    }
+    img.onload = () =>
+      finish(
+        img.naturalHeight > 0
+          ? cleanAgendaAspect(img.naturalWidth / img.naturalHeight)
+          : null
+      );
+    img.onerror = () => finish(null);
+    img.referrerPolicy = 'no-referrer';
+    img.src = src;
+  });
 }
 
 /** D24 reading: a deck Drive refuses reads as 'unknown'; a sign-in or network failure gives null, so no check is written. */
