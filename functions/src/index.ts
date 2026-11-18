@@ -298,14 +298,6 @@ export {
   gradeIndexMiniAppSubmission,
   gradeIndexWallSubmission,
   gradeIndexWritingResponse,
-  gradeIndexQuizSession,
-  gradeIndexVideoSession,
-  gradeIndexGuidedLearningSession,
-  gradeIndexFlashcardSession,
-  gradeIndexProjectRun,
-  gradeIndexMiniAppSession,
-  gradeIndexWallSession,
-  gradeIndexWritingSession,
   gradeIndexQuizKey,
   gradeIndexQuizAssignment,
   gradeIndexVideoKey,
@@ -322,6 +314,16 @@ export {
   gradeIndexRecompute,
   quizAttemptGradeWrite,
 } from './gradebook/gradeIndexTriggers';
+export {
+  gradeIndexQuizSession,
+  gradeIndexVideoSession,
+  gradeIndexGuidedLearningSession,
+  gradeIndexFlashcardSession,
+  gradeIndexProjectRun,
+  gradeIndexMiniAppSession,
+  gradeIndexWallSession,
+  gradeIndexWritingSession,
+} from './gradebook/gradeSessionTriggers';
 
 // ── Slim, PII-free discovery mirror (onWrite of a PLC root keeps
 // /plcIndex/{plcId} in sync) so the org "PLCs in my building" directory never
