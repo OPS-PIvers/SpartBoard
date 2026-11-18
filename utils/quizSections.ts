@@ -4,6 +4,7 @@
  * into question ids so the player and scoring never need the quiz's `order`.
  */
 
+import { stripTagsOnce } from '@/utils/writingResponseState';
 import type {
   QuizCountedChoices,
   QuizData,
@@ -109,7 +110,7 @@ const stripTags = (html: string): string => {
   let prev;
   do {
     prev = text;
-    text = text.replace(/<[^>]*>/g, '');
+    text = stripTagsOnce(text, true);
   } while (text !== prev);
   return text;
 };

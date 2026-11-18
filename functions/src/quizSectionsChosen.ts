@@ -5,6 +5,8 @@
  * up with unanswered ones; the rest leave the student's total.
  */
 
+import { stripTagsOnce } from './writingResponseState';
+
 export interface ChooseSection {
   id?: string;
   chooseCount?: number;
@@ -54,7 +56,7 @@ function stripTags(html: string): string {
   let prev;
   do {
     prev = text;
-    text = text.replace(/<[^>]*>/g, '');
+    text = stripTagsOnce(text, true);
   } while (text !== prev);
   return text;
 }

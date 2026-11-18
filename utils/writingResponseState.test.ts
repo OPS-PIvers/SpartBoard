@@ -15,6 +15,7 @@ import {
   isWritingUnlocked,
   resolveWritingCloseAt,
   resolveWritingDueAt,
+  stripTagsOnce,
   takeBackBlock,
   timedTurnInDue,
   turnInBlock,
@@ -304,5 +305,79 @@ describe('helpers', () => {
     ]) {
       expect(countWritingWords(html)).toBe(countWords(html));
     }
+  });
+});
+
+describe('linear tag stripping (security #19)', () => {
+  const BREAKING =
+    /<\/?(?:p|div|br|li|ul|ol|h[1-6]|blockquote|pre|tr|td|th|table|hr)\b[^>]*>/gi;
+  const regexCount = (html: string): number => {
+    if (!html) return 0;
+    let stripped = html.replace(BREAKING, ' ');
+    let previous;
+    do {
+      previous = stripped;
+      stripped = stripped.replace(/<[^>]+>/g, '');
+    } while (stripped !== previous);
+    const text = stripped
+      .replace(/&nbsp;/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    return text ? text.split(' ').length : 0;
+  };
+
+  it('matches the old regex count on random tag soup', () => {
+    const parts = [
+      '<',
+      '>',
+      '/',
+      'p',
+      'b',
+      'r',
+      'li',
+      'div',
+      ' ',
+      'x',
+      'H1',
+      '&nbsp;',
+      '<>',
+    ];
+    let seed = 7;
+    const rand = (n: number): number => {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      return seed % n;
+    };
+    for (let t = 0; t < 3000; t++) {
+      let html = '';
+      const len = rand(30);
+      for (let i = 0; i < len; i++) html += parts[rand(parts.length)];
+      expect(countWritingWords(html), html).toBe(regexCount(html));
+      expect(countWords(html), html).toBe(regexCount(html));
+      expect(stripTagsOnce(html, true), html).toBe(
+        html.replace(/<[^>]*>/g, '')
+      );
+    }
+  });
+
+  it('counts 400,000 unclosed < in linear time', () => {
+    for (const html of [
+      '<'.repeat(400_000),
+      '<p'.repeat(200_000),
+      'a<<>'.repeat(100_000),
+    ]) {
+      const start = Date.now();
+      countWritingWords(html);
+      countWords(html);
+      expect(Date.now() - start).toBeLessThan(1000);
+    }
+  });
+});
+
+describe('countWordsCached', () => {
+  it('returns the same count as countWords for new and repeated input', async () => {
+    const { countWordsCached } = await import('./wordCount');
+    expect(countWordsCached('<p>one two</p>')).toBe(2);
+    expect(countWordsCached('<p>one two</p>')).toBe(2);
+    expect(countWordsCached('three')).toBe(1);
   });
 });

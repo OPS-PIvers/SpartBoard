@@ -232,17 +232,54 @@ export function timedTurnInDue(now: number, deadlineAt: number): boolean {
   return now >= deadlineAt - WRITING_TIMER_SKEW_MS;
 }
 
+const BREAKING_TAG_START =
+  /^<\/?(?:p|div|br|li|ul|ol|h[1-6]|blockquote|pre|tr|td|th|table|hr)\b/i;
+
+/** `html.replace(/<\/?(?:p|div|…)\b[^>]*>/gi, ' ')` in linear time. */
+function replaceBreakingTags(html: string): string {
+  let out = '';
+  let last = 0;
+  let gt = -1;
+  for (let i = html.indexOf('<'); i !== -1; i = html.indexOf('<', i + 1)) {
+    if (gt < i) {
+      gt = html.indexOf('>', i);
+      if (gt === -1) break;
+    }
+    if (!BREAKING_TAG_START.test(html.slice(i, i + 13))) continue;
+    out += html.slice(last, i) + ' ';
+    last = gt + 1;
+    i = gt;
+  }
+  return out + html.slice(last);
+}
+
+/** One `html.replace(/<[^>]+>/g, '')` pass (or `<[^>]*>` when `allowEmpty`) in linear time. */
+export function stripTagsOnce(html: string, allowEmpty = false): string {
+  let out = '';
+  let last = 0;
+  let i = html.indexOf('<');
+  while (i !== -1) {
+    const gt = html.indexOf('>', allowEmpty ? i : i + 1);
+    if (gt === -1) break;
+    if (!allowEmpty && gt === i + 1) {
+      i = html.indexOf('<', i + 1);
+      continue;
+    }
+    out += html.slice(last, i);
+    last = gt + 1;
+    i = html.indexOf('<', last);
+  }
+  return out + html.slice(last);
+}
+
 /** Words in editor HTML; the same count as utils/wordCount.ts, so the server agrees with the editor. */
 export function countWritingWords(html: string): number {
   if (!html) return 0;
-  let stripped = html.replace(
-    /<\/?(?:p|div|br|li|ul|ol|h[1-6]|blockquote|pre|tr|td|th|table|hr)\b[^>]*>/gi,
-    ' '
-  );
+  let stripped = replaceBreakingTags(html);
   let previous;
   do {
     previous = stripped;
-    stripped = stripped.replace(/<[^>]+>/g, '');
+    stripped = stripTagsOnce(stripped);
   } while (stripped !== previous);
   const text = stripped
     .replace(/&nbsp;/g, ' ')
