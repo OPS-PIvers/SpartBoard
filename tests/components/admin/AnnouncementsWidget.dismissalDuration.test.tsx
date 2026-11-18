@@ -103,6 +103,22 @@ describe('AnnouncementsManager — dismissal duration cap', () => {
   it('clamps a typed duration to the one-day maximum shown on the field', async () => {
     expect(await saveWith('9999999')).toBe(86400);
   });
+
+  it('lets the field be cleared and retyped instead of snapping back', async () => {
+    render(<AnnouncementsManager />);
+    fireEvent.click(await screen.findByRole('button', { name: /Edit/i }));
+    const input = (await waitFor(() => {
+      const el = document.querySelector(
+        'input[data-tour="admin.announcements.dismissal-duration"]'
+      );
+      if (!el) throw new Error('no number input');
+      return el;
+    })) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '' } });
+    expect(input.value).toBe('');
+    fireEvent.change(input, { target: { value: '5' } });
+    expect(input.value).toBe('5');
+  });
 });
 
 import {

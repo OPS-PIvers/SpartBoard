@@ -1532,23 +1532,26 @@ export const AnnouncementsManager: React.FC = () => {
                     Duration
                   </label>
                   <div className="flex gap-2">
-                    <input
-                      type="number"
+                    <DraftNumberField
                       {...tourAttr('admin.announcements.dismissal-duration')}
                       min={1}
                       max={maxDismissalDuration(form.dismissalDurationUnit)}
                       value={form.dismissalDurationSeconds}
-                      onChange={(e) => {
-                        const parsed = parseInt(e.target.value, 10);
-                        if (!Number.isFinite(parsed) || parsed < 1) return;
+                      normalize={(n) =>
+                        Math.min(
+                          maxDismissalDuration(form.dismissalDurationUnit),
+                          Math.max(1, Math.round(n))
+                        )
+                      }
+                      onCommit={(n) =>
                         setForm((f) => ({
                           ...f,
                           dismissalDurationSeconds: Math.min(
-                            parsed,
-                            maxDismissalDuration(f.dismissalDurationUnit)
+                            maxDismissalDuration(f.dismissalDurationUnit),
+                            Math.max(1, Math.round(n))
                           ),
-                        }));
-                      }}
+                        }))
+                      }
                       className="flex-1 px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
                     />
                     <select
