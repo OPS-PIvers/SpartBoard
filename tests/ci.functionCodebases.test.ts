@@ -270,6 +270,9 @@ describe('build-codebases.mjs', () => {
     const first = tree(join(dir, 'deploy'));
     mkdirSync(join(dir, 'deploy/removed'));
     writeFileSync(join(dir, 'deploy/removed/index.js'), '');
+    writeFileSync(join(dir, 'deploy/default/lib/stale.js'), '');
+    mkdirSync(join(dir, 'deploy/admin/lib/old'));
+    writeFileSync(join(dir, 'deploy/admin/lib/old/x.js'), '');
     expect(build(dir).status).toBe(0);
     expect(tree(join(dir, 'deploy'))).toEqual(first);
   });
@@ -280,6 +283,7 @@ describe('build-codebases.mjs', () => {
     [{ codebases: { admin: ['nope'] } }, 'not exported'],
     [{ codebases: { admin: ['__testOnly'] } }, 'test-only'],
     [{ codebases: { Admin: [] } }, 'bad codebase name'],
+    [{ codebases: { fnA: [] } }, 'shares its name with a function'],
     [{ codebases: {}, extra: 1 }, 'unknown top-level keys'],
   ])('rejects manifest %j', (bad, message) => {
     const run = build(fixture(bad));

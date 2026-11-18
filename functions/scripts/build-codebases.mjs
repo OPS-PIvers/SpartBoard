@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 // Writes one deploy source per codebase under functions/deploy/<name>/ from lib/ (docs/plans/FUNCTION_CODEBASES.md).
 import {
-  copyFileSync,
   existsSync,
   mkdirSync,
   readFileSync,
@@ -86,6 +85,8 @@ export function validateManifest(manifest, exportNames) {
       errors.push(
         '"default" must not be listed; it holds every unlisted function'
       );
+    if (known.has(codebase))
+      errors.push(`codebase "${codebase}" shares its name with a function`);
     if (!/^[a-z][a-z0-9-]{0,62}$/.test(codebase))
       errors.push(`bad codebase name "${codebase}"`);
     if (!Array.isArray(list)) {
@@ -168,13 +169,36 @@ function indexSource(codebase, modules) {
   return `${lines.join('\n')}\n`;
 }
 
-function copyTree(from, to) {
-  if (statSync(from).isDirectory()) {
-    mkdirSync(to, { recursive: true });
-    for (const entry of readdirSync(from).sort())
-      copyTree(join(from, entry), join(to, entry));
-  } else {
-    copyFileSync(from, to);
+function listTree(root, prefix = '') {
+  if (!existsSync(root)) return [];
+  return readdirSync(root)
+    .sort()
+    .flatMap((entry) => {
+      const abs = join(root, entry);
+      const rel = prefix ? `${prefix}/${entry}` : entry;
+      return statSync(abs).isDirectory() ? listTree(abs, rel) : [rel];
+    });
+}
+
+// Rewrites only changed files and removes the rest, so a running emulator's watcher keeps its folder.
+function syncDir(dir, want) {
+  for (const rel of listTree(dir)) if (!want.has(rel)) rmSync(join(dir, rel));
+  for (const [rel, content] of want) {
+    const abs = join(dir, rel);
+    if (existsSync(abs) && readFileSync(abs).equals(content)) continue;
+    mkdirSync(dirname(abs), { recursive: true });
+    writeFileSync(abs, content);
+  }
+  pruneEmptyDirs(dir);
+}
+
+function pruneEmptyDirs(dir) {
+  for (const entry of readdirSync(dir)) {
+    const abs = join(dir, entry);
+    if (statSync(abs).isDirectory()) {
+      pruneEmptyDirs(abs);
+      if (!readdirSync(abs).length) rmSync(abs, { recursive: true });
+    }
   }
 }
 
@@ -213,7 +237,11 @@ export function buildCodebases({
     ...Object.keys(manifest.codebases).sort(),
   ];
 
-  rmSync(outDir, { recursive: true, force: true });
+  mkdirSync(outDir, { recursive: true });
+  for (const stale of readdirSync(outDir)) {
+    if (!codebases.includes(stale))
+      rmSync(join(outDir, stale), { recursive: true, force: true });
+  }
   const result = {};
   for (const codebase of codebases) {
     const own = modules
@@ -229,24 +257,28 @@ export function buildCodebases({
       ...own.map((mod) => resolveLib(libDir, mod.path, 'index.js')),
     ];
     const files = importClosure(libDir, entries);
-    const dir = join(outDir, codebase);
-    for (const file of files) {
-      mkdirSync(dirname(join(dir, 'lib', file)), { recursive: true });
-      copyFileSync(join(libDir, file), join(dir, 'lib', file));
-    }
+    const want = new Map();
+    for (const file of files)
+      want.set(`lib/${file}`, readFileSync(join(libDir, file)));
     const data = [
       ...new Set(files.flatMap((f) => DATA_READERS[f] ?? [])),
     ].sort();
-    for (const entry of data)
-      copyTree(join(functionsDir, 'data', entry), join(dir, 'data', entry));
-    writeFileSync(join(dir, 'index.js'), indexSource(codebase, own));
-    writeFileSync(join(dir, 'package.json'), deployPkg);
-    copyFileSync(
-      join(functionsDir, 'pnpm-lock.yaml'),
-      join(dir, 'pnpm-lock.yaml')
+    for (const entry of data) {
+      for (const rel of listTree(join(functionsDir, 'data', entry)))
+        want.set(
+          `data/${entry}/${rel}`,
+          readFileSync(join(functionsDir, 'data', entry, rel))
+        );
+    }
+    want.set('index.js', Buffer.from(indexSource(codebase, own)));
+    want.set('package.json', Buffer.from(deployPkg));
+    want.set(
+      'pnpm-lock.yaml',
+      readFileSync(join(functionsDir, 'pnpm-lock.yaml'))
     );
     for (const f of localConfig)
-      copyFileSync(join(functionsDir, f), join(dir, f));
+      want.set(f, readFileSync(join(functionsDir, f)));
+    syncDir(join(outDir, codebase), want);
     result[codebase] = {
       exports: own.flatMap((mod) => mod.exports.map((e) => e.name)),
       files,
