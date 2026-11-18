@@ -293,7 +293,7 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
               aria-labelledby={nameId}
               className="py-1.5"
             >
-              <div className="flex flex-wrap items-start gap-x-2 gap-y-1">
+              <div className="flex flex-wrap items-start gap-x-2">
                 <button
                   type="button"
                   onClick={() =>
@@ -305,7 +305,7 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
                     'quiz',
                     criterion.id
                   )}
-                  className="-ml-1 flex min-w-[8rem] flex-1 basis-0 items-start gap-1 rounded-md py-1.5 pl-0.5 pr-1 text-left transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
+                  className="-ml-1 flex min-w-0 flex-auto items-start gap-1 rounded-md py-1.5 pl-0.5 pr-1 text-left transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
                 >
                   <ChevronRight
                     aria-hidden
@@ -322,9 +322,9 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
                     </span>
                   </span>
                 </button>
-                {!isOpen && (noteOpen || selected !== undefined) && noteButton}
                 {!isOpen && (
                   <div className="ml-auto flex shrink-0 items-center gap-0.5">
+                    {(noteOpen || selected !== undefined) && noteButton}
                     {levels.map((level) => {
                       const isSelected = selected?.levelId === level.id;
                       return (
