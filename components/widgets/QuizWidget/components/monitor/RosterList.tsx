@@ -125,8 +125,11 @@ const RowMenu: React.FC<{
   onOpenPart?: (key: string, part: number) => void;
   overridesBySourcedId?: Record<string, StudentOverride> | null;
   targetRefKeyByStudentUid?: Map<string, string> | null;
+  /** 1-based position in the roster, for the tour anchor. */
+  tourRow: number;
 }> = ({
   student,
+  tourRow,
   session,
   now,
   onRemove,
@@ -220,7 +223,7 @@ const RowMenu: React.FC<{
       triggerAnchor={tourFieldAttr(
         'quiz-monitor.roster-row-actions',
         'quiz',
-        student.key
+        `row-${tourRow}`
       )}
       items={items}
     />
@@ -380,7 +383,7 @@ export const RosterList: React.FC<RosterListProps> = ({
         </p>
       )}
 
-      {rest.map((s) => {
+      {rest.map((s, restIndex) => {
         const r = s.response;
         const tint = showProf && s.band ? BAND_TINT[s.band] : 'bg-white';
         const tabThreshold = resolveStudentTabWarningThreshold(
@@ -579,7 +582,11 @@ export const RosterList: React.FC<RosterListProps> = ({
             {onLiveView && bucket === 'inProgress' && (
               <button
                 type="button"
-                {...tourFieldAttr('quiz-monitor.live-view', 'quiz', s.key)}
+                {...tourFieldAttr(
+                  'quiz-monitor.live-view',
+                  'quiz',
+                  `row-${restIndex + 1}`
+                )}
                 onClick={() => onLiveView(s.key)}
                 title="Live view"
                 aria-label={`Live view of ${s.name}`}
@@ -597,6 +604,7 @@ export const RosterList: React.FC<RosterListProps> = ({
             )}
             <RowMenu
               student={s}
+              tourRow={restIndex + 1}
               session={session}
               now={now}
               onLetIn={onLetIn}
@@ -613,7 +621,7 @@ export const RosterList: React.FC<RosterListProps> = ({
         );
       })}
 
-      {absent.map((s) => {
+      {absent.map((s, absentIndex) => {
         const items: RosterMenuItem[] = [];
         if (
           onLetIn &&
@@ -648,7 +656,7 @@ export const RosterList: React.FC<RosterListProps> = ({
                 anchor={tourFieldAttr(
                   'quiz-monitor.student-mark-absent',
                   'quiz',
-                  s.key
+                  `row-${rest.length + absentIndex + 1}`
                 )}
               />
             ) : (
@@ -666,7 +674,7 @@ export const RosterList: React.FC<RosterListProps> = ({
               triggerAnchor={tourFieldAttr(
                 'quiz-monitor.roster-row-actions',
                 'quiz',
-                s.key
+                `row-${rest.length + absentIndex + 1}`
               )}
               items={items}
             />

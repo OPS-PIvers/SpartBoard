@@ -22,7 +22,9 @@ const bellKey = (b: RosterBellPeriod): string =>
 export const TagPrompt: React.FC<{
   roster: PeriodRoster;
   context: AssignPeriodAccessContext;
-}> = ({ roster, context }) => {
+  /** Position among the untagged classes shown, for the tour anchor. */
+  rowIndex: number;
+}> = ({ roster, context, rowIndex }) => {
   const { t } = useTranslation();
   const [saving, setSaving] = useState(false);
   if (context.bellOptions.length === 0) return null;
@@ -35,7 +37,11 @@ export const TagPrompt: React.FC<{
         className="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-800"
         value=""
         disabled={saving}
-        {...tourFieldAttr('assign-periods.tag-roster', 'assign', roster.id)}
+        {...tourFieldAttr(
+          'assign-periods.tag-roster',
+          'assign',
+          `row-${rowIndex + 1}`
+        )}
         onChange={async (e) => {
           const pick = context.bellOptions.find(
             (o) => bellKey(o) === e.target.value

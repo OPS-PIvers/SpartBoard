@@ -328,7 +328,7 @@ export const GradebookGrid: React.FC = () => {
                     {o.pct === null ? '–' : `${o.pct.toFixed(1)}%`}
                   </Private>
                 </td>
-                {columns.map((c) => {
+                {columns.map((c, columnIndex) => {
                   const cell = getCell(c.sessionId, s.uid);
                   const isActive =
                     active?.sessionId === c.sessionId && active.uid === s.uid;
@@ -347,7 +347,7 @@ export const GradebookGrid: React.FC = () => {
                         {...tourFieldAttr(
                           'gradebook.grid.cell',
                           'gradebook',
-                          cellAnchorId(c.sessionId, s.uid)
+                          `row-${i + 1}-item-${columnIndex + 1}`
                         )}
                         tabIndex={isActive ? 0 : -1}
                         onClick={() => {

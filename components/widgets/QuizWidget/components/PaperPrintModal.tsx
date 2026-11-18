@@ -1966,7 +1966,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                   </div>
                   {expanded && (
                     <ul className="ml-6 space-y-0.5 pb-2">
-                      {sorted.map((student) => (
+                      {sorted.map((student, studentIndex) => (
                         <li
                           key={student.id}
                           className="flex items-center gap-2 px-2"
@@ -1985,7 +1985,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                             {...tourFieldAttr(
                               'quiz-print.student-select',
                               'quiz',
-                              student.id
+                              `row-${rowIndex + 1}-item-${studentIndex + 1}`
                             )}
                             className="h-3.5 w-3.5 rounded-sm border-slate-300"
                           />
