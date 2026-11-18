@@ -18,7 +18,10 @@ import {
 } from 'firebase-functions/v2/firestore';
 import { defineSecret } from 'firebase-functions/params';
 import * as admin from './firebaseAdmin';
-import { refreshGoogleAccessTokenForUid } from './googleOAuth';
+import {
+  DRIVE_FILE_SCOPE,
+  refreshGoogleAccessTokenForUid,
+} from './googleOAuth';
 import { GOOGLE_OAUTH_CLIENT_ID } from './secrets';
 import './functionsInit';
 import { DRIVE_APP_FOLDER } from './devDriveWriteGuard';
@@ -650,7 +653,11 @@ export function buildDefaultWallArchiveDeps(): WallArchiveDeps {
       await bucket().file(storagePath).delete({ ignoreNotFound: true });
     },
     getAccessToken: async (teacherUid) =>
-      (await refreshGoogleAccessTokenForUid(teacherUid)).accessToken,
+      (
+        await refreshGoogleAccessTokenForUid(teacherUid, {
+          scope: DRIVE_FILE_SCOPE,
+        })
+      ).accessToken,
     getUserEmail: async (uid) => {
       try {
         // Unverified email is self-reportable and resolveDrivePermission trusts its domain.

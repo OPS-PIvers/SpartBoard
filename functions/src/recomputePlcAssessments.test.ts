@@ -18,6 +18,7 @@ vi.mock('firebase-functions/logger', () => ({
 }));
 
 import {
+  isSingleDocId,
   parseCompletedResponse,
   parseLocalizedFibAnswers,
   parseServedLanguages,
@@ -627,10 +628,39 @@ describe('runRecomputePlcAssessments', () => {
     const counts = await runRecomputePlcAssessments(stub.db as unknown as Db);
     expect(counts).toEqual({ scanned: 2, recomputed: 1, failed: 1 });
     expect(stub.has('plcs/plc-1/aggregates/grp-1')).toBe(true);
-    // The failed run's claim stays non-null, so the next pass retries it.
-    expect(stub.get('plcs/plc-2/assessments/older')?.dirtyAt).toBe(
-      -(NOW - 50_000)
-    );
+    // The failed item stays dirty but moves behind newer marks, so it can't hold the batch head.
+    const requeued = stub.get('plcs/plc-2/assessments/older')?.dirtyAt;
+    expect(typeof requeued).toBe('number');
+    expect(requeued as number).toBeGreaterThan(NOW - 1000);
+  });
+
+  it('leaves a newer trigger mark alone when a recompute fails', async () => {
+    const stub = seedPipeline({
+      'plcs/plc-2/assessments/older': {
+        id: 'older',
+        syncGroupId: 'grp-older',
+        dirtyAt: NOW - 50_000,
+      },
+    });
+    stub.hooks.beforeWrite = (op, path) => {
+      if (op === 'set' && path === 'plcs/plc-2/aggregates/older') {
+        stub.store.set('plcs/plc-2/assessments/older', {
+          ...stub.get('plcs/plc-2/assessments/older'),
+          dirtyAt: NOW + 7,
+        });
+        throw new Error('boom');
+      }
+    };
+    await runRecomputePlcAssessments(stub.db as unknown as Db);
+    expect(stub.get('plcs/plc-2/assessments/older')?.dirtyAt).toBe(NOW + 7);
+  });
+});
+
+describe('isSingleDocId', () => {
+  it('accepts one document id and refuses paths and reserved ids', () => {
+    expect(isSingleDocId('set-1')).toBe(true);
+    for (const bad of ['', 'x/y', 'x//y', '__x__', '.', '..', 'a'.repeat(1501)])
+      expect(isSingleDocId(bad)).toBe(false);
   });
 });
 
@@ -789,6 +819,28 @@ describe('recomputeOnePlcAssessment for Flashcards checks', () => {
     expect(json).not.toContain('stu-');
     expect(json).not.toContain('dog');
     expect(stub.get('plcs/plc-1/assessments/set-1')?.dirtyAt).toBeNull();
+  });
+
+  it('treats a malformed setId as no set instead of failing the recompute', async () => {
+    for (const setId of ['x/y', 'x//y', '__x__']) {
+      const stub = seedFlashcards();
+      stub.store.set('flashcard_sessions/fa', {
+        ...stub.get('flashcard_sessions/fa'),
+        setId,
+      });
+      // Real Firestore throws or rejects on these paths; the stub has to be told to.
+      const realDoc = stub.db.doc.bind(stub.db);
+      (stub.db as { doc: (path: string) => unknown }).doc = (path) => {
+        const parts = path.split('/');
+        if (parts.length % 2 || parts.some((p) => !p || /^__.*__$/.test(p)))
+          throw new Error(`Invalid document path ${path}`);
+        return realDoc(path);
+      };
+      const counts = await runRecomputePlcAssessments(stub.db as unknown as Db);
+      expect(counts.failed).toBe(0);
+      expect(stub.has('plcs/plc-1/aggregates/set-1')).toBe(true);
+      expect(stub.get('plcs/plc-1/assessments/set-1')?.dirtyAt).toBeNull();
+    }
   });
 
   it('rolls each teacher’s set tags into targets and standards', async () => {

@@ -2,7 +2,7 @@
 // Firestore is a tiny in-memory fake; Gemini is an injected stub, so only the
 // plan's decisions — alignment, quota, D17, D29 — are under test.
 
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import * as admin from './firebaseAdmin';
 
 const INCREMENT = Symbol('increment');
@@ -76,6 +76,7 @@ import {
   type TranslatableQuestion,
   type TranslationDeps,
 } from './quizTranslation';
+import { __resetAiCallerGateCache } from './aiCallerGate';
 
 type CallableHandler = (request: {
   auth?: { uid: string; token: { email?: string; email_verified?: boolean } };
@@ -1015,6 +1016,12 @@ describe('translateQuizV1 / translateResponseV1 — caller identity verification
   });
 
   it('translateQuizV1 lets a verified caller past the identity gate (fails later, not on verification)', async () => {
+    vi.mocked(admin.firestore).mockReturnValueOnce(
+      makeDb({
+        'admins/boss@x.org': {},
+        'global_permissions/quiz-translation': { enabled: false },
+      })
+    );
     await expect(
       translateQuizV1Handler({
         auth: {
@@ -1057,6 +1064,12 @@ describe('translateQuizV1 / translateResponseV1 — caller identity verification
   });
 
   it('translateResponseV1 lets a verified caller past the identity gate (fails later, not on verification)', async () => {
+    vi.mocked(admin.firestore).mockReturnValueOnce(
+      makeDb({
+        'admins/boss@x.org': {},
+        'global_permissions/quiz-translation': { enabled: false },
+      })
+    );
     await expect(
       translateResponseV1Handler({
         auth: {
@@ -1069,6 +1082,53 @@ describe('translateQuizV1 / translateResponseV1 — caller identity verification
       code: 'permission-denied',
       message: 'Quiz translation is not available for your account.',
     });
+  });
+});
+
+describe('translateQuizV1 / translateResponseV1 — staff gate', () => {
+  const STUDENT = {
+    uid: 'uid-s',
+    token: { email: 'kid@x.org', email_verified: true },
+  };
+  const publicFlagDb = () => {
+    const docs: Record<string, Doc> = {
+      'global_permissions/quiz-translation': {
+        enabled: true,
+        accessLevel: 'public',
+      },
+    };
+    vi.mocked(admin.firestore).mockReturnValueOnce(makeDb(docs));
+    return docs;
+  };
+  beforeEach(() => __resetAiCallerGateCache());
+
+  it('translateQuizV1 refuses a verified non-staff account and charges nothing', async () => {
+    const docs = publicFlagDb();
+    await expect(
+      translateQuizV1Handler({ auth: STUDENT, data: baseRequest() })
+    ).rejects.toMatchObject({
+      code: 'permission-denied',
+      message: 'Teacher account required.',
+    });
+    expect(Object.keys(docs).filter((k) => k.startsWith('ai_usage'))).toEqual(
+      []
+    );
+  });
+
+  it('translateResponseV1 refuses a verified non-staff account and charges nothing', async () => {
+    const docs = publicFlagDb();
+    await expect(
+      translateResponseV1Handler({
+        auth: STUDENT,
+        data: { text: 'creo que si', sourceLocale: 'es' },
+      })
+    ).rejects.toMatchObject({
+      code: 'permission-denied',
+      message: 'Teacher account required.',
+    });
+    expect(Object.keys(docs).filter((k) => k.startsWith('ai_usage'))).toEqual(
+      []
+    );
   });
 });
 
@@ -1085,6 +1145,7 @@ describe('translateQuizV1 / translateResponseV1 — gemini-functions kill switch
           accessLevel: 'public',
         },
         'global_permissions/gemini-functions': { enabled: false },
+        'admins/teacher@x.org': {},
       })
     );
 
