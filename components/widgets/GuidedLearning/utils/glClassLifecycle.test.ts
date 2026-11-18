@@ -212,6 +212,24 @@ describe('reopen', () => {
   });
 });
 
+describe('onWindowCleared', () => {
+  it('rewrites pointers only for a run that has them', async () => {
+    docs[ROW] = { targetMode: 'class' };
+    await make().onWindowCleared('g1', { openAt: null });
+    expect(setAssignmentTargets).not.toHaveBeenCalled();
+
+    docs[ROW] = { targetMode: 'class', excludedTargets: [{ sourcedId: 's' }] };
+    await make().onWindowCleared('g1', { openAt: null });
+    expect(setAssignmentTargets).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'guided-learning',
+        sessionId: 'g1',
+        window: { openAt: null },
+      })
+    );
+  });
+});
+
 describe('turnInClass', () => {
   it('hands off to the class turn-in', async () => {
     await make().turnInClass('g1', 'p1', 5);

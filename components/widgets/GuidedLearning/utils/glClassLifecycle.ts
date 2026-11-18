@@ -32,6 +32,11 @@ export interface GuidedLearningLifecycle {
   turnInDelayMs: number;
   endTurnsIn: true;
   isEnded: (a: Pick<GuidedLearningAssignment, 'status' | 'closeAt'>) => boolean;
+  /** Keeps each targeted student's own pointer window in step with a cleared run window. */
+  onWindowCleared: (
+    id: string,
+    patch: { openAt?: null; closeAt?: null }
+  ) => Promise<void>;
 }
 
 /** An archived run, or a single-line run whose own close time has passed. */
@@ -55,6 +60,24 @@ export function guidedLearningLifecycle(
         console.error('[guidedLearningLifecycle] End turn-in failed:', err)
       );
     }, wait);
+  };
+
+  const syncPointers = async (
+    id: string,
+    row: Partial<GuidedLearningAssignment> | undefined,
+    window: { openAt?: number | null; closeAt?: number | null }
+  ) => {
+    if (!row || !hasStudentPointers(row)) return;
+    await actions.setAssignmentTargets({
+      assignmentId: id,
+      kind: 'guided-learning',
+      sessionId: id,
+      targetMode: row.targetMode,
+      add: [],
+      remove: [],
+      overridesBySourcedId: {},
+      window,
+    });
   };
 
   return {
@@ -99,17 +122,14 @@ export function guidedLearningLifecycle(
       await batch.commit();
       invalidateSessionViewCount(SESSIONS, id);
       // Accommodated and skipped students read the close off their own pointer doc.
-      if ((sessionClosed || rowClosed) && row && hasStudentPointers(row))
-        await actions.setAssignmentTargets({
-          assignmentId: id,
-          kind: 'guided-learning',
-          sessionId: id,
-          targetMode: row.targetMode,
-          add: [],
-          remove: [],
-          overridesBySourcedId: {},
-          window: { closeAt: next },
-        });
+      if (sessionClosed || rowClosed)
+        await syncPointers(id, row, { closeAt: next });
+    },
+    async onWindowCleared(id, patch) {
+      const row = (
+        await getDoc(doc(db, 'users', uid, ASSIGNMENTS, id))
+      ).data() as Partial<GuidedLearningAssignment> | undefined;
+      await syncPointers(id, row, patch);
     },
     turnInClass: (sessionId, classKey, closedAt) =>
       finalizeClassGuidedLearningResponses(sessionId, classKey, closedAt),
