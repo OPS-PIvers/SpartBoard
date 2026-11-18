@@ -739,6 +739,15 @@ const TeacherQuizWidget: React.FC<{
     shareAssignmentWithPlc,
     stopSharingAssignmentWithPlc,
   } = useQuizAssignments(user?.uid);
+  const classLifecycle = useMemo(
+    () => ({
+      pauseAssignment,
+      resumeAssignment,
+      deactivateAssignment,
+      reopenAssignment,
+    }),
+    [pauseAssignment, resumeAssignment, deactivateAssignment, reopenAssignment]
+  );
 
   // M17 individual-assignment targeting (spec §5 B3). Skipped refs from the
   // most recent `setAssignmentTargetsV1` call, keyed by assignment id, so the
@@ -4713,6 +4722,7 @@ const TeacherQuizWidget: React.FC<{
         }}
         // ─── Archive tab ─────────────────────────────────────────────────────
         managerTab={config.managerTab ?? 'library'}
+        classLifecycle={classLifecycle}
         revealRequest={revealRequest}
         onTabChange={(tab) => handleUpdateQuizConfig({ managerTab: tab })}
         // ─── Banks tab ───────────────────────────────────────────────────────

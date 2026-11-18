@@ -26773,6 +26773,11 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.assignments",
         "kind": "shared",
         "path": []
+      },
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
       }
     ]
   },
@@ -26802,6 +26807,93 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.shell",
         "kind": "shared",
         "path": []
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-classes",
+    "label": "Classes button on an Assigned tab row; shows each class",
+    "scope": "field",
+    "row_wildcard": true,
+    "row_list": "assignment-rows",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-class-action",
+    "label": "Open, Pause, Resume, Close, Reopen or Monitor for one class in an expanded Assigned row",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "key_pattern": "[a-z-]+#(open|pause|resume|close|reopen|monitor)-[1-9]\\d*",
+    "key_hint": "quiz#open-2 is Open for the second class in the open row",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": [
+          "library-shell.assigned-classes"
+        ],
+        "reveal": "library-shell.assigned-classes"
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-done-section",
+    "label": "Done section header on the Assigned tab",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-close-all",
+    "label": "Close for all classes, in an Assigned row menu",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [
+          "library-shell.archive-menu:quiz#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:quiz#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-move-to-done",
+    "label": "Move to Done, in an Assigned row menu",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [
+          "library-shell.archive-menu:quiz#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:quiz#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
       }
     ]
   },

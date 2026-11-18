@@ -90,6 +90,8 @@ describe('tour anchor registry', () => {
 
   it('flags assign, share, publish and delete anchors as persists or destructive', () => {
     const OPENS_ONLY = new Set([
+      'library-shell.assigned-classes',
+      'library-shell.assigned-done-section',
       'quiz-library.assign-paper',
       'sidebar.assignments',
       'boards.share-board',

@@ -186,6 +186,8 @@ import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { quizNeedsManualGrading } from '@/utils/quizScoreOnSubmit';
 import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
 import type { FolderDeleteActions } from '@/components/common/library/FolderSidebar';
+import type { QuizLifecycle } from '@/hooks/useQuizClassActions';
+import { QuizAssignedTab } from './QuizAssignedTab';
 
 export interface PlcOptions {
   plcMode: boolean;
@@ -483,6 +485,8 @@ interface QuizManagerProps {
   config: QuizConfig;
 
   managerTab?: QuizManagerTab;
+  /** Whole-assignment writes the Assigned tab's class actions drive (ASSIGNED_TAB.md D21). */
+  classLifecycle?: QuizLifecycle;
   /** Opens the preview pane on this quiz; a new object reopens it. */
   revealRequest?: { quizId: string } | null;
   onTabChange?: (tab: QuizManagerTab) => void;
@@ -858,7 +862,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onMergeQuizzes,
   rosters,
   config,
-  managerTab = 'library',
+  managerTab: managerTabProp = 'library',
+  classLifecycle,
   revealRequest = null,
   onTabChange,
   banks,
@@ -921,6 +926,11 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
 }) => {
   const isReview = variant === 'review';
   const { canAccessFeature } = useAuth();
+  // ASSIGNED_TAB.md D12/D19: Library and Assigned, Quiz only, behind the preview flag.
+  const assignedOn =
+    !isReview && !!classLifecycle && canAccessFeature('assigned-tab');
+  const managerTab: QuizManagerTab =
+    assignedOn && managerTabProp === 'archive' ? 'active' : managerTabProp;
   // Banks open from the Library sidebar instead of their own tab; Archive reads Completed.
   const banksInLibrary = !isReview && Boolean(banks && onNewBank && onEditBank);
   // Plan D12: the stepper always prefills last-used rules.
@@ -1652,7 +1662,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       statusBadges.push({
         label: pausedCount === 1 ? 'Assigned' : `Assigned · ${pausedCount}`,
         tone: 'info',
-        actionLabel: 'View in In Progress',
+        actionLabel: assignedOn ? 'View in Assigned' : 'View in In Progress',
         ...(onTabChange ? { onClick: () => onTabChange('active') } : {}),
       });
     }
@@ -2932,8 +2942,9 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const tabCounts = {
     library: quizzes.length,
     ...(banks && !banksInLibrary ? { banks: banks.length } : {}),
-    active: activeAssignments.length,
-    archive: inactiveAssignments.length,
+    // The Assigned tab's Active section depends on grading, so it shows no count.
+    active: assignedOn ? undefined : activeAssignments.length,
+    archive: assignedOn ? undefined : inactiveAssignments.length,
   };
   const tabLabels =
     isViewOnly || banksInLibrary
@@ -2969,6 +2980,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           counts: tabCounts,
           tabLabels,
           clearsConnectionTab,
+          assignedLayout: assignedOn,
         }}
         headerAction={banksInLibrary ? primaryAction : undefined}
         libraryFolders={
@@ -3009,6 +3021,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         onTabChange={(t) => onTabChange?.(t)}
         counts={tabCounts}
         tabLabels={tabLabels}
+        assignedLayout={assignedOn}
         primaryAction={primaryAction}
         toolbarSlot={toolbar}
         filterSidebarSlot={folderSidebarSlot}
@@ -3075,6 +3088,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       onTabChange={(t) => onTabChange?.(t)}
       counts={tabCounts}
       tabLabels={tabLabels}
+      assignedLayout={assignedOn}
       primaryAction={primaryAction}
       toolbarSlot={toolbar}
       filterSidebarSlot={folderSidebarSlot}
@@ -3122,7 +3136,55 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         />
       )}
 
-      {managerTab === 'active' && (
+      {managerTab === 'active' && assignedOn && classLifecycle && (
+        <QuizAssignedTab
+          assignments={assignments}
+          loading={assignmentsLoading}
+          quizzes={quizzes}
+          loadQuizData={onLoadQuizData}
+          rosters={rosters}
+          lifecycle={classLifecycle}
+          pinnedId={config.activeAssignmentId ?? null}
+          emptyTitle="Nothing active"
+          emptySub={
+            isViewOnly
+              ? 'Share a quiz from the Library.'
+              : 'Assign a quiz from the Library.'
+          }
+          onMonitor={(a) => void (onArchiveMonitor ?? noop)(a)}
+          onResults={(a) => void (onArchiveResults ?? noop)(a)}
+          onPublish={
+            onArchivePublishScores
+              ? (a) => void onArchivePublishScores(a)
+              : undefined
+          }
+          legacyPrimary={(a) => {
+            const { primary } = buildArchiveActions(a, 'active');
+            return primary
+              ? { label: primary.label, onClick: primary.onClick }
+              : null;
+          }}
+          menu={(a) =>
+            buildArchiveActions(
+              a,
+              a.status === 'inactive' ? 'archive' : 'active'
+            ).secondaries
+          }
+          monitorBadge={(a) =>
+            a.id === config.activeAssignmentId &&
+            activeAssignmentLockedCount > 0
+              ? {
+                  count: activeAssignmentLockedCount,
+                  label: `${activeAssignmentLockedCount} student${
+                    activeAssignmentLockedCount === 1 ? '' : 's'
+                  } locked`,
+                }
+              : null
+          }
+        />
+      )}
+
+      {managerTab === 'active' && !assignedOn && (
         <AssignmentsList
           assignments={activeAssignments}
           loading={assignmentsLoading}
