@@ -867,7 +867,7 @@ export const Results: React.FC<ResultsProps> = ({
                       anchor={tourFieldAttr(
                         'video-activity.results-question-row',
                         'video-activity',
-                        q.id
+                        `row-${idx + 1}`
                       )}
                       trailing={
                         skipped ? (
@@ -877,7 +877,7 @@ export const Results: React.FC<ResultsProps> = ({
                             {...tourFieldAttr(
                               'video-activity.results-mark-toggle',
                               'video-activity',
-                              q.id
+                              `row-${idx + 1}`
                             )}
                             type="button"
                             aria-expanded={marking}

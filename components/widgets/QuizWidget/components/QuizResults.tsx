@@ -4943,7 +4943,7 @@ const StudentsScreen: React.FC<{
                     {...tourFieldAttr(
                       'quiz-results.student-toggle',
                       'quiz',
-                      String(studentIndex)
+                      `row-${studentIndex + 1}`
                     )}
                     className="flex items-center min-w-0 text-left rounded-sm focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
                     style={{ gap: 'min(4px, 1cqmin)' }}
