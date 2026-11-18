@@ -838,6 +838,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'claude-picture-uploads': {
+    label: 'Claude connector: pictures from the chat',
+    icon: Bot,
+    description:
+      "Pictures a teacher shares with Claude can go on Guided Learning slides. They save to the teacher's Google Drive.",
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'integrations',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Teacher-paced (live) Video Activity: the Assign dialog's live option (docs/plans/shipped/VA_TEACHER_PACED.md).
   'video-activity-live': {
     label: 'Video Activity live mode',

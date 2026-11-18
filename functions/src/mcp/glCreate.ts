@@ -11,6 +11,7 @@ import {
   REVIEW_MARK,
 } from './activity';
 import {
+  copyPictureToSlide,
   createGuidedLearningJson,
   driveTokenFor,
   slideImageFolder,
@@ -190,19 +191,34 @@ export function buildNewSet(
 }
 
 /** Copies each slide into the creator's uploads: the teacher's Drive for their own sets, Storage (swept if the save fails) for building sets. */
-async function uploadSlides(
+export async function uploadSlides(
   ctx: ToolContext,
   urls: readonly string[],
-  driveToken: string | null
+  driveToken: string | null,
+  field = 'slide_urls'
 ): Promise<{ urls: string[]; paths: string[]; driveIds: string[] }> {
   const { downloadPublicImage } = await import('../fetchImportImage');
-  const images = await Promise.all(
+  const { isPictureRef, resolvePicture, pictureBytes, picturesOn } =
+    await import('./pictureUploads');
+  if (urls.some(isPictureRef) && !(await picturesOn(ctx)))
+    throw new ToolError(
+      'Picture uploads through Claude are not turned on for this account yet.'
+    );
+  const sources = await Promise.all(
     urls.map(async (url, i) => {
       try {
-        return await downloadPublicImage(url);
+        if (isPictureRef(url)) {
+          const picture = await resolvePicture(ctx, url);
+          // A personal set copies the picture inside Drive, so its bytes are only read for building sets.
+          return driveToken
+            ? { picture, contentType: picture.mimeType, body: null }
+            : { picture, ...(await pictureBytes(ctx, picture)) };
+        }
+        return { picture: null, ...(await downloadPublicImage(url)) };
       } catch (err) {
+        if (err instanceof ToolError) throw err;
         const reason = err instanceof Error ? err.message : 'It failed.';
-        throw new ToolError(`slide_urls[${i}] could not be copied: ${reason}`);
+        throw new ToolError(`${field}[${i}] could not be copied: ${reason}`);
       }
     })
   );
@@ -210,15 +226,12 @@ async function uploadSlides(
   if (driveToken) {
     const folderId = await slideImageFolder(driveToken);
     const results = await Promise.allSettled(
-      images.map(({ contentType, body }, i) =>
-        uploadSlideImage(
-          driveToken,
-          folderId,
-          body,
-          contentType,
-          `hotspot-${stamp}-claude-${i + 1}.${EXTENSIONS[contentType]}`
-        )
-      )
+      sources.map(({ picture, contentType, body }, i) => {
+        const name = `hotspot-${stamp}-claude-${i + 1}.${EXTENSIONS[contentType]}`;
+        return picture
+          ? copyPictureToSlide(driveToken, folderId, picture.driveId, name)
+          : uploadSlideImage(driveToken, folderId, body, contentType, name);
+      })
     );
     const ids = results.flatMap((r) =>
       r.status === 'fulfilled' ? [r.value] : []
@@ -236,10 +249,10 @@ async function uploadSlides(
   }
   const bucket = admin.storage().bucket();
   const saved = await Promise.all(
-    images.map(async ({ contentType, body }, i) => {
+    sources.map(async ({ contentType, body }, i) => {
       const path = `users/${ctx.uid}/hotspot_images/${stamp}-claude-${i + 1}.${EXTENSIONS[contentType]}`;
       const token = randomUUID();
-      await bucket.file(path).save(body, {
+      await bucket.file(path).save(body as Buffer, {
         resumable: false,
         contentType,
         metadata: {
@@ -400,7 +413,7 @@ export function registerCreateGuidedLearning(
     {
       title: 'Create a Guided Learning set',
       description:
-        'Creates a hotspot activity on slide images: pass public https image links in slide_urls, which are copied into SpartBoard. Step rules match update_guided_learning; xPct/yPct are % of the slide.',
+        'Creates a hotspot activity on slide images: pass public https image links or picture refs in slide_urls, which are copied into SpartBoard. Step rules match update_guided_learning; xPct/yPct are % of the slide.',
       inputSchema: {
         source: z
           .enum(['mine', 'building'])
@@ -416,7 +429,7 @@ export function registerCreateGuidedLearning(
           .min(1)
           .max(MAX_NEW_SLIDES)
           .describe(
-            'PNG, JPEG, GIF or WebP links in slide order; step imageIndex counts from 0.'
+            'PNG, JPEG, GIF or WebP links, or picture refs from start_picture_upload, in slide order. Step imageIndex counts from 0.'
           ),
         folder_id: z
           .string()
