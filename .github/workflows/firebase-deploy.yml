@@ -10,6 +10,10 @@ on:
         description: Deploy every backend target (functions, rules, indexes, storage), not just changed ones
         type: boolean
         default: false
+      codebase:
+        description: Deploy this whole functions codebase (from firebase.json), after the same delete check
+        type: string
+        default: ''
 
 # Never run two production deploys at once; a newer main commit waits for the
 # in-flight one to finish rather than cancelling it mid-release.
@@ -100,6 +104,7 @@ jobs:
           BASE_SHA: ${{ steps.base.outputs.sha }}
           # A dispatch from any branch other than main, or main's first run after one, deploys every target.
           FULL: ${{ inputs.full_backend || github.ref != 'refs/heads/main' || steps.base.outputs.other == 'true' }}
+          CODEBASE: ${{ inputs.codebase }}
         run: ./.github/scripts/plan-deploy.sh main "$BASE_SHA" "$FULL"
 
   # Same parallel layout as the dev-branch workflow: every check runs on its
@@ -288,7 +293,8 @@ jobs:
           fi
           FIREBASE_DEPLOY_ONLY="$(FIREBASE_CONFIG="$config" GCLOUD_PROJECT="$PROJECT" node .github/scripts/function-targets.mjs "$PLANNED")" ||
             { echo "::error::function-targets.mjs failed"; exit 1; }
-          export FIREBASE_DEPLOY_ONLY
+          # The delete and label checks in the retry script load functions/lib the same way.
+          export FIREBASE_DEPLOY_ONLY FUNCTIONS_DISCOVERY_CONFIG="$config"
           echo "Deploying: ${FIREBASE_DEPLOY_ONLY:-rules only}" | tee -a "$GITHUB_STEP_SUMMARY"
           ./.github/scripts/firebase-deploy-with-retry.sh spartboard
         env:

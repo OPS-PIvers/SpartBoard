@@ -10,6 +10,10 @@ on:
         description: Deploy every backend target (functions, rules, indexes, storage), not just changed ones
         type: boolean
         default: false
+      codebase:
+        description: Deploy this whole functions codebase (from firebase.json), after the same delete check
+        type: string
+        default: ''
 
 # Hosting goes to the branch owner's own site once type-check and build pass; the shared backend
 # deploys only changed targets, after every check, and only from a branch containing dev-paul
@@ -317,6 +321,7 @@ jobs:
           BASE_SHA: ${{ steps.base.outputs.sha }}
           OTHER_BRANCH_DEPLOYED_LAST: ${{ steps.last.outputs.other_deployed_last }}
           FULL: ${{ inputs.full_backend || false }}
+          CODEBASE: ${{ inputs.codebase }}
         run: ./.github/scripts/plan-deploy.sh "$GITHUB_REF_NAME" "$BASE_SHA" "$FULL"
       - id: mode
         env:
@@ -515,6 +520,8 @@ jobs:
         env:
           FIREBASE_DEPLOY_ONLY: ${{ steps.targets.outputs.deploy_only }}
           RELEASE_FIRESTORE_RULES: ${{ needs.plan.outputs.release_rules }}
+          # The delete and label checks load functions/lib the way the CLI's discovery does.
+          FUNCTIONS_DISCOVERY_CONFIG: '{"projectId":"spartboard-dev","storageBucket":"spartboard-dev.firebasestorage.app"}'
           # Incident escape hatch: repo variable RULES_MINIFY=0 releases the unminified rules.
           RULES_MINIFY: ${{ vars.RULES_MINIFY }}
         run: ./.github/scripts/firebase-deploy-with-retry.sh "$DEV_PROJECT_ID"

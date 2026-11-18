@@ -17,6 +17,7 @@ function plan(
     full = false,
     otherDeployedLast = false,
     oldIndex = undefined as string | undefined,
+    codebase = '',
     oldFeatureMissingDoc = undefined as string | undefined,
   } = {}
 ): Record<string, string> {
@@ -36,6 +37,7 @@ function plan(
         CONTAINS_DEV_PAUL: String(containsDevPaul),
         OTHER_BRANCH_DEPLOYED_LAST: String(otherDeployedLast),
         OLD_INDEX_FILE: oldIndex === undefined ? '' : oldIndexFile,
+        CODEBASE: codebase,
         OLD_FEATURE_MISSING_DOC_FILE:
           oldFeatureMissingDoc === undefined ? '' : oldFlagsFile,
       },
@@ -123,7 +125,7 @@ describe('plan-deploy.sh', () => {
       plan('dev-paul', ['functions/src/linkPreview.ts', 'storage.rules'])
     ).toMatchObject({
       backend: 'true',
-      deploy_only: 'functions:fetchLinkPreview,storage',
+      deploy_only: 'functions:default:fetchLinkPreview,storage',
     });
   });
 
@@ -136,7 +138,7 @@ describe('plan-deploy.sh', () => {
     expect(oldIndex).not.toBe(index);
     expect(
       plan('main', ['functions/src/index.ts'], { oldIndex }).deploy_only
-    ).toBe('functions:fetchLinkPreview');
+    ).toBe('functions:default:fetchLinkPreview');
   });
 
   it('passes the deployed featureMissingDoc.ts, so a list reorder deploys no function', () => {
@@ -189,6 +191,8 @@ describe('plan-deploy.sh', () => {
       '.github/scripts/affected-functions.mjs',
       '.github/scripts/function-targets.mjs',
       '.github/scripts/firebase-deploy-with-retry.sh',
+      '.github/scripts/codebases.mjs',
+      '.github/scripts/function-delete-check.mjs',
     ]) {
       expect(plan('main', [script]).deploy_only).toBe(
         'functions,firestore:indexes,storage'
@@ -215,5 +219,64 @@ describe('plan-deploy.sh', () => {
       deploy_only: 'functions,firestore:indexes,storage',
       release_rules: 'true',
     });
+  });
+
+  it('deploys every codebase together when the manifest or firebase.json changes', () => {
+    for (const file of ['functions/codebases.json', 'firebase.json']) {
+      expect(
+        plan('dev-paul', [file, 'functions/src/linkPreview.ts']).deploy_only
+      ).toBe('functions');
+      expect(plan('main', [file]).deploy_only).toBe('functions');
+    }
+  });
+
+  it('deploys one whole codebase on a codebase dispatch', () => {
+    expect(
+      plan('dev-paul', ['components/a.tsx'], { codebase: 'default' })
+    ).toMatchObject({
+      backend: 'true',
+      functions: 'true',
+      deploy_only: 'functions:default',
+    });
+    expect(
+      plan('main', ['storage.rules'], { codebase: 'default' }).deploy_only
+    ).toBe('functions:default,storage');
+    // Changes the diff already needs still deploy alongside it.
+    expect(
+      plan('dev-paul', ['functions/src/linkPreview.ts'], {
+        codebase: 'default',
+      }).deploy_only
+    ).toBe('functions:default,functions:default:fetchLinkPreview');
+    expect(
+      plan('dev-paul', ['functions/src/index.ts'], { codebase: 'default' })
+        .deploy_only
+    ).toBe('functions');
+    // A full-backend dispatch already deploys every codebase.
+    expect(
+      plan('dev-paul', [], { codebase: 'default', full: true }).deploy_only
+    ).toBe('functions,firestore:indexes,storage');
+  });
+
+  it('refuses a codebase firebase.json does not deploy', () => {
+    const injected = spawnSync('bash', [script, 'dev-paul', 'abc', 'false'], {
+      env: {
+        ...process.env,
+        GITHUB_OUTPUT: '/dev/null',
+        CHANGED_FILES: '',
+        CODEBASE: 'default\nbackend=true',
+      },
+    });
+    expect(injected.status).toBe(1);
+    const result = spawnSync('bash', [script, 'dev-paul', 'abc', 'false'], {
+      env: {
+        ...process.env,
+        GITHUB_OUTPUT: '/dev/null',
+        CHANGED_FILES: '',
+        CODEBASE: 'nope',
+      },
+      encoding: 'utf-8',
+    });
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("no functions codebase named 'nope'");
   });
 });
