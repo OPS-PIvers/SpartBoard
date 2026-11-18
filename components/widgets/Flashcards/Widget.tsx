@@ -201,7 +201,6 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     [uid, inShare, endAssignment, reopenAssignment, setAssignmentTargets]
   );
   const assignedOn = !!classLifecycle && canAccessFeature('assigned-tab');
-  const [justAssignedId, setJustAssignedId] = useState<string | null>(null);
   const plcSharing = useFlashcardPlcSharing({
     enabled: !inShare,
     addToast,
@@ -562,7 +561,6 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
           ...(assignedOn ? { libraryTab: 'active' as const } : {}),
         },
       });
-      if (assignedOn) setJustAssignedId(sessionId);
       setAssigningSet(null);
 
       const url = flashcardAssignmentUrl(sessionId, input.audience);
@@ -902,7 +900,6 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                 onBulkDelete={handleBulkDelete}
                 classLifecycle={assignedOn ? classLifecycle : undefined}
                 rosters={rosters}
-                pinnedAssignmentId={justAssignedId}
                 onAssignmentPublishScores={setPublishTarget}
                 onAssignmentUnpublishScores={(a) =>
                   void handleUnpublishScores(a)

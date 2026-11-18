@@ -26935,16 +26935,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "persists": true,
     "routes": [
       {
-        "surface": "library.flashcards",
-        "kind": "widget",
-        "widget_type": "flashcards",
+        "surface": "library.shell",
+        "kind": "shared",
         "path": [
-          "library-shell.archive-menu:flashcards#row-1"
+          "library-shell.archive-menu"
         ],
-        "reveal": "library-shell.archive-menu:flashcards#row-1",
-        "needs": [
-          "widget-on-stage"
-        ]
+        "reveal": "library-shell.archive-menu"
       },
       {
         "surface": "quiz.face",
@@ -26980,16 +26976,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "persists": true,
     "routes": [
       {
-        "surface": "library.flashcards",
-        "kind": "widget",
-        "widget_type": "flashcards",
+        "surface": "library.shell",
+        "kind": "shared",
         "path": [
-          "library-shell.archive-menu:flashcards#row-1"
+          "library-shell.archive-menu"
         ],
-        "reveal": "library-shell.archive-menu:flashcards#row-1",
-        "needs": [
-          "widget-on-stage"
-        ]
+        "reveal": "library-shell.archive-menu"
       },
       {
         "surface": "quiz.face",

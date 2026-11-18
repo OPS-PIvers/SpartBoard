@@ -1,11 +1,12 @@
 // Fixture rows for the Flashcards and Writing Assigned tabs in /library-managers-dev (dev only).
 import type {
   FlashcardAssignment,
-  FlashcardProgress,
   PeriodAccess,
   WritingAssignmentRecord,
   WritingAssignmentSession,
 } from '@/types';
+import type { AssignedResponse } from '@/utils/assignedStatus';
+import { flashcardAssignedResponse } from '@/utils/assignedAdapters';
 import type { WritingClassCounts } from '@/components/widgets/Writing/components/writingAssignedFixture';
 import { ASSIGNED_ROSTERS } from './assignedTabFixtures';
 
@@ -84,25 +85,22 @@ export const FLASHCARD_ASSIGNED_FIXTURES: FlashcardAssignment[] = [
 ];
 
 const progress = (classId: string, count: number, submitted: number) =>
-  Array.from(
-    { length: count },
-    (_, n): Pick<FlashcardProgress, 'classId' | 'submittedAt'> => ({
+  Array.from({ length: count }, (_, n) =>
+    flashcardAssignedResponse({
       classId,
       submittedAt: n < submitted ? now - 5 * MIN : undefined,
     })
   );
 
-export const FLASHCARD_ASSIGNED_PROGRESS: Record<
-  string,
-  Pick<FlashcardProgress, 'classId' | 'submittedAt'>[]
-> = {
-  verbs: [...progress(KEYS[0], 27, 25), ...progress(KEYS[1], 22, 14)],
-  vocab: progress(KEYS[2], 18, 0),
-  new: [],
-  single: progress(KEYS[1], 9, 0),
-  weather: KEYS.flatMap((k) => progress(k, 26, 26)),
-  numbers: [],
-};
+export const FLASHCARD_ASSIGNED_RESPONSES: Record<string, AssignedResponse[]> =
+  {
+    verbs: [...progress(KEYS[0], 27, 25), ...progress(KEYS[1], 22, 14)],
+    vocab: progress(KEYS[2], 18, 0),
+    new: [],
+    single: progress(KEYS[1], 9, 0),
+    weather: KEYS.flatMap((k) => progress(k, 26, 26)),
+    numbers: [],
+  };
 
 const wr = (
   id: string,

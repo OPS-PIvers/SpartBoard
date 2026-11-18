@@ -160,10 +160,13 @@ export interface UseGuidedLearningAssignmentsResult {
 
 /** Closed assignments listed before "Show older"; open ones are always listed in full. */
 export const GL_ASSIGNMENTS_PAGE_SIZE = 50;
+const GL_MARKED_LIMIT = 200;
 
 interface AssignmentsState {
   open: GuidedLearningAssignment[];
   recent: GuidedLearningAssignment[];
+  /** Rows closed through the Assigned tab, which may still wait on publishing past the recent page. */
+  marked: GuidedLearningAssignment[];
   recentLimit: number;
   openLoaded: boolean;
   recentLoaded: boolean;
@@ -181,6 +184,7 @@ const assignmentsSource: SharedSource<AssignmentsState> = {
   initial: {
     open: [],
     recent: [],
+    marked: [],
     recentLimit: GL_ASSIGNMENTS_PAGE_SIZE,
     openLoaded: false,
     recentLoaded: false,
@@ -208,6 +212,18 @@ const assignmentsSource: SharedSource<AssignmentsState> = {
         })),
       onError
     );
+    // Single-field range, so no composite index.
+    const markedUnsub = onSnapshot(
+      query(
+        ref,
+        where('closedAt', '>', 0),
+        orderBy('closedAt', 'desc'),
+        limit(GL_MARKED_LIMIT)
+      ),
+      (snap) => update((prev) => ({ ...prev, marked: toAssignments(snap) })),
+      (err) =>
+        console.error('[useGuidedLearningAssignments] Closed rows error:', err)
+    );
     let recentLimit = GL_ASSIGNMENTS_PAGE_SIZE;
     let recentUnsub = (): void => undefined;
     const listenRecent = () => {
@@ -233,6 +249,7 @@ const assignmentsSource: SharedSource<AssignmentsState> = {
     return () => {
       olderLoaders.delete(userId);
       openUnsub();
+      markedUnsub();
       recentUnsub();
     };
   },
@@ -256,8 +273,8 @@ export const useGuidedLearningAssignments = (
 ): UseGuidedLearningAssignmentsResult => {
   const shared = useSharedSubscription(assignmentsSource, userId ?? null);
   const assignments = useMemo(
-    () => mergeAssignments(shared.open, shared.recent),
-    [shared.open, shared.recent]
+    () => mergeAssignments(shared.open, [...shared.recent, ...shared.marked]),
+    [shared.open, shared.recent, shared.marked]
   );
   const loading = userId ? !(shared.openLoaded && shared.recentLoaded) : false;
   const error = userId ? shared.error : null;

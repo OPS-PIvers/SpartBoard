@@ -40,9 +40,7 @@ const forClass = (word: string, label: string | null) =>
 /** D14: the row's one plain status line, as coloured segments joined by " · ". */
 export function statusLineSegments(
   s: AssignedStatus,
-  nowMs: number,
-  /** False drops the turned-in counts, for work nobody turns in (a Flashcards study set). */
-  counts = true
+  nowMs: number
 ): LineSegment[] {
   const line = s.line;
   const named = (c: AssignedClass) => (s.singleLine ? null : c.label);
@@ -56,9 +54,7 @@ export function statusLineSegments(
         : ([[line.classLabel, line.submitted, line.total]] as const);
       const segs: LineSegment[] = openOnes.flatMap(([label, n, total]) => [
         { text: forClass('Open', label), tone: 'open' as const },
-        ...(counts
-          ? [{ text: turnedIn(n, total), tone: 'plain' as const, glued: true }]
-          : []),
+        { text: turnedIn(n, total), tone: 'plain' as const, glued: true },
       ]);
       const paused = s.classes.filter((x) => x.status === 'paused');
       for (const c of paused)
@@ -165,6 +161,7 @@ export function classDetail(
   c: AssignedClass,
   nowMs: number,
   bellLabel: string | null,
+  /** False where the kind can't tell which class a response came from. */
   counts = true
 ): string {
   const word = CLASS_STATUS_WORD[c.status];

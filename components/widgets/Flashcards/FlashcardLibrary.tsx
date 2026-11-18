@@ -95,8 +95,6 @@ interface FlashcardLibraryProps {
   classLifecycle?: FlashcardLifecycle;
   /** Bell periods and class sizes for the Assigned tab. */
   rosters?: ClassRoster[];
-  /** D17: the just-assigned row sits on top of Assigned. */
-  pinnedAssignmentId?: string | null;
 }
 
 const titleComparator = (
@@ -152,7 +150,6 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
   onAssignmentSettings,
   onBulkDelete,
   classLifecycle,
-  pinnedAssignmentId = null,
   rosters = [],
 }) => {
   // ASSIGNED_TAB.md D12/D19: Library and Assigned, behind the preview flag.
@@ -344,7 +341,6 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
         loading={assignmentsLoading}
         rosters={rosters}
         lifecycle={classLifecycle}
-        pinnedId={pinnedAssignmentId}
         onMonitor={onAssignmentMonitor ?? onAssignmentResults}
         onResults={onAssignmentResults}
         onPublish={onAssignmentPublishScores}
