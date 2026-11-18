@@ -276,6 +276,7 @@ async function commitQuizLifecycle(
     }
     tx.update(sessionRef, {
       ...sessionPatch,
+      ...(event.type === 'end' ? { revealedAnswers: deleteField() } : {}),
       ...clearPicks,
       ...clearPasses,
       ...(pauseSpans ? { pauseSpans } : {}),

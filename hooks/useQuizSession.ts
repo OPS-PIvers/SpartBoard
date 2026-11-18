@@ -95,9 +95,10 @@ import {
   buildTeacherSubmitUpdate,
   canTeacherSubmit,
 } from '@/utils/quizTeacherSubmit';
-import { acceptsStudents, endSessionPatch } from '@/utils/sessionLifecycle';
+import { acceptsStudents } from '@/utils/sessionLifecycle';
 import {
   checkedQuizSessionWrite,
+  endQuizPatch,
   quizSessionWrite,
   type QuizSessionEvent,
   type QuizSessionWrite,
@@ -2099,7 +2100,7 @@ export const useQuizSessionTeacher = (
     if (!sessionId) return;
     await updateDoc(
       doc(db, QUIZ_SESSIONS_COLLECTION, sessionId),
-      endSessionPatch('quiz', Date.now())
+      endQuizPatch(Date.now())
     );
     // Mark all active students as completed so their data is preserved in results.
     await finalizeAllResponses();

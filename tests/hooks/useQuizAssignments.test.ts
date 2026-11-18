@@ -677,7 +677,10 @@ describe('useQuizAssignments - reopenAssignment', () => {
     });
 
     expect(findAssignmentPatch()).toMatchObject({ status: 'inactive' });
-    expect(findSessionPatch()).toMatchObject({ status: 'ended' });
+    expect(findSessionPatch()).toMatchObject({
+      status: 'ended',
+      revealedAnswers: DELETE_FIELD_SENTINEL,
+    });
   });
 
   it('turns in unfinished work after End, like the monitor End', async () => {

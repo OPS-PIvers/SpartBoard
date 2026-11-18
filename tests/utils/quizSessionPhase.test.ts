@@ -337,15 +337,17 @@ describe('quizSessionWrite patches', () => {
     expect(
       (write?.patch.questionPhase as FieldValue).isEqual(deleteField())
     ).toBe(true);
+    expect(
+      (write?.patch.revealedAnswers as FieldValue).isEqual(deleteField())
+    ).toBe(true);
   });
 
-  it('writes the shared end patch for End', () => {
-    expect(
-      quizSessionWrite(SESSIONS.pausedQuestion, { type: 'end' }, NOW)
-    ).toEqual({
-      patch: { status: 'ended', endedAt: NOW, autoProgressAt: null },
-      finalize: true,
-    });
+  it('writes the shared end patch for End and drops the answer reveals', () => {
+    const write = quizSessionWrite(SESSIONS.pausedQuestion, { type: 'end' }, NOW);
+    expect(write?.finalize).toBe(true);
+    const { revealedAnswers, ...rest } = write?.patch ?? {};
+    expect(rest).toEqual({ status: 'ended', endedAt: NOW, autoProgressAt: null });
+    expect((revealedAnswers as FieldValue).isEqual(deleteField())).toBe(true);
   });
 
   it('arms auto-advance five seconds out, with review when podium is on', () => {
