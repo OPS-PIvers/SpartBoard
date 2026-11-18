@@ -8,6 +8,12 @@ import {
 } from '@testing-library/react';
 import { WritingPlayer } from '@/components/common/WritingPlayback';
 import { WritingLogWriter } from '@/utils/writingLog';
+import * as writingLog from '@/utils/writingLog';
+
+vi.mock('@/utils/writingLog', async (importOriginal) => {
+  const real = await importOriginal<typeof import('@/utils/writingLog')>();
+  return { ...real, summarizeWriting: vi.fn(real.summarizeWriting) };
+});
 
 const logOf = (steps: string[]) => {
   const w = new WritingLogWriter(undefined);
@@ -88,5 +94,15 @@ describe('WritingPlayer', () => {
     expect(screen.getByRole('slider')).toHaveValue('2');
     expect(screen.getByText(/^Session 2 starts /)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Skip pause' })).toBeNull();
+  });
+});
+
+describe('WritingPlayer stats cost (security #20)', () => {
+  it('never summarizes the log in facts mode', () => {
+    vi.mocked(writingLog.summarizeWriting).mockClear();
+    render(
+      <WritingPlayer log={logOf(['c', 'ca', 'cat'])} facts={{ marks: [] }} />
+    );
+    expect(writingLog.summarizeWriting).not.toHaveBeenCalled();
   });
 });

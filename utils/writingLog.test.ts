@@ -7,6 +7,7 @@ import {
   SESSION_GAP_MS,
   parseWritingLog,
   replacedWords,
+  withinEdits,
   summarizeWriting,
   writingSessions,
   textAfter,
@@ -250,5 +251,67 @@ describe('logs from the recorder that doubled paragraph breaks', () => {
     w.write('a\nb lost', 'a\nb lost!', 0, 'typed', 1e6);
     const s = summarizeWriting(parseWritingLog(w.value).edits);
     expect(s.restoredChars).toBeGreaterThan(0);
+  });
+});
+
+describe('bounded typo check (security #20)', () => {
+  const osa = (a: string, b: string): number => {
+    const d = Array.from({ length: a.length + 1 }, (_, i) =>
+      Array.from({ length: b.length + 1 }, (_, j) =>
+        i === 0 ? j : j === 0 ? i : 0
+      )
+    );
+    for (let i = 1; i <= a.length; i += 1)
+      for (let j = 1; j <= b.length; j += 1) {
+        d[i][j] = Math.min(
+          d[i - 1][j] + 1,
+          d[i][j - 1] + 1,
+          d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+        );
+        if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1])
+          d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+      }
+    return d[a.length][b.length];
+  };
+
+  it('agrees with the full matrix on random short words', () => {
+    let seed = 11;
+    const rand = (n: number): number => {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      return seed % n;
+    };
+    const word = (): string =>
+      Array.from({ length: rand(9) }, () => 'abc'[rand(3)]).join('');
+    for (let t = 0; t < 5000; t += 1) {
+      const a = word();
+      const b = word();
+      for (const max of [1, 2])
+        expect(withinEdits(a, b, max), `${a}/${b}/${max}`).toBe(
+          osa(a, b) <= max
+        );
+    }
+  });
+
+  it('answers quickly for 100,000-letter words', () => {
+    const start = Date.now();
+    const long = 'a'.repeat(100_000);
+    expect(withinEdits(long, `${long}b`, 2)).toBe(true);
+    expect(withinEdits(long, 'b'.repeat(100_000), 2)).toBe(false);
+    expect(withinEdits(long, 'a'.repeat(50_000), 2)).toBe(false);
+    expect(Date.now() - start).toBeLessThan(1000);
+  });
+
+  it('summarizes a 200,000-character rewrite in bounded time', () => {
+    const before = Array.from(
+      { length: 30_000 },
+      (_, i) => `wrd${i % 97}`
+    ).join(' ');
+    const after = Array.from({ length: 30_000 }, (_, i) => `xyz${i % 89}`).join(
+      ' '
+    );
+    const start = Date.now();
+    replacedWords(before, after);
+    replacedWords('a'.repeat(100_000), 'b'.repeat(100_000));
+    expect(Date.now() - start).toBeLessThan(2000);
   });
 });
