@@ -62,6 +62,7 @@ import {
   CalendarClock,
   MessageSquare,
   SlidersHorizontal,
+  LogIn,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -1630,6 +1631,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'retire',
     requires: 'universal-import',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Sign-in without the forced consent page, and a 30-day idle sign-out. Admin-only until Paul has used it on prod.
+  'quick-sign-in': {
+    label: 'Quick sign-in',
+    icon: LogIn,
+    description:
+      'Signing in only asks which Google account to use. Teachers stay signed in until they are away for 30 days.',
+    stage: 'preview',
+    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
