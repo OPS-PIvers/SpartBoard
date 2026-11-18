@@ -16637,6 +16637,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Results options menu button in Quiz results, by student",
     "scope": "field",
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "quiz-results-students",
     "routes": [
       {
         "surface": "quiz.student-results-control",
@@ -16651,6 +16653,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "quiz-results-students",
     "routes": [
       {
         "surface": "quiz.student-results-control",
@@ -16668,6 +16672,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "quiz-results-students",
     "routes": [
       {
         "surface": "quiz.student-results-control",
@@ -16685,6 +16691,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "quiz-results-students",
     "routes": [
       {
         "surface": "quiz.student-results-control",
@@ -76138,6 +76146,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "row_list": "video-activity-results-questions",
     "routes": [
       {
         "surface": "library.video-activity.results",

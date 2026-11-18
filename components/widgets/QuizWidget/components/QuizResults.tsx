@@ -5273,6 +5273,7 @@ const StudentsScreen: React.FC<{
                     {resultsActions && (
                       <StudentResultsControl
                         responseKey={getResponseDocKey(r)}
+                        tourRow={studentIndex + 1}
                         override={r.resultsOverride}
                         completed={r.status === 'completed'}
                         displayName={displayName}
@@ -5354,6 +5355,7 @@ const StudentsScreen: React.FC<{
                       <StudentResultsControl
                         layout="panel"
                         responseKey={getResponseDocKey(r)}
+                        tourRow={studentIndex + 1}
                         override={r.resultsOverride}
                         completed={r.status === 'completed'}
                         displayName={displayName}

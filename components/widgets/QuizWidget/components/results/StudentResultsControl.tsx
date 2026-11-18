@@ -94,6 +94,8 @@ export interface StudentResultsControlProps {
     followClass: TourAnchorAttrs;
   };
   dialogAnchors?: ShowResultsDialogAnchors;
+  /** 1-based position in the student list, so tour anchors are keyed by row. */
+  tourRow?: number;
 }
 
 /** Show, hide, or return one student's results to the class setting. */
@@ -113,7 +115,9 @@ export const StudentResultsControl: React.FC<StudentResultsControlProps> = ({
   tourScope,
   panelAnchors,
   dialogAnchors,
+  tourRow,
 }) => {
+  const tourKey = tourRow ? `row-${tourRow}` : key;
   const [dialogOpen, setDialogOpen] = useState(false);
   const [busy, setBusy] = useState<'hide' | 'clear' | 'unlock' | null>(null);
   const state = resultsOverrideState(override);
@@ -219,7 +223,7 @@ export const StudentResultsControl: React.FC<StudentResultsControlProps> = ({
           triggerProps={tourFieldAttr(
             'quiz-results.student-results-menu',
             'quiz',
-            key
+            tourKey
           )}
           triggerClassName={triggerClassName}
           triggerAnchor={triggerAnchor}
@@ -284,7 +288,7 @@ export const StudentResultsControl: React.FC<StudentResultsControlProps> = ({
           onClick={() => setDialogOpen(true)}
           disabled={busy !== null}
           {...(panelAnchors?.show ??
-            tourFieldAttr('quiz-results.student-show', 'quiz', key))}
+            tourFieldAttr('quiz-results.student-show', 'quiz', tourKey))}
           className={buttonCls}
           style={buttonStyle}
         >
@@ -298,7 +302,7 @@ export const StudentResultsControl: React.FC<StudentResultsControlProps> = ({
           onClick={() => void run('hide')}
           disabled={busy !== null}
           {...(panelAnchors?.hide ??
-            tourFieldAttr('quiz-results.student-hide', 'quiz', key))}
+            tourFieldAttr('quiz-results.student-hide', 'quiz', tourKey))}
           className={buttonCls}
           style={buttonStyle}
         >
@@ -317,7 +321,11 @@ export const StudentResultsControl: React.FC<StudentResultsControlProps> = ({
           disabled={busy !== null}
           title={FOLLOW_CLASS_TIP}
           {...(panelAnchors?.followClass ??
-            tourFieldAttr('quiz-results.student-follow-class', 'quiz', key))}
+            tourFieldAttr(
+              'quiz-results.student-follow-class',
+              'quiz',
+              tourKey
+            ))}
           className={buttonCls}
           style={buttonStyle}
         >
