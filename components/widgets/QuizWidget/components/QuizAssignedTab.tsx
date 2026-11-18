@@ -555,7 +555,7 @@ export const QuizAssignedRowHost: React.FC<QuizAssignedRowHostProps> = ({
   const mainLabel = legacy
     ? legacy.label
     : viewOnly ||
-        paper ||
+        (mainKinds && paper) ||
         (mainKinds && !mainKinds.includes(status.action.kind))
       ? null
       : mainActionLabel(status.action, needsGrading);

@@ -1,7 +1,15 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
-import { collection, onSnapshot } from 'firebase/firestore';
-import { Pause, Play, PowerOff, RotateCcw } from 'lucide-react';
+import {
+  collection,
+  doc,
+  FieldPath,
+  onSnapshot,
+  updateDoc,
+  writeBatch,
+} from 'firebase/firestore';
+import { CheckCircle2, Pause, Play, PowerOff, RotateCcw } from 'lucide-react';
 import { db } from '@/config/firebase';
+import { tourTypeAttr } from '@/config/tourAnchors';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import type {
@@ -489,6 +497,49 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
   );
 };
 
+/** Puts back what Move to Done changed, as the Quiz tab's Undo does (D10). */
+async function undoMoveToDone(
+  prev: OtherRun,
+  uid: string,
+  actions: {
+    collections: AssignmentClassCollections;
+    lifecycle: AssignmentLifecycle;
+  }
+): Promise<void> {
+  const { collections, lifecycle } = actions;
+  const ended = lifecycle.isEnded
+    ? lifecycle.isEnded(prev)
+    : runStatus(prev.status) === 'inactive';
+  if (!ended) {
+    await lifecycle.reopen(prev.id);
+    if (runStatus(prev.status) === 'active') await lifecycle.resume?.(prev.id);
+  }
+  const assignmentRef = doc(
+    db,
+    'users',
+    uid,
+    collections.assignmentCollection,
+    prev.id
+  );
+  const rows = Object.entries(prev.periodAccess ?? {});
+  if (rows.length > 0) {
+    const sessionRef = doc(
+      db,
+      collections.sessionCollection,
+      prev.sessionId ?? prev.id
+    );
+    const batch = writeBatch(db);
+    for (const ref of [sessionRef, assignmentRef])
+      for (const [key, row] of rows)
+        batch.update(ref, new FieldPath('periodAccess', key), row);
+    await batch.commit();
+  }
+  await updateDoc(assignmentRef, {
+    doneAt: prev.doneAt ?? null,
+    closedAt: prev.closedAt ?? null,
+  });
+}
+
 const NO_COLLECTIONS: AssignmentClassCollections = {
   sessionCollection: '',
   assignmentCollection: '',
@@ -526,6 +577,8 @@ const OtherRowHost: React.FC<OtherRowHostProps> = ({
 }) => {
   const { status, run, title } = row;
   const { addToast } = useDashboard();
+  const { user } = useAuth();
+  const uid = user?.uid;
   const classActions = useAssignmentClassActions(
     actions ? run : null,
     actions?.collections ?? NO_COLLECTIONS,
@@ -597,6 +650,27 @@ const OtherRowHost: React.FC<OtherRowHostProps> = ({
         onClick: () => onClassAction('reopen', null),
       });
   }
+  // D5/D10: a row whose grading the hub can't count still has a way out of Active.
+  if (actions && status.bucket === 'active' && status.line.kind !== 'view-only')
+    menuActions.push({
+      id: 'assigned-move-to-done',
+      label: 'Move to Done',
+      icon: CheckCircle2,
+      anchor: tourTypeAttr('library-shell.assigned-move-to-done', HUB),
+      onClick: () => {
+        const prev = run;
+        void runBusy(async () => {
+          await classActions.moveToDone();
+          addToast(`${title} moved to Done.`, 'success', {
+            label: 'Undo',
+            onClick: () => {
+              if (!uid) return;
+              void exec(() => undoMoveToDone(prev, uid, actions));
+            },
+          });
+        });
+      },
+    });
   for (const item of menuActions) item.disabled = busy;
 
   const acts =

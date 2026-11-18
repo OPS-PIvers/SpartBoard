@@ -182,4 +182,14 @@ describe('HubAssignedList', () => {
     expect(rowEl).not.toBeNull();
     expect(within(rowEl as HTMLElement).getByText('Volcano Video')).toBe(title);
   });
+
+  it('offers Move to Done on a kind with class actions, through the shared hook', async () => {
+    renderList([row('v1', 'video-activity')]);
+    fireEvent.click(screen.getByRole('button', { name: /more|actions|menu/i }));
+    await act(async () => {
+      fireEvent.click(screen.getByText('Move to Done'));
+      await Promise.resolve();
+    });
+    expect(classActions.moveToDone).toHaveBeenCalled();
+  });
 });

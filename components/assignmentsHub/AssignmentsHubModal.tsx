@@ -507,7 +507,7 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
                   />
                 )}
                 {classNames.length > 1 && (
-                  <div className="col-span-2">
+                  <div className={assignedOn ? undefined : 'col-span-2'}>
                     <AssignmentFilterSelect
                       label={t('assignmentsHub.filterByClass', {
                         defaultValue: 'Filter by class',
