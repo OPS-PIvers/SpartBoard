@@ -498,7 +498,7 @@ export const ImportOffersSection: React.FC<{
     <div className="space-y-4" data-testid="import-offers">
       <div className="space-y-1">
         <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
-          Ways in
+          Import options
         </p>
         <div className="divide-y divide-slate-200 border-y border-slate-200">
           {IMPORT_WAYS_IN.map((id) => (
