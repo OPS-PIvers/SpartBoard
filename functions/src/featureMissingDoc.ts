@@ -90,7 +90,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'reopen-selected-students',
   'course-agenda',
   'va-score-only-verdicts',
-  'schedule-default-schedule',
+  'widget-settings-defaults',
 ];
 
 // Mirror of `missingDocPublic: true` flags and their `defaultMinTier` (null = none); config/featureDefaults.test.ts keeps it in sync.

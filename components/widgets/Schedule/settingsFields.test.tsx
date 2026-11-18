@@ -72,9 +72,6 @@ const translate = (key: string, options?: Record<string, unknown>) => {
     noEvents: 'No events in this schedule.',
     buildingSchedules: 'Building schedules',
     noBuildingSchedules: 'No building schedules.',
-    saveAsDefault: 'Save as my default schedule',
-    defaultSaved: 'New Schedule widgets start with this schedule.',
-    removeDefault: 'Remove default',
   };
   let value = labels[leaf] ?? leaf;
   for (const [name, option] of Object.entries(options ?? {})) {
@@ -424,85 +421,5 @@ describe('Schedule settings drawer fields', () => {
       ['default-item-1', 'Morning Meeting'],
       ['default-item-2', 'Literacy'],
     ]);
-  });
-
-  describe('default schedule', () => {
-    const today = { ...item('pe', 'PE', '13:00'), oneOffDate: '2026-11-18' };
-    const config: ScheduleConfig = {
-      items: [],
-      schedules: [
-        schedule('day', 'My day', [
-          { ...item('lit', 'Literacy', '09:40'), done: true },
-          today,
-        ]),
-      ],
-    };
-    const saved = [
-      schedule('day', 'My day', [
-        {
-          id: 'lit',
-          task: 'Literacy',
-          startTime: '09:40',
-          mode: 'clock',
-          linkedWidgets: [],
-        },
-      ]),
-    ];
-
-    beforeEach(() => {
-      authState.savedWidgetPresets = {};
-    });
-
-    it('saves the schedule without done marks or today-only events', () => {
-      setup();
-      render(React.createElement(ScheduleListField, { ctx: makeCtx(config) }));
-      fireEvent.click(
-        screen.getByRole('button', { name: 'Save as my default schedule' })
-      );
-      expect(authState.saveWidgetPreset).toHaveBeenCalledWith('schedule', {
-        defaultSchedules: saved,
-      });
-      expect(
-        screen.queryByRole('button', { name: 'Remove default' })
-      ).toBeNull();
-    });
-
-    it('shows the saved state and removes the default', () => {
-      setup();
-      // Firestore echoes keys alphabetized; the match must not depend on order.
-      authState.savedWidgetPresets = {
-        schedule: {
-          defaultSchedules: JSON.parse(
-            JSON.stringify(
-              saved,
-              Object.keys(saved[0].items[0])
-                .concat('days', 'id', 'items', 'name')
-                .sort()
-            )
-          ) as DailySchedule[],
-        },
-      };
-      render(React.createElement(ScheduleListField, { ctx: makeCtx(config) }));
-      expect(
-        screen.getByText('New Schedule widgets start with this schedule.')
-      ).toBeTruthy();
-      expect(
-        screen.getByRole('button', { name: 'Save as my default schedule' })
-      ).toHaveProperty('disabled', true);
-      fireEvent.click(screen.getByRole('button', { name: 'Remove default' }));
-      expect(authState.saveWidgetPreset).toHaveBeenCalledWith('schedule', {
-        defaultSchedules: [],
-      });
-    });
-
-    it('hides the controls when the preview flag is off', () => {
-      setup();
-      const ctx = makeCtx(config);
-      vi.mocked(ctx.canAccessFeature).mockReturnValue(false);
-      render(React.createElement(ScheduleListField, { ctx }));
-      expect(
-        screen.queryByRole('button', { name: 'Save as my default schedule' })
-      ).toBeNull();
-    });
   });
 });

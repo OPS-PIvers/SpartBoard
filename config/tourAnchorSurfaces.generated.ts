@@ -1202,8 +1202,6 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'widget-settings.schedule.building-schedules': [
       'widgets.schedule.settings',
     ],
-    'widget-settings.schedule.save-default': ['widgets.schedule.settings'],
-    'widget-settings.schedule.remove-default': ['widgets.schedule.settings'],
     'widget-settings.scoreboard.confirm-reset': ['widgets.scoreboard.settings'],
     'widget-settings.scoreboard.cancel-reset': ['widgets.scoreboard.settings'],
     'widget-settings.scoreboard.layout': ['widgets.scoreboard.settings'],
@@ -3361,6 +3359,8 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'settings.clear-filter': ['board.settings-drawer'],
     'settings.style-defaults-save': ['board.settings-drawer'],
     'settings.style-defaults-reset': ['board.settings-drawer'],
+    'settings.settings-defaults-save': ['board.settings-drawer'],
+    'settings.settings-defaults-reset': ['board.settings-drawer'],
     'settings.window-background': ['board.settings-drawer'],
     'settings.window-font': ['board.settings-drawer'],
     'settings.window-text-size': ['board.settings-drawer'],

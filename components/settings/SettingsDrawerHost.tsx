@@ -7,6 +7,10 @@ import React, {
 } from 'react';
 import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 import { useTranslation } from 'react-i18next';
+import {
+  readSavedSettingsDefault,
+  SETTINGS_DEFAULT_PRESET_KEY,
+} from '@/utils/widgetSettingsDefaults';
 import { useAuth } from '@/context/useAuth';
 import { useToolLabel } from '@/hooks/useToolLabel';
 import {
@@ -156,6 +160,8 @@ export const SettingsDrawerHost: React.FC = () => {
     selectedBuildings,
     savedWidgetConfigs,
     saveWidgetDefault,
+    savedWidgetPresets,
+    saveWidgetPreset,
   } = useAuth();
   const dockPosition = useDockPosition();
   const toolLabel = useToolLabel();
@@ -463,6 +469,38 @@ export const SettingsDrawerHost: React.FC = () => {
     ]
   );
 
+  const settingsDefaultsOn = !!canAccessFeature?.('widget-settings-defaults');
+  const savedSettingsDefault = openType
+    ? readSavedSettingsDefault(savedWidgetPresets, openType)
+    : undefined;
+  const settingsDefaults = useMemo(
+    () =>
+      openType && settingsDefaultsOn
+        ? {
+            widgetDefaults: WIDGET_DEFAULTS[openType]?.config as
+              Record<string, unknown> | undefined,
+            buildingConfig: getAdminBuildingConfig(
+              openType,
+              featurePermissions,
+              selectedBuildings
+            ),
+            saved: savedSettingsDefault,
+            onSave: (config: Record<string, unknown>) =>
+              saveWidgetPreset(openType, {
+                [SETTINGS_DEFAULT_PRESET_KEY]: config,
+              }),
+          }
+        : undefined,
+    [
+      openType,
+      settingsDefaultsOn,
+      featurePermissions,
+      selectedBuildings,
+      savedSettingsDefault,
+      saveWidgetPreset,
+    ]
+  );
+
   const adminConfig = openType
     ? featurePermissions.find((p) => p.widgetType === openType)?.config
     : undefined;
@@ -499,6 +537,7 @@ export const SettingsDrawerHost: React.FC = () => {
         toolLabel={toolLabel}
         followLeader={followLeader}
         styleDefaults={styleDefaults}
+        settingsDefaults={settingsDefaults}
         headingRef={headingRef}
       />
     </>

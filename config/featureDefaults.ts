@@ -1704,11 +1704,11 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'schedule-default-schedule': {
-    label: 'Schedule: save as my default schedule',
-    icon: CalendarClock,
+  'widget-settings-defaults': {
+    label: 'Widgets: save settings as my default',
+    icon: SlidersHorizontal,
     description:
-      'Schedule settings can save a schedule. New Schedule widgets on any board start with it.',
+      "Each widget's Settings tab can save its settings. New copies of that widget on any board start with them.",
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

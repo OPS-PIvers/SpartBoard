@@ -5627,18 +5627,6 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     panel: true,
   },
-  'widget-settings.schedule.save-default': {
-    label: 'Save as my default schedule button in Schedule settings',
-    perWidget: true,
-    panel: true,
-    persists: true,
-  },
-  'widget-settings.schedule.remove-default': {
-    label: 'Remove default schedule button in Schedule settings',
-    perWidget: true,
-    panel: true,
-    persists: true,
-  },
   'widget-settings.scoreboard.confirm-reset': {
     label: 'Yes button on the Scoreboard reset prompt',
     perWidget: true,
@@ -14298,6 +14286,20 @@ export const TOUR_ANCHORS = {
   'settings.style-defaults-reset': {
     perWidget: true,
     label: 'Reset to my default button on the Style tab',
+    panel: true,
+    persists: true,
+    requires: 'settings-open',
+  },
+  'settings.settings-defaults-save': {
+    perWidget: true,
+    label: 'Save as my default button on the Settings tab',
+    panel: true,
+    persists: true,
+    requires: 'settings-open',
+  },
+  'settings.settings-defaults-reset': {
+    perWidget: true,
+    label: 'Reset to my default button on the Settings tab',
     panel: true,
     persists: true,
     requires: 'settings-open',

@@ -35,7 +35,6 @@ import {
   Collection,
   LinkedCollectionMode,
   CollectionSubstituteShareInput,
-  ScheduleConfig,
 } from '@/types';
 import {
   deleteField,
@@ -210,7 +209,10 @@ import {
   sanitizeAIConfig,
 } from '@/utils/ai_security';
 import { withTimerStartSeconds } from '@/utils/timeToolClock';
-import { withDefaultSchedules } from '@/components/widgets/Schedule/defaultSchedules';
+import {
+  cleanSavedSettingsDefault,
+  readSavedSettingsDefault,
+} from '@/utils/widgetSettingsDefaults';
 import { getAdminBuildingConfig as getAdminBuildingConfigPure } from '@/utils/adminBuildingConfig';
 import { seedMaterialsConfig } from '@/utils/materialsPreferences';
 import { isBetaUser } from '@/utils/betaAccess';
@@ -7236,28 +7238,31 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     [featurePermissions, selectedBuildings]
   );
 
-  // The building layer for a new widget, with the teacher's own timer length or default schedule over it.
+  // The building layer for a new widget, with the teacher's timer length and, for a plain add, their saved settings over it.
   const timerStartSeconds = timeToolStartSeconds ?? 0;
-  const savedDefaultSchedules = (
-    savedWidgetPresets?.schedule as Partial<ScheduleConfig> | undefined
-  )?.defaultSchedules;
+  const settingsDefaultsOn = !!canAccessFeature?.('widget-settings-defaults');
   const getNewWidgetBaseConfig = useCallback(
-    (type: WidgetType): Record<string, unknown> | undefined => {
+    (
+      type: WidgetType,
+      withMyDefault = false
+    ): Record<string, unknown> | undefined => {
       const building = getAdminBuildingConfig(type);
-      if (type === 'time-tool')
-        return withTimerStartSeconds(building, timerStartSeconds);
-      if (
-        type === 'schedule' &&
-        canAccessFeature?.('schedule-default-schedule')
-      )
-        return withDefaultSchedules(building, savedDefaultSchedules);
-      return building;
+      const base =
+        type === 'time-tool'
+          ? withTimerStartSeconds(building, timerStartSeconds)
+          : building;
+      if (!withMyDefault || !settingsDefaultsOn) return base;
+      const mine = cleanSavedSettingsDefault(
+        type,
+        readSavedSettingsDefault(savedWidgetPresets, type)
+      );
+      return mine ? { ...base, ...mine } : base;
     },
     [
       getAdminBuildingConfig,
       timerStartSeconds,
-      canAccessFeature,
-      savedDefaultSchedules,
+      settingsDefaultsOn,
+      savedWidgetPresets,
     ]
   );
 
@@ -7467,7 +7472,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       overrides: AddWidgetOverrides | undefined,
       opts: { transient?: boolean; exact?: boolean } = {}
     ): string => {
-      const adminConfig = getNewWidgetBaseConfig(type);
+      // A caller's own config (AI, tour, saved widget) is the content; the teacher's default only fills a plain add.
+      const adminConfig = getNewWidgetBaseConfig(type, !overrides?.config);
       const newWidgetId = overrides?.id ?? crypto.randomUUID();
       locallyAddedWidgetIds.current.add(newWidgetId);
       noteBoardItemPick(newWidgetId, type, overrides?.config);

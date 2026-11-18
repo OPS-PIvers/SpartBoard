@@ -23091,46 +23091,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "widget-settings.schedule.save-default",
-    "label": "Save as my default schedule button in Schedule settings",
-    "scope": "widget",
-    "panel": true,
-    "persists": true,
-    "routes": [
-      {
-        "surface": "widgets.schedule.settings",
-        "kind": "settings-drawer",
-        "widget_type": "schedule",
-        "path": [
-          "widget.settings-opener"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "widget-settings.schedule.remove-default",
-    "label": "Remove default schedule button in Schedule settings",
-    "scope": "widget",
-    "panel": true,
-    "persists": true,
-    "routes": [
-      {
-        "surface": "widgets.schedule.settings",
-        "kind": "settings-drawer",
-        "widget_type": "schedule",
-        "path": [
-          "widget.settings-opener"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "widget-settings.scoreboard.confirm-reset",
     "label": "Yes button on the Scoreboard reset prompt",
     "scope": "widget",
@@ -63308,6 +63268,46 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "settings.tab-style"
         ],
         "reveal": "settings.tab-style",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "settings.settings-defaults-save",
+    "label": "Save as my default button on the Settings tab",
+    "scope": "widget",
+    "panel": true,
+    "persists": true,
+    "requires": "settings-open",
+    "routes": [
+      {
+        "surface": "board.settings-drawer",
+        "kind": "settings-drawer",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "settings.settings-defaults-reset",
+    "label": "Reset to my default button on the Settings tab",
+    "scope": "widget",
+    "panel": true,
+    "persists": true,
+    "requires": "settings-open",
+    "routes": [
+      {
+        "surface": "board.settings-drawer",
+        "kind": "settings-drawer",
+        "path": [
+          "widget.settings-opener"
+        ],
         "needs": [
           "widget-on-stage"
         ]
