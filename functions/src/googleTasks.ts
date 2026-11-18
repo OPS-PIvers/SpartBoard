@@ -12,7 +12,7 @@ import {
   refreshGoogleAccessTokenForUid,
 } from './googleOAuth';
 import { assertViewAsAllowed } from './viewAsGuard';
-import { isGlobalFeatureGranted } from './quizMediaArchive';
+import { isGlobalFeatureGranted } from './featureGrant';
 import {
   GOOGLE_TASKS_FEATURE_ID,
   GOOGLE_TASKS_LIST_TITLE,

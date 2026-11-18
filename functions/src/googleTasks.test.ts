@@ -116,7 +116,7 @@ vi.mock('firebase-functions/v2/https', () => {
 });
 vi.mock('./viewAsGuard', () => ({ assertViewAsAllowed: vi.fn() }));
 const granted = vi.fn(async () => true);
-vi.mock('./quizMediaArchive', () => ({
+vi.mock('./featureGrant', () => ({
   isGlobalFeatureGranted: (...args: unknown[]) => granted(...(args as [])),
 }));
 vi.mock('./googleOAuth', () => ({

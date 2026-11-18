@@ -27,7 +27,7 @@ const state = vi.hoisted(() => ({
   sessionQuery: [] as unknown[],
 }));
 
-vi.mock('../quizMediaArchive', () => ({
+vi.mock('../featureGrant', () => ({
   isGlobalFeatureGranted: () => Promise.resolve(state.granted),
 }));
 

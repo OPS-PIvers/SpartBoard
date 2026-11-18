@@ -23,7 +23,7 @@ vi.mock('../classlinkShared', () => ({ ALLOWED_ORIGINS: [] }));
 vi.mock('../firebaseAdmin', () => ({ firestore: () => ({}) }));
 const isGlobalFeatureGranted =
   vi.fn<(...args: unknown[]) => Promise<boolean>>();
-vi.mock('../quizMediaArchive', () => ({
+vi.mock('../featureGrant', () => ({
   isGlobalFeatureGranted: (...args: unknown[]) =>
     isGlobalFeatureGranted(...args),
 }));

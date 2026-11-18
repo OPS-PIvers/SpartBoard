@@ -51,7 +51,7 @@ vi.mock('./miniAppTools', () => ({
   miniAppResultsOn: mocks.resultsOn,
 }));
 vi.mock('./resultsTools', () => ({ registerResultsTools: vi.fn() }));
-vi.mock('../quizMediaArchive', () => ({
+vi.mock('../featureGrant', () => ({
   isGlobalFeatureGranted: mocks.speakGranted,
 }));
 vi.mock('../pronunciation/lookup', async (importOriginal) => ({

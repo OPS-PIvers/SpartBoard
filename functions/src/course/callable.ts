@@ -40,7 +40,7 @@ const liveDeps: CourseDeps = {
   },
   featureGranted: async (db, email, uid) => {
     // Lazy: quizMediaArchive pulls heavy deps this callable otherwise doesn't need.
-    const { isGlobalFeatureGranted } = await import('../quizMediaArchive');
+    const { isGlobalFeatureGranted } = await import('../featureGrant');
     return isGlobalFeatureGranted(db, COURSE_FEATURE_ID, email, uid);
   },
 };

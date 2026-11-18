@@ -196,7 +196,7 @@ export async function speakGranted(
   email: string | null,
   uid: string
 ): Promise<boolean> {
-  const { isGlobalFeatureGranted } = await import('../quizMediaArchive');
+  const { isGlobalFeatureGranted } = await import('../featureGrant');
   return isGlobalFeatureGranted(db, FLASHCARDS_SPEAK_FEATURE_ID, email, uid);
 }
 

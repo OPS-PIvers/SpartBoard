@@ -298,7 +298,7 @@ function defaultDeps(db: Firestore): WritingDeps {
   return {
     isAdmin: (token) => resolveCallerIsAdmin(db, token),
     allowed: async (token, uid) => {
-      const { isGlobalFeatureGranted } = await import('./quizMediaArchive');
+      const { isGlobalFeatureGranted } = await import('./featureGrant');
       const ai = await db
         .collection('global_permissions')
         .doc('gemini-functions')

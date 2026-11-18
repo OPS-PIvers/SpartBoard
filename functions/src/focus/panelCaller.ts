@@ -7,7 +7,7 @@ import {
   fetchTokenInfo,
   verifiedTokenEmail,
   type ExtensionDeps,
-} from '../webTourExtension';
+} from '../extensionAuth';
 import type { FocusCaller } from './sessions';
 
 const SIGN_IN = 'Sign in to Chrome with your Orono account.';
