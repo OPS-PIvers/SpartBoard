@@ -82,26 +82,30 @@ export interface SkippedSheet {
   reason: SkipReason;
 }
 
-const bigrams = (s: string) => {
+const grams = (s: string) => {
   const chars = Array.from(s);
-  if (chars.length < 2) return new Set(chars);
-  return new Set(chars.slice(1).map((c, i) => chars[i] + c));
+  return new Set([...chars, ...chars.slice(1).map((c, i) => chars[i] + c)]);
 };
 
-/** Character-bigram Dice similarity of two normalized texts, 0..1. */
+/** Dice similarity of two normalized texts over their characters and character pairs, 0..1. */
 function similarity(a: string, b: string): number {
-  const x = bigrams(a);
-  const y = bigrams(b);
+  const x = grams(a);
+  const y = grams(b);
   let shared = 0;
   for (const g of x) if (y.has(g)) shared++;
   return x.size + y.size === 0 ? 0 : (2 * shared) / (x.size + y.size);
 }
 
+/** Bare letters, in any order: a paper stub's choices carry no wording. */
 const isLetterStub = (order: readonly string[]) =>
-  order.every((text, i) => text.trim().toUpperCase() === 'ABCDEFGH'[i]);
+  order.length > 0 &&
+  order
+    .map((t) => t.trim().toUpperCase())
+    .sort()
+    .join('') === 'ABCDEFGH'.slice(0, order.length);
 
 // Keep in sync with isRewordOnly in functions/src/paperRewordSync.ts.
-/** True when every choice kept its letter and only its wording changed (a letter stub has no wording to compare). */
+/** True when every choice kept its letter: unchanged, or new text not closer to another old choice (a letter stub has no wording to compare). */
 export function isRewordOnly(
   recorded: readonly string[],
   current: readonly string[]
@@ -116,7 +120,7 @@ export function isRewordOnly(
     if (was.includes(text) || now.includes(was[i])) return false;
     if (stub) return true;
     const own = similarity(text, was[i]);
-    return own > 0 && was.every((w, j) => j === i || similarity(text, w) < own);
+    return was.every((w, j) => j === i || similarity(text, w) <= own);
   });
 }
 
@@ -355,7 +359,13 @@ export function applyKeyToQuiz(
   const questions = quiz.questions.map((q) => {
     const choice = key[q.id];
     if (choice === null || choice === undefined) return q;
-    const options = printedOptionsFor(batch, q, q.id);
+    let options = printedOptionsFor(batch, q, q.id);
+    const current = rowsFromQuestion(q).map((r) => r.text);
+    // Printed text the quiz no longer has: keep its current wording by position, or leave the question alone.
+    if (!options.every((t) => current.includes(t))) {
+      if (isLetterStub(options) || !isRewordOnly(options, current)) return q;
+      options = current;
+    }
     const correct = options[choice];
     if (correct === undefined) return q;
     // Keep each option where the sheet lettered it, so a reprint letters it the same way.

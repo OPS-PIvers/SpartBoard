@@ -114,6 +114,13 @@ describe('isRewordOnly', () => {
   it('accepts any new wording over a letter stub', () => {
     expect(isRewordOnly(['A', 'B'], ['one', 'two'])).toBe(true);
   });
+  it('accepts short or templated choices the similarity cannot separate', () => {
+    expect(isRewordOnly(['2', '4'], ['3', '5'])).toBe(true);
+    expect(isRewordOnly(['12 cm', '15 cm'], ['13 cm', '16 cm'])).toBe(true);
+  });
+  it('accepts any new wording over a letter stub in any order', () => {
+    expect(isRewordOnly(['B', 'A', 'C'], ['one', 'two', 'three'])).toBe(true);
+  });
   it('accepts a typo fix, a plural and a tie the word count could not break', () => {
     expect(isRewordOnly(['Pariss', 'Lyon'], ['Paris', 'Lyon'])).toBe(true);
     expect(isRewordOnly(['cat', 'dog'], ['cats', 'dogs'])).toBe(true);
@@ -367,6 +374,29 @@ describe('key sheet', () => {
       incorrectAnswers: ['Paris', 'Lyon'],
     });
     expect(keyed.questions[2]).toEqual(authored.questions[2]);
+  });
+
+  it('keeps the quiz wording when the printed text was edited since', () => {
+    const edited = {
+      ...mc('q1', 'Paris, France', ['Lyon', 'Nice']),
+      optionOrder: [2, 0, 1],
+    };
+    const keyed = applyKeyToQuiz(
+      { ...authored, questions: [edited] },
+      { ...batch, choiceOrder: { q1: ['Nice', 'Paris', 'Lyon'] } },
+      { q1: 1 },
+      5
+    );
+    expect(keyed.questions[0].correctAnswer).toBe('Paris, France');
+    expect(keyed.questions[0].incorrectAnswers).toEqual(['Nice', 'Lyon']);
+    const moved = mc('q1', 'Lyon', ['Nice', 'Rome']);
+    const skipped = applyKeyToQuiz(
+      { ...authored, questions: [moved] },
+      { ...batch, choiceOrder: { q1: ['Nice', 'Paris', 'Lyon'] } },
+      { q1: 1 },
+      5
+    );
+    expect(skipped.questions[0]).toEqual(moved);
   });
 
   it("keeps a reprint lettered like the teacher's own paper after a key sheet", () => {

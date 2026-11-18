@@ -127,6 +127,13 @@ describe('isRewordOnly', () => {
   it('accepts new wording at the same letters', () => {
     expect(isRewordOnly(['A', 'B'], ['one', 'two'])).toBe(true);
   });
+  it('accepts short or templated choices the similarity cannot separate', () => {
+    expect(isRewordOnly(['2', '4'], ['3', '5'])).toBe(true);
+    expect(isRewordOnly(['12 cm', '15 cm'], ['13 cm', '16 cm'])).toBe(true);
+  });
+  it('accepts any new wording over a letter stub in any order', () => {
+    expect(isRewordOnly(['B', 'A', 'C'], ['one', 'two', 'three'])).toBe(true);
+  });
   it('accepts a typo fix, a plural and a tie the word count could not break', () => {
     expect(isRewordOnly(['Pariss', 'Lyon'], ['Paris', 'Lyon'])).toBe(true);
     expect(isRewordOnly(['cat', 'dog'], ['cats', 'dogs'])).toBe(true);
