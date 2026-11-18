@@ -1,0 +1,10 @@
+{
+  "codebases": {
+    "admin": [],
+    "content": [],
+    "gradebook": [],
+    "integrations": [],
+    "plc": [],
+    "student": []
+  }
+}
