@@ -1,9 +1,10 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { BookOpen, Lock, PauseCircle } from 'lucide-react';
+import { Lock, PauseCircle } from 'lucide-react';
 import type { GuidedLearningSession } from '@/types';
 import { effectivePeriodState, nextScheduledOpen } from '@/utils/periodAccess';
+import { GuidedLearningScreenShell } from './GuidedLearningScreenShell';
 
 interface GuidedLearningPeriodLockedScreenProps {
   session: GuidedLearningSession;
@@ -46,31 +47,29 @@ export const GuidedLearningPeriodLockedScreen: React.FC<
 > = ({ session, periodKeys, now }) => {
   const { t } = useTranslation();
   return (
-    <div className="h-screen h-dvh overflow-y-auto bg-slate-950">
-      <div className="min-h-full flex items-center justify-center p-6">
-        <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
-          <div className="flex items-center justify-center gap-2 mb-6">
-            <BookOpen className="w-4 h-4 text-indigo-400" aria-hidden />
-            <span className="text-slate-300 text-sm font-semibold truncate">
-              {session.title}
-            </span>
-          </div>
-          <Lock
-            className="w-12 h-12 text-indigo-400 mx-auto mb-4"
-            aria-hidden
-          />
-          <p className="inline-block px-3 py-1 mb-4 rounded-full bg-indigo-500/15 text-indigo-300 text-sm font-bold">
-            {lockedStateLabel(session, periodKeys, now, t)}
-          </p>
-          <h1 className="text-white font-bold text-xl mb-2">
-            {t('glStudent.locked.title')}
-          </h1>
-          <p className="text-slate-300 text-sm">{t('glStudent.locked.body')}</p>
-        </div>
-      </div>
-    </div>
+    <GuidedLearningScreenShell>
+      <LockMark />
+      <p className="truncate text-sm font-medium text-slate-500">
+        {session.title}
+      </p>
+      <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
+        {t('glStudent.locked.title')}
+      </h1>
+      <p className="mt-2 text-sm font-semibold text-brand-blue-primary">
+        {lockedStateLabel(session, periodKeys, now, t)}
+      </p>
+      <p className="mt-3 text-sm text-slate-600">
+        {t('glStudent.locked.body')}
+      </p>
+    </GuidedLearningScreenShell>
   );
 };
+
+const LockMark: React.FC = () => (
+  <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-full bg-brand-blue-lighter">
+    <Lock className="h-6 w-6 text-brand-blue-primary" aria-hidden />
+  </div>
+);
 
 /** Shown once the session's close time has passed and this student hasn't submitted. */
 export const GuidedLearningClosedScreen: React.FC<{
@@ -78,25 +77,15 @@ export const GuidedLearningClosedScreen: React.FC<{
 }> = ({ session }) => {
   const { t } = useTranslation();
   return (
-    <div className="h-screen h-dvh overflow-y-auto bg-slate-950">
-      <div className="min-h-full flex items-center justify-center p-6">
-        <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
-          <div className="flex items-center justify-center gap-2 mb-6">
-            <BookOpen className="w-4 h-4 text-indigo-400" aria-hidden />
-            <span className="text-slate-300 text-sm font-semibold truncate">
-              {session.title}
-            </span>
-          </div>
-          <Lock
-            className="w-12 h-12 text-indigo-400 mx-auto mb-4"
-            aria-hidden
-          />
-          <h1 className="text-white font-bold text-xl">
-            {t('glStudent.closed.title')}
-          </h1>
-        </div>
-      </div>
-    </div>
+    <GuidedLearningScreenShell>
+      <LockMark />
+      <p className="truncate text-sm font-medium text-slate-500">
+        {session.title}
+      </p>
+      <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
+        {t('glStudent.closed.title')}
+      </h1>
+    </GuidedLearningScreenShell>
   );
 };
 
