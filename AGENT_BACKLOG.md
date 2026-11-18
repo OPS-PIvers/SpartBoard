@@ -250,6 +250,7 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
   <details><summary>Branches to delete (179, checked 2026-11-01)</summary>
 
 claude/project-thread-kejiop (#6236; this docs PR reuses it, delete after it merges)
+claude/project-thread-6nd30t (Mini Apps and Guided Learning Assigned tabs; delete after it merges)
 claude/assigned-tab-pr0 (#6216)
 claude/assigned-tab-reopen-turnin (#6225)
 claude/assigned-tab-quiz-window (#6233)

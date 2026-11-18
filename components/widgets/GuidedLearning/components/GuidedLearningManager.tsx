@@ -49,8 +49,10 @@ import { EDIT_CLASSES_LABEL } from '@/components/common/library/AssignmentClasse
 import { canEditAssignmentClasses } from '@/utils/assignmentClassEdit';
 import type {
   AssignmentMode,
+  ClassRoster,
   GuidedLearningAssignment,
   GuidedLearningBuildingSetIndex,
+  GuidedLearningResponse,
   GuidedLearningSet,
   GuidedLearningSetMetadata,
 } from '@/types';
@@ -64,6 +66,13 @@ import { LibraryItemCard } from '@/components/common/library/LibraryItemCard';
 import { ViewCountBadge } from '@/components/common/library/ViewCountBadge';
 import { useSessionViewCount } from '@/hooks/useSessionViewCount';
 import { useAuth } from '@/context/useAuth';
+import { RunAssignedTab } from '@/components/common/library/assigned/RunAssignedTab';
+import type { AssignmentLifecycle } from '@/hooks/useAssignmentClassActions';
+import {
+  guidedLearningAssignedInput,
+  guidedLearningAssignedResponse,
+} from '@/utils/assignedAdapters';
+import { GL_CLASS_COLLECTIONS } from '../utils/glClassLifecycle';
 import { AuthContext } from '@/context/AuthContextValue';
 import { useDialog } from '@/context/useDialog';
 import { FolderSidebar } from '@/components/common/library/FolderSidebar';
@@ -300,7 +309,14 @@ export interface GuidedLearningManagerProps {
   assignmentMode?: AssignmentMode;
   /** Surfaces a failed folder move (drag or bulk) as a toast. */
   onError?: (message: string) => void;
+  /** Whole-run writes the Assigned tab drives (ASSIGNED_TAB.md D21); unset keeps the old tabs. */
+  classLifecycle?: AssignmentLifecycle | null;
+  rosters?: readonly ClassRoster[];
+  /** Bumped after an assign; opens the Assigned tab (D17). */
+  assignedFocusCounter?: number;
 }
+
+const NO_ROSTERS: readonly ClassRoster[] = [];
 
 /* ─── Sort / filter config ────────────────────────────────────────────────── */
 
@@ -498,6 +514,9 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   onAssignmentUnpublishScores,
   assignmentMode = 'submissions',
   onError,
+  classLifecycle,
+  rosters = NO_ROSTERS,
+  assignedFocusCounter = 0,
 }) => {
   const { t } = useTranslation();
   // Only admins can move a personal tour into the Help Center, so teachers keep theirs listed.
@@ -516,7 +535,18 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   const aiAuthoring =
     !!auth?.canAccessFeature('gemini-functions') &&
     !!auth?.canAccessFeature('guided-learning-ai');
-  const [tab, setTab] = React.useState<LibraryTab>('library');
+  const [tabState, setTab] = React.useState<LibraryTab>('library');
+  // ASSIGNED_TAB.md D12/D19: Library and Assigned, behind the preview flag.
+  const assignedOn =
+    classLifecycle !== undefined && !!auth?.canAccessFeature('assigned-tab');
+  const tab: LibraryTab =
+    assignedOn && tabState === 'archive' ? 'active' : tabState;
+  const [seenAssignedFocus, setSeenAssignedFocus] =
+    React.useState(assignedFocusCounter);
+  if (assignedFocusCounter !== seenAssignedFocus) {
+    setSeenAssignedFocus(assignedFocusCounter);
+    if (assignedOn) setTab('active');
+  }
 
   // ─── Bulk selection (Step 8) ────────────────────────────────────────────
   const selection = useLibrarySelection();
@@ -1135,64 +1165,14 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
 
   /* ─── Assignment cards (used in active + archive tabs) ──────────────────── */
 
-  const renderAssignmentCard = (
+  /** The row menu shared by the old assignment tabs and the Assigned tab. */
+  const assignmentSecondary = (
     a: GuidedLearningAssignment,
-    mode: 'active' | 'archive',
-    index?: number
-  ): React.ReactElement => {
-    // Matches the path form produced by useGuidedLearningSession.createSession
-    // (App.tsx routes the student app on pathname.startsWith('/guided-learning/')).
-    const studentLink = `${window.location.origin}/guided-learning/${a.sessionId}`;
-
-    // Per-assignment mode is frozen at creation. View-only entries get
-    // share-flavored labels so teachers can distinguish them at a glance,
-    // matching the badge shape Quiz / VA / Mini App use.
+    mode: 'active' | 'archive'
+  ): LibraryMenuAction[] => {
     const isViewOnly = a.assignmentMode === 'view-only';
-    const badges: LibraryBadge[] =
-      mode === 'active'
-        ? [
-            {
-              label: isViewOnly ? 'Shared' : 'Live',
-              tone: 'success',
-              dot: true,
-            },
-          ]
-        : [
-            {
-              // Single-word "Closed" reads cleaner and matches the other
-              // assignment widgets' archive labels for view-only shares
-              // (cf. MiniAppManager.statusBadge / QuizManager.resolveStatus).
-              label: isViewOnly ? 'Closed' : 'Archived',
-              tone: 'neutral',
-            },
-          ];
-
-    if (a.source === 'building') {
-      badges.push({ label: 'Building', tone: 'warn' });
-    }
-    if (a.targetSkippedCount) {
-      badges.push({
-        label: `${a.targetSkippedCount} skipped`,
-        tone: 'warn',
-      });
-    }
-
-    const subtitle = (
-      <span className="inline-flex items-center gap-2">
-        <span>
-          {mode === 'active' ? 'Assigned ' : 'Archived '}
-          {formatDate(
-            mode === 'active' ? a.createdAt : (a.archivedAt ?? a.updatedAt)
-          )}
-        </span>
-        {isViewOnly && <ViewCountSubtitle sessionId={a.sessionId} />}
-      </span>
-    );
-
-    // For view-only shares the card already exposes Copy link as a primary
-    // action (Shared tab) or surfaces no primary at all (archive tab) — the
-    // duplicate "Copy student link" kebab item is just visual noise. The
-    // "Open student link" affordance stays useful as a quick preview path.
+    // The path form useGuidedLearningSession.createSession produces.
+    const studentLink = `${window.location.origin}/guided-learning/${a.sessionId}`;
     const secondary: LibraryMenuAction[] = [];
     if (!isViewOnly) {
       secondary.push({
@@ -1289,6 +1269,65 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       destructive: true,
       onClick: () => onAssignmentDelete(a),
     });
+
+    return secondary;
+  };
+
+  const renderAssignmentCard = (
+    a: GuidedLearningAssignment,
+    mode: 'active' | 'archive',
+    index?: number
+  ): React.ReactElement => {
+    // Per-assignment mode is frozen at creation. View-only entries get
+    // share-flavored labels so teachers can distinguish them at a glance,
+    // matching the badge shape Quiz / VA / Mini App use.
+    const isViewOnly = a.assignmentMode === 'view-only';
+    const badges: LibraryBadge[] =
+      mode === 'active'
+        ? [
+            {
+              label: isViewOnly ? 'Shared' : 'Live',
+              tone: 'success',
+              dot: true,
+            },
+          ]
+        : [
+            {
+              // Single-word "Closed" reads cleaner and matches the other
+              // assignment widgets' archive labels for view-only shares
+              // (cf. MiniAppManager.statusBadge / QuizManager.resolveStatus).
+              label: isViewOnly ? 'Closed' : 'Archived',
+              tone: 'neutral',
+            },
+          ];
+
+    if (a.source === 'building') {
+      badges.push({ label: 'Building', tone: 'warn' });
+    }
+    if (a.targetSkippedCount) {
+      badges.push({
+        label: `${a.targetSkippedCount} skipped`,
+        tone: 'warn',
+      });
+    }
+
+    const subtitle = (
+      <span className="inline-flex items-center gap-2">
+        <span>
+          {mode === 'active' ? 'Assigned ' : 'Archived '}
+          {formatDate(
+            mode === 'active' ? a.createdAt : (a.archivedAt ?? a.updatedAt)
+          )}
+        </span>
+        {isViewOnly && <ViewCountSubtitle sessionId={a.sessionId} />}
+      </span>
+    );
+
+    // For view-only shares the card already exposes Copy link as a primary
+    // action (Shared tab) or surfaces no primary at all (archive tab) — the
+    // duplicate "Copy student link" kebab item is just visual noise. The
+    // "Open student link" affordance stays useful as a quick preview path.
+    const secondary = assignmentSecondary(a, mode);
 
     // Primary action policy:
     //   - View-only + active: Copy link (Shared tab — link is the entire UX).
@@ -1454,6 +1493,59 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     );
   };
 
+  const renderAssignedTab = () => (
+    <RunAssignedTab<GuidedLearningAssignment>
+      assignments={assignments}
+      loading={assignmentsLoading}
+      rosters={rosters}
+      collections={GL_CLASS_COLLECTIONS}
+      lifecycle={classLifecycle ?? null}
+      tourWidgetType="guided-learning"
+      emptyTitle="Nothing active"
+      emptySub={
+        isViewOnly
+          ? 'Share a set from the Library.'
+          : 'Assign a set from the Library.'
+      }
+      title={(a) => a.setTitle}
+      viewOnly={(a) => a.assignmentMode === 'view-only'}
+      toInput={guidedLearningAssignedInput}
+      responsesPath={(a) => `guided_learning_sessions/${a.sessionId}/responses`}
+      toResponses={(_a, docs) =>
+        docs.map((d) =>
+          guidedLearningAssignedResponse(d as GuidedLearningResponse)
+        )
+      }
+      onResults={onAssignmentOpenResults}
+      onPublish={
+        onAssignmentPublishScores
+          ? (a) => void onAssignmentPublishScores(a)
+          : undefined
+      }
+      fallbackPrimary={(a) => ({
+        label: 'Copy link',
+        onClick: () => onAssignmentCopyLink(a),
+      })}
+      menu={(a) =>
+        assignmentSecondary(a, a.status === 'archived' ? 'archive' : 'active')
+      }
+      replacedMenuIds={['archive', 'unarchive']}
+      footer={
+        hasOlderAssignments && onShowOlderAssignments ? (
+          <button
+            type="button"
+            {...tourAttr('gl-manager.show-older')}
+            onClick={onShowOlderAssignments}
+            className="self-center rounded-lg px-3 py-1.5 font-semibold text-brand-blue-primary hover:bg-slate-100"
+            style={{ fontSize: 'min(12px, 4cqmin)' }}
+          >
+            {t('glAssignments.showOlder')}
+          </button>
+        ) : undefined
+      }
+    />
+  );
+
   const renderAssignmentTab = (mode: 'active' | 'archive') => {
     if (assignmentsLoading) {
       return (
@@ -1595,10 +1687,12 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       folderViewMode={view.state.viewMode}
       tab={tab}
       onTabChange={setTab}
+      assignedLayout={assignedOn}
       counts={{
         library: allEntries.length,
-        active: activeAssignments.length,
-        archive: archivedAssignments.length,
+        // The Assigned tab's Active section depends on grading, so it shows no count.
+        active: assignedOn ? undefined : activeAssignments.length,
+        archive: assignedOn ? undefined : archivedAssignments.length,
       }}
       tabLabels={isViewOnly ? { active: 'Shared' } : undefined}
       primaryAction={tab === 'library' ? primaryAction : undefined}
@@ -1680,7 +1774,8 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       }
     >
       {tab === 'library' && renderLibraryTab()}
-      {tab === 'active' && renderAssignmentTab('active')}
+      {tab === 'active' && assignedOn && renderAssignedTab()}
+      {tab === 'active' && !assignedOn && renderAssignmentTab('active')}
       {tab === 'archive' && renderAssignmentTab('archive')}
     </LibraryShell>
   );

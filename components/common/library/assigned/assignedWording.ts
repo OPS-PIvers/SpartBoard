@@ -160,13 +160,15 @@ export const CLASS_STATUS_WORD: Record<ClassStatus, string> = {
 export function classDetail(
   c: AssignedClass,
   nowMs: number,
-  bellLabel: string | null
+  bellLabel: string | null,
+  /** False where the kind can't tell which class a response came from. */
+  counts = true
 ): string {
   const word = CLASS_STATUS_WORD[c.status];
   if (c.status === 'scheduled' && c.opensAt != null)
     return `${word} · opens ${formatOpensAt(c.opensAt, nowMs)}`;
   if (c.status === 'ready') return bellLabel ? `${word} · ${bellLabel}` : word;
-  return `${word} · ${turnedIn(c.submitted, c.total)}`;
+  return counts ? `${word} · ${turnedIn(c.submitted, c.total)}` : word;
 }
 
 /** Per-class buttons in the expanded row (D6). */

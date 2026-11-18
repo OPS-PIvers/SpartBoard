@@ -6,6 +6,7 @@ import React, {
   useEffect,
   useCallback,
   useLayoutEffect,
+  useMemo,
 } from 'react';
 import {
   DEFAULT_MINI_APP_RESULTS,
@@ -17,6 +18,8 @@ import {
 import { createPortal } from 'react-dom';
 import { useDashboard } from '@/context/useDashboard';
 import { useBusyIdSet } from '@/hooks/useBusyIdSet';
+import { useSetAssignmentTargets } from '@/hooks/useSetAssignmentTargets';
+import { miniAppLifecycle } from './utils/miniAppClassLifecycle';
 import {
   AssignmentMode,
   MiniAppItem,
@@ -524,6 +527,21 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   const activeAppHasSubmissions =
     !!activeApp &&
     assignments.some((a) => a.appId === activeApp.id && a.mode !== 'view-only');
+  const { setAssignmentTargets: setTargets } = useSetAssignmentTargets();
+  const uid = user?.uid;
+  // ASSIGNED_TAB.md D21: the whole-run writes the Assigned tab's class actions drive.
+  const classLifecycle = useMemo(
+    () =>
+      uid
+        ? miniAppLifecycle(uid, {
+            endAssignment,
+            reactivateAssignment,
+            setAssignmentTargets: setTargets,
+          })
+        : null,
+    [uid, endAssignment, reactivateAssignment, setTargets]
+  );
+  const assignedTabOn = canAccessFeature('assigned-tab');
   const [editingClasses, setEditingClasses] =
     useState<MiniAppAssignment | null>(null);
   const [monitoring, setMonitoring] = useState<{
@@ -713,6 +731,8 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
           closeAt: periodGate ? null : (expandedTargeting.closeAt ?? null),
           ...(periodGate ? { periodGate } : {}),
         });
+        // D17: the teacher lands on Assigned with the new row on top.
+        if (assignedTabOn) setManagerTab('active');
       } catch (archiveErr) {
         console.warn(
           '[MiniAppWidget] Failed to archive assignment',
@@ -2013,6 +2033,8 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               }
               assignmentMode={assignmentMode}
               readOnly={isActiveBoardReadOnly}
+              classLifecycle={classLifecycle}
+              rosters={rosters}
             />
             {/* Assign modal */}
             {assignDialog}
