@@ -19,7 +19,10 @@
  */
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from './firebaseAdmin';
-import { refreshGoogleAccessTokenForUid } from './googleOAuth';
+import {
+  DRIVE_FILE_SCOPE,
+  refreshGoogleAccessTokenForUid,
+} from './googleOAuth';
 import {
   hasQuizMediaStoragePrefix,
   isQuizMediaResponseGranted,
@@ -294,7 +297,11 @@ export function buildDefaultPlaybackDeps(): PlaybackDeps {
   return {
     db,
     getAccessToken: async (teacherUid) =>
-      (await refreshGoogleAccessTokenForUid(teacherUid)).accessToken,
+      (
+        await refreshGoogleAccessTokenForUid(teacherUid, {
+          scope: DRIVE_FILE_SCOPE,
+        })
+      ).accessToken,
     downloadDriveFile: downloadDriveFileById,
     isFeatureGranted: async (teacherUid) =>
       isQuizMediaResponseGranted(db, await emailFor(teacherUid), teacherUid),

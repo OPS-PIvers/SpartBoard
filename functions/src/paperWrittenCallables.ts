@@ -8,7 +8,10 @@ import type {
 } from 'firebase-admin/firestore';
 import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';
-import { refreshGoogleAccessTokenForUid } from './googleOAuth';
+import {
+  DRIVE_FILE_SCOPE,
+  refreshGoogleAccessTokenForUid,
+} from './googleOAuth';
 import {
   QUIZ_MEDIA_GOOGLE_SECRETS,
   isGlobalFeatureGranted,
@@ -1084,7 +1087,11 @@ export function buildDefaultPaperWrittenDeps(): PaperWrittenDeps {
       };
     },
     getAccessToken: async (uid) =>
-      (await refreshGoogleAccessTokenForUid(uid)).accessToken,
+      (
+        await refreshGoogleAccessTokenForUid(uid, {
+          scope: DRIVE_FILE_SCOPE,
+        })
+      ).accessToken,
     downloadDriveFile: downloadDriveFileById,
     isKeptPagesGranted: (caller) =>
       isGlobalFeatureGranted(

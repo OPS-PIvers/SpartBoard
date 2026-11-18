@@ -282,7 +282,7 @@ describe('useReconcileExpiredSubShares', () => {
     expect(deletePermission).toHaveBeenCalledWith('file-2', 'perm-coteacher');
   });
 
-  it('does NOT revoke a permissionId still referenced by an active share', async () => {
+  it('does NOT revoke a file permission still referenced by an active share', async () => {
     const now = Date.now();
     // Both shares share permissionId perm-shared; only one is expired.
     const expired = makeShareSnap({
@@ -312,6 +312,35 @@ describe('useReconcileExpiredSubShares', () => {
     // permission must be skipped because an active share still references it.
     await waitFor(() => expect(firestore.deleteDoc).toHaveBeenCalledTimes(1));
     expect(deletePermission).not.toHaveBeenCalled();
+  });
+
+  it('revokes an expired grant when an active share holds the same sub on another file', async () => {
+    const now = Date.now();
+    const expired = makeShareSnap({
+      id: 'expired-1',
+      expiresAt: now - 1000,
+      driveGrants: [
+        { email: 's@x', fileId: 'file-1', permissionId: 'perm-shared' },
+      ],
+    });
+    const active = makeShareSnap({
+      id: 'active-1',
+      expiresAt: now + 60_000,
+      driveGrants: [
+        { email: 's@x', fileId: 'file-3', permissionId: 'perm-shared' },
+      ],
+    });
+    (paging.readAllDocsPaged as unknown as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce([expired, active])
+      .mockResolvedValueOnce([]);
+    const { driveService, deletePermission } = makeDriveService();
+
+    renderHook(() =>
+      useReconcileExpiredSubShares({ uid: 'teacher-1', driveService })
+    );
+
+    await waitFor(() => expect(firestore.deleteDoc).toHaveBeenCalledTimes(1));
+    expect(deletePermission).toHaveBeenCalledWith('file-1', 'perm-shared');
   });
 
   it('reaps a Collection share boards/ subcollection before deleting the parent, and refcounts grants across both surfaces', async () => {
