@@ -15635,12 +15635,14 @@ export const TOUR_ANCHORS = {
   },
   'math-tool.add-piece': {
     label:
-      'Add piece button on a Math Tool (algebra tiles, base-10 blocks, pattern blocks, place value), by tool and piece',
+      'Add piece button on a Math Tool (algebra tiles, base-10 blocks, pattern blocks), by tool and piece',
     perField: true,
+    keyPattern:
+      'mathTool#(algebra-tiles\\.(x2-pos|x2-neg|x-pos|x-neg|unit-pos|unit-neg)|base-10\\.(flat|rod|unit)|pattern-blocks\\.(hexagon|trapezoid|triangle|rhombus-wide|rhombus-narrow|square))',
+    keyHint: 'mathTool#base-10.rod, mathTool#algebra-tiles.x-pos',
   },
   'math-tool.clear': {
-    label:
-      'Clear button on a Math Tool (coordinate plane, geoboard, place value)',
+    label: 'Clear button on a Math Tool (coordinate plane, geoboard)',
     perWidgetType: true,
     destructive: true,
   },
@@ -15656,14 +15658,20 @@ export const TOUR_ANCHORS = {
   'math-tool.calculator-key': {
     label: 'Calculator key, by label (digits, operators, AC, =)',
     perField: true,
+    keyPattern: 'mathTool#([0-9]|AC|\\+/−|%|÷|×|−|\\+|⌫|\\.|=)',
+    keyHint: 'mathTool#7 is the 7 key; mathTool#AC is the clear key',
   },
   'math-tool.denominator': {
     label: 'Denominator toggle in Fraction Tiles, by denominator',
     perField: true,
+    keyPattern: 'mathTool#(1|2|3|4|5|6|8|10|12)',
+    keyHint: 'mathTool#4 is the fourths toggle',
   },
   'math-tool.number-line-mode': {
     label: 'Number line mode button (integers, decimals, fractions), by mode',
     perField: true,
+    keyPattern: 'mathTool#(integers|decimals|fractions)',
+    keyHint: 'mathTool#decimals',
   },
   'math-tool.number-line-min': {
     label: 'Minimum value box on the Number Line tool',
