@@ -56,6 +56,8 @@ import {
   type VideoActivityLifecycle,
 } from '../videoActivityLifecycle';
 import { VaAssignedFixture } from './vaAssignedFixture';
+import { finalizeRunVideoResponses } from '../videoClassTurnIn';
+import { END_TURN_IN_DELAY_MS } from '@/utils/quizFinalizeOpenResponses';
 import {
   CheckCircle2,
   Monitor,
@@ -100,6 +102,14 @@ const REPLACED_MENU_IDS = new Set(['deactivate', 'pause-resume', 'reactivate']);
 const LIVE_REASONS = new Set([LIVE_PAUSE_REASON, LIVE_REOPEN_REASON]);
 
 const isLive = (a: VideoActivityAssignment) => a.sessionMode === 'teacher';
+const gradingKey = (a: VideoActivityAssignment) =>
+  isLive(a) ? `${a.id}:${a.status}` : a.id;
+
+/** Work the teacher may owe a grade on: turned in, or any answer in a live run, which never turns in. */
+const toGrade = (
+  a: VideoActivityAssignment,
+  r: Pick<VideoActivityResponse, 'completedAt' | 'answers'>
+) => r.completedAt != null || (isLive(a) && (r.answers ?? []).length > 0);
 
 /** A row still being worked: anything not ended before the Assigned tab handled it (D20). */
 const wantsLiveData = (a: MarkedAssignment) =>
@@ -188,8 +198,8 @@ async function loadScoredQuestions(
   return scoredVideoActivityQuestions(session, questions);
 }
 
-/** Keyed questions for grading counts, loaded once per session that has turned-in work. */
-function useQuestionsById(ids: readonly string[]) {
+/** Keyed questions for grading counts, loaded once per session and run state; a failed load retries each tick. */
+function useQuestionsById(ids: readonly string[], tick: number) {
   const fixture = useContext(VaAssignedFixture);
   const [byId, setById] = useState<
     Record<string, VideoActivityQuestion[] | null>
@@ -198,26 +208,32 @@ function useQuestionsById(ids: readonly string[]) {
   useEffect(() => {
     if (!key) return undefined;
     let cancelled = false;
-    for (const id of key.split('|')) {
-      let pending = questionCache.get(id);
+    for (const cacheKey of key.split('|')) {
+      const id = cacheKey.split(':')[0];
+      let pending = questionCache.get(cacheKey);
       if (!pending) {
         pending = loadScoredQuestions(id)
-          .catch(() => null)
+          .catch((err: unknown) => {
+            logError('VideoActivityAssignedTab.questions', err, {
+              assignmentId: id,
+            });
+            return null;
+          })
           .then((qs) => {
-            // A failed load is retried next time, never read as nothing to grade.
-            if (!qs) questionCache.delete(id);
+            // A failed load is retried next tick, never read as nothing to grade.
+            if (!qs) questionCache.delete(cacheKey);
             return qs;
           });
-        questionCache.set(id, pending);
+        questionCache.set(cacheKey, pending);
       }
       void pending.then((qs) => {
-        if (!cancelled) setById((prev) => ({ ...prev, [id]: qs }));
+        if (!cancelled) setById((prev) => ({ ...prev, [cacheKey]: qs }));
       });
     }
     return () => {
       cancelled = true;
     };
-  }, [key]);
+  }, [key, tick]);
   return fixture?.questions ?? byId;
 }
 
@@ -265,14 +281,19 @@ export const VideoActivityAssignedTab: React.FC<
   );
   const responsesById = useResponsesById(liveIds);
 
-  const gradingIds = useMemo(
+  // A live run's asked questions grow while it runs, so its key is read again once it ends.
+  const gradingKeys = useMemo(
     () =>
-      liveIds.filter((id) =>
-        (responsesById[id] ?? []).some((r) => r.completedAt != null)
-      ),
-    [liveIds, responsesById]
+      assignments
+        .filter(
+          (a) =>
+            wantsLiveData(a) &&
+            (responsesById[a.id] ?? []).some((r) => toGrade(a, r))
+        )
+        .map(gradingKey),
+    [assignments, responsesById]
   );
-  const questionsById = useQuestionsById(gradingIds);
+  const questionsByKey = useQuestionsById(gradingKeys, now);
 
   const rows: RowModel[] = useMemo(
     () =>
@@ -280,11 +301,11 @@ export const VideoActivityAssignedTab: React.FC<
         const responses = wantsLiveData(a) ? (responsesById[a.id] ?? null) : [];
         let needsGrading: number | null = null;
         if (responses) {
-          const completed = responses.filter((r) => r.completedAt != null);
+          const completed = responses.filter((r) => toGrade(a, r));
           if (completed.length === 0) needsGrading = 0;
           else {
             // Unknown (row stays Active) until the answer key loads.
-            const qs = questionsById[a.id];
+            const qs = questionsByKey[gradingKey(a)];
             if (qs)
               needsGrading = completed.filter((r) =>
                 isVideoActivityResponseAwaitingGrade(qs, r)
@@ -322,7 +343,7 @@ export const VideoActivityAssignedTab: React.FC<
     [
       assignments,
       responsesById,
-      questionsById,
+      questionsByKey,
       rosters,
       featurePermissions,
       now,
@@ -368,6 +389,25 @@ interface RowHostProps extends VideoActivityAssignedHandlers {
   now: number;
   rosters: ClassRoster[];
   lifecycle: VideoActivityLifecycle;
+}
+
+/** Turns a closed single line's open attempts in once the save grace after its close mark passes (D6). */
+async function scheduleRunTurnIn(assignmentId: string, uid: string) {
+  const { assignmentCollection } = VIDEO_ACTIVITY_RUN_COLLECTIONS;
+  const stored = (
+    await getDoc(doc(db, 'users', uid, assignmentCollection, assignmentId))
+  ).data() as MarkedAssignment | undefined;
+  const closedAt = stored?.closedAt;
+  if (closedAt == null) return;
+  setTimeout(
+    () => {
+      finalizeRunVideoResponses(assignmentId, uid, closedAt).catch(
+        (err: unknown) =>
+          logError('VideoActivityAssignedTab.turnIn', err, { assignmentId })
+      );
+    },
+    Math.max(0, closedAt + END_TURN_IN_DELAY_MS - Date.now())
+  );
 }
 
 /** Puts back what Close for all classes or Move to Done changed (D10 Undo). */
@@ -440,7 +480,8 @@ const VideoActivityAssignedRowHost: React.FC<RowHostProps> = ({
 
   const viewOnly = a.mode === 'view-only';
   const live = isLive(a);
-
+  // D6: a self-paced single line has no class turn-in, so its Close turns open attempts in itself.
+  const singleLineRun = status.singleLine && !viewOnly && !live;
   const onClassAction = (kind: ClassActionKind, key: string | null) => {
     switch (kind) {
       case 'open':
@@ -457,15 +498,16 @@ const VideoActivityAssignedRowHost: React.FC<RowHostProps> = ({
     }
   };
 
-  // A live run that ends stays ended, so its Close has nothing to undo.
+  // A live run that ends stays ended, so ending one has no Undo.
   const withUndo = (act: () => Promise<void>, message: string) => {
     const prev = a;
     void exec(async () => {
       await act();
+      if (singleLineRun && user?.uid) await scheduleRunTurnIn(a.id, user.uid);
       addToast(
         message,
         'success',
-        live
+        live && prev.status !== 'inactive'
           ? undefined
           : {
               label: 'Undo',

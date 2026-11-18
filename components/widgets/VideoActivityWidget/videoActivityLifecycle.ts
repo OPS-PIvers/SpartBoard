@@ -3,6 +3,9 @@ import { db } from '@/config/firebase';
 import type { UseVideoActivityAssignmentsResult } from '@/hooks/useVideoActivityAssignments';
 import { END_TURN_IN_DELAY_MS } from '@/utils/quizFinalizeOpenResponses';
 import { finalizeClassVideoResponses } from './videoClassTurnIn';
+import type { UseSetAssignmentTargetsResult } from '@/hooks/useSetAssignmentTargets';
+import type { VideoActivityAssignment } from '@/types';
+import { hasStudentPointers } from '@/utils/studentTargetRef';
 
 /** Where Video Activity keeps its run docs, for the per-class actions hook. */
 export const VIDEO_ACTIVITY_RUN_COLLECTIONS = {
@@ -28,6 +31,19 @@ export interface VideoActivityLifecycle {
   turnInDelayMs: number;
   /** End leaves attempts open, so the last class's Close still turns its own in. */
   endTurnsIn: false;
+  /** Keeps each targeted student's own pointer window in step with a cleared run window. */
+  onWindowCleared?: (
+    assignmentId: string,
+    patch: { openAt?: null; closeAt?: null }
+  ) => Promise<void>;
+}
+
+/** What `onWindowCleared` needs to rewrite targeted students' pointer windows. */
+export interface VideoActivityPointerSync extends Pick<
+  UseSetAssignmentTargetsResult,
+  'setAssignmentTargets'
+> {
+  uid: string;
 }
 
 export const LIVE_REOPEN_REASON =
@@ -54,9 +70,43 @@ export function videoActivityLifecycle(
     | 'resumeAssignment'
     | 'deactivateAssignment'
     | 'reactivateAssignment'
-  >
+  >,
+  pointers?: VideoActivityPointerSync
 ): VideoActivityLifecycle {
   return {
+    ...(pointers
+      ? {
+          async onWindowCleared(assignmentId, patch) {
+            const row = (
+              await getDoc(
+                doc(
+                  db,
+                  'users',
+                  pointers.uid,
+                  VIDEO_ACTIVITY_RUN_COLLECTIONS.assignmentCollection,
+                  assignmentId
+                )
+              )
+            ).data() as VideoActivityAssignment | undefined;
+            if (!row || !hasStudentPointers(row)) return;
+            // A failed pointer sync must not stop Open from letting the class in.
+            try {
+              await pointers.setAssignmentTargets({
+                assignmentId,
+                kind: 'video-activity',
+                sessionId: assignmentId,
+                targetMode: row.targetMode,
+                add: [],
+                remove: [],
+                overridesBySourcedId: {},
+                window: patch,
+              });
+            } catch (err) {
+              console.error('Pointer window sync failed', err);
+            }
+          },
+        }
+      : {}),
     pause: async (assignmentId) => {
       if ((await isLiveRun(assignmentId)).live)
         throw new Error(LIVE_PAUSE_REASON);

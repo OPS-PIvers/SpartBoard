@@ -58,7 +58,10 @@ vi.mock('firebase/firestore', () => {
   };
 });
 
-import { finalizeClassVideoResponses } from './videoClassTurnIn';
+import {
+  finalizeClassVideoResponses,
+  finalizeRunVideoResponses,
+} from './videoClassTurnIn';
 
 const NOW = 1_700_000_000_000;
 const CLOSED_AT = 5;
@@ -180,5 +183,39 @@ describe('finalizeClassVideoResponses', () => {
         filters: [{ where: ['completedAt', '==', null] }],
       },
     ]);
+  });
+});
+
+describe('finalizeRunVideoResponses', () => {
+  const A = 'users/t1/video_activity_assignments/s1';
+  it('turns in unfinished attempts while the close mark stands', async () => {
+    store.docs[S] = { status: 'ended' };
+    store.docs[A] = { closedAt: CLOSED_AT };
+    open('a', {});
+    open('blank', { answers: [] });
+    open('unlocked', { unlocked: true });
+    await finalizeRunVideoResponses('s1', 't1', CLOSED_AT, NOW);
+    expect(turnedIn()).toEqual(['a']);
+  });
+
+  it('does nothing once a Reopen or Undo cleared or changed the mark', async () => {
+    store.docs[S] = { status: 'ended' };
+    open('a', {});
+    store.docs[A] = { closedAt: null };
+    await finalizeRunVideoResponses('s1', 't1', CLOSED_AT, NOW);
+    store.docs[A] = { closedAt: CLOSED_AT + 1 };
+    await finalizeRunVideoResponses('s1', 't1', CLOSED_AT, NOW);
+    expect(store.updates).toEqual([]);
+  });
+
+  it('skips rows once the mark clears while the turn-in runs', async () => {
+    store.docs[S] = { status: 'ended' };
+    store.docs[A] = { closedAt: CLOSED_AT };
+    open('a', {});
+    store.onTx = () => {
+      store.docs[A] = { closedAt: null };
+    };
+    await finalizeRunVideoResponses('s1', 't1', CLOSED_AT, NOW);
+    expect(store.updates).toEqual([]);
   });
 });

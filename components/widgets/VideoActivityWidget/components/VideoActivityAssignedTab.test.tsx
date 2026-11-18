@@ -25,13 +25,16 @@ const actions = vi.hoisted(() => ({
   moveToDone: vi.fn(() => Promise.resolve()),
 }));
 
+const turnIn = vi.hoisted(() => vi.fn(() => Promise.resolve()));
+vi.mock('../videoClassTurnIn', () => ({ finalizeRunVideoResponses: turnIn }));
 vi.mock('@/config/firebase', () => ({ db: {} }));
 vi.mock('firebase/firestore', () => ({
   FieldPath: class {},
   collection: (_db: unknown, ...segs: string[]) => segs.join('/'),
   doc: (_db: unknown, ...segs: string[]) => segs.join('/'),
   getDoc: (path: string) => {
-    const data = store.sessions[path.split('/')[1]];
+    const segs = path.split('/');
+    const data = store.sessions[segs[0] === 'users' ? segs[3] : segs[1]];
     return Promise.resolve({ exists: () => !!data, data: () => data });
   },
   onSnapshot: (path: string, next: (s: unknown) => void) => {
@@ -219,5 +222,36 @@ describe('VideoActivityAssignedTab', () => {
         'info',
       ])
     );
+  });
+
+  it('turns in a closed single line once the save grace passes', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    store.sessions.a1 = { closedAt: NOW };
+    renderTab([base({ id: 'a1' })]);
+    fireEvent.click(screen.getByText('menu:Close'));
+    await waitFor(() => expect(actions.closeAll).toHaveBeenCalled());
+    await vi.advanceTimersByTimeAsync(200_000);
+    expect(turnIn).toHaveBeenCalledWith('a1', 't1', NOW);
+  });
+
+  it('counts a live run answer awaiting a grade though it never turns in', async () => {
+    store.sessions['live-1'] = {
+      id: 'live-1',
+      questions: [
+        { id: 'q1', type: 'SA', correctAnswer: '', points: 1, timestamp: 5 },
+      ],
+    };
+    store.responses['live-1'] = [
+      { completedAt: null, answers: [{ questionId: 'q1', answer: 'cells' }] },
+    ];
+    renderTab([
+      base({
+        id: 'live-1',
+        sessionMode: 'teacher',
+        status: 'inactive',
+        closedAt: NOW - 1000,
+      }),
+    ]);
+    expect(await screen.findByText('Grade (1)')).toBeTruthy();
   });
 });
