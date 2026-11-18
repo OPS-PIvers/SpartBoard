@@ -5,7 +5,7 @@ const refreshMock =
   vi.fn<
     (
       uid: string,
-      options?: { keepStoredOnFailure?: boolean }
+      options?: Record<string, unknown>
     ) => Promise<{ accessToken: string; expiresIn: number }>
   >();
 
@@ -68,9 +68,10 @@ vi.mock('./googleOAuth', () => ({
   GOOGLE_OAUTH_CLIENT_ID: {},
   GOOGLE_OAUTH_CLIENT_SECRET: {},
   GOOGLE_OAUTH_REFRESH_TOKEN_KEY: {},
+  DRIVE_FILE_SCOPE: 'https://www.googleapis.com/auth/drive.file',
   refreshGoogleAccessTokenForUid: (
     uid: string,
-    options?: { keepStoredOnFailure?: boolean }
+    options?: Record<string, unknown>
   ) => refreshMock(uid, options),
 }));
 
@@ -130,7 +131,23 @@ describe('getViewAsDriveTokenV1', () => {
     });
     expect(refreshMock).toHaveBeenCalledWith('jane-uid', {
       keepStoredOnFailure: true,
+      scope: 'https://www.googleapis.com/auth/drive.file',
+      exactScope: true,
     });
+  });
+
+  it('returns only the token and its lifetime, never extra fields', async () => {
+    refreshMock.mockResolvedValue({
+      accessToken: 'drive-tok',
+      expiresIn: 3599,
+      extra: 'x',
+    } as unknown as { accessToken: string; expiresIn: number });
+    const res = await getToken({ auth: viewAsAuth(), data: {} });
+    expect(Object.keys(res).sort()).toEqual([
+      'accessToken',
+      'available',
+      'expiresIn',
+    ]);
   });
 
   it('reports unavailable when the target has no stored grant', async () => {

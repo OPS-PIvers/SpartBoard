@@ -39,6 +39,8 @@ export { STUCK_ARCHIVE_AGE_MS };
 /** Runaway guard, not an expected volume. */
 export const MAX_RESPONSES_PER_RUN = 2000;
 export const RESPONSE_PAGE_SIZE = 200;
+// Of the 540 s timeout: leaves room for one in-flight retry (transcode capped at 60 s) and the mail step.
+export const SWEEP_WORK_BUDGET_MS = 420_000;
 /** Bounds one teacher's email body; the rest is summarized as a count. */
 export const MAX_LISTED_STRAGGLERS = 25;
 
@@ -323,8 +325,10 @@ export async function runSweepStuckQuizArchives(
     { teacherUid: string; quizTitle: string }
   >();
 
+  // No new retry starts after this, so one slow take can't cost the run its mail step.
+  const outOfTime = () => deps.now() - now >= SWEEP_WORK_BUDGET_MS;
   let cursor: admin.firestore.QueryDocumentSnapshot | null = null;
-  while (summary.scanned < MAX_RESPONSES_PER_RUN) {
+  while (summary.scanned < MAX_RESPONSES_PER_RUN && !outOfTime()) {
     let query = db
       .collectionGroup('responses')
       .where('hasStuckArchive', '==', true)
@@ -336,6 +340,7 @@ export async function runSweepStuckQuizArchives(
     cursor = page.docs[page.docs.length - 1] ?? null;
 
     for (const docSnap of page.docs) {
+      if (outOfTime()) break;
       summary.scanned++;
       const sessionId = docSnap.ref.parent.parent?.id;
       if (!sessionId) continue;
@@ -373,6 +378,7 @@ export async function runSweepStuckQuizArchives(
       const mailedTakes = new Set<number>();
 
       for (const [artifactId, entry] of Object.entries(archive)) {
+        if (outOfTime()) break;
         const target = { sessionId, responseKey: docSnap.id, artifactId };
         // A compliance delete owns this artifact; never re-archive it.
         if (isDeleteOwnedEntry(entry)) {

@@ -225,6 +225,18 @@ export function parseServedLanguages(
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
+/** A teacher-written id that is one valid Firestore document id, so `.doc()` can't throw or reject on it. */
+export function isSingleDocId(id: string): boolean {
+  return (
+    id.length > 0 &&
+    id.length <= 1500 &&
+    !id.includes('/') &&
+    id !== '.' &&
+    id !== '..' &&
+    !/^__.*__$/.test(id)
+  );
+}
+
 /** Negates a pending mark before any source read, so a later trigger writes a new mark instead of relying on this run. */
 async function claimDirtyMark(
   db: Firestore,
@@ -285,7 +297,7 @@ async function flashcardAggregateFor(
     const key = `${teacherUid}/${setId}`;
     let pending = setTargets.get(key);
     if (!pending) {
-      pending = setId
+      pending = isSingleDocId(setId)
         ? db
             .doc(`users/${teacherUid}/flashcard_sets/${setId}`)
             .get()
@@ -386,12 +398,13 @@ export async function recomputeOnePlcAssessment(
     const s = await withQuizSessionContent(sessionDoc.ref, sessionDoc.data());
     const teacherUid = asString(s.teacherUid);
     const assignmentId = asString(s.assignmentId) || sessionDoc.id;
+    const assignmentOk = !!teacherUid && isSingleDocId(assignmentId);
     const [responsesSnap, assignmentSnap, keySnap] = await Promise.all([
       sessionDoc.ref
         .collection('responses')
         .where('status', '==', 'completed')
         .get(),
-      teacherUid
+      assignmentOk
         ? db
             .collection('users')
             .doc(teacherUid)
@@ -399,7 +412,7 @@ export async function recomputeOnePlcAssessment(
             .doc(assignmentId)
             .get()
         : Promise.resolve(null),
-      teacherUid
+      assignmentOk
         ? db
             .collection('users')
             .doc(teacherUid)
@@ -480,6 +493,22 @@ export interface RecomputeCounts {
   failed: number;
 }
 
+/** Moves a failed assessment to the back of the dirty queue, so repeat failures can't hold the head of every batch. */
+async function requeueFailed(
+  db: Firestore,
+  plcId: string,
+  assessmentId: string,
+  seen: unknown
+): Promise<void> {
+  const ref = db.doc(`plcs/${plcId}/assessments/${assessmentId}`);
+  await db.runTransaction(async (tx) => {
+    const current: unknown = (await tx.get(ref)).data()?.dirtyAt;
+    // A claimed (negated) mark or the one this batch read moves; a newer trigger's mark is left alone.
+    if (typeof current === 'number' && (current <= 0 || current === seen))
+      tx.update(ref, { dirtyAt: Date.now() });
+  });
+}
+
 /** Oldest-dirty-first pass over every PLC; per-item failures are logged and skipped. */
 export async function runRecomputePlcAssessments(
   db: Firestore,
@@ -509,6 +538,9 @@ export async function runRecomputePlcAssessments(
         assessmentId: doc.id,
         error: err instanceof Error ? err.message : String(err),
       });
+      const seen: unknown =
+        doc.ref.parent.id === 'assessments' ? doc.data().dirtyAt : undefined;
+      await requeueFailed(db, plcId, doc.id, seen).catch(() => undefined);
     }
   };
   for (const doc of dirtySnap.docs) await recompute(doc);

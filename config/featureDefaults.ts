@@ -3,7 +3,6 @@ import type React from 'react';
 import {
   ClipboardList,
   MonitorPlay,
-  Users,
   Camera,
   PenLine,
   BarChart,
@@ -922,21 +921,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     missingDocPublic: false,
     requires: 'quiz-live-view',
   },
-  // Quiz Monitor roster: students who haven't joined show under Not started.
-  'quiz-monitor-roster': {
-    label: 'Quiz Monitor class roster',
-    icon: Users,
-    description:
-      "Monitor lists every student in the class, including those who haven't joined.",
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'quiz',
-    modalLabel: 'Class roster',
-    group: 'assigning',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Quiz "Show score on submit" setting. Admin-only until Paul has used it with a class.
   'quiz-score-on-submit': {
     label: 'Quiz score on submit',
@@ -1005,17 +989,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     modalLabel: 'Fill-in-the-blank on paper',
     group: 'questions',
     requires: 'paper-handwritten-responses',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'project-submit': {
-    label: 'Project submit',
-    icon: ClipboardCheck,
-    description:
-      'Groups submit their project; teachers see Submitted, Late or Missing and can reopen.',
-    stage: 'preview',
-    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -1330,18 +1303,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'checklist-small-card': {
-    label: 'Checklist small cards',
-    icon: ListChecks,
-    description:
-      'An Add tasks button when empty, and a cleaner footer on small cards.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'checklist',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'seating-chart-plans': {
     label: 'Seating Chart: seating plans',
     icon: LayoutGrid,
@@ -1422,18 +1383,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     widget: 'music',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Embed setting for touch panels where a tap opens the embedded deck in a new tab.
-  'embed-block-new-tabs': {
-    label: 'Block new tabs in Embed',
-    icon: MonitorPlay,
-    description:
-      'Embed widgets get a setting that stops the embedded page from opening new tabs.',
-    stage: 'preview',
-    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -1691,17 +1640,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: HardDrive,
     description:
       'Pictures and PDFs a teacher uploads save only to their Google Drive. Without Drive, they are asked to reconnect.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'board-context-menu': {
-    label: 'Board right-click menu',
-    icon: MousePointerClick,
-    description:
-      'Right-click the board background to paste, tidy up, change the background or copy a link to the board.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

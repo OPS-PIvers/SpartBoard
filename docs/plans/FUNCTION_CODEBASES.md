@@ -78,7 +78,7 @@ stays in `default`, so a new function needs no manifest edit until someone choos
 | `integrations` | 64     | LTI, MCP, Classroom add-on, ClassLink, Google OAuth and Tasks, Spotify, Schoology, import, web and live tours                                | 2          |
 | `plc`          | 37     | PLC membership, sync groups, norming, meeting notes and recording, assessments recompute, digests                                            | 3          |
 | `content`      | ~45    | AI generation, read aloud, translation, pronunciation, paper transcription, quiz and wall media archive, embed proxy, link preview, GL media | 4          |
-| `gradebook`    | 31     | `gradeIndex*` triggers, `quizAttemptGradeWrite`, gradebook roster                                                                            | 5          |
+| `gradebook`    | 32     | `gradeIndex*` triggers, `quizAttemptGradeWrite`, gradebook roster                                                                            | 5          |
 | `default`      | ~52    | assignments: quiz, writing, flashcards, mini apps, video activity, projects, focus sessions, cleanup                                         | stays      |
 | `student`      | 14     | student sign-in, PIN login, pseudonyms, poll codes, load-issue report, focus student endpoints                                               | 6 (last)   |
 

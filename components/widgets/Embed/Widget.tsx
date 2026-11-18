@@ -65,7 +65,6 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     startAtSeconds,
     blockNewTabs = false,
   } = config;
-  const blockPopups = blockNewTabs && canAccessFeature('embed-block-new-tabs');
   const boardZoom = useDashboardCanvasSelector((s) => s.zoom);
   const isSpotlighted = useDashboardCanvasSelector(
     (s) => s.activeDashboard?.settings?.spotlightWidgetId === widget.id
@@ -270,7 +269,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   }, [refreshInterval]);
 
   const sandbox = React.useMemo(() => {
-    let base = blockPopups
+    let base = blockNewTabs
       ? 'allow-scripts allow-forms'
       : 'allow-scripts allow-forms allow-popups';
     if (mode === 'url') {
@@ -296,7 +295,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       }
     }
     return base;
-  }, [mode, embedUrl, globalConfig?.whitelistUrls, blockPopups]);
+  }, [mode, embedUrl, globalConfig?.whitelistUrls, blockNewTabs]);
 
   const handleGenerateMiniApp = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -677,7 +676,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             </div>
           ) : (
             <div className="flex-1 relative overflow-hidden">
-              {displayMode === 'code' && blockPopups ? (
+              {displayMode === 'code' && blockNewTabs ? (
                 <iframe
                   key={`code-blocked-${refreshKey}`}
                   title="Embed Content"

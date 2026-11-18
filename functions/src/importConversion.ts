@@ -128,6 +128,7 @@ export async function runConversion(
         limit: access.limit,
         message: access.limitMessage,
       });
+  let modelReplied = false;
   try {
     const fitted = fitSourceText(
       req.source.text,
@@ -138,6 +139,7 @@ export async function runConversion(
       integration,
       buildConversionPrompt({ ...req, source }, allowed)
     );
+    modelReplied = true;
     const truncated = fitted.truncated || req.clipped;
     switch (req.target) {
       case 'flashcards':
@@ -160,7 +162,8 @@ export async function runConversion(
         };
     }
   } catch (error) {
-    if (charge.docIds.length > 0) {
+    // A reply that fails to parse stays charged; a failure before or in the call refunds.
+    if (!modelReplied && charge.docIds.length > 0) {
       await deps.refund(charge).catch(() => undefined);
     }
     if (error instanceof HttpsError) throw error;

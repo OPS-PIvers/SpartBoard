@@ -426,10 +426,25 @@ describe('firebase-deploy-with-retry.sh rules release retry', () => {
     expect(sleeps).toEqual(['60', '120']);
   });
 
-  it('gives up after three releases', () => {
-    const { status, releases } = runRulesRelease([outage, outage, outage]);
+  it('waits out a 30 minute outage, as in prod runs 44238939254 and 44314799654, then gives up', () => {
+    const { status, releases, sleeps } = runRulesRelease(
+      Array.from({ length: 10 }, () => outage)
+    );
     expect(status).toBe(1);
-    expect(releases).toBe(3);
+    expect(releases).toBe(9);
+    expect(sleeps.reduce((sum, s) => sum + Number(s), 0)).toBe(1800);
+  });
+
+  it('retries the :test 503 seen in prod run 44314799654', () => {
+    const { status, releases } = runRulesRelease([
+      {
+        exit: 1,
+        log: 'POST /projects/demo:test -> 503; retrying in 8s (attempt 3/4)\nERROR: POST /projects/demo:test -> 503 {"code": 503}',
+      },
+      { exit: 0, log: 'released' },
+    ]);
+    expect(status).toBe(0);
+    expect(releases).toBe(2);
   });
 
   it('does not retry a release the API refuses', () => {
@@ -597,7 +612,7 @@ describe('firebase-deploy-with-retry.sh function codebases', () => {
     // Every attempt fails to list, so nothing deploys and the job fails after the attempt budget.
     expect(status).toBe(1);
     expect(onlys).toEqual([]);
-    expect(checks).toHaveLength(6);
+    expect(checks).toHaveLength(10);
   });
 
   it('warns instead of failing when the label check cannot list functions after a deploy', () => {
@@ -619,5 +634,87 @@ describe('firebase-deploy-with-retry.sh function codebases', () => {
     );
     expect(status).toBe(0);
     expect(checks).toEqual([]);
+  });
+});
+
+const hostingScript = resolve(
+  repoRoot,
+  '.github/scripts/hosting-deploy-with-retry.sh'
+);
+
+// Runs the hosting wrapper against a stub pnpm that replays scripted outcomes.
+function runHosting(outcomes: { exit: number; log: string }[]) {
+  const dir = mkdtempSync(join(tmpdir(), 'hosting-retry-'));
+  const bin = join(dir, 'bin');
+  mkdirSync(bin);
+  outcomes.forEach((o, i) => {
+    writeFileSync(join(dir, `log${i + 1}`), o.log);
+    writeFileSync(join(dir, `exit${i + 1}`), String(o.exit));
+  });
+  const stub = (name: string, body: string) => {
+    writeFileSync(join(bin, name), `#!/usr/bin/env bash\n${body}\n`);
+    chmodSync(join(bin, name), 0o755);
+  };
+  stub(
+    'pnpm',
+    [
+      `n=$(( $(cat "${dir}/count" 2>/dev/null || echo 0) + 1 )); echo $n > "${dir}/count"`,
+      `echo "$*" >> "${dir}/args"`,
+      `cat "${dir}/log$n" 2>/dev/null; exit $(cat "${dir}/exit$n" 2>/dev/null || echo 0)`,
+    ].join('\n')
+  );
+  stub('sleep', 'exit 0');
+  const result = spawnSync('bash', [hostingScript, 'demo', '--force'], {
+    cwd: dir,
+    env: { ...process.env, PATH: `${bin}:${process.env.PATH ?? ''}` },
+  });
+  const args = readFileSync(join(dir, 'args'), 'utf-8').trim().split('\n');
+  rmSync(dir, { recursive: true, force: true });
+  return { status: result.status, deploys: args.length, args };
+}
+
+describe('hosting-deploy-with-retry.sh', () => {
+  const blip = {
+    exit: 2,
+    log: 'Error: HTTP Error: 503, The service is currently unavailable.',
+  };
+
+  it('retries a transient error and passes extra args through', () => {
+    const { status, deploys, args } = runHosting([
+      blip,
+      { exit: 0, log: 'Deploy complete!' },
+    ]);
+    expect(status).toBe(0);
+    expect(deploys).toBe(2);
+    expect(args[0]).toBe(
+      'exec firebase deploy --only hosting --project demo --force'
+    );
+  });
+
+  it('treats an unchanged bundle as success', () => {
+    const { status, deploys } = runHosting([
+      { exit: 1, log: 'Error: version abc is the current active version' },
+    ]);
+    expect(status).toBe(0);
+    expect(deploys).toBe(1);
+  });
+
+  it('gives up after five attempts', () => {
+    const { status, deploys } = runHosting(
+      Array.from({ length: 6 }, () => blip)
+    );
+    expect(status).toBe(2);
+    expect(deploys).toBe(5);
+  });
+
+  it('does not retry a real error', () => {
+    const { status, deploys } = runHosting([
+      {
+        exit: 1,
+        log: 'Error: HTTP Error: 403, The caller does not have permission',
+      },
+    ]);
+    expect(status).toBe(1);
+    expect(deploys).toBe(1);
   });
 });

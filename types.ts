@@ -10450,7 +10450,7 @@ export interface ProjectRun extends SessionWorkKindFields {
   /** Retired: students only ever see their own group. Old runs keep it until backfilled. */
   showStatusToStudents?: boolean;
   acceptingUpdates: boolean;
-  /** Groups can submit; set when a teacher with the project-submit preview starts or edits the run. */
+  /** Groups can submit; set when the teacher starts or edits an open run. Absent on older runs. */
   studentSubmit?: boolean;
   /** D42 — absent on runs made before the field existed. */
   createdAt?: number;
@@ -11725,8 +11725,6 @@ export type GlobalFeature =
   | 'quiz-live-view-screenshot'
   /** Teacher picture and PDF uploads need Google Drive; without it they ask to reconnect instead of saving to Firebase Storage. */
   | 'drive-only-uploads'
-  /** Quiz Monitor lists the whole class roster, with students who haven't joined under Not started. */
-  | 'quiz-monitor-roster'
   /** Quiz setting that shows students their score as soon as they submit. */
   | 'quiz-score-on-submit'
   | 'modification-groups'
@@ -11736,8 +11734,6 @@ export type GlobalFeature =
   | 'paper-printed-versions'
   /** Paper sheets: fill-in-the-blank prints a write-in line per blank, read back on import. */
   | 'paper-fill-in-blank'
-  /** Projects: a group submits its project; the teacher sees Submitted, Late or Missing and can reopen. */
-  | 'project-submit'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */
   | 'gradebook'
   /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */
@@ -11784,8 +11780,6 @@ export type GlobalFeature =
   | 'lunch-count-redesign'
   /** Weather: a details panel (dew point, humidity, wind and more) in buildings the admin allows. */
   | 'weather-details'
-  /** Checklist empty state with an Add button, larger footer buttons hidden on small cards. */
-  | 'checklist-small-card'
   /** Seating Chart saved seating plans, shuffle rules and print (poll-pro/SEATING_CHART_PLAN.md). */
   | 'seating-chart-plans'
   /** Sound widget target level, Too loud alert, calibration, quiet time goal and summary (pro-grade-2/NOISE_METER_PLAN.md). */
@@ -11798,8 +11792,6 @@ export type GlobalFeature =
   | 'flashcards-speak'
   /** Teachers add their own YouTube songs to the Music widget's station list. */
   | 'music-my-songs'
-  /** Embed widget setting that stops the embedded page from opening new tabs. */
-  | 'embed-block-new-tabs'
   /** Copy, paste and print blocking and fullscreen on quiz and video activity pages (CHROME_EXTENSION.md F14). */
   | 'focus-sessions'
   | 'input-signals'
@@ -11830,8 +11822,6 @@ export type GlobalFeature =
   | 'import-straight-to-board'
   /** AI questions on a YouTube import (docs/plans/IMPORT.md D35). */
   | 'video-import-ai'
-  /** Right-click menu on the board background. */
-  | 'board-context-menu'
   /** Manual assignments get a due date, and Assign remembers the When step. */
   | 'assign-due-date'
   /** Reopen an ended quiz for selected students only. */

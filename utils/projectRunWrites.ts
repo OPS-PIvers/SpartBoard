@@ -146,8 +146,7 @@ export async function setRunAcceptingUpdates(
 export async function syncRunFromProject(
   db: Firestore,
   run: ProjectRun,
-  project: ProjectDefinition,
-  studentSubmit = false
+  project: ProjectDefinition
 ): Promise<void> {
   const payload: Record<string, unknown> = {
     title: project.title,
@@ -168,7 +167,7 @@ export async function syncRunFromProject(
   if (project.dueAt !== undefined) payload.dueAt = project.dueAt;
   else if (run.dueAt !== undefined) payload.dueAt = deleteField();
   // A closed run never gains submissions, so its groups stay Turned in rather than Missing.
-  if (studentSubmit && run.acceptingUpdates) payload.studentSubmit = true;
+  if (run.acceptingUpdates) payload.studentSubmit = true;
 
   await updateDoc(doc(db, RUNS_COLLECTION, run.id), payload);
 }
