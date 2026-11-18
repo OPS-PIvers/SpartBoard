@@ -25,6 +25,10 @@ const KEY_RETRY_MS = 60_000;
 const SEND_CONCURRENCY = 50;
 const GET_ALL_CHUNK = 100;
 const KEY_CACHE_MS = 10 * 60_000;
+const DAY_MS = 24 * 3600_000;
+/** A subscription its device stops refreshing is deleted by the TTL after this. */
+export const PUSH_RETENTION_MS = 30 * DAY_MS;
+const PUSH_REFRESH_AFTER_MS = 7 * DAY_MS;
 const JWT_LIFETIME_S = 12 * 3600;
 const JWT_REUSE_MS = 60 * 60_000;
 
@@ -106,6 +110,20 @@ export function pushAudience(endpoint: unknown): string | null {
   } catch {
     return null;
   }
+}
+
+/** What to do with a student's stored subscription; a device still checking in keeps pushing its expiry out. */
+export function pushSaveAction(
+  changed: boolean,
+  hasPush: boolean,
+  expireAtMs: number | null,
+  nowMs: number
+): 'keep' | 'write' | 'delete' {
+  if (!hasPush) return changed ? 'delete' : 'keep';
+  const stale =
+    expireAtMs === null ||
+    expireAtMs - nowMs < PUSH_RETENTION_MS - PUSH_REFRESH_AFTER_MS;
+  return changed || stale ? 'write' : 'keep';
 }
 
 export interface FocusPushDeps {

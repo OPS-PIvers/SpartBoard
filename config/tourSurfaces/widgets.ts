@@ -275,7 +275,6 @@ export const SURFACES: TourSurfaceMap = {
       'components/widgets/math-tools/GeoboardTool.tsx',
       'components/widgets/math-tools/NumberLineTool.tsx',
       'components/widgets/math-tools/PatternBlocksTool.tsx',
-      'components/widgets/math-tools/PlaceValueTool.tsx',
     ],
     widgetType: 'mathTool',
     needs: ['widget-on-stage'],

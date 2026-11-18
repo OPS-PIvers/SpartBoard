@@ -145,6 +145,24 @@ describe('PlcQuizImportModal', () => {
     expect(onPick).toHaveBeenCalledWith('copy');
   });
 
+  it('offers only Make a copy when canSync is false (team viewer)', () => {
+    render(
+      <PlcQuizImportModal
+        quizTitle="Fractions Quiz"
+        canSync={false}
+        onPick={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(
+      screen.queryByRole('button', { name: /Synced/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /Make a copy/i })
+    ).toBeInTheDocument();
+  });
+
   it('clicking the close button calls onClose', async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();

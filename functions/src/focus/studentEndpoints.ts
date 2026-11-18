@@ -30,6 +30,7 @@ import {
   type FocusSessionDoc,
   type FocusStudentDoc,
 } from './shared.gen';
+import { PUSH_RETENTION_MS, pushSaveAction } from './push';
 import {
   FocusCallError,
   focusReport,
@@ -218,10 +219,19 @@ function firestoreStore(db: Firestore): FocusStudentStore {
             keys: snap.get('keys') as { p256dh?: unknown; auth?: unknown },
           })
         : '';
-      if (stored !== print) {
-        if (push) await ref.set({ ...push, updatedAt: now });
-        else await ref.delete();
-      }
+      const expiry: unknown = snap.get(FOCUS_TTL_FIELD);
+      const expireAtMs =
+        expiry instanceof admin.firestore.Timestamp ? expiry.toMillis() : null;
+      const action = pushSaveAction(stored !== print, !!push, expireAtMs, now);
+      if (action === 'write' && push)
+        await ref.set({
+          ...push,
+          updatedAt: now,
+          [FOCUS_TTL_FIELD]: admin.firestore.Timestamp.fromMillis(
+            now + PUSH_RETENTION_MS
+          ),
+        });
+      else if (action === 'delete') await ref.delete();
       pushCache.set(uid, { print, until: now + PUSH_CACHE_MS });
     },
     async showLiveSite() {

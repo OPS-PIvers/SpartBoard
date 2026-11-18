@@ -99,6 +99,26 @@ export function showPageNotice(
   button.addEventListener('click', () => {
     void chrome.runtime.sendMessage({ type: message });
   });
+  // The button is the cover's only control; Tab and clicks must not leave focus on the page behind it.
+  box.tabIndex = -1;
+  box.addEventListener('keydown', (e) => {
+    if (e.key !== 'Tab') return;
+    e.preventDefault();
+    button.focus();
+  });
+  // Deferred and capped, so a page with its own focus trap can't ping-pong with it.
+  let refocuses: number[] = [];
+  box.addEventListener('focusout', (e) => {
+    if (!host.isConnected || root.contains(e.relatedTarget as Node | null))
+      return;
+    const at = Date.now();
+    refocuses = refocuses.filter((t) => at - t < 1000);
+    if (refocuses.length >= 3) return;
+    refocuses.push(at);
+    queueMicrotask(() => {
+      if (host.isConnected) button.focus();
+    });
+  });
   box.append(title, text, button);
   root.append(box);
   document.documentElement.append(host);
