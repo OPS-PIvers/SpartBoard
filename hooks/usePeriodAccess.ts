@@ -296,9 +296,8 @@ export function usePeriodAccess(
   );
 
   const close = useCallback(
-    async (keys: readonly string[]) => {
+    async (keys: readonly string[], now = Date.now()) => {
       if (!periodAccess || keys.length === 0) return;
-      const now = Date.now();
       const rows: Record<string, Partial<PeriodAccess>> = {};
       for (const key of keys) if (periodAccess[key]) rows[key] = closedRow(now);
       await write(rows);
@@ -352,7 +351,8 @@ export function usePeriodAccess(
     extendPeriod: extend,
     startAll: () => start(keys),
     pauseAll: () => pause(keys),
-    closePeriod: (key: string) => close([key]),
+    /** `at` stamps a known closedAt, for a caller that schedules work against it. */
+    closePeriod: (key: string, at?: number) => close([key], at),
     /** D9: lets the class back in at once, exactly like Start, and clears closedAt. */
     reopenPeriod: (key: string) => start([key], true),
     /** Closes every class not already closed by hand, so earlier closedAt marks stand. */
