@@ -7,6 +7,9 @@ const h = vi.hoisted(() => ({
   granted: true,
   deactivated: false,
   uploads: [] as { name: string; type: string; bytes: number }[],
+  copies: [] as { folder: string; source: string }[],
+  trashed: [] as string[],
+  failCopy: '',
 }));
 
 vi.mock('../featureGrant', () => ({
@@ -16,6 +19,16 @@ vi.mock('./eligibility', () => ({
   isDeactivatedOperatorMember: () => Promise.resolve(h.deactivated),
 }));
 vi.mock('./drive', () => ({
+  assetFolder: (_t: string, name: string) => Promise.resolve(name),
+  copyPictureShared: (_t: string, folder: string, source: string) => {
+    if (source === h.failCopy) return Promise.reject(new Error('copy failed'));
+    h.copies.push({ folder, source });
+    return Promise.resolve(`copy-of-${source}`);
+  },
+  trashDriveFile: (_t: string, id: string) => {
+    h.trashed.push(id);
+    return Promise.resolve();
+  },
   driveTokenFor: () => Promise.resolve('token'),
   claudePictureFolder: () => Promise.resolve('folder'),
   readDriveBytes: () => Promise.resolve({ data: Buffer.from('x') }),
@@ -32,7 +45,10 @@ vi.mock('./drive', () => ({
 }));
 
 import {
+  MAX_CARD_PICTURE_BYTES,
   MAX_UPLOADS_PER_TICKET,
+  applyCardPictures,
+  copyPicturesTo,
   UPLOAD_TICKET_MS,
   cleanName,
   isPictureRef,
@@ -90,6 +106,9 @@ const ticketPath = (t: string) =>
 beforeEach(() => {
   h.docs.clear();
   h.uploads = [];
+  h.copies = [];
+  h.trashed = [];
+  h.failCopy = '';
   h.granted = true;
   h.deactivated = false;
   h.docs.set('users/u1/mcp_grants/g1', {});
@@ -220,5 +239,89 @@ describe('cleanName', () => {
       'picture-1.webp'
     );
     expect(cleanName('%E0%A4', 'f', 'image/gif')).toBe('%E0%A4.gif');
+  });
+});
+
+const seedPicture = (id: string, driveId: string, bytes = 100) =>
+  h.docs.set(`users/u1/claude_pictures/${id}`, {
+    uid: 'u1',
+    driveId,
+    mimeType: 'image/png',
+    name: `${driveId}.png`,
+    bytes,
+    createdAt: 1,
+  });
+
+describe('copyPicturesTo', () => {
+  it('copies into the named Assets folder and trashes all when one fails', async () => {
+    seedPicture('AAAAAAAAAAAAAAAA', 'd1');
+    seedPicture('BBBBBBBBBBBBBBBB', 'd2');
+    const out = await copyPicturesTo(ctx, 'tok', 'QuizStimuli', [
+      'picture:AAAAAAAAAAAAAAAA',
+      'picture:BBBBBBBBBBBBBBBB',
+    ]);
+    expect(out.map((c) => c.driveId)).toEqual(['copy-of-d1', 'copy-of-d2']);
+    expect(h.copies.every((c) => c.folder === 'QuizStimuli')).toBe(true);
+    h.failCopy = 'd2';
+    await expect(
+      copyPicturesTo(ctx, 'tok', 'QuizStimuli', [
+        'picture:AAAAAAAAAAAAAAAA',
+        'picture:BBBBBBBBBBBBBBBB',
+      ])
+    ).rejects.toThrow(/copy failed/);
+    expect(h.trashed).toEqual(['copy-of-d1']);
+  });
+
+  it('refuses when the flag is off or a picture is too big', async () => {
+    seedPicture('AAAAAAAAAAAAAAAA', 'd1', MAX_CARD_PICTURE_BYTES + 1);
+    await expect(
+      copyPicturesTo(
+        ctx,
+        'tok',
+        'FlashcardImages',
+        ['picture:AAAAAAAAAAAAAAAA'],
+        MAX_CARD_PICTURE_BYTES
+      )
+    ).rejects.toThrow(/over 5 MB/);
+    h.granted = false;
+    await expect(
+      copyPicturesTo(ctx, 'tok', 'X', ['picture:AAAAAAAAAAAAAAAA'])
+    ).rejects.toThrow(/not turned on/);
+    expect(h.copies).toHaveLength(0);
+  });
+});
+
+describe('applyCardPictures', () => {
+  it('sets, keeps and clears card pictures', async () => {
+    seedPicture('AAAAAAAAAAAAAAAA', 'd1');
+    const kept = 'https://lh3.googleusercontent.com/d/kept-file-id';
+    const cards: { termImageUrl?: string; definitionImageUrl?: string }[] = [
+      { termImageUrl: kept, definitionImageUrl: kept },
+      { termImageUrl: kept },
+    ];
+    const discard = await applyCardPictures(
+      ctx,
+      [
+        { definition_picture: 'picture:AAAAAAAAAAAAAAAA' },
+        { term_picture: null },
+      ],
+      cards
+    );
+    expect(cards).toEqual([
+      {
+        termImageUrl: kept,
+        definitionImageUrl: 'https://lh3.googleusercontent.com/d/copy-of-d1',
+      },
+      {},
+    ]);
+    expect(h.copies).toEqual([{ folder: 'FlashcardImages', source: 'd1' }]);
+    await discard();
+    expect(h.trashed).toEqual(['copy-of-d1']);
+  });
+
+  it('copies nothing when no picture changes', async () => {
+    const discard = await applyCardPictures(ctx, [{}], [{}]);
+    await discard();
+    expect(h.copies).toHaveLength(0);
   });
 });

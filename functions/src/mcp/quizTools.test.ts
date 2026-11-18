@@ -6,14 +6,33 @@ import type * as admin from '../firebaseAdmin';
 import type { ToolContext } from './activity';
 import { registerQuizTools, restoreQuizRevision } from './quizTools';
 
-const drive = vi.hoisted(() => ({ files: new Map<string, unknown>() }));
+const drive = vi.hoisted(() => ({
+  files: new Map<string, unknown>(),
+  trashed: [] as string[],
+  failSave: false,
+}));
+vi.mock('./pictureUploads', () => ({
+  copyPicturesTo: (_c: unknown, _t: string, folder: string, refs: string[]) =>
+    Promise.resolve(
+      refs.map((ref, i) => ({
+        ref,
+        driveId: `${folder}-${i + 1}`,
+        name: `pic-${i + 1}.png`,
+      }))
+    ),
+}));
 vi.mock('./drive', () => ({
+  trashDriveFile: (_t: string, id: string) => {
+    drive.trashed.push(id);
+    return Promise.resolve();
+  },
   driveTokenFor: vi.fn(() => Promise.resolve('tok')),
   readDriveJson: vi.fn((_t: string, id: string) =>
     Promise.resolve(drive.files.get(id))
   ),
   saveQuizJson: vi.fn(
     (_t: string, content: { id: string }, id: string | null) => {
+      if (drive.failSave) return Promise.reject(new Error('drive down'));
       const fileId = id ?? `file-${content.id}`;
       drive.files.set(fileId, content);
       return Promise.resolve(fileId);
@@ -123,6 +142,56 @@ async function connect(db: unknown) {
 
 beforeEach(() => {
   drive.files.clear();
+  drive.trashed = [];
+  drive.failSave = false;
+});
+
+describe('quiz question pictures', () => {
+  it('adds a picture as an image the question shows', async () => {
+    const { db } = fakeDb();
+    const call = await connect(db);
+    const made = await call('create_quiz', {
+      title: 'Cells',
+      questions: [
+        { ...mc(1), add_picture: 'picture:AAAAAAAAAAAAAAAA' },
+        {
+          ...mc(2),
+          add_picture: 'picture:BBBBBBBBBBBBBBBB',
+          picture_placement: 'in_question',
+        },
+        mc(3),
+      ],
+    });
+    const file = drive.files.get(`file-${made.quiz_id as string}`) as {
+      stimuli: Data[];
+      questions: Data[];
+    };
+    expect(file.stimuli).toHaveLength(2);
+    expect(file.stimuli[0]).toMatchObject({
+      type: 'image',
+      driveFileId: 'QuizStimuli-1',
+      url: 'https://drive.google.com/file/d/QuizStimuli-1/view',
+      label: 'pic-1.png',
+    });
+    expect(file.stimuli[0].placement).toBeUndefined();
+    expect(file.stimuli[1].placement).toBe('inline');
+    expect(file.questions[0].stimulusIds).toEqual([file.stimuli[0].id]);
+    expect(file.questions[1].stimulusIds).toEqual([file.stimuli[1].id]);
+    expect(file.questions[2].stimulusIds).toBeUndefined();
+    expect(file.questions[0].add_picture).toBeUndefined();
+  });
+
+  it('trashes the copies when the Drive save fails', async () => {
+    const { db } = fakeDb();
+    const call = await connect(db);
+    drive.failSave = true;
+    const res = await call('create_quiz', {
+      title: 'Cells',
+      questions: [{ ...mc(1), add_picture: 'picture:AAAAAAAAAAAAAAAA' }],
+    });
+    expect(res.error).toBeTruthy();
+    expect(drive.trashed).toEqual(['QuizStimuli-1']);
+  });
 });
 
 describe.each([

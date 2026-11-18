@@ -5,8 +5,8 @@ export const PICTURE_TYPES = [
   'image/gif',
   'image/webp',
 ];
-/** Mirrors MAX_UPLOAD_BYTES on the server. */
-export const MAX_PICTURE_BYTES = 8 * 1024 * 1024;
+/** Pictures above this shrink first, so they also fit flashcards (MAX_CARD_PICTURE_BYTES on the server). */
+export const MAX_PICTURE_BYTES = 5 * 1024 * 1024;
 const MAX_EDGE = 3000;
 
 export type UploadResult =

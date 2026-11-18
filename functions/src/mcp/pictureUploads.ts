@@ -9,9 +9,12 @@ import { ToolError, type ToolContext } from './activity';
 import { grantRef } from './grants';
 import { isDeactivatedOperatorMember } from './eligibility';
 import {
+  assetFolder,
   claudePictureFolder,
+  copyPictureShared,
   driveTokenFor,
   readDriveBytes,
+  trashDriveFile,
   uploadPrivateImage,
 } from './drive';
 import { READ_ONLY, CREATES, run } from './toolKit';
@@ -77,7 +80,7 @@ export async function picturesOn(ctx: ToolContext): Promise<boolean> {
   );
 }
 
-async function assertPicturesOn(ctx: ToolContext): Promise<void> {
+export async function assertPicturesOn(ctx: ToolContext): Promise<void> {
   if (!(await picturesOn(ctx)))
     throw new ToolError(
       'Picture uploads through Claude are not turned on for this account yet.'
@@ -255,6 +258,51 @@ export async function pictureBytes(
   return { contentType: picture.mimeType, body: data };
 }
 
+/** Shared copies of the teacher's pictures in one Assets folder, made together and all trashed if one fails. */
+export async function copyPicturesTo(
+  ctx: ToolContext,
+  token: string,
+  folder: string,
+  refs: readonly string[],
+  maxBytes = MAX_UPLOAD_BYTES
+): Promise<{ ref: string; driveId: string; name: string }[]> {
+  if (refs.length === 0) return [];
+  await assertPicturesOn(ctx);
+  const pictures = await Promise.all(
+    refs.map((ref) => resolvePicture(ctx, ref))
+  );
+  const big = pictures.findIndex((p) => p.bytes > maxBytes);
+  if (big >= 0)
+    throw new ToolError(
+      `${refs[big]} is over ${Math.floor(maxBytes / 1024 / 1024)} MB, too big here. Ask the teacher for a smaller picture.`
+    );
+  const folderId = await assetFolder(token, folder);
+  const stamp = Date.now();
+  const results = await Promise.allSettled(
+    pictures.map((p, i) =>
+      copyPictureShared(
+        token,
+        folderId,
+        p.driveId,
+        `claude-${stamp}-${i + 1}-${p.name}`
+      )
+    )
+  );
+  const made = results.flatMap((r) =>
+    r.status === 'fulfilled' ? [r.value] : []
+  );
+  const failed = results.find((r) => r.status === 'rejected');
+  if (failed) {
+    await Promise.all(made.map((id) => trashDriveFile(token, id)));
+    throw failed.reason;
+  }
+  return refs.map((ref, i) => ({
+    ref,
+    driveId: made[i],
+    name: pictures[i].name,
+  }));
+}
+
 async function listPictures(ctx: ToolContext, now = Date.now()) {
   const snap = await picturesOf(ctx.db, ctx.uid)
     .where('createdAt', '>=', now - LIST_WINDOW_MS)
@@ -272,7 +320,7 @@ export function registerPictureTools(server: McpServer, ctx: ToolContext) {
     {
       title: 'Add pictures from the chat',
       description:
-        'Use this when the teacher shares pictures in the chat and wants them in SpartBoard. It returns an upload ticket, good for 30 minutes. If you can run code and reach upload_url, send each attached file there yourself. Otherwise give the teacher page_url to drop the pictures in. Each saved picture gets a ref like picture:abc. Pass that ref wherever a tool takes an image link.',
+        'Use this when the teacher shares pictures in the chat and wants them in SpartBoard. It returns an upload ticket, good for 30 minutes. If you can run code and reach upload_url, send each attached file there yourself. Otherwise give the teacher page_url to drop the pictures in. Each saved picture gets a ref like picture:abc. Use refs in Guided Learning slides, the add_picture field of quiz and bank questions, or the term_picture and definition_picture fields of flashcards.',
       inputSchema: {},
       annotations: CREATES,
     },
@@ -340,4 +388,58 @@ export function registerPictureTools(server: McpServer, ctx: ToolContext) {
       };
     }
   );
+}
+
+/** Mirrors MAX_FLASHCARD_IMAGE_BYTES in utils/flashcardImages.ts. */
+export const MAX_CARD_PICTURE_BYTES = 5 * 1024 * 1024;
+const CARD_IMAGES_FEATURE_ID = 'flashcard-card-images';
+
+export interface CardPictureInput {
+  term_picture?: string | null;
+  definition_picture?: string | null;
+}
+
+/** Sets or clears card pictures from refs; returns a cleanup that trashes the new copies if the save fails. */
+export async function applyCardPictures(
+  ctx: ToolContext,
+  inputs: readonly CardPictureInput[],
+  cards: { termImageUrl?: string; definitionImageUrl?: string }[]
+): Promise<() => Promise<void>> {
+  const wanted: { card: number; side: 'term' | 'definition'; ref: string }[] =
+    [];
+  inputs.forEach((input, i) => {
+    for (const side of ['term', 'definition'] as const) {
+      const value = input[`${side}_picture`];
+      if (value === null) delete cards[i][`${side}ImageUrl`];
+      else if (value !== undefined) wanted.push({ card: i, side, ref: value });
+    }
+  });
+  if (wanted.length === 0) return () => Promise.resolve();
+  const { isGlobalFeatureGranted } = await import('../featureGrant');
+  if (
+    !(await isGlobalFeatureGranted(
+      ctx.db,
+      CARD_IMAGES_FEATURE_ID,
+      ctx.email,
+      ctx.uid
+    ))
+  )
+    throw new ToolError(
+      'Card pictures are not turned on for this account yet.'
+    );
+  const token = await driveTokenFor(ctx.uid);
+  const copies = await copyPicturesTo(
+    ctx,
+    token,
+    'FlashcardImages',
+    wanted.map((w) => w.ref),
+    MAX_CARD_PICTURE_BYTES
+  );
+  wanted.forEach((w, i) => {
+    cards[w.card][`${w.side}ImageUrl`] =
+      `https://lh3.googleusercontent.com/d/${copies[i].driveId}`;
+  });
+  return async () => {
+    await Promise.all(copies.map((c) => trashDriveFile(token, c.driveId)));
+  };
 }

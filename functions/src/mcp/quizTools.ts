@@ -12,7 +12,12 @@ import {
   snapshotRevision,
   type ToolContext,
 } from './activity';
-import { driveTokenFor, readDriveJson, saveQuizJson } from './drive';
+import {
+  driveTokenFor,
+  readDriveJson,
+  saveQuizJson,
+  trashDriveFile,
+} from './drive';
 import {
   KIND,
   LIST_MAX,
@@ -180,8 +185,66 @@ const questionSchema = z.object({
     .describe(
       'multiple_choice and choose_all: one entry per choice saying why it is right or wrong (for a wrong choice, the mistake that leads there). Replaces the saved ones; null clears them; omit to keep them.'
     ),
+  add_picture: z
+    .string()
+    .max(100)
+    .optional()
+    .describe(
+      'A picture ref from start_picture_upload to show with this question. It adds one more picture each time, so send it once.'
+    ),
+  picture_placement: z
+    .enum(['beside', 'in_question'])
+    .optional()
+    .describe('Where add_picture shows. Defaults to beside the question.'),
   ...targetInputFields,
 });
+
+/** Adds each add_picture as an image the question shows, as the editor's Add media does; returns a cleanup for a failed save. */
+async function attachPictures(
+  ctx: ToolContext,
+  token: string,
+  inputs: FriendlyQuestion[],
+  questions: StoredQuestion[],
+  stimuli: unknown[]
+): Promise<{ stimuli: unknown[]; discard: () => Promise<void> }> {
+  const wanted = inputs.flatMap((input, i) =>
+    input.add_picture ? [{ i, input, ref: input.add_picture }] : []
+  );
+  if (wanted.length === 0) return { stimuli, discard: () => Promise.resolve() };
+  const { copyPicturesTo } = await import('./pictureUploads');
+  const copies = await copyPicturesTo(
+    ctx,
+    token,
+    'QuizStimuli',
+    wanted.map((w) => w.ref)
+  );
+  const next = [...stimuli];
+  for (const [k, { i, input }] of wanted.entries()) {
+    const id = randomUUID();
+    const driveId = copies[k].driveId;
+    next.push({
+      id,
+      type: 'image',
+      url: `https://drive.google.com/file/d/${driveId}/view`,
+      driveFileId: driveId,
+      label: copies[k].name,
+      ...(input.picture_placement === 'in_question'
+        ? { placement: 'inline' }
+        : {}),
+    });
+    const q = questions[i];
+    q.stimulusIds = [
+      ...(Array.isArray(q.stimulusIds) ? (q.stimulusIds as string[]) : []),
+      id,
+    ];
+  }
+  return {
+    stimuli: next,
+    discard: async () => {
+      await Promise.all(copies.map((c) => trashDriveFile(token, c.driveId)));
+    },
+  };
+}
 
 const QUESTION_HELP =
   "Types: multiple_choice (correct_answer + 1-4 incorrect_answers), choose_all (correct_answers + incorrect_answers), fill_in_blank (correct_answer + accepted_alternates, or blanks when the text has several ___), matching (pairs + extra_matches), ordering (items_in_order), free_response (no key; rubric_id attaches a scoring rubric). Plain text. Put standards and learning targets in standards and learning_targets, which fill the editor's Learning Targets field.";
@@ -347,6 +410,8 @@ async function saveContent(
     meta: Record<string, unknown> | null;
     previous: QuizContent | null;
     action: 'create' | 'update' | 'restore';
+    /** Runs when the Drive write fails, so nothing points at new picture copies. */
+    onDriveFailure?: () => Promise<void>;
   }
 ) {
   const now = Date.now();
@@ -359,11 +424,17 @@ async function saveContent(
       : {}),
     updatedAt: now,
   };
-  const driveFileId = await saveQuizJson(
-    opts.token,
-    content,
-    (opts.meta?.driveFileId as string | undefined) ?? null
-  );
+  let driveFileId: string;
+  try {
+    driveFileId = await saveQuizJson(
+      opts.token,
+      content,
+      (opts.meta?.driveFileId as string | undefined) ?? null
+    );
+  } catch (err) {
+    await opts.onDriveFailure?.();
+    throw err;
+  }
   const batch = ctx.db.batch();
   let revisionId: string | null = null;
   if (opts.previous) {
@@ -538,6 +609,13 @@ export function registerQuizTools(server: McpServer, ctx: ToolContext): void {
           const questions = await buildQuestions(ctx, input.questions, []);
           const token = await driveTokenFor(ctx.uid);
           await reserveWrite(ctx);
+          const pictures = await attachPictures(
+            ctx,
+            token,
+            input.questions,
+            questions,
+            []
+          );
           const now = Date.now();
           const content: QuizContent = {
             id: randomUUID(),
@@ -546,12 +624,16 @@ export function registerQuizTools(server: McpServer, ctx: ToolContext): void {
             createdAt: now,
             updatedAt: now,
             ...(input.language ? { language: input.language } : {}),
+            ...(pictures.stimuli.length > 0
+              ? { stimuli: pictures.stimuli }
+              : {}),
           };
           const saved = await saveContent(ctx, kind, content, {
             token,
             meta: input.folder_id ? { folderId: input.folder_id } : null,
             previous: null,
             action: 'create',
+            onDriveFailure: pictures.discard,
           });
           return {
             result: {
@@ -600,6 +682,15 @@ export function registerQuizTools(server: McpServer, ctx: ToolContext): void {
               )
             : content.questions;
           await reserveWrite(ctx);
+          const pictures = input.questions
+            ? await attachPictures(
+                ctx,
+                token,
+                input.questions as FriendlyQuestion[],
+                questions,
+                Array.isArray(content.stimuli) ? content.stimuli : []
+              )
+            : null;
           const saved = await saveContent(
             ctx,
             kind,
@@ -608,12 +699,14 @@ export function registerQuizTools(server: McpServer, ctx: ToolContext): void {
               title:
                 (input.title as string | undefined)?.trim() || content.title,
               questions,
+              ...(pictures ? { stimuli: pictures.stimuli } : {}),
             },
             {
               token,
               meta: folderId === undefined ? meta : { ...meta, folderId },
               previous: content,
               action: 'update',
+              onDriveFailure: pictures?.discard,
             }
           );
           const kept = new Set(saved.content.questions.map((q) => q.id));
