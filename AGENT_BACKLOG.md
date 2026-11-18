@@ -247,6 +247,8 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
   <details><summary>Branches to delete (178, checked 2026-11-01)</summary>
 
+claude/project-thread-ygx718 (#6174)
+claude/ab112-ygx718 (this docs PR, delete after it merges)
 claude/project-thread-imr8je (#6163; this docs PR reuses it, delete after it merges)
 hotfix/view-as-edit-mode (#6166)
 claude/project-thread-hm2dnv (#6162, then its AB-112 docs PR and the rubric modal follow-up PR; delete after all merge)
