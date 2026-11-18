@@ -69,6 +69,69 @@ const level = (
   ...(description ? { description } : {}),
 });
 
+const DBQ = {
+  id: 'r-dbq',
+  title: 'Unit 1 & 2 DBQ Scoring Guide',
+  description:
+    '6-point DBQ rubric (synthesis/complexity not assessed). Grade conversion: 6 = 100%, 5 = 96%, 4 = 86%, 3 = 76%, 2 = 66%, 1 = 56%, 0 = 50%.',
+  createdAt: 0,
+  updatedAt: 0,
+  criteria: [
+    {
+      id: 'context',
+      name: 'A. Contextualization',
+      description:
+        'Describes a broader historical context relevant to the prompt and connects it to the topic.',
+      levels: [
+        level(
+          'ctx1',
+          'Earned',
+          1,
+          'Names specific events from right before or around the topic and connects them to the thesis.'
+        ),
+        level(
+          'ctx0',
+          'Not yet',
+          0,
+          'Context is too broad, too short, or not linked to the thesis.'
+        ),
+      ],
+    },
+    {
+      id: 'evidence',
+      name: 'B. Evidence from documents',
+      levels: [
+        level(
+          'ev3',
+          'Supports argument',
+          3,
+          'Uses at least four documents to support an argument.'
+        ),
+        level(
+          'ev2',
+          'Describes',
+          2,
+          'Describes the content of at least three documents.'
+        ),
+        level('ev0', 'Not yet', 0),
+      ],
+    },
+    {
+      id: 'sourcing',
+      name: 'C. Sourcing',
+      levels: [
+        level(
+          'so2',
+          'Earned',
+          2,
+          'Explains how purpose or audience is relevant for at least two documents.'
+        ),
+        level('so0', 'Not yet', 0),
+      ],
+    },
+  ],
+} as unknown as Rubric;
+
 const DREAM_HOME = {
   id: 'r-dream',
   title: 'Dream home presentation',
@@ -402,7 +465,7 @@ export const WritingGraderDevHarness: React.FC = () => {
           )}
           {view === 'table' && (
             <RubricTableModal
-              rubric={DREAM_HOME}
+              rubric={params.get('rubric') === 'dbq' ? DBQ : DREAM_HOME}
               order={rubricLevelOrder}
               onOrderChange={() =>
                 setRubricLevelOrder((o) =>
@@ -414,6 +477,7 @@ export const WritingGraderDevHarness: React.FC = () => {
               onSave={() => Promise.resolve()}
               initialEditing={params.get('structure') === '1'}
               editStructure={params.get('structure') === '1'}
+              editLevels={params.get('levels') === '1'}
               saveLabel={params.get('structure') === '1' ? 'Done' : 'Save'}
             />
           )}

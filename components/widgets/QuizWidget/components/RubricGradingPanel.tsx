@@ -515,6 +515,7 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
           onOrderChange={switchOrder}
           scores={byCriterion}
           onSave={onSaveRubric}
+          editLevels
           onClose={() => setTableOpen(false)}
         />
       )}

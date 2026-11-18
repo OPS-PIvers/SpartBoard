@@ -359,4 +359,40 @@ describe('Full rubric table editing', () => {
       '',
     ]);
   });
+
+  it('lets the grader add and remove levels on a criterion row but not criteria', async () => {
+    const onSave = vi
+      .fn<(r: Rubric) => Promise<void>>()
+      .mockResolvedValue(undefined);
+    const onClose = vi.fn();
+    const { RubricTableModal } =
+      await import('@/components/widgets/QuizWidget/components/RubricTableModal');
+    render(
+      <RubricTableModal
+        rubric={rubric}
+        order="high-first"
+        onOrderChange={vi.fn()}
+        scores={new Map()}
+        onClose={onClose}
+        onSave={onSave}
+        initialEditing
+        editLevels
+      />
+    );
+    expect(screen.queryByRole('button', { name: 'Add criterion' })).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'Remove criterion 1' })
+    ).toBeNull();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Add level to criterion 2' })
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Remove criterion 1 level 3' })
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
+    const saved = onSave.mock.calls[0][0];
+    expect(saved.criteria[0].levels.map((l) => l.id)).toEqual(['c1l2', 'c1l3']);
+    expect(saved.criteria[1].levels.map((l) => l.points)).toEqual([1, 2, 3]);
+  });
 });

@@ -32,6 +32,8 @@ interface RubricTableModalProps {
   initialEditing?: boolean;
   /** Lets editing add and remove criteria and levels. */
   editStructure?: boolean;
+  /** Lets editing add and remove levels only, keeping the criteria fixed. */
+  editLevels?: boolean;
   saveLabel?: string;
 }
 
@@ -100,6 +102,7 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
   onSave,
   initialEditing = false,
   editStructure = false,
+  editLevels = false,
   saveLabel = 'Save',
 }) => {
   const [draft, setDraft] = useState<Rubric | null>(() =>
@@ -188,7 +191,9 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
 
   const draftHeaders = headers;
   const structure = editing && editStructure;
-  const addColumn = structure && editShared && columns < RUBRIC_MAX_LEVELS;
+  const levelEdits = editing && (editStructure || editLevels);
+  // The add-level control sits after the last level, in a trailing column when a row is full.
+  const addColumn = levelEdits && columns < RUBRIC_MAX_LEVELS;
 
   const startEditing = () => {
     setError(null);
@@ -294,6 +299,28 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
       setSaving(false);
     }
   };
+
+  // Per-row add for criteria with their own level names; shared columns add from the header.
+  const rowAdd = (ri: number, criterionId: string) =>
+    levelEdits &&
+    !editShared &&
+    (shown.criteria.find((c) => c.id === criterionId)?.levels.length ?? 0) <
+      RUBRIC_MAX_LEVELS && (
+      <button
+        type="button"
+        onClick={() => addLevel(criterionId)}
+        aria-label={`Add level to criterion ${ri + 1}`}
+        title="Add level"
+        {...tourFieldAttr(
+          'quiz-grading.rubric-table-add-level',
+          'quiz',
+          String(ri + 1)
+        )}
+        className="mx-auto flex h-9 w-9 items-center justify-center rounded-md text-brand-blue-primary transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
+      >
+        <Plus className="h-5 w-5" aria-hidden />
+      </button>
+    );
 
   const header = (
     <div className="flex shrink-0 items-start gap-3 px-6 pb-4 pt-6">
@@ -433,11 +460,11 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
             'quiz',
             'description'
           )}
-          className={`${growField} mb-4 max-w-3xl text-sm`}
+          className={`${growField} mb-4 text-sm`}
         />
       ) : (
         rubric.description && (
-          <p className="mb-4 max-w-3xl text-sm leading-relaxed text-slate-600">
+          <p className="mb-4 text-sm leading-relaxed text-slate-600">
             {rubric.description}
           </p>
         )
@@ -492,7 +519,7 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
                           )}
                           className={`${growField} min-w-0 flex-1 text-sm font-bold`}
                         />
-                        {structure && columns > RUBRIC_MIN_LEVELS && (
+                        {levelEdits && columns > RUBRIC_MIN_LEVELS && (
                           <button
                             type="button"
                             onClick={() => removeLevel(i)}
@@ -518,20 +545,22 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
                     scope="col"
                     className="border-l border-slate-200 px-1 py-3"
                   >
-                    <button
-                      type="button"
-                      onClick={() => addLevel()}
-                      aria-label="Add level"
-                      title="Add level"
-                      {...tourFieldAttr(
-                        'quiz-grading.rubric-table-add-level',
-                        'quiz',
-                        'all'
-                      )}
-                      className="mx-auto flex h-9 w-9 items-center justify-center rounded-md text-brand-blue-primary transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
-                    >
-                      <Plus className="h-5 w-5" aria-hidden />
-                    </button>
+                    {editShared && (
+                      <button
+                        type="button"
+                        onClick={() => addLevel()}
+                        aria-label="Add level"
+                        title="Add level"
+                        {...tourFieldAttr(
+                          'quiz-grading.rubric-table-add-level',
+                          'quiz',
+                          'all'
+                        )}
+                        className="mx-auto flex h-9 w-9 items-center justify-center rounded-md text-brand-blue-primary transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
+                      >
+                        <Plus className="h-5 w-5" aria-hidden />
+                      </button>
+                    )}
                   </th>
                 )}
               </tr>
@@ -609,23 +638,6 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
                           )}
                           className={`${growField} mt-2 min-h-14 text-xs leading-relaxed`}
                         />
-                        {structure &&
-                          !editShared &&
-                          criterion.levels.length < RUBRIC_MAX_LEVELS && (
-                            <button
-                              type="button"
-                              onClick={() => addLevel(criterion.id)}
-                              {...tourFieldAttr(
-                                'quiz-grading.rubric-table-add-level',
-                                'quiz',
-                                String(ri + 1)
-                              )}
-                              className={`${textButton} mt-2`}
-                            >
-                              <Plus className="h-4 w-4" aria-hidden />
-                              Add level
-                            </button>
-                          )}
                       </>
                     ) : (
                       <>
@@ -666,10 +678,12 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
                       return (
                         <td
                           key={i}
-                          className="border-l border-slate-200 bg-slate-50/50"
-                        />
+                          className="border-l border-slate-200 bg-slate-50/50 px-3 py-3"
+                        >
+                          {i === levels.length && rowAdd(ri, criterion.id)}
+                        </td>
                       );
-                    const cellRemove = structure &&
+                    const cellRemove = levelEdits &&
                       !editShared &&
                       levels.length > RUBRIC_MIN_LEVELS && (
                         // eslint-disable-next-line no-restricted-syntax -- a remove button per rubric level cell, not a number picker
@@ -812,7 +826,9 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
                     );
                   })}
                   {addColumn && (
-                    <td className="border-l border-slate-200 bg-slate-50/50" />
+                    <td className="border-l border-slate-200 bg-slate-50/50 px-1 py-3">
+                      {levels.length === columns && rowAdd(ri, criterion.id)}
+                    </td>
                   )}
                 </tr>
               );
