@@ -123,7 +123,7 @@ export const hearSpeakIpaV1 = onCall(
     }
     const email =
       typeof auth.token.email === 'string' ? auth.token.email : null;
-    const { isGlobalFeatureGranted } = await import('../quizMediaArchive');
+    const { isGlobalFeatureGranted } = await import('../featureGrant');
     if (
       !(await isGlobalFeatureGranted(
         admin.firestore(),

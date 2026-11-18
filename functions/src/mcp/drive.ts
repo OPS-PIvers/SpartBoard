@@ -23,10 +23,7 @@ export async function driveTokenFor(
   const hit = tokenCache.get(uid);
   if (hit && hit.expiresAt > now + 60_000) return hit.token;
   const [{ refreshGoogleAccessTokenForUid }, { isNeedsConsentError }] =
-    await Promise.all([
-      import('../googleOAuth'),
-      import('../quizMediaArchive'),
-    ]);
+    await Promise.all([import('../googleOAuth'), import('../needsConsent')]);
   try {
     const { accessToken, expiresIn } =
       await refreshGoogleAccessTokenForUid(uid);

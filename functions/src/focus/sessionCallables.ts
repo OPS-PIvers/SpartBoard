@@ -18,7 +18,7 @@ import {
 import { loadTaughtClassEnrollment } from '../studentIdentity';
 import { assertViewAsAllowed } from '../viewAsGuard';
 import { liveFocusPushDeps, wakeFocusStudents } from './push';
-import { ExtensionCallError, bearerToken } from '../webTourExtension';
+import { ExtensionCallError, bearerToken } from '../extensionAuth';
 import { handleFocusPanel } from './panel';
 import { panelCaller } from './panelCaller';
 import {

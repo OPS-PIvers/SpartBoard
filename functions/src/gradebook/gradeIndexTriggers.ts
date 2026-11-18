@@ -12,7 +12,6 @@ import {
   drainDirtySessions,
   isGradeIndexEnabled,
   markSessionDirty,
-  sessionWriteMatters,
   stableStringify,
 } from './gradeIndex';
 import {
@@ -40,21 +39,13 @@ import {
   applyAttemptWrite,
 } from '../quizAttemptHistory';
 import { stampTurnIn } from '../quizTurnIn';
+import {
+  TRIGGER_OPTS,
+  dataOf,
+  guarded,
+  type WriteEvent,
+} from './gradeSessionTriggers';
 
-type Doc = Record<string, unknown>;
-
-interface Change {
-  before: { exists: boolean; data: () => Doc | undefined };
-  after: { exists: boolean; data: () => Doc | undefined };
-}
-
-interface WriteEvent {
-  params: Record<string, string>;
-  data?: Change;
-  time?: string;
-}
-
-const TRIGGER_OPTS = { memory: '256MiB' as const, maxInstances: 20 };
 // Config edits re-project whole classes, so they get the long timeout.
 const FANOUT_OPTS = { ...TRIGGER_OPTS, timeoutSeconds: 540 };
 // Project rows are checked against the owner's live class roster.
@@ -64,26 +55,6 @@ const ROSTER_SECRETS = [
   CLASSLINK_TENANT_URL,
   STUDENT_PSEUDONYM_HMAC_SECRET,
 ];
-
-const dataOf = (side: Change['before'] | undefined): Doc | undefined =>
-  side?.exists ? (side.data() ?? undefined) : undefined;
-
-async function guarded(
-  label: string,
-  context: Doc,
-  fn: () => Promise<void>
-): Promise<void> {
-  try {
-    const db = admin.firestore();
-    if (!(await isGradeIndexEnabled(db))) return;
-    await fn();
-  } catch (err) {
-    logger.error(`gradeIndex: ${label} failed`, {
-      ...context,
-      error: err instanceof Error ? err.message : String(err),
-    });
-  }
-}
 
 /** Per-student doc handler body, exported for tests. */
 export async function handleStudentDocWrite(
@@ -111,20 +82,6 @@ export async function handleStudentDocWrite(
   });
 }
 
-/** Session handler body: a relevant change queues a whole-session recompute. */
-export async function handleSessionWrite(
-  kind: GradeKind,
-  event: WriteEvent
-): Promise<void> {
-  const { sessionId } = event.params;
-  const before = dataOf(event.data?.before);
-  const after = dataOf(event.data?.after);
-  if (!sessionWriteMatters(before, after)) return;
-  await guarded('session', { kind, sessionId }, () =>
-    markSessionDirty(admin.firestore(), kind, sessionId)
-  );
-}
-
 const studentDocTrigger = (kind: GradeKind) =>
   onDocumentWritten(
     {
@@ -133,12 +90,6 @@ const studentDocTrigger = (kind: GradeKind) =>
       document: `${SESSION_COLLECTION[kind]}/{sessionId}/${STUDENT_SUBCOLLECTION[kind]}/{docId}`,
     },
     (event) => handleStudentDocWrite(kind, event as unknown as WriteEvent)
-  );
-
-const sessionTrigger = (kind: GradeKind) =>
-  onDocumentWritten(
-    { ...TRIGGER_OPTS, document: `${SESSION_COLLECTION[kind]}/{sessionId}` },
-    (event) => handleSessionWrite(kind, event as unknown as WriteEvent)
   );
 
 const MAX_RETRY_AGE_MS = 2 * 60 * 60_000;
@@ -267,16 +218,6 @@ export const gradeIndexProjectGrade = studentDocTrigger('projects');
 export const gradeIndexMiniAppSubmission = studentDocTrigger('mini-app');
 export const gradeIndexWallSubmission = studentDocTrigger('activity-wall');
 export const gradeIndexWritingResponse = studentDocTrigger('writing');
-
-export const gradeIndexQuizSession = sessionTrigger('quiz');
-export const gradeIndexVideoSession = sessionTrigger('video-activity');
-export const gradeIndexGuidedLearningSession =
-  sessionTrigger('guided-learning');
-export const gradeIndexFlashcardSession = sessionTrigger('flashcards');
-export const gradeIndexProjectRun = sessionTrigger('projects');
-export const gradeIndexMiniAppSession = sessionTrigger('mini-app');
-export const gradeIndexWallSession = sessionTrigger('activity-wall');
-export const gradeIndexWritingSession = sessionTrigger('writing');
 
 /** Key or tag edits live off the session, so they queue the session themselves. */
 export async function handleSideDocWrite(

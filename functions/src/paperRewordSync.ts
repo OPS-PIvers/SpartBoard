@@ -329,7 +329,7 @@ export const paperRewordSyncV1 = onCall(
       Date.now(),
       async () => {
         if (!caller) return false;
-        const { isGlobalFeatureGranted } = await import('./quizMediaArchive');
+        const { isGlobalFeatureGranted } = await import('./featureGrant');
         return isGlobalFeatureGranted(
           admin.firestore(),
           PAPER_REWORD_SYNC_FEATURE,

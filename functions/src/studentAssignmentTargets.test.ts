@@ -55,11 +55,11 @@ import {
   refKey,
   resolveTargets,
   sanitizeOverride,
-  setAssignmentTargetsV1,
   uidForRef,
   type SetAssignmentTargetsInput,
   type TargetAuthorizationContext,
 } from './studentAssignmentTargets';
+import { setAssignmentTargetsV1 } from './setAssignmentTargets';
 import * as admin from './firebaseAdmin';
 
 const HMAC = 'unit-test-hmac-secret';

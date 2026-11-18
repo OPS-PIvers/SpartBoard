@@ -83,8 +83,14 @@ else
     elif ! git show "${BASE_SHA}:functions/src/index.ts" >"$old_index" 2>/dev/null; then
       rm -f "$old_index"
     fi
-    names="$(grep '^functions/' <<<"$FILES" | AFFECTED_FUNCTIONS_OLD_INDEX="$old_index" node "$(dirname "$0")/affected-functions.mjs" "$root")" || names=ALL
-    rm -f "$old_index"
+    old_flags="$(mktemp)"
+    if [[ -n "${OLD_FEATURE_MISSING_DOC_FILE:-}" ]]; then
+      cp "$OLD_FEATURE_MISSING_DOC_FILE" "$old_flags"
+    elif ! git show "${BASE_SHA}:functions/src/featureMissingDoc.ts" >"$old_flags" 2>/dev/null; then
+      rm -f "$old_flags"
+    fi
+    names="$(grep '^functions/' <<<"$FILES" | AFFECTED_FUNCTIONS_OLD_INDEX="$old_index" AFFECTED_FUNCTIONS_OLD_FEATURE_MISSING_DOC="$old_flags" node "$(dirname "$0")/affected-functions.mjs" "$root")" || names=ALL
+    rm -f "$old_index" "$old_flags"
     if [[ -z "$names" ]]; then
       FUNCTIONS=false
     elif [[ "$names" != "ALL" ]]; then

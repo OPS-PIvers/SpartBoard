@@ -200,7 +200,7 @@ export async function layoutFlagAllows(
   if (!perm) return true;
   if (perm.enabled === false) return false;
   if (isAdmin) return true;
-  const { isGlobalFeatureGranted } = await import('./quizMediaArchive');
+  const { isGlobalFeatureGranted } = await import('./featureGrant');
   return isGlobalFeatureGranted(
     db,
     'dashboard-layout',
@@ -237,7 +237,7 @@ function defaultDeps(): ConversionDeps {
       layoutFlagAllows(db, token, uid, isAdmin),
     isStaff: (token) => isDistrictStaffToken(db, token),
     granted: async (token, uid) => {
-      const { isGlobalFeatureGranted } = await import('./quizMediaArchive');
+      const { isGlobalFeatureGranted } = await import('./featureGrant');
       return isGlobalFeatureGranted(
         db,
         UNIVERSAL_IMPORT_FEATURE_ID,

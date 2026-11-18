@@ -14,7 +14,7 @@ import {
   placeInZone,
 } from './boardEngine.gen';
 
-vi.mock('../quizMediaArchive', () => ({
+vi.mock('../featureGrant', () => ({
   deriveTeacherTier: vi.fn(() => Promise.resolve('internal')),
   isBetaTeacher: vi.fn(() => Promise.resolve(false)),
   meetsMinTierServer: () => true,

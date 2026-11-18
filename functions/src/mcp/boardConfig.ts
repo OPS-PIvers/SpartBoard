@@ -89,8 +89,8 @@ export async function canUseWidget(
     reason: 'no-access',
     message: `This teacher doesn't have the "${type}" widget`,
   };
-  // Lazy: quizMediaArchive pulls heavy deps the other tools don't need.
-  const archive = await import('../quizMediaArchive');
+  // Lazy: only gated widget types need the feature checks.
+  const archive = await import('../featureGrant');
   if (
     type === 'routineGuide' &&
     !(await archive.isGlobalFeatureGranted(

@@ -119,7 +119,7 @@ describe('callSpartBoard', () => {
 describe('OAuth clients', () => {
   it('match what the server accepts for each project', () => {
     const server = readFileSync(
-      path.join(process.cwd(), 'functions/src/webTourExtension.ts'),
+      path.join(process.cwd(), 'functions/src/extensionAuth.ts'),
       'utf8'
     );
     const quoted = (project: string) =>
