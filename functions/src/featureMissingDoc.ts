@@ -20,6 +20,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'claude-connector',
   'web-tours',
   'claude-connector-guided-learning',
+  'claude-picture-uploads',
   'video-activity-live',
   'quiz-student-view',
   'class-student-page',

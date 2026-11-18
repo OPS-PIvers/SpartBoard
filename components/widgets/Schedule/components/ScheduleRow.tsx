@@ -18,6 +18,7 @@ interface CountdownDisplayProps {
   totalSeconds: number;
   /** When true, the progress bar is shown at 100% and marked idle (no live tick). */
   isIdle?: boolean;
+  color?: string;
 }
 
 /**
@@ -33,6 +34,7 @@ export const CountdownDisplay: React.FC<CountdownDisplayProps> = ({
   remainingSeconds,
   totalSeconds,
   isIdle = false,
+  color,
 }) => {
   const rem = Math.max(0, remainingSeconds);
   const total = Math.max(0, totalSeconds);
@@ -41,8 +43,9 @@ export const CountdownDisplay: React.FC<CountdownDisplayProps> = ({
   return (
     <div className="flex flex-col w-full" style={{ gap: scheduleSize(0.8, 4) }}>
       <span
-        className="text-indigo-400"
+        className={color ? undefined : 'text-indigo-400'}
         style={{
+          color,
           fontSize: scheduleSize(6, 24),
           fontVariantNumeric: 'tabular-nums',
           opacity: isIdle ? 0.6 : 1,
@@ -51,12 +54,18 @@ export const CountdownDisplay: React.FC<CountdownDisplayProps> = ({
         {formatCountdown(rem)}
       </span>
       <div
-        className="w-full rounded-full overflow-hidden bg-slate-200"
-        style={{ height: scheduleSize(1.2, 5) }}
+        className={`w-full rounded-full overflow-hidden ${color ? '' : 'bg-slate-200'}`}
+        style={{
+          height: scheduleSize(1.2, 5),
+          backgroundColor: color
+            ? `color-mix(in srgb, ${color} 20%, transparent)`
+            : undefined,
+        }}
       >
         <div
-          className="h-full rounded-full bg-indigo-400"
+          className={`h-full rounded-full ${color ? '' : 'bg-indigo-400'}`}
           style={{
+            backgroundColor: color,
             width: `${Math.max(0, Math.min(100, progress * 100))}%`,
             transition: 'width 1s linear',
             opacity: isIdle ? 0.5 : 1,
@@ -187,9 +196,12 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
   durationSeconds,
   isExpanded = false,
   textScale = 1,
-  fontColor = '#334155',
+  fontColor: fontColorProp = '#334155',
   lines = false,
 }) {
+  // Lines style shows the active row as a solid brand-blue band with white text.
+  const solid = lines && isActive;
+  const fontColor = solid ? '#ffffff' : fontColorProp;
   const { t } = useTranslation();
 
   // Use the user-selected card color. Done items get a neutral gray tint.
@@ -250,6 +262,15 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
           // Tailwind's preflight, so only the width + color need setting here.
           borderWidth: isActive ? scheduleSize(1.5, 6) : '1px',
         };
+  const activeLinesStyle = {
+    flex: '1 0 auto',
+    minHeight: scheduleSize(18, 72),
+    // Thin white rules keep the band visible on cards close to brand blue.
+    borderTopWidth: '2px',
+    borderBottomWidth: '2px',
+    // Sit over the next row's hairline so the band edge stays clean.
+    marginBottom: '-1px',
+  };
 
   // Timer-start icon: strictly mode-aware so the button only appears when
   // handleStartTimer can actually launch something. Clock-mode needs a valid
@@ -271,23 +292,25 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
   return (
     <div
       className={`w-full flex items-center transition-all relative snap-start overflow-hidden ${
-        lines && !isActive
-          ? ''
+        lines
+          ? isActive
+            ? 'bg-brand-blue-primary border-white z-10'
+            : ''
           : `rounded-2xl ${
               isActive
                 ? 'border-brand-blue-primary shadow-md z-10'
                 : 'border-slate-200 shadow-xs'
             }`
       }`}
-      style={rowStyle}
+      style={lines && isActive ? activeLinesStyle : rowStyle}
     >
       {isActive && (
         <div
-          className="absolute top-0 right-0 bg-brand-blue-primary text-white font-black uppercase tracking-widest z-20"
+          className={`absolute top-0 right-0 font-black uppercase tracking-widest z-20 ${solid ? 'bg-white text-brand-blue-primary' : 'bg-brand-blue-primary text-white'}`}
           style={{
             fontSize: scheduleSize(2.5 * textScale, 10 * textScale),
             padding: `${scheduleSize(1, 4)} ${scheduleSize(2, 8)}`,
-            borderBottomLeftRadius: scheduleSize(3, 12),
+            borderBottomLeftRadius: lines ? undefined : scheduleSize(3, 12),
           }}
         >
           Now
@@ -313,8 +336,9 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
           />
         ) : (
           <Circle
-            className="text-indigo-300 shrink-0"
+            className="shrink-0 opacity-50"
             style={{
+              color: fontColor,
               width: scheduleSize(8, 32),
               height: scheduleSize(8, 32),
             }}
@@ -329,13 +353,14 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
               remainingSeconds={countdownRemaining}
               totalSeconds={durationSeconds}
               isIdle={countdownIsIdle}
+              color={fontColor}
             />
           ) : (
             <span
               className={`font-black leading-none whitespace-nowrap shrink-0 ${item.done ? 'text-slate-400' : 'text-indigo-400'}`}
               style={{
                 fontSize: scheduleSize(6 * textScale, 24 * textScale),
-                color: !item.done ? fontColor : undefined,
+                color: !item.done || solid ? fontColor : undefined,
               }}
             >
               {formatScheduleTime(item.startTime ?? item.time, format24)}
@@ -350,7 +375,7 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
             style={{
               fontSize: scheduleSize(10 * textScale, 36 * textScale),
               flex: '1 1 8em',
-              color: !item.done ? fontColor : undefined,
+              color: !item.done || solid ? fontColor : undefined,
               // Cap the expanded row so a pathologically long title scrolls
               // inside the row rather than pushing every other event off-screen.
               maxHeight: isExpanded
@@ -365,8 +390,9 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
       {canLaunchStandaloneTimer && (
         <button
           onClick={() => onStartTimer?.(item)}
-          className="shrink-0 text-indigo-300 hover:text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors"
+          className={`shrink-0 ${item.done ? '' : 'opacity-50'} hover:opacity-100 hover:bg-black/5 rounded-lg transition`}
           style={{
+            color: item.done ? '#64748b' : fontColor,
             padding: scheduleSize(1, 4),
             marginRight: scheduleSize(2.5, 12),
           }}

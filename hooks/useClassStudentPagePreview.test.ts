@@ -11,7 +11,7 @@ describe('studentPageListsSession', () => {
     expect(studentPageListsSession('quiz', { status: 'waiting' })).toBe(true);
     expect(studentPageListsSession('quiz', { status: 'active' })).toBe(true);
     expect(studentPageListsSession('quiz', { status: 'ended' })).toBe(true);
-    expect(studentPageListsSession('quiz', { status: 'paused' })).toBe(false);
+    expect(studentPageListsSession('quiz', { status: 'paused' })).toBe(true);
     expect(studentPageListsSession('mini-app', { status: 'draft' })).toBe(
       false
     );

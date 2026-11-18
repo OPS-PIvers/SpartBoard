@@ -1259,6 +1259,12 @@
       "indexes": []
     },
     {
+      "collectionGroup": "mcp_picture_upload_tickets",
+      "fieldPath": "expireAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
       "collectionGroup": "mcp_oauth_jti",
       "fieldPath": "expireAt",
       "ttl": true,

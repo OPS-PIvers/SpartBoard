@@ -6,6 +6,9 @@ export const CONNECTOR_FEATURE_ID = 'claude-connector';
 /** GlobalFeature id gating the Guided Learning tools inside the connector. */
 export const GL_FEATURE_ID = 'claude-connector-guided-learning';
 
+/** GlobalFeature id gating picture uploads from a Claude chat. */
+export const PICTURE_UPLOAD_FEATURE_ID = 'claude-picture-uploads';
+
 /** GlobalFeature id gating the meeting notes tools (MR-D21). */
 export const MEETING_AI_FEATURE_ID = 'plc-meeting-ai-notes';
 

@@ -8003,7 +8003,7 @@ export const TOUR_ANCHORS = {
     persists: true,
     perField: true,
     rows: true,
-    rowList: 'plc-settings-target-rows',
+    rowList: 'plc-settings-target-restore',
   },
   'plc-settings.target-archived-toggle': {
     label: 'Target archived toggle button in the PLC settings tab',
@@ -8012,7 +8012,7 @@ export const TOUR_ANCHORS = {
     label: 'Target archive button in the PLC settings tab',
     perField: true,
     destructive: true,
-    rowList: 'plc-settings-target-rows',
+    rowList: 'plc-settings-target-archive',
   },
   'plc-settings.target-add-panel': {
     label: 'Target add panel button in the PLC settings tab',

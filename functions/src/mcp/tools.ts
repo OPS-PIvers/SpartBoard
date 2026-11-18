@@ -1,4 +1,9 @@
 // MCP tool definitions for the Claude connector (plan: "Tools", PR 1).
+import {
+  PICTURE_TOOLS,
+  picturesOn,
+  registerPictureTools,
+} from './pictureUploads';
 import * as admin from '../firebaseAdmin';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
@@ -768,6 +773,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
   registerMeetingTools(server, ctx);
   registerStandardsTools(server, ctx);
   registerBoardTools(server, ctx);
+  registerPictureTools(server, ctx);
 }
 
 /** Listed only when Mini App results are on; get_mini_app_spec stays listed and serves the basic spec. */
@@ -777,12 +783,14 @@ const RESULTS_ONLY_TOOLS = ['get_mini_app_results_summary'] as const;
 export async function hiddenToolsFor(
   ctx: ToolContext
 ): Promise<ReadonlySet<string>> {
-  const [admin, resultsOn] = await Promise.all([
+  const [admin, resultsOn, pictures] = await Promise.all([
     isAdmin(ctx).catch(() => false),
     miniAppResultsOn(ctx).catch(() => false),
+    picturesOn(ctx).catch(() => false),
   ]);
   return new Set([
     ...(admin ? [] : [...ADMIN_ONLY_TOOLS, ...WEB_TOUR_TOOLS]),
     ...(resultsOn ? [] : RESULTS_ONLY_TOOLS),
+    ...(pictures ? [] : PICTURE_TOOLS),
   ]);
 }

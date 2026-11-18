@@ -215,6 +215,48 @@ describe('selectMenu', () => {
     expect(isSelectMenuOpen()).toBe(false);
   });
 
+  it('opens under the select when its wrapper has no box of its own', () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(
+      function (this: HTMLElement) {
+        const r =
+          this.tagName === 'FIELDSET'
+            ? {
+                x: 0,
+                y: 0,
+                left: 0,
+                top: 0,
+                right: 0,
+                bottom: 0,
+                width: 0,
+                height: 0,
+              }
+            : {
+                x: 600,
+                y: 200,
+                left: 600,
+                top: 200,
+                right: 900,
+                bottom: 236,
+                width: 300,
+                height: 36,
+              };
+        return { ...r, toJSON: () => r };
+      }
+    );
+    render(
+      <fieldset className="contents">
+        <select aria-label="School Site" defaultValue="a">
+          <option value="a">A</option>
+          <option value="b">B</option>
+        </select>
+      </fieldset>
+    );
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'School Site' }));
+    expect(listbox().style.top).toBe('240px');
+    expect(listbox().style.left).toBe('600px');
+    expect(listbox().style.minWidth).toBe('300px');
+  });
+
   it('lets Space finish a typed search on a closed select', () => {
     render(<Controlled />);
     const select = screen.getByRole('combobox');

@@ -249,6 +249,10 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
   <details><summary>Branches to delete (178, checked 2026-11-01)</summary>
 
+claude/project-thread-r8x8gv (#6213)
+claude/project-thread-r8x8gv-ab112 (this docs PR, delete after it merges)
+claude/project-thread-vyyos0 (#6202; this docs PR reuses it, delete after it merges)
+claude/project-thread-yyrdz8 (#6198; this docs PR reuses it, delete after it merges)
 claude/project-thread-h3n64u (#6194; this docs PR reuses it, delete after it merges)
 claude/project-thread-ygwr09 (#6187; this docs PR reuses it, delete after it merges)
 security/q-drive-grants (#6151)
@@ -680,8 +684,6 @@ git push origin --delete claude/project-thread-hnyuke claude/project-thread-hnyu
 ```
 
   </details>
-
-- **AB-150 Paused quiz vanishes from My Assignments** (S). `hooks/useStudentAssignments.ts` quiz `activeFilter` is `waiting|active`, so a paused quiz shows in neither the Active nor the Ended list. Add `paused` to the Active filter. It adds one status listener per class chunk, so check `tests/hooks/useStudentAssignments.listenerCount.test.tsx` and the quiz composite index first. Left out of the Q2 state-machine slice to keep prod listener counts unchanged.
 
 ### Plans with a next slice
 

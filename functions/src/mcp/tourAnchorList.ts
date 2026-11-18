@@ -32363,7 +32363,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "persists": true,
     "row_wildcard": true,
-    "row_list": "plc-settings-target-rows",
+    "row_list": "plc-settings-target-restore",
     "routes": [
       {
         "surface": "plc.targets",
@@ -32405,7 +32405,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Target archive button in the PLC settings tab",
     "scope": "field",
     "destructive": true,
-    "row_list": "plc-settings-target-rows",
+    "row_list": "plc-settings-target-archive",
     "routes": [
       {
         "surface": "plc.targets",

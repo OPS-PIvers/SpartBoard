@@ -225,6 +225,11 @@ const ClaudeConnectPage = lazy(() =>
     default: module.ConnectPage,
   }))
 );
+const ClaudePictureUploadPage = lazy(() =>
+  import('./components/claudeConnector/PictureUploadPage').then((module) => ({
+    default: module.PictureUploadPage,
+  }))
+);
 const PlcInviteAcceptance = lazy(() =>
   import('./components/auth/PlcInviteAcceptance').then((module) => ({
     default: module.PlcInviteAcceptance,
@@ -1243,6 +1248,15 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <FamilyPage />
+      </Suspense>
+    );
+  }
+
+  // Pictures a teacher drops in for Claude; the link's ticket is the only credential, so no providers.
+  if (pathname === '/claude-pictures') {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <ClaudePictureUploadPage />
       </Suspense>
     );
   }
