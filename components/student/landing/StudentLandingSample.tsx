@@ -347,7 +347,7 @@ function toSummary(f: Fixture, nowMs: number): AssignmentSummary {
     flashcardKind: f.flashcardKind,
     workKind: f.resource ? 'resource' : 'work',
     live: f.live,
-    paused: f.paused ? true : undefined,
+    held: f.paused ? 'paused' : undefined,
     periodGate: f.manualStart
       ? {
           accessMode: 'assessment',

@@ -79,9 +79,15 @@ describe('WorkRow', () => {
     expect(screen.getByRole('link')).toHaveAttribute('href', base.openHref);
   });
 
+  it('says Not open yet for a quiz assigned but not started', () => {
+    renderRow({ assignment: { ...base, held: 'not-open' }, state: 'open' });
+    expect(screen.getByText('Not open yet')).toBeInTheDocument();
+    expect(screen.queryByText('Open')).toBeNull();
+  });
+
   it('says Paused for a paused quiz, with no Open or Live (AB-150)', () => {
     renderRow({
-      assignment: { ...base, paused: true, live: true },
+      assignment: { ...base, held: 'paused', live: true },
       state: 'open',
     });
     expect(screen.getByText('Paused')).toBeInTheDocument();

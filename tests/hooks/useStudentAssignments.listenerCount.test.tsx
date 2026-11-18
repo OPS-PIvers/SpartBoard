@@ -218,7 +218,19 @@ describe('useStudentAssignments — bounded per-status listener plan (F8)', () =
             classIds: ['c1'],
             status: 'paused',
             sessionMode: 'teacher',
+            startedAt: 50,
+            currentQuestionIndex: 2,
             createdAt: 100,
+          },
+        },
+        {
+          id: 'q-unstarted',
+          data: {
+            quizTitle: 'Assigned Quiz',
+            classIds: ['c1'],
+            status: 'paused',
+            startedAt: null,
+            createdAt: 90,
           },
         },
       ],
@@ -236,7 +248,12 @@ describe('useStudentAssignments — bounded per-status listener plan (F8)', () =
       (a) => a.sessionId === 'q-paused'
     );
     expect(row?.channel).toBe('active');
-    expect(row?.paused).toBe(true);
+    expect(row?.held).toBe('paused');
+    const unstarted = result.current.assignments.find(
+      (a) => a.sessionId === 'q-unstarted'
+    );
+    expect(unstarted?.channel).toBe('active');
+    expect(unstarted?.held).toBe('not-open');
     // A paused teacher-paced quiz is not live, so it lists as work with "Paused".
     expect(row?.live).toBeUndefined();
   });

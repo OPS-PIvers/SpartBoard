@@ -237,9 +237,11 @@ export const WorkRow: React.FC<WorkRowProps> = ({
   const gate = a.periodGate;
   const periodLocked =
     !!gate && !studentCanEnter(gate, gate.periodKeys, pseudonymUid, nowMs);
-  const locked = periodLocked || a.paused === true;
-  const lockLine = a.paused
-    ? 'Paused'
+  const locked = periodLocked || a.held !== undefined;
+  const lockLine = a.held
+    ? a.held === 'paused'
+      ? 'Paused'
+      : 'Not open yet'
     : periodLocked
       ? periodLockLine(gate, nowMs)
       : null;

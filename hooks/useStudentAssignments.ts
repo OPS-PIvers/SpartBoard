@@ -35,6 +35,7 @@ import type {
 } from '@/types';
 import { activeResultsOverride } from '@/utils/quizResultsVisibility';
 import { hasPeriodAccess, studentPeriodKeys } from '@/utils/periodAccess';
+import { deriveRunState } from '@/utils/sessionLifecycle';
 import {
   resolveWorkKind,
   type WorkKind,
@@ -123,8 +124,8 @@ export interface AssignmentSummary {
   workKind: WorkKind;
   /** A teacher-paced quiz or video activity running now; the student joins it live. */
   live?: boolean;
-  /** The teacher paused the whole session (quiz `status: 'paused'`); it stays listed. */
-  paused?: true;
+  /** Quiz `status: 'paused'`: paused mid-run, or assigned and not started yet. It stays listed. */
+  held?: 'paused' | 'not-open';
   /** Per-period sessions: the gate fields plus this student's periods, for the card's lock. */
   periodGate?: PeriodAccessSessionFields & { periodKeys: string[] };
 }
@@ -537,8 +538,7 @@ export function buildAssignmentSummary(
       kind === 'projects' && record.studentSubmit === true ? true : undefined,
     workKind: kind === 'writing' ? 'work' : resolveWorkKind(kind, record),
     live: isLiveSession(kind, channel, record) ? true : undefined,
-    paused:
-      channel === 'active' && record.status === 'paused' ? true : undefined,
+    held: heldState(kind, channel, record),
     periodGate: hasPeriodAccess(record)
       ? {
           accessMode: (record as PeriodAccessSessionFields).accessMode,
@@ -548,6 +548,24 @@ export function buildAssignmentSummary(
         }
       : undefined,
   };
+}
+
+function heldState(
+  kind: SessionKind,
+  channel: AssignmentChannel,
+  record: Record<string, unknown>
+): AssignmentSummary['held'] {
+  if (kind !== 'quiz' || channel !== 'active') return undefined;
+  const run = deriveRunState('quiz', {
+    status: record.status,
+    startedAt: typeof record.startedAt === 'number' ? record.startedAt : null,
+    currentQuestionIndex:
+      typeof record.currentQuestionIndex === 'number'
+        ? record.currentQuestionIndex
+        : undefined,
+  });
+  if (run?.phase !== 'paused') return undefined;
+  return run.resumeTo === 'waiting' ? 'not-open' : 'paused';
 }
 
 const LIVE_QUIZ_MODES: ReadonlySet<unknown> = new Set([
