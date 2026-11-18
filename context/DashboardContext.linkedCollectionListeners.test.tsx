@@ -165,6 +165,7 @@ const linked = (
   order: Number(id.replace(/\D/g, '')) || 0,
   linkedShareId: shareId,
   linkedShareRole: 'collaborator',
+  linkedShareHostUid: 'host-a',
   linkedShareEnded: false,
 });
 
@@ -289,6 +290,7 @@ describe('a board share ending inside a shared collection', () => {
     const viewerBoard = {
       ...linked('b1', 'week', 's1'),
       linkedShareRole: 'viewer' as const,
+      linkedShareHostUid: 'host-a',
     };
     const ctx = await setup([viewerBoard]);
     act(() => ctx.current?.loadDashboard('b1'));

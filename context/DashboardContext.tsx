@@ -46,6 +46,10 @@ import {
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import {
+  fetchShareHost,
+  type ShareHostInfo,
+} from '@/utils/shareMembershipClient';
+import {
   isViewAsTab,
   viewAsSuppressesBackgroundWrites,
 } from '@/utils/viewAsTab';
@@ -123,6 +127,9 @@ import {
   extractDashboardPII,
   mergeDashboardPII,
   dashboardHasPII,
+  lunchNotesBehindKey,
+  lackingLunchNotesKey,
+  keepDriveLunchNotes,
   PII_WIDGET_FIELDS,
   type DashboardPiiSupplement,
 } from '@/utils/dashboardPII';
@@ -722,6 +729,8 @@ const shareStatus = async (
 
 // Waits before re-listening to a share whose listener dropped on a transient error.
 const SHARE_RELISTEN_MS = [5_000, 30_000, 120_000];
+// A host-less board asks the server this many times per page load, then waits for the next load.
+const LEGACY_HOST_CHECK_TRIES = 4;
 
 /** True only when the server says the share doc exists and `hostUid` wrote it. */
 const shareIsHostedBy = async (
@@ -760,6 +769,41 @@ async function writePiiFile(
     'Data/Dashboards'
   );
   return file.id;
+}
+
+// The board's names file on Drive; dev prefers its own copy and only reads the live site's.
+async function findPiiFile(
+  driveService: GoogleDriveService,
+  dashboardId: string
+): Promise<{ id: string } | undefined> {
+  const files = await driveService.listFiles("name contains '-pii.json'");
+  const devPiiFile =
+    IS_DEV_PROJECT && /^[\w-]+$/.test(dashboardId)
+      ? (
+          await driveService.listFiles(
+            `name = '${devPiiFileName(dashboardId)}' and trashed = false`
+          )
+        )[0]
+      : undefined;
+  return devPiiFile ?? files.find((f) => f.name === `${dashboardId}-pii.json`);
+}
+
+// The board's whole names file, {} when Drive has none; remembers the file id for later writes.
+async function readPiiSupplement(
+  driveService: GoogleDriveService,
+  dashboardId: string,
+  fileIds: Map<string, string>
+): Promise<Record<string, unknown>> {
+  const known = fileIds.get(dashboardId);
+  const fileId = known ?? (await findPiiFile(driveService, dashboardId))?.id;
+  if (!fileId) return {};
+  if (!known) fileIds.set(dashboardId, fileId);
+  const pii: unknown = JSON.parse(
+    await (await driveService.downloadFile(fileId)).text()
+  );
+  return typeof pii === 'object' && pii !== null && !Array.isArray(pii)
+    ? (pii as Record<string, unknown>)
+    : {};
 }
 
 export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
@@ -1919,6 +1963,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // Bumped whenever a stale supplement entry is dropped, so the Drive restore
   // effect re-reads the authoritative copy instead of waiting for a board switch.
   const [piiRestoreNonce, setPiiRestoreNonce] = useState(0);
+  // Lunch Count sends whose notes another device wrote; each is re-read from Drive once.
+  const lunchNotesReadRef = useRef<Set<string>>(new Set());
+  // Per board, the Drive copy a backup read to keep another device's lunch notes, by the sent list it was read for.
+  const lunchNotesKeptRef = useRef<
+    Map<string, { key: string; drivePii: Record<string, unknown> }>
+  >(new Map());
   // Boards whose names were cleared here but whose `{}` Drive write has not landed; restores skip them.
   const pendingPiiClearRef = useRef<Set<string>>(new Set());
   // Boards whose cached supplement holds quiz Scoreboard teams Drive hasn't got yet.
@@ -1947,9 +1997,36 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Backs up PII before a caller scrubs it for Firestore; throws so callers abort rather than silently lose it.
   const backupDashboardPIIToDrive = useCallback(
-    async (dashboard: Dashboard): Promise<void> => {
+    async (board: Dashboard): Promise<void> => {
+      let dashboard = board;
+      // A Lunch Count send whose notes never loaded here keeps Drive's copy; unread, the file is left alone.
+      let keepDriveFile = false;
+      const lackingKey = driveService ? lackingLunchNotesKey(board) : null;
+      if (driveService && lackingKey) {
+        try {
+          // Read once per sent list: Drive's answer, notes or none, stands until the list changes.
+          const known = lunchNotesKeptRef.current.get(board.id);
+          const drivePii =
+            known?.key === lackingKey
+              ? known.drivePii
+              : await readPiiSupplement(
+                  driveService,
+                  board.id,
+                  piiDriveFileIdRef.current
+                );
+          lunchNotesKeptRef.current.set(board.id, {
+            key: lackingKey,
+            drivePii,
+          });
+          dashboard = keepDriveLunchNotes(board, drivePii);
+        } catch (e) {
+          console.warn('[PII] Could not read the Drive copy to keep:', e);
+          keepDriveFile = true;
+        }
+      }
       const cached = dashboardPiiRef.current.get(dashboard.id);
       if (!dashboardHasPII(dashboard)) {
+        if (keepDriveFile) return;
         // Nothing cached means the names were never loaded here (or a snapshot dropped them), not cleared; writing {} would wipe another device's copy.
         const clearPending = pendingPiiClearRef.current.has(dashboard.id);
         if (
@@ -2003,6 +2080,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         );
       }
 
+      if (keepDriveFile) {
+        if (onlyQuizTeams) return keepQuizTeamsLocal();
+        throw new Error(
+          '[PII] Aborted dashboard save because PII supplement could not be saved to Drive'
+        );
+      }
       const pii = extractDashboardPII(dashboard);
       // Unchanged since this device last wrote or read it: rewriting would put this copy over a newer one from another device.
       if (
@@ -2045,6 +2128,29 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           '[PII] Aborted dashboard save because PII supplement could not be saved to Drive'
         );
       }
+    },
+    [driveService]
+  );
+
+  // Reads one widget's names straight from Drive; null when Drive isn't connected or the board doesn't hold the widget, {} when it holds none.
+  const readWidgetPii = useCallback(
+    async (
+      widgetId: string,
+      boardId: string
+    ): Promise<Record<string, unknown> | null> => {
+      if (!driveService) return null;
+      // By board id: a copied board keeps its widget ids, and must never read the original's notes.
+      const board = dashboardsRef.current.find((d) => d.id === boardId);
+      if (!board?.widgets.some((w) => w.id === widgetId)) return null;
+      const pii = await readPiiSupplement(
+        driveService,
+        board.id,
+        piiDriveFileIdRef.current
+      );
+      const entry: unknown = pii[widgetId];
+      return typeof entry === 'object' && entry !== null
+        ? (entry as Record<string, unknown>)
+        : {};
     },
     [driveService]
   );
@@ -2600,6 +2706,23 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             ? mergeDashboardPII(hydrated, applicable)
             : hydrated;
         });
+
+        // Another device sent a lunch count: its notes are only in Drive, so re-read them.
+        const activeServer = migratedDashboards.find(
+          (d) => d.id === activeIdRef.current
+        );
+        const activeLocal = dashboardsRef.current.find(
+          (d) => d.id === activeIdRef.current
+        );
+        for (const widget of activeServer ? activeServer.widgets : []) {
+          const behind = lunchNotesBehindKey(
+            widget,
+            activeLocal?.widgets.find((w) => w.id === widget.id)
+          );
+          if (!behind || lunchNotesReadRef.current.has(behind)) continue;
+          lunchNotesReadRef.current.add(behind);
+          staleSupplementBoardIds.add(activeIdRef.current ?? '');
+        }
 
         // Re-read the authoritative supplement from Drive before the next
         // autosave can write this device's stale roster back over the edit.
@@ -3821,24 +3944,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     // Capture activeId to guard against race condition if it changes before the
     // async Drive call completes
     const currentId = activeId;
-    const expectedFileName = `${currentId}-pii.json`;
 
-    // Use a static query string to avoid query injection, then filter by exact
-    // filename client-side
-    void driveService
-      .listFiles("name contains '-pii.json'")
-      .then(async (files) => {
-        // Dev prefers its own copy and only reads the live site's.
-        const devPiiFile =
-          IS_DEV_PROJECT && /^[\w-]+$/.test(currentId)
-            ? (
-                await driveService.listFiles(
-                  `name = '${devPiiFileName(currentId)}' and trashed = false`
-                )
-              )[0]
-            : undefined;
-        const piiFile =
-          devPiiFile ?? files.find((f) => f.name === expectedFileName);
+    void findPiiFile(driveService, currentId)
+      .then(async (piiFile) => {
         if (!piiFile) {
           // No supplement found — clear any stale cached ID for this dashboard
           piiDriveFileIdRef.current.delete(currentId);
@@ -4152,12 +4260,40 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         const intendedMode: SharedBoardImportMode | undefined = driveBacked
           ? 'copy'
           : importableMode;
+        // The picker opens at once; live modes wait on the server's read of the host's account.
+        const checkHost = !driveBacked && !isAuthBypass;
         setPendingShareImport({
           shareId: currentShareId,
           preview: sharedDb,
           driveBacked,
           ...(intendedMode ? { intendedMode } : {}),
+          ...(isAuthBypass && !driveBacked ? { hostStaff: true } : {}),
+          ...(checkHost ? { hostChecking: true } : {}),
         });
+        if (checkHost) {
+          // A failed check only warns, as before.
+          void fetchShareHost(currentShareId)
+            .catch((err: unknown) => {
+              console.warn('Could not verify the share host:', err);
+              return undefined;
+            })
+            .then((host?: ShareHostInfo) =>
+              setPendingShareImport((prev) =>
+                prev?.shareId === currentShareId && prev.hostChecking
+                  ? {
+                      shareId: prev.shareId,
+                      preview: prev.preview,
+                      driveBacked: prev.driveBacked,
+                      ...(prev.intendedMode
+                        ? { intendedMode: prev.intendedMode }
+                        : {}),
+                      ...(host ? { hostStaff: host.hostStaff } : {}),
+                      ...(host?.hostName ? { hostName: host.hostName } : {}),
+                    }
+                  : prev
+              )
+            );
+        }
       } catch (err) {
         console.error('Failed to load shared dashboard:', err);
         if (!mounted) return;
@@ -4199,8 +4335,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       const { shareId, preview, driveBacked } = pending;
       if (!preview) return;
 
-      // Drive shares can only ever be a copy — guard against bypass.
-      const effectiveMode: SharedBoardImportMode = driveBacked ? 'copy' : mode;
+      // A live mode waits until the server has read the host's account.
+      if (pending.hostChecking && mode !== 'copy') return;
+      // Drive shares, and shares a non-staff account hosts, can only ever be a copy — guard against bypass.
+      const effectiveMode: SharedBoardImportMode =
+        driveBacked || pending.hostStaff === false ? 'copy' : mode;
 
       const maxOrder = dashboardsRef.current.reduce(
         (max, db) => Math.max(max, db.order ?? 0),
@@ -4231,7 +4370,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               linkedShareId: shareId,
               linkedShareRole:
                 effectiveMode === 'synced' ? 'collaborator' : 'viewer',
-              linkedShareHostName: preview.linkedShareHostName,
+              // Only the name the server read from the host's account; the share doc's is host-written.
+              ...(pending.hostName
+                ? { linkedShareHostName: pending.hostName }
+                : {}),
               linkedShareHostUid: preview.linkedShareHostUid,
               linkedShareEnded: false,
             }
@@ -4334,7 +4476,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     const liveShareIds = new Set<string>();
 
     dashboards.forEach((d) => {
-      if (!d.linkedShareId || d.linkedShareEnded) return;
+      // A board whose host isn't recorded yet publishes nothing until its first snapshot vouches for the share.
+      if (!d.linkedShareId || d.linkedShareEnded || !d.linkedShareHostUid)
+        return;
       if (
         d.linkedShareRole !== 'owner' &&
         d.linkedShareRole !== 'collaborator'
@@ -4537,6 +4681,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       let latest: SharedBoardSnapshot | null = null;
       let endChecking = false;
       let hostChecking = false;
+      // A host-less (legacy) board's host once the server vouched for it, or a share re-created after the board.
+      let verifiedHost: string | undefined;
+      let recreated = false;
+      let legacyChecking = false;
+      // Failed checks back off on their own count, since every snapshot resets the relisten one.
+      let legacyTries = 0;
+      let legacyTimer: ReturnType<typeof setTimeout> | undefined;
       let disposed = false;
       let relistenTimer: ReturnType<typeof setTimeout> | undefined;
       let relistens = 0;
@@ -4576,7 +4727,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         serverConfirmed: boolean
       ) => {
         const known = dashboardsRef.current.find((x) => x.id === dashboardId);
-        const recordedHost = known?.linkedShareHostUid;
+        const recordedHost = known?.linkedShareHostUid ?? verifiedHost;
         // An ended board re-attaches only when the server confirms the recorded host's share is back.
         if (remote && known?.linkedShareEnded && !serverConfirmed) {
           if (
@@ -4597,8 +4748,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         // The share doc was deleted and its id re-created by someone else: treat it as ended.
         const hostChanged =
           !!remote &&
-          !!recordedHost &&
-          remote.linkedShareHostUid !== recordedHost;
+          (recreated ||
+            (!!recordedHost && remote.linkedShareHostUid !== recordedHost));
         if (!remote || hostChanged) {
           // Shared doc deleted by the host (revoked). Behavior depends on
           // the local user's role:
@@ -4679,8 +4830,56 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
         // An ended board never takes a host from whoever holds the share id now.
         const remoteHost = remote.linkedShareHostUid;
-        if (known && !recordedHost && remoteHost && !known.linkedShareEnded) {
-          linkedShareHandlersRef.current.recordShareHost(known, remoteHost);
+        if (known && !recordedHost && !known.linkedShareEnded) {
+          // Our own share needs no check; anyone else's must predate this board, or it was re-created at the id.
+          if (remoteHost && (remoteHost === user.uid || isAuthBypass)) {
+            linkedShareHandlersRef.current.recordShareHost(known, remoteHost);
+          } else {
+            if (
+              legacyChecking ||
+              legacyTimer ||
+              legacyTries >= LEGACY_HOST_CHECK_TRIES
+            )
+              return;
+            legacyChecking = true;
+            const retryLater = () => {
+              legacyTries += 1;
+              if (disposed || legacyTries >= LEGACY_HOST_CHECK_TRIES) return;
+              legacyTimer = setTimeout(
+                () => {
+                  legacyTimer = undefined;
+                  if (!disposed) rerun();
+                },
+                SHARE_RELISTEN_MS[
+                  Math.min(legacyTries - 1, SHARE_RELISTEN_MS.length - 1)
+                ]
+              );
+            };
+            void fetchShareHost(shareId, dashboardId)
+              .then((info) => {
+                legacyChecking = false;
+                if (disposed) return;
+                if (info.shareNewer === true) {
+                  recreated = true;
+                } else if (info.shareNewer === false && remoteHost) {
+                  verifiedHost = remoteHost;
+                  linkedShareHandlersRef.current.recordShareHost(
+                    known,
+                    remoteHost
+                  );
+                } else {
+                  retryLater();
+                  return;
+                }
+                rerun();
+              })
+              .catch((err: unknown) => {
+                legacyChecking = false;
+                console.warn('Could not verify the share host:', err);
+                retryLater();
+              });
+            return;
+          }
         }
 
         // Merge against the copy we last received so a local edit not yet
@@ -4873,6 +5072,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       return () => {
         disposed = true;
         clearTimeout(relistenTimer);
+        clearTimeout(legacyTimer);
         unsubscribe();
       };
     },
@@ -9093,6 +9293,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       pendingShareImport,
       cancelPendingShareImport,
       importSharedBoard,
+      readWidgetPii,
       stopSharingDashboard,
       isActiveBoardReadOnly,
       drawingWidgetsMigrating,
@@ -9232,6 +9433,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       pendingShareImport,
       cancelPendingShareImport,
       importSharedBoard,
+      readWidgetPii,
       stopSharingDashboard,
       isActiveBoardReadOnly,
       drawingWidgetsMigrating,

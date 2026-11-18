@@ -67,6 +67,14 @@ function driveQueryEscape(s: string): string {
   return s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 
+// Board backups already checked for domain/anyone grants this page load.
+const privateBackupIds = new Set<string>();
+// Backups whose broad grant Drive won't let this account remove (inherited); skipped for the rest of the page load.
+const stuckSharedBackupIds = new Set<string>();
+
+/** Drive refused a permission change (403) that reconnecting can't fix. */
+class DrivePermissionForbiddenError extends Error {}
+
 export class GoogleDriveService {
   private accessToken: string;
   private onTokenExpire: (() => Promise<string | null>) | undefined;
@@ -375,6 +383,7 @@ export class GoogleDriveService {
     // If we already have a driveFileId, try to update it directly
     if (dashboard.driveFileId) {
       try {
+        await this.keepBackupPrivate(dashboard.driveFileId);
         // Update content
         const uploadResponse = await this.fetchWithRetry(
           `${UPLOAD_API_URL}/files/${dashboard.driveFileId}?uploadType=media`,
@@ -399,6 +408,8 @@ export class GoogleDriveService {
           throw new Error('Failed to update dashboard in Drive');
         }
       } catch (e) {
+        // A backup that can't be made private is skipped, not looked up again by name.
+        if (stuckSharedBackupIds.has(dashboard.driveFileId)) throw e;
         console.warn('Direct Drive update failed, falling back to search:', e);
       }
     }
@@ -413,6 +424,7 @@ export class GoogleDriveService {
     if (existingFiles.length > 0) {
       // Update existing
       const fileId = existingFiles[0].id;
+      await this.keepBackupPrivate(fileId);
 
       // Update metadata (name might have changed)
       await this.fetchWithRetry(`${DRIVE_API_URL}/files/${fileId}`, {
@@ -593,6 +605,30 @@ export class GoogleDriveService {
     return (await detailResponse.json()) as DriveFile;
   }
 
+  /** Revokes the domain/anyone reader grant the old board share put on a backup; throws rather than write names to a shared file. */
+  async keepBackupPrivate(fileId: string): Promise<void> {
+    if (privateBackupIds.has(fileId)) return;
+    const stuck = () =>
+      new Error(`Board backup ${fileId} is shared and stays unsaved`);
+    if (stuckSharedBackupIds.has(fileId)) throw stuck();
+    try {
+      const broad = (
+        await this.listFilePermissions(fileId, { quietForbidden: true })
+      ).filter((p) => p.type === 'domain' || p.type === 'anyone');
+      for (const p of broad) {
+        await this.deletePermission(fileId, p.id, { quietForbidden: true });
+      }
+    } catch (err) {
+      // An inherited grant can't be removed here; stop the write without a reconnect prompt.
+      if (err instanceof DrivePermissionForbiddenError) {
+        stuckSharedBackupIds.add(fileId);
+        throw Object.assign(stuck(), { cause: err });
+      }
+      throw err;
+    }
+    privateBackupIds.add(fileId);
+  }
+
   /**
    * Share a file with users in a Google Workspace domain, or with anyone
    * if no domain is provided or the domain is a consumer email provider.
@@ -631,7 +667,10 @@ export class GoogleDriveService {
    * Returns the raw permissions array with `id`, `emailAddress`, and
    * `role` populated. Filters down to user-type permissions in callers.
    */
-  async listFilePermissions(fileId: string): Promise<DrivePermission[]> {
+  async listFilePermissions(
+    fileId: string,
+    { quietForbidden = false }: { quietForbidden?: boolean } = {}
+  ): Promise<DrivePermission[]> {
     const out: DrivePermission[] = [];
     let pageToken: string | undefined;
     // A deck shared with each student by name has more than one page of permissions.
@@ -648,6 +687,11 @@ export class GoogleDriveService {
         headers: this.headers,
       });
       if (!response.ok) {
+        if (quietForbidden && response.status === 403) {
+          throw new DrivePermissionForbiddenError(
+            `Not allowed to list permissions on ${fileId}`
+          );
+        }
         if (response.status === 401 || response.status === 403) {
           throw authError('Google Drive access expired. Please sign in again.');
         }
@@ -770,7 +814,11 @@ export class GoogleDriveService {
    * Revoke a previously granted Drive permission by id. Mirrors
    * `grantUserReaderPermission`. Idempotent on 404 (already gone).
    */
-  async deletePermission(fileId: string, permissionId: string): Promise<void> {
+  async deletePermission(
+    fileId: string,
+    permissionId: string,
+    { quietForbidden = false }: { quietForbidden?: boolean } = {}
+  ): Promise<void> {
     const response = await this.fetchWithRetry(
       `${DRIVE_API_URL}/files/${fileId}/permissions/${permissionId}?supportsAllDrives=true`,
       {
@@ -779,6 +827,11 @@ export class GoogleDriveService {
       }
     );
     if (!response.ok && response.status !== 404) {
+      if (quietForbidden && response.status === 403) {
+        throw new DrivePermissionForbiddenError(
+          `Not allowed to delete Drive permission ${permissionId}`
+        );
+      }
       if (response.status === 401 || response.status === 403) {
         throw authError('Google Drive access expired. Please sign in again.');
       }

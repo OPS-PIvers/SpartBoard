@@ -462,6 +462,7 @@ export const LunchCountRedesign: React.FC<{ widget: WidgetData }> = ({
         isSubmitting={model.isSubmitting}
         alreadySubmitted={model.alreadySubmitted}
         sentDetails={model.sentDetails}
+        sentDetailsLoading={model.sentDetailsLoading}
       />
       <PhotoPeek widget={widget} item={peekedItem} onClose={closePeek} />
       {drags.length > 0 &&
