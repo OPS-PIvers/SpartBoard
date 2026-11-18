@@ -63254,6 +63254,46 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "settings.settings-defaults-save",
+    "label": "Save as my default button on the Settings tab",
+    "scope": "widget",
+    "panel": true,
+    "persists": true,
+    "requires": "settings-open",
+    "routes": [
+      {
+        "surface": "board.settings-drawer",
+        "kind": "settings-drawer",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "settings.settings-defaults-reset",
+    "label": "Reset to my default button on the Settings tab",
+    "scope": "widget",
+    "panel": true,
+    "persists": true,
+    "requires": "settings-open",
+    "routes": [
+      {
+        "surface": "board.settings-drawer",
+        "kind": "settings-drawer",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "settings.window-background",
     "label": "Window background color on the Style tab",
     "scope": "widget",
