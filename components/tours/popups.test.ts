@@ -3,6 +3,7 @@ import {
   openPopupBoxes,
   shieldTourUi,
   untaggedControlOf,
+  withLabel,
   withNearbyPopups,
 } from './popups';
 
@@ -98,5 +99,21 @@ describe('withNearbyPopups', () => {
         { x: 900, y: 100, w: 100, h: 100 },
       ])
     ).toEqual({ x: 16, y: 640, w: 256, h: 230 });
+  });
+});
+
+describe('withLabel', () => {
+  it('grows a checkbox to its label and leaves a bare control alone', () => {
+    document.body.innerHTML =
+      '<label id="row"><input id="check" type="checkbox" />Ada</label><button id="solo"></button>';
+    box(byId('row'), 200, 28);
+    const target = { x: 16, y: 16, w: 16, h: 16 };
+    expect(withLabel(target, byId('check'))).toEqual({
+      x: 10,
+      y: 10,
+      w: 200,
+      h: 28,
+    });
+    expect(withLabel(target, byId('solo'))).toBe(target);
   });
 });

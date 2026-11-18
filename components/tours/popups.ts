@@ -88,6 +88,22 @@ export function withNearbyPopups(target: Box, popups: readonly Box[]): Box {
   return out;
 }
 
+/** The target grown to cover the label around its control, such as the name beside a checkbox. */
+export function withLabel(target: Box, el: Element): Box {
+  const label = el.closest('label');
+  if (!label) return target;
+  const r = label.getBoundingClientRect();
+  if (r.width <= 0 || r.height <= 0) return target;
+  const x = Math.min(target.x, r.x);
+  const y = Math.min(target.y, r.y);
+  return {
+    x,
+    y,
+    w: Math.max(target.x + target.w, r.x + r.width) - x,
+    h: Math.max(target.y + target.h, r.y + r.height) - y,
+  };
+}
+
 const SHIELDED = ['pointerdown', 'mousedown', 'touchstart'] as const;
 
 /** Keeps clicks on the tour's own UI from reaching the app's outside-click handlers, so open menus stay open. */

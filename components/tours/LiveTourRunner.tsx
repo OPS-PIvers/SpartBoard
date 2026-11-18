@@ -144,6 +144,7 @@ import {
   isInPopup,
   openPopupBoxes,
   shieldTourUi,
+  withLabel,
   withNearbyPopups,
 } from './popups';
 import { startTourRunLog, type TourRunLog } from './tourRuns';
@@ -755,13 +756,23 @@ export const LiveTourRunner: React.FC = () => {
   const binding = step?.tour ?? null;
 
   const rect = anchor.status === 'found' ? anchor.rect : null;
-  const target = rect
+  const bare = rect
     ? { x: rect.x, y: rect.y, w: rect.width, h: rect.height }
     : null;
+  // A checkbox in a menu is lit and clickable with its label, so a click on the name counts.
+  const target =
+    bare && tour && anchor.element && isInPopup(anchor.element)
+      ? withLabel(bare, anchor.element)
+      : bare;
   // A menu the step's control opened is lit along with it; a menu the control sits in is not.
   const spot = target
     ? withNearbyPopups(target, tour ? openPopupBoxes(anchor.element, true) : [])
     : null;
+  // The tip still keeps clear of the whole menu the control sits in.
+  const tipTarget =
+    target && tour
+      ? withNearbyPopups(target, openPopupBoxes(anchor.element))
+      : spot;
   // Settle, tick, glide, tip on a paced run (P1); editor and test runs keep their own pace.
   const paced = tour?.phase === 'running' && !tour.edit && !tour.test;
   const rhythm = useStepRhythm({
@@ -2006,8 +2017,8 @@ export const LiveTourRunner: React.FC = () => {
   const obstacles = tour
     ? [...tourObstacles(anchor.element), ...dialogBoxes]
     : [];
-  const placement = spot
-    ? placeCallout({ box, target: spot, container: viewport, obstacles })
+  const placement = tipTarget
+    ? placeCallout({ box, target: tipTarget, container: viewport, obstacles })
     : null;
   const tether =
     placement && target
