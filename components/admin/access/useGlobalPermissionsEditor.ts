@@ -203,6 +203,12 @@ export const useGlobalPermissionsEditor = () => {
     [permissions, resolvePermission]
   );
 
+  /** The permission as last saved, ignoring unsaved edits. */
+  const getSavedPermission = useCallback(
+    (featureId: GlobalFeature) => resolvePermission(stored, featureId),
+    [stored, resolvePermission]
+  );
+
   const isSaved = useCallback(
     (featureId: GlobalFeature) => permissions.has(featureId),
     [permissions]
@@ -355,6 +361,7 @@ export const useGlobalPermissionsEditor = () => {
     unsavedChanges,
     showMessage,
     getPermission,
+    getSavedPermission,
     isSaved,
     updatePermission,
     savePermission,

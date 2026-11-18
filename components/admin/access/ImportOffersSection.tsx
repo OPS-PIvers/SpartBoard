@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { doc, setDoc } from 'firebase/firestore';
 import {
+  Archive,
   ChevronDown,
   CirclePlay,
   ClipboardList,
@@ -17,9 +18,11 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { db } from '@/config/firebase';
+import { FEATURE_DEFAULTS } from '@/config/featureDefaults';
 import { tourFieldAttr } from '@/config/tourAnchors';
 import { Toggle } from '@/components/common/Toggle';
 import { useImportConversionSettings } from '@/hooks/useImportConversionSettings';
+import { useQuizDocumentImportSettings } from '@/hooks/useQuizDocumentImportSettings';
 import {
   IMPORT_CONVERSION_SETTINGS_DOC,
   IMPORT_SOURCE_KINDS,
@@ -36,12 +39,31 @@ import {
   type ImportSourceKind,
 } from '@/config/importConversion';
 import {
-  IMPORT_TARGET_FEATURES,
+  IMPORT_SOURCE_FEATURES,
+  IMPORT_WAYS_IN,
   importRoute,
+  importRowFeature,
 } from '@/components/import/importTargets';
 import type { ImportTarget } from '@/utils/import/contract';
-import type { GlobalFeaturePermission } from '@/types';
+import type { GlobalFeature, GlobalFeaturePermission } from '@/types';
+import { BetaUsersPanel } from '@/components/admin/BetaUsersPanel';
+import { AccessLevelPicker } from './AccessFeatureRow';
+import {
+  featureSearchFields,
+  groupChildLabel,
+  matchesSearch,
+} from './accessSearch';
+import { useAccessSearch } from './accessSearchContext';
+import { isReadyToGraduate } from './previewStatus';
+import { retireIssueUrl } from './retireIssue';
 import type { useGlobalPermissionsEditor } from './useGlobalPermissionsEditor';
+
+type Editor = ReturnType<typeof useGlobalPermissionsEditor>;
+
+const sourceFeature = (kind: ImportSourceKind): GlobalFeature | undefined =>
+  (IMPORT_SOURCE_FEATURES as Partial<Record<ImportSourceKind, GlobalFeature>>)[
+    kind
+  ];
 
 const SOURCES: Record<
   ImportSourceKind,
@@ -110,18 +132,77 @@ const addsStraight = (kind: ImportSourceKind, target: ImportTarget): boolean =>
 const labelOf = (target: ImportTarget): string =>
   importRoute(target)?.label ?? target;
 
-/** "Preview: admins" for a widget still rolling out; null once it has launched for everyone. */
-const previewTag = (
-  permission: GlobalFeaturePermission | null
-): string | null => {
-  if (!permission) return null;
-  if (!permission.enabled) return 'Preview: off';
-  if (permission.accessLevel === 'admin') return 'Preview: admins';
-  if (permission.accessLevel === 'beta') {
-    const n = permission.betaUsers.length;
-    return `Preview: admins and ${n} tester${n === 1 ? '' : 's'}`;
-  }
-  return null;
+// Into the editor first so a second click before the write lands builds on the first.
+const saveNow = (
+  editor: Editor,
+  featureId: GlobalFeature,
+  patch: Partial<GlobalFeaturePermission>
+): void => {
+  editor.updatePermission(featureId, patch);
+  void editor.savePermission(featureId);
+};
+
+/** Admin, Beta or Public for one preview flag, saved on click, with Retire once it is open to everyone. */
+const PreviewAccess: React.FC<{
+  featureId: GlobalFeature;
+  editor: Editor;
+  where?: string;
+}> = ({ featureId, editor, where }) => {
+  const permission: GlobalFeaturePermission = editor.getPermission(featureId);
+  const label = FEATURE_DEFAULTS[featureId].label;
+  // The quiz document gate also needs its district switch.
+  const quizDocs = useQuizDocumentImportSettings(
+    featureId === 'quiz-document-import'
+  );
+  const off =
+    !permission.enabled ||
+    (featureId === 'quiz-document-import' && !quizDocs.enabled);
+  const ready =
+    FEATURE_DEFAULTS[featureId].afterLaunch === 'retire' &&
+    isReadyToGraduate(permission, editor.isSaved(featureId), undefined);
+  return (
+    <span className="flex shrink-0 items-center gap-2">
+      {off && <span className="text-xxs text-amber-700">Preview: off</span>}
+      {ready && (
+        <a
+          href={retireIssueUrl(featureId)}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Opens a GitHub issue asking Claude to remove the old version"
+          data-testid={`retire-${featureId}`}
+          className="flex items-center gap-1 rounded-lg border border-green-300 bg-green-50 px-2 py-1 text-xs font-bold text-green-800 hover:bg-green-100"
+        >
+          <Archive className="h-3.5 w-3.5" aria-hidden />
+          Retire
+        </a>
+      )}
+      <AccessLevelPicker
+        value={permission.accessLevel}
+        onChange={(accessLevel) => saveNow(editor, featureId, { accessLevel })}
+        label={where ? `${label}, ${where}` : label}
+        anchorKey={where ? `${featureId}:${where}` : featureId}
+      />
+    </span>
+  );
+};
+
+/** The tester list for a flag at Beta, saved as it changes. */
+const PreviewTesters: React.FC<{
+  featureId: GlobalFeature;
+  editor: Editor;
+}> = ({ featureId, editor }) => {
+  const permission = editor.getPermission(featureId);
+  if (permission.accessLevel !== 'beta') return null;
+  return (
+    <div className="py-2">
+      <BetaUsersPanel
+        betaUsers={permission.betaUsers}
+        onChange={(betaUsers) => saveNow(editor, featureId, { betaUsers })}
+        showMessage={editor.showMessage}
+        variant="expanded"
+      />
+    </div>
+  );
 };
 
 type Save = (patch: Record<string, unknown>) => Promise<void>;
@@ -174,11 +255,12 @@ const WidgetRow: React.FC<{
   target: ImportTarget;
   settings: ImportConversionSettings;
   only: boolean;
-  tag: string | null;
+  editor: Editor;
   legacyLimit: unknown;
   saving: boolean;
   save: Save;
-}> = ({ kind, target, settings, only, tag, legacyLimit, saving, save }) => {
+}> = ({ kind, target, settings, only, editor, legacyLimit, saving, save }) => {
+  const flag = importRowFeature(kind, target);
   const off = settings.sources[kind].off;
   const checked = !off.includes(target);
   const label = labelOf(target);
@@ -214,40 +296,44 @@ const WidgetRow: React.FC<{
   };
   return (
     <div className="py-2">
-      <label className="flex items-center gap-3">
-        <input
-          type="checkbox"
-          checked={checked}
-          disabled={saving}
-          onChange={(e) =>
-            void save({
-              sources: {
-                [kind]: {
-                  off: e.target.checked
-                    ? off.filter((t) => t !== target)
-                    : [...off, target],
+      <div className="flex items-center gap-3">
+        <label className="flex min-w-0 flex-1 items-center gap-3">
+          <input
+            type="checkbox"
+            checked={checked}
+            disabled={saving}
+            onChange={(e) =>
+              void save({
+                sources: {
+                  [kind]: {
+                    off: e.target.checked
+                      ? off.filter((t) => t !== target)
+                      : [...off, target],
+                  },
                 },
-              },
-            })
-          }
-          {...tourFieldAttr('admin.previews.import-widget', 'admin', key)}
-          className="h-4 w-4 accent-brand-blue-primary"
-        />
-        <span className="flex-1 text-sm font-semibold text-slate-800">
-          {label}
-        </span>
-        {tag ? (
-          <span className="text-xxs text-amber-700">{tag}</span>
-        ) : (
-          only &&
-          checked &&
-          addsStraight(kind, target) && (
+              })
+            }
+            {...tourFieldAttr('admin.previews.import-widget', 'admin', key)}
+            className="h-4 w-4 accent-brand-blue-primary"
+          />
+          <span className="flex-1 text-sm font-semibold text-slate-800">
+            {label}
+          </span>
+          {only && checked && addsStraight(kind, target) && (
             <span className="text-xxs text-slate-500">
               Adds straight to the board
             </span>
-          )
+          )}
+        </label>
+        {flag && (
+          <PreviewAccess
+            featureId={flag}
+            editor={editor}
+            where={SOURCES[kind].label}
+          />
         )}
-      </label>
+      </div>
+      {flag && <PreviewTesters featureId={flag} editor={editor} />}
       {ai && checked && (
         <div className="ml-7 mt-2 flex items-center gap-3 border-l-2 border-slate-200 pl-3">
           <Sparkles className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
@@ -290,12 +376,22 @@ const WidgetRow: React.FC<{
 const SourceRow: React.FC<{
   kind: ImportSourceKind;
   settings: ImportConversionSettings;
-  tagFor: (target: ImportTarget) => string | null;
+  editor: Editor;
   legacyLimit: unknown;
   saving: boolean;
   save: Save;
-}> = ({ kind, settings, tagFor, legacyLimit, saving, save }) => {
-  const [open, setOpen] = useState(false);
+}> = ({ kind, settings, editor, legacyLimit, saving, save }) => {
+  const flag = sourceFeature(kind);
+  const { query } = useAccessSearch();
+  // A search that matches one of this source's widgets opens it until the admin toggles it.
+  const [toggled, setOpen] = useState<boolean | null>(null);
+  const open =
+    toggled ??
+    (query.trim() !== '' &&
+      IMPORT_SOURCE_TARGETS[kind].some((t) => {
+        const f = importRowFeature(kind, t);
+        return !!f && matchesSearch(query, featureSearchFields(f));
+      }));
   const { label, hint, Icon } = SOURCES[kind];
   const picked = importSourceChecked(settings, kind);
   const panelId = `import-source-${kind}`;
@@ -343,7 +439,13 @@ const SourceRow: React.FC<{
             kind
           )}
         />
+        {flag && <PreviewAccess featureId={flag} editor={editor} />}
       </div>
+      {flag && (
+        <div className="pl-14 pr-3">
+          <PreviewTesters featureId={flag} editor={editor} />
+        </div>
+      )}
       {open && (
         <div
           id={panelId}
@@ -356,7 +458,7 @@ const SourceRow: React.FC<{
               target={target}
               settings={settings}
               only={picked.length === 1}
-              tag={tagFor(target)}
+              editor={editor}
               legacyLimit={legacyLimit}
               saving={saving}
               save={save}
@@ -370,7 +472,7 @@ const SourceRow: React.FC<{
 
 /** What each kind of import offers, with AI per widget (Previews > Import anything). */
 export const ImportOffersSection: React.FC<{
-  editor: ReturnType<typeof useGlobalPermissionsEditor>;
+  editor: Editor;
 }> = ({ editor }) => {
   const settings = useImportConversionSettings();
   const [saving, setSaving] = useState(false);
@@ -390,34 +492,50 @@ export const ImportOffersSection: React.FC<{
       setSaving(false);
     }
   };
-  const tagFor = (target: ImportTarget): string | null => {
-    const flag = IMPORT_TARGET_FEATURES[target];
-    return flag ? previewTag(editor.getPermission(flag)) : null;
-  };
   const legacyLimit =
     editor.getPermission('universal-import').config?.dailyLimit;
   return (
-    <div className="space-y-1" data-testid="import-offers">
-      <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
-        What each import offers
-      </p>
-      {error && (
-        <p className="text-xs text-brand-red-primary" role="alert">
-          {error}
+    <div className="space-y-4" data-testid="import-offers">
+      <div className="space-y-1">
+        <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
+          Import options
         </p>
-      )}
-      <div className="divide-y divide-slate-200 border-y border-slate-200">
-        {IMPORT_SOURCE_KINDS.map((kind) => (
-          <SourceRow
-            key={kind}
-            kind={kind}
-            settings={settings}
-            tagFor={tagFor}
-            legacyLimit={legacyLimit}
-            saving={saving}
-            save={save}
-          />
-        ))}
+        <div className="divide-y divide-slate-200 border-y border-slate-200">
+          {IMPORT_WAYS_IN.map((id) => (
+            <div key={id} className="bg-white px-3">
+              <div className="flex items-center gap-3 py-2.5">
+                <span className="flex-1 text-sm font-bold text-slate-800">
+                  {groupChildLabel(id)}
+                </span>
+                <PreviewAccess featureId={id} editor={editor} />
+              </div>
+              <PreviewTesters featureId={id} editor={editor} />
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="space-y-1">
+        <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
+          What each import offers
+        </p>
+        {error && (
+          <p className="text-xs text-brand-red-primary" role="alert">
+            {error}
+          </p>
+        )}
+        <div className="divide-y divide-slate-200 border-y border-slate-200">
+          {IMPORT_SOURCE_KINDS.map((kind) => (
+            <SourceRow
+              key={kind}
+              kind={kind}
+              settings={settings}
+              editor={editor}
+              legacyLimit={legacyLimit}
+              saving={saving}
+              save={save}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
