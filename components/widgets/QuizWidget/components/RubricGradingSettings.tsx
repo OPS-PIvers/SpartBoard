@@ -94,7 +94,7 @@ export const RubricGradingSettings: React.FC<RubricGradingSettingsProps> = ({
           className="absolute right-0 top-full z-popover mt-1 w-64 divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl"
         >
           <SwitchRow
-            label="Jump to next category"
+            label="Auto-advance to next category"
             checked={autoAdvance}
             onChange={onAutoAdvanceChange}
             anchor={tourTypeAttr('quiz-grading.rubric-auto-advance', 'quiz')}

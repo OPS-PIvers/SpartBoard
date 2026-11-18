@@ -4560,7 +4560,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'quiz-grading.rubric-auto-advance': {
-    label: 'Jump to next category switch in the grader rubric settings',
+    label: 'Auto-advance to next category switch in the grader rubric settings',
     perWidgetType: true,
     persists: true,
     panel: true,

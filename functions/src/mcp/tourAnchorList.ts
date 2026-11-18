@@ -18940,7 +18940,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "quiz-grading.rubric-auto-advance",
-    "label": "Jump to next category switch in the grader rubric settings",
+    "label": "Auto-advance to next category switch in the grader rubric settings",
     "scope": "widget type",
     "panel": true,
     "persists": true,
