@@ -821,3 +821,67 @@ describe('the owner closes walls to a board', () => {
     );
   });
 });
+
+describe('a synced building admin on a shared board wall', () => {
+  const BA_UID = 'building-admin-uid';
+  const BA_EMAIL = 'principal@orono.k12.mn.us';
+  const asBuildingAdmin = () =>
+    testEnv
+      .authenticatedContext(BA_UID, {
+        email: BA_EMAIL,
+        email_verified: true,
+        firebase: { sign_in_provider: 'google.com' },
+      })
+      .firestore();
+
+  beforeEach(async () => {
+    await seed(
+      { [HOST_SESSION]: session(HOST_UID, [ENTRY]) },
+      {
+        [SHARE_ID]: {
+          originalAuthor: HOST_UID,
+          intendedMode: 'view-only',
+          participants: { [VIEWER_UID]: participant('viewer') },
+        },
+      }
+    );
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, `admins/${BA_EMAIL}`), {
+        source: 'organizationMembersSync',
+        orgId: 'orono',
+        roleId: 'building_admin',
+      });
+      await setDoc(doc(db, `organizations/orono/members/${BA_EMAIL}`), {
+        email: BA_EMAIL,
+        orgId: 'orono',
+        roleId: 'building_admin',
+        status: 'active',
+      });
+    });
+  });
+
+  it('cannot make itself a collaborator on the share, so cannot read pending posts', async () => {
+    await assertFails(
+      updateDoc(doc(asBuildingAdmin(), `shared_boards/${SHARE_ID}`), {
+        [`participants.${BA_UID}`]: participant('collaborator'),
+      })
+    );
+    await assertFails(
+      getDoc(
+        doc(
+          asBuildingAdmin(),
+          `activity_wall_sessions/${HOST_SESSION}/submissions/pending-1`
+        )
+      )
+    );
+    await assertFails(
+      getDocs(
+        collection(
+          asBuildingAdmin(),
+          `activity_wall_sessions/${HOST_SESSION}/submissions`
+        )
+      )
+    );
+  });
+});

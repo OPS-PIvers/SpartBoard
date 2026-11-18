@@ -27,8 +27,11 @@ import {
   parseShareMembershipAction,
   planBoardJoin,
   planCollectionJoin,
+  readShareHost,
   runShareMembershipAction,
   type Caller,
+  type HostLookup,
+  type ShareMembershipAction,
 } from './shareMembership';
 import { makeStubFirestore, type StubData } from './testing/stubFirestore';
 
@@ -173,13 +176,47 @@ describe('parseShareMembershipAction', () => {
 });
 
 describe('runShareMembershipAction', () => {
-  const run = (db: unknown, c: Caller, a: unknown) =>
+  const run = (db: unknown, c: Caller, a: unknown, lookup?: HostLookup) =>
     runShareMembershipAction(
       db as admin.firestore.Firestore,
       c,
-      parseShareMembershipAction(a),
-      7
+      parseShareMembershipAction(a) as Exclude<
+        ShareMembershipAction,
+        { action: 'shareHost' }
+      >,
+      7,
+      lookup
     );
+
+  it('refuses to join a share whose host is not staff', async () => {
+    const { db, writes } = makeStubFirestore({
+      'shared_boards/s': { intendedMode: 'synced', originalAuthor: 'anon' },
+    });
+    const lookup = vi.fn(() => Promise.resolve({ staff: false }));
+    await expect(
+      run(
+        db,
+        staff,
+        { action: 'joinBoard', shareId: 's', role: 'collaborator' },
+        lookup
+      )
+    ).rejects.toMatchObject(notAllowed);
+    expect(lookup).toHaveBeenCalledWith('anon');
+    expect(writes).toEqual([]);
+  });
+
+  it('joins a share whose host is staff', async () => {
+    const { db, writes } = makeStubFirestore({
+      'shared_boards/s': { intendedMode: 'synced', originalAuthor: 'host' },
+    });
+    await run(
+      db,
+      staff,
+      { action: 'joinBoard', shareId: 's', role: 'viewer' },
+      () => Promise.resolve({ staff: true })
+    );
+    expect(writes).toHaveLength(1);
+  });
 
   it('writes only the caller participant entry on a join', async () => {
     const { db, writes } = makeStubFirestore({
@@ -232,5 +269,81 @@ describe('runShareMembershipAction', () => {
     await expect(
       run(db, staff, { action: 'joinCollection', linkId: 'gone' })
     ).rejects.toMatchObject({ reason: 'notFound' });
+  });
+});
+
+describe('readShareHost', () => {
+  const ts = (ms: number) => ({ toMillis: () => ms });
+  const fakeDb = (docs: Record<string, StubData & { _created?: number }>) =>
+    ({
+      doc: (path: string) => ({
+        get: () => {
+          const d = docs[path];
+          return Promise.resolve({
+            exists: !!d,
+            data: () => d,
+            createTime: d?._created === undefined ? undefined : ts(d._created),
+          });
+        },
+      }),
+    }) as unknown as admin.firestore.Firestore;
+  const staffHost: HostLookup = () =>
+    Promise.resolve({ staff: true, name: 'Ms. Lee' });
+
+  it('names the host from the lookup, not the share doc', async () => {
+    const db = fakeDb({
+      'shared_boards/s': {
+        originalAuthor: 'h',
+        originalAuthorName: 'Mrs. Smith',
+        intendedMode: 'synced',
+      },
+    });
+    await expect(
+      readShareHost(db, 'u1', 's', undefined, staffHost)
+    ).resolves.toEqual({ hostStaff: true, hostName: 'Ms. Lee' });
+    await expect(
+      readShareHost(db, 'u1', 's', undefined, () =>
+        Promise.resolve({ staff: false })
+      )
+    ).resolves.toEqual({ hostStaff: false });
+  });
+
+  it('flags a share created after the caller board as newer', async () => {
+    const db = fakeDb({
+      'shared_boards/s': { originalAuthor: 'h', _created: 200 },
+      'users/u1/dashboards/old': { _created: 100 },
+      'users/u1/dashboards/new': { _created: 300 },
+    });
+    await expect(
+      readShareHost(db, 'u1', 's', 'old', staffHost)
+    ).resolves.toMatchObject({ shareNewer: true });
+    await expect(
+      readShareHost(db, 'u1', 's', 'new', staffHost)
+    ).resolves.toMatchObject({ shareNewer: false });
+    await expect(
+      readShareHost(db, 'u1', 's', 'missing', staffHost)
+    ).resolves.not.toHaveProperty('shareNewer');
+  });
+
+  it('refuses substitute shares and reports missing ones', async () => {
+    const db = fakeDb({
+      'shared_boards/sub': { originalAuthor: 'h', intendedMode: 'substitute' },
+    });
+    await expect(
+      readShareHost(db, 'u1', 'sub', undefined, staffHost)
+    ).rejects.toMatchObject(notAllowed);
+    await expect(
+      readShareHost(db, 'u1', 'gone', undefined, staffHost)
+    ).rejects.toMatchObject({ reason: 'notFound' });
+  });
+
+  it('parses a shareHost request', () => {
+    expect(
+      parseShareMembershipAction({
+        action: 'shareHost',
+        shareId: 's',
+        boardId: 'b',
+      })
+    ).toEqual({ action: 'shareHost', shareId: 's', boardId: 'b' });
   });
 });

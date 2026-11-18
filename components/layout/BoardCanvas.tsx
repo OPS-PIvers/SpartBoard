@@ -147,9 +147,11 @@ export const BoardCanvas: FC<BoardCanvasProps> = memo(
     // the active Board's styling when widget memoization is evaluated.
     const globalStyle = dashboard.globalStyle ?? DEFAULT_GLOBAL_STYLE;
     const liveState = deriveLiveSessionState(session);
-    const linkedShareId = dashboard.linkedShareEnded
-      ? null
-      : (dashboard.linkedShareId ?? null);
+    // Widgets reach a share only once its host is recorded, so a share re-created at an old id gets nothing.
+    const linkedShareId =
+      dashboard.linkedShareEnded || !dashboard.linkedShareHostUid
+        ? null
+        : (dashboard.linkedShareId ?? null);
 
     return (
       <BoardLinkedShareContext value={linkedShareId}>

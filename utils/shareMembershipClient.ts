@@ -45,3 +45,28 @@ export async function callShareMembership(
 function firestoreCode(code: unknown): unknown {
   return typeof code === 'string' ? code.replace(/^functions\//, '') : code;
 }
+
+/** Who hosts a share, resolved on the server from the host's account. */
+export interface ShareHostInfo {
+  hostStaff: boolean;
+  hostName?: string;
+  /** The share was created after board `boardId`: someone re-created it at an old id. */
+  shareNewer?: boolean;
+}
+
+/** Reads the share host from the server; the share doc's own host name is not trusted. */
+export async function fetchShareHost(
+  shareId: string,
+  boardId?: string
+): Promise<ShareHostInfo> {
+  const fn = httpsCallable<
+    { action: 'shareHost'; shareId: string; boardId?: string },
+    ShareHostInfo
+  >(functions, 'shareMembershipV1');
+  const res = await fn({
+    action: 'shareHost',
+    shareId,
+    ...(boardId ? { boardId } : {}),
+  });
+  return res.data;
+}

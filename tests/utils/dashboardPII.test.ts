@@ -7,6 +7,7 @@ import {
   DashboardPiiSupplement,
 } from '@/utils/dashboardPII';
 import { Dashboard } from '@/types';
+import { getCentralDayKey } from '@/components/widgets/LunchCount/redesign/lunchCountFormat';
 
 describe('dashboardPII utilities', () => {
   const mockDashboard = {
@@ -264,5 +265,65 @@ describe('dashboardPII utilities', () => {
       } as unknown as Dashboard;
       expect(dashboardHasPII(emptyAssignments)).toBe(false);
     });
+  });
+});
+
+describe('lunch report notes', () => {
+  const today = getCentralDayKey();
+  const lunch = (lastSubmittedDate: string): Dashboard =>
+    ({
+      id: 'b1',
+      name: 'Board',
+      background: 'bg-slate-800',
+      createdAt: 1,
+      widgets: [
+        {
+          id: 'w1',
+          type: 'lunchCount',
+          x: 0,
+          y: 0,
+          w: 1,
+          h: 1,
+          z: 1,
+          flipped: false,
+          config: {
+            lastSubmittedDate,
+            lastSubmittedWidgetId: 'w1',
+            lastSubmittedClasses: ['11:00|1st'],
+            lastSubmittedDetails: {
+              '11:00|1st': { notes: 'Sam: gluten free', extraPizza: 1 },
+            },
+          },
+        },
+      ],
+    }) as unknown as Dashboard;
+
+  it('scrubs the notes from what reaches Firestore and shares', () => {
+    const scrubbed = scrubDashboardPII(lunch(today));
+    const config = scrubbed.widgets[0].config as Record<string, unknown>;
+    expect(config.lastSubmittedDetails).toBeUndefined();
+    expect(config.lastSubmittedDate).toBe(today);
+    expect(JSON.stringify(scrubbed)).not.toContain('gluten');
+  });
+
+  it("keeps today's notes in the Drive supplement so Review and Resend prefills", () => {
+    expect(extractDashboardPII(lunch(today))).toEqual({
+      w1: {
+        lastSubmittedDetails: {
+          '11:00|1st': { notes: 'Sam: gluten free', extraPizza: 1 },
+        },
+      },
+    });
+  });
+
+  it("drops an earlier day's notes instead of carrying them", () => {
+    expect(extractDashboardPII(lunch('2020-01-01'))).toEqual({});
+  });
+
+  it('never blocks a save without Drive', () => {
+    expect(dashboardHasPII(lunch(today))).toBe(true);
+    expect(dashboardHasPII(lunch(today), { includeScoreboard: false })).toBe(
+      false
+    );
   });
 });

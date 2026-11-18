@@ -1445,8 +1445,9 @@ service cloud.firestore {
       // Unscoped list stays admin-only. Expiry is NOT enforceable here, so an @orono
       // caller can list - never `get` - an expired sub share until the sweep reaps it.
       // email_verified is REQUIRED on the @orono branch, same reason as the GET rule above.
+      // Unscoped list is for site admins only: a synced building_admin listing every share could self-join its walls.
       allow list: if signedIn() && (
-        isAdmin()
+        isSiteAdmin()
         || isOrigAuthor()
         || (
           existing().get('intendedMode', null) == 'substitute'
@@ -1463,8 +1464,9 @@ service cloud.firestore {
       // string; expiresAt a future number <=14 days out (caps share + Drive-grant
       // lifetime); initialState a list; subEmails capped <=20. PLC scoping is not
       // allowed for substitute shares.
+      // Only district staff (or admins) host a share: joiners must be staff, so a non-staff host would steer a teacher's board.
       allow create: if signedIn() &&
-        myOrigAuthor() &&
+        myOrigAuthor() && (isDistrictStaff() || isAdmin()) &&
         (
           incoming().get('intendedMode', null) != 'substitute'
           || (
@@ -1492,8 +1494,9 @@ service cloud.firestore {
       // Substitute addendum: all lifecycle fields (buildingId, initialState, expiresAt,
       // subEmails, driveGrants, sharedRosters, namesFileId) are pinned to create-time values so the frozen,
       // time-boxed snapshot can't drift. Admin-overridable.
+      // A host must still be staff (or an admin); another host's share is open only to a site admin, never a building admin.
       allow update: if signedIn() &&
-        (existing().get('originalAuthor', null) == authUid() || isAdmin()) &&
+        ((isOrigAuthor() && (isDistrictStaff() || isAdmin())) || isSiteAdmin()) &&
         incoming().get('intendedMode', null) == existing().get('intendedMode', null) &&
         // originalAuthor is pinned for everyone, admins included: the expiry sweep runs
         // in the named teacher's browser and trusts the doc's Drive metadata as theirs.

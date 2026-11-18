@@ -67,6 +67,9 @@ function driveQueryEscape(s: string): string {
   return s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 
+// Board backups already checked for domain/anyone grants this page load.
+const privateBackupIds = new Set<string>();
+
 export class GoogleDriveService {
   private accessToken: string;
   private onTokenExpire: (() => Promise<string | null>) | undefined;
@@ -375,6 +378,7 @@ export class GoogleDriveService {
     // If we already have a driveFileId, try to update it directly
     if (dashboard.driveFileId) {
       try {
+        await this.keepBackupPrivate(dashboard.driveFileId);
         // Update content
         const uploadResponse = await this.fetchWithRetry(
           `${UPLOAD_API_URL}/files/${dashboard.driveFileId}?uploadType=media`,
@@ -413,6 +417,7 @@ export class GoogleDriveService {
     if (existingFiles.length > 0) {
       // Update existing
       const fileId = existingFiles[0].id;
+      await this.keepBackupPrivate(fileId);
 
       // Update metadata (name might have changed)
       await this.fetchWithRetry(`${DRIVE_API_URL}/files/${fileId}`, {
@@ -591,6 +596,23 @@ export class GoogleDriveService {
     );
 
     return (await detailResponse.json()) as DriveFile;
+  }
+
+  /** Revokes the domain/anyone reader grant the old board share put on a backup; throws rather than write names to a shared file. */
+  async keepBackupPrivate(fileId: string): Promise<void> {
+    if (privateBackupIds.has(fileId)) return;
+    const broad = (await this.listFilePermissions(fileId)).filter(
+      (p) => p.type === 'domain' || p.type === 'anyone'
+    );
+    for (const p of broad) {
+      // An inherited grant can't be removed here; stop the write without a reconnect prompt.
+      await this.deletePermission(fileId, p.id).catch((err: unknown) => {
+        throw new Error(`Board backup ${fileId} is shared and stays unsaved`, {
+          cause: err,
+        });
+      });
+    }
+    privateBackupIds.add(fileId);
   }
 
   /**

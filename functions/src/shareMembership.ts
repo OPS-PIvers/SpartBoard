@@ -29,7 +29,18 @@ export type ShareMembershipAction =
     }
   | { action: 'leaveBoard'; shareId: string }
   | { action: 'joinCollection'; linkId: string; name?: string }
-  | { action: 'leaveCollection'; linkId: string };
+  | { action: 'leaveCollection'; linkId: string }
+  | { action: 'shareHost'; shareId: string; boardId?: string };
+
+/** Who hosts a share, read from the host's account rather than the share doc. */
+export interface ShareHostInfo {
+  /** The host is district staff or an admin. */
+  hostStaff: boolean;
+  /** The host's account name, never an email; absent when it has none. */
+  hostName?: string;
+  /** The share doc was created after the caller's board (re-created at an old id); absent without a board. */
+  shareNewer?: boolean;
+}
 
 export interface Caller {
   uid: string;
@@ -38,6 +49,11 @@ export interface Caller {
 }
 
 const STAFF_EMAIL = /^[^@]+@orono[.]k12[.]mn[.]us$/;
+
+/** Resolves a uid to staff status and display name from Auth and the member doc. */
+export type HostLookup = (
+  uid: string
+) => Promise<{ staff: boolean; name?: string }>;
 
 function deny(): never {
   throw new ShareMembershipError('notAllowed');
@@ -170,6 +186,12 @@ export function parseShareMembershipAction(
       };
     case 'leaveCollection':
       return { action: 'leaveCollection', linkId: str(raw, 'linkId') };
+    case 'shareHost':
+      return {
+        action: 'shareHost',
+        shareId: str(raw, 'shareId'),
+        ...(raw.boardId === undefined ? {} : { boardId: str(raw, 'boardId') }),
+      };
     default:
       throw new ShareMembershipError('invalidArgument');
   }
@@ -179,8 +201,9 @@ export function parseShareMembershipAction(
 export async function runShareMembershipAction(
   db: admin.firestore.Firestore,
   caller: Caller,
-  action: ShareMembershipAction,
-  now = Date.now()
+  action: Exclude<ShareMembershipAction, { action: 'shareHost' }>,
+  now = Date.now(),
+  hostLookup?: HostLookup
 ): Promise<{ changed: boolean }> {
   const path =
     action.action === 'joinBoard' || action.action === 'leaveBoard'
@@ -194,6 +217,8 @@ export async function runShareMembershipAction(
     const key = `participants.${caller.uid}`;
     switch (action.action) {
       case 'joinBoard':
+        // A share whose host is not staff never gets a live member.
+        if (hostLookup && !(await hostLookup(hostUidOf(data))).staff) deny();
         tx.update(ref, {
           [key]: planBoardJoin(
             caller,
@@ -219,6 +244,60 @@ export async function runShareMembershipAction(
   });
 }
 
+function hostUidOf(share: Data): string {
+  return typeof share.originalAuthor === 'string' ? share.originalAuthor : '';
+}
+
+/** Who hosts `shareId`, and whether the share is newer than the caller's board `boardId`. */
+export async function readShareHost(
+  db: admin.firestore.Firestore,
+  callerUid: string,
+  shareId: string,
+  boardId: string | undefined,
+  hostLookup: HostLookup
+): Promise<ShareHostInfo> {
+  const snap = await db.doc(`shared_boards/${shareId}`).get();
+  if (!snap.exists) throw new ShareMembershipError('notFound');
+  const data = snap.data() as Data;
+  // Substitute shares carry Drive grant metadata and are never joined.
+  if (data.intendedMode === 'substitute') deny();
+  const host = await hostLookup(hostUidOf(data));
+  const info: ShareHostInfo = {
+    hostStaff: host.staff,
+    ...(host.name ? { hostName: host.name } : {}),
+  };
+  if (boardId === undefined) return info;
+  const board = await db.doc(`users/${callerUid}/dashboards/${boardId}`).get();
+  const shareMade = snap.createTime?.toMillis();
+  const boardMade = board.exists ? board.createTime?.toMillis() : undefined;
+  if (shareMade === undefined || boardMade === undefined) return info;
+  return { ...info, shareNewer: shareMade > boardMade };
+}
+
+/** Staff or admin, and a name that is not an email, for a host uid; unknown uids are not staff. */
+export function makeHostLookup(db: admin.firestore.Firestore): HostLookup {
+  return async (uid) => {
+    if (!uid) return { staff: false };
+    const user = await admin
+      .auth()
+      .getUser(uid)
+      .catch(() => null);
+    if (!user) return { staff: false };
+    const email = (user.email ?? '').toLowerCase();
+    const name =
+      user.displayName && !user.displayName.includes('@')
+        ? user.displayName.trim()
+        : undefined;
+    const token = { email, email_verified: user.emailVerified };
+    const staff =
+      (await isDistrictStaff(db, token)) ||
+      (user.emailVerified &&
+        !!email &&
+        (await db.doc(`admins/${email}`).get()).exists);
+    return { staff, ...(name ? { name } : {}) };
+  };
+}
+
 /** Rules' isDistrictStaff(): a verified Orono address, no student claim, and a live non-student operator-org member doc. */
 async function isDistrictStaff(
   db: admin.firestore.Firestore,
@@ -236,20 +315,39 @@ async function isDistrictStaff(
 
 export const shareMembershipV1 = onCall(
   { memory: '256MiB', timeoutSeconds: 60, maxInstances: 10 },
-  async (request): Promise<{ changed: boolean }> => {
+  async (request): Promise<{ changed: boolean } | ShareHostInfo> => {
     await assertViewAsAllowed(request);
     if (!request.auth)
       throw new HttpsError('unauthenticated', 'Sign in first.');
     const db = admin.firestore();
     try {
       const action = parseShareMembershipAction(request.data);
+      const hostLookup = makeHostLookup(db);
+      if (action.action === 'shareHost') {
+        if (request.auth.token.firebase?.sign_in_provider === 'anonymous') {
+          throw new ShareMembershipError('notAllowed');
+        }
+        return await readShareHost(
+          db,
+          request.auth.uid,
+          action.shareId,
+          action.boardId,
+          hostLookup
+        );
+      }
       const needsStaff =
         action.action === 'joinBoard' || action.action === 'joinCollection';
       const caller: Caller = {
         uid: request.auth.uid,
         staff: needsStaff && (await isDistrictStaff(db, request.auth.token)),
       };
-      return await runShareMembershipAction(db, caller, action);
+      return await runShareMembershipAction(
+        db,
+        caller,
+        action,
+        Date.now(),
+        hostLookup
+      );
     } catch (err) {
       if (err instanceof ShareMembershipError) {
         const code =

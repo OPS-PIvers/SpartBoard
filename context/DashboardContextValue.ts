@@ -110,6 +110,10 @@ export interface PendingShareImport {
    * instead of a 3-option picker.
    */
   intendedMode?: SharedBoardImportMode;
+  /** The server checked the host's account: true staff, false not staff; absent when the check failed. */
+  hostStaff?: boolean;
+  /** The host's name from their account, never from the share doc. */
+  hostName?: string;
 }
 
 export interface AnnotationState {

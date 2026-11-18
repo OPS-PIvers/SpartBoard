@@ -30,6 +30,7 @@ export const PII_WIDGET_FIELDS = [
   'names',
   'roster',
   'customRoster',
+  'lastSubmittedDetails',
 ] as const;
 
 // Same name-key rules as widgetPiiKeys in utils/dashboardPII.ts.

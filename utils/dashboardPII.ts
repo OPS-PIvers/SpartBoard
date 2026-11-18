@@ -14,6 +14,7 @@
  */
 
 import { Dashboard, WidgetData } from '@/types';
+import { getCentralDayKey } from '@/components/widgets/LunchCount/redesign/lunchCountFormat';
 
 /** Widget config keys that may contain student PII and must never reach Firestore. */
 export const PII_WIDGET_FIELDS = [
@@ -31,6 +32,7 @@ export const PII_WIDGET_FIELDS = [
   'names', // SeatingChartWidget — custom roster name list
   'roster', // LunchCountConfig — student name array
   'customRoster', // StationsConfig — custom-mode roster name list
+  'lastSubmittedDetails', // LunchCountConfig — free-text report notes that can name students
 ] as const;
 
 export type PiiWidgetField =
@@ -115,6 +117,10 @@ export function widgetPiiKeys(
 export const isLegacyHiddenWordKey = (key: unknown): boolean =>
   typeof key === 'string' && key.includes('#') && !key.includes(':');
 
+// Lunch notes from an earlier Central-time day are dropped rather than kept in the Drive supplement.
+const staleLunchDetails = (config: Record<string, unknown>): boolean =>
+  config.lastSubmittedDate !== getCentralDayKey();
+
 // Empty strings/arrays are widget defaults, not PII — treating them as content made every save abort when Drive was unavailable.
 function hasPiiContent(value: unknown): boolean {
   if (value === undefined || value === null) return false;
@@ -166,6 +172,8 @@ export function extractDashboardPII(
     let hasPii = false;
 
     for (const field of widgetPiiKeys(widget.type, config)) {
+      if (field === 'lastSubmittedDetails' && staleLunchDetails(config))
+        continue;
       if (field in config && hasPiiContent(config[field])) {
         piiFields[field] = config[field];
         hasPii = true;
@@ -229,6 +237,8 @@ export function dashboardHasPII(
     if (!includeScoreboard && widget.type === 'scoreboard') continue;
     const config = widget.config as Record<string, unknown>;
     for (const field of widgetPiiKeys(widget.type, config)) {
+      // Lunch report notes are retyped on a resend, so they never block a save without Drive either.
+      if (!includeScoreboard && field === 'lastSubmittedDetails') continue;
       if (field in config && hasPiiContent(config[field])) return true;
     }
   }

@@ -46,6 +46,10 @@ import {
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import {
+  fetchShareHost,
+  type ShareHostInfo,
+} from '@/utils/shareMembershipClient';
+import {
   isViewAsTab,
   viewAsSuppressesBackgroundWrites,
 } from '@/utils/viewAsTab';
@@ -4152,11 +4156,23 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         const intendedMode: SharedBoardImportMode | undefined = driveBacked
           ? 'copy'
           : importableMode;
+        // The host's identity comes from their account; a failed check only warns.
+        const host: ShareHostInfo | undefined = driveBacked
+          ? undefined
+          : isAuthBypass
+            ? { hostStaff: true }
+            : await fetchShareHost(currentShareId).catch((err: unknown) => {
+                console.warn('Could not verify the share host:', err);
+                return undefined;
+              });
+        if (!mounted) return;
         setPendingShareImport({
           shareId: currentShareId,
           preview: sharedDb,
           driveBacked,
           ...(intendedMode ? { intendedMode } : {}),
+          ...(host ? { hostStaff: host.hostStaff } : {}),
+          ...(host?.hostName ? { hostName: host.hostName } : {}),
         });
       } catch (err) {
         console.error('Failed to load shared dashboard:', err);
@@ -4199,8 +4215,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       const { shareId, preview, driveBacked } = pending;
       if (!preview) return;
 
-      // Drive shares can only ever be a copy — guard against bypass.
-      const effectiveMode: SharedBoardImportMode = driveBacked ? 'copy' : mode;
+      // Drive shares, and shares a non-staff account hosts, can only ever be a copy — guard against bypass.
+      const effectiveMode: SharedBoardImportMode =
+        driveBacked || pending.hostStaff === false ? 'copy' : mode;
 
       const maxOrder = dashboardsRef.current.reduce(
         (max, db) => Math.max(max, db.order ?? 0),
@@ -4231,7 +4248,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               linkedShareId: shareId,
               linkedShareRole:
                 effectiveMode === 'synced' ? 'collaborator' : 'viewer',
-              linkedShareHostName: preview.linkedShareHostName,
+              linkedShareHostName:
+                pending.hostName ?? preview.linkedShareHostName,
               linkedShareHostUid: preview.linkedShareHostUid,
               linkedShareEnded: false,
             }
@@ -4334,7 +4352,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     const liveShareIds = new Set<string>();
 
     dashboards.forEach((d) => {
-      if (!d.linkedShareId || d.linkedShareEnded) return;
+      // A board whose host isn't recorded yet publishes nothing until its first snapshot vouches for the share.
+      if (!d.linkedShareId || d.linkedShareEnded || !d.linkedShareHostUid)
+        return;
       if (
         d.linkedShareRole !== 'owner' &&
         d.linkedShareRole !== 'collaborator'
@@ -4537,6 +4557,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       let latest: SharedBoardSnapshot | null = null;
       let endChecking = false;
       let hostChecking = false;
+      // A host-less (legacy) board's host once the server vouched for it, or a share re-created after the board.
+      let verifiedHost: string | undefined;
+      let recreated = false;
+      let legacyChecking = false;
       let disposed = false;
       let relistenTimer: ReturnType<typeof setTimeout> | undefined;
       let relistens = 0;
@@ -4576,7 +4600,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         serverConfirmed: boolean
       ) => {
         const known = dashboardsRef.current.find((x) => x.id === dashboardId);
-        const recordedHost = known?.linkedShareHostUid;
+        const recordedHost = known?.linkedShareHostUid ?? verifiedHost;
         // An ended board re-attaches only when the server confirms the recorded host's share is back.
         if (remote && known?.linkedShareEnded && !serverConfirmed) {
           if (
@@ -4597,8 +4621,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         // The share doc was deleted and its id re-created by someone else: treat it as ended.
         const hostChanged =
           !!remote &&
-          !!recordedHost &&
-          remote.linkedShareHostUid !== recordedHost;
+          (recreated ||
+            (!!recordedHost && remote.linkedShareHostUid !== recordedHost));
         if (!remote || hostChanged) {
           // Shared doc deleted by the host (revoked). Behavior depends on
           // the local user's role:
@@ -4679,8 +4703,38 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
         // An ended board never takes a host from whoever holds the share id now.
         const remoteHost = remote.linkedShareHostUid;
-        if (known && !recordedHost && remoteHost && !known.linkedShareEnded) {
-          linkedShareHandlersRef.current.recordShareHost(known, remoteHost);
+        if (known && !recordedHost && !known.linkedShareEnded) {
+          // Our own share needs no check; anyone else's must predate this board, or it was re-created at the id.
+          if (remoteHost && (remoteHost === user.uid || isAuthBypass)) {
+            linkedShareHandlersRef.current.recordShareHost(known, remoteHost);
+          } else {
+            if (legacyChecking) return;
+            legacyChecking = true;
+            void fetchShareHost(shareId, dashboardId)
+              .then((info) => {
+                legacyChecking = false;
+                if (disposed) return;
+                if (info.shareNewer === true) {
+                  recreated = true;
+                } else if (info.shareNewer === false && remoteHost) {
+                  verifiedHost = remoteHost;
+                  linkedShareHandlersRef.current.recordShareHost(
+                    known,
+                    remoteHost
+                  );
+                } else {
+                  scheduleRelisten();
+                  return;
+                }
+                rerun();
+              })
+              .catch((err: unknown) => {
+                legacyChecking = false;
+                console.warn('Could not verify the share host:', err);
+                scheduleRelisten();
+              });
+            return;
+          }
         }
 
         // Merge against the copy we last received so a local edit not yet

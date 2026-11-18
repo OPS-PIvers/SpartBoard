@@ -90,6 +90,18 @@ vi.mock('@/hooks/useFirestore', () => ({
   }),
 }));
 
+const mockFetchShareHost = vi.fn(() =>
+  Promise.resolve<{ hostStaff: boolean; shareNewer?: boolean }>({
+    hostStaff: true,
+    shareNewer: false,
+  })
+);
+vi.mock('@/utils/shareMembershipClient', () => ({
+  fetchShareHost: (...args: unknown[]) =>
+    (mockFetchShareHost as (...a: unknown[]) => unknown)(...args),
+  callShareMembership: vi.fn(() => Promise.resolve()),
+}));
+
 vi.mock('@/hooks/useRosters', () => ({
   useRosters: () => ({
     rosters: [],
@@ -709,6 +721,7 @@ describe('DashboardContext Sharing Logic', () => {
         createdAt: 1234567890,
         linkedShareId: 'test-share-id',
         linkedShareRole: 'collaborator',
+        linkedShareHostUid: 'host-a',
       };
       initialDashboardsSeed = [linkedDashboard];
 
@@ -814,6 +827,7 @@ describe('DashboardContext Sharing Logic', () => {
         createdAt: 1,
         linkedShareId: 'share-vo',
         linkedShareRole: 'viewer',
+        linkedShareHostUid: 'host-a',
         linkedShareHostName: 'Other Teacher',
       };
       const otherBoard: Dashboard = {
@@ -876,6 +890,7 @@ describe('DashboardContext Sharing Logic', () => {
         createdAt: 1,
         linkedShareId: 'share-sync',
         linkedShareRole: 'collaborator',
+        linkedShareHostUid: 'host-a',
         linkedShareHostName: 'Other Teacher',
       };
       initialDashboardsSeed = [linked];
@@ -1040,6 +1055,71 @@ describe('DashboardContext Sharing Logic', () => {
         expect(board?.linkedShareHostUid).toBe('host-a');
         expect(board?.linkedShareEnded).not.toBe(true);
       });
+      expect(mockFetchShareHost).toHaveBeenCalledWith(
+        'share-sync',
+        'collab-board'
+      );
+    });
+
+    it('ends a host-less board whose share was re-created after it joined, adopting nothing', async () => {
+      mockFetchShareHost.mockResolvedValueOnce({
+        hostStaff: true,
+        shareNewer: true,
+      });
+      const { captured, emit } = await renderSubscribedBoard({
+        id: 'collab-board',
+        name: 'Synced Board',
+        background: 'bg-slate-800',
+        widgets: [],
+        createdAt: 1,
+        linkedShareId: 'share-sync',
+        linkedShareRole: 'collaborator',
+      });
+
+      emit({
+        id: 'share-sync',
+        name: 'Attacker board',
+        background: 'bg-red-500',
+        widgets: [],
+        createdAt: 2,
+        linkedShareHostUid: 'attacker',
+      });
+
+      await waitFor(() => {
+        const board = captured.current.find((d) => d.id === 'collab-board');
+        expect(board?.linkedShareEnded).toBe(true);
+      });
+      const board = captured.current.find((d) => d.id === 'collab-board');
+      expect(board?.linkedShareHostUid).toBeUndefined();
+      expect(board?.background).toBe('bg-slate-800');
+    });
+
+    it('records its own share as host without asking the server', async () => {
+      mockFetchShareHost.mockClear();
+      const { captured, emit } = await renderSubscribedBoard({
+        id: 'own-board',
+        name: 'Mine',
+        background: 'bg-slate-800',
+        widgets: [],
+        createdAt: 1,
+        linkedShareId: 'share-own',
+        linkedShareRole: 'owner',
+      });
+
+      emit({
+        id: 'share-own',
+        name: 'Mine',
+        background: 'bg-slate-800',
+        widgets: [],
+        createdAt: 1,
+        linkedShareHostUid: 'test-user',
+      });
+
+      await waitFor(() => {
+        const board = captured.current.find((d) => d.id === 'own-board');
+        expect(board?.linkedShareHostUid).toBe('test-user');
+      });
+      expect(mockFetchShareHost).not.toHaveBeenCalled();
     });
 
     it('never records a host on a board whose share already ended', async () => {
@@ -1353,6 +1433,7 @@ describe('DashboardContext Sharing Logic', () => {
         createdAt: 1,
         linkedShareId: 'share-vo',
         linkedShareRole: 'viewer',
+        linkedShareHostUid: 'host-a',
       };
       initialDashboardsSeed = [linked];
 
@@ -1403,6 +1484,7 @@ describe('DashboardContext Sharing Logic', () => {
         createdAt: 1,
         linkedShareId: 'share-sync',
         linkedShareRole: 'collaborator',
+        linkedShareHostUid: 'host-a',
         annotationOverlay: {
           objects: [
             {
@@ -1499,6 +1581,7 @@ describe('DashboardContext Sharing Logic', () => {
         createdAt: 1,
         linkedShareId: 'share-vo',
         linkedShareRole: 'viewer',
+        linkedShareHostUid: 'host-a',
       };
       initialDashboardsSeed = [linked];
 
@@ -1571,6 +1654,7 @@ describe('DashboardContext Sharing Logic', () => {
           createdAt: 1,
           linkedShareId: 'share-conn',
           linkedShareRole: role,
+          linkedShareHostUid: 'host-a',
         };
         initialDashboardsSeed = [linked];
 
@@ -1638,6 +1722,7 @@ describe('DashboardContext Sharing Logic', () => {
         createdAt: 1,
         linkedShareId: 'share-co',
         linkedShareRole: 'collaborator',
+        linkedShareHostUid: 'host-a',
         annotationOverlay: { objects: [], updatedAt: 1 },
       };
       initialDashboardsSeed = [linked];
@@ -1736,6 +1821,7 @@ describe('DashboardContext Sharing Logic', () => {
         createdAt: 1,
         linkedShareId: 'share-co',
         linkedShareRole: 'collaborator',
+        linkedShareHostUid: 'host-a',
         annotationOverlay: { objects: [], updatedAt: 1 },
       };
       initialDashboardsSeed = [linked];
@@ -1836,6 +1922,7 @@ describe('DashboardContext Sharing Logic', () => {
         createdAt: 1,
         linkedShareId: 'share-co',
         linkedShareRole: 'collaborator',
+        linkedShareHostUid: 'host-a',
         annotationOverlay: { objects: [], updatedAt: 1 },
       };
       initialDashboardsSeed = [linked];
@@ -1950,6 +2037,7 @@ describe('DashboardContext Sharing Logic', () => {
         createdAt: 1,
         linkedShareId: 'share-reload',
         linkedShareRole: 'collaborator',
+        linkedShareHostUid: 'host-a',
         annotationOverlay: {
           objects: [
             {
@@ -2041,6 +2129,7 @@ describe('DashboardContext Sharing Logic', () => {
         createdAt: 1,
         linkedShareId: 'share-hist',
         linkedShareRole: 'collaborator',
+        linkedShareHostUid: 'host-a',
       };
       initialDashboardsSeed = [linked];
 
@@ -2124,6 +2213,7 @@ describe('DashboardContext Sharing Logic', () => {
         createdAt: 1,
         linkedShareId: 'share-pii',
         linkedShareRole: 'collaborator',
+        linkedShareHostUid: 'host-a',
       };
       initialDashboardsSeed = [linked];
 

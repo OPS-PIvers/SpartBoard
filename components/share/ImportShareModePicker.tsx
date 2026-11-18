@@ -107,9 +107,21 @@ export const ImportShareModePicker: React.FC = () => {
 
   if (!pendingShareImport) return null;
 
-  const { preview, driveBacked, intendedMode } = pendingShareImport;
+  const { preview, driveBacked, hostStaff, hostName } = pendingShareImport;
   const boardName = preview?.name ?? 'Shared board';
-  const hostName = preview?.linkedShareHostName;
+  // A board a non-staff account shares can only be copied; the server checked the host's account.
+  const notStaff = !driveBacked && hostStaff === false;
+  const intendedMode =
+    notStaff && pendingShareImport.intendedMode
+      ? 'copy'
+      : pendingShareImport.intendedMode;
+  const hostWarning = driveBacked
+    ? undefined
+    : notStaff
+      ? 'Not shared by district staff, so you can only import a copy.'
+      : hostStaff === undefined
+        ? "We couldn't confirm who shared this board."
+        : undefined;
 
   const handlePick = (mode: SharedBoardImportMode) => {
     void importSharedBoard(mode);
@@ -117,7 +129,9 @@ export const ImportShareModePicker: React.FC = () => {
 
   const liveDisabledReason = driveBacked
     ? 'Live sync needs the host to share again from an updated version. Older share links can only be copied.'
-    : undefined;
+    : notStaff
+      ? 'Live sync is only for boards shared by district staff.'
+      : undefined;
 
   // Confirmation mode: host already picked the mode; show a single card +
   // primary action. Drive-backed shares are always forced to 'copy' upstream.
@@ -172,6 +186,11 @@ export const ImportShareModePicker: React.FC = () => {
                 <p className="mt-1 text-xs text-slate-700 leading-relaxed">
                   {copy.body}
                 </p>
+                {hostWarning && (
+                  <p className="mt-2 text-xs font-semibold text-amber-700">
+                    {hostWarning}
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -240,12 +259,15 @@ export const ImportShareModePicker: React.FC = () => {
         <p className="text-xs text-slate-600">
           How should this board be imported?
         </p>
+        {hostWarning && (
+          <p className="text-xs font-semibold text-amber-700">{hostWarning}</p>
+        )}
         <ModeOption
           mode="synced"
           title="Synced"
           body={MODE_COPY.synced.body}
           Icon={Cloud}
-          disabled={driveBacked}
+          disabled={driveBacked || notStaff}
           disabledReason={liveDisabledReason}
           onPick={handlePick}
           tourId="share-import.mode-synced"
@@ -255,7 +277,7 @@ export const ImportShareModePicker: React.FC = () => {
           title="View-Only"
           body={MODE_COPY['view-only'].body}
           Icon={Eye}
-          disabled={driveBacked}
+          disabled={driveBacked || notStaff}
           disabledReason={liveDisabledReason}
           onPick={handlePick}
           tourId="share-import.mode-view-only"

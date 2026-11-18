@@ -571,7 +571,7 @@ describe('shared_boards — intendedMode immutability', () => {
       await setDoc(doc(ctx.firestore(), `admins/${ADMIN_EMAIL}`), {
         email: ADMIN_EMAIL,
       });
-      await seedDistrictStaff(ctx.firestore(), [ORONO_EMAIL]);
+      await seedDistrictStaff(ctx.firestore(), [ORONO_EMAIL, HOST_EMAIL]);
     });
   });
 
@@ -844,6 +844,176 @@ describe('shared_boards — substitute shares can never acquire a plcId', () => 
     });
     await assertSucceeds(
       updateDoc(doc(asHost(), `shared_boards/${SHARE_ID}`), { plcId: PLC_ID })
+    );
+  });
+});
+
+describe('shared_boards — only staff host a share', () => {
+  const NONSTAFF_UID = 'nonstaff-host-uid';
+  const NEW_ID = 'share-new';
+  const nonStaffContexts = () => [
+    testEnv
+      .authenticatedContext(NONSTAFF_UID, {
+        firebase: { sign_in_provider: 'anonymous' },
+      })
+      .firestore(),
+    testEnv
+      .authenticatedContext(NONSTAFF_UID, {
+        studentRole: true,
+        firebase: { sign_in_provider: 'custom' },
+      })
+      .firestore(),
+    testEnv
+      .authenticatedContext(NONSTAFF_UID, {
+        email: 'pin-student@example.com',
+        pinLogin: true,
+        firebase: { sign_in_provider: 'custom' },
+      })
+      .firestore(),
+    testEnv
+      .authenticatedContext(NONSTAFF_UID, {
+        email: 'someone@gmail.com',
+        email_verified: true,
+      })
+      .firestore(),
+    ...NOT_STAFF_DISTRICT_EMAILS.map((email) =>
+      testEnv
+        .authenticatedContext(NONSTAFF_UID, { email, email_verified: true })
+        .firestore()
+    ),
+  ];
+
+  it('a non-staff account cannot create a synced, view-only or copy share', async () => {
+    for (const db of nonStaffContexts()) {
+      for (const intendedMode of ['synced', 'view-only', 'copy']) {
+        await assertFails(
+          setDoc(
+            doc(db, `shared_boards/${NEW_ID}`),
+            seededShare({
+              originalAuthor: NONSTAFF_UID,
+              originalAuthorName: 'Mrs. Smith',
+              participants: {},
+              intendedMode,
+            })
+          )
+        );
+      }
+    }
+  });
+
+  it('staff and admins still create shares in every mode', async () => {
+    for (const intendedMode of ['synced', 'view-only', 'copy']) {
+      await assertSucceeds(
+        setDoc(
+          doc(asHost(), `shared_boards/${NEW_ID}-${intendedMode}`),
+          seededShare({ participants: {}, intendedMode })
+        )
+      );
+      await assertSucceeds(
+        setDoc(
+          doc(asAdmin(), `shared_boards/admin-${intendedMode}`),
+          seededShare({
+            originalAuthor: ADMIN_UID,
+            participants: {},
+            intendedMode,
+          })
+        )
+      );
+    }
+  });
+
+  it('a non-staff host of an existing share cannot update it', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), `shared_boards/${NEW_ID}`),
+        seededShare({ originalAuthor: NONSTAFF_UID, intendedMode: 'synced' })
+      );
+    });
+    for (const db of nonStaffContexts()) {
+      await assertFails(
+        updateDoc(doc(db, `shared_boards/${NEW_ID}`), { name: 'Hijacked' })
+      );
+    }
+  });
+});
+
+describe('shared_boards — a synced building admin', () => {
+  const BA_UID = 'building-admin-uid';
+  const BA_EMAIL = 'principal@orono.k12.mn.us';
+  const asBuildingAdmin = () =>
+    testEnv
+      .authenticatedContext(BA_UID, { email: BA_EMAIL, email_verified: true })
+      .firestore();
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, `admins/${BA_EMAIL}`), {
+        source: 'organizationMembersSync',
+        orgId: 'orono',
+        roleId: 'building_admin',
+      });
+      await setDoc(doc(db, `organizations/orono/members/${BA_EMAIL}`), {
+        email: BA_EMAIL,
+        orgId: 'orono',
+        roleId: 'building_admin',
+        status: 'active',
+      });
+    });
+  });
+
+  it("cannot list every teacher's shares", async () => {
+    await assertFails(getDocs(collection(asBuildingAdmin(), 'shared_boards')));
+  });
+
+  it("cannot write itself into another teacher's participants beyond a link join", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), 'shared_boards/view-share'),
+        seededShare({ intendedMode: 'view-only' })
+      );
+    });
+    // A View-Only link only ever makes a viewer.
+    await assertFails(
+      updateDoc(doc(asBuildingAdmin(), 'shared_boards/view-share'), {
+        [`participants.${BA_UID}`]: { role: 'collaborator', joinedAt: 1 },
+      })
+    );
+    // Joining alongside another change is not a self-join.
+    await assertFails(
+      updateDoc(doc(asBuildingAdmin(), `shared_boards/${SHARE_ID}`), {
+        [`participants.${BA_UID}`]: { role: 'collaborator', joinedAt: 1 },
+        name: 'Mine now',
+      })
+    );
+  });
+
+  it('cannot re-role an existing participant', async () => {
+    await assertFails(
+      updateDoc(doc(asBuildingAdmin(), `shared_boards/${SHARE_ID}`), {
+        [`participants.${VIEWER_UID}.role`]: 'collaborator',
+      })
+    );
+  });
+
+  it('still hosts and edits its own share', async () => {
+    await assertSucceeds(
+      setDoc(
+        doc(asBuildingAdmin(), 'shared_boards/ba-own'),
+        seededShare({ originalAuthor: BA_UID, participants: {} })
+      )
+    );
+    await assertSucceeds(
+      updateDoc(doc(asBuildingAdmin(), 'shared_boards/ba-own'), { name: 'X' })
+    );
+  });
+
+  it('a hand-made admin keeps unscoped list and cleanup update', async () => {
+    await assertSucceeds(getDocs(collection(asAdmin(), 'shared_boards')));
+    await assertSucceeds(
+      updateDoc(doc(asAdmin(), `shared_boards/${SHARE_ID}`), {
+        name: 'Cleaned',
+      })
     );
   });
 });
