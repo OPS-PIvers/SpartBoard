@@ -247,6 +247,11 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
   <details><summary>Branches to delete (178, checked 2026-11-01)</summary>
 
+claude/project-thread-s4hzrk (#6159)
+claude/ab112-s4hzrk (this docs PR, delete after it merges)
+claude/project-thread-rnvyvu (#6149)
+claude/project-thread-rnvyvu-ab112 (this docs PR, delete after it merges)
+
 claude/project-thread-2jo0s2 (#6137, #6139; this docs PR reuses it, delete after it merges)
 claude/kind-johnson-owvr5o (#6134)
 claude/project-thread-yv7q1n-ab112 (#6090)
@@ -365,6 +370,7 @@ claude/backlog-closeout-20261116 (this docs PR, delete after it merges)
 claude/backlog-ab-173-20261117 (#6125)
 claude/backlog-ab-214-20261117 (#6126)
 claude/backlog-ab-218-20261117 (#6127)
+claude/project-thread-71uopu (release heads #6148 and #6155, then its follow-ups docs PR; delete after it merges)
 claude/backlog-ab-64-20261117 (#6128)
 claude/backlog-ab-60-20261117 (#6129)
 claude/backlog-ab-11-20261117 (#6131)
@@ -472,7 +478,8 @@ retire/tours
 retire/quiz-editor
 retire/quiz-assigning
 retire/quiz-results
-claude/project-thread-mclg4c
+retire/nov18-flags
+claude/project-thread-mclg4c (also claude/ab112-nov18, this docs PR)
 claude/claude-security-fix-find_01hdwd6jykvej5w2jqqm7yvi-3zioml
 nightly/widgets-2026-11-13
 nightly/dashboard-2026-11-13
