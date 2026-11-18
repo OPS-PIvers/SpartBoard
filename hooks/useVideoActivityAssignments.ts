@@ -43,6 +43,7 @@ import {
   pullSyncedVideoActivityContent,
 } from './useSyncedVideoActivityGroups';
 import { logError } from '@/utils/logError';
+import { importedPlcLinkage } from '@/utils/plc';
 import {
   gradeVideoActivityResponseForPublish,
   vaPublishPatch,
@@ -1091,6 +1092,9 @@ export const useVideoActivityAssignments = (
           sourceSettings.plc && options.isPlcMember?.(sourceSettings.plc.id)
             ? options.livePlcLinkage?.(sourceSettings.plc.id)
             : undefined;
+        const importedPlc = livePlc
+          ? importedPlcLinkage(livePlc, sourceSettings.plc)
+          : undefined;
         const importedSettings: VideoActivityAssignmentSettings = {
           className: sourceSettings.className,
           sessionSettings: sourceSettings.sessionSettings,
@@ -1104,7 +1108,7 @@ export const useVideoActivityAssignments = (
           sourceSettings.periodNames.length > 0
             ? { periodNames: sourceSettings.periodNames }
             : {}),
-          ...(livePlc ? { plc: livePlc } : {}),
+          ...(importedPlc ? { plc: importedPlc } : {}),
           ...(syncedFromLinkage ? { sync: syncedFromLinkage } : {}),
         };
         const created = await createAssignment(

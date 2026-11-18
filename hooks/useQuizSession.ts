@@ -2050,13 +2050,14 @@ export const useQuizSessionTeacher = (
 
   const revealAnswer = useCallback(
     async (questionId: string, correctAnswer: string) => {
-      if (!sessionId) return;
+      // An ended run keeps no answer key on the doc students can read.
+      if (!sessionId || session?.status === 'ended') return;
       const sessionRef = doc(db, QUIZ_SESSIONS_COLLECTION, sessionId);
       await updateDoc(sessionRef, {
         [`revealedAnswers.${questionId}`]: correctAnswer,
       });
     },
-    [sessionId]
+    [sessionId, session?.status]
   );
 
   const hideAnswer = useCallback(

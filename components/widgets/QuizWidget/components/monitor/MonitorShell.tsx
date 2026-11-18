@@ -816,6 +816,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     !assessmentOnly &&
     (session.showCorrectOnBoard ?? false) &&
     session.sessionMode !== 'student' &&
+    !sessionEnded &&
     !!currentQ;
 
   // Live-game extras only; Quiz assessments have none, so their footer has no menu.

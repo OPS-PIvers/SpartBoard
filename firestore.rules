@@ -4645,6 +4645,9 @@ service cloud.firestore {
         !changed(['ltiAttachment']) &&
         subMonitorStampUnchanged() &&
         (!changed(['status']) || incoming().status in ['waiting', 'active', 'paused', 'ended']) &&
+        // An ended run may drop its answer reveals but never write them (security #1).
+        (incoming().get('status', '') != 'ended' || !changed(['revealedAnswers']) ||
+         !('revealedAnswers' in incoming())) &&
         (incoming().get('plcId', null) == existing().get('plcId', null) ||
          incoming().get('plcId', null) == null ||
          plcLinkOk(incoming()));
