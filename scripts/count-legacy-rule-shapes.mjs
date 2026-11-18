@@ -112,7 +112,31 @@ await scan(db.collectionGroup('plc_state'), (d) =>
   intCheck('users/*/plc_state', d)
 );
 
-// (3) retired: the legacy superAdmins list no longer grants anything (AB-218).
+// (3) legacy superAdmins without an active super_admin member doc; the one deliberate reader of the retired list, kept for the pre-release prod check.
+const roles = await db.doc('admin_settings/user_roles').get();
+const legacyList = roles.exists ? (roles.data().superAdmins ?? []) : [];
+const three = {
+  userRolesDocExists: roles.exists,
+  listed: legacyList.length,
+  withoutActiveMemberSuperAdmin: 0,
+  missingDetail: [],
+};
+for (const email of legacyList) {
+  const m = await db
+    .doc(`organizations/orono/members/${String(email).toLowerCase()}`)
+    .get();
+  const md = m.exists ? m.data() : null;
+  const ok =
+    md && md.roleId === 'super_admin' && (md.status ?? 'active') === 'active';
+  if (!ok) {
+    three.withoutActiveMemberSuperAdmin++;
+    three.missingDetail.push(
+      md
+        ? `member doc roleId=${md.roleId} status=${md.status}`
+        : 'no member doc'
+    );
+  }
+}
 
 // (4) legacy long-form building ids.
 const four = {};
@@ -162,6 +186,7 @@ console.log(
       project: process.env.GOOGLE_CLOUD_PROJECT,
       one,
       two,
+      three,
       four,
       examples: out,
     },

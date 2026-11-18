@@ -332,7 +332,16 @@ async function run() {
   console.log(`   Found ${adminEmails.length} admin email(s).`);
 
   const allMemberEmails = new Set(adminEmails);
+  let skippedExisting = 0;
   for (const email of allMemberEmails) {
+    // Never overwrite an existing member's roleId or status (it may be a super admin or deactivated).
+    const existing = await db
+      .doc(`organizations/${orgId}/members/${email}`)
+      .get();
+    if (existing.exists) {
+      skippedExisting++;
+      continue;
+    }
     const roleId = 'domain_admin';
     // `addedBy` is reserved for real Firebase Auth uids (per MemberRecord
     // in types/organization.ts). Migration-created members omit it and
@@ -347,6 +356,8 @@ async function run() {
       invitedAt: nowIso,
     });
   }
+
+  console.log(`   Skipped ${skippedExisting} existing member doc(s).`);
 
   await writer.flush();
 
