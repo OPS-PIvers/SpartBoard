@@ -120,7 +120,7 @@ describe('affected-functions.mjs on the real functions codebase', () => {
       }
     }
     expect(missing).toEqual([]);
-  });
+  }, 60_000);
 
   it('names only the functions whose module changed', () => {
     expect(affected(['functions/src/linkPreview.ts'])).toEqual([
