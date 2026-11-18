@@ -83,8 +83,22 @@ const PARALLEL = 20;
 const ms = (t: { toMillis: () => number } | undefined): number =>
   t ? t.toMillis() : 0;
 
+const CHUNK_IDS = Array.from({ length: 10 }, (_, i) => String(i));
+
+/** Deletes log docs a save could never have made (ids other than 0 to 9), reading ids only. */
+export async function deleteStrayChunks(ref: DocumentReference): Promise<void> {
+  // Capped per pass; the next run clears any left over.
+  const ids = await ref.collection(WRITING_LOG).select().limit(1000).get();
+  const stray = ids.docs.filter((d) => !CHUNK_IDS.includes(d.id));
+  for (let i = 0; i < stray.length; i += 400) {
+    const batch = ref.firestore.batch();
+    for (const d of stray.slice(i, i + 400)) batch.delete(d.ref);
+    await batch.commit();
+  }
+}
+
 /** One response, in a transaction: a save that lands meanwhile retries it with fresh write times. */
-async function purgeResponse(
+export async function purgeResponse(
   db: Firestore,
   ref: DocumentReference,
   cutoff: number,
@@ -93,14 +107,19 @@ async function purgeResponse(
   return db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
     if (!snap.exists) return false;
-    const logs = await tx.get(ref.collection(WRITING_LOG));
+    // Only chunks 0 to 9 exist for a save; stray ids are cleared outside this transaction.
+    const logs = (
+      await tx.getAll(
+        ...CHUNK_IDS.map((id) => ref.collection(WRITING_LOG).doc(id))
+      )
+    ).filter((d) => d.exists);
     const lastWriteAt = Math.max(
       ms(snap.updateTime),
-      ...logs.docs.map((d) => ms(d.updateTime))
+      ...logs.map((d) => ms(d.updateTime))
     );
     const plan = planLogPurge(
       snap.data() ?? {},
-      logs.docs.map((d) => ({ id: d.id, log: d.get('log') as unknown })),
+      logs.map((d) => ({ id: d.id, log: d.get('log') as unknown })),
       lastWriteAt,
       cutoff,
       now
@@ -160,9 +179,10 @@ export async function runWritingLogPurge(
       checked += responses.size;
       for (let i = 0; i < todo.length; i += PARALLEL) {
         const results = await Promise.allSettled(
-          todo
-            .slice(i, i + PARALLEL)
-            .map((r) => purgeResponse(db, r.ref, cutoff, now))
+          todo.slice(i, i + PARALLEL).map(async (r) => {
+            await deleteStrayChunks(r.ref);
+            return purgeResponse(db, r.ref, cutoff, now);
+          })
         );
         for (const res of results) {
           if (res.status === 'fulfilled') purged += res.value ? 1 : 0;

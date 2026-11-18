@@ -89,7 +89,12 @@ export const WritingPlayer: React.FC<{
     () => (typeof log === 'string' ? parseWritingLog(log) : log),
     [log]
   );
-  const summary = useMemo(() => summarizeWriting(edits), [edits]);
+  // Facts mode shows no stats, so it never pays for the summary.
+  const showStats = !facts;
+  const summary = useMemo(
+    () => (showStats ? summarizeWriting(edits) : null),
+    [edits, showStats]
+  );
   const sessions = useMemo(
     () => writingSessions(edits, stamps),
     [edits, stamps]
@@ -174,7 +179,7 @@ export const WritingPlayer: React.FC<{
 
   return (
     <div className="space-y-3">
-      {!facts && (
+      {summary && (
         <dl className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
           {[
             ['Writing time', formatSpan(summary.writingMs)],
@@ -207,7 +212,7 @@ export const WritingPlayer: React.FC<{
           ))}
         </ol>
       )}
-      {!facts &&
+      {summary &&
         ((summary.pastedChars > 0 && !hidePasted) ||
           (summary.syncChars > 0 && !hideUnkeyed) ||
           summary.restoredChars > 0) && (
@@ -404,6 +409,40 @@ export const AnswerWritingPlayback: React.FC<{
   </div>
 );
 
+/** One answer in the badge list; its stats are worked out only once the list is open. */
+const PlaybackAnswerRow: React.FC<{
+  answer: WrittenAnswerLog;
+  label: string;
+  onOpen: (answer: WrittenAnswerLog) => void;
+}> = ({ answer, label, onOpen }) => {
+  const s = useMemo(
+    () => summarizeWriting(parseWritingLog(answer.log).edits),
+    [answer.log]
+  );
+  return (
+    <li>
+      {/* no-tour-anchor: one student's answer, nothing a tour walks to */}
+      <button
+        type="button"
+        onClick={() => onOpen(answer)}
+        className="flex w-full items-center gap-2 rounded-lg border border-slate-200 px-2 py-1.5 text-left hover:bg-slate-50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+      >
+        <Play
+          aria-hidden
+          className="h-4 w-4 shrink-0 text-brand-blue-primary"
+        />
+        <span className="min-w-0 flex-1">
+          <span className="block font-semibold text-slate-800">{label}</span>
+          <span className="block text-xs text-slate-600">
+            {count(s.finalText.length, 'character')},{' '}
+            {count(s.deletions + s.wordsReplaced, 'revision')}
+          </span>
+        </span>
+      </button>
+    </li>
+  );
+};
+
 /** A badge that lists a student's written answers and replays how each was written; nothing without the flag or a log. */
 export const WritingPlaybackBadge: React.FC<WritingPlaybackBadgeProps> = ({
   signals,
@@ -443,34 +482,14 @@ export const WritingPlaybackBadge: React.FC<WritingPlaybackBadgeProps> = ({
               </p>
             )}
             <ul className="space-y-1">
-              {answers.map((a) => {
-                const s = summarizeWriting(parseWritingLog(a.log).edits);
-                return (
-                  <li key={`${a.attempt}-${a.questionId}`}>
-                    {/* no-tour-anchor: one student's answer, nothing a tour walks to */}
-                    <button
-                      type="button"
-                      onClick={() => setOpen(a)}
-                      className="flex w-full items-center gap-2 rounded-lg border border-slate-200 px-2 py-1.5 text-left hover:bg-slate-50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
-                    >
-                      <Play
-                        aria-hidden
-                        className="h-4 w-4 shrink-0 text-brand-blue-primary"
-                      />
-                      <span className="min-w-0 flex-1">
-                        <span className="block font-semibold text-slate-800">
-                          {label(a)}
-                          {manyAttempts && `, attempt ${a.attempt + 1}`}
-                        </span>
-                        <span className="block text-xs text-slate-600">
-                          {count(s.finalText.length, 'character')},{' '}
-                          {count(s.deletions + s.wordsReplaced, 'revision')}
-                        </span>
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
+              {answers.map((a) => (
+                <PlaybackAnswerRow
+                  key={`${a.attempt}-${a.questionId}`}
+                  answer={a}
+                  label={`${label(a)}${manyAttempts ? `, attempt ${a.attempt + 1}` : ''}`}
+                  onOpen={setOpen}
+                />
+              ))}
             </ul>
           </>
         }

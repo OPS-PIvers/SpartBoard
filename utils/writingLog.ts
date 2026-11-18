@@ -339,32 +339,68 @@ const BURST_GAP_MS = 30_000;
 const wordsOf = (text: string): string[] =>
   text.toLowerCase().match(/[\p{L}\p{N}']+/gu) ?? [];
 
-/** Single-letter adds, cuts, changes and swapped neighbours between two words. */
-function editDistance(a: string, b: string): number {
-  const d = Array.from({ length: a.length + 1 }, (_, i) =>
-    Array.from({ length: b.length + 1 }, (_, j) =>
-      i === 0 ? j : j === 0 ? i : 0
-    )
-  );
-  for (let i = 1; i <= a.length; i += 1)
-    for (let j = 1; j <= b.length; j += 1) {
-      d[i][j] = Math.min(
-        d[i - 1][j] + 1,
-        d[i][j - 1] + 1,
-        d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+/** Whether two words are within `max` single-letter adds, cuts, changes or swapped neighbours; banded, so a long word costs O(length × max). */
+export function withinEdits(a: string, b: string, max: number): boolean {
+  const n = a.length;
+  const m = b.length;
+  if (Math.abs(n - m) > max) return false;
+  const big = max + 1;
+  const rows = [0, 1, 2].map(() => new Int32Array(m + 1).fill(big));
+  for (let j = 0; j <= Math.min(m, max); j += 1) rows[0][j] = j;
+  let prevBest = 0;
+  for (let i = 1; i <= n; i += 1) {
+    const cur = rows[i % 3];
+    const prev = rows[(i - 1) % 3];
+    const prev2 = rows[(i + 1) % 3];
+    const lo = Math.max(1, i - max);
+    const hi = Math.min(m, i + max);
+    cur[lo - 1] = lo === 1 && i <= max ? i : big;
+    if (hi + 1 <= m) cur[hi + 1] = big;
+    let best = cur[lo - 1];
+    for (let j = lo; j <= hi; j += 1) {
+      let v = Math.min(
+        prev[j] + 1,
+        cur[j - 1] + 1,
+        prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
       );
       if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1])
-        d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+        v = Math.min(v, prev2[j - 2] + 1);
+      cur[j] = Math.min(v, big);
+      if (cur[j] < best) best = cur[j];
     }
-  return d[a.length][b.length];
+    // A swap can skip one row, so give up only after two rows past the limit.
+    if (best > max && prevBest > max) return false;
+    prevBest = best;
+  }
+  return rows[n % 3][m] <= max;
 }
 
 /** A typo fix: 1 letter off, or 2 in a word of 6 or more. */
 const isTypoFix = (a: string, b: string) =>
-  editDistance(a, b) <= (Math.max(a.length, b.length) >= 6 ? 2 : 1);
+  withinEdits(a, b, Math.max(a.length, b.length) >= 6 ? 2 : 1);
+
+/** Typo comparisons one summary may make; past it, remaining words count as replaced. */
+const TYPO_CHECK_BUDGET = 20_000;
+/** Characters of text one summary may scan for replaced words; past it, later bursts are not counted. */
+const WORD_SCAN_BUDGET = 4_000_000;
+
+/** Work left for one summary, shared by every burst so a log of many bursts stays bounded. */
+interface WordBudget {
+  typoChecks: number;
+  scanChars: number;
+}
 
 /** Words in `before` swapped for a different word in `after`, leaving out typo fixes. */
-export function replacedWords(before: string, after: string): number {
+export function replacedWords(
+  before: string,
+  after: string,
+  budget: WordBudget = {
+    typoChecks: TYPO_CHECK_BUDGET,
+    scanChars: WORD_SCAN_BUDGET,
+  }
+): number {
+  budget.scanChars -= before.length + after.length;
+  if (budget.scanChars < 0) return 0;
   const left = new Map<string, number>();
   for (const w of wordsOf(before)) left.set(w, (left.get(w) ?? 0) + 1);
   const added: string[] = [];
@@ -374,13 +410,39 @@ export function replacedWords(before: string, after: string): number {
     else added.push(w);
   }
   const removed = [...left].flatMap(([w, n]) => Array<string>(n).fill(w));
-  const fresh = added.filter((w) => {
-    const typo = removed.findIndex((r) => isTypoFix(r, w));
-    if (typo === -1) return true;
-    removed.splice(typo, 1);
-    return false;
+  // Removed words by length; a typo fix is never more than 2 letters longer or shorter.
+  const byLength = new Map<number, number[]>();
+  removed.forEach((w, i) => {
+    const list = byLength.get(w.length);
+    if (list) list.push(i);
+    else byLength.set(w.length, [i]);
   });
-  return Math.min(fresh.length, removed.length);
+  let fresh = 0;
+  let matched = 0;
+  for (const w of added) {
+    let hit: { list: number[]; at: number } | null = null;
+    for (
+      let len = w.length - 2;
+      len <= w.length + 2 && budget.typoChecks > 0;
+      len += 1
+    ) {
+      const list = byLength.get(len);
+      if (!list) continue;
+      for (let k = 0; k < list.length && budget.typoChecks > 0; k += 1) {
+        if (hit && list[k] > hit.list[hit.at]) break;
+        budget.typoChecks -= 1;
+        if (isTypoFix(removed[list[k]], w)) {
+          hit = { list, at: k };
+          break;
+        }
+      }
+    }
+    if (hit) {
+      hit.list.splice(hit.at, 1);
+      matched += 1;
+    } else fresh += 1;
+  }
+  return Math.min(fresh, removed.length - matched);
 }
 
 export function summarizeWriting(edits: WritingEdit[]): WritingSummary {
@@ -397,8 +459,13 @@ export function summarizeWriting(edits: WritingEdit[]): WritingSummary {
   };
   // One stretch of editing earlier in the text: where it started and the text before it.
   let burst: { before: string; caret: number } | null = null;
+  const budget: WordBudget = {
+    typoChecks: TYPO_CHECK_BUDGET,
+    scanChars: WORD_SCAN_BUDGET,
+  };
   const closeBurst = () => {
-    if (burst) s.wordsReplaced += replacedWords(burst.before, s.finalText);
+    if (burst)
+      s.wordsReplaced += replacedWords(burst.before, s.finalText, budget);
     burst = null;
   };
   for (const e of edits) {

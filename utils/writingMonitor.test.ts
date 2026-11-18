@@ -5,6 +5,8 @@ import {
   WRITING_IDLE_WINDOW_MS,
   buildWritingMonitorRows,
   countWritingBuckets,
+  readWritingResponse,
+  safeWritingSummary,
   savedAgo,
 } from './writingMonitor';
 
@@ -205,5 +207,56 @@ describe('buildWritingMonitorRows across days', () => {
       seenAt: { u1: NOW },
     });
     expect(row.savedAt).toBeNull();
+  });
+});
+
+describe('summary values a student wrote (security #6)', () => {
+  it('reads non-number values as 0 and drops a bad logStoppedAt', () => {
+    expect(
+      safeWritingSummary({
+        wordCount: '12',
+        savedAt: { at: 1 },
+        awayMs: 300,
+        awayCount: null,
+        logStoppedAt: 'x',
+      })
+    ).toEqual({
+      wordCount: 0,
+      savedAt: 0,
+      writingMs: 0,
+      sessions: 0,
+      pasteCount: 0,
+      pastedChars: 0,
+      untypedCount: 0,
+      untypedChars: 0,
+      awayMs: 300,
+      awayCount: 0,
+    });
+    expect(safeWritingSummary('junk')).toBeUndefined();
+  });
+
+  it('builds monitor rows without throwing on a malformed summary', () => {
+    const r = readWritingResponse(
+      {
+        status: 'draft',
+        saveCount: 2,
+        classId: '',
+        summary: {
+          wordCount: [1],
+          savedAt: 'soon',
+          awayMs: {},
+          awayCount: '2',
+        },
+      },
+      'u1'
+    );
+    const rows = buildWritingMonitorRows({
+      responses: [r],
+      names: new Map(),
+      rosterUids: [],
+      classId: '',
+      now: NOW,
+    });
+    expect(rows[0]).toMatchObject({ wordCount: 0, awayMs: 0, awayCount: 0 });
   });
 });

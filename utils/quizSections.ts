@@ -4,6 +4,7 @@
  * into question ids so the player and scoring never need the quiz's `order`.
  */
 
+import { stripTagsOnce } from '@/utils/writingResponseState';
 import type {
   QuizCountedChoices,
   QuizData,
@@ -109,7 +110,7 @@ const stripTags = (html: string): string => {
   let prev;
   do {
     prev = text;
-    text = text.replace(/<[^>]*>/g, '');
+    text = stripTagsOnce(text, true);
   } while (text !== prev);
   return text;
 };
@@ -168,8 +169,12 @@ export function pickedForSection(
   if (!choices || choices.attempt !== (response.completedAttempts ?? 0)) {
     return undefined;
   }
-  const ids = choices.bySection?.[sectionId];
-  return Array.isArray(ids) && ids.length > 0 ? ids : undefined;
+  const bySection = choices.bySection;
+  if (!bySection || !Object.hasOwn(bySection, sectionId)) return undefined;
+  const ids: unknown = bySection[sectionId];
+  if (!Array.isArray(ids) || ids.length === 0) return undefined;
+  const list = ids.filter((id): id is string => typeof id === 'string');
+  return list.length === ids.length ? list : undefined;
 }
 
 /** Choose-N sections where this finished response answered more than N, for the teacher to pick from. */
