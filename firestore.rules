@@ -2859,6 +2859,8 @@ service cloud.firestore {
       // Only district staff start a PLC; anonymous, student and unverified accounts can't lead one.
       allow create: if isDistrictStaff()
         && authUid() == incoming().leadUid
+        // An id that was ever used (creator record or delete tombstone) is never re-created.
+        && !dbExists('plcCreators', plcId)
         && incoming().memberUids == [authUid()]
         && incoming().members.keys().hasOnly([authUid()])
         && incoming().members.keys().size() == 1

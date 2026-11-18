@@ -1,0 +1,48 @@
+import { describe, expect, it } from 'vitest';
+import { cascadePlcDelete, type CascadeDeps } from './plcDeleteCascade';
+
+describe('cascadePlcDelete (security #15)', () => {
+  it('deletes every subcollection but the grading config, and both Storage prefixes', async () => {
+    const deleted: string[] = [];
+    const prefixes: string[] = [];
+    const marked: string[] = [];
+    const deps: CascadeDeps = {
+      listSubcollections: () =>
+        Promise.resolve(
+          [
+            'recordings',
+            'aggregates',
+            'comments',
+            'activity',
+            'workspaces',
+            'meta',
+          ].map((id) => ({ id }))
+        ),
+      deleteSubcollection: (plcId, name) => {
+        deleted.push(`${plcId}/${name}`);
+        return Promise.resolve();
+      },
+      deleteStoragePrefix: (prefix) => {
+        prefixes.push(prefix);
+        return Promise.resolve();
+      },
+      markDeleted: (plcId) => {
+        marked.push(plcId);
+        return Promise.resolve();
+      },
+    };
+    await cascadePlcDelete(deps, 'p1');
+    expect(marked).toEqual(['p1']);
+    expect(deleted).toEqual([
+      'p1/recordings',
+      'p1/aggregates',
+      'p1/comments',
+      'p1/activity',
+      'p1/workspaces',
+    ]);
+    expect(prefixes).toEqual([
+      'plc_meeting_audio/p1/',
+      'plc_norming_media/p1/',
+    ]);
+  });
+});

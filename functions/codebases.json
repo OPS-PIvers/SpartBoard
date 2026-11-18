@@ -203,6 +203,7 @@
       "markPlcAssessmentDirtyOnSession",
       "migratePlcs",
       "mirrorPlcIndex",
+      "cascadePlcDeleteV1",
       "onPlcMeetingSegmentUploaded",
       "onUserProfileBuildingsChangedV1",
       "plcGoalCoachV1",

@@ -330,6 +330,7 @@ export {
 // /plcIndex/{plcId} in sync) so the org "PLCs in my building" directory never
 // exposes teacher emails/displayNames. Decision 1.1 hardening. ──────────────
 export { mirrorPlcIndex } from './mirrorPlcIndex';
+export { cascadePlcDeleteV1 } from './plcDeleteCascade';
 
 // My Groups: admin-made building groups and their auto-roster (docs/plans/shipped/MY_GROUPS.md).
 export {
