@@ -111,6 +111,20 @@ export function useQuizClassActions(
     [owned]
   );
 
+  // Turns a closed class's open attempts in once the write grace after its closedAt runs out.
+  const scheduleTurnIn = useCallback(
+    (key: string, closedAt: number) => {
+      if (!id) return;
+      const wait = Math.max(0, closedAt + END_TURN_IN_DELAY_MS - Date.now());
+      setTimeout(() => {
+        finalizeClassQuizResponses(id, key, closedAt).catch((err: unknown) =>
+          console.error('[useQuizClassActions] Close turn-in failed:', err)
+        );
+      }, wait);
+    },
+    [id]
+  );
+
   // D21: any class opening makes the assignment active.
   const ensureActive = useCallback(
     async (opened: string | null) => {
@@ -124,6 +138,11 @@ export function useQuizClassActions(
           if (k !== opened && !isClassClosed(row, now))
             await periods.closePeriod(k);
         await reopenAssignment(id);
+        // The reopen voids End's pending turn-in, so each class that stays closed turns its own in.
+        const after = await fresh();
+        for (const [k, row] of Object.entries(after?.periodAccess ?? {}))
+          if (k !== opened && row.state === 'closed' && row.closedAt != null)
+            scheduleTurnIn(k, row.closedAt);
       } else {
         // A whole-run pause froze every open class; only the one opened comes back. Scheduled and clock-closed classes stay as they are.
         const now = Date.now();
@@ -133,7 +152,7 @@ export function useQuizClassActions(
       }
       await resumeAssignment(id);
     },
-    [id, fresh, periods, reopenAssignment, resumeAssignment]
+    [id, fresh, periods, reopenAssignment, resumeAssignment, scheduleTurnIn]
   );
 
   const endIfLive = useCallback(async () => {
@@ -222,14 +241,18 @@ export function useQuizClassActions(
         return;
       }
       // Close means that class is finished: turn its open attempts in once their write grace runs out.
-      setTimeout(() => {
-        finalizeClassQuizResponses(id, k, closed.closedAt).catch(
-          (err: unknown) =>
-            console.error('[useQuizClassActions] Close turn-in failed:', err)
-        );
-      }, END_TURN_IN_DELAY_MS);
+      scheduleTurnIn(k, closed.closedAt);
     },
-    [id, owned, classKey, mark, endIfLive, closeOne, deactivateAssignment]
+    [
+      id,
+      owned,
+      classKey,
+      mark,
+      endIfLive,
+      closeOne,
+      deactivateAssignment,
+      scheduleTurnIn,
+    ]
   );
 
   const closeAll = useCallback(async () => {
