@@ -151,6 +151,21 @@ describe('reactivateAssignment', () => {
     expect(batch.commit).toHaveBeenCalledTimes(1);
   });
 
+  it('reads the row when the local list has not caught up', async () => {
+    (getDoc as Mock).mockResolvedValue({
+      exists: () => true,
+      data: () => ({ sessionId: 'sess-2', status: 'inactive' }),
+    });
+    const { result } = renderHook(() => useMiniAppAssignments(TEACHER_UID));
+
+    await act(() => result.current.reactivateAssignment('row-1'));
+
+    expect(getDoc).toHaveBeenCalledWith(ROW_PATH);
+    expect(batch.update).toHaveBeenCalledWith('mini_app_sessions/sess-2', {
+      status: 'active',
+    });
+  });
+
   it('rejects when the batch fails so the row is not left active alone', async () => {
     withRows([{ id: 'row-1', sessionId: 'sess-1', status: 'inactive' }]);
     batch.commit.mockRejectedValue(new Error('permission-denied'));

@@ -318,7 +318,7 @@ export const useMiniAppAssignments = (
     async (assignmentId) => {
       if (!userId) throw new Error('Not authenticated');
       const now = Date.now();
-      const assignment = assignments.find((a) => a.id === assignmentId);
+      const assignment = await loadAssignmentRow(assignmentId);
 
       // Row and session flip together so a failed session write can't leave a row that says active over a dead link.
       const batch = writeBatch(db);
@@ -342,7 +342,7 @@ export const useMiniAppAssignments = (
         invalidateSessionViewCount('mini_app_sessions', assignment.sessionId);
       }
     },
-    [userId, assignments]
+    [userId, loadAssignmentRow]
   );
 
   const deleteAssignment = useCallback<
