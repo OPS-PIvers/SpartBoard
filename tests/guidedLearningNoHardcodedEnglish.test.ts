@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 const FILES = [
   'components/guidedLearning/GuidedLearningStudentApp.tsx',
   'components/guidedLearning/GuidedLearningPeriodLockedScreen.tsx',
+  'components/guidedLearning/GuidedLearningStudentScreens.tsx',
   'components/widgets/GuidedLearning/components/GuidedLearningPlayer.tsx',
   'components/widgets/GuidedLearning/components/GuidedLearningStage.tsx',
   'components/widgets/GuidedLearning/components/interactions/AudioInteraction.tsx',
@@ -24,6 +25,8 @@ const FILES = [
 
 // Light-chrome cards and bars (TOUR_LIGHT_CHROME.md) are white, where slate-500/600 text passes AA.
 const LIGHT_SURFACE_FILES = new Set([
+  'components/guidedLearning/GuidedLearningPeriodLockedScreen.tsx',
+  'components/guidedLearning/GuidedLearningStudentScreens.tsx',
   'components/widgets/GuidedLearning/components/interactions/AudioInteraction.tsx',
   'components/widgets/GuidedLearning/components/interactions/QuestionInteraction.tsx',
   'components/widgets/GuidedLearning/components/player/FooterOverflow.tsx',

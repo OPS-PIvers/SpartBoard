@@ -76,6 +76,3 @@ export const GuidedLearningWelcomeMessage: React.FC<{ text: string }> = ({
 
 export const GL_PRIMARY_BUTTON =
   'flex w-full items-center justify-center gap-2 rounded-xl bg-brand-blue-primary py-3 text-sm font-semibold text-white shadow-sm shadow-brand-blue-primary/20 transition-colors hover:bg-brand-blue-dark focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary disabled:cursor-not-allowed disabled:opacity-60';
-
-export const GL_SECONDARY_BUTTON =
-  'flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white py-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary';
