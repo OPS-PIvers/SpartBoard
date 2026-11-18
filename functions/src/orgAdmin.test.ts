@@ -246,36 +246,45 @@ describe('planMemberUpdate', () => {
 
   it('refuses a status outside active, invited, inactive for everyone', () => {
     expect(() =>
-      planMemberUpdate(superT, 'm@x.edu', member(), { status: 'removed' })
+      planMemberUpdate(superT, 'm@x.edu', member(), { status: 'removed' }, [])
     ).toThrow(expect.objectContaining(notAllowed));
   });
 
   it('lets a domain admin edit role, buildings and status', () => {
     expect(
-      planMemberUpdate(domainT, 'm@x.edu', member(), {
-        roleId: 'building_admin',
-        status: 'inactive',
-      }).roleId
+      planMemberUpdate(
+        domainT,
+        'm@x.edu',
+        member(),
+        { roleId: 'building_admin', status: 'inactive' },
+        []
+      ).roleId
     ).toBe('building_admin');
     expect(() =>
-      planMemberUpdate(domainT, 'm@x.edu', member(), { email: 'z@x.edu' })
+      planMemberUpdate(domainT, 'm@x.edu', member(), { email: 'z@x.edu' }, [])
     ).toThrow(expect.objectContaining(notAllowed));
   });
 
   it('stops a domain admin granting, revoking or deactivating super admin', () => {
     expect(() =>
-      planMemberUpdate(domainT, 'm@x.edu', member(), { roleId: 'super_admin' })
+      planMemberUpdate(
+        domainT,
+        'm@x.edu',
+        member(),
+        { roleId: 'super_admin' },
+        []
+      )
     ).toThrow(expect.objectContaining(notAllowed));
     const sa = member({ roleId: 'super_admin' });
     expect(() =>
-      planMemberUpdate(domainT, 'm@x.edu', sa, { roleId: 'teacher' })
+      planMemberUpdate(domainT, 'm@x.edu', sa, { roleId: 'teacher' }, [])
     ).toThrow(expect.objectContaining(notAllowed));
     expect(() =>
-      planMemberUpdate(domainT, 'm@x.edu', sa, { status: 'inactive' })
+      planMemberUpdate(domainT, 'm@x.edu', sa, { status: 'inactive' }, [])
     ).toThrow(expect.objectContaining(notAllowed));
-    expect(planMemberUpdate(domainT, 'm@x.edu', sa, { name: 'N' }).name).toBe(
-      'N'
-    );
+    expect(
+      planMemberUpdate(domainT, 'm@x.edu', sa, { name: 'N' }, []).name
+    ).toBe('N');
   });
 
   it('stops a domain admin changing their own role or status', () => {
@@ -284,63 +293,101 @@ describe('planMemberUpdate', () => {
         domainT,
         'da@x.edu',
         member({ email: 'da@x.edu', roleId: 'domain_admin' }),
-        { status: 'inactive' }
+        { status: 'inactive' },
+        []
       )
     ).toThrow(expect.objectContaining(notAllowed));
   });
 
+  it('keeps a legacy-listed address status for a super admin only', () => {
+    expect(() =>
+      planMemberUpdate(domainT, 'm@x.edu', member(), { status: 'inactive' }, [
+        'm@x.edu',
+      ])
+    ).toThrow(expect.objectContaining(notAllowed));
+    expect(
+      planMemberUpdate(superT, 'm@x.edu', member(), { status: 'inactive' }, [
+        'm@x.edu',
+      ]).status
+    ).toBe('inactive');
+  });
+
   it('lets a building admin only deactivate a member of an overlapping building', () => {
     expect(
-      planMemberUpdate(bldgT, 'm@x.edu', member(), { status: 'inactive' })
+      planMemberUpdate(bldgT, 'm@x.edu', member(), { status: 'inactive' }, [])
         .status
     ).toBe('inactive');
     expect(() =>
-      planMemberUpdate(bldgT, 'm@x.edu', member({ status: 'inactive' }), {
-        status: 'active',
-      })
+      planMemberUpdate(
+        bldgT,
+        'm@x.edu',
+        member({ status: 'inactive' }),
+        { status: 'active' },
+        []
+      )
     ).toThrow(expect.objectContaining(notAllowed));
     expect(() =>
-      planMemberUpdate(bldgT, 'm@x.edu', member({ buildingIds: ['middle'] }), {
-        status: 'inactive',
-      })
+      planMemberUpdate(
+        bldgT,
+        'm@x.edu',
+        member({ buildingIds: ['middle'] }),
+        { status: 'inactive' },
+        []
+      )
     ).toThrow(expect.objectContaining(notAllowed));
     expect(() =>
-      planMemberUpdate(bldgT, 'm@x.edu', member({ roleId: 'domain_admin' }), {
-        status: 'inactive',
-      })
+      planMemberUpdate(
+        bldgT,
+        'm@x.edu',
+        member({ roleId: 'domain_admin' }),
+        { status: 'inactive' },
+        []
+      )
     ).toThrow(expect.objectContaining(notAllowed));
     expect(() =>
-      planMemberUpdate(bldgT, 'm@x.edu', member(), { roleId: 'x' })
+      planMemberUpdate(bldgT, 'm@x.edu', member(), { roleId: 'x' }, [])
     ).toThrow(expect.objectContaining(notAllowed));
   });
 
   it('refuses a teacher', () => {
     expect(() =>
-      planMemberUpdate(teacherT, 'm@x.edu', member(), { status: 'inactive' })
+      planMemberUpdate(
+        teacherT,
+        'm@x.edu',
+        member(),
+        { status: 'inactive' },
+        []
+      )
     ).toThrow(expect.objectContaining(notAllowed));
   });
 });
 
 describe('planMemberDelete', () => {
+  const t = 't@orono.k12.mn.us';
   it('stops a domain admin removing a super admin', () => {
-    expect(() => planMemberDelete(domainT, { roleId: 'super_admin' })).toThrow(
-      expect.objectContaining(notAllowed)
-    );
     expect(() =>
-      planMemberDelete(domainT, { roleId: 'teacher' })
+      planMemberDelete(domainT, t, { roleId: 'super_admin' }, [])
+    ).toThrow(expect.objectContaining(notAllowed));
+    expect(() =>
+      planMemberDelete(domainT, t, { roleId: 'teacher' }, [])
     ).not.toThrow();
     expect(() =>
-      planMemberDelete(superT, { roleId: 'super_admin' })
+      planMemberDelete(superT, t, { roleId: 'super_admin' }, [])
     ).not.toThrow();
-    expect(() => planMemberDelete(bldgT, { roleId: 'teacher' })).toThrow(
+    expect(() => planMemberDelete(bldgT, t, { roleId: 'teacher' }, [])).toThrow(
       expect.objectContaining(notAllowed)
     );
   });
 
-  it('lets a domain admin remove a deactivated member', () => {
+  it('stops a domain admin removing a deactivated legacy-list member', () => {
+    const inactive = { roleId: 'teacher', status: 'inactive' };
+    expect(() => planMemberDelete(domainT, t, inactive, [t])).toThrow(
+      expect.objectContaining(notAllowed)
+    );
     expect(() =>
-      planMemberDelete(domainT, { roleId: 'teacher', status: 'inactive' })
+      planMemberDelete(domainT, t, { roleId: 'teacher' }, [t])
     ).not.toThrow();
+    expect(() => planMemberDelete(superT, t, inactive, [t])).not.toThrow();
   });
 });
 
@@ -446,27 +493,6 @@ describe('runOrgAdminAction', () => {
     );
   });
 
-  it('ignores the retired legacy superAdmins list', async () => {
-    const s = seed();
-    s['admin_settings/user_roles'] = { superAdmins: ['m1@x.edu'] };
-    const { db, store } = makeStubFirestore(s);
-    await run(db, caller('da@x.edu'), {
-      action: 'updateMembers',
-      orgId: 'o',
-      ids: ['m1@x.edu'],
-      patch: { status: 'inactive' },
-    });
-    expect(store.get('organizations/o/members/m1@x.edu')?.status).toBe(
-      'inactive'
-    );
-    await run(db, caller('da@x.edu'), {
-      action: 'removeMembers',
-      orgId: 'o',
-      ids: ['m1@x.edu'],
-    });
-    expect(store.has('organizations/o/members/m1@x.edu')).toBe(false);
-  });
-
   it('writes nothing when one target in a bulk change is refused', async () => {
     const { db, store } = makeStubFirestore(seed());
     await expect(
@@ -549,7 +575,13 @@ describe('runOrgAdminAction', () => {
     });
 
     it('refuses restating a target status a super admin just changed', async () => {
-      const { db, store } = makeStubFirestore(seed());
+      const s = seed();
+      s['organizations/o/members/m2@x.edu'] = {
+        ...s['organizations/o/members/m2@x.edu'],
+        roleId: 'teacher',
+      };
+      s['admin_settings/user_roles'] = { superAdmins: ['m2@x.edu'] };
+      const { db, store } = makeStubFirestore(s);
       raceOn(db, store, deactivate(store, 'organizations/o/members/m2@x.edu'));
       await expect(
         run(db, caller('da@x.edu'), {

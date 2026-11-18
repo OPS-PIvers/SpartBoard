@@ -80,7 +80,7 @@ const OTHER_ADMIN_EMAIL = 'admin@elsewhere.org';
 // Invitee (for the accept-invite no-regression check).
 const INVITEE_UID = 'invitee-uid';
 const INVITEE_EMAIL = 'invitee@orono.k12.mn.us';
-// Site-wide super admin (operator-org super_admin member doc) — not a member of ORG_ID.
+// Site-wide super admin (legacy admin_settings/user_roles.superAdmins path) — not org-scoped.
 const SUPER_ADMIN_UID = 'super-admin-uid';
 const SUPER_ADMIN_EMAIL = 'super@orono.k12.mn.us';
 
@@ -218,9 +218,9 @@ beforeEach(async () => {
     );
     await setDoc(doc(db, `plcs/${ORG_PLC_ID}`), orgRoot());
     await setDoc(doc(db, `plcs/${LEGACY_PLC_ID}`), legacyRoot());
-    // isSuperAdmin() reads the operator org ('orono'), not ORG_ID.
-    await setDoc(doc(db, `organizations/orono/members/${SUPER_ADMIN_EMAIL}`), {
-      roleId: 'super_admin',
+    // Legacy isSuperAdmin() path — site-wide, not org-scoped (see firestore.rules isLegacySuperAdmin()).
+    await setDoc(doc(db, 'admin_settings/user_roles'), {
+      superAdmins: [SUPER_ADMIN_EMAIL],
     });
   });
 });

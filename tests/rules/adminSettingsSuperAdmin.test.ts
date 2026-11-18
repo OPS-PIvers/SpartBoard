@@ -132,22 +132,16 @@ describe('admin_settings/user_roles', () => {
     );
   });
 
-  it('lets a member super admin write it', async () => {
+  it('lets a super admin from either source write it', async () => {
     await assertSucceeds(
       setDoc(doc(asMemberSuper(), 'admin_settings/user_roles'), {
         superAdmins: [LEGACY_SUPER_EMAIL],
       })
     );
-  });
-
-  it('denies an address only on the retired legacy list', async () => {
-    await assertFails(
+    await assertSucceeds(
       setDoc(doc(asLegacySuper(), 'admin_settings/user_roles'), {
         superAdmins: [LEGACY_SUPER_EMAIL],
       })
-    );
-    await assertFails(
-      setDoc(doc(asLegacySuper(), 'admin_settings/view_as'), { enabled: true })
     );
   });
 });

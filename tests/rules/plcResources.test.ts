@@ -70,17 +70,16 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testEnv.clearFirestore();
-  // Seed the admin doc so isAdmin() resolves for ADMIN_EMAIL, plus an operator-org
-  // super_admin member doc so isSuperAdmin() resolves too (write requires a
+  // Seed the admin doc so isAdmin() resolves for ADMIN_EMAIL, plus the legacy
+  // superAdmins[] entry so isSuperAdmin() resolves too (write now requires a
   // real super admin, not just any /admins/{email} doc).
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     await setDoc(doc(ctx.firestore(), `admins/${ADMIN_EMAIL}`), {
       email: ADMIN_EMAIL,
     });
-    await setDoc(
-      doc(ctx.firestore(), `organizations/orono/members/${ADMIN_EMAIL}`),
-      { roleId: 'super_admin' }
-    );
+    await setDoc(doc(ctx.firestore(), 'admin_settings/user_roles'), {
+      superAdmins: [ADMIN_EMAIL],
+    });
   });
 });
 
@@ -210,10 +209,9 @@ describe('plc_resources — create', () => {
         await setDoc(doc(ctx.firestore(), `admins/${ADMIN_EMAIL}`), {
           email: ADMIN_EMAIL,
         });
-        await setDoc(
-          doc(ctx.firestore(), `organizations/orono/members/${ADMIN_EMAIL}`),
-          { roleId: 'super_admin' }
-        );
+        await setDoc(doc(ctx.firestore(), 'admin_settings/user_roles'), {
+          superAdmins: [ADMIN_EMAIL],
+        });
       });
       await assertSucceeds(
         setDoc(
@@ -231,10 +229,9 @@ describe('plc_resources — create', () => {
         await setDoc(doc(ctx.firestore(), `admins/${ADMIN_EMAIL}`), {
           email: ADMIN_EMAIL,
         });
-        await setDoc(
-          doc(ctx.firestore(), `organizations/orono/members/${ADMIN_EMAIL}`),
-          { roleId: 'super_admin' }
-        );
+        await setDoc(doc(ctx.firestore(), 'admin_settings/user_roles'), {
+          superAdmins: [ADMIN_EMAIL],
+        });
       });
       await assertSucceeds(
         setDoc(

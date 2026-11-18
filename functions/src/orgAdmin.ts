@@ -357,7 +357,8 @@ export function planMemberUpdate(
   t: CallerTier,
   emailLower: string,
   existing: Data,
-  patch: Data
+  patch: Data,
+  legacySuperAdmins: string[]
 ): Data {
   const next = { ...existing, ...patch };
   const status = next.status ?? 'active';
@@ -365,6 +366,9 @@ export function planMemberUpdate(
     deny();
   }
   if (t.superAdmin) return next;
+  const statusSafe =
+    deepEqual(next.status ?? '', existing.status ?? '') ||
+    !legacySuperAdmins.includes(emailLower);
   const prevRole = existing.roleId ?? '';
   const nextRole = next.roleId ?? '';
   if (t.orgRole === 'domain_admin') {
@@ -373,6 +377,7 @@ export function planMemberUpdate(
       deepEqual(next.email, existing.email) &&
       deepEqual(next.orgId, existing.orgId) &&
       changedOnly(existing, next, MEMBER_DOMAIN_ADMIN_KEYS) &&
+      statusSafe &&
       (!self ||
         (deepEqual(nextRole, prevRole) &&
           deepEqual(next.status ?? '', existing.status ?? ''))) &&
@@ -389,7 +394,8 @@ export function planMemberUpdate(
       prevRole !== 'domain_admin' &&
       buildingListsOverlap(strList(existing.buildingIds), t.buildingIds) &&
       (liveStatus(existing) || !liveStatus(next)) &&
-      changedOnly(existing, next, ['status']);
+      changedOnly(existing, next, ['status']) &&
+      statusSafe;
     if (ok) return next;
   }
   return deny();
@@ -397,12 +403,16 @@ export function planMemberUpdate(
 
 export function planMemberDelete(
   t: CallerTier,
-  existing: Data | undefined
+  emailLower: string,
+  existing: Data | undefined,
+  legacySuperAdmins: string[]
 ): void {
   if (t.superAdmin) return;
+  // A missing doc keeps the legacy grant, so removing a deactivated legacy-list member would reactivate it.
   if (
     t.orgRole === 'domain_admin' &&
-    (existing?.roleId ?? '') !== 'super_admin'
+    (existing?.roleId ?? '') !== 'super_admin' &&
+    (liveStatus(existing) || !legacySuperAdmins.includes(emailLower))
   ) {
     return;
   }
@@ -600,18 +610,22 @@ async function planMembers(
   >,
   ids: string[]
 ): Promise<void> {
-  const existing = await Promise.all(
-    ids.map((id) => read(`organizations/${action.orgId}/members/${id}`))
-  );
+  const [roles, ...existing] = await Promise.all([
+    read('admin_settings/user_roles'),
+    ...ids.map((id) => read(`organizations/${action.orgId}/members/${id}`)),
+  ]);
+  const legacy = strList(roles?.superAdmins);
   if (action.action === 'updateMembers') {
     ids.forEach((id, i) => {
       const before = existing[i];
       if (!before) throw new OrgAdminError('notFound');
-      planMemberUpdate(tier, id, before, action.patch);
+      planMemberUpdate(tier, id, before, action.patch, legacy);
     });
   } else {
     if (!orgAdmin(tier)) deny();
-    existing.forEach((before) => planMemberDelete(tier, before));
+    existing.forEach((before, i) =>
+      planMemberDelete(tier, ids[i], before, legacy)
+    );
   }
 }
 

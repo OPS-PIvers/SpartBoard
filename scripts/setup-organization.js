@@ -5,6 +5,8 @@
  *   - the org doc (name, shortCode, plan, aiEnabled, …)
  *   - buildings, domains, system roles, studentPageConfig/default
  *   - members for every current /admins/* email (roleId: domain_admin)
+ *   - members for every admin_settings/user_roles.superAdmins email
+ *     (roleId: super_admin)
  *
  * All writes use `{ merge: true }` so the script is idempotent — running it
  * twice produces no diff.
@@ -331,18 +333,24 @@ async function run() {
   const adminEmails = adminsSnap.docs.map((d) => d.id.toLowerCase());
   console.log(`   Found ${adminEmails.length} admin email(s).`);
 
-  const allMemberEmails = new Set(adminEmails);
-  let skippedExisting = 0;
+  // 7. Super admins from admin_settings/user_roles
+  let superAdmins = [];
+  const userRolesDoc = await db.doc('admin_settings/user_roles').get();
+  if (userRolesDoc.exists) {
+    const data = userRolesDoc.data() ?? {};
+    superAdmins = Array.isArray(data.superAdmins)
+      ? data.superAdmins.map((e) => String(e).toLowerCase())
+      : [];
+    console.log(`   Found ${superAdmins.length} super admin email(s).`);
+  } else {
+    console.log('   admin_settings/user_roles does not exist — skipping.');
+  }
+
+  const superSet = new Set(superAdmins);
+
+  const allMemberEmails = new Set([...adminEmails, ...superAdmins]);
   for (const email of allMemberEmails) {
-    // Never overwrite an existing member's roleId or status (it may be a super admin or deactivated).
-    const existing = await db
-      .doc(`organizations/${orgId}/members/${email}`)
-      .get();
-    if (existing.exists) {
-      skippedExisting++;
-      continue;
-    }
-    const roleId = 'domain_admin';
+    const roleId = superSet.has(email) ? 'super_admin' : 'domain_admin';
     // `addedBy` is reserved for real Firebase Auth uids (per MemberRecord
     // in types/organization.ts). Migration-created members omit it and
     // record provenance in `addedBySource` instead.
@@ -356,8 +364,6 @@ async function run() {
       invitedAt: nowIso,
     });
   }
-
-  console.log(`   Skipped ${skippedExisting} existing member doc(s).`);
 
   await writer.flush();
 
