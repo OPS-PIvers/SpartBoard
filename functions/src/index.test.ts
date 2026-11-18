@@ -4010,6 +4010,7 @@ describe('index barrel — deployed export set', () => {
     'quizAttemptGradeWrite',
     'migratePlcs',
     'mirrorPlcIndex',
+    'cascadePlcDeleteV1',
     'createBuildingGroupV1',
     'syncBuildingGroupV1',
     'syncedBankOwnerRegistry',
