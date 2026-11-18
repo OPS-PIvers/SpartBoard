@@ -235,6 +235,7 @@ export async function resolvePollCode(
 export const POLL_CODE_MINT_MAX_PER_HOUR = 30;
 // A reservation whose session never appeared frees up after this long.
 export const RESERVATION_TTL_MS = 15 * MINUTE_MS;
+export const PARKED_CODE_TTL_MS = 90 * 24 * 60 * MINUTE_MS;
 
 /** Reserve a random free code for `teacherUid`, pointing it at their session id as pollCodePointer would. */
 export async function mintPollCode(
@@ -271,10 +272,15 @@ export async function mintPollCode(
         const data = pointer.data() ?? {};
         const sid: unknown = data.sessionId;
         const at: unknown = data.reservedAt ?? data.updatedAt;
-        const stale = typeof at === 'number' && now - at > RESERVATION_TTL_MS;
-        if (!stale || typeof sid !== 'string' || !sid) return false;
-        if ((await tx.get(db.collection('poll_sessions').doc(sid))).exists) {
-          return false;
+        const age = typeof at === 'number' ? now - at : 0;
+        if (typeof sid !== 'string' || !sid) {
+          // A parked code goes back to the pool once its teacher has left it long enough.
+          if (age <= PARKED_CODE_TTL_MS) return false;
+        } else {
+          if (age <= RESERVATION_TTL_MS) return false;
+          if ((await tx.get(db.collection('poll_sessions').doc(sid))).exists) {
+            return false;
+          }
         }
       }
       tx.set(ref, {

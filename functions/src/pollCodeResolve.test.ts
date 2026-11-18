@@ -41,6 +41,7 @@ import {
   POLL_CODE_CALLER_MAX_MISSES,
   POLL_CODE_GLOBAL_MAX_MISSES,
   POLL_CODE_MINT_MAX_PER_HOUR,
+  PARKED_CODE_TTL_MS,
   RESERVATION_TTL_MS,
 } from './pollCodeResolve';
 import { makeStubFirestore, type StubData } from './testing/stubFirestore';
@@ -293,6 +294,20 @@ describe('mintPollCode', () => {
     const picks = [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2];
     expect(await mintPollCode(db, 't1', NOW, () => picks.shift() ?? 0)).toBe(
       'DDDDD'
+    );
+  });
+
+  it('reclaims a parked code only after its long hold (review of #9)', async () => {
+    const { db } = setup({
+      'poll_codes/AAAAA': { teacherUid: 'x', updatedAt: NOW - 1000 },
+      'poll_codes/CCCCC': {
+        teacherUid: 'x',
+        updatedAt: NOW - PARKED_CODE_TTL_MS - 1,
+      },
+    });
+    const picks = [0, 0, 0, 0, 0, 1, 1, 1, 1, 1];
+    expect(await mintPollCode(db, 't1', NOW, () => picks.shift() ?? 0)).toBe(
+      'CCCCC'
     );
   });
 
