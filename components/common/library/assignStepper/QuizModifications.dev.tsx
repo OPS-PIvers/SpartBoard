@@ -9,6 +9,14 @@ import {
   type AssignTargetingValue,
 } from '@/utils/studentTargetRef';
 import { defaultWhenValue, type AssignWhenValue } from './assignWhenValue';
+import {
+  DEFAULT_WRITTEN_ANSWERS,
+  type WrittenAnswersValue,
+} from './WrittenAnswersStep.format';
+import type { SharingStepValue } from './SharingStep.format';
+import type { Plc } from '@/types';
+
+const PLCS = [{ id: 'plc-a', name: 'English 9 PLC' }] as Plc[];
 
 const person = (id: string, first: string, last: string) => ({
   id,
@@ -82,6 +90,13 @@ const Preview: React.FC = () => {
       sessionOptions: { ...base.sessionOptions, timeLimitMinutes: 15 },
     };
   });
+  const [written, setWritten] = useState<WrittenAnswersValue>(
+    DEFAULT_WRITTEN_ANSWERS
+  );
+  const [sharing, setSharing] = useState<SharingStepValue>({
+    plcMode: true,
+    plcId: 'plc-a',
+  });
   const [targeting, setTargeting] = useState<AssignTargetingValue>(
     EMPTY_ASSIGN_TARGETING_VALUE
   );
@@ -106,6 +121,8 @@ const Preview: React.FC = () => {
             rubrics: [],
           },
         }}
+        written={{ value: written, onChange: setWritten, count: 2 }}
+        sharing={{ value: sharing, onChange: setSharing, plcs: PLCS }}
         hasManualGrading={false}
         handRaiseMode="teacher-choice"
         submitLabel="Assign"

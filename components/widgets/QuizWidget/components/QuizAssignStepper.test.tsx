@@ -133,16 +133,20 @@ const WrittenHarness: React.FC<{ offered: boolean }> = ({ offered }) => {
 describe('QuizAssignStepper Written answers step', () => {
   it('is left out unless offered', () => {
     render(<WrittenHarness offered={false} />);
-    expect(screen.queryByText('Written answers')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Written answers/)).not.toBeInTheDocument();
   });
 
   it('switches to paper, shows spares, and prints on assign', () => {
     render(<WrittenHarness offered />);
-    expect(screen.getByText('On the device')).toBeInTheDocument();
+    expect(
+      screen.getByText('Written answers on the device')
+    ).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: /^Assign$/ })
     ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /^\dWritten answers/ }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /^\dAdditional settings/ })
+    );
     fireEvent.click(screen.getByRole('radio', { name: 'On paper' }));
     expect(screen.getByLabelText('Spare sheets')).toHaveValue(2);
     expect(
@@ -152,7 +156,9 @@ describe('QuizAssignStepper Written answers step', () => {
 
   it('picks page count and paper type for each written question on paper', () => {
     render(<WrittenHarness offered />);
-    fireEvent.click(screen.getByRole('button', { name: /^\dWritten answers/ }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /^\dAdditional settings/ })
+    );
     expect(
       screen.queryByLabelText('Question 5 box size')
     ).not.toBeInTheDocument();
@@ -173,5 +179,38 @@ describe('QuizAssignStepper Written answers step', () => {
     expect(
       screen.queryByRole('option', { name: 'Custom image' })
     ).not.toBeInTheDocument();
+  });
+});
+
+describe('QuizAssignStepper step order', () => {
+  it('puts the rules first and the extra settings last', () => {
+    render(<WrittenHarness offered />);
+    const titles = screen
+      .getAllByRole('button', { expanded: false })
+      .concat(screen.getAllByRole('button', { expanded: true }))
+      .map((b) => b.textContent ?? '')
+      .filter((text) => /^\d/.test(text))
+      .sort()
+      .map((text) => text.replace(/^\d/, ''));
+    expect(titles[0]).toMatch(/^Classes/);
+    expect(titles[1]).toMatch(/^When/);
+    expect(titles[2]).toMatch(/^Attempts and order/);
+    expect(titles[3]).toMatch(/^Quiz integrity/);
+    expect(titles[4]).toMatch(/^Results/);
+    expect(titles[5]).toMatch(/^Additional settings/);
+  });
+
+  it('moves raise a hand out of Results into the last step', () => {
+    render(<WrittenHarness offered />);
+    fireEvent.click(screen.getByRole('button', { name: /^\dResults/ }));
+    expect(
+      screen.queryByText('Allow students to raise a hand')
+    ).not.toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', { name: /^\dAdditional settings/ })
+    );
+    expect(
+      screen.getByText('Allow students to raise a hand')
+    ).toBeInTheDocument();
   });
 });

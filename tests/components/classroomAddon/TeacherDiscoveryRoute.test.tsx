@@ -260,7 +260,7 @@ describe('ClassroomAddonTeacherSpike attach flow — assign step bodies', () => 
       'When',
       'Attempts and order',
       'Quiz integrity',
-      'What students see',
+      'Results',
     ])
       expect(screen.getByRole('region', { name })).toBeTruthy();
     // Schedule starts off, so no unsaved window or late-work switch shows.
