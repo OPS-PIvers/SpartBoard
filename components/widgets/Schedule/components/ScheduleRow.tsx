@@ -265,6 +265,9 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
   const activeLinesStyle = {
     flex: '1 0 auto',
     minHeight: scheduleSize(18, 72),
+    // Thin white rules keep the band visible on cards close to brand blue.
+    borderTopWidth: '2px',
+    borderBottomWidth: '2px',
     // Sit over the next row's hairline so the band edge stays clean.
     marginBottom: '-1px',
   };
@@ -291,7 +294,7 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
       className={`w-full flex items-center transition-all relative snap-start overflow-hidden ${
         lines
           ? isActive
-            ? 'bg-brand-blue-primary z-10'
+            ? 'bg-brand-blue-primary border-white z-10'
             : ''
           : `rounded-2xl ${
               isActive
