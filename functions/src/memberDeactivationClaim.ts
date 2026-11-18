@@ -1,5 +1,6 @@
 // Mirrors operator-org member deactivation onto the Auth account (uid-keyed claim plus refresh-token revocation).
 import type * as admin from './firebaseAdmin';
+import type { Firestore } from 'firebase-admin/firestore';
 import {
   DEACTIVATED_CLAIM,
   OPERATOR_ORG_ID,
@@ -53,8 +54,8 @@ export async function applyDeactivationClaim(
   emailLower: string,
   uidHint: unknown,
   change: DeactivationClaimChange,
-  isLiveMember?: (emailLower: string) => Promise<boolean>,
-  holdsRevoked?: (user: admin.auth.UserRecord) => Promise<boolean>
+  isLiveMember: ((emailLower: string) => Promise<boolean>) | undefined,
+  holdsRevoked: (user: admin.auth.UserRecord) => Promise<boolean>
 ): Promise<string[]> {
   const users: admin.auth.UserRecord[] = [];
   const lookups: Array<() => Promise<admin.auth.UserRecord | null>> = [];
@@ -63,10 +64,12 @@ export async function applyDeactivationClaim(
       const user = await auth.getUser(uidHint);
       const current = user.email?.toLowerCase() ?? '';
       // A linked account that moved to another live member address is that member now, not this one.
+      // Only a verified address counts as a move; anyone can type an unverified one.
       const movedToLive =
         change === 'set' &&
         !!isLiveMember &&
         !!current &&
+        user.emailVerified === true &&
         current !== emailLower &&
         (await isLiveMember(current));
       return movedToLive ? null : user;
@@ -94,11 +97,33 @@ export async function applyDeactivationClaim(
       changed.push(user.uid);
     } else if (has) {
       // 'clear' never lifts an account that is still another revoked member's.
-      if (holdsRevoked && (await holdsRevoked(user))) continue;
+      if (await holdsRevoked(user)) continue;
       delete claims[DEACTIVATED_CLAIM];
       await auth.setCustomUserClaims(user.uid, claims);
       changed.push(user.uid);
     }
   }
   return changed;
+}
+
+/** True when the account's current address is revoked or removed, or any member doc linked to its uid is revoked. */
+export async function holdsRevokedMember(
+  db: Firestore,
+  orgId: string,
+  user: Pick<admin.auth.UserRecord, 'uid' | 'email'>
+): Promise<boolean> {
+  const email = user.email?.toLowerCase() ?? '';
+  if (email) {
+    const [snap, removed] = await Promise.all([
+      db.doc(`organizations/${orgId}/members/${email}`).get(),
+      db.doc(`organizations/${orgId}/removedMembers/${email}`).get(),
+    ]);
+    if (removed.exists) return true;
+    if (snap.exists && isRevokedMemberStatus(snap.get('status'))) return true;
+  }
+  const linked = await db
+    .collection(`organizations/${orgId}/members`)
+    .where('uid', '==', user.uid)
+    .get();
+  return linked.docs.some((d) => isRevokedMemberStatus(d.get('status')));
 }

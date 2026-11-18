@@ -37,6 +37,7 @@ const TEACHER_A_UID = 'teacher-a-uid';
 const TEACHER_B_UID = 'teacher-b-uid';
 const NON_PARTICIPANT_UID = 'non-participant-uid';
 const STAFF_PEER_EMAIL = 'peer.teacher@orono.k12.mn.us';
+const TEACHER_A_EMAIL = 'teacher-a@orono.k12.mn.us';
 
 const RULES_PATH = fileURLToPath(
   new URL('../../firestore.rules', import.meta.url)
@@ -44,10 +45,17 @@ const RULES_PATH = fileURLToPath(
 
 let testEnv: RulesTestEnvironment;
 
+// Every synced group writer is district staff (security #12); a cleared emulator needs the member docs again.
+const reseedStaff = () =>
+  testEnv.withSecurityRulesDisabled((ctx) =>
+    seedDistrictStaff(ctx.firestore(), [STAFF_PEER_EMAIL, TEACHER_A_EMAIL])
+  );
+
 const asTeacherA = () =>
   testEnv
     .authenticatedContext(TEACHER_A_UID, {
-      email: 'teacher-a@example.com',
+      email: TEACHER_A_EMAIL,
+      email_verified: true,
     })
     .firestore();
 
@@ -102,7 +110,10 @@ afterAll(async () => {
 beforeEach(async () => {
   await testEnv.clearFirestore();
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
-    await seedDistrictStaff(ctx.firestore(), [STAFF_PEER_EMAIL]);
+    await seedDistrictStaff(ctx.firestore(), [
+      STAFF_PEER_EMAIL,
+      TEACHER_A_EMAIL,
+    ]);
     await setDoc(
       doc(ctx.firestore(), `synced_quizzes/${GROUP_ID}`),
       seededGroup()
@@ -196,6 +207,7 @@ describe('synced_quizzes — paperSheetStimuli', () => {
 
   it('a create carrying it is accepted, and a non-list create is not', async () => {
     await testEnv.clearFirestore();
+    await reseedStaff();
     await assertSucceeds(
       setDoc(doc(asTeacherA(), 'synced_quizzes/fresh-group'), {
         id: 'fresh-group',
@@ -293,6 +305,7 @@ describe('synced_quizzes — bank slots, order and sections', () => {
 
   it('a create carrying them is accepted, and a non-list create is not', async () => {
     await testEnv.clearFirestore();
+    await reseedStaff();
     const base = {
       version: 1,
       title: 'Fresh',
@@ -425,6 +438,7 @@ describe('synced_quizzes — create (initial group seed)', () => {
     // Don't pre-seed the group for create tests; we want to cover the
     // first write specifically.
     await testEnv.clearFirestore();
+    await reseedStaff();
   });
 
   it('creator can stand up a group with themselves as sole initial participant', async () => {
@@ -546,6 +560,7 @@ describe('synced_quizzes — translations payload (PLC translation sync)', () =>
 
   it('accepts a create that carries translations', async () => {
     await testEnv.clearFirestore();
+    await reseedStaff();
     await assertSucceeds(
       setDoc(
         doc(asTeacherA(), `synced_quizzes/${GROUP_ID}`),
@@ -574,6 +589,7 @@ describe('synced_quizzes — translations payload (PLC translation sync)', () =>
   it('rejects a create whose translations is not a map', async () => {
     for (const bad of ['a string', ['es'], 7]) {
       await testEnv.clearFirestore();
+      await reseedStaff();
       await assertFails(
         setDoc(
           doc(asTeacherA(), `synced_quizzes/${GROUP_ID}`),
@@ -588,6 +604,7 @@ describe('synced_quizzes — translations payload (PLC translation sync)', () =>
 
   it('still accepts a create with no translations at all', async () => {
     await testEnv.clearFirestore();
+    await reseedStaff();
     await assertSucceeds(
       setDoc(
         doc(asTeacherA(), `synced_quizzes/${GROUP_ID}`),
