@@ -15,8 +15,6 @@ import { signInAnonymously } from 'firebase/auth';
 import { Trans, useTranslation } from 'react-i18next';
 import {
   ArrowRight,
-  BookOpen,
-  ClipboardList,
   Loader2,
   AlertCircle,
   CheckCircle2,
@@ -48,7 +46,14 @@ import { useServerNow } from '@/hooks/useServerNow';
 import { hasPeriodAccess, studentCanEnter } from '@/utils/periodAccess';
 import { resolveResultsVisibility } from '@/utils/quizResultsVisibility';
 import { ResultsProtectionGate } from '@/components/student/ResultsProtectionGate';
-import { GuidedLearningWelcomeImage } from './GuidedLearningWelcomeImage';
+import {
+  GL_PRIMARY_BUTTON,
+  GL_SECONDARY_BUTTON,
+  GuidedLearningLogo,
+  GuidedLearningScreenShell,
+  GuidedLearningWelcomeHeader,
+  GuidedLearningWelcomeMessage,
+} from './GuidedLearningScreenShell';
 import {
   GuidedLearningClosedScreen,
   GuidedLearningPeriodLockedScreen,
@@ -100,13 +105,18 @@ const FullPageLoader: React.FC<{ message?: string }> = ({ message }) => {
 const ErrorScreen: React.FC<{ message: string }> = ({ message }) => {
   const { t } = useTranslation();
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-4 p-6 text-center">
-      <AlertCircle className="w-12 h-12 text-red-400" aria-hidden="true" />
-      <p className="text-white font-semibold text-lg">
+    <GuidedLearningScreenShell>
+      <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
+        <AlertCircle
+          className="h-7 w-7 text-brand-red-primary"
+          aria-hidden="true"
+        />
+      </div>
+      <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
         {t('glStudent.error.title')}
-      </p>
-      <p className="text-slate-300 text-sm max-w-sm">{message}</p>
-    </div>
+      </h1>
+      <p className="mt-2 text-sm text-slate-600">{message}</p>
+    </GuidedLearningScreenShell>
   );
 };
 
@@ -800,36 +810,29 @@ const StartScreen: React.FC<{
 
   if (needsPeriodPicker) {
     return (
-      <div className="h-screen h-dvh overflow-y-auto bg-slate-950">
-        <div className="min-h-full flex items-center justify-center p-6">
-          <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
-            <ClipboardList
-              className="w-8 h-8 text-indigo-400 mx-auto mb-3"
-              aria-hidden="true"
-            />
-            <h1 className="text-white font-bold text-xl mb-1">
-              {t('glStudent.start.selectClass')}
-            </h1>
-            <p className="text-slate-300 text-sm mb-5">
-              {t('glStudent.start.whichPeriod')}
-            </p>
-            <div className="space-y-2 mb-5 text-left">
-              {periods.map((p) => (
-                <button
-                  key={p}
-                  onClick={() => onPeriodChange(p)}
-                  className="w-full px-4 py-3 rounded-xl text-base font-bold transition-all bg-slate-800 border border-slate-700 text-slate-200 hover:bg-slate-700"
-                >
-                  {p}
-                </button>
-              ))}
-            </div>
-            <p className="text-xxs text-slate-300">
-              {t('glStudent.start.pickOne')}
-            </p>
-          </div>
+      <GuidedLearningScreenShell>
+        <GuidedLearningLogo />
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
+          {t('glStudent.start.selectClass')}
+        </h1>
+        <p className="mt-2 text-sm text-slate-600">
+          {t('glStudent.start.whichPeriod')}
+        </p>
+        <div className="mt-6 space-y-2 text-left">
+          {periods.map((p) => (
+            <button
+              key={p}
+              onClick={() => onPeriodChange(p)}
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-base font-semibold text-slate-800 transition-colors hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary"
+            >
+              {p}
+            </button>
+          ))}
         </div>
-      </div>
+        <p className="mt-5 text-xs text-slate-500">
+          {t('glStudent.start.pickOne')}
+        </p>
+      </GuidedLearningScreenShell>
     );
   }
 
@@ -843,124 +846,98 @@ const StartScreen: React.FC<{
     (welcomeMessage.length > 0 || Boolean(welcomeImage));
 
   return (
-    <div className="h-screen h-dvh overflow-y-auto bg-slate-950">
-      <div className="min-h-full flex items-center justify-center p-6">
-        <div
-          className={`bg-slate-900 border border-white/10 rounded-2xl p-8 ${showWelcome ? 'max-w-md' : 'max-w-sm'} w-full text-center shadow-2xl`}
-        >
-          {welcomeImage ? (
-            <GuidedLearningWelcomeImage
-              url={welcomeImage}
-              alt={session.welcomeImageAlt}
-              className="mb-4"
-            />
-          ) : (
-            <BookOpen
-              className="w-10 h-10 text-indigo-400 mx-auto mb-3"
-              aria-hidden="true"
-            />
-          )}
-          <h1 className="text-white font-bold text-xl mb-1">{session.title}</h1>
-          {showWelcome ? (
-            welcomeMessage ? (
-              <div className="mt-3 mb-6 rounded-xl border border-white/10 bg-white/3 px-4 py-3 text-left">
-                <p className="text-slate-200 text-sm whitespace-pre-wrap leading-relaxed">
-                  {welcomeMessage}
-                </p>
-              </div>
-            ) : (
-              <div className="mb-6" />
-            )
-          ) : (
-            <p className="text-slate-300 text-sm mb-6">
-              <span
-                data-testid="gl-start-mode-chip"
-                className="inline-block rounded-full bg-white/10 border border-white/15 px-2.5 py-0.5 text-slate-200 font-semibold"
-              >
-                {t(`glPlayer.modeChip.${session.mode}`)}
-              </span>
-              {/* A per-period session's steps stay hidden until the period opens. */}
-              {session.stepsInContent && session.publicSteps.length === 0
-                ? null
-                : ` · ${t('glStudent.start.steps', {
-                    count: session.publicSteps.length,
-                  })}`}
-            </p>
-          )}
-
-          {!isViewOnly && selectedPeriod && periods.length > 1 && (
-            <div className="mb-4 flex items-center justify-between rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2">
-              <span className="text-xs text-slate-300">
-                {t('glStudent.start.class')}
-              </span>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-white">
-                  {selectedPeriod}
-                </span>
-                <button
-                  onClick={() => onPeriodChange(null)}
-                  className="text-xxs text-slate-300 hover:text-white"
-                >
-                  {t('glStudent.start.change')}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {staffName !== undefined && (
-            <p className="mb-6 text-sm text-slate-300">
-              Signed in as{' '}
-              <span className="font-semibold text-white">{staffName}</span>
-            </p>
-          )}
-
-          {!isViewOnly && staffName === undefined && (
-            <div className="mb-6">
-              <label
-                htmlFor="gl-student-pin"
-                className="block text-slate-300 text-xs mb-1.5 text-left"
-              >
-                {t('glStudent.start.pin')}{' '}
-                <span className="text-slate-300">
-                  {t('glStudent.start.optional')}
-                </span>
-              </label>
-              <input
-                id="gl-student-pin"
-                type="text"
-                value={pin}
-                onChange={(e) => onPinChange(e.target.value)}
-                placeholder={t('glStudent.start.pinPlaceholder')}
-                className="w-full bg-slate-800 border border-slate-600 rounded-xl px-4 py-2.5 text-white text-sm text-center tracking-widest"
-                maxLength={10}
-              />
-            </div>
-          )}
-
-          {error && (
-            <p role="alert" className="mb-4 text-sm text-red-300">
-              {error}
-            </p>
-          )}
-
-          <button
-            onClick={onStart}
-            disabled={busy}
-            className={`w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 ${
-              // When PIN entry is suppressed (view-only) and no welcome
-              // card preceded it, the start button would butt up against
-              // the title — give it some breathing room.
-              isViewOnly && !showWelcome ? 'mt-2' : ''
-            }`}
+    <GuidedLearningScreenShell wide={showWelcome}>
+      <GuidedLearningWelcomeHeader
+        title={session.title}
+        imageUrl={welcomeImage}
+        imageAlt={session.welcomeImageAlt}
+      >
+        {showWelcome ? (
+          welcomeMessage ? (
+            <GuidedLearningWelcomeMessage text={welcomeMessage} />
+          ) : null
+        ) : (
+          <p
+            data-testid="gl-start-mode-chip"
+            className="mt-2 text-sm text-slate-500"
           >
-            {showWelcome
-              ? t('glStudent.start.getStarted')
-              : t('glStudent.start.start')}
-            <ArrowRight className="w-4 h-4" aria-hidden="true" />
-          </button>
+            {t(`glPlayer.modeChip.${session.mode}`)}
+            {/* A per-period session's steps stay hidden until the period opens. */}
+            {session.stepsInContent && session.publicSteps.length === 0
+              ? null
+              : ` · ${t('glStudent.start.steps', {
+                  count: session.publicSteps.length,
+                })}`}
+          </p>
+        )}
+      </GuidedLearningWelcomeHeader>
+
+      {!isViewOnly && selectedPeriod && periods.length > 1 && (
+        <div className="mt-6 flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5">
+          <span className="text-xs text-slate-500">
+            {t('glStudent.start.class')}
+          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-semibold text-slate-900">
+              {selectedPeriod}
+            </span>
+            <button
+              onClick={() => onPeriodChange(null)}
+              className="text-xs font-medium text-brand-blue-primary hover:underline"
+            >
+              {t('glStudent.start.change')}
+            </button>
+          </div>
         </div>
-      </div>
-    </div>
+      )}
+
+      {staffName !== undefined && (
+        <p className="mt-6 text-sm text-slate-600">
+          Signed in as{' '}
+          <span className="font-semibold text-slate-900">{staffName}</span>
+        </p>
+      )}
+
+      {!isViewOnly && staffName === undefined && (
+        <div className="mt-6">
+          <label
+            htmlFor="gl-student-pin"
+            className="mb-1.5 block text-left text-xs font-medium text-slate-600"
+          >
+            {t('glStudent.start.pin')}{' '}
+            <span className="font-normal text-slate-500">
+              {t('glStudent.start.optional')}
+            </span>
+          </label>
+          <input
+            id="gl-student-pin"
+            type="text"
+            value={pin}
+            onChange={(e) => onPinChange(e.target.value)}
+            placeholder={t('glStudent.start.pinPlaceholder')}
+            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-center text-sm tracking-widest text-slate-900 placeholder-slate-400 focus:border-brand-blue-light focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/20"
+            maxLength={10}
+          />
+        </div>
+      )}
+
+      {error && (
+        <p role="alert" className="mt-4 text-sm text-brand-red-primary">
+          {error}
+        </p>
+      )}
+
+      <button
+        onClick={onStart}
+        disabled={busy}
+        className={`mt-7 ${GL_PRIMARY_BUTTON}`}
+      >
+        {showWelcome
+          ? t('glStudent.start.getStarted')
+          : t('glStudent.start.start')}
+        <ArrowRight className="h-4 w-4" aria-hidden="true" />
+      </button>
+    </GuidedLearningScreenShell>
   );
 };
 
@@ -985,104 +962,78 @@ const CompletionScreen: React.FC<{
   onReplay: () => void;
 }> = ({ session, score, isViewOnly, visibility, onReplay }) => {
   const { t } = useTranslation();
-  // View-only completion is purely informational — there's no "score",
-  // no "you finished an assignment" framing, just "you reached the end
-  // of this resource". Suppress the gamified Trophy / Complete! styling
-  // and surface the Replay CTA as the primary action.
+  // View-only completion is a resource's end, not a submitted assignment: no
+  // score framing, and Replay is the one action.
   if (isViewOnly) {
     return (
-      <div className="h-screen h-dvh overflow-y-auto bg-slate-950">
-        <div className="min-h-full flex items-center justify-center p-6">
-          <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
-            <BookOpen
-              className="w-10 h-10 text-indigo-400 mx-auto mb-3"
-              aria-hidden="true"
-            />
-            <h1 className="text-white font-bold text-xl mb-1">
-              {session.title}
-            </h1>
-            <p className="text-slate-300 text-sm mb-6">
-              {t('glStudent.complete.reachedEnd')}
-            </p>
-            <button
-              onClick={onReplay}
-              className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
-            >
-              <RefreshCw className="w-4 h-4" aria-hidden="true" />
-              {t('glStudent.complete.replay')}
-            </button>
-          </div>
-        </div>
-      </div>
+      <GuidedLearningScreenShell>
+        <GuidedLearningLogo />
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900 break-words">
+          {session.title}
+        </h1>
+        <p className="mt-3 text-sm text-slate-600">
+          {t('glStudent.complete.reachedEnd')}
+        </p>
+        <button onClick={onReplay} className={`mt-7 ${GL_SECONDARY_BUTTON}`}>
+          <RefreshCw className="h-4 w-4" aria-hidden="true" />
+          {t('glStudent.complete.replay')}
+        </button>
+      </GuidedLearningScreenShell>
     );
   }
 
-  // Response-tracked completion. When the teacher hasn't published
-  // results yet (`visibility === 'none'`, the default), drop the
-  // gamified Trophy framing in favor of a neutral "submitted" placeholder
-  // — promising "Complete!" on a screen that can't show a score reads as
-  // a missing feature. Once the teacher publishes, the parent component
-  // routes returning students to `PublishedGLReview` instead, so the
-  // Trophy variant below is only reached on the immediate post-submit
-  // render when the teacher had already pre-published at create time
-  // (uncommon but supported).
+  // Unpublished results (the default) get a neutral "submitted" screen. Returning
+  // students reach PublishedGLReview once the teacher publishes, so the scored
+  // variant below only shows right after submit on a pre-published session.
   if (visibility === 'none') {
     return (
-      <div className="h-screen h-dvh overflow-y-auto bg-slate-950">
-        <div className="min-h-full flex items-center justify-center p-6">
-          <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
-            <CheckCircle2
-              className="w-10 h-10 text-emerald-400 mx-auto mb-3"
-              aria-hidden="true"
-            />
-            <h1 className="text-white font-bold text-xl mb-1">
-              {session.title}
-            </h1>
-            <p className="text-slate-300 text-sm mb-4">
-              {t('glStudent.complete.submitted')}
-            </p>
-            <p className="text-slate-300 text-xs">
-              {t('glStudent.complete.askTeacher')}
-            </p>
-          </div>
-        </div>
-      </div>
+      <GuidedLearningScreenShell>
+        <DoneMark />
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900 break-words">
+          {session.title}
+        </h1>
+        <p className="mt-3 text-sm text-slate-600">
+          {t('glStudent.complete.submitted')}
+        </p>
+        <p className="mt-1 text-sm text-slate-500">
+          {t('glStudent.complete.askTeacher')}
+        </p>
+      </GuidedLearningScreenShell>
     );
   }
 
   return (
-    <div className="h-screen h-dvh overflow-y-auto bg-slate-950">
-      <div className="min-h-full flex items-center justify-center p-6">
-        <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
-          <Trophy
-            className="w-12 h-12 text-yellow-400 mx-auto mb-3"
-            aria-hidden="true"
-          />
-          <h1 className="text-white font-bold text-xl mb-1">{session.title}</h1>
-          <CheckCircle2
-            className="w-8 h-8 text-emerald-400 mx-auto my-4"
-            aria-hidden="true"
-          />
-          <p className="text-emerald-400 font-semibold text-lg mb-1">
-            {t('glStudent.complete.complete')}
-          </p>
-          {score !== null && (
-            <p className="text-slate-300 text-sm mb-4">
-              <Trans
-                i18nKey="glStudent.complete.scored"
-                values={{ score }}
-                components={{ b: <span className="text-white font-bold" /> }}
-              />
-            </p>
-          )}
-          <p className="text-slate-300 text-xs">
-            {t('glStudent.complete.submitted')}
-          </p>
-        </div>
+    <GuidedLearningScreenShell>
+      <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-full bg-amber-50">
+        <Trophy className="h-7 w-7 text-amber-500" aria-hidden="true" />
       </div>
-    </div>
+      <h1 className="text-2xl font-semibold tracking-tight text-slate-900 break-words">
+        {session.title}
+      </h1>
+      <p className="mt-3 text-lg font-semibold text-emerald-700">
+        {t('glStudent.complete.complete')}
+      </p>
+      {score !== null && (
+        <p className="mt-1 text-sm text-slate-600">
+          <Trans
+            i18nKey="glStudent.complete.scored"
+            values={{ score }}
+            components={{ b: <span className="font-bold text-slate-900" /> }}
+          />
+        </p>
+      )}
+      <p className="mt-3 text-sm text-slate-500">
+        {t('glStudent.complete.submitted')}
+      </p>
+    </GuidedLearningScreenShell>
   );
 };
+
+const DoneMark: React.FC = () => (
+  <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50">
+    <CheckCircle2 className="h-7 w-7 text-emerald-600" aria-hidden="true" />
+  </div>
+);
 
 // ─── Published-score review ──────────────────────────────────────────────────
 //
