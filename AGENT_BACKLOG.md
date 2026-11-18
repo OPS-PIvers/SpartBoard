@@ -249,6 +249,10 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
   <details><summary>Branches to delete (179, checked 2026-11-01)</summary>
 
+claude/assigned-tab-pr0 (#6216)
+claude/assigned-tab-reopen-turnin (#6225)
+claude/assigned-tab-quiz-window (#6233)
+claude/project-thread-5uuvdq (this docs PR, delete after it merges)
 claude/project-thread-j4paf2 (#6227; this docs PR reuses it, delete after it merges)
 claude/project-thread-7u8ra6 (#6226; this docs PR reuses it, delete after it merges)
 claude/project-thread-ce51ew (#6222; this docs PR reuses it, delete after it merges)
