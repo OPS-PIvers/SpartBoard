@@ -261,6 +261,8 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
     backgroundColor: bgColor,
     borderTopWidth: scheduleSize(1, 4),
     borderBottomWidth: scheduleSize(1, 4),
+    // Sit over the next row's hairline so the rules don't double up.
+    marginBottom: '-1px',
   };
 
   // Timer-start icon: strictly mode-aware so the button only appears when
@@ -383,7 +385,7 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
           onClick={() => onStartTimer?.(item)}
           className="shrink-0 opacity-50 hover:opacity-100 hover:bg-black/5 rounded-lg transition"
           style={{
-            color: fontColor,
+            color: item.done ? '#94a3b8' : fontColor,
             padding: scheduleSize(1, 4),
             marginRight: scheduleSize(2.5, 12),
           }}
