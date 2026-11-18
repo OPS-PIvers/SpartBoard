@@ -552,6 +552,45 @@ describe('window cleared pointers', () => {
     ]);
   });
 
+  it('clears an override the server cannot keep, and mirrors nothing it refused', async () => {
+    const now = Date.now();
+    const other: StudentTargetRef = { kind: 'classlink', sourcedId: 's2' };
+    setTargets
+      .mockResolvedValueOnce({
+        skipped: [
+          { ref, reason: 'malformed-override' },
+          { ref: other, reason: 'malformed-override' },
+        ],
+      })
+      .mockResolvedValueOnce({
+        skipped: [{ ref: other, reason: 'malformed-override' }],
+      });
+    const x = setup(
+      assignment({
+        status: 'inactive',
+        closeAt: now - 120_000,
+        targetMode: 'students',
+        targetStudents: [ref, other],
+        overridesBySourcedId: {
+          'classlink:s1': { closeAt: now - 60_000, language: 'es' },
+          'classlink:s2': { closeAt: now - 60_000, language: 'fr' },
+        },
+      })
+    );
+    await act(() => x.current.reopenClass(null));
+    expect(setTargets).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        window: {},
+        overridesBySourcedId: { 'classlink:s1': null, 'classlink:s2': null },
+      })
+    );
+    const mirrored = (updateDoc as unknown as Mock).mock.calls
+      .flatMap((c: unknown[]) => c.slice(1))
+      .map((v: unknown) => (v as { segments?: string[] }).segments?.join('|'))
+      .filter(Boolean);
+    expect(mirrored).toEqual(['overridesBySourcedId|classlink:s1']);
+  });
+
   it('keeps the assignment overrides when the pointer update fails', async () => {
     setTargets.mockRejectedValueOnce(new Error('offline'));
     vi.spyOn(console, 'error').mockImplementation(() => undefined);

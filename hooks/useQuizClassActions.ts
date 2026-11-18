@@ -118,17 +118,40 @@ export function useQuizClassActions(
           Date.now()
         );
         if (!patch && Object.keys(stale).length === 0) return;
-        await setAssignmentTargets({
-          assignmentId,
-          kind: 'quiz',
-          sessionId: assignmentId,
-          targetMode: assignment.targetMode,
-          add: [],
-          remove: [],
-          overridesBySourcedId: stale,
-          window: patch ?? {},
-        });
-        const fields = Object.entries(stale).flatMap(([key, value]) => [
+        const call = (
+          overridesBySourcedId: Record<string, StudentOverride | null>,
+          window: { openAt?: null; closeAt?: null }
+        ) =>
+          setAssignmentTargets({
+            assignmentId,
+            kind: 'quiz',
+            sessionId: assignmentId,
+            targetMode: assignment.targetMode,
+            add: [],
+            remove: [],
+            overridesBySourcedId,
+            window,
+          });
+        const skippedKeys = (result: Awaited<ReturnType<typeof call>>) =>
+          new Set(
+            (result?.skipped ?? [])
+              .filter((s) => s.reason === 'malformed-override')
+              .map((s) => studentTargetRefKey(s.ref))
+          );
+        let missed = skippedKeys(await call(stale, patch ?? {}));
+        // An override left with nothing the server keeps is cleared outright, so its old close can't win.
+        if (missed.size > 0)
+          missed = skippedKeys(
+            await call(
+              Object.fromEntries([...missed].map((key) => [key, null])),
+              {}
+            )
+          );
+        // Mirror only what reached the pointers, so a later Open still sees the rest as stale.
+        const applied = Object.entries(stale).filter(
+          ([key]) => !missed.has(key)
+        );
+        const fields = applied.flatMap(([key, value]) => [
           new FieldPath('overridesBySourcedId', key),
           value ?? deleteField(),
         ]);
