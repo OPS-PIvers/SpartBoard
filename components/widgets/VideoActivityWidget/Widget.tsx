@@ -11,6 +11,7 @@ import React, {
   useEffect,
   useEffectEvent,
   useRef,
+  useMemo,
 } from 'react';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
@@ -86,6 +87,7 @@ import { useAuth } from '@/context/useAuth';
 import { useVideoActivity } from '@/hooks/useVideoActivity';
 import { useVideoActivitySessionTeacher } from '@/hooks/useVideoActivitySession';
 import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments';
+import { videoActivityLifecycle } from './videoActivityLifecycle';
 import { useBusyIdSet } from '@/hooks/useBusyIdSet';
 import { useFolders } from '@/hooks/useFolders';
 import { usePlcs } from '@/hooks/usePlcs';
@@ -241,6 +243,21 @@ const TeacherVideoActivityWidget: React.FC<{
     setAssignmentClasses,
     updateAssignmentSettings,
   } = useVideoActivityAssignments(user?.uid);
+  const assignedTabLifecycle = useMemo(
+    () =>
+      videoActivityLifecycle({
+        pauseAssignment,
+        resumeAssignment,
+        deactivateAssignment,
+        reactivateAssignment,
+      }),
+    [
+      pauseAssignment,
+      resumeAssignment,
+      deactivateAssignment,
+      reactivateAssignment,
+    ]
+  );
 
   const [editingClasses, setEditingClasses] =
     useState<VideoActivityAssignment | null>(null);
@@ -1397,6 +1414,7 @@ const TeacherVideoActivityWidget: React.FC<{
           }
         }}
         onArchiveEditClasses={setEditingClasses}
+        classLifecycle={assignedTabLifecycle}
         onArchiveEditSettings={setEditingSettings}
         onShareWithPlc={(meta) => {
           if (plcs.length === 0) {
