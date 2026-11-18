@@ -37,7 +37,7 @@ export const useBackgrounds = () => {
   }
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || isAdmin === null) return;
 
     let cancelled = false;
     const baseRef = collection(db, 'admin_backgrounds');

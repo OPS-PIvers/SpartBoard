@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { getDocs, onSnapshot } from 'firebase/firestore';
 import { useBackgrounds } from '@/hooks/useBackgrounds';
 import { useAuth } from '@/context/useAuth';
@@ -33,7 +33,7 @@ const bg = (id: string, accessLevel: string) => ({
 const levelOf = (q: Query) =>
   q.__query.find((c) => c.value === 'beta' || c.value === 'public')
     ?.value as string;
-const auth = (email: string, isAdmin = false) => ({
+const auth = (email: string, isAdmin: boolean | null = false) => ({
   user: { uid: email, email },
   isAdmin,
 });
@@ -105,5 +105,65 @@ describe('useBackgrounds', () => {
     await waitFor(() =>
       expect(result.current.presets.map((p) => p.label)).toEqual(['pub'])
     );
+  });
+
+  it('makes no read while admin status is still loading', async () => {
+    (getDocs as Mock).mockResolvedValue(snap([bg('one', 'public')]));
+    (useAuth as Mock).mockReturnValue(auth('admin@x.org', null));
+    const { result, rerender } = renderHook(() => useBackgrounds());
+    expect(getDocs).not.toHaveBeenCalled();
+
+    (useAuth as Mock).mockReturnValue(auth('admin@x.org', true));
+    rerender();
+    await waitFor(() => expect(result.current.presets).toHaveLength(1));
+    expect(getDocs).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores a read that resolves after the user switched', async () => {
+    const resolvers: Record<string, (v: unknown) => void> = {};
+    (getDocs as Mock).mockImplementation(
+      (q: Query) =>
+        new Promise((resolve) => {
+          resolvers[levelOf(q)] = resolve;
+        })
+    );
+    (useAuth as Mock).mockReturnValue(auth('a@x.org'));
+    const { result, rerender } = renderHook(() => useBackgrounds());
+    const stale = { ...resolvers };
+
+    (getDocs as Mock).mockImplementation(() =>
+      Promise.resolve(snap([bg('fresh', 'public')]))
+    );
+    (useAuth as Mock).mockReturnValue(auth('b@x.org'));
+    rerender();
+    await waitFor(() =>
+      expect(result.current.presets.map((p) => p.label)).toEqual(['fresh'])
+    );
+
+    await act(async () => {
+      stale.public(snap([bg('stale-pub', 'public')]));
+      stale.beta(snap([bg('stale-beta', 'beta')]));
+      await Promise.resolve();
+    });
+    expect(result.current.presets.map((p) => p.label)).toEqual(['fresh']);
+  });
+
+  it('ignores a read that resolves after unmount', async () => {
+    const resolvers: ((v: unknown) => void)[] = [];
+    (getDocs as Mock).mockImplementation(
+      () => new Promise((resolve) => resolvers.push(resolve))
+    );
+    const errSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    (useAuth as Mock).mockReturnValue(auth('admin@x.org', true));
+    const { result, unmount } = renderHook(() => useBackgrounds());
+    unmount();
+    await act(async () => {
+      resolvers.forEach((r) => r(snap([bg('late', 'public')])));
+      await Promise.resolve();
+    });
+    expect(result.current.presets).toEqual([]);
+    expect(errSpy).not.toHaveBeenCalled();
   });
 });
