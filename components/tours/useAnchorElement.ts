@@ -67,6 +67,9 @@ const unionRect = (rects: readonly DOMRect[]): DOMRect => {
   return new DOMRect(left, top, right - left, bottom - top);
 };
 
+/** A checkbox row is lit with its label, so the name beside each box shows too. */
+const rowBox = (el: Element): Element => el.closest('label') ?? el;
+
 /** The part of an element its scrolling panels let show. */
 const shownPart = (el: Element): DOMRect => {
   const r = el.getBoundingClientRect();
@@ -294,7 +297,10 @@ export function useAnchorElement(
           : [el, ...rows];
         publish({
           element: el,
-          rect: matches.length > 1 ? unionRect(matches.map(shownPart)) : next,
+          rect:
+            matches.length > 1 || (anyRow && rowBox(el) !== el)
+              ? unionRect(matches.map((m) => shownPart(rowBox(m))))
+              : next,
           status: 'found',
           ...(anyRow ? { matches } : {}),
           ...(centred ? { centred } : {}),

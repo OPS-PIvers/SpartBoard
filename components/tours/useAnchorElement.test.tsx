@@ -447,6 +447,28 @@ describe('useAnchorElement with a #row-* ref', () => {
     expect(result.current.rect?.width).toBe(140);
   });
 
+  it('lights each checkbox row with its label, not just the box', async () => {
+    const labelled = (n: number, labelX: number) => {
+      const label = document.createElement('label');
+      label.dataset.x = String(labelX);
+      const el = addRow(n);
+      el.dataset.x = String(labelX);
+      label.appendChild(el);
+      document.body.appendChild(label);
+      return label;
+    };
+    labelled(1, 50);
+    const last = labelled(2, 100);
+    // The last label runs past its checkbox, as a name beside a box does.
+    last.getBoundingClientRect = () => new DOMRect(100, 10, 200, 40);
+    const { result } = renderHook(() =>
+      useAnchorElement({ anchor: 'plcs.open-plc:plcs#row-*' }, scope)
+    );
+    await advance(50);
+    expect(result.current.rect?.x).toBe(50);
+    expect(result.current.rect?.width).toBe(250);
+  });
+
   it('stays found on another row when the first one scrolls out of its panel', async () => {
     const panel = document.createElement('div');
     panel.style.overflowY = 'auto';
