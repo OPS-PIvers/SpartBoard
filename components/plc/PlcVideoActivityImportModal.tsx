@@ -15,11 +15,13 @@ interface PlcVideoActivityImportModalProps {
   sharedByName?: string;
   onPick: (mode: SharedVideoActivityImportMode) => void;
   onClose: () => void;
+  /** False for a team viewer: only the copy option is offered. */
+  canSync?: boolean;
 }
 
 export const PlcVideoActivityImportModal: React.FC<
   PlcVideoActivityImportModalProps
-> = ({ activityTitle, sharedByName, onPick, onClose }) => {
+> = ({ activityTitle, sharedByName, onPick, onClose, canSync = true }) => {
   const { t } = useTranslation();
   return (
     <Modal
@@ -71,7 +73,7 @@ export const PlcVideoActivityImportModal: React.FC<
       }
     >
       <div className="px-5 pb-5 pt-4 space-y-3">
-        <PlcImportModeOptions onPick={onPick} />
+        <PlcImportModeOptions onPick={onPick} canSync={canSync} />
       </div>
     </Modal>
   );
