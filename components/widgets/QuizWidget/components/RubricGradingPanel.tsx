@@ -296,7 +296,7 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
               aria-labelledby={nameId}
               className="py-1.5"
             >
-              <div className="flex flex-wrap items-start gap-x-2">
+              <div className="flex items-start gap-1">
                 <button
                   type="button"
                   onClick={() =>
@@ -308,7 +308,7 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
                     'quiz',
                     criterion.id
                   )}
-                  className="-ml-1 flex min-w-0 flex-auto items-start gap-1 rounded-md py-1.5 pl-0.5 pr-1 text-left transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
+                  className="-ml-1 flex min-w-0 flex-1 items-start gap-1 rounded-md py-1.5 pl-0.5 pr-1 text-left transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
                 >
                   <ChevronRight
                     aria-hidden
@@ -325,37 +325,40 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
                     </span>
                   </span>
                 </button>
-                {!isOpen && (
-                  <div className="ml-auto flex shrink-0 items-center gap-0.5">
-                    {(noteOpen || selected !== undefined) && noteButton}
-                    {levels.map((level) => {
-                      const isSelected = selected?.levelId === level.id;
-                      return (
-                        <button
-                          key={level.id}
-                          type="button"
-                          aria-pressed={isSelected}
-                          aria-label={`${level.label}, ${ptsLabel(level.points)}`}
-                          title={`${level.label}, ${ptsLabel(level.points)}`}
-                          onClick={() => tapLevel(criterion, level)}
-                          {...tourFieldAttr(
-                            'quiz-grading.rubric-level',
-                            'quiz',
-                            `${criterion.id}-${level.id}`
-                          )}
-                          className={`h-8 min-w-7 rounded-md px-1 text-sm tabular-nums transition-colors [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-blue-primary ${
-                            isSelected
-                              ? 'bg-brand-blue-primary font-bold text-white'
-                              : 'font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                          }`}
-                        >
-                          {level.points}
-                        </button>
-                      );
-                    })}
-                  </div>
+                {!isOpen && (noteOpen || selected !== undefined) && noteButton}
+                {!isOpen && selected && (
+                  <span className="shrink-0 py-1.5 pl-1 text-sm font-bold tabular-nums text-brand-blue-primary">
+                    {selected.points}
+                  </span>
                 )}
               </div>
+              {!isOpen && (
+                <div className="ml-5 mt-1 flex gap-1">
+                  {levels.map((level) => {
+                    const isSelected = selected?.levelId === level.id;
+                    return (
+                      <button
+                        key={level.id}
+                        type="button"
+                        aria-pressed={isSelected}
+                        aria-label={`${level.label}, ${ptsLabel(level.points)}`}
+                        title={`${level.label}, ${ptsLabel(level.points)}`}
+                        onClick={() => tapLevel(criterion, level)}
+                        {...tourFieldAttr(
+                          'quiz-grading.rubric-level',
+                          'quiz',
+                          `${criterion.id}-${level.id}`
+                        )}
+                        className={`h-6 min-w-0 flex-1 rounded-sm transition-colors [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-blue-primary ${
+                          isSelected
+                            ? 'bg-brand-blue-primary'
+                            : 'bg-slate-200 hover:bg-slate-300'
+                        }`}
+                      />
+                    );
+                  })}
+                </div>
+              )}
 
               {tagCount > 0 && onJumpToTagged && (
                 <button

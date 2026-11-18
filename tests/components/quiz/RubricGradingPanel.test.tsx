@@ -87,20 +87,16 @@ describe('RubricGradingPanel (rubric-grading-v2)', () => {
 
   it('shows collapsed point buttons, highest first by default', () => {
     renderPanel();
-    expect(levelButtons('Thesis').map((b) => b.textContent)).toEqual([
-      '4',
-      '3',
-      '1',
-    ]);
+    expect(
+      levelButtons('Thesis').map((b) => b.getAttribute('aria-label'))
+    ).toEqual(['Exceeds, 4 pts', 'Meets, 3 pts', 'Below, 1 pt']);
   });
 
   it('shows lowest first when the teacher prefers it', () => {
     renderPanel({ order: 'low-first' });
-    expect(levelButtons('Thesis').map((b) => b.textContent)).toEqual([
-      '1',
-      '3',
-      '4',
-    ]);
+    expect(
+      levelButtons('Thesis').map((b) => b.getAttribute('aria-label'))
+    ).toEqual(['Below, 1 pt', 'Meets, 3 pts', 'Exceeds, 4 pts']);
   });
 
   it('saves the order switch to the teacher preferences', () => {
@@ -366,6 +362,13 @@ describe('Full rubric table editing', () => {
     renderPanel({ hideTotal: true });
     expect(screen.queryByText('Rubric total')).toBeNull();
     expect(screen.getByText(/0 of 2 criteria scored/)).toBeInTheDocument();
+  });
+
+  it('shows the picked score on the criterion row', () => {
+    renderPanel();
+    const thesis = screen.getByRole('group', { name: /Thesis/ });
+    fireEvent.click(screen.getByRole('button', { name: 'Meets, 3 pts' }));
+    expect(within(thesis).getByText('3')).toBeInTheDocument();
   });
 
   it('shows the total row by default', () => {
