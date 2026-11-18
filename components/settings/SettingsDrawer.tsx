@@ -90,6 +90,8 @@ export type SettingsDrawerProps = {
     widgetDefaults?: Record<string, unknown>;
     buildingConfig?: Record<string, unknown>;
     saved?: Record<string, unknown>;
+    /** Characters the profile can still take for this default. */
+    budgetChars?: number;
     onSave: (config: Record<string, unknown>) => void;
   };
   /** The focus hook (1b.2) targets this heading on open. */
@@ -425,7 +427,8 @@ const SettingsDrawerComponent: React.FC<SettingsDrawerProps> = ({
       config,
       settingsDefaults.widgetDefaults,
       settingsDefaults.buildingConfig,
-      settingsDefaults.saved
+      settingsDefaults.saved,
+      settingsDefaults.budgetChars
     );
   }, [config, schema, settingsDefaults, widget.type]);
 

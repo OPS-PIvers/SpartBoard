@@ -9,6 +9,7 @@ import { useConnectionsEnabled } from '@/hooks/useConnectionsEnabled';
 import { useTranslation } from 'react-i18next';
 import {
   readSavedSettingsDefault,
+  settingsDefaultBudget,
   SETTINGS_DEFAULT_PRESET_KEY,
 } from '@/utils/widgetSettingsDefaults';
 import { useAuth } from '@/context/useAuth';
@@ -485,6 +486,7 @@ export const SettingsDrawerHost: React.FC = () => {
               selectedBuildings
             ),
             saved: savedSettingsDefault,
+            budgetChars: settingsDefaultBudget(savedWidgetPresets, openType),
             onSave: (config: Record<string, unknown>) =>
               saveWidgetPreset(openType, {
                 [SETTINGS_DEFAULT_PRESET_KEY]: config,
@@ -497,6 +499,7 @@ export const SettingsDrawerHost: React.FC = () => {
       featurePermissions,
       selectedBuildings,
       savedSettingsDefault,
+      savedWidgetPresets,
       saveWidgetPreset,
     ]
   );

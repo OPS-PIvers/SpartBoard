@@ -208,8 +208,9 @@ import {
   validatePlacement,
   sanitizeAIConfig,
 } from '@/utils/ai_security';
-import { withTimerStartSeconds } from '@/utils/timeToolClock';
+import { fitTimeToolClock, withTimerStartSeconds } from '@/utils/timeToolClock';
 import {
+  addCarriesContent,
   cleanSavedSettingsDefault,
   readSavedSettingsDefault,
 } from '@/utils/widgetSettingsDefaults';
@@ -7247,16 +7248,17 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       withMyDefault = false
     ): Record<string, unknown> | undefined => {
       const building = getAdminBuildingConfig(type);
-      const base =
-        type === 'time-tool'
-          ? withTimerStartSeconds(building, timerStartSeconds)
-          : building;
-      if (!withMyDefault || !settingsDefaultsOn) return base;
-      const mine = cleanSavedSettingsDefault(
-        type,
-        readSavedSettingsDefault(savedWidgetPresets, type)
-      );
-      return mine ? { ...base, ...mine } : base;
+      const mine =
+        withMyDefault && settingsDefaultsOn
+          ? cleanSavedSettingsDefault(
+              type,
+              readSavedSettingsDefault(savedWidgetPresets, type)
+            )
+          : undefined;
+      const layer = mine ? { ...building, ...mine } : building;
+      return type === 'time-tool'
+        ? fitTimeToolClock(withTimerStartSeconds(layer, timerStartSeconds))
+        : layer;
     },
     [
       getAdminBuildingConfig,
@@ -7475,7 +7477,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // A caller's own config (AI, saved widget) and tour widgets keep stock content; the teacher's default only fills a plain add.
       const adminConfig = getNewWidgetBaseConfig(
         type,
-        !overrides?.config && !opts.transient
+        !addCarriesContent(overrides?.config) && !opts.transient
       );
       const newWidgetId = overrides?.id ?? crypto.randomUUID();
       locallyAddedWidgetIds.current.add(newWidgetId);

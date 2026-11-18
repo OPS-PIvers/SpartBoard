@@ -68,6 +68,9 @@ describe('Settings tab defaults footer', () => {
     expect(onSave).toHaveBeenCalledWith({
       stationId: 'lofi',
       syncWithTimeTool: true,
+      mySong: null,
+      personalSpotifyLabel: null,
+      personalSpotifyThumbnail: null,
     });
   });
 
@@ -82,10 +85,12 @@ describe('Settings tab defaults footer', () => {
     fireEvent.click(
       screen.getByRole('button', { name: 'Reset to my default' })
     );
-    expect(updateConfig).toHaveBeenCalledWith({
-      stationId: 'jazz',
-      syncWithTimeTool: undefined,
-    });
+    expect(updateConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        stationId: 'jazz',
+        syncWithTimeTool: undefined,
+      })
+    );
   });
 
   it('matches once the saved default equals this widget', () => {

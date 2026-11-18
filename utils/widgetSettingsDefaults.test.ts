@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  addCarriesContent,
   cleanSavedSettingsDefault,
+  settingsDefaultBudget,
   computeSettingsDefaults,
   pickSettingsDefault,
   settingsDefaultKeys,
@@ -167,5 +169,33 @@ describe('computeSettingsDefaults', () => {
     expect(cleanSavedSettingsDefault('music', state.toSave)).toEqual({
       stationId: 'jazz',
     });
+  });
+});
+
+describe('add paths and limits', () => {
+  it('treats a building seed as a plain add', () => {
+    expect(addCarriesContent(undefined)).toBe(false);
+    expect(addCarriesContent({ schoolSite: 'schumann' })).toBe(false);
+    expect(addCarriesContent({ items: [] })).toBe(true);
+  });
+
+  it('saves keys a field writes beside its own and never a lunch roster', () => {
+    expect(
+      settingsDefaultKeys('lunchCount', ['lunchTimeHour', 'roster'])
+    ).toEqual(['lunchTimeHour', 'lunchTimeMinute']);
+    expect(settingsDefaultKeys('weather', ['showFeelsLike'])).toEqual([
+      'city',
+      'detailFields',
+      'showFeelsLike',
+      'source',
+    ]);
+  });
+
+  it('shrinks the room for a default as other presets grow', () => {
+    const big = 'x'.repeat(500_000);
+    expect(
+      settingsDefaultBudget({ stations: { savedLibrary: big } }, 'schedule')
+    ).toBeLessThan(100_000);
+    expect(settingsDefaultBudget(undefined, 'schedule')).toBe(200_000);
   });
 });

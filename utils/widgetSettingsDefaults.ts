@@ -22,6 +22,7 @@ const NEVER_SAVED = new Set([
   'firstNames',
   'lastNames',
   'names',
+  'roster',
   'completedNames',
   'rosterPoolGroupId',
   'lockedRosterGroupIds',
@@ -30,11 +31,39 @@ const NEVER_SAVED = new Set([
 /** Keys a field writes alongside its declared one, saved and reset together. */
 const COMPANION_KEYS: Partial<Record<WidgetType, readonly string[]>> = {
   'concept-web': ['edges'],
-  'reveal-grid': ['memoryCards'],
+  lunchCount: ['lunchTimeMinute'],
+  music: ['mySong', 'personalSpotifyLabel', 'personalSpotifyThumbnail'],
+  weather: ['detailFields', 'source', 'city'],
+  embed: ['url', 'html'],
 };
+
+// Keys a Dock add seeds from the teacher's building; they don't make an add "content".
+const SEED_KEYS = new Set(['schoolSite']);
+
+/** True for an add that carries its own content (AI, saved widget, import), which keeps it over my default. */
+export function addCarriesContent(config: object | undefined): boolean {
+  return !!config && Object.keys(config).some((key) => !SEED_KEYS.has(key));
+}
+
+/** Room left in the profile for one type's default, given everything else saved there. */
+export function settingsDefaultBudget(
+  presets: object | undefined,
+  type: WidgetType
+): number {
+  const others = { ...(presets as Values | undefined) };
+  const own = { ...(others[type] as Values | undefined) };
+  delete own[SETTINGS_DEFAULT_PRESET_KEY];
+  others[type] = own;
+  return Math.min(
+    SETTINGS_DEFAULT_MAX_CHARS,
+    PROFILE_PRESETS_MAX_CHARS - JSON.stringify(others).length
+  );
+}
 
 // Largest saved default, so one huge config can't break every later preset save.
 export const SETTINGS_DEFAULT_MAX_CHARS = 200_000;
+// All saved presets together stay well under Firestore's 1 MiB document limit.
+const PROFILE_PRESETS_MAX_CHARS = 600_000;
 
 /** Live data and links to other widgets on one board; a saved default never carries them. */
 export const SETTINGS_DEFAULT_EXCLUDED_KEYS: Partial<
@@ -232,7 +261,8 @@ export function computeSettingsDefaults(
   current: Values | undefined,
   widgetDefaults: Values | undefined,
   buildingConfig: Values | undefined,
-  saved: Values | undefined
+  saved: Values | undefined,
+  budgetChars = SETTINGS_DEFAULT_MAX_CHARS
 ): SettingsDefaultsState {
   const effectiveConfig = {
     ...widgetDefaults,
@@ -249,7 +279,7 @@ export function computeSettingsDefaults(
   return {
     keys: [...keys],
     differs: mineText !== stableStringify(effective),
-    tooLarge: mineText.length > SETTINGS_DEFAULT_MAX_CHARS,
+    tooLarge: mineText.length > budgetChars,
     // Unset keys go as null: the profile write deep-merges, so a missing key would keep its old value.
     toSave: {
       ...Object.fromEntries(keys.map((key) => [key, null])),
