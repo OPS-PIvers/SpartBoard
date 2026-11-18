@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import { useStudentAssignmentPointer } from '@/hooks/useStudentAssignmentPointer';
 
 const mockOnSnapshot = vi.hoisted(() => vi.fn());
@@ -61,6 +61,6 @@ describe('useStudentAssignmentPointer — foreign pointers', () => {
       teacherUid: 'teacher-a',
       kind: 'quiz',
     });
-    await waitFor(() => expect(result.current).toEqual(pointer));
+    expect(result.current).toEqual(pointer);
   });
 });
