@@ -132,17 +132,21 @@ export function useQuizClassActions(
       const a = await fresh();
       if (!a || a.status === 'active') return;
       if (a.status === 'inactive') {
-        // An ended run's other classes were Closed (D20); stamp them so they stay closed, not Ready.
+        // An ended run's other classes were Closed (D20); stamp them, clock-closed ones too, so they stay closed.
         const now = Date.now();
-        for (const [k, row] of Object.entries(a.periodAccess ?? {}))
-          if (k !== opened && !isClassClosed(row, now))
-            await periods.closePeriod(k);
+        const stays: Array<[string, number]> = [];
+        for (const [k, row] of Object.entries(a.periodAccess ?? {})) {
+          if (k === opened) continue;
+          if (row.state === 'closed' && row.closedAt != null) {
+            stays.push([k, row.closedAt]);
+          } else {
+            await periods.closePeriod(k, now);
+            stays.push([k, now]);
+          }
+        }
         await reopenAssignment(id);
         // The reopen voids End's pending turn-in, so each class that stays closed turns its own in.
-        const after = await fresh();
-        for (const [k, row] of Object.entries(after?.periodAccess ?? {}))
-          if (k !== opened && row.state === 'closed' && row.closedAt != null)
-            scheduleTurnIn(k, row.closedAt);
+        for (const [k, closedAt] of stays) scheduleTurnIn(k, closedAt);
       } else {
         // A whole-run pause froze every open class; only the one opened comes back. Scheduled and clock-closed classes stay as they are.
         const now = Date.now();
