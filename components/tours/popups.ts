@@ -38,8 +38,8 @@ export interface Box {
 /** Inside an open menu or popover, which a step's spotlight lights along with its control. */
 export const isInPopup = (el: Element): boolean => el.closest(POPUP) !== null;
 
-/** Open menus and popovers on screen, which the tour's own UI keeps clear of. */
-export function openPopupBoxes(): Box[] {
+/** Open menus and popovers on screen, which the tour's own UI keeps clear of; `inside` is the step's control. */
+export function openPopupBoxes(inside?: Element | null): Box[] {
   if (typeof document === 'undefined') return [];
   const els = new Set<Element>(document.querySelectorAll(POPUP));
   document
@@ -47,7 +47,8 @@ export function openPopupBoxes(): Box[] {
     .forEach((opener) => {
       const id = opener.getAttribute('aria-controls')?.split(/\s+/)[0];
       const el = id ? document.getElementById(id) : null;
-      if (el) els.add(el);
+      // An open accordion section holding the control is where it lives, not a menu it opened.
+      if (el && !(inside && el.contains(inside))) els.add(el);
     });
   const area = window.innerWidth * window.innerHeight;
   const boxes: Box[] = [];

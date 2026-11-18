@@ -398,12 +398,12 @@ const readViewport = () =>
     : { w: window.innerWidth, h: window.innerHeight };
 
 /** The dock, Sidebar pill, FABs and open menus, which the callout keeps clear of. */
-const tourObstacles = () => [
+const tourObstacles = (inside?: Element | null) => [
   ...Array.from(document.querySelectorAll('[data-tour-obstacle]'))
     .map((el) => el.getBoundingClientRect())
     .filter((r) => r.width > 0 && r.height > 0)
     .map((r) => ({ x: r.x, y: r.y, w: r.width, h: r.height })),
-  ...openPopupBoxes(),
+  ...openPopupBoxes(inside),
 ];
 
 const SHAKE: Keyframe[] = [
@@ -760,7 +760,7 @@ export const LiveTourRunner: React.FC = () => {
     : null;
   // A menu the step's control opened is lit and kept clear along with it.
   const spot = target
-    ? withNearbyPopups(target, tour ? openPopupBoxes() : [])
+    ? withNearbyPopups(target, tour ? openPopupBoxes(anchor.element) : [])
     : null;
   // Settle, tick, glide, tip on a paced run (P1); editor and test runs keep their own pace.
   const paced = tour?.phase === 'running' && !tour.edit && !tour.test;
@@ -2003,7 +2003,9 @@ export const LiveTourRunner: React.FC = () => {
   // Re-places the tip after the bar is dragged.
   const [, setBarMoves] = useState(0);
   const onBarPlace = useCallback(() => setBarMoves((n) => n + 1), []);
-  const obstacles = tour ? [...tourObstacles(), ...dialogBoxes] : [];
+  const obstacles = tour
+    ? [...tourObstacles(anchor.element), ...dialogBoxes]
+    : [];
   const placement = spot
     ? placeCallout({ box, target: spot, container: viewport, obstacles })
     : null;
