@@ -1,5 +1,11 @@
 // View as audit entries and the unlocked direct-save path (docs/plans/shipped/ADMIN_VIEW_AS.md D13, D14, D16).
-import { getDoc, setDoc, type DocumentReference } from 'firebase/firestore';
+import {
+  DocumentReference,
+  FieldValue,
+  Timestamp,
+  getDoc,
+  setDoc,
+} from 'firebase/firestore';
 import {
   getViewAsTabState,
   runAuditedWrite,
@@ -143,4 +149,73 @@ export async function recordViewAsOutward(
   } catch (err) {
     console.error('[viewAs] outward audit failed', err);
   }
+}
+
+export type ViewAsRawWriteOp = 'set' | 'update' | 'delete' | 'add';
+
+export interface ViewAsRawWrite {
+  op: ViewAsRawWriteOp;
+  path: string;
+  data?: unknown;
+}
+
+const MAX_WRITE_DEPTH = 8;
+
+/** JSON-safe copy of written data: sentinels and Firestore types become plain markers. */
+export function describeWriteData(value: unknown, depth = 0): unknown {
+  if (value === undefined) return null;
+  if (value === null || typeof value !== 'object') {
+    return typeof value === 'function' ? null : value;
+  }
+  if (depth >= MAX_WRITE_DEPTH) return '…';
+  if (value instanceof FieldValue) {
+    const name = (value as unknown as { _methodName?: unknown })._methodName;
+    return `<${typeof name === 'string' ? name.replace(/^FieldValue\./, '') : 'fieldValue'}>`;
+  }
+  if (value instanceof Timestamp) return value.toMillis();
+  if (value instanceof DocumentReference) return value.path;
+  if (value instanceof Date) return value.getTime();
+  if (Array.isArray(value)) {
+    return value.map((v) => describeWriteData(v, depth + 1));
+  }
+  const out: Record<string, unknown> = {};
+  for (const [key, v] of Object.entries(value)) {
+    if (v !== undefined && key !== '')
+      out[key] = describeWriteData(v, depth + 1);
+  }
+  return out;
+}
+
+/** Logs raw writes an unlocked tab made outside the wrapped save paths, so every change stays in the View as log (D16). */
+export async function recordViewAsRawWrites(
+  writes: readonly ViewAsRawWrite[]
+): Promise<void> {
+  if (writes.length === 0 || !viewAsAuditsWrite()) return;
+  const targetUid = getViewAsTabState().session?.targetUid;
+  const own =
+    writes.length === 1 &&
+    !!targetUid &&
+    writes[0].path.startsWith(`users/${targetUid}/`) &&
+    !writes[0].path.startsWith(`users/${targetUid}/private`);
+  try {
+    await recordViewAsAudit({
+      action: 'view_as_outward',
+      ...(own ? { path: writes[0].path } : {}),
+      after: {
+        action: 'Change',
+        writes: capValue(
+          writes.map((w) => ({
+            op: w.op,
+            path: w.path,
+            ...(w.data !== undefined
+              ? { data: describeWriteData(w.data) }
+              : {}),
+          }))
+        ),
+      },
+    });
+  } catch (err) {
+    console.error('[viewAs] change audit failed', err);
+  }
+  updateViewAsTabState({ savedNotice: getViewAsTabState().savedNotice + 1 });
 }

@@ -3,12 +3,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const guardState = vi.hoisted(() => ({
   blockedPaths: new Set<string>(),
   audited: false,
+  needsAudit: false,
   seen: [] as string[][],
+}));
+const recorded = vi.hoisted(() => ({
+  recordViewAsRawWrites: vi.fn((_writes: unknown) => Promise.resolve()),
 }));
 const real = vi.hoisted(() => ({
   setDoc: vi.fn(() => Promise.resolve()),
   updateDoc: vi.fn(() => Promise.resolve()),
-  addDoc: vi.fn(() => Promise.resolve({ id: 'new' })),
+  addDoc: vi.fn(() => Promise.resolve({ id: 'new', path: 'new' })),
   deleteDoc: vi.fn(() => Promise.resolve()),
   commit: vi.fn(() => Promise.resolve()),
   txSet: vi.fn(),
@@ -33,12 +37,16 @@ vi.mock('firebase/firestore', () => ({
     delete: vi.fn(),
   }),
   doc: vi.fn(),
+  FieldPath: class FieldPath {},
 }));
+
+vi.mock('@/utils/viewAsAudit', () => recorded);
 
 vi.mock('@/utils/viewAsTab', () => ({
   isViewAsTab: true,
   ViewAsReadOnlyError: class ViewAsReadOnlyError extends Error {},
   viewAsWriteIsAudited: () => guardState.audited,
+  viewAsRawWriteNeedsAudit: () => guardState.needsAudit,
   viewAsBlocksRawWrite: (paths: string[]) => {
     guardState.seen.push(paths);
     return (
@@ -55,6 +63,7 @@ describe('firestoreViewAsGuard', () => {
   beforeEach(() => {
     guardState.blockedPaths = new Set();
     guardState.audited = false;
+    guardState.needsAudit = false;
     guardState.seen = [];
     vi.clearAllMocks();
   });
@@ -107,6 +116,47 @@ describe('firestoreViewAsGuard', () => {
       return Promise.resolve();
     });
     expect(real.txSet).toHaveBeenCalledTimes(1);
+  });
+
+  it('logs each write it lets through when the tab has no audit of its own', async () => {
+    const flush = () => new Promise((r) => setTimeout(r, 0));
+    await guard.setDoc(ref('quiz_sessions/s1/responses/r1'), {
+      unlocked: true,
+    });
+    await flush();
+    expect(recorded.recordViewAsRawWrites).not.toHaveBeenCalled();
+
+    guardState.needsAudit = true;
+    await guard.updateDoc(ref('quiz_sessions/s1/responses/r1'), {
+      unlocked: true,
+    });
+    await guard.updateDoc(ref('quiz_sessions/s1'), 'status', 'paused');
+    await guard.addDoc(ref('users/u1/rosters'), { name: 'P1' });
+    const batch = guard.writeBatch({} as never);
+    batch.set(ref('a/1'), { x: 1 });
+    batch.delete(ref('a/2'));
+    await batch.commit();
+    await guard.runTransaction({} as never, (tx) => {
+      tx.set(ref('a/3'), { y: 2 });
+      return Promise.resolve();
+    });
+    await flush();
+    expect(recorded.recordViewAsRawWrites.mock.calls.map((c) => c[0])).toEqual([
+      [
+        {
+          op: 'update',
+          path: 'quiz_sessions/s1/responses/r1',
+          data: { unlocked: true },
+        },
+      ],
+      [{ op: 'update', path: 'quiz_sessions/s1', data: { status: 'paused' } }],
+      [{ op: 'add', path: 'new', data: { name: 'P1' } }],
+      [
+        { op: 'set', path: 'a/1', data: { x: 1 } },
+        { op: 'delete', path: 'a/2' },
+      ],
+      [{ op: 'set', path: 'a/3', data: { y: 2 } }],
+    ]);
   });
 
   it('re-exports the rest of the Firestore API', () => {
