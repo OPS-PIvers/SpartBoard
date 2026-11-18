@@ -67,6 +67,8 @@ const removeButton =
 const textButton =
   'flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-semibold text-brand-blue-primary transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-brand-blue-primary';
 
+const addButton =
+  'mx-auto flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300 bg-white text-brand-blue-primary shadow-sm transition-colors hover:border-brand-blue-primary hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-brand-blue-primary';
 const fieldCore =
   'rounded-md border border-slate-300 bg-white px-2 py-1 text-slate-900 placeholder:text-slate-400 focus:border-brand-blue-primary focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/30';
 const fieldBase = `w-full ${fieldCore}`;
@@ -316,7 +318,7 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
           'quiz',
           String(ri + 1)
         )}
-        className="mx-auto flex h-9 w-9 items-center justify-center rounded-md text-brand-blue-primary transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
+        className={addButton}
       >
         <Plus className="h-5 w-5" aria-hidden />
       </button>
@@ -556,7 +558,7 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
                           'quiz',
                           'all'
                         )}
-                        className="mx-auto flex h-9 w-9 items-center justify-center rounded-md text-brand-blue-primary transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
+                        className={addButton}
                       >
                         <Plus className="h-5 w-5" aria-hidden />
                       </button>
@@ -678,7 +680,7 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
                       return (
                         <td
                           key={i}
-                          className="border-l border-slate-200 bg-slate-50/50 px-3 py-3"
+                          className="border-l border-slate-200 bg-slate-50/50 px-3 py-3 align-middle"
                         >
                           {i === levels.length && rowAdd(ri, criterion.id)}
                         </td>
@@ -826,7 +828,7 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
                     );
                   })}
                   {addColumn && (
-                    <td className="border-l border-slate-200 bg-slate-50/50 px-1 py-3">
+                    <td className="border-l border-slate-200 bg-slate-50/50 px-1 py-3 align-middle">
                       {levels.length === columns && rowAdd(ri, criterion.id)}
                     </td>
                   )}
