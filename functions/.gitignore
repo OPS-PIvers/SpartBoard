@@ -1,5 +1,7 @@
 # Compiled JavaScript
 lib/
+# Per-codebase deploy sources (scripts/build-codebases.mjs)
+deploy/
 
 # Dependencies
 node_modules/

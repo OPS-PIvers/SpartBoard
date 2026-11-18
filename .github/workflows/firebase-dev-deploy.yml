@@ -441,6 +441,10 @@ jobs:
         with:
           name: build-output
 
+      # Each codebase's deploy source (functions/deploy/<name>) is built from functions/lib here, not uploaded.
+      - name: Build function codebases
+        run: node functions/scripts/build-codebases.mjs
+
       # plan names affected exports; keep only real Cloud Functions, since --only fails on any other name.
       - name: Name only Cloud Functions
         id: targets
