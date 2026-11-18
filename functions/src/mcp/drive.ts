@@ -315,12 +315,23 @@ export async function uploadSlideImage(
   return id;
 }
 
-/** Copies an uploaded picture into the slide folder as its own slide file, viewable by link. */
-export async function copyPictureToSlide(
+/** The teacher's SpartBoard/Assets/<name> folder, the same one the app uploads into. */
+export async function assetFolder(
+  token: string,
+  name: string
+): Promise<string> {
+  const root = await findOrCreateFolder(token, DRIVE_APP_FOLDER);
+  const assets = await findOrCreateFolder(token, 'Assets', root);
+  return findOrCreateFolder(token, name, assets);
+}
+
+/** Copies an uploaded picture into a folder as its own file, viewable by link. */
+export async function copyPictureShared(
   token: string,
   folderId: string,
   pictureId: string,
-  fileName: string
+  fileName: string,
+  appProperties?: Record<string, string>
 ): Promise<string> {
   const copied = await driveFetch(
     token,
@@ -331,7 +342,7 @@ export async function copyPictureToSlide(
       body: JSON.stringify({
         name: fileName,
         parents: [folderId],
-        appProperties: GL_SLIDE_APP_PROPERTIES,
+        ...(appProperties ? { appProperties } : {}),
       }),
     }
   );
@@ -344,6 +355,21 @@ export async function copyPictureToSlide(
   await shareByLink(token, id);
   return id;
 }
+
+/** Copies an uploaded picture into the slide folder as its own slide file, viewable by link. */
+export const copyPictureToSlide = (
+  token: string,
+  folderId: string,
+  pictureId: string,
+  fileName: string
+): Promise<string> =>
+  copyPictureShared(
+    token,
+    folderId,
+    pictureId,
+    fileName,
+    GL_SLIDE_APP_PROPERTIES
+  );
 
 /** Best-effort move to the teacher's Drive trash, for an upload whose save failed. */
 export async function trashDriveFile(token: string, id: string): Promise<void> {

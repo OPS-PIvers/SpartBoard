@@ -674,6 +674,7 @@ export async function handleImportPaperResponses(
       : false;
     const quota = await readPaperHandwritingQuota(db, {
       uid: caller.uid,
+      email: caller.email,
       isAdmin,
       nowMs: now,
     });

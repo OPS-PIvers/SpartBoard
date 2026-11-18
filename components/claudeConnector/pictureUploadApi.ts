@@ -5,8 +5,8 @@ export const PICTURE_TYPES = [
   'image/gif',
   'image/webp',
 ];
-/** Mirrors MAX_UPLOAD_BYTES on the server. */
-export const MAX_PICTURE_BYTES = 8 * 1024 * 1024;
+/** Pictures above this shrink first, so they also fit flashcards (MAX_CARD_PICTURE_BYTES on the server). */
+export const MAX_PICTURE_BYTES = 5 * 1024 * 1024;
 const MAX_EDGE = 3000;
 
 export type UploadResult =
@@ -37,7 +37,7 @@ export async function uploadPicture(
   };
 }
 
-/** A smaller JPEG for a picture over the size limit; GIFs and failures come back unchanged. */
+/** A smaller WebP (it keeps transparency) for a picture over the size limit; GIFs and failures come back unchanged. */
 export async function shrinkPicture(file: File): Promise<File> {
   if (file.type === 'image/gif') return file;
   try {
@@ -51,11 +51,11 @@ export async function shrinkPicture(file: File): Promise<File> {
       ?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
     bitmap.close();
     const blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, 'image/jpeg', 0.88)
+      canvas.toBlob(resolve, 'image/webp', 0.88)
     );
-    if (!blob) return file;
+    if (blob?.type !== 'image/webp') return file;
     const name = file.name.replace(/\.[^.]+$/, '') || 'picture';
-    return new File([blob], `${name}.jpg`, { type: 'image/jpeg' });
+    return new File([blob], `${name}.webp`, { type: 'image/webp' });
   } catch {
     return file;
   }

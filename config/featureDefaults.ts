@@ -842,7 +842,7 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Claude connector: pictures from the chat',
     icon: Bot,
     description:
-      "Pictures a teacher shares with Claude can go on Guided Learning slides. They save to the teacher's Google Drive.",
+      "Pictures a teacher shares with Claude can go on Guided Learning slides, quiz questions and flashcards. They save to the teacher's Google Drive.",
     stage: 'preview',
     afterLaunch: 'keep',
     category: 'integrations',
