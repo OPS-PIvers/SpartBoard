@@ -1,9 +1,11 @@
-// Rubric grading (rubric-grading-v2): one-tap level buttons, expandable criteria, per-criterion score override.
+// Rubric grading (rubric-grading-v2): one-tap level bars, expandable criteria with level descriptions.
 import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowLeftRight,
   ChevronRight,
+  ChevronsDownUp,
+  ChevronsUpDown,
   MessageSquarePlus,
   Table2,
   X,
@@ -16,7 +18,6 @@ import type {
 } from '@/types';
 import { useRubricLevelOrder } from '@/hooks/useRubricLevelOrder';
 import {
-  criterionMaxPoints,
   orderRubricLevels,
   rubricMaxPoints,
   sumRubricScorePoints,
@@ -81,8 +82,6 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
       if (s.note) seed[s.criterionId] = s.note;
     return seed;
   });
-  // Raw score-box text while the teacher types; absent means show the saved points.
-  const [pointDrafts, setPointDrafts] = useState<Record<string, string>>({});
   const [tableOpen, setTableOpen] = useState(false);
 
   const byCriterion = useMemo(() => {
@@ -110,14 +109,6 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
       ''
     ).trim();
 
-  const clearPointDraft = (criterionId: string) =>
-    setPointDrafts((prev) => {
-      if (!(criterionId in prev)) return prev;
-      const next = { ...prev };
-      delete next[criterionId];
-      return next;
-    });
-
   const tapLevel = (criterion: RubricCriterion, level: RubricLevel) => {
     const next = new Map(byCriterion);
     if (next.get(criterion.id)?.levelId === level.id) {
@@ -131,46 +122,6 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
         ...(note ? { note } : {}),
       });
     }
-    clearPointDraft(criterion.id);
-    commit(next);
-  };
-
-  const typePoints = (criterion: RubricCriterion, raw: string) => {
-    setPointDrafts((prev) => ({ ...prev, [criterion.id]: raw }));
-    const existing = byCriterion.get(criterion.id);
-    const next = new Map(byCriterion);
-    const note = noteFor(criterion.id);
-    const withNote = note ? { note } : {};
-    if (raw.trim() === '') {
-      const level = criterion.levels.find((l) => l.id === existing?.levelId);
-      if (level) {
-        next.set(criterion.id, {
-          criterionId: criterion.id,
-          levelId: level.id,
-          points: level.points,
-          ...withNote,
-        });
-      } else {
-        next.delete(criterion.id);
-      }
-      commit(next);
-      return;
-    }
-    const value = Number(raw);
-    if (
-      !Number.isFinite(value) ||
-      value < 0 ||
-      value > criterionMaxPoints(criterion)
-    )
-      return;
-    // A typed score that matches a level picks that level; any other keeps the current one.
-    const match = criterion.levels.find((l) => l.points === value);
-    next.set(criterion.id, {
-      criterionId: criterion.id,
-      levelId: match?.id ?? existing?.levelId ?? '',
-      points: value,
-      ...withNote,
-    });
     commit(next);
   };
 
@@ -210,37 +161,59 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
   const allScored =
     rubric.criteria.length > 0 && scoredCount === rubric.criteria.length;
   const orderLabel = order === 'high-first' ? 'Highest first' : 'Lowest first';
+  const allOpen =
+    rubric.criteria.length > 0 &&
+    rubric.criteria.every((c) => openCriteria.has(c.id));
+  const toggleAll = () => {
+    const next = new Set(allOpen ? [] : rubric.criteria.map((c) => c.id));
+    openCriteriaMemory.set(rubric.id, next);
+    setOpenCriteria(next);
+  };
 
   return (
-    <section
-      aria-label="Rubric scoring"
-      className="flex flex-col"
-      style={{ containerType: 'inline-size' }}
-    >
+    <section aria-label="Rubric scoring" className="flex flex-col">
       <header className="pb-2">
-        <div className="flex flex-wrap items-center justify-center gap-x-1 gap-y-1">
+        <div className="flex items-center gap-1">
           <button
             type="button"
-            onClick={() => setTableOpen(true)}
-            {...tourTypeAttr('quiz-grading.rubric-view-full', 'quiz')}
-            className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-semibold text-brand-blue-primary transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
+            onClick={toggleAll}
+            {...tourTypeAttr('quiz-grading.rubric-expand-all', 'quiz')}
+            aria-label={
+              allOpen ? 'Collapse all criteria' : 'Expand all criteria'
+            }
+            title={allOpen ? 'Collapse all' : 'Expand all'}
+            className="touch-target-expand flex h-8 w-7 shrink-0 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
           >
-            <Table2 className="h-4 w-4" aria-hidden />
-            View rubric
+            {allOpen ? (
+              <ChevronsDownUp className="h-4 w-4" aria-hidden />
+            ) : (
+              <ChevronsUpDown className="h-4 w-4" aria-hidden />
+            )}
           </button>
-          <button
-            type="button"
-            onClick={switchOrder}
-            {...tourTypeAttr('quiz-grading.rubric-order', 'quiz')}
-            aria-label={`Level order: ${orderLabel}. Switch to ${
-              order === 'high-first' ? 'lowest' : 'highest'
-            } first`}
-            title={`Switch to ${order === 'high-first' ? 'lowest' : 'highest'} first`}
-            className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-semibold text-brand-blue-primary transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
-          >
-            <ArrowLeftRight className="h-4 w-4" aria-hidden />
-            {orderLabel}
-          </button>
+          <div className="flex min-w-0 flex-1 flex-wrap items-center justify-center gap-x-1 gap-y-1">
+            <button
+              type="button"
+              onClick={() => setTableOpen(true)}
+              {...tourTypeAttr('quiz-grading.rubric-view-full', 'quiz')}
+              className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-semibold text-brand-blue-primary transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
+            >
+              <Table2 className="h-4 w-4" aria-hidden />
+              View rubric
+            </button>
+            <button
+              type="button"
+              onClick={switchOrder}
+              {...tourTypeAttr('quiz-grading.rubric-order', 'quiz')}
+              aria-label={`Level order: ${orderLabel}. Switch to ${
+                order === 'high-first' ? 'lowest' : 'highest'
+              } first`}
+              title={`Switch to ${order === 'high-first' ? 'lowest' : 'highest'} first`}
+              className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-semibold text-brand-blue-primary transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
+            >
+              <ArrowLeftRight className="h-4 w-4" aria-hidden />
+              {orderLabel}
+            </button>
+          </div>
         </div>
         {overrideNote && (
           <p className="mt-1 text-xs italic text-slate-600">{overrideNote}</p>
@@ -252,38 +225,9 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
           const selected = byCriterion.get(criterion.id);
           const isOpen = openCriteria.has(criterion.id);
           const noteOpen = expandedNotes.has(criterion.id);
-          const max = criterionMaxPoints(criterion);
           const levels = orderRubricLevels(criterion.levels, order);
           const nameId = `rubric-${rubric.id}-${criterion.id}-name`;
-          const draft = pointDrafts[criterion.id];
-          const boxValue = draft ?? (selected ? String(selected.points) : '');
-          const draftNum = draft === undefined ? NaN : Number(draft);
-          const boxInvalid =
-            draft !== undefined &&
-            draft.trim() !== '' &&
-            !(Number.isFinite(draftNum) && draftNum >= 0 && draftNum <= max);
           const tagCount = tagCounts?.[criterion.id] ?? 0;
-          const noteButton = (
-            <button
-              type="button"
-              onClick={() => toggleSet(setExpandedNotes, criterion.id)}
-              {...tourFieldAttr(
-                'quiz-grading.rubric-note-toggle',
-                'quiz',
-                criterion.id
-              )}
-              aria-expanded={noteOpen}
-              aria-label={`${noteOpen ? 'Hide' : 'Add'} note for ${criterion.name}`}
-              title={`${noteOpen ? 'Hide' : 'Add'} note`}
-              className="touch-target-expand flex h-8 w-7 shrink-0 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
-            >
-              {noteOpen ? (
-                <X className="h-4 w-4" />
-              ) : (
-                <MessageSquarePlus className="h-4 w-4" />
-              )}
-            </button>
-          );
           const countLabel = t(
             tagCountKind === 'note'
               ? 'quizMediaResponse.grading.rubricTags.noteCount'
@@ -294,7 +238,7 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
             <fieldset
               key={criterion.id}
               aria-labelledby={nameId}
-              className="py-1.5"
+              className="py-2"
             >
               <div className="flex items-start gap-1">
                 <button
@@ -308,7 +252,7 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
                     'quiz',
                     criterion.id
                   )}
-                  className="-ml-1 flex min-w-0 flex-1 items-start gap-1 rounded-md py-1.5 pl-0.5 pr-1 text-left transition-colors [&:hover_.rubric-name]:text-brand-blue-primary focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
+                  className="group -ml-1 flex min-w-0 flex-1 items-start gap-1 rounded-md py-1.5 pl-0.5 pr-1 text-left focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
                 >
                   <ChevronRight
                     aria-hidden
@@ -316,48 +260,45 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
                       isOpen ? 'rotate-90' : ''
                     }`}
                   />
-                  <span className="min-w-0">
-                    <span
-                      id={nameId}
-                      className="rubric-name block break-words text-sm font-semibold leading-snug text-slate-800 transition-colors"
-                    >
-                      {criterion.name}
-                    </span>
+                  <span
+                    id={nameId}
+                    className="block min-w-0 break-words text-sm font-semibold leading-snug text-slate-800 transition-colors group-hover:text-brand-blue-primary"
+                  >
+                    {criterion.name}
                   </span>
                 </button>
-                {!isOpen && (noteOpen || selected !== undefined) && noteButton}
-                {!isOpen && selected && (
+                {(noteOpen || selected !== undefined) && (
+                  <button
+                    type="button"
+                    onClick={() => toggleSet(setExpandedNotes, criterion.id)}
+                    {...tourFieldAttr(
+                      'quiz-grading.rubric-note-toggle',
+                      'quiz',
+                      criterion.id
+                    )}
+                    aria-expanded={noteOpen}
+                    aria-label={`${noteOpen ? 'Hide' : 'Add'} note for ${criterion.name}`}
+                    title={`${noteOpen ? 'Hide' : 'Add'} note`}
+                    className="touch-target-expand flex h-8 w-7 shrink-0 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
+                  >
+                    {noteOpen ? (
+                      <X className="h-4 w-4" />
+                    ) : (
+                      <MessageSquarePlus className="h-4 w-4" />
+                    )}
+                  </button>
+                )}
+                {selected && (
                   <span className="shrink-0 py-1.5 pl-1 text-sm font-bold tabular-nums text-brand-blue-primary">
                     {selected.points}
                   </span>
                 )}
               </div>
-              {!isOpen && (
-                <div className="ml-5 mt-1 flex gap-1">
-                  {levels.map((level) => {
-                    const isSelected = selected?.levelId === level.id;
-                    return (
-                      <button
-                        key={level.id}
-                        type="button"
-                        aria-pressed={isSelected}
-                        aria-label={`${level.label}, ${ptsLabel(level.points)}`}
-                        title={`${level.label}, ${ptsLabel(level.points)}`}
-                        onClick={() => tapLevel(criterion, level)}
-                        {...tourFieldAttr(
-                          'quiz-grading.rubric-level',
-                          'quiz',
-                          `${criterion.id}-${level.id}`
-                        )}
-                        className={`h-6 min-w-0 flex-1 rounded-sm transition-colors [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-blue-primary ${
-                          isSelected
-                            ? 'bg-brand-blue-primary'
-                            : 'bg-slate-200 hover:bg-slate-300'
-                        }`}
-                      />
-                    );
-                  })}
-                </div>
+
+              {criterion.description && (
+                <p className="ml-5 whitespace-pre-line text-xs leading-relaxed text-slate-600">
+                  {criterion.description}
+                </p>
               )}
 
               {tagCount > 0 && onJumpToTagged && (
@@ -379,95 +320,85 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
                 </button>
               )}
 
+              {isOpen && criterion.guide && (
+                <div className="ml-5">
+                  <RubricGuideExamples
+                    examples={criterion.guide.examples ?? []}
+                  />
+                </div>
+              )}
+
               {isOpen ? (
-                <>
-                  {criterion.description && (
-                    <p className="ml-5 whitespace-pre-line text-xs leading-relaxed text-slate-600">
-                      {criterion.description}
-                    </p>
-                  )}
-                  {criterion.guide && (
-                    <div className="ml-5">
-                      <RubricGuideExamples
-                        examples={criterion.guide.examples ?? []}
-                      />
-                    </div>
-                  )}
-                  <div className="ml-5 mt-2 flex flex-col gap-1 [@container(min-width:32rem)]:flex-row">
-                    {levels.map((level) => {
-                      const isSelected = selected?.levelId === level.id;
-                      return (
-                        <button
-                          key={level.id}
-                          type="button"
-                          aria-pressed={isSelected}
-                          onClick={() => tapLevel(criterion, level)}
-                          {...tourFieldAttr(
-                            'quiz-grading.rubric-level',
-                            'quiz',
-                            `${criterion.id}-${level.id}`
-                          )}
-                          className={`block w-full rounded-md px-2.5 py-2 text-left [@container(min-width:32rem)]:flex [@container(min-width:32rem)]:min-w-0 [@container(min-width:32rem)]:flex-1 [@container(min-width:32rem)]:flex-col transition-colors [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-blue-primary ${
-                            isSelected
-                              ? 'bg-brand-blue-primary text-white'
-                              : 'bg-slate-100 text-slate-900 hover:bg-slate-200'
-                          }`}
-                        >
-                          <span className="flex items-baseline justify-between gap-2">
-                            <span className="text-sm font-semibold">
-                              {level.label}
-                            </span>
-                            <span
-                              className={`shrink-0 text-sm font-bold tabular-nums ${
-                                isSelected ? 'text-white' : 'text-slate-700'
-                              }`}
-                            >
-                              {ptsLabel(level.points)}
-                            </span>
+                <div className="ml-5 mt-2 flex flex-col divide-y divide-slate-200 border-y border-slate-200">
+                  {levels.map((level) => {
+                    const isSelected = selected?.levelId === level.id;
+                    return (
+                      <button
+                        key={level.id}
+                        type="button"
+                        aria-pressed={isSelected}
+                        onClick={() => tapLevel(criterion, level)}
+                        {...tourFieldAttr(
+                          'quiz-grading.rubric-level',
+                          'quiz',
+                          `${criterion.id}-${level.id}`
+                        )}
+                        className={`flex w-full gap-2 px-2 py-2 text-left transition-colors [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-blue-primary ${
+                          isSelected
+                            ? 'bg-brand-blue-primary text-white'
+                            : 'text-slate-800 hover:bg-slate-50'
+                        }`}
+                      >
+                        <span className="w-6 shrink-0 text-sm font-bold tabular-nums">
+                          {level.points}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-semibold">
+                            {level.label}
                           </span>
                           {level.description && (
                             <span
                               className={`mt-0.5 block whitespace-pre-line text-xs leading-relaxed ${
-                                isSelected ? 'text-white' : 'text-slate-600'
+                                isSelected ? 'text-white/85' : 'text-slate-600'
                               }`}
                             >
                               {level.description}
                             </span>
                           )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className="ml-5 mt-1.5 flex items-center justify-between gap-2">
-                    <label className="flex items-baseline gap-1 text-sm font-semibold text-slate-600">
-                      Score
-                      <input
-                        type="number"
-                        inputMode="decimal"
-                        min={0}
-                        max={max}
-                        step="any"
-                        value={boxValue}
-                        onChange={(e) => typePoints(criterion, e.target.value)}
-                        onBlur={() => clearPointDraft(criterion.id)}
-                        aria-label={`Score for ${criterion.name}`}
-                        aria-invalid={boxInvalid || undefined}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="ml-5 mt-2 flex gap-1">
+                  {levels.map((level) => {
+                    const isSelected = selected?.levelId === level.id;
+                    return (
+                      <button
+                        key={level.id}
+                        type="button"
+                        aria-pressed={isSelected}
+                        aria-label={`${level.label}, ${ptsLabel(level.points)}`}
+                        title={`${level.label}, ${ptsLabel(level.points)}`}
+                        onClick={() => tapLevel(criterion, level)}
                         {...tourFieldAttr(
-                          'quiz-grading.rubric-criterion-score',
+                          'quiz-grading.rubric-level',
                           'quiz',
-                          criterion.id
+                          `${criterion.id}-${level.id}`
                         )}
-                        placeholder="–"
-                        className="w-9 rounded-sm border-b border-slate-300 bg-transparent px-0.5 text-right text-sm font-bold tabular-nums text-brand-blue-primary [appearance:textfield] placeholder:text-slate-400 hover:border-slate-500 focus:border-brand-blue-primary focus:outline-hidden aria-[invalid]:border-brand-red-primary [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                      />
-                      <span className="tabular-nums text-slate-500">
-                        /{max}
-                      </span>
-                    </label>
-                    {noteButton}
-                  </div>
-                </>
-              ) : null}
+                        className={`h-7 min-w-0 flex-1 rounded-sm text-sm font-bold tabular-nums transition-colors [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-blue-primary ${
+                          isSelected
+                            ? 'bg-brand-blue-primary text-white'
+                            : 'bg-slate-200 hover:bg-slate-300'
+                        }`}
+                      >
+                        {isSelected ? level.points : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
 
               {noteOpen && (
                 <textarea
@@ -481,7 +412,7 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
                   onChange={(e) => setNote(criterion.id, e.target.value)}
                   rows={2}
                   placeholder="Note for this criterion…"
-                  className="mt-2 w-full resize-none rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-brand-blue-primary focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
+                  className="ml-5 mt-2 w-[calc(100%-1.25rem)] resize-none rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-brand-blue-primary focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/40"
                 />
               )}
             </fieldset>

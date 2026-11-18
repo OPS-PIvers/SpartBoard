@@ -18920,6 +18920,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-grading.rubric-expand-all",
+    "label": "Expand or collapse all criteria in the grader rubric",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ]
+  },
+  {
     "id": "quiz-grading.rubric-view-full",
     "label": "View rubric button in the grader",
     "scope": "widget type",
@@ -19108,20 +19117,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Criterion open / close toggle in the grader, by criterion",
     "scope": "field",
     "panel": true,
-    "routes": [
-      {
-        "surface": "quiz.rubric-scoring",
-        "kind": "shared",
-        "path": []
-      }
-    ]
-  },
-  {
-    "id": "quiz-grading.rubric-criterion-score",
-    "label": "Criterion score box in the grader, by criterion",
-    "scope": "field",
-    "panel": true,
-    "persists": true,
     "routes": [
       {
         "surface": "quiz.rubric-scoring",

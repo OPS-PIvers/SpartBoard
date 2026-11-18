@@ -122,58 +122,31 @@ describe('RubricGradingPanel (rubric-grading-v2)', () => {
     expect(meets).toHaveAttribute('aria-pressed', 'false');
   });
 
-  it('expands a criterion to show its description and level descriptions', () => {
+  it('shows the criterion description collapsed and level descriptions when expanded', () => {
     renderPanel();
-    expect(screen.queryByText('Clarity of the claim')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: /^Thesis/ }));
     expect(screen.getByText('Clarity of the claim')).toBeInTheDocument();
+    expect(screen.queryByText('No thesis')).toBeNull();
+    openCriterion('Thesis');
     expect(screen.getByText('No thesis')).toBeInTheDocument();
   });
 
-  it('takes a score override in the criterion box and keeps the level', () => {
-    const { onChange } = renderPanel();
-    fireEvent.click(screen.getByRole('button', { name: 'Meets, 3 pts' }));
+  it('expands and collapses every criterion at once', () => {
+    renderPanel();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Expand all criteria' })
+    );
+    expect(screen.getByText('No thesis')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { expanded: true }).length).toBe(2);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Collapse all criteria' })
+    );
+    expect(screen.queryByText('No thesis')).toBeNull();
+  });
+
+  it('has no per-criterion score box', () => {
+    renderPanel();
     openCriterion('Thesis');
-    fireEvent.change(screen.getByLabelText('Score for Thesis'), {
-      target: { value: '2.5' },
-    });
-    expect(onChange).toHaveBeenLastCalledWith(
-      [{ criterionId: 'c1', levelId: 'c1l2', points: 2.5 }],
-      2.5
-    );
-  });
-
-  it('picks the matching level when a typed score equals one', () => {
-    const { onChange } = renderPanel();
-    openCriterion('Thesis');
-    fireEvent.change(screen.getByLabelText('Score for Thesis'), {
-      target: { value: '4' },
-    });
-    expect(onChange).toHaveBeenLastCalledWith(
-      [{ criterionId: 'c1', levelId: 'c1l3', points: 4 }],
-      4
-    );
-  });
-
-  it('scores with no level when the typed score matches none', () => {
-    const { onChange } = renderPanel();
-    openCriterion('Evidence');
-    fireEvent.change(screen.getByLabelText('Score for Evidence'), {
-      target: { value: '1.5' },
-    });
-    expect(onChange).toHaveBeenLastCalledWith(
-      [{ criterionId: 'c2', levelId: '', points: 1.5 }],
-      1.5
-    );
-  });
-
-  it('ignores a score above the criterion max', () => {
-    const { onChange } = renderPanel();
-    openCriterion('Evidence');
-    const box = screen.getByLabelText('Score for Evidence');
-    fireEvent.change(box, { target: { value: '9' } });
-    expect(onChange).not.toHaveBeenCalled();
-    expect(box).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.queryByLabelText('Score for Thesis')).toBeNull();
   });
 
   it('opens the full rubric as a table', () => {
@@ -368,7 +341,7 @@ describe('Full rubric table editing', () => {
     renderPanel();
     const thesis = screen.getByRole('group', { name: /Thesis/ });
     fireEvent.click(screen.getByRole('button', { name: 'Meets, 3 pts' }));
-    expect(within(thesis).getByText('3')).toBeInTheDocument();
+    expect(within(thesis).getAllByText('3')).toHaveLength(2);
   });
 
   it('shows the total row by default', () => {
