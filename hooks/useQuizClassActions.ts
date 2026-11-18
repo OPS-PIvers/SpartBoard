@@ -5,6 +5,8 @@ import {
   type AssignmentClassActions,
   type AssignmentLifecycle,
 } from '@/hooks/useAssignmentClassActions';
+import { useSetAssignmentTargets } from '@/hooks/useSetAssignmentTargets';
+import { hasStudentPointers } from '@/utils/studentTargetRef';
 import type { UseQuizAssignmentsResult } from '@/hooks/useQuizAssignments';
 import {
   END_TURN_IN_DELAY_MS,
@@ -40,6 +42,7 @@ export function useQuizClassActions(
     deactivateAssignment,
     reopenAssignment,
   } = lifecycle;
+  const { setAssignmentTargets } = useSetAssignmentTargets();
   const quizLifecycle = useMemo<AssignmentLifecycle>(
     () => ({
       pause: pauseAssignment,
@@ -50,8 +53,29 @@ export function useQuizClassActions(
       turnInDelayMs: END_TURN_IN_DELAY_MS,
       endTurnsIn: true,
       reopenClearsMarks: true,
+      // Accommodated and skipped students read the window off their pointer docs.
+      onWindowCleared: async (assignmentId, patch) => {
+        if (!assignment || !hasStudentPointers(assignment)) return;
+        await setAssignmentTargets({
+          assignmentId,
+          kind: 'quiz',
+          sessionId: assignmentId,
+          targetMode: assignment.targetMode,
+          add: [],
+          remove: [],
+          overridesBySourcedId: {},
+          window: patch,
+        });
+      },
     }),
-    [pauseAssignment, resumeAssignment, deactivateAssignment, reopenAssignment]
+    [
+      pauseAssignment,
+      resumeAssignment,
+      deactivateAssignment,
+      reopenAssignment,
+      assignment,
+      setAssignmentTargets,
+    ]
   );
   return useAssignmentClassActions(
     assignment,
