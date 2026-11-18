@@ -153,7 +153,7 @@ export const AbsentStudentsModal: React.FC<AbsentStudentsModalProps> = ({
         ) : (
           <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pb-2">
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-              {sortedStudents.map((student) => {
+              {sortedStudents.map((student, rowIndex) => {
                 const isAbsent = absentIds.has(student.id);
                 const fullName =
                   `${student.firstName} ${student.lastName}`.trim() ||
@@ -167,7 +167,7 @@ export const AbsentStudentsModal: React.FC<AbsentStudentsModalProps> = ({
                     {...tourFieldAttr(
                       'absent-students.student',
                       'random',
-                      student.id
+                      `row-${rowIndex + 1}`
                     )}
                     aria-pressed={isAbsent}
                     className={`relative flex items-center justify-center gap-2 px-3 py-3 rounded-xl border text-sm font-bold transition-colors motion-safe:transition-transform focus:outline-hidden focus:ring-2 focus:ring-offset-2 ${

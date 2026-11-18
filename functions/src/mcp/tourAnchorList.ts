@@ -5596,6 +5596,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Group button in the Assign dialog students menu",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "assign-students-group",
     "routes": [
       {
         "surface": "library.assign-stepper",
@@ -6963,6 +6965,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Remove student button in the Choose students window",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "assign-students-legacy-remove-selected",
     "routes": [
       {
         "surface": "library.assign-student-picker",
@@ -6981,6 +6985,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Class button in the Choose students window",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "assign-students-legacy-roster",
     "routes": [
       {
         "surface": "library.assign-student-picker",
@@ -7053,6 +7059,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Student checkbox in the Choose students window",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "assign-students-legacy-student",
     "routes": [
       {
         "surface": "library.assign-student-picker",
@@ -14465,6 +14473,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Per-student checkbox in the Quiz widget",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-print-results-student-select",
     "routes": [
       {
         "surface": "quiz.results.print",
@@ -14509,6 +14519,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Roster expand/collapse in the Quiz widget",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-print-roster-expand",
     "routes": [
       {
         "surface": "quiz.paper-print",
@@ -14529,6 +14541,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Roster select-all checkbox in the Quiz widget",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-print-roster-select",
     "routes": [
       {
         "surface": "quiz.paper-print",
@@ -20522,6 +20536,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-monitor.clear-hand",
     "label": "Clear raised hand button in the Quiz monitor roster",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "quiz-monitor-clear-hand",
     "routes": [
       {
         "surface": "quiz.monitor",
@@ -29183,6 +29199,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Teammate button in the teammate print dialog",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "plc-print-teammate",
     "routes": [
       {
         "surface": "plc.assessments.teammate-print",
@@ -29207,6 +29225,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Roster checkbox checkbox in the teammate print dialog",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "plc-print-roster-checkbox",
     "routes": [
       {
         "surface": "plc.assessments.teammate-print",
@@ -29231,6 +29251,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Roster expand button in the teammate print dialog",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "plc-print-roster-expand",
     "routes": [
       {
         "surface": "plc.assessments.teammate-print",
@@ -29825,6 +29847,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Role select in the PLC members tab",
     "scope": "field",
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "plc-members-role",
     "routes": [
       {
         "surface": "plc.members",
@@ -30713,6 +30737,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "plc-comments.mention",
     "label": "Mention button in the PLC comments thread",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "plc-comments-mention",
     "routes": [
       {
         "surface": "plc.comments",
@@ -35782,6 +35808,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Role select for a member in the mentoring pairings settings",
     "scope": "field",
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "teams-pairing-member-role",
     "routes": [
       {
         "surface": "plc.settings",
@@ -61528,6 +61556,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Class row in the dock class menu",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "classes-roster-menu-item",
     "routes": [
       {
         "surface": "board.class-roster-menu",
@@ -65732,6 +65762,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "classes-widget.roster-row",
     "label": "Class to switch to in Classes",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "classes-widget-roster-row",
     "routes": [
       {
         "surface": "widgets.classes.face",
@@ -70470,6 +70502,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Student button in the absent students dialog",
     "scope": "field",
     "panel": true,
+    "persists": true,
+    "row_wildcard": true,
+    "row_list": "absent-students-student",
     "routes": [
       {
         "surface": "board.absent-students",
@@ -70896,6 +70931,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Class checkbox in the Flashcards assign dialog class list",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "flashcards-stepper-class-row",
     "routes": [
       {
         "surface": "library.flashcards.assign",
@@ -70916,6 +70953,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Student picker button for one class in the Flashcards assign dialog",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "flashcards-stepper-student-menu",
     "routes": [
       {
         "surface": "library.flashcards.assign",
@@ -71981,6 +72020,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Class checkbox in the Mini App assign dialog class list",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "mini-app-stepper-class-row",
     "routes": [
       {
         "surface": "library.mini-app.assign",
@@ -72001,6 +72042,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Student picker button for one class in the Mini App assign dialog",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "mini-app-stepper-student-menu",
     "routes": [
       {
         "surface": "library.mini-app.assign",
@@ -72726,6 +72769,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "gradebook.grid.student-name",
     "label": "Student name button in the gradebook",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "gradebook-grid-student-name",
     "routes": [
       {
         "surface": "guidedLearning.gradebook",
@@ -74505,6 +74550,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Not submitted student button in the assignment analysis window",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "gradebook-analyze-student",
     "routes": [
       {
         "surface": "guidedLearning.gradebook.analyze",
@@ -76380,6 +76427,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Class checkbox in the Writing assign dialog class list",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "writing-stepper-class-row",
     "routes": [
       {
         "surface": "widgets.writing.assign",
@@ -76401,6 +76450,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Student picker button for one class in the Writing assign dialog",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "writing-stepper-student-menu",
     "routes": [
       {
         "surface": "widgets.writing.assign",

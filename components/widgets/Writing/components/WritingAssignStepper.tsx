@@ -118,16 +118,24 @@ export const WritingAssignStepper: React.FC<WritingAssignStepperProps> = ({
             value={classes}
             onChange={setClasses}
             anchor={tourTypeAttr('writing.stepper-class-picker', 'writing')}
-            rowAnchor={(classId) =>
-              tourFieldAttr('writing.stepper-class-row', 'writing', classId)
+            rowAnchor={(_classId, rowIndex) =>
+              tourFieldAttr(
+                'writing.stepper-class-row',
+                'writing',
+                `row-${rowIndex + 1}`
+              )
             }
           />
           <StudentPickMenu
             rosters={rosters}
             value={classes}
             onChange={setClasses}
-            rowAnchor={(classId) =>
-              tourFieldAttr('writing.stepper-student-menu', 'writing', classId)
+            rowAnchor={(_classId, rowIndex) =>
+              tourFieldAttr(
+                'writing.stepper-student-menu',
+                'writing',
+                `row-${rowIndex + 1}`
+              )
             }
           />
           <ModificationsLink

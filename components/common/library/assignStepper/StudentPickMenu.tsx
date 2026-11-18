@@ -24,7 +24,7 @@ export interface StudentPickMenuProps {
   value: AssignClassesValue;
   onChange: (next: AssignClassesValue) => void;
   /** Live-tour anchor for one class's student menu button, keyed by class id. */
-  rowAnchor?: (classId: string) => TourAnchorAttrs;
+  rowAnchor?: (classId: string, rowIndex: number) => TourAnchorAttrs;
   /** Paper sheets need no sign-in, so the caller can make every student pickable. */
   refFor?: StudentRefFor;
 }
@@ -46,7 +46,7 @@ export const StudentPickMenu: React.FC<StudentPickMenuProps> = ({
           key={roster.id}
           roster={roster}
           rowKey={`row-${rowIndex + 1}`}
-          anchor={rowAnchor?.(roster.id)}
+          anchor={rowAnchor?.(roster.id, rowIndex)}
           refs={value.studentsByClass[roster.id] ?? null}
           refFor={refFor}
           onChange={(refs) =>
@@ -174,7 +174,7 @@ const StudentMenu: React.FC<{
           <div className="px-2 pt-1.5 pb-0.5 text-xxs font-bold uppercase tracking-widest text-slate-400">
             Groups
           </div>
-          {groups.map((group) => {
+          {groups.map((group, rowIndex) => {
             const { targetable } = rosterGroupMembers(roster, group, refFor);
             const added =
               targetable.length > 0 &&
@@ -188,7 +188,11 @@ const StudentMenu: React.FC<{
                 disabled={targetable.length === 0}
                 title={targetable.length === 0 ? NO_SIGN_IN_TITLE : undefined}
                 aria-pressed={added}
-                {...tourFieldAttr('assign-students.group', 'assign', group.id)}
+                {...tourFieldAttr(
+                  'assign-students.group',
+                  'assign',
+                  `row-${rowIndex + 1}`
+                )}
                 onClick={() => {
                   if (added) {
                     const drop = new Set(

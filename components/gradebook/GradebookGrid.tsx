@@ -304,7 +304,7 @@ export const GradebookGrid: React.FC = () => {
                     {...tourFieldAttr(
                       'gradebook.grid.student-name',
                       'gradebook',
-                      s.uid
+                      `row-${i + 1}`
                     )}
                     onClick={() =>
                       spaNavigate(

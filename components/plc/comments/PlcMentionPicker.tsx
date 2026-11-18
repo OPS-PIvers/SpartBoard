@@ -63,7 +63,11 @@ export const PlcMentionPicker: React.FC<PlcMentionPickerProps> = ({
         return (
           <li key={candidate.uid} role="presentation">
             <button
-              {...tourFieldAttr('plc-comments.mention', 'plc', candidate.uid)}
+              {...tourFieldAttr(
+                'plc-comments.mention',
+                'plc',
+                `row-${index + 1}`
+              )}
               type="button"
               id={`${idPrefix}-opt-${index}`}
               role="option"
