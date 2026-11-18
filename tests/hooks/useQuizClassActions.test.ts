@@ -485,6 +485,21 @@ describe('window cleared pointers', () => {
     );
   });
 
+  it('still opens the quiz when the pointer update fails', async () => {
+    setTargets.mockRejectedValueOnce(new Error('offline'));
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const x = setup(
+      assignment({
+        status: 'paused',
+        openAt: Date.now() + 60_000,
+        targetMode: 'students',
+        targetStudents: [ref],
+      })
+    );
+    await act(() => x.current.openClass(null));
+    expect(store.calls).toContain('status:resume:a1');
+  });
+
   it('skips the pointer update when there are no student pointers', async () => {
     const x = setup(
       assignment({ status: 'paused', openAt: Date.now() + 60_000 })

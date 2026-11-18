@@ -56,16 +56,21 @@ export function useQuizClassActions(
       // Accommodated and skipped students read the window off their pointer docs.
       onWindowCleared: async (assignmentId, patch) => {
         if (!assignment || !hasStudentPointers(assignment)) return;
-        await setAssignmentTargets({
-          assignmentId,
-          kind: 'quiz',
-          sessionId: assignmentId,
-          targetMode: assignment.targetMode,
-          add: [],
-          remove: [],
-          overridesBySourcedId: {},
-          window: patch,
-        });
+        // A failed pointer sync must not stop Open from letting the class in.
+        try {
+          await setAssignmentTargets({
+            assignmentId,
+            kind: 'quiz',
+            sessionId: assignmentId,
+            targetMode: assignment.targetMode,
+            add: [],
+            remove: [],
+            overridesBySourcedId: {},
+            window: patch,
+          });
+        } catch (err) {
+          console.error('Pointer window sync failed', err);
+        }
       },
     }),
     [
