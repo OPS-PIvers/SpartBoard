@@ -758,9 +758,9 @@ export const LiveTourRunner: React.FC = () => {
   const target = rect
     ? { x: rect.x, y: rect.y, w: rect.width, h: rect.height }
     : null;
-  // A menu the step's control opened is lit and kept clear along with it.
+  // A menu the step's control opened is lit along with it; a menu the control sits in is not.
   const spot = target
-    ? withNearbyPopups(target, tour ? openPopupBoxes(anchor.element) : [])
+    ? withNearbyPopups(target, tour ? openPopupBoxes(anchor.element, true) : [])
     : null;
   // Settle, tick, glide, tip on a paced run (P1); editor and test runs keep their own pace.
   const paced = tour?.phase === 'running' && !tour.edit && !tour.test;

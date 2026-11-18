@@ -82,6 +82,10 @@ describe('openPopupBoxes with the step control', () => {
       { x: 10, y: 10, w: 100, h: 50 },
     ]);
     expect(openPopupBoxes(byId('item'))).toHaveLength(2);
+    // For the spotlight, the menu the control sits in is left out too.
+    expect(openPopupBoxes(byId('item'), true)).toEqual([
+      { x: 10, y: 10, w: 300, h: 200 },
+    ]);
   });
 });
 
