@@ -1,5 +1,5 @@
 // Full rubric as a table, opened from the grader's rubric panel; picks are highlighted and the rubric can be edited in place.
-import React, { useState } from 'react';
+import React, { useState, type ReactNode } from 'react';
 import { ArrowLeftRight, Check, Pencil, Plus, Trash2, X } from 'lucide-react';
 import type {
   Rubric,
@@ -42,6 +42,14 @@ interface RubricTableModalProps {
   /** Lets editing add and remove levels only, keeping the criteria fixed. */
   editLevels?: boolean;
   saveLabel?: string;
+  /** The host owns the draft: the table always edits it and the host supplies the toolbar and footer. */
+  controlled?: {
+    draft: Rubric;
+    setDraft: React.Dispatch<React.SetStateAction<Rubric>>;
+    toolbar?: ReactNode;
+    belowTable?: ReactNode;
+    footer: ReactNode;
+  };
 }
 
 const pts = (n: number) => `${n} pt${n === 1 ? '' : 's'}`;
@@ -148,10 +156,20 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
   editStructure = false,
   editLevels = false,
   saveLabel = 'Save',
+  controlled,
 }) => {
-  const [draft, setDraft] = useState<Rubric | null>(() =>
+  const [ownDraft, setOwnDraft] = useState<Rubric | null>(() =>
     initialEditing ? clone(rubric) : null
   );
+  const draft = controlled ? controlled.draft : ownDraft;
+  const setDraft = (
+    update: Rubric | null | ((d: Rubric | null) => Rubric | null)
+  ) => {
+    if (!controlled) return setOwnDraft(update);
+    controlled.setDraft(
+      (prev) => (typeof update === 'function' ? update(prev) : update) ?? prev
+    );
+  };
   // Fixed when editing starts, so typing a label or adding a level doesn't switch layouts.
   const [editShared, setEditShared] = useState(
     () =>
@@ -470,44 +488,51 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
       onFullscreenChange={setFullscreen}
       ariaLabel={rubric.title}
       footer={
-        <div className="flex flex-col items-center gap-2">
-          {error && (
-            <p className="text-sm font-semibold text-brand-red-dark">{error}</p>
-          )}
-          {editing ? (
-            <div className="flex justify-center gap-3">
+        controlled ? (
+          controlled.footer
+        ) : (
+          <div className="flex flex-col items-center gap-2">
+            {error && (
+              <p className="text-sm font-semibold text-brand-red-dark">
+                {error}
+              </p>
+            )}
+            {editing ? (
+              <div className="flex justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={stopEditing}
+                  disabled={saving}
+                  {...tourTypeAttr('quiz-grading.rubric-table-cancel', 'quiz')}
+                  className="rounded-lg border border-slate-300 bg-white px-6 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void save()}
+                  disabled={saving || dupes.size > 0}
+                  {...tourTypeAttr('quiz-grading.rubric-table-save', 'quiz')}
+                  className="rounded-lg bg-brand-blue-primary px-8 py-2.5 text-sm font-bold text-white transition-colors hover:bg-brand-blue-dark disabled:opacity-50"
+                >
+                  {saving ? 'Saving…' : saveLabel}
+                </button>
+              </div>
+            ) : (
               <button
                 type="button"
-                onClick={stopEditing}
-                disabled={saving}
-                {...tourTypeAttr('quiz-grading.rubric-table-cancel', 'quiz')}
-                className="rounded-lg border border-slate-300 bg-white px-6 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
+                onClick={onClose}
+                {...tourTypeAttr('quiz-grading.rubric-table-close', 'quiz')}
+                className="rounded-lg bg-brand-blue-primary px-8 py-2.5 text-sm font-bold text-white transition-colors hover:bg-brand-blue-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary"
               >
-                Cancel
+                Close
               </button>
-              <button
-                type="button"
-                onClick={() => void save()}
-                disabled={saving || dupes.size > 0}
-                {...tourTypeAttr('quiz-grading.rubric-table-save', 'quiz')}
-                className="rounded-lg bg-brand-blue-primary px-8 py-2.5 text-sm font-bold text-white transition-colors hover:bg-brand-blue-dark disabled:opacity-50"
-              >
-                {saving ? 'Saving…' : saveLabel}
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={onClose}
-              {...tourTypeAttr('quiz-grading.rubric-table-close', 'quiz')}
-              className="rounded-lg bg-brand-blue-primary px-8 py-2.5 text-sm font-bold text-white transition-colors hover:bg-brand-blue-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary"
-            >
-              Close
-            </button>
-          )}
-        </div>
+            )}
+          </div>
+        )
       }
     >
+      {controlled?.toolbar}
       {editing ? (
         <textarea
           ref={autoGrow}
@@ -963,9 +988,10 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
           className={`${textButton} mt-3`}
         >
           <Plus className="h-4 w-4" aria-hidden />
-          Add criterion
+          {guideEditing ? 'Add part' : 'Add criterion'}
         </button>
       )}
+      {controlled?.belowTable}
     </Modal>
   );
 };
