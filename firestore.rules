@@ -4194,6 +4194,11 @@ service cloud.firestore {
     }
 
     match /plc_invitations/{inviteId} {
+      // A manager invites someone else who isn't already an active member.
+      function plcInviteeOk(p) {
+        return isPlcMembershipManager(p) && incoming().inviteeEmailLower != myEmail()
+          && !(incoming().inviteeEmailLower in p.get('memberEmails', {}).values());
+      }
       // Invitee sees their own invites; the inviter sees the ones they sent (for
       // the sidebar "Pending invites" / "Outstanding invitations" panels).
       // email_verified is REQUIRED on the invitee branch, same reason as isAdmin()
@@ -4220,7 +4225,7 @@ service cloud.firestore {
         // role-change / remove / transfer actions co-leads already perform
         // (Decision 1.2). isPlcMembershipManager reads the members map (falling
         // back to the denormalized leadUid mirror) so it covers both shapes.
-        && isPlcMembershipManager(dbGet('plcs', incoming().plcId).data)
+        && plcInviteeOk(dbGet('plcs', incoming().plcId).data)
         && inviteId == plcInviteDocId(incoming().plcId, incoming().inviteeEmailLower)
         // A send or re-send is always pending; accepted/declined come only from the invitee.
         && incoming().status == 'pending'
