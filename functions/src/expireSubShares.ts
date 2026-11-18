@@ -503,7 +503,7 @@ function driveGrantRevoker(): GrantRevoker {
     getAccessToken: async (hostUid) => {
       const { DRIVE_FILE_SCOPE, refreshGoogleAccessTokenForUid } =
         await import('./googleOAuth');
-      const { isNeedsConsentError } = await import('./quizMediaArchive');
+      const { isNeedsConsentError } = await import('./needsConsent');
       try {
         const { accessToken } = await refreshGoogleAccessTokenForUid(hostUid, {
           scope: DRIVE_FILE_SCOPE,
