@@ -4081,6 +4081,8 @@ describe('index barrel — deployed export set', () => {
     'expireActivityWallShares',
     'finalizeIdleQuizAttempts',
     'finalizeExpiredQuizAttempts',
+    'queueVideoClassTurnIns',
+    'sweepVideoClassTurnIns',
     // Google / Spotify OAuth
     'exchangeGoogleAuthCode',
     'refreshGoogleAccessToken',
