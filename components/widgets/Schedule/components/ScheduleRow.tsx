@@ -54,8 +54,13 @@ export const CountdownDisplay: React.FC<CountdownDisplayProps> = ({
         {formatCountdown(rem)}
       </span>
       <div
-        className="w-full rounded-full overflow-hidden bg-slate-200"
-        style={{ height: scheduleSize(1.2, 5) }}
+        className={`w-full rounded-full overflow-hidden ${color ? '' : 'bg-slate-200'}`}
+        style={{
+          height: scheduleSize(1.2, 5),
+          backgroundColor: color
+            ? `color-mix(in srgb, ${color} 20%, transparent)`
+            : undefined,
+        }}
       >
         <div
           className={`h-full rounded-full ${color ? '' : 'bg-indigo-400'}`}
