@@ -272,12 +272,12 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
               aria-expanded={noteOpen}
               aria-label={`${noteOpen ? 'Hide' : 'Add'} note for ${criterion.name}`}
               title={`${noteOpen ? 'Hide' : 'Add'} note`}
-              className="touch-target-expand flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
+              className="touch-target-expand flex h-8 w-7 shrink-0 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
             >
               {noteOpen ? (
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
               ) : (
-                <MessageSquarePlus className="h-5 w-5" />
+                <MessageSquarePlus className="h-4 w-4" />
               )}
             </button>
           );
@@ -291,9 +291,9 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
             <fieldset
               key={criterion.id}
               aria-labelledby={nameId}
-              className="py-2"
+              className="py-1.5"
             >
-              <div className="flex items-start gap-3">
+              <div className="flex flex-wrap items-start gap-x-2 gap-y-1">
                 <button
                   type="button"
                   onClick={() =>
@@ -305,7 +305,7 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
                     'quiz',
                     criterion.id
                   )}
-                  className="-ml-1 flex min-w-0 flex-1 items-start gap-1 rounded-md py-1 pl-0.5 pr-1 text-left transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
+                  className="-ml-1 flex min-w-[8rem] flex-1 basis-0 items-start gap-1 rounded-md py-1.5 pl-0.5 pr-1 text-left transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
                 >
                   <ChevronRight
                     aria-hidden
@@ -316,15 +316,42 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
                   <span className="min-w-0">
                     <span
                       id={nameId}
-                      className="block break-words text-sm font-bold leading-snug text-slate-900"
+                      className="block break-words text-sm font-semibold leading-snug text-slate-800"
                     >
                       {criterion.name}
                     </span>
                   </span>
                 </button>
-                <span className="shrink-0 pt-0.5 text-sm font-bold tabular-nums text-slate-500">
-                  {max}
-                </span>
+                {!isOpen && (noteOpen || selected !== undefined) && noteButton}
+                {!isOpen && (
+                  <div className="ml-auto flex shrink-0 items-center gap-0.5">
+                    {levels.map((level) => {
+                      const isSelected = selected?.levelId === level.id;
+                      return (
+                        <button
+                          key={level.id}
+                          type="button"
+                          aria-pressed={isSelected}
+                          aria-label={`${level.label}, ${ptsLabel(level.points)}`}
+                          title={`${level.label}, ${ptsLabel(level.points)}`}
+                          onClick={() => tapLevel(criterion, level)}
+                          {...tourFieldAttr(
+                            'quiz-grading.rubric-level',
+                            'quiz',
+                            `${criterion.id}-${level.id}`
+                          )}
+                          className={`h-8 min-w-7 rounded-md px-1 text-sm tabular-nums transition-colors [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-blue-primary ${
+                            isSelected
+                              ? 'bg-brand-blue-primary font-bold text-white'
+                              : 'font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                          }`}
+                        >
+                          {level.points}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {tagCount > 0 && onJumpToTagged && (
@@ -434,38 +461,7 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
                     {noteButton}
                   </div>
                 </>
-              ) : (
-                <div className="mt-1.5 flex items-center gap-1.5">
-                  <div className="flex min-w-0 flex-1 flex-wrap gap-1.5">
-                    {levels.map((level) => {
-                      const isSelected = selected?.levelId === level.id;
-                      return (
-                        <button
-                          key={level.id}
-                          type="button"
-                          aria-pressed={isSelected}
-                          aria-label={`${level.label}, ${ptsLabel(level.points)}`}
-                          title={`${level.label}, ${ptsLabel(level.points)}`}
-                          onClick={() => tapLevel(criterion, level)}
-                          {...tourFieldAttr(
-                            'quiz-grading.rubric-level',
-                            'quiz',
-                            `${criterion.id}-${level.id}`
-                          )}
-                          className={`h-9 min-w-9 flex-1 rounded-md border-2 text-base font-bold tabular-nums transition-colors [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-blue-primary ${
-                            isSelected
-                              ? 'border-brand-blue-primary bg-brand-blue-primary text-white'
-                              : 'border-brand-blue-primary/70 bg-white text-brand-blue-primary hover:bg-slate-100'
-                          }`}
-                        >
-                          {level.points}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {noteButton}
-                </div>
-              )}
+              ) : null}
 
               {noteOpen && (
                 <textarea
