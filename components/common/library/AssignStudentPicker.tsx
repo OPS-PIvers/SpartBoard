@@ -449,7 +449,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
               </button>
               {roster.groups && roster.groups.length > 0 && (
                 <div className="px-4 pb-2 flex flex-wrap gap-1.5">
-                  {roster.groups.map((group) => {
+                  {roster.groups.map((group, groupIndex) => {
                     const {
                       members,
                       targetable: targetableMembers,
@@ -485,7 +485,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
                           {...tourFieldAttr(
                             'assign-students-legacy.group',
                             'assign',
-                            group.id
+                            `row-${rowIndex + 1}-item-${groupIndex + 1}`
                           )}
                           className="px-2 py-0.5 rounded-full bg-slate-100 hover:bg-slate-200 text-xxs font-bold text-slate-600 transition-colors"
                         >

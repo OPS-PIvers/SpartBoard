@@ -1390,6 +1390,8 @@ export const TOUR_ANCHORS = {
     keyPattern: 'assign#row-[1-9]\\d*',
     keyHint: 'assign#row-1 for the first row',
     panel: true,
+    rows: true,
+    rowList: 'assign-students-options',
   },
   'assign-students.all': {
     label: 'All students button in the Assign dialog students menu',
@@ -1735,12 +1737,13 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
     rows: true,
-    rowList: 'assign-students-legacy-roster',
+    rowList: 'assign-students-legacy-rosters',
   },
   'assign-students-legacy.group': {
     label: 'Group button in the Choose students window',
     perField: true,
     panel: true,
+    rowList: 'assign-students-legacy-rosters',
   },
   'assign-students-legacy.search': {
     label: 'Search students box in the Choose students window',
@@ -1837,6 +1840,8 @@ export const TOUR_ANCHORS = {
     label: 'Which period is this class dropdown in the Assign window',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'assign-periods-untagged',
   },
   'assign-periods.selector-close': {
     label: 'Close button in the Class Periods popup',
@@ -3597,14 +3602,14 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
     rows: true,
-    rowList: 'quiz-print-roster-expand',
+    rowList: 'quiz-print-rosters',
   },
   'quiz-print.roster-select': {
     label: 'Roster select-all checkbox in the Quiz widget',
     perField: true,
     panel: true,
     rows: true,
-    rowList: 'quiz-print-roster-select',
+    rowList: 'quiz-print-rosters',
   },
   'quiz-print.share-and-print': {
     label: 'Share and print in the Quiz widget',
@@ -3723,6 +3728,7 @@ export const TOUR_ANCHORS = {
     label: 'Per-student checkbox in the Quiz widget',
     perField: true,
     panel: true,
+    rowList: 'quiz-print-rosters',
   },
   'quiz-print.written-add': {
     label: 'Written answers Add in the Quiz widget',
@@ -4928,6 +4934,8 @@ export const TOUR_ANCHORS = {
   'quiz-monitor.roster-row-actions': {
     label: 'Student actions button in the Quiz monitor roster',
     perField: true,
+    rows: true,
+    rowList: 'quiz-monitor-roster',
   },
   'quiz-monitor.student-open-part': {
     label: 'Open Part item in the Quiz monitor student menu',
@@ -4957,6 +4965,8 @@ export const TOUR_ANCHORS = {
       'Absent button on a student who has not joined, in the Quiz monitor roster',
     perField: true,
     persists: true,
+    rows: true,
+    rowList: 'quiz-monitor-roster',
   },
   'quiz-monitor.student-unlock-attempt': {
     label: 'Unlock attempt item in the Quiz monitor student menu',
@@ -5000,6 +5010,8 @@ export const TOUR_ANCHORS = {
     label: 'Live view button on a student in the Quiz monitor roster',
     perField: true,
     persists: true,
+    rows: true,
+    rowList: 'quiz-monitor-roster',
   },
   'quiz-live-view.previous': {
     label: 'Previous student button in Quiz Live view',
@@ -7244,19 +7256,20 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
     rows: true,
-    rowList: 'plc-print-roster-checkbox',
+    rowList: 'plc-print-rosters',
   },
   'plc-print.roster-expand': {
     label: 'Roster expand button in the teammate print dialog',
     perField: true,
     panel: true,
     rows: true,
-    rowList: 'plc-print-roster-expand',
+    rowList: 'plc-print-rosters',
   },
   'plc-print.student-checkbox': {
     label: 'Student checkbox checkbox in the teammate print dialog',
     perField: true,
     panel: true,
+    rowList: 'plc-print-rosters',
   },
   'plc-print.spares': {
     label: 'Spares field in the teammate print dialog',
@@ -16715,11 +16728,12 @@ export const TOUR_ANCHORS = {
     label: 'Student name button in the gradebook',
     perField: true,
     rows: true,
-    rowList: 'gradebook-grid-student-name',
+    rowList: 'gradebook-grid-students',
   },
   'gradebook.grid.cell': {
     label: 'Score cell in the gradebook',
     perField: true,
+    rowList: 'gradebook-grid-students',
   },
   'gradebook.cell.revert': {
     label: 'Revert button for a calculated score in the cell popover',
@@ -17134,10 +17148,14 @@ export const TOUR_ANCHORS = {
     label:
       'Evidence button for a learning target in the student gradebook view',
     perField: true,
+    rows: true,
+    rowList: 'gradebook-student-targets',
   },
   'gradebook.student.edit-cell': {
     label: 'Edit button for an assignment in the student gradebook view',
     perField: true,
+    rows: true,
+    rowList: 'gradebook-student-assignments',
   },
   'gradebook.student.preview': {
     label: 'Preview as student button in the student gradebook view',

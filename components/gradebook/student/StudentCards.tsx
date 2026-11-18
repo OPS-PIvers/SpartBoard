@@ -245,7 +245,7 @@ export const StandardsCard: React.FC<{
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => {
+              {rows.map((r, rowIndex) => {
                 const band = bandFor(r.pct, scale);
                 const code = r.target?.code ?? r.targetId;
                 const label =
@@ -295,7 +295,7 @@ export const StandardsCard: React.FC<{
                           {...tourFieldAttr(
                             'gradebook.student.evidence',
                             'gradebook',
-                            r.targetId
+                            `row-${rowIndex + 1}`
                           )}
                           onClick={() =>
                             setOpen(open === r.targetId ? null : r.targetId)
@@ -397,7 +397,7 @@ export const AssignmentsCard: React.FC<{ studentUid: string }> = ({
           </tr>
         </thead>
         <tbody>
-          {gb.columns.map((col) => {
+          {gb.columns.map((col, rowIndex) => {
             const cell = gb.getCell(col.sessionId, studentUid);
             const f = cell.final;
             const comment = cell.mark?.comment ?? null;
@@ -476,7 +476,7 @@ export const AssignmentsCard: React.FC<{ studentUid: string }> = ({
                     {...tourFieldAttr(
                       'gradebook.student.edit-cell',
                       'gradebook',
-                      col.sessionId
+                      `row-${rowIndex + 1}`
                     )}
                     onClick={() => gb.openCell(col.sessionId, studentUid)}
                     className="rounded-md px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"

@@ -5616,6 +5616,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "key_pattern": "assign#row-[1-9]\\d*",
     "key_hint": "assign#row-1 for the first row",
+    "row_wildcard": true,
+    "row_list": "assign-students-options",
     "routes": [
       {
         "surface": "library.assign-stepper",
@@ -6986,7 +6988,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "row_wildcard": true,
-    "row_list": "assign-students-legacy-roster",
+    "row_list": "assign-students-legacy-rosters",
     "routes": [
       {
         "surface": "library.assign-student-picker",
@@ -7005,6 +7007,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Group button in the Choose students window",
     "scope": "field",
     "panel": true,
+    "row_list": "assign-students-legacy-rosters",
     "routes": [
       {
         "surface": "library.assign-student-picker",
@@ -7305,6 +7308,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Which period is this class dropdown in the Assign window",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "assign-periods-untagged",
     "routes": [
       {
         "surface": "library.assign-modal",
@@ -14520,7 +14525,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "row_wildcard": true,
-    "row_list": "quiz-print-roster-expand",
+    "row_list": "quiz-print-rosters",
     "routes": [
       {
         "surface": "quiz.paper-print",
@@ -14542,7 +14547,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "row_wildcard": true,
-    "row_list": "quiz-print-roster-select",
+    "row_list": "quiz-print-rosters",
     "routes": [
       {
         "surface": "quiz.paper-print",
@@ -15048,6 +15053,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Per-student checkbox in the Quiz widget",
     "scope": "field",
     "panel": true,
+    "row_list": "quiz-print-rosters",
     "routes": [
       {
         "surface": "quiz.paper-print",
@@ -20015,6 +20021,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-monitor.roster-row-actions",
     "label": "Student actions button in the Quiz monitor roster",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "quiz-monitor-roster",
     "routes": [
       {
         "surface": "quiz.monitor",
@@ -20134,6 +20142,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Absent button on a student who has not joined, in the Quiz monitor roster",
     "scope": "field",
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "quiz-monitor-roster",
     "routes": [
       {
         "surface": "quiz.monitor",
@@ -20336,6 +20346,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Live view button on a student in the Quiz monitor roster",
     "scope": "field",
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "quiz-monitor-roster",
     "routes": [
       {
         "surface": "quiz.monitor",
@@ -29226,7 +29238,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "row_wildcard": true,
-    "row_list": "plc-print-roster-checkbox",
+    "row_list": "plc-print-rosters",
     "routes": [
       {
         "surface": "plc.assessments.teammate-print",
@@ -29252,7 +29264,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "row_wildcard": true,
-    "row_list": "plc-print-roster-expand",
+    "row_list": "plc-print-rosters",
     "routes": [
       {
         "surface": "plc.assessments.teammate-print",
@@ -29277,6 +29289,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Student checkbox checkbox in the teammate print dialog",
     "scope": "field",
     "panel": true,
+    "row_list": "plc-print-rosters",
     "routes": [
       {
         "surface": "plc.assessments.teammate-print",
@@ -72810,7 +72823,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Student name button in the gradebook",
     "scope": "field",
     "row_wildcard": true,
-    "row_list": "gradebook-grid-student-name",
+    "row_list": "gradebook-grid-students",
     "routes": [
       {
         "surface": "guidedLearning.gradebook",
@@ -72829,6 +72842,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "gradebook.grid.cell",
     "label": "Score cell in the gradebook",
     "scope": "field",
+    "row_list": "gradebook-grid-students",
     "routes": [
       {
         "surface": "guidedLearning.gradebook",
@@ -74759,6 +74773,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "gradebook.student.evidence",
     "label": "Evidence button for a learning target in the student gradebook view",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "gradebook-student-targets",
     "routes": [
       {
         "surface": "guidedLearning.gradebook.student",
@@ -74779,6 +74795,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "gradebook.student.edit-cell",
     "label": "Edit button for an assignment in the student gradebook view",
     "scope": "field",
+    "row_wildcard": true,
+    "row_list": "gradebook-student-assignments",
     "routes": [
       {
         "surface": "guidedLearning.gradebook.student",

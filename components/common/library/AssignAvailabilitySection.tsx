@@ -597,8 +597,13 @@ export const AssignAvailabilitySection: React.FC<{
       )}
 
       {periodAccess &&
-        untagged.map((roster) => (
-          <TagPrompt key={roster.id} roster={roster} context={periodAccess} />
+        untagged.map((roster, rowIndex) => (
+          <TagPrompt
+            key={roster.id}
+            roster={roster}
+            context={periodAccess}
+            rowIndex={rowIndex}
+          />
         ))}
 
       <div className="flex items-center justify-between gap-2 pt-1">

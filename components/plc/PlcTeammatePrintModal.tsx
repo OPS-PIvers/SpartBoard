@@ -519,14 +519,14 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
             </div>
             {expanded && (
               <ul className="border-t border-slate-100 px-3 py-2">
-                {roster.students.map((student) => (
+                {roster.students.map((student, studentIndex) => (
                   <li key={student.id}>
                     <label className="flex items-center gap-2 py-1 text-sm text-slate-700">
                       <input
                         {...tourFieldAttr(
                           'plc-print.student-checkbox',
                           'plc',
-                          student.id
+                          `row-${rowIndex + 1}-item-${studentIndex + 1}`
                         )}
                         type="checkbox"
                         checked={!excludedStudentIds.has(student.id)}
