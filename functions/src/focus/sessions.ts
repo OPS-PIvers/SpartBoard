@@ -1,5 +1,6 @@
 // Teacher focus-session actions (docs/plans/CHROME_EXTENSION.md F1, F6, F7, F8, F11); onCall wrappers are in sessionCallables.ts.
 import { HttpsError } from 'firebase-functions/v2/https';
+import { isExcludedFrom } from '../permissionExclusion';
 import { Timestamp } from 'firebase-admin/firestore';
 import type * as admin from '../firebaseAdmin';
 import {
@@ -139,6 +140,7 @@ export async function canUseFocusWidget(
   if (!perm.exists) return isAdmin;
   const data = perm.data() ?? {};
   if (data.enabled !== true) return false;
+  if (isExcludedFrom(data, emailLower)) return false;
   if (isAdmin || data.accessLevel === 'public') return true;
   if (data.accessLevel !== 'beta') return false;
   // Lazy: quizMediaArchive pulls heavy deps the other focus paths don't need.

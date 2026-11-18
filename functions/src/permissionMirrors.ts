@@ -1,6 +1,7 @@
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { FieldValue } from 'firebase-admin/firestore';
 import * as admin from './firebaseAdmin';
+import { excludedEmails } from './permissionExclusion';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -27,11 +28,12 @@ export const betaEmails = (
   ];
 };
 
-/** Beta emails stripped: the mirror every signed-in caller may read. */
-export const publicView = (d: Record<string, unknown>) => ({
-  ...d,
-  betaUsers: [],
-});
+/** Beta and excluded emails stripped: the mirror every signed-in caller may read. */
+export const publicView = (d: Record<string, unknown>) => {
+  const rest = { ...d, betaUsers: [] };
+  delete rest.excludedUsers;
+  return rest;
+};
 
 /** Re-reads the live source so stale/reordered events cannot overwrite newer state. */
 export async function sync(
@@ -47,26 +49,30 @@ export async function sync(
   const pub = db.collection(PUBLIC[kind]).doc(id);
   if (live) await pub.set(publicView(live));
   else await pub.delete();
-  const now = new Set(betaEmails(live));
-  const touched = new Set([
-    ...betaEmails(before),
-    ...betaEmails(after),
-    ...now,
-  ]);
-  const field = kind === 'feature' ? 'features' : 'global';
+  // Each person's grant doc holds their own beta grants and their own exclusions.
   const FV = FieldValue;
-  const ops: Promise<unknown>[] = [];
-  for (const e of touched)
-    ops.push(
-      db
-        .collection('beta_grants')
-        .doc(e)
-        .set(
-          { [field]: now.has(e) ? FV.arrayUnion(id) : FV.arrayRemove(id) },
-          { merge: true }
-        )
-    );
-  await Promise.all(ops);
+  const updates = new Map<string, Record<string, unknown>>();
+  const track = (
+    field: string,
+    emails: (d: Record<string, unknown> | undefined) => string[]
+  ) => {
+    const now = new Set(emails(live));
+    for (const e of new Set([...emails(before), ...emails(after), ...now]))
+      updates.set(e, {
+        ...updates.get(e),
+        [field]: now.has(e) ? FV.arrayUnion(id) : FV.arrayRemove(id),
+      });
+  };
+  track(kind === 'feature' ? 'features' : 'global', betaEmails);
+  track(
+    kind === 'feature' ? 'excludedFeatures' : 'excludedGlobal',
+    excludedEmails
+  );
+  await Promise.all(
+    [...updates].map(([e, update]) =>
+      db.collection('beta_grants').doc(e).set(update, { merge: true })
+    )
+  );
 }
 
 const OPTS = { retry: true } as const;

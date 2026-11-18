@@ -99,7 +99,7 @@ describe('FeaturesPanel', () => {
     );
     expect(screen.getByText('Teacher@School.ORG')).toBeInTheDocument();
 
-    const input = screen.getByPlaceholderText('user@example.com');
+    const input = screen.getByLabelText('Add beta user email');
     fireEvent.change(input, { target: { value: 'teacher@school.org' } });
     fireEvent.keyDown(input, { key: 'Enter' });
 

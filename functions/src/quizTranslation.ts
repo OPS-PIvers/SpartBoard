@@ -22,6 +22,7 @@ import {
 import { parseGeminiJson } from './parseGeminiJson';
 import { LANGUAGE_TAG_RE } from './languageTag';
 import { adminPassesMissingDoc } from './featureMissingDoc';
+import { isExcludedFrom } from './permissionExclusion';
 import { canonicalizeBuildingIdsServer } from './buildingIds';
 import {
   hashQuestionForTranslation,
@@ -458,6 +459,7 @@ export async function assertQuizTranslationFeature(
   // narrowing limits on a `let` reassigned inside try/catch.
   const data = raw as Record<string, unknown>;
   if (data.enabled !== true) deny();
+  if (isExcludedFrom(data, email)) deny();
   const isAdmin = await isSpartBoardAdmin(db, email);
   const accessLevel =
     typeof data.accessLevel === 'string' ? data.accessLevel : '';

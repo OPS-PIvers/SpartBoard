@@ -11141,6 +11141,19 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'admin.excluded.email': {
+    label: 'Add excluded user email box',
+    panel: true,
+  },
+  'admin.excluded.add': {
+    label: 'Add excluded user button',
+    panel: true,
+  },
+  'admin.excluded.remove': {
+    label: 'Remove excluded user button',
+    perField: true,
+    panel: true,
+  },
   'admin.org.add-building': {
     label: 'Add building button in Organization buildings',
     panel: true,
