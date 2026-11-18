@@ -1,6 +1,6 @@
 // Real library managers on fixture data at /library-managers-dev (dev and auth-bypass builds only), for layout checks.
 
-import React, { useMemo, useState } from 'react';
+import React, { useContext, useMemo, useState } from 'react';
 import {
   DashboardContext,
   type DashboardContextValue,
@@ -19,6 +19,9 @@ import {
 } from '@/components/widgets/QuizWidget/components/ReopenStudentsDialog';
 import { QuizPreview } from '@/components/widgets/QuizWidget/components/QuizPreview';
 import { AssignedResponsesFixture } from '@/components/widgets/QuizWidget/components/assignedResponsesFixture';
+import { AssignmentsHubModal } from '@/components/assignmentsHub/AssignmentsHubModal';
+import { UnifiedAssignmentsFixture } from '@/components/assignmentsHub/useUnifiedAssignments';
+import { HUB_FIXTURE } from './hubAssignedFixtures';
 import {
   ASSIGNED_FIXTURES,
   ASSIGNED_QUIZZES,
@@ -330,6 +333,7 @@ const WALLS: ActivityWallLibraryEntry[] = range((i) => ({
 const LIBRARY_HARNESS_VIEWS = [
   'quiz',
   'quiz-assigned',
+  'assignments-hub',
   'video-activity',
   'guided-learning',
   'mini-app',
@@ -968,6 +972,25 @@ const QuizAssignedView: React.FC = () => (
   </AssignedResponsesFixture.Provider>
 );
 
+// The sidebar Assignments hub on fixtures for every kind (ASSIGNED_TAB.md D18).
+const AssignmentsHubView: React.FC = () => {
+  const dashboard = useContext(DashboardContext);
+  const value = useMemo(
+    () =>
+      ({ ...dashboard, rosters: ASSIGNED_ROSTERS }) as DashboardContextValue,
+    [dashboard]
+  );
+  return (
+    <DashboardContext.Provider value={value}>
+      <UnifiedAssignmentsFixture.Provider value={HUB_FIXTURE}>
+        <AssignedResponsesFixture.Provider value={ASSIGNED_RESPONSES}>
+          <AssignmentsHubModal onClose={() => undefined} />
+        </AssignedResponsesFixture.Provider>
+      </UnifiedAssignmentsFixture.Provider>
+    </DashboardContext.Provider>
+  );
+};
+
 const VIEW_COMPONENTS: Record<HarnessView, React.FC> = {
   quiz: QuizView,
   'video-activity': VideoActivityView,
@@ -977,6 +1000,7 @@ const VIEW_COMPONENTS: Record<HarnessView, React.FC> = {
   'activity-wall': ActivityWallView,
   review: ReviewView,
   'quiz-assigned': QuizAssignedView,
+  'assignments-hub': AssignmentsHubView,
 };
 
 const SIZE = new URLSearchParams(window.location.search);

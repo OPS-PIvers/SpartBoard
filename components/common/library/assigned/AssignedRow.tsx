@@ -42,6 +42,10 @@ export interface AssignedRowProps {
   busy?: boolean;
   tourIndex: number;
   tourWidgetType: string;
+  /** The Assignments hub marks the row its detail pane shows. */
+  selected?: boolean;
+  /** Clicking the title also picks the row, as in the hub. */
+  onSelect?: () => void;
 }
 
 const TONE_CLASS: Record<LineTone, string> = {
@@ -123,6 +127,8 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
   busy = false,
   tourIndex,
   tourWidgetType,
+  selected = false,
+  onSelect,
 }) => {
   const [expanded, setExpanded] = useState(false);
   const rowKey = `row-${tourIndex + 1}`;
@@ -133,6 +139,10 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
   const toggle = () => {
     if (canExpand) setExpanded((v) => !v);
   };
+  const pick = () => {
+    onSelect?.();
+    toggle();
+  };
   const main =
     status.action.kind === 'choose-class' && canExpand
       ? () => setExpanded(true)
@@ -140,7 +150,8 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
 
   return (
     <div
-      className="border-b border-slate-200/60 last:border-b-0"
+      className={`border-b border-slate-200/60 last:border-b-0 ${selected ? 'bg-brand-blue-lighter/40' : ''}`}
+      aria-current={selected || undefined}
       style={{ padding: 'min(10px, 2.2cqmin) min(6px, 1.4cqmin)' }}
       aria-busy={busy || undefined}
     >
@@ -159,8 +170,19 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
         </div>
         {/* no-tour-anchor: same toggle as the classes button beside the main action */}
         <div
-          className={`min-w-0 flex-1 ${canExpand ? 'cursor-pointer' : ''}`}
-          onClick={toggle}
+          className={`min-w-0 flex-1 ${canExpand || onSelect ? 'cursor-pointer' : ''}`}
+          onClick={pick}
+          {...(onSelect
+            ? {
+                role: 'button',
+                tabIndex: 0,
+                onKeyDown: (e: React.KeyboardEvent) => {
+                  if (e.key !== 'Enter' && e.key !== ' ') return;
+                  e.preventDefault();
+                  pick();
+                },
+              }
+            : {})}
         >
           <div
             className={`truncate ${done ? 'font-semibold text-slate-500' : 'font-bold text-brand-blue-dark'}`}
@@ -182,7 +204,14 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
               {segments.map((seg, i) => (
                 <React.Fragment key={i}>
                   {i > 0 && ' '}
-                  <span className="whitespace-nowrap">
+                  {/* A long class name wraps instead of running under the button. */}
+                  <span
+                    className={
+                      seg.text.length > 24
+                        ? '[overflow-wrap:anywhere]'
+                        : 'whitespace-nowrap'
+                    }
+                  >
                     {i > 0 && !seg.glued && '· '}
                     <span className={TONE_CLASS[seg.tone]}>{seg.text}</span>
                   </span>

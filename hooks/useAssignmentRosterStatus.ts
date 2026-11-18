@@ -26,7 +26,7 @@ import {
   deriveWritingStudentStatus,
 } from '@/utils/assignmentStudentStatus';
 
-const SESSIONS_COLLECTION_BY_KIND: Record<AssignmentKind, string> = {
+export const SESSIONS_COLLECTION_BY_KIND: Record<AssignmentKind, string> = {
   quiz: 'quiz_sessions',
   'video-activity': 'video_activity_sessions',
   'guided-learning': 'guided_learning_sessions',
@@ -35,7 +35,7 @@ const SESSIONS_COLLECTION_BY_KIND: Record<AssignmentKind, string> = {
   writing: 'writing_assignment_sessions',
 };
 
-const SUBCOLLECTION_BY_KIND: Record<AssignmentKind, string> = {
+export const SUBCOLLECTION_BY_KIND: Record<AssignmentKind, string> = {
   quiz: 'responses',
   'video-activity': 'responses',
   'guided-learning': 'responses',

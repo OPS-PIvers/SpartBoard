@@ -20,6 +20,7 @@ import { getOpenModalCount } from '@/components/common/modalStore';
 import { useServerNow } from '@/hooks/useServerNow';
 import { summarizePeriods } from '@/utils/periodAccess';
 import { AssignmentDetailPane } from './AssignmentDetailPane';
+import { HubAssignedList } from './HubAssignedList';
 import {
   tourAttr,
   tourFieldAttr,
@@ -235,10 +236,12 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
   onClose,
 }) => {
   const { t } = useTranslation();
-  const { user, canAccessWidget } = useAuth();
+  const { user, canAccessWidget, canAccessFeature } = useAuth();
   const { rosters } = useDashboard();
   const writingEnabled = canAccessWidget('writing');
-  const { rows, loading, quizPlcActions } = useUnifiedAssignments(
+  // D18: the Assigned list's Active and Done sections replace the status filter.
+  const assignedOn = canAccessFeature('assigned-tab');
+  const { rows, loading, quizPlcActions, sources } = useUnifiedAssignments(
     user?.uid,
     rosters,
     writingEnabled
@@ -282,8 +285,11 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
     [classFilter, classNames]
   );
   const activeStatusFilter = useMemo(
-    () => statusFilter.filter((s) => s !== 'paused' || hasPausableKind),
-    [statusFilter, hasPausableKind]
+    () =>
+      assignedOn
+        ? []
+        : statusFilter.filter((s) => s !== 'paused' || hasPausableKind),
+    [assignedOn, statusFilter, hasPausableKind]
   );
 
   const searchTerm = search.trim().toLowerCase();
@@ -419,7 +425,9 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
         <div className="flex-1 flex overflow-hidden">
           {/* Left: filters + list */}
           {/* No overflow-hidden here — the filter dropdowns overlay the list. */}
-          <div className="w-full md:w-[380px] shrink-0 border-r border-slate-200 flex flex-col min-h-0">
+          <div
+            className={`w-full ${assignedOn ? 'md:w-[500px]' : 'md:w-[380px]'} shrink-0 border-r border-slate-200 flex flex-col min-h-0`}
+          >
             <div className="relative z-10 p-3 border-b border-slate-100 flex flex-col gap-2">
               <div className="relative">
                 <Search
@@ -448,7 +456,9 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
                   className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-8 pr-2.5 text-xs font-medium text-slate-700 placeholder:text-slate-400 focus:border-brand-blue-primary/40 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/20"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div
+                className={`grid gap-2 ${assignedOn ? 'grid-cols-1' : 'grid-cols-2'}`}
+              >
                 <AssignmentFilterSelect
                   label={t('assignmentsHub.filterByType', {
                     defaultValue: 'Filter by type',
@@ -471,29 +481,31 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
                   allLabel={allTypesLabel}
                   multiple
                 />
-                <AssignmentFilterSelect
-                  label={t('assignmentsHub.filterByStatus', {
-                    defaultValue: 'Filter by status',
-                  })}
-                  summary={summarize(
-                    activeStatusFilter,
-                    statusOptions,
-                    'assignmentsHub.filterStatusSummary',
-                    'Status: {{value}}',
-                    anyStatusLabel
-                  )}
-                  options={statusOptions}
-                  selected={activeStatusFilter}
-                  onChange={(next) =>
-                    setStatusFilter(next as UnifiedAssignmentStatus[])
-                  }
-                  allLabel={anyStatusLabel}
-                  anchor={tourFieldAttr(
-                    'assignments-hub.filter',
-                    'assignments-hub',
-                    'status'
-                  )}
-                />
+                {!assignedOn && (
+                  <AssignmentFilterSelect
+                    label={t('assignmentsHub.filterByStatus', {
+                      defaultValue: 'Filter by status',
+                    })}
+                    summary={summarize(
+                      activeStatusFilter,
+                      statusOptions,
+                      'assignmentsHub.filterStatusSummary',
+                      'Status: {{value}}',
+                      anyStatusLabel
+                    )}
+                    options={statusOptions}
+                    selected={activeStatusFilter}
+                    onChange={(next) =>
+                      setStatusFilter(next as UnifiedAssignmentStatus[])
+                    }
+                    allLabel={anyStatusLabel}
+                    anchor={tourFieldAttr(
+                      'assignments-hub.filter',
+                      'assignments-hub',
+                      'status'
+                    )}
+                  />
+                )}
                 {classNames.length > 1 && (
                   <div className="col-span-2">
                     <AssignmentFilterSelect
@@ -558,6 +570,20 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
                     defaultValue: 'No assignments match these filters.',
                   })}
                 </p>
+              ) : assignedOn ? (
+                <HubAssignedList
+                  rows={filteredRows}
+                  sources={sources}
+                  loading={loading}
+                  rosters={rosters}
+                  selectedId={selectedRow?.id ?? null}
+                  onSelect={setSelectedId}
+                  kindLabel={(kind) =>
+                    t(KIND_META[kind].labelKey, {
+                      defaultValue: KIND_META[kind].fallback,
+                    })
+                  }
+                />
               ) : (
                 <div className="space-y-1">
                   {filteredRows.map((row, rowIndex) => (

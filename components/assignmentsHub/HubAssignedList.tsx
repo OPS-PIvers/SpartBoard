@@ -1,0 +1,629 @@
+import React, { useContext, useEffect, useMemo, useState } from 'react';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { Pause, Play, PowerOff, RotateCcw } from 'lucide-react';
+import { db } from '@/config/firebase';
+import { useAuth } from '@/context/useAuth';
+import { useDashboard } from '@/context/useDashboard';
+import type {
+  ClassRoster,
+  FlashcardProgress,
+  GuidedLearningResponse,
+  QuizMetadata,
+  VideoActivityResponse,
+  WritingResponse,
+} from '@/types';
+import {
+  AssignedList,
+  AssignedRow,
+  mainActionLabel,
+  type ClassActionKind,
+} from '@/components/common/library/assigned';
+import type { LibraryMenuAction } from '@/components/common/library/types';
+import {
+  QuizAssignedRowHost,
+  useQuizAssignedRows,
+  type QuizAssignedRowModel,
+} from '@/components/widgets/QuizWidget/components/QuizAssignedTab';
+import { useQuiz } from '@/hooks/useQuiz';
+import { todaysBell } from '@/hooks/usePeriodAccess';
+import { usePeriodRunner } from '@/hooks/usePeriodRunner';
+import { useSetAssignmentTargets } from '@/hooks/useSetAssignmentTargets';
+import {
+  useAssignmentClassActions,
+  type AssignmentClassCollections,
+  type AssignmentLifecycle,
+  type AssignmentRun,
+} from '@/hooks/useAssignmentClassActions';
+import {
+  SESSIONS_COLLECTION_BY_KIND,
+  SUBCOLLECTION_BY_KIND,
+} from '@/hooks/useAssignmentRosterStatus';
+import {
+  VIDEO_ACTIVITY_RUN_COLLECTIONS,
+  videoActivityLifecycle,
+} from '@/components/widgets/VideoActivityWidget/videoActivityLifecycle';
+import {
+  MINI_APP_CLASS_COLLECTIONS,
+  miniAppLifecycle,
+} from '@/components/widgets/MiniApp/utils/miniAppClassLifecycle';
+import {
+  GL_CLASS_COLLECTIONS,
+  guidedLearningLifecycle,
+} from '@/components/widgets/GuidedLearning/utils/glClassLifecycle';
+import {
+  deriveAssignedStatus,
+  runStatus,
+  type AssignedActionKind,
+  type AssignedExtras,
+  type AssignedInput,
+  type AssignedResponse,
+  type AssignedStatus,
+} from '@/utils/assignedStatus';
+import {
+  flashcardAssignedInput,
+  flashcardAssignedResponse,
+  guidedLearningAssignedInput,
+  guidedLearningAssignedResponse,
+  miniAppAssignedInput,
+  miniAppAssignedResponse,
+  videoActivityAssignedInput,
+  videoActivityAssignedResponse,
+  writingAssignedInput,
+  writingAssignedResponse,
+} from '@/utils/assignedAdapters';
+import { logError } from '@/utils/logError';
+import {
+  UnifiedAssignmentsFixture,
+  type AssignmentKind,
+  type UnifiedAssignmentRow,
+  type UnifiedAssignmentSources,
+} from './useUnifiedAssignments';
+
+const HUB = 'assignments-hub';
+/** The hub has no monitor or grader of its own, so its main button only lets a class in or shows the roster. */
+const HUB_MAIN_KINDS: readonly AssignedActionKind[] = [
+  'open',
+  'resume',
+  'monitor',
+  'choose-class',
+];
+
+type OtherKind = Exclude<AssignmentKind, 'quiz'>;
+
+/** A non-quiz assignment doc as the hub reads it. */
+type OtherRun = AssignmentRun & {
+  scoreVisibility?: string | null;
+  sessionId?: string;
+  rosterIds?: string[];
+};
+
+interface OtherRowModel {
+  id: string;
+  kind: OtherKind;
+  title: string;
+  status: AssignedStatus;
+  run: OtherRun;
+}
+
+type HubItem =
+  | { id: string; status: AssignedStatus; quiz: QuizAssignedRowModel }
+  | { id: string; status: AssignedStatus; other: OtherRowModel };
+
+/** Rows still being worked; mirrors the Quiz tab's live-data test for any kind. */
+function wantsLiveData(run: OtherRun): boolean {
+  const ended = runStatus(run.status) === 'inactive';
+  const published = !!run.scoreVisibility && run.scoreVisibility !== 'none';
+  if (ended && (run.doneAt != null || published)) return false;
+  return (
+    !ended ||
+    run.closedAt != null ||
+    Object.values(run.periodAccess ?? {}).some((r) => r.closedAt != null)
+  );
+}
+
+const pathOf = (kind: OtherKind, sessionId: string) =>
+  `${SESSIONS_COLLECTION_BY_KIND[kind]}/${sessionId}/${SUBCOLLECTION_BY_KIND[kind]}`;
+
+/** Response docs per session path, one listener per live row. */
+function useResponsesByPath(paths: readonly string[]) {
+  const key = paths.join('|');
+  const [byPath, setByPath] = useState<Record<string, unknown[]>>({});
+  const [subs] = useState(() => new Map<string, () => void>());
+  useEffect(() => {
+    const wanted = new Set(key ? key.split('|') : []);
+    for (const [p, unsub] of subs)
+      if (!wanted.has(p)) {
+        unsub();
+        subs.delete(p);
+      }
+    for (const p of wanted) {
+      if (subs.has(p)) continue;
+      subs.set(
+        p,
+        onSnapshot(
+          collection(db, p),
+          (snap) =>
+            setByPath((prev) => ({
+              ...prev,
+              [p]: snap.docs.map((d) => d.data()),
+            })),
+          (err) => {
+            logError('HubAssignedList.responses', err, { path: p });
+            setByPath((prev) => ({ ...prev, [p]: [] }));
+          }
+        )
+      );
+    }
+  }, [key, subs]);
+  useEffect(
+    () => () => {
+      for (const unsub of subs.values()) unsub();
+      subs.clear();
+    },
+    [subs]
+  );
+  return byPath;
+}
+
+/** One kind's responses as the row counts them, plus how many await a grade (null when unknown). */
+function tally(
+  kind: OtherKind,
+  docs: readonly unknown[]
+): { responses: AssignedResponse[]; needsGrading: number | null } {
+  switch (kind) {
+    case 'video-activity': {
+      const responses = (docs as VideoActivityResponse[]).map(
+        videoActivityAssignedResponse
+      );
+      // Written answers need the questions to tell; the Video Activity tab owns that count.
+      return {
+        responses,
+        needsGrading: responses.some((r) => r.submitted) ? null : 0,
+      };
+    }
+    case 'guided-learning':
+      return {
+        responses: (docs as GuidedLearningResponse[]).map(
+          guidedLearningAssignedResponse
+        ),
+        needsGrading: 0,
+      };
+    case 'mini-app':
+      return {
+        responses: (docs as { classId?: string; classPeriod?: string }[]).map(
+          (d) => miniAppAssignedResponse(d.classId, d.classPeriod)
+        ),
+        needsGrading: 0,
+      };
+    case 'flashcards':
+      return {
+        responses: (docs as FlashcardProgress[]).map(flashcardAssignedResponse),
+        needsGrading: 0,
+      };
+    case 'writing':
+      return {
+        responses: (docs as WritingResponse[]).map(writingAssignedResponse),
+        needsGrading: (docs as WritingResponse[]).filter(
+          (r) => r.status === 'turned-in'
+        ).length,
+      };
+  }
+}
+
+interface HubAssignedListProps {
+  /** The hub's filtered rows; the list keeps their order of kinds and ids only. */
+  rows: readonly UnifiedAssignmentRow[];
+  sources: UnifiedAssignmentSources;
+  loading: boolean;
+  rosters: ClassRoster[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  /** The kind's name, shown after each row's status line. */
+  kindLabel: (kind: AssignmentKind) => string;
+}
+
+const KindMeta: React.FC<{ label: string }> = ({ label }) => (
+  <span className="whitespace-nowrap text-slate-500">· {label}</span>
+);
+
+/** The Assignments hub's Assigned list: every kind on the shared rows (ASSIGNED_TAB.md D18). */
+export const HubAssignedList: React.FC<HubAssignedListProps> = ({
+  rows,
+  sources,
+  loading,
+  rosters,
+  selectedId,
+  onSelect,
+  kindLabel,
+}) => {
+  const { user, featurePermissions } = useAuth();
+  const uid = user?.uid;
+  const fixture = useContext(UnifiedAssignmentsFixture);
+  const library = useQuiz(fixture ? undefined : uid);
+  const quizzes = fixture?.quizzes ?? library.quizzes;
+  const loadQuizData = fixture?.loadQuizData ?? library.loadQuizData;
+  const loadQuiz = useMemo(
+    () => (meta: QuizMetadata) => loadQuizData(meta.driveFileId),
+    [loadQuizData]
+  );
+  const { rows: quizRows, now } = useQuizAssignedRows(
+    sources.quiz.assignments,
+    quizzes,
+    loadQuiz,
+    rosters
+  );
+
+  const runs = useMemo(() => {
+    const out: {
+      kind: OtherKind;
+      title: string;
+      run: OtherRun;
+      adapt: (extras: AssignedExtras) => AssignedInput;
+    }[] = [];
+    for (const a of sources.videoActivity.assignments)
+      out.push({
+        kind: 'video-activity',
+        title: a.activityTitle,
+        run: a,
+        adapt: (x) => videoActivityAssignedInput(a, x),
+      });
+    for (const a of sources.guidedLearning.assignments)
+      out.push({
+        kind: 'guided-learning',
+        title: a.setTitle,
+        run: a,
+        adapt: (x) => guidedLearningAssignedInput(a, x),
+      });
+    for (const a of sources.miniApp.assignments)
+      out.push({
+        kind: 'mini-app',
+        title: a.assignmentName?.trim() ? a.assignmentName : a.appTitle,
+        run: a,
+        adapt: (x) => miniAppAssignedInput(a, x),
+      });
+    for (const a of sources.flashcards.assignments)
+      out.push({
+        kind: 'flashcards',
+        title: a.setTitle,
+        run: a,
+        adapt: (x) => flashcardAssignedInput(a, x),
+      });
+    for (const a of sources.writing.records)
+      out.push({
+        kind: 'writing',
+        title: a.title,
+        run: a,
+        // Grading lives on the session, which the hub doesn't load, so a closed row stays Active.
+        adapt: (x) => writingAssignedInput(a, null, x),
+      });
+    return out;
+  }, [
+    sources.videoActivity.assignments,
+    sources.guidedLearning.assignments,
+    sources.miniApp.assignments,
+    sources.flashcards.assignments,
+    sources.writing.records,
+  ]);
+
+  const livePaths = useMemo(
+    () =>
+      runs
+        .filter((r) => wantsLiveData(r.run))
+        .map((r) => pathOf(r.kind, r.run.sessionId ?? r.run.id)),
+    [runs]
+  );
+  const responsesByPath = useResponsesByPath(livePaths);
+
+  const otherRows = useMemo<OtherRowModel[]>(
+    () =>
+      runs.map(({ kind, title, run, adapt }) => {
+        const docs = wantsLiveData(run)
+          ? (responsesByPath[pathOf(kind, run.sessionId ?? run.id)] ?? null)
+          : [];
+        const counted = docs ? tally(kind, docs) : null;
+        const sizeOf = (rosterId: string | undefined) => {
+          const r = rosters.find((x) => x.id === rosterId);
+          return r && r.students.length > 0 ? r.students.length : undefined;
+        };
+        const classSizes: Record<string, number> = {};
+        for (const [k, row] of Object.entries(run.periodAccess ?? {})) {
+          const n = sizeOf(row.rosterId ?? k);
+          if (n != null) classSizes[k] = n;
+        }
+        if (run.rosterIds?.length === 1) {
+          const n = sizeOf(run.rosterIds[0]);
+          if (n != null) classSizes[''] = n;
+        }
+        const extras: AssignedExtras = {
+          responses: counted?.responses ?? null,
+          needsGrading: counted?.needsGrading ?? null,
+          classSizes,
+          bellFor: (access) =>
+            todaysBell(access, rosters, featurePermissions, now),
+        };
+        const input = adapt(extras);
+        return {
+          id: run.id,
+          kind,
+          title,
+          run,
+          status: deriveAssignedStatus(input, now),
+        };
+      }),
+    [runs, responsesByPath, rosters, featurePermissions, now]
+  );
+
+  const items = useMemo<HubItem[]>(() => {
+    const quizById = new Map(quizRows.map((r) => [r.id, r]));
+    const otherByKey = new Map(otherRows.map((r) => [`${r.kind}:${r.id}`, r]));
+    const out: HubItem[] = [];
+    for (const row of rows) {
+      if (row.kind === 'quiz') {
+        const q = quizById.get(row.id);
+        if (q) out.push({ id: `quiz:${q.id}`, status: q.status, quiz: q });
+      } else {
+        const o = otherByKey.get(`${row.kind}:${row.id}`);
+        if (o)
+          out.push({ id: `${o.kind}:${o.id}`, status: o.status, other: o });
+      }
+    }
+    return out;
+  }, [rows, quizRows, otherRows]);
+
+  const quizLifecycle = useMemo(
+    () => ({
+      pauseAssignment: sources.quiz.pauseAssignment,
+      resumeAssignment: sources.quiz.resumeAssignment,
+      deactivateAssignment: sources.quiz.deactivateAssignment,
+      reopenAssignment: sources.quiz.reopenAssignment,
+    }),
+    [
+      sources.quiz.pauseAssignment,
+      sources.quiz.resumeAssignment,
+      sources.quiz.deactivateAssignment,
+      sources.quiz.reopenAssignment,
+    ]
+  );
+  const { setAssignmentTargets } = useSetAssignmentTargets();
+  const va = sources.videoActivity;
+  const vaLifecycle = useMemo(
+    () => videoActivityLifecycle(va),
+    // The hook's writes are stable callbacks.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      va.pauseAssignment,
+      va.resumeAssignment,
+      va.deactivateAssignment,
+      va.reactivateAssignment,
+    ]
+  );
+  const { endAssignment, reactivateAssignment } = sources.miniApp;
+  const { archiveAssignment } = sources.guidedLearning;
+  const kindActions = useMemo<
+    Partial<
+      Record<
+        OtherKind,
+        {
+          collections: AssignmentClassCollections;
+          lifecycle: AssignmentLifecycle;
+        }
+      >
+    >
+  >(
+    () => ({
+      'video-activity': {
+        collections: VIDEO_ACTIVITY_RUN_COLLECTIONS,
+        lifecycle: vaLifecycle,
+      },
+      ...(uid
+        ? {
+            'mini-app': {
+              collections: MINI_APP_CLASS_COLLECTIONS,
+              lifecycle: miniAppLifecycle(uid, {
+                endAssignment,
+                reactivateAssignment,
+                setAssignmentTargets,
+              }),
+            },
+            'guided-learning': {
+              collections: GL_CLASS_COLLECTIONS,
+              lifecycle: guidedLearningLifecycle(uid, {
+                archiveAssignment,
+                setAssignmentTargets,
+              }),
+            },
+          }
+        : {}),
+    }),
+    [
+      uid,
+      vaLifecycle,
+      endAssignment,
+      reactivateAssignment,
+      archiveAssignment,
+      setAssignmentTargets,
+    ]
+  );
+
+  const pick = (id: string) => () => onSelect(id);
+
+  return (
+    <AssignedList<HubItem>
+      items={items}
+      loading={loading}
+      emptyTitle="Nothing active"
+      emptySub=""
+      tourWidgetType={HUB}
+      renderRow={(item, index) =>
+        'quiz' in item ? (
+          <QuizAssignedRowHost
+            row={item.quiz}
+            index={index}
+            now={now}
+            rosters={rosters}
+            lifecycle={quizLifecycle}
+            onMonitor={() => onSelect(item.quiz.id)}
+            onResults={() => onSelect(item.quiz.id)}
+            legacyPrimary={() => null}
+            menu={() => []}
+            tourWidgetType={HUB}
+            mainKinds={HUB_MAIN_KINDS}
+            meta={<KindMeta label={kindLabel('quiz')} />}
+            selected={selectedId === item.quiz.id}
+            onSelect={pick(item.quiz.id)}
+          />
+        ) : (
+          <OtherRowHost
+            row={item.other}
+            index={index}
+            now={now}
+            rosters={rosters}
+            actions={kindActions[item.other.kind] ?? null}
+            meta={<KindMeta label={kindLabel(item.other.kind)} />}
+            selected={selectedId === item.other.id}
+            onSelect={pick(item.other.id)}
+          />
+        )
+      }
+    />
+  );
+};
+
+const NO_COLLECTIONS: AssignmentClassCollections = {
+  sessionCollection: '',
+  assignmentCollection: '',
+};
+const NO_LIFECYCLE: AssignmentLifecycle = {
+  end: () => Promise.resolve(),
+  reopen: () => Promise.resolve(),
+};
+
+interface OtherRowHostProps {
+  row: OtherRowModel;
+  index: number;
+  now: number;
+  rosters: ClassRoster[];
+  /** Null where the kind has no class actions yet (Flashcards, Writing): the row shows status only. */
+  actions: {
+    collections: AssignmentClassCollections;
+    lifecycle: AssignmentLifecycle;
+  } | null;
+  meta: React.ReactNode;
+  selected: boolean;
+  onSelect: () => void;
+}
+
+/** A Video Activity, Guided Learning, Mini App, Flashcards or Writing row in the hub. */
+const OtherRowHost: React.FC<OtherRowHostProps> = ({
+  row,
+  index,
+  now,
+  rosters,
+  actions,
+  meta,
+  selected,
+  onSelect,
+}) => {
+  const { status, run, title } = row;
+  const { addToast } = useDashboard();
+  const classActions = useAssignmentClassActions(
+    actions ? run : null,
+    actions?.collections ?? NO_COLLECTIONS,
+    actions?.lifecycle ?? NO_LIFECYCLE,
+    rosters
+  );
+  const exec = usePeriodRunner(run.periodAccess, 'HubAssignedList.class');
+  const [busy, setBusy] = useState(false);
+  const runBusy = async (fn: () => Promise<unknown>) => {
+    setBusy(true);
+    try {
+      await exec(fn);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onClassAction = (kind: ClassActionKind, key: string | null) => {
+    if (kind === 'monitor' || !actions) return onSelect();
+    switch (kind) {
+      case 'open':
+      case 'resume':
+        return void runBusy(() => classActions.openClass(key));
+      case 'pause':
+        return void runBusy(() => classActions.pauseClass(key));
+      case 'close':
+        return void runBusy(() => classActions.closeClass(key));
+      case 'reopen':
+        return void runBusy(() => classActions.reopenClass(key));
+    }
+  };
+
+  const menuActions: LibraryMenuAction[] = [];
+  if (actions && status.singleLine) {
+    const only = status.classes[0];
+    if (only?.status === 'open' && actions.lifecycle.pause)
+      menuActions.push({
+        id: 'assigned-pause',
+        label: 'Pause',
+        icon: Pause,
+        onClick: () => onClassAction('pause', null),
+      });
+    if (only?.status === 'paused' && status.action.kind !== 'resume')
+      menuActions.push({
+        id: 'assigned-resume',
+        label: 'Resume',
+        icon: Play,
+        onClick: () => onClassAction('resume', null),
+      });
+    if (only && only.status !== 'closed')
+      menuActions.push({
+        id: 'assigned-close',
+        label: 'Close',
+        icon: PowerOff,
+        onClick: () =>
+          void runBusy(async () => {
+            await classActions.closeClass(null);
+            addToast(`${title} is closed.`, 'success', {
+              label: 'Undo',
+              onClick: () => void exec(() => classActions.reopenClass(null)),
+            });
+          }),
+      });
+    else if (only && status.bucket === 'active')
+      menuActions.push({
+        id: 'assigned-reopen',
+        label: 'Reopen',
+        icon: RotateCcw,
+        onClick: () => onClassAction('reopen', null),
+      });
+  }
+  for (const item of menuActions) item.disabled = busy;
+
+  const acts =
+    HUB_MAIN_KINDS.includes(status.action.kind) &&
+    (actions != null || status.action.kind === 'monitor');
+  const onMain = () => {
+    const { kind, classKey } = status.action;
+    if (kind === 'open' || kind === 'resume') onClassAction(kind, classKey);
+    else onSelect();
+  };
+
+  return (
+    <AssignedRow
+      title={title}
+      status={status}
+      nowMs={now}
+      mainLabel={acts ? mainActionLabel(status.action, null) : null}
+      onMain={onMain}
+      onClassAction={onClassAction}
+      classControls={actions != null}
+      meta={meta}
+      menuActions={menuActions}
+      busy={busy}
+      tourIndex={index}
+      tourWidgetType={HUB}
+      selected={selected}
+      onSelect={onSelect}
+    />
+  );
+};
