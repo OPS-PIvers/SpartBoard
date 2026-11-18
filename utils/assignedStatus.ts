@@ -395,6 +395,15 @@ export function compareAssigned(a: AssignedStatus, b: AssignedStatus): number {
   return a.sortKey.group - b.sortKey.group || b.sortKey.at - a.sortKey.at;
 }
 
+/** A response belongs to a class by its classId, else (anonymous PIN joiners) by the class label. */
+export function responseInClass(
+  r: Pick<QuizResponse, 'classId' | 'classPeriod'>,
+  key: string,
+  label: string
+): boolean {
+  return r.classId ? r.classId === key : r.classPeriod === label;
+}
+
 /** What the quiz adapter reads beyond the assignment doc; pass null while responses load. */
 export interface QuizAssignedExtras {
   responses:
@@ -427,9 +436,7 @@ export function quizAssignedInput(
         key,
         label: access.label,
         access,
-        ...tally((r) =>
-          r.classId ? r.classId === key : r.classPeriod === access.label
-        ),
+        ...tally((r) => responseInClass(r, key, access.label)),
         total: extras.classSizes?.[key] ?? null,
         bell: extras.bellFor?.(access) ?? null,
       }))
