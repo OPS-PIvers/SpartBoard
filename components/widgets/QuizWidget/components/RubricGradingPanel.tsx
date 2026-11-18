@@ -308,7 +308,7 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
                     'quiz',
                     criterion.id
                   )}
-                  className="-ml-1 flex min-w-0 flex-1 items-start gap-1 rounded-md py-1.5 pl-0.5 pr-1 text-left transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
+                  className="-ml-1 flex min-w-0 flex-1 items-start gap-1 rounded-md py-1.5 pl-0.5 pr-1 text-left transition-colors [&:hover_.rubric-name]:text-brand-blue-primary focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
                 >
                   <ChevronRight
                     aria-hidden
@@ -319,7 +319,7 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
                   <span className="min-w-0">
                     <span
                       id={nameId}
-                      className="block break-words text-sm font-semibold leading-snug text-slate-800"
+                      className="rubric-name block break-words text-sm font-semibold leading-snug text-slate-800 transition-colors"
                     >
                       {criterion.name}
                     </span>
@@ -382,18 +382,18 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
               {isOpen ? (
                 <>
                   {criterion.description && (
-                    <p className="mt-1 whitespace-pre-line pl-5 text-xs leading-relaxed text-slate-600">
+                    <p className="ml-5 whitespace-pre-line text-xs leading-relaxed text-slate-600">
                       {criterion.description}
                     </p>
                   )}
                   {criterion.guide && (
-                    <div className="pl-5">
+                    <div className="ml-5">
                       <RubricGuideExamples
                         examples={criterion.guide.examples ?? []}
                       />
                     </div>
                   )}
-                  <div className="mt-2 flex flex-col divide-y divide-slate-200 border-t border-slate-200 [@container(min-width:32rem)]:flex-row [@container(min-width:32rem)]:divide-x [@container(min-width:32rem)]:divide-y-0 [@container(min-width:32rem)]:border-b">
+                  <div className="ml-5 mt-2 flex flex-col gap-1 [@container(min-width:32rem)]:flex-row">
                     {levels.map((level) => {
                       const isSelected = selected?.levelId === level.id;
                       return (
@@ -407,10 +407,10 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
                             'quiz',
                             `${criterion.id}-${level.id}`
                           )}
-                          className={`block w-full px-2.5 py-2 text-left [@container(min-width:32rem)]:flex [@container(min-width:32rem)]:min-w-0 [@container(min-width:32rem)]:flex-1 [@container(min-width:32rem)]:flex-col transition-colors [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-blue-primary ${
+                          className={`block w-full rounded-md px-2.5 py-2 text-left [@container(min-width:32rem)]:flex [@container(min-width:32rem)]:min-w-0 [@container(min-width:32rem)]:flex-1 [@container(min-width:32rem)]:flex-col transition-colors [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-blue-primary ${
                             isSelected
                               ? 'bg-brand-blue-primary text-white'
-                              : 'text-slate-900 hover:bg-slate-100'
+                              : 'bg-slate-100 text-slate-900 hover:bg-slate-200'
                           }`}
                         >
                           <span className="flex items-baseline justify-between gap-2">
@@ -438,7 +438,7 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
                       );
                     })}
                   </div>
-                  <div className="mt-1.5 flex items-center justify-between gap-2">
+                  <div className="ml-5 mt-1.5 flex items-center justify-between gap-2">
                     <label className="flex items-baseline gap-1 text-sm font-semibold text-slate-600">
                       Score
                       <input
