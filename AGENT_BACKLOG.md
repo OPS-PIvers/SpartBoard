@@ -475,7 +475,8 @@ retire/tours
 retire/quiz-editor
 retire/quiz-assigning
 retire/quiz-results
-claude/project-thread-mclg4c
+retire/nov18-flags
+claude/project-thread-mclg4c (also claude/ab112-nov18, this docs PR)
 claude/claude-security-fix-find_01hdwd6jykvej5w2jqqm7yvi-3zioml
 nightly/widgets-2026-11-13
 nightly/dashboard-2026-11-13
