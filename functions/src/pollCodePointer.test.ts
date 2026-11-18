@@ -47,9 +47,24 @@ describe('pollCodePointer', () => {
     expect(codeOfSessionId('t1_bad code')).toBeNull();
   });
 
-  it('points a new code at the session, whichever client wrote it', async () => {
-    const ptr = await run({}, 't1_ABCDE', live('t1', { active: false }));
+  it('points a reserved code at its session, whichever client wrote it', async () => {
+    const ptr = await run(
+      {
+        'poll_codes/ABCDE': {
+          sessionId: 't1_ABCDE',
+          teacherUid: 't1',
+          reservedAt: 1,
+        },
+      },
+      't1_ABCDE',
+      live('t1', { active: false })
+    );
     expect(ptr).toMatchObject({ sessionId: 't1_ABCDE', teacherUid: 't1' });
+  });
+
+  it('never starts a pointer for a code that was not minted (security #9)', async () => {
+    const ptr = await run({}, 't1_ABCDE', live('t1'));
+    expect(ptr).toBeUndefined();
   });
 
   it("moves a reserved code to a Synced-board member's live session", async () => {

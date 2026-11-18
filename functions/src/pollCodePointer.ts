@@ -109,6 +109,8 @@ export async function handlePollSessionWrite(
       }
     }
     if (isJoinable(mine) && !holds) {
+      // Only mintPollCodeV1 starts a pointer, so a chosen code can't be taken or tested.
+      if (!ptr) return;
       tx.set(pointerRef, pointerFor(sessionId, code, ptr));
       return;
     }
