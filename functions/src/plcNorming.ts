@@ -13,7 +13,10 @@ import * as path from 'path';
 import ffmpegStatic from 'ffmpeg-static';
 import ffmpeg from 'fluent-ffmpeg';
 import { ALLOWED_ORIGINS } from './classlinkShared';
-import { refreshGoogleAccessTokenForUid } from './googleOAuth';
+import {
+  DRIVE_FILE_SCOPE,
+  refreshGoogleAccessTokenForUid,
+} from './googleOAuth';
 import {
   QUIZ_MEDIA_GOOGLE_SECRETS,
   QUIZ_MEDIA_STORAGE_ROOT,
@@ -688,7 +691,9 @@ function defaultNormingDeps(): NormingDeps {
       }
     },
     readDrive: async (teacherUid, fileId) => {
-      const { accessToken } = await refreshGoogleAccessTokenForUid(teacherUid);
+      const { accessToken } = await refreshGoogleAccessTokenForUid(teacherUid, {
+        scope: DRIVE_FILE_SCOPE,
+      });
       return downloadDriveFileById(accessToken, fileId);
     },
     stripAudio: stripAudioMetadata,

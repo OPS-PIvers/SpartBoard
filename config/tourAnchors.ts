@@ -4553,6 +4553,11 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'quiz-grading.rubric-expand-all': {
+    label: 'Expand or collapse all criteria in the grader rubric',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-grading.rubric-view-full': {
     label: 'View rubric button in the grader',
     perWidgetType: true,
@@ -4620,12 +4625,6 @@ export const TOUR_ANCHORS = {
   'quiz-grading.rubric-criterion-toggle': {
     label: 'Criterion open / close toggle in the grader, by criterion',
     perField: true,
-    panel: true,
-  },
-  'quiz-grading.rubric-criterion-score': {
-    label: 'Criterion score box in the grader, by criterion',
-    perField: true,
-    persists: true,
     panel: true,
   },
   'quiz-grading.rubric-note': {

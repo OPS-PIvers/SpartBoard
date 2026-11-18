@@ -1369,6 +1369,11 @@ export const importPaperResponsesV1 = onCall(
   },
   async (request) => {
     await assertViewAsAllowed(request);
+    // Same staff-or-admin gate as the crop and page upload rules, so excluded teachers get a clear error.
+    if (request.auth) {
+      const { assertAiTeacherCaller } = await import('./aiCallerGate');
+      await assertAiTeacherCaller(admin.firestore(), request.auth.token);
+    }
     const caller: ImportPaperCaller | null = request.auth
       ? {
           uid: request.auth.uid,

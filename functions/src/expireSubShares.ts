@@ -7,37 +7,20 @@
  * Board snapshots; when a Collection parent is deleted, its board sub-docs are
  * deleted first so nothing is orphaned.
  *
- * Two-stage delete (grace period):
- * --------------------------------------------------------------------
- *   Docs WITHOUT `driveGrants[]` are deleted immediately on expiration
- *   (nothing to revoke; nothing to coordinate with the client revoker).
- *
- *   Docs WITH `driveGrants[]` get a 7-day grace window so the client-
- *   side reconciler (`useReconcileExpiredSubShares`) has time to:
- *     1. fetch the host's still-active substitute shares
- *     2. refcount each permissionId
- *     3. revoke only the permissions that no active share still uses
- *     4. delete the share doc once all revokes succeed
- *
- *   If the host never signs in within 7 days, we give up: the doc is
- *   deleted with a Cloud Logging WARNING listing every unrevoked
- *   (email, fileId, permissionId) so an admin can manually clean them
- *   up via Drive Admin tools.
- *
- * Why no server-side revoke: revoking permissions on a teacher's own
- * Drive files requires either the teacher's OAuth refresh token (we
- * don't store one) or Google Workspace domain-wide delegation (the
- * district hasn't enabled it, and the GCP docs flag DWD as a
- * privilege-escalation risk because it lets the service account
- * impersonate any user including super-admins).
+ * Drive grants: the sweep revokes each expired share's `driveGrants` with the
+ * host's stored offline grant (down-scoped to drive.file), skipping any
+ * permission a live share of the same host still uses. A share whose grants
+ * cannot be revoked (no stored grant, Drive error) is kept, never deleted, so
+ * the host's own reconciler (`useReconcileExpiredSubShares`) still finds it and
+ * prompts them; past the grace window it is also logged as a warning.
  *
  * PAGINATION: the expired-doc lookup PAGINATES (`startAfter` cursor on
  * `orderBy('expiresAt').orderBy(FieldPath.documentId())`, mirroring the
  * identical fix already applied to `gcPlcOrphans.ts` /
  * `expireActivityWallShares.ts` / `finalizeIdleQuizAttempts.ts`) up to
- * `MAX_SWEEP_PER_RUN` — a safety ceiling, not a page size. Docs held in the
- * 7-day Drive-grant grace window are matched by the query but deliberately
- * NOT deleted yet, so without pagination a single un-paginated `.limit()`
+ * `MAX_SWEEP_PER_RUN` — a safety ceiling, not a page size. Docs whose grants
+ * could not be revoked are matched by the query but kept (not deleted), so
+ * without pagination a single un-paginated `.limit()`
  * page would keep re-fetching the SAME arbitrary doc-id-ordered slice every
  * hour (a query with no explicit `orderBy` is NOT implicitly sorted by the
  * inequality field — it falls back to document-id order, confirmed by the
@@ -50,7 +33,13 @@
  */
 
 import { onSchedule } from 'firebase-functions/v2/scheduler';
+import axios from 'axios';
 import * as admin from './firebaseAdmin';
+import {
+  GOOGLE_OAUTH_CLIENT_ID,
+  GOOGLE_OAUTH_CLIENT_SECRET,
+  GOOGLE_OAUTH_REFRESH_TOKEN_KEY,
+} from './secrets';
 
 // Mirrors SHARE_SUBCOLLECTIONS in utils/subShareContent.ts; functions/ is its
 // own package and cannot import from the app.
@@ -67,7 +56,7 @@ export const MAX_SWEEP_PER_RUN = 5000;
 /** Page size for the paginated expired-doc fetch (`startAfter` cursor). */
 export const SWEEP_PAGE_SIZE = 500;
 
-/** Days a doc with unrevoked grants is left in place for the client revoker. */
+/** Days before an unrevokable share is logged as needing an admin. */
 const ORPHAN_GRACE_DAYS = 7;
 const ORPHAN_GRACE_MS = ORPHAN_GRACE_DAYS * 24 * 60 * 60 * 1000;
 
@@ -91,13 +80,155 @@ interface SweepResult {
   orphanedGrants: number;
 }
 
+/** Drive calls the sweep makes as the host; injectable for tests. */
+export interface GrantRevoker {
+  /** The host's drive.file token, or null when no offline grant is stored. */
+  getAccessToken: (hostUid: string) => Promise<string | null>;
+  /** Null when the permission or file is already gone. */
+  getPermission: (
+    token: string,
+    fileId: string,
+    permissionId: string
+  ) => Promise<{ type?: string; role?: string } | null>;
+  deletePermission: (
+    token: string,
+    fileId: string,
+    permissionId: string
+  ) => Promise<void>;
+  /** The file's name, or null when it is gone or trashed. */
+  getFileName: (token: string, fileId: string) => Promise<string | null>;
+  trashFile: (token: string, fileId: string) => Promise<void>;
+  /** Emails the host once about a share whose grants stay standing; true when newly sent. */
+  notifyHost: (
+    hostUid: string,
+    shareKey: string,
+    grantCount: number
+  ) => Promise<boolean>;
+}
+
+/** No Drive access: every grant stays unrevoked (the pre-revoke behaviour). */
+const NO_REVOKER: GrantRevoker = {
+  getAccessToken: () => Promise.resolve(null),
+  getPermission: () => Promise.resolve(null),
+  deletePermission: () => Promise.resolve(),
+  getFileName: () => Promise.resolve(null),
+  trashFile: () => Promise.resolve(),
+  notifyHost: () => Promise.resolve(false),
+};
+
+/** Drive work stops after this long so the run still reaches its deletes. */
+const DRIVE_BUDGET_MS = 300_000;
+
+/** Marks a token fetch that failed transiently, so the host is not emailed. */
+const TOKEN_ERROR = Symbol('tokenError');
+
+/** `defer`: Drive was not tried (budget or transient token error); `needs-host`: only the host can fix it. */
+type RevokeOutcome = 'revoked' | 'defer' | 'needs-host';
+
+/** Per-run caches shared by both collection sweeps. */
+interface RevokeContext {
+  revoker: GrantRevoker;
+  deadline: number;
+  tokens: Map<string, Promise<string | null | typeof TOKEN_ERROR>>;
+  live: Map<string, Promise<Set<string>>>;
+}
+
+/** `fileId:permissionId` pairs held by the host's still-live substitute shares, across both collections. */
+function livePermissionIds(
+  db: FirebaseFirestore.Firestore,
+  ctx: RevokeContext,
+  hostUid: string,
+  now: number
+): Promise<Set<string>> {
+  let hit = ctx.live.get(hostUid);
+  if (!hit) {
+    hit = Promise.all([
+      db
+        .collection('shared_boards')
+        .where('originalAuthor', '==', hostUid)
+        .where('intendedMode', '==', 'substitute')
+        .get(),
+      db
+        .collection('shared_collections')
+        .where('hostUid', '==', hostUid)
+        .where('intendedMode', '==', 'substitute')
+        .get(),
+    ]).then((snaps) => {
+      const ids = new Set<string>();
+      for (const d of snaps.flatMap((s) => s.docs)) {
+        const data = d.data() as SubstituteShareData;
+        if (!((data.expiresAt ?? 0) > now)) continue;
+        for (const g of Array.isArray(data.driveGrants) ? data.driveGrants : [])
+          if (g?.fileId && g.permissionId)
+            ids.add(`${g.fileId}:${g.permissionId}`);
+      }
+      return ids;
+    });
+    ctx.live.set(hostUid, hit);
+  }
+  return hit;
+}
+
+/** Revokes one expired share's grants as the host; 'revoked' when none is left standing. */
+async function revokeShareGrants(
+  db: FirebaseFirestore.Firestore,
+  ctx: RevokeContext,
+  doc: ExpiredDocSnap,
+  hostUid: string | undefined,
+  grants: NonNullable<SubstituteShareData['driveGrants']>,
+  namesFileId: string | undefined,
+  now: number
+): Promise<RevokeOutcome> {
+  if (!hostUid) return 'needs-host';
+  if (Date.now() > ctx.deadline) return 'defer';
+  let tokenP = ctx.tokens.get(hostUid);
+  if (!tokenP) {
+    tokenP = ctx.revoker.getAccessToken(hostUid).catch((err) => {
+      console.warn(`[expireSubShares] no Drive token for ${hostUid}:`, err);
+      return TOKEN_ERROR;
+    });
+    ctx.tokens.set(hostUid, tokenP);
+  }
+  const token = await tokenP;
+  if (token === TOKEN_ERROR) return 'defer';
+  if (!token) return 'needs-host';
+  try {
+    const live = await livePermissionIds(db, ctx, hostUid, now);
+    for (const g of grants) {
+      // Drive reuses a user's permission id on every file, so a grant is a file and permission pair.
+      if (!g?.fileId || !g.permissionId) continue;
+      if (live.has(`${g.fileId}:${g.permissionId}`)) continue;
+      const perm = await ctx.revoker.getPermission(
+        token,
+        g.fileId,
+        g.permissionId
+      );
+      // Only a user reader grant is ours to revoke, as the client reconciler does.
+      if (!perm || perm.type !== 'user' || perm.role !== 'reader') continue;
+      await ctx.revoker.deletePermission(token, g.fileId, g.permissionId);
+    }
+    if (namesFileId) {
+      const name = await ctx.revoker.getFileName(token, namesFileId);
+      if (name === `${doc.id}-names.json`) {
+        await ctx.revoker.trashFile(token, namesFileId);
+      }
+    }
+    return 'revoked';
+  } catch (err) {
+    console.warn(
+      `[expireSubShares] Drive revoke failed for share ${doc.id}:`,
+      err
+    );
+    return 'needs-host';
+  }
+}
+
 /**
  * Paginates the "expired substitute share" query for one collection up to
  * `MAX_SWEEP_PER_RUN`, `SWEEP_PAGE_SIZE` docs at a time, via a `startAfter`
  * cursor on `orderBy('expiresAt').orderBy(FieldPath.documentId())` (the
  * doc-id tiebreaker keeps pagination correct when multiple docs share an
- * identical `expiresAt`). Docs held in the Drive-grant grace window are
- * matched but not deleted, so without this cursor a single un-paginated page
+ * identical `expiresAt`). Kept docs (unrevoked grants) are matched every run, so without this cursor a single un-paginated page
  * would keep re-fetching the same doc-id-ordered slice forever once the
  * backlog exceeded one page — see the module header for the full history.
  */
@@ -149,7 +280,8 @@ async function sweepCollection(
   collectionName: string,
   now: number,
   hostField: 'originalAuthor' | 'hostUid',
-  deleteBoardsSubcollection: boolean
+  deleteBoardsSubcollection: boolean,
+  ctx: RevokeContext
 ): Promise<SweepResult> {
   const expiredDocs = await fetchExpiredDocsPaginated(db, collectionName, now);
 
@@ -158,37 +290,65 @@ async function sweepCollection(
     return { deleted: 0, inGrace: 0, orphanedGrants: 0 };
   }
 
-  // Bucket each expired doc into "ready to delete" vs "give the client
-  // revoker more time". A doc is ready when it has no grants OR it's
-  // been expired longer than the orphan-grace window.
+  // A doc is ready once it has no grants left standing; otherwise it is kept.
   const readyToDelete: ExpiredDocSnap[] = [];
   let stillInGrace = 0;
   let orphanedGrantCount = 0;
 
   for (const doc of expiredDocs) {
-    const data = doc.data() as SubstituteShareData & { hostUid?: string };
+    const data = doc.data() as SubstituteShareData & {
+      hostUid?: string;
+      namesFileId?: unknown;
+    };
     const grants = Array.isArray(data.driveGrants) ? data.driveGrants : [];
     const expiredAt = typeof data.expiresAt === 'number' ? data.expiresAt : 0;
-    const inGrace = grants.length > 0 && expiredAt > now - ORPHAN_GRACE_MS;
+    const host = data[hostField];
 
-    if (inGrace) {
-      stillInGrace += 1;
-      continue;
-    }
-
-    // If we're deleting a doc that still has grants (i.e. grace expired),
-    // log the orphans so a Workspace admin can clean up by hand.
     if (grants.length > 0) {
-      orphanedGrantCount += grants.length;
-      const host = data[hostField] ?? data.originalAuthor ?? data.hostUid;
-      console.warn(
-        `[expireSubShares] DELETING ${collectionName} share ${doc.id} (host ${host}) ` +
-          `with ${grants.length} unrevoked Drive permissions — host never ` +
-          `returned to clean up. Manual revocation needed for: ` +
-          grants
-            .map((g) => `${g.email}@${g.fileId}:${g.permissionId}`)
-            .join(', ')
+      // Only Collection shares write a names file, as the client reconciler checks.
+      const namesFileId =
+        deleteBoardsSubcollection && typeof data.namesFileId === 'string'
+          ? data.namesFileId
+          : undefined;
+      const outcome = await revokeShareGrants(
+        db,
+        ctx,
+        doc,
+        typeof host === 'string' ? host : undefined,
+        grants,
+        namesFileId,
+        now
       );
+      if (outcome !== 'revoked') {
+        if (outcome === 'defer' || expiredAt > now - ORPHAN_GRACE_MS) {
+          stillInGrace += 1;
+        } else {
+          orphanedGrantCount += grants.length;
+          const notified =
+            typeof host === 'string'
+              ? await ctx.revoker
+                  .notifyHost(
+                    host,
+                    `${collectionName}-${doc.id}`,
+                    grants.length
+                  )
+                  .catch((err) => {
+                    console.warn(`[expireSubShares] host email failed:`, err);
+                    return false;
+                  })
+              : false;
+          // Always log the grant list so it survives a host who cannot be emailed.
+          console.warn(
+            `[expireSubShares] KEEPING ${collectionName} share ${doc.id} (host ${host}) ` +
+              `with ${grants.length} unrevoked Drive permissions until the host ` +
+              `reconnects Drive${notified ? ' (host emailed)' : ''}. Manual revocation needed for: ` +
+              grants
+                .map((g) => `${g.email}@${g.fileId}:${g.permissionId}`)
+                .join(', ')
+          );
+        }
+        continue;
+      }
     }
     readyToDelete.push(doc);
   }
@@ -197,23 +357,47 @@ async function sweepCollection(
     console.log(
       `[expireSubShares] ${stillInGrace} expired ${collectionName} in grace window — waiting for host to clean up`
     );
-    return { deleted: 0, inGrace: stillInGrace, orphanedGrants: 0 };
+    return {
+      deleted: 0,
+      inGrace: stillInGrace,
+      orphanedGrants: orphanedGrantCount,
+    };
   }
 
-  // Collection parents carry boards/, content/ and keys/ sub-collections — reap
-  // those sub-docs first so the parent delete doesn't orphan them. Done before
-  // the batched parent delete because subcollections aren't cascaded.
+  // Delete each parent only if unchanged since the query, so a host extending a share mid-sweep keeps it.
+  const deletedDocs: ExpiredDocSnap[] = [];
+  const DELETE_CONCURRENCY = 20;
+  for (let i = 0; i < readyToDelete.length; i += DELETE_CONCURRENCY) {
+    const group = readyToDelete.slice(i, i + DELETE_CONCURRENCY);
+    const results = await Promise.all(
+      group.map(async (doc) => {
+        try {
+          await doc.ref.delete({ lastUpdateTime: doc.updateTime });
+          return true;
+        } catch (err) {
+          // 9 = FAILED_PRECONDITION, 5 = NOT_FOUND: changed or already gone since the query.
+          const code = (err as { code?: unknown }).code;
+          if (code !== 9 && code !== 5) throw err;
+          console.warn(
+            `[expireSubShares] skipped ${collectionName} share ${doc.id}: changed since the query`
+          );
+          return false;
+        }
+      })
+    );
+    group.forEach((doc, k) => {
+      if (results[k]) deletedDocs.push(doc);
+    });
+  }
+  const deleted = deletedDocs.length;
+
+  // Collection parents carry boards/, content/ and keys/ sub-collections; reap them after
+  // the parent delete succeeds, since subcollections aren't cascaded.
   if (deleteBoardsSubcollection) {
-    // Reap each parent's boards/ subcollection. Parallelize across parents
-    // (with bounded concurrency) so a sweep that catches many expired
-    // Collection shares — each with its own get() + batch-commit chain —
-    // doesn't serialize toward the function timeout. The cap keeps us well
-    // under Firestore's per-client connection limits rather than fanning out
-    // all (up to MAX_SWEEP_PER_RUN) parents at once.
     const BOARD_CLEANUP_CONCURRENCY = 10;
     const boardBatchSize = 250;
-    for (let i = 0; i < readyToDelete.length; i += BOARD_CLEANUP_CONCURRENCY) {
-      const group = readyToDelete.slice(i, i + BOARD_CLEANUP_CONCURRENCY);
+    for (let i = 0; i < deletedDocs.length; i += BOARD_CLEANUP_CONCURRENCY) {
+      const group = deletedDocs.slice(i, i + BOARD_CLEANUP_CONCURRENCY);
       await Promise.all(
         group.map(async (doc) => {
           for (const name of SHARE_SUBCOLLECTIONS) {
@@ -232,22 +416,10 @@ async function sweepCollection(
     }
   }
 
-  // Batched delete of parents. Firestore caps each batch at 500 ops, so we
-  // chunk defensively (readyToDelete can hold up to MAX_SWEEP_PER_RUN docs).
-  const batchSize = 250;
-  let deleted = 0;
-  for (let i = 0; i < readyToDelete.length; i += batchSize) {
-    const batch = db.batch();
-    const chunk = readyToDelete.slice(i, i + batchSize);
-    for (const doc of chunk) batch.delete(doc.ref);
-    await batch.commit();
-    deleted += chunk.length;
-  }
-
   console.log(
     `[expireSubShares] deleted ${deleted} expired substitute ${collectionName} ` +
       `(${stillInGrace} still in ${ORPHAN_GRACE_DAYS}-day grace window; ` +
-      `${orphanedGrantCount} Drive permissions logged as needing manual revocation)`
+      `${orphanedGrantCount} unrevoked Drive permissions kept past grace)`
   );
   return { deleted, inGrace: stillInGrace, orphanedGrants: orphanedGrantCount };
 }
@@ -259,14 +431,21 @@ async function sweepCollection(
  */
 export async function runExpireSubShares(
   db: FirebaseFirestore.Firestore,
-  now: number = Date.now()
+  now: number = Date.now(),
+  revoker: GrantRevoker = NO_REVOKER
 ): Promise<{ boards: SweepResult; collections: SweepResult }> {
+  const ctx: RevokeContext = {
+    revoker,
+    deadline: Date.now() + DRIVE_BUDGET_MS,
+    tokens: new Map(),
+    live: new Map(),
+  };
   // Run both sweeps independently: a failure in one (Firestore quota, a
   // batch-commit error, a missing index) must not abort the other and leave
   // its expired shares un-reaped for the hour.
   const [boardsResult, collectionsResult] = await Promise.allSettled([
-    sweepCollection(db, 'shared_boards', now, 'originalAuthor', false),
-    sweepCollection(db, 'shared_collections', now, 'hostUid', true),
+    sweepCollection(db, 'shared_boards', now, 'originalAuthor', false, ctx),
+    sweepCollection(db, 'shared_collections', now, 'hostUid', true, ctx),
   ]);
   const failures: unknown[] = [];
   if (boardsResult.status === 'rejected') {
@@ -305,10 +484,126 @@ export const expireSubShares = onSchedule(
     schedule: 'every 60 minutes',
     timeZone: 'America/Chicago',
     memory: '256MiB',
-    timeoutSeconds: 120,
+    timeoutSeconds: 540,
+    secrets: [
+      GOOGLE_OAUTH_CLIENT_ID,
+      GOOGLE_OAUTH_CLIENT_SECRET,
+      GOOGLE_OAUTH_REFRESH_TOKEN_KEY,
+    ],
   },
   async () => {
     const db = admin.firestore();
-    await runExpireSubShares(db, Date.now());
+    await runExpireSubShares(db, Date.now(), driveGrantRevoker());
   }
 );
+
+const DRIVE_FILES = 'https://www.googleapis.com/drive/v3/files';
+const DRIVE_TIMEOUT_MS = 10_000;
+
+function is404(err: unknown): boolean {
+  return axios.isAxiosError(err) && err.response?.status === 404;
+}
+
+/** Drive calls made with the host's own down-scoped token. */
+function driveGrantRevoker(): GrantRevoker {
+  const auth = (token: string) => ({
+    headers: { Authorization: `Bearer ${token}` },
+    timeout: DRIVE_TIMEOUT_MS,
+  });
+  const permUrl = (fileId: string, permissionId: string) =>
+    `${DRIVE_FILES}/${encodeURIComponent(fileId)}/permissions/${encodeURIComponent(permissionId)}`;
+  return {
+    getAccessToken: async (hostUid) => {
+      const { DRIVE_FILE_SCOPE, refreshGoogleAccessTokenForUid } =
+        await import('./googleOAuth');
+      const { isNeedsConsentError } = await import('./needsConsent');
+      try {
+        const { accessToken } = await refreshGoogleAccessTokenForUid(hostUid, {
+          scope: DRIVE_FILE_SCOPE,
+          keepStoredOnFailure: true,
+        });
+        return accessToken;
+      } catch (err) {
+        if (isNeedsConsentError(err)) return null;
+        throw err;
+      }
+    },
+    getPermission: async (token, fileId, permissionId) => {
+      try {
+        const res = await axios.get<{ type?: string; role?: string }>(
+          permUrl(fileId, permissionId),
+          {
+            ...auth(token),
+            params: { fields: 'id,type,role', supportsAllDrives: true },
+          }
+        );
+        return res.data;
+      } catch (err) {
+        if (is404(err)) return null;
+        throw err;
+      }
+    },
+    deletePermission: async (token, fileId, permissionId) => {
+      const { assertDevDriveWritable } = await import('./devDriveWriteGuard');
+      await assertDevDriveWritable(token, fileId);
+      try {
+        await axios.delete(permUrl(fileId, permissionId), {
+          ...auth(token),
+          params: { supportsAllDrives: true },
+        });
+      } catch (err) {
+        if (!is404(err)) throw err;
+      }
+    },
+    getFileName: async (token, fileId) => {
+      try {
+        const res = await axios.get<{ name?: string; trashed?: boolean }>(
+          `${DRIVE_FILES}/${encodeURIComponent(fileId)}`,
+          {
+            ...auth(token),
+            params: { fields: 'name,trashed', supportsAllDrives: true },
+          }
+        );
+        return res.data.trashed ? null : (res.data.name ?? null);
+      } catch (err) {
+        if (is404(err)) return null;
+        throw err;
+      }
+    },
+    trashFile: async (token, fileId) => {
+      const { assertDevDriveWritable } = await import('./devDriveWriteGuard');
+      await assertDevDriveWritable(token, fileId);
+      await axios.patch(
+        `${DRIVE_FILES}/${encodeURIComponent(fileId)}`,
+        { trashed: true },
+        { ...auth(token), params: { supportsAllDrives: true } }
+      );
+    },
+    notifyHost: async (hostUid, shareKey, grantCount) => {
+      const email = (await admin.auth().getUser(hostUid)).email;
+      if (!email) return false;
+      try {
+        await admin
+          .firestore()
+          .collection('mail')
+          .doc(`sub-share-unrevoked-${shareKey}`)
+          .create({
+            to: [email],
+            message: {
+              subject: 'Substitute access to your class lists is still on',
+              text:
+                `A substitute share ended more than ${ORPHAN_GRACE_DAYS} days ago, but SpartBoard ` +
+                `could not remove ${grantCount} Google Drive permission(s) it gave your ` +
+                `substitute on your class list files. Open SpartBoard and connect Google ` +
+                `Drive to remove them.`,
+            },
+          });
+        return true;
+      } catch (err) {
+        // ALREADY_EXISTS: this share's email went out on an earlier run.
+        if ((err as { code?: unknown }).code === 6) return false;
+        throw err;
+      }
+    },
+  };
+}
