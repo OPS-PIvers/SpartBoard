@@ -2137,6 +2137,8 @@ service cloud.firestore {
       ]);
     }
     // A District library canonical is written only by a site admin; `member` (participant or owner) counts only on unmarked docs (M27).
+    // Synced quiz and video groups: district staff or an admin only, never a student or outside Google account.
+    function syncStaff() { return isDistrictStaff() || isAdmin(); }
     function districtOr(member) {
       return existing().get('districtItemId', '') == '' ? member : isSiteAdmin();
     }
@@ -2178,7 +2180,7 @@ service cloud.firestore {
 
       // hasOnly(...) pins the top-level field surface so a client can't smuggle
       // extra fields downstream consumers might trust.
-      allow create: if signedIn()
+      allow create: if syncStaff()
         && syncedQuizKeysOk()
         && incoming().id == groupId
         && isInt('version')
@@ -2205,7 +2207,7 @@ service cloud.firestore {
       // client-immutable; version must increase by exactly 1 (concurrent loser
       // retries on the newer base); hasOnly locks the field surface.
       allow update: if signedIn()
-        && districtOr(authUid() in existing().participants)
+        && districtOr(authUid() in existing().participants && syncStaff())
         && districtMarkKept()
         && syncedQuizKeysOk()
         && sameId()
@@ -2238,7 +2240,7 @@ service cloud.firestore {
           && authUid() in
              dbGet('synced_quizzes', groupId).data.participants;
 
-        allow create: if signedIn()
+        allow create: if syncStaff()
           && authUid() in
              dbGet('synced_quizzes', groupId).data.participants
           && versionKeysOk()
@@ -2398,7 +2400,7 @@ service cloud.firestore {
       // every synced activity. Clients know the groupId via their
       // video_activity_metadata or a share URL.
 
-      allow create: if signedIn()
+      allow create: if syncStaff()
         && syncedVideoKeysOk()
         && incoming().id == groupId
         && isInt('version')
@@ -2413,7 +2415,7 @@ service cloud.firestore {
       // Content updates: participant-only; participants + id client-immutable;
       // version increases by exactly 1. Mirrors synced_quizzes line-for-line.
       allow update: if signedIn()
-        && authUid() in existing().participants
+        && authUid() in existing().participants && syncStaff()
         && syncedVideoKeysOk()
         && sameId()
         && unchanged('participants')
@@ -2431,7 +2433,7 @@ service cloud.firestore {
           && authUid() in
              dbGet('synced_video_activities', groupId).data.participants;
 
-        allow create: if signedIn()
+        allow create: if syncStaff()
           && authUid() in
              dbGet('synced_video_activities', groupId).data.participants
           && versionKeysOk()

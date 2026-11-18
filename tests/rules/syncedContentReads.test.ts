@@ -45,8 +45,9 @@ const google = (uid: string, email: string, extra = {}) =>
     })
     .firestore();
 
+const PARTICIPANT_EMAIL = 'participant.teacher@orono.k12.mn.us';
 const asParticipant = () =>
-  google(PARTICIPANT_UID, 'participant.teacher@example.com');
+  google(PARTICIPANT_UID, PARTICIPANT_EMAIL);
 const asStaff = () => google(STAFF_UID, STAFF_EMAIL);
 const asAdmin = () => google(ADMIN_UID, ADMIN_EMAIL);
 const asOutsider = () => google(OUTSIDER_UID, 'someone@example.com');
@@ -146,7 +147,7 @@ beforeEach(async () => {
   await testEnv.clearFirestore();
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();
-    await seedDistrictStaff(db, [STAFF_EMAIL]);
+    await seedDistrictStaff(db, [STAFF_EMAIL, PARTICIPANT_EMAIL]);
     await setDoc(doc(db, `admins/${ADMIN_EMAIL}`), { email: ADMIN_EMAIL });
     await setDoc(doc(db, `plcs/${PLC_ID}`), {
       name: 'Grade 6 math',
@@ -234,14 +235,76 @@ describe('writes are unchanged by the read gate', () => {
     );
   });
 
-  it('synced_quizzes: a teacher stands up their own group', async () => {
+  it('synced_quizzes: staff stand up their own group; an outside account cannot (security #12)', async () => {
     await assertSucceeds(
       setDoc(
-        doc(asOutsider(), 'synced_quizzes/fresh'),
+        doc(asStaff(), 'synced_quizzes/fresh'),
         quizDoc({
           id: 'fresh',
+          participants: { [STAFF_UID]: { joinedAt: 1 } },
+          updatedBy: STAFF_UID,
+        })
+      )
+    );
+    await assertFails(
+      setDoc(
+        doc(asOutsider(), 'synced_quizzes/other'),
+        quizDoc({
+          id: 'other',
           participants: { [OUTSIDER_UID]: { joinedAt: 1 } },
           updatedBy: OUTSIDER_UID,
+        })
+      )
+    );
+  });
+
+  it('a participant who is not staff can no longer publish (security #12)', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(
+        doc(db, quizPath),
+        quizDoc({
+          participants: {
+            [PARTICIPANT_UID]: { joinedAt: 1 },
+            [OUTSIDER_UID]: { joinedAt: 1 },
+          },
+        })
+      );
+      await setDoc(
+        doc(db, videoPath),
+        videoDoc({
+          participants: {
+            [PARTICIPANT_UID]: { joinedAt: 1 },
+            [OUTSIDER_UID]: { joinedAt: 1 },
+          },
+        })
+      );
+    });
+    await assertFails(
+      setDoc(
+        doc(asOutsider(), quizPath),
+        quizDoc({
+          version: 2,
+          updatedAt: 2000,
+          updatedBy: OUTSIDER_UID,
+          participants: {
+            [PARTICIPANT_UID]: { joinedAt: 1 },
+            [OUTSIDER_UID]: { joinedAt: 1 },
+          },
+        })
+      )
+    );
+    await assertFails(
+      setDoc(
+        doc(asOutsider(), videoPath),
+        videoDoc({
+          version: 2,
+          updatedAt: 2000,
+          updatedBy: OUTSIDER_UID,
+          participants: {
+            [PARTICIPANT_UID]: { joinedAt: 1 },
+            [OUTSIDER_UID]: { joinedAt: 1 },
+          },
         })
       )
     );
