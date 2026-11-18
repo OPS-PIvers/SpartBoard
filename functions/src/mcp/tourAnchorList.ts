@@ -19077,6 +19077,87 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-grading.rubric-table-template",
+    "label": "Levels or Scoring guide switch when editing the full rubric table",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-guide-guidelines",
+    "label": "Scoring guidelines when editing the full rubric table, by part",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-guide-example",
+    "label": "Example response when editing the full rubric table, by example",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-guide-example-add",
+    "label": "Add example response when editing the full rubric table, by part",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-guide-example-remove",
+    "label": "Remove example response when editing the full rubric table, by example",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-table-guide-points",
+    "label": "Point max when editing the full rubric table, by part",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "quiz-grading.rubric-table-remove-level",
     "label": "Remove level when editing the full rubric table, by level",
     "scope": "field",
