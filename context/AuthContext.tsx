@@ -30,6 +30,7 @@ import { httpsCallable } from 'firebase/functions';
 import {
   auth,
   googleProvider,
+  quickSignInProvider,
   db,
   functions,
   isAuthBypass,
@@ -39,6 +40,11 @@ import {
   GOOGLE_CALENDAR_READONLY_SCOPE,
 } from '@/config/firebase';
 import { resolveAuthBypassFeatureOverride } from '@/utils/authBypassFeatureOverrides';
+import {
+  inactivityTimeoutMs,
+  readQuickSignIn,
+  writeQuickSignIn,
+} from '@/utils/quickSignIn';
 import {
   FeaturePermission,
   WidgetType,
@@ -304,7 +310,6 @@ const clampSettingsDrawerWidth = (n: number): number =>
   Math.min(MAX_SETTINGS_DRAWER_WIDTH, Math.max(MIN_SETTINGS_DRAWER_WIDTH, n));
 
 const LAST_ACTIVITY_KEY = 'spart_last_activity';
-const INACTIVITY_TIMEOUT_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const ACTIVITY_UPDATE_INTERVAL_MS = 5 * 60 * 1000; // Update activity timestamp every 5 minutes
 
 /**
@@ -3150,19 +3155,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
-        // Check for inactivity timeout — if the user hasn't used the app in
-        // over 7 days, force a full re-login so Google OAuth tokens (Drive,
-        // Calendar, Sheets) are freshly issued. This prevents the common issue
-        // of stale tokens silently failing to load rosters and Drive data.
+        // Check for inactivity timeout — if the user hasn't used the app past
+        // the idle limit (7 days, 30 with quick sign-in), force a full re-login
+        // so Google OAuth tokens (Drive, Calendar, Sheets) are freshly issued.
+        // This prevents stale tokens silently failing to load rosters and Drive data.
         const lastActivity = localStorage.getItem(LAST_ACTIVITY_KEY);
+        const idleLimitMs = inactivityTimeoutMs(readQuickSignIn(localStorage));
         if (lastActivity) {
           const lastActivityTime = parseInt(lastActivity, 10);
           // Treat corrupted/unparseable values as stale — safer to force
           // re-login than to silently skip the inactivity check.
           const elapsed = Number.isFinite(lastActivityTime)
             ? Date.now() - lastActivityTime
-            : INACTIVITY_TIMEOUT_MS + 1;
-          if (elapsed > INACTIVITY_TIMEOUT_MS) {
+            : idleLimitMs + 1;
+          if (elapsed > idleLimitMs) {
             localStorage.removeItem(LAST_ACTIVITY_KEY);
             localStorage.removeItem(GOOGLE_ACCESS_TOKEN_KEY);
             localStorage.removeItem(GOOGLE_TOKEN_EXPIRY_KEY);
@@ -3499,6 +3505,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     [user, globalPermissions, resolvePermissionAccess, isAdmin, userTier]
   );
 
+  // Remember the quick-sign-in flag on this device; the next sign-in runs before permissions load.
+  const quickSignInAllowed =
+    !isAuthBypass &&
+    !isViewAsTab &&
+    !!user &&
+    isAdmin !== null &&
+    globalPermissionsLoaded
+      ? canAccessFeature('quick-sign-in')
+      : null;
+  useEffect(() => {
+    if (quickSignInAllowed === null) return;
+    writeQuickSignIn(localStorage, quickSignInAllowed);
+  }, [quickSignInAllowed]);
+
   usePageSpellCheck(!spellCheckEnabled);
 
   const canAccessWidget = useCallback(
@@ -3582,7 +3602,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       return;
     }
     try {
-      const result = await signInWithPopup(auth, googleProvider);
+      const provider = readQuickSignIn(localStorage)
+        ? quickSignInProvider
+        : googleProvider;
+      const result = await signInWithPopup(auth, provider);
       // Sign-in succeeded — safe to clear the sticky deactivation flag now.
       setAccessDeactivated(false);
       const credential = GoogleAuthProvider.credentialFromResult(result);

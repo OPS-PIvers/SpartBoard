@@ -55,6 +55,7 @@ let db: Firestore;
 let storage: FirebaseStorage;
 let functions: Functions;
 let googleProvider: GoogleAuthProvider;
+let quickSignInProvider: GoogleAuthProvider;
 
 /**
  * Google OAuth scopes the app requests at sign-in and when SILENTLY refreshing
@@ -148,6 +149,10 @@ if (isConfigured) {
   // Firebase user without a Drive accessToken — they then have to click
   // "Connect Drive" manually to recover their data on a new device.
   googleProvider.setCustomParameters({ prompt: 'consent' });
+  // Quick sign-in preview: pick an account; Google still asks for any scope not yet granted.
+  quickSignInProvider = new GoogleAuthProvider();
+  GOOGLE_OAUTH_SCOPES.forEach((scope) => quickSignInProvider.addScope(scope));
+  quickSignInProvider.setCustomParameters({ prompt: 'select_account' });
 } else {
   // Mock objects to prevent crashes when importing
   auth = {
@@ -169,8 +174,9 @@ if (isConfigured) {
   storage = {} as unknown as FirebaseStorage;
   functions = {} as unknown as Functions;
   googleProvider = {} as unknown as GoogleAuthProvider;
+  quickSignInProvider = {} as unknown as GoogleAuthProvider;
   app = {} as unknown as FirebaseApp;
   console.warn('Firebase is not configured. Missing VITE_FIREBASE_API_KEY.');
 }
 
-export { auth, db, storage, functions, googleProvider };
+export { auth, db, storage, functions, googleProvider, quickSignInProvider };

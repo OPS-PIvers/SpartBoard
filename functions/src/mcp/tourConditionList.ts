@@ -111,6 +111,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'plc-meeting-ai-notes',
   'question-bank-ai',
   'question-editor-fields',
+  'quick-sign-in',
   'quiz',
   'quiz-blank-types',
   'quiz-calculator-stimulus',
