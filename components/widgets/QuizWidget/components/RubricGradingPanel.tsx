@@ -40,6 +40,8 @@ export interface RubricScoringPanelProps {
   tagCountKind?: 'highlight' | 'note';
   /** Saves a rubric edited in the full rubric table; without it the table is read-only. */
   onSaveRubric?: (rubric: Rubric) => Promise<void>;
+  /** The grader already shows the score, so only the scored count and cap warning remain. */
+  hideTotal?: boolean;
 }
 
 const ptsLabel = (points: number) => `${points} pt${points === 1 ? '' : 's'}`;
@@ -57,6 +59,7 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
   onJumpToTagged,
   tagCountKind = 'highlight',
   onSaveRubric,
+  hideTotal = false,
 }) => {
   const { t } = useTranslation();
   const [order, switchOrder] = useRubricLevelOrder();
@@ -483,15 +486,17 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
         })}
       </div>
 
-      <footer className="pt-3">
-        <div className="flex items-baseline justify-between gap-3">
-          <span className="text-sm font-bold uppercase tracking-wider text-slate-500">
-            Rubric total
-          </span>
-          <span className="whitespace-nowrap text-sm font-bold tabular-nums text-slate-900">
-            {derivedPoints} / {rubricMax}
-          </span>
-        </div>
+      <footer className={hideTotal ? 'pt-1.5' : 'pt-3'}>
+        {!hideTotal && (
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-sm font-bold uppercase tracking-wider text-slate-500">
+              Rubric total
+            </span>
+            <span className="whitespace-nowrap text-sm font-bold tabular-nums text-slate-900">
+              {derivedPoints} / {rubricMax}
+            </span>
+          </div>
+        )}
         {!allScored && (
           <p className="mt-1 text-xs font-semibold text-amber-700">
             {scoredCount} of {rubric.criteria.length} criteria scored

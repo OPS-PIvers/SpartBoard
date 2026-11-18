@@ -45,6 +45,7 @@ const renderPanel = (
     flag?: boolean;
     order?: RubricLevelOrder;
     updateAccountPreferences?: AuthContextType['updateAccountPreferences'];
+    hideTotal?: boolean;
   } = {}
 ) => {
   const onChange = vi.fn<(s: WrittenAnswerRubricScore[], p: number) => void>();
@@ -62,6 +63,7 @@ const renderPanel = (
         rubric={{ ...rubric, id: `r${++renders}` }}
         maxPoints={6}
         onChange={onChange}
+        hideTotal={opts.hideTotal}
       />
     </AuthContext.Provider>
   );
@@ -358,5 +360,16 @@ describe('Full rubric table editing', () => {
       'Meets',
       '',
     ]);
+  });
+
+  it('drops the total row when the grader shows the score, keeping the scored count', () => {
+    renderPanel({ hideTotal: true });
+    expect(screen.queryByText('Rubric total')).toBeNull();
+    expect(screen.getByText(/0 of 2 criteria scored/)).toBeInTheDocument();
+  });
+
+  it('shows the total row by default', () => {
+    renderPanel();
+    expect(screen.getByText('Rubric total')).toBeInTheDocument();
   });
 });
