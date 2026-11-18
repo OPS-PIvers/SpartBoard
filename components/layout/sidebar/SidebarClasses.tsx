@@ -643,7 +643,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
                     className="divide-y divide-slate-200 border-y border-slate-200"
                     {...tourAttr('classes.roster-list')}
                   >
-                    {rosters.map(renderRosterRow)}
+                    {rosters.map((r, i) => renderRosterRow(r, i))}
                   </ul>
                 )}
               </div>
