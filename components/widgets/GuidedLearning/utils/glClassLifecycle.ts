@@ -1,9 +1,11 @@
-import { doc, getDoc, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, writeBatch } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type { GuidedLearningAssignment } from '@/types';
 import { END_TURN_IN_DELAY_MS } from '@/utils/quizFinalizeOpenResponses';
 import { invalidateSessionViewCount } from '@/hooks/useSessionViewCount';
 import type { UseGuidedLearningAssignmentsResult } from '@/hooks/useGuidedLearningAssignments';
+import type { UseSetAssignmentTargetsResult } from '@/hooks/useSetAssignmentTargets';
+import { hasStudentPointers } from '@/utils/studentTargetRef';
 import {
   finalizeClassGuidedLearningResponses,
   finalizeOpenGuidedLearningResponses,
@@ -43,7 +45,8 @@ export function isGuidedLearningEnded(
 /** GL has no session status: End archives and stamps closeAt, Reopen clears it so students get back in at once (D9). */
 export function guidedLearningLifecycle(
   uid: string,
-  actions: Pick<UseGuidedLearningAssignmentsResult, 'archiveAssignment'>
+  actions: Pick<UseGuidedLearningAssignmentsResult, 'archiveAssignment'> &
+    Pick<UseSetAssignmentTargetsResult, 'setAssignmentTargets'>
 ): GuidedLearningLifecycle {
   const scheduleTurnIn = (id: string, closeAt: number) => {
     const wait = Math.max(0, closeAt + END_TURN_IN_DELAY_MS - Date.now());
@@ -56,10 +59,16 @@ export function guidedLearningLifecycle(
 
   return {
     async end(id) {
+      const sessionRef = doc(db, SESSIONS, id);
+      const before: unknown = (await getDoc(sessionRef)).data()?.closeAt;
       await actions.archiveAssignment(id);
+      // Archive replaces a future close with now; keep it so a Reopen can put it back.
+      if (typeof before === 'number' && before > Date.now())
+        await updateDoc(doc(db, 'users', uid, ASSIGNMENTS, id), {
+          closeAtBeforeEnd: before,
+        });
       // Archive keeps an earlier close, so turn in against whatever closeAt now stands.
-      const closeAt: unknown = (await getDoc(doc(db, SESSIONS, id))).data()
-        ?.closeAt;
+      const closeAt: unknown = (await getDoc(sessionRef)).data()?.closeAt;
       if (typeof closeAt === 'number') scheduleTurnIn(id, closeAt);
     },
     async reopen(id) {
@@ -71,19 +80,36 @@ export function guidedLearningLifecycle(
         getDoc(sessionRef),
         getDoc(rowRef),
       ]);
+      const row = rowSnap.data() as
+        Partial<GuidedLearningAssignment> | undefined;
       // Each doc is checked on its own, so a row that drifted from its session still reopens.
       const sessionClosed = passed(sessionSnap.data()?.closeAt);
-      const rowClosed = passed(rowSnap.data()?.closeAt);
+      const rowClosed = passed(row?.closeAt);
+      const kept = row?.closeAtBeforeEnd;
+      const next = typeof kept === 'number' && kept > now ? kept : null;
       const batch = writeBatch(db);
       batch.update(rowRef, {
         status: 'active',
         updatedAt: now,
         archivedAt: null,
-        ...(sessionClosed || rowClosed ? { closeAt: null } : {}),
+        closeAtBeforeEnd: null,
+        ...(sessionClosed || rowClosed ? { closeAt: next } : {}),
       });
-      if (sessionClosed) batch.update(sessionRef, { closeAt: null });
+      if (sessionClosed) batch.update(sessionRef, { closeAt: next });
       await batch.commit();
       invalidateSessionViewCount(SESSIONS, id);
+      // Accommodated and skipped students read the close off their own pointer doc.
+      if ((sessionClosed || rowClosed) && row && hasStudentPointers(row))
+        await actions.setAssignmentTargets({
+          assignmentId: id,
+          kind: 'guided-learning',
+          sessionId: id,
+          targetMode: row.targetMode,
+          add: [],
+          remove: [],
+          overridesBySourcedId: {},
+          window: { closeAt: next },
+        });
     },
     turnInClass: (sessionId, classKey, closedAt) =>
       finalizeClassGuidedLearningResponses(sessionId, classKey, closedAt),

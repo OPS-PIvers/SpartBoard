@@ -7,7 +7,7 @@ import {
   afterEach,
   type Mock,
 } from 'vitest';
-import { getDoc, writeBatch } from 'firebase/firestore';
+import { updateDoc, writeBatch } from 'firebase/firestore';
 import {
   guidedLearningLifecycle,
   isGuidedLearningEnded,
@@ -18,9 +18,14 @@ import {
 } from './glTurnIn';
 import { invalidateSessionViewCount } from '@/hooks/useSessionViewCount';
 
+const docs = vi.hoisted(
+  (): Record<string, Record<string, unknown> | undefined> => ({})
+);
+
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn((_db: unknown, ...segs: string[]) => segs.join('/')),
-  getDoc: vi.fn(),
+  getDoc: vi.fn((path: string) => Promise.resolve({ data: () => docs[path] })),
+  updateDoc: vi.fn(() => Promise.resolve()),
   writeBatch: vi.fn(),
 }));
 vi.mock('@/config/firebase', () => ({ db: {} }));
@@ -38,18 +43,27 @@ const SESSION = 'guided_learning_sessions/g1';
 const ROW = 'users/t1/guided_learning_assignments/g1';
 
 const batch = { update: vi.fn(), commit: vi.fn(() => Promise.resolve()) };
-const sessionCloseAt = (closeAt: unknown, rowCloseAt: unknown = closeAt) =>
-  (getDoc as Mock).mockImplementation((path: string) =>
-    Promise.resolve({
-      data: () => ({ closeAt: path === ROW ? rowCloseAt : closeAt }),
-    })
-  );
+const setAssignmentTargets = vi.fn(() =>
+  Promise.resolve({ written: 0, removed: 0, skipped: [] })
+);
+const archiveAssignment = vi.fn(() => {
+  // Mirrors archiveAssignment: a close that has not passed becomes now.
+  const c = docs[SESSION]?.closeAt;
+  if (!(typeof c === 'number' && c <= NOW)) {
+    docs[SESSION] = { ...docs[SESSION], closeAt: NOW };
+    docs[ROW] = { ...docs[ROW], closeAt: NOW, status: 'archived' };
+  }
+  return Promise.resolve();
+});
+const make = () =>
+  guidedLearningLifecycle(UID, { archiveAssignment, setAssignmentTargets });
 
 beforeEach(() => {
   vi.clearAllMocks();
   vi.useFakeTimers();
   vi.setSystemTime(NOW);
   (writeBatch as Mock).mockReturnValue(batch);
+  for (const k of Object.keys(docs)) delete docs[k];
 });
 afterEach(() => vi.useRealTimers());
 
@@ -68,15 +82,15 @@ describe('isGuidedLearningEnded', () => {
   });
 });
 
-describe('guidedLearningLifecycle', () => {
-  it('End archives, then turns work in after the write grace against the closeAt that stands', async () => {
-    const archiveAssignment = vi.fn(() => Promise.resolve());
-    sessionCloseAt(NOW - 10_000);
-    const lc = guidedLearningLifecycle(UID, { archiveAssignment });
+describe('end', () => {
+  it('archives, then turns work in after the write grace against the closeAt that stands', async () => {
+    docs[SESSION] = { closeAt: NOW - 10_000 };
+    const lc = make();
 
     await lc.end('g1');
 
     expect(archiveAssignment).toHaveBeenCalledWith('g1');
+    expect(updateDoc).not.toHaveBeenCalled();
     expect(finalizeOpenGuidedLearningResponses).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(lc.turnInDelayMs);
     expect(finalizeOpenGuidedLearningResponses).toHaveBeenCalledWith(
@@ -86,28 +100,32 @@ describe('guidedLearningLifecycle', () => {
     expect(lc.endTurnsIn).toBe(true);
   });
 
-  it('End schedules nothing when the session has no close time', async () => {
-    sessionCloseAt(undefined);
-    const lc = guidedLearningLifecycle(UID, {
-      archiveAssignment: () => Promise.resolve(),
-    });
+  it('keeps a future close that archive replaces, and turns in against now', async () => {
+    docs[SESSION] = { closeAt: NOW + 86_400_000 };
+    const lc = make();
+
     await lc.end('g1');
-    await vi.runAllTimersAsync();
-    expect(finalizeOpenGuidedLearningResponses).not.toHaveBeenCalled();
-  });
 
-  it('Reopen clears a passed close on both docs and makes the row active', async () => {
-    sessionCloseAt(NOW - 1);
-    const lc = guidedLearningLifecycle(UID, {
-      archiveAssignment: () => Promise.resolve(),
+    expect(updateDoc).toHaveBeenCalledWith(ROW, {
+      closeAtBeforeEnd: NOW + 86_400_000,
     });
+    await vi.advanceTimersByTimeAsync(lc.turnInDelayMs);
+    expect(finalizeOpenGuidedLearningResponses).toHaveBeenCalledWith('g1', NOW);
+  });
+});
 
-    await lc.reopen('g1');
+describe('reopen', () => {
+  it('clears a passed close on both docs and makes the row active', async () => {
+    docs[SESSION] = { closeAt: NOW - 1 };
+    docs[ROW] = { closeAt: NOW - 1, status: 'archived' };
+
+    await make().reopen('g1');
 
     expect(batch.update).toHaveBeenCalledWith(ROW, {
       status: 'active',
       updatedAt: NOW,
       archivedAt: null,
+      closeAtBeforeEnd: null,
       closeAt: null,
     });
     expect(batch.update).toHaveBeenCalledWith(SESSION, { closeAt: null });
@@ -116,46 +134,87 @@ describe('guidedLearningLifecycle', () => {
       'guided_learning_sessions',
       'g1'
     );
+    expect(setAssignmentTargets).not.toHaveBeenCalled();
   });
 
-  it('Reopen keeps a close time that is still ahead', async () => {
-    sessionCloseAt(NOW + 60_000);
-    const lc = guidedLearningLifecycle(UID, {
-      archiveAssignment: () => Promise.resolve(),
-    });
+  it('puts back the close End replaced while it is still ahead', async () => {
+    docs[SESSION] = { closeAt: NOW + 86_400_000 };
+    const lc = make();
+    await lc.end('g1');
+    docs[ROW] = { ...docs[ROW], closeAtBeforeEnd: NOW + 86_400_000 };
 
     await lc.reopen('g1');
+
+    expect(batch.update).toHaveBeenCalledWith(
+      ROW,
+      expect.objectContaining({ closeAt: NOW + 86_400_000 })
+    );
+    expect(batch.update).toHaveBeenCalledWith(SESSION, {
+      closeAt: NOW + 86_400_000,
+    });
+  });
+
+  it('drops a kept close that has since passed', async () => {
+    docs[SESSION] = { closeAt: NOW - 5 };
+    docs[ROW] = { closeAt: NOW - 5, closeAtBeforeEnd: NOW - 1 };
+    await make().reopen('g1');
+    expect(batch.update).toHaveBeenCalledWith(SESSION, { closeAt: null });
+  });
+
+  it('keeps a close time that is still ahead', async () => {
+    docs[SESSION] = { closeAt: NOW + 60_000 };
+    docs[ROW] = { closeAt: NOW + 60_000 };
+
+    await make().reopen('g1');
 
     expect(batch.update).toHaveBeenCalledTimes(1);
     expect(batch.update).toHaveBeenCalledWith(ROW, {
       status: 'active',
       updatedAt: NOW,
       archivedAt: null,
+      closeAtBeforeEnd: null,
     });
   });
 
-  it('Reopen clears a passed row close even when the session drifted', async () => {
-    sessionCloseAt(null, NOW - 1);
-    const lc = guidedLearningLifecycle(UID, {
-      archiveAssignment: () => Promise.resolve(),
-    });
+  it('clears a passed row close even when the session drifted', async () => {
+    docs[SESSION] = { closeAt: null };
+    docs[ROW] = { closeAt: NOW - 1 };
 
-    await lc.reopen('g1');
+    await make().reopen('g1');
 
     expect(batch.update).toHaveBeenCalledTimes(1);
-    expect(batch.update).toHaveBeenCalledWith(ROW, {
-      status: 'active',
-      updatedAt: NOW,
-      archivedAt: null,
-      closeAt: null,
-    });
+    expect(batch.update).toHaveBeenCalledWith(
+      ROW,
+      expect.objectContaining({ closeAt: null })
+    );
   });
 
-  it('turnInClass hands off to the class turn-in', async () => {
-    const lc = guidedLearningLifecycle(UID, {
-      archiveAssignment: () => Promise.resolve(),
+  it("rewrites students' own pointer close when the run has pointers", async () => {
+    docs[SESSION] = { closeAt: NOW - 1 };
+    docs[ROW] = {
+      closeAt: NOW - 1,
+      targetMode: 'students',
+      targetStudents: [{ sourcedId: 's1' }],
+    };
+
+    await make().reopen('g1');
+
+    expect(setAssignmentTargets).toHaveBeenCalledWith({
+      assignmentId: 'g1',
+      kind: 'guided-learning',
+      sessionId: 'g1',
+      targetMode: 'students',
+      add: [],
+      remove: [],
+      overridesBySourcedId: {},
+      window: { closeAt: null },
     });
-    await lc.turnInClass('g1', 'p1', 5);
+  });
+});
+
+describe('turnInClass', () => {
+  it('hands off to the class turn-in', async () => {
+    await make().turnInClass('g1', 'p1', 5);
     expect(finalizeClassGuidedLearningResponses).toHaveBeenCalledWith(
       'g1',
       'p1',

@@ -13026,6 +13026,8 @@ export interface GuidedLearningAssignment
   /** Open/close window (epoch ms). Absent = always open (legacy behavior). */
   openAt?: number | null;
   closeAt?: number | null;
+  /** A future close that End replaced with now; Reopen puts it back while it is still ahead. */
+  closeAtBeforeEnd?: number | null;
   /** Count of `setAssignmentTargetsV1` `skipped` refs from the most recent
    *  targeting save — surfaced as a discreet row marker (spec §5 B3). */
   targetSkippedCount?: number;
