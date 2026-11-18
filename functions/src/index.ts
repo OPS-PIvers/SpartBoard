@@ -428,6 +428,10 @@ export { saveSharedActivityWallV1 } from './sharedActivityWallEdit';
 export { finalizeIdleQuizAttempts } from './finalizeIdleQuizAttempts';
 export { finalizeExpiredQuizAttempts } from './finalizeExpiredQuizAttempts';
 export {
+  queueVideoClassTurnIns,
+  sweepVideoClassTurnIns,
+} from './videoClassTurnIn';
+export {
   exchangeGoogleAuthCode,
   refreshGoogleAccessToken,
   revokeGoogleRefreshToken,
