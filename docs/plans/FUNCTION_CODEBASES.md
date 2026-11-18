@@ -116,14 +116,16 @@ codebases; no codebase is named `default`; test-only `__` exports are never list
   their label.
 - Emulator (`serve` must run the build step), `pnpm -C functions build` and the functions tests still work. Tests import from
   `src/index.ts` as before.
+- **Slice A also owns the deploy-job step** that runs `build-codebases` after the artifact download
+  in both `firebase-deploy.yml` and `firebase-dev-deploy.yml` (the generated folders are gitignored
+  and the artifact holds only `dist` and `functions/lib`). Without it, A's `firebase.json` change
+  breaks every functions deploy until B lands.
 - Tests: manifest rules above; the union of all generated `index.js` exports equals the `lib/index.js`
   exports exactly (nothing dropped, nothing doubled); each generated dir loads with `require`, holds every
   relative file its closure imports, and building twice gives byte-identical folders.
 
 ### Slice B: CI per codebase
 
-- Both deploy workflows upload only `dist` and `functions/lib`; run `build-codebases` in the deploy
-  job after the artifact download.
 - `affected-functions.mjs` / `plan-deploy.sh` / `function-targets.mjs` emit
   `functions:<codebase>:<name>` using the manifest. Plain `functions` still means every codebase.
   `function-targets.mjs` must strip the codebase part before looking up the export (today it only
@@ -132,11 +134,15 @@ codebases; no codebase is named `default`; test-only `__` exports are never list
   reads as codebase `default`; after a half-failed move that retry would delete the function.
   Qualify retried names from the manifest.
 - **Pre-deploy delete check (the safety net).** Before every functions deploy, list live functions
-  (Cloud Functions v2 API), work out what each codebase in the deploy would delete (live label, or
-  no label = `default`, versus that codebase's exports), and fail the job before any `firebase deploy`
-  if anything outside an explicit expected-removal list would be deleted. Key it on live labels versus
-  the manifest, not on a file diff, so dev branches that diff against the merge base are covered.
-  CI keeps `--force` so the unrelated prompts above never block a release.
+  (Cloud Functions v2 API) and mirror `groupEndpointsByCodebase`: a live function is claimed by any
+  codebase in this deploy that exports its name, whatever its label, so a move is never counted as a
+  delete. Only an unclaimed function whose label (no label = `default`) is a codebase in this deploy
+  is a delete. Fail the job before any `firebase deploy` if such a delete hits a name that the
+  manifest or `functions/src/index.ts` still exports somewhere (an old codebase deployed without its
+  new owner). Other deletes (a function removed from the code, or on spartboard-dev a function only a
+  `/preview` branch deployed) go ahead as today. Key it on live labels, not on a file diff, so dev
+  branches that diff against the merge base are covered. CI keeps `--force` so the unrelated prompts
+  above never block a release.
 - Any change to `functions/codebases.json` or `firebase.json` deploys every function (all codebases
   in one command, so every moved name is claimed by its new codebase).
 - After a deploy, a label check lists live functions and fails if any label differs from the manifest
@@ -157,10 +163,12 @@ Refactors only; no behaviour change, no new exports, no renamed functions.
    `setAssignmentTargetsV1` itself. Move that callable into its own module (keep its export name) so
    the 145 functions that only need the helpers stop depending on quiz media. Check the other heavy
    imports the same way.
-2. `featureMissingDoc.ts`: teach `affected-functions.mjs` that adding a new id to the map changes
-   nothing for existing functions, while editing or removing an entry still affects every importer.
-   Callers that compute the id at runtime (`aiGeneration.ts` request types, `quizMediaArchive.ts`)
-   could hit a new id, so they still count as affected by any edit. Test both directions.
+2. `featureMissingDoc.ts`: teach `affected-functions.mjs` that adding a new id to the lists changes
+   nothing for functions that never ask about that id, while editing or removing an entry still
+   affects every importer. An add still counts as affecting (a) every importer whose import closure
+   contains the added id as a quoted string (a caller that already checks it flips from false to
+   true), and (b) callers that compute the id at runtime (`aiGeneration.ts` request types,
+   `quizMediaArchive.ts`). Test all three cases.
 3. Type-only imports: `import type` and modules that export only types never reach runtime JS.
    Make `affected-functions.mjs` skip `import type` edges and keep the parity test against
    TypeScript passing.
