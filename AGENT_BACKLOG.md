@@ -574,6 +574,8 @@ claude/project-thread-1glhgi-docs (this docs PR, delete after it merges)
 claude/project-thread-1h9zd9 (#6075, then its AB-112 docs PR; delete after it merges)
 claude/project-thread-h6xnku (#6088)
 claude/project-thread-h6xnku-docs (this docs PR, delete after it merges)
+claude/project-thread-gn0o0p (#6119)
+claude/d4-ab112 (this docs PR, delete after it merges)
 
 ```
 git push origin --delete claude/project-thread-1ylvse
