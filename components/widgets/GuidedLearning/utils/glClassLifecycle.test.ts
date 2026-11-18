@@ -38,8 +38,12 @@ const SESSION = 'guided_learning_sessions/g1';
 const ROW = 'users/t1/guided_learning_assignments/g1';
 
 const batch = { update: vi.fn(), commit: vi.fn(() => Promise.resolve()) };
-const sessionCloseAt = (closeAt: unknown) =>
-  (getDoc as Mock).mockResolvedValue({ data: () => ({ closeAt }) });
+const sessionCloseAt = (closeAt: unknown, rowCloseAt: unknown = closeAt) =>
+  (getDoc as Mock).mockImplementation((path: string) =>
+    Promise.resolve({
+      data: () => ({ closeAt: path === ROW ? rowCloseAt : closeAt }),
+    })
+  );
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -127,6 +131,23 @@ describe('guidedLearningLifecycle', () => {
       status: 'active',
       updatedAt: NOW,
       archivedAt: null,
+    });
+  });
+
+  it('Reopen clears a passed row close even when the session drifted', async () => {
+    sessionCloseAt(null, NOW - 1);
+    const lc = guidedLearningLifecycle(UID, {
+      archiveAssignment: () => Promise.resolve(),
+    });
+
+    await lc.reopen('g1');
+
+    expect(batch.update).toHaveBeenCalledTimes(1);
+    expect(batch.update).toHaveBeenCalledWith(ROW, {
+      status: 'active',
+      updatedAt: NOW,
+      archivedAt: null,
+      closeAt: null,
     });
   });
 

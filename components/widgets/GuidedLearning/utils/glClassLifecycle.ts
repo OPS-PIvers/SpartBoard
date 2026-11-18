@@ -65,16 +65,23 @@ export function guidedLearningLifecycle(
     async reopen(id) {
       const now = Date.now();
       const sessionRef = doc(db, SESSIONS, id);
-      const closeAt: unknown = (await getDoc(sessionRef)).data()?.closeAt;
-      const closed = typeof closeAt === 'number' && closeAt <= now;
+      const rowRef = doc(db, 'users', uid, ASSIGNMENTS, id);
+      const passed = (v: unknown) => typeof v === 'number' && v <= now;
+      const [sessionSnap, rowSnap] = await Promise.all([
+        getDoc(sessionRef),
+        getDoc(rowRef),
+      ]);
+      // Each doc is checked on its own, so a row that drifted from its session still reopens.
+      const sessionClosed = passed(sessionSnap.data()?.closeAt);
+      const rowClosed = passed(rowSnap.data()?.closeAt);
       const batch = writeBatch(db);
-      batch.update(doc(db, 'users', uid, ASSIGNMENTS, id), {
+      batch.update(rowRef, {
         status: 'active',
         updatedAt: now,
         archivedAt: null,
-        ...(closed ? { closeAt: null } : {}),
+        ...(sessionClosed || rowClosed ? { closeAt: null } : {}),
       });
-      if (closed) batch.update(sessionRef, { closeAt: null });
+      if (sessionClosed) batch.update(sessionRef, { closeAt: null });
       await batch.commit();
       invalidateSessionViewCount(SESSIONS, id);
     },
