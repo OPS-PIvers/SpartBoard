@@ -348,6 +348,32 @@ describe('saveCourseV1 unlink, delete and deck check', () => {
   });
 });
 
+describe('saveCourseV1 deck shape', () => {
+  it('carries the slide shape to the Class page and keeps the sharing check when only the shape changes', async () => {
+    await save({ ...base, rosterIds: ['p2'] });
+    await handleSaveCourse(
+      db,
+      caller,
+      {
+        action: 'recordDeckCheck',
+        courseId: 'id1',
+        modifiedAt: 5,
+        sharing: 'domain',
+      },
+      deps
+    );
+    await save({
+      id: 'id1',
+      agenda: { ...base.agenda, aspect: 1.333333 },
+    });
+    expect(doc(`class_pages/cl-p2/teachers/${UID}`)?.agenda).toEqual({
+      ...base.agenda,
+      aspect: 1.3333,
+    });
+    expect(doc(`users/${UID}/courses/id1`)?.deckCheck).not.toBeNull();
+  });
+});
+
 describe('saveCourseV1 merges, partial saves and deleted classes', () => {
   it('keeps the family link address and Class page link when a Course is merged into a new one, with the family link off until switched on (D10, D14)', async () => {
     await save({ ...base, rosterIds: ['p5'], familyLinkOn: true });

@@ -6767,6 +6767,28 @@ export const TOUR_ANCHORS = {
     rows: true,
     rowList: 'classes',
   },
+  'classes.course-actions': {
+    label: 'Course actions menu on a linked Course in My Classes',
+    perField: true,
+    panel: true,
+    rows: true,
+    rowList: 'classes',
+  },
+  'classes.course-sync-classlink': {
+    label: 'Sync with ClassLink for a whole Course in My Classes',
+    persists: true,
+    perField: true,
+    panel: true,
+    rows: true,
+    rowList: 'classes',
+  },
+  'classes.course-view-student-page': {
+    label: 'View Student Page for a Course in My Classes',
+    perField: true,
+    panel: true,
+    rows: true,
+    rowList: 'classes',
+  },
   'classes.link-classes': {
     label: 'Link classes button in My Classes',
     panel: true,

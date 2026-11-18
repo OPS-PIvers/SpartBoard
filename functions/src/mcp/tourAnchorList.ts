@@ -27548,6 +27548,61 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "classes.course-actions",
+    "label": "Course actions menu on a linked Course in My Classes",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "row_list": "classes",
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.course-sync-classlink",
+    "label": "Sync with ClassLink for a whole Course in My Classes",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "row_wildcard": true,
+    "row_list": "classes",
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.course-view-student-page",
+    "label": "View Student Page for a Course in My Classes",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "row_list": "classes",
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
     "id": "classes.link-classes",
     "label": "Link classes button in My Classes",
     "scope": "board",

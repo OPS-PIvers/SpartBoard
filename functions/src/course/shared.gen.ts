@@ -14,6 +14,9 @@ export const COURSE_MAX_PINNED_LINKS = 6;
 export const COURSE_MAX_LINK_TITLE_LENGTH = 80;
 export const COURSE_MAX_LINK_URL_LENGTH = 2000;
 export const COURSE_MAX_AGENDA_TITLE_LENGTH = 200;
+/** Slide shapes outside this range are treated as unknown. */
+export const COURSE_MIN_AGENDA_ASPECT = 0.2;
+export const COURSE_MAX_AGENDA_ASPECT = 5;
 /** Merged-in link addresses kept per Course. */
 export const COURSE_MAX_FORMER_LINKS = 20;
 /** A teacher holds far fewer; bounds the save transaction's read of every Course. */
@@ -29,6 +32,8 @@ export interface CoursePinnedLink {
 export interface CourseAgenda {
   fileId: string;
   title: string;
+  /** Slide width over height as Google last reported it; absent means 16:9. */
+  aspect?: number;
 }
 
 /** How a deck is shared, as the D24 re-check last read it. */
@@ -193,9 +198,18 @@ export function cleanCourseAgenda(value: unknown): CourseAgenda | null {
   if (!value || typeof value !== 'object') return null;
   const agenda = value as Record<string, unknown>;
   if (!isDriveFileId(agenda.fileId)) return null;
-  return {
-    fileId: agenda.fileId,
-    title:
-      cleanCourseText(agenda.title, COURSE_MAX_AGENDA_TITLE_LENGTH) || 'Agenda',
-  };
+  const title =
+    cleanCourseText(agenda.title, COURSE_MAX_AGENDA_TITLE_LENGTH) || 'Agenda';
+  const aspect = cleanAgendaAspect(agenda.aspect);
+  return aspect === null
+    ? { fileId: agenda.fileId, title }
+    : { fileId: agenda.fileId, title, aspect };
+}
+
+/** A slide width-over-height ratio rounded to 4 places, or null when it is missing or implausible. */
+export function cleanAgendaAspect(value: unknown): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+  if (value < COURSE_MIN_AGENDA_ASPECT || value > COURSE_MAX_AGENDA_ASPECT)
+    return null;
+  return Math.round(value * 10000) / 10000;
 }

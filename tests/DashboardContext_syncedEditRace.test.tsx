@@ -235,6 +235,7 @@ describe('Synced board concurrent edits', () => {
     createdAt: 1,
     linkedShareId: 'share-race',
     linkedShareRole: 'collaborator',
+    linkedShareHostUid: 'host-a',
   });
 
   // Two open tabs echoed every applied snapshot back as a write, so they kept

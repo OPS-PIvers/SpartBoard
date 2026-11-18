@@ -55,12 +55,31 @@ function makeCourse(over: Partial<Course> = {}): Course {
 /** A tiny Drive: permissions per file; a file missing from `perms` answers 403. */
 function fakeDrive(
   perms: Record<string, DrivePermission[]>,
-  refuseWrites = false
+  refuseWrites = false,
+  shapes: Record<string, number> = {}
 ) {
   let n = 0;
   const calls: string[] = [];
   const fetchMock = vi.fn((url: string, init?: RequestInit) => {
     const u = new URL(url);
+    if (u.hostname === 'slides.googleapis.com') {
+      const shape =
+        shapes[decodeURIComponent(u.pathname.split('/').pop() ?? '')];
+      return Promise.resolve(
+        shape
+          ? new Response(
+              JSON.stringify({
+                pageSize: {
+                  width: { magnitude: shape * 1000, unit: 'EMU' },
+                  height: { magnitude: 1000, unit: 'EMU' },
+                },
+              })
+            )
+          : new Response('{}', { status: 404 })
+      );
+    }
+    if (u.searchParams.get('fields')?.includes('thumbnailLink'))
+      return Promise.resolve(new Response('{}', { status: 404 }));
     const m = /files\/([^/]+)(\/permissions)?(?:\/([^/]+))?$/.exec(u.pathname);
     const file = decodeURIComponent(m?.[1] ?? '');
     const method = init?.method ?? 'GET';
@@ -427,10 +446,49 @@ describe('AgendaSetup', () => {
         saveCourse={saveCourse}
       />
     );
-    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledTimes(4));
     await act(() => Promise.resolve());
     expect(saveCourse).not.toHaveBeenCalled();
     expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('saves the slide shape of a deck saved before its shape was read', async () => {
+    fakeDrive(
+      { deck12345678: [{ id: 'd', type: 'domain', domain: DOMAIN }] },
+      false,
+      { deck12345678: 4 / 3 }
+    );
+    const saveCourse = vi.fn(() =>
+      Promise.resolve({
+        courseId: 'c1',
+        rostersWithoutClassPage: [],
+        classLinkUnavailable: false,
+      })
+    );
+    const course = makeCourse({
+      agenda: { fileId: 'deck12345678', title: 'Daily' },
+      deckCheck: {
+        checkedAt: Date.now(),
+        sharing: 'domain',
+        modifiedAt: Date.parse('2026-11-16T10:00:00Z'),
+      },
+    });
+    render(
+      <AgendaSetup
+        group={{ course, rosters: [{ id: 'p2', name: 'P2' }] }}
+        saveCourse={saveCourse}
+      />
+    );
+    await waitFor(() =>
+      expect(saveCourse).toHaveBeenCalledWith({
+        action: 'save',
+        course: {
+          id: 'c1',
+          agenda: { fileId: 'deck12345678', title: 'Daily', aspect: 1.3333 },
+          expectedUpdatedAt: course.updatedAt,
+        },
+      })
+    );
   });
 
   it('adds a pinned link as a patch of the whole list', async () => {

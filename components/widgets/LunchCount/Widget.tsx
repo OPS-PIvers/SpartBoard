@@ -39,6 +39,7 @@ import {
   submittedMarker,
   sheetRowKey,
 } from './redesign/lunchCountFormat';
+import { useSentDetails } from './useSentDetails';
 import { logError } from '@/utils/logError';
 import { toLunchCountSchoolSite } from '@/config/buildings';
 
@@ -243,7 +244,10 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
   const reportName = subShareHost
     ? (subShareHost.teacherName ?? 'Staff')
     : (user?.displayName ?? 'Staff');
-  const config = widget.config as LunchCountConfig;
+  const { config, loadSentDetails, isLoadingSentDetails } = useSentDetails(
+    widget.id,
+    widget.config as LunchCountConfig
+  );
   const {
     cachedMenu = null,
     assignments = {},
@@ -614,12 +618,18 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
     }
   };
 
+  // Opens at once; notes another device sent today load behind it for Review and Resend.
+  const openReportModal = () => {
+    setIsModalOpen(true);
+    loadSentDetails();
+  };
+
   const handleOpenReport = () => {
     if (needsTime || needsGrade) {
       setIsMissingInfoOpen(true);
       return;
     }
-    setIsModalOpen(true);
+    openReportModal();
   };
 
   const handleSaveMissingInfo = (info: LunchInfo) => {
@@ -640,7 +650,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
       },
     });
     setIsMissingInfoOpen(false);
-    setIsModalOpen(true);
+    openReportModal();
   };
 
   const studentItemClass =
@@ -1234,6 +1244,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
         isSubmitting={isSubmitting}
         alreadySubmitted={hasSubmittedToday(config, widget.id, sentClass)}
         sentDetails={sentDetailsToday(config, widget.id, sentClass)}
+        sentDetailsLoading={isLoadingSentDetails(sentClass)}
       />
       <Modal
         isOpen={!!peekedItem}

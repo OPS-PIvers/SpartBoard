@@ -107,9 +107,24 @@ export const ImportShareModePicker: React.FC = () => {
 
   if (!pendingShareImport) return null;
 
-  const { preview, driveBacked, intendedMode } = pendingShareImport;
+  const { preview, driveBacked, hostStaff, hostName, hostChecking } =
+    pendingShareImport;
   const boardName = preview?.name ?? 'Shared board';
-  const hostName = preview?.linkedShareHostName;
+  // A board a non-staff account shares can only be copied; the server checked the host's account.
+  const notStaff = !driveBacked && hostStaff === false;
+  const intendedMode =
+    notStaff && pendingShareImport.intendedMode
+      ? 'copy'
+      : pendingShareImport.intendedMode;
+  const hostWarning = driveBacked
+    ? undefined
+    : notStaff
+      ? 'Only a copy can be imported.'
+      : hostStaff === undefined && !hostChecking
+        ? "We couldn't confirm who shared this board."
+        : undefined;
+  // Live modes wait for the host check; Copy never does.
+  const liveWaiting = !!hostChecking;
 
   const handlePick = (mode: SharedBoardImportMode) => {
     void importSharedBoard(mode);
@@ -117,7 +132,9 @@ export const ImportShareModePicker: React.FC = () => {
 
   const liveDisabledReason = driveBacked
     ? 'Live sync needs the host to share again from an updated version. Older share links can only be copied.'
-    : undefined;
+    : notStaff
+      ? 'Live sync works only for boards shared by staff.'
+      : undefined;
 
   // Confirmation mode: host already picked the mode; show a single card +
   // primary action. Drive-backed shares are always forced to 'copy' upstream.
@@ -172,6 +189,11 @@ export const ImportShareModePicker: React.FC = () => {
                 <p className="mt-1 text-xs text-slate-700 leading-relaxed">
                   {copy.body}
                 </p>
+                {hostWarning && (
+                  <p className="mt-2 text-xs font-semibold text-amber-700">
+                    {hostWarning}
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -187,8 +209,9 @@ export const ImportShareModePicker: React.FC = () => {
             <button
               type="button"
               onClick={() => handlePick(intendedMode)}
+              disabled={liveWaiting && intendedMode !== 'copy'}
               {...tourAttr('share-import.confirm')}
-              className="rounded-lg bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold text-sm px-4 py-2 transition-colors cursor-pointer"
+              className="rounded-lg bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold text-sm px-4 py-2 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-wait"
             >
               {copy.primary}
             </button>
@@ -240,12 +263,15 @@ export const ImportShareModePicker: React.FC = () => {
         <p className="text-xs text-slate-600">
           How should this board be imported?
         </p>
+        {hostWarning && (
+          <p className="text-xs font-semibold text-amber-700">{hostWarning}</p>
+        )}
         <ModeOption
           mode="synced"
           title="Synced"
           body={MODE_COPY.synced.body}
           Icon={Cloud}
-          disabled={driveBacked}
+          disabled={driveBacked || notStaff || liveWaiting}
           disabledReason={liveDisabledReason}
           onPick={handlePick}
           tourId="share-import.mode-synced"
@@ -255,7 +281,7 @@ export const ImportShareModePicker: React.FC = () => {
           title="View-Only"
           body={MODE_COPY['view-only'].body}
           Icon={Eye}
-          disabled={driveBacked}
+          disabled={driveBacked || notStaff || liveWaiting}
           disabledReason={liveDisabledReason}
           onPick={handlePick}
           tourId="share-import.mode-view-only"

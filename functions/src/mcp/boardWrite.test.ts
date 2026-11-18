@@ -28,8 +28,12 @@ function fakeDb(seed: Record<string, Data> = {}) {
     Object.entries(seed).map(([k, v]) => [k, structuredClone(v)])
   );
   const times = new Map<string, number>();
+  const created = new Map<string, number>();
   let clock = 1;
-  const touch = (path: string) => times.set(path, clock++);
+  const touch = (path: string) => {
+    if (!created.has(path)) created.set(path, clock);
+    times.set(path, clock++);
+  };
   for (const path of docs.keys()) touch(path);
   let seq = 0;
   const failNext = { commits: 0 };
@@ -39,6 +43,9 @@ function fakeDb(seed: Record<string, Data> = {}) {
     id: path.split('/').pop(),
     exists: docs.has(path),
     updateTime: times.get(path),
+    createTime: created.has(path)
+      ? { toMillis: () => created.get(path) ?? 0 }
+      : undefined,
     data: () => (docs.has(path) ? structuredClone(docs.get(path)) : undefined),
     get: (k: string) => docs.get(path)?.[k],
   });
@@ -617,6 +624,31 @@ describe('edit_board', () => {
     docs.delete('shared_boards/sh3');
     expect((await rename('b3')).error).toBeUndefined();
     expect(docs.get('users/u1/dashboards/b3')?.name).toBe('X');
+  });
+
+  it('treats a share re-created after a host-less guest copy as gone', async () => {
+    const s = seed();
+    const guest = (shareId: string) => ({
+      name: 'Old guest copy',
+      linkedShareId: shareId,
+      linkedShareRole: 'collaborator',
+      linkedShareEnded: true,
+      widgets: [],
+    });
+    // sh4 predates its board; sh5 was made at the old id after the board.
+    s['shared_boards/sh4'] = { originalAuthor: 'u2', widgets: [] };
+    s['users/u1/dashboards/b4'] = guest('sh4');
+    s['users/u1/dashboards/b5'] = guest('sh5');
+    s['shared_boards/sh5'] = { originalAuthor: 'u9', widgets: [] };
+    const { db, docs } = fakeDb(s);
+    const call = await connect(db);
+    const rename = (board_id: string) =>
+      call('edit_board', { board_id, changes: [{ op: 'rename', name: 'X' }] });
+    expect((await rename('b4')).error).toMatch(
+      /Another teacher owns this board/
+    );
+    expect((await rename('b5')).error).toBeUndefined();
+    expect(docs.get('users/u1/dashboards/b5')?.name).toBe('X');
   });
 
   it("starts from a live share's content and mirrors the change to co-teachers, scrubbed", async () => {

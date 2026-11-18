@@ -37,6 +37,8 @@ interface SubmitReportModalProps {
   alreadySubmitted?: boolean;
   /** Notes and pizza sent earlier today, to prefill a resend */
   sentDetails?: { notes: string; extraPizza: number };
+  /** True while notes another device sent today are still loading */
+  sentDetailsLoading?: boolean;
 }
 
 /**
@@ -51,6 +53,7 @@ export const SubmitReportModal: React.FC<SubmitReportModalProps> = ({
   isSubmitting,
   alreadySubmitted = false,
   sentDetails,
+  sentDetailsLoading = false,
 }) => {
   const [notes, setNotes] = useState('');
   const [extraPizza, setExtraPizza] = useState<number | ''>('');
@@ -73,6 +76,8 @@ export const SubmitReportModal: React.FC<SubmitReportModalProps> = ({
   if (alreadySubmitted && !isSubmitting && !resending) {
     // A send saved without details has no sheet key, so a resend would add a second row.
     const canResend = !!sentDetails;
+    // While another device's notes load, the resend waits instead of disappearing.
+    const offerResend = canResend || sentDetailsLoading;
     return (
       <Modal
         isOpen={isOpen}
@@ -92,12 +97,12 @@ export const SubmitReportModal: React.FC<SubmitReportModalProps> = ({
             id="report-modal-title"
             className="font-black text-lg uppercase tracking-tight text-slate-800"
           >
-            {canResend
+            {offerResend
               ? 'Lunch Count Already Sent'
               : 'Lunch Count Already Submitted'}
           </h3>
           <p className="mt-2 text-sm font-bold text-slate-500">
-            {canResend
+            {offerResend
               ? "Sending again replaces today's count for this class."
               : "Today's lunch count has been sent. You can submit again tomorrow."}
           </p>
@@ -110,8 +115,10 @@ export const SubmitReportModal: React.FC<SubmitReportModalProps> = ({
             >
               Close
             </Button>
-            {canResend && (
+            {offerResend && (
               <Button
+                isLoading={!canResend}
+                aria-label="Review and Resend"
                 onClick={() => {
                   setNotes(sentDetails?.notes ?? '');
                   setExtraPizza(sentDetails?.extraPizza ?? '');

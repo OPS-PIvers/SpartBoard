@@ -940,7 +940,7 @@ async function commitBoardChange(
     const snap = await ref.get();
     const stored = snap.data();
     if (!snap.exists || !isObject(stored)) throw new ToolError(missing);
-    const shared = await shareStateOf(ctx, stored);
+    const shared = await shareStateOf(ctx, stored, snap.createTime?.toMillis());
     // Co-teachers' edits live on the share until this teacher opens the board, so Claude starts from there.
     const before = withShareContent(stored, shared.share);
     const next = await change(before);

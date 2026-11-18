@@ -173,4 +173,13 @@ describe('linkedBoardFromShare id', () => {
     expect(board.sharedGroups).toBeUndefined();
     expect(board.isDefault).toBe(false);
   });
+  it('never takes the host name the share doc carries', () => {
+    const named = {
+      ...snap,
+      linkedShareHostName: 'Principal Smith',
+    } as unknown as Dashboard;
+    expect(
+      linkedBoardFromShare(entry, named, opts).linkedShareHostName
+    ).toBeUndefined();
+  });
 });
