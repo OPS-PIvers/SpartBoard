@@ -1863,6 +1863,17 @@ export function validateAndBucketQuizQuestions(
  * Uses Gemini's multimodal video understanding to analyze a YouTube video
  * and generate timestamped multiple-choice questions.
  */
+const MAX_YOUTUBE_URL_LENGTH = 2048;
+const YOUTUBE_ID_RE =
+  /(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:embed\/|v\/|shorts\/|live\/|watch\?(?:[^&#\s]*&)*?v=))([A-Za-z0-9_-]{11})/;
+
+/** The 11-char YouTube id in `url`, or undefined; bounded input and no `.+` backtracking. */
+export function extractYouTubeVideoId(url: unknown): string | undefined {
+  if (typeof url !== 'string' || url.length > MAX_YOUTUBE_URL_LENGTH)
+    return undefined;
+  return YOUTUBE_ID_RE.exec(url)?.[1];
+}
+
 export const generateVideoActivity = onCall(
   {
     memory: '1GiB',
@@ -1917,10 +1928,7 @@ export const generateVideoActivity = onCall(
     const bufferedTotal = bufferedRequestCount(total);
 
     // Extract video ID from URL
-    const videoIdMatch = url.match(
-      /(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:embed\/|v\/|shorts\/|live\/|watch\?v=|watch\?.+&v=))([A-Za-z0-9_-]{11})/
-    );
-    const videoId = videoIdMatch?.[1];
+    const videoId = extractYouTubeVideoId(url);
 
     if (!videoId) {
       throw new HttpsError(
@@ -2274,10 +2282,7 @@ export const transcribeVideoWithGemini = onCall(
     }
     const bufferedTotal = bufferedRequestCount(total);
 
-    const videoIdMatch = url.match(
-      /(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:embed\/|v\/|shorts\/|live\/|watch\?v=|watch\?.+&v=))([A-Za-z0-9_-]{11})/
-    );
-    const videoId = videoIdMatch?.[1];
+    const videoId = extractYouTubeVideoId(url);
 
     if (!videoId) {
       throw new HttpsError(

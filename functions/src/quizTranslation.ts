@@ -29,6 +29,7 @@ import {
 } from './quizTranslationHash';
 import { assertViewAsAllowed } from './viewAsGuard';
 import { generateAi } from './aiRouter';
+import { assertAiTeacherCaller } from './aiCallerGate';
 
 type Firestore = admin.firestore.Firestore;
 
@@ -1217,6 +1218,7 @@ export const translateQuizV1 = onCall(
         'Caller email must be verified.'
       );
     const deps = buildDefaultDeps();
+    await assertAiTeacherCaller(deps.db, request.auth.token);
     await assertQuizTranslationFeature(
       deps.db,
       request.auth.token.email,
@@ -1252,6 +1254,8 @@ export const translateResponseV1 = onCall(
         'permission-denied',
         'Caller email must be verified.'
       );
+    const deps = buildDefaultDeps();
+    await assertAiTeacherCaller(deps.db, request.auth.token);
     const data = (request.data ?? {}) as Record<string, unknown>;
     const text = typeof data.text === 'string' ? data.text.trim() : '';
     const sourceLocale =
@@ -1264,7 +1268,6 @@ export const translateResponseV1 = onCall(
       );
     if (!LANGUAGE_TAG_RE.test(sourceLocale))
       throw new HttpsError('invalid-argument', 'A language tag is required.');
-    const deps = buildDefaultDeps();
     await assertQuizTranslationFeature(
       deps.db,
       request.auth.token.email,

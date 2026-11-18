@@ -140,6 +140,8 @@ export const STUCK_ARCHIVE_AGE_MS = 2 * 60 * 60 * 1000;
  * every hourly sweep forever (GitHub issue #2735).
  */
 export const MAX_ARCHIVE_ATTEMPTS = 5;
+const ABANDONED_ARCHIVE_MESSAGE =
+  'Archiving never finished after repeated attempts.';
 const QUIZ_DRIVE_FOLDER = 'Quiz Responses';
 /** Kept scan pages file one level below the quiz's own folder. */
 const KEPT_PAGES_DRIVE_FOLDER = 'Pages';
@@ -644,8 +646,28 @@ export const deleteQuizArchiveDriveFile = (
     3
   );
 
+// Twice the longest recording a question allows (AUDIO_LIMIT_SECONDS_MAX, 300 s), so real takes never hit it.
+export const MAX_TRANSCODE_AUDIO_SECONDS = 600;
+// 64 kbps for the ceiling is about 4.8 MB; the cap only stops a runaway encode.
+const MAX_TRANSCODE_OUTPUT_BYTES = 8 * 1024 * 1024;
+// Well inside the 120 s callable and the sweep's per-run budget.
+export const TRANSCODE_WALL_CLOCK_MS = 60_000;
+
+/** A take that decodes past MAX_TRANSCODE_AUDIO_SECONDS; no retry can archive it. */
+export class AudioTooLongError extends Error {}
+
+/** Seconds in the last `time=HH:MM:SS.xx` ffmpeg printed, or 0. */
+export function lastTranscodedSeconds(stderr: string): number {
+  const marks = [...stderr.matchAll(/time=(\d+):(\d{2}):(\d{2}(?:\.\d+)?)/g)];
+  const last = marks[marks.length - 1];
+  return last ? +last[1] * 3600 + +last[2] * 60 + +last[3] : 0;
+}
+
 /** webm never survives to Drive; AAC in an M4A container always previews. */
-export async function transcodeBufferToM4a(input: Buffer): Promise<Buffer> {
+export async function transcodeBufferToM4a(
+  input: Buffer,
+  wallClockMs = TRANSCODE_WALL_CLOCK_MS
+): Promise<Buffer> {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'quizmedia-'));
   const inputPath = path.join(dir, 'in.bin');
   const outputPath = path.join(dir, 'out.m4a');
@@ -657,15 +679,42 @@ export async function transcodeBufferToM4a(input: Buffer): Promise<Buffer> {
     }
     ffmpeg.setFfmpegPath(ffmpegStatic);
     await new Promise<void>((resolve, reject) => {
-      ffmpeg(inputPath)
+      let settled = false;
+      const settle = (err?: Error) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        if (err) reject(err);
+        else resolve();
+      };
+      const command = ffmpeg(inputPath)
         .noVideo()
         .audioCodec('aac')
         .audioBitrate(ARCHIVE_AUDIO_BITRATE)
         .format('mp4')
-        .outputOptions('-movflags', '+faststart')
-        .on('error', (err: Error) => reject(err))
-        .on('end', () => resolve())
-        .save(outputPath);
+        .outputOptions(
+          '-movflags',
+          '+faststart',
+          '-t',
+          String(MAX_TRANSCODE_AUDIO_SECONDS + 1),
+          '-fs',
+          String(MAX_TRANSCODE_OUTPUT_BYTES)
+        )
+        .on('error', (err: Error) => settle(err))
+        .on('end', (_stdout: string | null, stderr: string | null) =>
+          settle(
+            lastTranscodedSeconds(stderr ?? '') > MAX_TRANSCODE_AUDIO_SECONDS
+              ? new AudioTooLongError(
+                  'Recording is longer than any take allows.'
+                )
+              : undefined
+          )
+        );
+      const timer = setTimeout(() => {
+        settle(new Error('Audio transcode timed out.'));
+        command.kill('SIGKILL');
+      }, wallClockMs);
+      command.save(outputPath);
     });
     return await fs.readFile(outputPath);
   } finally {
@@ -1175,23 +1224,47 @@ export async function archiveQuizArtifactCore(
       return { kind: 'archived' as const, driveFileId: entry.driveFileId };
     }
     if (hasLiveOwner(entry, startedAt)) return { kind: 'inflight' as const };
-    archive[artifactId] = { archiveStatus: 'syncing' };
+    // An earlier claim that never wrote its outcome (killed mid-run) counts as an attempt.
+    const abandoned =
+      entry?.archiveStatus === 'syncing' &&
+      typeof entry.archiveStartedAt === 'number';
+    const attemptCount =
+      (typeof entry?.attemptCount === 'number' ? entry.attemptCount : 0) +
+      (abandoned ? 1 : 0);
+    const lost = abandoned && attemptCount >= MAX_ARCHIVE_ATTEMPTS;
+    archive[artifactId] = {
+      ...entry,
+      archiveStatus: lost ? 'lost' : 'syncing',
+    };
     tx.set(
       responseRef,
       {
         artifactArchive: {
-          [artifactId]: {
-            archiveStatus: 'syncing',
-            archiveStartedAt: startedAt,
-            archiveError: admin.firestore.FieldValue.delete(),
-          },
+          [artifactId]: lost
+            ? {
+                archiveStatus: 'lost',
+                attemptCount,
+                archiveError: ABANDONED_ARCHIVE_MESSAGE,
+                lastAttemptAt: startedAt,
+              }
+            : {
+                archiveStatus: 'syncing',
+                archiveStartedAt: startedAt,
+                archiveError: admin.firestore.FieldValue.delete(),
+                ...(abandoned ? { attemptCount } : {}),
+              },
         },
         hasStuckArchive: computeHasStuckArchive(archive),
       },
       { merge: true }
     );
-    return { kind: 'claimed' as const };
+    return { kind: lost ? ('lost' as const) : ('claimed' as const) };
   });
+  if (claim.kind === 'lost')
+    throw toArchiveFailure(
+      new HttpsError('deadline-exceeded', ABANDONED_ARCHIVE_MESSAGE),
+      true
+    );
   if (claim.kind === 'deleted') return { archiveStatus: 'deleted' };
   if (claim.kind === 'archived') return finalizeArchived(claim.driveFileId);
   if (claim.kind === 'inflight') return { archiveStatus: 'syncing' };
@@ -1372,7 +1445,13 @@ export async function archiveQuizArtifactCore(
 
     const sourceBytes = await deps.downloadObject(storagePath);
     const archiveBytes =
-      kind === 'audio' ? await deps.transcodeToM4a(sourceBytes) : sourceBytes;
+      kind === 'audio'
+        ? await deps.transcodeToM4a(sourceBytes).catch((err: unknown) => {
+            if (!(err instanceof AudioTooLongError)) throw err;
+            unrecoverable = true;
+            throw new HttpsError('invalid-argument', err.message);
+          })
+        : sourceBytes;
 
     const name = await deps.resolveStudentName(teacherUid, studentUid);
     const fallbackLabel =
