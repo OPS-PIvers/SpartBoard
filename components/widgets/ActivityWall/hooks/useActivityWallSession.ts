@@ -233,7 +233,6 @@ export const useActivityWallSession = (
   const sandboxed = !!entry && isSandboxed(entry.id);
   useEffect(() => {
     if (!sessionId || !mirrorKey || sandboxed) return;
-    if (viewAsSuppressesBackgroundWrites()) return;
     const payload = {
       ...(JSON.parse(mirrorKey) as Record<string, unknown>),
       updatedAt: Date.now(),
