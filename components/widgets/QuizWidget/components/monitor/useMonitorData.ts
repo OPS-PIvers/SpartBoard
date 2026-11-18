@@ -106,9 +106,9 @@ export function useMonitorData(
   openOnAllClasses = false,
   /** The assignment's targeting; null leaves per-student assignments without roster rows. */
   rosterTargets: MonitorRosterTargets | null = null,
-  /** Lists roster students who haven't joined: the quiz-monitor-roster flag, once responses have loaded. */
+  /** Lists roster students who haven't joined, once responses have loaded. */
   showRoster = false,
-  /** Students with an unscanned printed group copy; listed as On paper even without the roster flag. */
+  /** Students with an unscanned printed group copy; listed as On paper even without the roster. */
   paperSeats: ReadonlySet<string> = NO_PAPER_SEATS,
   /** False until responses load; paper rows wait for it like roster rows. */
   responsesLoaded = true
@@ -274,7 +274,7 @@ export function useMonitorData(
           paperSeats,
         })
       : [];
-    // Without the roster flag only printed-copy students are listed.
+    // Without the roster only printed-copy students are listed.
     return showRoster ? rows : rows.filter((s) => s.onPaper);
   }, [
     buildRoster,

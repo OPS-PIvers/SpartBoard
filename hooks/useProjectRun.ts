@@ -63,9 +63,7 @@ interface UseProjectRunResult {
 export function useProjectRun(
   teacherUid: string | undefined,
   projectId: string | undefined,
-  actorUid: string | undefined,
-  /** The project-submit preview: a run this teacher starts takes submissions. */
-  studentSubmit = false
+  actorUid: string | undefined
 ): UseProjectRunResult {
   const runId = useMemo(
     () => (teacherUid && projectId ? runIdFor(teacherUid, projectId) : null),
@@ -147,7 +145,7 @@ export function useProjectRun(
       }
       if (project.dueAt !== undefined) next.dueAt = project.dueAt;
       // A closed run never gains submissions, so its groups stay Turned in rather than Missing.
-      if (run?.studentSubmit || (studentSubmit && next.acceptingUpdates))
+      if (run?.studentSubmit || next.acceptingUpdates)
         next.studentSubmit = true;
 
       // merge:true can't clear a field absent from `next` — deleteField() removed rubric/dueAt so "editable after launch" actually clears them.
@@ -173,7 +171,6 @@ export function useProjectRun(
       run?.rubric,
       run?.rubricMaxPoints,
       run?.studentSubmit,
-      studentSubmit,
       teacherUid,
     ]
   );
