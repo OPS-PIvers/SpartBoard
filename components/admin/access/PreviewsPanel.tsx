@@ -9,6 +9,7 @@ import { Toggle } from '@/components/common/Toggle';
 import { AccessFeatureRow } from './AccessFeatureRow';
 import { FocusHoursRow } from './FocusHoursRow';
 import { ImportOffersSection } from './ImportOffersSection';
+import { IMPORT_FLAGS_ON_ROWS } from '@/components/import/importTargets';
 import { FOCUS_HOURS_SEARCH_FIELDS } from '@/config/focusSessions';
 import { AccessSearchEmpty, AdminSearchField } from './AdminSearchField';
 import {
@@ -245,6 +246,11 @@ export const PreviewsPanel: React.FC = () => {
                 const group = groups.get(id);
                 if (!group)
                   return <PreviewRow key={id} featureId={id} editor={editor} />;
+                // Import anything shows its own flags on its lists; Options keeps the rest.
+                const options =
+                  id === 'universal-import'
+                    ? group.children.filter((c) => !IMPORT_FLAGS_ON_ROWS.has(c))
+                    : group.children;
                 return (
                   <PreviewRow
                     key={id}
@@ -255,24 +261,26 @@ export const PreviewsPanel: React.FC = () => {
                     {id === 'universal-import' && (
                       <ImportOffersSection editor={editor} />
                     )}
-                    <div className="space-y-1">
-                      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
-                        Options
-                      </p>
-                      <div
-                        data-testid={`preview-group-${id}`}
-                        className="divide-y divide-slate-200 border-y border-slate-200"
-                      >
-                        {group.children.map((child) => (
-                          <PreviewRow
-                            key={child}
-                            featureId={child}
-                            editor={editor}
-                            displayLabel={groupChildLabel(child)}
-                          />
-                        ))}
+                    {options.length > 0 && (
+                      <div className="space-y-1">
+                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                          Options
+                        </p>
+                        <div
+                          data-testid={`preview-group-${id}`}
+                          className="divide-y divide-slate-200 border-y border-slate-200"
+                        >
+                          {options.map((child) => (
+                            <PreviewRow
+                              key={child}
+                              featureId={child}
+                              editor={editor}
+                              displayLabel={groupChildLabel(child)}
+                            />
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </PreviewRow>
                 );
               })}

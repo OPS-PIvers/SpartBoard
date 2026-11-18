@@ -108,18 +108,21 @@ describe('PreviewsPanel', () => {
     expect(row).toHaveTextContent('Off everywhere');
   });
 
-  it('nests the Import add-ons under the Import anything row', async () => {
+  it('shows the Import add-ons on the Import anything lists, with no separate Options list', async () => {
     await renderPanel();
     expect(screen.queryByTestId('access-row-import-flashcards')).toBeNull();
     expandRow('universal-import', 'Import anything');
-    const group = screen.getByTestId('preview-group-universal-import');
-    const child = screen.getByTestId('access-row-import-flashcards');
-    expect(group).toContainElement(child);
-    expect(child).toHaveTextContent('Flashcards');
-    expect(child).not.toHaveTextContent('Import: Flashcards');
+    expect(screen.queryByTestId('preview-group-universal-import')).toBeNull();
+    const offers = screen.getByTestId('import-offers');
+    expect(
+      within(offers).getByRole('radiogroup', {
+        name: 'Import: send from the Chrome extension access',
+      })
+    ).toBeInTheDocument();
+    expect(offers).toHaveTextContent('Send from the Chrome extension');
   });
 
-  it('opens the Import row to just the matching add-ons when a search finds them', async () => {
+  it('opens the Import row when a search finds one of its add-ons', async () => {
     render(
       <AccessSearchContext.Provider
         value={{ query: 'link', setQuery: () => undefined }}
@@ -127,24 +130,22 @@ describe('PreviewsPanel', () => {
         <PreviewsPanel />
       </AccessSearchContext.Provider>
     );
-    const group = await screen.findByTestId('preview-group-universal-import');
-    expect(
-      within(group).getByTestId('access-row-import-link')
-    ).toBeInTheDocument();
-    expect(
-      within(group).queryByTestId('access-row-import-flashcards')
-    ).toBeNull();
+    const row = await screen.findByTestId('access-row-universal-import');
+    expect(within(row).getByTestId('import-offers')).toBeInTheDocument();
+    expect(screen.queryByTestId('access-row-import-link')).toBeNull();
   });
 
-  it('saves a nested Import add-on to its own permission doc', async () => {
+  it('saves the Google Form access from its source row to its own permission doc', async () => {
     await renderPanel();
     expandRow('universal-import', 'Import anything');
     fireEvent.click(
       within(
-        screen.getByRole('radiogroup', { name: 'Import: Google Forms access' })
+        within(screen.getByTestId('import-source-form')).getByRole(
+          'radiogroup',
+          { name: 'Import: Google Forms access' }
+        )
       ).getByRole('radio', { name: 'Public' })
     );
-    fireEvent.click(screen.getByLabelText('Save Import: Google Forms'));
     await waitFor(() => expect(setDocMock).toHaveBeenCalledOnce());
     expect(setDocMock.mock.calls[0][0].path).toBe(
       'global_permissions/import-google-forms'
