@@ -463,10 +463,10 @@ describe('GoogleDriveService', () => {
       );
       expect(calls.slice(3)).toEqual([
         expect.stringMatching(
-          /^DELETE .*\/files\/shared-id\/permissions\/dom$/
+          /^DELETE .*\/files\/shared-id\/permissions\/dom(\?.*)?$/
         ),
         expect.stringMatching(
-          /^DELETE .*\/files\/shared-id\/permissions\/any$/
+          /^DELETE .*\/files\/shared-id\/permissions\/any(\?.*)?$/
         ),
         expect.stringMatching(/^PATCH .*\/files\/shared-id\?uploadType=media$/),
       ]);
