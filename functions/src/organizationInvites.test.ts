@@ -1117,10 +1117,23 @@ describe('createOrganizationInvites — super_admin role guard', () => {
     expect(txSet).not.toHaveBeenCalled();
   });
 
-  it('domain admin can re-invite a deactivated member on the retired legacy list', async () => {
+  it('domain admin cannot re-invite (and so reactivate) a deactivated legacy-list member', async () => {
     const email = 'legacy@orono.k12.mn.us';
     const { txSet } = stubDb({
       callerRole: 'domain_admin',
+      existing: { [email]: { roleId: 'teacher', status: 'inactive' } },
+      legacy: [email],
+    });
+    const res = await invite(email, 'teacher');
+    expect(res.invitations).toHaveLength(0);
+    expect(res.errors[0].reason).toMatch(/super admin/i);
+    expect(txSet).not.toHaveBeenCalled();
+  });
+
+  it('super admin can re-invite a deactivated legacy-list member', async () => {
+    const email = 'legacy@orono.k12.mn.us';
+    const { txSet } = stubDb({
+      callerRole: 'super_admin',
       existing: { [email]: { roleId: 'teacher', status: 'inactive' } },
       legacy: [email],
     });

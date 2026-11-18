@@ -200,13 +200,9 @@ beforeEach(async () => {
       heroText: 'Hi',
     });
 
-    // Super admin: an operator-org super_admin member doc.
-    await setDoc(doc(db, `organizations/${ORG_ID}/members/${SUPER_EMAIL}`), {
-      email: SUPER_EMAIL,
-      orgId: ORG_ID,
-      roleId: 'super_admin',
-      buildingIds: [],
-      status: 'active',
+    // Super admin list (legacy)
+    await setDoc(doc(db, 'admin_settings/user_roles'), {
+      superAdmins: [SUPER_EMAIL],
     });
     // Legacy admin record used by the unchanged isAdmin() rule.
     await setDoc(doc(db, `admins/${DOMAIN_ADMIN_EMAIL}`), {
@@ -289,7 +285,7 @@ describe('organizations — reads (Phase 1)', () => {
     await assertFails(byUid(asOutsider()));
   });
 
-  it('super admin (operator-org member role) can read every org', async () => {
+  it('super admin (legacy user_roles) can read every org', async () => {
     await assertSucceeds(getDoc(doc(asSuper(), `organizations/${ORG_ID}`)));
     await assertSucceeds(
       getDoc(doc(asSuper(), `organizations/${OTHER_ORG_ID}`))

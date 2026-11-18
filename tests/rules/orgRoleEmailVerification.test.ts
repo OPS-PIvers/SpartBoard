@@ -91,6 +91,9 @@ beforeEach(async () => {
   await testEnv.clearFirestore();
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();
+    // Empty so the super-admin grant below only comes from isMemberSuperAdmin().
+    await setDoc(doc(db, 'admin_settings/user_roles'), { superAdmins: [] });
+
     await setDoc(doc(db, `organizations/${ORG_ID}`), {
       id: ORG_ID,
       name: 'Orono',

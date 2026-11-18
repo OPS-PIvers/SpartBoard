@@ -43,8 +43,8 @@ const BUILDING_ADMIN_EMAIL = 'building-admin@orono.k12.mn.us';
 // Plain teacher: no /admins doc at all.
 const TEACHER_UID = 'teacher-uid';
 const TEACHER_EMAIL = 'teacher@orono.k12.mn.us';
-// Real site-wide super admin (operator-org super_admin member doc) — also has
-// a mirrored /admins doc, same as production.
+// Real site-wide super admin (legacy admin_settings/user_roles.superAdmins
+// path) — also has a mirrored /admins doc, same as production.
 const SUPER_ADMIN_UID = 'super-admin-uid';
 const SUPER_ADMIN_EMAIL = 'super@orono.k12.mn.us';
 
@@ -122,9 +122,9 @@ beforeEach(async () => {
       doc(db, `organizations/${ORG_ID}/members/${BUILDING_ADMIN_EMAIL}`),
       { roleId: 'building_admin' }
     );
-    // isSuperAdmin() reads the operator org ('orono'), not ORG_ID.
-    await setDoc(doc(db, `organizations/orono/members/${SUPER_ADMIN_EMAIL}`), {
-      roleId: 'super_admin',
+    // Legacy isSuperAdmin() path — site-wide, not org-scoped.
+    await setDoc(doc(db, 'admin_settings/user_roles'), {
+      superAdmins: [SUPER_ADMIN_EMAIL],
     });
   });
 });

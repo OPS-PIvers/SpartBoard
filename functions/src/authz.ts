@@ -76,6 +76,16 @@ export async function isStrictSuperAdmin(
   );
 }
 
+// Protects the rules' legacy super admin grant until firestore.rules drops isLegacySuperAdmin(); delete with it.
+export async function isOnLegacySuperAdminList(
+  db: admin.firestore.Firestore,
+  emailLower: string
+): Promise<boolean> {
+  const snap = await db.doc('admin_settings/user_roles').get();
+  const list: unknown = snap.exists ? snap.get('superAdmins') : undefined;
+  return Array.isArray(list) && list.includes(emailLower);
+}
+
 /** isStrictSuperAdmin over an operator-org member doc the caller already read (e.g. inside a transaction). */
 export function isStrictSuperAdminData(
   operator: Record<string, unknown> | undefined
