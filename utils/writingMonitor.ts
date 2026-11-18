@@ -1,7 +1,51 @@
 // The Writing monitor's class list (WRITING_ASSIGNMENT.md D15): who has started, word counts and time away.
-import type { WritingResponse, WritingResponseStatus } from '@/types';
+import type {
+  WritingResponse,
+  WritingResponseStatus,
+  WritingResponseSummary,
+} from '@/types';
 import type { StudentName } from '@/hooks/useAssignmentPseudonyms';
 import { deriveWritingStatus } from '@/utils/writingResponseState';
+
+const SUMMARY_NUMBERS = [
+  'wordCount',
+  'savedAt',
+  'writingMs',
+  'sessions',
+  'pasteCount',
+  'pastedChars',
+  'untypedCount',
+  'untypedChars',
+  'awayMs',
+  'awayCount',
+] as const;
+
+/** A student-written summary with every value a number; anything else reads as 0, or as absent for logStoppedAt. */
+export function safeWritingSummary(
+  raw: unknown
+): WritingResponseSummary | undefined {
+  if (typeof raw !== 'object' || raw === null) return undefined;
+  const r = raw as Record<string, unknown>;
+  const num = (v: unknown): number | undefined =>
+    typeof v === 'number' && Number.isFinite(v) ? v : undefined;
+  const out = Object.fromEntries(
+    SUMMARY_NUMBERS.map((k) => [k, num(r[k]) ?? 0])
+  ) as Record<(typeof SUMMARY_NUMBERS)[number], number>;
+  const stopped = num(r.logStoppedAt);
+  return stopped === undefined ? out : { ...out, logStoppedAt: stopped };
+}
+
+/** A response doc as the teacher views read it, with its summary made safe. */
+export function readWritingResponse(
+  data: Record<string, unknown>,
+  studentUid: string
+): WritingResponse {
+  return {
+    ...data,
+    studentUid,
+    summary: safeWritingSummary(data.summary),
+  } as WritingResponse;
+}
 
 export type WritingMonitorBucket = 'notStarted' | 'inProgress' | 'done';
 

@@ -7055,6 +7055,15 @@ service cloud.firestore {
       }
       match /responses/{uid} {
         function wrMine() { return uid == authUid(); }
+        // Every summary value is a number, so the monitor and Live view never read a string or map.
+        function wrSummaryOk(m) {
+          return m.keys().hasOnly(['wordCount', 'savedAt', 'writingMs', 'sessions', 'pasteCount',
+            'pastedChars', 'untypedCount', 'untypedChars', 'awayMs', 'awayCount', 'logStoppedAt'])
+            && optNumber(m, 'wordCount') && optNumber(m, 'savedAt') && optNumber(m, 'writingMs')
+            && optNumber(m, 'sessions') && optNumber(m, 'pasteCount') && optNumber(m, 'pastedChars')
+            && optNumber(m, 'untypedCount') && optNumber(m, 'untypedChars') && optNumber(m, 'awayMs')
+            && optNumber(m, 'awayCount') && optNumber(m, 'logStoppedAt');
+        }
         function wrR() { return dbGet4('writing_assignment_sessions', sid, 'responses', uid).data; }
         allow read: if wrMine() || wrTeacher();
         // D23: saveKey is "tabId:saveCount", so every save names its tab; another tab must claim (tabAt now).
@@ -7062,8 +7071,8 @@ service cloud.firestore {
         allow update: if wrMine() && existing().status in ['draft', 'revising']
           && changedOnly(['html', 'summary', 'saveCount', 'saveKey', 'tabId', 'tabAt', 'logChunk'])
           && isStr('html') && incoming().html.size() <= 130000
-          && incoming().get('summary', {}).keys().hasOnly(['wordCount', 'savedAt', 'writingMs', 'sessions', 'pasteCount',
-            'pastedChars', 'untypedCount', 'untypedChars', 'awayMs', 'awayCount', 'logStoppedAt'])
+          && wrSummaryOk(incoming().get('summary', {}))
+          && isInt('saveCount') && isInt('logChunk')
           && incoming().saveCount > existing().saveCount
           && incoming().saveKey == incoming().tabId + ':' + string(incoming().saveCount)
           && (unchanged('tabId') || incoming().tabAt == request.time)
@@ -7080,7 +7089,8 @@ service cloud.firestore {
           allow create, update: if wrMine() && n == string(wrR().logChunk) && !('logPurgedAt' in wrR())
             && dbGetAfter4('writing_assignment_sessions', sid, 'responses', uid).data.saveCount > wrR().saveCount
             && (noDoc() || existing().closed != true)
-            && isBool('closed') && incoming().log.size() <= 200000;
+            && newKeys().hasOnly(['log', 'closed', 'updatedAt'])
+            && isBool('closed') && isStr('log') && incoming().log.size() <= 200000;
         }
         // Frozen copies, with their feedback and score; the student sees one only after it is returned.
         match /drafts/{d} {

@@ -457,6 +457,30 @@ describe('responses: student writes', () => {
     );
   });
 
+  it('takes only whole-number counters and chunk numbers (security #6)', async () => {
+    await seed(RESP, response({ logChunk: 0 }));
+    for (const bad of [
+      { logChunk: 0.5 },
+      { logChunk: '1' },
+      { saveCount: 4.5, saveKey: 'tab-a:4.5' },
+    ])
+      await assertFails(updateDoc(doc(asStudent(STUDENT), RESP), save(bad)));
+    await assertSucceeds(
+      updateDoc(doc(asStudent(STUDENT), RESP), save({ logChunk: 1 }))
+    );
+  });
+
+  it('refuses a summary value that is not a number (security #6)', async () => {
+    for (const bad of [
+      { wordCount: '3', savedAt: 2 },
+      { wordCount: 3, savedAt: { x: 1 } },
+      { wordCount: 3, logStoppedAt: 'later' },
+    ])
+      await assertFails(
+        updateDoc(doc(asStudent(STUDENT), RESP), save({ summary: bad }))
+      );
+  });
+
   it('never moves the log chunk back', async () => {
     await seed(RESP, response({ logChunk: 2 }));
     await assertFails(
@@ -598,6 +622,9 @@ describe('log chunks (D25)', () => {
     for (const bad of [
       { log: 'x', closed: 'no' },
       { log: 5, closed: false },
+      { log: ['x'], closed: false },
+      { log: 'x', closed: false, extra: 'y'.repeat(900_000) },
+      { log: 'x', closed: false, other: 1 },
       { log: 'x'.repeat(200_001), closed: false },
     ])
       await assertFails(logWrite(asStudent(STUDENT), 0, bad));

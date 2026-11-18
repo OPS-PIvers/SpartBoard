@@ -11,6 +11,7 @@ import type {
 } from '@/types';
 import { logError } from '@/utils/logError';
 import type { WritingFeedbackPayload } from '@/utils/writingGrading';
+import { readWritingResponse } from '@/utils/writingMonitor';
 
 const SESSIONS = 'writing_assignment_sessions';
 
@@ -59,11 +60,7 @@ export function useWritingResults(
     const offResponses = onSnapshot(
       collection(db, SESSIONS, sessionId, 'responses'),
       (snap) => {
-        setResponses(
-          snap.docs.map(
-            (d) => ({ ...d.data(), studentUid: d.id }) as WritingResponse
-          )
-        );
+        setResponses(snap.docs.map((d) => readWritingResponse(d.data(), d.id)));
         setLoaded((l) => ({ ...l, responses: true }));
       },
       fail('responses')
