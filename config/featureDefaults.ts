@@ -1685,17 +1685,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'board-context-menu': {
-    label: 'Board right-click menu',
-    icon: MousePointerClick,
-    description:
-      'Right-click the board background to paste, tidy up, change the background or copy a link to the board.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'assign-due-date': {
     label: 'Assign: due date for Manual',
     icon: CalendarClock,

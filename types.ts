@@ -11828,8 +11828,6 @@ export type GlobalFeature =
   | 'import-straight-to-board'
   /** AI questions on a YouTube import (docs/plans/IMPORT.md D35). */
   | 'video-import-ai'
-  /** Right-click menu on the board background. */
-  | 'board-context-menu'
   /** Manual assignments get a due date, and Assign remembers the When step. */
   | 'assign-due-date'
   /** Reopen an ended quiz for selected students only. */

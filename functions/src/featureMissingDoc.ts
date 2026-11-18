@@ -88,7 +88,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'import-straight-to-board',
   'video-import-ai',
   'embed-mini-app',
-  'board-context-menu',
   'assign-due-date',
   'reopen-selected-students',
   'course-agenda',
