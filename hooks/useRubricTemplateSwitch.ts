@@ -21,14 +21,14 @@ export const useRubricTemplateSwitch = (
       );
       const before = rubricMaxPoints(draft);
       const after = rubricMaxPoints(next);
-      const message =
-        before !== after
-          ? hasLevelText
-            ? `Level labels and descriptions are removed, and parts become whole points up to 5, so the total changes from ${before} to ${after}.`
-            : `Scoring guide parts are whole points up to 5, so this rubric's total changes from ${before} to ${after} points.`
-          : hasLevelText
-            ? 'A scoring guide scores each part from 0 to its points, so level labels and descriptions are removed.'
-            : null;
+      const changes = before !== after;
+      const message = [
+        hasLevelText && 'This change will remove level names and descriptions.',
+        changes &&
+          `${hasLevelText ? 'Additionally, the' : 'The'} total score will change from ${before} to ${after}.`,
+      ]
+        .filter(Boolean)
+        .join(' ');
       if (message) {
         const ok = await showConfirm(message, {
           title: 'Switch to a scoring guide?',
