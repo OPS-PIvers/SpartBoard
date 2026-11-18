@@ -24,6 +24,7 @@ import {
   writingMaxPoints,
 } from '@/utils/writingGrading';
 import { buildWritingRecordSample } from './writingRecordSample';
+import { RubricBuilderPanel } from '@/components/widgets/QuizWidget/components/RubricBuilderPanel';
 import { RubricTableModal } from '@/components/widgets/QuizWidget/components/RubricTableModal';
 
 const noop = () => undefined;
@@ -473,6 +474,18 @@ export const WritingGraderDevHarness: React.FC = () => {
               onReturn={() => Promise.resolve()}
               onClose={noop}
               recordFixture={() => RECORD}
+            />
+          )}
+          {view === 'builder' && (
+            <RubricBuilderPanel
+              questionId="q1"
+              existingSnapshot={
+                params.get('rubric') === 'dbq' ? DBQ : undefined
+              }
+              onAttach={noop}
+              onDetach={noop}
+              onClose={noop}
+              teacherUid="mock-user-id"
             />
           )}
           {view === 'table' && (
