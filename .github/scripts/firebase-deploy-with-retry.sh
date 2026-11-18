@@ -194,7 +194,11 @@ while true; do
   quota_waits=$(( quota_waits + $(grep -c 'Got "Quota Exceeded" error' "$LOG_FILE" || true) ))
   quota_functions="$(printf '%s\n%s\n' "$(tr ',' '\n' <<<"$quota_functions")" "$(grep -oE 'Got "Quota Exceeded" error while trying to [a-z]+ [^ ]*/functions/[A-Za-z0-9_-]+' "$LOG_FILE" | sed 's|.*/||')" | grep -v '^$' | sort -u | paste -sd, -)"
 
-  if [[ "$code" -eq 0 && -n "$forced_functions" && "$(node "$SCRIPT_DIR/codebases.mjs" whole "$DEPLOY_ONLY")" == true ]]; then
+  if [[ "$code" -eq 0 && -n "$forced_functions" ]] && ! whole="$(node "$SCRIPT_DIR/codebases.mjs" whole "$DEPLOY_ONLY")"; then
+    echo "ERROR: could not tell whether the retried deploy needs a full pass for deletes." >&2
+    exit 1
+  fi
+  if [[ "$code" -eq 0 && -n "$forced_functions" && "${whole:-}" == true ]]; then
     # The quota-failed attempt skipped deletes; one full pass does them and
     # skips everything already current. A named-functions deploy never deletes.
     echo "Rollout-failed functions deployed (${forced_functions}); running a full pass for deletes."

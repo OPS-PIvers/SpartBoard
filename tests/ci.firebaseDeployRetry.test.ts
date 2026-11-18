@@ -138,7 +138,10 @@ describe('firebase-deploy-with-retry.sh transient classification', () => {
 function runWithStubbedDeploys(
   outcomes: { exit: number; log: string }[],
   deployOnly?: string,
-  { checkExits = {}, manifest = '' } = {}
+  {
+    checkExits = {},
+    manifest = '',
+  }: { checkExits?: { pre?: number; post?: number }; manifest?: string } = {}
 ): {
   status: number | null;
   onlys: string[];

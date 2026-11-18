@@ -400,8 +400,7 @@ jobs:
   # Shared backend: only changed targets, after every check. One group for the whole project so two
   # branches never deploy functions at the same time.
   deploy:
-    needs:
-      [plan, lint, type-check, test, functions-test, test-counts, rules, build]
+    needs: [plan, lint, type-check, test, functions-test, test-counts, rules, build]
     # Every check this mode runs must pass; reuse skips only what PR Validation passed on this exact tree.
     if: >-
       ${{ !cancelled() && needs.plan.outputs.backend == 'true' && needs.build.result == 'success'
