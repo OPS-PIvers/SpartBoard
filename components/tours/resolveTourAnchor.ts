@@ -146,8 +146,9 @@ function rowByOrder(
     if (row) found.push(row);
     else if (record && shared) lacksControl = true;
   }
-  if (found.length > 0) return found;
-  return lacksControl ? null : undefined;
+  // The pick doesn't say which widget it was in, so one widget's missing control stops the step.
+  if (lacksControl) return null;
+  return found.length > 0 ? found : undefined;
 }
 
 /** A ref with no key or a row key, moved to the row the teacher picked earlier on its list. */
