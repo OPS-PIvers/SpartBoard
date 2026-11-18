@@ -199,18 +199,43 @@ const questionSchema = z.object({
   ...targetInputFields,
 });
 
-/** Adds each add_picture as an image the question shows, as the editor's Add media does; returns a cleanup for a failed save. */
+/** add_picture refs that aren't on their question yet; a re-sent ref is skipped. */
+function wantedPictures(
+  inputs: FriendlyQuestion[],
+  questions: StoredQuestion[],
+  stimuli: unknown[]
+) {
+  const refOf = new Map(
+    stimuli.flatMap((s) => {
+      const { id, claudePictureRef } = s as {
+        id?: unknown;
+        claudePictureRef?: unknown;
+      };
+      return typeof id === 'string' && typeof claudePictureRef === 'string'
+        ? [[id, claudePictureRef] as const]
+        : [];
+    })
+  );
+  return inputs.flatMap((input, i) => {
+    const ref = input.add_picture;
+    if (!ref) return [];
+    const ids = questions[i]?.stimulusIds;
+    const has =
+      Array.isArray(ids) && ids.some((id) => refOf.get(id as string) === ref);
+    return has ? [] : [{ i, input, ref }];
+  });
+}
+
+/** Adds each add_picture as an image the question shows, as the editor's Add media does; null when there are none. */
 async function attachPictures(
   ctx: ToolContext,
   token: string,
   inputs: FriendlyQuestion[],
   questions: StoredQuestion[],
   stimuli: unknown[]
-): Promise<{ stimuli: unknown[]; discard: () => Promise<void> }> {
-  const wanted = inputs.flatMap((input, i) =>
-    input.add_picture ? [{ i, input, ref: input.add_picture }] : []
-  );
-  if (wanted.length === 0) return { stimuli, discard: () => Promise.resolve() };
+): Promise<{ stimuli: unknown[]; discard: () => Promise<void> } | null> {
+  const wanted = wantedPictures(inputs, questions, stimuli);
+  if (wanted.length === 0) return null;
   const { copyPicturesTo } = await import('./pictureUploads');
   const copies = await copyPicturesTo(
     ctx,
@@ -219,7 +244,7 @@ async function attachPictures(
     wanted.map((w) => w.ref)
   );
   const next = [...stimuli];
-  for (const [k, { i, input }] of wanted.entries()) {
+  for (const [k, { i, input, ref }] of wanted.entries()) {
     const id = randomUUID();
     const driveId = copies[k].driveId;
     next.push({
@@ -228,6 +253,7 @@ async function attachPictures(
       url: `https://drive.google.com/file/d/${driveId}/view`,
       driveFileId: driveId,
       label: copies[k].name,
+      claudePictureRef: ref,
       ...(input.picture_placement === 'in_question'
         ? { placement: 'inline' }
         : {}),
@@ -244,6 +270,19 @@ async function attachPictures(
       await Promise.all(copies.map((c) => trashDriveFile(token, c.driveId)));
     },
   };
+}
+
+/** Checks add_picture refs before a daily write is spent. */
+async function checkPictureRefs(
+  ctx: ToolContext,
+  inputs: FriendlyQuestion[] | undefined
+): Promise<void> {
+  const refs = (inputs ?? []).flatMap((q) =>
+    q.add_picture ? [q.add_picture] : []
+  );
+  if (refs.length === 0) return;
+  const { checkPictures } = await import('./pictureUploads');
+  await checkPictures(ctx, refs);
 }
 
 const QUESTION_HELP =
@@ -607,6 +646,7 @@ export function registerQuizTools(server: McpServer, ctx: ToolContext): void {
         runWithPreview(names.create, ctx, async () => {
           await assertFolder(ctx, folderType, input.folder_id);
           const questions = await buildQuestions(ctx, input.questions, []);
+          await checkPictureRefs(ctx, input.questions);
           const token = await driveTokenFor(ctx.uid);
           await reserveWrite(ctx);
           const pictures = await attachPictures(
@@ -624,16 +664,14 @@ export function registerQuizTools(server: McpServer, ctx: ToolContext): void {
             createdAt: now,
             updatedAt: now,
             ...(input.language ? { language: input.language } : {}),
-            ...(pictures.stimuli.length > 0
-              ? { stimuli: pictures.stimuli }
-              : {}),
+            ...(pictures ? { stimuli: pictures.stimuli } : {}),
           };
           const saved = await saveContent(ctx, kind, content, {
             token,
             meta: input.folder_id ? { folderId: input.folder_id } : null,
             previous: null,
             action: 'create',
-            onDriveFailure: pictures.discard,
+            onDriveFailure: pictures?.discard,
           });
           return {
             result: {
@@ -681,6 +719,10 @@ export function registerQuizTools(server: McpServer, ctx: ToolContext): void {
                 content.questions
               )
             : content.questions;
+          await checkPictureRefs(
+            ctx,
+            input.questions as FriendlyQuestion[] | undefined
+          );
           await reserveWrite(ctx);
           const pictures = input.questions
             ? await attachPictures(

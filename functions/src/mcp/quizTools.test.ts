@@ -12,6 +12,7 @@ const drive = vi.hoisted(() => ({
   failSave: false,
 }));
 vi.mock('./pictureUploads', () => ({
+  checkPictures: () => Promise.resolve([]),
   copyPicturesTo: (_c: unknown, _t: string, folder: string, refs: string[]) =>
     Promise.resolve(
       refs.map((ref, i) => ({
@@ -179,6 +180,44 @@ describe('quiz question pictures', () => {
     expect(file.questions[1].stimulusIds).toEqual([file.stimuli[1].id]);
     expect(file.questions[2].stimulusIds).toBeUndefined();
     expect(file.questions[0].add_picture).toBeUndefined();
+  });
+
+  it('skips a picture the question already has and writes no stimuli without pictures', async () => {
+    const { db } = fakeDb();
+    const call = await connect(db);
+    const made = await call('create_quiz', {
+      title: 'Cells',
+      questions: [{ ...mc(1), add_picture: 'picture:AAAAAAAAAAAAAAAA' }, mc(2)],
+    });
+    const id = made.quiz_id as string;
+    const before = drive.files.get(`file-${id}`) as { questions: Data[] };
+    await call('update_quiz', {
+      quiz_id: id,
+      questions: [
+        {
+          ...mc(1),
+          id: before.questions[0].id,
+          add_picture: 'picture:AAAAAAAAAAAAAAAA',
+        },
+        { ...mc(2), id: before.questions[1].id },
+      ],
+    });
+    const after = drive.files.get(`file-${id}`) as {
+      stimuli: Data[];
+      questions: Data[];
+    };
+    expect(after.stimuli).toHaveLength(1);
+    expect(after.questions[0].stimulusIds).toHaveLength(1);
+
+    const plain = await call('create_quiz', { title: 'P', questions: [mc(1)] });
+    await call('update_quiz', {
+      quiz_id: plain.quiz_id,
+      questions: [mc(1)],
+    });
+    expect(
+      'stimuli' in
+        (drive.files.get(`file-${plain.quiz_id as string}`) as object)
+    ).toBe(false);
   });
 
   it('trashes the copies when the Drive save fails', async () => {

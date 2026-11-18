@@ -291,6 +291,15 @@ describe('copyPicturesTo', () => {
   });
 });
 
+describe('checkPictures', () => {
+  it('caps pictures per call', async () => {
+    const refs = Array.from({ length: 21 }, () => 'picture:AAAAAAAAAAAAAAAA');
+    await expect(copyPicturesTo(ctx, 'tok', 'X', refs)).rejects.toThrow(
+      /at most 20/
+    );
+  });
+});
+
 describe('applyCardPictures', () => {
   it('sets, keeps and clears card pictures', async () => {
     seedPicture('AAAAAAAAAAAAAAAA', 'd1');

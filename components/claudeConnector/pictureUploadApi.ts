@@ -37,7 +37,7 @@ export async function uploadPicture(
   };
 }
 
-/** A smaller JPEG for a picture over the size limit; GIFs and failures come back unchanged. */
+/** A smaller WebP (it keeps transparency) for a picture over the size limit; GIFs and failures come back unchanged. */
 export async function shrinkPicture(file: File): Promise<File> {
   if (file.type === 'image/gif') return file;
   try {
@@ -51,11 +51,11 @@ export async function shrinkPicture(file: File): Promise<File> {
       ?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
     bitmap.close();
     const blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, 'image/jpeg', 0.88)
+      canvas.toBlob(resolve, 'image/webp', 0.88)
     );
-    if (!blob) return file;
+    if (blob?.type !== 'image/webp') return file;
     const name = file.name.replace(/\.[^.]+$/, '') || 'picture';
-    return new File([blob], `${name}.jpg`, { type: 'image/jpeg' });
+    return new File([blob], `${name}.webp`, { type: 'image/webp' });
   } catch {
     return file;
   }

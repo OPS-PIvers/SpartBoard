@@ -114,7 +114,8 @@ export async function issueUploadTicket(ctx: ToolContext, now = Date.now()) {
     expires_at: new Date(expiresAt).toISOString(),
     how_to_send: `POST each file as the raw request body. Send the headers Authorization: Bearer <ticket>, Content-Type: the image type, and X-File-Name: the file name. Example: curl -sS -X POST <upload_url> -H "Authorization: Bearer <ticket>" -H "Content-Type: image/png" -H "X-File-Name: slide1.png" --data-binary @slide1.png. The reply holds the picture's ref.`,
     if_you_cannot_send: `Give the teacher page_url. They drop or paste the pictures there. Then call list_uploaded_pictures.`,
-    limits: 'PNG, JPEG, GIF or WebP. Up to 8 MB each.',
+    limits:
+      'PNG, JPEG, GIF or WebP. Up to 8 MB each, and 5 MB for flashcards. At most 20 pictures per tool call.',
   };
 }
 
@@ -258,16 +259,22 @@ export async function pictureBytes(
   return { contentType: picture.mimeType, body: data };
 }
 
-/** Shared copies of the teacher's pictures in one Assets folder, made together and all trashed if one fails. */
-export async function copyPicturesTo(
+/** Pictures one tool call may copy, so Drive's rate limit isn't hit. */
+export const MAX_PICTURES_PER_CALL = 20;
+const COPY_CONCURRENCY = 4;
+
+/** Checks the flag, each ref and its size before anything is written. */
+export async function checkPictures(
   ctx: ToolContext,
-  token: string,
-  folder: string,
   refs: readonly string[],
   maxBytes = MAX_UPLOAD_BYTES
-): Promise<{ ref: string; driveId: string; name: string }[]> {
+): Promise<PictureDoc[]> {
   if (refs.length === 0) return [];
   await assertPicturesOn(ctx);
+  if (refs.length > MAX_PICTURES_PER_CALL)
+    throw new ToolError(
+      `Add at most ${MAX_PICTURES_PER_CALL} pictures per call. Send the rest in another call.`
+    );
   const pictures = await Promise.all(
     refs.map((ref) => resolvePicture(ctx, ref))
   );
@@ -276,25 +283,41 @@ export async function copyPicturesTo(
     throw new ToolError(
       `${refs[big]} is over ${Math.floor(maxBytes / 1024 / 1024)} MB, too big here. Ask the teacher for a smaller picture.`
     );
+  return pictures;
+}
+
+/** Shared copies of the teacher's pictures in one Assets folder, made a few at a time and all trashed if one fails. */
+export async function copyPicturesTo(
+  ctx: ToolContext,
+  token: string,
+  folder: string,
+  refs: readonly string[],
+  maxBytes = MAX_UPLOAD_BYTES
+): Promise<{ ref: string; driveId: string; name: string }[]> {
+  const pictures = await checkPictures(ctx, refs, maxBytes);
+  if (pictures.length === 0) return [];
   const folderId = await assetFolder(token, folder);
   const stamp = Date.now();
-  const results = await Promise.allSettled(
-    pictures.map((p, i) =>
-      copyPictureShared(
-        token,
-        folderId,
-        p.driveId,
-        `claude-${stamp}-${i + 1}-${p.name}`
-      )
-    )
-  );
-  const made = results.flatMap((r) =>
-    r.status === 'fulfilled' ? [r.value] : []
-  );
-  const failed = results.find((r) => r.status === 'rejected');
-  if (failed) {
-    await Promise.all(made.map((id) => trashDriveFile(token, id)));
-    throw failed.reason;
+  const made: string[] = [];
+  for (let start = 0; start < pictures.length; start += COPY_CONCURRENCY) {
+    const results = await Promise.allSettled(
+      pictures
+        .slice(start, start + COPY_CONCURRENCY)
+        .map((p, k) =>
+          copyPictureShared(
+            token,
+            folderId,
+            p.driveId,
+            `claude-${stamp}-${start + k + 1}-${p.name}`
+          )
+        )
+    );
+    for (const r of results) if (r.status === 'fulfilled') made.push(r.value);
+    const failed = results.find((r) => r.status === 'rejected');
+    if (failed) {
+      await Promise.all(made.map((id) => trashDriveFile(token, id)));
+      throw failed.reason;
+    }
   }
   return refs.map((ref, i) => ({
     ref,
