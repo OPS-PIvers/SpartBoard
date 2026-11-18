@@ -424,7 +424,11 @@ describe('single line (D15)', () => {
     store.calls = [];
     x = setup(assignment({ status: 'inactive', closedAt: 888 }));
     await act(() => x.current.reopenClass(null));
-    expect(store.calls).toEqual(['status:reopen:a1', 'status:resume:a1']);
+    expect(store.calls).toEqual([
+      'status:reopen:a1',
+      'status:resume:a1',
+      'mark:{"openedAt":888}',
+    ]);
     store.calls = [];
     x = setup(assignment({}));
     await act(() => x.current.pauseClass(null));
@@ -440,8 +444,12 @@ describe('single line (D15)', () => {
     expect(store.writes).toEqual([
       [SESSION, { openAt: null }],
       [ASSIGNMENT, { openAt: null }],
+      [ASSIGNMENT, { openedAt: expect.any(Number) }],
     ]);
-    expect(store.calls).toEqual(['status:resume:a1']);
+    expect(store.calls).toEqual([
+      'status:resume:a1',
+      expect.stringMatching(/^mark:\{"openedAt":\d+\}$/),
+    ]);
   });
 
   it('Reopen after the close time passed clears closeAt on both docs', async () => {
@@ -457,6 +465,7 @@ describe('single line (D15)', () => {
     expect(store.writes).toEqual([
       [SESSION, { closeAt: null }],
       [ASSIGNMENT, { closeAt: null }],
+      [ASSIGNMENT, { openedAt: expect.any(Number) }],
     ]);
   });
 });

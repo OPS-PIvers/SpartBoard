@@ -25,6 +25,7 @@ export type GradingTrack =
 
 type GateFields = Pick<PeriodAccess, 'state' | 'openAt' | 'closeAt'> & {
   closedAt?: number | null;
+  openedAt?: number | null;
 };
 
 /** One class of an assignment, normalized across kinds. */
@@ -59,6 +60,8 @@ export interface AssignedInput {
   doneAt: number | null;
   /** Whole-assignment window, read only on a single-line assignment. */
   openAt: number | null;
+  /** D11: when a single line was last opened from the Assigned tab. */
+  openedAt?: number | null;
   closeAt: number | null;
   /** D16: a view-only share has no grading and is Done once closed. */
   viewOnly: boolean;
@@ -81,6 +84,8 @@ export interface AssignedClass {
   opensAt: number | null;
   /** Its bell period is under way now (D8). */
   inSession: boolean;
+  /** D11: open by hand past its period (or since an earlier day); when it was opened. */
+  leftOpenSince: number | null;
   submitted: number;
   total: number | null;
 }
@@ -175,6 +180,7 @@ function classOf(
     key: cls.key,
     label: cls.label,
     inSession,
+    leftOpenSince: null,
     submitted: cls.submitted,
     total: cls.total,
   };
@@ -182,6 +188,7 @@ function classOf(
     state: item.status === 'paused' ? 'paused' : 'open',
     openAt: item.openAt,
     closeAt: item.closeAt,
+    openedAt: item.openedAt,
   };
   const closesAt = gate.closeAt ?? null;
   const opensAt = gate.openAt ?? null;
@@ -213,7 +220,11 @@ function classOf(
   });
   switch (eff) {
     case 'open':
-      return out(item.status === 'paused' ? 'paused' : 'open');
+      if (item.status === 'paused') return out('paused');
+      return {
+        ...out('open'),
+        leftOpenSince: leftOpenSince(item, cls, gate, nowMs),
+      };
     case 'scheduled':
       return out('scheduled');
     case 'paused':
@@ -225,6 +236,21 @@ function classOf(
       // A class closed before D24 that has work in it is closed, not Ready.
       return cls.started > 0 ? out('closed', 'teacher') : out('ready');
   }
+}
+
+/** D11: an open class with no close time whose bell has rung since it opened, or opened before today. */
+function leftOpenSince(
+  item: AssignedInput,
+  cls: AssignedClassInput,
+  gate: GateFields,
+  nowMs: number
+): number | null {
+  if (item.viewOnly || gate.closeAt != null) return null;
+  const since = gate.openedAt ?? gate.openAt ?? item.createdAt;
+  const today = new Date(nowMs).setHours(0, 0, 0, 0);
+  const bellRang =
+    !!cls.bell && cls.bell.closeAt <= nowMs && since < cls.bell.closeAt;
+  return since < today || bellRang ? since : null;
 }
 
 const RANK: Record<ClassStatus, number> = {
@@ -439,6 +465,7 @@ export interface AssignedRunFields {
   doneAt?: number | null;
   openAt?: number | null;
   closeAt?: number | null;
+  openedAt?: number | null;
   rosterIds?: string[];
   className?: string;
   periodNames?: string[];
@@ -476,7 +503,7 @@ export function buildAssignedInput(
         access,
         ...tally((r) => responseInClass(r, key, access.label)),
         total: extras.classSizes?.[key] ?? null,
-        bell: extras.bellFor?.(access) ?? null,
+        bell: extras.bellFor?.({ rosterId: access.rosterId ?? key }) ?? null,
       }))
     : [
         {
@@ -505,6 +532,7 @@ export function buildAssignedInput(
     doneAt: run.doneAt ?? null,
     openAt: run.openAt ?? null,
     closeAt: run.closeAt ?? null,
+    openedAt: run.openedAt ?? null,
     viewOnly: fields.viewOnly,
     needsGrading: extras.responses == null ? null : extras.needsGrading,
     publishesScores: fields.publishesScores,

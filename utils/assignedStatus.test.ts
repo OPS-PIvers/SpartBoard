@@ -537,3 +537,113 @@ describe('sort (D13)', () => {
     ]);
   });
 });
+
+describe('class left open (D11)', () => {
+  const T = new Date(2026, 10, 18, 14, 0).getTime();
+  const HOUR = 60 * MIN;
+  const YESTERDAY = new Date(2026, 10, 17, 9, 0).getTime();
+  const bellAt = (openAt: number, closeAt: number) => () => ({
+    openAt,
+    closeAt,
+  });
+  const leftOpen = (a: Partial<QuizAssignment>, extras?: Extras, now = T) =>
+    derive({ createdAt: T - 6 * HOUR, ...a }, extras, now).classes;
+
+  it('flags an open class whose bell rang after it was opened', () => {
+    const [c] = leftOpen(
+      { periodAccess: { c1: row({ state: 'open', openedAt: T - 3 * HOUR }) } },
+      { bellFor: bellAt(T - 3 * HOUR, T - 2 * HOUR) }
+    );
+    expect(c.leftOpenSince).toBe(T - 3 * HOUR);
+  });
+
+  it('does not flag a class still in its period or opened after the bell', () => {
+    const during = leftOpen(
+      { periodAccess: { c1: row({ state: 'open', openedAt: T - HOUR }) } },
+      { bellFor: bellAt(T - HOUR, T + HOUR) }
+    );
+    const after = leftOpen(
+      { periodAccess: { c1: row({ state: 'open', openedAt: T - HOUR }) } },
+      { bellFor: bellAt(T - 3 * HOUR, T - 2 * HOUR) }
+    );
+    expect(during[0].leftOpenSince).toBeNull();
+    expect(after[0].leftOpenSince).toBeNull();
+  });
+
+  it('flags a class with no bell only once it was opened on an earlier day', () => {
+    const today = leftOpen({
+      periodAccess: { c1: row({ state: 'open', openedAt: T - 4 * HOUR }) },
+    });
+    const earlier = leftOpen({
+      periodAccess: { c1: row({ state: 'open', openedAt: YESTERDAY }) },
+    });
+    expect(today[0].leftOpenSince).toBeNull();
+    expect(earlier[0].leftOpenSince).toBe(YESTERDAY);
+  });
+
+  it('falls back to the window start, then the assigned time, for a class with no open stamp', () => {
+    const legacy = leftOpen({
+      createdAt: YESTERDAY,
+      periodAccess: { c1: row({ state: 'open' }) },
+    });
+    expect(legacy[0].leftOpenSince).toBe(YESTERDAY);
+  });
+
+  it('never flags a class that closes itself, a paused class, or a view-only share', () => {
+    const timed = leftOpen({
+      periodAccess: {
+        c1: row({ state: 'open', openedAt: YESTERDAY, closeAt: T + HOUR }),
+        c2: row({ state: 'paused', openedAt: YESTERDAY }),
+      },
+    });
+    const share = leftOpen({ mode: 'view-only', createdAt: YESTERDAY });
+    expect(timed.map((c) => c.leftOpenSince)).toEqual([null, null]);
+    expect(share[0].leftOpenSince).toBeNull();
+  });
+
+  it('flags a single-line assignment open since an earlier day', () => {
+    const [c] = leftOpen({ createdAt: YESTERDAY });
+    expect(c.leftOpenSince).toBe(YESTERDAY);
+    const [paused] = leftOpen({ createdAt: YESTERDAY, status: 'paused' });
+    expect(paused.leftOpenSince).toBeNull();
+  });
+});
+
+describe('class left open (D11) review cases', () => {
+  const T = new Date(2026, 10, 18, 14, 0).getTime();
+  const HOUR = 60 * MIN;
+  it('reads a single line opened today from its open stamp, not the assigned time', () => {
+    const yesterday = new Date(2026, 10, 17, 9, 0).getTime();
+    const run = { ...quiz({ createdAt: yesterday }), openedAt: T - HOUR };
+    const [c] = deriveAssignedStatus(
+      quizAssignedInput(run, loaded()),
+      T
+    ).classes;
+    expect(c.leftOpenSince).toBeNull();
+  });
+
+  it('finds the bell for a class row keyed by roster with no rosterId', () => {
+    const seen: (string | undefined)[] = [];
+    const [c] = deriveAssignedStatus(
+      quizAssignedInput(
+        quiz({
+          createdAt: T - 6 * HOUR,
+          periodAccess: {
+            r9: { ...row({ state: 'open', openedAt: T - 3 * HOUR }) },
+          },
+        }),
+        loaded({
+          bellFor: ({ rosterId }) => {
+            seen.push(rosterId);
+            return rosterId === 'r9'
+              ? { openAt: T - 3 * HOUR, closeAt: T - 2 * HOUR }
+              : null;
+          },
+        })
+      ),
+      T
+    ).classes;
+    expect(seen).toEqual(['r9']);
+    expect(c.leftOpenSince).toBe(T - 3 * HOUR);
+  });
+});

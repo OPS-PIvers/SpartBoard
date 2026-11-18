@@ -5570,6 +5570,8 @@ export interface PeriodAccess {
   pausedAt?: number;
   /** Epoch ms the teacher closed this class; absent or null means Ready, never closed (ASSIGNED_TAB D24). */
   closedAt?: number | null;
+  /** Epoch ms the teacher last opened or resumed this class (ASSIGNED_TAB D11). */
+  openedAt?: number | null;
 }
 
 export type AccessMode = 'assessment' | 'assignment';

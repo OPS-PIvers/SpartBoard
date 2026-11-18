@@ -1443,6 +1443,8 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'library-shell.assigned-classes': ['library.shell'],
     'library-shell.assigned-class-action': ['library.shell'],
     'library-shell.assigned-done-section': ['library.shell'],
+    'library-shell.assigned-left-open-close': ['library.shell'],
+    'library-shell.assigned-left-open-leave': ['library.shell'],
     'library-shell.assigned-close-all': ['quiz.face'],
     'library-shell.assigned-move-to-done': ['quiz.face'],
     'widget-settings.calendar.remove-calendar': ['widgets.calendar.settings'],

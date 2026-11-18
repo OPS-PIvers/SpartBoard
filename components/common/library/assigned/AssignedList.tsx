@@ -2,7 +2,16 @@ import React, { useId, useMemo, useState } from 'react';
 import { ChevronRight, Inbox, Loader2 } from 'lucide-react';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { tourFieldAttr } from '@/config/tourAnchors';
-import { compareAssigned, type AssignedStatus } from '@/utils/assignedStatus';
+import {
+  compareAssigned,
+  type AssignedClass,
+  type AssignedStatus,
+} from '@/utils/assignedStatus';
+import {
+  leftOpenKey,
+  readLeftOpenDismissals,
+  writeLeftOpenDismissals,
+} from './leftOpenDismissals';
 
 export interface AssignedListItem {
   id: string;
@@ -18,6 +27,13 @@ interface AssignedListProps<T extends AssignedListItem> {
   emptyTitle: string;
   emptySub: string;
   tourWidgetType: string;
+  /** D11: renders a class left open (usually `AssignedLeftOpenFlag`); omitted shows no flags. */
+  renderLeftOpen?: (
+    item: T,
+    cls: AssignedClass,
+    index: number,
+    leaveOpen: () => void
+  ) => React.ReactNode;
 }
 
 const SectionLabel: React.FC<{ label: string; count: number }> = ({
@@ -52,8 +68,29 @@ export function AssignedList<T extends AssignedListItem>({
   emptyTitle,
   emptySub,
   tourWidgetType,
+  renderLeftOpen,
 }: AssignedListProps<T>): React.ReactElement {
   const [doneOpen, setDoneOpen] = useState(false);
+  const [dismissed, setDismissed] = useState(readLeftOpenDismissals);
+  const leftOpen = useMemo(() => {
+    if (!renderLeftOpen) return [];
+    const skip = new Set(dismissed);
+    return items
+      .flatMap((item) =>
+        item.status.classes.flatMap((cls) =>
+          cls.leftOpenSince != null &&
+          !skip.has(leftOpenKey(item.id, cls.key, cls.leftOpenSince))
+            ? [{ item, cls, since: cls.leftOpenSince }]
+            : []
+        )
+      )
+      .sort((a, b) => a.since - b.since);
+  }, [items, dismissed, renderLeftOpen]);
+  const leaveOpen = (key: string) => {
+    const next = [...readLeftOpenDismissals().filter((k) => k !== key), key];
+    writeLeftOpenDismissals(next);
+    setDismissed(next);
+  };
   const doneId = useId();
   const { active, done } = useMemo(() => {
     const sorted = [...items].sort(
@@ -87,6 +124,15 @@ export function AssignedList<T extends AssignedListItem>({
 
   return (
     <div className="flex flex-col">
+      {renderLeftOpen &&
+        leftOpen.map(({ item, cls, since }, i) => {
+          const key = leftOpenKey(item.id, cls.key, since);
+          return (
+            <React.Fragment key={key}>
+              {renderLeftOpen(item, cls, i, () => leaveOpen(key))}
+            </React.Fragment>
+          );
+        })}
       <div className={SECTION_CLASS} style={SECTION_STYLE}>
         <SectionLabel label="Active" count={active.length} />
       </div>

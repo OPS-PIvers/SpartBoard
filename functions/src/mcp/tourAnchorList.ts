@@ -26928,6 +26928,34 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "library-shell.assigned-left-open-close",
+    "label": "Close on a class left open flag at the top of the Assigned tab",
+    "scope": "field",
+    "persists": true,
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-left-open-leave",
+    "label": "Leave open on a class left open flag at the top of the Assigned tab",
+    "scope": "field",
+    "persists": true,
+    "row_wildcard": true,
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "library-shell.assigned-close-all",
     "label": "Close for all classes, in an Assigned row menu",
     "scope": "board",

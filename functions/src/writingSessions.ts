@@ -118,6 +118,7 @@ const PERIOD_FIELDS = [
   'closeAt',
   'pausedAt',
   'closedAt',
+  'openedAt',
 ] as const;
 const PERIOD_KEY_RE = /^[^/]{1,300}$/;
 

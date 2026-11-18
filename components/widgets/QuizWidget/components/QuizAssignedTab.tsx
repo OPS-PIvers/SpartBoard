@@ -19,6 +19,7 @@ import type {
   QuizResponse,
 } from '@/types';
 import {
+  AssignedLeftOpenFlag,
   AssignedList,
   AssignedRow,
   type ClassActionKind,
@@ -36,6 +37,7 @@ import {
 import {
   deriveAssignedStatus,
   quizAssignedInput,
+  type AssignedClass,
   type AssignedStatus,
 } from '@/utils/assignedStatus';
 import { BELL_CLOSE_CUSHION_MS, type EpochWindow } from '@/utils/periodPlan';
@@ -310,6 +312,18 @@ export const QuizAssignedTab: React.FC<QuizAssignedTabProps> = ({
       emptyTitle={emptyTitle}
       emptySub={emptySub}
       tourWidgetType="quiz"
+      renderLeftOpen={(row, cls, index, leaveOpen) =>
+        row.assignment.paper ? null : (
+          <QuizLeftOpenHost
+            row={row}
+            cls={cls}
+            index={index}
+            rosters={rosters}
+            lifecycle={lifecycle}
+            onLeaveOpen={leaveOpen}
+          />
+        )
+      }
       renderRow={(row, index) => (
         <QuizAssignedRowHost
           row={row}
@@ -320,6 +334,38 @@ export const QuizAssignedTab: React.FC<QuizAssignedTabProps> = ({
           {...handlers}
         />
       )}
+    />
+  );
+};
+
+/** D11: Close or Leave open for one class left open, with the row's own class actions. */
+const QuizLeftOpenHost: React.FC<{
+  row: RowModel;
+  cls: AssignedClass;
+  index: number;
+  rosters: ClassRoster[];
+  lifecycle: QuizLifecycle;
+  onLeaveOpen: () => void;
+}> = ({ row, cls, index, rosters, lifecycle, onLeaveOpen }) => {
+  const a = row.assignment;
+  const actions = useQuizClassActions(a, lifecycle, rosters);
+  const run = usePeriodRunner(a.periodAccess, 'QuizAssignedTab.leftOpen');
+  const [busy, setBusy] = useState(false);
+  const single = row.status.singleLine;
+  return (
+    <AssignedLeftOpenFlag
+      title={a.quizTitle}
+      classLabel={single ? null : cls.label}
+      busy={busy}
+      onClose={() => {
+        setBusy(true);
+        void run(() => actions.closeClass(single ? null : cls.key)).finally(
+          () => setBusy(false)
+        );
+      }}
+      onLeaveOpen={onLeaveOpen}
+      tourIndex={index}
+      tourWidgetType="quiz"
     />
   );
 };

@@ -27,6 +27,8 @@ export interface AssignmentRun extends PeriodAccessSessionFields {
   /** D24 single-line close mark and D5 Move to Done mark. */
   closedAt?: number | null;
   doneAt?: number | null;
+  /** D11: when a single line was last opened from the Assigned tab. */
+  openedAt?: number | null;
 }
 
 /** Where a kind keeps its session and the teacher's assignment doc. */
@@ -169,7 +171,9 @@ export function useAssignmentClassActions(
   );
 
   const mark = useCallback(
-    async (fields: Partial<Pick<AssignmentRun, 'closedAt' | 'doneAt'>>) => {
+    async (
+      fields: Partial<Pick<AssignmentRun, 'closedAt' | 'doneAt' | 'openedAt'>>
+    ) => {
       await updateDoc(owned().assignment, fields);
     },
     [owned]
@@ -269,6 +273,7 @@ export function useAssignmentClassActions(
       if (k == null) {
         await clearSingleGate();
         await ensureActive(null);
+        await mark({ openedAt: Date.now() });
         return [];
       }
       const untimed = isReopen
@@ -277,7 +282,7 @@ export function useAssignmentClassActions(
       await ensureActive(k);
       return untimed;
     },
-    [id, classKey, owned, clearSingleGate, ensureActive, periods]
+    [id, classKey, owned, clearSingleGate, ensureActive, mark, periods]
   );
 
   // Closes one class and reports, from the same transaction, whether it was the last one open (D21).

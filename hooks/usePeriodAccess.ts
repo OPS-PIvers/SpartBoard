@@ -268,6 +268,7 @@ export function usePeriodAccess(
             now
           ),
           ...(reopen || access.closedAt != null ? { closedAt: null } : {}),
+          openedAt: now,
         };
       }
       await write(rows);
