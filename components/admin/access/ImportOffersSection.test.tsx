@@ -33,7 +33,10 @@ vi.mock('firebase/firestore', () => ({
 
 import { ImportOffersSection } from './ImportOffersSection';
 
-const savePermissionMock = vi.fn(() => Promise.resolve(true));
+const savePermissionMock = vi.fn((..._args: unknown[]) =>
+  Promise.resolve(true)
+);
+const updatePermissionMock = vi.fn();
 
 const perm = (
   featureId: GlobalFeature,
@@ -57,6 +60,7 @@ const editor = {
           : perm(id),
   isSaved: () => true,
   savePermission: savePermissionMock,
+  updatePermission: updatePermissionMock,
   showMessage: () => undefined,
 } as unknown as Parameters<typeof ImportOffersSection>[0]['editor'];
 
@@ -121,13 +125,14 @@ describe('ImportOffersSection', () => {
   it('shows who each rolling-out widget is live for on its row', () => {
     render(<ImportOffersSection editor={editor} />);
     const web = open('Web link');
-    expect(levelOf(web, 'Import: Activity Wall')).toBe('Beta');
-    expect(levelOf(web, 'Import: New board')).toBe('Admin');
-    expect(levelOf(web, 'Import: Link')).toBe('Public');
+    expect(levelOf(web, 'Import: Activity Wall, Web link')).toBe('Beta');
+    expect(levelOf(web, 'Import: New board, Web link')).toBe('Admin');
+    expect(levelOf(web, 'Import: Link, Web link')).toBe('Public');
   });
 
   it('puts the form access on the Google Form row, and the quiz document gate on its Quiz', () => {
     savePermissionMock.mockClear();
+    updatePermissionMock.mockClear();
     render(<ImportOffersSection editor={editor} />);
     const form = open('Google Form');
     expect(levelOf(form, 'Import: Google Forms')).toBe('Admin');
@@ -136,7 +141,7 @@ describe('ImportOffersSection', () => {
     ).toHaveLength(1);
     expect(
       form.getByRole('radiogroup', {
-        name: 'Build a quiz from a test document access',
+        name: 'Build a quiz from a test document, Google Form access',
       })
     ).toBeInTheDocument();
     fireEvent.click(
@@ -144,9 +149,10 @@ describe('ImportOffersSection', () => {
         form.getByRole('radiogroup', { name: 'Import: Google Forms access' })
       ).getByRole('radio', { name: 'Public' })
     );
-    expect(savePermissionMock).toHaveBeenCalledWith('import-google-forms', {
+    expect(updatePermissionMock).toHaveBeenCalledWith('import-google-forms', {
       accessLevel: 'public',
     });
+    expect(savePermissionMock).toHaveBeenCalledWith('import-google-forms');
   });
 
   it('lists the ways in with their own access', () => {

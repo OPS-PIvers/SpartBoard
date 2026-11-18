@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { tourFieldAttr } from '@/config/tourAnchors';
 import { Archive, FlaskConical, GraduationCap, Loader2 } from 'lucide-react';
-import type { GlobalFeature } from '@/types';
+import type { GlobalFeature, GlobalFeaturePermission } from '@/types';
 import { FEATURE_DEFAULTS } from '@/config/featureDefaults';
 import { rolloutSwitchKey, type RolloutSwitch } from '@/config/rolloutSwitches';
 import { TOOLS } from '@/config/tools';
@@ -151,6 +151,10 @@ export const PreviewRow: React.FC<{
   );
 };
 
+// The Import lists only set the level, so a flag switched off or narrowed keeps its full row.
+const needsFullRow = (p: GlobalFeaturePermission): boolean =>
+  !p.enabled || (p.buildings?.length ?? 0) > 0 || !!p.minTier;
+
 const RolloutOnlyRow: React.FC<{ sw: RolloutSwitch }> = ({ sw }) => {
   const state = useRolloutSwitch(sw);
   const locked = useSuperAdminLock(sw);
@@ -249,7 +253,11 @@ export const PreviewsPanel: React.FC = () => {
                 // Import anything shows its own flags on its lists; Options keeps the rest.
                 const options =
                   id === 'universal-import'
-                    ? group.children.filter((c) => !IMPORT_FLAGS_ON_ROWS.has(c))
+                    ? group.children.filter(
+                        (c) =>
+                          !IMPORT_FLAGS_ON_ROWS.has(c) ||
+                          needsFullRow(editor.getPermission(c))
+                      )
                     : group.children;
                 return (
                   <PreviewRow

@@ -22,6 +22,7 @@ import { FEATURE_DEFAULTS } from '@/config/featureDefaults';
 import { tourFieldAttr } from '@/config/tourAnchors';
 import { Toggle } from '@/components/common/Toggle';
 import { useImportConversionSettings } from '@/hooks/useImportConversionSettings';
+import { useQuizDocumentImportSettings } from '@/hooks/useQuizDocumentImportSettings';
 import {
   IMPORT_CONVERSION_SETTINGS_DOC,
   IMPORT_SOURCE_KINDS,
@@ -47,7 +48,12 @@ import type { ImportTarget } from '@/utils/import/contract';
 import type { GlobalFeature, GlobalFeaturePermission } from '@/types';
 import { BetaUsersPanel } from '@/components/admin/BetaUsersPanel';
 import { AccessLevelPicker } from './AccessFeatureRow';
-import { groupChildLabel } from './accessSearch';
+import {
+  featureSearchFields,
+  groupChildLabel,
+  matchesSearch,
+} from './accessSearch';
+import { useAccessSearch } from './accessSearchContext';
 import { isReadyToGraduate } from './previewStatus';
 import { retireIssueUrl } from './retireIssue';
 import type { useGlobalPermissionsEditor } from './useGlobalPermissionsEditor';
@@ -126,20 +132,37 @@ const addsStraight = (kind: ImportSourceKind, target: ImportTarget): boolean =>
 const labelOf = (target: ImportTarget): string =>
   importRoute(target)?.label ?? target;
 
+// Into the editor first so a second click before the write lands builds on the first.
+const saveNow = (
+  editor: Editor,
+  featureId: GlobalFeature,
+  patch: Partial<GlobalFeaturePermission>
+): void => {
+  editor.updatePermission(featureId, patch);
+  void editor.savePermission(featureId);
+};
+
 /** Admin, Beta or Public for one preview flag, saved on click, with Retire once it is open to everyone. */
-const PreviewAccess: React.FC<{ featureId: GlobalFeature; editor: Editor }> = ({
-  featureId,
-  editor,
-}) => {
+const PreviewAccess: React.FC<{
+  featureId: GlobalFeature;
+  editor: Editor;
+  where?: string;
+}> = ({ featureId, editor, where }) => {
   const permission: GlobalFeaturePermission = editor.getPermission(featureId);
+  const label = FEATURE_DEFAULTS[featureId].label;
+  // The quiz document gate also needs its district switch.
+  const quizDocs = useQuizDocumentImportSettings(
+    featureId === 'quiz-document-import'
+  );
+  const off =
+    !permission.enabled ||
+    (featureId === 'quiz-document-import' && !quizDocs.enabled);
   const ready =
     FEATURE_DEFAULTS[featureId].afterLaunch === 'retire' &&
     isReadyToGraduate(permission, editor.isSaved(featureId), undefined);
   return (
     <span className="flex shrink-0 items-center gap-2">
-      {!permission.enabled && (
-        <span className="text-xxs text-amber-700">Preview: off</span>
-      )}
+      {off && <span className="text-xxs text-amber-700">Preview: off</span>}
       {ready && (
         <a
           href={retireIssueUrl(featureId)}
@@ -155,11 +178,9 @@ const PreviewAccess: React.FC<{ featureId: GlobalFeature; editor: Editor }> = ({
       )}
       <AccessLevelPicker
         value={permission.accessLevel}
-        onChange={(accessLevel) =>
-          void editor.savePermission(featureId, { accessLevel })
-        }
-        label={FEATURE_DEFAULTS[featureId].label}
-        anchorKey={featureId}
+        onChange={(accessLevel) => saveNow(editor, featureId, { accessLevel })}
+        label={where ? `${label}, ${where}` : label}
+        anchorKey={where ? `${featureId}:${where}` : featureId}
       />
     </span>
   );
@@ -176,9 +197,7 @@ const PreviewTesters: React.FC<{
     <div className="py-2">
       <BetaUsersPanel
         betaUsers={permission.betaUsers}
-        onChange={(betaUsers) =>
-          void editor.savePermission(featureId, { betaUsers })
-        }
+        onChange={(betaUsers) => saveNow(editor, featureId, { betaUsers })}
         showMessage={editor.showMessage}
         variant="expanded"
       />
@@ -306,7 +325,13 @@ const WidgetRow: React.FC<{
             </span>
           )}
         </label>
-        {flag && <PreviewAccess featureId={flag} editor={editor} />}
+        {flag && (
+          <PreviewAccess
+            featureId={flag}
+            editor={editor}
+            where={SOURCES[kind].label}
+          />
+        )}
       </div>
       {flag && <PreviewTesters featureId={flag} editor={editor} />}
       {ai && checked && (
@@ -357,7 +382,16 @@ const SourceRow: React.FC<{
   save: Save;
 }> = ({ kind, settings, editor, legacyLimit, saving, save }) => {
   const flag = sourceFeature(kind);
-  const [open, setOpen] = useState(false);
+  const { query } = useAccessSearch();
+  // A search that matches one of this source's widgets opens it until the admin toggles it.
+  const [toggled, setOpen] = useState<boolean | null>(null);
+  const open =
+    toggled ??
+    (query.trim() !== '' &&
+      IMPORT_SOURCE_TARGETS[kind].some((t) => {
+        const f = importRowFeature(kind, t);
+        return !!f && matchesSearch(query, featureSearchFields(f));
+      }));
   const { label, hint, Icon } = SOURCES[kind];
   const picked = importSourceChecked(settings, kind);
   const panelId = `import-source-${kind}`;

@@ -122,6 +122,25 @@ describe('PreviewsPanel', () => {
     expect(offers).toHaveTextContent('Send from the Chrome extension');
   });
 
+  it('keeps a switched-off Import add-on as a full row so it can be turned back on', async () => {
+    savedPermissions = [
+      {
+        featureId: 'import-flashcards',
+        enabled: false,
+        accessLevel: 'admin',
+        betaUsers: [],
+        buildings: [],
+      },
+    ];
+    await renderPanel();
+    expandRow('universal-import', 'Import anything');
+    const group = screen.getByTestId('preview-group-universal-import');
+    expect(
+      within(group).getByTestId('access-row-import-flashcards')
+    ).toBeInTheDocument();
+    expect(within(group).queryByTestId('access-row-import-link')).toBeNull();
+  });
+
   it('opens the Import row when a search finds one of its add-ons', async () => {
     render(
       <AccessSearchContext.Provider
@@ -133,6 +152,11 @@ describe('PreviewsPanel', () => {
     const row = await screen.findByTestId('access-row-universal-import');
     expect(within(row).getByTestId('import-offers')).toBeInTheDocument();
     expect(screen.queryByTestId('access-row-import-link')).toBeNull();
+    expect(
+      within(row).getByRole('radiogroup', {
+        name: 'Import: Link, Web link access',
+      })
+    ).toBeInTheDocument();
   });
 
   it('saves the Google Form access from its source row to its own permission doc', async () => {
