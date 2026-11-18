@@ -53,27 +53,29 @@ const TONE_CLASS: Record<LineTone, string> = {
 };
 
 type MainKind = AssignedStatus['action']['kind'];
-const SOLID = 'text-white';
+const W = 'text-white';
+const RING_BLUE =
+  'bg-white text-brand-blue-primary ring-1 ring-inset ring-brand-blue-light hover:bg-brand-blue-lighter';
+const RING_SLATE =
+  'bg-white text-slate-700 ring-1 ring-inset ring-slate-300 hover:bg-slate-50';
+const GREEN = `${W} bg-emerald-700 hover:bg-emerald-800`;
 // Main button color follows the row state.
 const PALETTE: Record<MainKind, string> = {
-  open: `${SOLID} bg-emerald-700 hover:bg-emerald-800`,
-  resume: `${SOLID} bg-emerald-700 hover:bg-emerald-800`,
-  monitor: `${SOLID} bg-brand-blue-primary hover:bg-brand-blue-dark`,
-  grade: `${SOLID} bg-red-700 hover:bg-red-800`,
-  publish: `${SOLID} bg-amber-700 hover:bg-amber-800`,
-  results: 'bg-slate-100 text-slate-700 hover:bg-slate-200',
-  'choose-class':
-    'bg-brand-blue-lighter text-brand-blue-dark hover:bg-brand-blue-light/40',
+  open: GREEN,
+  resume: GREEN,
+  monitor: `${W} bg-brand-blue-primary hover:bg-brand-blue-dark`,
+  grade: `${W} bg-brand-red hover:bg-brand-red-dark`,
+  publish: `${W} bg-amber-800 hover:bg-amber-900`,
+  results: RING_SLATE,
+  'choose-class': RING_BLUE,
 };
 const CLASS_TONE: Record<ClassActionKind, string> = {
-  open: 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200',
-  resume: 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200',
-  pause: 'bg-amber-100 text-amber-800 hover:bg-amber-200',
-  close: 'bg-slate-200 text-slate-700 hover:bg-slate-300',
-  reopen:
-    'bg-brand-blue-lighter text-brand-blue-dark hover:bg-brand-blue-light/40',
-  monitor:
-    'bg-brand-blue-lighter text-brand-blue-dark hover:bg-brand-blue-light/40',
+  open: GREEN,
+  resume: GREEN,
+  pause: 'bg-amber-100 text-amber-900 hover:bg-amber-200',
+  close: RING_SLATE,
+  reopen: RING_BLUE,
+  monitor: RING_BLUE,
 };
 
 const ICON = { width: 'min(14px, 4cqmin)', height: 'min(14px, 4cqmin)' };
