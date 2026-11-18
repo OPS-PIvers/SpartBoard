@@ -808,11 +808,7 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
     canAccessFeature('paper-answer-sheets') &&
     getPlcFeatures(plc).printForTeammates;
   const teammates = useMemo(
-    () =>
-      members.filter(
-        (m) =>
-          m.uid !== user?.uid && m.status === 'active' && m.role !== 'viewer'
-      ),
+    () => members.filter((m) => m.uid !== user?.uid && m.status === 'active'),
     [members, user?.uid]
   );
   const [teammatePrintRow, setTeammatePrintRow] =

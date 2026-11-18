@@ -1088,6 +1088,7 @@ const UserRow: React.FC<{
           type="button"
           disabled={!canEditStatus}
           onClick={() => setStatusPopoverOpen((o) => !o)}
+          title={isSelfLocked ? 'You cannot change your own status' : undefined}
           className="-mx-2 px-2 py-1 rounded-md hover:bg-slate-100 disabled:hover:bg-transparent disabled:cursor-not-allowed focus:outline-hidden focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30"
         >
           <StatusPill status={user.status} />
