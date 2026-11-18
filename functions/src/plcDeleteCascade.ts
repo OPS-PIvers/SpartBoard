@@ -6,6 +6,9 @@ import './functionsInit';
 
 // Mirror MEETING_AUDIO_ROOT (plcRecordingCore) and NORMING_MEDIA_ROOT (plcNorming) without loading them.
 
+// Teachers' gradebook classes still read the PLC's grading config; it holds no member data and the id can't be re-created.
+const KEPT_SUBCOLLECTIONS = new Set(['meta']);
+
 export interface CascadeDeps {
   /** Subcollection refs under the deleted root. */
   listSubcollections: (plcId: string) => Promise<{ id: string }[]>;
@@ -21,7 +24,9 @@ export async function cascadePlcDelete(
   plcId: string
 ): Promise<string[]> {
   await deps.markDeleted(plcId);
-  const subs = await deps.listSubcollections(plcId);
+  const subs = (await deps.listSubcollections(plcId)).filter(
+    (s) => !KEPT_SUBCOLLECTIONS.has(s.id)
+  );
   for (const sub of subs) await deps.deleteSubcollection(plcId, sub.id);
   const prefixes = [
     `plc_meeting_audio/${plcId}/`,

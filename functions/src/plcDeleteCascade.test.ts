@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { cascadePlcDelete, type CascadeDeps } from './plcDeleteCascade';
 
 describe('cascadePlcDelete (security #15)', () => {
-  it('deletes every subcollection and both Storage prefixes of the deleted PLC', async () => {
+  it('deletes every subcollection but the grading config, and both Storage prefixes', async () => {
     const deleted: string[] = [];
     const prefixes: string[] = [];
     const marked: string[] = [];
@@ -15,6 +15,7 @@ describe('cascadePlcDelete (security #15)', () => {
             'comments',
             'activity',
             'workspaces',
+            'meta',
           ].map((id) => ({ id }))
         ),
       deleteSubcollection: (plcId, name) => {
