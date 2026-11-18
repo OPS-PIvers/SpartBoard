@@ -1,6 +1,7 @@
 import type {
   ChecklistItem,
   DailySchedule,
+  PollOption,
   ScoreboardTeam,
   WidgetType,
 } from '@/types';
@@ -13,8 +14,27 @@ type Values = Record<string, unknown>;
 /** The key under `savedWidgetPresets[type]` holding a teacher's saved Settings-tab default. */
 export const SETTINGS_DEFAULT_PRESET_KEY = 'settingsDefault';
 
-// Fields that are navigation or notices, not settings.
-const NEVER_SAVED = new Set(['managedNotice', 'manageNotice', 'view']);
+// Notices, navigation, student names and class-group links: never account-wide.
+const NEVER_SAVED = new Set([
+  'managedNotice',
+  'manageNotice',
+  'view',
+  'firstNames',
+  'lastNames',
+  'names',
+  'completedNames',
+  'rosterPoolGroupId',
+  'lockedRosterGroupIds',
+]);
+
+/** Keys a field writes alongside its declared one, saved and reset together. */
+const COMPANION_KEYS: Partial<Record<WidgetType, readonly string[]>> = {
+  'concept-web': ['edges'],
+  'reveal-grid': ['memoryCards'],
+};
+
+// Largest saved default, so one huge config can't break every later preset save.
+export const SETTINGS_DEFAULT_MAX_CHARS = 200_000;
 
 /** Live data and links to other widgets on one board; a saved default never carries them. */
 export const SETTINGS_DEFAULT_EXCLUDED_KEYS: Partial<
@@ -24,11 +44,12 @@ export const SETTINGS_DEFAULT_EXCLUDED_KEYS: Partial<
   nextUp: ['activeDriveFileId'],
   weather: ['temp', 'condition', 'lastSync'],
   random: ['lastResult', 'remainingStudents'],
-  checklist: ['completedNames'],
   recessGear: ['linkedWeatherWidgetId'],
-  instructionalRoutines: ['attachedWidget'],
   sound: ['quietGoalTeamId', 'quietGoalScoreboardId'],
   'time-tool': ['startLength'],
+  pdf: ['activePdfId'],
+  'reveal-grid': ['activeDriveFileId'],
+  drawing: ['background'],
 };
 
 type Normalizer = (
@@ -54,6 +75,7 @@ const NORMALIZERS: Partial<Record<WidgetType, Normalizer>> = {
           ...picked,
           schedules: toDefaultSchedules(resolveSchedules(config)),
           items: [],
+          settingsSelectedScheduleId: undefined,
         }
       : picked,
   checklist: (picked) =>
@@ -71,7 +93,61 @@ const NORMALIZERS: Partial<Record<WidgetType, Normalizer>> = {
       ? {
           ...picked,
           teams: (picked.teams as ScoreboardTeam[]).map(
-            ({ linkedGroupId: _linked, ...team }) => ({ ...team, score: 0 })
+            ({
+              linkedGroupId: _linked,
+              linkedRosterGroupId: _rosterGroup,
+              memberStudentIds: _students,
+              ...team
+            }) => ({ ...team, score: 0 })
+          ),
+        }
+      : picked,
+  poll: (picked) =>
+    Array.isArray(picked.questions)
+      ? {
+          ...picked,
+          questions: (picked.questions as Values[]).map((question) =>
+            Array.isArray(question.options)
+              ? {
+                  ...question,
+                  options: (question.options as PollOption[]).map((option) => ({
+                    ...option,
+                    votes: 0,
+                  })),
+                }
+              : question
+          ),
+        }
+      : picked,
+  'reveal-grid': (picked) =>
+    Array.isArray(picked.cards)
+      ? {
+          ...picked,
+          cards: (picked.cards as Values[]).map((card) => ({
+            ...card,
+            isRevealed: false,
+          })),
+        }
+      : picked,
+  'need-do-put-then': (picked) =>
+    Object.fromEntries(
+      Object.entries(picked).map(([key, value]) => [
+        key,
+        Array.isArray(value)
+          ? value.map((tile: unknown) =>
+              tile && typeof tile === 'object'
+                ? { ...(tile as Values), checked: false }
+                : tile
+            )
+          : value,
+      ])
+    ),
+  instructionalRoutines: (picked) =>
+    Array.isArray(picked.customSteps)
+      ? {
+          ...picked,
+          customSteps: (picked.customSteps as Values[]).map(
+            ({ attachedWidget: _attached, ...step }) => step
           ),
         }
       : picked,
@@ -83,7 +159,7 @@ export function settingsDefaultKeys(
   fieldKeys: readonly string[]
 ): string[] {
   const excluded = new Set(SETTINGS_DEFAULT_EXCLUDED_KEYS[type] ?? []);
-  return [...new Set(fieldKeys)]
+  return [...new Set([...fieldKeys, ...(COMPANION_KEYS[type] ?? [])])]
     .filter(
       (key) =>
         !APPEARANCE_CONFIG_KEYS.has(key) &&
@@ -127,7 +203,8 @@ export function cleanSavedSettingsDefault(
   const excluded = new Set(SETTINGS_DEFAULT_EXCLUDED_KEYS[type] ?? []);
   const cleaned = Object.fromEntries(
     Object.entries(saved).filter(
-      ([key]) =>
+      ([key, value]) =>
+        value !== null &&
         !excluded.has(key) &&
         !NEVER_SAVED.has(key) &&
         !APPEARANCE_CONFIG_KEYS.has(key)
@@ -140,7 +217,9 @@ export type SettingsDefaultsState = {
   keys: string[];
   /** True when this widget's settings differ from what a new widget of its type gets. */
   differs: boolean;
-  /** What "Save as my default" stores. */
+  /** Too big to keep in the profile; saving is turned off. */
+  tooLarge: boolean;
+  /** What "Save as my default" stores; null marks a key this widget leaves unset. */
   toSave: Values;
   /** Config patch returning this widget to the effective default (undefined clears a key). */
   resetPatch: Values;
@@ -166,10 +245,16 @@ export function computeSettingsDefaults(
   for (const key of new Set([...keys, ...Object.keys(effective)])) {
     resetPatch[key] = effective[key];
   }
+  const mineText = stableStringify(mine);
   return {
     keys: [...keys],
-    differs: stableStringify(mine) !== stableStringify(effective),
-    toSave: mine,
+    differs: mineText !== stableStringify(effective),
+    tooLarge: mineText.length > SETTINGS_DEFAULT_MAX_CHARS,
+    // Unset keys go as null: the profile write deep-merges, so a missing key would keep its old value.
+    toSave: {
+      ...Object.fromEntries(keys.map((key) => [key, null])),
+      ...mine,
+    },
     resetPatch,
   };
 }

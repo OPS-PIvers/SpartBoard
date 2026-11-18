@@ -4,7 +4,7 @@ import type { TranslateFn } from './schema/types';
 import type { StyleDefaultsState } from './styleDefaults';
 
 export type StyleDefaultsFooterProps = {
-  state: Pick<StyleDefaultsState, 'keys' | 'differs'>;
+  state: Pick<StyleDefaultsState, 'keys' | 'differs'> & { tooLarge?: boolean };
   onSave: () => void;
   onReset: () => void;
   t: TranslateFn;
@@ -49,7 +49,7 @@ export const StyleDefaultsFooter: React.FC<StyleDefaultsFooterProps> = ({
           type="button"
           onClick={onSave}
           {...saveAnchor}
-          disabled={!state.differs}
+          disabled={!state.differs || state.tooLarge}
           className={`${buttonClass} bg-brand-blue-primary text-white hover:bg-brand-blue-dark`}
         >
           {t('widgetSettings.common.defaults.save')}

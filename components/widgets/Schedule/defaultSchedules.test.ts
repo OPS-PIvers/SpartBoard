@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DailySchedule } from '@/types';
-import { toDefaultSchedules, withDefaultSchedules } from './defaultSchedules';
+import { toDefaultSchedules } from './defaultSchedules';
 
 const saved: DailySchedule[] = [
   {
@@ -45,22 +45,5 @@ describe('toDefaultSchedules', () => {
   it('never keeps the legacy default schedule id', () => {
     const legacy = [{ ...saved[0], id: 'default' }];
     expect(toDefaultSchedules(legacy)[0].id).toBe('saved-default');
-  });
-});
-
-describe('withDefaultSchedules', () => {
-  it('replaces the starter items with the saved schedules', () => {
-    const base = { items: [{ time: '08:00', task: 'Math' }], cardOpacity: 1 };
-    expect(withDefaultSchedules(base, saved)).toEqual({
-      items: [],
-      cardOpacity: 1,
-      schedules: toDefaultSchedules(saved),
-    });
-  });
-
-  it('leaves the base alone with no saved schedule', () => {
-    const base = { cardOpacity: 1 };
-    expect(withDefaultSchedules(base, undefined)).toBe(base);
-    expect(withDefaultSchedules(base, [])).toBe(base);
   });
 });

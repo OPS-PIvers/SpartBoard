@@ -17,12 +17,3 @@ export const toDefaultSchedules = (
     days: [...schedule.days],
     items: schedule.items.filter((item) => !item.oneOffDate).map(cleanItem),
   }));
-
-/** Starts a new Schedule widget's config from the teacher's saved default schedules. */
-export const withDefaultSchedules = (
-  base: Record<string, unknown> | undefined,
-  saved: readonly DailySchedule[] | undefined
-): Record<string, unknown> | undefined =>
-  saved && saved.length > 0
-    ? { ...base, items: [], schedules: toDefaultSchedules(saved) }
-    : base;

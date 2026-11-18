@@ -7472,8 +7472,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       overrides: AddWidgetOverrides | undefined,
       opts: { transient?: boolean; exact?: boolean } = {}
     ): string => {
-      // A caller's own config (AI, tour, saved widget) is the content; the teacher's default only fills a plain add.
-      const adminConfig = getNewWidgetBaseConfig(type, !overrides?.config);
+      // A caller's own config (AI, saved widget) and tour widgets keep stock content; the teacher's default only fills a plain add.
+      const adminConfig = getNewWidgetBaseConfig(
+        type,
+        !overrides?.config && !opts.transient
+      );
       const newWidgetId = overrides?.id ?? crypto.randomUUID();
       locallyAddedWidgetIds.current.add(newWidgetId);
       noteBoardItemPick(newWidgetId, type, overrides?.config);

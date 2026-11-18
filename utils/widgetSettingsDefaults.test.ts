@@ -59,6 +59,77 @@ describe('pickSettingsDefault', () => {
   });
 });
 
+describe('student data and live state', () => {
+  it('never saves student names or class-group links', () => {
+    expect(
+      settingsDefaultKeys('random', [
+        'firstNames',
+        'lastNames',
+        'rosterPoolGroupId',
+        'lockedRosterGroupIds',
+        'groupSize',
+      ])
+    ).toEqual(['groupSize']);
+    expect(
+      settingsDefaultKeys('seating-chart', ['names', 'furniture'])
+    ).toEqual(['furniture']);
+    expect(
+      cleanSavedSettingsDefault('checklist', { firstNames: 'Ana', mode: 'x' })
+    ).toEqual({ mode: 'x' });
+  });
+
+  it('strips student ids from scoreboard teams', () => {
+    expect(
+      pickSettingsDefault('scoreboard', ['teams'], {
+        teams: [
+          {
+            id: 't',
+            name: 'Red',
+            score: 3,
+            linkedRosterGroupId: 'g',
+            memberStudentIds: ['s1'],
+          },
+        ],
+      })
+    ).toEqual({ teams: [{ id: 't', name: 'Red', score: 0 }] });
+  });
+
+  it('resets votes, flipped cards, ticked tiles and attached widgets', () => {
+    expect(
+      pickSettingsDefault('poll', ['questions'], {
+        questions: [{ id: 'q', options: [{ id: 'o', label: 'A', votes: 4 }] }],
+      })
+    ).toEqual({
+      questions: [{ id: 'q', options: [{ id: 'o', label: 'A', votes: 0 }] }],
+    });
+    expect(
+      pickSettingsDefault('reveal-grid', ['cards'], {
+        cards: [{ id: 'c', isRevealed: true }],
+      })
+    ).toEqual({ cards: [{ id: 'c', isRevealed: false }] });
+    expect(
+      pickSettingsDefault('need-do-put-then', ['needItems', 'doItems'], {
+        needItems: [{ id: 'n', checked: true }],
+        doItems: ['Read'],
+      })
+    ).toEqual({ needItems: [{ id: 'n', checked: false }], doItems: ['Read'] });
+    expect(
+      pickSettingsDefault('instructionalRoutines', ['customSteps'], {
+        customSteps: [
+          { id: 's', text: 'Go', attachedWidget: { type: 'text' } },
+        ],
+      })
+    ).toEqual({ customSteps: [{ id: 's', text: 'Go' }] });
+  });
+
+  it('saves concept web edges with their nodes', () => {
+    expect(settingsDefaultKeys('concept-web', ['nodes'])).toEqual([
+      'edges',
+      'nodes',
+    ]);
+  });
+});
+
 describe('cleanSavedSettingsDefault', () => {
   it('strips keys excluded after saving and empty results', () => {
     expect(
@@ -81,5 +152,20 @@ describe('computeSettingsDefaults', () => {
     );
     expect(state.differs).toBe(false);
     expect(state.resetPatch).toEqual({ stationId: 'jazz' });
+  });
+
+  it('saves unset keys as null so an old value cannot survive the merge', () => {
+    const state = computeSettingsDefaults(
+      'music',
+      ['stationId', 'source'],
+      { stationId: 'jazz' },
+      undefined,
+      undefined,
+      { stationId: 'lofi', source: 'personal' }
+    );
+    expect(state.toSave).toEqual({ stationId: 'jazz', source: null });
+    expect(cleanSavedSettingsDefault('music', state.toSave)).toEqual({
+      stationId: 'jazz',
+    });
   });
 });
