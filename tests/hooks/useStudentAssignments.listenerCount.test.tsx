@@ -14,7 +14,7 @@ import { useStudentAssignments } from '@/hooks/useStudentAssignments';
  * statuses in memory, a read-cost regression on a school-district budget.
  *
  * Listener counts for the current `KIND_CONFIG`:
- *   quiz            active 2 statuses×2 shapes + ended 1×2 shapes = 6
+ *   quiz            active 3 statuses×2 shapes + ended 1×2 shapes = 8
  *   video-activity  active 2 statuses×2 shapes + ended 1×2 shapes = 6
  *   guided-learning active 1×2 shapes (no ended channel)          = 2
  *   mini-app        active 1×1 shape  + ended 1×1 shape           = 2
@@ -22,7 +22,7 @@ import { useStudentAssignments } from '@/hooks/useStudentAssignments';
  *   flashcards      active 1×1 shape  + ended 1×1 shape           = 2
  *   projects        active 1×1 shape  (no ended channel)          = 1
  *   writing         active 1×1 shape  + ended 1×1 shape           = 2
- *                                                           total = 23
+ *                                                           total = 25
  */
 
 /**
@@ -123,7 +123,7 @@ beforeEach(() => {
 });
 
 describe('useStudentAssignments — bounded per-status listener plan (F8)', () => {
-  it('opens one listener per (kind, channel, shape, status) — 23 for the current config', async () => {
+  it('opens one listener per (kind, channel, shape, status) — 25 for the current config', async () => {
     deliverDocsByCollection({});
 
     const { result } = renderHook(() =>
@@ -134,9 +134,9 @@ describe('useStudentAssignments — bounded per-status listener plan (F8)', () =
       expect(result.current.loadState).toBe('ready');
     });
 
-    // Quiz's active channel fans waiting+active into 2 server-side-filtered
-    // listeners per shape, so the plan totals 23 (see the table above).
-    expect(vi.mocked(firestore.onSnapshot)).toHaveBeenCalledTimes(23);
+    // Quiz's active channel fans waiting+active+paused into 3 server-side-filtered
+    // listeners per shape, so the plan totals 25 (see the table above).
+    expect(vi.mocked(firestore.onSnapshot)).toHaveBeenCalledTimes(25);
   });
 
   it('cleans up every listener on unmount', async () => {
@@ -158,7 +158,7 @@ describe('useStudentAssignments — bounded per-status listener plan (F8)', () =
     });
 
     const opened = vi.mocked(firestore.onSnapshot).mock.calls.length;
-    expect(opened).toBe(23);
+    expect(opened).toBe(25);
     unmount();
     // Exactly one cleanup per opened listener — no leaks, no double-frees.
     expect(unsubscribe).toHaveBeenCalledTimes(opened);
@@ -206,6 +206,39 @@ describe('useStudentAssignments — bounded per-status listener plan (F8)', () =
     const activeIds = active.map((a) => a.sessionId).sort();
     // Both multi-value active statuses surface through their own listeners.
     expect(activeIds).toEqual(['q-active', 'q-waiting']);
+  });
+
+  it('keeps a paused quiz listed as active and marks it paused (AB-150)', async () => {
+    deliverDocsByCollection({
+      quiz_sessions: [
+        {
+          id: 'q-paused',
+          data: {
+            quizTitle: 'Paused Quiz',
+            classIds: ['c1'],
+            status: 'paused',
+            sessionMode: 'teacher',
+            createdAt: 100,
+          },
+        },
+      ],
+    });
+
+    const { result } = renderHook(() =>
+      useStudentAssignments({ classIds: ['c1'] })
+    );
+
+    await waitFor(() => {
+      expect(result.current.loadState).toBe('ready');
+    });
+
+    const row = result.current.assignments.find(
+      (a) => a.sessionId === 'q-paused'
+    );
+    expect(row?.channel).toBe('active');
+    expect(row?.paused).toBe(true);
+    // A paused teacher-paced quiz is not live, so it lists as work with "Paused".
+    expect(row?.live).toBeUndefined();
   });
 
   it('never reads a doc whose status no active/ended listener filters for', async () => {

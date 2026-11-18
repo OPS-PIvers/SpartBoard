@@ -59,8 +59,10 @@ interface Fixture {
   graded?: boolean;
   flashcardKind?: 'check' | 'study';
   live?: boolean;
-  /** A Manual start class: closed until the teacher starts it, or started. */
-  manualStart?: 'closed' | 'open';
+  /** A Manual start class: closed until the teacher starts it, started, or paused. */
+  manualStart?: 'closed' | 'open' | 'paused';
+  /** The teacher paused the whole quiz. */
+  paused?: boolean;
 }
 
 function fixtures(inClass: boolean): Fixture[] {
@@ -284,6 +286,21 @@ function fixtures(inClass: boolean): Fixture[] {
       dueAt: at(1),
     },
     {
+      id: 'h7',
+      cls: 'his',
+      kind: 'quiz',
+      title: 'Map skills check',
+      paused: true,
+      dueAt: at(2),
+    },
+    {
+      id: 'h8',
+      cls: 'his',
+      kind: 'quiz',
+      title: 'Ancient Greece quiz',
+      manualStart: 'paused',
+    },
+    {
       id: 'h4',
       cls: 'his',
       kind: 'quiz',
@@ -330,6 +347,7 @@ function toSummary(f: Fixture, nowMs: number): AssignmentSummary {
     flashcardKind: f.flashcardKind,
     workKind: f.resource ? 'resource' : 'work',
     live: f.live,
+    paused: f.paused ? true : undefined,
     periodGate: f.manualStart
       ? {
           accessMode: 'assessment',

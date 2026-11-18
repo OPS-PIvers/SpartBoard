@@ -123,6 +123,8 @@ export interface AssignmentSummary {
   workKind: WorkKind;
   /** A teacher-paced quiz or video activity running now; the student joins it live. */
   live?: boolean;
+  /** The teacher paused the whole session (quiz `status: 'paused'`); it stays listed. */
+  paused?: true;
   /** Per-period sessions: the gate fields plus this student's periods, for the card's lock. */
   periodGate?: PeriodAccessSessionFields & { periodKeys: string[] };
 }
@@ -241,7 +243,10 @@ export const KIND_CONFIG: Record<SessionKind, KindConfig> = {
     collectionName: 'quiz_sessions',
     dualQuery: true,
     classFilterShape: 'single',
-    activeFilter: { field: 'status', valueIn: ['waiting', 'active'] },
+    activeFilter: {
+      field: 'status',
+      valueIn: ['waiting', 'active', 'paused'],
+    },
     endedFilter: { field: 'status', value: 'ended' },
     endedOrderBy: 'endedAt',
     endedLimit: 50,
@@ -532,6 +537,8 @@ export function buildAssignmentSummary(
       kind === 'projects' && record.studentSubmit === true ? true : undefined,
     workKind: kind === 'writing' ? 'work' : resolveWorkKind(kind, record),
     live: isLiveSession(kind, channel, record) ? true : undefined,
+    paused:
+      channel === 'active' && record.status === 'paused' ? true : undefined,
     periodGate: hasPeriodAccess(record)
       ? {
           accessMode: (record as PeriodAccessSessionFields).accessMode,
@@ -555,6 +562,7 @@ function isLiveSession(
   record: Record<string, unknown>
 ): boolean {
   if (channel !== 'active' || record.status === 'ended') return false;
+  if (record.status === 'paused') return false;
   if (kind === 'quiz') return LIVE_QUIZ_MODES.has(record.sessionMode);
   if (kind === 'video-activity') return record.sessionMode === 'teacher';
   return false;

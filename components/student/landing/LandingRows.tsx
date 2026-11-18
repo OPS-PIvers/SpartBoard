@@ -205,6 +205,20 @@ function dueLine(row: LandingRow, nowMs: number): React.ReactNode {
   return <span className="text-slate-500">{label}</span>;
 }
 
+/** D22: a locked class reads Paused, its scheduled open, or Not open yet. */
+function periodLockLine(
+  gate: NonNullable<AssignmentSummary['periodGate']>,
+  nowMs: number
+): string {
+  const paused = gate.periodKeys.some((k) => {
+    const access = gate.periodAccess?.[k];
+    return !!access && effectivePeriodState(access, nowMs) === 'paused';
+  });
+  if (paused) return 'Paused';
+  const opensAt = nextScheduledOpen(gate, gate.periodKeys, nowMs);
+  return opensAt != null ? formatOpensLabel(opensAt) : 'Not open yet';
+}
+
 interface WorkRowProps {
   row: LandingRow;
   nowMs: number;
@@ -223,9 +237,12 @@ export const WorkRow: React.FC<WorkRowProps> = ({
   const gate = a.periodGate;
   const periodLocked =
     !!gate && !studentCanEnter(gate, gate.periodKeys, pseudonymUid, nowMs);
-  const periodOpensAt = periodLocked
-    ? nextScheduledOpen(gate, gate.periodKeys, nowMs)
-    : null;
+  const locked = periodLocked || a.paused === true;
+  const lockLine = a.paused
+    ? 'Paused'
+    : periodLocked
+      ? periodLockLine(gate, nowMs)
+      : null;
   // A Manual start class the teacher has started (not a Let in now pass on a closed class).
   const started =
     !!gate &&
@@ -239,9 +256,7 @@ export const WorkRow: React.FC<WorkRowProps> = ({
     <>
       <KindIcon kind={a.kind} />
       <span className="min-w-0 flex-1">
-        <Title muted={row.state === 'upcoming' || periodLocked}>
-          {a.title}
-        </Title>
+        <Title muted={row.state === 'upcoming' || locked}>{a.title}</Title>
         <span className="mt-0.5 flex flex-col items-start gap-y-0.5 text-xs sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-1.5">
           {cls && (
             <>
@@ -258,14 +273,10 @@ export const WorkRow: React.FC<WorkRowProps> = ({
               <span className="text-sky-700">In progress</span>
             </>
           )}
-          {periodLocked && (
+          {lockLine && (
             <>
               <RowDot />
-              <span className="text-slate-500">
-                {periodOpensAt != null
-                  ? formatOpensLabel(periodOpensAt)
-                  : 'Not started yet'}
-              </span>
+              <span className="text-slate-500">{lockLine}</span>
             </>
           )}
         </span>
@@ -281,7 +292,7 @@ export const WorkRow: React.FC<WorkRowProps> = ({
   }
   // A class not started yet still opens, to the waiting screen where the teacher sees the student.
   return (
-    <OpenRow href={a.openHref} available={!periodLocked} live={started}>
+    <OpenRow href={a.openHref} available={!locked} live={started && !locked}>
       {body}
     </OpenRow>
   );
