@@ -40,6 +40,7 @@ import { SAMPLE_ROSTERS } from '@/components/common/library/assignStepper/assign
 import { Results as VideoActivityResults } from '@/components/widgets/VideoActivityWidget/components/Results';
 import { toVideoActivityPublicQuestion } from '@/utils/videoActivityPublicQuestions';
 import type {
+  PeriodAccess,
   QuizResponse,
   VideoActivityPublicQuestion,
   VideoActivityQuestion,
@@ -355,18 +356,19 @@ const SessionView: React.FC<{
       verified: true,
       closedAt,
     });
+    const assignedAccess: Record<string, PeriodAccess> = {
+      'cl-1': period('Period 1', 'closed', NOW - 3 * 3_600_000),
+      'cl-3': period('Period 3', 'open'),
+      'cl-5': period('Period 5', 'closed'),
+      'cl-6': period('Period 6', 'paused'),
+    };
     const session = timed
       ? makeTimedQuizSession(status)
       : assignedTab
         ? {
             ...makeQuizSession(status),
             periodNames: ['Period 1', 'Period 3', 'Period 5', 'Period 6'],
-            periodAccess: {
-              'cl-1': period('Period 1', 'closed', NOW - 3 * 3_600_000),
-              'cl-3': period('Period 3', 'open'),
-              'cl-5': period('Period 5', 'closed'),
-              'cl-6': period('Period 6', 'paused'),
-            },
+            periodAccess: assignedAccess,
           }
         : perPeriod
           ? {
