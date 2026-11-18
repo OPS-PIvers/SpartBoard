@@ -5149,3 +5149,13 @@ rather than "no data") is also still open.
   - Ready: #6045, #6044, #6043, #6042.
   - Ready with minor notes: #6046 (new Run Log rows have 3 cells in a 4-column table, with the PR number inside the Bug cell).
 - Notes: GitHub access went through MCP, and diffs were reviewed inline. The #6044 fix passed the scoped `vitest related` run (11 tests) and the pre-commit lint hook. I didn't run full lint or type-check, per CLAUDE.md.
+
+## 2026-11-18
+
+- PRs reviewed (3): #6144 docs: nightly debugger run 127 log; #6143 Announcements: let the dismissal duration field be cleared and retyped; #6142 Flashcards: stop assign from reverting board edits made mid-assignment
+- Comments processed: 2 total, 0 fixed, 0 explained. There were no inline review threads. Both bot comments (#6143, #6142) said "no issues found", so neither needed a reply.
+- Fixes pushed: none
+- Reviews posted: 3
+  - Ready: #6143, #6142.
+  - Ready with minor notes: #6144 (the new Backlog rows are missing their date and status cells).
+- Notes: GitHub access went through MCP, and diffs were reviewed inline. Nothing was changed, so I didn't run lint, type-check or tests locally.
