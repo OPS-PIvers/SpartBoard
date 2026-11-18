@@ -125,7 +125,7 @@ describe('plan-deploy.sh', () => {
       plan('dev-paul', ['functions/src/linkPreview.ts', 'storage.rules'])
     ).toMatchObject({
       backend: 'true',
-      deploy_only: 'functions:default:fetchLinkPreview,storage',
+      deploy_only: 'functions:content:fetchLinkPreview,storage',
     });
   });
 
@@ -138,7 +138,7 @@ describe('plan-deploy.sh', () => {
     expect(oldIndex).not.toBe(index);
     expect(
       plan('main', ['functions/src/index.ts'], { oldIndex }).deploy_only
-    ).toBe('functions:default:fetchLinkPreview');
+    ).toBe('functions:content:fetchLinkPreview');
   });
 
   it('passes the deployed featureMissingDoc.ts, so a list reorder deploys no function', () => {
@@ -246,7 +246,7 @@ describe('plan-deploy.sh', () => {
       plan('dev-paul', ['functions/src/linkPreview.ts'], {
         codebase: 'default',
       }).deploy_only
-    ).toBe('functions:default,functions:default:fetchLinkPreview');
+    ).toBe('functions:default,functions:content:fetchLinkPreview');
     expect(
       plan('dev-paul', ['functions/src/index.ts'], { codebase: 'default' })
         .deploy_only
