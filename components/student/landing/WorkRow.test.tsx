@@ -24,7 +24,7 @@ const base: AssignmentSummary = {
 };
 
 const manual = (
-  state: 'open' | 'closed',
+  state: 'open' | 'closed' | 'paused',
   over: { periodKeys?: string[]; studentAccess?: Record<string, number> } = {}
 ): AssignmentSummary => ({
   ...base,
@@ -62,14 +62,38 @@ describe('WorkRow', () => {
     expect(screen.getByText('Open')).toBeInTheDocument();
   });
 
-  it('dims a class not started yet, with no Open, but still links to the waiting screen', () => {
+  it('dims a class not open yet, with no Open, but still links to the waiting screen', () => {
     renderRow({ assignment: manual('closed'), state: 'open' });
-    expect(screen.getByText('Not started yet')).toBeInTheDocument();
+    expect(screen.getByText('Not open yet')).toBeInTheDocument();
     expect(screen.queryByText('Open')).toBeNull();
     expect(screen.queryByText('Live')).toBeNull();
     const link = screen.getByRole('link');
     expect(link).toHaveAttribute('href', base.openHref);
     expect(link.className).toContain('opacity-60');
+  });
+
+  it('says Paused for a paused class and keeps the row listed (D22)', () => {
+    renderRow({ assignment: manual('paused'), state: 'open' });
+    expect(screen.getByText('Paused')).toBeInTheDocument();
+    expect(screen.queryByText('Open')).toBeNull();
+    expect(screen.getByRole('link')).toHaveAttribute('href', base.openHref);
+  });
+
+  it('says Not open yet for a quiz assigned but not started', () => {
+    renderRow({ assignment: { ...base, held: 'not-open' }, state: 'open' });
+    expect(screen.getByText('Not open yet')).toBeInTheDocument();
+    expect(screen.queryByText('Open')).toBeNull();
+  });
+
+  it('says Paused for a paused quiz, with no Open or Live (AB-150)', () => {
+    renderRow({
+      assignment: { ...base, held: 'paused', live: true },
+      state: 'open',
+    });
+    expect(screen.getByText('Paused')).toBeInTheDocument();
+    expect(screen.queryByText('Open')).toBeNull();
+    expect(screen.queryByText('Live')).toBeNull();
+    expect(screen.getByRole('link').className).toContain('opacity-60');
   });
 
   it('keeps an upcoming row locked with no Open', () => {
