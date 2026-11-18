@@ -281,4 +281,26 @@ describe('useQuizAssignments — per-period sessions', () => {
     });
     expect(batchDelete).not.toHaveBeenCalledWith('quiz_sessions/a-1');
   });
+
+  it("deletes each response's Live view position doc with the response", async () => {
+    mockGetDocs.mockResolvedValue({
+      docs: [
+        { id: 'r-1', ref: 'quiz_sessions/a-1/responses/r-1' },
+        { id: 'r-2', ref: 'quiz_sessions/a-1/responses/r-2' },
+      ],
+      empty: false,
+    });
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.deleteAssignment('a-1');
+    });
+    expect(batchDelete).toHaveBeenCalledWith(
+      'quiz_sessions/a-1/responses/r-1/live/state'
+    );
+    expect(batchDelete).toHaveBeenCalledWith(
+      'quiz_sessions/a-1/responses/r-2/live/state'
+    );
+    expect(batchDelete).toHaveBeenCalledWith('quiz_sessions/a-1/responses/r-1');
+    expect(batchDelete).toHaveBeenCalledWith('quiz_sessions/a-1');
+  });
 });
