@@ -151,7 +151,7 @@ export const PreviewRow: React.FC<{
   );
 };
 
-// The Import lists only set the level, so a flag switched off or narrowed keeps its full row.
+// The Import lists only set the level, so a flag saved as off or narrowed keeps its full row.
 const needsFullRow = (p: GlobalFeaturePermission): boolean =>
   !p.enabled || (p.buildings?.length ?? 0) > 0 || !!p.minTier;
 
@@ -256,7 +256,7 @@ export const PreviewsPanel: React.FC = () => {
                     ? group.children.filter(
                         (c) =>
                           !IMPORT_FLAGS_ON_ROWS.has(c) ||
-                          needsFullRow(editor.getPermission(c))
+                          needsFullRow(editor.getSavedPermission(c))
                       )
                     : group.children;
                 return (

@@ -139,6 +139,15 @@ describe('PreviewsPanel', () => {
       within(group).getByTestId('access-row-import-flashcards')
     ).toBeInTheDocument();
     expect(within(group).queryByTestId('access-row-import-link')).toBeNull();
+    // Turning it back on keeps the row until the change is saved.
+    fireEvent.click(
+      within(
+        within(group).getByTestId('access-row-import-flashcards')
+      ).getByRole('switch', { name: 'Import: Flashcards enabled' })
+    );
+    expect(
+      within(group).getByTestId('access-row-import-flashcards')
+    ).toBeInTheDocument();
   });
 
   it('opens the Import row when a search finds one of its add-ons', async () => {
