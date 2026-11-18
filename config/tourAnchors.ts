@@ -1520,6 +1520,10 @@ export const TOUR_ANCHORS = {
     label: 'Student checkbox in the modification group Students menu',
     perField: true,
     panel: true,
+    keyPattern: 'assign#row-[1-9]\\d*',
+    keyHint: 'assign#row-1 for the first row',
+    rows: true,
+    rowList: 'assign-mods-students',
   },
   'assign-mods.students-clear': {
     label: 'Clear button in the modification group Students menu',
@@ -1533,6 +1537,10 @@ export const TOUR_ANCHORS = {
     label: 'Class group button in the modification group Students menu',
     perField: true,
     panel: true,
+    keyPattern: 'assign#row-[1-9]\\d*',
+    keyHint: 'assign#row-1 for the first row',
+    rows: true,
+    rowList: 'assign-mods-class-groups',
   },
   'assign-mods.answer-choices': {
     label: 'Answer choices rule for a modification group',
@@ -5994,6 +6002,10 @@ export const TOUR_ANCHORS = {
     label: 'Student checkbox in the group wizard',
     perField: true,
     panel: true,
+    keyPattern: 'group-wizard#row-[1-9]\\d*',
+    keyHint: 'group-wizard#row-1 for the first row',
+    rows: true,
+    rowList: 'group-wizard-students',
   },
   'group-wizard.name': {
     label: 'Group name box in the group wizard',
@@ -18167,6 +18179,10 @@ export const TOUR_ANCHORS = {
     label: 'Group row on the roster editor Accommodations tab',
     perField: true,
     panel: true,
+    keyPattern: 'roster-editor#row-[1-9]\\d*',
+    keyHint: 'roster-editor#row-1 for the first row',
+    rows: true,
+    rowList: 'roster-accommodation-groups',
   },
   'roster-editor.accommodations-add': {
     label:
@@ -18181,11 +18197,19 @@ export const TOUR_ANCHORS = {
     label: 'Group checkbox in the Accommodations Add menu',
     perField: true,
     panel: true,
+    keyPattern: 'roster-editor#row-[1-9]\\d*',
+    keyHint: 'roster-editor#row-1 for the first row',
+    rows: true,
+    rowList: 'roster-accommodations-pick-groups',
   },
   'roster-editor.accommodations-pick-student': {
     label: 'Student checkbox in the Accommodations Add menu',
     perField: true,
     panel: true,
+    keyPattern: 'roster-editor#row-[1-9]\\d*',
+    keyHint: 'roster-editor#row-1 for the first row',
+    rows: true,
+    rowList: 'roster-accommodations-pick-students',
   },
   'roster-editor.accommodations-done': {
     label: 'Done button that closes the Accommodations Add menu',

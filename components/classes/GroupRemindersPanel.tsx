@@ -865,7 +865,7 @@ const StudentsStep: React.FC<{
               {...tourFieldAttr(
                 'group-wizard.student',
                 'group-wizard',
-                `student-${students.indexOf(s) + 1}`
+                `row-${students.indexOf(s) + 1}`
               )}
               className="rounded-sm border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
             />

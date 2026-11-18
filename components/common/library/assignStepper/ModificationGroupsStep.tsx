@@ -188,7 +188,7 @@ const StudentsMenu: React.FC<{
             {shownGroups.length > 0 && (
               <>
                 <div className={sectionLabel}>Groups</div>
-                {shownGroups.map((group) => {
+                {shownGroups.map((group, groupIndex) => {
                   const added =
                     group.keys.length > 0 &&
                     group.keys.every((k) => pickedSet.has(k));
@@ -217,7 +217,7 @@ const StudentsMenu: React.FC<{
                       {...tourFieldAttr(
                         'assign-mods.class-group',
                         'assign',
-                        group.id
+                        `row-${groupIndex + 1}`
                       )}
                       className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                     >
@@ -272,7 +272,7 @@ const StudentsMenu: React.FC<{
                         {...tourFieldAttr(
                           'assign-mods.student',
                           'assign',
-                          row.key
+                          `row-${shown.indexOf(row) + 1}`
                         )}
                         className="h-4 w-4 rounded-sm accent-brand-blue-primary"
                       />
