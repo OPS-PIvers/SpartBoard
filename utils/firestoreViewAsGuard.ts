@@ -73,12 +73,14 @@ export const deleteDoc = ((ref: Ref) =>
     () => [{ op: 'delete', path: ref.path }]
   )) as typeof firestore.deleteDoc;
 
+type AnyAdd = (ref: Ref, data: unknown) => Promise<Ref>;
+
 export const addDoc = ((ref: Ref, data: unknown) =>
   guarded(
     [`${ref.path}/new`],
-    () => (firestore.addDoc as (r: Ref, d: unknown) => Promise<Ref>)(ref, data),
+    () => (firestore.addDoc as unknown as AnyAdd)(ref, data),
     (created) => [{ op: 'add', path: created.path, data }]
-  )) as typeof firestore.addDoc;
+  )) as unknown as typeof firestore.addDoc;
 
 type Writer = 'set' | 'update' | 'delete';
 const WRITERS: Writer[] = ['set', 'update', 'delete'];
