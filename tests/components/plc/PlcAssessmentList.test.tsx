@@ -544,6 +544,20 @@ describe('PlcAssessmentList', () => {
     expect(props.teammates.map((m) => m.uid)).toEqual(['uid-bob', 'uid-carol']);
   });
 
+  it('leaves viewer teammates out of the print picker', () => {
+    mockMembers = members.map((m) =>
+      m.uid === 'uid-bob' ? { ...m, role: 'viewer' } : m
+    );
+    render(<PlcAssessmentList plc={plc} onCloseDashboard={vi.fn()} />);
+    const row = rowByTitle('Ratios warm-up');
+    openKebab(row);
+    fireEvent.click(within(row).getByRole('menuitem', { name: printMenuItem }));
+    const props = teammatePrintProps.mock.calls[0][0] as {
+      teammates: PlcMember[];
+    };
+    expect(props.teammates.map((m) => m.uid)).toEqual(['uid-carol']);
+  });
+
   it('hides the teammate print action when a gate is closed', () => {
     const hidden = () => {
       const { unmount } = render(
