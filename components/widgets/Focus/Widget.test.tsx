@@ -177,6 +177,20 @@ describe('FocusWidget teacher view', () => {
     });
   });
 
+  it('keeps Start disabled after the call returns until the session appears', async () => {
+    renderTeacher({ sites: [{ host: 'desmos.com', path: '' }] });
+    await userEvent.click(screen.getByRole('button', { name: 'Start' }));
+    expect(h.api.start).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Starting…' })).toBeDisabled();
+  });
+
+  it('re-enables Start when the call fails', async () => {
+    h.api.start.mockRejectedValue(new Error('nope'));
+    renderTeacher({ sites: [{ host: 'desmos.com', path: '' }] });
+    await userEvent.click(screen.getByRole('button', { name: 'Start' }));
+    expect(screen.getByRole('button', { name: 'Start' })).toBeEnabled();
+  });
+
   it('lists away students first and releases one', async () => {
     h.sessions = [SESSION];
     h.students = [

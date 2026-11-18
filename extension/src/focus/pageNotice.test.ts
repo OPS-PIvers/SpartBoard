@@ -61,6 +61,14 @@ describe('showPageNotice', () => {
     show('notice');
     expect(coverHost()).not.toBeNull();
     expect(root?.textContent).toContain(COVER_TEXT);
+    const tab = new KeyboardEvent('keydown', {
+      key: 'Tab',
+      bubbles: true,
+      cancelable: true,
+    });
+    root?.querySelector('div')?.dispatchEvent(tab);
+    expect(tab.defaultPrevented).toBe(true);
+    expect(root?.activeElement).toBe(root?.querySelector('button'));
     root?.querySelector('button')?.click();
     expect(sendMessage).toHaveBeenCalledWith({
       type: FOCUS_FULLSCREEN_MESSAGE,
