@@ -540,14 +540,19 @@ const QuizAssignedRowHost: React.FC<RowHostProps> = ({
   };
 
   const submitted = status.classes.reduce((n, c) => n + c.submitted, 0);
-  const lineOverride: LineSegment[] | undefined = paper
-    ? [
-        { text: 'On paper', tone: 'plain' },
-        ...(submitted > 0
-          ? [{ text: `${submitted} turned in`, tone: 'plain' as const }]
-          : []),
-      ]
-    : undefined;
+  // Published rows skip the responses listener, so the line reads the doc.
+  const published = !!a.scoreVisibility && a.scoreVisibility !== 'none';
+  const lineOverride: LineSegment[] | undefined =
+    status.bucket === 'done' && published && !viewOnly
+      ? [{ text: 'Scores published', tone: 'plain' }]
+      : paper
+        ? [
+            { text: 'On paper', tone: 'plain' },
+            ...(submitted > 0
+              ? [{ text: `${submitted} turned in`, tone: 'plain' as const }]
+              : []),
+          ]
+        : undefined;
 
   const endsAtBell = Object.values(a.periodAccess ?? {}).some(
     (r) => r.bellPeriodId != null
