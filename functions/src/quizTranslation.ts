@@ -490,13 +490,16 @@ export async function assertQuizTranslationFeature(
   }
 }
 
-/** The `gemini-functions` kill switch stops translation too. */
-export async function assertGeminiEnabled(db: Firestore): Promise<void> {
+/** The `gemini-functions` kill switch, and its exclude list, stop translation too. */
+export async function assertGeminiEnabled(
+  db: Firestore,
+  email?: string | null
+): Promise<void> {
   const snap = await db
     .collection('global_permissions')
     .doc('gemini-functions')
     .get();
-  if (snap.data()?.enabled === false)
+  if (snap.data()?.enabled === false || isExcludedFrom(snap.data(), email))
     throw new HttpsError(
       'permission-denied',
       'Gemini functions are currently disabled by an administrator.'
@@ -1226,7 +1229,7 @@ export const translateQuizV1 = onCall(
       request.auth.token.email,
       request.auth.uid
     );
-    await assertGeminiEnabled(deps.db);
+    await assertGeminiEnabled(deps.db, request.auth.token.email);
     return translateQuiz(
       parseTranslateQuizRequest(request.data),
       request.auth.uid,
@@ -1275,7 +1278,7 @@ export const translateResponseV1 = onCall(
       request.auth.token.email,
       request.auth.uid
     );
-    await assertGeminiEnabled(deps.db);
+    await assertGeminiEnabled(deps.db, request.auth.token.email);
     return translateResponse({ text, sourceLocale }, request.auth.uid, deps);
   }
 );

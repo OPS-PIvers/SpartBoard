@@ -1,5 +1,6 @@
 // Page quota for handwritten paper answers (plan D25): read-only checks and a charge-once write.
 import * as admin from './firebaseAdmin';
+import { isExcludedFrom } from './permissionExclusion';
 import type {
   DocumentReference,
   Firestore,
@@ -60,14 +61,17 @@ function countOf(data: Record<string, unknown> | undefined): number {
 /** Read-only: never writes, so import can show the page count before anything is charged. */
 export async function readPaperHandwritingQuota(
   db: Firestore,
-  opts: { uid: string; isAdmin: boolean; nowMs: number }
+  opts: { uid: string; isAdmin: boolean; nowMs: number; email?: string | null }
 ): Promise<PaperHandwritingQuota> {
   const [gemini, perm, usage] = await Promise.all([
     db.collection('global_permissions').doc('gemini-functions').get(),
     db.collection('global_permissions').doc(PAPER_HANDWRITTEN_FEATURE).get(),
     paperHandwritingUsageRef(db, opts.uid, opts.nowMs).get(),
   ]);
-  const geminiDisabled = gemini.exists && gemini.data()?.enabled === false;
+  const geminiDisabled =
+    gemini.exists &&
+    (gemini.data()?.enabled === false ||
+      isExcludedFrom(gemini.data(), opts.email));
   const config = (perm.data()?.config ?? {}) as {
     dailyLimit?: unknown;
     dailyLimitEnabled?: unknown;

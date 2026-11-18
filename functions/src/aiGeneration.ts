@@ -401,7 +401,10 @@ function assertPermissionAllows(
   if (!perm.enabled)
     throw new HttpsError('permission-denied', messages.disabled);
   if (isExcludedFrom(perm, token.email))
-    throw new HttpsError('permission-denied', messages.notBeta);
+    throw new HttpsError(
+      'permission-denied',
+      'You do not have access to this feature.'
+    );
   if (perm.accessLevel === 'admin') {
     throw new HttpsError('permission-denied', messages.adminOnly);
   }

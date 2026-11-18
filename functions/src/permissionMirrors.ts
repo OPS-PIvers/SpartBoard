@@ -30,7 +30,7 @@ export const betaEmails = (
 
 /** Beta and excluded emails stripped: the mirror every signed-in caller may read. */
 export const publicView = (d: Record<string, unknown>) => {
-  const rest = { ...d, betaUsers: [] };
+  const rest: Record<string, unknown> = { ...d, betaUsers: [] };
   delete rest.excludedUsers;
   return rest;
 };
