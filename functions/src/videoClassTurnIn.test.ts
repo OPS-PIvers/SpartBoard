@@ -204,6 +204,26 @@ describe('turnInClosedVideoClass', () => {
     });
   });
 
+  it('stamps a student whose pass ran out at the real time', async () => {
+    store.docs.set(
+      S,
+      session(
+        { state: 'closed', closedAt: CLOSED_AT },
+        { studentAccess: { a: NOW - 1 } }
+      )
+    );
+    open('a', { classId: 'p1' });
+    open('b', { classId: 'p1' });
+    await run();
+    const byId = Object.fromEntries(
+      store.updates.map(([p, d]): [string, unknown] => [
+        p.split('/').pop() ?? '',
+        d.completedAt,
+      ])
+    );
+    expect(byId).toEqual({ a: NOW, b: CLOSED_AT + TURN_IN_DELAY_MS });
+  });
+
   it('never stamps a time later than now', async () => {
     store.docs.set(S, session({ state: 'closed', closedAt: CLOSED_AT }));
     open('a', { classId: 'p1' });
@@ -395,10 +415,12 @@ describe('queue and sweep', () => {
     expect(store.updates[0][1].completedAt).toBe(CLOSED_AT + TURN_IN_DELAY_MS);
   });
 
-  it('a late event for an older close keeps the newer marker', async () => {
-    await queueClose(CLOSED_AT + 5);
-    await queueClose(CLOSED_AT);
+  it('orders closes by server time, not the teacher clock', async () => {
+    await queueClose(CLOSED_AT + 5, CLOSED_AT + 5);
+    await queueClose(CLOSED_AT, CLOSED_AT);
     expect(store.docs.get(marker())?.closedAt).toBe(CLOSED_AT + 5);
+    await queueClose(CLOSED_AT - 50, CLOSED_AT + 60);
+    expect(store.docs.get(marker())?.closedAt).toBe(CLOSED_AT - 50);
   });
 
   it('keeps a marker a newer close rewrote during the run', async () => {

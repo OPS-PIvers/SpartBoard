@@ -72,7 +72,10 @@ export async function queueClosedClasses(
       // A retried or late event for an older Close must not replace a newer one.
       return db.runTransaction(async (tx) => {
         const prev = (await tx.get(ref)).data();
-        if (typeof prev?.closedAt === 'number' && prev.closedAt > closedAt)
+        if (
+          typeof prev?.serverClosedAt === 'number' &&
+          prev.serverClosedAt > serverNow
+        )
           return;
         tx.set(ref, {
           sessionId,
@@ -116,6 +119,16 @@ function staysOpen(session: Doc, r: Doc, now: number): boolean {
   return !Array.isArray(r.answers) || r.answers.length === 0;
 }
 
+function hadPass(session: Doc, r: Doc): boolean {
+  const uid = typeof r.studentUid === 'string' ? r.studentUid : '';
+  if (!uid) return false;
+  const access = session.studentAccess as Doc | undefined;
+  return (
+    (!!access && uid in access) ||
+    (Array.isArray(session.reopenedFor) && session.reopenedFor.includes(uid))
+  );
+}
+
 export type TurnInOutcome = 'stale' | 'done';
 
 /** Turns in one closed class's unfinished attempts, as videoClassTurnIn.ts does from the teacher's tab. */
@@ -155,10 +168,12 @@ export async function turnInClosedVideoClass(
           typeof fresh.completedAttempts === 'number'
             ? fresh.completedAttempts
             : 0;
+        // A student let in after the Close may have worked past it, so their stamp is the real time.
+        const stamp = hadPass(parent, fresh) ? now : at;
         tx.update(d.ref, {
-          completedAt: at,
+          completedAt: stamp,
           completedAttempts: prior + 1,
-          turnIn: { at, claimed: at },
+          turnIn: { at: stamp, claimed: stamp },
         });
         return true;
       })
