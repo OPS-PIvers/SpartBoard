@@ -88,7 +88,7 @@ import {
   tourQuickAccess,
 } from './tourSession';
 import { endTourFrame, startTourFrame, useTourFrameHold } from './tourFrame';
-import { ANCHOR_SEARCH_MS, useAnchorElement } from './useAnchorElement';
+import { ANCHOR_SEARCH_MS, inRow, useAnchorElement } from './useAnchorElement';
 import {
   findTourAnchor,
   findTourAnchors,
@@ -1753,7 +1753,7 @@ export const LiveTourRunner: React.FC = () => {
     if (!rows || rows.length < 2 || !box || !(e instanceof MouseEvent)) return;
     const hit = e.target instanceof Element ? e.target : null;
     if (!hit || hit.closest('[data-tour-ignore]') || isInPopup(hit)) return;
-    if (rows.some((r) => r.contains(hit))) return;
+    if (rows.some((r) => inRow(r, hit))) return;
     const { clientX: x, clientY: y } = e;
     if (x < box.left || x > box.right || y < box.top || y > box.bottom) return;
     e.preventDefault();
@@ -1790,7 +1790,7 @@ export const LiveTourRunner: React.FC = () => {
     if (!hit || hit.closest('[data-tour-ignore]')) return;
     const inAnchor = (
       anchor.matches ?? (anchor.element ? [anchor.element] : [])
-    ).some((m) => m.contains(hit));
+    ).some((m) => inRow(m, hit));
     // The current step's own listener handles its control, even when a later step reuses it.
     if (inAnchor && tour.steps[tour.index]?.tour?.action !== 'observe') return;
     // While a step is lit the dim swallows clicks outside its control and any menu beside it.
