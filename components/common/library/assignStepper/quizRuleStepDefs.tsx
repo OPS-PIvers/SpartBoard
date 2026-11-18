@@ -20,6 +20,7 @@ export function quizRuleStepDefs({
   gates,
   hasManualGrading = false,
   handRaiseMode,
+  hideHandRaise = false,
   flashcards = false,
 }: {
   value: QuizBehaviorSettings;
@@ -27,6 +28,7 @@ export function quizRuleStepDefs({
   gates: QuizRuleGates;
   hasManualGrading?: boolean;
   handRaiseMode?: QuizHandRaiseMode;
+  hideHandRaise?: boolean;
   /** Flashcards Check: the same steps without quiz-only rows (see QuizRuleStepProps). */
   flashcards?: boolean;
 }): AssignStepDef[] {
@@ -74,6 +76,7 @@ export function quizRuleStepDefs({
           onChange={onChange}
           hasManualGrading={hasManualGrading}
           handRaiseMode={handRaiseMode}
+          hideHandRaise={hideHandRaise}
           flashcards={flashcards}
         />
       ),

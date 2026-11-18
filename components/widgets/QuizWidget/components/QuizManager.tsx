@@ -248,8 +248,8 @@ function resolveEffectivePeriodNames(
 
 /**
  * Pre-check "Share results" when the quiz came from one of the teacher's
- * PLCs (its synced group carries that PLC's id). Falls back to the widget's
- * remembered `plcMode` when no sync info is known.
+ * PLCs (its synced group carries that PLC's id) or the teacher has one PLC.
+ * Falls back to the widget's remembered `plcMode` otherwise.
  */
 function resolveDefaultPlcSelection(
   quiz: QuizMetadata | null,
@@ -262,6 +262,9 @@ function resolveDefaultPlcSelection(
   if (groupPlcId && plcs.some((p) => p.id === groupPlcId)) {
     return { plcMode: true, plcId: groupPlcId };
   }
+  // Sharing starts on when there is one PLC, unless the quiz came from a different one.
+  if (plcs.length === 1 && !groupPlcId)
+    return { plcMode: true, plcId: plcs[0].id };
   return { plcMode: config.plcMode ?? false, plcId: '' };
 }
 

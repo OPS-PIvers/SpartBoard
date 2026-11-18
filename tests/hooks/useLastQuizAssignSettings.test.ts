@@ -43,7 +43,22 @@ describe('parseLastQuizAssignSettings', () => {
 
 describe('getQuizAssignPrefill', () => {
   it('falls back to the default on first use', () => {
-    expect(getQuizAssignPrefill(null)).toEqual(DEFAULT_QUIZ_BEHAVIOR);
+    expect(getQuizAssignPrefill(null)).toEqual({
+      ...DEFAULT_QUIZ_BEHAVIOR,
+      sessionOptions: {
+        ...DEFAULT_QUIZ_BEHAVIOR.sessionOptions,
+        handRaiseEnabled: false,
+      },
+    });
+  });
+
+  it('starts raise a hand off even when it was on last time', () => {
+    const prefill = getQuizAssignPrefill({
+      sessionMode: 'student',
+      sessionOptions: { handRaiseEnabled: true },
+      attemptLimit: 1,
+    });
+    expect(prefill.sessionOptions.handRaiseEnabled).toBe(false);
   });
 
   it('strips gamification and board reveal from last-used settings', () => {

@@ -181,7 +181,7 @@ describe('QuizManager assign stepper', () => {
       'When',
       'Attempts and order',
       'Quiz integrity',
-      'What students see',
+      'Results',
     ])
       expect(titles).toContain(title);
     expect(titles).not.toContain('Sharing');

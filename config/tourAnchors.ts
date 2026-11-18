@@ -1210,7 +1210,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'assign-step.feedback': {
-    label: 'Feedback step header in the Assign dialog',
+    label: 'Results or What students see step header in the Assign dialog',
     panel: true,
   },
   'assign-step.video': {
@@ -1246,7 +1246,8 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'assign-step.sharing': {
-    label: 'Sharing step header in the Assign dialog',
+    label:
+      'Sharing step header in the Assign dialog (Additional settings and sharing in Quiz)',
     panel: true,
   },
   'assign-step.continue': {
