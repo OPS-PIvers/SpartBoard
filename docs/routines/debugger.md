@@ -777,6 +777,11 @@
 | 2026-11-17 | State & Data | `dueReminders` only evaluated the calendar day of `now`, so an alert with a lead crossing midnight never showed the evening before, and a late-evening alert vanished after midnight. Now evaluates days -1, 0 and +1 with a per-occurrence dedupe key. PR: #6043 |
 | 2026-11-17 | Admin & Config | First 5 "Today's Day Number" ignored a cleared box (controlled input dropped NaN), so it snapped back. Now uses `DraftNumberField` (which accepts `undefined`). PR: #6044 |
 | 2026-11-17 | Build & Tooling | `handleControlSubAssignment` ran `refreshIdleResponses` on every quiz resume, including a resume of a run that was not paused, which reset real idleness and wrote the whole class. Now only when `session.status === 'paused'`. PR: #6045 |
+| 2026-11-18 | Widgets | Flashcards `performAssign` wrote `config: { ...config, lastRosterIdsBySetId }` after awaiting `createAssignment`/targeting, using the pre-await `config`, so board edits made meanwhile (`view`, `presentSetId`, styles) were reverted. Now builds the roster map from a `configRef` and writes only the partial. Test fails before, passes after. PR: [#6142](https://github.com/ops-pivers/spartboard/pull/6142) |
+| 2026-11-18 | Dashboard & Layout | Clean. Read `components/common`, `library`, `boardsModal`, `layout`, `settings` drawer hooks and `useUnifiedAssignments`; three cosmetic candidates rejected (see Backlog). |
+| 2026-11-18 | State & Data | Clean. Fuzzed `writingLog` (20k diffs) and `plcMeetingCadence` (3000 cadences vs a brute-force oracle); read a dozen utils and hooks, nothing reproducible. |
+| 2026-11-18 | Admin & Config | Announcements dismissal "Duration" input ignored a cleared box (`onChange` returned early), so it snapped back. Now `DraftNumberField`. Test fails before, passes after. PR: [#6143](https://github.com/ops-pivers/spartboard/pull/6143) |
+| 2026-11-18 | Build & Tooling | Clean. Function-codebase manifest checks (71 tests), gradebook math, paper transcription, rules and CI scripts read; no failing test found. |
 
 ## Backlog
 
@@ -1269,6 +1274,11 @@
 | State & Data | Not inspected: `context/*` providers, `useLiveSession`, `usePollSession`, `useMiniAppSession`, cancel flags in `useBankSources`/`useFlashcard*`. Closed: `extractYouTubeId` `live/` fixed; pause-on-End keeps `pausedAt` open by design. | 2026-11-17 | open |
 | Admin & Config | `normalizeQuizTranslationSettings`/`positiveInt` accepts 0 and does not dedupe languages (0 may mean off); `UsersView` `Date.parse` sort can be NaN; same uncleared-number class likely in `SmartNotebookConfigurationPanel:112`, `CalendarConfigurationModal` (~430, ~839), `ActivityWallConfigurationPanel:191`. | 2026-11-17 | open |
 | Build & Tooling | Script ergonomics: `backfill-*.mjs` take `--apply` as project id when `--project` has no value; `checkTourAnchors.ts --base` with no value; `pruneRulesets` reads one page. Unread: `studentAssignmentTargets.ts`, `quizMediaArchive.ts` (from 500), `organizationInvites`, `googleOAuth`, `aiGeneration`. Closed: `videoStore.ts` `live/`, `listAllResponses` pages. | 2026-11-17 | open (low) |
+| Widgets | Sweep the 96 `config: { ...config` writes in `components/widgets` for ones that follow an `await` (the class fixed in #6042 and #6142). Also `navigator.clipboard.writeText` direct calls in `MiniApp/Widget.tsx`, `StudentResultsBulkBar.tsx`, `RubricBuilderPanel.tsx`, `VideoActivityWidget/Widget.tsx` (use `copyText`; only Flashcards dropped the link on failure) | 2026-11-18 | open (low) |
+| Dashboard & Layout | Cosmetic, unconfirmed: `DraggableWindow` screenshot tip `localStorage.setItem` outside try/catch; `TabExitsPopover` `useNow` shows 0s for up to 1s when `live` flips; `lastLibraryLocation` failed first read discards a newer cached promise; `dropIndicator.siblingCollections` does not hoist parent cycles | 2026-11-18 | open (low) |
+| State & Data | Latent: `buildAssignmentRosterRows` `removedStudentRefs` not deduped by `studentTargetRefKey`; `stableStringify` serializes any `Date` as `{}`; `parseMeetingCadence` lets a `NaN` weekday through; `datePicker.isoDate` maps years 0-99 to 19xx and has no tests | 2026-11-18 | open (low) |
+| Admin & Config | `CalendarConfigurationModal` `updateFrequencyHours` ignores a cleared field (same snap-back as #6143), unconfirmed | 2026-11-18 | open (low) |
+| Build & Tooling | Audit ~95 `.limit(` calls in `functions/src` lacking `orderBy`/`startAfter` for scheduled-sweep pagination cliffs; cosmetic: `mergeVitestReports.mjs` `startTime` minimum becomes 0 if a shard report omits it | 2026-11-18 | open (low) |
 
 ## Notes & Gotchas
 
@@ -1745,3 +1755,6 @@
 - 2026-11-17: four fixes (#6042-#6045), Dashboard & Layout clean. Subagents ran scoped checks only; I swapped each source file back to `HEAD~1` to confirm every new test fails before and passes after, then ran one merged-tree `validate` + `build` (green, no flakes). `dev-paul` moved during the run (no overlap); branches were rebased in their worktrees and scoped tests rerun. Baseline about 1 h, gate about 1 h.
 
 - Run count: **126** | Last run: **2026-11-17**
+- 2026-11-18: two fixes (#6142, #6143), three areas clean (Dashboard, State & Data, Build). Subagents ran scoped checks only; I swapped each source file back to `HEAD~1` to confirm every new test fails before and passes after, then ran one merged-tree `validate` + `build` (green). `dev-paul` moved during the run (docs, functions and rules only); branches were rebased and the new tests rerun. Baseline about 1 h, gate about 1 h. The Stop hook keeps asking to push the session branch; it holds only `dev-paul` history, so ignore it.
+
+- Run count: **127** | Last run: **2026-11-18**
