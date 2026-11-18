@@ -5559,6 +5559,8 @@ export interface PeriodAccess {
   rosterId?: string;
   /** Epoch ms of the last pause or close, so a draft flush landing just after it is kept. */
   pausedAt?: number;
+  /** Epoch ms the teacher closed this class; absent or null means Ready, never closed (ASSIGNED_TAB D24). */
+  closedAt?: number | null;
 }
 
 export type AccessMode = 'assessment' | 'assignment';
@@ -7619,6 +7621,10 @@ export interface QuizAssignment
   /** Open/close window (epoch ms). Absent = always open (legacy behavior). */
   openAt?: number | null;
   closeAt?: number | null;
+  /** Teacher-only close mark for an assignment with no `periodAccess` (ASSIGNED_TAB D24). */
+  closedAt?: number | null;
+  /** Set by Move to Done (ASSIGNED_TAB D5): Done while ended, whatever its grading. */
+  doneAt?: number | null;
   /**
    * Count of student-target refs the most recent `setAssignmentTargetsV1`
    * call couldn't add (PII-free — a plain number, no names). Persisted so
@@ -11838,7 +11844,9 @@ export type GlobalFeature =
   /** A score-only Video Activity publish keeps right/wrong off students' answers. */
   | 'va-score-only-verdicts'
   /** Every widget's Settings tab can save its settings as the teacher's default for new copies. */
-  | 'widget-settings-defaults';
+  | 'widget-settings-defaults'
+  /** Library and Assigned tabs with a status per class (docs/plans/ASSIGNED_TAB.md D19). */
+  | 'assigned-tab';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

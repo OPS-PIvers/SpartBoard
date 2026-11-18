@@ -382,6 +382,67 @@ describe('usePeriodAccess', () => {
     ]);
   });
 
+  it('closes a class with a closedAt mark and reopens it straight to open', async () => {
+    (getDocs as Mock).mockResolvedValue({ docs: [] });
+    const closed = {
+      ...session,
+      periodAccess: {
+        'cl-1': period({ rosterId: 'r1', closedAt: at(8, 0) }),
+        'roster:r5': period({ rosterId: 'r5', state: 'open' }),
+      },
+    };
+    const { result } = renderHook(() =>
+      usePeriodAccess(closed, collections, rosters)
+    );
+    await act(async () => {
+      await result.current.closePeriod('roster:r5');
+      await result.current.reopenPeriod('cl-1');
+    });
+    const writes = [
+      {
+        'periodAccess.roster:r5.state': 'closed',
+        'periodAccess.roster:r5.closedAt': at(8, 30),
+        'periodAccess.roster:r5.pausedAt': at(8, 30),
+      },
+      {
+        'periodAccess.cl-1.state': 'open',
+        'periodAccess.cl-1.openAt': null,
+        'periodAccess.cl-1.closeAt': at(9, 5) + BELL_CLOSE_CUSHION_MS,
+        'periodAccess.cl-1.closedAt': null,
+      },
+    ];
+    expect(fieldWrites('quiz_sessions/s1')).toEqual(writes);
+    expect(fieldWrites('users/teacher-1/quiz_assignments/s1')).toEqual(writes);
+  });
+
+  it('closes every class not already closed by hand, through commit too', async () => {
+    const send = vi.fn().mockResolvedValue(undefined);
+    const mixed = {
+      ...session,
+      periodAccess: {
+        a: period({ state: 'open' }),
+        b: period({ state: 'paused' }),
+        ready: period({}),
+        done: period({ closedAt: at(8, 0) }),
+      },
+    };
+    const { result } = renderHook(() =>
+      usePeriodAccess(
+        mixed,
+        { ...collections, refreshIdle: false, commit: send },
+        rosters
+      )
+    );
+    await act(async () => {
+      await result.current.closeAllPeriods();
+    });
+    const row = { state: 'closed', closedAt: at(8, 30), pausedAt: at(8, 30) };
+    expect(send).toHaveBeenCalledWith({
+      periodAccess: { a: row, b: row, ready: row },
+    });
+    expect(writeBatch).not.toHaveBeenCalled();
+  });
+
   it('extends a live period by ten minutes or clears its close', async () => {
     const live = {
       ...session,

@@ -73,7 +73,8 @@ export function capAtDue(
 
 type BellRoster = Pick<ClassRoster, 'id' | 'bellPeriod'>;
 
-function todaysBell(
+/** Today's bell window for the period's roster, end cushion included; null without a tagged bell. */
+export function todaysBell(
   access: Pick<PeriodAccess, 'rosterId'>,
   rosters: readonly BellRoster[],
   permissions: readonly FeaturePermission[] | undefined,
@@ -230,7 +231,7 @@ export function usePeriodAccess(
 
   /** Resolves to the assessment periods that opened with no end bell to close them. */
   const start = useCallback(
-    async (keys: readonly string[]): Promise<string[]> => {
+    async (keys: readonly string[], reopen = false): Promise<string[]> => {
       if (!session || !periodAccess || keys.length === 0) return [];
       await refreshStaleResponses(keys);
       const now = Date.now();
@@ -259,6 +260,7 @@ export function usePeriodAccess(
             lockAt(session),
             now
           ),
+          ...(reopen || access.closedAt != null ? { closedAt: null } : {}),
         };
       }
       await write(rows);
@@ -281,6 +283,20 @@ export function usePeriodAccess(
       const rows: Record<string, Partial<PeriodAccess>> = {};
       for (const key of keys)
         if (periodAccess[key]) rows[key] = { state: 'paused', pausedAt: now };
+      await write(rows);
+    },
+    [periodAccess, write]
+  );
+
+  // D24: Close stamps closedAt so it reads apart from Ready; pausedAt keeps a just-flushed draft.
+  const close = useCallback(
+    async (keys: readonly string[]) => {
+      if (!periodAccess || keys.length === 0) return;
+      const now = Date.now();
+      const rows: Record<string, Partial<PeriodAccess>> = {};
+      for (const key of keys)
+        if (periodAccess[key])
+          rows[key] = { state: 'closed', closedAt: now, pausedAt: now };
       await write(rows);
     },
     [periodAccess, write]
@@ -332,6 +348,18 @@ export function usePeriodAccess(
     extendPeriod: extend,
     startAll: () => start(keys),
     pauseAll: () => pause(keys),
+    closePeriod: (key: string) => close([key]),
+    /** D9: lets the class back in at once, exactly like Start, and clears closedAt. */
+    reopenPeriod: (key: string) => start([key], true),
+    /** Closes every class not already closed by hand, so earlier closedAt marks stand. */
+    closeAllPeriods: () =>
+      close(
+        keys.filter(
+          (k) =>
+            periodAccess?.[k]?.state !== 'closed' ||
+            periodAccess[k].closedAt == null
+        )
+      ),
     letIn,
   };
 }
