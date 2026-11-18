@@ -1088,6 +1088,9 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
       'library.mini-app.submissions',
       'quiz.monitor',
     ],
+    'quiz-monitor.class-resume': ['quiz.monitor'],
+    'quiz-monitor.class-close': ['quiz.monitor'],
+    'quiz-monitor.class-reopen': ['quiz.monitor'],
     'quiz-monitor.period-extend': [
       'library.mini-app.submissions',
       'quiz.monitor',
