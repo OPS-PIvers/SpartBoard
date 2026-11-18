@@ -4041,8 +4041,8 @@ export const TOUR_ANCHORS = {
   'quiz-results.student-toggle': {
     label: 'Student row expand button in Quiz results, by row',
     perField: true,
-    keyPattern: 'quiz#\\d+',
-    keyHint: 'quiz#0 for the first student row',
+    rows: true,
+    rowList: 'quiz-results-students',
   },
   'quiz-results.student-unlock': {
     label: 'Unlock results in Quiz results, by position',
@@ -4062,24 +4062,32 @@ export const TOUR_ANCHORS = {
     label: 'Results options menu button in Quiz results, by student',
     perField: true,
     persists: true,
+    rows: true,
+    rowList: 'quiz-results-students',
   },
   'quiz-results.student-show': {
     label: 'Show results button for a student in Quiz results, by student',
     perField: true,
     persists: true,
     panel: true,
+    rows: true,
+    rowList: 'quiz-results-students',
   },
   'quiz-results.student-hide': {
     label: 'Hide button for a student in Quiz results, by student',
     perField: true,
     persists: true,
     panel: true,
+    rows: true,
+    rowList: 'quiz-results-students',
   },
   'quiz-results.student-follow-class': {
     label: 'Follow class button for a student in Quiz results, by student',
     perField: true,
     persists: true,
     panel: true,
+    rows: true,
+    rowList: 'quiz-results-students',
   },
   'quiz-results.bulk-show': {
     label: 'Show results… in Quiz results',
@@ -17415,6 +17423,8 @@ export const TOUR_ANCHORS = {
     label: 'Question row in the Video Activity results',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'video-activity-results-questions',
   },
   'video-activity.results-student-row': {
     label: 'Student row in the Video Activity results',
@@ -17430,6 +17440,8 @@ export const TOUR_ANCHORS = {
       'Mark button on a short-answer question in the Video Activity results',
     perField: true,
     panel: true,
+    rows: true,
+    rowList: 'video-activity-results-questions',
   },
   'video-activity.results-mark-points': {
     label:
@@ -17437,6 +17449,7 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
     persists: true,
+    rowList: 'video-activity-results-questions',
   },
   'quiz-editor.folder': {
     label: 'Folder picker in the Quiz editor header',

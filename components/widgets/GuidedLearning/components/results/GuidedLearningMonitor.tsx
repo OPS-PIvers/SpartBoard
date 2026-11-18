@@ -41,7 +41,7 @@ interface Props<R extends GlMonitorRow> {
   /** Rows under the header, e.g. who launched the session. */
   banner?: ReactNode;
   renderDetail: (row: R) => ReactNode;
-  renderActions: (row: R) => ReactNode;
+  renderActions: (row: R, rowIndex: number) => ReactNode;
   questionStats: GlQuestionStat[];
   /** Slide engagement, shown on the Question results screen. */
   engagement?: ReactNode;
@@ -177,7 +177,7 @@ export const GuidedLearningMonitor = <R extends GlMonitorRow>({
                       No students here yet.
                     </p>
                   )}
-                  {bucketRows.map((row) => (
+                  {bucketRows.map((row, rowIndex) => (
                     <div
                       key={row.key}
                       className="flex items-center justify-between rounded-lg border border-brand-gray-lightest bg-white"
@@ -199,7 +199,7 @@ export const GuidedLearningMonitor = <R extends GlMonitorRow>({
                         className="flex items-center shrink-0"
                         style={{ gap: 'min(6px, 1.5cqmin)' }}
                       >
-                        {renderActions(row)}
+                        {renderActions(row, rowIndex)}
                       </div>
                     </div>
                   ))}

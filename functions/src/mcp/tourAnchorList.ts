@@ -16562,8 +16562,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-results.student-toggle",
     "label": "Student row expand button in Quiz results, by row",
     "scope": "field",
-    "key_pattern": "quiz#\\d+",
-    "key_hint": "quiz#0 for the first student row",
+    "row_wildcard": true,
+    "row_list": "quiz-results-students",
     "routes": [
       {
         "surface": "quiz.results",
@@ -16637,6 +16637,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Results options menu button in Quiz results, by student",
     "scope": "field",
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "quiz-results-students",
     "routes": [
       {
         "surface": "quiz.student-results-control",
@@ -16651,6 +16653,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "quiz-results-students",
     "routes": [
       {
         "surface": "quiz.student-results-control",
@@ -16668,6 +16672,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "quiz-results-students",
     "routes": [
       {
         "surface": "quiz.student-results-control",
@@ -16685,6 +16691,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "row_wildcard": true,
+    "row_list": "quiz-results-students",
     "routes": [
       {
         "surface": "quiz.student-results-control",
@@ -76057,6 +76065,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Question row in the Video Activity results",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "video-activity-results-questions",
     "routes": [
       {
         "surface": "library.video-activity.results",
@@ -76117,6 +76127,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Mark button on a short-answer question in the Video Activity results",
     "scope": "field",
     "panel": true,
+    "row_wildcard": true,
+    "row_list": "video-activity-results-questions",
     "routes": [
       {
         "surface": "library.video-activity.results",
@@ -76138,6 +76150,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
+    "row_list": "video-activity-results-questions",
     "routes": [
       {
         "surface": "library.video-activity.results",
