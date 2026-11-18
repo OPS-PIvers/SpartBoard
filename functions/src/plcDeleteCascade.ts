@@ -11,6 +11,8 @@ export interface CascadeDeps {
   listSubcollections: (plcId: string) => Promise<{ id: string }[]>;
   deleteSubcollection: (plcId: string, name: string) => Promise<void>;
   deleteStoragePrefix: (prefix: string) => Promise<void>;
+  /** Leaves a plcCreators tombstone so the rules refuse any re-create of this id. */
+  markDeleted: (plcId: string) => Promise<void>;
 }
 
 /** Deletes every subcollection of plcs/{plcId} and its Storage prefixes; never the root doc itself. */
@@ -18,6 +20,7 @@ export async function cascadePlcDelete(
   deps: CascadeDeps,
   plcId: string
 ): Promise<string[]> {
+  await deps.markDeleted(plcId);
   const subs = await deps.listSubcollections(plcId);
   for (const sub of subs) await deps.deleteSubcollection(plcId, sub.id);
   const prefixes = [
@@ -39,6 +42,12 @@ function defaultCascadeDeps(): CascadeDeps {
     deleteStoragePrefix: async (prefix) => {
       await bucket.deleteFiles({ prefix, force: true });
     },
+    markDeleted: async (plcId) => {
+      await db
+        .collection('plcCreators')
+        .doc(plcId)
+        .set({ deletedAtMs: Date.now() }, { merge: true });
+    },
   };
 }
 
@@ -52,9 +61,6 @@ export const cascadePlcDeleteV1 = onDocumentDeleted(
   },
   async (event) => {
     const { plcId } = event.params;
-    // Its creator re-made the group before this ran: leave the new group's data alone.
-    const again = await admin.firestore().collection('plcs').doc(plcId).get();
-    if (again.exists) return;
     const removed = await cascadePlcDelete(defaultCascadeDeps(), plcId);
     logger.info('cascadePlcDeleteV1 cleared a deleted PLC', { plcId, removed });
   }

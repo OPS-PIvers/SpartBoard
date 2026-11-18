@@ -578,7 +578,7 @@ describe('plcs/{plcId} — members map + orgId/buildingId fields', () => {
       })
     );
   });
-  it('only the original creator re-creates a deleted PLC id', async () => {
+  it('nobody re-creates a used PLC id, its creator included', async () => {
     const NEW_PLC = 'plc-recreated';
     await seedStaff([MEMBER_B_UID]);
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
@@ -611,9 +611,20 @@ describe('plcs/{plcId} — members map + orgId/buildingId fields', () => {
         rootFor(MEMBER_B_UID, MEMBER_B_EMAIL)
       )
     );
-    await assertSucceeds(
+    await assertFails(
       setDoc(
         doc(staffDb(MEMBER_A_UID), `plcs/${NEW_PLC}`),
+        rootFor(MEMBER_A_UID, MEMBER_A_EMAIL)
+      )
+    );
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `plcCreators/tombstoned`), {
+        deletedAtMs: 1,
+      });
+    });
+    await assertFails(
+      setDoc(
+        doc(staffDb(MEMBER_A_UID), 'plcs/tombstoned'),
         rootFor(MEMBER_A_UID, MEMBER_A_EMAIL)
       )
     );

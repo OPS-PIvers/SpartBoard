@@ -5,6 +5,7 @@ describe('cascadePlcDelete (security #15)', () => {
   it('deletes every subcollection and both Storage prefixes of the deleted PLC', async () => {
     const deleted: string[] = [];
     const prefixes: string[] = [];
+    const marked: string[] = [];
     const deps: CascadeDeps = {
       listSubcollections: () =>
         Promise.resolve(
@@ -24,8 +25,13 @@ describe('cascadePlcDelete (security #15)', () => {
         prefixes.push(prefix);
         return Promise.resolve();
       },
+      markDeleted: (plcId) => {
+        marked.push(plcId);
+        return Promise.resolve();
+      },
     };
     await cascadePlcDelete(deps, 'p1');
+    expect(marked).toEqual(['p1']);
     expect(deleted).toEqual([
       'p1/recordings',
       'p1/aggregates',
