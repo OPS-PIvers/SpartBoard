@@ -27,7 +27,10 @@ import { getLocalIsoDate } from '@/utils/localDate';
 import { mapWithConcurrency } from '@/utils/mapWithConcurrency';
 import { assignPins } from '@/utils/rosterPins';
 import { viewAsAuditCreated, viewAsDirectSave } from '@/utils/viewAsAudit';
-import { runAuditedWrite } from '@/utils/viewAsTab';
+import {
+  runAuditedWrite,
+  viewAsSuppressesBackgroundWrites,
+} from '@/utils/viewAsTab';
 import { collapseTestSuffix } from '@/utils/testClassSuffix';
 import { noDriveMessage } from '@/utils/viewAsDrive';
 import { parseGroupReminder, parseGroupSymbol } from '@/utils/groupReminders';
@@ -824,7 +827,7 @@ export const useRosters = (user: User | null) => {
       metaList: ClassRosterMeta[],
       rawSnapDocs: { id: string; data: () => unknown }[]
     ) => {
-      if (!driveService || !user) return;
+      if (!driveService || !user || viewAsSuppressesBackgroundWrites()) return;
       const migrationKey = `${MIGRATION_KEY_PREFIX}_${user.uid}`;
       if (localStorage.getItem(migrationKey)) return;
 

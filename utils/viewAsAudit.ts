@@ -21,10 +21,13 @@ import {
 const MAX_VALUE_BYTES = 100_000;
 export const VIEW_AS_OMITTED_KEY = '__viewAsOmitted';
 
-function capValue(value: unknown): unknown {
+/** Total data budget for one logged change; JSON chars can take up to 3 bytes each in UTF-8. */
+const MAX_RAW_WRITE_DATA_BYTES = 200_000;
+
+function capValue(value: unknown, limit: number = MAX_VALUE_BYTES): unknown {
   try {
     const bytes = JSON.stringify(value)?.length ?? 0;
-    return bytes > MAX_VALUE_BYTES ? { [VIEW_AS_OMITTED_KEY]: bytes } : value;
+    return bytes > limit ? { [VIEW_AS_OMITTED_KEY]: bytes } : value;
   } catch {
     return { [VIEW_AS_OMITTED_KEY]: -1 };
   }
@@ -192,28 +195,33 @@ export async function recordViewAsRawWrites(
 ): Promise<void> {
   if (writes.length === 0 || !viewAsAuditsWrite()) return;
   const targetUid = getViewAsTabState().session?.targetUid;
+  // Paths and ops always survive; each write's data shares a budget that keeps the entry under 1 MB.
+  const dataLimit = Math.min(
+    MAX_VALUE_BYTES,
+    Math.floor(MAX_RAW_WRITE_DATA_BYTES / writes.length)
+  );
   const own =
     writes.length === 1 &&
     !!targetUid &&
     writes[0].path.startsWith(`users/${targetUid}/`) &&
     !writes[0].path.startsWith(`users/${targetUid}/private`);
   try {
-    await recordViewAsAudit({
+    // Built directly: recordViewAsAudit would cap the whole `writes` list and drop every path.
+    const { ref, data } = await buildViewAsAuditEntry({
       action: 'view_as_outward',
       ...(own ? { path: writes[0].path } : {}),
       after: {
         action: 'Change',
-        writes: capValue(
-          writes.map((w) => ({
-            op: w.op,
-            path: w.path,
-            ...(w.data !== undefined
-              ? { data: describeWriteData(w.data) }
-              : {}),
-          }))
-        ),
+        writes: writes.map((w) => ({
+          op: w.op,
+          path: w.path,
+          ...(w.data !== undefined
+            ? { data: capValue(describeWriteData(w.data), dataLimit) }
+            : {}),
+        })),
       },
     });
+    await runAuditedWrite(() => setDoc(ref, data));
   } catch (err) {
     console.error('[viewAs] change audit failed', err);
   }
