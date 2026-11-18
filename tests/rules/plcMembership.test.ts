@@ -26,7 +26,13 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { setDoc, updateDoc, getDoc, doc, deleteField } from 'firebase/firestore';
+import {
+  setDoc,
+  updateDoc,
+  getDoc,
+  doc,
+  deleteField,
+} from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-plc-membership';
 const PLC_ID = 'plc-membership-test';
@@ -873,7 +879,9 @@ describe('plcs/{plcId} — removed entries keep no authority', () => {
           ? [LEAD_UID, MEMBER_UID, OTHER_UID]
           : [LEAD_UID, OTHER_UID],
         // A removal drops the address from the index, so the lead may invite it back.
-        ...(inMemberUids ? {} : { [`memberEmails.${MEMBER_UID}`]: deleteField() }),
+        ...(inMemberUids
+          ? {}
+          : { [`memberEmails.${MEMBER_UID}`]: deleteField() }),
       });
     });
 

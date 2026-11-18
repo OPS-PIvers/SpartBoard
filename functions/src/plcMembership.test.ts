@@ -30,6 +30,7 @@ import {
   readMembersForWrite,
   runMembershipAction,
   type Caller,
+  inviteStillValid,
 } from './plcMembership';
 import { makeStubFirestore, type StubData } from './testing/stubFirestore';
 
@@ -718,7 +719,7 @@ describe('runMembershipAction', () => {
     ).toMatchObject({ details: { reason: 'inviteNotPending' } });
   });
 
-  it('refuses an invite older than the invitee\'s removal (security #14)', async () => {
+  it("refuses an invite older than the invitee's removal (security #14)", async () => {
     const seed = (invitedAt: number) => ({
       'plcs/p': plc({
         memberUids: ['lead', 'co'],
@@ -738,11 +739,27 @@ describe('runMembershipAction', () => {
     });
     const act = { action: 'acceptInvite' as const, inviteId: 'i1' };
     expect(
-      await codeOf(runMembershipAction(setup(seed(400)).db, caller('gone'), act, TS))
+      await codeOf(
+        runMembershipAction(setup(seed(400)).db, caller('gone'), act, TS)
+      )
     ).toMatchObject({ details: { reason: 'inviteNotPending' } });
     expect(
       await runMembershipAction(setup(seed(600)).db, caller('gone'), act, TS)
     ).toEqual({ changed: true });
+  });
+
+  it("orders a re-invite by its server write time, not the sender's clock (security #14)", () => {
+    const p = plc({
+      members: {
+        lead: m('lead', 'lead'),
+        gone: m('gone', 'member', { status: 'removed', removedAtMs: 500 }),
+      },
+    });
+    const slowClock = { invitedByUid: 'lead', invitedAt: 400 };
+    expect(inviteStillValid(p, slowClock, 'gone', 600)).toBe(true);
+    expect(
+      inviteStillValid(p, { ...slowClock, invitedAt: 600 }, 'gone', 400)
+    ).toBe(false);
   });
 
   it('removing a member drops pending invites to and from them (security #14)', async () => {

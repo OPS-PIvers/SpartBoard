@@ -196,9 +196,7 @@ describe('holdsRevokedMember (security #10)', () => {
           get: () =>
             Promise.resolve({
               docs: Object.entries(docs)
-                .filter(
-                  ([p, d]) => p.startsWith(`${path}/`) && d.uid === uid
-                )
+                .filter(([p, d]) => p.startsWith(`${path}/`) && d.uid === uid)
                 .map(([, d]) => ({ get: (k: string) => d[k] })),
             }),
         }),
@@ -210,7 +208,9 @@ describe('holdsRevokedMember (security #10)', () => {
     expect(
       await holdsRevokedMember(
         fakeDb({
-          'organizations/orono/members/a@orono.k12.mn.us': { status: 'inactive' },
+          'organizations/orono/members/a@orono.k12.mn.us': {
+            status: 'inactive',
+          },
         }),
         'orono',
         user

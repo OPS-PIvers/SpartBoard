@@ -163,8 +163,8 @@ export const joinSyncedVideoActivityGroup =
         );
       }
       if (
-      !(await isAiTeacherCaller(admin.firestore(), request.auth?.token ?? {}))
-    ) {
+        !(await isAiTeacherCaller(admin.firestore(), request.auth?.token ?? {}))
+      ) {
         throw new HttpsError(
           'permission-denied',
           'Only teacher accounts can join a synced video activity.'

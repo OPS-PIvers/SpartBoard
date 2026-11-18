@@ -510,7 +510,12 @@ export interface Caller {
 }
 
 /** An invite counts only while its sender still manages the PLC and it postdates the invitee's last removal. */
-export function inviteStillValid(plc: Data, invite: Data, inviteeUid: string): boolean {
+export function inviteStillValid(
+  plc: Data,
+  invite: Data,
+  inviteeUid: string,
+  writtenAtMs?: number
+): boolean {
   const from = invite.invitedByUid;
   if (typeof from !== 'string' || !isMembershipManager(plc, from)) return false;
   const entry = ((plc.members ?? {}) as Record<string, Data | undefined>)[
@@ -518,10 +523,15 @@ export function inviteStillValid(plc: Data, invite: Data, inviteeUid: string): b
   ];
   const removedAt = entry?.status === 'removed' ? entry.removedAtMs : undefined;
   if (typeof removedAt !== 'number') return true;
-  return typeof invite.invitedAt === 'number' && invite.invitedAt > removedAt;
+  // The server write time, not the sender's clock, decides which came first.
+  const sentAt = writtenAtMs ?? invite.invitedAt;
+  return typeof sentAt === 'number' && sentAt > removedAt;
 }
 
-function removedUid(action: MembershipAction, callerUid: string): string | null {
+function removedUid(
+  action: MembershipAction,
+  callerUid: string
+): string | null {
   if (action.action === 'leave') return callerUid;
   if (action.action === 'removeMember' || action.action === 'adminRemoveMember')
     return action.uid;
@@ -530,7 +540,8 @@ function removedUid(action: MembershipAction, callerUid: string): string | null 
 
 function memberEmailOf(data: Data, uid: string): string {
   const fromIndex = ((data.memberEmails ?? {}) as Data)[uid];
-  if (typeof fromIndex === 'string' && fromIndex) return fromIndex.toLowerCase();
+  if (typeof fromIndex === 'string' && fromIndex)
+    return fromIndex.toLowerCase();
   const entry = ((data.members ?? {}) as Record<string, Data | undefined>)[uid];
   return typeof entry?.email === 'string' ? entry.email.toLowerCase() : '';
 }
@@ -596,7 +607,14 @@ export async function runMembershipAction(
         const plcRef = db.doc(`plcs/${plcId}`);
         const plc = plcId ? await tx.get(plcRef) : null;
         if (!plc?.exists) throw new MembershipError('plcNotFound', 'not-found');
-        if (!inviteStillValid(plc.data() as Data, inv, caller.uid))
+        if (
+          !inviteStillValid(
+            plc.data() as Data,
+            inv,
+            caller.uid,
+            invite.updateTime?.toMillis()
+          )
+        )
           throw new MembershipError('inviteNotPending');
         const update = planAcceptInvite(
           plc.data() as Data,

@@ -110,7 +110,10 @@ afterAll(async () => {
 beforeEach(async () => {
   await testEnv.clearFirestore();
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
-    await seedDistrictStaff(ctx.firestore(), [STAFF_PEER_EMAIL, TEACHER_A_EMAIL]);
+    await seedDistrictStaff(ctx.firestore(), [
+      STAFF_PEER_EMAIL,
+      TEACHER_A_EMAIL,
+    ]);
     await setDoc(
       doc(ctx.firestore(), `synced_quizzes/${GROUP_ID}`),
       seededGroup()

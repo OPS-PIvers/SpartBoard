@@ -46,8 +46,7 @@ const google = (uid: string, email: string, extra = {}) =>
     .firestore();
 
 const PARTICIPANT_EMAIL = 'participant.teacher@orono.k12.mn.us';
-const asParticipant = () =>
-  google(PARTICIPANT_UID, PARTICIPANT_EMAIL);
+const asParticipant = () => google(PARTICIPANT_UID, PARTICIPANT_EMAIL);
 const asStaff = () => google(STAFF_UID, STAFF_EMAIL);
 const asAdmin = () => google(ADMIN_UID, ADMIN_EMAIL);
 const asOutsider = () => google(OUTSIDER_UID, 'someone@example.com');
