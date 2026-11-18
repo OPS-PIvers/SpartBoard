@@ -57,7 +57,25 @@ interface AnswerEntry {
 
 const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
 
-/** True when every choice kept its letter: each is unchanged, or new text replaced old. */
+const bigrams = (s: string) => {
+  const chars = Array.from(s);
+  if (chars.length < 2) return new Set(chars);
+  return new Set(chars.slice(1).map((c, i) => chars[i] + c));
+};
+
+/** Character-bigram Dice similarity of two normalized texts, 0..1. */
+function similarity(a: string, b: string): number {
+  const x = bigrams(a);
+  const y = bigrams(b);
+  let shared = 0;
+  for (const g of x) if (y.has(g)) shared++;
+  return x.size + y.size === 0 ? 0 : (2 * shared) / (x.size + y.size);
+}
+
+const isLetterStub = (order: readonly string[]) =>
+  order.every((text, i) => text.trim().toUpperCase() === 'ABCDEFGH'[i]);
+
+/** True when every choice kept its letter: each is unchanged, or new text resembling its own old text more than any other's (a letter stub has no wording to compare). */
 export function isRewordOnly(
   recorded: readonly string[],
   current: readonly string[]
@@ -68,10 +86,14 @@ export function isRewordOnly(
   if (now.some((t) => t === '') || new Set(now).size !== now.length) {
     return false;
   }
-  return now.every(
-    (text, i) =>
-      text === was[i] || (!was.includes(text) && !now.includes(was[i]))
-  );
+  const stub = isLetterStub(recorded);
+  return now.every((text, i) => {
+    if (text === was[i]) return true;
+    if (was.includes(text) || now.includes(was[i])) return false;
+    if (stub) return true;
+    const own = similarity(text, was[i]);
+    return own > 0 && was.every((w, j) => j === i || similarity(text, w) < own);
+  });
 }
 
 const invalid = (message: string): never => {
@@ -114,9 +136,6 @@ export function parsePaperRewordInput(raw: unknown): PaperRewordInput {
   });
   return { quizId, questions };
 }
-
-const isLetterStub = (order: readonly string[]) =>
-  order.every((text, i) => text.trim().toUpperCase() === 'ABCDEFGH'[i]);
 
 /** The questions on this batch that kept every choice at its letter. */
 function slotsFor(

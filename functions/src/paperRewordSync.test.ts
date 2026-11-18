@@ -127,6 +127,30 @@ describe('isRewordOnly', () => {
   it('accepts new wording at the same letters', () => {
     expect(isRewordOnly(['A', 'B'], ['one', 'two'])).toBe(true);
   });
+  it('accepts a typo fix, a plural and a tie the word count could not break', () => {
+    expect(isRewordOnly(['Pariss', 'Lyon'], ['Paris', 'Lyon'])).toBe(true);
+    expect(isRewordOnly(['cat', 'dog'], ['cats', 'dogs'])).toBe(true);
+    expect(
+      isRewordOnly(
+        ['a lower activity', 'a higher activity', 'the same'],
+        ['a low activity level', 'a high activity level', 'the same']
+      )
+    ).toBe(true);
+  });
+  it('accepts a reworded CJK choice', () => {
+    expect(isRewordOnly(['猫です', '犬です'], ['猫ですよ', '犬ですよ'])).toBe(
+      true
+    );
+  });
+  it('rejects a swap combined with a reword', () => {
+    expect(isRewordOnly(['A1', 'B1', 'C'], ['B2', 'A2', 'C'])).toBe(false);
+    expect(
+      isRewordOnly(
+        ['Paris is big', 'Lyon is small'],
+        ['Lyon is quite small', 'Paris is quite big']
+      )
+    ).toBe(false);
+  });
   it('rejects a choice that moved letters', () => {
     expect(isRewordOnly(['x', 'y'], ['y', 'x'])).toBe(false);
   });
