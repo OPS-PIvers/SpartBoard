@@ -7,7 +7,7 @@
  * relevant, lowercase + de-dup) before acting on the list.
  */
 
-import { Plc, PlcMember, PlcRole } from '@/types';
+import { Plc, PlcLinkage, PlcMember, PlcRole } from '@/types';
 
 /**
  * Convert a value that may be a Firestore `Timestamp`, a legacy numeric
@@ -165,4 +165,14 @@ export function getPlcTeammateEmails(plc: Plc, selfUid: string): string[] {
     seen.add(normalized);
   }
   return Array.from(seen);
+}
+
+/** PLC linkage for an imported assignment, built only from the importer's own copy of the PLC. */
+export function plcLinkageFor(plc: Plc): PlcLinkage {
+  return {
+    id: plc.id,
+    name: plc.name,
+    memberEmails: getPlcMemberEmails(plc),
+    ...(plc.sharedSheetUrl ? { sheetUrl: plc.sharedSheetUrl } : {}),
+  };
 }

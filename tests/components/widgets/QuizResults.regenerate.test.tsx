@@ -274,3 +274,66 @@ describe('QuizResults — Re-export Sheet rebuild branch (no delta)', () => {
     );
   });
 });
+
+describe('QuizResults — PLC export target must be registered on the PLC (security #16)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockExportResultsToSheet
+      .mockReset()
+      .mockResolvedValue('https://docs.google.com/spreadsheets/d/own');
+  });
+
+  it('never sends PLC data to a sheet URL no PLC of theirs registers', async () => {
+    const foreign = 'https://docs.google.com/spreadsheets/d/sharer-sheet';
+    render(
+      <QuizResults
+        quiz={makeQuiz()}
+        responses={[makeResponse('1111')]}
+        config={makePlcConfig()}
+        onBack={vi.fn()}
+        initialExportUrl={foreign}
+        plcSheetUrl={foreign}
+        initialExportedResponseIds={[]}
+        onExportUrlSaved={vi.fn().mockResolvedValue(undefined)}
+        onExportedResponseIdsSaved={vi.fn().mockResolvedValue(undefined)}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /re-export sheet/i }));
+    await waitFor(() => {
+      expect(mockExportResultsToSheet).toHaveBeenCalledTimes(1);
+    });
+    expect(mockRegeneratePlcSheet).not.toHaveBeenCalled();
+    const opts = mockExportResultsToSheet.mock.calls[0][3] as {
+      plcMode: boolean;
+      plcSheetUrl?: string;
+    };
+    expect(opts.plcMode).toBe(false);
+    expect(opts.plcSheetUrl).toBeUndefined();
+  });
+
+  it("exports to the teacher's own sheet when the assignment URL is not the PLC's", async () => {
+    const foreign = 'https://docs.google.com/spreadsheets/d/sharer-sheet';
+    render(
+      <QuizResults
+        quiz={makeQuiz()}
+        responses={[makeResponse('1111')]}
+        config={makePlcConfig()}
+        onBack={vi.fn()}
+        plcSheetUrl={foreign}
+        onExportUrlSaved={vi.fn().mockResolvedValue(undefined)}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /export to sheets/i }));
+    await waitFor(() => {
+      expect(mockExportResultsToSheet).toHaveBeenCalledTimes(1);
+    });
+    const opts = mockExportResultsToSheet.mock.calls[0][3] as {
+      plcMode: boolean;
+      plcSheetUrl?: string;
+    };
+    expect(opts.plcMode).toBe(false);
+    expect(opts.plcSheetUrl).toBeUndefined();
+  });
+});

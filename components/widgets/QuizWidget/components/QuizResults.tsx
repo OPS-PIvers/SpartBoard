@@ -1662,8 +1662,13 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
 
   // PLC assignments made since pooled results (D2) carry no sheet, so they export to the teacher's own sheet.
   const plcSheetCandidate = assignmentPlcSheetUrl ?? config.plcSheetUrl;
+  // Only a sheet registered on one of the teacher's own PLCs gets PLC data.
+  const isRegisteredPlcSheet = (url: string | null | undefined) =>
+    !!url && plcs.some((p) => p.sharedSheetUrl === url);
   const sharedSheetUrl =
-    config.plcMode && plcSheetCandidate ? plcSheetCandidate : null;
+    config.plcMode && isRegisteredPlcSheet(plcSheetCandidate)
+      ? (plcSheetCandidate ?? null)
+      : null;
   const exportsToSharedSheet = !!sharedSheetUrl;
 
   // Solo sheets only; a PLC sheet keeps its column layout.
@@ -1939,7 +1944,10 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   // would land NEW response rows AFTER the stats, fragmenting the sheet.
   // PLC-mode sheets are append-friendly by construction (Results tab is
   // header + rows, no trailing blocks).
-  const canShowUpdateSheet = exportsToSharedSheet && trackingInitialized;
+  const canShowUpdateSheet =
+    exportsToSharedSheet &&
+    trackingInitialized &&
+    isRegisteredPlcSheet(exportUrl);
   // Solo mode equivalent: a "Re-export" button that creates a fresh sheet
   // each time `handleExport` runs. Reuses the existing solo export path
   // (which always creates a new spreadsheet) so the teacher has a way to
@@ -1949,7 +1957,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   const canShowSoloReExport = !exportsToSharedSheet && !!exportUrl;
 
   const handleUpdateSheet = async () => {
-    if (!exportUrl) return;
+    if (!exportUrl || !isRegisteredPlcSheet(exportUrl)) return;
     // PLC-only (gated by `canShowUpdateSheet = exportsToSharedSheet && …`): appends
     // to / regenerates the shared sheet a teammate may own → keeps the broad
     // `spreadsheets` scope. This is an org-only surface, so external users never

@@ -810,12 +810,21 @@ describe('useVideoActivityAssignments — shareAssignment + import', () => {
           mode: 'copy',
           saveActivity,
           isPlcMember: (id) => member && id === 'plc-x',
+          livePlcLinkage: (id) => ({
+            id,
+            name: 'X',
+            sheetUrl: 'https://docs.google.com/spreadsheets/d/live',
+            memberEmails: [],
+          }),
         });
       });
       expect(set).toHaveBeenCalled();
       const written = JSON.stringify(set.mock.calls);
       if (member) expect(written).toContain('plc-x');
       else expect(written).not.toContain('plc-x');
+      // Security #16: the share's sheet URL is never kept.
+      expect(written).not.toContain('spreadsheets/d/s"');
+      if (member) expect(written).toContain('spreadsheets/d/live');
     }
   );
 

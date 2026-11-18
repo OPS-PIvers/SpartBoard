@@ -59,6 +59,7 @@ import {
 import type {
   AssignmentMode,
   PlcAssignmentIndexEntry,
+  PlcLinkage,
   ResultsProtection,
   SharedVideoActivityAssignment,
   VideoActivityAssignment,
@@ -299,6 +300,8 @@ export interface ImportSharedAssignmentOptions {
   ) => Promise<void>;
   /** True when the importer belongs to this PLC (checked against their own PLC list). */
   isPlcMember?: (plcId: string) => boolean;
+  /** The importer's own view of the live PLC; the share's sheet, name and roster are never kept. */
+  livePlcLinkage?: (plcId: string) => PlcLinkage | undefined;
 }
 
 export const useVideoActivityAssignments = (
@@ -1084,6 +1087,10 @@ export const useVideoActivityAssignments = (
         // author's identity / single-class targeting). PLC linkage is kept
         // only for a verified member of that PLC.
         const sourceSettings = sharedDoc.assignmentSettings;
+        const livePlc =
+          sourceSettings.plc && options.isPlcMember?.(sourceSettings.plc.id)
+            ? options.livePlcLinkage?.(sourceSettings.plc.id)
+            : undefined;
         const importedSettings: VideoActivityAssignmentSettings = {
           className: sourceSettings.className,
           sessionSettings: sourceSettings.sessionSettings,
@@ -1097,9 +1104,7 @@ export const useVideoActivityAssignments = (
           sourceSettings.periodNames.length > 0
             ? { periodNames: sourceSettings.periodNames }
             : {}),
-          ...(sourceSettings.plc && options.isPlcMember?.(sourceSettings.plc.id)
-            ? { plc: sourceSettings.plc }
-            : {}),
+          ...(livePlc ? { plc: livePlc } : {}),
           ...(syncedFromLinkage ? { sync: syncedFromLinkage } : {}),
         };
         const created = await createAssignment(
