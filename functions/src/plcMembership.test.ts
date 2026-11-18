@@ -95,6 +95,13 @@ describe('readMembersForWrite', () => {
       readMembersForWrite(data, TS, { includeArrayOnly: true }).joiner
     ).toMatchObject({ role: 'member', status: 'active' });
   });
+
+  it("keeps a removed member's removal time through later rewrites", () => {
+    const data = plc();
+    const members = data.members as Record<string, Record<string, unknown>>;
+    members.mem = { ...members.mem, status: 'removed', removedAtMs: 123 };
+    expect(readMembersForWrite(data, TS).mem?.removedAtMs).toBe(123);
+  });
 });
 
 describe('planPlcChange', () => {
