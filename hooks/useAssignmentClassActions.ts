@@ -58,6 +58,13 @@ export interface AssignmentLifecycle {
   turnInDelayMs?: number;
   /** The kind's `end` turns in open attempts itself, so the last class's Close leaves it to `end`. */
   endTurnsIn?: boolean;
+  /** Rewrites student pointers after a single-line Open clears a passed window on the session and row. */
+  onWindowCleared?: (
+    assignmentId: string,
+    patch: { openAt?: null; closeAt?: null }
+  ) => Promise<void>;
+  /** The kind's `reopen` already clears the assignment's closedAt and doneAt marks. */
+  reopenClearsMarks?: boolean;
   /** Reads the stored doc as ended; defaults to `runStatus(status) === 'inactive'`. */
   isEnded?: (doc: AssignmentRun) => boolean;
 }
@@ -116,6 +123,8 @@ export function useAssignmentClassActions(
     turnInClass,
     turnInDelayMs,
     endTurnsIn,
+    reopenClearsMarks,
+    onWindowCleared,
     isEnded,
   } = lifecycle;
   const ended = useCallback(
@@ -203,6 +212,9 @@ export function useAssignmentClassActions(
           }
         }
         await reopen(id);
+        // A Done or closed mark left on a reopened run would drop it into Done at the next End (D5).
+        if (!reopenClearsMarks && (a.closedAt != null || a.doneAt != null))
+          await mark({ closedAt: null, doneAt: null });
         // The reopen voids End's pending turn-in, so each class that stays closed turns its own in.
         for (const [k, closedAt] of stays) scheduleTurnIn(k, closedAt);
       } else if (runStatus(a.status) === 'paused') {
@@ -214,7 +226,17 @@ export function useAssignmentClassActions(
       } else return;
       if (resume) await resume(id);
     },
-    [id, fresh, ended, periods, reopen, resume, scheduleTurnIn]
+    [
+      id,
+      fresh,
+      ended,
+      periods,
+      reopen,
+      reopenClearsMarks,
+      mark,
+      resume,
+      scheduleTurnIn,
+    ]
   );
 
   const endIfLive = useCallback(async () => {
@@ -236,7 +258,8 @@ export function useAssignmentClassActions(
     batch.update(session, patch);
     batch.update(assignmentRef, patch);
     await batch.commit();
-  }, [fresh, owned]);
+    if (id && onWindowCleared) await onWindowCleared(id, patch);
+  }, [id, fresh, owned, onWindowCleared]);
 
   const open = useCallback(
     async (key: string | null, isReopen: boolean): Promise<string[]> => {
@@ -318,13 +341,23 @@ export function useAssignmentClassActions(
     ]
   );
 
+  // When End leaves work open, a bulk close turns in each closed class itself, as one-at-a-time Close does.
+  const turnInClosed = useCallback(async () => {
+    if (endTurnsIn || !turnInClass) return;
+    const a = await fresh();
+    for (const [k, row] of Object.entries(a?.periodAccess ?? {}))
+      if (row.state === 'closed' && row.closedAt != null)
+        scheduleTurnIn(k, row.closedAt);
+  }, [endTurnsIn, turnInClass, fresh, scheduleTurnIn]);
+
   const closeAll = useCallback(async () => {
     if (!id) return;
     owned();
     if (perClass) await periods.closeAllPeriods();
     else await mark({ closedAt: Date.now() });
     await endIfLive();
-  }, [id, owned, perClass, periods, mark, endIfLive]);
+    if (perClass) await turnInClosed();
+  }, [id, owned, perClass, periods, mark, endIfLive, turnInClosed]);
 
   const moveToDone = useCallback(async () => {
     if (!id) return;
@@ -337,7 +370,8 @@ export function useAssignmentClassActions(
       ...(perClass || a?.closedAt != null ? {} : { closedAt: now }),
     });
     await endIfLive();
-  }, [id, owned, perClass, periods, fresh, mark, endIfLive]);
+    if (perClass) await turnInClosed();
+  }, [id, owned, perClass, periods, fresh, mark, endIfLive, turnInClosed]);
 
   const pauseClass = useCallback(
     async (key: string | null) => {

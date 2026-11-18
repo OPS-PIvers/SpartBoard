@@ -49,6 +49,7 @@ export function useQuizClassActions(
       turnInClass: finalizeClassQuizResponses,
       turnInDelayMs: END_TURN_IN_DELAY_MS,
       endTurnsIn: true,
+      reopenClearsMarks: true,
     }),
     [pauseAssignment, resumeAssignment, deactivateAssignment, reopenAssignment]
   );

@@ -251,4 +251,59 @@ describe('useAssignmentClassActions', () => {
     expect(store.doc?.closedAt).toEqual(expect.any(Number));
     expect(lifecycle.end).toHaveBeenCalledWith('a1');
   });
+
+  it('clears Done and close marks when it reopens an ended run', async () => {
+    const x = setup(
+      run({
+        status: 'inactive',
+        doneAt: 7,
+        periodAccess: { c1: row({ state: 'closed', closedAt: 5 }) },
+      }),
+      lifecycleOf()
+    );
+    await act(() => x.current.reopenClass('c1'));
+    expect(store.doc).toMatchObject({ doneAt: null, closedAt: null });
+  });
+
+  it('Close for all classes turns in each closed class when End does not', async () => {
+    vi.useFakeTimers();
+    const lifecycle = lifecycleOf();
+    periods.closeAllPeriods.mockImplementationOnce(() => {
+      const pa = store.doc?.periodAccess as Record<
+        string,
+        Record<string, unknown>
+      >;
+      for (const k of Object.keys(pa))
+        pa[k] = { ...pa[k], state: 'closed', closedAt: 9 };
+      return Promise.resolve();
+    });
+    const x = setup(run({ periodAccess: { c1: row(), c2: row() } }), lifecycle);
+    await act(() => x.current.closeAll());
+    vi.advanceTimersByTime(1000);
+    expect(lifecycle.end).toHaveBeenCalledTimes(1);
+    expect(lifecycle.turnInClass).toHaveBeenCalledWith('s9', 'c1', 9);
+    expect(lifecycle.turnInClass).toHaveBeenCalledWith('s9', 'c2', 9);
+  });
+
+  it('Move to Done leaves the turn-in to End when End turns work in', async () => {
+    vi.useFakeTimers();
+    const lifecycle = lifecycleOf({ endTurnsIn: true });
+    const x = setup(
+      run({ periodAccess: { c1: row({ state: 'closed', closedAt: 9 }) } }),
+      lifecycle
+    );
+    await act(() => x.current.moveToDone());
+    vi.advanceTimersByTime(1000);
+    expect(lifecycle.turnInClass).not.toHaveBeenCalled();
+  });
+
+  it('hands a cleared single-line window to the kind so student pointers follow', async () => {
+    const onWindowCleared = vi.fn(() => Promise.resolve());
+    const x = setup(
+      run({ status: 'inactive', closedAt: 5, closeAt: 10 }),
+      lifecycleOf({ onWindowCleared })
+    );
+    await act(() => x.current.reopenClass(null));
+    expect(onWindowCleared).toHaveBeenCalledWith('a1', { closeAt: null });
+  });
 });
