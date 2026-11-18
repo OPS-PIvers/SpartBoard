@@ -249,6 +249,8 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
   <details><summary>Branches to delete (179, checked 2026-11-01)</summary>
 
+claude/project-thread-j4paf2 (#6227; this docs PR reuses it, delete after it merges)
+claude/project-thread-7u8ra6 (#6226; this docs PR reuses it, delete after it merges)
 claude/project-thread-ce51ew (#6222; this docs PR reuses it, delete after it merges)
 claude/project-thread-4zd7sk (#6214, #6220; this docs PR reuses it, delete after it merges)
 claude/project-thread-nrzbl4 (#6217; this docs PR reuses it, delete after it merges)
@@ -278,6 +280,8 @@ claude/project-thread-8q5g3q-docs (this docs PR, delete after it merges)
 claude/ab112-s4hzrk (this docs PR, delete after it merges)
 claude/project-thread-rnvyvu (#6149)
 claude/project-thread-rnvyvu-ab112 (this docs PR, delete after it merges)
+claude/project-thread-eibt0b (#6230)
+claude/project-thread-eibt0b-ab112 (this docs PR, delete after it merges)
 
 claude/project-thread-2jo0s2 (#6137, #6139; this docs PR reuses it, delete after it merges)
 claude/kind-johnson-owvr5o (#6134)
@@ -618,6 +622,8 @@ claude/project-thread-h6xnku-docs (this docs PR, delete after it merges)
 claude/project-thread-gn0o0p (#6119)
 claude/d4-ab112 (this docs PR, delete after it merges)
 claude/project-thread-skf281 (#6121, then this docs PR; delete after it merges)
+claude/project-thread-whigxe (#6229)
+claude/project-thread-whigxe-ab112 (this docs PR, delete after it merges)
 
 ```
 git push origin --delete claude/project-thread-1ylvse

@@ -739,7 +739,7 @@ const TeacherQuizWidget: React.FC<{
     shareAssignmentWithPlc,
     stopSharingAssignmentWithPlc,
   } = useQuizAssignments(user?.uid);
-  const classLifecycle = useMemo(
+  const assignedTabLifecycle = useMemo(
     () => ({
       pauseAssignment,
       resumeAssignment,
@@ -3544,6 +3544,17 @@ const TeacherQuizWidget: React.FC<{
           }
           rosterTargets={monitorActiveAssignment ?? null}
           responsesLoaded={liveResponsesLoaded}
+          assignedTab={
+            canAccessFeature('assigned-tab') &&
+            !isReview &&
+            monitorActiveAssignment &&
+            getAssignmentWidgetKind(monitorActiveAssignment) === 'quiz'
+              ? {
+                  assignment: monitorActiveAssignment,
+                  lifecycle: assignedTabLifecycle,
+                }
+              : null
+          }
           assignmentSettings={
             monitorActiveAssignment &&
             getAssignmentWidgetKind(monitorActiveAssignment) === 'quiz' ? (
@@ -4722,7 +4733,7 @@ const TeacherQuizWidget: React.FC<{
         }}
         // ─── Archive tab ─────────────────────────────────────────────────────
         managerTab={config.managerTab ?? 'library'}
-        classLifecycle={classLifecycle}
+        classLifecycle={assignedTabLifecycle}
         revealRequest={revealRequest}
         onTabChange={(tab) => handleUpdateQuizConfig({ managerTab: tab })}
         // ─── Banks tab ───────────────────────────────────────────────────────

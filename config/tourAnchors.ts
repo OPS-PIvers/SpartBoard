@@ -5254,6 +5254,21 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     persists: true,
   },
+  'quiz-monitor.class-resume': {
+    label: 'Resume button for the picked class in the Quiz monitor',
+    perWidgetType: true,
+    persists: true,
+  },
+  'quiz-monitor.class-close': {
+    label: 'Close button for the picked class in the Quiz monitor',
+    perWidgetType: true,
+    persists: true,
+  },
+  'quiz-monitor.class-reopen': {
+    label: 'Reopen button for the picked class in the Quiz monitor',
+    perWidgetType: true,
+    persists: true,
+  },
   'quiz-monitor.period-extend': {
     label: 'Extend time option in the Quiz monitor More time menu',
     perWidgetType: true,

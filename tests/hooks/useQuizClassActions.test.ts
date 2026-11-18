@@ -205,9 +205,9 @@ beforeEach(() => {
     setRow(k, { state: 'paused' });
     return Promise.resolve();
   });
-  periods.closePeriod.mockImplementation((k: string) => {
+  periods.closePeriod.mockImplementation((k: string, at = Date.now()) => {
     store.calls.push(`close:${k}`);
-    setRow(k, { state: 'closed', closedAt: 1 });
+    setRow(k, { state: 'closed', closedAt: at, pausedAt: at });
     return Promise.resolve();
   });
   periods.closeAllPeriods.mockImplementation(() => {
@@ -321,7 +321,9 @@ describe('useQuizClassActions (D21)', () => {
     expect(store.calls).toEqual(['start:c2', 'pause:c1', 'status:resume:a1']);
   });
 
-  it('D9: reopening a class of an ended run stamps every unclosed sibling, Ready-looking ones included', async () => {
+  it('D9: reopening a class of an ended run stamps every sibling not closed by hand, Ready-looking and clock-closed ones included', async () => {
+    vi.useFakeTimers();
+    const T = Date.now();
     const x = setup(
       assignment({
         status: 'inactive',
@@ -330,6 +332,7 @@ describe('useQuizClassActions (D21)', () => {
           c2: row({ state: 'open' }),
           c3: row({ closedAt: 6 }),
           c4: row(),
+          c5: row({ state: 'open', closeAt: T - 60_000 }),
         },
       })
     );
@@ -338,10 +341,51 @@ describe('useQuizClassActions (D21)', () => {
       'reopen:c1',
       'close:c2',
       'close:c4',
+      'close:c5',
       'status:reopen:a1',
       'status:resume:a1',
     ]);
     expect(rows().c3).toMatchObject({ closedAt: 6 });
+    for (const k of ['c2', 'c4', 'c5']) expect(rows()[k].closedAt).toBe(T);
+    const fired = () =>
+      (finalizeClassQuizResponses as Mock).mock.calls.map((c: unknown[]) => [
+        c[1],
+        c[2],
+      ]);
+    // The long-closed class turns in at once; the newly stamped ones wait out their own grace.
+    vi.advanceTimersByTime(0);
+    expect(fired()).toEqual([['c3', 6]]);
+    vi.advanceTimersByTime(END_TURN_IN_DELAY_MS - 1);
+    expect(fired()).toHaveLength(1);
+    vi.advanceTimersByTime(1);
+    expect(fired()).toEqual([
+      ['c3', 6],
+      ['c2', T],
+      ['c4', T],
+      ['c5', T],
+    ]);
+  });
+
+  it("a reopen inside End's grace still turns in the classes that stay closed", async () => {
+    vi.useFakeTimers();
+    const T = Date.now();
+    const x = setup(
+      assignment({
+        periodAccess: {
+          c1: row({ state: 'open' }),
+          c2: row({ closedAt: T - 1_000 }),
+        },
+      })
+    );
+    await act(() => x.current.closeClass('c1'));
+    expect(store.calls).toEqual(['status:end:a1']);
+    vi.advanceTimersByTime(30_000);
+    await act(() => x.current.reopenClass('c2'));
+    vi.advanceTimersByTime(END_TURN_IN_DELAY_MS - 30_000 - 1);
+    expect(finalizeClassQuizResponses).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(finalizeClassQuizResponses).toHaveBeenCalledTimes(1);
+    expect(finalizeClassQuizResponses).toHaveBeenCalledWith('a1', 'c1', T);
   });
 
   it('Close for all classes closes every class, then ends the run', async () => {
