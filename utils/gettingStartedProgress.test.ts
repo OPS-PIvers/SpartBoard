@@ -7,7 +7,9 @@ const fs = vi.hoisted(() => ({
 }));
 
 vi.mock('@/config/firebase', () => ({ db: {}, isAuthBypass: false }));
-vi.mock('@/utils/viewAsTab', () => ({ viewAsBlocksWrite: () => false }));
+vi.mock('@/utils/viewAsTab', () => ({
+  viewAsSuppressesBackgroundWrites: () => false,
+}));
 vi.mock('firebase/firestore', () => ({
   doc: (..._args: unknown[]) => ({
     path: 'users/u1/userProfile/gettingStarted',

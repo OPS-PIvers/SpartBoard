@@ -36,6 +36,18 @@ vi.mock('firebase/firestore', () => ({
   setDoc: (ref: { path: string }, data: Record<string, unknown>) =>
     setDocMock(ref, data),
   serverTimestamp: () => 'SERVER_TS',
+  FieldValue: class FieldValue {
+    constructor(readonly _methodName: string) {}
+  },
+  Timestamp: class Timestamp {
+    constructor(readonly ms: number) {}
+    toMillis() {
+      return this.ms;
+    }
+  },
+  DocumentReference: class DocumentReference {
+    constructor(readonly path: string) {}
+  },
 }));
 
 vi.mock('firebase/auth', () => ({ onIdTokenChanged: vi.fn() }));
@@ -134,5 +146,104 @@ describe('viewAsDirectSave', () => {
     const [[, entry]] = auditWrites();
     expect(entry.before).toEqual({ penColors: ['#000'] });
     expect(entry.after).toEqual({});
+  });
+});
+
+describe('recordViewAsRawWrites', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    setDocMock.mockClear();
+  });
+
+  it('logs nothing outside an unlocked tab', async () => {
+    window.history.replaceState({}, '', '/');
+    const { recordViewAsRawWrites } = await import('./viewAsAudit');
+    await recordViewAsRawWrites([{ op: 'delete', path: 'quiz_sessions/s' }]);
+    expect(auditWrites()).toHaveLength(0);
+  });
+
+  it('logs a change with plain data, and keeps the path only for one write in their account', async () => {
+    window.history.replaceState({}, '', '/?viewAs=1');
+    const tab = await import('./viewAsTab');
+    tab.updateViewAsTabState({
+      unlocked: true,
+      ended: false,
+      savedNotice: 0,
+      session: {
+        sid: 'sid-1',
+        token: 't',
+        targetUid: 'teacher-uid',
+        targetEmail: 'teacher@orono.k12.mn.us',
+        adminTarget: false,
+        expiresAt: 0,
+      },
+    });
+    const fs = await import('firebase/firestore');
+    const { recordViewAsRawWrites } = await import('./viewAsAudit');
+    const FieldValue = fs.FieldValue as unknown as new (n: string) => object;
+    const Timestamp = fs.Timestamp as unknown as new (ms: number) => object;
+
+    await recordViewAsRawWrites([
+      {
+        op: 'update',
+        path: 'quiz_sessions/s1/responses/r1',
+        data: {
+          unlocked: true,
+          unlockKind: 'reopen',
+          at: new FieldValue('serverTimestamp'),
+          due: new Timestamp(5),
+          gone: undefined,
+        },
+      },
+    ]);
+    await recordViewAsRawWrites([
+      { op: 'set', path: 'users/teacher-uid/rosters/r1', data: { n: 1 } },
+    ]);
+
+    const [[, outside], [, own]] = auditWrites();
+    expect(outside).toMatchObject({
+      action: 'view_as_outward',
+      targetUid: 'teacher-uid',
+      after: {
+        action: 'Change',
+        writes: [
+          {
+            op: 'update',
+            path: 'quiz_sessions/s1/responses/r1',
+            data: {
+              unlocked: true,
+              unlockKind: 'reopen',
+              at: '<serverTimestamp>',
+              due: 5,
+            },
+          },
+        ],
+      },
+    });
+    expect(outside).not.toHaveProperty('path');
+    expect(own.path).toBe('users/teacher-uid/rosters/r1');
+    expect(tab.getViewAsTabState().savedNotice).toBe(2);
+  });
+
+  it("keeps every path of a large batch and caps only each write's data", async () => {
+    window.history.replaceState({}, '', '/?viewAs=1');
+    const tab = await import('./viewAsTab');
+    tab.updateViewAsTabState({ unlocked: true, ended: false });
+    const { recordViewAsRawWrites } = await import('./viewAsAudit');
+    const big = 'x'.repeat(30_000);
+    await recordViewAsRawWrites(
+      Array.from({ length: 10 }, (_, i) => ({
+        op: 'set' as const,
+        path: `users/teacher-uid/miniapps/a${i}`,
+        data: { html: big, order: i },
+      }))
+    );
+    const [[, entry]] = auditWrites();
+    const writes = (entry.after as { writes: Record<string, unknown>[] })
+      .writes;
+    expect(writes.map((w) => w.path)).toEqual(
+      Array.from({ length: 10 }, (_, i) => `users/teacher-uid/miniapps/a${i}`)
+    );
+    expect(Object.keys(writes[0].data as object)).toEqual(['__viewAsOmitted']);
   });
 });
