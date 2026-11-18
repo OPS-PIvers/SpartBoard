@@ -1,14 +1,6 @@
-// Firestore security-rules tests for LO2 dual super-admin resolution.
-//
-// `isSuperAdmin()` in firestore.rules now accepts EITHER source:
-//   1. the legacy admin_settings/user_roles.superAdmins[] list, OR
-//   2. an operator-org member doc with roleId == 'super_admin'.
-//
-// This test covers source (2) in isolation: a member with roleId
-// 'super_admin' who is NOT in the legacy list must still be granted
-// super-admin-gated access (e.g. creating an organization, which is
-// super-admin-only). It also confirms a plain teacher member is denied, so
-// the new branch doesn't over-grant.
+// Firestore security-rules tests: `isSuperAdmin()` comes only from an
+// operator-org member doc with roleId == 'super_admin'; the retired
+// admin_settings/user_roles.superAdmins[] list grants nothing.
 //
 // Requires a running Firestore emulator. Invoke via:
 //   pnpm run test:rules
@@ -30,6 +22,7 @@ const NEW_ORG_ID = 'brand-new-org';
 
 const ROLE_SUPER_EMAIL = 'role.super@orono.k12.mn.us';
 const TEACHER_EMAIL = 'plain.teacher@orono.k12.mn.us';
+const LEGACY_EMAIL = 'legacy.only@orono.k12.mn.us';
 
 const RULES_PATH = fileURLToPath(
   new URL('../../firestore.rules', import.meta.url)
@@ -51,6 +44,14 @@ const asTeacher = () =>
   testEnv
     .authenticatedContext('teacher-uid', {
       email: TEACHER_EMAIL,
+      email_verified: true,
+    })
+    .firestore();
+
+const asLegacy = () =>
+  testEnv
+    .authenticatedContext('legacy-uid', {
+      email: LEGACY_EMAIL,
       email_verified: true,
     })
     .firestore();
@@ -92,7 +93,7 @@ beforeEach(async () => {
   await testEnv.clearFirestore();
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();
-    // A super_admin BY MEMBER ROLE ONLY — deliberately NOT in the legacy list.
+    // A super_admin by member role, not on the legacy list.
     await setDoc(
       doc(db, `organizations/${ORG_ID}/members/${ROLE_SUPER_EMAIL}`),
       {
@@ -111,12 +112,14 @@ beforeEach(async () => {
       buildingIds: ['high'],
       status: 'active',
     });
-    // Legacy list exists but is EMPTY — proves the grant comes from roleId.
-    await setDoc(doc(db, 'admin_settings/user_roles'), { superAdmins: [] });
+    // The retired legacy list names someone with no member doc.
+    await setDoc(doc(db, 'admin_settings/user_roles'), {
+      superAdmins: [LEGACY_EMAIL],
+    });
   });
 });
 
-describe('LO2 — super admin via member roleId (not in legacy list)', () => {
+describe('super admin via member roleId only', () => {
   it('member with roleId super_admin can create an organization (super-admin-only)', async () => {
     await assertSucceeds(
       setDoc(
@@ -137,5 +140,15 @@ describe('LO2 — super admin via member roleId (not in legacy list)', () => {
         orgFields(NEW_ORG_ID)
       )
     );
+  });
+
+  it('an address only on the retired legacy list is NOT a super admin', async () => {
+    await assertFails(
+      setDoc(
+        doc(asLegacy(), `organizations/${NEW_ORG_ID}`),
+        orgFields(NEW_ORG_ID)
+      )
+    );
+    await assertFails(getDoc(doc(asLegacy(), `organizations/${ORG_ID}`)));
   });
 });
