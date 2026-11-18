@@ -82,7 +82,19 @@ export interface SkippedSheet {
   reason: SkipReason;
 }
 
-/** True when every choice kept its place and only its wording changed. */
+const words = (s: string) => new Set(s.toLowerCase().match(/[\p{L}\p{N}]+/gu));
+
+/** Share of words two choice texts have in common, 0..1. */
+function wordOverlap(a: string, b: string): number {
+  const x = words(a);
+  const y = words(b);
+  let shared = 0;
+  for (const w of x) if (y.has(w)) shared++;
+  const union = x.size + y.size - shared;
+  return union === 0 ? 0 : shared / union;
+}
+
+/** True when every choice kept its place and only its wording changed; new text must resemble its own slot's old text more than any other's. */
 export function isRewordOnly(
   recorded: readonly string[],
   current: readonly string[]
@@ -91,10 +103,14 @@ export function isRewordOnly(
   const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
   const was = recorded.map(norm);
   const now = current.map(norm);
-  return now.every(
-    (text, i) =>
-      text === was[i] || (!was.includes(text) && !now.includes(was[i]))
-  );
+  return now.every((text, i) => {
+    if (text === was[i]) return true;
+    if (was.includes(text) || now.includes(was[i])) return false;
+    const own = wordOverlap(text, was[i]);
+    return (
+      own > 0 && was.every((w, j) => j === i || wordOverlap(text, w) < own)
+    );
+  });
 }
 
 /**

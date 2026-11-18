@@ -5,6 +5,7 @@ import {
   answerTextFor,
   printedOptionsFor,
   applyKeyToQuiz,
+  isRewordOnly,
   buildImportPayload,
   keySheetChoices,
   paperImportRequestFields,
@@ -97,6 +98,32 @@ describe('printedOptionsFor after a teacher rewords their own paper', () => {
   it('keeps the printed order when the choice count changed', () => {
     const q = ownTest('lower activity', ['the same activity'], [1, 0]);
     expect(printedOptionsFor(printed, q, 'q1')).toEqual(printed.choiceOrder.q1);
+  });
+});
+
+describe('isRewordOnly', () => {
+  it('accepts wording changes that keep each choice at its letter', () => {
+    expect(
+      isRewordOnly(
+        ['the same activity', 'a lower activity', 'a higher activity'],
+        ['the same activity', 'lower activity', 'higher activity']
+      )
+    ).toBe(true);
+  });
+
+  it('rejects a swap combined with a reword', () => {
+    expect(isRewordOnly(['A1', 'B1', 'C'], ['B2', 'A2', 'C'])).toBe(false);
+    expect(
+      isRewordOnly(
+        ['Paris is big', 'Lyon is small'],
+        ['Lyon is quite small', 'Paris is quite big']
+      )
+    ).toBe(false);
+  });
+
+  it('rejects a count change and text that moved to another letter', () => {
+    expect(isRewordOnly(['x', 'y'], ['x'])).toBe(false);
+    expect(isRewordOnly(['x', 'y'], ['y', 'x'])).toBe(false);
   });
 });
 
