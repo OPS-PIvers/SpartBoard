@@ -1,4 +1,3 @@
-import { viewAsSuppressesBackgroundWrites } from '@/utils/viewAsTab';
 import React, { memo, useMemo, useCallback } from 'react';
 import { Z_INDEX } from '@/config/zIndex';
 import {
@@ -194,8 +193,7 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
     [widget.config, isLive]
   );
   React.useEffect(() => {
-    // View as stages widget config (D11), so it never pushes to students.
-    if (!isLive || !configJson || viewAsSuppressesBackgroundWrites()) {
+    if (!isLive || !configJson) {
       return undefined;
     }
 
@@ -216,7 +214,7 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
 
   // Sync background changes to session when live
   React.useEffect(() => {
-    if (!isLive || !dashboardBackground || viewAsSuppressesBackgroundWrites()) {
+    if (!isLive || !dashboardBackground) {
       return;
     }
     void updateSessionBackground(dashboardBackground);
