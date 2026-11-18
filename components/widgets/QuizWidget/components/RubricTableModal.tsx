@@ -75,7 +75,7 @@ const textButton =
   'flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-semibold text-brand-blue-primary transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-brand-blue-primary';
 
 const addButton =
-  'mx-auto flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300 bg-white text-brand-blue-primary shadow-sm transition-colors hover:border-brand-blue-primary hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-brand-blue-primary';
+  'touch-target-expand mx-auto flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300 bg-white text-brand-blue-primary shadow-sm transition-colors hover:border-brand-blue-primary hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-brand-blue-primary';
 const fieldCore =
   'rounded-md border border-slate-300 bg-white px-2 py-1 text-slate-900 placeholder:text-slate-400 focus:border-brand-blue-primary focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/30';
 const fieldBase = `w-full ${fieldCore}`;
@@ -165,9 +165,15 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
   const editing = draft !== null;
   const shown = draft ?? rubric;
   const guideEditing = editing && isScoringGuide(shown);
-  const switchTemplate = useRubricTemplateSwitch(draft, (update) =>
-    setDraft((d) => (d ? update(d) : d))
-  );
+  // Converting rebuilds every row's levels, so shared columns are re-checked.
+  const switchTemplate = useRubricTemplateSwitch(draft, (next) => {
+    setDraft(next);
+    setEditShared(
+      sharedLabels(
+        next.criteria.map((c) => orderRubricLevels(c.levels, order))
+      ) !== null
+    );
+  });
 
   const rows = shown.criteria.map((c) => orderRubricLevels(c.levels, order));
   const columns = rows.reduce((n, r) => Math.max(n, r.length), 0);
