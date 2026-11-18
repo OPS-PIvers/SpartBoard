@@ -329,6 +329,37 @@ describe('wildcard row refs', () => {
     ).toBeNull();
   });
 
+  it('counts rows inside each widget, so a bound widget finds its own row', () => {
+    const inWidget = (widget: string, keys: string[]) =>
+      `<div data-tour-widget="${widget}">${keyed('plc-assessments.assign', keys)}</div>`;
+    mount(inWidget('w1', ['a1', 'b2']) + inWidget('w2', ['c3', 'd4']));
+    expect(
+      findTourAnchor(
+        { anchor: 'plc-assessments.assign:plc#row-2', slot: 0 },
+        { slots: { 0: 'w2' } }
+      )?.dataset.tourField
+    ).toBe('d4');
+    const d4 = document.querySelectorAll('button')[3];
+    expect(pickedRowRef('plc-assessments.assign:plc#row-*', d4)).toBe(
+      'plc-assessments.assign:plc#row-2'
+    );
+  });
+
+  it('keeps the newest pick when an older pick on the list shares its row number', () => {
+    mount(
+      keyed('plc-assessments.menu', ['a1', 'b2']) +
+        keyed('plc-assessments.assign', ['b2'])
+    );
+    const buttons = document.querySelectorAll('button');
+    const picks: Record<string, string> = {};
+    notePickedRow(picks, 'plc-assessments.menu:plc#row-*', buttons[0]);
+    notePickedRow(picks, 'plc-assessments.assign:plc#row-*', buttons[2]);
+    expect(
+      findTourAnchor({ anchor: 'plc-assessments.assign:plc' }, { picks })
+        ?.dataset.tourField
+    ).toBe('b2');
+  });
+
   it('finds nothing in an empty list', () => {
     mount('<div></div>');
     expect(findTourAnchors({ anchor: 'plcs.open-plc:plcs#row-*' })).toEqual([]);
