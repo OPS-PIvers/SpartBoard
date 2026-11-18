@@ -27,7 +27,7 @@ const SwitchRow: React.FC<{
     aria-checked={checked}
     onClick={() => onChange(!checked)}
     {...anchor}
-    className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-blue-primary"
+    className="flex min-h-11 w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-blue-primary"
   >
     {label}
     <span

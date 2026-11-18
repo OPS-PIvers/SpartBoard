@@ -18972,9 +18972,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.rubric-scoring",
         "kind": "shared",
         "path": [
-          "quiz-grading.rubric-settings:quiz"
+          "quiz-grading.rubric-auto-advance:quiz"
         ],
-        "reveal": "quiz-grading.rubric-settings:quiz"
+        "reveal": "quiz-grading.rubric-auto-advance:quiz"
       }
     ]
   },
