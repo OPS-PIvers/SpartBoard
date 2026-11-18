@@ -101,7 +101,7 @@ export const RubricGradingSettings: React.FC<RubricGradingSettingsProps> = ({
           />
           {autoAdvance && (
             <SwitchRow
-              label="Open next category"
+              label="Auto-open next category"
               checked={openNext}
               onChange={onOpenNextChange}
               anchor={tourTypeAttr('quiz-grading.rubric-open-next', 'quiz')}

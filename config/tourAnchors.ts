@@ -4566,7 +4566,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'quiz-grading.rubric-open-next': {
-    label: 'Open next category switch in the grader rubric settings',
+    label: 'Auto-open next category switch in the grader rubric settings',
     perWidgetType: true,
     persists: true,
     panel: true,

@@ -120,7 +120,7 @@ describe('RubricGradingPanel (rubric-grading-v2)', () => {
     renderPanel({ updateAccountPreferences });
     fireEvent.click(screen.getByRole('button', { name: 'Rubric settings' }));
     expect(
-      screen.queryByRole('switch', { name: 'Open next category' })
+      screen.queryByRole('switch', { name: 'Auto-open next category' })
     ).toBeNull();
     fireEvent.click(
       screen.getByRole('switch', { name: 'Auto-advance to next category' })

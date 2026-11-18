@@ -18960,7 +18960,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "quiz-grading.rubric-open-next",
-    "label": "Open next category switch in the grader rubric settings",
+    "label": "Auto-open next category switch in the grader rubric settings",
     "scope": "widget type",
     "panel": true,
     "persists": true,
