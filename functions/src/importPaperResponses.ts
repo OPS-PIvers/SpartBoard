@@ -1295,7 +1295,7 @@ export async function handlePublishPaperResults(
     );
     writes.set(
       userRef.collection('quiz_assignments').doc(assignmentId),
-      { status: 'inactive', updatedAt: now },
+      { status: 'inactive', updatedAt: now, closedAt: now },
       { merge: true }
     );
     pending += 2;

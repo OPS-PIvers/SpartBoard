@@ -11,19 +11,14 @@ import { useMiniAppAssignments } from '@/hooks/useMiniAppAssignments';
 import { useFlashcardAssignments } from '@/hooks/useFlashcardAssignments';
 import { useWritingAssignmentSessions } from '@/hooks/useWritingAssignmentSessions';
 import type {
+  AssignmentKind,
   ClassRoster,
   PeriodAccess,
   StudentOverride,
   StudentTargetRef,
 } from '@/types';
 
-export type AssignmentKind =
-  | 'quiz'
-  | 'video-activity'
-  | 'guided-learning'
-  | 'mini-app'
-  | 'flashcards'
-  | 'writing';
+export type { AssignmentKind };
 
 /** Lifecycle status for the hub's status filter chip; 'paused' only applies to quiz/video-activity kinds. */
 export type UnifiedAssignmentStatus = 'active' | 'paused' | 'inactive';

@@ -247,6 +247,25 @@ describe('Manual assign and updateWritingSessionV1', () => {
     }
   });
 
+  it('closes and reopens a class with its closedAt mark on both docs', async () => {
+    await update({
+      periodAccess: {
+        c1: { state: 'closed', closedAt: 5_000, pausedAt: 5_000 },
+      },
+    });
+    for (const path of [SESSION, RECORD])
+      expect(store.get(path).periodAccess.c1).toMatchObject({
+        state: 'closed',
+        closedAt: 5_000,
+      });
+    await update({ periodAccess: { c1: { state: 'open', closedAt: null } } });
+    for (const path of [SESSION, RECORD])
+      expect(store.get(path).periodAccess.c1).toMatchObject({
+        state: 'open',
+        closedAt: null,
+      });
+  });
+
   it('lets a student in on the session only', async () => {
     await update({ studentAccess: { stu1: 50_000, 'a/b': 1 } });
     expect(store.get(SESSION).studentAccess).toEqual({ stu1: 50_000 });

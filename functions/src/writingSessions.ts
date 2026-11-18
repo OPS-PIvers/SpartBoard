@@ -112,7 +112,13 @@ export function sessionSettings(d: Data): Data {
 }
 
 const PERIOD_STATES = ['open', 'paused', 'closed'];
-const PERIOD_FIELDS = ['state', 'openAt', 'closeAt', 'pausedAt'] as const;
+const PERIOD_FIELDS = [
+  'state',
+  'openAt',
+  'closeAt',
+  'pausedAt',
+  'closedAt',
+] as const;
 const PERIOD_KEY_RE = /^[^/]{1,300}$/;
 
 /** A Manual assign's per-class gate (the stepper's buildPeriodGate), kept to its known fields. */

@@ -1727,6 +1727,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'assigned-tab': {
+    label: 'Assigned tab',
+    icon: ClipboardList,
+    description:
+      'Library and Assigned tabs. Each class has its own status. Quiz only for now.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
 };
 
 /** Retired global ids the Dock reads until a Widgets-page doc exists (plan D3). */

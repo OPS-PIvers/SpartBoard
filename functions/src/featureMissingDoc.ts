@@ -92,6 +92,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'course-agenda',
   'va-score-only-verdicts',
   'widget-settings-defaults',
+  'assigned-tab',
 ];
 
 // Mirror of `missingDocPublic: true` flags and their `defaultMinTier` (null = none); config/featureDefaults.test.ts keeps it in sync.

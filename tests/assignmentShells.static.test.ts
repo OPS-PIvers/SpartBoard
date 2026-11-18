@@ -273,9 +273,9 @@ describe('assignment widgets reuse the Quiz shells', () => {
   const files = componentFiles();
 
   it('registers every assignment kind', () => {
-    const union = read(
-      'components/assignmentsHub/useUnifiedAssignments.ts'
-    ).match(/export type AssignmentKind =([^;]+);/)?.[1];
+    const union = read('types.ts').match(
+      /export type AssignmentKind =([^;]+);/
+    )?.[1];
     const kinds = [...(union ?? '').matchAll(/'([\w-]+)'/g)].map((m) => m[1]);
     expect(kinds.length).toBeGreaterThan(0);
     expect(

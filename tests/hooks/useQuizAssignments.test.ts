@@ -270,6 +270,11 @@ describe('useQuizAssignments - reopenAssignment', () => {
 
     const assignmentPatch = findAssignmentPatch();
     expect(assignmentPatch).toMatchObject({ status: 'paused' });
+    // A reopened quiz is no longer closed or moved to Done (ASSIGNED_TAB D24).
+    expect(assignmentPatch).toMatchObject({
+      closedAt: DELETE_FIELD_SENTINEL,
+      doneAt: DELETE_FIELD_SENTINEL,
+    });
 
     expect(runTransaction).toHaveBeenCalledTimes(1);
   });

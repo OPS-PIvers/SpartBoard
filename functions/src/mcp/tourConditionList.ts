@@ -39,6 +39,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'ai-file-context',
   'anonymous-join',
   'assign-due-date',
+  'assigned-tab',
   'assignment-modes',
   'blooms-ai',
   'class-student-page',

@@ -73,7 +73,8 @@ export function capAtDue(
 
 type BellRoster = Pick<ClassRoster, 'id' | 'bellPeriod'>;
 
-function todaysBell(
+/** Today's bell window for the period's roster, end cushion included; null without a tagged bell. */
+export function todaysBell(
   access: Pick<PeriodAccess, 'rosterId'>,
   rosters: readonly BellRoster[],
   permissions: readonly FeaturePermission[] | undefined,
@@ -129,6 +130,13 @@ export function startCloseAt(
     ? access.closeAt
     : null;
 }
+
+/** D24's Close patch: closedAt marks it apart from Ready, pausedAt keeps a just-flushed draft. */
+export const closedRow = (now: number): Partial<PeriodAccess> => ({
+  state: 'closed',
+  closedAt: now,
+  pausedAt: now,
+});
 
 /** Teacher writes for the per-period chips and Let in now, generic over the session collection. */
 export function usePeriodAccess(
@@ -230,7 +238,7 @@ export function usePeriodAccess(
 
   /** Resolves to the assessment periods that opened with no end bell to close them. */
   const start = useCallback(
-    async (keys: readonly string[]): Promise<string[]> => {
+    async (keys: readonly string[], reopen = false): Promise<string[]> => {
       if (!session || !periodAccess || keys.length === 0) return [];
       await refreshStaleResponses(keys);
       const now = Date.now();
@@ -259,6 +267,7 @@ export function usePeriodAccess(
             lockAt(session),
             now
           ),
+          ...(reopen || access.closedAt != null ? { closedAt: null } : {}),
         };
       }
       await write(rows);
@@ -281,6 +290,17 @@ export function usePeriodAccess(
       const rows: Record<string, Partial<PeriodAccess>> = {};
       for (const key of keys)
         if (periodAccess[key]) rows[key] = { state: 'paused', pausedAt: now };
+      await write(rows);
+    },
+    [periodAccess, write]
+  );
+
+  const close = useCallback(
+    async (keys: readonly string[]) => {
+      if (!periodAccess || keys.length === 0) return;
+      const now = Date.now();
+      const rows: Record<string, Partial<PeriodAccess>> = {};
+      for (const key of keys) if (periodAccess[key]) rows[key] = closedRow(now);
       await write(rows);
     },
     [periodAccess, write]
@@ -332,6 +352,18 @@ export function usePeriodAccess(
     extendPeriod: extend,
     startAll: () => start(keys),
     pauseAll: () => pause(keys),
+    closePeriod: (key: string) => close([key]),
+    /** D9: lets the class back in at once, exactly like Start, and clears closedAt. */
+    reopenPeriod: (key: string) => start([key], true),
+    /** Closes every class not already closed by hand, so earlier closedAt marks stand. */
+    closeAllPeriods: () =>
+      close(
+        keys.filter(
+          (k) =>
+            periodAccess?.[k]?.state !== 'closed' ||
+            periodAccess[k].closedAt == null
+        )
+      ),
     letIn,
   };
 }
