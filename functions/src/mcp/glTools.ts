@@ -18,6 +18,7 @@ import {
   readDriveBytes,
   readDriveJson,
   replaceDriveJson,
+  trashDriveFile,
 } from './drive';
 import { TOUR_ANCHOR_LIST } from './tourAnchorList';
 import {
@@ -607,6 +608,13 @@ const EDITABLE = [
   'tourSetup',
   'helpCenter',
 ] as const;
+// Slide fields an update may change; never snapshotted, so a restore keeps the current slides and the files behind them.
+const SLIDE_FIELDS = [
+  'imageUrls',
+  'imageKinds',
+  'videoTrims',
+  'imagePaths',
+] as const;
 
 const CONFLICT =
   'Someone saved this set in SpartBoard while Claude was editing it. Fetch it again and redo the change.';
@@ -646,6 +654,9 @@ export async function saveSet(
   };
   for (const key of EDITABLE)
     changed[key] = saved[key] ?? admin.firestore.FieldValue.delete();
+  for (const key of SLIDE_FIELDS)
+    if (saved[key] !== loaded.set[key])
+      changed[key] = saved[key] ?? admin.firestore.FieldValue.delete();
   let anchorsRequested = 0;
   if (loaded.source === 'building') {
     anchorsRequested = await queueAnchorRequests(
@@ -687,6 +698,17 @@ export async function saveSet(
         description: saved.description ?? admin.firestore.FieldValue.delete(),
         mode: saved.mode,
         stepCount: saved.steps.length,
+        ...(saved.imageUrls[0] !== loaded.set.imageUrls[0]
+          ? { imageUrl: saved.imageUrls[0] ?? '' }
+          : {}),
+        ...(saved.driveFileIds !== loaded.set.driveFileIds &&
+        Array.isArray(saved.driveFileIds)
+          ? {
+              driveFileIds: admin.firestore.FieldValue.arrayUnion(
+                ...(saved.driveFileIds as string[])
+              ),
+            }
+          : {}),
         updatedAt: now,
         claudeEditedAt: now,
         [REVIEW_MARK]: now,
@@ -751,6 +773,75 @@ export function applyEdit(loaded: Loaded, input: EditInput): GlSet {
       );
     next.welcomeImageAlt = input.welcome_image_alt.trim() || undefined;
   }
+  return next;
+}
+
+export const MAX_SLIDE_CHANGES = 10;
+
+export interface SlideChanges {
+  add_slides?: string[];
+  replace_slides?: { slide_index: number; image: string }[];
+}
+
+/** Checks slide changes against the set before anything uploads. */
+export function checkSlideChanges(set: GlSet, input: SlideChanges): void {
+  const replaced = input.replace_slides ?? [];
+  if (!input.add_slides?.length && replaced.length === 0) return;
+  if (set.mode === 'tour') throw new ToolError('Live tours have no slides.');
+  const seen = new Set<number>();
+  for (const { slide_index } of replaced) {
+    if (slide_index >= set.imageUrls.length)
+      throw new ToolError(
+        `replace_slides: slide ${slide_index} is past the last slide (${set.imageUrls.length - 1}).`
+      );
+    if (seen.has(slide_index))
+      throw new ToolError(
+        `replace_slides: slide ${slide_index} is listed twice.`
+      );
+    seen.add(slide_index);
+  }
+}
+
+/** The set with uploaded slides swapped in and appended; `uploaded` holds replacements first, then additions. */
+export function applySlideChanges(
+  set: GlSet,
+  input: SlideChanges,
+  uploaded: { urls: string[]; paths: string[]; driveIds: string[] }
+): GlSet {
+  const replaced = input.replace_slides ?? [];
+  const added = uploaded.urls.slice(replaced.length);
+  const imageUrls = [...set.imageUrls];
+  const kinds = Array.isArray(set.imageKinds)
+    ? [...(set.imageKinds as string[])]
+    : null;
+  const trims = Array.isArray(set.videoTrims)
+    ? [...(set.videoTrims as unknown[])]
+    : null;
+  replaced.forEach(({ slide_index }, i) => {
+    imageUrls[slide_index] = uploaded.urls[i];
+    if (kinds && slide_index < kinds.length) kinds[slide_index] = 'image';
+    if (trims && slide_index < trims.length) trims[slide_index] = null;
+  });
+  imageUrls.push(...added);
+  if (kinds) {
+    while (kinds.length < set.imageUrls.length) kinds.push('image');
+    kinds.push(...added.map(() => 'image'));
+  }
+  const next: GlSet = { ...set, imageUrls };
+  if (kinds) next.imageKinds = kinds.includes('video') ? kinds : undefined;
+  if (trims) next.videoTrims = trims.some((t) => t != null) ? trims : undefined;
+  if (uploaded.paths.length > 0)
+    next.imagePaths = [
+      ...(Array.isArray(set.imagePaths) ? (set.imagePaths as string[]) : []),
+      ...uploaded.paths,
+    ];
+  if (uploaded.driveIds.length > 0)
+    next.driveFileIds = [
+      ...(Array.isArray(set.driveFileIds)
+        ? (set.driveFileIds as string[])
+        : []),
+      ...uploaded.driveIds,
+    ];
   return next;
 }
 
@@ -1048,7 +1139,7 @@ export function registerGuidedLearningTools(
     {
       title: 'Edit a Guided Learning set',
       description:
-        'Edits a set; only passed fields change. `steps` replaces the whole list in play order: send every step to keep, with its id. Slides cannot be added or removed. Text is one paragraph, or a second short caveat paragraph after a blank line. A click step on a full-screen slide wants a region and pan-zoom-spotlight.',
+        'Edits a set; only passed fields change. `steps` replaces the whole list in play order: send every step to keep, with its id. add_slides and replace_slides change slide pictures. Slides cannot be removed. Text is one paragraph, or a second short caveat paragraph after a blank line. A click step on a full-screen slide wants a region and pan-zoom-spotlight.',
       inputSchema: {
         set_id: z.string().min(1),
         source: sourceInput,
@@ -1065,36 +1156,133 @@ export function registerGuidedLearningTools(
             'Alt text for the welcome image, when the set has one; empty marks it decorative. The image itself is set in SpartBoard.'
           ),
         steps: z.array(stepInput).min(1).max(MAX_STEPS).optional(),
+        add_slides: z
+          .array(z.string().max(2000))
+          .min(1)
+          .max(MAX_SLIDE_CHANGES)
+          .optional()
+          .describe(
+            'Slides to add at the end: picture refs from start_picture_upload or public https image links.'
+          ),
+        replace_slides: z
+          .array(
+            z
+              .object({
+                slide_index: z.number().int().min(0),
+                image: z.string().max(2000),
+              })
+              .strict()
+          )
+          .min(1)
+          .max(MAX_SLIDE_CHANGES)
+          .optional()
+          .describe(
+            "Swaps a slide's picture. Its steps stay where they were. Check their placement after."
+          ),
       },
       annotations: OVERWRITES,
     },
-    ({ set_id, source, ...input }) =>
+    ({ set_id, source, add_slides, replace_slides, ...input }) =>
       run('update_guided_learning', ctx, async () => {
         await assertAccess(ctx, source);
         const loaded = await loadSet(ctx, source, set_id);
-        const next = applyEdit(loaded, input);
-        if (input.steps)
-          await applyStepTargets(
-            ctx,
-            next.steps,
-            input.steps,
-            loaded.set.steps
-          );
-        let requests: AnchorRequest[] = [];
-        if (loaded.source === 'building' && input.steps) {
-          const notes = new Map<string, MissingAnchorNote>();
-          for (const s of input.steps)
-            if (s.missing_anchor) notes.set(s.id, s.missing_anchor);
-          const planned = planAnchorRequests(
-            next.steps,
-            loaded.set.steps,
-            notes
-          );
-          next.steps = planned.steps as GlSet['steps'];
-          requests = planned.requests;
+        const slideInput = { add_slides, replace_slides };
+        checkSlideChanges(loaded.set, slideInput);
+        if (add_slides?.length || replace_slides?.length) {
+          const { picturesOn } = await import('./pictureUploads');
+          if (!(await picturesOn(ctx)))
+            throw new ToolError(
+              'Adding or replacing slides through Claude is not turned on for this account yet.'
+            );
         }
+        const refs = [
+          ...(replace_slides ?? []).map((r) => r.image),
+          ...(add_slides ?? []),
+        ];
+        const slidesFor = (urls: string[]) =>
+          refs.length > 0
+            ? {
+                ...loaded,
+                set: applySlideChanges(loaded.set, slideInput, {
+                  urls,
+                  paths: [],
+                  driveIds: [],
+                }),
+              }
+            : loaded;
+        // Steps are checked against the new slide count before any picture is copied.
+        applyEdit(slidesFor(refs), input);
         await reserveWrite(ctx);
-        return saveSet(ctx, loaded, next, 'update', requests);
+        let working = loaded;
+        let token: string | null = null;
+        let newDriveIds: string[] = [];
+        let newPaths: string[] = [];
+        // Copies made for this edit go when it didn't save, so no link-shared copy is left behind.
+        const discardNew = async () => {
+          if (token) {
+            const drive = token;
+            await Promise.all(
+              newDriveIds.map((id) => trashDriveFile(drive, id))
+            );
+          }
+          if (newPaths.length > 0) {
+            const bucket = admin.storage().bucket();
+            await Promise.all(
+              newPaths.map((path) =>
+                bucket
+                  .file(path)
+                  .delete()
+                  .catch(() => undefined)
+              )
+            );
+          }
+        };
+        if (refs.length > 0) {
+          const { uploadSlides } = await import('./glCreate');
+          token =
+            loaded.source === 'mine' ? await driveTokenFor(ctx.uid) : null;
+          const uploaded = await uploadSlides(ctx, refs, token, 'slides');
+          newDriveIds = uploaded.driveIds;
+          newPaths = uploaded.paths;
+          working = {
+            ...loaded,
+            set: applySlideChanges(loaded.set, slideInput, uploaded),
+          };
+        }
+        let next: GlSet;
+        let requests: AnchorRequest[] = [];
+        try {
+          next = applyEdit(working, input);
+          if (input.steps)
+            await applyStepTargets(
+              ctx,
+              next.steps,
+              input.steps,
+              loaded.set.steps
+            );
+          if (loaded.source === 'building' && input.steps) {
+            const notes = new Map<string, MissingAnchorNote>();
+            for (const s of input.steps)
+              if (s.missing_anchor) notes.set(s.id, s.missing_anchor);
+            const planned = planAnchorRequests(
+              next.steps,
+              loaded.set.steps,
+              notes
+            );
+            next.steps = planned.steps as GlSet['steps'];
+            requests = planned.requests;
+          }
+        } catch (err) {
+          await discardNew();
+          throw err;
+        }
+        try {
+          return await saveSet(ctx, loaded, next, 'update', requests);
+        } catch (err) {
+          // saveSet's ToolErrors come before the set changes; any other failure may have landed.
+          if (err instanceof ToolError) await discardNew();
+          throw err;
+        }
       })
   );
 }

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   applyEdit,
+  applySlideChanges,
+  checkSlideChanges,
   filterSetRows,
   fullSet,
   glSlideStoragePath,
@@ -450,5 +452,74 @@ describe('Guided Learning welcome image', () => {
     expect(() =>
       applyEdit(loaded() as never, { welcome_image_alt: 'A cell' })
     ).toThrow(/no welcome image/);
+  });
+});
+
+describe('Guided Learning slide changes', () => {
+  const base = {
+    id: 'set',
+    title: 'T',
+    mode: 'structured',
+    updatedAt: 0,
+    steps: [],
+    imageUrls: ['a', 'b', 'c'],
+  };
+
+  it('swaps replaced slides and appends added ones', () => {
+    const next = applySlideChanges(
+      {
+        ...base,
+        imageKinds: ['image', 'video'],
+        videoTrims: [null, { start: 1, end: 2 }],
+      },
+      {
+        replace_slides: [{ slide_index: 1, image: 'picture:x' }],
+        add_slides: ['picture:y'],
+      },
+      { urls: ['B', 'D'], paths: [], driveIds: ['d1', 'd2'] }
+    );
+    expect(next.imageUrls).toEqual(['a', 'B', 'c', 'D']);
+    // The replaced video is now a picture, so no slide needs kinds or trims.
+    expect(next.imageKinds).toBeUndefined();
+    expect(next.videoTrims).toBeUndefined();
+    expect(next.driveFileIds).toEqual(['d1', 'd2']);
+  });
+
+  it('keeps kinds aligned when a video slide stays', () => {
+    const next = applySlideChanges(
+      { ...base, imageKinds: ['image', 'video'], imagePaths: ['p1'] },
+      { add_slides: ['picture:y'] },
+      { urls: ['D'], paths: ['p2'], driveIds: [] }
+    );
+    expect(next.imageKinds).toEqual(['image', 'video', 'image', 'image']);
+    expect(next.imagePaths).toEqual(['p1', 'p2']);
+  });
+
+  it('refuses slides past the end, repeats and live tours', () => {
+    expect(() =>
+      checkSlideChanges(base, {
+        replace_slides: [{ slide_index: 3, image: 'x' }],
+      })
+    ).toThrow(/past the last slide/);
+    expect(() =>
+      checkSlideChanges(base, {
+        replace_slides: [
+          { slide_index: 0, image: 'x' },
+          { slide_index: 0, image: 'y' },
+        ],
+      })
+    ).toThrow(/listed twice/);
+    expect(() =>
+      checkSlideChanges({ ...base, mode: 'tour' }, { add_slides: ['x'] })
+    ).toThrow(/no slides/);
+    expect(() => checkSlideChanges(base, {})).not.toThrow();
+  });
+
+  it('restores against the slides the revision had', () => {
+    expect(
+      revisionStepsFitSlides({ mode: 'structured', imageUrls: ['a'] }, [
+        { imageIndex: 2 },
+      ])
+    ).toBe(false);
   });
 });

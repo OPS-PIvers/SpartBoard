@@ -92,6 +92,49 @@ async function uploadTourPictures(
   }
 }
 
+/** A picture from a Claude chat or the upload page; the ticket in Authorization is its only credential. */
+async function uploadChatPicture(
+  db: Firestore,
+  req: {
+    method: string;
+    headers: Record<string, string | string[] | undefined>;
+    rawBody?: Buffer;
+  },
+  res: Response
+): Promise<void> {
+  if (req.method !== 'POST') {
+    res.status(405).set('Allow', 'POST').json({ error: 'Use POST.' });
+    return;
+  }
+  const auth = req.headers.authorization;
+  const header = typeof auth === 'string' ? auth : '';
+  const ticket = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+  if (ticket.length < 20 || ticket.length > 200) {
+    res
+      .status(401)
+      .json({ error: 'Send the upload ticket as a Bearer token.' });
+    return;
+  }
+  const { savePictureUpload } = await import('./pictureUploads');
+  const { ToolError } = await import('./activity');
+  const name = req.headers['x-file-name'];
+  try {
+    const outcome = await savePictureUpload(db, {
+      ticket,
+      body: req.rawBody,
+      fileName: typeof name === 'string' ? name : undefined,
+    });
+    res.status(outcome.status).json(outcome.body);
+  } catch (err) {
+    if (err instanceof ToolError) {
+      res.status(403).json({ error: err.message });
+      return;
+    }
+    console.error('[mcpServer] picture upload failed', err);
+    res.status(500).json({ error: 'The picture could not be saved.' });
+  }
+}
+
 function unauthorized(res: Response, description: string): void {
   res
     .status(401)
@@ -121,7 +164,7 @@ export const mcpServer = onRequest(
     res.set('Access-Control-Allow-Origin', '*');
     res.set(
       'Access-Control-Allow-Headers',
-      'Content-Type, Authorization, MCP-Protocol-Version, Mcp-Session-Id, Last-Event-ID'
+      'Content-Type, Authorization, MCP-Protocol-Version, Mcp-Session-Id, Last-Event-ID, X-File-Name'
     );
     res.set(
       'Access-Control-Expose-Headers',
@@ -136,6 +179,10 @@ export const mcpServer = onRequest(
     const db = admin.firestore();
     if ((req.path ?? '').endsWith('/tour-pictures')) {
       await uploadTourPictures(db, req.method, req.body, res);
+      return;
+    }
+    if ((req.path ?? '').endsWith('/picture-uploads')) {
+      await uploadChatPicture(db, req, res);
       return;
     }
     const header = req.headers.authorization ?? '';
