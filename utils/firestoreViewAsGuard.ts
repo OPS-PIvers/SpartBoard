@@ -4,52 +4,102 @@ import {
   ViewAsReadOnlyError,
   isViewAsTab,
   viewAsBlocksRawWrite,
+  viewAsRawWriteNeedsAudit,
   viewAsWriteIsAudited,
 } from '@/utils/viewAsTab';
+import type { ViewAsRawWrite, ViewAsRawWriteOp } from '@/utils/viewAsAudit';
 
 export * from 'firebase/firestore';
 
 type Ref = { path: string };
 
-function blocked<T>(paths: string[], write: () => Promise<T>): Promise<T> {
-  return viewAsBlocksRawWrite(paths)
-    ? Promise.reject(new ViewAsReadOnlyError())
-    : write();
+// Loaded lazily: viewAsAudit imports 'firebase/firestore', which resolves to this module.
+function audit(writes: ViewAsRawWrite[]): void {
+  void import('@/utils/viewAsAudit').then(({ recordViewAsRawWrites }) =>
+    recordViewAsRawWrites(writes)
+  );
+}
+
+function guarded<T>(
+  paths: string[],
+  write: () => Promise<T>,
+  describe: (result: T) => ViewAsRawWrite[]
+): Promise<T> {
+  if (viewAsBlocksRawWrite(paths)) {
+    return Promise.reject(new ViewAsReadOnlyError());
+  }
+  if (!viewAsRawWriteNeedsAudit(paths)) return write();
+  return write().then((result) => {
+    audit(describe(result));
+    return result;
+  });
 }
 
 type AnyWrite = (ref: Ref, ...rest: unknown[]) => Promise<void>;
 
+/** updateDoc takes either a data map or alternating field/value pairs. */
+function updateData(rest: unknown[]): unknown {
+  if (
+    typeof rest[0] !== 'string' &&
+    !(rest[0] instanceof firestore.FieldPath)
+  ) {
+    return rest[0];
+  }
+  const out: Record<string, unknown> = {};
+  for (let i = 0; i + 1 < rest.length; i += 2) {
+    out[String(rest[i])] = rest[i + 1];
+  }
+  return out;
+}
+
 export const setDoc = ((ref: Ref, ...rest: unknown[]) =>
-  blocked([ref.path], () =>
-    (firestore.setDoc as AnyWrite)(ref, ...rest)
+  guarded(
+    [ref.path],
+    () => (firestore.setDoc as AnyWrite)(ref, ...rest),
+    () => [{ op: 'set', path: ref.path, data: rest[0] }]
   )) as typeof firestore.setDoc;
 
 export const updateDoc = ((ref: Ref, ...rest: unknown[]) =>
-  blocked([ref.path], () =>
-    (firestore.updateDoc as AnyWrite)(ref, ...rest)
+  guarded(
+    [ref.path],
+    () => (firestore.updateDoc as AnyWrite)(ref, ...rest),
+    () => [{ op: 'update', path: ref.path, data: updateData(rest) }]
   )) as typeof firestore.updateDoc;
 
 export const deleteDoc = ((ref: Ref) =>
-  blocked([ref.path], () =>
-    (firestore.deleteDoc as AnyWrite)(ref)
+  guarded(
+    [ref.path],
+    () => (firestore.deleteDoc as AnyWrite)(ref),
+    () => [{ op: 'delete', path: ref.path }]
   )) as typeof firestore.deleteDoc;
 
+type AnyAdd = (ref: Ref, data: unknown) => Promise<Ref>;
+
 export const addDoc = ((ref: Ref, data: unknown) =>
-  blocked([`${ref.path}/new`], () =>
-    (firestore.addDoc as (r: Ref, d: unknown) => Promise<unknown>)(ref, data)
-  )) as typeof firestore.addDoc;
+  guarded(
+    [`${ref.path}/new`],
+    () => (firestore.addDoc as unknown as AnyAdd)(ref, data),
+    (created) => [{ op: 'add', path: created.path, data }]
+  )) as unknown as typeof firestore.addDoc;
 
 type Writer = 'set' | 'update' | 'delete';
 const WRITERS: Writer[] = ['set', 'update', 'delete'];
 
-function trackPaths<T extends Record<Writer, unknown>>(
+function trackWrites<T extends Record<Writer, unknown>>(
   target: T,
-  onWrite: (path: string) => void
+  onWrite: (write: ViewAsRawWrite) => void
 ): void {
   for (const name of WRITERS) {
     const original = target[name] as (ref: Ref, ...rest: unknown[]) => T;
     target[name] = (ref: Ref, ...rest: unknown[]) => {
-      onWrite(ref.path);
+      const op: ViewAsRawWriteOp = name;
+      onWrite({
+        op,
+        path: ref.path,
+        ...(name === 'delete'
+          ? {}
+          : { data: name === 'update' ? updateData(rest) : rest[0] }),
+      });
       return original.call(target, ref, ...rest);
     };
   }
@@ -58,10 +108,17 @@ function trackPaths<T extends Record<Writer, unknown>>(
 export const writeBatch = (db: firestore.Firestore): firestore.WriteBatch => {
   const batch = firestore.writeBatch(db);
   if (!isViewAsTab) return batch;
-  const paths: string[] = [];
-  trackPaths(batch, (path) => paths.push(path));
+  const writes: ViewAsRawWrite[] = [];
+  trackWrites(batch, (w) => writes.push(w));
   const commit = batch.commit.bind(batch);
-  batch.commit = () => (paths.length === 0 ? commit() : blocked(paths, commit));
+  batch.commit = () =>
+    writes.length === 0
+      ? commit()
+      : guarded(
+          writes.map((w) => w.path),
+          commit,
+          () => writes
+        );
   return batch;
 };
 
@@ -73,14 +130,25 @@ export const runTransaction = (<T>(
   if (!isViewAsTab || viewAsWriteIsAudited()) {
     return firestore.runTransaction(db, update, options);
   }
-  return firestore.runTransaction(
-    db,
-    (tx) => {
-      trackPaths(tx, (path) => {
-        if (viewAsBlocksRawWrite([path])) throw new ViewAsReadOnlyError();
-      });
-      return update(tx);
-    },
-    options
-  );
+  let writes: ViewAsRawWrite[] = [];
+  return firestore
+    .runTransaction(
+      db,
+      (tx) => {
+        writes = [];
+        trackWrites(tx, (w) => {
+          if (viewAsBlocksRawWrite([w.path])) throw new ViewAsReadOnlyError();
+          writes.push(w);
+        });
+        return update(tx);
+      },
+      options
+    )
+    .then((result) => {
+      const paths = writes.map((w) => w.path);
+      if (paths.length > 0 && viewAsRawWriteNeedsAudit(paths)) {
+        audit(writes);
+      }
+      return result;
+    });
 }) as typeof firestore.runTransaction;
