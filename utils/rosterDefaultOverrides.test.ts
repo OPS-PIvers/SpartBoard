@@ -25,6 +25,7 @@ describe('isEmptyStudentOverride', () => {
     expect(isEmptyStudentOverride({ readAloud: true })).toBe(false);
     expect(isEmptyStudentOverride({ tabWarningThreshold: 'off' })).toBe(false);
     expect(isEmptyStudentOverride({ openAt: 1 })).toBe(false);
+    expect(isEmptyStudentOverride({ blockCopyPaste: false })).toBe(false);
   });
 });
 
@@ -45,6 +46,17 @@ describe('setRosterDefaultOverride', () => {
       { timeMultiplier: undefined }
     );
     expect(next).toEqual({ s2: { readAloud: true } });
+  });
+
+  it('keeps copy, paste and print set to Allow', () => {
+    expect(
+      setRosterDefaultOverride({}, 's1', { blockCopyPaste: false })
+    ).toEqual({ s1: { blockCopyPaste: false } });
+    expect(
+      setRosterDefaultOverride({ s1: { blockCopyPaste: false } }, 's1', {
+        blockCopyPaste: undefined,
+      })
+    ).toEqual({});
   });
 
   it('does not mutate the input map', () => {
@@ -99,6 +111,26 @@ describe('group accommodations', () => {
     });
     expect(next.a).toEqual({ timeMultiplier: 1.5, readAloud: true });
     expect(next.z).toEqual({ timeMultiplier: 1.5 });
+  });
+
+  it('switches a group from Block to Allow for every member', () => {
+    const blocked = {
+      a: { blockCopyPaste: true },
+      b: { blockCopyPaste: true, readAloud: true },
+    };
+    expect(sharedStudentOverride(blocked, ['a', 'b'])).toEqual({
+      blockCopyPaste: true,
+    });
+    const next = applyGroupOverride(blocked, ['a', 'b'], {
+      blockCopyPaste: false,
+    });
+    expect(next).toEqual({
+      a: { blockCopyPaste: false },
+      b: { blockCopyPaste: false, readAloud: true },
+    });
+    expect(sharedStudentOverride(next, ['a', 'b'])).toEqual({
+      blockCopyPaste: false,
+    });
   });
 
   it('never stores a window shift', () => {
