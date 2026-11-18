@@ -61,6 +61,10 @@ describe('showPageNotice', () => {
     show('notice');
     expect(coverHost()).not.toBeNull();
     expect(root?.textContent).toContain(COVER_TEXT);
+    const button = root?.querySelector('button');
+    // Focus that slips out (a click on the background, a blur) comes straight back.
+    button?.blur();
+    expect(root?.activeElement).toBe(button);
     const tab = new KeyboardEvent('keydown', {
       key: 'Tab',
       bubbles: true,
@@ -68,7 +72,8 @@ describe('showPageNotice', () => {
     });
     root?.querySelector('div')?.dispatchEvent(tab);
     expect(tab.defaultPrevented).toBe(true);
-    expect(root?.activeElement).toBe(root?.querySelector('button'));
+    expect(root?.activeElement).toBe(button);
+    expect(root?.querySelector('div')?.tabIndex).toBe(-1);
     root?.querySelector('button')?.click();
     expect(sendMessage).toHaveBeenCalledWith({
       type: FOCUS_FULLSCREEN_MESSAGE,

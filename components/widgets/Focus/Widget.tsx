@@ -114,7 +114,13 @@ const FocusTeacherView: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   );
   const [busy, setBusy] = useState<string | null>(null);
   // Start stays disabled after the call returns until the session shows up in the listener.
-  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [startHeld, setStartHeld] = useState(false);
+  if (startHeld && live) setStartHeld(false);
+  useEffect(() => {
+    if (!startHeld) return;
+    const id = window.setTimeout(() => setStartHeld(false), START_SETTLE_MS);
+    return () => window.clearTimeout(id);
+  }, [startHeld]);
   const [error, setError] = useState<{ at: string; message: string } | null>(
     null
   );
@@ -270,10 +276,7 @@ const FocusTeacherView: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       rosters={classRosters}
       boardWidgets={boardWidgets ?? []}
       onChange={update}
-      starting={
-        busy === 'start' ||
-        (startedAt !== null && now - startedAt < START_SETTLE_MS)
-      }
+      starting={busy === 'start' || startHeld}
       checking={opener.checking}
       error={
         error?.at === 'setup'
@@ -294,7 +297,7 @@ const FocusTeacherView: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             minutes: config.minutes ?? 30,
             sites: config.sites ?? [],
           });
-          setStartedAt(Date.now());
+          setStartHeld(true);
         });
       }}
     />

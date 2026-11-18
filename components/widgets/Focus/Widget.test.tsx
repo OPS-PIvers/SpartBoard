@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ClassRoster, FocusConfig, WidgetData } from '@/types';
@@ -182,6 +182,45 @@ describe('FocusWidget teacher view', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Start' }));
     expect(h.api.start).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('button', { name: 'Starting…' })).toBeDisabled();
+  });
+
+  it('releases the Start hold after 8 s, and as soon as a session shows up', async () => {
+    vi.useFakeTimers();
+    try {
+      const config = { sites: [{ host: 'desmos.com', path: '' }] };
+      const tree = () => (
+        <FocusFixtureNamesContext.Provider value={NAMES}>
+          <FocusWidget widget={widget(config)} />
+        </FocusFixtureNamesContext.Provider>
+      );
+      const { rerender } = render(tree());
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+        await Promise.resolve();
+      });
+      expect(screen.getByRole('button', { name: 'Starting…' })).toBeDisabled();
+      act(() => {
+        vi.advanceTimersByTime(7_900);
+      });
+      expect(screen.getByRole('button', { name: 'Starting…' })).toBeDisabled();
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      expect(screen.getByRole('button', { name: 'Start' })).toBeEnabled();
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+        await Promise.resolve();
+      });
+      h.sessions = [SESSION];
+      rerender(tree());
+      expect(screen.queryByRole('button', { name: 'Start' })).toBeNull();
+      h.sessions = [];
+      rerender(tree());
+      expect(screen.getByRole('button', { name: 'Start' })).toBeEnabled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('re-enables Start when the call fails', async () => {

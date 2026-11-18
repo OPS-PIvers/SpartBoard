@@ -99,11 +99,16 @@ export function showPageNotice(
   button.addEventListener('click', () => {
     void chrome.runtime.sendMessage({ type: message });
   });
-  // The button is the cover's only control; Tab must not walk out to the page behind it.
+  // The button is the cover's only control; Tab and clicks must not leave focus on the page behind it.
+  box.tabIndex = -1;
   box.addEventListener('keydown', (e) => {
     if (e.key !== 'Tab') return;
     e.preventDefault();
     button.focus();
+  });
+  box.addEventListener('focusout', (e) => {
+    if (host.isConnected && !root.contains(e.relatedTarget as Node | null))
+      button.focus();
   });
   box.append(title, text, button);
   root.append(box);
