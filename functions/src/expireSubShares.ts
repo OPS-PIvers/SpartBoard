@@ -18,9 +18,9 @@
  * `orderBy('expiresAt').orderBy(FieldPath.documentId())`, mirroring the
  * identical fix already applied to `gcPlcOrphans.ts` /
  * `expireActivityWallShares.ts` / `finalizeIdleQuizAttempts.ts`) up to
- * `MAX_SWEEP_PER_RUN` — a safety ceiling, not a page size. Docs held in the
- * 7-day Drive-grant grace window are matched by the query but deliberately
- * NOT deleted yet, so without pagination a single un-paginated `.limit()`
+ * `MAX_SWEEP_PER_RUN` — a safety ceiling, not a page size. Docs whose grants
+ * could not be revoked are matched by the query but kept (not deleted), so
+ * without pagination a single un-paginated `.limit()`
  * page would keep re-fetching the SAME arbitrary doc-id-ordered slice every
  * hour (a query with no explicit `orderBy` is NOT implicitly sorted by the
  * inequality field — it falls back to document-id order, confirmed by the
@@ -119,11 +119,17 @@ const NO_REVOKER: GrantRevoker = {
 /** Drive work stops after this long so the run still reaches its deletes. */
 const DRIVE_BUDGET_MS = 300_000;
 
+/** Marks a token fetch that failed transiently, so the host is not emailed. */
+const TOKEN_ERROR = Symbol('tokenError');
+
+/** `defer`: Drive was not tried (budget or transient token error); `needs-host`: only the host can fix it. */
+type RevokeOutcome = 'revoked' | 'defer' | 'needs-host';
+
 /** Per-run caches shared by both collection sweeps. */
 interface RevokeContext {
   revoker: GrantRevoker;
   deadline: number;
-  tokens: Map<string, Promise<string | null>>;
+  tokens: Map<string, Promise<string | null | typeof TOKEN_ERROR>>;
   live: Map<string, Promise<Set<string>>>;
 }
 
@@ -163,7 +169,7 @@ function livePermissionIds(
   return hit;
 }
 
-/** Revokes one expired share's grants as the host; true when none is left standing. */
+/** Revokes one expired share's grants as the host; 'revoked' when none is left standing. */
 async function revokeShareGrants(
   db: FirebaseFirestore.Firestore,
   ctx: RevokeContext,
@@ -172,18 +178,20 @@ async function revokeShareGrants(
   grants: NonNullable<SubstituteShareData['driveGrants']>,
   namesFileId: string | undefined,
   now: number
-): Promise<boolean> {
-  if (!hostUid || Date.now() > ctx.deadline) return false;
+): Promise<RevokeOutcome> {
+  if (!hostUid) return 'needs-host';
+  if (Date.now() > ctx.deadline) return 'defer';
   let tokenP = ctx.tokens.get(hostUid);
   if (!tokenP) {
     tokenP = ctx.revoker.getAccessToken(hostUid).catch((err) => {
       console.warn(`[expireSubShares] no Drive token for ${hostUid}:`, err);
-      return null;
+      return TOKEN_ERROR;
     });
     ctx.tokens.set(hostUid, tokenP);
   }
   const token = await tokenP;
-  if (!token) return false;
+  if (token === TOKEN_ERROR) return 'defer';
+  if (!token) return 'needs-host';
   try {
     const live = await livePermissionIds(db, ctx, hostUid, now);
     for (const g of grants) {
@@ -205,13 +213,13 @@ async function revokeShareGrants(
         await ctx.revoker.trashFile(token, namesFileId);
       }
     }
-    return true;
+    return 'revoked';
   } catch (err) {
     console.warn(
       `[expireSubShares] Drive revoke failed for share ${doc.id}:`,
       err
     );
-    return false;
+    return 'needs-host';
   }
 }
 
@@ -220,8 +228,7 @@ async function revokeShareGrants(
  * `MAX_SWEEP_PER_RUN`, `SWEEP_PAGE_SIZE` docs at a time, via a `startAfter`
  * cursor on `orderBy('expiresAt').orderBy(FieldPath.documentId())` (the
  * doc-id tiebreaker keeps pagination correct when multiple docs share an
- * identical `expiresAt`). Docs held in the Drive-grant grace window are
- * matched but not deleted, so without this cursor a single un-paginated page
+ * identical `expiresAt`). Kept docs (unrevoked grants) are matched every run, so without this cursor a single un-paginated page
  * would keep re-fetching the same doc-id-ordered slice forever once the
  * backlog exceeded one page — see the module header for the full history.
  */
@@ -303,7 +310,7 @@ async function sweepCollection(
         deleteBoardsSubcollection && typeof data.namesFileId === 'string'
           ? data.namesFileId
           : undefined;
-      const revoked = await revokeShareGrants(
+      const outcome = await revokeShareGrants(
         db,
         ctx,
         doc,
@@ -312,8 +319,8 @@ async function sweepCollection(
         namesFileId,
         now
       );
-      if (!revoked) {
-        if (expiredAt > now - ORPHAN_GRACE_MS) {
+      if (outcome !== 'revoked') {
+        if (outcome === 'defer' || expiredAt > now - ORPHAN_GRACE_MS) {
           stillInGrace += 1;
         } else {
           orphanedGrantCount += grants.length;
@@ -330,17 +337,15 @@ async function sweepCollection(
                     return false;
                   })
               : false;
-          // Log once, when the host is first emailed, or every run when no one can be.
-          if (notified || typeof host !== 'string') {
-            console.warn(
-              `[expireSubShares] KEEPING ${collectionName} share ${doc.id} (host ${host}) ` +
-                `with ${grants.length} unrevoked Drive permissions until the host ` +
-                `reconnects Drive. Manual revocation needed for: ` +
-                grants
-                  .map((g) => `${g.email}@${g.fileId}:${g.permissionId}`)
-                  .join(', ')
-            );
-          }
+          // Always log the grant list so it survives a host who cannot be emailed.
+          console.warn(
+            `[expireSubShares] KEEPING ${collectionName} share ${doc.id} (host ${host}) ` +
+              `with ${grants.length} unrevoked Drive permissions until the host ` +
+              `reconnects Drive${notified ? ' (host emailed)' : ''}. Manual revocation needed for: ` +
+              grants
+                .map((g) => `${g.email}@${g.fileId}:${g.permissionId}`)
+                .join(', ')
+          );
         }
         continue;
       }
@@ -359,20 +364,40 @@ async function sweepCollection(
     };
   }
 
-  // Collection parents carry boards/, content/ and keys/ sub-collections — reap
-  // those sub-docs first so the parent delete doesn't orphan them. Done before
-  // the batched parent delete because subcollections aren't cascaded.
+  // Delete each parent only if unchanged since the query, so a host extending a share mid-sweep keeps it.
+  const deletedDocs: ExpiredDocSnap[] = [];
+  const DELETE_CONCURRENCY = 20;
+  for (let i = 0; i < readyToDelete.length; i += DELETE_CONCURRENCY) {
+    const group = readyToDelete.slice(i, i + DELETE_CONCURRENCY);
+    const results = await Promise.all(
+      group.map(async (doc) => {
+        try {
+          await doc.ref.delete({ lastUpdateTime: doc.updateTime });
+          return true;
+        } catch (err) {
+          // 9 = FAILED_PRECONDITION, 5 = NOT_FOUND: changed or already gone since the query.
+          const code = (err as { code?: unknown }).code;
+          if (code !== 9 && code !== 5) throw err;
+          console.warn(
+            `[expireSubShares] skipped ${collectionName} share ${doc.id}: changed since the query`
+          );
+          return false;
+        }
+      })
+    );
+    group.forEach((doc, k) => {
+      if (results[k]) deletedDocs.push(doc);
+    });
+  }
+  const deleted = deletedDocs.length;
+
+  // Collection parents carry boards/, content/ and keys/ sub-collections; reap them after
+  // the parent delete succeeds, since subcollections aren't cascaded.
   if (deleteBoardsSubcollection) {
-    // Reap each parent's boards/ subcollection. Parallelize across parents
-    // (with bounded concurrency) so a sweep that catches many expired
-    // Collection shares — each with its own get() + batch-commit chain —
-    // doesn't serialize toward the function timeout. The cap keeps us well
-    // under Firestore's per-client connection limits rather than fanning out
-    // all (up to MAX_SWEEP_PER_RUN) parents at once.
     const BOARD_CLEANUP_CONCURRENCY = 10;
     const boardBatchSize = 250;
-    for (let i = 0; i < readyToDelete.length; i += BOARD_CLEANUP_CONCURRENCY) {
-      const group = readyToDelete.slice(i, i + BOARD_CLEANUP_CONCURRENCY);
+    for (let i = 0; i < deletedDocs.length; i += BOARD_CLEANUP_CONCURRENCY) {
+      const group = deletedDocs.slice(i, i + BOARD_CLEANUP_CONCURRENCY);
       await Promise.all(
         group.map(async (doc) => {
           for (const name of SHARE_SUBCOLLECTIONS) {
@@ -389,18 +414,6 @@ async function sweepCollection(
         })
       );
     }
-  }
-
-  // Batched delete of parents. Firestore caps each batch at 500 ops, so we
-  // chunk defensively (readyToDelete can hold up to MAX_SWEEP_PER_RUN docs).
-  const batchSize = 250;
-  let deleted = 0;
-  for (let i = 0; i < readyToDelete.length; i += batchSize) {
-    const batch = db.batch();
-    const chunk = readyToDelete.slice(i, i + batchSize);
-    for (const doc of chunk) batch.delete(doc.ref);
-    await batch.commit();
-    deleted += chunk.length;
   }
 
   console.log(
