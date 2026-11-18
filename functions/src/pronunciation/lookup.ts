@@ -430,7 +430,7 @@ export async function computeSpeakReferences(
 // Voice terms per teacher per day; a normal week of set building stays far below it.
 export const SPEAK_VOICE_DAILY_TERMS = 2000;
 
-/** Charges `terms` voice lookups to the caller's day; refuses once the day's budget is spent. */
+/** Charges `terms` voice lookups to the caller's day; refuses a batch that would pass the day's budget. */
 export async function chargeSpeakVoiceTerms(
   db: admin.firestore.Firestore,
   uid: string,
@@ -441,7 +441,7 @@ export async function chargeSpeakVoiceTerms(
   const ref = db.collection('ai_usage').doc(`${uid}_speak-voices_${today}`);
   await db.runTransaction(async (tx) => {
     const used = Number((await tx.get(ref)).data()?.count ?? 0);
-    if (used >= SPEAK_VOICE_DAILY_TERMS)
+    if (used + terms > SPEAK_VOICE_DAILY_TERMS)
       throw new HttpsError(
         'resource-exhausted',
         'Daily pronunciation voice limit reached. Try again tomorrow.'

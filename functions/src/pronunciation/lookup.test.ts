@@ -506,6 +506,17 @@ describe('lookupSpeakReferencesV1', () => {
     expect(usage.get(key)?.count).toBe(SPEAK_VOICE_DAILY_TERMS);
   });
 
+  it('lets a batch land exactly on the daily limit but never past it', async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const key = `ai_usage/t1_speak-voices_${today}`;
+    usage.set(key, { count: SPEAK_VOICE_DAILY_TERMS - 1 });
+    await call({ auth: teacher, data });
+    expect(usage.get(key)?.count).toBe(SPEAK_VOICE_DAILY_TERMS);
+    await expect(call({ auth: teacher, data })).rejects.toMatchObject({
+      code: 'resource-exhausted',
+    });
+  });
+
   it('never charges or blocks the quick check without voices', async () => {
     const today = new Date().toISOString().slice(0, 10);
     const key = `ai_usage/t1_speak-voices_${today}`;
