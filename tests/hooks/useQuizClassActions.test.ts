@@ -8,7 +8,7 @@ import {
   type Mock,
 } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
-import type { PeriodAccess, QuizAssignment } from '@/types';
+import type { PeriodAccess, QuizAssignment, StudentTargetRef } from '@/types';
 import { useQuizClassActions } from '@/hooks/useQuizClassActions';
 import {
   END_TURN_IN_DELAY_MS,
@@ -130,6 +130,10 @@ vi.mock('firebase/firestore', () => {
   };
 });
 vi.mock('@/config/firebase', () => ({ db: {} }));
+const setTargets = vi.hoisted(() => vi.fn(() => Promise.resolve({})));
+vi.mock('@/hooks/useSetAssignmentTargets', () => ({
+  useSetAssignmentTargets: () => ({ setAssignmentTargets: setTargets }),
+}));
 const authUid = vi.hoisted(() => ({ uid: 't1' }));
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({ user: { uid: authUid.uid } }),
@@ -454,6 +458,54 @@ describe('single line (D15)', () => {
       [SESSION, { closeAt: null }],
       [ASSIGNMENT, { closeAt: null }],
     ]);
+  });
+});
+
+describe('window cleared pointers', () => {
+  const ref: StudentTargetRef = { kind: 'classlink', sourcedId: 's1' };
+
+  it('pushes the cleared window to student pointers when the assignment has them', async () => {
+    const x = setup(
+      assignment({
+        status: 'paused',
+        openAt: Date.now() + 60_000,
+        targetMode: 'students',
+        targetStudents: [ref],
+      })
+    );
+    await act(() => x.current.openClass(null));
+    expect(setTargets).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assignmentId: 'a1',
+        kind: 'quiz',
+        sessionId: 'a1',
+        targetMode: 'students',
+        window: { openAt: null },
+      })
+    );
+  });
+
+  it('still opens the quiz when the pointer update fails', async () => {
+    setTargets.mockRejectedValueOnce(new Error('offline'));
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const x = setup(
+      assignment({
+        status: 'paused',
+        openAt: Date.now() + 60_000,
+        targetMode: 'students',
+        targetStudents: [ref],
+      })
+    );
+    await act(() => x.current.openClass(null));
+    expect(store.calls).toContain('status:resume:a1');
+  });
+
+  it('skips the pointer update when there are no student pointers', async () => {
+    const x = setup(
+      assignment({ status: 'paused', openAt: Date.now() + 60_000 })
+    );
+    await act(() => x.current.openClass(null));
+    expect(setTargets).not.toHaveBeenCalled();
   });
 });
 
