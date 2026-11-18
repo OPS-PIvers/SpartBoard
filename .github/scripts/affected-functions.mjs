@@ -82,6 +82,7 @@ function reachesFeatureIds(files, ids) {
     const path = toRepo(file);
     if (path === FEATURE_MISSING_DOC) continue;
     if (RUNTIME_FEATURE_ID_CALLERS.includes(path)) return true;
+    if (/\b(?:ADMIN_PREVIEW_FEATURES|PUBLIC_MISSING_DOC_FEATURES)\b/.test(read(file))) return true;
     const source = read(file);
     if (
       ids.some((id) =>
@@ -98,6 +99,8 @@ const toRepo = (file) => relative(repoRoot, file).split('\\').join('/');
 
 // `import type`, `export type` and lists of only `type` names are erased by tsc, so they never load the module.
 function typeOnly(statement) {
+  // A match that started in a comment runs on into the real statement, so keep it.
+  if (/\/\/|\/\*|.\b(?:import|export)\b/s.test(statement)) return false;
   if (/^(?:import|export)\s+type\s+(?!from\b)/.test(statement)) return true;
   const clause = /^(?:import|export)\s*\{([^}]*)\}\s*from\b/.exec(statement);
   if (!clause) return false;
@@ -106,7 +109,7 @@ function typeOnly(statement) {
     .map((name) => name.trim())
     .filter(Boolean);
   return (
-    names.length > 0 && names.every((name) => /^type\s+[A-Za-z_$]/.test(name))
+    names.length > 0 && names.every((name) => /^type\s+(?!as\b)[A-Za-z_$]/.test(name))
   );
 }
 

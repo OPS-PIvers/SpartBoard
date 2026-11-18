@@ -332,6 +332,8 @@ describe('affected-functions.mjs type-only imports', () => {
     for (const line of [
       "import { V, type T } from './types';",
       "import { V } from './types';",
+      "import { type as kind } from './types';",
+      "// we import type guards here\nimport { V } from './types';",
       "import './types';",
       "export { V } from './types';",
       "const lazy = () => import('./types');",
@@ -427,6 +429,21 @@ describe('affected-functions.mjs feature ids', () => {
         )
       );
     }
+  });
+
+  it('names every importer of code that reads the id lists', () => {
+    const files = fixture(
+      flags(['old-flag', 'new-flag'], ["'old-open': null"])
+    );
+    files['functions/src/other.ts'] =
+      "import { ADMIN_PREVIEW_FEATURES } from './featureMissingDoc';\nexport const other = ADMIN_PREVIEW_FEATURES.length;";
+    withFixture(files, (root) =>
+      expect(affected(changed, root, undefined, deployed)).toEqual([
+        'asksNew',
+        'generateWithAI',
+        'other',
+      ])
+    );
   });
 
   it('names every importer without the deployed copy', () => {
