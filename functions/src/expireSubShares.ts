@@ -98,6 +98,12 @@ export interface GrantRevoker {
   /** The file's name, or null when it is gone or trashed. */
   getFileName: (token: string, fileId: string) => Promise<string | null>;
   trashFile: (token: string, fileId: string) => Promise<void>;
+  /** Emails the host once about a share whose grants stay standing; true when newly sent. */
+  notifyHost: (
+    hostUid: string,
+    shareKey: string,
+    grantCount: number
+  ) => Promise<boolean>;
 }
 
 /** No Drive access: every grant stays unrevoked (the pre-revoke behaviour). */
@@ -107,16 +113,21 @@ const NO_REVOKER: GrantRevoker = {
   deletePermission: () => Promise.resolve(),
   getFileName: () => Promise.resolve(null),
   trashFile: () => Promise.resolve(),
+  notifyHost: () => Promise.resolve(false),
 };
+
+/** Drive work stops after this long so the run still reaches its deletes. */
+const DRIVE_BUDGET_MS = 300_000;
 
 /** Per-run caches shared by both collection sweeps. */
 interface RevokeContext {
   revoker: GrantRevoker;
+  deadline: number;
   tokens: Map<string, Promise<string | null>>;
   live: Map<string, Promise<Set<string>>>;
 }
 
-/** permissionIds held by the host's still-live substitute shares, across both collections. */
+/** `fileId:permissionId` pairs held by the host's still-live substitute shares, across both collections. */
 function livePermissionIds(
   db: FirebaseFirestore.Firestore,
   ctx: RevokeContext,
@@ -142,7 +153,8 @@ function livePermissionIds(
         const data = d.data() as SubstituteShareData;
         if (!((data.expiresAt ?? 0) > now)) continue;
         for (const g of Array.isArray(data.driveGrants) ? data.driveGrants : [])
-          if (g?.permissionId) ids.add(g.permissionId);
+          if (g?.fileId && g.permissionId)
+            ids.add(`${g.fileId}:${g.permissionId}`);
       }
       return ids;
     });
@@ -161,7 +173,7 @@ async function revokeShareGrants(
   namesFileId: string | undefined,
   now: number
 ): Promise<boolean> {
-  if (!hostUid) return false;
+  if (!hostUid || Date.now() > ctx.deadline) return false;
   let tokenP = ctx.tokens.get(hostUid);
   if (!tokenP) {
     tokenP = ctx.revoker.getAccessToken(hostUid).catch((err) => {
@@ -175,7 +187,9 @@ async function revokeShareGrants(
   try {
     const live = await livePermissionIds(db, ctx, hostUid, now);
     for (const g of grants) {
-      if (!g?.fileId || !g.permissionId || live.has(g.permissionId)) continue;
+      // Drive reuses a user's permission id on every file, so a grant is a file and permission pair.
+      if (!g?.fileId || !g.permissionId) continue;
+      if (live.has(`${g.fileId}:${g.permissionId}`)) continue;
       const perm = await ctx.revoker.getPermission(
         token,
         g.fileId,
@@ -303,14 +317,30 @@ async function sweepCollection(
           stillInGrace += 1;
         } else {
           orphanedGrantCount += grants.length;
-          console.warn(
-            `[expireSubShares] KEEPING ${collectionName} share ${doc.id} (host ${host}) ` +
-              `with ${grants.length} unrevoked Drive permissions until the host ` +
-              `reconnects Drive. Manual revocation needed for: ` +
-              grants
-                .map((g) => `${g.email}@${g.fileId}:${g.permissionId}`)
-                .join(', ')
-          );
+          const notified =
+            typeof host === 'string'
+              ? await ctx.revoker
+                  .notifyHost(
+                    host,
+                    `${collectionName}-${doc.id}`,
+                    grants.length
+                  )
+                  .catch((err) => {
+                    console.warn(`[expireSubShares] host email failed:`, err);
+                    return false;
+                  })
+              : false;
+          // Log once, when the host is first emailed, or every run when no one can be.
+          if (notified || typeof host !== 'string') {
+            console.warn(
+              `[expireSubShares] KEEPING ${collectionName} share ${doc.id} (host ${host}) ` +
+                `with ${grants.length} unrevoked Drive permissions until the host ` +
+                `reconnects Drive. Manual revocation needed for: ` +
+                grants
+                  .map((g) => `${g.email}@${g.fileId}:${g.permissionId}`)
+                  .join(', ')
+            );
+          }
         }
         continue;
       }
@@ -391,7 +421,12 @@ export async function runExpireSubShares(
   now: number = Date.now(),
   revoker: GrantRevoker = NO_REVOKER
 ): Promise<{ boards: SweepResult; collections: SweepResult }> {
-  const ctx: RevokeContext = { revoker, tokens: new Map(), live: new Map() };
+  const ctx: RevokeContext = {
+    revoker,
+    deadline: Date.now() + DRIVE_BUDGET_MS,
+    tokens: new Map(),
+    live: new Map(),
+  };
   // Run both sweeps independently: a failure in one (Firestore quota, a
   // batch-commit error, a missing index) must not abort the other and leave
   // its expired shares un-reaped for the hour.
@@ -530,6 +565,32 @@ function driveGrantRevoker(): GrantRevoker {
         { trashed: true },
         { ...auth(token), params: { supportsAllDrives: true } }
       );
+    },
+    notifyHost: async (hostUid, shareKey, grantCount) => {
+      const email = (await admin.auth().getUser(hostUid)).email;
+      if (!email) return false;
+      try {
+        await admin
+          .firestore()
+          .collection('mail')
+          .doc(`sub-share-unrevoked-${shareKey}`)
+          .create({
+            to: [email],
+            message: {
+              subject: 'Substitute access to your class lists is still on',
+              text:
+                `A substitute share ended more than ${ORPHAN_GRACE_DAYS} days ago, but SpartBoard ` +
+                `could not remove ${grantCount} Google Drive permission(s) it gave your ` +
+                `substitute on your class list files. Open SpartBoard and connect Google ` +
+                `Drive to remove them.`,
+            },
+          });
+        return true;
+      } catch (err) {
+        // ALREADY_EXISTS: this share's email went out on an earlier run.
+        if ((err as { code?: unknown }).code === 6) return false;
+        throw err;
+      }
     },
   };
 }

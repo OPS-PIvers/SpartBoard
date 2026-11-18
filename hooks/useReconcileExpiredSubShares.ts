@@ -17,8 +17,8 @@
  *   When share A expires first, we MUST NOT revoke a permissionId that
  *   share B (still active) still references — that would silently strip
  *   roster access from a sub viewing share B. This module fetches all of
- *   the host's substitute shares up front and only revokes permissionIds
- *   that no still-active share references.
+ *   the host's substitute shares up front and only revokes (fileId,
+ *   permissionId) pairs that no still-active share references.
  *
  * Partial-failure handling:
  *   - The session throttle (sessionStorage) is set only AFTER a successful
@@ -199,7 +199,9 @@ export async function reconcileExpiredSubShares(
     } else {
       // Active share — every permissionId it holds is off-limits to revoke.
       for (const g of grants) {
-        if (g.permissionId) stillReferenced.add(g.permissionId);
+        // Drive reuses a user's permission id on every file, so key on the pair.
+        if (g.fileId && g.permissionId)
+          stillReferenced.add(`${g.fileId}:${g.permissionId}`);
       }
     }
   }
@@ -215,7 +217,7 @@ export async function reconcileExpiredSubShares(
 
     for (const g of grants) {
       if (!g.fileId || !g.permissionId) continue;
-      if (stillReferenced.has(g.permissionId)) {
+      if (stillReferenced.has(`${g.fileId}:${g.permissionId}`)) {
         // Another active substitute share still uses this permission. Skip
         // — the LAST share to reference it will handle the actual revoke.
         continue;

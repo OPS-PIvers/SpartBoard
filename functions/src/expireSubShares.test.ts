@@ -483,6 +483,7 @@ describe('runExpireSubShares — server-side Drive revoke', () => {
         trashed.push(f);
         return Promise.resolve();
       }),
+      notifyHost: vi.fn(() => Promise.resolve(true)),
       ...over,
     };
     return { revoker, deleted, trashed };
@@ -677,5 +678,88 @@ describe('runExpireSubShares — server-side Drive revoke', () => {
     await runExpireSubShares(db, NOW, revoker);
 
     expect(revoker.getAccessToken).toHaveBeenCalledTimes(1);
+  });
+
+  it('revokes an expired grant when a live share holds the same sub on another file', async () => {
+    const { db, stores } = makeStubDb({
+      shared_boards: [
+        {
+          id: 'share-a',
+          data: {
+            intendedMode: 'substitute',
+            originalAuthor: 'host-1',
+            expiresAt: NOW - 60_000,
+            driveGrants: [grant('roster-1', 'sub-perm')],
+          },
+        },
+        {
+          id: 'share-b',
+          data: {
+            intendedMode: 'substitute',
+            originalAuthor: 'host-1',
+            expiresAt: NOW + DAY,
+            driveGrants: [grant('roster-3', 'sub-perm')],
+          },
+        },
+      ],
+    });
+    const { revoker, deleted } = fakeRevoker();
+
+    await runExpireSubShares(db, NOW, revoker);
+
+    expect(deleted).toEqual(['roster-1:sub-perm']);
+    expect(stores.shared_boards.has('share-a')).toBe(false);
+    expect(stores.shared_boards.has('share-b')).toBe(true);
+  });
+
+  it('emails the host about a share kept past the grace window', async () => {
+    const { db, stores } = makeStubDb({
+      shared_boards: [
+        {
+          id: 'share-1',
+          data: {
+            intendedMode: 'substitute',
+            originalAuthor: 'host-1',
+            expiresAt: NOW - 8 * DAY,
+            driveGrants: [grant('f1', 'p1')],
+          },
+        },
+      ],
+    });
+    const { revoker } = fakeRevoker({
+      getAccessToken: vi.fn(() => Promise.resolve(null)),
+    });
+
+    await runExpireSubShares(db, NOW, revoker);
+
+    expect(revoker.notifyHost).toHaveBeenCalledWith(
+      'host-1',
+      'shared_boards-share-1',
+      1
+    );
+    expect(stores.shared_boards.has('share-1')).toBe(true);
+  });
+
+  it('does not email the host while the share is still in the grace window', async () => {
+    const { db } = makeStubDb({
+      shared_boards: [
+        {
+          id: 'share-1',
+          data: {
+            intendedMode: 'substitute',
+            originalAuthor: 'host-1',
+            expiresAt: NOW - DAY,
+            driveGrants: [grant('f1', 'p1')],
+          },
+        },
+      ],
+    });
+    const { revoker } = fakeRevoker({
+      getAccessToken: vi.fn(() => Promise.resolve(null)),
+    });
+
+    await runExpireSubShares(db, NOW, revoker);
+
+    expect(revoker.notifyHost).not.toHaveBeenCalled();
   });
 });

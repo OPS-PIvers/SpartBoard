@@ -674,6 +674,18 @@ describe('refreshGoogleAccessTokenForUid down-scoping', () => {
     expect(err.code).toBe('permission-denied');
   });
 
+  it('reports needs-consent and keeps the grant when Google rejects the asked scope', async () => {
+    await seed();
+    setAxiosHandler(async () => {
+      throw new FakeAxiosError('Bad Request', { error: 'invalid_scope' });
+    });
+    const err = await expectThrows(() =>
+      refreshGoogleAccessTokenForUid(TEST_UID, { scope: DRIVE_FILE })
+    );
+    expect((err.details as { reason: string }).reason).toBe('needs-consent');
+    expect(deletedPaths).toEqual([]);
+  });
+
   it('down-scopes the callable for a View as token', async () => {
     await seed();
     let sent = '';

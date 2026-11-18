@@ -488,6 +488,13 @@ export async function refreshGoogleAccessTokenForUid(
           'needs-consent: stored refresh token was revoked.'
         );
       }
+      // The grant lacks the narrower scope asked for; keep it and ask for consent.
+      if (googleErr === 'invalid_scope' && options.scope) {
+        throw needsConsent(
+          'partial-consent',
+          'needs-consent: the stored grant lacks the requested scope.'
+        );
+      }
       throw transientError(
         `Google refresh failed: ${googleErr ?? err.message}`
       );
@@ -522,7 +529,13 @@ export const refreshGoogleAccessToken = onCall(
     // A View as tab gets the target's token, so it never carries more than drive.file.
     return refreshGoogleAccessTokenForUid(
       uid,
-      claim ? { scope: DRIVE_FILE_SCOPE, exactScope: true } : {}
+      claim
+        ? {
+            scope: DRIVE_FILE_SCOPE,
+            exactScope: true,
+            keepStoredOnFailure: true,
+          }
+        : {}
     );
   }
 );
