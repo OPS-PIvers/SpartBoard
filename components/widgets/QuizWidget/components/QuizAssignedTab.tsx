@@ -31,7 +31,6 @@ import { todaysBell } from '@/hooks/usePeriodAccess';
 import { usePeriodRunner } from '@/hooks/usePeriodRunner';
 import {
   useQuizClassActions,
-  type QuizClassActions,
   type QuizLifecycle,
 } from '@/hooks/useQuizClassActions';
 import {
@@ -79,6 +78,7 @@ interface QuizAssignedTabProps extends QuizAssignedHandlers {
 }
 
 const TICK_MS = 30_000;
+const PIN_MS = 15 * 60_000;
 /** Today's overflow items the Assigned row replaces with per-class actions (D6, D16). */
 const REPLACED_MENU_IDS = new Set([
   'deactivate',
@@ -90,6 +90,11 @@ const REPLACED_MENU_IDS = new Set([
 /** A row still being worked: anything not ended before the Assigned tab handled it (D20). */
 const wantsLiveData = (a: QuizAssignment) =>
   a.mode !== 'view-only' &&
+  // Done for good: moved there by hand, or closed with scores published.
+  !(
+    a.status === 'inactive' &&
+    (a.doneAt != null || (!!a.scoreVisibility && a.scoreVisibility !== 'none'))
+  ) &&
   (a.status !== 'inactive' ||
     a.closedAt != null ||
     Object.values(a.periodAccess ?? {}).some((r) => r.closedAt != null));
@@ -98,24 +103,41 @@ function useResponsesById(ids: readonly string[]) {
   const fixture = useContext(AssignedResponsesFixture);
   const key = fixture ? '' : ids.join('|');
   const [byId, setById] = useState<Record<string, QuizResponse[]>>({});
+  const [subs] = useState(() => new Map<string, () => void>());
+  // Subscribes and drops one id at a time, so a new row doesn't restart the others.
   useEffect(() => {
-    if (!key) return undefined;
-    const unsubs = key.split('|').map((id) =>
-      onSnapshot(
-        collection(db, 'quiz_sessions', id, 'responses'),
-        (snap) =>
-          setById((prev) => ({
-            ...prev,
-            [id]: snap.docs.map((d) => d.data() as QuizResponse),
-          })),
-        (err) => {
-          logError('QuizAssignedTab.responses', err, { assignmentId: id });
-          setById((prev) => ({ ...prev, [id]: [] }));
-        }
-      )
-    );
-    return () => unsubs.forEach((u) => u());
-  }, [key]);
+    const wanted = new Set(key ? key.split('|') : []);
+    for (const [id, unsub] of subs)
+      if (!wanted.has(id)) {
+        unsub();
+        subs.delete(id);
+      }
+    for (const id of wanted) {
+      if (subs.has(id)) continue;
+      subs.set(
+        id,
+        onSnapshot(
+          collection(db, 'quiz_sessions', id, 'responses'),
+          (snap) =>
+            setById((prev) => ({
+              ...prev,
+              [id]: snap.docs.map((d) => d.data() as QuizResponse),
+            })),
+          (err) => {
+            logError('QuizAssignedTab.responses', err, { assignmentId: id });
+            setById((prev) => ({ ...prev, [id]: [] }));
+          }
+        )
+      );
+    }
+  }, [key, subs]);
+  useEffect(
+    () => () => {
+      for (const unsub of subs.values()) unsub();
+      subs.clear();
+    },
+    [subs]
+  );
   return fixture ?? byId;
 }
 
@@ -137,7 +159,12 @@ function useQuestionsByQuizId(
       if (!pending) {
         pending = load(meta)
           .then((d) => d?.questions ?? null)
-          .catch(() => null);
+          .catch(() => null)
+          .then((qs) => {
+            // A failed load is retried next time, never read as nothing to grade.
+            if (!qs) questionCache.delete(cacheKey);
+            return qs;
+          });
         questionCache.set(cacheKey, pending);
       }
       void pending.then((qs) => {
@@ -217,12 +244,13 @@ export const QuizAssignedTab: React.FC<QuizAssignedTabProps> = ({
         if (responses) {
           const completed = responses.filter((r) => r.status === 'completed');
           if (completed.length === 0) needsGrading = 0;
-          else if (!quizzes.some((q) => q.id === a.quizId)) needsGrading = 0;
-          else if (a.quizId in questionsByQuizId) {
+          else {
+            // Unknown (row stays Active) until the questions load; a quiz no longer in the library stays unknown.
             const qs = questionsByQuizId[a.quizId];
-            needsGrading = qs
-              ? completed.filter((r) => isResponseAwaitingGrade(r, qs)).length
-              : 0;
+            if (qs)
+              needsGrading = completed.filter((r) =>
+                isResponseAwaitingGrade(r, qs)
+              ).length;
           }
         }
         const bells: Record<string, EpochWindow | null> = {};
@@ -257,18 +285,28 @@ export const QuizAssignedTab: React.FC<QuizAssignedTabProps> = ({
       assignments,
       responsesById,
       questionsByQuizId,
-      quizzes,
       rosters,
       featurePermissions,
       now,
     ]
   );
 
+  // D17: only a just-assigned row that nothing has opened yet sits on top.
+  const pinned = rows.find((r) => r.id === pinnedId);
+  const freshPin =
+    pinned &&
+    pinned.assignment.createdAt > now - PIN_MS &&
+    pinned.status.classes.every(
+      (c) => c.status === 'ready' || c.status === 'scheduled'
+    )
+      ? pinned.id
+      : null;
+
   return (
     <AssignedList<RowModel>
       items={rows}
       loading={loading}
-      pinnedId={pinnedId}
+      pinnedId={freshPin}
       emptyTitle={emptyTitle}
       emptySub={emptySub}
       tourWidgetType="quiz"
@@ -297,40 +335,22 @@ interface RowHostProps extends QuizAssignedHandlers {
 /** Puts back what Close for all classes or Move to Done changed (D10 Undo). */
 async function undoClose(
   prev: QuizAssignment,
-  prevStatus: AssignedStatus,
   uid: string,
-  actions: QuizClassActions,
   lifecycle: QuizLifecycle
 ): Promise<void> {
   const assignmentRef = doc(db, 'users', uid, 'quiz_assignments', prev.id);
   const sessionRef = doc(db, 'quiz_sessions', prev.id);
-  const rows = prev.periodAccess ?? {};
-  let reopened = false;
-  for (const c of prevStatus.classes) {
-    if (!rows[c.key]) continue;
-    if (c.status === 'open' || c.status === 'paused') {
-      await actions.reopenClass(c.key);
-      if (c.status === 'paused') await actions.pauseClass(c.key);
-      reopened = true;
-    }
-  }
-  if (!reopened && prev.status !== 'inactive') {
+  if (prev.status !== 'inactive') {
     await lifecycle.reopenAssignment(prev.id);
-    if (
-      prev.status === 'active' &&
-      prev.mode !== 'view-only' &&
-      Object.keys(rows).length === 0
-    )
-      await lifecycle.resumeAssignment(prev.id);
+    if (prev.status === 'active') await lifecycle.resumeAssignment(prev.id);
   }
-  const restore = prevStatus.classes.filter(
-    (c) => rows[c.key] && (c.status === 'ready' || c.status === 'scheduled')
-  );
-  if (restore.length > 0) {
+  // Every class row goes back exactly as it was, times and marks included.
+  const rows = Object.entries(prev.periodAccess ?? {});
+  if (rows.length > 0) {
     const batch = writeBatch(db);
     for (const ref of [sessionRef, assignmentRef])
-      for (const c of restore)
-        batch.update(ref, new FieldPath('periodAccess', c.key), rows[c.key]);
+      for (const [key, row] of rows)
+        batch.update(ref, new FieldPath('periodAccess', key), row);
     await batch.commit();
   }
   await updateDoc(assignmentRef, {
@@ -388,7 +408,6 @@ const QuizAssignedRowHost: React.FC<RowHostProps> = ({
 
   const withUndo = (act: () => Promise<void>, message: string) => {
     const prev = a;
-    const prevStatus = status;
     void exec(async () => {
       await act();
       addToast(message, 'success', {
@@ -396,14 +415,17 @@ const QuizAssignedRowHost: React.FC<RowHostProps> = ({
         onClick: () => {
           if (!user?.uid) return;
           const uid = user.uid;
-          void run(() => undoClose(prev, prevStatus, uid, actions, lifecycle));
+          void run(() => undoClose(prev, uid, lifecycle));
         },
       });
     });
   };
 
+  // Paper quizzes are never opened online, so they get no class controls.
+  const onPaper = !!a.paper;
+  const singleLine = status.singleLine || onPaper;
   const singleLineItems: LibraryMenuAction[] = [];
-  if (status.singleLine && !viewOnly) {
+  if (status.singleLine && !viewOnly && !onPaper) {
     const only = status.classes[0];
     if (only?.status === 'open')
       singleLineItems.push({
@@ -421,7 +443,7 @@ const QuizAssignedRowHost: React.FC<RowHostProps> = ({
       });
   }
   const allClosed = status.classes.every((c) => c.status === 'closed');
-  if (status.singleLine) {
+  if (singleLine) {
     if (!allClosed)
       singleLineItems.push({
         id: 'assigned-close',
@@ -433,7 +455,7 @@ const QuizAssignedRowHost: React.FC<RowHostProps> = ({
             viewOnly ? 'Share closed.' : `${a.quizTitle} is closed.`
           ),
       });
-    else if (status.bucket === 'active' || viewOnly)
+    else if ((status.bucket === 'active' || viewOnly) && !onPaper)
       singleLineItems.push({
         id: 'assigned-reopen',
         label: 'Reopen',
@@ -442,7 +464,7 @@ const QuizAssignedRowHost: React.FC<RowHostProps> = ({
       });
   }
   const lifecycleItems: LibraryMenuAction[] = [];
-  if (!status.singleLine && !allClosed)
+  if (!singleLine && !allClosed)
     lifecycleItems.push({
       id: 'assigned-close-all',
       label: 'Close for all classes',
@@ -463,7 +485,14 @@ const QuizAssignedRowHost: React.FC<RowHostProps> = ({
       onClick: () =>
         withUndo(() => actions.moveToDone(), `${a.quizTitle} moved to Done.`),
     });
-  const today = menu(a).filter((m) => !REPLACED_MENU_IDS.has(m.id));
+  const built = menu(a);
+  const today = built.filter((m) => !REPLACED_MENU_IDS.has(m.id));
+  // Reopen for chosen students outlives the whole-assignment Reopen it sat under.
+  const pickStudents = built
+    .find((m) => m.id === 'reopen')
+    ?.submenu?.find((m) => m.id === 'reopen-students');
+  if (pickStudents)
+    today.push({ ...pickStudents, label: 'Reopen for selected students' });
   // D7: Monitor is always one menu row away, and opening it changes nothing.
   if (!viewOnly && !today.some((m) => m.id === 'monitor'))
     today.unshift({
@@ -473,6 +502,8 @@ const QuizAssignedRowHost: React.FC<RowHostProps> = ({
       anchor: tourTypeAttr('quiz-library.archive-monitor', 'quiz'),
       onClick: () => onMonitor(a),
     });
+  for (const item of [...singleLineItems, ...lifecycleItems])
+    item.disabled = busy;
   const firstDestructive = today.findIndex((m) => m.destructive);
   const menuActions =
     firstDestructive < 0
@@ -540,6 +571,7 @@ const QuizAssignedRowHost: React.FC<RowHostProps> = ({
       mainBadgeAriaLabel={badge?.label}
       lineOverride={lineOverride}
       onClassAction={onClassAction}
+      classControls={!onPaper}
       bellLabel={(c) => {
         const w = bells[c.key];
         return w

@@ -26,6 +26,8 @@ export interface AssignedRowProps {
   mainBadgeAriaLabel?: string;
   /** Replaces the derived line, e.g. for paper quizzes. */
   lineOverride?: LineSegment[];
+  /** False hides the per-class panel, e.g. for a paper quiz. */
+  classControls?: boolean;
   /** A null key acts on the whole single-line assignment (D15). */
   onClassAction: (kind: ClassActionKind, classKey: string | null) => void;
   /** Today's bell time for a Ready class, e.g. "9:55 to 10:40". */
@@ -84,6 +86,7 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
   mainBadgeAriaLabel,
   lineOverride,
   onClassAction,
+  classControls = true,
   bellLabel,
   footer,
   meta,
@@ -95,7 +98,7 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
   const [expanded, setExpanded] = useState(false);
   const rowKey = `row-${tourIndex + 1}`;
   const done = status.bucket === 'done';
-  const canExpand = !status.singleLine;
+  const canExpand = classControls && !status.singleLine;
   const live = status.classes.some((c) => c.status === 'open');
   const segments = lineOverride ?? statusLineSegments(status, nowMs);
   const toggle = () => {
