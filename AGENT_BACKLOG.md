@@ -247,6 +247,9 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
   <details><summary>Branches to delete (178, checked 2026-11-01)</summary>
 
+claude/project-thread-rnvyvu (#6149)
+claude/project-thread-rnvyvu-ab112 (this docs PR, delete after it merges)
+
 claude/project-thread-2jo0s2 (#6137, #6139; this docs PR reuses it, delete after it merges)
 claude/kind-johnson-owvr5o (#6134)
 claude/project-thread-yv7q1n-ab112 (#6090)
