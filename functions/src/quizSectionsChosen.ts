@@ -73,13 +73,27 @@ export function parseCountedChoices(
       : 0;
   if (r.attempt !== attempt) return undefined;
   if (typeof r.bySection !== 'object' || r.bySection === null) return undefined;
-  const out: Record<string, string[]> = {};
+  // Null prototype, so a section id like `__proto__` or `constructor` is just a key.
+  const out = Object.create(null) as Record<string, string[]>;
   for (const [id, ids] of Object.entries(r.bySection)) {
     if (!Array.isArray(ids)) continue;
     const list = ids.filter((x): x is string => typeof x === 'string');
     if (list.length > 0) out[id] = list;
   }
   return out;
+}
+
+/** The teacher's picks for one section, only as an own array of strings, so ids like `constructor` never throw. */
+function picksFor(
+  picked: Record<string, unknown> | undefined,
+  sectionId: string | undefined
+): string[] | undefined {
+  if (!picked || !sectionId || !Object.hasOwn(picked, sectionId))
+    return undefined;
+  const list: unknown = picked[sectionId];
+  if (!Array.isArray(list)) return undefined;
+  const ids = list.filter((x): x is string => typeof x === 'string');
+  return ids.length === list.length ? ids : undefined;
 }
 
 /** Question ids this student left out of a choose-N section; the teacher's picks count first. */
@@ -108,7 +122,7 @@ export function notChosenIds(
         chosen.add(id);
       }
     };
-    const teacherPicks = section.id ? picked?.[section.id] : undefined;
+    const teacherPicks = picksFor(picked, section.id);
     // A pick counts only while its question still holds an answer.
     if (teacherPicks) {
       add(answered.filter((id) => teacherPicks.includes(id)));

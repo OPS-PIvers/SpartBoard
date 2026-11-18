@@ -168,8 +168,12 @@ export function pickedForSection(
   if (!choices || choices.attempt !== (response.completedAttempts ?? 0)) {
     return undefined;
   }
-  const ids = choices.bySection?.[sectionId];
-  return Array.isArray(ids) && ids.length > 0 ? ids : undefined;
+  const bySection = choices.bySection;
+  if (!bySection || !Object.hasOwn(bySection, sectionId)) return undefined;
+  const ids: unknown = bySection[sectionId];
+  if (!Array.isArray(ids) || ids.length === 0) return undefined;
+  const list = ids.filter((id): id is string => typeof id === 'string');
+  return list.length === ids.length ? list : undefined;
 }
 
 /** Choose-N sections where this finished response answered more than N, for the teacher to pick from. */
