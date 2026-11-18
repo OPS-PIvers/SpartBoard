@@ -19,6 +19,7 @@ import {
   appOriginForProject,
   buildTaskPayload,
   diffActionItems,
+  GOOGLE_TASKS_SCOPE,
   isActivePlcMember,
   liveItems,
   mapDocId,
@@ -175,7 +176,9 @@ async function openSession(uid: string): Promise<Session | null> {
     return null;
   }
   try {
-    const { accessToken } = await refreshGoogleAccessTokenForUid(uid);
+    const { accessToken } = await refreshGoogleAccessTokenForUid(uid, {
+      scope: GOOGLE_TASKS_SCOPE,
+    });
     return { uid, token: accessToken, state };
   } catch (err) {
     if (

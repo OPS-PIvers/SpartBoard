@@ -430,8 +430,13 @@ export function buildDefaultExtractDeps(): ExtractDeps {
       );
     },
     getAccessToken: async (teacherUid) => {
-      const { refreshGoogleAccessTokenForUid } = await import('./googleOAuth');
-      return (await refreshGoogleAccessTokenForUid(teacherUid)).accessToken;
+      const { DRIVE_FILE_SCOPE, refreshGoogleAccessTokenForUid } =
+        await import('./googleOAuth');
+      return (
+        await refreshGoogleAccessTokenForUid(teacherUid, {
+          scope: DRIVE_FILE_SCOPE,
+        })
+      ).accessToken;
     },
     downloadDriveFile: async (token, fileId) => {
       const { downloadDriveFileById } =

@@ -22,11 +22,15 @@ export async function driveTokenFor(
 ): Promise<string> {
   const hit = tokenCache.get(uid);
   if (hit && hit.expiresAt > now + 60_000) return hit.token;
-  const [{ refreshGoogleAccessTokenForUid }, { isNeedsConsentError }] =
-    await Promise.all([import('../googleOAuth'), import('../needsConsent')]);
+  const [
+    { DRIVE_FILE_SCOPE, refreshGoogleAccessTokenForUid },
+    { isNeedsConsentError },
+  ] = await Promise.all([import('../googleOAuth'), import('../needsConsent')]);
   try {
-    const { accessToken, expiresIn } =
-      await refreshGoogleAccessTokenForUid(uid);
+    const { accessToken, expiresIn } = await refreshGoogleAccessTokenForUid(
+      uid,
+      { scope: DRIVE_FILE_SCOPE }
+    );
     tokenCache.set(uid, {
       token: accessToken,
       expiresAt: now + expiresIn * 1000,

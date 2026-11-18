@@ -1,6 +1,6 @@
 # Board right-click menu
 
-Right-clicking the empty board background, or holding a finger on it for about 0.7 seconds, opens a menu with Paste, Undo, Redo, Tidy up, Minimize all or Restore all, Change background, Draw on board and Copy board link. It sits behind the "Board right-click menu" preview flag.
+Right-clicking the empty board background, or holding a finger on it for about 0.7 seconds, opens a menu with Paste, Undo, Redo, Tidy up, Minimize all or Restore all, Change background, Draw on board and Copy board link.
 
 ## Sub-features
 
@@ -16,7 +16,7 @@ Right-clicking the empty board background, or holding a finger on it for about 0
 
 ## Driving it with the browser pane
 
-Preconditions: baseline Isolated mode, and `localStorage.authBypassFeatureOverrides = '{"board-context-menu":true}'` set before a reload.
+Preconditions: baseline Isolated mode.
 
 - **Open:** dismiss the toasts, add two widgets from the Dock, then right-click an empty spot well away from widgets and the Dock. Result: `[role="menu"][aria-label="Board options"]` exists.
 - **Not on widgets:** right-click inside a `.widget`. Result: no `Board options` menu.

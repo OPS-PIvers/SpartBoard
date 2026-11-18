@@ -34,7 +34,10 @@ import {
 } from './featureGrant';
 import { isNeedsConsentError } from './needsConsent';
 import { ALLOWED_ORIGINS } from './classlinkShared';
-import { refreshGoogleAccessTokenForUid } from './googleOAuth';
+import {
+  DRIVE_FILE_SCOPE,
+  refreshGoogleAccessTokenForUid,
+} from './googleOAuth';
 import { defaultDriveUploader } from './driveUpload';
 import {
   PAPER_PAGE_PREFIX,
@@ -845,7 +848,9 @@ export function buildDefaultArchiveDeps(): ArchiveDeps {
     },
     transcodeToM4a: transcodeBufferToM4a,
     getAccessToken: async (teacherUid) => {
-      const { accessToken } = await refreshGoogleAccessTokenForUid(teacherUid);
+      const { accessToken } = await refreshGoogleAccessTokenForUid(teacherUid, {
+        scope: DRIVE_FILE_SCOPE,
+      });
       rememberTokenOwner(accessToken, teacherUid);
       return accessToken;
     },

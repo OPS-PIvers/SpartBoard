@@ -313,29 +313,6 @@ describe('EmbedWidget', () => {
     );
   });
 
-  it('ignores Block new tabs when its preview flag is off', () => {
-    const original = vi.mocked(useAuth).getMockImplementation();
-    const auth = vi.mocked(useAuth)();
-    vi.mocked(useAuth).mockImplementation(() => ({
-      ...auth,
-      canAccessFeature: (id: string) => id !== 'embed-block-new-tabs',
-    }));
-    onTestFinished(() => {
-      if (original) vi.mocked(useAuth).mockImplementation(original);
-    });
-    render(
-      <EmbedWidget
-        widget={{
-          ...baseWidget,
-          config: { ...baseWidget.config, blockNewTabs: true },
-        }}
-      />
-    );
-    expect(
-      screen.getByTitle('Embed Content').getAttribute('sandbox')
-    ).toContain('allow-popups');
-  });
-
   it('renders an iframe with srcDoc in code mode', () => {
     const codeWidget: WidgetData = {
       ...baseWidget,

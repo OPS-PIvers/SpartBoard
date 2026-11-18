@@ -38,7 +38,10 @@ import {
   ReconcileBlock,
   SyncStudent,
 } from './classlinkRosterReconcile';
-import { refreshGoogleAccessTokenForUid } from './googleOAuth';
+import {
+  DRIVE_FILE_SCOPE,
+  refreshGoogleAccessTokenForUid,
+} from './googleOAuth';
 import { assertDevDriveWritable } from './devDriveWriteGuard';
 import {
   loadTeacherClassIds,
@@ -596,7 +599,11 @@ function buildLiveDeps(db: admin.firestore.Firestore): ClassLinkSyncDeps {
 
   return {
     getAccessToken: async (uid) =>
-      (await refreshGoogleAccessTokenForUid(uid)).accessToken,
+      (
+        await refreshGoogleAccessTokenForUid(uid, {
+          scope: DRIVE_FILE_SCOPE,
+        })
+      ).accessToken,
 
     fetchClassStudents: async (classId) => {
       const url = `${tenantUrl}${ONEROSTER_BASE}/classes/${encodeURIComponent(
