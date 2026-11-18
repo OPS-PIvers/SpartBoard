@@ -240,6 +240,39 @@ describe('rescoreRubricGrades', () => {
     expect(out[0][1].pointsAwarded).toBe(5.5);
     expect(out[0][1].rubricScores?.[0].points).toBe(3.5);
   });
+
+  it('caps a score on a removed level at the row max and keeps lower ones', async () => {
+    const { rescoreRubricGrades } = await import('@/utils/rubricPoints');
+    const after = {
+      ...rubric,
+      criteria: rubric.criteria.map((c) =>
+        c.id === 'c1'
+          ? { ...c, levels: c.levels.filter((l) => l.id !== 'c1l3') }
+          : c
+      ),
+    };
+    const grade = (levelId: string, points: number) => ({
+      pointsAwarded: points + 2,
+      gradedBy: 't',
+      gradedAt: 1,
+      rubricScores: [
+        { criterionId: 'c1', levelId, points },
+        { criterionId: 'c2', levelId: 'c2l2', points: 2 },
+      ],
+    });
+    const out = rescoreRubricGrades(rubric, after, {
+      top: grade('c1l3', 4),
+      low: grade('c1l1', 1),
+    });
+    expect(out).toHaveLength(1);
+    expect(out[0][0]).toBe('top');
+    expect(out[0][1].rubricScores?.[0]).toEqual({
+      criterionId: 'c1',
+      levelId: 'c1l3',
+      points: 3,
+    });
+    expect(out[0][1].pointsAwarded).toBe(5);
+  });
 });
 
 describe('Full rubric table editing', () => {
@@ -330,6 +363,110 @@ describe('Full rubric table editing', () => {
       'Meets',
       '',
     ]);
+  });
+
+  it('lets the grader add and remove levels on a criterion row but not criteria', async () => {
+    const onSave = vi
+      .fn<(r: Rubric) => Promise<void>>()
+      .mockResolvedValue(undefined);
+    const onClose = vi.fn();
+    const { RubricTableModal } =
+      await import('@/components/widgets/QuizWidget/components/RubricTableModal');
+    render(
+      <RubricTableModal
+        rubric={rubric}
+        order="high-first"
+        onOrderChange={vi.fn()}
+        scores={new Map()}
+        onClose={onClose}
+        onSave={onSave}
+        initialEditing
+        editLevels
+      />
+    );
+    expect(screen.queryByRole('button', { name: 'Add criterion' })).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'Remove criterion 1' })
+    ).toBeNull();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Add level to criterion 2' })
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Remove criterion 1 level 3' })
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
+    const saved = onSave.mock.calls[0][0];
+    expect(saved.criteria[0].levels.map((l) => l.id)).toEqual(['c1l2', 'c1l3']);
+    expect(saved.criteria[1].levels.map((l) => l.points)).toEqual([1, 2, 3]);
+  });
+
+  it('switches the table to a scoring guide and saves guide rows', async () => {
+    const onSave = vi
+      .fn<(r: Rubric) => Promise<void>>()
+      .mockResolvedValue(undefined);
+    const onClose = vi.fn();
+    const { RubricTableModal } =
+      await import('@/components/widgets/QuizWidget/components/RubricTableModal');
+    render(
+      <RubricTableModal
+        rubric={rubric}
+        order="high-first"
+        onOrderChange={vi.fn()}
+        scores={new Map()}
+        onClose={onClose}
+        onSave={onSave}
+        initialEditing
+        editLevels
+      />
+    );
+    fireEvent.click(screen.getByRole('radio', { name: 'Scoring guide' }));
+    const points = await screen.findByRole('spinbutton', {
+      name: 'Part 2 points',
+    });
+    fireEvent.change(points, { target: { value: '3' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
+    const saved = onSave.mock.calls[0][0];
+    expect(saved.criteria.every((c) => c.guide)).toBe(true);
+    expect(saved.criteria.map((c) => c.id)).toEqual(['c1', 'c2']);
+    expect(saved.criteria[1].levels.map((l) => l.points)).toEqual([0, 1, 2, 3]);
+  });
+
+  it('falls back to per-row levels when a guide round trip leaves rows uneven', async () => {
+    const { RubricTableModal } =
+      await import('@/components/widgets/QuizWidget/components/RubricTableModal');
+    const shared: Rubric = {
+      ...rubric,
+      criteria: rubric.criteria.map((c) => ({
+        ...c,
+        levels: c.levels.slice(0, 2).map((l, i) => ({
+          ...l,
+          label: i ? 'Meets' : 'Below',
+        })),
+      })),
+    };
+    render(
+      <RubricTableModal
+        rubric={shared}
+        order="high-first"
+        onOrderChange={vi.fn()}
+        scores={new Map()}
+        onClose={vi.fn()}
+        onSave={vi.fn().mockResolvedValue(undefined)}
+        initialEditing
+        editLevels
+      />
+    );
+    expect(
+      screen.queryByRole('button', { name: 'Add level to criterion 1' })
+    ).toBeNull();
+    fireEvent.click(screen.getByRole('radio', { name: 'Scoring guide' }));
+    await screen.findByRole('spinbutton', { name: 'Part 1 points' });
+    fireEvent.click(screen.getByRole('radio', { name: 'Levels' }));
+    expect(
+      await screen.findByRole('button', { name: 'Add level to criterion 1' })
+    ).toBeTruthy();
   });
 
   it('drops the total row when the grader shows the score, keeping the scored count', () => {

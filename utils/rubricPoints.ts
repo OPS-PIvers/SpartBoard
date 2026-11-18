@@ -138,6 +138,9 @@ export const rescoreRubricGrades = (
     );
   const oldPoints = levelPoints(before);
   const newPoints = levelPoints(after);
+  const newMax = new Map(
+    after.criteria.map((c) => [c.id, criterionMaxPoints(c)])
+  );
   const out: Array<[string, WrittenAnswerGrade]> = [];
   for (const [key, grade] of Object.entries(grading)) {
     if (!grade.rubricScores?.length) continue;
@@ -146,6 +149,12 @@ export const rescoreRubricGrades = (
       const id = `${s.criterionId}|${s.levelId}`;
       const was = oldPoints.get(id);
       const now = newPoints.get(id);
+      const max = newMax.get(s.criterionId);
+      // A score on a removed level stays as a typed score, capped at the row's new max.
+      if (now === undefined && max !== undefined && s.points > max) {
+        delta += max - s.points;
+        return { ...s, points: max };
+      }
       if (
         was === undefined ||
         now === undefined ||

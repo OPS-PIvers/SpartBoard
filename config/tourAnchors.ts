@@ -4611,6 +4611,37 @@ export const TOUR_ANCHORS = {
     destructive: true,
     panel: true,
   },
+  'quiz-grading.rubric-table-template': {
+    label: 'Levels or Scoring guide switch when editing the full rubric table',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-guide-guidelines': {
+    label: 'Scoring guidelines when editing the full rubric table, by part',
+    perField: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-guide-example': {
+    label: 'Example response when editing the full rubric table, by example',
+    perField: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-guide-example-add': {
+    label: 'Add example response when editing the full rubric table, by part',
+    perField: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-guide-example-remove': {
+    label:
+      'Remove example response when editing the full rubric table, by example',
+    perField: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-table-guide-points': {
+    label: 'Point max when editing the full rubric table, by part',
+    perField: true,
+    panel: true,
+  },
   'quiz-grading.rubric-table-remove-level': {
     label: 'Remove level when editing the full rubric table, by level',
     perField: true,
