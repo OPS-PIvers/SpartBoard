@@ -859,6 +859,52 @@ async function readPointers(
   }
 }
 
+/** The pointer key the student apps read for a session (mini-app falls back to the session id). */
+export function pointerKeyForSession(
+  kind: AssignmentKind,
+  sessionSnap: admin.firestore.DocumentSnapshot
+): string {
+  const own: unknown =
+    kind === 'mini-app' ? sessionSnap.get('assignmentId') : null;
+  return typeof own === 'string' && own ? own : sessionSnap.id;
+}
+
+/** Most sessions that may share one mini-app archive id before the claim check gives up. */
+const MAX_MINI_APP_SESSIONS_PER_KEY = 50;
+
+/** Refuses a pointer key that names another teacher's session of any kind or another teacher's mini-app archive. */
+export async function assertPointerKeyUnclaimed(
+  db: admin.firestore.Firestore,
+  callerUid: string,
+  key: string
+): Promise<void> {
+  const [sessionSnaps, miniAppSnap] = await Promise.all([
+    db.getAll(
+      ...STUDENT_ASSIGNMENT_KINDS.map((k) =>
+        db.collection(SESSION_COLLECTION_BY_KIND[k]).doc(key)
+      )
+    ),
+    db
+      .collection(SESSION_COLLECTION_BY_KIND['mini-app'])
+      .where('assignmentId', '==', key)
+      .limit(MAX_MINI_APP_SESSIONS_PER_KEY + 1)
+      .get(),
+  ]);
+  const claimants = [
+    ...sessionSnaps.filter((snap) => snap.exists),
+    ...miniAppSnap.docs,
+  ];
+  if (
+    miniAppSnap.docs.length > MAX_MINI_APP_SESSIONS_PER_KEY ||
+    claimants.some((snap) => snap.get('teacherUid') !== callerUid)
+  ) {
+    throw new HttpsError(
+      'permission-denied',
+      'Assignment id belongs to another teacher.'
+    );
+  }
+}
+
 /**
  * Core orchestration. `loadContext` is injected so unit tests can supply the
  * authorized-class map without standing up ClassLink.
@@ -899,6 +945,14 @@ export async function handleSetAssignmentTargets(
   if (sessionTeacherUid !== callerUid) {
     throw new HttpsError('permission-denied', 'Not the owner of this session.');
   }
+  // Pointer keys must belong to this session, never another teacher's assignment id.
+  if (input.assignmentId !== pointerKeyForSession(input.kind, sessionSnap)) {
+    throw new HttpsError(
+      'permission-denied',
+      'Assignment does not belong to this session.'
+    );
+  }
+  await assertPointerKeyUnclaimed(db, callerUid, input.assignmentId);
 
   // D5b: only classes the session actually targets can be narrowed.
   const storedNarrowed = (() => {

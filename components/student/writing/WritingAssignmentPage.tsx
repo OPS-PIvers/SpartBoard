@@ -47,7 +47,11 @@ const WritingPiecePage: React.FC<{
 }> = ({ session, studentUid }) => {
   const now = useMinuteClock();
   // Per-student accommodations live on the student's own pointer, never on the session (M17).
-  const pointer = useStudentAssignmentPointer(studentUid, session.id);
+  const pointer = useStudentAssignmentPointer(studentUid, session.id, true, {
+    sessionId: session.id,
+    teacherUid: session.teacherUid,
+    kind: 'writing',
+  });
   const override = pointer?.override;
   const pointerFacts = pointer
     ? { closeAt: pointer.closeAt ?? null, dueAt: pointer.dueAt ?? null }

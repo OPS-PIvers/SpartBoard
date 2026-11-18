@@ -49,6 +49,10 @@ export function useStudentProjectRun(
   const [run, setRun] = useState<ProjectRun | null>(null);
   const [ownGroups, setOwnGroups] = useState<GroupDocs>([]);
   const [grade, setGrade] = useState<ProjectGroupGrade | null>(null);
+  const [myOverride, setMyOverride] = useState<{
+    points: number;
+    note?: string;
+  } | null>(null);
   const [loading, setLoading] = useState(Boolean(runId));
   const [error, setError] = useState<string | null>(null);
 
@@ -114,6 +118,7 @@ export function useStudentProjectRun(
   if (previousGroupId !== myGroupId) {
     setPreviousGroupId(myGroupId);
     setGrade(null);
+    setMyOverride(null);
   }
 
   // A2 — an unreleased grade fails the read rule rather than arriving and being
@@ -129,6 +134,30 @@ export function useStudentProjectRun(
       () => setGrade(null)
     );
   }, [myGroupId, runId]);
+
+  // Only the caller's own override doc is readable, and only once the grade is released.
+  const released = grade?.released === true;
+  useEffect(() => {
+    if (!runId || !myGroupId || !uid || !released) return undefined;
+    return onSnapshot(
+      doc(db, RUNS_COLLECTION, runId, 'grades', myGroupId, 'overrides', uid),
+      (snapshot) =>
+        setMyOverride(
+          snapshot.exists()
+            ? (snapshot.data() as { points: number; note?: string })
+            : null
+        ),
+      () => setMyOverride(null)
+    );
+  }, [myGroupId, runId, uid, released]);
+
+  const gradeWithOwn = useMemo(
+    () =>
+      grade && uid && myOverride
+        ? { ...grade, overridesByUid: { [uid]: myOverride } }
+        : grade,
+    [grade, myOverride, uid]
+  );
 
   const actor = useMemo(
     () => ({ uid: uid ?? undefined, role: 'student' as const }),
@@ -193,7 +222,7 @@ export function useStudentProjectRun(
     run,
     myGroup,
     workLinks: work.workLinks,
-    grade,
+    grade: gradeWithOwn,
     loading,
     error,
     setStepState,
