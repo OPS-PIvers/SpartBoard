@@ -123,6 +123,24 @@ describe('function-delete-check.mjs before a deploy', () => {
     });
   });
 
+  it('fails when the new codebase is named only for other functions', () => {
+    withRepo((check, setLive) => {
+      setLive([{ id: 'orgAdminV1' }, { id: 'fetchLinkPreview' }]);
+      // The CLI gives orgAdminV1 to admin, but only admin's named function is wanted, so it plans a delete.
+      const result = check(
+        'pre',
+        'demo',
+        'functions:default,functions:admin:otherV1'
+      );
+      expect(result.status).toBe(1);
+      expect(result.output).toContain('orgAdminV1');
+      expect(
+        check('pre', 'demo', 'functions:default,functions:admin:orgAdminV1')
+          .status
+      ).toBe(0);
+    });
+  });
+
   it('lets a function removed from the code delete as today', () => {
     withRepo((check, setLive) => {
       setLive([
@@ -165,18 +183,22 @@ describe('function-delete-check.mjs after a deploy', () => {
         { id: 'orgAdminV1', codebase: 'admin' },
         { id: 'fetchLinkPreview' },
       ]);
-      expect(check('post', 'demo').status).toBe(0);
+      expect(check('post', 'demo', 'functions').status).toBe(0);
     });
   });
 
-  it('fails when a function is still labelled with its old codebase', () => {
+  it('fails when a function this deploy targeted is still labelled with its old codebase', () => {
     withRepo((check, setLive) => {
       setLive([{ id: 'orgAdminV1' }, { id: 'fetchLinkPreview' }]);
-      const result = check('post', 'demo');
+      const result = check('post', 'demo', 'functions');
       expect(result.status).toBe(1);
       expect(result.output).toContain(
         "orgAdminV1 is live in 'default' but belongs to 'admin'"
       );
+      // Drift in a function this deploy did not target only warns.
+      const named = check('post', 'demo', 'functions:default:fetchLinkPreview');
+      expect(named.status).toBe(0);
+      expect(named.output).toContain('::warning::orgAdminV1 is live');
     });
   });
 
@@ -192,14 +214,14 @@ describe('function-delete-check.mjs after a deploy', () => {
         },
         { id: 'fetchLinkPreview' },
       ]);
-      const result = check('post', 'demo');
+      const result = check('post', 'demo', 'functions');
       expect(result.status).toBe(1);
       expect(result.output).toContain('by being recreated');
       setLive([
         { id: 'orgAdminV1', codebase: 'admin' },
         { id: 'fetchLinkPreview' },
       ]);
-      expect(check('post', 'demo').status).toBe(0);
+      expect(check('post', 'demo', 'functions').status).toBe(0);
     });
   });
 });

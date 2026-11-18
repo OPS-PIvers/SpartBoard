@@ -208,7 +208,7 @@ while true; do
   fi
 
   if [[ "$code" -eq 0 ]]; then
-    if [[ "$deploys_functions" == true ]] && ! node "$SCRIPT_DIR/function-delete-check.mjs" post "$PROJECT_ID"; then
+    if [[ "$deploys_functions" == true ]] && ! node "$SCRIPT_DIR/function-delete-check.mjs" post "$PROJECT_ID" "$DEPLOY_ONLY"; then
       echo "ERROR: the deploy finished but the post-deploy label check failed." >&2
       exit 1
     fi

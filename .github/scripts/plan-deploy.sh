@@ -97,12 +97,17 @@ fi
 
 if [[ -n "${CODEBASE:-}" && "$FULL" != "true" ]]; then
   root="${AFFECTED_FUNCTIONS_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
-  if ! (cd "$root" && node "$SCRIPT_DIR/codebases.mjs" list) | grep -qxF -- "$CODEBASE"; then
+  if [[ ! "$CODEBASE" =~ ^[a-z][a-z0-9_-]*$ ]] || ! (cd "$root" && node "$SCRIPT_DIR/codebases.mjs" list) | grep -qxF -- "$CODEBASE"; then
     echo "::error::firebase.json has no functions codebase named '$CODEBASE'."
     exit 1
   fi
+  # Added to what the diff already needs, so a dispatch never drops pending changes in other codebases.
+  if [[ "$FUNCTIONS" != "true" ]]; then
+    FUNCTION_TARGETS="functions:$CODEBASE"
+  elif [[ "$FUNCTION_TARGETS" != "functions" ]]; then
+    FUNCTION_TARGETS="functions:$CODEBASE,$FUNCTION_TARGETS"
+  fi
   FUNCTIONS=true
-  FUNCTION_TARGETS="functions:$CODEBASE"
 elif [[ -n "${CODEBASE:-}" ]]; then
   echo "::notice::full_backend deploys every codebase, so the codebase input is ignored."
 fi

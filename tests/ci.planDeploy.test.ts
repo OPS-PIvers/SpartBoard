@@ -217,6 +217,16 @@ describe('plan-deploy.sh', () => {
     expect(
       plan('main', ['storage.rules'], { codebase: 'default' }).deploy_only
     ).toBe('functions:default,storage');
+    // Changes the diff already needs still deploy alongside it.
+    expect(
+      plan('dev-paul', ['functions/src/linkPreview.ts'], {
+        codebase: 'default',
+      }).deploy_only
+    ).toBe('functions:default,functions:default:fetchLinkPreview');
+    expect(
+      plan('dev-paul', ['functions/src/index.ts'], { codebase: 'default' })
+        .deploy_only
+    ).toBe('functions');
     // A full-backend dispatch already deploys every codebase.
     expect(
       plan('dev-paul', [], { codebase: 'default', full: true }).deploy_only
@@ -224,6 +234,15 @@ describe('plan-deploy.sh', () => {
   });
 
   it('refuses a codebase firebase.json does not deploy', () => {
+    const injected = spawnSync('bash', [script, 'dev-paul', 'abc', 'false'], {
+      env: {
+        ...process.env,
+        GITHUB_OUTPUT: '/dev/null',
+        CHANGED_FILES: '',
+        CODEBASE: 'default\nbackend=true',
+      },
+    });
+    expect(injected.status).toBe(1);
     const result = spawnSync('bash', [script, 'dev-paul', 'abc', 'false'], {
       env: {
         ...process.env,

@@ -563,7 +563,7 @@ describe('firebase-deploy-with-retry.sh function codebases', () => {
       'pre functions,storage',
       'pre functions:default:fetchLinkPreview,functions:default:orgAdminV1,storage',
       'pre functions,storage',
-      'post',
+      'post functions,storage',
     ]);
   });
 
