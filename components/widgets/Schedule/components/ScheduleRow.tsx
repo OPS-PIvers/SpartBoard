@@ -18,6 +18,7 @@ interface CountdownDisplayProps {
   totalSeconds: number;
   /** When true, the progress bar is shown at 100% and marked idle (no live tick). */
   isIdle?: boolean;
+  color?: string;
 }
 
 /**
@@ -33,6 +34,7 @@ export const CountdownDisplay: React.FC<CountdownDisplayProps> = ({
   remainingSeconds,
   totalSeconds,
   isIdle = false,
+  color,
 }) => {
   const rem = Math.max(0, remainingSeconds);
   const total = Math.max(0, totalSeconds);
@@ -41,8 +43,9 @@ export const CountdownDisplay: React.FC<CountdownDisplayProps> = ({
   return (
     <div className="flex flex-col w-full" style={{ gap: scheduleSize(0.8, 4) }}>
       <span
-        className="text-indigo-400"
+        className={color ? undefined : 'text-indigo-400'}
         style={{
+          color,
           fontSize: scheduleSize(6, 24),
           fontVariantNumeric: 'tabular-nums',
           opacity: isIdle ? 0.6 : 1,
@@ -55,8 +58,9 @@ export const CountdownDisplay: React.FC<CountdownDisplayProps> = ({
         style={{ height: scheduleSize(1.2, 5) }}
       >
         <div
-          className="h-full rounded-full bg-indigo-400"
+          className={`h-full rounded-full ${color ? '' : 'bg-indigo-400'}`}
           style={{
+            backgroundColor: color,
             width: `${Math.max(0, Math.min(100, progress * 100))}%`,
             transition: 'width 1s linear',
             opacity: isIdle ? 0.5 : 1,
@@ -250,6 +254,14 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
           // Tailwind's preflight, so only the width + color need setting here.
           borderWidth: isActive ? scheduleSize(1.5, 6) : '1px',
         };
+  // Lines style keeps its flat band when active: square corners, thick top and bottom rules.
+  const activeLinesStyle = {
+    flex: '1 0 auto',
+    minHeight: scheduleSize(18, 72),
+    backgroundColor: bgColor,
+    borderTopWidth: scheduleSize(1, 4),
+    borderBottomWidth: scheduleSize(1, 4),
+  };
 
   // Timer-start icon: strictly mode-aware so the button only appears when
   // handleStartTimer can actually launch something. Clock-mode needs a valid
@@ -271,15 +283,17 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
   return (
     <div
       className={`w-full flex items-center transition-all relative snap-start overflow-hidden ${
-        lines && !isActive
-          ? ''
+        lines
+          ? isActive
+            ? 'border-brand-blue-primary z-10'
+            : ''
           : `rounded-2xl ${
               isActive
                 ? 'border-brand-blue-primary shadow-md z-10'
                 : 'border-slate-200 shadow-xs'
             }`
       }`}
-      style={rowStyle}
+      style={lines && isActive ? activeLinesStyle : rowStyle}
     >
       {isActive && (
         <div
@@ -287,7 +301,7 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
           style={{
             fontSize: scheduleSize(2.5 * textScale, 10 * textScale),
             padding: `${scheduleSize(1, 4)} ${scheduleSize(2, 8)}`,
-            borderBottomLeftRadius: scheduleSize(3, 12),
+            borderBottomLeftRadius: lines ? undefined : scheduleSize(3, 12),
           }}
         >
           Now
@@ -313,8 +327,9 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
           />
         ) : (
           <Circle
-            className="text-indigo-300 shrink-0"
+            className="shrink-0 opacity-50"
             style={{
+              color: fontColor,
               width: scheduleSize(8, 32),
               height: scheduleSize(8, 32),
             }}
@@ -329,6 +344,7 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
               remainingSeconds={countdownRemaining}
               totalSeconds={durationSeconds}
               isIdle={countdownIsIdle}
+              color={fontColor}
             />
           ) : (
             <span
@@ -365,8 +381,9 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
       {canLaunchStandaloneTimer && (
         <button
           onClick={() => onStartTimer?.(item)}
-          className="shrink-0 text-indigo-300 hover:text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors"
+          className="shrink-0 opacity-50 hover:opacity-100 hover:bg-black/5 rounded-lg transition"
           style={{
+            color: fontColor,
             padding: scheduleSize(1, 4),
             marginRight: scheduleSize(2.5, 12),
           }}
