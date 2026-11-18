@@ -96,16 +96,11 @@ function similarity(a: string, b: string): number {
   return x.size + y.size === 0 ? 0 : (2 * shared) / (x.size + y.size);
 }
 
-/** Bare letters, in any order: a paper stub's choices carry no wording. */
-const isLetterStub = (order: readonly string[]) =>
-  order.length > 0 &&
-  order
-    .map((t) => t.trim().toUpperCase())
-    .sort()
-    .join('') === 'ABCDEFGH'.slice(0, order.length);
+/** A changed choice moved when another changed slot's old text beats its own by this much, or when two changed choices each lean to the other's. */
+const MOVE_MARGIN = 0.25;
 
-// Keep in sync with isRewordOnly in functions/src/paperRewordSync.ts.
-/** True when every choice kept its letter: unchanged, or new text not closer to another old choice (a letter stub has no wording to compare). */
+// Mirrors isRewordOnly in functions/src/paperRewordSync.ts, which adds blank and duplicate guards.
+/** True when every choice kept its letter: unchanged, or reworded without looking like another changed choice's old text (a letter stub has no wording to compare). */
 export function isRewordOnly(
   recorded: readonly string[],
   current: readonly string[]
@@ -114,14 +109,21 @@ export function isRewordOnly(
   const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
   const was = recorded.map(norm);
   const now = current.map(norm);
-  const stub = isLetterStub(recorded);
-  return now.every((text, i) => {
-    if (text === was[i]) return true;
-    if (was.includes(text) || now.includes(was[i])) return false;
-    if (stub) return true;
-    const own = similarity(text, was[i]);
-    return was.every((w, j) => j === i || similarity(text, w) <= own);
-  });
+  const changed = now.flatMap((text, i) => (text === was[i] ? [] : [i]));
+  if (changed.some((i) => was.includes(now[i]) || now.includes(was[i]))) {
+    return false;
+  }
+  if (changed.length < 2 || isPlaceholderLetterChoices(recorded)) return true;
+  // How much closer a changed choice sits to slot j's old text than to its own.
+  const pull = (i: number, j: number) =>
+    similarity(now[i], was[j]) - similarity(now[i], was[i]);
+  return changed.every((i) =>
+    changed.every(
+      (j) =>
+        j === i ||
+        (pull(i, j) < MOVE_MARGIN && !(pull(i, j) > 0 && pull(j, i) > 0))
+    )
+  );
 }
 
 /**
@@ -363,7 +365,13 @@ export function applyKeyToQuiz(
     const current = rowsFromQuestion(q).map((r) => r.text);
     // Printed text the quiz no longer has: keep its current wording by position, or leave the question alone.
     if (!options.every((t) => current.includes(t))) {
-      if (isLetterStub(options) || !isRewordOnly(options, current)) return q;
+      if (
+        !(q.paperOwnTest || hasArrangedOrder(q)) ||
+        isPlaceholderLetterChoices(options) ||
+        !isRewordOnly(options, current)
+      ) {
+        return q;
+      }
       options = current;
     }
     const correct = options[choice];

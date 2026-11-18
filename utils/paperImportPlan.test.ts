@@ -121,6 +121,32 @@ describe('isRewordOnly', () => {
   it('accepts any new wording over a letter stub in any order', () => {
     expect(isRewordOnly(['B', 'A', 'C'], ['one', 'two', 'three'])).toBe(true);
   });
+  it('accepts genuine rewrites that share no wording', () => {
+    expect(
+      isRewordOnly(['increase', 'decrease'], ['goes up', 'goes down'])
+    ).toBe(true);
+    expect(isRewordOnly(['True', 'False'], ['Correct', 'Incorrect'])).toBe(
+      true
+    );
+    expect(isRewordOnly(['Yes', 'No'], ['Agree', 'Disagree'])).toBe(true);
+    expect(
+      isRewordOnly(
+        ['mitosis', 'meiosis', 'binary fission'],
+        ['two identical cells', 'four unique cells', 'splitting in half']
+      )
+    ).toBe(true);
+    expect(
+      isRewordOnly(
+        ['It speeds up', 'It slows down', 'It stays the same'],
+        ['Faster', 'Slower', 'No change']
+      )
+    ).toBe(true);
+  });
+  it('accepts a single changed choice', () => {
+    expect(
+      isRewordOnly(['10 cm', '15 cm', '20 cm'], ['10 cm', '15 cm', '25 cm'])
+    ).toBe(true);
+  });
   it('accepts a typo fix, a plural and a tie the word count could not break', () => {
     expect(isRewordOnly(['Pariss', 'Lyon'], ['Paris', 'Lyon'])).toBe(true);
     expect(isRewordOnly(['cat', 'dog'], ['cats', 'dogs'])).toBe(true);
@@ -146,6 +172,17 @@ describe('isRewordOnly', () => {
     ).toBe(false);
   });
 
+  it('rejects other swaps combined with a reword', () => {
+    expect(isRewordOnly(['Paris', 'Lyon'], ['Lyon city', 'Paris city'])).toBe(
+      false
+    );
+    expect(
+      isRewordOnly(
+        ['All of the above', 'None of the above'],
+        ['None of the above choices', 'All of the above choices']
+      )
+    ).toBe(false);
+  });
   it('rejects a count change and text that moved to another letter', () => {
     expect(isRewordOnly(['x', 'y'], ['x'])).toBe(false);
     expect(isRewordOnly(['x', 'y'], ['y', 'x'])).toBe(false);
@@ -389,6 +426,14 @@ describe('key sheet', () => {
     );
     expect(keyed.questions[0].correctAnswer).toBe('Paris, France');
     expect(keyed.questions[0].incorrectAnswers).toEqual(['Nice', 'Lyon']);
+    const unarranged = mc('q1', 'Paris, France', ['Nice', 'Lyon']);
+    const same = applyKeyToQuiz(
+      { ...authored, questions: [unarranged] },
+      { ...batch, choiceOrder: { q1: ['Nice', 'Paris', 'Lyon'] } },
+      { q1: 1 },
+      5
+    );
+    expect(same.questions[0]).toEqual(unarranged);
     const moved = mc('q1', 'Lyon', ['Nice', 'Rome']);
     const skipped = applyKeyToQuiz(
       { ...authored, questions: [moved] },

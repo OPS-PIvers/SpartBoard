@@ -134,6 +134,32 @@ describe('isRewordOnly', () => {
   it('accepts any new wording over a letter stub in any order', () => {
     expect(isRewordOnly(['B', 'A', 'C'], ['one', 'two', 'three'])).toBe(true);
   });
+  it('accepts genuine rewrites that share no wording', () => {
+    expect(
+      isRewordOnly(['increase', 'decrease'], ['goes up', 'goes down'])
+    ).toBe(true);
+    expect(isRewordOnly(['True', 'False'], ['Correct', 'Incorrect'])).toBe(
+      true
+    );
+    expect(isRewordOnly(['Yes', 'No'], ['Agree', 'Disagree'])).toBe(true);
+    expect(
+      isRewordOnly(
+        ['mitosis', 'meiosis', 'binary fission'],
+        ['two identical cells', 'four unique cells', 'splitting in half']
+      )
+    ).toBe(true);
+    expect(
+      isRewordOnly(
+        ['It speeds up', 'It slows down', 'It stays the same'],
+        ['Faster', 'Slower', 'No change']
+      )
+    ).toBe(true);
+  });
+  it('accepts a single changed choice', () => {
+    expect(
+      isRewordOnly(['10 cm', '15 cm', '20 cm'], ['10 cm', '15 cm', '25 cm'])
+    ).toBe(true);
+  });
   it('accepts a typo fix, a plural and a tie the word count could not break', () => {
     expect(isRewordOnly(['Pariss', 'Lyon'], ['Paris', 'Lyon'])).toBe(true);
     expect(isRewordOnly(['cat', 'dog'], ['cats', 'dogs'])).toBe(true);
@@ -155,6 +181,17 @@ describe('isRewordOnly', () => {
       isRewordOnly(
         ['Paris is big', 'Lyon is small'],
         ['Lyon is quite small', 'Paris is quite big']
+      )
+    ).toBe(false);
+  });
+  it('rejects other swaps combined with a reword', () => {
+    expect(isRewordOnly(['Paris', 'Lyon'], ['Lyon city', 'Paris city'])).toBe(
+      false
+    );
+    expect(
+      isRewordOnly(
+        ['All of the above', 'None of the above'],
+        ['None of the above choices', 'All of the above choices']
       )
     ).toBe(false);
   });
@@ -227,6 +264,18 @@ describe('handlePaperRewordSync', () => {
     expect((docs[R1].answers as Doc[])[0].answer).toBe('Reaction 2');
     // The stub keeps its letters so later scans follow the quiz.
     expect((docs[BATCH].choiceOrder as Doc).q1).toEqual(['A', 'B', 'C', 'D']);
+  });
+
+  it('maps a stub recorded out of order when the question has fewer choices', async () => {
+    const docs = seed({
+      [BATCH]: { quizId: 'quiz', choiceOrder: { q1: ['C', 'A', 'B'] } },
+      [R1]: {
+        paperBatchId: 'b1',
+        answers: [{ questionId: 'q1', answer: 'A' }],
+      },
+    });
+    await run(docs, ['Reaction 1', 'Reaction 2']);
+    expect((docs[R1].answers as Doc[])[0].answer).toBe('Reaction 2');
   });
 
   it('follows a second reword on a stub batch by slot', async () => {

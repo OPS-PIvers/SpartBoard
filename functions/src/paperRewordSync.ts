@@ -79,11 +79,15 @@ const isLetterStub = (order: readonly string[]) =>
     .sort()
     .join('') === 'ABCDEFGH'.slice(0, order.length);
 
-// Keep in sync with isRewordOnly in utils/paperImportPlan.ts.
-/** True when every choice kept its letter: unchanged, or new text not closer to another old choice (a letter stub has no wording to compare). */
+/** A changed choice moved when another changed slot's old text beats its own by this much, or when two changed choices each lean to the other's. */
+const MOVE_MARGIN = 0.25;
+
+// Mirrors isRewordOnly in utils/paperImportPlan.ts, plus blank and duplicate guards.
+/** True when every choice kept its letter: unchanged, or reworded without looking like another changed choice's old text (a letter stub has no wording to compare). */
 export function isRewordOnly(
   recorded: readonly string[],
-  current: readonly string[]
+  current: readonly string[],
+  stub = isLetterStub(recorded)
 ): boolean {
   if (recorded.length !== current.length || recorded.length === 0) return false;
   const was = recorded.map(norm);
@@ -91,14 +95,21 @@ export function isRewordOnly(
   if (now.some((t) => t === '') || new Set(now).size !== now.length) {
     return false;
   }
-  const stub = isLetterStub(recorded);
-  return now.every((text, i) => {
-    if (text === was[i]) return true;
-    if (was.includes(text) || now.includes(was[i])) return false;
-    if (stub) return true;
-    const own = similarity(text, was[i]);
-    return was.every((w, j) => j === i || similarity(text, w) <= own);
-  });
+  const changed = now.flatMap((text, i) => (text === was[i] ? [] : [i]));
+  if (changed.some((i) => was.includes(now[i]) || now.includes(was[i]))) {
+    return false;
+  }
+  if (changed.length < 2 || stub) return true;
+  // How much closer a changed choice sits to slot j's old text than to its own.
+  const pull = (i: number, j: number) =>
+    similarity(now[i], was[j]) - similarity(now[i], was[i]);
+  return changed.every((i) =>
+    changed.every(
+      (j) =>
+        j === i ||
+        (pull(i, j) < MOVE_MARGIN && !(pull(i, j) > 0 && pull(j, i) > 0))
+    )
+  );
 }
 
 const invalid = (message: string): never => {
@@ -157,7 +168,7 @@ function slotsFor(
       stub && choices.length < recorded.length
         ? recorded.slice(0, choices.length)
         : recorded;
-    if (!isRewordOnly(from, choices)) continue;
+    if (!isRewordOnly(from, choices, stub)) continue;
     out.set(questionId, {
       from,
       to: choices.map((c) => c.trim()),
