@@ -249,6 +249,7 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
   <details><summary>Branches to delete (178, checked 2026-11-01)</summary>
 
+claude/project-thread-ygwr09 (#6187; this docs PR reuses it, delete after it merges)
 security/q-drive-grants (#6151)
 security/o-ai-quota-and-sweeps (#6153)
 security/r-projects-assignments (#6152)
