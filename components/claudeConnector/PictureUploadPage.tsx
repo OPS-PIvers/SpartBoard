@@ -139,6 +139,7 @@ export const PictureUploadPage: React.FC = () => {
             You can also paste. PNG, JPEG, GIF or WebP.
           </span>
         </button>
+        {/* no-tour-anchor: hidden file field behind the drop area */}
         <input
           ref={input}
           type="file"
