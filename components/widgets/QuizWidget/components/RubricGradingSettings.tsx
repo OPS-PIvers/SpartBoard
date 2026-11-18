@@ -20,14 +20,16 @@ const SwitchRow: React.FC<{
   checked: boolean;
   onChange: (on: boolean) => void;
   anchor: ReturnType<typeof tourTypeAttr>;
-}> = ({ label, checked, onChange, anchor }) => (
+  disabled?: boolean;
+}> = ({ label, checked, onChange, anchor, disabled = false }) => (
   <button
     type="button"
     role="switch"
     aria-checked={checked}
+    disabled={disabled}
     onClick={() => onChange(!checked)}
     {...anchor}
-    className="flex min-h-11 w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-blue-primary"
+    className="flex min-h-11 w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-blue-primary"
   >
     {label}
     <span
@@ -91,7 +93,7 @@ export const RubricGradingSettings: React.FC<RubricGradingSettingsProps> = ({
         <div
           role="group"
           aria-label="Rubric settings"
-          className="absolute right-0 top-full z-popover mt-1 w-64 divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl"
+          className="absolute right-0 top-full z-popover mt-1 w-80 max-w-[calc(100vw-2rem)] divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl"
         >
           <SwitchRow
             label="Auto-advance to next category"
@@ -99,14 +101,13 @@ export const RubricGradingSettings: React.FC<RubricGradingSettingsProps> = ({
             onChange={onAutoAdvanceChange}
             anchor={tourTypeAttr('quiz-grading.rubric-auto-advance', 'quiz')}
           />
-          {autoAdvance && (
-            <SwitchRow
-              label="Auto-open next category"
-              checked={openNext}
-              onChange={onOpenNextChange}
-              anchor={tourTypeAttr('quiz-grading.rubric-open-next', 'quiz')}
-            />
-          )}
+          <SwitchRow
+            label="Auto-open next category"
+            disabled={!autoAdvance}
+            checked={autoAdvance && openNext}
+            onChange={onOpenNextChange}
+            anchor={tourTypeAttr('quiz-grading.rubric-open-next', 'quiz')}
+          />
           <div className="flex items-center justify-between gap-2 px-3 py-2">
             <span className="whitespace-nowrap text-sm font-semibold text-slate-800">
               Level order

@@ -115,13 +115,13 @@ describe('RubricGradingPanel (rubric-grading-v2)', () => {
     });
   });
 
-  it('saves the jump switch and shows Open next only when it is on', () => {
+  it('saves the jump switch and disables Auto-open while it is off', () => {
     const updateAccountPreferences = vi.fn().mockResolvedValue(undefined);
     renderPanel({ updateAccountPreferences });
     fireEvent.click(screen.getByRole('button', { name: 'Rubric settings' }));
     expect(
-      screen.queryByRole('switch', { name: 'Auto-open next category' })
-    ).toBeNull();
+      screen.getByRole('switch', { name: 'Auto-open next category' })
+    ).toBeDisabled();
     fireEvent.click(
       screen.getByRole('switch', { name: 'Auto-advance to next category' })
     );

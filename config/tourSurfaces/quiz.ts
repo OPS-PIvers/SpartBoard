@@ -380,7 +380,7 @@ export const SURFACES: TourSurfaceMap = {
     ],
     inner: {
       'quiz-grading.rubric-auto-advance': 'quiz-grading.rubric-settings:quiz',
-      'quiz-grading.rubric-open-next': 'quiz-grading.rubric-auto-advance:quiz',
+      'quiz-grading.rubric-open-next': 'quiz-grading.rubric-settings:quiz',
       'quiz-grading.rubric-order': 'quiz-grading.rubric-settings:quiz',
     },
   },
