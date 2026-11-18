@@ -33,7 +33,7 @@ export async function uploadPicture(
   return {
     ok: false,
     error: body.error ?? 'It could not be added.',
-    expired: res.status === 401 || res.status === 403,
+    expired: res.status === 401,
   };
 }
 

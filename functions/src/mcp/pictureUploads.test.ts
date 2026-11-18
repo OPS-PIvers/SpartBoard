@@ -104,6 +104,11 @@ describe('picture upload tickets', () => {
       uid: 'u1',
       expiresAt: 1000 + UPLOAD_TICKET_MS,
     });
+    expect(
+      (
+        h.docs.get(ticketPath(out.ticket))?.expireAt as { toMillis(): number }
+      ).toMillis()
+    ).toBe(1000 + UPLOAD_TICKET_MS);
   });
 
   it('refuses a ticket when the flag is off', async () => {

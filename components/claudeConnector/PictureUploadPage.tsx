@@ -82,7 +82,7 @@ export const PictureUploadPage: React.FC = () => {
   const added = rows.filter((r) => r.state === 'added').length;
   const saving = rows.some((r) => r.state === 'saving');
 
-  if (!ticket || expired) {
+  if (!ticket || (expired && rows.every((r) => r.state !== 'added'))) {
     return (
       <main className="h-screen h-dvh overflow-y-auto bg-slate-100 px-4 py-16 pb-16">
         <div className="mx-auto max-w-lg rounded-2xl border border-slate-200 bg-white p-6">
@@ -190,6 +190,12 @@ export const PictureUploadPage: React.FC = () => {
               </li>
             ))}
           </ul>
+        )}
+
+        {expired && (
+          <p className="mt-5 text-base font-medium text-red-700" role="alert">
+            This link has expired. Ask Claude for a new upload link.
+          </p>
         )}
 
         {added > 0 && !saving && (

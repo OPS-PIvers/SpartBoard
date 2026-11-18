@@ -607,9 +607,13 @@ const EDITABLE = [
   'schemaVersion',
   'tourSetup',
   'helpCenter',
+] as const;
+// Slide fields an update may change; never snapshotted, so a restore keeps the current slides and the files behind them.
+const SLIDE_FIELDS = [
   'imageUrls',
   'imageKinds',
   'videoTrims',
+  'imagePaths',
 ] as const;
 
 const CONFLICT =
@@ -650,12 +654,9 @@ export async function saveSet(
   };
   for (const key of EDITABLE)
     changed[key] = saved[key] ?? admin.firestore.FieldValue.delete();
-  // Cleanup lists grow with added slides; a restore never shrinks them.
-  if (
-    saved.imagePaths !== loaded.set.imagePaths &&
-    Array.isArray(saved.imagePaths)
-  )
-    changed.imagePaths = saved.imagePaths;
+  for (const key of SLIDE_FIELDS)
+    if (saved[key] !== loaded.set[key])
+      changed[key] = saved[key] ?? admin.firestore.FieldValue.delete();
   let anchorsRequested = 0;
   if (loaded.source === 'building') {
     anchorsRequested = await queueAnchorRequests(
@@ -872,10 +873,7 @@ export async function restoreGuidedLearningRevision(
   await assertAccess(ctx, source);
   const loaded = await loadSet(ctx, source, String(rev.get('itemId')));
   const steps = (data.steps as Step[] | undefined) ?? loaded.set.steps;
-  const slides = Array.isArray(data.imageUrls)
-    ? { ...loaded.set, imageUrls: data.imageUrls as string[] }
-    : loaded.set;
-  if (!revisionStepsFitSlides(slides, steps)) {
+  if (!revisionStepsFitSlides(loaded.set, steps)) {
     throw new ToolError(
       "The set's slides changed since that version, so it can't be restored here. Restore it in SpartBoard."
     );
@@ -1190,6 +1188,13 @@ export function registerGuidedLearningTools(
         const loaded = await loadSet(ctx, source, set_id);
         const slideInput = { add_slides, replace_slides };
         checkSlideChanges(loaded.set, slideInput);
+        if (add_slides?.length || replace_slides?.length) {
+          const { picturesOn } = await import('./pictureUploads');
+          if (!(await picturesOn(ctx)))
+            throw new ToolError(
+              'Adding or replacing slides through Claude is not turned on for this account yet.'
+            );
+        }
         const refs = [
           ...(replace_slides ?? []).map((r) => r.image),
           ...(add_slides ?? []),
@@ -1211,12 +1216,34 @@ export function registerGuidedLearningTools(
         let working = loaded;
         let token: string | null = null;
         let newDriveIds: string[] = [];
+        let newPaths: string[] = [];
+        // Copies made for this edit go when it didn't save, so no link-shared copy is left behind.
+        const discardNew = async () => {
+          if (token) {
+            const drive = token;
+            await Promise.all(
+              newDriveIds.map((id) => trashDriveFile(drive, id))
+            );
+          }
+          if (newPaths.length > 0) {
+            const bucket = admin.storage().bucket();
+            await Promise.all(
+              newPaths.map((path) =>
+                bucket
+                  .file(path)
+                  .delete()
+                  .catch(() => undefined)
+              )
+            );
+          }
+        };
         if (refs.length > 0) {
           const { uploadSlides } = await import('./glCreate');
           token =
             loaded.source === 'mine' ? await driveTokenFor(ctx.uid) : null;
           const uploaded = await uploadSlides(ctx, refs, token, 'slides');
           newDriveIds = uploaded.driveIds;
+          newPaths = uploaded.paths;
           working = {
             ...loaded,
             set: applySlideChanges(loaded.set, slideInput, uploaded),
@@ -1246,13 +1273,16 @@ export function registerGuidedLearningTools(
             requests = planned.requests;
           }
         } catch (err) {
-          if (token)
-            await Promise.all(
-              newDriveIds.map((id) => trashDriveFile(token, id))
-            );
+          await discardNew();
           throw err;
         }
-        return saveSet(ctx, loaded, next, 'update', requests);
+        try {
+          return await saveSet(ctx, loaded, next, 'update', requests);
+        } catch (err) {
+          // saveSet's ToolErrors come before the set changes; any other failure may have landed.
+          if (err instanceof ToolError) await discardNew();
+          throw err;
+        }
       })
   );
 }

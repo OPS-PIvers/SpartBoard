@@ -1,5 +1,5 @@
 // Pictures a teacher shares with Claude: a 30-minute ticket, raw-body POSTs into the teacher's Drive, then `picture:` refs.
-import type { Firestore } from 'firebase-admin/firestore';
+import { Timestamp, type Firestore } from 'firebase-admin/firestore';
 import { createHash, randomBytes } from 'node:crypto';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
@@ -30,6 +30,7 @@ const LIST_WINDOW_MS = 24 * 60 * 60 * 1000;
 const LIST_LIMIT = 20;
 const SHOW_LIMIT = 6;
 const SHOW_MAX_BYTES = 1_500_000;
+const SHOW_TOTAL_BYTES = 4_000_000;
 export const PICTURE_REF = /^picture:([A-Za-z0-9_-]{16})$/;
 const EXTENSIONS: Record<string, string> = {
   'image/png': 'png',
@@ -90,13 +91,18 @@ export async function issueUploadTicket(ctx: ToolContext, now = Date.now()) {
   await driveTokenFor(ctx.uid);
   const ticket = randomBytes(32).toString('base64url');
   const expiresAt = now + UPLOAD_TICKET_MS;
-  await ctx.db.collection(PICTURE_UPLOAD_TICKETS).doc(hashOf(ticket)).set({
-    uid: ctx.uid,
-    email: ctx.email,
-    grantId: ctx.grantId,
-    expiresAt,
-    uses: 0,
-  });
+  await ctx.db
+    .collection(PICTURE_UPLOAD_TICKETS)
+    .doc(hashOf(ticket))
+    .set({
+      uid: ctx.uid,
+      email: ctx.email,
+      grantId: ctx.grantId,
+      expiresAt,
+      // TTL field, so spent tickets are deleted.
+      expireAt: Timestamp.fromMillis(expiresAt),
+      uses: 0,
+    });
   return {
     upload_url: pictureUploadUrl(),
     upload_url_fallback: hostingUploadUrl(),
@@ -285,19 +291,23 @@ export function registerPictureTools(server: McpServer, ctx: ToolContext) {
       annotations: READ_ONLY,
     },
     async ({ show_pictures }): Promise<CallToolResult> => {
-      const images: { data: string; mimeType: string }[] = [];
+      const images: { ref: string; data: string; mimeType: string }[] = [];
       const result = await run('list_uploaded_pictures', ctx, async () => {
         await assertPicturesOn(ctx);
         const pictures = await listPictures(ctx);
         if (show_pictures) {
           const token = await driveTokenFor(ctx.uid);
-          for (const p of pictures.slice(-SHOW_LIMIT)) {
-            if (p.bytes > SHOW_MAX_BYTES) continue;
+          let total = 0;
+          for (const p of pictures.slice(-SHOW_LIMIT).reverse()) {
+            if (p.bytes > SHOW_MAX_BYTES || total + p.bytes > SHOW_TOTAL_BYTES)
+              continue;
+            total += p.bytes;
             const { data } = await readDriveBytes(token, p.driveId).catch(
               () => ({ data: null })
             );
             if (data)
               images.push({
+                ref: `picture:${p.id}`,
                 data: data.toString('base64'),
                 mimeType: p.mimeType,
               });
@@ -322,7 +332,10 @@ export function registerPictureTools(server: McpServer, ctx: ToolContext) {
         ...result,
         content: [
           ...result.content,
-          ...images.map((i) => ({ type: 'image' as const, ...i })),
+          ...images.flatMap(({ ref, data, mimeType }) => [
+            { type: 'text' as const, text: ref },
+            { type: 'image' as const, data, mimeType },
+          ]),
         ],
       };
     }
