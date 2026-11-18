@@ -104,6 +104,11 @@ export function quizRunState(phase: QuizSessionPhase): RunState {
   }
 }
 
+/** A quiz End also drops the live answer reveals, since any signed-in user can read the session doc. */
+export function endQuizPatch(now: number): Record<string, unknown> {
+  return { ...endSessionPatch('quiz', now), revealedAnswers: deleteField() };
+}
+
 /** The write a teacher event makes, or null when the event isn't allowed from the session's phase. */
 export function quizSessionWrite(
   session: QuizSessionPhaseFields,
@@ -116,7 +121,7 @@ export function quizSessionWrite(
       return phase ? advanceWrite(session, phase, now) : null;
     case 'end':
       // End from ended still rewrites and finalizes, so a second End finishes an interrupted finalize.
-      return { patch: endSessionPatch('quiz', now), finalize: true };
+      return { patch: endQuizPatch(now), finalize: true };
     case 'everyoneAnswered':
       if (
         phase?.kind !== 'question' ||
@@ -162,7 +167,7 @@ function advanceWrite(
   if (nextIndex >= session.totalQuestions) {
     return {
       patch: {
-        ...endSessionPatch('quiz', now),
+        ...endQuizPatch(now),
         currentQuestionIndex: session.totalQuestions,
         questionPhase: deleteField(),
       },

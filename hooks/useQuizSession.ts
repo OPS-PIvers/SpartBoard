@@ -95,9 +95,10 @@ import {
   buildTeacherSubmitUpdate,
   canTeacherSubmit,
 } from '@/utils/quizTeacherSubmit';
-import { acceptsStudents, endSessionPatch } from '@/utils/sessionLifecycle';
+import { acceptsStudents } from '@/utils/sessionLifecycle';
 import {
   checkedQuizSessionWrite,
+  endQuizPatch,
   quizSessionWrite,
   type QuizSessionEvent,
   type QuizSessionWrite,
@@ -2049,13 +2050,14 @@ export const useQuizSessionTeacher = (
 
   const revealAnswer = useCallback(
     async (questionId: string, correctAnswer: string) => {
-      if (!sessionId) return;
+      // An ended run keeps no answer key on the doc students can read.
+      if (!sessionId || session?.status === 'ended') return;
       const sessionRef = doc(db, QUIZ_SESSIONS_COLLECTION, sessionId);
       await updateDoc(sessionRef, {
         [`revealedAnswers.${questionId}`]: correctAnswer,
       });
     },
-    [sessionId]
+    [sessionId, session?.status]
   );
 
   const hideAnswer = useCallback(
@@ -2099,7 +2101,7 @@ export const useQuizSessionTeacher = (
     if (!sessionId) return;
     await updateDoc(
       doc(db, QUIZ_SESSIONS_COLLECTION, sessionId),
-      endSessionPatch('quiz', Date.now())
+      endQuizPatch(Date.now())
     );
     // Mark all active students as completed so their data is preserved in results.
     await finalizeAllResponses();

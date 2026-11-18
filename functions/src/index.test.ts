@@ -4012,6 +4012,7 @@ describe('index barrel — deployed export set', () => {
     'mirrorPlcIndex',
     'createBuildingGroupV1',
     'syncBuildingGroupV1',
+    'syncedBankOwnerRegistry',
     'onUserProfileBuildingsChangedV1',
     'plcMembershipV1',
     'orgAdminV1',

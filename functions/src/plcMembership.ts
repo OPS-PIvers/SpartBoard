@@ -136,6 +136,9 @@ export function readMembersForWrite(
       status: m.status === 'removed' ? 'removed' : 'active',
       joinedAt: m.joinedAt ?? ts,
       ...(addedBy ? { addedBy } : {}),
+      ...(typeof m.removedAtMs === 'number'
+        ? { removedAtMs: m.removedAtMs }
+        : {}),
       ...(m.mentorRole === 'mentor' || m.mentorRole === 'mentee'
         ? { mentorRole: m.mentorRole }
         : {}),

@@ -677,7 +677,10 @@ describe('useQuizAssignments - reopenAssignment', () => {
     });
 
     expect(findAssignmentPatch()).toMatchObject({ status: 'inactive' });
-    expect(findSessionPatch()).toMatchObject({ status: 'ended' });
+    expect(findSessionPatch()).toMatchObject({
+      status: 'ended',
+      revealedAnswers: DELETE_FIELD_SENTINEL,
+    });
   });
 
   it('turns in unfinished work after End, like the monitor End', async () => {
@@ -874,16 +877,23 @@ describe('useQuizAssignments - importSharedAssignment', () => {
         {
           isMember: (id) => id === 'plc-shared',
           onNonMember,
+          liveLinkage: (id) => ({
+            id,
+            name: 'Live PLC',
+            sheetUrl: 'https://docs.google.com/spreadsheets/d/live-sheet',
+            memberEmails: ['me@example.com'],
+          }),
         }
       );
     });
 
+    // Security #16: the linkage comes from the importer's live PLC, never the share's sheet or roster.
     const assignment = findAssignmentSet();
     expect(assignment.plc).toEqual({
       id: 'plc-shared',
-      name: 'Shared PLC',
-      sheetUrl: 'https://docs.google.com/spreadsheets/d/shared-sheet',
-      memberEmails: ['a@example.com', 'b@example.com'],
+      name: 'Live PLC',
+      sheetUrl: 'https://docs.google.com/spreadsheets/d/live-sheet',
+      memberEmails: ['me@example.com'],
     });
     // Member path: the non-member nudge must NOT fire.
     expect(onNonMember).not.toHaveBeenCalled();

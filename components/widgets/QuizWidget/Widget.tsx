@@ -2334,8 +2334,7 @@ const TeacherQuizWidget: React.FC<{
   // Also auto-reveals the CURRENT question when entering review phase.
   useEffect(() => {
     if (!liveSession || !loadedQuizData) return;
-    if (liveSession.status !== 'active' && liveSession.status !== 'ended')
-      return;
+    if (liveSession.status !== 'active') return;
 
     const shouldReveal =
       (liveSession.showResultToStudent ?? false) ||
@@ -2343,7 +2342,7 @@ const TeacherQuizWidget: React.FC<{
     if (!shouldReveal) return;
 
     const questions = loadedQuizData.questions;
-    // Reveal past questions + current question during review phase or when quiz ended
+    // Reveal past questions + current question during review phase
     const upTo = autoRevealCount(liveSession, questions.length);
     for (let i = 0; i < upTo; i++) {
       const q = questions[i];

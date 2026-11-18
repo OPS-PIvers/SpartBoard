@@ -280,6 +280,7 @@ export { recomputePlcAssessments } from './recomputePlcAssessments';
 
 // Poll join codes resolve through server-written poll_codes pointers.
 export { pollCodePointer } from './pollCodePointer';
+export { syncedBankOwnerRegistry } from './syncedBankOwners';
 export {
   resolvePollCodeV1,
   mintPollCodeV1,

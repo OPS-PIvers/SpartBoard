@@ -5,6 +5,7 @@ import {
   type ControlSubAssignmentInput,
 } from './subControlAssignment';
 import type { SubShareCaller } from './subShareAccess';
+import * as admin from './firebaseAdmin';
 
 const NOW = 1_700_000_000_000;
 const HOST = 'teacher-uid-1';
@@ -176,11 +177,18 @@ describe('handleControlSubAssignment — ending a quiz', () => {
       `quiz_sessions/${SESSION}`,
       `users/${HOST}/quiz_assignments/${SESSION}`,
     ]);
-    expect(written[0].data).toEqual({
+    const { revealedAnswers, ...ended } = written[0].data;
+    expect(ended).toEqual({
       status: 'ended',
       endedAt: NOW,
       autoProgressAt: null,
     });
+    // An ended run keeps no answer key on the doc every signed-in user can read.
+    expect(
+      (revealedAnswers as admin.firestore.FieldValue).isEqual(
+        admin.firestore.FieldValue.delete()
+      )
+    ).toBe(true);
     // The teacher's own deactivate files the row as `inactive`; there is no
     // `ended` in `QuizAssignmentStatus`.
     expect(written[1].data.status).toBe('inactive');
