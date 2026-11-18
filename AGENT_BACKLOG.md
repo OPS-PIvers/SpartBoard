@@ -248,6 +248,7 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
 claude/project-thread-qg4og2 (#6120; this docs PR reuses it, delete after it merges)
 claude/project-thread-a1yb0n (#6118; this docs PR reuses it, delete after it merges)
+claude/project-thread-or5rdv (#6123; this docs PR reuses it, delete after it merges)
 claude/project-thread-19tx5f (#6114; this docs PR reuses it, delete after it merges)
 claude/project-thread-39lo68 (#6112; this docs PR reuses it, delete after it merges)
 claude/project-thread-sb4d62 (#6113)
