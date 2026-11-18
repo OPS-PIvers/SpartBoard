@@ -222,5 +222,17 @@ export const ClassStudentPageDevHarness: React.FC = () => (
         : undefined
     }
     agendaEmbedUrlFor={fixtureEmbedUrl}
+    sectionPicker={
+      new URLSearchParams(window.location.search).get('sections') === '1'
+        ? {
+            sections: [
+              ROSTER,
+              { ...ROSTER, id: 'r2', name: 'Sample - Mock Period 3 (TEST)' },
+            ],
+            value: ROSTER.id,
+            onChange: () => undefined,
+          }
+        : undefined
+    }
   />
 );

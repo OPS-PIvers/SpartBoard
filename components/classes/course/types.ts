@@ -19,7 +19,13 @@ export interface CourseClassListProps<R extends CourseRoster> {
   courses: UseCoursesResult['courses'];
   saveCourse: UseCoursesResult['saveCourse'];
   /** Renders one class row (an `li`); `index` is its place in the full roster list. */
-  renderRow: (roster: R, index: number) => React.ReactNode;
+  renderRow: (roster: R, index: number, inCourse: boolean) => React.ReactNode;
+  /** The actions menu on a linked Course row. */
+  renderCourseMenu?: (
+    sections: readonly R[],
+    rowKey: string,
+    courseName: string
+  ) => React.ReactNode;
   /** Extra attributes for the outer list, such as its tour anchor. */
   listAttrs?: Record<string, string>;
 }

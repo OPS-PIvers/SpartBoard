@@ -19,6 +19,8 @@ export interface CourseEditButtonProps {
   courseName: string;
   open: boolean;
   onClick: () => void;
+  /** The Course's actions menu, in the slot the class rows' menu uses. */
+  menu?: React.ReactNode;
 }
 
 export const CourseEditButton: React.FC<CourseEditButtonProps> = ({
@@ -26,6 +28,7 @@ export const CourseEditButton: React.FC<CourseEditButtonProps> = ({
   courseName,
   open,
   onClick,
+  menu,
 }) => {
   const { t } = useTranslation();
   const label = t('course.linking.editCourse', {
@@ -45,7 +48,7 @@ export const CourseEditButton: React.FC<CourseEditButtonProps> = ({
         <Pencil className="w-4 h-4" />
       </button>
       {/* Lines the pencil up with the class rows' pencil, which sits left of their menu. */}
-      <span className="w-7 shrink-0" aria-hidden="true" />
+      {menu ?? <span className="w-7 shrink-0" aria-hidden="true" />}
     </>
   );
 };
