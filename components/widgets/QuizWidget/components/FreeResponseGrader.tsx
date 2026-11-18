@@ -2788,6 +2788,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                       onJumpToTagged={handleJumpToTagged}
                       tagCountKind={isMedia ? 'note' : 'highlight'}
                       onSaveRubric={onSaveRubric}
+                      hideTotal
                     />
                   </div>
                 )}
