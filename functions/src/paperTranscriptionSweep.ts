@@ -60,6 +60,9 @@ export const CROP_LIST_PAGE = 1000;
 export const MAX_CROPS_PER_RUN = 10000;
 /** One owner's share of a pass, so a flood under one uid can't starve the owners listed after it. */
 export const MAX_OBJECTS_PER_OWNER_PER_RUN = 2000;
+
+// Server-only (no firestore.rules match, so default-deny): per-owner resume cursors.
+const SWEEP_STATE_COLLECTION = 'paper_sweep_state';
 // Matches importPaperResponses SCAN_ID_PATTERN; any other id was never recorded and can't be a Firestore doc id.
 const SCAN_ID_RE = /^[A-Za-z0-9-]{1,64}$/;
 export const MAX_LISTED_QUIZZES = 10;
@@ -749,14 +752,21 @@ export async function runPaperCropSweep(
     });
   }
 
-  /** Lists one prefix, giving each owner at most MAX_OBJECTS_PER_OWNER_PER_RUN of the run's cap. */
+  /** Lists one prefix, giving each owner at most MAX_OBJECTS_PER_OWNER_PER_RUN and resuming a capped owner where the last run stopped. */
   async function walk(
     list: ListObjects,
     prefix: string,
     count: 'listed' | 'pagesListed',
     visit: (object: ListedCrop) => Promise<void>
   ): Promise<void> {
+    const stateRef = db.collection(SWEEP_STATE_COLLECTION).doc(prefix);
+    const stored = ((await stateRef.get()).data()?.cursors ?? {}) as Record<
+      string,
+      string
+    >;
+    const cursors: Record<string, string> = { ...stored };
     const perOwner = new Map<string, number>();
+    const started = new Set<string>();
     let token: string | undefined;
     let offset: string | undefined;
     do {
@@ -764,11 +774,25 @@ export async function runPaperCropSweep(
       token = page.nextPageToken;
       offset = undefined;
       for (const object of page.crops) {
-        if (summary[count] >= MAX_CROPS_PER_RUN) break;
         const owner = object.path.split('/')[1] ?? '';
+        if (summary[count] >= MAX_CROPS_PER_RUN) {
+          if (started.has(owner)) cursors[owner] = object.path;
+          break;
+        }
+        if (!started.has(owner)) {
+          started.add(owner);
+          const resume = cursors[owner];
+          delete cursors[owner];
+          if (resume && object.path < resume) {
+            token = undefined;
+            offset = resume;
+            break;
+          }
+        }
         const seen = (perOwner.get(owner) ?? 0) + 1;
         perOwner.set(owner, seen);
         if (seen > MAX_OBJECTS_PER_OWNER_PER_RUN) {
+          cursors[owner] = object.path;
           // '0' sorts right after '/', so this resumes at the next owner.
           token = undefined;
           offset = `${prefix}/${owner}0`;
@@ -778,6 +802,9 @@ export async function runPaperCropSweep(
         await visit(object);
       }
     } while ((token || offset) && summary[count] < MAX_CROPS_PER_RUN);
+    if (JSON.stringify(cursors) !== JSON.stringify(stored)) {
+      await stateRef.set({ cursors, updatedAt: now });
+    }
   }
 
   await walk(

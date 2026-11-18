@@ -313,6 +313,26 @@ describe('runPaperCropSweep', () => {
     expect(summary.listed).toBe(MAX_OBJECTS_PER_OWNER_PER_RUN + 1);
   });
 
+  it('visits every object of an owner holding more than the cap across consecutive runs', async () => {
+    const total = MAX_OBJECTS_PER_OWNER_PER_RUN + 500;
+    const objects = [
+      ...Array.from({ length: total }, (_, i) =>
+        old(
+          `paper_written_crops/t1/scanX/1/q${String(i).padStart(5, '0')}.webp`
+        )
+      ),
+      old('paper_written_crops/t2/scanX/1/q1.webp'),
+    ];
+    const s = setup({}, [], { listCrops: pagedLister(objects) });
+    const first = await runPaperCropSweep(s.deps);
+    expect(first.listed).toBe(MAX_OBJECTS_PER_OWNER_PER_RUN + 1);
+    expect(new Set(s.deleted).size).toBe(MAX_OBJECTS_PER_OWNER_PER_RUN + 1);
+    await runPaperCropSweep(s.deps);
+    expect(new Set(s.deleted)).toEqual(new Set(objects.map((o) => o.path)));
+    const third = await runPaperCropSweep(s.deps);
+    expect(third.listed).toBe(MAX_OBJECTS_PER_OWNER_PER_RUN + 1);
+  });
+
   it('removes a crop its answer no longer points at, keeping newer-scan crops', async () => {
     const s = setup(
       {

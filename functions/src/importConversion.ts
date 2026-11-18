@@ -128,18 +128,18 @@ export async function runConversion(
         limit: access.limit,
         message: access.limitMessage,
       });
-  let modelCalled = false;
+  let modelReplied = false;
   try {
     const fitted = fitSourceText(
       req.source.text,
       await deps.maxInputChars(integration)
     );
     const source = { ...req.source, text: fitted.text };
-    modelCalled = true;
     const text = await deps.generate(
       integration,
       buildConversionPrompt({ ...req, source }, allowed)
     );
+    modelReplied = true;
     const truncated = fitted.truncated || req.clipped;
     switch (req.target) {
       case 'flashcards':
@@ -162,8 +162,8 @@ export async function runConversion(
         };
     }
   } catch (error) {
-    // A model call may already be billed, so only a failure before it refunds.
-    if (!modelCalled && charge.docIds.length > 0) {
+    // A reply that fails to parse stays charged; a failure before or in the call refunds.
+    if (!modelReplied && charge.docIds.length > 0) {
       await deps.refund(charge).catch(() => undefined);
     }
     if (error instanceof HttpsError) throw error;
