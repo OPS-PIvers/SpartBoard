@@ -245,7 +245,7 @@ describe('Manual assign and updateWritingSessionV1', () => {
           c9: { state: 'open' },
         },
       })
-    ).resolves.toEqual({ updated: true });
+    ).resolves.toEqual({ updated: true, assignedTab: true });
     for (const path of [SESSION, RECORD]) {
       expect(store.get(path).periodAccess.c1).toMatchObject({
         state: 'open',
@@ -369,12 +369,19 @@ describe('Manual assign and updateWritingSessionV1', () => {
   it('a reopen of a live session and an end of an ended one change nothing', async () => {
     await expect(update({ reopen: true })).resolves.toEqual({
       updated: false,
+      assignedTab: true,
     });
     await update({ end: true });
     store.set(SESSION, { ...store.get(SESSION), endedAt: 1 });
     await update({ end: true, marks: { doneAt: 9 } });
     expect(store.get(SESSION).endedAt).toBe(1);
     expect(store.get(RECORD).doneAt).toBe(9);
+  });
+
+  it('ignores marks that are not an object', async () => {
+    await expect(update({ marks: 'x' })).resolves.toMatchObject({
+      updated: false,
+    });
   });
 
   it('refuses anyone but the session teacher', async () => {

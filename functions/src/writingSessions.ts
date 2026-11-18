@@ -366,7 +366,7 @@ export async function handleUpdateWritingSession(
   caller: AssignWritingCaller | null,
   data: unknown,
   now: number
-): Promise<{ updated: boolean }> {
+): Promise<{ updated: boolean; assignedTab?: true }> {
   if (!caller) throw new HttpsError('unauthenticated', 'Sign in required.');
   if (!caller.staff)
     throw new HttpsError('permission-denied', 'Teacher account required.');
@@ -465,7 +465,8 @@ export async function handleUpdateWritingSession(
       shared.status = 'ended';
       shared.endedAt = now;
     }
-    const marks = (d.marks ?? {}) as Data;
+    const marks =
+      typeof d.marks === 'object' && d.marks !== null ? (d.marks as Data) : {};
     for (const k of ['closedAt', 'doneAt'] as const)
       if (k in marks) recordOnly[k] = optTime(marks[k]);
     const sessionPatch = { ...shared, ...sessionOnly };
@@ -474,12 +475,13 @@ export async function handleUpdateWritingSession(
       Object.keys(sessionPatch).length === 0 &&
       Object.keys(recordPatch).length === 0
     )
-      return { updated: false };
+      return { updated: false, assignedTab: true };
     if (Object.keys(sessionPatch).length > 0)
       tx.update(ref, { ...sessionPatch, updatedAt: now });
     if (recordSnap.exists)
       tx.update(recordRef, { ...recordPatch, updatedAt: now });
-    return { updated: true };
+    // Tells a newer client this server applied reopen, end and marks.
+    return { updated: true, assignedTab: true };
   });
 }
 

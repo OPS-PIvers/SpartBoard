@@ -66,6 +66,8 @@ const PIN_MS = 15 * 60_000;
 
 /** A row still being worked: anything not ended before the Assigned tab handled it (D20). */
 const wantsLiveData = (a: FlashcardAssignment) =>
+  // A study set has nothing to grade or publish, so once ended it needs no progress.
+  !(a.kind !== 'check' && a.status === 'ended') &&
   !(
     a.status === 'ended' &&
     (a.doneAt != null || (!!a.scoreVisibility && a.scoreVisibility !== 'none'))

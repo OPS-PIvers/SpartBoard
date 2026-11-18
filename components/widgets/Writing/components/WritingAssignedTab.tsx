@@ -118,36 +118,45 @@ function useGrading(ids: readonly string[]) {
 /** Turned-in and returned counts per class, from count queries so no piece's text is downloaded. */
 function useCounts(records: readonly WritingAssignmentRecord[]) {
   const fixture = useContext(WritingAssignedFixture);
-  // Class keys can hold a colon (classlink:...), so the key is JSON.
-  const key =
-    fixture || records.length === 0
-      ? ''
-      : JSON.stringify(
-          records.map((r) => [
-            r.id,
-            r.updatedAt,
-            Object.keys(r.periodAccess ?? {}),
-          ])
-        );
   const [byId, setById] = useState<
     Record<string, Record<string, WritingClassCounts>>
   >({});
+  // When each record was last counted and on which version, so one row's change recounts only that row.
+  const [fetched] = useState(
+    () => new Map<string, { sig: string; at: number }>()
+  );
   const [tick, setTick] = useState(0);
+  const active = !fixture && records.length > 0;
   useEffect(() => {
-    if (!key) return undefined;
+    if (!active) return undefined;
     const t = setInterval(() => setTick((n) => n + 1), COUNT_MS);
     return () => clearInterval(t);
-  }, [key]);
+  }, [active]);
   useEffect(() => {
-    if (!key) return undefined;
-    let cancelled = false;
-    const parts = JSON.parse(key) as Array<[string, number, string[]]>;
-    for (const [id, , classes] of parts) {
-      const classKeys = classes.length > 0 ? classes : [''];
+    if (fixture) return;
+    const now = Date.now();
+    for (const r of records) {
+      // Class keys can hold a colon (classlink:...), so the signature is JSON.
+      const sig = JSON.stringify([
+        r.updatedAt,
+        Object.keys(r.periodAccess ?? {}),
+      ]);
+      const last = fetched.get(r.id);
+      const waiting = Object.values(byId[r.id] ?? {}).some(
+        (c) => c.turnedIn > 0
+      );
+      // An ended run takes no new pieces, so it is recounted only while some wait to be returned.
+      const due =
+        !last ||
+        last.sig !== sig ||
+        (now - last.at >= COUNT_MS && (r.status !== 'ended' || waiting));
+      if (!due) continue;
+      fetched.set(r.id, { sig, at: now });
+      const classKeys = Object.keys(r.periodAccess ?? {});
       const responses = collection(
         db,
         'writing_assignment_sessions',
-        id,
+        r.id,
         'responses'
       );
       const count = async (classKey: string, status: string) => {
@@ -159,7 +168,7 @@ function useCounts(records: readonly WritingAssignmentRecord[]) {
         return snap.data().count;
       };
       void Promise.all(
-        classKeys.map(async (k) => {
+        (classKeys.length > 0 ? classKeys : ['']).map(async (k) => {
           const [turnedIn, returned] = await Promise.all([
             count(k, 'turned-in'),
             count(k, 'returned'),
@@ -167,18 +176,17 @@ function useCounts(records: readonly WritingAssignmentRecord[]) {
           return [k, { turnedIn, returned }] as const;
         })
       )
-        .then((entries) => {
-          if (!cancelled)
-            setById((prev) => ({ ...prev, [id]: Object.fromEntries(entries) }));
-        })
-        .catch((err: unknown) =>
-          logError('WritingAssignedTab.counts', err, { sessionId: id })
-        );
+        .then((entries) =>
+          setById((prev) => ({ ...prev, [r.id]: Object.fromEntries(entries) }))
+        )
+        .catch((err: unknown) => {
+          fetched.delete(r.id);
+          logError('WritingAssignedTab.counts', err, { sessionId: r.id });
+        });
     }
-    return () => {
-      cancelled = true;
-    };
-  }, [key, tick]);
+    // byId is read only to see which ended rows still wait; tick drives the minute recount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fixture, records, tick, fetched]);
   return fixture?.counts ?? byId;
 }
 

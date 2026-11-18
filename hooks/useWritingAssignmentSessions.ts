@@ -45,7 +45,21 @@ export interface UpdateWritingSessionInput extends PeriodAccessPatch {
 export async function updateWritingSession(
   input: UpdateWritingSessionInput
 ): Promise<void> {
-  await httpsCallable(functions, 'updateWritingSessionV1')(input);
+  const res = await httpsCallable<
+    UpdateWritingSessionInput,
+    { updated: boolean; assignedTab?: true }
+  >(
+    functions,
+    'updateWritingSessionV1'
+  )(input);
+  // An older server drops the Assigned tab fields without saying so.
+  const assignedTabCall =
+    input.reopen != null ||
+    input.end != null ||
+    input.endIfAllClosed != null ||
+    input.marks != null;
+  if (assignedTabCall && res.data?.assignedTab !== true)
+    throw new Error('updateWritingSessionV1 predates the Assigned tab fields.');
 }
 
 export async function endWritingSession(sessionId: string): Promise<void> {
