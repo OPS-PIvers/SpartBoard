@@ -111,6 +111,10 @@ const StudentsMenu: React.FC<{
   const byClass = new Map<string, ClassStudentRow[]>();
   for (const row of shown)
     byClass.set(row.rosterName, [...(byClass.get(row.rosterName) ?? []), row]);
+  // Tour row numbers follow the order on screen, class by class.
+  const rowNumber = new Map(
+    [...byClass.values()].flat().map((row, i) => [row.key, i + 1] as const)
+  );
   const multiClass = new Set(rows.map((r) => r.rosterId)).size > 1;
   const shownGroups = classGroups.filter(
     (g) => !q || g.name.toLocaleLowerCase().includes(q)
@@ -272,7 +276,7 @@ const StudentsMenu: React.FC<{
                         {...tourFieldAttr(
                           'assign-mods.student',
                           'assign',
-                          `row-${shown.indexOf(row) + 1}`
+                          `row-${rowNumber.get(row.key) ?? 0}`
                         )}
                         className="h-4 w-4 rounded-sm accent-brand-blue-primary"
                       />
