@@ -31,7 +31,8 @@
 # Optional env: FIREBASE_DEPLOY_ONLY (default functions,firestore:indexes,storage;
 # empty skips the CLI deploy) and RELEASE_FIRESTORE_RULES (default true).
 # Every deploy naming functions first runs function-delete-check.mjs (never delete a function some
-# codebase still exports) and, once it succeeds, the label check; neither is retried.
+# codebase still exports) and, once it succeeds, the label check. A violation fails at once; an
+# outage listing live functions (exit 3) retries with the deploy's backoff.
 
 set -uo pipefail
 
@@ -180,9 +181,19 @@ while true; do
     only="${qualified}${other_targets:+,$other_targets}"
   fi
   # Live labels against the manifest, before every attempt: a half-finished attempt can leave labels in between.
-  if names_functions "$only" && ! node "$SCRIPT_DIR/function-delete-check.mjs" pre "$PROJECT_ID" "$only"; then
-    echo "ERROR: the pre-deploy delete check failed; nothing was deployed by this attempt." >&2
-    exit 1
+  if names_functions "$only"; then
+    node "$SCRIPT_DIR/function-delete-check.mjs" pre "$PROJECT_ID" "$only"
+    check=$?
+    if (( check == 3 && attempt < MAX_ATTEMPTS )); then
+      echo "::warning::Could not list live functions for the delete check; retrying in ${backoff}s (attempt ${attempt}/${MAX_ATTEMPTS})."
+      sleep "$backoff"
+      attempt=$((attempt + 1))
+      backoff=$(( backoff * 2 > MAX_BACKOFF ? MAX_BACKOFF : backoff * 2 ))
+      continue
+    elif (( check != 0 )); then
+      echo "ERROR: the pre-deploy delete check failed; nothing was deployed by this attempt." >&2
+      exit 1
+    fi
   fi
   echo "::group::firebase deploy (attempt ${attempt}/${MAX_ATTEMPTS})"
   # `tee` keeps the deploy output streaming in the CI log while also
@@ -208,9 +219,20 @@ while true; do
   fi
 
   if [[ "$code" -eq 0 ]]; then
-    if [[ "$deploys_functions" == true ]] && ! node "$SCRIPT_DIR/function-delete-check.mjs" post "$PROJECT_ID" "$DEPLOY_ONLY"; then
-      echo "ERROR: the deploy finished but the post-deploy label check failed." >&2
-      exit 1
+    if [[ "$deploys_functions" == true ]]; then
+      for wait in 30 60 120 0; do
+        node "$SCRIPT_DIR/function-delete-check.mjs" post "$PROJECT_ID" "$DEPLOY_ONLY"
+        check=$?
+        (( check == 3 && wait > 0 )) || break
+        sleep "$wait"
+      done
+      if (( check == 3 )); then
+        # The functions are already live; an API outage must not also hold back the hosting release.
+        echo "::warning::Could not list live functions, so the post-deploy label check did not run."
+      elif (( check != 0 )); then
+        echo "ERROR: the deploy finished but the post-deploy label check failed." >&2
+        exit 1
+      fi
     fi
     exit 0
   fi

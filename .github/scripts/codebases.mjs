@@ -1,6 +1,5 @@
 #!/usr/bin/env node
-// Function codebases from functions/codebases.json and firebase.json; names not in the manifest are in `default`.
-// CLI: codebases.mjs qualify <name,...> | whole <deploy-only> | list (run from the repo root).
+// Function codebases from functions/codebases.json and firebase.json; CLI: qualify <names> | whole <deploy-only> | list.
 
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';

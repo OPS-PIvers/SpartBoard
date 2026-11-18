@@ -1,6 +1,5 @@
 #!/usr/bin/env node
-// Usage: function-targets.mjs <deploy-only> [functions-lib-index]; prints deploy-only with only real Cloud Functions named,
-// each as functions:<codebase>:<name> from functions/codebases.json (run from the repo root).
+// Usage: function-targets.mjs <deploy-only> [lib-index]; keeps only real Cloud Functions, each as functions:<codebase>:<name>.
 
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';

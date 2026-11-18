@@ -588,6 +588,30 @@ describe('firebase-deploy-with-retry.sh function codebases', () => {
     expect(onlys).toEqual(['functions']);
   });
 
+  it('retries the delete check when live functions cannot be listed', () => {
+    const { status, onlys, checks } = runWithStubbedDeploys(
+      [{ exit: 0, log: '' }],
+      'functions',
+      { checkExits: { pre: 3 } }
+    );
+    // Every attempt fails to list, so nothing deploys and the job fails after the attempt budget.
+    expect(status).toBe(1);
+    expect(onlys).toEqual([]);
+    expect(checks).toHaveLength(6);
+  });
+
+  it('warns instead of failing when the label check cannot list functions after a deploy', () => {
+    const { status, onlys, checks, stdout } = runWithStubbedDeploys(
+      [{ exit: 0, log: '' }],
+      'functions',
+      { checkExits: { post: 3 } }
+    );
+    expect(status).toBe(0);
+    expect(onlys).toEqual(['functions']);
+    expect(checks.filter((c) => c.startsWith('post'))).toHaveLength(4);
+    expect(stdout).toContain('post-deploy label check did not run');
+  });
+
   it('skips both checks when no functions deploy', () => {
     const { status, checks } = runWithStubbedDeploys(
       [{ exit: 0, log: '' }],

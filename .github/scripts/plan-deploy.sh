@@ -62,7 +62,7 @@ has() { grep -qE "$1" <<<"$FILES"; }
 
 # What the functions target deploys: every function, or (dev-paul and main) just the affected ones.
 FUNCTION_TARGETS=functions
-DEPLOY_SCRIPTS='firebase-deploy-with-retry\.sh|affected-functions\.mjs|function-targets\.mjs|codebases\.mjs'
+DEPLOY_SCRIPTS='firebase-deploy-with-retry\.sh|affected-functions\.mjs|function-targets\.mjs|codebases\.mjs|function-delete-check\.mjs'
 if [[ "$FULL" == "true" ]] || has "^__ALL__\$|^\.github/scripts/(${DEPLOY_SCRIPTS})\$"; then
   FUNCTIONS=true INDEXES=true STORAGE=true RULES=true
 else

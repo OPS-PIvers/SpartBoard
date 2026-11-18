@@ -1,9 +1,5 @@
 #!/usr/bin/env node
-// Usage (from the repo root):
-//   function-delete-check.mjs pre <project> <deploy-only>  fails if the deploy would delete a function some codebase still exports
-//   function-delete-check.mjs post <project> <deploy-only> fails if a targeted function's live label differs from functions/codebases.json, or a moved function was recreated
-// Env: FUNCTIONS_LIB_INDEX (default functions/lib/index.js), FUNCTIONS_DISCOVERY_CONFIG (FIREBASE_CONFIG for loading it),
-// FUNCTION_SNAPSHOT_FILE (pre writes live labels and createTimes, post compares), LIVE_FUNCTIONS_JSON (a saved list response, for tests).
+// function-delete-check.mjs pre|post <project> <deploy-only>: exit 1 on a delete of an exported name or a label mismatch, 3 if live functions can't be listed.
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -19,10 +15,12 @@ import {
 
 const CODEBASE_LABEL = 'firebase-functions-codebase';
 
-const fail = (message) => {
+const fail = (message, code = 1) => {
   process.stderr.write(`::error::${message}\n`);
-  process.exit(1);
+  process.exit(code);
 };
+// The wrapper retries this exit code with its backoff; a check violation (1) is never retried.
+const UNAVAILABLE = 3;
 
 async function accessToken() {
   const { applicationDefault } = await import('firebase-admin/app');
@@ -59,12 +57,16 @@ async function liveFunctions(project) {
       }
       if (!response.ok)
         fail(
-          `could not list live functions in ${project} (${response.status}); not deploying blind.`
+          `could not list live functions in ${project} (${response.status}).`,
+          UNAVAILABLE
         );
       const body = await response.json();
       functions.push(...(body.functions ?? []));
       if ((body.unreachable ?? []).length > 0)
-        fail(`function list is missing regions: ${body.unreachable.join(',')}`);
+        fail(
+          `function list is missing regions: ${body.unreachable.join(',')}`,
+          UNAVAILABLE
+        );
       pageToken = body.nextPageToken ?? '';
     } while (pageToken);
   }
@@ -134,9 +136,7 @@ function filtersOf(deployOnly, codebases) {
   return { deployed, matches };
 }
 
-// What the CLI would delete: groupEndpointsByCodebase gives a live function to the first deployed codebase
-// exporting it, else to its labelled codebase if deployed. createDeploymentPlan then keeps it as live when its
-// label matches a filter, and as wanted only when its owner exports it and a filter for the owner matches.
+// Mirrors groupEndpointsByCodebase then createDeploymentPlan (see the PR #6113 description).
 export function plannedDeletes(live, deployOnly, codebases, exports) {
   const { deployed, matches } = filtersOf(deployOnly, codebases);
   return live.filter((fn) => {

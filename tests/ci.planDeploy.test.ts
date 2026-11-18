@@ -192,6 +192,7 @@ describe('plan-deploy.sh', () => {
       '.github/scripts/function-targets.mjs',
       '.github/scripts/firebase-deploy-with-retry.sh',
       '.github/scripts/codebases.mjs',
+      '.github/scripts/function-delete-check.mjs',
     ]) {
       expect(plan('main', [script]).deploy_only).toBe(
         'functions,firestore:indexes,storage'
