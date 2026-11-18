@@ -23,10 +23,9 @@ const ORG_B = 'other-district';
 
 const SUPER_UID = 'super-admin-uid';
 const SUPER_EMAIL = 'super@example.com';
-// A super admin ONLY via the legacy admin_settings/user_roles.superAdmins[]
-// array — no /admins/{email} doc, no org membership doc at all.
-const LEGACY_ONLY_SUPER_UID = 'legacy-only-super-admin-uid';
-const LEGACY_ONLY_SUPER_EMAIL = 'legacy-only-super@example.com';
+// A super admin ONLY via an operator-org super_admin member doc — no /admins/{email} doc.
+const MEMBER_ONLY_SUPER_UID = 'member-only-super-admin-uid';
+const MEMBER_ONLY_SUPER_EMAIL = 'member-only-super@example.com';
 const ORG_ADMIN_UID = 'org-admin-uid';
 const ORG_ADMIN_EMAIL = 'org-admin@example.com';
 const TEACHER_UID = 'teacher-uid';
@@ -49,10 +48,10 @@ const asSuper = () =>
       email_verified: true,
     })
     .firestore();
-const asLegacyOnlySuper = () =>
+const asMemberOnlySuper = () =>
   testEnv
-    .authenticatedContext(LEGACY_ONLY_SUPER_UID, {
-      email: LEGACY_ONLY_SUPER_EMAIL,
+    .authenticatedContext(MEMBER_ONLY_SUPER_UID, {
+      email: MEMBER_ONLY_SUPER_EMAIL,
       email_verified: true,
     })
     .firestore();
@@ -133,12 +132,13 @@ beforeEach(async () => {
   await testEnv.clearFirestore();
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();
-    // isAdmin() reads /admins/{email}; isSuperAdmin() reads the legacy list.
+    // isAdmin() reads /admins/{email}; isSuperAdmin() reads the operator-org member doc.
     await setDoc(doc(db, `admins/${SUPER_EMAIL}`), { addedAt: 1 });
     await setDoc(doc(db, `admins/${ORG_ADMIN_EMAIL}`), { addedAt: 1 });
-    await setDoc(doc(db, 'admin_settings/user_roles'), {
-      superAdmins: [SUPER_EMAIL, LEGACY_ONLY_SUPER_EMAIL],
-    });
+    await setDoc(
+      doc(db, `organizations/${ORG_A}/members/${MEMBER_ONLY_SUPER_EMAIL}`),
+      { roleId: 'super_admin' }
+    );
     await setDoc(doc(db, `organizations/${ORG_A}/members/${SUPER_EMAIL}`), {
       roleId: 'super_admin',
     });
@@ -206,17 +206,16 @@ describe('help_resources — create', () => {
     );
   });
 
-  // REGRESSION: a real super admin with no /admins doc (legacy
-  // admin_settings/user_roles.superAdmins[]-only) used to be blocked by the
+  // REGRESSION: a real super admin with no /admins doc used to be blocked by the
   // outer isAdmin() conjunct even though helpReaderOk() already lets them
   // read every item — write access was narrower than read access.
-  it('a legacy-only super admin (no /admins doc) can create a global item', async () => {
+  it('a member-only super admin (no /admins doc) can create a global item', async () => {
     await assertSucceeds(
       setDoc(
-        doc(asLegacyOnlySuper(), 'help_resources/legacy-global-1'),
-        validItem('legacy-global-1', {
-          createdBy: LEGACY_ONLY_SUPER_UID,
-          createdByEmail: LEGACY_ONLY_SUPER_EMAIL,
+        doc(asMemberOnlySuper(), 'help_resources/member-global-1'),
+        validItem('member-global-1', {
+          createdBy: MEMBER_ONLY_SUPER_UID,
+          createdByEmail: MEMBER_ONLY_SUPER_EMAIL,
         })
       )
     );
@@ -428,11 +427,11 @@ describe('help_resources — update', () => {
     );
   });
 
-  it("a legacy-only super admin (no /admins doc) CAN edit another org's item", async () => {
+  it("a member-only super admin (no /admins doc) CAN edit another org's item", async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(
-        doc(ctx.firestore(), 'help_resources/org-b-legacy'),
-        validItem('org-b-legacy', {
+        doc(ctx.firestore(), 'help_resources/org-b-member'),
+        validItem('org-b-member', {
           orgId: ORG_B,
           createdBy: TEACHER_B_UID,
           createdByEmail: TEACHER_B_EMAIL,
@@ -440,8 +439,8 @@ describe('help_resources — update', () => {
       );
     });
     await assertSucceeds(
-      updateDoc(doc(asLegacyOnlySuper(), 'help_resources/org-b-legacy'), {
-        title: 'Legacy-only super admin edit',
+      updateDoc(doc(asMemberOnlySuper(), 'help_resources/org-b-member'), {
+        title: 'Member-only super admin edit',
         updatedAt: 2000,
       })
     );
@@ -562,15 +561,15 @@ describe('help_resources — delete', () => {
     await assertSucceeds(deleteDoc(doc(asSuper(), 'help_resources/org-b-1')));
   });
 
-  it("a legacy-only super admin (no /admins doc) CAN delete another org's item", async () => {
+  it("a member-only super admin (no /admins doc) CAN delete another org's item", async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(
-        doc(ctx.firestore(), 'help_resources/org-b-legacy-del'),
-        validItem('org-b-legacy-del', { orgId: ORG_B })
+        doc(ctx.firestore(), 'help_resources/org-b-member-del'),
+        validItem('org-b-member-del', { orgId: ORG_B })
       );
     });
     await assertSucceeds(
-      deleteDoc(doc(asLegacyOnlySuper(), 'help_resources/org-b-legacy-del'))
+      deleteDoc(doc(asMemberOnlySuper(), 'help_resources/org-b-member-del'))
     );
   });
 });
