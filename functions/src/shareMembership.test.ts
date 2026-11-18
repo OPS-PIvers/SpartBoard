@@ -36,7 +36,6 @@ import * as admin from './firebaseAdmin';
 import {
   lcShapeOk,
   makeHostLookup,
-  shareMembershipV1,
   parseShareMembershipAction,
   planBoardJoin,
   planCollectionJoin,
@@ -415,33 +414,5 @@ describe('makeHostLookup', () => {
         })
       )('h')
     ).resolves.toMatchObject({ staff: false });
-  });
-});
-
-describe('shareMembershipV1 View-as guard', () => {
-  const handler = shareMembershipV1 as unknown as (
-    req: unknown
-  ) => Promise<unknown>;
-
-  it('lets a locked View-as tab read the share host, but not join', async () => {
-    vi.mocked(admin.firestore).mockReturnValue(
-      makeStubFirestore() as unknown as admin.firestore.Firestore
-    );
-    const auth = { uid: 'u1', token: {} };
-    await handler({ auth, data: { action: 'shareHost', shareId: 's' } }).catch(
-      () => undefined
-    );
-    expect(viewAsGuard.assertViewAsAllowed).toHaveBeenLastCalledWith(
-      expect.anything(),
-      { read: true }
-    );
-    await handler({
-      auth,
-      data: { action: 'leaveBoard', shareId: 's' },
-    }).catch(() => undefined);
-    expect(viewAsGuard.assertViewAsAllowed).toHaveBeenLastCalledWith(
-      expect.anything(),
-      {}
-    );
   });
 });

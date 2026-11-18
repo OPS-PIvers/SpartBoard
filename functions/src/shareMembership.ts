@@ -338,13 +338,7 @@ async function isDistrictStaff(
 export const shareMembershipV1 = onCall(
   { memory: '256MiB', timeoutSeconds: 60, maxInstances: 10 },
   async (request): Promise<{ changed: boolean } | ShareHostInfo> => {
-    // shareHost only reads, so a locked View-as tab may still ask it.
-    const data: unknown = request.data;
-    const readOnly =
-      typeof data === 'object' &&
-      data !== null &&
-      (data as Data).action === 'shareHost';
-    await assertViewAsAllowed(request, readOnly ? { read: true } : {});
+    await assertViewAsAllowed(request);
     if (!request.auth)
       throw new HttpsError('unauthenticated', 'Sign in first.');
     const db = admin.firestore();

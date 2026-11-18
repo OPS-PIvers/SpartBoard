@@ -129,7 +129,7 @@ const staleLunchDetails = (config: Record<string, unknown>): boolean =>
 
 // Blank notes the board's synced send record already marks blank need no Drive copy.
 const lunchDetailsNeedDrive = (config: Record<string, unknown>): boolean => {
-  const sends = (config as LunchCountConfig).lastSubmittedSends;
+  const sends = (config as Partial<LunchCountConfig>).lastSubmittedSends;
   return sentDetailsEntries(config.lastSubmittedDetails).some(
     ([key, details]) =>
       details.notes.trim() !== '' || sends?.[key]?.notesBlank !== true
