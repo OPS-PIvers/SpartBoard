@@ -36,6 +36,7 @@ import {
   type ImportSourceKind,
 } from '@/config/importConversion';
 import {
+  IMPORT_SOURCE_FEATURES,
   IMPORT_TARGET_FEATURES,
   importRoute,
 } from '@/components/import/importTargets';
@@ -290,7 +291,7 @@ const WidgetRow: React.FC<{
 const SourceRow: React.FC<{
   kind: ImportSourceKind;
   settings: ImportConversionSettings;
-  tagFor: (target: ImportTarget) => string | null;
+  tagFor: (kind: ImportSourceKind, target: ImportTarget) => string | null;
   legacyLimit: unknown;
   saving: boolean;
   save: Save;
@@ -356,7 +357,7 @@ const SourceRow: React.FC<{
               target={target}
               settings={settings}
               only={picked.length === 1}
-              tag={tagFor(target)}
+              tag={tagFor(kind, target)}
               legacyLimit={legacyLimit}
               saving={saving}
               save={save}
@@ -390,9 +391,20 @@ export const ImportOffersSection: React.FC<{
       setSaving(false);
     }
   };
-  const tagFor = (target: ImportTarget): string | null => {
-    const flag = IMPORT_TARGET_FEATURES[target];
-    return flag ? previewTag(editor.getPermission(flag)) : null;
+  const tagFor = (
+    kind: ImportSourceKind,
+    target: ImportTarget
+  ): string | null => {
+    // The source's own flag gates every widget it offers, so it wins.
+    const flags = [
+      IMPORT_SOURCE_FEATURES[kind],
+      IMPORT_TARGET_FEATURES[target],
+    ];
+    for (const flag of flags) {
+      const tag = flag ? previewTag(editor.getPermission(flag)) : null;
+      if (tag) return tag;
+    }
+    return null;
   };
   const legacyLimit =
     editor.getPermission('universal-import').config?.dailyLimit;

@@ -185,6 +185,13 @@ export const IMPORT_TARGET_FEATURES: Partial<
   links: 'import-link',
 };
 
+/** A source kind with its own rollout flag, which gates every type it offers. */
+export const IMPORT_SOURCE_FEATURES: Partial<
+  Record<ImportSourceKind, GlobalFeature>
+> = {
+  form: 'import-google-forms',
+};
+
 /** True when this Import type is offered: launched (null), or its own flag passes. */
 export function importTypeOn(
   target: ImportTarget,

@@ -48,19 +48,22 @@ const editor = {
   getPermission: (id: GlobalFeature) =>
     id === 'import-activity-wall'
       ? perm(id, { accessLevel: 'beta', betaUsers: ['a@x', 'b@x'] })
-      : id === 'import-new-board'
+      : id === 'import-new-board' || id === 'import-google-forms'
         ? perm(id, { accessLevel: 'admin' })
         : id === 'universal-import'
           ? perm(id, { config: { dailyLimit: 15 } })
           : perm(id),
 } as unknown as Parameters<typeof ImportOffersSection>[0]['editor'];
 
+const KINDS: Record<string, string> = {
+  'Web link': 'web',
+  'Google Form': 'form',
+};
+
 const open = (name: string) => {
   fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${name}`) }));
   return within(
-    screen.getByTestId(
-      `import-source-${name === 'Web link' ? 'web' : 'document'}`
-    )
+    screen.getByTestId(`import-source-${KINDS[name] ?? 'document'}`)
   );
 };
 
@@ -107,6 +110,12 @@ describe('ImportOffersSection', () => {
     const web = open('Web link');
     expect(web.getByText('Preview: admins and 2 testers')).toBeInTheDocument();
     expect(web.getByText('Preview: admins')).toBeInTheDocument();
+  });
+
+  it("tags every widget a form offers with the form's own preview", () => {
+    render(<ImportOffersSection editor={editor} />);
+    const form = open('Google Form');
+    expect(form.getAllByText('Preview: admins')).toHaveLength(2);
   });
 
   it('gives each AI widget its own switch and limit, keeping the old switch in step', async () => {
