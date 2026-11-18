@@ -44,14 +44,15 @@ Assignment widgets have three tabs (Library, In Progress, and Completed or Archi
 ### Rollout and compatibility
 
 - **D19. Quiz first, behind a preview flag.** `assigned-tab`: `GlobalFeature` id, `FEATURE_DEFAULTS` entry with `defaultAccessLevel: 'admin'`, `defaultEnabled: true`, `missingDocPublic: false`, `stage: 'preview'`, `afterLaunch: 'retire'`; also in `functions/src/featureMissingDoc.ts`. Flag off renders today's three tabs unchanged.
-- **D20. Existing assignments are translated on read.** No migration. `inactive` shows as Closed (Done, or Active if grading or publishing is left). `active` or `paused` without `periodAccess` shows as a single Open or Paused line. Turning the flag off restores the old view exactly.
+- **D20. Existing assignments are translated on read.** No migration. `inactive` shows as Closed. An assignment that was ended before it was ever handled by the new tab is Done whatever its grading or publishing state, so years of old quizzes with unpublished scores stay out of Active; D5's grading and publishing hold applies only to assignments closed through the new tab (D24 marks those). `active` or `paused` without `periodAccess` shows as a single Open or Paused line. Turning the flag off restores the old view exactly.
 - **D21. The old overall status is kept in step.** Opening any class writes `active`; closing the last class writes `inactive` and ends the session, as `deactivateAssignment` does now. The PLC assessment list, the substitute portal and My Assignments keep reading it unchanged, and a teacher's open tab on the previous client stays correct at release.
 - **D22. A paused or not-yet-open quiz stays on the student's My Assignments** with "Paused" or "Not open yet" (fixes AB-150), since teachers will now pause per class routinely.
+- **D24. Close writes a mark that Ready lacks.** A class that has never been opened is stored today as `state: 'closed'` with no times (`buildPeriodAccess`, `utils/periodPlan.ts`), and nothing writes a per-class close. The new Close writes `state: 'closed'` plus `closedAt`; Reopen clears it. Ready is `closed` with no `closedAt` and no response from that class. Every "closed" test in D5, D13, D14 and D21's last-class check reads `closedAt`, so closing P1 never ends a quiz whose other classes are still Ready. `closedAt` is an optional field on the existing row: old clients ignore it and rules need only allow it.
 - **D23. Publishing stays per assignment.** Publish is offered once every class is closed; publishing earlier still asks first (`PublishInProgressDialog`).
 
 ## Slices
 
-1. **Derivation helper.** A pure function from an assignment (status, `periodAccess`, rosters, grading and publish fields, bell periods, now) to per-class statuses, the Active or Done bucket, the status line and the main action. Covers D20 for legacy docs. Unit tests, no UI.
+1. **Derivation helper.** A pure function from an assignment (status, `periodAccess`, rosters, grading and publish fields, bell periods, now) to per-class statuses, the Active or Done bucket, the status line and the main action. Covers D20 for legacy docs and D24's Ready versus Closed test. Unit tests, no UI.
 2. **Quiz Assigned tab.** `LibraryShell` gains the two-tab layout and the new row beside `AssignmentArchiveCard`, behind `assigned-tab`. Per-class actions call `usePeriodAccess`; D21 keeps `status` in step. Includes D9, D10, D15, D16, D17 and the tour anchors (carry `library-shell.archive-primary-action` over).
 3. **Monitor.** Remove the footer "Close all"; the header shows the picked class's status with the same actions. Review keeps its own game controls.
 4. **Still-open flag (D11) and My Assignments fix (D22).**
@@ -63,5 +64,5 @@ Paul OKs slice 2 on `spartboard-dev` before slices 3 to 6 start.
 ## Not in scope
 
 - Publishing scores per class.
-- Changing `periodAccess`, the assign stepper's Manual and end-of-class options, or the student paused and closed screens.
+- Changing `periodAccess` beyond D24's `closedAt`, the assign stepper's Manual and end-of-class options, or the student paused and closed screens.
 - A class grid view or a "this class" filtered view. Both were prototyped and dropped: the grid needs width a widget doesn't have, and a view filtered by the clock hides a class left open.
