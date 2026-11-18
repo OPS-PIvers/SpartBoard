@@ -22,7 +22,7 @@ const h = vi.hoisted(() => ({
   files: new Map<string, { bytes: Buffer; contentType: string }>(),
 }));
 
-vi.mock('../quizMediaArchive', () => ({
+vi.mock('../featureGrant', () => ({
   isGlobalFeatureGranted: (_db: unknown, id: string) =>
     Promise.resolve(h.flags.has(id)),
 }));

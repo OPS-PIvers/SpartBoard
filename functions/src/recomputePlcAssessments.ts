@@ -54,6 +54,9 @@ function parseAnswer(raw: unknown): RawAnswer | null {
       r.paperTranscript === 'image'
         ? r.paperTranscript
         : undefined,
+    ...(typeof r.paperScanId === 'string'
+      ? { paperScanId: r.paperScanId }
+      : {}),
   };
 }
 

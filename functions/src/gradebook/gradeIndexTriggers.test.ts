@@ -26,6 +26,11 @@ vi.mock('../quizAttemptHistory', () => ({
   applyAttemptWrite: mocks.applyAttemptWrite,
   applyAttemptGradeWrite: vi.fn(),
 }));
+vi.mock('./gradeIndexQueue', async (orig) => ({
+  ...(await orig<typeof import('./gradeIndexQueue')>()),
+  isGradeIndexEnabled: vi.fn().mockResolvedValue(true),
+  markSessionDirty: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock('./gradeIndex', async (orig) => ({
   ...(await orig<typeof import('./gradeIndex')>()),
   isGradeIndexEnabled: vi.fn().mockResolvedValue(true),

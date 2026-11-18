@@ -301,7 +301,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
         } catch {
           name = null;
         }
-        const { isGlobalFeatureGranted } = await import('../quizMediaArchive');
+        const { isGlobalFeatureGranted } = await import('../featureGrant');
         const granted = (id: string) =>
           isGlobalFeatureGranted(db, id, ctx.email, uid).catch(() => false);
         const [resultsOn, gl, meetings, adminUser] = await Promise.all([

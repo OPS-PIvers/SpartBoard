@@ -68392,8 +68392,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "math-tool.add-piece",
-    "label": "Add piece button on a Math Tool (algebra tiles, base-10 blocks, pattern blocks, place value), by tool and piece",
+    "label": "Add piece button on a Math Tool (algebra tiles, base-10 blocks, pattern blocks), by tool and piece",
     "scope": "field",
+    "key_pattern": "mathTool#(algebra-tiles\\.(x2-pos|x2-neg|x-pos|x-neg|unit-pos|unit-neg)|base-10\\.(flat|rod|unit)|pattern-blocks\\.(hexagon|trapezoid|triangle|rhombus-wide|rhombus-narrow|square))",
+    "key_hint": "mathTool#base-10.rod, mathTool#algebra-tiles.x-pos",
     "routes": [
       {
         "surface": "widgets.math-tool.face",
@@ -68408,7 +68410,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "math-tool.clear",
-    "label": "Clear button on a Math Tool (coordinate plane, geoboard, place value)",
+    "label": "Clear button on a Math Tool (coordinate plane, geoboard)",
     "scope": "widget type",
     "destructive": true,
     "keys": [
@@ -68469,6 +68471,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "math-tool.calculator-key",
     "label": "Calculator key, by label (digits, operators, AC, =)",
     "scope": "field",
+    "key_pattern": "mathTool#([0-9]|AC|\\+/−|%|÷|×|−|\\+|⌫|\\.|=)",
+    "key_hint": "mathTool#7 is the 7 key; mathTool#AC is the clear key",
     "routes": [
       {
         "surface": "widgets.math-tool.face",
@@ -68485,6 +68489,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "math-tool.denominator",
     "label": "Denominator toggle in Fraction Tiles, by denominator",
     "scope": "field",
+    "key_pattern": "mathTool#(1|2|3|4|5|6|8|10|12)",
+    "key_hint": "mathTool#4 is the fourths toggle",
     "routes": [
       {
         "surface": "widgets.math-tool.face",
@@ -68501,6 +68507,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "math-tool.number-line-mode",
     "label": "Number line mode button (integers, decimals, fractions), by mode",
     "scope": "field",
+    "key_pattern": "mathTool#(integers|decimals|fractions)",
+    "key_hint": "mathTool#decimals",
     "routes": [
       {
         "surface": "widgets.math-tool.face",

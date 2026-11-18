@@ -925,13 +925,12 @@ export function hasPaperWrittenAwaiting(
   );
 }
 
-/** The `paperTranscript` state of a response's answer to one question, if any. */
-export function paperTranscriptFor(
+/** A response's answer to one question, if any. */
+export function paperAnswerFor(
   response: { answers?: readonly QuizResponseAnswer[] } | undefined,
   questionId: string
-): import('@/types').PaperTranscriptState | undefined {
-  return response?.answers?.find((a) => a.questionId === questionId)
-    ?.paperTranscript;
+): QuizResponseAnswer | undefined {
+  return response?.answers?.find((a) => a.questionId === questionId);
 }
 
 export function gradeAnswer(

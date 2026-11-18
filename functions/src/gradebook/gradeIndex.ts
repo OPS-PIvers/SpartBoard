@@ -2,11 +2,7 @@
 import type * as admin from '../firebaseAdmin';
 import * as logger from 'firebase-functions/logger';
 import { withQuizSessionContent } from '../quizSessionContent';
-import {
-  GRADEBOOK_COLLECTIONS,
-  GRADEBOOK_SESSION_COLLECTIONS,
-  isResourceSession,
-} from '../gradebookCore';
+import { GRADEBOOK_COLLECTIONS, isResourceSession } from '../gradebookCore';
 import { servedFibAnswers as servedFibAnswersByLocale } from '../quizScoreOnSubmit';
 import {
   assembleRow,
@@ -30,6 +26,16 @@ import {
 import { writingGradingMax } from '../writingResponseState';
 import type { ClassStudents } from './projectMemberAuthority';
 import { RosterUnavailableError } from './rosterUnavailable';
+import {
+  GRADE_INDEX_QUEUE,
+  GRADE_INDEX_SETTINGS_PATH,
+  SESSION_COLLECTION,
+  __resetGradeIndexEnabledCache,
+  isGradeIndexEnabled,
+  markSessionDirty,
+  sessionWriteMatters,
+  stableStringify,
+} from './gradeIndexQueue';
 import type {
   IndexAttempt,
   IndexRow,
@@ -42,10 +48,16 @@ type Firestore = admin.firestore.Firestore;
 type Doc = Record<string, unknown>;
 
 export const GRADE_INDEX = GRADEBOOK_COLLECTIONS.index;
-export const GRADE_INDEX_QUEUE = 'grade_index_sessions';
-export const GRADE_INDEX_SETTINGS_PATH = 'admin_settings/gradebook_index';
-
-export const SESSION_COLLECTION = GRADEBOOK_SESSION_COLLECTIONS;
+export {
+  GRADE_INDEX_QUEUE,
+  GRADE_INDEX_SETTINGS_PATH,
+  SESSION_COLLECTION,
+  __resetGradeIndexEnabledCache,
+  isGradeIndexEnabled,
+  markSessionDirty,
+  sessionWriteMatters,
+  stableStringify,
+};
 
 /** The per-student subcollection each kind keeps under its session. */
 export const STUDENT_SUBCOLLECTION: Record<GradeKind, string> = {
@@ -66,26 +78,6 @@ const asStrings = (v: unknown): string[] =>
   Array.isArray(v)
     ? v.filter((x): x is string => typeof x === 'string' && x.length > 0)
     : [];
-
-let enabledCache: { value: boolean; at: number } | null = null;
-const ENABLED_TTL_MS = 60_000;
-
-/** The org-wide kill switch; the index writes nothing until an admin turns it on. */
-export async function isGradeIndexEnabled(
-  db: Firestore,
-  now = Date.now()
-): Promise<boolean> {
-  if (enabledCache && now - enabledCache.at < ENABLED_TTL_MS)
-    return enabledCache.value;
-  const snap = await db.doc(GRADE_INDEX_SETTINGS_PATH).get();
-  const value = snap.data()?.enabled === true;
-  enabledCache = { value, at: now };
-  return value;
-}
-
-export function __resetGradeIndexEnabledCache(): void {
-  enabledCache = null;
-}
 
 /** Everything needed to score any student of one session, loaded once. */
 export interface SessionContext {
@@ -419,17 +411,6 @@ async function freshStudentDoc(
     .doc(w.docId)
     .get();
   return snap.exists ? (snap.data() ?? undefined) : undefined;
-}
-
-export function stableStringify(v: unknown): string {
-  if (Array.isArray(v)) return `[${v.map(stableStringify).join(',')}]`;
-  if (v && typeof v === 'object') {
-    const entries = Object.entries(v as Doc)
-      .filter(([, x]) => x !== undefined)
-      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
-    return `{${entries.map(([k, x]) => `${JSON.stringify(k)}:${stableStringify(x)}`).join(',')}}`;
-  }
-  return JSON.stringify(v);
 }
 
 async function deleteRow(
@@ -802,58 +783,6 @@ export async function recomputeSession(
     deleted++;
   }
   return { written, deleted };
-}
-
-/** Session fields whose change reshapes every row (D10 whole-session recompute). */
-const SESSION_WATCHED = [
-  'teacherUid',
-  'title',
-  'quizTitle',
-  'assignmentName',
-  'activityTitle',
-  'appTitle',
-  'prompt',
-  'rosterIds',
-  'classIds',
-  'classId',
-  'periodAccess',
-  'openAt',
-  'dueAt',
-  'closeAt',
-  'dueAtByClassId',
-  'individualTargeting',
-  'scorePublishedAt',
-  'scoreVisibility',
-  'publicSteps',
-  'publicQuestions',
-  'questionsInContent',
-  'sections',
-  'kind',
-  'workKind',
-  'assignmentId',
-];
-
-export function sessionWriteMatters(
-  before: Doc | undefined,
-  after: Doc | undefined
-): boolean {
-  if (!before || !after) return true;
-  return SESSION_WATCHED.some(
-    (f) => stableStringify(before[f]) !== stableStringify(after[f])
-  );
-}
-
-/** Queues a whole-session recompute, oldest first; an entry already backing off keeps its backoff. Entries queued before the key carried a kind are keyed by session id alone. */
-export async function markSessionDirty(
-  db: Firestore,
-  kind: GradeKind,
-  sessionId: string,
-  now = Date.now()
-): Promise<void> {
-  await db
-    .collection(GRADE_INDEX_QUEUE)
-    .doc(`${kind}__${sessionId}`)
-    .set({ kind, sessionId, dirtyAt: now }, { merge: true });
 }
 
 export const RECOMPUTE_LIMIT = 200;

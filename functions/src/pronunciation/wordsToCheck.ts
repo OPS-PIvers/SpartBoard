@@ -94,7 +94,7 @@ export const listSpeakWordsToCheckV1 = onCall(
     if (!(await db.collection('admins').doc(email).get()).exists) {
       throw new HttpsError('permission-denied', 'Admins only.');
     }
-    const { isGlobalFeatureGranted } = await import('../quizMediaArchive');
+    const { isGlobalFeatureGranted } = await import('../featureGrant');
     if (
       !(await isGlobalFeatureGranted(
         db,

@@ -1,7 +1,7 @@
 # SpartBoard Unifier — Nightly Consistency Memory
 
-_Run count: 149_
-_Last run: 2026-11-17_
+_Run count: 150_
+_Last run: 2026-11-18_
 _Base branch: dev-paul_
 
 ---
@@ -580,6 +580,7 @@ Ordered roughly by severity. Pick the top OPEN item per dimension each night. On
 
 | Date | Branch | Dimension | Action | PR |
 | ---------- | ------------------------------------------------- | --------------------- | --- | --- |
+| 2026-11-18 | `claude/kind-johnson-owvr5o` | D1/D2/D3/D4/D5 | Aligned (run 150) — light probe of `c859a9fc..dev-paul` (119 commits, 135 non-test client files). Run 149's `FreeResponseGrader` `var(--spart-primary, #2d3f89)` change confirmed on dev-paul. Diff-scoped greps over added lines: no cross-directory `'../../'` imports, no `<Toast`/`common/Toast`, no `#2d3f89`/`#ad2122`/`#4356a0`, no new `Widget.tsx`/`Settings.tsx`; two added `text-xxs font-bold uppercase tracking-widest text-slate-400` section labels are the existing pattern already backlogged under D3, not unified. No unification attempted; `pnpm run validate` skipped (CLAUDE.md bars full validate; docs-only PR, CI gates it). | — |
 | 2026-11-17 | `nightly/unify-d2-brand-colors-2026-11-17` | D2 Brand Colors (+D1/D3/D4/D5 probe) | Shipped (run 149, mechanical) — `FreeResponseGrader.tsx` `BRAND_BLUE_HEADER` (inline `backgroundColor` via `EditorModalShell.headerAccent`) `'#2d3f89'` → `'var(--spart-primary, #2d3f89)'`; default render identical, 130 related suites pass. Probe of `24963c64..dev-paul`: `../../boardHelpers` in Projects board components is own-widget gray zone (D4-E3); new Agenda widget uses `ScaledEmptyState`; no `<Toast`; hand-rolled `text-xxs font-bold uppercase` hits are existing label patterns already backlogged under D3. | PR pending |
 | 2026-11-16 | `nightly/unifier-log-2026-11-16` | D1/D2/D3/D4/D5 | Aligned (run 148) — light probe of `24963c64^..dev-paul` (42 commits since 11-15, 243 non-test files). Diff-scoped greps over added lines: no cross-directory `'../../'` imports, no `<Toast`/`common/Toast`, no `#ad2122`/`#4356a0`; the single `#2d3f89` hit is already canonical `var(--spart-primary, #2d3f89)`; the only 'No … yet' widget empty state (Schedule) already uses `ScaledEmptyState`; the one added `Widget.tsx` (LunchCount) is a hotfix restore of the classic layout. No unification shipped; `pnpm run validate` not run (docs-only, CLAUDE.md forbids full runs). | — |
 | 2026-11-15 | `nightly/unifier-log-2026-11-15` | D1/D2/D3/D4/D5 | Aligned (run 147) — light probe of `dc295c6a..dev-paul` (97 commits, 348 files; due-date locking, Mini App branch). Diff-scoped greps over added lines: no cross-directory `'../../'` imports, no `<Toast`/`common/Toast`, no hand-rolled SettingsLabel combo, no new `Widget.tsx`/`Settings.tsx`; the single `#2d3f89` hit is already the canonical `var(--spart-primary, #2d3f89)`. Two `role="group"`/`aria-pressed` leads (admin `AssignmentModesSection`, student `QuestionOverlay`) logged/classified, not unified. No unification attempted; `pnpm run validate` skipped (CLAUDE.md bars full validate; docs-only PR, CI gates it). | — |

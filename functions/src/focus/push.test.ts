@@ -2,7 +2,9 @@ import { createECDH, createPublicKey, verify } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import {
   parseVapidPrivateKey,
+  PUSH_RETENTION_MS,
   pushAudience,
+  pushSaveAction,
   vapidJwt,
   wakeFocusStudents,
   type FocusPushDeps,
@@ -235,5 +237,30 @@ describe('wake deadline', () => {
     const d = deps(() => new Response(null, { status: 201 }));
     await wakeFocusStudents(db, ['a'], d);
     expect(d.calls[0].init.redirect).toBe('error');
+  });
+});
+
+describe('pushSaveAction', () => {
+  const DAY = 24 * 3600_000;
+
+  it('writes a new or changed subscription and deletes a removed one', () => {
+    expect(pushSaveAction(true, true, NOW + PUSH_RETENTION_MS, NOW)).toBe(
+      'write'
+    );
+    expect(pushSaveAction(true, false, null, NOW)).toBe('delete');
+    expect(pushSaveAction(false, false, null, NOW)).toBe('keep');
+  });
+
+  it('keeps an unchanged subscription until its expiry is a week old, then pushes it out', () => {
+    expect(
+      pushSaveAction(false, true, NOW + PUSH_RETENTION_MS - DAY, NOW)
+    ).toBe('keep');
+    expect(
+      pushSaveAction(false, true, NOW + PUSH_RETENTION_MS - 8 * DAY, NOW)
+    ).toBe('write');
+  });
+
+  it('stamps a subscription that predates the expiry', () => {
+    expect(pushSaveAction(false, true, null, NOW)).toBe('write');
   });
 });

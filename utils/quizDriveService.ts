@@ -19,7 +19,7 @@ import {
   QuizTranslation,
   isFreeResponseType,
 } from '@/types';
-import { gradeAnswer, paperTranscriptFor } from '@/hooks/useQuizSession';
+import { gradeAnswer, paperAnswerFor } from '@/hooks/useQuizSession';
 import { gradingPaperTranscript } from '@/utils/paperWritten';
 import { DRIVE_APP_FOLDER } from '@/config/devProject';
 import { DevProdDriveWriteError } from './devDriveWriteGuard';
@@ -68,7 +68,7 @@ export function makeQuizGradeFn(fibGrading?: FibGradingContext | null) {
       gradingPaperTranscript(
         question,
         response,
-        paperTranscriptFor(response, question.id)
+        paperAnswerFor(response, question.id)
       )
     );
     return response ? applyMediaSlots(question, response, base) : base;

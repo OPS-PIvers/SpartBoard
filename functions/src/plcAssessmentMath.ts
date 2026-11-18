@@ -85,6 +85,18 @@ export interface ManualGrade {
   scoredCriterionIds: string[];
 }
 
+/** The `paperTranscript` grading trusts: a server-imported response, and on FIB a server-scanned answer. */
+export function trustedPaperTranscript(
+  question: Pick<GroupQuestion, 'type'>,
+  paperAttested: boolean | undefined,
+  answer: Pick<RawAnswer, 'paperTranscript' | 'paperScanId'> | undefined
+): RawAnswer['paperTranscript'] {
+  if (paperAttested !== true) return undefined;
+  if (question.type === 'FIB' && answer?.paperScanId === undefined)
+    return undefined;
+  return answer?.paperTranscript;
+}
+
 /** A scanned paper answer with no text yet (in transcription or kept as an image) waits for the teacher. */
 export const paperAnswerOwed = (state: RawAnswer['paperTranscript']): boolean =>
   state === 'pending' || state === 'image';
@@ -100,6 +112,8 @@ export interface RawAnswer {
   takeIndex?: number;
   /** Set on handwritten paper answers; `blank` is a scanned empty box. */
   paperTranscript?: 'pending' | 'blank' | 'done' | 'image';
+  /** Server-written scan id; students can't add it once a paper batch is stamped. */
+  paperScanId?: string;
 }
 
 export interface CompletedResponse {
@@ -1122,7 +1136,7 @@ export function computeAssessmentAggregate(
           question.type === 'FIB'
             ? servedFibAnswers(session, r.studentUid, sessionQid)
             : undefined,
-          r.paperAttested === true ? a?.paperTranscript : undefined
+          trustedPaperTranscript(question, r.paperAttested, a)
         );
         // A paper answer not yet scanned or still untranscribed is owed a grade, never a 0.
         const paperOwed =

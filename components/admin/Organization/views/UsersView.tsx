@@ -523,6 +523,11 @@ export const UsersView: React.FC<Props> = ({
                   onToggle={() => toggleRow(u.id)}
                   inScope={inScope}
                   canManage={canManageUsers}
+                  isSelfLocked={
+                    actorRole !== 'super_admin' &&
+                    !!actorEmail &&
+                    u.email.toLowerCase() === actorEmail.toLowerCase()
+                  }
                   onUpdate={(patch) => onUpdate(u.id, patch)}
                   canDeleteAccount={isSuperAdmin}
                   onDelete={() =>
@@ -564,6 +569,11 @@ export const UsersView: React.FC<Props> = ({
       <EditUserModal
         isOpen={editingUser !== null}
         existing={editingUser}
+        roleLocked={
+          actorRole !== 'super_admin' &&
+          !!actorEmail &&
+          editingUser?.email.toLowerCase() === actorEmail.toLowerCase()
+        }
         roles={roles}
         buildings={visibleBuildings}
         onClose={() => setEditingUserId(null)}
@@ -844,6 +854,8 @@ const UserRow: React.FC<{
   canDeleteAccount: boolean;
   // Actor can manage users (role, buildings, delete). False for building_admin.
   canManage: boolean;
+  /** The actor's own row: the rules refuse a non-super admin's own role or status change. */
+  isSelfLocked: boolean;
   onUpdate: (patch: Partial<UserRecord>) => void;
   onDelete: () => void;
   onViewAs?: () => void;
@@ -858,6 +870,7 @@ const UserRow: React.FC<{
   onToggle,
   inScope,
   canManage,
+  isSelfLocked,
   onUpdate,
   canDeleteAccount,
   onDelete,
@@ -872,10 +885,11 @@ const UserRow: React.FC<{
   // Building admins may deactivate but not reactivate; the rules refuse it.
   const canEditStatus =
     inScope &&
+    !isSelfLocked &&
     (canManage ||
       (!['super_admin', 'domain_admin'].includes(user.role) &&
         user.status !== 'inactive'));
-  const canEditRole = canManage && inScope;
+  const canEditRole = canManage && inScope && !isSelfLocked;
   const canEditBuildings = canManage && inScope;
   const canDelete = canDeleteAccount && inScope;
   const [rolePopoverOpen, setRolePopoverOpen] = useState(false);
@@ -927,7 +941,13 @@ const UserRow: React.FC<{
           disabled={!canEditRole}
           onClick={() => setRolePopoverOpen((o) => !o)}
           className="inline-flex items-center gap-1 -mx-2 px-2 py-1 rounded-md hover:bg-slate-100 disabled:hover:bg-transparent disabled:cursor-not-allowed focus:outline-hidden focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30"
-          title={!canEditRole ? 'Domain admin only' : undefined}
+          title={
+            isSelfLocked
+              ? 'You cannot change your own role'
+              : !canEditRole
+                ? 'Domain admin only'
+                : undefined
+          }
         >
           {roleRecord ? (
             <Badge color={ROLE_COLOR[roleRecord.id] ?? 'slate'}>
@@ -1068,6 +1088,7 @@ const UserRow: React.FC<{
           type="button"
           disabled={!canEditStatus}
           onClick={() => setStatusPopoverOpen((o) => !o)}
+          title={isSelfLocked ? 'You cannot change your own status' : undefined}
           className="-mx-2 px-2 py-1 rounded-md hover:bg-slate-100 disabled:hover:bg-transparent disabled:cursor-not-allowed focus:outline-hidden focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30"
         >
           <StatusPill status={user.status} />
@@ -1544,11 +1565,12 @@ const BulkImportModal: React.FC<{
 const EditUserModal: React.FC<{
   isOpen: boolean;
   existing: UserRecord | null;
+  roleLocked: boolean;
   roles: RoleRecord[];
   buildings: BuildingRecord[];
   onClose: () => void;
   onSave: (patch: Partial<UserRecord>) => void;
-}> = ({ isOpen, existing, roles, buildings, onClose, onSave }) => {
+}> = ({ isOpen, existing, roleLocked, roles, buildings, onClose, onSave }) => {
   const [name, setName] = useState('');
   const [role, setRole] = useState('');
   const [bids, setBids] = useState<string[]>([]);
@@ -1618,6 +1640,7 @@ const EditUserModal: React.FC<{
             <Select
               {...tourAttr('admin.org.edit-user-role')}
               value={role}
+              disabled={roleLocked}
               onChange={(e) => setRole(e.target.value)}
             >
               {roles.map((r) => (

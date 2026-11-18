@@ -15,6 +15,8 @@ interface PlcQuizImportModalProps {
   sharedByName?: string;
   onPick: (mode: SharedAssignmentImportMode) => void;
   onClose: () => void;
+  /** False for a team viewer: only the copy option is offered. */
+  canSync?: boolean;
 }
 
 export const PlcQuizImportModal: React.FC<PlcQuizImportModalProps> = ({
@@ -22,6 +24,7 @@ export const PlcQuizImportModal: React.FC<PlcQuizImportModalProps> = ({
   sharedByName,
   onPick,
   onClose,
+  canSync = true,
 }) => {
   const { t } = useTranslation();
   return (
@@ -71,7 +74,7 @@ export const PlcQuizImportModal: React.FC<PlcQuizImportModalProps> = ({
       }
     >
       <div className="px-5 pb-5 pt-4 space-y-3">
-        <PlcImportModeOptions onPick={onPick} />
+        <PlcImportModeOptions onPick={onPick} canSync={canSync} />
       </div>
     </Modal>
   );

@@ -108,7 +108,7 @@ export function getEarnedPoints(
         ans.answer,
         manualGrade,
         fibAnswersForResponse(fibGrading, r, q.id),
-        gradingPaperTranscript(q, r, ans.paperTranscript)
+        gradingPaperTranscript(q, r, ans)
       )
     );
 
@@ -331,7 +331,7 @@ export function isResponseAwaitingGrade(
         ans.answer,
         manualGrade,
         undefined,
-        gradingPaperTranscript(q, r, ans.paperTranscript)
+        gradingPaperTranscript(q, r, ans)
       )
     );
     if (grade.state === 'awaiting-grade') {

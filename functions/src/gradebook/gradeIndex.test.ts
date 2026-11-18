@@ -34,9 +34,9 @@ import {
 } from './gradeIndex';
 import {
   gradeIndexQuizResponse,
-  gradeIndexQuizSession,
   runGradeIndexRecompute,
 } from './gradeIndexTriggers';
+import { gradeIndexQuizSession } from './gradeSessionTriggers';
 import { makeStubFirestore, type StubData } from '../testing/stubFirestore';
 import type { IndexRow } from './types';
 

@@ -17,7 +17,7 @@ const archive = vi.hoisted(() => ({
   beta: false,
 }));
 
-vi.mock('../quizMediaArchive', () => ({
+vi.mock('../featureGrant', () => ({
   isGlobalFeatureGranted: vi.fn(() => Promise.resolve(archive.featureGranted)),
   deriveTeacherTier: vi.fn(() => Promise.resolve(archive.tier)),
   isBetaTeacher: vi.fn(() => Promise.resolve(archive.beta)),
@@ -335,7 +335,7 @@ describe('canUseWidget', () => {
   });
 
   it('reads the beta grant once per widget type for a whole board', async () => {
-    const { isBetaTeacher } = await import('../quizMediaArchive');
+    const { isBetaTeacher } = await import('../featureGrant');
     vi.mocked(isBetaTeacher).mockClear();
     const shared = ctx({ featurePermissions: [perm({ accessLevel: 'beta' })] });
     await canUseWidget(shared, 'poll');

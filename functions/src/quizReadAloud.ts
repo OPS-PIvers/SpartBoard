@@ -17,7 +17,7 @@ import * as admin from './firebaseAdmin';
 import { createHash } from 'node:crypto';
 import { v1beta1, protos } from '@google-cloud/text-to-speech';
 import { ALLOWED_ORIGINS } from './classlinkShared';
-import { isGlobalFeatureGranted } from './quizMediaArchive';
+import { isGlobalFeatureGranted } from './featureGrant';
 import './functionsInit';
 import { LANGUAGE_TAG_RE } from './languageTag';
 import { ttsLanguageForTranslationLocale } from './quizReadAloudVoices';

@@ -30,6 +30,9 @@
 # Optional env: FIREBASE_DEPLOY_MAX_ATTEMPTS (default 6).
 # Optional env: FIREBASE_DEPLOY_ONLY (default functions,firestore:indexes,storage;
 # empty skips the CLI deploy) and RELEASE_FIRESTORE_RULES (default true).
+# Every deploy naming functions first runs function-delete-check.mjs (never delete a function some
+# codebase still exports) and, once it succeeds, the label check. A violation fails at once; an
+# outage listing live functions (exit 3) retries with the deploy's backoff.
 
 set -uo pipefail
 
@@ -45,7 +48,10 @@ if [[ ",$DEPLOY_ONLY," =~ ,firestore(:rules)?, ]]; then
   exit 2
 fi
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 LOG_FILE="$(mktemp)"
+FUNCTION_SNAPSHOT_FILE="$(mktemp -u)"
+export FUNCTION_SNAPSHOT_FILE
 RULES_LOG="$(mktemp)"
 RULES_OUT="$(mktemp)"
 rules_pid=""
@@ -71,7 +77,7 @@ on_exit() {
     if (( code == 0 )); then code=$rules_code; fi
   fi
   quota_summary "$code"
-  rm -f "$LOG_FILE" "$RULES_LOG" "$RULES_OUT"
+  rm -f "$LOG_FILE" "$RULES_LOG" "$RULES_OUT" "$FUNCTION_SNAPSHOT_FILE"
   exit "$code"
 }
 trap on_exit EXIT
@@ -158,12 +164,36 @@ forced_functions=""
 # Non-function targets from DEPLOY_ONLY, kept on a targeted retry.
 other_targets="$(tr ',' '\n' <<<"$DEPLOY_ONLY" | grep -vE '^functions(:|$)' | paste -sd, -)"
 
+names_functions() { [[ ",$1," =~ ,functions(:|,) ]]; }
+deploys_functions=false
+if names_functions "$DEPLOY_ONLY"; then deploys_functions=true; fi
+
 attempt=1
 backoff=10
 while true; do
   only="$DEPLOY_ONLY"
   if [[ -n "$forced_functions" ]]; then
-    only="$(sed 's/[^,]*/functions:&/g' <<<"$forced_functions")${other_targets:+,$other_targets}"
+    # A bare functions:<name> means the default codebase, which would delete a function that moved out of it.
+    if ! qualified="$(node "$SCRIPT_DIR/codebases.mjs" qualify "$forced_functions")" || [[ -z "$qualified" ]]; then
+      echo "ERROR: could not qualify the functions to retry (${forced_functions}) with their codebases." >&2
+      exit 1
+    fi
+    only="${qualified}${other_targets:+,$other_targets}"
+  fi
+  # Live labels against the manifest, before every attempt: a half-finished attempt can leave labels in between.
+  if names_functions "$only"; then
+    node "$SCRIPT_DIR/function-delete-check.mjs" pre "$PROJECT_ID" "$only"
+    check=$?
+    if (( check == 3 && attempt < MAX_ATTEMPTS )); then
+      echo "::warning::Could not list live functions for the delete check; retrying in ${backoff}s (attempt ${attempt}/${MAX_ATTEMPTS})."
+      sleep "$backoff"
+      attempt=$((attempt + 1))
+      backoff=$(( backoff * 2 > MAX_BACKOFF ? MAX_BACKOFF : backoff * 2 ))
+      continue
+    elif (( check != 0 )); then
+      echo "ERROR: the pre-deploy delete check failed; nothing was deployed by this attempt." >&2
+      exit 1
+    fi
   fi
   echo "::group::firebase deploy (attempt ${attempt}/${MAX_ATTEMPTS})"
   # `tee` keeps the deploy output streaming in the CI log while also
@@ -175,7 +205,11 @@ while true; do
   quota_waits=$(( quota_waits + $(grep -c 'Got "Quota Exceeded" error' "$LOG_FILE" || true) ))
   quota_functions="$(printf '%s\n%s\n' "$(tr ',' '\n' <<<"$quota_functions")" "$(grep -oE 'Got "Quota Exceeded" error while trying to [a-z]+ [^ ]*/functions/[A-Za-z0-9_-]+' "$LOG_FILE" | sed 's|.*/||')" | grep -v '^$' | sort -u | paste -sd, -)"
 
-  if [[ "$code" -eq 0 && -n "$forced_functions" && ",$DEPLOY_ONLY," == *,functions,* ]]; then
+  if [[ "$code" -eq 0 && -n "$forced_functions" ]] && ! whole="$(node "$SCRIPT_DIR/codebases.mjs" whole "$DEPLOY_ONLY")"; then
+    echo "ERROR: could not tell whether the retried deploy needs a full pass for deletes." >&2
+    exit 1
+  fi
+  if [[ "$code" -eq 0 && -n "$forced_functions" && "${whole:-}" == true ]]; then
     # The quota-failed attempt skipped deletes; one full pass does them and
     # skips everything already current. A named-functions deploy never deletes.
     echo "Rollout-failed functions deployed (${forced_functions}); running a full pass for deletes."
@@ -185,6 +219,21 @@ while true; do
   fi
 
   if [[ "$code" -eq 0 ]]; then
+    if [[ "$deploys_functions" == true ]]; then
+      for wait in 30 60 120 0; do
+        node "$SCRIPT_DIR/function-delete-check.mjs" post "$PROJECT_ID" "$DEPLOY_ONLY"
+        check=$?
+        (( check == 3 && wait > 0 )) || break
+        sleep "$wait"
+      done
+      if (( check == 3 )); then
+        # The functions are already live; an API outage must not also hold back the hosting release.
+        echo "::warning::Could not list live functions, so the post-deploy label check did not run."
+      elif (( check != 0 )); then
+        echo "ERROR: the deploy finished but the post-deploy label check failed." >&2
+        exit 1
+      fi
+    fi
     exit 0
   fi
 
@@ -200,8 +249,8 @@ while true; do
 
   if [[ "$rollout_failed" == true ]] || grep -qiE "$TRANSIENT_PATTERN" "$LOG_FILE"; then
     if [[ "$rollout_failed" == true ]]; then
-      # The summary block lists every failed function, including a lone one the CLI reports only in debug output.
-      failed="$( { grep -oE 'Failed to (create|update) function [A-Za-z0-9_-]+' "$LOG_FILE" | awk '{print $NF}'; awk '/Functions deploy had errors with the following functions:/{f=1; next} f && /^[[:space:]]+[A-Za-z0-9_-]+\(/{sub(/^[[:space:]]+/, ""); sub(/\(.*/, ""); print; next} {f=0}' "$LOG_FILE"; } | sort -u)"
+      # The summary block lists every failed function (codebase:id outside default), including a lone one the CLI reports only in debug output.
+      failed="$( { grep -oE 'Failed to (create|update) function [A-Za-z0-9_-]+' "$LOG_FILE" | awk '{print $NF}'; awk '/Functions deploy had errors with the following functions:/{f=1; next} f && /^[[:space:]]+([a-z][a-z0-9_-]*:)?[A-Za-z0-9_-]+\(/{sub(/^[[:space:]]+/, ""); sub(/^[^:(]*:/, ""); sub(/\(.*/, ""); print; next} {f=0}' "$LOG_FILE"; } | sort -u)"
       if [[ -z "$failed" ]]; then
         echo "ERROR: Cloud Run rollout error but no failed function names in the log; not retrying blind (exit ${code})." >&2
         exit "$code"

@@ -108,7 +108,7 @@ type MiniAppAnswerKey = z.infer<typeof answerKeySchema>;
 
 /** Server twin of miniAppResultsOn: the preview flag AND Mini App submissions in Organization settings. */
 export async function miniAppResultsOn(ctx: ToolContext): Promise<boolean> {
-  const { isGlobalFeatureGranted } = await import('../quizMediaArchive');
+  const { isGlobalFeatureGranted } = await import('../featureGrant');
   const [granted, modes] = await Promise.all([
     isGlobalFeatureGranted(ctx.db, RESULTS_FEATURE_ID, ctx.email, ctx.uid),
     ctx.db.doc('global_permissions/assignment-modes').get(),

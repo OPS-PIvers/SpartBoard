@@ -32,6 +32,7 @@ export default tseslint.config(
     // "not found in any provided project".
     ignores: [
       '**/lib/**',
+      'deploy/**',
       '**/node_modules/**',
       // One-off ops scripts (e.g. run-migrate-plcs.cjs) aren't part of the
       // `src/` TS program, so keep them out of the type-aware pass.

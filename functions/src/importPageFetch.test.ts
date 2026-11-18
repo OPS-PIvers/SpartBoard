@@ -20,7 +20,7 @@ vi.mock('./classlinkShared', () => ({
   ALLOWED_ORIGINS: ['https://example.com'],
 }));
 vi.mock('./districtStaff', () => ({ isDistrictStaffToken: vi.fn() }));
-vi.mock('./quizMediaArchive', () => ({ isGlobalFeatureGranted: vi.fn() }));
+vi.mock('./featureGrant', () => ({ isGlobalFeatureGranted: vi.fn() }));
 vi.mock('./firebaseAdmin', () => ({ firestore: vi.fn() }));
 
 const dnsLookup = vi.fn<(...args: unknown[]) => Promise<unknown>>();

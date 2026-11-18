@@ -339,15 +339,18 @@ export function canTransitionPaperPrivate(
   return PRIVATE_TRANSITIONS[from].includes(to);
 }
 
-/** An answer's `paperTranscript` for grading; on FIB it counts only on a server-imported paper response. */
+/** An answer's `paperTranscript` for grading; on FIB it counts only on a server-imported scan of a paper response. */
 export function gradingPaperTranscript(
   question: Pick<QuizQuestion, 'type'>,
   response:
     Pick<QuizResponse, 'paperBatchId' | 'paperWrittenBatchId'> | undefined,
-  state: PaperTranscriptState | undefined
+  answer:
+    Pick<QuizResponseAnswer, 'paperTranscript' | 'paperScanId'> | undefined
 ): PaperTranscriptState | undefined {
+  const state = answer?.paperTranscript;
   if (question.type !== 'FIB') return state;
-  return response?.paperBatchId || response?.paperWrittenBatchId
+  return (response?.paperBatchId || response?.paperWrittenBatchId) &&
+    typeof answer?.paperScanId === 'string'
     ? state
     : undefined;
 }
