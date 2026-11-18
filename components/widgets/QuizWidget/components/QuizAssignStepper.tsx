@@ -11,6 +11,7 @@ import {
   getAssignSteps,
   getAssignStepTitle,
   type AssignStepDef,
+  type AssignStepId,
 } from '@/components/common/library/assignStepper/assignSteps';
 import { ClassChecklist } from '@/components/common/library/assignStepper/ClassChecklist';
 import { StudentPickMenu } from '@/components/common/library/assignStepper/StudentPickMenu';
@@ -349,7 +350,9 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
     };
   }
 
-  const stepIds = getAssignSteps('quiz', ctx).filter((id) => id !== 'sharing');
+  const stepIds: AssignStepId[] = getAssignSteps('quiz', ctx).filter(
+    (id) => id !== 'sharing'
+  );
   if (bodies.sharing) stepIds.push('sharing');
   // The step stays listed before a class is picked so later steps keep their numbers.
   const modsListed = groupsOn && !!modifications && !staff;
