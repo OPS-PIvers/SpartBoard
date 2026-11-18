@@ -291,7 +291,12 @@ describe('useQuizClassActions (D21)', () => {
     await act(() => x.current.closeClass('c1'));
     expect(finalizeClassQuizResponses).not.toHaveBeenCalled();
     vi.advanceTimersByTime(END_TURN_IN_DELAY_MS);
-    expect(finalizeClassQuizResponses).toHaveBeenCalledWith('a1', 'c1');
+    // The timer carries the closedAt it was scheduled for, so a later Reopen or Close makes it stale.
+    expect(finalizeClassQuizResponses).toHaveBeenCalledWith(
+      'a1',
+      'c1',
+      rows().c1.closedAt
+    );
     (finalizeClassQuizResponses as Mock).mockClear();
     await act(() => x.current.closeClass('c2'));
     vi.advanceTimersByTime(END_TURN_IN_DELAY_MS);
@@ -307,6 +312,8 @@ describe('useQuizClassActions (D21)', () => {
           c1: row({ state: 'open' }),
           c2: row(),
           c3: row({ closedAt: 1 }),
+          sched: row({ state: 'open', openAt: Date.now() + 60_000 }),
+          clock: row({ state: 'open', closeAt: Date.now() - 60_000 }),
         },
       })
     );
@@ -423,11 +430,29 @@ describe('guards (D15)', () => {
 
   it('throws for a teacher who does not own the assignment, before any write or End', async () => {
     authUid.uid = 'someone-else';
-    const x = setup(assignment({}));
-    await expect(x.current.closeClass(null)).rejects.toThrow(
-      /assigning teacher/
+    const x = setup(
+      assignment({ periodAccess: { c1: row({ state: 'open' }) } })
     );
+    for (const run of [
+      () => x.current.closeClass(null),
+      () => x.current.closeClass('c1'),
+      () => x.current.openClass('c1'),
+      () => x.current.pauseClass('c1'),
+      () => x.current.closeAll(),
+      () => x.current.moveToDone(),
+    ])
+      await expect(run()).rejects.toThrow(/assigning teacher/);
     expect(lifecycle.deactivateAssignment).not.toHaveBeenCalled();
+    expect(store.calls).toEqual([]);
+    expect(store.writes).toEqual([]);
+  });
+
+  it('throws on a class key the assignment does not have, before any write', async () => {
+    const x = setup(assignment({ periodAccess: { c1: row(), c2: row() } }));
+    await expect(x.current.openClass('c9')).rejects.toThrow(/no class/);
+    await expect(x.current.reopenClass('c9')).rejects.toThrow(/no class/);
+    await expect(x.current.closeClass('c9')).rejects.toThrow(/no class/);
+    expect(store.calls).toEqual([]);
     expect(store.writes).toEqual([]);
   });
 });

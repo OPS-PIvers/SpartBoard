@@ -24,7 +24,7 @@ Assignment widgets have three tabs (Library, In Progress, and Completed or Archi
 
 ### Actions and wording
 
-- **D6. Open, Pause, Resume, Close, Reopen**, each naming the class when there is more than one ("Open for P2", "Close P2"). Pause is a short freeze during class and expects Resume. Close means that class is finished.
+- **D6. Open, Pause, Resume, Close, Reopen**, each naming the class when there is more than one ("Open for P2", "Close P2"). Pause is a short freeze during class and expects Resume. Close means that class is finished: its open attempts are turned in once the save grace passes, and a Reopen before then cancels that.
 - **D7. One action lets students in.** The same Open is on the Assigned row and in the monitor. Opening the monitor is "Monitor" and changes nothing.
 - **D8. The row's main button picks the class in session** from the bell schedule ("Open for P2"). The schedule only chooses the default; it never filters the list. With no class in session the button is Monitor (a class is open), Grade, Publish scores, Results, or Choose class.
 - **D9. Reopen lets that class back in at once.** No Paused step. The attempt limit still applies: a student who has used every attempt stays locked out (rules read `attemptLimit` from the session; add a test for this case).

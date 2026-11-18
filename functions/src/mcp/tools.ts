@@ -1,6 +1,7 @@
 // MCP tool definitions for the Claude connector (plan: "Tools", PR 1).
 import {
   PICTURE_TOOLS,
+  applyCardPictures,
   picturesOn,
   registerPictureTools,
 } from './pictureUploads';
@@ -174,9 +175,19 @@ const speakSummary = (speak: SpeakSaveResult) =>
       }
     : {};
 
+const pictureRef = z
+  .string()
+  .max(100)
+  .nullable()
+  .optional()
+  .describe(
+    'A picture ref from start_picture_upload; null removes the picture; omit to keep it.'
+  );
 const cardInput = z.object({
   term: z.string().min(1).max(MAX_TERM),
   definition: z.string().min(1).max(MAX_DEFINITION),
+  term_picture: pictureRef,
+  definition_picture: pictureRef,
 });
 const languageInput = z
   .string()
@@ -579,18 +590,30 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
           },
           now
         );
-        const speak = await prepareSpeakSave(db, ctx, draft, input.speak);
-        await reserveWrite(ctx);
-        const set = speak.set;
-        const batch = db.batch();
-        stageSetWrite(db, batch, uid, set);
-        logActivity(ctx, batch, {
-          action: 'create',
-          itemType: 'flashcard_set',
-          itemId: set.id,
-          title: set.title,
-        });
-        await batch.commit();
+        const discardPictures = await applyCardPictures(
+          ctx,
+          input.cards,
+          draft.cards
+        );
+        let speak: Awaited<ReturnType<typeof prepareSpeakSave>>;
+        let set: FlashcardSet;
+        try {
+          speak = await prepareSpeakSave(db, ctx, draft, input.speak);
+          await reserveWrite(ctx);
+          set = speak.set;
+          const batch = db.batch();
+          stageSetWrite(db, batch, uid, set);
+          logActivity(ctx, batch, {
+            action: 'create',
+            itemType: 'flashcard_set',
+            itemId: set.id,
+            title: set.title,
+          });
+          await batch.commit();
+        } catch (err) {
+          await discardPictures();
+          throw err;
+        }
         return {
           ...summarizeSet(set),
           where_to_find_it: 'SpartBoard > Flashcards widget > library',
@@ -654,9 +677,17 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
             ? mergeCards(existing.cards, input.cards)
             : existing.cards,
         };
-        const speak = await prepareSpeakSave(db, ctx, next, input.speak);
-        await reserveWrite(ctx);
-        return saveFlashcardEdit(ctx, existing, speak, 'update');
+        const discardPictures = input.cards
+          ? await applyCardPictures(ctx, input.cards, next.cards)
+          : () => Promise.resolve();
+        try {
+          const speak = await prepareSpeakSave(db, ctx, next, input.speak);
+          await reserveWrite(ctx);
+          return await saveFlashcardEdit(ctx, existing, speak, 'update');
+        } catch (err) {
+          await discardPictures();
+          throw err;
+        }
       })
   );
 

@@ -91,6 +91,39 @@ describe('sync', () => {
   });
 });
 
+describe('sync exclusions', () => {
+  beforeEach(() => {
+    h.sets = [];
+    h.deletes = [];
+  });
+
+  it('strips the exclude list and tells each person only their own exclusion', async () => {
+    h.live = {
+      featureId: 'x',
+      betaUsers: ['a@b.org'],
+      excludedUsers: ['A@b.org', 'boss@b.org'],
+    };
+    await sync('global', 'x', { excludedUsers: ['gone@b.org'] }, h.live);
+    const mirror = h.sets.find(([p]) => p === 'global_permissions_public/x');
+    expect(mirror?.[1]).toEqual({ featureId: 'x', betaUsers: [] });
+    const grants = Object.fromEntries(
+      h.sets
+        .filter(([p]) => p.startsWith('beta_grants/'))
+        .map(([p, d]) => [p, d])
+    );
+    expect(grants['beta_grants/a@b.org']).toEqual({
+      global: { op: 'union', x: 'x' },
+      excludedGlobal: { op: 'union', x: 'x' },
+    });
+    expect(grants['beta_grants/boss@b.org']).toEqual({
+      excludedGlobal: { op: 'union', x: 'x' },
+    });
+    expect(grants['beta_grants/gone@b.org']).toEqual({
+      excludedGlobal: { op: 'remove', x: 'x' },
+    });
+  });
+});
+
 describe('permissionMirrors', () => {
   it('publicView drops every beta email but keeps config', () => {
     const v = publicView({

@@ -13,6 +13,7 @@ import type { ClassRoster, QuizAssignment } from '@/types';
 import { closedRow, usePeriodAccess } from '@/hooks/usePeriodAccess';
 import type { UseQuizAssignmentsResult } from '@/hooks/useQuizAssignments';
 import { isClassClosed } from '@/utils/assignedStatus';
+import { effectivePeriodState } from '@/utils/periodAccess';
 import {
   END_TURN_IN_DELAY_MS,
   finalizeClassQuizResponses,
@@ -92,7 +93,11 @@ export function useQuizClassActions(
   const classKey = useCallback(
     (key: string | null): string | null => {
       if (!perClass) return null;
-      if (key != null) return key;
+      if (key != null) {
+        if (!keys.includes(key))
+          throw new Error(`This assignment has no class "${key}".`);
+        return key;
+      }
       if (keys.length === 1) return keys[0];
       throw new Error('Pick a class: this assignment has more than one.');
     },
@@ -120,9 +125,10 @@ export function useQuizClassActions(
             await periods.closePeriod(k);
         await reopenAssignment(id);
       } else {
-        // A whole-run pause froze every open class; only the one opened comes back.
+        // A whole-run pause froze every open class; only the one opened comes back. Scheduled and clock-closed classes stay as they are.
+        const now = Date.now();
         for (const [k, row] of Object.entries(a.periodAccess ?? {}))
-          if (k !== opened && row.state === 'open')
+          if (k !== opened && effectivePeriodState(row, now) === 'open')
             await periods.pausePeriod(k);
       }
       await resumeAssignment(id);
@@ -154,8 +160,8 @@ export function useQuizClassActions(
   const open = useCallback(
     async (key: string | null, reopen: boolean): Promise<string[]> => {
       if (!id) return [];
-      const k = classKey(key);
       owned();
+      const k = classKey(key);
       if (k == null) {
         await clearSingleGate();
         await ensureActive(null);
@@ -172,13 +178,15 @@ export function useQuizClassActions(
 
   // Closes one class and reports, from the same transaction, whether it was the last one open (D21).
   const closeOne = useCallback(
-    async (key: string): Promise<boolean> => {
+    async (
+      key: string
+    ): Promise<{ last: boolean; closedAt: number } | null> => {
       const { session, assignment: assignmentRef } = owned();
       return runTransaction(db, async (tx) => {
         const a = (await tx.get(assignmentRef)).data() as
           QuizAssignment | undefined;
         const rows = a?.periodAccess ?? {};
-        if (!rows[key]) return false;
+        if (!rows[key]) return null;
         const now = Date.now();
         const [first, firstValue, ...rest] = Object.entries(
           closedRow(now)
@@ -188,7 +196,10 @@ export function useQuizClassActions(
         const othersClosed = Object.entries(rows).every(
           ([k, row]) => k === key || isClassClosed(row, now)
         );
-        return othersClosed && a?.status !== 'inactive';
+        return {
+          last: othersClosed && a?.status !== 'inactive',
+          closedAt: now,
+        };
       });
     },
     [owned]
@@ -197,35 +208,41 @@ export function useQuizClassActions(
   const closeClass = useCallback(
     async (key: string | null) => {
       if (!id) return;
+      owned();
       const k = classKey(key);
       if (k == null) {
         await mark({ closedAt: Date.now() });
         await endIfLive();
         return;
       }
-      if (await closeOne(k)) {
+      const closed = await closeOne(k);
+      if (!closed) return;
+      if (closed.last) {
         await deactivateAssignment(id);
         return;
       }
       // Close means that class is finished: turn its open attempts in once their write grace runs out.
       setTimeout(() => {
-        finalizeClassQuizResponses(id, k).catch((err: unknown) =>
-          console.error('[useQuizClassActions] Close turn-in failed:', err)
+        finalizeClassQuizResponses(id, k, closed.closedAt).catch(
+          (err: unknown) =>
+            console.error('[useQuizClassActions] Close turn-in failed:', err)
         );
       }, END_TURN_IN_DELAY_MS);
     },
-    [id, classKey, mark, endIfLive, closeOne, deactivateAssignment]
+    [id, owned, classKey, mark, endIfLive, closeOne, deactivateAssignment]
   );
 
   const closeAll = useCallback(async () => {
     if (!id) return;
+    owned();
     if (perClass) await periods.closeAllPeriods();
     else await mark({ closedAt: Date.now() });
     await endIfLive();
-  }, [id, perClass, periods, mark, endIfLive]);
+  }, [id, owned, perClass, periods, mark, endIfLive]);
 
   const moveToDone = useCallback(async () => {
     if (!id) return;
+    owned();
     if (perClass) await periods.closeAllPeriods();
     const a = await fresh();
     const now = Date.now();
@@ -234,16 +251,17 @@ export function useQuizClassActions(
       ...(perClass || a?.closedAt != null ? {} : { closedAt: now }),
     });
     await endIfLive();
-  }, [id, perClass, periods, fresh, mark, endIfLive]);
+  }, [id, owned, perClass, periods, fresh, mark, endIfLive]);
 
   const pauseClass = useCallback(
     async (key: string | null) => {
       if (!id) return;
+      owned();
       const k = classKey(key);
       if (k == null) await pauseAssignment(id);
       else await periods.pausePeriod(k);
     },
-    [id, classKey, periods, pauseAssignment]
+    [id, owned, classKey, periods, pauseAssignment]
   );
 
   return {

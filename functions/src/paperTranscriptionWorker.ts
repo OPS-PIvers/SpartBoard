@@ -2,6 +2,7 @@
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from './firebaseAdmin';
+import { isExcludedFrom } from './permissionExclusion';
 import type {
   DocumentReference,
   DocumentSnapshot,
@@ -903,13 +904,23 @@ export function buildDefaultWorkerDeps(): WorkerDeps {
       };
     },
   };
-  const grantedFor = async (featureId: string, uid: string) => {
+  const grantedFor = async (featureId: string, uid: string, ai = false) => {
     try {
       const user = await admin.auth().getUser(uid);
+      const email = user.emailVerified ? (user.email ?? null) : null;
+      // Someone on the gemini-functions exclude list gets no AI transcription.
+      if (ai) {
+        const gemini = await admin
+          .firestore()
+          .collection('global_permissions')
+          .doc('gemini-functions')
+          .get();
+        if (isExcludedFrom(gemini.data(), email)) return false;
+      }
       return await isGlobalFeatureGranted(
         admin.firestore(),
         featureId,
-        user.emailVerified ? (user.email ?? null) : null,
+        email,
         uid
       );
     } catch {
@@ -923,7 +934,7 @@ export function buildDefaultWorkerDeps(): WorkerDeps {
     isAdmin: isVerifiedAdmin,
     featureGranted: (uid) => grantedFor(PAPER_HANDWRITTEN_FEATURE, uid),
     transcriptionGranted: (uid) =>
-      grantedFor(PAPER_HANDWRITING_AI_FEATURE, uid),
+      grantedFor(PAPER_HANDWRITING_AI_FEATURE, uid, true),
     transcribe: (boxes, tier) =>
       transcribePaperPage(boxes, tier, transcribeDeps),
     archive: (input) =>

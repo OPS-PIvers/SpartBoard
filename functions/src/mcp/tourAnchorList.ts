@@ -47248,6 +47248,54 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "admin.excluded.email",
+    "label": "Add excluded user email box",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.shared.access-controls",
+        "kind": "shared",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.excluded.add",
+    "label": "Add excluded user button",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.shared.access-controls",
+        "kind": "shared",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.excluded.remove",
+    "label": "Remove excluded user button",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.shared.access-controls",
+        "kind": "shared",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "admin.org.add-building",
     "label": "Add building button in Organization buildings",
     "scope": "board",

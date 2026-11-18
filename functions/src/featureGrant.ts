@@ -2,6 +2,7 @@ import type * as admin from './firebaseAdmin';
 import { canonicalizeBuildingIdsServer } from './buildingIds';
 import { normalizeEmailDomain, resolveOrgIdForDomain } from './classlinkShared';
 import { missingDocAccess } from './featureMissingDoc';
+import { isExcludedFrom } from './permissionExclusion';
 
 // Feature gates kept apart from quizMediaArchive so callers don't load quiz media to check a flag.
 type Firestore = admin.firestore.Firestore;
@@ -108,6 +109,7 @@ export async function isGlobalFeatureGranted(
   }
   const data = snap.data() ?? {};
   if (data.enabled !== true) return false;
+  if (isExcludedFrom(data, email)) return false;
   if (await isAdmin()) return true;
   if (data.accessLevel === 'beta') {
     if (!email) return false;

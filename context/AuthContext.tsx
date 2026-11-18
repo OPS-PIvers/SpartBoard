@@ -125,7 +125,11 @@ import {
   INTERNAL_TIER_DOMAINS,
   meetsMinTier,
 } from '@/utils/userTier';
-import { isBetaUser as isBetaUserShared } from '@/utils/betaAccess';
+import {
+  isBetaUser as isBetaUserShared,
+  isExcludedUser,
+  withOwnGrants,
+} from '@/utils/betaAccess';
 import { OPERATOR_ORG_ID } from '@/config/organization';
 import { normalizePenColors } from '@/utils/penColors';
 import { AppPickersSwitch } from '@/components/common/AppPickersSwitch';
@@ -465,6 +469,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     email: string | null;
     features: string[];
     global: string[];
+    excludedFeatures: string[];
+    excludedGlobal: string[];
   } | null>(null);
   const [selectedBuildings, setSelectedBuildingsState] = useState<string[]>([]);
   // null = never set; grades derive from the selected buildings until then.
@@ -1953,9 +1959,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           email: grantEmail,
           features: list(d?.features),
           global: list(d?.global),
+          excludedFeatures: list(d?.excludedFeatures),
+          excludedGlobal: list(d?.excludedGlobal),
         });
       },
-      () => setBetaGrants({ email: grantEmail, features: [], global: [] })
+      () =>
+        setBetaGrants({
+          email: grantEmail,
+          features: [],
+          global: [],
+          excludedFeatures: [],
+          excludedGlobal: [],
+        })
     );
   }, [hasLiveUser, grantEmail]);
 
@@ -1965,9 +1980,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!grantEmail || betaGrants?.email !== grantEmail)
       return publicFeaturePermissions;
     return publicFeaturePermissions.map((p) =>
-      betaGrants.features.includes(p.widgetType)
-        ? { ...p, betaUsers: [grantEmail] }
-        : p
+      withOwnGrants(
+        p,
+        p.widgetType,
+        betaGrants.features,
+        betaGrants.excludedFeatures,
+        grantEmail
+      )
     );
   }, [
     isAdmin,
@@ -1982,9 +2001,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!grantEmail || betaGrants?.email !== grantEmail)
       return publicGlobalPermissions;
     return publicGlobalPermissions.map((p) =>
-      betaGrants.global.includes(p.featureId)
-        ? { ...p, betaUsers: [grantEmail] }
-        : p
+      withOwnGrants(
+        p,
+        p.featureId,
+        betaGrants.global,
+        betaGrants.excludedGlobal,
+        grantEmail
+      )
     );
   }, [
     isAdmin,
@@ -3377,6 +3400,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // If the feature is disabled, no one can access it (including admins)
       if (!permission.enabled) return false;
+      if (isExcludedUser(permission.excludedUsers, user.email)) return false;
 
       // Admins can access everything (except disabled features)
       if (isAdmin) return true;
@@ -3455,6 +3479,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       userEmail: string | null
     ): boolean => {
       if (!permission.enabled) return false;
+      if (isExcludedUser(permission.excludedUsers, userEmail)) return false;
       if (isAdmin) return true;
       switch (permission.accessLevel) {
         case 'admin':

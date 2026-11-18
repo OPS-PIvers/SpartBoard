@@ -8,11 +8,12 @@ import {
   enforceAiFeatureAccess,
   recordAiUsage,
   refundAiUsage,
-  resolveCallerIsAdmin,
+  resolveCallerIsAdminFor,
   type AiExtraCap,
   type AiUsageCharge,
 } from './aiGeneration';
 import { importAiAccess, type ImportAiAccess } from './importSettings';
+import { isExcludedFrom } from './permissionExclusion';
 import { assertViewAsAllowed } from './viewAsGuard';
 import { generateAi } from './aiRouter';
 import { getAiModelConfig } from './aiModelConfig';
@@ -202,6 +203,7 @@ export async function layoutFlagAllows(
   ).data();
   if (!perm) return true;
   if (perm.enabled === false) return false;
+  if (isExcludedFrom(perm, verifiedEmail(token))) return false;
   if (isAdmin) return true;
   const { isGlobalFeatureGranted } = await import('./featureGrant');
   return isGlobalFeatureGranted(
@@ -234,7 +236,11 @@ function defaultDeps(): ConversionDeps {
           ?.config?.dailyLimit
       );
     },
-    isAdmin: (token) => resolveCallerIsAdmin(db, token),
+    isAdmin: (token) =>
+      resolveCallerIsAdminFor(db, token, [
+        'gemini-functions',
+        UNIVERSAL_IMPORT_FEATURE_ID,
+      ]),
     flagsOn: () => importFlagsOn(db),
     layoutAllowed: (token, uid, isAdmin) =>
       layoutFlagAllows(db, token, uid, isAdmin),

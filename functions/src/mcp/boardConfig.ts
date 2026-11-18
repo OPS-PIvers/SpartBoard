@@ -4,6 +4,7 @@ import {
   canonicalBuildingIdServer,
   canonicalizeBuildingIdsServer,
 } from '../buildingIds';
+import { isExcludedFrom } from '../permissionExclusion';
 import { WIDGET_CONFIG_RUNTIME } from './widgetConfigRuntime.gen';
 import { WIDGET_TYPE_LIST } from './widgetTypeList';
 import { checkWidgetSettings, hasWidgetSchema } from './widgetConfigValidator';
@@ -123,6 +124,7 @@ export async function canUseWidget(
       reason: 'disabled',
       message: `The "${type}" widget is turned off in this district`,
     };
+  if (isExcludedFrom(perm, ctx.email)) return noAccess;
   if (ctx.isAdmin) return { ok: true };
   if (perm.accessLevel === 'beta') {
     const betaUsers = Array.isArray(perm.betaUsers) ? perm.betaUsers : [];
