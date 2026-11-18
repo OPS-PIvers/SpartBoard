@@ -3,8 +3,10 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-11-17_
+_Last audited: 2026-11-18_
 _Last action: never_
+
+_2026-11-18: Daily audit (Wednesday), against `origin/dev-paul` (`08960c378`). `pnpm type-check`: 48 errors, all in `functions/` and all from modules missing in this sandbox's stale `functions/node_modules` (zod, @modelcontextprotocol/sdk, @google-cloud/text-to-speech) plus implicit-any fallout; 0 errors in app code. `pnpm lint`: 4702 errors, all under `functions/src` (unresolved types, `no-unsafe-*`), same cause; the app-side lint pass was clean of other findings. Environmental, not a code defect, so none filed (CI installs deps). 0 new issues._
 
 _2026-11-17: Daily audit (Tuesday), against `origin/dev-paul` (`6d3b439ec`). `pnpm type-check` exit 0; `eslint . --max-warnings 0` exit 0 (0 errors, 0 warnings). 0 new issues._
 
