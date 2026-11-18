@@ -26,7 +26,11 @@ export function useStudentAssignmentPointer(
   /** Gate the subscription without changing identity (defaults to on). */
   enabled = true,
   /** The session this pointer is read for; a pointer stamped for another is ignored. */
-  expected: { sessionId?: string | null; teacherUid?: string | null } = {}
+  expected: {
+    sessionId?: string | null;
+    teacherUid?: string | null;
+    kind?: StudentAssignmentPointer['kind'];
+  } = {}
 ): StudentAssignmentPointer | null | undefined {
   // Tri-state: `undefined` = subscription active but first snapshot not yet
   // delivered; `null` = resolved with no pointer doc; object = pointer doc.

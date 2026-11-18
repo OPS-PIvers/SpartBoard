@@ -133,7 +133,13 @@ export async function readTimeMultiplier(
     .get();
   const teacherUid =
     typeof session.teacherUid === 'string' ? session.teacherUid : null;
-  if (isForeignPointer(snap.data(), { sessionId: assignmentId, teacherUid }))
+  if (
+    isForeignPointer(snap.data(), {
+      sessionId: assignmentId,
+      teacherUid,
+      kind: 'quiz',
+    })
+  )
     return undefined;
   const override = snap.data()?.override as Doc | undefined;
   return override?.timeMultiplier;

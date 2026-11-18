@@ -308,7 +308,7 @@ const StudentExperience: React.FC<{
     isStudentRole ? anonymousUid : null,
     sessionId || null,
     isStudentRole && !isViewOnly,
-    { sessionId }
+    { sessionId, teacherUid: session?.teacherUid, kind: 'guided-learning' }
   );
   const timeMultiplier = pointer?.override?.timeMultiplier;
 

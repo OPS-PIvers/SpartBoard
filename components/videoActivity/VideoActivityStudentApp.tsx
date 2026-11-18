@@ -397,7 +397,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     authedUid,
     sessionId || null,
     isStudentRole,
-    { sessionId }
+    { sessionId, teacherUid: session?.teacherUid, kind: 'video-activity' }
   );
 
   // View tracking — log each pageview of a view-only Share link as an

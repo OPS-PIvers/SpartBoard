@@ -1325,6 +1325,7 @@ export async function synthesizeQuizAudio(
     !isForeignPointer(pointerSnap.data(), {
       sessionId: request.sessionId,
       teacherUid: sessionSnap.get('teacherUid') as string | null,
+      kind: 'quiz',
     });
   const pointer = ownPointer ? (pointerSnap.data() ?? {}) : {};
   const session = await withQuizSessionContent(

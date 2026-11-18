@@ -604,6 +604,7 @@ const AppViewer: React.FC<{
           isForeignPointer(pointer, {
             sessionId: session.id,
             teacherUid: session.teacherUid,
+            kind: 'mini-app',
           })
         )
           return;

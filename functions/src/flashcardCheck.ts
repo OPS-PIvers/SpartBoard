@@ -354,6 +354,7 @@ async function loadOpenCheck(
       sessionId: assignmentId,
       teacherUid:
         typeof session.teacherUid === 'string' ? session.teacherUid : null,
+      kind: 'flashcards',
     });
   const pointer: Record<string, unknown> = ownPointer ? pointerData : {};
 

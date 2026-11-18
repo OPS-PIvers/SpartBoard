@@ -169,6 +169,7 @@ export async function handleSubmitMiniAppResult(
       sessionId: input.sessionId,
       teacherUid:
         typeof session.teacherUid === 'string' ? session.teacherUid : null,
+      kind: 'mini-app',
     });
     if (own && pointer.exists && pointer.data()?.excluded === true)
       throw new HttpsError(

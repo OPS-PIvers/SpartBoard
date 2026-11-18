@@ -471,6 +471,8 @@ export const commitProjectGroupsV1 = onCall(
     // Uploads already archived to the teacher's Drive stay there; the records go.
     for (const groupId of deleteGroupIds) {
       await db.recursiveDelete(runRef.collection('groups').doc(groupId));
+      // Per-student override docs outlive the batch-deleted grade doc otherwise.
+      await db.recursiveDelete(runRef.collection('grades').doc(groupId));
     }
 
     return {

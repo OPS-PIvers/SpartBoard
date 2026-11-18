@@ -710,7 +710,10 @@ const QuizJoinFlow: React.FC<{
             if (
               snap.exists() &&
               snap.data()?.excluded === true &&
-              !isForeignPointer(snap.data(), { sessionId: info.sessionId })
+              !isForeignPointer(snap.data(), {
+                sessionId: info.sessionId,
+                kind: 'quiz',
+              })
             ) {
               dispatchFlow({ type: 'excluded' });
               return;
@@ -860,7 +863,7 @@ const QuizJoinFlow: React.FC<{
     myStudentUid,
     session?.assignmentId ?? null,
     true,
-    { sessionId: session?.id, teacherUid: session?.teacherUid }
+    { sessionId: session?.id, teacherUid: session?.teacherUid, kind: 'quiz' }
   );
   const myOverride: StudentOverride | undefined = myPointer?.override;
   // D28/D34: Spanish students get the Spanish shell; the choice is never persisted.

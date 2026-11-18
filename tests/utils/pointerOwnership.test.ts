@@ -28,7 +28,30 @@ describe('isForeignPointer', () => {
     );
   });
 
+  it('rejects a pointer of another kind when the reader names its kind', () => {
+    const withKind = { ...expected, kind: 'writing' };
+    expect(
+      isForeignPointer(
+        { sessionId: 's1', teacherUid: 't1', kind: 'quiz' },
+        withKind
+      )
+    ).toBe(true);
+    expect(
+      isForeignPointer(
+        { sessionId: 's1', teacherUid: 't1', kind: 'writing' },
+        withKind
+      )
+    ).toBe(false);
+    expect(isForeignPointer({ kind: 'quiz' }, expected)).toBe(false);
+  });
+
   it('matches the server copy', () => {
+    const withKind = { ...expected, kind: 'writing' };
+    for (const p of [{ kind: 'quiz' }, { kind: 'writing' }]) {
+      expect(serverIsForeignPointer(p, withKind)).toBe(
+        isForeignPointer(p, withKind)
+      );
+    }
     for (const p of [{ sessionId: 's2' }, { teacherUid: 't1' }, {}]) {
       expect(serverIsForeignPointer(p, expected)).toBe(
         isForeignPointer(p, expected)

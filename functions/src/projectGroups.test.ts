@@ -787,6 +787,8 @@ describe('commitProjectGroupsV1 edits and deletes', () => {
     seedGroup('g2', ['u2']);
     h.docStore.set(`${RUN_PATH}/groups/g1/uploads/up1`, { id: 'up1' });
     h.docStore.set(`${RUN_PATH}/grades/g1`, { groupId: 'g1' });
+    h.docStore.set(`${RUN_PATH}/grades/g1/overrides/u1`, { points: 3 });
+    h.docStore.set(`${RUN_PATH}/grades/g2/overrides/u2`, { points: 4 });
 
     const result = await call({
       runId: RUN_ID,
@@ -795,11 +797,16 @@ describe('commitProjectGroupsV1 edits and deletes', () => {
     });
 
     expect(result.groupsDeleted).toBe(1);
-    expect(h.recursiveDeletes).toEqual([`${RUN_PATH}/groups/g1`]);
+    expect(h.recursiveDeletes).toEqual([
+      `${RUN_PATH}/groups/g1`,
+      `${RUN_PATH}/grades/g1`,
+    ]);
     expect(h.docStore.has(`${RUN_PATH}/groups/g1`)).toBe(false);
     expect(h.docStore.has(`${RUN_PATH}/groups/g1/uploads/up1`)).toBe(false);
     expect(h.docStore.has(`${RUN_PATH}/grades/g1`)).toBe(false);
+    expect(h.docStore.has(`${RUN_PATH}/grades/g1/overrides/u1`)).toBe(false);
     expect(h.docStore.has(`${RUN_PATH}/groups/g2`)).toBe(true);
+    expect(h.docStore.has(`${RUN_PATH}/grades/g2/overrides/u2`)).toBe(true);
   });
 
   it('drops a class from the run with its last group', async () => {

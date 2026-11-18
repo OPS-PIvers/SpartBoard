@@ -235,6 +235,7 @@ async function loadStudentAccess(
       sessionId: sid,
       teacherUid:
         typeof session.teacherUid === 'string' ? session.teacherUid : null,
+      kind: 'writing',
     });
   const pointer: Data = ownPointer ? (pointerSnap.data() ?? {}) : {};
   if (pointer.excluded === true)

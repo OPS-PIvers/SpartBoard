@@ -50,6 +50,7 @@ const WritingPiecePage: React.FC<{
   const pointer = useStudentAssignmentPointer(studentUid, session.id, true, {
     sessionId: session.id,
     teacherUid: session.teacherUid,
+    kind: 'writing',
   });
   const override = pointer?.override;
   const pointerFacts = pointer
