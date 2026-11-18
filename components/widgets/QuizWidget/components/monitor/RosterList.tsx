@@ -269,6 +269,12 @@ export const RosterList: React.FC<RosterListProps> = ({
       Number(a.absent) - Number(b.absent) || a.name.localeCompare(b.name)
   );
   const showJoined = absent.length > 0;
+  // Tour row numbers ignore the absent sort, so marking a student absent keeps their number.
+  const absentTourOrder = new Map(
+    [...notJoined]
+      .sort((x, y) => x.name.localeCompare(y.name))
+      .map((s, i) => [s.key, i] as const)
+  );
 
   // Board view (default): per-student hand/idle flags stay off the projected face; counts live in StatusBuckets.
   const showFlags =
@@ -621,7 +627,7 @@ export const RosterList: React.FC<RosterListProps> = ({
         );
       })}
 
-      {absent.map((s, absentIndex) => {
+      {absent.map((s) => {
         const items: RosterMenuItem[] = [];
         if (
           onLetIn &&
@@ -656,7 +662,7 @@ export const RosterList: React.FC<RosterListProps> = ({
                 anchor={tourFieldAttr(
                   'quiz-monitor.student-mark-absent',
                   'quiz',
-                  `row-${rest.length + absentIndex + 1}`
+                  `row-${rest.length + (absentTourOrder.get(s.key) ?? 0) + 1}`
                 )}
               />
             ) : (
@@ -674,7 +680,7 @@ export const RosterList: React.FC<RosterListProps> = ({
               triggerAnchor={tourFieldAttr(
                 'quiz-monitor.roster-row-actions',
                 'quiz',
-                `row-${rest.length + absentIndex + 1}`
+                `row-${rest.length + (absentTourOrder.get(s.key) ?? 0) + 1}`
               )}
               items={items}
             />
