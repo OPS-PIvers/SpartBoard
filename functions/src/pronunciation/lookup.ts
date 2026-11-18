@@ -427,6 +427,29 @@ export async function computeSpeakReferences(
   return { g2pVersion: SPEAK_G2P_VERSION, cards };
 }
 
+// Voice terms per teacher per day; a normal week of set building stays far below it.
+export const SPEAK_VOICE_DAILY_TERMS = 2000;
+
+/** Charges `terms` voice lookups to the caller's day; refuses once the day's budget is spent. */
+export async function chargeSpeakVoiceTerms(
+  db: admin.firestore.Firestore,
+  uid: string,
+  terms: number,
+  nowMs = Date.now()
+): Promise<void> {
+  const today = new Date(nowMs).toISOString().slice(0, 10);
+  const ref = db.collection('ai_usage').doc(`${uid}_speak-voices_${today}`);
+  await db.runTransaction(async (tx) => {
+    const used = Number((await tx.get(ref)).data()?.count ?? 0);
+    if (used >= SPEAK_VOICE_DAILY_TERMS)
+      throw new HttpsError(
+        'resource-exhausted',
+        'Daily pronunciation voice limit reached. Try again tomorrow.'
+      );
+    tx.set(ref, { count: used + terms, updatedAt: nowMs }, { merge: true });
+  });
+}
+
 export const lookupSpeakReferencesV1 = onCall(
   // The voice model holds about 1 GB and is read one take at a time, so one request per instance.
   {
@@ -460,6 +483,12 @@ export const lookupSpeakReferencesV1 = onCall(
     const input = parseLookupInput(request.data);
     // The editor saves without voices, then fills them in small background batches.
     const skipVoices = isRecord(request.data) && request.data.voices === false;
+    if (!skipVoices)
+      await chargeSpeakVoiceTerms(
+        admin.firestore(),
+        auth.uid,
+        input.terms.length
+      );
     const started = Date.now();
     const out = await computeSpeakReferences(
       input,

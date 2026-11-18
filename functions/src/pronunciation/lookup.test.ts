@@ -20,7 +20,20 @@ vi.mock('./voiceRefs', async (importOriginal) => ({
   createVoiceReader: () => ({ read: () => Promise.resolve([]) }),
 }));
 vi.mock('../classlinkShared', () => ({ ALLOWED_ORIGINS: [] }));
-vi.mock('../firebaseAdmin', () => ({ firestore: () => ({}) }));
+const usage = new Map<string, Record<string, unknown>>();
+const fakeDb = {
+  collection: (c: string) => ({
+    doc: (id: string) => ({ path: `${c}/${id}` }),
+  }),
+  runTransaction: (fn: (tx: unknown) => Promise<unknown>) =>
+    fn({
+      get: (ref: { path: string }) =>
+        Promise.resolve({ data: () => usage.get(ref.path) }),
+      set: (ref: { path: string }, v: Record<string, unknown>) =>
+        usage.set(ref.path, { ...usage.get(ref.path), ...v }),
+    }),
+};
+vi.mock('../firebaseAdmin', () => ({ firestore: () => fakeDb }));
 const isGlobalFeatureGranted =
   vi.fn<(...args: unknown[]) => Promise<boolean>>();
 vi.mock('../featureGrant', () => ({
@@ -37,6 +50,7 @@ import {
   lookupSpeakReferencesV1,
   MAX_LOOKUP_TERMS,
   parseLookupInput,
+  SPEAK_VOICE_DAILY_TERMS,
   SPEAK_G2P_VERSION,
   SPEAK_G2P_VOICES_PENDING,
 } from './lookup';
@@ -396,6 +410,7 @@ describe('lookupSpeakReferencesV1', () => {
   beforeEach(() => {
     isGlobalFeatureGranted.mockReset();
     isGlobalFeatureGranted.mockResolvedValue(true);
+    usage.clear();
   });
 
   it('requires sign-in', async () => {
@@ -455,7 +470,7 @@ describe('lookupSpeakReferencesV1', () => {
       code: 'permission-denied',
     });
     expect(isGlobalFeatureGranted).toHaveBeenCalledWith(
-      {},
+      fakeDb,
       'flashcards-speak',
       'teacher@example.com',
       't1'
@@ -477,6 +492,28 @@ describe('lookupSpeakReferencesV1', () => {
     })) as { cards: Record<string, FlashcardCardSpeak> };
     expect(out.cards.a.refs[0].tokens).toEqual(['k', 'æ', 't']);
     expect(out.cards.a.g2pVersion).toBe(SPEAK_G2P_VOICES_PENDING);
+  });
+
+  it('charges voice lookups to the teacher and refuses once the day is spent', async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const key = `ai_usage/t1_speak-voices_${today}`;
+    await call({ auth: teacher, data });
+    expect(usage.get(key)?.count).toBe(1);
+    usage.set(key, { count: SPEAK_VOICE_DAILY_TERMS });
+    await expect(call({ auth: teacher, data })).rejects.toMatchObject({
+      code: 'resource-exhausted',
+    });
+    expect(usage.get(key)?.count).toBe(SPEAK_VOICE_DAILY_TERMS);
+  });
+
+  it('never charges or blocks the quick check without voices', async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const key = `ai_usage/t1_speak-voices_${today}`;
+    usage.set(key, { count: SPEAK_VOICE_DAILY_TERMS });
+    await expect(
+      call({ auth: teacher, data: { ...data, voices: false } })
+    ).resolves.toBeDefined();
+    expect(usage.get(key)?.count).toBe(SPEAK_VOICE_DAILY_TERMS);
   });
 });
 

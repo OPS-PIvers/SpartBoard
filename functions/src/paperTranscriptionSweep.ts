@@ -58,6 +58,10 @@ export const AWAITING_DRIVE_WARN_MS = AWAITING_DRIVE_HOLD_MS - 7 * DAY;
 export const CROP_LIST_PAGE = 1000;
 /** Runaway guard, not an expected volume. */
 export const MAX_CROPS_PER_RUN = 10000;
+/** One owner's share of a pass, so a flood under one uid can't starve the owners listed after it. */
+export const MAX_OBJECTS_PER_OWNER_PER_RUN = 2000;
+// Matches importPaperResponses SCAN_ID_PATTERN; any other id was never recorded and can't be a Firestore doc id.
+const SCAN_ID_RE = /^[A-Za-z0-9-]{1,64}$/;
 export const MAX_LISTED_QUIZZES = 10;
 
 // ── Job pass ──────────────────────────────────────────────────────────────
@@ -229,7 +233,9 @@ export interface ListedCrop {
 }
 
 type ListObjects = (
-  pageToken?: string
+  pageToken?: string,
+  /** List from this object name on; used to skip past one owner's prefix. */
+  startOffset?: string
 ) => Promise<{ crops: ListedCrop[]; nextPageToken?: string }>;
 
 export interface CropSweepDeps {
@@ -277,7 +283,13 @@ export function parseCropPath(path: string): ParsedCropPath | null {
   const seat = Number(seatText);
   const dot = file.lastIndexOf('.');
   const questionId = dot > 0 ? file.slice(0, dot) : '';
-  if (!uid || !scanId || !questionId || !Number.isInteger(seat) || seat < 0)
+  if (
+    !uid ||
+    !SCAN_ID_RE.test(scanId) ||
+    !questionId ||
+    !Number.isInteger(seat) ||
+    seat < 0
+  )
     return null;
   return { uid, scanId, seat, questionId };
 }
@@ -295,7 +307,8 @@ export function parsePagePath(path: string): ParsedPagePath | null {
   if (parts.length !== 5 || parts[0] !== PAPER_PAGE_PREFIX) return null;
   const [, uid, scanId, seatText, file] = parts;
   const page = /^([1-9]\d?)\.webp$/.exec(file);
-  if (!uid || !scanId || !page || !/^[1-9]\d*$/.test(seatText)) return null;
+  if (!uid || !SCAN_ID_RE.test(scanId) || !page || !/^[1-9]\d*$/.test(seatText))
+    return null;
   return { uid, scanId, seat: Number(seatText), page: Number(page[1]) };
 }
 
@@ -736,33 +749,64 @@ export async function runPaperCropSweep(
     });
   }
 
-  let pageToken: string | undefined;
-  do {
-    const page = await deps.listCrops(pageToken);
-    pageToken = page.nextPageToken;
-    for (const crop of page.crops) {
-      if (summary.listed >= MAX_CROPS_PER_RUN) break;
-      summary.listed++;
-      if (now - crop.createdMs < UNIMPORTED_CROP_MS) continue;
+  /** Lists one prefix, giving each owner at most MAX_OBJECTS_PER_OWNER_PER_RUN of the run's cap. */
+  async function walk(
+    list: ListObjects,
+    prefix: string,
+    count: 'listed' | 'pagesListed',
+    visit: (object: ListedCrop) => Promise<void>
+  ): Promise<void> {
+    const perOwner = new Map<string, number>();
+    let token: string | undefined;
+    let offset: string | undefined;
+    do {
+      const page = await list(token, offset);
+      token = page.nextPageToken;
+      offset = undefined;
+      for (const object of page.crops) {
+        if (summary[count] >= MAX_CROPS_PER_RUN) break;
+        const owner = object.path.split('/')[1] ?? '';
+        const seen = (perOwner.get(owner) ?? 0) + 1;
+        perOwner.set(owner, seen);
+        if (seen > MAX_OBJECTS_PER_OWNER_PER_RUN) {
+          // '0' sorts right after '/', so this resumes at the next owner.
+          token = undefined;
+          offset = `${prefix}/${owner}0`;
+          break;
+        }
+        summary[count]++;
+        await visit(object);
+      }
+    } while ((token || offset) && summary[count] < MAX_CROPS_PER_RUN);
+  }
+
+  await walk(
+    deps.listCrops,
+    PAPER_WRITTEN_CROP_PREFIX,
+    'listed',
+    async (crop) => {
+      if (now - crop.createdMs < UNIMPORTED_CROP_MS) return;
       const parsed = parseCropPath(crop.path);
-      if (!parsed) continue;
       try {
+        // A name the import never writes can't be resolved, so it only waits out the 7 days.
+        if (!parsed) {
+          await deps.deleteCrop(crop.path);
+          summary.unimportedDeleted++;
+          return;
+        }
         await sweepOneCrop(crop.path, parsed);
       } catch (error) {
         console.error('[paperTranscriptionSweep] crop', crop.path, error);
       }
     }
-  } while (pageToken && summary.listed < MAX_CROPS_PER_RUN);
+  );
 
-  const listPages = deps.listPages;
-  if (listPages) {
-    let token: string | undefined;
-    do {
-      const page = await listPages(token);
-      token = page.nextPageToken;
-      for (const object of page.crops) {
-        if (summary.pagesListed >= MAX_CROPS_PER_RUN) break;
-        summary.pagesListed++;
+  if (deps.listPages) {
+    await walk(
+      deps.listPages,
+      PAPER_PAGE_PREFIX,
+      'pagesListed',
+      async (object) => {
         try {
           await sweepOnePage(
             object.path,
@@ -773,7 +817,7 @@ export async function runPaperCropSweep(
           console.error('[paperTranscriptionSweep] page', object.path, error);
         }
       }
-    } while (token && summary.pagesListed < MAX_CROPS_PER_RUN);
+    );
   }
 
   const day = new Date(now).toISOString().slice(0, 10);
@@ -823,21 +867,23 @@ export const sweepPaperWrittenCrops = onSchedule(
   async () => {
     const bucket = admin.storage().bucket();
     const archiveDeps = buildDefaultArchiveDeps();
-    const listUnder = (prefix: string) => async (pageToken?: string) => {
-      const [files, next] = await bucket.getFiles({
-        prefix: `${prefix}/`,
-        maxResults: CROP_LIST_PAGE,
-        autoPaginate: false,
-        ...(pageToken ? { pageToken } : {}),
-      });
-      return {
-        crops: files.map((f) => ({
-          path: f.name,
-          createdMs: Date.parse(String(f.metadata.timeCreated ?? '')) || 0,
-        })),
-        nextPageToken: (next as { pageToken?: string } | null)?.pageToken,
+    const listUnder =
+      (prefix: string) => async (pageToken?: string, startOffset?: string) => {
+        const [files, next] = await bucket.getFiles({
+          prefix: `${prefix}/`,
+          maxResults: CROP_LIST_PAGE,
+          autoPaginate: false,
+          ...(pageToken ? { pageToken } : {}),
+          ...(startOffset ? { startOffset } : {}),
+        });
+        return {
+          crops: files.map((f) => ({
+            path: f.name,
+            createdMs: Date.parse(String(f.metadata.timeCreated ?? '')) || 0,
+          })),
+          nextPageToken: (next as { pageToken?: string } | null)?.pageToken,
+        };
       };
-    };
     const summary = await runPaperCropSweep({
       db: admin.firestore(),
       now: () => Date.now(),

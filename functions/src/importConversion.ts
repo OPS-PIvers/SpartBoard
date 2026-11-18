@@ -128,12 +128,14 @@ export async function runConversion(
         limit: access.limit,
         message: access.limitMessage,
       });
+  let modelCalled = false;
   try {
     const fitted = fitSourceText(
       req.source.text,
       await deps.maxInputChars(integration)
     );
     const source = { ...req.source, text: fitted.text };
+    modelCalled = true;
     const text = await deps.generate(
       integration,
       buildConversionPrompt({ ...req, source }, allowed)
@@ -160,7 +162,8 @@ export async function runConversion(
         };
     }
   } catch (error) {
-    if (charge.docIds.length > 0) {
+    // A model call may already be billed, so only a failure before it refunds.
+    if (!modelCalled && charge.docIds.length > 0) {
       await deps.refund(charge).catch(() => undefined);
     }
     if (error instanceof HttpsError) throw error;
