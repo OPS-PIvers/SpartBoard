@@ -96,6 +96,18 @@ describe('isOverTime', () => {
     ).toBe(true);
   });
 
+  it('ignores extended time on a pointer another teacher wrote', async () => {
+    const stub = makeStubFirestore({
+      'student_assignments/u1/items/a1': {
+        override: { timeMultiplier: 2 },
+        sessionId: 'other-session',
+      },
+    });
+    const db = stub.db as unknown as Db;
+    const r = { studentUid: 'u1', attemptStartedAt: T };
+    expect(await isOverTime(db, timed, r, T + 15 * MIN)).toBe(true);
+  });
+
   it('allows the grace after the deadline', async () => {
     const db = makeStubFirestore().db as unknown as Db;
     const r = { studentUid: 'u1', attemptStartedAt: T };

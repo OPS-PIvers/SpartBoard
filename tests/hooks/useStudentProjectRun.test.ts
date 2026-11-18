@@ -140,4 +140,34 @@ describe('useStudentProjectRun groups listeners', () => {
     );
     expect(result.current.workLinks).toEqual([fresh]);
   });
+
+  it('reads only the caller’s own override, once the grade is released', () => {
+    const { result } = renderHook(() =>
+      useStudentProjectRun(RUN_ID, 'student-1')
+    );
+    const own = listenerFor((t) => t.constraints?.[0]?.field === 'memberUids');
+    act(() =>
+      own?.next({
+        docs: [groupDoc('g1', { name: 'Mine', memberUids: ['student-1'] })],
+      })
+    );
+    const overridePath = `project_runs/${RUN_ID}/grades/g1/overrides/student-1`;
+    const at = (path: string) => listenerFor((t) => t.path?.join('/') === path);
+    expect(at(overridePath)).toBeUndefined();
+    act(() =>
+      at(`project_runs/${RUN_ID}/grades/g1`)?.next({
+        exists: () => true,
+        data: () => ({ points: 10, maxPoints: 20, released: true }),
+      })
+    );
+    act(() =>
+      at(overridePath)?.next({
+        exists: () => true,
+        data: () => ({ points: 15, note: 'Mine' }),
+      })
+    );
+    expect(result.current.grade?.overridesByUid).toEqual({
+      'student-1': { points: 15, note: 'Mine' },
+    });
+  });
 });

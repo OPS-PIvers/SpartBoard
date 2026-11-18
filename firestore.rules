@@ -7209,13 +7209,20 @@ service cloud.firestore {
         allow read: if signedIn()
                     && (authUid() in existing().get('memberUids', [])
                         || pjIsRunTeacher());
+        // Membership and class are set by commitProjectGroupsV1; a client may only drop members.
         allow update: if signedIn()
-                      && (pjIsRunTeacher()
+                      && ((pjIsRunTeacher()
+                           && existing().get('memberUids', [])
+                                .hasAll(incoming().get('memberUids', []))
+                           && incoming().get('classId', '')
+                                == existing().get('classId', ''))
                           || (authUid() in existing().get('memberUids', [])
                               && pjStudentEditableFields()
                               && pjStudentStepWrite()
                               && pjOpenFor(existing())));
-        allow create, delete: if pjIsRunTeacher();
+        allow create: if pjIsRunTeacher()
+                      && incoming().get('memberUids', []).size() == 0;
+        allow delete: if pjIsRunTeacher();
 
         // D24: the event log is the teacher's audit trail, never student-visible.
         // Append-only; `actorUid` is pinned to the caller and `actorRole` to what
@@ -7290,11 +7297,22 @@ service cloud.firestore {
           return dbGet4('project_runs', runId, 'groups', groupId)
                  .data.get('memberUids', []);
         }
+        // A legacy doc still carrying every member's overrides stays teacher-only until migrated.
         allow read: if pjIsRunTeacher()
                     || (signedIn()
                         && existing().get('released', false) == true
+                        && !('overridesByUid' in existing())
                         && authUid() in pjGroupMembers());
         allow write: if pjIsRunTeacher();
+
+        // A4: one doc per member, so a member reads only their own override and note.
+        match /overrides/{uid} {
+          allow read: if pjIsRunTeacher()
+                      || (signedIn() && authUid() == uid
+                          && dbGet4('project_runs', runId, 'grades', groupId)
+                               .data.get('released', false) == true);
+          allow write: if pjIsRunTeacher();
+        }
       }
     }
 

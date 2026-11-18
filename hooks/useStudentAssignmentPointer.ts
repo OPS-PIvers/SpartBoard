@@ -18,12 +18,19 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type { StudentAssignmentPointer } from '@/types';
 import { logError } from '@/utils/logError';
+import { isForeignPointer } from '@/utils/pointerOwnership';
 
 export function useStudentAssignmentPointer(
   studentUid: string | null | undefined,
   assignmentId: string | null | undefined,
   /** Gate the subscription without changing identity (defaults to on). */
-  enabled = true
+  enabled = true,
+  /** The session this pointer is read for; a pointer stamped for another is ignored. */
+  expected: {
+    sessionId?: string | null;
+    teacherUid?: string | null;
+    kind?: StudentAssignmentPointer['kind'];
+  } = {}
 ): StudentAssignmentPointer | null | undefined {
   // Tri-state: `undefined` = subscription active but first snapshot not yet
   // delivered; `null` = resolved with no pointer doc; object = pointer doc.
@@ -66,5 +73,6 @@ export function useStudentAssignmentPointer(
   }, [enabled, studentUid, assignmentId]);
 
   // Inactive gate = confirmed-no-pointer, never "loading".
-  return active ? pointer : null;
+  if (!active) return null;
+  return isForeignPointer(pointer, expected) ? null : pointer;
 }

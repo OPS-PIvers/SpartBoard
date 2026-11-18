@@ -2,6 +2,7 @@
 import * as logger from 'firebase-functions/logger';
 import * as admin from './firebaseAdmin';
 import { toMillis } from './gradebook/gradeRowMath';
+import { isForeignPointer } from './pointerOwnership';
 
 type Firestore = admin.firestore.Firestore;
 type Doc = Record<string, unknown>;
@@ -130,6 +131,16 @@ export async function readTimeMultiplier(
     .collection('items')
     .doc(assignmentId)
     .get();
+  const teacherUid =
+    typeof session.teacherUid === 'string' ? session.teacherUid : null;
+  if (
+    isForeignPointer(snap.data(), {
+      sessionId: assignmentId,
+      teacherUid,
+      kind: 'quiz',
+    })
+  )
+    return undefined;
   const override = snap.data()?.override as Doc | undefined;
   return override?.timeMultiplier;
 }

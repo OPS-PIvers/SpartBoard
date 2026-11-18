@@ -441,6 +441,34 @@ describe('group document', () => {
     );
   });
 
+  it('denies the run teacher adding a member or moving the class directly', async () => {
+    await seed();
+    const teacherDb = asTeacher(TEACHER_UID);
+    await assertFails(
+      updateDoc(doc(teacherDb, GROUP_PATH), {
+        memberUids: [MEMBER_UID, OUTSIDER_UID],
+      })
+    );
+    await assertFails(
+      updateDoc(doc(teacherDb, GROUP_PATH), { classId: OTHER_CLASS_ID })
+    );
+    await assertFails(
+      setDoc(
+        doc(teacherDb, `project_runs/${RUN_ID}/groups/group-2`),
+        group({ id: 'group-2', memberUids: [OUTSIDER_UID] })
+      )
+    );
+    await assertSucceeds(
+      updateDoc(doc(teacherDb, GROUP_PATH), { memberUids: [] })
+    );
+    await assertSucceeds(
+      setDoc(
+        doc(teacherDb, `project_runs/${RUN_ID}/groups/group-3`),
+        group({ id: 'group-3', memberUids: [] })
+      )
+    );
+  });
+
   it('constrains the values a member may write, not just the keys', async () => {
     await seed();
     const db = asStudent(MEMBER_UID, [CLASS_ID]);
@@ -697,6 +725,67 @@ describe('grades', () => {
     await assertFails(
       getDoc(doc(asStudent(OUTSIDER_UID, [CLASS_ID]), gradePath))
     );
+  });
+
+  it('never gives a member a groupmate\u2019s override or note', async () => {
+    const PEER_UID = 'projects-peer';
+    await seed({}, { memberUids: [MEMBER_UID, PEER_UID] });
+    const overridePath = (uid: string) => `${gradePath}/overrides/${uid}`;
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, gradePath), grade(true));
+      await setDoc(doc(db, overridePath(MEMBER_UID)), { points: 15 });
+      await setDoc(doc(db, overridePath(PEER_UID)), {
+        points: 9,
+        note: 'private',
+      });
+    });
+    const member = asStudent(MEMBER_UID, [CLASS_ID]);
+    const shared = await getDoc(doc(member, gradePath));
+    if (shared.get('overridesByUid') !== undefined)
+      throw new Error('shared grade carries per-member overrides');
+    await assertSucceeds(getDoc(doc(member, overridePath(MEMBER_UID))));
+    await assertFails(getDoc(doc(member, overridePath(PEER_UID))));
+    await assertFails(getDocs(collection(member, `${gradePath}/overrides`)));
+    await assertSucceeds(
+      getDocs(collection(asTeacher(TEACHER_UID), `${gradePath}/overrides`))
+    );
+    await assertFails(
+      setDoc(doc(member, overridePath(MEMBER_UID)), { points: 20 })
+    );
+  });
+
+  it('hides an override until the grade is released', async () => {
+    await seed();
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, gradePath), grade(false));
+      await setDoc(doc(db, `${gradePath}/overrides/${MEMBER_UID}`), {
+        points: 15,
+      });
+    });
+    await assertFails(
+      getDoc(
+        doc(
+          asStudent(MEMBER_UID, [CLASS_ID]),
+          `${gradePath}/overrides/${MEMBER_UID}`
+        )
+      )
+    );
+  });
+
+  it('keeps a legacy grade with every member\u2019s overrides teacher-only', async () => {
+    await seed();
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), gradePath), {
+        ...grade(true),
+        overridesByUid: { [MEMBER_UID]: { points: 1, note: 'x' } },
+      });
+    });
+    await assertFails(
+      getDoc(doc(asStudent(MEMBER_UID, [CLASS_ID]), gradePath))
+    );
+    await assertSucceeds(getDoc(doc(asTeacher(TEACHER_UID), gradePath)));
   });
 
   it('is never student-writable', async () => {

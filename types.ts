@@ -10556,7 +10556,7 @@ export interface ProjectGroupGrade {
   comment?: string;
   released: boolean;
   gradedAt: number;
-  /** Absolute per-member points + note, keyed by member uid (A4). */
+  /** Absolute per-member points + note by member uid (A4); stored as `grades/{groupId}/overrides/{uid}`, never on this doc. */
   overridesByUid?: Record<string, { points: number; note?: string }>;
 }
 
