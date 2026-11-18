@@ -481,6 +481,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
   const [defaultedFor, setDefaultedFor] = useState<string | null>(null);
   if (assigned && defaultedFor !== session.id) {
     setDefaultedFor(session.id);
+    setLocalClassKey('');
     const { kind, classKey } = assigned.action;
     if (
       perClassBar &&
@@ -555,6 +556,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
       anchor: tourTypeAttr('quiz-monitor.class-close', 'quiz'),
       onClick: async () => {
         if (!(await confirmClose(name))) return;
+        outward.audit('Close class', VIEW_AS_WRITES.end);
         await runPeriod(() => classActions.closeClass(key));
       },
     });
@@ -616,9 +618,14 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     undefined
   );
   const headerClassStatus = (pickedClass ?? topClass)?.status;
-  const pickedAccess = pickedKey
-    ? session.periodAccess?.[pickedKey]
-    : undefined;
+  // A one-class quiz with its own gate keeps More time on that class.
+  const soleKey =
+    assigned?.singleLine && Object.keys(session.periodAccess ?? {}).length === 1
+      ? Object.keys(session.periodAccess ?? {})[0]
+      : '';
+  const timeKey = pickedKey || soleKey;
+  const timeClass = pickedClass ?? (soleKey ? assigned?.classes[0] : undefined);
+  const timeAccess = timeKey ? session.periodAccess?.[timeKey] : undefined;
   const assignedBar = assigned ? (
     <AssignedClassBar
       picker={
@@ -669,12 +676,12 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
             : []
       }
       moreTime={
-        pickedClass?.status === 'open' && pickedAccess?.closeAt != null
+        timeClass?.status === 'open' && timeAccess?.closeAt != null
           ? {
-              classLabel: pickedClass.label,
+              classLabel: timeClass.label,
               extendMs: EXTEND_MS,
               onExtend: (by) =>
-                runPeriod(() => periodActions.extendPeriod(pickedKey, by)),
+                runPeriod(() => periodActions.extendPeriod(timeKey, by)),
               anchors: {
                 extend: tourTypeAttr('quiz-monitor.period-extend', 'quiz'),
               },

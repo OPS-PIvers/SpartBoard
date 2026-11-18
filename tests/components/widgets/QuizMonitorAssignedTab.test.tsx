@@ -312,6 +312,19 @@ describe('Quiz monitor on the Assigned tab', () => {
     expect(screen.queryByRole('button', { name: /Close all/ })).toBeNull();
   });
 
+  it('keeps More time on a one-class quiz with a close time', () => {
+    renderAssigned({
+      periodAccess: {
+        p1: row('P1', { state: 'open', closeAt: Date.now() + 600_000 }),
+      },
+      periodNames: ['P1'],
+    });
+    expect(
+      screen.getByRole('button', { name: 'More time for P1' })
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument();
+  });
+
   it('keeps Close all and the shared Pause with the flag off', () => {
     renderAssigned({ periodNames: ['P1'], assignedTab: false });
     expect(

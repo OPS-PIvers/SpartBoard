@@ -241,7 +241,7 @@ export const ClassPicker: React.FC<{
 };
 
 const barButtonClass = (primary: boolean) =>
-  `inline-flex items-center whitespace-nowrap rounded-md font-sans font-semibold transition-colors disabled:opacity-60 ${
+  `inline-flex items-center rounded-md font-sans font-semibold transition-colors disabled:opacity-60 ${
     primary
       ? 'bg-brand-blue-primary hover:bg-brand-blue-light text-white'
       : 'border border-brand-blue-primary/40 bg-white text-brand-blue-dark hover:bg-brand-blue-lighter'
@@ -260,12 +260,14 @@ const MoreTimeMenu: React.FC<{
   busy: boolean;
   onExtend: (by: number | null) => void;
   anchors?: { moreTime?: TourAnchorAttrs; extend?: TourAnchorAttrs };
-}> = ({ classLabel, extendMs, busy, onExtend, anchors }) => {
+  /** The menu aligns to the enclosing button group instead of this button. */
+  alignToGroup?: boolean;
+}> = ({ classLabel, extendMs, busy, onExtend, anchors, alignToGroup }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   useClickOutside(menuRef, () => setMenuOpen(false));
   return (
-    <div ref={menuRef} className="relative flex">
+    <div ref={menuRef} className={alignToGroup ? 'flex' : 'relative flex'}>
       <button
         onClick={() => setMenuOpen((v) => !v)}
         disabled={busy}
@@ -367,6 +369,7 @@ const PeriodAction: React.FC<
           classLabel={current.access.label}
           extendMs={extendMs}
           busy={false}
+          alignToGroup
           onExtend={(by) => void run(() => onExtend(current.key, by))}
           anchors={anchors}
         />
