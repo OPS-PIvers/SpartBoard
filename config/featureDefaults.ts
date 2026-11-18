@@ -1330,18 +1330,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'checklist-small-card': {
-    label: 'Checklist small cards',
-    icon: ListChecks,
-    description:
-      'An Add tasks button when empty, and a cleaner footer on small cards.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'checklist',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'seating-chart-plans': {
     label: 'Seating Chart: seating plans',
     icon: LayoutGrid,

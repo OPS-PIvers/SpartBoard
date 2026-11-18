@@ -59,7 +59,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'flashcard-card-images',
   'lunch-count-redesign',
   'weather-details',
-  'checklist-small-card',
   'seating-chart-plans',
   'noise-meter-pro',
   'document-camera-pro',

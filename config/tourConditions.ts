@@ -32,6 +32,7 @@ export const RETIRED_TOUR_FEATURES: readonly string[] = [
   'app-pickers',
   'assignment-class-list',
   'board-context-menu',
+  'checklist-small-card',
   'choose-n-pick-counted',
   'claude-connector-apps',
   'district-library-folders',
