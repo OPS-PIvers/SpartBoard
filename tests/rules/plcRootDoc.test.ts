@@ -578,6 +578,46 @@ describe('plcs/{plcId} — members map + orgId/buildingId fields', () => {
       })
     );
   });
+  it('only the original creator re-creates a deleted PLC id', async () => {
+    const NEW_PLC = 'plc-recreated';
+    await seedStaff([MEMBER_B_UID]);
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `plcCreators/${NEW_PLC}`), {
+        creatorUid: MEMBER_A_UID,
+        rootCreateMs: 1,
+      });
+    });
+    const rootFor = (uid: string, email: string) => ({
+      name: 'Again',
+      leadUid: uid,
+      memberUids: [uid],
+      memberEmails: { [uid]: email },
+      members: {
+        [uid]: {
+          uid,
+          email,
+          displayName: 'X',
+          role: 'lead',
+          joinedAt: 1,
+          status: 'active',
+        },
+      },
+      createdAt: 1,
+      updatedAt: 1,
+    });
+    await assertFails(
+      setDoc(
+        doc(staffDb(MEMBER_B_UID), `plcs/${NEW_PLC}`),
+        rootFor(MEMBER_B_UID, MEMBER_B_EMAIL)
+      )
+    );
+    await assertSucceeds(
+      setDoc(
+        doc(staffDb(MEMBER_A_UID), `plcs/${NEW_PLC}`),
+        rootFor(MEMBER_A_UID, MEMBER_A_EMAIL)
+      )
+    );
+  });
 
   it('the lead can backfill orgId/buildingId via broad update (members untouched)', async () => {
     // The broad sitting-lead branch permits tenancy backfill (null → value) but
