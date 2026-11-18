@@ -18929,26 +18929,53 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "keys": [
       "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": []
+      }
     ]
   },
   {
     "id": "quiz-grading.rubric-auto-advance",
-    "label": "Jump to next criterion switch in the grader rubric settings",
+    "label": "Jump to next category switch in the grader rubric settings",
     "scope": "widget type",
     "panel": true,
     "persists": true,
     "keys": [
       "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": [
+          "quiz-grading.rubric-settings:quiz"
+        ],
+        "reveal": "quiz-grading.rubric-settings:quiz"
+      }
     ]
   },
   {
     "id": "quiz-grading.rubric-open-next",
-    "label": "Open next criterion switch in the grader rubric settings",
+    "label": "Open next category switch in the grader rubric settings",
     "scope": "widget type",
     "panel": true,
     "persists": true,
     "keys": [
       "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.rubric-scoring",
+        "kind": "shared",
+        "path": [
+          "quiz-grading.rubric-settings:quiz"
+        ],
+        "reveal": "quiz-grading.rubric-settings:quiz"
+      }
     ]
   },
   {
