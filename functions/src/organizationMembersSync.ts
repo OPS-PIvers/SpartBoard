@@ -6,6 +6,7 @@ import {
   applyDeactivationClaim,
   deactivationClaimSyncNeeded,
   deactivationClaimTarget,
+  holdsRevokedMember,
 } from './memberDeactivationClaim';
 
 // Ensure admin is initialized exactly once. `index.ts` also calls
@@ -43,24 +44,6 @@ async function liveOperatorMember(
     snap.exists &&
     !isRevokedMemberStatus((snap.data() as MemberDocFields).status)
   );
-}
-
-/** True when the account's current address or any member doc linked to its uid is revoked. */
-async function holdsRevokedMember(
-  orgId: string,
-  user: admin.auth.UserRecord
-): Promise<boolean> {
-  const db = admin.firestore();
-  const email = user.email?.toLowerCase() ?? '';
-  if (email) {
-    const snap = await db.doc(`organizations/${orgId}/members/${email}`).get();
-    if (snap.exists && isRevokedMemberStatus(snap.get('status'))) return true;
-  }
-  const linked = await db
-    .collection(`organizations/${orgId}/members`)
-    .where('uid', '==', user.uid)
-    .get();
-  return linked.docs.some((d) => isRevokedMemberStatus(d.get('status')));
 }
 
 export const ADMIN_ROLES: readonly string[] = [
@@ -275,7 +258,7 @@ export const organizationMembersSync = onDocumentWritten(
             afterData?.uid ?? beforeData?.uid,
             claimChange,
             (email) => liveOperatorMember(orgId, email),
-            (user) => holdsRevokedMember(orgId, user)
+            (user) => holdsRevokedMember(admin.firestore(), orgId, user)
           );
           logger.info('organizationMembersSync: deactivation claim', {
             orgId,
