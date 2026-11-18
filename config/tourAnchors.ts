@@ -5948,12 +5948,8 @@ export const TOUR_ANCHORS = {
     panel: true,
     destructive: true,
   },
-  'roster-groups.new-empty': {
-    label: 'New group button in the empty Groups tab',
-    panel: true,
-  },
   'roster-groups.new': {
-    label: 'New group button at the bottom of the Groups tab',
+    label: 'New group button on the Groups tab',
     panel: true,
   },
   'roster-groups.split': {
