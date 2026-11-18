@@ -1202,6 +1202,8 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'widget-settings.schedule.building-schedules': [
       'widgets.schedule.settings',
     ],
+    'widget-settings.schedule.save-default': ['widgets.schedule.settings'],
+    'widget-settings.schedule.remove-default': ['widgets.schedule.settings'],
     'widget-settings.scoreboard.confirm-reset': ['widgets.scoreboard.settings'],
     'widget-settings.scoreboard.cancel-reset': ['widgets.scoreboard.settings'],
     'widget-settings.scoreboard.layout': ['widgets.scoreboard.settings'],

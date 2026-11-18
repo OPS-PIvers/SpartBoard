@@ -3613,6 +3613,8 @@ export interface ScheduleConfig {
   rowStyle?: 'cards' | 'lines';
   /** Persisted schedule tab selection in the settings panel. Not used by the front-face display. */
   settingsSelectedScheduleId?: string | null;
+  /** The teacher's default schedules; lives only in `savedWidgetPresets.schedule`, never on a widget. */
+  defaultSchedules?: DailySchedule[];
 }
 
 export interface CalendarConfig {
@@ -11836,7 +11838,9 @@ export type GlobalFeature =
   /** Reopen an ended quiz for selected students only. */
   | 'reopen-selected-students'
   /** A score-only Video Activity publish keeps right/wrong off students' answers. */
-  | 'va-score-only-verdicts';
+  | 'va-score-only-verdicts'
+  /** Schedule settings can save a teacher's schedule as the start for new Schedule widgets. */
+  | 'schedule-default-schedule';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

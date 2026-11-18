@@ -1704,6 +1704,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'schedule-default-schedule': {
+    label: 'Schedule: save as my default schedule',
+    icon: CalendarClock,
+    description:
+      'Schedule settings can save a schedule. New Schedule widgets on any board start with it.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
 };
 
 /** Retired global ids the Dock reads until a Widgets-page doc exists (plan D3). */

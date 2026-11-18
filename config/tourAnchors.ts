@@ -5627,6 +5627,18 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     panel: true,
   },
+  'widget-settings.schedule.save-default': {
+    label: 'Save as my default schedule button in Schedule settings',
+    perWidget: true,
+    panel: true,
+    persists: true,
+  },
+  'widget-settings.schedule.remove-default': {
+    label: 'Remove default schedule button in Schedule settings',
+    perWidget: true,
+    panel: true,
+    persists: true,
+  },
   'widget-settings.scoreboard.confirm-reset': {
     label: 'Yes button on the Scoreboard reset prompt',
     perWidget: true,

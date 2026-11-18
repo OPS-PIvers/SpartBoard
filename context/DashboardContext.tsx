@@ -35,6 +35,7 @@ import {
   Collection,
   LinkedCollectionMode,
   CollectionSubstituteShareInput,
+  ScheduleConfig,
 } from '@/types';
 import {
   deleteField,
@@ -209,6 +210,7 @@ import {
   sanitizeAIConfig,
 } from '@/utils/ai_security';
 import { withTimerStartSeconds } from '@/utils/timeToolClock';
+import { withDefaultSchedules } from '@/components/widgets/Schedule/defaultSchedules';
 import { getAdminBuildingConfig as getAdminBuildingConfigPure } from '@/utils/adminBuildingConfig';
 import { seedMaterialsConfig } from '@/utils/materialsPreferences';
 import { isBetaUser } from '@/utils/betaAccess';
@@ -821,6 +823,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     featurePermissions,
     selectedBuildings,
     savedWidgetConfigs,
+    savedWidgetPresets,
     materialsPreferences,
     timeToolStartSeconds,
     profileLoaded,
@@ -7233,16 +7236,29 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     [featurePermissions, selectedBuildings]
   );
 
-  // The building layer for a new widget, with the teacher's own timer starting length over it.
+  // The building layer for a new widget, with the teacher's own timer length or default schedule over it.
   const timerStartSeconds = timeToolStartSeconds ?? 0;
+  const savedDefaultSchedules = (
+    savedWidgetPresets?.schedule as Partial<ScheduleConfig> | undefined
+  )?.defaultSchedules;
   const getNewWidgetBaseConfig = useCallback(
     (type: WidgetType): Record<string, unknown> | undefined => {
       const building = getAdminBuildingConfig(type);
-      return type === 'time-tool'
-        ? withTimerStartSeconds(building, timerStartSeconds)
-        : building;
+      if (type === 'time-tool')
+        return withTimerStartSeconds(building, timerStartSeconds);
+      if (
+        type === 'schedule' &&
+        canAccessFeature?.('schedule-default-schedule')
+      )
+        return withDefaultSchedules(building, savedDefaultSchedules);
+      return building;
     },
-    [getAdminBuildingConfig, timerStartSeconds]
+    [
+      getAdminBuildingConfig,
+      timerStartSeconds,
+      canAccessFeature,
+      savedDefaultSchedules,
+    ]
   );
 
   // Board-level undo/redo of widget mutations, keyed by dashboard id.

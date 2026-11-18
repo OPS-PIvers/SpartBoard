@@ -40,6 +40,7 @@ import type {
   ScheduleConfig,
   ScheduleItem,
 } from '@/types';
+import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
 import { useFeaturePermissions } from '@/hooks/useFeaturePermissions';
@@ -47,6 +48,8 @@ import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
 import { beginWidgetDrag, endWidgetDrag } from '@/utils/widgetDragFlag';
 import { getTodayStr } from './utils';
 import { SortableScheduleItem } from './components/SortableScheduleItem';
+import { toDefaultSchedules } from './defaultSchedules';
+import { stableStringify } from '@/utils/stableStringify';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 const DAYS = [
@@ -93,12 +96,23 @@ const buildDefaultSchedule = (items: ScheduleItem[]): DailySchedule => ({
   days: [],
 });
 
+// Starter and older items carry no id, which hid them from the editor; the first edit saves these ids.
+const withItemIds = (schedule: DailySchedule): DailySchedule =>
+  schedule.items.every((item) => item.id)
+    ? schedule
+    : {
+        ...schedule,
+        items: schedule.items.map((item, index) =>
+          item.id ? item : { ...item, id: `${schedule.id}-item-${index + 1}` }
+        ),
+      };
+
 const resolvedSchedules = (config: ScheduleConfig): DailySchedule[] => {
   const schedules = [...(config.schedules ?? [])];
   if (schedules.length === 0 && (config.items?.length ?? 0) > 0) {
     schedules.push(buildDefaultSchedule(config.items ?? []));
   }
-  return schedules;
+  return schedules.map(withItemIds);
 };
 
 const selectedScheduleId = (
@@ -212,6 +226,65 @@ export const ScheduleCalendarImportField: React.FC<{
         {translate(ctx, 'importToday')}
       </button>
     </FieldRoot>
+  );
+};
+
+const ScheduleDefaultControls: React.FC<{
+  ctx: CustomRenderCtx;
+  schedules: DailySchedule[];
+}> = ({ ctx, schedules }) => {
+  const { savedWidgetPresets, saveWidgetPreset } = useAuth();
+  const saved = (
+    savedWidgetPresets.schedule as Partial<ScheduleConfig> | undefined
+  )?.defaultSchedules;
+  const hasDefault = (saved?.length ?? 0) > 0;
+  const current = useMemo(() => toDefaultSchedules(schedules), [schedules]);
+  const matchesDefault =
+    hasDefault && stableStringify(saved) === stableStringify(current);
+  const buttonClass =
+    'rounded-lg px-3 py-2 text-xs font-bold transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary';
+
+  return (
+    <div className="flex flex-col items-center gap-2 border-t border-slate-100 pt-3 text-center">
+      {matchesDefault && (
+        <p className="text-xs text-slate-500">
+          {translate(ctx, 'defaultSaved')}
+        </p>
+      )}
+      <div className="flex flex-wrap justify-center gap-2">
+        <button
+          type="button"
+          disabled={schedules.length === 0 || matchesDefault}
+          onClick={() =>
+            saveWidgetPreset('schedule', { defaultSchedules: current })
+          }
+          className={`${buttonClass} bg-brand-blue-primary text-white hover:bg-brand-blue-dark disabled:cursor-not-allowed disabled:opacity-50`}
+          {...tourAttr(
+            'widget-settings.schedule.save-default',
+            ctx.widget.id,
+            ctx.widget.type
+          )}
+        >
+          {translate(ctx, 'saveAsDefault')}
+        </button>
+        {hasDefault && (
+          <button
+            type="button"
+            onClick={() =>
+              saveWidgetPreset('schedule', { defaultSchedules: [] })
+            }
+            className={`${buttonClass} text-brand-blue-primary hover:bg-slate-100`}
+            {...tourAttr(
+              'widget-settings.schedule.remove-default',
+              ctx.widget.id,
+              ctx.widget.type
+            )}
+          >
+            {translate(ctx, 'removeDefault')}
+          </button>
+        )}
+      </div>
+    </div>
   );
 };
 
@@ -721,6 +794,9 @@ export const ScheduleListField: React.FC<{
             </>
           )}
         </>
+      )}
+      {ctx.canAccessFeature('schedule-default-schedule') && (
+        <ScheduleDefaultControls ctx={ctx} schedules={schedules} />
       )}
       <div className="border-t border-slate-100 pt-3">
         <button

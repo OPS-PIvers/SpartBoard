@@ -23091,6 +23091,46 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "widget-settings.schedule.save-default",
+    "label": "Save as my default schedule button in Schedule settings",
+    "scope": "widget",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.schedule.settings",
+        "kind": "settings-drawer",
+        "widget_type": "schedule",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.schedule.remove-default",
+    "label": "Remove default schedule button in Schedule settings",
+    "scope": "widget",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.schedule.settings",
+        "kind": "settings-drawer",
+        "widget_type": "schedule",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "widget-settings.scoreboard.confirm-reset",
     "label": "Yes button on the Scoreboard reset prompt",
     "scope": "widget",
