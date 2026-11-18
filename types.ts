@@ -10450,7 +10450,7 @@ export interface ProjectRun extends SessionWorkKindFields {
   /** Retired: students only ever see their own group. Old runs keep it until backfilled. */
   showStatusToStudents?: boolean;
   acceptingUpdates: boolean;
-  /** Groups can submit; set when a teacher with the project-submit preview starts or edits the run. */
+  /** Groups can submit; set when the teacher starts or edits an open run. Absent on older runs. */
   studentSubmit?: boolean;
   /** D42 — absent on runs made before the field existed. */
   createdAt?: number;
@@ -11736,8 +11736,6 @@ export type GlobalFeature =
   | 'paper-printed-versions'
   /** Paper sheets: fill-in-the-blank prints a write-in line per blank, read back on import. */
   | 'paper-fill-in-blank'
-  /** Projects: a group submits its project; the teacher sees Submitted, Late or Missing and can reopen. */
-  | 'project-submit'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */
   | 'gradebook'
   /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */
