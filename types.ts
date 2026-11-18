@@ -11798,8 +11798,6 @@ export type GlobalFeature =
   | 'flashcards-speak'
   /** Teachers add their own YouTube songs to the Music widget's station list. */
   | 'music-my-songs'
-  /** Embed widget setting that stops the embedded page from opening new tabs. */
-  | 'embed-block-new-tabs'
   /** Copy, paste and print blocking and fullscreen on quiz and video activity pages (CHROME_EXTENSION.md F14). */
   | 'focus-sessions'
   | 'input-signals'

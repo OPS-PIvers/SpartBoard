@@ -34,6 +34,7 @@ export const RETIRED_TOUR_FEATURES: readonly string[] = [
   'choose-n-pick-counted',
   'claude-connector-apps',
   'district-library-folders',
+  'embed-block-new-tabs',
   'flashcards-check-sync',
   'flashcards-missed-cards',
   'flashcards-study-settings',
