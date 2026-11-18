@@ -2137,6 +2137,11 @@ service cloud.firestore {
       ]);
     }
     // A District library canonical is written only by a site admin; `member` (participant or owner) counts only on unmarked docs (M27).
+    // Synced quiz and video groups: a participant writes when they are district staff or an admin,
+    // or when the group is only theirs (an outside teacher's own share), never in a staff group.
+    function syncWriter(p) {
+      return authUid() in p && (isDistrictStaff() || isAdmin() || p.keys().hasOnly([authUid()]));
+    }
     function districtOr(member) {
       return existing().get('districtItemId', '') == '' ? member : isSiteAdmin();
     }
@@ -2205,7 +2210,7 @@ service cloud.firestore {
       // client-immutable; version must increase by exactly 1 (concurrent loser
       // retries on the newer base); hasOnly locks the field surface.
       allow update: if signedIn()
-        && districtOr(authUid() in existing().participants)
+        && districtOr(syncWriter(existing().participants))
         && districtMarkKept()
         && syncedQuizKeysOk()
         && sameId()
@@ -2239,8 +2244,7 @@ service cloud.firestore {
              dbGet('synced_quizzes', groupId).data.participants;
 
         allow create: if signedIn()
-          && authUid() in
-             dbGet('synced_quizzes', groupId).data.participants
+          && syncWriter(dbGet('synced_quizzes', groupId).data.participants)
           && versionKeysOk()
           && incoming().savedBy == authUid()
           && isInt('version')
@@ -2269,10 +2273,13 @@ service cloud.firestore {
         existing().get('ownerUid', '') == authUid() || isDistrictStaff() ||
         syncedBankPlcReader(existing().get('plcIds', [])) || isAdmin());
 
+      // synced_bank_owners (written by syncedBankOwnerRegistry) reserves a deleted id for its first owner.
       allow create: if staffSignedIn()
         && syncedBankKeysOk()
         && incoming().id == groupId
         && incoming().ownerUid == authUid()
+        && (!dbExists('synced_bank_owners', groupId)
+          || dbGet('synced_bank_owners', groupId).data.ownerUid == authUid())
         && incoming().version == 1
         && isList('plcIds')
         && isList('questions')
@@ -2413,7 +2420,7 @@ service cloud.firestore {
       // Content updates: participant-only; participants + id client-immutable;
       // version increases by exactly 1. Mirrors synced_quizzes line-for-line.
       allow update: if signedIn()
-        && authUid() in existing().participants
+        && syncWriter(existing().participants)
         && syncedVideoKeysOk()
         && sameId()
         && unchanged('participants')
@@ -2432,8 +2439,7 @@ service cloud.firestore {
              dbGet('synced_video_activities', groupId).data.participants;
 
         allow create: if signedIn()
-          && authUid() in
-             dbGet('synced_video_activities', groupId).data.participants
+          && syncWriter(dbGet('synced_video_activities', groupId).data.participants)
           && versionKeysOk()
           && incoming().savedBy == authUid()
           && isInt('version')
@@ -4192,6 +4198,11 @@ service cloud.firestore {
     }
 
     match /plc_invitations/{inviteId} {
+      // A manager invites someone else who isn't already an active member.
+      function plcInviteeOk(p) {
+        return isPlcMembershipManager(p) && incoming().inviteeEmailLower != myEmail()
+          && !(incoming().inviteeEmailLower in p.get('memberEmails', {}).values());
+      }
       // Invitee sees their own invites; the inviter sees the ones they sent (for
       // the sidebar "Pending invites" / "Outstanding invitations" panels).
       // email_verified is REQUIRED on the invitee branch, same reason as isAdmin()
@@ -4218,7 +4229,7 @@ service cloud.firestore {
         // role-change / remove / transfer actions co-leads already perform
         // (Decision 1.2). isPlcMembershipManager reads the members map (falling
         // back to the denormalized leadUid mirror) so it covers both shapes.
-        && isPlcMembershipManager(dbGet('plcs', incoming().plcId).data)
+        && plcInviteeOk(dbGet('plcs', incoming().plcId).data)
         && inviteId == plcInviteDocId(incoming().plcId, incoming().inviteeEmailLower)
         // A send or re-send is always pending; accepted/declined come only from the invitee.
         && incoming().status == 'pending'
@@ -4634,6 +4645,9 @@ service cloud.firestore {
         !changed(['ltiAttachment']) &&
         subMonitorStampUnchanged() &&
         (!changed(['status']) || incoming().status in ['waiting', 'active', 'paused', 'ended']) &&
+        // An ended run may drop its answer reveals but never write them (security #1).
+        (incoming().get('status', '') != 'ended' || !changed(['revealedAnswers']) ||
+         !('revealedAnswers' in incoming())) &&
         (incoming().get('plcId', null) == existing().get('plcId', null) ||
          incoming().get('plcId', null) == null ||
          plcLinkOk(incoming()));

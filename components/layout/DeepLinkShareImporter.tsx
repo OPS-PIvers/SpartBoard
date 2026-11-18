@@ -13,7 +13,7 @@ import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments
 import { usePlcs } from '@/hooks/usePlcs';
 import { QuizAssignmentImportModeModal } from '@/components/widgets/QuizWidget/components/QuizAssignmentImportModeModal';
 import { logError } from '@/utils/logError';
-import { getPlcRole } from '@/utils/plc';
+import { getPlcRole, plcLinkageFor } from '@/utils/plc';
 import { OPERATOR_ORG_ID } from '@/config/organization';
 import {
   describeSharer,
@@ -331,6 +331,14 @@ export const DeepLinkShareImporter: React.FC = () => {
   //   2) The QuizAssignmentImportModeModal, after the teacher picks
   //      Sync vs Copy.
   // Defined outside the effect so both paths share identical orchestration.
+  const livePlcLinkage = React.useCallback(
+    (plcId: string) => {
+      const plc = plcs.find((p) => p.id === plcId);
+      return plc ? plcLinkageFor(plc) : undefined;
+    },
+    [plcs]
+  );
+
   const runAssignmentImport = React.useCallback(
     (shareId: string, mode: SharedAssignmentImportMode) => {
       if (!user) return;
@@ -370,6 +378,7 @@ export const DeepLinkShareImporter: React.FC = () => {
               }
             );
           },
+          liveLinkage: livePlcLinkage,
         },
         {
           mode,
@@ -420,6 +429,7 @@ export const DeepLinkShareImporter: React.FC = () => {
       addToast,
       setPendingAssignmentSetup,
       plcs,
+      livePlcLinkage,
     ]
   );
 
@@ -563,6 +573,7 @@ export const DeepLinkShareImporter: React.FC = () => {
         isPlcMember: (plcId) =>
           !!user &&
           plcs.some((p) => p.id === plcId && getPlcRole(p, user.uid) !== null),
+        livePlcLinkage,
       })
         .then(() => {
           addToast('Shared video activity imported!', 'success');
@@ -599,6 +610,7 @@ export const DeepLinkShareImporter: React.FC = () => {
       attachVideoActivitySyncLinkage,
       addToast,
       plcs,
+      livePlcLinkage,
       user,
     ]
   );

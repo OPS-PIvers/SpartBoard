@@ -157,6 +157,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'web-tours',
   'webcam-ai',
   'whiteboard-pro',
+  'widget-settings-defaults',
 ];
 
 export const TOUR_CONDITION_RETIRED_FEATURES: readonly string[] = [

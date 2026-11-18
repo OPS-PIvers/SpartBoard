@@ -247,6 +247,10 @@ export async function handleControlSubAssignment(
         : null;
     if (spans) patches.session.pauseSpans = spans;
   }
+  // An ended quiz drops its live answer reveals, since students can read the session doc.
+  if (kind === 'quiz' && action === 'end') {
+    patches.session.revealedAnswers = admin.firestore.FieldValue.delete();
+  }
   const batch = db.batch();
   // A repeat pause writes only if no Resume landed since the read, so its kept pausedAt is still open.
   if (repeatPause && snap.updateTime) {

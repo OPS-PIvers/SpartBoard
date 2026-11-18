@@ -3358,6 +3358,8 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'settings.clear-filter': ['board.settings-drawer'],
     'settings.style-defaults-save': ['board.settings-drawer'],
     'settings.style-defaults-reset': ['board.settings-drawer'],
+    'settings.settings-defaults-save': ['board.settings-drawer'],
+    'settings.settings-defaults-reset': ['board.settings-drawer'],
     'settings.window-background': ['board.settings-drawer'],
     'settings.window-font': ['board.settings-drawer'],
     'settings.window-text-size': ['board.settings-drawer'],

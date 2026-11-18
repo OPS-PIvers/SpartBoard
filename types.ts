@@ -11836,7 +11836,9 @@ export type GlobalFeature =
   /** Reopen an ended quiz for selected students only. */
   | 'reopen-selected-students'
   /** A score-only Video Activity publish keeps right/wrong off students' answers. */
-  | 'va-score-only-verdicts';
+  | 'va-score-only-verdicts'
+  /** Every widget's Settings tab can save its settings as the teacher's default for new copies. */
+  | 'widget-settings-defaults';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

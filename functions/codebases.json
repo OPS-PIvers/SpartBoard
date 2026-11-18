@@ -215,7 +215,8 @@
       "runPlcMeetingNotesJob",
       "setPlcNormingFlagV1",
       "sweepPlcRecordingAudio",
-      "syncBuildingGroupV1"
+      "syncBuildingGroupV1",
+      "syncedBankOwnerRegistry"
     ],
     "student": [
       "claimPollCodeV1",

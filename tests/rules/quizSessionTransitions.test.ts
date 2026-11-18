@@ -14,6 +14,7 @@ import {
 } from '@firebase/rules-unit-testing';
 import {
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   serverTimestamp,
@@ -165,6 +166,30 @@ describe('quiz session doc: run transitions', () => {
       );
     });
   }
+
+  it('lets End drop the answer reveals but never puts them back (security #1)', async () => {
+    const db = asTeacher();
+    await assertSucceeds(
+      updateDoc(sessionRef(db), { 'revealedAnswers.q1': 'a' })
+    );
+    await assertSucceeds(
+      updateDoc(sessionRef(db), {
+        status: 'ended',
+        endedAt: 20,
+        revealedAnswers: deleteField(),
+      })
+    );
+    await assertFails(updateDoc(sessionRef(db), { 'revealedAnswers.q1': 'a' }));
+    await assertFails(
+      updateDoc(sessionRef(db), {
+        status: 'ended',
+        revealedAnswers: { q1: 'a', q2: 'b' },
+      })
+    );
+    await assertSucceeds(updateDoc(sessionRef(db), { endedAt: 21 }));
+    // Reopening a run still works.
+    await assertSucceeds(updateDoc(sessionRef(db), { status: 'active' }));
+  });
 
   it('refuses the teacher handing the session to another teacher', async () => {
     await assertFails(

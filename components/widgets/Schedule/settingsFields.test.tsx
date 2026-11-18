@@ -23,6 +23,11 @@ vi.mock('@/hooks/useConnectionsEnabled', () => ({
 }));
 
 vi.mock('@/context/useDashboard', () => ({ useDashboard: vi.fn() }));
+const authState = vi.hoisted(() => ({
+  savedWidgetPresets: {},
+  saveWidgetPreset: vi.fn(),
+}));
+vi.mock('@/context/useAuth', () => ({ useAuth: () => authState }));
 vi.mock('@/context/useDialog', () => ({ useDialog: vi.fn() }));
 vi.mock('@/hooks/useFeaturePermissions', () => ({
   useFeaturePermissions: vi.fn(),
@@ -388,5 +393,33 @@ describe('Schedule settings drawer fields', () => {
         .getAllByPlaceholderText('Task name')
         .some((input) => input === document.activeElement)
     ).toBe(false);
+  });
+
+  it('lists starter items that have no id so they can be edited', () => {
+    const updateConfig = vi.fn();
+    setup();
+    const ctx = makeCtx(
+      {
+        items: [
+          { time: '08:00', task: 'Morning Meeting' },
+          { time: '09:00', task: 'Math' },
+        ],
+      },
+      updateConfig
+    );
+    render(React.createElement(ScheduleListField, { ctx }));
+    const inputs = screen.getAllByPlaceholderText('Task name');
+    expect(inputs.map((input) => (input as HTMLInputElement).value)).toEqual([
+      'Morning Meeting',
+      'Math',
+    ]);
+    fireEvent.change(inputs[1], { target: { value: 'Literacy' } });
+    const patch = updateConfig.mock.calls.at(-1)?.[0] as {
+      items: ScheduleItem[];
+    };
+    expect(patch.items.map((entry) => [entry.id, entry.task])).toEqual([
+      ['default-item-1', 'Morning Meeting'],
+      ['default-item-2', 'Literacy'],
+    ]);
   });
 });

@@ -34,6 +34,10 @@ import { WindowStyleTier } from './schema/windowStyle';
 import { StyleDefaultsFooter } from './StyleDefaultsFooter';
 import { computeStyleDefaults } from './styleDefaults';
 import {
+  computeSettingsDefaults,
+  settingsDefaultKeys,
+} from '@/utils/widgetSettingsDefaults';
+import {
   buildSchemaSections,
   buildStyleSections,
   filterSections,
@@ -81,6 +85,15 @@ export type SettingsDrawerProps = {
     saved?: Record<string, unknown>;
     onSave: (config: Record<string, unknown>) => void;
   };
+  /** Layers behind the Settings-tab "my default"; omit to hide that footer. */
+  settingsDefaults?: {
+    widgetDefaults?: Record<string, unknown>;
+    buildingConfig?: Record<string, unknown>;
+    saved?: Record<string, unknown>;
+    /** Characters the profile can still take for this default. */
+    budgetChars?: number;
+    onSave: (config: Record<string, unknown>) => void;
+  };
   /** The focus hook (1b.2) targets this heading on open. */
   headingRef?: React.RefObject<HTMLHeadingElement | null>;
 };
@@ -120,6 +133,7 @@ const SettingsDrawerComponent: React.FC<SettingsDrawerProps> = ({
   followLeader,
   defaults,
   styleDefaults,
+  settingsDefaults,
   headingRef,
 }) => {
   const { t } = useTranslation();
@@ -401,6 +415,23 @@ const SettingsDrawerComponent: React.FC<SettingsDrawerProps> = ({
     [config, styleDefaults]
   );
 
+  const settingsDefaultsState = useMemo(() => {
+    if (!settingsDefaults || !schema) return null;
+    const keys = settingsDefaultKeys(
+      widget.type,
+      schema.groups.flatMap((group) => group.fields.map((field) => field.key))
+    );
+    return computeSettingsDefaults(
+      widget.type,
+      keys,
+      config,
+      settingsDefaults.widgetDefaults,
+      settingsDefaults.buildingConfig,
+      settingsDefaults.saved,
+      settingsDefaults.budgetChars
+    );
+  }, [config, schema, settingsDefaults, widget.type]);
+
   let body: React.ReactNode;
   if (isFiltering) {
     body = hasMatches(filtered) ? (
@@ -446,18 +477,32 @@ const SettingsDrawerComponent: React.FC<SettingsDrawerProps> = ({
       );
     } else {
       body = (
-        <SchemaRenderer
-          schema={schema}
-          widget={widget}
-          ctx={ctx}
-          updateConfig={updateConfig}
-          defaults={defaults}
-          emptyFallback={
-            <p className="text-sm text-slate-700">
-              {t('widgetSettings.common.empty')}
-            </p>
-          }
-        />
+        <div className="flex flex-col gap-5">
+          <SchemaRenderer
+            schema={schema}
+            widget={widget}
+            ctx={ctx}
+            updateConfig={updateConfig}
+            defaults={defaults}
+            emptyFallback={
+              <p className="text-sm text-slate-700">
+                {t('widgetSettings.common.empty')}
+              </p>
+            }
+          />
+          {settingsDefaults && settingsDefaultsState && (
+            <StyleDefaultsFooter
+              tab="settings"
+              state={settingsDefaultsState}
+              onSave={() =>
+                settingsDefaults.onSave(settingsDefaultsState.toSave)
+              }
+              onReset={() => updateConfig(settingsDefaultsState.resetPatch)}
+              t={t}
+              widget={widget}
+            />
+          )}
+        </div>
       );
     }
   } else {

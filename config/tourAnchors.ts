@@ -14328,6 +14328,20 @@ export const TOUR_ANCHORS = {
     persists: true,
     requires: 'settings-open',
   },
+  'settings.settings-defaults-save': {
+    perWidget: true,
+    label: 'Save as my default button on the Settings tab',
+    panel: true,
+    persists: true,
+    requires: 'settings-open',
+  },
+  'settings.settings-defaults-reset': {
+    perWidget: true,
+    label: 'Reset to my default button on the Settings tab',
+    panel: true,
+    persists: true,
+    requires: 'settings-open',
+  },
   'settings.window-background': {
     perWidget: true,
     label: 'Window background color on the Style tab',

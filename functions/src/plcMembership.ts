@@ -72,6 +72,8 @@ type MemberWrite = {
   joinedAt: unknown;
   addedBy?: (typeof ADDED_BY)[number];
   mentorRole?: 'mentor' | 'mentee';
+  /** When the member left or was removed, so an older invite can't bring them back. */
+  removedAtMs?: number;
 };
 
 // ── Pure helpers, ported from hooks/usePlcs.ts so the stored shape stays identical ──
@@ -134,6 +136,9 @@ export function readMembersForWrite(
       status: m.status === 'removed' ? 'removed' : 'active',
       joinedAt: m.joinedAt ?? ts,
       ...(addedBy ? { addedBy } : {}),
+      ...(typeof m.removedAtMs === 'number'
+        ? { removedAtMs: m.removedAtMs }
+        : {}),
       ...(m.mentorRole === 'mentor' || m.mentorRole === 'mentee'
         ? { mentorRole: m.mentorRole }
         : {}),
@@ -205,6 +210,8 @@ export interface PlanContext {
   /** Admin gate already evaluated by the caller (admin doc, verified email, same org). */
   callerIsOrgAdmin: boolean;
   ts: unknown;
+  /** Stamped on a removal; defaults to the clock. */
+  nowMs?: number;
 }
 
 export interface Plan {
@@ -219,6 +226,7 @@ export function planPlcChange(
   ctx: PlanContext
 ): Plan {
   const { callerUid: me, ts } = ctx;
+  const removedAtMs = ctx.nowMs ?? Date.now();
   switch (action.action) {
     case 'leave': {
       if (!strUids(data).includes(me)) throw new MembershipError('notAMember');
@@ -228,7 +236,7 @@ export function planPlcChange(
       }
       const indexes = indexesWithout(data, me);
       if (members[me]) {
-        members[me] = { ...members[me], status: 'removed' };
+        members[me] = { ...members[me], status: 'removed', removedAtMs };
         return {
           update: { members, ...indexes, updatedAt: ts },
           result: { changed: true },
@@ -252,7 +260,7 @@ export function planPlcChange(
       if (members[uid]) {
         const targetName =
           members[uid].displayName || members[uid].email || uid;
-        members[uid] = { ...members[uid], status: 'removed' };
+        members[uid] = { ...members[uid], status: 'removed', removedAtMs };
         return {
           update: { members, ...indexes, updatedAt: ts },
           result: { changed: true, targetName },
@@ -384,7 +392,7 @@ export function planPlcChange(
       if (!members[uid] || members[uid].status !== 'active') {
         throw new MembershipError('notActiveMember');
       }
-      members[uid] = { ...members[uid], status: 'removed' };
+      members[uid] = { ...members[uid], status: 'removed', removedAtMs };
       return {
         update: { members, ...activeIndexes(members), updatedAt: ts },
         result: { changed: true },
@@ -504,6 +512,64 @@ export interface Caller {
   viewAs: boolean;
 }
 
+/** An invite counts only while its sender still manages the PLC and it postdates the invitee's last removal. */
+export function inviteStillValid(
+  plc: Data,
+  invite: Data,
+  inviteeUid: string,
+  writtenAtMs?: number
+): boolean {
+  const from = invite.invitedByUid;
+  if (typeof from !== 'string' || !isMembershipManager(plc, from)) return false;
+  const entry = ((plc.members ?? {}) as Record<string, Data | undefined>)[
+    inviteeUid
+  ];
+  const removedAt = entry?.status === 'removed' ? entry.removedAtMs : undefined;
+  if (typeof removedAt !== 'number') return true;
+  // The server write time, not the sender's clock, decides which came first.
+  const sentAt = writtenAtMs ?? invite.invitedAt;
+  return typeof sentAt === 'number' && sentAt > removedAt;
+}
+
+function removedUid(
+  action: MembershipAction,
+  callerUid: string
+): string | null {
+  if (action.action === 'leave') return callerUid;
+  if (action.action === 'removeMember' || action.action === 'adminRemoveMember')
+    return action.uid;
+  return null;
+}
+
+function memberEmailOf(data: Data, uid: string): string {
+  const fromIndex = ((data.memberEmails ?? {}) as Data)[uid];
+  if (typeof fromIndex === 'string' && fromIndex)
+    return fromIndex.toLowerCase();
+  const entry = ((data.members ?? {}) as Record<string, Data | undefined>)[uid];
+  return typeof entry?.email === 'string' ? entry.email.toLowerCase() : '';
+}
+
+/** Pending invites on this PLC sent to or by the member. */
+async function pendingInvitesFor(
+  tx: admin.firestore.Transaction,
+  db: admin.firestore.Firestore,
+  plcId: string,
+  uid: string,
+  emailLower: string
+): Promise<admin.firestore.DocumentReference[]> {
+  const invites = db.collection('plc_invitations').where('plcId', '==', plcId);
+  const [byMember, toMember] = await Promise.all([
+    tx.get(invites.where('invitedByUid', '==', uid)),
+    emailLower
+      ? tx.get(invites.where('inviteeEmailLower', '==', emailLower))
+      : null,
+  ]);
+  const refs = new Map<string, admin.firestore.DocumentReference>();
+  for (const d of [...byMember.docs, ...(toMember?.docs ?? [])])
+    if (d.get('status') === 'pending') refs.set(d.ref.path, d.ref);
+  return [...refs.values()];
+}
+
 function fail(err: MembershipError): never {
   throw new HttpsError(err.code, err.reason, { reason: err.reason });
 }
@@ -544,6 +610,15 @@ export async function runMembershipAction(
         const plcRef = db.doc(`plcs/${plcId}`);
         const plc = plcId ? await tx.get(plcRef) : null;
         if (!plc?.exists) throw new MembershipError('plcNotFound', 'not-found');
+        if (
+          !inviteStillValid(
+            plc.data() as Data,
+            inv,
+            caller.uid,
+            invite.updateTime?.toMillis()
+          )
+        )
+          throw new MembershipError('inviteNotPending');
         const update = planAcceptInvite(
           plc.data() as Data,
           caller.uid,
@@ -587,7 +662,20 @@ export async function runMembershipAction(
         callerIsOrgAdmin,
         ts,
       });
+      const gone = removedUid(action, caller.uid);
+      // Invites to or from someone who just left stop working; reads come before the writes.
+      const stale =
+        plan.update && gone
+          ? await pendingInvitesFor(
+              tx,
+              db,
+              action.plcId,
+              gone,
+              memberEmailOf(data, gone)
+            )
+          : [];
       if (plan.update) tx.update(ref, plan.update);
+      for (const d of stale) tx.delete(d);
       return plan.result;
     });
   } catch (err) {

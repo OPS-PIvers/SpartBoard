@@ -1284,7 +1284,12 @@ export async function handlePublishPaperResults(
   if (session.status === 'paused' && classIds.length === 0) {
     writes.set(
       db.collection('quiz_sessions').doc(assignmentId),
-      { status: 'ended', endedAt: now, autoProgressAt: null },
+      {
+        status: 'ended',
+        endedAt: now,
+        autoProgressAt: null,
+        revealedAnswers: admin.firestore.FieldValue.delete(),
+      },
       { merge: true }
     );
     writes.set(

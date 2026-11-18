@@ -208,7 +208,12 @@ import {
   validatePlacement,
   sanitizeAIConfig,
 } from '@/utils/ai_security';
-import { withTimerStartSeconds } from '@/utils/timeToolClock';
+import { fitTimeToolClock, withTimerStartSeconds } from '@/utils/timeToolClock';
+import {
+  addCarriesContent,
+  cleanSavedSettingsDefault,
+  readSavedSettingsDefault,
+} from '@/utils/widgetSettingsDefaults';
 import { getAdminBuildingConfig as getAdminBuildingConfigPure } from '@/utils/adminBuildingConfig';
 import { seedMaterialsConfig } from '@/utils/materialsPreferences';
 import { isBetaUser } from '@/utils/betaAccess';
@@ -821,6 +826,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     featurePermissions,
     selectedBuildings,
     savedWidgetConfigs,
+    savedWidgetPresets,
     materialsPreferences,
     timeToolStartSeconds,
     profileLoaded,
@@ -7233,16 +7239,33 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     [featurePermissions, selectedBuildings]
   );
 
-  // The building layer for a new widget, with the teacher's own timer starting length over it.
+  // The building layer for a new widget, with the teacher's timer length and, for a plain add, their saved settings over it.
   const timerStartSeconds = timeToolStartSeconds ?? 0;
+  const settingsDefaultsOn = !!canAccessFeature?.('widget-settings-defaults');
   const getNewWidgetBaseConfig = useCallback(
-    (type: WidgetType): Record<string, unknown> | undefined => {
+    (
+      type: WidgetType,
+      withMyDefault = false
+    ): Record<string, unknown> | undefined => {
       const building = getAdminBuildingConfig(type);
+      const mine =
+        withMyDefault && settingsDefaultsOn
+          ? cleanSavedSettingsDefault(
+              type,
+              readSavedSettingsDefault(savedWidgetPresets, type)
+            )
+          : undefined;
+      const layer = mine ? { ...building, ...mine } : building;
       return type === 'time-tool'
-        ? withTimerStartSeconds(building, timerStartSeconds)
-        : building;
+        ? fitTimeToolClock(withTimerStartSeconds(layer, timerStartSeconds))
+        : layer;
     },
-    [getAdminBuildingConfig, timerStartSeconds]
+    [
+      getAdminBuildingConfig,
+      timerStartSeconds,
+      settingsDefaultsOn,
+      savedWidgetPresets,
+    ]
   );
 
   // Board-level undo/redo of widget mutations, keyed by dashboard id.
@@ -7451,7 +7474,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       overrides: AddWidgetOverrides | undefined,
       opts: { transient?: boolean; exact?: boolean } = {}
     ): string => {
-      const adminConfig = getNewWidgetBaseConfig(type);
+      // A caller's own config (AI, saved widget) and tour widgets keep stock content; the teacher's default only fills a plain add.
+      const adminConfig = getNewWidgetBaseConfig(
+        type,
+        !addCarriesContent(overrides?.config) && !opts.transient
+      );
       const newWidgetId = overrides?.id ?? crypto.randomUUID();
       locallyAddedWidgetIds.current.add(newWidgetId);
       noteBoardItemPick(newWidgetId, type, overrides?.config);

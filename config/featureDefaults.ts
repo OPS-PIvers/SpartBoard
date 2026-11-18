@@ -1704,6 +1704,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'widget-settings-defaults': {
+    label: 'Widgets: save settings as my default',
+    icon: SlidersHorizontal,
+    description:
+      "Each widget's Settings tab can save its settings. New copies of that widget on any board start with them.",
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
 };
 
 /** Retired global ids the Dock reads until a Widgets-page doc exists (plan D3). */

@@ -64,7 +64,10 @@ async function main() {
     );
     process.exit(args.help ? 0 : 1);
   }
-  initializeApp({ credential: credential(args.project), projectId: args.project });
+  initializeApp({
+    credential: credential(args.project),
+    projectId: args.project,
+  });
   const db = getFirestore();
   const auth = getAuth();
 
@@ -77,17 +80,26 @@ async function main() {
       if (u.customClaims?.deactivated === true) continue;
       // A linked account that moved to another live member address belongs to that member now.
       const current = u.email?.toLowerCase();
-      if (current && current !== d.id) {
-        const live = await db.doc(`organizations/${ORG_ID}/members/${current}`).get();
-        if (live.exists && (live.get('status') === undefined || LIVE.has(live.get('status')))) {
-          console.log(`  skip ${d.id} uid=${u.uid}: now signs in as live member ${current}`);
+      if (current && current !== d.id && u.emailVerified === true) {
+        const live = await db
+          .doc(`organizations/${ORG_ID}/members/${current}`)
+          .get();
+        if (
+          live.exists &&
+          (live.get('status') === undefined || LIVE.has(live.get('status')))
+        ) {
+          console.log(
+            `  skip ${d.id} uid=${u.uid}: now signs in as live member ${current}`
+          );
           continue;
         }
       }
       plans.push({ email: d.id, user: u });
     }
   }
-  console.log(`${args.project}: ${plans.length} deactivated account(s) without the claim.`);
+  console.log(
+    `${args.project}: ${plans.length} deactivated account(s) without the claim.`
+  );
   for (const p of plans) console.log(`  ${p.email}  uid=${p.user.uid}`);
   if (!args.apply) {
     console.log('Dry run: nothing changed. Re-run with --apply to apply.');
@@ -106,7 +118,9 @@ async function main() {
       console.error(`  ${p.email}: ${err?.message ?? err}`);
     }
   }
-  console.log(`Claimed ${plans.length - failed} of ${plans.length}; ${failed} failed.`);
+  console.log(
+    `Claimed ${plans.length - failed} of ${plans.length}; ${failed} failed.`
+  );
   if (failed > 0) process.exit(1);
 }
 

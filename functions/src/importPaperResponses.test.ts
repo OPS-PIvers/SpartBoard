@@ -580,6 +580,7 @@ describe('handlePublishPaperResults', () => {
     paperOnly[`quiz_sessions/${ASSIGNMENT}`] = {
       ...paperOnly[`quiz_sessions/${ASSIGNMENT}`],
       status: 'paused',
+      revealedAnswers: { q1: 'A' },
     };
     paperOnly[`users/${UID}/quiz_assignments/${ASSIGNMENT}`] = {
       quizId: 'quiz-1',
@@ -591,6 +592,9 @@ describe('handlePublishPaperResults', () => {
       endedAt: NOW,
       teacherUid: UID,
     });
+    expect(ended.docs[`quiz_sessions/${ASSIGNMENT}`]).not.toHaveProperty(
+      'revealedAnswers'
+    );
     expect(
       ended.docs[`users/${UID}/quiz_assignments/${ASSIGNMENT}`]
     ).toMatchObject({ status: 'inactive', updatedAt: NOW });

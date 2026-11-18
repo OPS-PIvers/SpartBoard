@@ -23,6 +23,9 @@ import {
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import { setDoc, getDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { seedDistrictStaff } from './districtStaffSeed';
+
+const PARTICIPANT_EMAIL = 'participant@orono.k12.mn.us';
 
 const PROJECT_ID = 'spartboard-plc-synced-versions';
 const GROUP_ID = 'group-versions-test';
@@ -39,7 +42,10 @@ let testEnv: RulesTestEnvironment;
 
 const asParticipant = () =>
   testEnv
-    .authenticatedContext(PARTICIPANT_UID, { email: 'participant@example.com' })
+    .authenticatedContext(PARTICIPANT_UID, {
+      email: PARTICIPANT_EMAIL,
+      email_verified: true,
+    })
     .firestore();
 
 const asNonParticipant = () =>
@@ -104,6 +110,7 @@ function describeVersionsCollection(
     beforeEach(async () => {
       await testEnv.clearFirestore();
       await testEnv.withSecurityRulesDisabled(async (ctx) => {
+        await seedDistrictStaff(ctx.firestore(), [PARTICIPANT_EMAIL]);
         await setDoc(doc(ctx.firestore(), groupPath), seedGroup());
       });
     });

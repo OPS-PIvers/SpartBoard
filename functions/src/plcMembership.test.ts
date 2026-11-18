@@ -30,6 +30,7 @@ import {
   readMembersForWrite,
   runMembershipAction,
   type Caller,
+  inviteStillValid,
 } from './plcMembership';
 import { makeStubFirestore, type StubData } from './testing/stubFirestore';
 
@@ -93,6 +94,13 @@ describe('readMembersForWrite', () => {
     expect(
       readMembersForWrite(data, TS, { includeArrayOnly: true }).joiner
     ).toMatchObject({ role: 'member', status: 'active' });
+  });
+
+  it("keeps a removed member's removal time through later rewrites", () => {
+    const data = plc();
+    const members = data.members as Record<string, Record<string, unknown>>;
+    members.mem = { ...members.mem, status: 'removed', removedAtMs: 123 };
+    expect(readMembersForWrite(data, TS).mem?.removedAtMs).toBe(123);
   });
 });
 
@@ -606,6 +614,7 @@ describe('runMembershipAction', () => {
       'plc_invitations/i1': {
         plcId: 'p',
         inviteeEmailLower: 'new@x.edu',
+        invitedByUid: 'lead',
         status: 'pending',
       },
     });
@@ -630,6 +639,7 @@ describe('runMembershipAction', () => {
       'plc_invitations/i1': {
         plcId: 'p',
         inviteeEmailLower: 'new@x.edu',
+        invitedByUid: 'lead',
         status: 'pending',
       },
     };
@@ -673,6 +683,7 @@ describe('runMembershipAction', () => {
       'plc_invitations/i1': {
         plcId: 'p',
         inviteeEmailLower: 'mem@x.edu',
+        invitedByUid: 'lead',
         status: 'pending',
       },
     });
@@ -685,5 +696,118 @@ describe('runMembershipAction', () => {
       )
     ).toEqual({ changed: false });
     expect(stub.get('plc_invitations/i1')?.status).toBe('accepted');
+  });
+
+  it('refuses an invite whose sender is no longer a manager (security #14)', async () => {
+    const { db } = setup({
+      'plcs/p': plc({
+        members: {
+          lead: m('lead', 'lead'),
+          co: m('co', 'coLead', { status: 'removed' }),
+          mem: m('mem', 'member'),
+        },
+      }),
+      'plc_invitations/i1': {
+        plcId: 'p',
+        inviteeEmailLower: 'new@x.edu',
+        invitedByUid: 'co',
+        status: 'pending',
+      },
+    });
+    expect(
+      await codeOf(
+        runMembershipAction(
+          db,
+          caller('new'),
+          { action: 'acceptInvite', inviteId: 'i1' },
+          TS
+        )
+      )
+    ).toMatchObject({ details: { reason: 'inviteNotPending' } });
+  });
+
+  it("refuses an invite older than the invitee's removal (security #14)", async () => {
+    const seed = (invitedAt: number) => ({
+      'plcs/p': plc({
+        memberUids: ['lead', 'co'],
+        members: {
+          lead: m('lead', 'lead'),
+          co: m('co', 'coLead'),
+          gone: m('gone', 'member', { status: 'removed', removedAtMs: 500 }),
+        },
+      }),
+      'plc_invitations/i1': {
+        plcId: 'p',
+        inviteeEmailLower: 'gone@x.edu',
+        invitedByUid: 'lead',
+        invitedAt,
+        status: 'pending',
+      },
+    });
+    const act = { action: 'acceptInvite' as const, inviteId: 'i1' };
+    expect(
+      await codeOf(
+        runMembershipAction(setup(seed(400)).db, caller('gone'), act, TS)
+      )
+    ).toMatchObject({ details: { reason: 'inviteNotPending' } });
+    expect(
+      await runMembershipAction(setup(seed(600)).db, caller('gone'), act, TS)
+    ).toEqual({ changed: true });
+  });
+
+  it("orders a re-invite by its server write time, not the sender's clock (security #14)", () => {
+    const p = plc({
+      members: {
+        lead: m('lead', 'lead'),
+        gone: m('gone', 'member', { status: 'removed', removedAtMs: 500 }),
+      },
+    });
+    const slowClock = { invitedByUid: 'lead', invitedAt: 400 };
+    expect(inviteStillValid(p, slowClock, 'gone', 600)).toBe(true);
+    expect(
+      inviteStillValid(p, { ...slowClock, invitedAt: 600 }, 'gone', 400)
+    ).toBe(false);
+  });
+
+  it('removing a member drops pending invites to and from them (security #14)', async () => {
+    const { stub, db } = setup({
+      'plc_invitations/to': {
+        plcId: 'p',
+        inviteeEmailLower: 'co@x.edu',
+        invitedByUid: 'lead',
+        status: 'pending',
+      },
+      'plc_invitations/from': {
+        plcId: 'p',
+        inviteeEmailLower: 'x@x.edu',
+        invitedByUid: 'co',
+        status: 'pending',
+      },
+      'plc_invitations/done': {
+        plcId: 'p',
+        inviteeEmailLower: 'y@x.edu',
+        invitedByUid: 'co',
+        status: 'accepted',
+      },
+      'plc_invitations/other': {
+        plcId: 'q',
+        inviteeEmailLower: 'co@x.edu',
+        invitedByUid: 'lead',
+        status: 'pending',
+      },
+    });
+    await runMembershipAction(
+      db,
+      caller('lead'),
+      { action: 'removeMember', plcId: 'p', uid: 'co' },
+      TS
+    );
+    expect(stub.get('plc_invitations/to')).toBeUndefined();
+    expect(stub.get('plc_invitations/from')).toBeUndefined();
+    expect(stub.get('plc_invitations/done')).toBeDefined();
+    expect(stub.get('plc_invitations/other')).toBeDefined();
+    const members = stub.get('plcs/p')?.members as Record<string, StubData>;
+    expect(members.co.status).toBe('removed');
+    expect(typeof members.co.removedAtMs).toBe('number');
   });
 });
