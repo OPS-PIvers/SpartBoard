@@ -426,8 +426,12 @@ describe('applyDocWrite', () => {
       NOW,
       rosterOf(['u1', 'u2'])
     );
-    expect(stub.get('grade_index/t1_p1__u1')).toMatchObject({ rawPct: 80 });
-    expect(stub.get('grade_index/t1_p1__u2')).toMatchObject({ rawPct: 50 });
+    expect(stub.get('grade_index/projects__t1_p1__u1')).toMatchObject({
+      rawPct: 80,
+    });
+    expect(stub.get('grade_index/projects__t1_p1__u2')).toMatchObject({
+      rawPct: 50,
+    });
   });
 
   it('keeps an Activity Wall row until the author has no submissions left', async () => {
