@@ -388,7 +388,7 @@ jobs:
         run: |
           jq --arg site "$SITE" '.hosting.site = $site' firebase.json > firebase.json.tmp
           mv firebase.json.tmp firebase.json
-          pnpm exec firebase deploy --only hosting --project "$DEV_PROJECT_ID" --force
+          ./.github/scripts/hosting-deploy-with-retry.sh "$DEV_PROJECT_ID" --force
 
       - name: Comment deployment URL
         if: env.SUPERSEDED != 'true'
