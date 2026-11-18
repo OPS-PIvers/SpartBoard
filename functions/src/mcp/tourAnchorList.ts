@@ -76146,7 +76146,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "persists": true,
-    "row_list": "video-activity-results-questions",
     "routes": [
       {
         "surface": "library.video-activity.results",

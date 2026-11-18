@@ -17445,7 +17445,6 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
     persists: true,
-    rowList: 'video-activity-results-questions',
   },
   'quiz-editor.folder': {
     label: 'Folder picker in the Quiz editor header',
