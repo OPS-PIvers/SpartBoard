@@ -64,7 +64,7 @@ describe('viewAsTab', () => {
     expect(mod.viewAsBlocksWrite()).toBe(true);
   });
 
-  it('passes every raw write in an unlocked tab except local-only paths, and says which need their own audit', async () => {
+  it('passes raw writes in an unlocked tab right after the admin acts, never local-only paths, and says which need their own audit', async () => {
     vi.useFakeTimers();
     window.history.replaceState({}, '', '/?viewAs=1');
     const mod = await import('./viewAsTab');
@@ -80,6 +80,8 @@ describe('viewAsTab', () => {
     expect(mod.viewAsRawWriteNeedsAudit(session)).toBe(false);
 
     mod.updateViewAsTabState({ unlocked: true });
+    expect(mod.viewAsBlocksRawWrite(session)).toBe(true);
+    window.dispatchEvent(new KeyboardEvent('keydown'));
     expect(mod.viewAsBlocksRawWrite(session)).toBe(false);
     expect(mod.viewAsBlocksRawWrite(response)).toBe(false);
     expect(mod.viewAsBlocksRawWrite(profile)).toBe(false);
@@ -99,11 +101,19 @@ describe('viewAsTab', () => {
       false
     );
 
+    vi.advanceTimersByTime(30_001);
+    expect(mod.viewAsBlocksRawWrite(response)).toBe(true);
+    expect(mod.runAuditedWrite(() => mod.viewAsBlocksRawWrite(profile))).toBe(
+      false
+    );
     mod.openViewAsOutwardWindow(['quiz_sessions', 'quiz_assignments']);
+    expect(mod.viewAsBlocksRawWrite(session)).toBe(false);
+    expect(mod.viewAsBlocksRawWrite([...session, ...profile])).toBe(true);
     expect(mod.viewAsRawWriteNeedsAudit(session)).toBe(false);
     expect(mod.viewAsRawWriteNeedsAudit([...session, ...profile])).toBe(true);
     vi.advanceTimersByTime(60_000);
     expect(mod.viewAsRawWriteNeedsAudit(session)).toBe(true);
+    mod.noteViewAsUserAction();
 
     mod.updateViewAsTabState({ ended: true });
     expect(mod.viewAsBlocksRawWrite(session)).toBe(true);

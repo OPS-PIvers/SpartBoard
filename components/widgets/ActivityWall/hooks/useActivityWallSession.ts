@@ -1,5 +1,6 @@
 // Live session state + teacher actions for the active Activity Wall.
 
+import { viewAsSuppressesBackgroundWrites } from '@/utils/viewAsTab';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   collection,
@@ -232,6 +233,7 @@ export const useActivityWallSession = (
   const sandboxed = !!entry && isSandboxed(entry.id);
   useEffect(() => {
     if (!sessionId || !mirrorKey || sandboxed) return;
+    if (viewAsSuppressesBackgroundWrites()) return;
     const payload = {
       ...(JSON.parse(mirrorKey) as Record<string, unknown>),
       updatedAt: Date.now(),
@@ -311,6 +313,7 @@ export const useActivityWallSession = (
       : null;
   useEffect(() => {
     if (!accessSessionId || !boardShareEntry || !missingBoardShareKey) return;
+    if (viewAsSuppressesBackgroundWrites()) return;
     const known = JSON.parse(missingBoardShareKey) as string[];
     void nextWallBoardShareIds(known, boardShareEntry)
       .then(async (next) => {
