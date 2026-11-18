@@ -196,9 +196,12 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
   durationSeconds,
   isExpanded = false,
   textScale = 1,
-  fontColor = '#334155',
+  fontColor: fontColorProp = '#334155',
   lines = false,
 }) {
+  // Lines style shows the active row as a solid brand-blue band with white text.
+  const solid = lines && isActive;
+  const fontColor = solid ? '#ffffff' : fontColorProp;
   const { t } = useTranslation();
 
   // Use the user-selected card color. Done items get a neutral gray tint.
@@ -259,14 +262,10 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
           // Tailwind's preflight, so only the width + color need setting here.
           borderWidth: isActive ? scheduleSize(1.5, 6) : '1px',
         };
-  // Lines style keeps its flat band when active: square corners, thick top and bottom rules.
   const activeLinesStyle = {
     flex: '1 0 auto',
     minHeight: scheduleSize(18, 72),
-    backgroundColor: bgColor,
-    borderTopWidth: scheduleSize(1, 4),
-    borderBottomWidth: scheduleSize(1, 4),
-    // Sit over the next row's hairline so the rules don't double up.
+    // Sit over the next row's hairline so the band edge stays clean.
     marginBottom: '-1px',
   };
 
@@ -292,7 +291,7 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
       className={`w-full flex items-center transition-all relative snap-start overflow-hidden ${
         lines
           ? isActive
-            ? 'border-brand-blue-primary z-10'
+            ? 'bg-brand-blue-primary z-10'
             : ''
           : `rounded-2xl ${
               isActive
@@ -304,7 +303,7 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
     >
       {isActive && (
         <div
-          className="absolute top-0 right-0 bg-brand-blue-primary text-white font-black uppercase tracking-widest z-20"
+          className={`absolute top-0 right-0 font-black uppercase tracking-widest z-20 ${solid ? 'bg-white text-brand-blue-primary' : 'bg-brand-blue-primary text-white'}`}
           style={{
             fontSize: scheduleSize(2.5 * textScale, 10 * textScale),
             padding: `${scheduleSize(1, 4)} ${scheduleSize(2, 8)}`,
@@ -358,7 +357,7 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
               className={`font-black leading-none whitespace-nowrap shrink-0 ${item.done ? 'text-slate-400' : 'text-indigo-400'}`}
               style={{
                 fontSize: scheduleSize(6 * textScale, 24 * textScale),
-                color: !item.done ? fontColor : undefined,
+                color: !item.done || solid ? fontColor : undefined,
               }}
             >
               {formatScheduleTime(item.startTime ?? item.time, format24)}
@@ -373,7 +372,7 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
             style={{
               fontSize: scheduleSize(10 * textScale, 36 * textScale),
               flex: '1 1 8em',
-              color: !item.done ? fontColor : undefined,
+              color: !item.done || solid ? fontColor : undefined,
               // Cap the expanded row so a pathologically long title scrolls
               // inside the row rather than pushing every other event off-screen.
               maxHeight: isExpanded
@@ -388,9 +387,9 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
       {canLaunchStandaloneTimer && (
         <button
           onClick={() => onStartTimer?.(item)}
-          className="shrink-0 opacity-50 hover:opacity-100 hover:bg-black/5 rounded-lg transition"
+          className={`shrink-0 ${item.done ? '' : 'opacity-50'} hover:opacity-100 hover:bg-black/5 rounded-lg transition`}
           style={{
-            color: item.done ? '#94a3b8' : fontColor,
+            color: item.done ? '#64748b' : fontColor,
             padding: scheduleSize(1, 4),
             marginRight: scheduleSize(2.5, 12),
           }}
