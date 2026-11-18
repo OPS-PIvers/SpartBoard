@@ -87,7 +87,8 @@ const CHUNK_IDS = Array.from({ length: 10 }, (_, i) => String(i));
 
 /** Deletes log docs a save could never have made (ids other than 0 to 9), reading ids only. */
 export async function deleteStrayChunks(ref: DocumentReference): Promise<void> {
-  const ids = await ref.collection(WRITING_LOG).select().get();
+  // Capped per pass; the next run clears any left over.
+  const ids = await ref.collection(WRITING_LOG).select().limit(1000).get();
   const stray = ids.docs.filter((d) => !CHUNK_IDS.includes(d.id));
   for (let i = 0; i < stray.length; i += 400) {
     const batch = ref.firestore.batch();

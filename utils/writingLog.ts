@@ -379,11 +379,28 @@ export function withinEdits(a: string, b: string, max: number): boolean {
 const isTypoFix = (a: string, b: string) =>
   withinEdits(a, b, Math.max(a.length, b.length) >= 6 ? 2 : 1);
 
-/** Typo comparisons one burst may make; past it, remaining words count as replaced. */
+/** Typo comparisons one summary may make; past it, remaining words count as replaced. */
 const TYPO_CHECK_BUDGET = 20_000;
+/** Characters of text one summary may scan for replaced words; past it, later bursts are not counted. */
+const WORD_SCAN_BUDGET = 4_000_000;
+
+/** Work left for one summary, shared by every burst so a log of many bursts stays bounded. */
+interface WordBudget {
+  typoChecks: number;
+  scanChars: number;
+}
 
 /** Words in `before` swapped for a different word in `after`, leaving out typo fixes. */
-export function replacedWords(before: string, after: string): number {
+export function replacedWords(
+  before: string,
+  after: string,
+  budget: WordBudget = {
+    typoChecks: TYPO_CHECK_BUDGET,
+    scanChars: WORD_SCAN_BUDGET,
+  }
+): number {
+  budget.scanChars -= before.length + after.length;
+  if (budget.scanChars < 0) return 0;
   const left = new Map<string, number>();
   for (const w of wordsOf(before)) left.set(w, (left.get(w) ?? 0) + 1);
   const added: string[] = [];
@@ -400,17 +417,20 @@ export function replacedWords(before: string, after: string): number {
     if (list) list.push(i);
     else byLength.set(w.length, [i]);
   });
-  let budget = TYPO_CHECK_BUDGET;
   let fresh = 0;
   let matched = 0;
   for (const w of added) {
     let hit: { list: number[]; at: number } | null = null;
-    for (let len = w.length - 2; len <= w.length + 2 && budget > 0; len += 1) {
+    for (
+      let len = w.length - 2;
+      len <= w.length + 2 && budget.typoChecks > 0;
+      len += 1
+    ) {
       const list = byLength.get(len);
       if (!list) continue;
-      for (let k = 0; k < list.length && budget > 0; k += 1) {
+      for (let k = 0; k < list.length && budget.typoChecks > 0; k += 1) {
         if (hit && list[k] > hit.list[hit.at]) break;
-        budget -= 1;
+        budget.typoChecks -= 1;
         if (isTypoFix(removed[list[k]], w)) {
           hit = { list, at: k };
           break;
@@ -439,8 +459,13 @@ export function summarizeWriting(edits: WritingEdit[]): WritingSummary {
   };
   // One stretch of editing earlier in the text: where it started and the text before it.
   let burst: { before: string; caret: number } | null = null;
+  const budget: WordBudget = {
+    typoChecks: TYPO_CHECK_BUDGET,
+    scanChars: WORD_SCAN_BUDGET,
+  };
   const closeBurst = () => {
-    if (burst) s.wordsReplaced += replacedWords(burst.before, s.finalText);
+    if (burst)
+      s.wordsReplaced += replacedWords(burst.before, s.finalText, budget);
     burst = null;
   };
   for (const e of edits) {

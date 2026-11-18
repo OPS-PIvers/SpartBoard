@@ -99,10 +99,12 @@ describe('chunk ids the purge reads (security #6)', () => {
       collection: () => ({
         doc: docRef,
         select: () => ({
-          get: () =>
-            Promise.resolve({
-              docs: ids.map((id) => ({ id, ref: docRef(id) })),
-            }),
+          limit: () => ({
+            get: () =>
+              Promise.resolve({
+                docs: ids.map((id) => ({ id, ref: docRef(id) })),
+              }),
+          }),
         }),
       }),
     };

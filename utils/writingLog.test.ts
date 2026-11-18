@@ -315,3 +315,25 @@ describe('bounded typo check (security #20)', () => {
     expect(Date.now() - start).toBeLessThan(2000);
   });
 });
+
+describe('summary cost across many bursts (security #20)', () => {
+  it('stays bounded when every edit starts a new burst', () => {
+    const text = Array.from({ length: 20_000 }, (_, i) => `w${i % 50}`).join(
+      ' '
+    );
+    const edits = [
+      { dt: 0, pos: 0, del: 0, ins: text, kind: 'restored' as const },
+      ...Array.from({ length: 2_000 }, (_, i) => ({
+        dt: 1000,
+        pos: i % 2 === 0 ? 0 : 7,
+        del: 0,
+        ins: 'x',
+        kind: 'typed' as const,
+      })),
+    ];
+    const start = Date.now();
+    const summary = summarizeWriting(edits);
+    expect(summary.edits).toBe(2_000);
+    expect(Date.now() - start).toBeLessThan(3000);
+  });
+});
