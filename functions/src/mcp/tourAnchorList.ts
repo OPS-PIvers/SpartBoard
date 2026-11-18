@@ -6254,6 +6254,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Student checkbox in the modification group Students menu",
     "scope": "field",
     "panel": true,
+    "key_pattern": "assign#row-[1-9]\\d*",
+    "key_hint": "assign#row-1 for the first row",
+    "row_wildcard": true,
+    "row_list": "assign-mods-students",
     "routes": [
       {
         "surface": "library.assign-stepper",
@@ -6302,6 +6306,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Class group button in the modification group Students menu",
     "scope": "field",
     "panel": true,
+    "key_pattern": "assign#row-[1-9]\\d*",
+    "key_hint": "assign#row-1 for the first row",
+    "row_wildcard": true,
+    "row_list": "assign-mods-class-groups",
     "routes": [
       {
         "surface": "library.assign-stepper",
@@ -24544,6 +24552,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Student checkbox in the group wizard",
     "scope": "field",
     "panel": true,
+    "key_pattern": "group-wizard#row-[1-9]\\d*",
+    "key_hint": "group-wizard#row-1 for the first row",
+    "row_wildcard": true,
+    "row_list": "group-wizard-students",
     "routes": [
       {
         "surface": "board.roster-groups",
@@ -79421,6 +79433,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Group row on the roster editor Accommodations tab",
     "scope": "field",
     "panel": true,
+    "key_pattern": "roster-editor#row-[1-9]\\d*",
+    "key_hint": "roster-editor#row-1 for the first row",
+    "row_wildcard": true,
+    "row_list": "roster-accommodation-groups",
     "routes": [
       {
         "surface": "board.roster-editor",
@@ -79491,6 +79507,11 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Group checkbox in the Accommodations Add menu",
     "scope": "field",
     "panel": true,
+    "persists": true,
+    "key_pattern": "roster-editor#row-[1-9]\\d*",
+    "key_hint": "roster-editor#row-1 for the first row",
+    "row_wildcard": true,
+    "row_list": "roster-accommodations-pick-groups",
     "routes": [
       {
         "surface": "board.roster-editor",
@@ -79513,6 +79534,11 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Student checkbox in the Accommodations Add menu",
     "scope": "field",
     "panel": true,
+    "persists": true,
+    "key_pattern": "roster-editor#row-[1-9]\\d*",
+    "key_hint": "roster-editor#row-1 for the first row",
+    "row_wildcard": true,
+    "row_list": "roster-accommodations-pick-students",
     "routes": [
       {
         "surface": "board.roster-editor",

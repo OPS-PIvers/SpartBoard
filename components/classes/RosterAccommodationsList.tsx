@@ -207,7 +207,7 @@ export const RosterAccommodationsList: React.FC<
           </p>
         ) : (
           <div className="divide-y divide-slate-200 border-y border-slate-200">
-            {listedGroups.map((row) => {
+            {listedGroups.map((row, rowIndex) => {
               const key = `g:${row.group.id}`;
               return (
                 <div
@@ -215,7 +215,7 @@ export const RosterAccommodationsList: React.FC<
                   {...tourFieldAttr(
                     'roster-editor.accommodations-group',
                     'roster-editor',
-                    row.group.id
+                    `row-${rowIndex + 1}`
                   )}
                 >
                   <OverrideEditorRow
@@ -334,7 +334,7 @@ const AddMenu: React.FC<{
             {shownGroups.length > 0 && (
               <>
                 <div className={sectionLabel}>Groups</div>
-                {shownGroups.map((g) => (
+                {shownGroups.map((g, groupIndex) => (
                   <label
                     key={g.group.id}
                     className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-800 hover:bg-slate-50"
@@ -346,7 +346,7 @@ const AddMenu: React.FC<{
                       {...tourFieldAttr(
                         'roster-editor.accommodations-pick-group',
                         'roster-editor',
-                        g.group.id
+                        `row-${groupIndex + 1}`
                       )}
                       className="h-4 w-4 rounded-sm accent-brand-blue-primary"
                     />
@@ -367,7 +367,7 @@ const AddMenu: React.FC<{
             {shownStudents.length > 0 && (
               <div className={sectionLabel}>Students</div>
             )}
-            {shownStudents.map((s) => (
+            {shownStudents.map((s, studentIndex) => (
               <label
                 key={s.id}
                 className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-800 hover:bg-slate-50"
@@ -379,7 +379,7 @@ const AddMenu: React.FC<{
                   {...tourFieldAttr(
                     'roster-editor.accommodations-pick-student',
                     'roster-editor',
-                    s.id
+                    `row-${studentIndex + 1}`
                   )}
                   className="h-4 w-4 rounded-sm accent-brand-blue-primary"
                 />
