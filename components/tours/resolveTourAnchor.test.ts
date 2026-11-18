@@ -284,6 +284,51 @@ describe('wildcard row refs', () => {
     ).toHaveLength(2);
   });
 
+  const keyed = (id: string, keys: string[]) =>
+    keys
+      .map(
+        (k) =>
+          `<button data-tour="${id}" data-tour-widget-type="plc" data-tour-field="${k}"></button>`
+      )
+      .join('');
+
+  it('reads row-N as the Nth on the page when rows are keyed by record', () => {
+    mount(keyed('plc-assessments.assign', ['a1', 'b2', 'c3']));
+    expect(
+      findTourAnchor({ anchor: 'plc-assessments.assign:plc#row-2' })?.dataset
+        .tourField
+    ).toBe('b2');
+    expect(
+      findTourAnchor({ anchor: 'plc-assessments.assign:plc#row-4' })
+    ).toBeNull();
+    const second = document.querySelectorAll('button')[1];
+    expect(pickedRowRef('plc-assessments.assign:plc#row-*', second)).toBe(
+      'plc-assessments.assign:plc#row-2'
+    );
+  });
+
+  it('follows the picked record, not its position, onto another control in the row', () => {
+    mount(
+      keyed('plc-assessments.assign', ['a1', 'b2', 'c3']) +
+        keyed('plc-assessments.status', ['c3', 'b2']) +
+        keyed('plc-assessments.menu', ['a1', 'c3'])
+    );
+    const picks: Record<string, string> = {};
+    notePickedRow(
+      picks,
+      'plc-assessments.assign:plc#row-*',
+      document.querySelectorAll('button')[1]
+    );
+    expect(
+      findTourAnchor({ anchor: 'plc-assessments.status:plc#row-1' }, { picks })
+        ?.dataset.tourField
+    ).toBe('b2');
+    // The picked row has no menu, so the step finds nothing instead of another row's.
+    expect(
+      findTourAnchor({ anchor: 'plc-assessments.menu:plc#row-1' }, { picks })
+    ).toBeNull();
+  });
+
   it('finds nothing in an empty list', () => {
     mount('<div></div>');
     expect(findTourAnchors({ anchor: 'plcs.open-plc:plcs#row-*' })).toEqual([]);
