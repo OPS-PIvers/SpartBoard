@@ -375,8 +375,14 @@ export const SURFACES: TourSurfaceMap = {
     files: [
       `${C}RubricScoringPanel.tsx`,
       `${C}RubricGradingPanel.tsx`,
+      `${C}RubricGradingSettings.tsx`,
       `${C}RubricTableModal.tsx`,
     ],
+    inner: {
+      'quiz-grading.rubric-auto-advance': 'quiz-grading.rubric-settings:quiz',
+      'quiz-grading.rubric-open-next': 'quiz-grading.rubric-settings:quiz',
+      'quiz-grading.rubric-order': 'quiz-grading.rubric-settings:quiz',
+    },
   },
   'quiz.student-results-control': {
     label: 'Per-student results visibility control',

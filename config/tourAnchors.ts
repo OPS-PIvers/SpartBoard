@@ -4548,7 +4548,25 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'quiz-grading.rubric-order': {
-    label: 'Rubric level order switch (highest or lowest first) in the grader',
+    label:
+      'Rubric level order (highest or lowest first) in the grader rubric settings',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-settings': {
+    label: 'Rubric settings button in the grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-auto-advance': {
+    label: 'Auto-advance to next category switch in the grader rubric settings',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-open-next': {
+    label: 'Auto-open next category switch in the grader rubric settings',
     perWidgetType: true,
     persists: true,
     panel: true,
