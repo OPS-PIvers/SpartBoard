@@ -3,6 +3,7 @@ import './functionsInit';
 import { ANTHROPIC_API_KEY } from './secrets';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from './firebaseAdmin';
+import { isExcludedFrom } from './permissionExclusion';
 import { Type, type Schema } from '@google/genai';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import { recordAiUsage, resolveCallerIsAdmin } from './aiGeneration';
@@ -305,6 +306,7 @@ function defaultDeps(db: Firestore): WritingDeps {
         .get();
       return (
         ai.data()?.enabled !== false &&
+        !isExcludedFrom(ai.data(), token.email) &&
         (await isGlobalFeatureGranted(
           db,
           WEB_TOURS_FEATURE_ID,

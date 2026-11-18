@@ -92,6 +92,9 @@ export const WidgetPermissionCardBody: React.FC<
                   {permission.betaUsers.length === 1 ? '' : 's'}
                 </Chip>
               )}
+              {(permission.excludedUsers?.length ?? 0) > 0 && (
+                <Chip>{permission.excludedUsers?.length} excluded</Chip>
+              )}
               {subFeatureCount > 0 && (
                 <Chip>
                   {subFeatureCount} switch{subFeatureCount === 1 ? '' : 'es'}
@@ -232,6 +235,13 @@ export const WidgetPermissionCardBody: React.FC<
               variant="expanded"
             />
           )}
+          <BetaUsersPanel
+            kind="excluded"
+            betaUsers={permission.excludedUsers ?? []}
+            onChange={(excludedUsers) => updatePermission({ excludedUsers })}
+            showMessage={showMessage}
+            variant="expanded"
+          />
           {subFeatures && (
             <div>
               <span className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-2">

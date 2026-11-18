@@ -35,26 +35,43 @@ initializeApp({ projectId, credential: credential() });
 const db = getFirestore();
 
 const grants = new Map();
-for (const [src, dst, field] of [
-  ['feature_permissions', 'feature_permissions_public', 'features'],
-  ['global_permissions', 'global_permissions_public', 'global'],
+const emptyGrant = () => ({
+  features: new Set(),
+  global: new Set(),
+  excludedFeatures: new Set(),
+  excludedGlobal: new Set(),
+});
+const addGrant = (list, field, id) => {
+  if (!Array.isArray(list)) return;
+  for (const e of list) {
+    if (typeof e !== 'string' || !e.trim()) continue;
+    const k = e.trim().toLowerCase();
+    const g = grants.get(k) ?? emptyGrant();
+    g[field].add(id);
+    grants.set(k, g);
+  }
+};
+for (const [src, dst, field, exField] of [
+  [
+    'feature_permissions',
+    'feature_permissions_public',
+    'features',
+    'excludedFeatures',
+  ],
+  ['global_permissions', 'global_permissions_public', 'global', 'excludedGlobal'],
 ]) {
   const snap = await db.collection(src).get();
   for (const d of snap.docs) {
     const data = d.data();
+    // Same stripping as publicView in functions/src/permissionMirrors.ts.
+    const { excludedUsers, ...rest } = data;
     if (!dryRun)
       await db
         .collection(dst)
         .doc(d.id)
-        .set({ ...data, betaUsers: [] });
-    const emails = Array.isArray(data.betaUsers) ? data.betaUsers : [];
-    for (const e of emails) {
-      if (typeof e !== 'string' || !e.trim()) continue;
-      const k = e.trim().toLowerCase();
-      const g = grants.get(k) ?? { features: new Set(), global: new Set() };
-      g[field].add(d.id);
-      grants.set(k, g);
-    }
+        .set({ ...rest, betaUsers: [] });
+    addGrant(data.betaUsers, field, d.id);
+    addGrant(excludedUsers, exField, d.id);
   }
   console.log(
     `${src}: mirrored ${snap.size} docs${dryRun ? ' (dry run)' : ''}`
@@ -65,6 +82,11 @@ for (const [email, g] of grants) {
     await db
       .collection('beta_grants')
       .doc(email)
-      .set({ features: [...g.features], global: [...g.global] });
+      .set({
+        features: [...g.features],
+        global: [...g.global],
+        excludedFeatures: [...g.excludedFeatures],
+        excludedGlobal: [...g.excludedGlobal],
+      });
 }
 console.log(`beta_grants: ${grants.size} emails${dryRun ? ' (dry run)' : ''}`);

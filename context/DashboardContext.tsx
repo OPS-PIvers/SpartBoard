@@ -216,7 +216,7 @@ import {
 } from '@/utils/widgetSettingsDefaults';
 import { getAdminBuildingConfig as getAdminBuildingConfigPure } from '@/utils/adminBuildingConfig';
 import { seedMaterialsConfig } from '@/utils/materialsPreferences';
-import { isBetaUser } from '@/utils/betaAccess';
+import { isBetaUser, isExcludedUser } from '@/utils/betaAccess';
 import { AnnotationState } from './DashboardContextValue';
 import { DRAWING_DEFAULTS } from '@/components/widgets/DrawingWidget/constants';
 import { closeWallsToBoard } from '@/utils/activityWallBoardAccess';
@@ -1452,7 +1452,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   )[] => {
     // Checks whether a FeaturePermission is accessible to the current user; beta check delegates to the shared isBetaUser helper.
     const isPermAccessible = (perm: FeaturePermission): boolean => {
-      const isEnabled = perm.enabled !== false;
+      const isEnabled =
+        perm.enabled !== false &&
+        !isExcludedUser(perm.excludedUsers, user?.email);
       const isAccessibleByRole =
         perm.accessLevel !== 'admin' || isAdmin === true;
       const isBetaAccessible =

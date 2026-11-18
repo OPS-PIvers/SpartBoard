@@ -11905,6 +11905,8 @@ export interface GlobalFeaturePermission {
   featureId: GlobalFeature;
   accessLevel: AccessLevel;
   betaUsers: string[];
+  /** People who never get this feature, admins included; beats every other rule. */
+  excludedUsers?: string[];
   enabled: boolean;
   /**
    * Building IDs allowed access. Empty array or `undefined` means
@@ -12004,6 +12006,8 @@ export interface FeaturePermission {
   accessLevel: AccessLevel;
   /** Array of email addresses for beta testing access (only used when accessLevel is 'beta') */
   betaUsers: string[];
+  /** People who never get this widget, admins included; beats every other rule. */
+  excludedUsers?: string[];
   /** When false, disables the widget for everyone including admins */
   enabled: boolean;
   /** Optional override for grade levels. If set, this takes precedence over the static configuration. */

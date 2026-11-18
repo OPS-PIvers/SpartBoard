@@ -7,7 +7,29 @@ interface BetaUsersPanelProps {
   onChange: (betaUsers: string[]) => void;
   showMessage: (type: 'success' | 'error', text: string) => void;
   variant?: 'card' | 'expanded';
+  /** The exclude list reuses this panel with its own words and anchors. */
+  kind?: 'beta' | 'excluded';
 }
+
+const KIND_TEXT = {
+  beta: {
+    title: 'Beta Users',
+    hint: null,
+    noun: 'beta user',
+    email: tourAttr('admin.beta.email'),
+    add: tourAttr('admin.beta.add'),
+    remove: (row: string) => tourFieldAttr('admin.beta.remove', 'admin', row),
+  },
+  excluded: {
+    title: 'Excluded Users',
+    hint: 'These people never get this. It overrides every other setting, even for admins.',
+    noun: 'excluded user',
+    email: tourAttr('admin.excluded.email'),
+    add: tourAttr('admin.excluded.add'),
+    remove: (row: string) =>
+      tourFieldAttr('admin.excluded.remove', 'admin', row),
+  },
+} as const;
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -16,7 +38,9 @@ export const BetaUsersPanel: React.FC<BetaUsersPanelProps> = ({
   onChange,
   showMessage,
   variant = 'card',
+  kind = 'beta',
 }) => {
+  const text = KIND_TEXT[kind];
   const addBetaUser = (email: string): boolean => {
     const trimmedEmail = email.trim().toLowerCase();
     if (!trimmedEmail) return true;
@@ -40,8 +64,11 @@ export const BetaUsersPanel: React.FC<BetaUsersPanelProps> = ({
   return (
     <div className={containerClass}>
       <label className="text-sm font-medium text-slate-700 mb-2 block">
-        Beta Users
+        {text.title}
       </label>
+      {text.hint && (
+        <p className="text-xs text-slate-500 -mt-1 mb-2">{text.hint}</p>
+      )}
       <div className={`space-y-2 ${variant === 'expanded' ? 'max-w-md' : ''}`}>
         {betaUsers.map((email) => (
           <div key={email} className={itemClass}>
@@ -50,11 +77,7 @@ export const BetaUsersPanel: React.FC<BetaUsersPanelProps> = ({
               onClick={() => onChange(betaUsers.filter((e) => e !== email))}
               className="text-red-600 hover:bg-red-100 p-1 rounded-sm transition-colors"
               aria-label={`Remove ${email}`}
-              {...tourFieldAttr(
-                'admin.beta.remove',
-                'admin',
-                String(betaUsers.indexOf(email))
-              )}
+              {...text.remove(String(betaUsers.indexOf(email)))}
             >
               <Trash2 className="w-3 h-3" />
             </button>
@@ -65,8 +88,8 @@ export const BetaUsersPanel: React.FC<BetaUsersPanelProps> = ({
           <input
             type="email"
             placeholder="user@example.com"
-            aria-label="Add beta user email"
-            {...tourAttr('admin.beta.email')}
+            aria-label={`Add ${text.noun} email`}
+            {...text.email}
             className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary"
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
@@ -82,8 +105,8 @@ export const BetaUsersPanel: React.FC<BetaUsersPanelProps> = ({
               if (addBetaUser(input.value)) input.value = '';
             }}
             className="px-3 py-2 bg-brand-blue-primary text-white rounded-lg hover:bg-brand-blue-dark transition-colors"
-            aria-label="Add beta user"
-            {...tourAttr('admin.beta.add')}
+            aria-label={`Add ${text.noun}`}
+            {...text.add}
           >
             <Plus className="w-4 h-4" />
           </button>
