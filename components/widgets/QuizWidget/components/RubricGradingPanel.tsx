@@ -1,8 +1,13 @@
 // Rubric grading (rubric-grading-v2): one-tap level bars, expandable criteria with level descriptions.
-import React, { useCallback, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  ArrowLeftRight,
   ChevronRight,
   ChevronsDownUp,
   ChevronsUpDown,
@@ -17,6 +22,7 @@ import type {
   WrittenAnswerRubricScore,
 } from '@/types';
 import { useRubricLevelOrder } from '@/hooks/useRubricLevelOrder';
+import { useRubricGradingPrefs } from '@/hooks/useRubricGradingPrefs';
 import {
   orderRubricLevels,
   rubricMaxPoints,
@@ -25,6 +31,7 @@ import {
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { RubricGuideExamples } from '@/components/quiz/RubricGuideExamples';
 import { RubricTableModal } from './RubricTableModal';
+import { RubricGradingSettings } from './RubricGradingSettings';
 
 export interface RubricScoringPanelProps {
   rubric: Rubric;
@@ -50,6 +57,29 @@ const ptsLabel = (points: number) => `${points} pt${points === 1 ? '' : 's'}`;
 // Which criteria a teacher left open, per rubric, so the next student opens the same way.
 const openCriteriaMemory = new Map<string, Set<string>>();
 
+const scrollParentOf = (el: HTMLElement): HTMLElement | null => {
+  for (let p = el.parentElement; p; p = p.parentElement) {
+    const { overflowY } = getComputedStyle(p);
+    if (
+      (overflowY === 'auto' || overflowY === 'scroll') &&
+      p.scrollHeight > p.clientHeight
+    )
+      return p;
+  }
+  return null;
+};
+
+// The next unscored criterion after `fromId`, wrapping to earlier ones.
+const nextUnscoredId = (
+  criteria: RubricCriterion[],
+  scored: (id: string) => boolean,
+  fromId: string
+): string | undefined => {
+  const i = criteria.findIndex((c) => c.id === fromId);
+  const rotated = [...criteria.slice(i + 1), ...criteria.slice(0, i)];
+  return rotated.find((c) => !scored(c.id))?.id;
+};
+
 export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
   rubric,
   maxPoints,
@@ -64,12 +94,38 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
 }) => {
   const { t } = useTranslation();
   const [order, switchOrder] = useRubricLevelOrder();
+  const prefs = useRubricGradingPrefs();
   const [scores, setScores] = useState<WrittenAnswerRubricScore[]>(
     () => initialScores ?? []
   );
-  const [openCriteria, setOpenCriteria] = useState<Set<string>>(
-    () => new Set(openCriteriaMemory.get(rubric.id) ?? [])
-  );
+  const [openCriteria, setOpenCriteria] = useState<Set<string>>(() => {
+    if (prefs.autoAdvance && prefs.openNext) {
+      const scored = new Set((initialScores ?? []).map((s) => s.criterionId));
+      const first = rubric.criteria.find((c) => !scored.has(c.id));
+      return new Set(first ? [first.id] : []);
+    }
+    return new Set(openCriteriaMemory.get(rubric.id) ?? []);
+  });
+  const criterionRefs = useRef(new Map<string, HTMLFieldSetElement>());
+  const pendingScroll = useRef<{ id: string; top: number } | null>(null);
+  const [scrollTick, setScrollTick] = useState(0);
+
+  // After auto-advance, put the next criterion where the scored one was, under the pointer.
+  useLayoutEffect(() => {
+    const pending = pendingScroll.current;
+    pendingScroll.current = null;
+    const el = pending && criterionRefs.current.get(pending.id);
+    if (!pending || !el) return;
+    const delta = el.getBoundingClientRect().top - pending.top;
+    if (Math.abs(delta) < 1) return;
+    const behavior = window.matchMedia?.('(prefers-reduced-motion: reduce)')
+      .matches
+      ? 'auto'
+      : 'smooth';
+    const scroller = scrollParentOf(el);
+    if (scroller) scroller.scrollBy({ top: delta, behavior });
+    else window.scrollBy({ top: delta, behavior });
+  }, [scrollTick]);
   const [expandedNotes, setExpandedNotes] = useState<Set<string>>(
     () =>
       new Set(
@@ -109,8 +165,33 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
       ''
     ).trim();
 
+  const advanceFrom = (
+    criterion: RubricCriterion,
+    next: Map<string, WrittenAnswerRubricScore>
+  ) => {
+    const nextId = nextUnscoredId(
+      rubric.criteria,
+      (id) => next.has(id),
+      criterion.id
+    );
+    if (prefs.openNext) {
+      setOpenCriteria((prev) => {
+        const open = new Set(prev);
+        open.delete(criterion.id);
+        if (nextId) open.add(nextId);
+        openCriteriaMemory.set(rubric.id, open);
+        return open;
+      });
+    }
+    const el = criterionRefs.current.get(criterion.id);
+    if (!nextId || !el) return;
+    pendingScroll.current = { id: nextId, top: el.getBoundingClientRect().top };
+    setScrollTick((n) => n + 1);
+  };
+
   const tapLevel = (criterion: RubricCriterion, level: RubricLevel) => {
     const next = new Map(byCriterion);
+    const wasScored = next.has(criterion.id);
     if (next.get(criterion.id)?.levelId === level.id) {
       next.delete(criterion.id);
     } else {
@@ -123,6 +204,8 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
       });
     }
     commit(next);
+    if (prefs.autoAdvance && !wasScored && next.has(criterion.id))
+      advanceFrom(criterion, next);
   };
 
   const setNote = (criterionId: string, note: string) => {
@@ -160,10 +243,18 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
   ).length;
   const allScored =
     rubric.criteria.length > 0 && scoredCount === rubric.criteria.length;
-  const orderLabel = order === 'high-first' ? 'Highest first' : 'Lowest first';
   const allOpen =
     rubric.criteria.length > 0 &&
     rubric.criteria.every((c) => openCriteria.has(c.id));
+  const openFirstUnscored = () => {
+    const first = rubric.criteria.find((c) => !byCriterion.has(c.id));
+    if (!first) return;
+    setOpenCriteria((prev) => {
+      const open = new Set(prev).add(first.id);
+      openCriteriaMemory.set(rubric.id, open);
+      return open;
+    });
+  };
   const toggleAll = () => {
     const next = new Set(allOpen ? [] : rubric.criteria.map((c) => c.id));
     openCriteriaMemory.set(rubric.id, next);
@@ -200,20 +291,23 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
               <Table2 className="h-4 w-4" aria-hidden />
               View rubric
             </button>
-            <button
-              type="button"
-              onClick={switchOrder}
-              {...tourTypeAttr('quiz-grading.rubric-order', 'quiz')}
-              aria-label={`Level order: ${orderLabel}. Switch to ${
-                order === 'high-first' ? 'lowest' : 'highest'
-              } first`}
-              title={`Switch to ${order === 'high-first' ? 'lowest' : 'highest'} first`}
-              className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-semibold text-brand-blue-primary transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
-            >
-              <ArrowLeftRight className="h-4 w-4" aria-hidden />
-              {orderLabel}
-            </button>
           </div>
+          <RubricGradingSettings
+            order={order}
+            onOrderChange={(o) => {
+              if (o !== order) switchOrder();
+            }}
+            autoAdvance={prefs.autoAdvance}
+            onAutoAdvanceChange={(on) => {
+              prefs.setAutoAdvance(on);
+              if (on && prefs.openNext) openFirstUnscored();
+            }}
+            openNext={prefs.openNext}
+            onOpenNextChange={(on) => {
+              prefs.setOpenNext(on);
+              if (on) openFirstUnscored();
+            }}
+          />
         </div>
         {overrideNote && (
           <p className="mt-1 text-xs italic text-slate-600">{overrideNote}</p>
@@ -237,6 +331,10 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
           return (
             <fieldset
               key={criterion.id}
+              ref={(el) => {
+                if (el) criterionRefs.current.set(criterion.id, el);
+                else criterionRefs.current.delete(criterion.id);
+              }}
               aria-labelledby={nameId}
               className="py-2"
             >
