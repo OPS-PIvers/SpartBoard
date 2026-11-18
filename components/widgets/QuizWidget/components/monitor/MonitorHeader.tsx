@@ -2,6 +2,7 @@
 import React from 'react';
 import { ArrowLeft } from 'lucide-react';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
+import { CLASS_STATUS_WORD, type MonitorClassStatus } from './classStatusWords';
 
 export type MonitorHeaderStatus = 'live' | 'paused' | 'ended';
 
@@ -14,6 +15,8 @@ const PILL: Record<MonitorHeaderStatus, { label: string; cls: string }> = {
 export const MonitorHeader: React.FC<{
   title: string;
   status: MonitorHeaderStatus;
+  /** The picked class's status; replaces `status` in the pill when given. */
+  classStatus?: MonitorClassStatus;
   /** Omitted hides Back. */
   onBack?: () => void;
   backAnchor: TourAnchorAttrs;
@@ -24,12 +27,19 @@ export const MonitorHeader: React.FC<{
 }> = ({
   title,
   status,
+  classStatus,
   accent,
   onBack,
   backAnchor,
   paddingRight = 'min(12px, 3cqmin)',
 }) => {
-  const pill = PILL[status];
+  const pill = classStatus
+    ? {
+        label: CLASS_STATUS_WORD[classStatus],
+        cls: PILL[classStatus === 'open' ? 'live' : 'paused'].cls,
+      }
+    : PILL[status];
+  const bright = classStatus ? classStatus === 'open' : status === 'live';
   return (
     <div
       className="flex items-center bg-brand-blue-primary text-white shrink-0"
@@ -66,7 +76,7 @@ export const MonitorHeader: React.FC<{
       <span
         className={`shrink-0 rounded-full font-sans font-semibold uppercase tracking-wider ${pill.cls}`}
         style={{
-          ...(accent && status === 'live' ? { color: accent } : {}),
+          ...(accent && bright ? { color: accent } : {}),
           fontSize: 'min(10px, 3.5cqmin)',
           padding: 'min(2px, 0.5cqmin) min(8px, 2cqmin)',
         }}

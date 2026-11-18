@@ -127,6 +127,13 @@ const WIDTHS = [340, 520, 820];
 
 const noop = (): Promise<void> => Promise.resolve();
 
+const HARNESS_LIFECYCLE = {
+  pauseAssignment: noop,
+  resumeAssignment: noop,
+  deactivateAssignment: noop,
+  reopenAssignment: noop,
+};
+
 const HARNESS_RESULTS_ACTIONS = {
   publish: () => Promise.resolve({ responsesUpdated: 0, skipped: 0 }),
   hide: noop,
@@ -334,42 +341,59 @@ const SessionView: React.FC<{
               : makeQuizResponses();
     const pastDue = state === 'past-due';
     const perPeriod = state === 'per-period' || pastDue;
-    const period = (label: string, state: 'open' | 'paused' | 'closed') => ({
+    const assignedTab = state === 'assigned-tab';
+    const period = (
+      label: string,
+      state: 'open' | 'paused' | 'closed',
+      closedAt: number | null = null
+    ) => ({
       label,
       state,
       openAt: null,
       closeAt: state === 'open' ? NOW + 25 * 60_000 : null,
       bellPeriodId: null,
       verified: true,
+      closedAt,
     });
     const session = timed
       ? makeTimedQuizSession(status)
-      : perPeriod
+      : assignedTab
         ? {
             ...makeQuizSession(status),
+            periodNames: ['Period 1', 'Period 3', 'Period 5', 'Period 6'],
             periodAccess: {
-              'cl-1': period('Period 1', 'paused'),
+              'cl-1': period('Period 1', 'closed', NOW - 3 * 3_600_000),
               'cl-3': period('Period 3', 'open'),
               'cl-5': period('Period 5', 'closed'),
+              'cl-6': period('Period 6', 'paused'),
             },
-            ...(pastDue
-              ? {
-                  accessMode: 'assessment' as const,
-                  dueLocks: true,
-                  dueAt: NOW - 30 * 60_000,
-                }
-              : {}),
           }
-        : state === 'stop'
-          ? makeStopQuizSession(status)
-          : state === 'multi-class'
-            ? {
-                ...makeQuizSession(status),
-                periodNames: ['Period 1', 'Period 3'],
-              }
-            : state === 'review'
-              ? makeReviewSession(status)
-              : makeQuizSession(status);
+        : perPeriod
+          ? {
+              ...makeQuizSession(status),
+              periodAccess: {
+                'cl-1': period('Period 1', 'paused'),
+                'cl-3': period('Period 3', 'open'),
+                'cl-5': period('Period 5', 'closed'),
+              },
+              ...(pastDue
+                ? {
+                    accessMode: 'assessment' as const,
+                    dueLocks: true,
+                    dueAt: NOW - 30 * 60_000,
+                  }
+                : {}),
+            }
+          : state === 'stop'
+            ? makeStopQuizSession(status)
+            : state === 'multi-class'
+              ? {
+                  ...makeQuizSession(status),
+                  periodNames: ['Period 1', 'Period 3'],
+                }
+              : state === 'review'
+                ? makeReviewSession(status)
+                : makeQuizSession(status);
     // Same kind rule as QuizWidget, so a Quiz fixture never shows the Review monitor.
     const quizKind = getAssignmentWidgetKind(session) === 'quiz';
     return (
@@ -397,6 +421,18 @@ const SessionView: React.FC<{
         onRevealAnswer={noop}
         onHideAnswer={noop}
         onBack={() => undefined}
+        assignedTab={
+          assignedTab || state === 'assigned-single'
+            ? {
+                assignment: {
+                  ...QUIZ_ASSIGNMENT,
+                  status: session.status === 'ended' ? 'inactive' : 'active',
+                  periodAccess: session.periodAccess,
+                },
+                lifecycle: HARNESS_LIFECYCLE,
+              }
+            : null
+        }
       />
     );
   }

@@ -38,6 +38,7 @@ import {
   QuizConfig,
   ClassRoster,
   StudentOverride,
+  QuizAssignment,
 } from '@/types';
 import { db } from '@/config/firebase';
 import { useDialog } from '@/context/useDialog';
@@ -88,10 +89,30 @@ import { OpenPartControl } from './OpenPartControl';
 import { openQuizPart } from './openPart';
 import { RosterList } from './RosterList';
 import { MonitorHeader } from './MonitorHeader';
+import { CLASS_STATUS_WORD } from './classStatusWords';
 import { PeriodAccessStrip } from './PeriodAccessStrip';
-import { ClassPicker, PeriodBar } from './PeriodBar';
+import {
+  AssignedClassBar,
+  ClassPicker,
+  PeriodBar,
+  type AssignedBarAction,
+} from './PeriodBar';
+import {
+  useQuizClassActions,
+  type QuizLifecycle,
+} from '@/hooks/useQuizClassActions';
+import {
+  deriveAssignedStatus,
+  quizAssignedInput,
+  type AssignedClass,
+  type ClassStatus,
+} from '@/utils/assignedStatus';
 import { joinCodesAllowedForBuildings } from './monitorUtils';
-import { EXTEND_MS, usePeriodAccess } from '@/hooks/usePeriodAccess';
+import {
+  EXTEND_MS,
+  todaysBell,
+  usePeriodAccess,
+} from '@/hooks/usePeriodAccess';
 import { dueLockAt, hasPeriodAccess } from '@/utils/periodAccess';
 import { QuestionResults, QuestionDetail } from './QuestionResults';
 import { JoinCodeScreen } from './JoinCodeScreen';
@@ -157,6 +178,8 @@ export interface QuizLiveMonitorProps {
   responsesLoaded?: boolean;
   /** Reads a printed group stack; the dev harness passes a fixture. */
   loadPaperBatch?: LoadPaperBatch;
+  /** Assigned tab (flag `assigned-tab`): the header acts on the picked class and Close all leaves the footer. */
+  assignedTab?: { assignment: QuizAssignment; lifecycle: QuizLifecycle } | null;
   /** Opens the picker that reopens this ended quiz for chosen students. */
   reopenPicker?: {
     /** Cancel: leave without reopening. */
@@ -177,6 +200,27 @@ type Screen =
   | { name: 'question'; index: number }
   | { name: 'code' }
   | { name: 'settings' };
+
+const NO_LIFECYCLE: QuizLifecycle = {
+  pauseAssignment: () => Promise.resolve(),
+  resumeAssignment: () => Promise.resolve(),
+  deactivateAssignment: () => Promise.resolve(),
+  reopenAssignment: () => Promise.resolve(),
+};
+
+const STATUS_RANK: Record<ClassStatus, number> = {
+  open: 0,
+  paused: 1,
+  ready: 2,
+  scheduled: 3,
+  closed: 4,
+};
+
+const formatClock = (ms: number): string =>
+  new Date(ms).toLocaleTimeString(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 
 const LiveViewPanel = lazy(() =>
   import('./LiveViewPanel').then((m) => ({ default: m.LiveViewPanel }))
@@ -225,6 +269,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     responsesLoaded = true,
     reopenPicker = null,
     loadPaperBatch,
+    assignedTab = null,
   } = props;
   // Any Quiz-kind session is an assessment, including PLC mounts that omit the prop.
   const assessmentOnly = assessmentOnlyProp || !isReviewGame(session);
@@ -379,20 +424,88 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
       periodFailed(err);
     }
   };
+  // Assigned tab (ASSIGNED_TAB.md slice 3): Quiz only, never a Review game.
+  const assignedAssignment =
+    assignedTab && !isReviewGame(session) && session.sessionMode !== 'game'
+      ? assignedTab.assignment
+      : null;
+  const assignedOn = assignedAssignment != null;
+  const classActions = useQuizClassActions(
+    assignedAssignment,
+    assignedTab?.lifecycle ?? NO_LIFECYCLE,
+    rosters
+  );
+  const assignedNow = useServerNow(assignedOn ? 10_000 : null);
+  const featurePermissions = authContext?.featurePermissions;
+  const assigned = useMemo(
+    () =>
+      assignedAssignment
+        ? deriveAssignedStatus(
+            quizAssignedInput(assignedAssignment, {
+              responses,
+              needsGrading: 0,
+              bellFor: (access) =>
+                todaysBell(access, rosters, featurePermissions, assignedNow),
+            }),
+            assignedNow
+          )
+        : null,
+    [assignedAssignment, responses, rosters, featurePermissions, assignedNow]
+  );
+  const perClassBar = !!assigned && !assigned.singleLine;
+  // The bar's class picker also filters the lists when every filter name is a class.
+  const barFilters =
+    perClassBar && data.periodNames.every((p) => chipNames.has(p));
+  // A shared-gate quiz in several classes keeps its name filter; the actions show beside All classes.
+  const namesPicker =
+    !!assigned && assigned.singleLine && data.periodNames.length > 1;
+  const keyForName = (name: string | undefined): string =>
+    name == null
+      ? ''
+      : (Object.keys(session.periodAccess ?? {}).find(
+          (key) => periodNameFor(key) === name
+        ) ?? '');
+  const [localClassKey, setLocalClassKey] = useState('');
+  const pickedKey = !perClassBar
+    ? ''
+    : barFilters
+      ? data.selectedPeriods.length === 1
+        ? keyForName(data.selectedPeriods[0])
+        : ''
+      : localClassKey;
+  const pickClass = (key: string) => {
+    if (barFilters) data.setSelectedPeriods(key ? [periodNameFor(key)] : []);
+    else setLocalClassKey(key);
+  };
+  // Opens on the class in session, or the one open, once the assignment arrives (D8).
+  const [defaultedFor, setDefaultedFor] = useState<string | null>(null);
+  if (assigned && defaultedFor !== session.id) {
+    setDefaultedFor(session.id);
+    const { kind, classKey } = assigned.action;
+    if (
+      perClassBar &&
+      classKey &&
+      (kind === 'open' || kind === 'resume' || kind === 'monitor')
+    )
+      pickClass(classKey);
+  }
   const classPicker =
     data.periodNames.length > 1 &&
     !chipsFilter &&
     !perPeriod &&
-    session.sessionMode !== 'game';
+    session.sessionMode !== 'game' &&
+    !assignedOn;
   // The class picker shows one class or all, so drop a multi-class filter or a class no longer listed.
   if (
-    ((chipsFilter || classPicker) && data.selectedPeriods.length > 1) ||
-    (classPicker &&
+    ((chipsFilter || classPicker || barFilters || namesPicker) &&
+      data.selectedPeriods.length > 1) ||
+    ((classPicker || namesPicker) &&
       data.selectedPeriods.length === 1 &&
       !data.periodNames.includes(data.selectedPeriods[0]))
   )
     data.setSelectedPeriods([]);
   const periodBar = chipsFilter &&
+    !assignedOn &&
     session.periodAccess && {
       periodAccess: session.periodAccess,
       dueAt: dueLockAt(session),
@@ -411,6 +524,167 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
         runPeriod(() => periodActions.extendPeriod(key, by)),
       extendMs: EXTEND_MS,
     };
+
+  const confirmClose = (name: string | null) =>
+    showConfirm(
+      name
+        ? `Students in ${name} lose access. Open attempts are turned in.`
+        : 'Students lose access. Open attempts are turned in.',
+      {
+        title: name ? `Close ${name}` : 'Close',
+        variant: 'warning',
+        confirmLabel: 'Close',
+      }
+    );
+  const classBarActions = (
+    c: AssignedClass,
+    key: string | null,
+    name: string | null
+  ): AssignedBarAction[] => {
+    const open: AssignedBarAction = {
+      kind: 'open',
+      label: name ? `Open for ${name}` : 'Open',
+      primary: true,
+      anchor: tourTypeAttr('quiz-monitor.period-start', 'quiz'),
+      onClick: () => startPeriods(() => classActions.openClass(key)),
+    };
+    const close = (primary: boolean): AssignedBarAction => ({
+      kind: 'close',
+      label: name ? `Close ${name}` : 'Close',
+      primary,
+      anchor: tourTypeAttr('quiz-monitor.class-close', 'quiz'),
+      onClick: async () => {
+        if (!(await confirmClose(name))) return;
+        await runPeriod(() => classActions.closeClass(key));
+      },
+    });
+    switch (c.status) {
+      case 'open':
+        return [
+          {
+            kind: 'pause',
+            label: 'Pause',
+            primary: false,
+            anchor: tourTypeAttr('quiz-monitor.period-pause', 'quiz'),
+            onClick: () => runPeriod(() => classActions.pauseClass(key)),
+          },
+          close(true),
+        ];
+      case 'paused':
+        return [
+          {
+            kind: 'resume',
+            label: 'Resume',
+            primary: true,
+            anchor: tourTypeAttr('quiz-monitor.class-resume', 'quiz'),
+            onClick: () => startPeriods(() => classActions.openClass(key)),
+          },
+          close(false),
+        ];
+      case 'closed':
+        return [
+          {
+            kind: 'reopen',
+            label: name ? `Reopen for ${name}` : 'Reopen',
+            primary: true,
+            anchor: tourTypeAttr('quiz-monitor.class-reopen', 'quiz'),
+            onClick: () => startPeriods(() => classActions.reopenClass(key)),
+          },
+        ];
+      default:
+        return [open];
+    }
+  };
+  const assignedDueAt = dueLockAt(session);
+  const classOptionText = (c: AssignedClass): string => {
+    if (c.status === 'scheduled' && c.opensAt != null)
+      return `Opens ${formatClock(c.opensAt)}`;
+    if (
+      c.status === 'open' &&
+      assignedDueAt != null &&
+      assignedNow >= assignedDueAt
+    )
+      return 'Late';
+    if (c.status === 'open' && c.closesAt != null)
+      return `Open until ${formatClock(c.closesAt)}`;
+    return CLASS_STATUS_WORD[c.status];
+  };
+  const pickedClass = assigned?.classes.find((c) => c.key === pickedKey);
+  const topClass = assigned?.classes.reduce<AssignedClass | undefined>(
+    (best, c) =>
+      !best || STATUS_RANK[c.status] < STATUS_RANK[best.status] ? c : best,
+    undefined
+  );
+  const headerClassStatus = (pickedClass ?? topClass)?.status;
+  const pickedAccess = pickedKey
+    ? session.periodAccess?.[pickedKey]
+    : undefined;
+  const assignedBar = assigned ? (
+    <AssignedClassBar
+      picker={
+        perClassBar
+          ? {
+              value: pickedKey,
+              options: [
+                { value: '', label: 'All classes' },
+                ...[...assigned.classes]
+                  .sort((a, b) =>
+                    a.label.localeCompare(b.label, undefined, {
+                      numeric: true,
+                    })
+                  )
+                  .map((c) => ({
+                    value: c.key,
+                    label: `${c.label} · ${classOptionText(c)}`,
+                  })),
+              ],
+              onChange: pickClass,
+            }
+          : namesPicker && assigned.classes[0]
+            ? {
+                value:
+                  data.selectedPeriods.length === 1
+                    ? data.selectedPeriods[0]
+                    : '',
+                options: [
+                  { value: '', label: 'All classes' },
+                  ...data.periodNames.map((p) => ({
+                    value: p,
+                    label: `${p} · ${classOptionText(assigned.classes[0])}`,
+                  })),
+                ],
+                onChange: (name: string) =>
+                  data.setSelectedPeriods(name ? [name] : []),
+              }
+            : undefined
+      }
+      actions={
+        perClassBar
+          ? pickedClass
+            ? classBarActions(pickedClass, pickedClass.key, pickedClass.label)
+            : []
+          : assigned.classes[0] &&
+              !(namesPicker && data.selectedPeriods.length === 1)
+            ? classBarActions(assigned.classes[0], null, null)
+            : []
+      }
+      moreTime={
+        pickedClass?.status === 'open' && pickedAccess?.closeAt != null
+          ? {
+              classLabel: pickedClass.label,
+              extendMs: EXTEND_MS,
+              onExtend: (by) =>
+                runPeriod(() => periodActions.extendPeriod(pickedKey, by)),
+              anchors: {
+                extend: tourTypeAttr('quiz-monitor.period-extend', 'quiz'),
+              },
+            }
+          : undefined
+      }
+      disabled={outward.locked}
+      disabledTitle={outward.lockedTitle}
+    />
+  ) : null;
 
   // Reset local navigation when the monitored session changes.
   const [prevSessionId, setPrevSessionId] = useState(session.id);
@@ -911,6 +1185,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
               ? 'ended'
               : 'live'
         }
+        classStatus={assignedOn ? headerClassStatus : undefined}
         onBack={
           onBack != null || !onHome
             ? () =>
@@ -937,7 +1212,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
             className={`flex flex-col ${isGame && boardView ? 'min-h-full' : ''}`}
             style={{ gap: 'min(10px, 2.5cqmin)' }}
           >
-            {showStrip && !periodBar && (
+            {showStrip && !periodBar && !assignedOn && (
               <PeriodAccessStrip
                 periodAccess={session.periodAccess}
                 extendMs={EXTEND_MS}
@@ -953,45 +1228,47 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                 }
               />
             )}
-            {data.periodNames.length > 1 && !chipsFilter && !classPicker && (
-              <div
-                className="flex flex-wrap"
-                style={{ gap: 'min(4px, 1cqmin)' }}
-              >
-                {data.periodNames.map((p) => {
-                  const on = data.selectedPeriods.includes(p);
-                  return (
-                    <button
-                      key={p}
-                      onClick={() =>
-                        data.setSelectedPeriods(
+            {data.periodNames.length > 1 &&
+              !(assignedOn ? barFilters || namesPicker : chipsFilter) &&
+              !classPicker && (
+                <div
+                  className="flex flex-wrap"
+                  style={{ gap: 'min(4px, 1cqmin)' }}
+                >
+                  {data.periodNames.map((p) => {
+                    const on = data.selectedPeriods.includes(p);
+                    return (
+                      <button
+                        key={p}
+                        onClick={() =>
+                          data.setSelectedPeriods(
+                            on
+                              ? data.selectedPeriods.filter((x) => x !== p)
+                              : [...data.selectedPeriods, p]
+                          )
+                        }
+                        aria-pressed={on}
+                        {...tourFieldAttr(
+                          'quiz-monitor.period-filter',
+                          'quiz',
+                          p
+                        )}
+                        className={`rounded-full border font-sans transition-colors ${
                           on
-                            ? data.selectedPeriods.filter((x) => x !== p)
-                            : [...data.selectedPeriods, p]
-                        )
-                      }
-                      aria-pressed={on}
-                      {...tourFieldAttr(
-                        'quiz-monitor.period-filter',
-                        'quiz',
-                        p
-                      )}
-                      className={`rounded-full border font-sans transition-colors ${
-                        on
-                          ? 'bg-brand-blue-lighter border-brand-blue-primary text-brand-blue-dark'
-                          : 'bg-white border-brand-gray-lighter text-brand-gray-primary'
-                      }`}
-                      style={{
-                        fontSize: 'min(10px, 3.5cqmin)',
-                        padding: 'min(2px, 0.5cqmin) min(8px, 2cqmin)',
-                      }}
-                    >
-                      {p}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+                            ? 'bg-brand-blue-lighter border-brand-blue-primary text-brand-blue-dark'
+                            : 'bg-white border-brand-gray-lighter text-brand-gray-primary'
+                        }`}
+                        style={{
+                          fontSize: 'min(10px, 3.5cqmin)',
+                          padding: 'min(2px, 0.5cqmin) min(8px, 2cqmin)',
+                        }}
+                      >
+                        {p}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             {gameBoard ? (
               <div
                 className={`rounded-xl overflow-hidden border border-brand-gray-lightest ${
@@ -1016,7 +1293,8 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                 onAdvance={handleAdvance}
                 widgetId={widgetId}
                 periodControls={
-                  classPicker ? (
+                  assignedBar ??
+                  (classPicker ? (
                     <ClassPicker
                       names={data.periodNames}
                       selected={
@@ -1062,7 +1340,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                         }}
                       />
                     )
-                  )
+                  ))
                 }
               />
             )}
@@ -1243,6 +1521,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
             !perPeriod &&
             !isGame &&
             !classPicker &&
+            !assignedOn &&
             session.status !== 'ended' && (
               <button
                 onClick={handleTogglePause}
@@ -1302,36 +1581,38 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
               }}
             />
           )}
-          <button
-            onClick={handleEnd}
-            disabled={ending || outward.locked}
-            title={outward.lockedTitle}
-            {...tourAttr('quiz.end-quiz', widgetId, tourType)}
-            className="inline-flex items-center whitespace-nowrap bg-white border border-brand-gray-lighter hover:border-brand-red-light text-brand-red-primary font-sans font-semibold rounded-md transition-colors disabled:opacity-60"
-            style={{
-              gap: 'min(6px, 1.5cqmin)',
-              padding: 'min(8px, 2cqmin) min(14px, 3cqmin)',
-              fontSize: 'min(13px, 4.5cqmin)',
-            }}
-          >
-            {ending ? (
-              <Loader2
-                className="animate-spin"
-                style={{
-                  width: 'min(14px, 4.5cqmin)',
-                  height: 'min(14px, 4.5cqmin)',
-                }}
-              />
-            ) : (
-              <Square
-                style={{
-                  width: 'min(14px, 4.5cqmin)',
-                  height: 'min(14px, 4.5cqmin)',
-                }}
-              />
-            )}
-            {isGame ? 'End game' : 'Close all'}
-          </button>
+          {!assignedOn && (
+            <button
+              onClick={handleEnd}
+              disabled={ending || outward.locked}
+              title={outward.lockedTitle}
+              {...tourAttr('quiz.end-quiz', widgetId, tourType)}
+              className="inline-flex items-center whitespace-nowrap bg-white border border-brand-gray-lighter hover:border-brand-red-light text-brand-red-primary font-sans font-semibold rounded-md transition-colors disabled:opacity-60"
+              style={{
+                gap: 'min(6px, 1.5cqmin)',
+                padding: 'min(8px, 2cqmin) min(14px, 3cqmin)',
+                fontSize: 'min(13px, 4.5cqmin)',
+              }}
+            >
+              {ending ? (
+                <Loader2
+                  className="animate-spin"
+                  style={{
+                    width: 'min(14px, 4.5cqmin)',
+                    height: 'min(14px, 4.5cqmin)',
+                  }}
+                />
+              ) : (
+                <Square
+                  style={{
+                    width: 'min(14px, 4.5cqmin)',
+                    height: 'min(14px, 4.5cqmin)',
+                  }}
+                />
+              )}
+              {isGame ? 'End game' : 'Close all'}
+            </button>
+          )}
           <div
             className="flex flex-wrap items-center ml-auto"
             style={{ gap: 'min(8px, 2cqmin)' }}
