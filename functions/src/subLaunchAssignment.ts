@@ -886,7 +886,7 @@ async function liveHostHasFeature(
   featureId: string
 ): Promise<boolean> {
   const email = await verifiedHostEmail(hostUid);
-  const { isGlobalFeatureGranted } = await import('./quizMediaArchive');
+  const { isGlobalFeatureGranted } = await import('./featureGrant');
   return isGlobalFeatureGranted(db, featureId, email, hostUid).catch(
     () => false
   );
@@ -907,7 +907,7 @@ async function liveHostAllowsAnonymousJoin(
     if (!snap.exists) return true;
     const host = await admin.auth().getUser(hostUid);
     const email = host.emailVerified ? (host.email ?? null) : null;
-    const { isGlobalFeatureGranted } = await import('./quizMediaArchive');
+    const { isGlobalFeatureGranted } = await import('./featureGrant');
     return await isGlobalFeatureGranted(
       db,
       ANONYMOUS_JOIN_FEATURE,

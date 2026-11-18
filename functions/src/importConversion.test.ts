@@ -27,7 +27,7 @@ vi.mock('./aiGeneration', () => ({
   resolveCallerIsAdmin: vi.fn(),
 }));
 vi.mock('./districtStaff', () => ({ isDistrictStaffToken: vi.fn() }));
-vi.mock('./quizMediaArchive', () => ({ isGlobalFeatureGranted: vi.fn() }));
+vi.mock('./featureGrant', () => ({ isGlobalFeatureGranted: vi.fn() }));
 
 import type * as admin from './firebaseAdmin';
 import {
@@ -51,7 +51,7 @@ import {
 } from './importConversionAi';
 import { BOARD_TEMPLATES } from './mcp/boardEngine.gen';
 import { importAiAccess } from './importSettings';
-import { isGlobalFeatureGranted } from './quizMediaArchive';
+import { isGlobalFeatureGranted } from './featureGrant';
 
 const SOURCE = {
   title: 'The water cycle',

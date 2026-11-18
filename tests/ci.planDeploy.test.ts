@@ -17,12 +17,16 @@ function plan(
     full = false,
     otherDeployedLast = false,
     oldIndex = undefined as string | undefined,
+    oldFeatureMissingDoc = undefined as string | undefined,
   } = {}
 ): Record<string, string> {
   const dir = mkdtempSync(join(tmpdir(), 'plan-deploy-'));
   const out = join(dir, 'out');
   const oldIndexFile = join(dir, 'old-index.ts');
   if (oldIndex !== undefined) writeFileSync(oldIndexFile, oldIndex);
+  const oldFlagsFile = join(dir, 'old-feature-missing-doc.ts');
+  if (oldFeatureMissingDoc !== undefined)
+    writeFileSync(oldFlagsFile, oldFeatureMissingDoc);
   try {
     const result = spawnSync('bash', [script, branch, 'abc', String(full)], {
       env: {
@@ -32,6 +36,8 @@ function plan(
         CONTAINS_DEV_PAUL: String(containsDevPaul),
         OTHER_BRANCH_DEPLOYED_LAST: String(otherDeployedLast),
         OLD_INDEX_FILE: oldIndex === undefined ? '' : oldIndexFile,
+        OLD_FEATURE_MISSING_DOC_FILE:
+          oldFeatureMissingDoc === undefined ? '' : oldFlagsFile,
       },
     });
     expect(result.status).toBe(0);
@@ -131,6 +137,23 @@ describe('plan-deploy.sh', () => {
     expect(
       plan('main', ['functions/src/index.ts'], { oldIndex }).deploy_only
     ).toBe('functions:fetchLinkPreview');
+  });
+
+  it('passes the deployed featureMissingDoc.ts, so a list reorder deploys no function', () => {
+    const flags = readFileSync(
+      join(repoRoot, 'functions/src/featureMissingDoc.ts'),
+      'utf-8'
+    );
+    const reordered = flags.replace(
+      /(ADMIN_PREVIEW_FEATURES[^=]*=\s*\[\n)(\s*'[^']+',\n)(\s*'[^']+',\n)/,
+      '$1$3$2'
+    );
+    expect(reordered).not.toBe(flags);
+    expect(
+      plan('main', ['functions/src/featureMissingDoc.ts'], {
+        oldFeatureMissingDoc: reordered,
+      })
+    ).toMatchObject({ functions: 'false' });
   });
 
   it('deploys every function from other dev branches, which diff against dev-paul', () => {

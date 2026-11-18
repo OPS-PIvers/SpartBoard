@@ -191,7 +191,7 @@ export function buildClaudeDraft(
 }
 
 async function assertAccess(ctx: ToolContext): Promise<void> {
-  const { isGlobalFeatureGranted } = await import('../quizMediaArchive');
+  const { isGlobalFeatureGranted } = await import('../featureGrant');
   if (
     !(await isGlobalFeatureGranted(
       ctx.db,

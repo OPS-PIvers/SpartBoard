@@ -15,7 +15,7 @@ import * as admin from './firebaseAdmin';
 import type { Firestore } from 'firebase-admin/firestore';
 import { Type, type Schema } from '@google/genai';
 import { ALLOWED_ORIGINS } from './classlinkShared';
-import { isGlobalFeatureGranted } from './quizMediaArchive';
+import { isGlobalFeatureGranted } from './featureGrant';
 import { parseGeminiJson } from './parseGeminiJson';
 import './functionsInit';
 import { ANTHROPIC_API_KEY } from './secrets';

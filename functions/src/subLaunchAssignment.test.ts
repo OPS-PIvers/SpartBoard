@@ -20,7 +20,7 @@ vi.mock('./firebaseAdmin', () => ({
 const { isGlobalFeatureGranted } = vi.hoisted(() => ({
   isGlobalFeatureGranted: vi.fn(() => Promise.resolve(true)),
 }));
-vi.mock('./quizMediaArchive', () => ({ isGlobalFeatureGranted }));
+vi.mock('./featureGrant', () => ({ isGlobalFeatureGranted }));
 
 vi.mock('firebase-functions/v2/https', () => ({
   onCall: (_opts: unknown, handler: unknown) => handler,

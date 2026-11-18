@@ -17,7 +17,7 @@ import { MINI_APP_BASIC_SPEC, MINI_APP_RESULTS_SPEC } from '../miniAppSpec';
 import { MINI_APP_PREVIEW_SCRIPT } from '../miniAppPreview';
 
 const flag = vi.hoisted(() => ({ granted: true }));
-vi.mock('../quizMediaArchive', () => ({
+vi.mock('../featureGrant', () => ({
   isGlobalFeatureGranted: vi.fn(() => Promise.resolve(flag.granted)),
 }));
 

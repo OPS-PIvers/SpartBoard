@@ -16,7 +16,7 @@ import {
   bearerToken,
   fetchTokenInfo,
   verifiedTokenEmail,
-} from '../webTourExtension';
+} from '../extensionAuth';
 import {
   StudentLookupError,
   resolveStudentByEmail,

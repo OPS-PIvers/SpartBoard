@@ -1007,7 +1007,7 @@ export function buildLiveWriteDeps(): TeammatePrintWriteDeps {
       return created.data.id;
     },
     isFeatureGranted: async (featureId, email, uid) => {
-      const { isGlobalFeatureGranted } = await import('./quizMediaArchive');
+      const { isGlobalFeatureGranted } = await import('./featureGrant');
       return isGlobalFeatureGranted(admin.firestore(), featureId, email, uid);
     },
     trashDriveFile: async (accessToken, fileId) => {

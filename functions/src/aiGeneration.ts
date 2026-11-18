@@ -407,7 +407,7 @@ async function assertAudienceAllows(
     (perm.minTier !== undefined && perm.minTier !== null) ||
     (Array.isArray(perm.buildings) && perm.buildings.length > 0);
   if (!limited) return;
-  const { permissionAudienceAllows } = await import('./quizMediaArchive');
+  const { permissionAudienceAllows } = await import('./featureGrant');
   const email = token.email_verified === true ? (token.email ?? '') : '';
   if (!(await permissionAudienceAllows(db, perm, email, uid))) {
     throw new HttpsError('permission-denied', message);
