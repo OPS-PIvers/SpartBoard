@@ -280,6 +280,8 @@ claude/project-thread-8q5g3q-docs (this docs PR, delete after it merges)
 claude/ab112-s4hzrk (this docs PR, delete after it merges)
 claude/project-thread-rnvyvu (#6149)
 claude/project-thread-rnvyvu-ab112 (this docs PR, delete after it merges)
+claude/project-thread-eibt0b (#6230)
+claude/project-thread-eibt0b-ab112 (this docs PR, delete after it merges)
 
 claude/project-thread-2jo0s2 (#6137, #6139; this docs PR reuses it, delete after it merges)
 claude/kind-johnson-owvr5o (#6134)
