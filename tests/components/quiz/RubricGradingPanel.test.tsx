@@ -122,11 +122,12 @@ describe('RubricGradingPanel (rubric-grading-v2)', () => {
     expect(meets).toHaveAttribute('aria-pressed', 'false');
   });
 
-  it('shows the criterion description collapsed and level descriptions when expanded', () => {
+  it('shows criterion and level descriptions only when expanded', () => {
     renderPanel();
-    expect(screen.getByText('Clarity of the claim')).toBeInTheDocument();
+    expect(screen.queryByText('Clarity of the claim')).toBeNull();
     expect(screen.queryByText('No thesis')).toBeNull();
     openCriterion('Thesis');
+    expect(screen.getByText('Clarity of the claim')).toBeInTheDocument();
     expect(screen.getByText('No thesis')).toBeInTheDocument();
   });
 

@@ -295,7 +295,7 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
                 )}
               </div>
 
-              {criterion.description && (
+              {isOpen && criterion.description && (
                 <p className="ml-5 whitespace-pre-line text-xs leading-relaxed text-slate-600">
                   {criterion.description}
                 </p>
