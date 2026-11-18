@@ -505,6 +505,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [quizGraderAutoAdvance, setQuizGraderAutoAdvanceState] = useState(true);
   const [rubricLevelOrder, setRubricLevelOrderState] =
     useState<RubricLevelOrder>('high-first');
+  const [rubricAutoAdvance, setRubricAutoAdvanceState] = useState(false);
+  const [rubricOpenNext, setRubricOpenNextState] = useState(true);
   const [spartyEnabled, setSpartyEnabledState] = useState(true);
   const [alignmentGuidesEnabled, setAlignmentGuidesEnabledState] =
     useState(false);
@@ -2292,6 +2294,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           setRubricLevelOrderState(
             data.rubricLevelOrder === 'low-first' ? 'low-first' : 'high-first'
           );
+          setRubricAutoAdvanceState(data.rubricAutoAdvance === true);
+          setRubricOpenNextState(data.rubricOpenNext !== false);
           setSpartyEnabledState(
             typeof data.spartyEnabled === 'boolean' ? data.spartyEnabled : true
           );
@@ -2736,6 +2740,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       quizGraderMode?: 'question' | 'student';
       quizGraderAutoAdvance?: boolean;
       rubricLevelOrder?: RubricLevelOrder;
+      rubricAutoAdvance?: boolean;
+      rubricOpenNext?: boolean;
       spartyEnabled?: boolean;
       alignmentGuidesEnabled?: boolean;
       spellCheckEnabled?: boolean;
@@ -2764,6 +2770,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (updates.rubricLevelOrder !== undefined) {
         setRubricLevelOrderState(updates.rubricLevelOrder);
       }
+      if (updates.rubricAutoAdvance !== undefined) {
+        setRubricAutoAdvanceState(updates.rubricAutoAdvance);
+      }
+      if (updates.rubricOpenNext !== undefined) {
+        setRubricOpenNextState(updates.rubricOpenNext);
+      }
       if (updates.spartyEnabled !== undefined) {
         setSpartyEnabledState(updates.spartyEnabled);
       }
@@ -2784,6 +2796,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         quizGraderMode?: 'question' | 'student';
         quizGraderAutoAdvance?: boolean;
         rubricLevelOrder?: RubricLevelOrder;
+        rubricAutoAdvance?: boolean;
+        rubricOpenNext?: boolean;
         spartyEnabled?: boolean;
         alignmentGuidesEnabled?: boolean;
         spellCheckEnabled?: boolean;
@@ -2828,6 +2842,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         updates.rubricLevelOrder === 'low-first'
       ) {
         sanitizedUpdates.rubricLevelOrder = updates.rubricLevelOrder;
+      }
+      if (typeof updates.rubricAutoAdvance === 'boolean') {
+        sanitizedUpdates.rubricAutoAdvance = updates.rubricAutoAdvance;
+      }
+      if (typeof updates.rubricOpenNext === 'boolean') {
+        sanitizedUpdates.rubricOpenNext = updates.rubricOpenNext;
       }
       if (typeof updates.spartyEnabled === 'boolean') {
         sanitizedUpdates.spartyEnabled = updates.spartyEnabled;
@@ -3713,6 +3733,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       quizGraderMode,
       quizGraderAutoAdvance,
       rubricLevelOrder,
+      rubricAutoAdvance,
+      rubricOpenNext,
       spartyEnabled,
       alignmentGuidesEnabled,
       spellCheckEnabled,
@@ -3798,6 +3820,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       quizGraderMode,
       quizGraderAutoAdvance,
       rubricLevelOrder,
+      rubricAutoAdvance,
+      rubricOpenNext,
       spartyEnabled,
       alignmentGuidesEnabled,
       spellCheckEnabled,

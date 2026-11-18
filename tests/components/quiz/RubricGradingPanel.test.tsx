@@ -46,6 +46,9 @@ const renderPanel = (
     order?: RubricLevelOrder;
     updateAccountPreferences?: AuthContextType['updateAccountPreferences'];
     hideTotal?: boolean;
+    autoAdvance?: boolean;
+    openNext?: boolean;
+    initialScores?: WrittenAnswerRubricScore[];
   } = {}
 ) => {
   const onChange = vi.fn<(s: WrittenAnswerRubricScore[], p: number) => void>();
@@ -54,6 +57,8 @@ const renderPanel = (
     canAccessFeature: (id) =>
       id === 'rubric-grading-v2' ? opts.flag !== false : true,
     rubricLevelOrder: opts.order ?? 'high-first',
+    rubricAutoAdvance: opts.autoAdvance ?? false,
+    rubricOpenNext: opts.openNext ?? true,
     updateAccountPreferences:
       opts.updateAccountPreferences ?? vi.fn().mockResolvedValue(undefined),
   };
@@ -64,6 +69,7 @@ const renderPanel = (
         maxPoints={6}
         onChange={onChange}
         hideTotal={opts.hideTotal}
+        initialScores={opts.initialScores}
       />
     </AuthContext.Provider>
   );
@@ -102,10 +108,84 @@ describe('RubricGradingPanel (rubric-grading-v2)', () => {
   it('saves the order switch to the teacher preferences', () => {
     const updateAccountPreferences = vi.fn().mockResolvedValue(undefined);
     renderPanel({ updateAccountPreferences });
-    fireEvent.click(screen.getByRole('button', { name: /Level order/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Rubric settings' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Lowest' }));
     expect(updateAccountPreferences).toHaveBeenCalledWith({
       rubricLevelOrder: 'low-first',
     });
+  });
+
+  it('saves the jump switch and shows Open next only when it is on', () => {
+    const updateAccountPreferences = vi.fn().mockResolvedValue(undefined);
+    renderPanel({ updateAccountPreferences });
+    fireEvent.click(screen.getByRole('button', { name: 'Rubric settings' }));
+    expect(
+      screen.queryByRole('switch', { name: 'Open next criterion' })
+    ).toBeNull();
+    fireEvent.click(
+      screen.getByRole('switch', { name: 'Jump to next criterion' })
+    );
+    expect(updateAccountPreferences).toHaveBeenCalledWith({
+      rubricAutoAdvance: true,
+    });
+  });
+
+  it('opens the first unscored criterion when jump and open next are on', () => {
+    renderPanel({
+      autoAdvance: true,
+      initialScores: [{ criterionId: 'c1', levelId: 'c1l2', points: 3 }],
+    });
+    expect(screen.getByRole('button', { name: /^Evidence/ })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
+    expect(screen.getByRole('button', { name: /^Thesis/ })).toHaveAttribute(
+      'aria-expanded',
+      'false'
+    );
+  });
+
+  it('closes a scored criterion and opens the next one', () => {
+    renderPanel({ autoAdvance: true });
+    expect(screen.getByRole('button', { name: /^Thesis/ })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
+    fireEvent.click(screen.getByRole('button', { name: /^3\s*Meets/ }));
+    expect(screen.getByRole('button', { name: /^Thesis/ })).toHaveAttribute(
+      'aria-expanded',
+      'false'
+    );
+    expect(screen.getByRole('button', { name: /^Evidence/ })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
+  });
+
+  it('keeps criteria closed when open next is off', () => {
+    renderPanel({ autoAdvance: true, openNext: false });
+    expect(screen.getByRole('button', { name: /^Thesis/ })).toHaveAttribute(
+      'aria-expanded',
+      'false'
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Meets, 3 pts' }));
+    expect(screen.getByRole('button', { name: /^Evidence/ })).toHaveAttribute(
+      'aria-expanded',
+      'false'
+    );
+  });
+
+  it('does not move on when a scored criterion is changed', () => {
+    renderPanel({
+      autoAdvance: true,
+      initialScores: [{ criterionId: 'c1', levelId: 'c1l2', points: 3 }],
+    });
+    openCriterion('Thesis');
+    fireEvent.click(screen.getByRole('button', { name: /^4\s*Exceeds/ }));
+    expect(screen.getByRole('button', { name: /^Thesis/ })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
   });
 
   it('selects a level, then deselects it on a second tap', () => {

@@ -18904,7 +18904,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "quiz-grading.rubric-order",
-    "label": "Rubric level order switch (highest or lowest first) in the grader",
+    "label": "Rubric level order (highest or lowest first) in the grader rubric settings",
     "scope": "widget type",
     "panel": true,
     "persists": true,
@@ -18915,8 +18915,40 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "quiz.rubric-scoring",
         "kind": "shared",
-        "path": []
+        "path": [
+          "quiz-grading.rubric-settings:quiz"
+        ],
+        "reveal": "quiz-grading.rubric-settings:quiz"
       }
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-settings",
+    "label": "Rubric settings button in the grader",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-auto-advance",
+    "label": "Jump to next criterion switch in the grader rubric settings",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ]
+  },
+  {
+    "id": "quiz-grading.rubric-open-next",
+    "label": "Open next criterion switch in the grader rubric settings",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
     ]
   },
   {
