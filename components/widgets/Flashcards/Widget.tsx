@@ -22,6 +22,7 @@ import {
 } from '@/types';
 import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
 import {
+  assignmentCount,
   runBulkPublish,
   sharedVisibility,
 } from '@/components/common/library/assigned/bulkPublish';
@@ -1023,7 +1024,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
 
       {bulkPublishing && (
         <PublishScoresModal
-          assignmentTitle={`${bulkPublishing.length} assignments`}
+          assignmentTitle={assignmentCount(bulkPublishing.length)}
           currentVisibility={flashcardClassVisibility(
             sharedVisibility(bulkPublishing)
           )}

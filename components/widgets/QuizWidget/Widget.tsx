@@ -159,7 +159,7 @@ import {
   runBulkPublish,
   sharedVisibility,
 } from '@/components/common/library/assigned/bulkPublish';
-import type { ResultsProtection, WrittenReturnMode } from '@/types';
+import type { ResultsProtection, Toast, WrittenReturnMode } from '@/types';
 import { PublishInProgressDialog } from '@/components/common/library/PublishInProgressDialog';
 import { AssignToClassroomModal } from '@/components/classroomAddon/AssignToClassroomModal';
 import { requestClassroomFinalGradeToken } from '@/components/classroomAddon/gisOAuth';
@@ -2933,7 +2933,13 @@ const TeacherQuizWidget: React.FC<{
       quiet,
       token,
       endsAssignment = false,
-    }: { quiet: boolean; token?: string | null; endsAssignment?: boolean }
+      toast = addToast,
+    }: {
+      quiet: boolean;
+      token?: string | null;
+      endsAssignment?: boolean;
+      toast?: (message: string, type?: Toast['type']) => void;
+    }
   ): Promise<boolean> => {
     const publishFibGrading: FibGradingContext = {
       answers: target.localizedFibAnswers ?? null,
@@ -2943,7 +2949,7 @@ const TeacherQuizWidget: React.FC<{
     };
     if (visibility === 'none') {
       await unpublishAssignmentScores(target.id);
-      if (!quiet) addToast('Scores unpublished.', 'success');
+      if (!quiet) toast('Scores unpublished.', 'success');
       return true;
     }
     // Publish = Push: if this assignment is linked to Google Classroom,
@@ -2991,7 +2997,7 @@ const TeacherQuizWidget: React.FC<{
       writtenReturnMode
     );
     if (!quiet)
-      addToast(
+      toast(
         result.responsesUpdated > 0
           ? `Scores published to ${result.responsesUpdated} student${result.responsesUpdated === 1 ? '' : 's'}.`
           : 'Scores published. Students will see results once they submit.',
@@ -3016,13 +3022,13 @@ const TeacherQuizWidget: React.FC<{
         >(functions, 'publishPaperResultsV1');
         const linked = (await link({ assignmentId: target.id })).data;
         if (linked.unlinked > 0) {
-          addToast(
+          toast(
             `${linked.unlinked} paper response${linked.unlinked === 1 ? ' has' : 's have'} no student login to link to; those students can see results only from your view.`,
             'info'
           );
         }
         if (linked.unplaced > 0) {
-          addToast(
+          toast(
             `${linked.unplaced} paper response${linked.unplaced === 1 ? ' belongs' : 's belong'} to a student whose roster has no class link yet; sync the roster and publish again to reach them.`,
             'info'
           );
@@ -3031,7 +3037,7 @@ const TeacherQuizWidget: React.FC<{
         logError('QuizWidget.publishPaperResults', err, {
           assignmentId: target.id,
         });
-        addToast(
+        toast(
           'Scores published, but paper results could not be linked to student accounts.',
           'error'
         );
@@ -3084,7 +3090,7 @@ const TeacherQuizWidget: React.FC<{
     // committed; a push failure is its own toast).
     await runPublishGradePush<QuizResponse>({
       functions,
-      addToast,
+      addToast: toast,
       kind: 'quiz',
       sessionId: target.id,
       classroomFinalAttachments,
@@ -3208,7 +3214,7 @@ const TeacherQuizWidget: React.FC<{
                 ? () =>
                     requestClassroomFinalGradeToken(user?.email ?? undefined)
                 : undefined,
-            publishOne: (t, token) =>
+            publishOne: (t, token, toast) =>
               publishQuizScoresFor(
                 t,
                 visibility,
@@ -3217,6 +3223,7 @@ const TeacherQuizWidget: React.FC<{
                 {
                   quiet: true,
                   token,
+                  toast,
                 }
               ),
             addToast,

@@ -246,6 +246,19 @@ describe('RunAssignedTab bulk select', () => {
     );
   });
 
+  it('leaves already-published rows out of Publish scores', async () => {
+    renderTab(
+      [ma({ id: 'p1', status: 'inactive', scoreVisibility: 'score-only' })],
+      {},
+      vi.fn(() => Promise.resolve(0)),
+      vi.fn()
+    );
+    await userEvent.click(screen.getByRole('button', { name: /^Done/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Select' }));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Select all' }));
+    expect(screen.queryByRole('button', { name: 'Publish scores' })).toBeNull();
+  });
+
   it('offers no Publish scores when every pick is open', async () => {
     renderTab(
       two(),

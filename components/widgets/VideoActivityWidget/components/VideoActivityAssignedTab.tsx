@@ -1,3 +1,4 @@
+import { scoresShown } from '@/utils/assignedStatus';
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import {
   collection,
@@ -274,6 +275,7 @@ interface RowModel {
   /** A closed self-paced single line still holds answered, unfinished attempts. */
   owesTurnIn: boolean;
   viewOnly: boolean;
+  published: boolean;
 }
 
 /** The Video Activity Assigned tab: one row per assignment, one status per class (ASSIGNED_TAB.md slice 5). */
@@ -370,6 +372,7 @@ export const VideoActivityAssignedTab: React.FC<
           bells,
           owesTurnIn,
           viewOnly: a.mode === 'view-only',
+          published: scoresShown(a.scoreVisibility),
         };
       }),
     [

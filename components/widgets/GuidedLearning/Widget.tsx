@@ -75,6 +75,7 @@ import {
 } from '@/components/common/library';
 import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
 import {
+  assignmentCount,
   runBulkPublish,
   sharedVisibility,
 } from '@/components/common/library/assigned/bulkPublish';
@@ -2140,7 +2141,7 @@ const TeacherGuidedLearningWidget: React.FC<{
 
       {bulkPublishing && (
         <PublishScoresModal
-          assignmentTitle={`${bulkPublishing.length} assignments`}
+          assignmentTitle={assignmentCount(bulkPublishing.length)}
           currentVisibility={sharedVisibility(bulkPublishing)}
           showProtection={gradebookOn}
           initialProtection={

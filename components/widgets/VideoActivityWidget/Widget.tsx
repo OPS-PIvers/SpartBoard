@@ -37,7 +37,7 @@ import {
   VideoActivitySessionMode,
   RESULTS_PROTECTION_DEFAULTS,
 } from '@/types';
-import type { ResultsProtection } from '@/types';
+import type { ResultsProtection, Toast } from '@/types';
 import {
   PublishScoresModal,
   type PublishScoresVisibility,
@@ -853,11 +853,19 @@ const TeacherVideoActivityWidget: React.FC<{
     target: VideoActivityAssignment,
     visibility: PublishScoresVisibility,
     protection: ResultsProtection | undefined,
-    { quiet, token }: { quiet: boolean; token?: string | null }
+    {
+      quiet,
+      token,
+      toast = addToast,
+    }: {
+      quiet: boolean;
+      token?: string | null;
+      toast?: (message: string, type?: Toast['type']) => void;
+    }
   ): Promise<boolean> => {
     if (visibility === 'none') {
       await unpublishAssignmentScores(target.id);
-      if (!quiet) addToast('Scores unpublished.', 'success');
+      if (!quiet) toast('Scores unpublished.', 'success');
       return true;
     }
     // Publish = Push: pre-mint the Classroom final-grade token from
@@ -894,7 +902,7 @@ const TeacherVideoActivityWidget: React.FC<{
       canAccessFeature('va-score-only-verdicts')
     );
     if (!quiet)
-      addToast(
+      toast(
         result.responsesUpdated > 0
           ? `Scores published to ${result.responsesUpdated} student${result.responsesUpdated === 1 ? '' : 's'}.`
           : 'Scores published. Students will see results once they submit.',
@@ -933,7 +941,7 @@ const TeacherVideoActivityWidget: React.FC<{
     // committed; a push failure is its own toast).
     await runPublishGradePush<VideoActivityResponse>({
       functions,
-      addToast,
+      addToast: toast,
       kind: 'va',
       sessionId: target.id,
       classroomFinalAttachments,
@@ -1681,10 +1689,11 @@ const TeacherVideoActivityWidget: React.FC<{
                   ? () =>
                       requestClassroomFinalGradeToken(user?.email ?? undefined)
                   : undefined,
-              publishOne: (t, token) =>
+              publishOne: (t, token, toast) =>
                 publishVaScoresFor(t, visibility, protection, {
                   quiet: true,
                   token,
+                  toast,
                 }),
               addToast,
               logKey: 'VideoActivityWidget.bulkPublishScores',

@@ -101,6 +101,7 @@ import { MiniAppManager } from './components/MiniAppManager';
 import { AssignmentClassesModal } from '@/components/common/library/AssignmentClassesModal';
 import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
 import {
+  assignmentCount,
   runBulkPublish,
   sharedVisibility,
 } from '@/components/common/library/assigned/bulkPublish';
@@ -2103,7 +2104,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
             )}
             {bulkPublishing && (
               <PublishScoresModal
-                assignmentTitle={`${bulkPublishing.length} assignments`}
+                assignmentTitle={assignmentCount(bulkPublishing.length)}
                 currentVisibility={sharedVisibility(bulkPublishing)}
                 onClose={() => setBulkPublishing(null)}
                 onConfirm={async (visibility) => {

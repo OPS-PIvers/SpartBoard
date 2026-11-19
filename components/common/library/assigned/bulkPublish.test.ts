@@ -48,6 +48,23 @@ describe('runBulkPublish', () => {
     );
   });
 
+  it('shows a repeated per-target note once', async () => {
+    const addToast = vi.fn();
+    await runBulkPublish({
+      targets: [{ id: 'a' }, { id: 'b' }],
+      unpublish: false,
+      publishOne: (_t, _token, toast) => {
+        toast('Classroom skipped.', 'info');
+        return Promise.resolve(true);
+      },
+      addToast,
+      logKey: 'test',
+    });
+    expect(
+      addToast.mock.calls.filter((c) => c[0] === 'Classroom skipped.')
+    ).toHaveLength(1);
+  });
+
   it('skips the token when unpublishing', async () => {
     const addToast = vi.fn();
     const mintToken = vi.fn(() => Promise.resolve('tok'));

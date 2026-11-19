@@ -1,7 +1,10 @@
 import type { Toast } from '@/types';
 import { logError } from '@/utils/logError';
 
-const plural = (n: number) => `${n} assignment${n === 1 ? '' : 's'}`;
+/** "1 assignment", "3 assignments". */
+export const assignmentCount = (n: number) =>
+  `${n} assignment${n === 1 ? '' : 's'}`;
+const plural = assignmentCount;
 
 /** The level every target already shares, so the dialog opens on it. */
 export function sharedVisibility<V>(
@@ -44,7 +47,11 @@ export async function runBulkPublish<A extends { id: string }>({
   /** Called once, before any await, so the consent popup still counts as a click. */
   mintToken?: () => Promise<string | null>;
   /** Resolves false when the target was skipped with its own message, so it is not counted again. */
-  publishOne: (target: A, token: string | null) => Promise<boolean>;
+  publishOne: (
+    target: A,
+    token: string | null,
+    toast: (message: string, type?: Toast['type']) => void
+  ) => Promise<boolean>;
   addToast: (message: string, type?: Toast['type']) => void;
   logKey: string;
 }): Promise<number> {
@@ -56,11 +63,19 @@ export async function runBulkPublish<A extends { id: string }>({
       token = null;
     }
   }
+  // Grade-push and paper notes repeat per target; show each distinct one once.
+  const seen = new Set<string>();
+  const toast = (message: string, type?: Toast['type']) => {
+    const key = `${type ?? ''}|${message}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    addToast(message, type);
+  };
   let ok = 0;
   let failed = 0;
   for (const t of targets) {
     try {
-      if (await publishOne(t, token)) ok++;
+      if (await publishOne(t, token, toast)) ok++;
     } catch (err) {
       failed++;
       logError(logKey, err, { assignmentId: t.id });

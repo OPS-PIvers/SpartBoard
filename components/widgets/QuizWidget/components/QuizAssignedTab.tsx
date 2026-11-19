@@ -1,3 +1,4 @@
+import { scoresShown } from '@/utils/assignedStatus';
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import {
   collection,
@@ -209,6 +210,7 @@ export interface QuizAssignedRowModel {
   needsGrading: number | null;
   bells: Record<string, EpochWindow | null>;
   viewOnly: boolean;
+  published: boolean;
 }
 
 /** Quiz rows for any Assigned list: the widget tab and the Assignments hub (D18). */
@@ -289,6 +291,7 @@ export function useQuizAssignedRows(
           needsGrading,
           bells,
           viewOnly: a.mode === 'view-only',
+          published: scoresShown(a.scoreVisibility),
         };
       }),
     [

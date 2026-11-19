@@ -195,6 +195,7 @@ interface RowModel<A> {
   assignment: A;
   bells: Record<string, EpochWindow | null>;
   viewOnly: boolean;
+  published: boolean;
 }
 
 /** The Assigned tab for a kind driven by `useAssignmentClassActions` (ASSIGNED_TAB.md slice 5). */
@@ -255,6 +256,7 @@ export function RunAssignedTab<A extends RunAssignment>(
       assignment: a,
       bells,
       viewOnly: viewOnly(a),
+      published: scoresShown(a.scoreVisibility),
     };
   });
 
