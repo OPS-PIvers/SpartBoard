@@ -240,15 +240,15 @@ export const LinkSchoologyModal: React.FC<LinkSchoologyModalProps> = ({
   };
 
   const header = (
-    <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-200 shrink-0">
-      <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-brand-blue-primary/10 text-brand-blue-primary">
+    <div className="flex items-center gap-3 px-6 py-3.5 shrink-0 bg-brand-blue-primary text-white rounded-t-2xl">
+      <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-white/15 text-white">
         <GraduationCap size={20} />
       </span>
       <div className="min-w-0">
-        <p className="text-xxs font-bold text-brand-blue-primary/60 uppercase tracking-widest">
+        <p className="text-xxs font-bold text-white/80 uppercase tracking-widest">
           Link to Schoology
         </p>
-        <h3 className="font-black text-base text-slate-800 truncate">
+        <h3 className="font-black text-base text-white truncate">
           Link your Schoology sections to classes
         </h3>
       </div>

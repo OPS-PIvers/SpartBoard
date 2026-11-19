@@ -12,6 +12,11 @@ import type { ClassRoster, RosterGroup } from '@/types';
 import type { GroupScheduleJob } from '@/utils/groupSchedulePrint';
 import type { GroupEditorSteps } from '@/utils/groupReminders';
 
+// An existing class saves on its own; closing flushes it. New Class still has Save.
+const saveClassButton = () =>
+  screen.queryByRole('button', { name: /^save$/i }) ??
+  screen.getByRole('button', { name: /^close$/i });
+
 vi.mock('@/utils/reminderSounds', () => ({ playReminderSound: vi.fn() }));
 const printGroupSchedule = vi.hoisted(() =>
   vi.fn<(job: GroupScheduleJob) => void>()
@@ -100,7 +105,7 @@ describe('GroupRemindersPanel', () => {
     await user.click(screen.getByRole('button', { name: /save group/i }));
 
     expect(screen.getByText('Speech')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /^save$/i }));
+    await user.click(saveClassButton());
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     const [group] = onSave.mock.calls[0][2] as RosterGroup[];
     expect(group).toMatchObject({
@@ -156,7 +161,7 @@ describe('GroupRemindersPanel', () => {
       screen.getByRole('switch', { name: /enable in group maker/i })
     ).toHaveAttribute('aria-checked', 'true');
     await user.click(screen.getByRole('button', { name: /save group/i }));
-    await user.click(screen.getByRole('button', { name: /^save$/i }));
+    await user.click(saveClassButton());
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     const [group] = onSave.mock.calls[0][2] as RosterGroup[];
     expect(group.inGroupMaker).toBeUndefined();
@@ -180,7 +185,7 @@ describe('GroupRemindersPanel', () => {
       'Walk them to room 104'
     );
     await user.click(screen.getByRole('button', { name: /save group/i }));
-    await user.click(screen.getByRole('button', { name: /^save$/i }));
+    await user.click(saveClassButton());
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     const [group] = onSave.mock.calls[0][2] as RosterGroup[];
     expect(group.reminder).toMatchObject({
@@ -206,7 +211,7 @@ describe('GroupRemindersPanel', () => {
     fireEvent.click(screen.getByLabelText('Ben Carlson'));
     await user.type(screen.getByLabelText(/name \(optional\)/i), 'Reading');
     await user.click(screen.getByRole('button', { name: /save group/i }));
-    await user.click(screen.getByRole('button', { name: /^save$/i }));
+    await user.click(saveClassButton());
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     const [group] = onSave.mock.calls[0][2] as RosterGroup[];
     expect(group.name).toBe('Reading');

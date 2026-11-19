@@ -1,4 +1,4 @@
-// DEV-only: Preview on a modification group and the Student view version menu, for /assign-stepper-dev.
+// DEV-only: class presets prefilled as modification groups, and the Student view version menu, for /assign-stepper-dev.
 /* eslint-disable react-refresh/only-export-components -- default export is a harness preview record */
 import React, { useState } from 'react';
 import type { ClassRoster, QuizBehaviorSettings, QuizData } from '@/types';
@@ -10,7 +10,6 @@ import { languageDisplayLabel } from '@/utils/languageDisplayLabel';
 import { translateHiddenOptionIdsToText } from '@/utils/quizHiddenOptions';
 import {
   versionsFromOverrides,
-  versionsWithOptionText,
   type StudentViewVersion,
 } from '@/utils/quizStudentViewVersions';
 import {
@@ -42,7 +41,21 @@ const ROSTERS: ClassRoster[] = [
       person('e', 'Sofia', 'Diaz'),
       person('f', 'J', 'Erickson'),
     ],
-    defaultOverridesByStudentId: { c: { timeMultiplier: 1.5 } },
+    defaultOverridesByStudentId: {
+      b: {
+        answerChoices: 3,
+        timeMultiplier: 1.5,
+        readAloud: true,
+        language: 'es',
+      },
+      f: {
+        answerChoices: 3,
+        timeMultiplier: 1.5,
+        readAloud: true,
+        language: 'es',
+      },
+      c: { timeMultiplier: 2, blockCopyPaste: false },
+    },
     groups: [
       { id: 'mods', name: 'Modified Assessments', studentIds: ['b', 'c', 'f'] },
     ],
@@ -134,11 +147,6 @@ const Preview: React.FC = () => {
             questions: toOverrideEditorQuestions(QUIZ),
             rubrics: [],
           },
-          onPreviewVersions: (versions, initialVersionId) =>
-            setOpen({
-              versions: versionsWithOptionText(versions, QUIZ.questions),
-              initialVersionId,
-            }),
         }}
         hasManualGrading={false}
         handRaiseMode="teacher-choice"

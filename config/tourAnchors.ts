@@ -1631,10 +1631,6 @@ export const TOUR_ANCHORS = {
     destructive: true,
     panel: true,
   },
-  'assign-mods.preview-group': {
-    label: 'Preview button on a group in the Assign dialog Modifications step',
-    panel: true,
-  },
   'assign-mods.remove-group': {
     label: 'Remove group button in the Assign dialog Modifications step',
     destructive: true,
@@ -1681,12 +1677,6 @@ export const TOUR_ANCHORS = {
   'assign-mods.generate-translation': {
     label:
       'Generate translation button in the Assign dialog modifications view',
-    perField: true,
-    panel: true,
-  },
-  'assign-mods.group-generate-translation': {
-    label:
-      'Generate translation button in the Assign dialog Modifications step',
     perField: true,
     panel: true,
   },

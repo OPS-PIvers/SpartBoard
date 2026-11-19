@@ -141,6 +141,7 @@ import {
   promptAudioPlayId,
 } from '@/utils/quizStimuli';
 import { splitStimuliForTabs } from '@/utils/quizStimulusTabs';
+import { promptLabel } from '@/utils/quizPromptText';
 import { StimulusTabsPanel } from './StimulusTabsPanel';
 import { StimulusPanelDivider } from './StimulusPanelDivider';
 import { useStimulusPanelWidth } from '@/hooks/useStimulusPanelWidth';
@@ -1057,8 +1058,18 @@ const QuizJoinFlow: React.FC<{
     });
   }, [isViewOnly, session?.id, authedUid]);
 
-  // Questions answered with Speech to text on this page load; saved with the answer.
-  const dictatedIdsRef = useRef<Set<string>>(new Set());
+  // Questions answered with Speech to text in this attempt; saved with the answer.
+  const dictatedIdsRef = useRef<{ attempt: number; ids: Set<string> }>({
+    attempt: 0,
+    ids: new Set(),
+  });
+  const dictatedAttempt = myResponse?.completedAttempts ?? 0;
+  const dictatedIdsFor = useCallback((attempt: number): Set<string> => {
+    if (dictatedIdsRef.current.attempt !== attempt) {
+      dictatedIdsRef.current = { attempt, ids: new Set() };
+    }
+    return dictatedIdsRef.current.ids;
+  }, []);
   const handleAnswer = useCallback(
     async (
       questionId: string,
@@ -1078,16 +1089,19 @@ const QuizJoinFlow: React.FC<{
         questionId,
         answer,
         speedBonus,
-        dictatedIdsRef.current.has(questionId)
+        dictatedIdsFor(dictatedAttempt).has(questionId)
           ? { ...opts, dictated: true }
           : opts
       );
     },
-    [submitAnswer, isViewOnly]
+    [submitAnswer, isViewOnly, dictatedIdsFor, dictatedAttempt]
   );
-  const markDictated = useCallback((questionId: string) => {
-    dictatedIdsRef.current.add(questionId);
-  }, []);
+  const markDictated = useCallback(
+    (questionId: string) => {
+      dictatedIdsFor(dictatedAttempt).add(questionId);
+    },
+    [dictatedIdsFor, dictatedAttempt]
+  );
 
   // Uploads around a turn-in: it waits briefly, and a failure after it is handed to the server.
   const [uploadGate] = useState(createTurnInUploadGate);
@@ -7116,7 +7130,7 @@ export const PublishedScoreReview: React.FC<{
                           <p
                             className={`flex-1 min-w-0 wrap-break-word whitespace-pre-line text-sm font-semibold ${qTextCls}`}
                           >
-                            {recapQuestion.text}
+                            {promptLabel(recapQuestion)}
                           </p>
                           {isCorrect && (
                             <Check

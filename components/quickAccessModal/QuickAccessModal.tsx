@@ -60,20 +60,20 @@ export const QuickAccessModal: React.FC<QuickAccessModalProps> = ({
   };
 
   const customHeader = (
-    <div className="flex items-center justify-between p-6 pb-4 shrink-0 border-b border-slate-100">
+    <div className="flex items-center justify-between gap-3 px-6 py-3.5 shrink-0 bg-brand-blue-primary text-white rounded-t-2xl">
       <div className="flex items-center gap-2.5">
         <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center">
           <Zap className="w-4 h-4 text-amber-500" />
         </div>
         <h3
           id="quick-access-modal-title"
-          className="font-black text-lg text-slate-800"
+          className="font-black text-lg text-white"
         >
           {t('quickAccess.title', { defaultValue: 'Quick Access Widgets' })}
         </h3>
       </div>
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 text-xxs font-bold text-slate-500 uppercase tracking-widest">
+        <div className="flex items-center gap-2 text-xxs font-bold text-white/80 uppercase tracking-widest">
           <span>
             {selected.length}/{MAX_SLOTS}
           </span>
@@ -82,7 +82,7 @@ export const QuickAccessModal: React.FC<QuickAccessModalProps> = ({
               <div
                 key={i}
                 className={`w-2 h-2 rounded-full ${
-                  i < selected.length ? 'bg-brand-blue-primary' : 'bg-slate-200'
+                  i < selected.length ? 'bg-white' : 'bg-white/30'
                 }`}
               />
             ))}
@@ -91,7 +91,7 @@ export const QuickAccessModal: React.FC<QuickAccessModalProps> = ({
         <button
           {...tourAttr('quick-access.close')}
           onClick={onClose}
-          className="p-1 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
+          className="p-1 hover:bg-white/15 rounded-full text-white/80 transition-colors"
           aria-label="Close"
         >
           <X size={20} />

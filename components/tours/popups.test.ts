@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  isBlankField,
+  isTypingField,
   openPopupBoxes,
   shieldTourUi,
   untaggedControlOf,
@@ -44,6 +46,60 @@ describe('shieldTourUi', () => {
       ?.dispatchEvent(new Event('pointerdown', { bubbles: true }));
     expect(outside).toHaveBeenCalledTimes(2);
     document.removeEventListener('pointerdown', outside);
+  });
+});
+
+describe('shieldTourUi and text boxes', () => {
+  const press = (id: string) => {
+    const e = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+    byId(id).dispatchEvent(e);
+    return e.defaultPrevented;
+  };
+
+  it('keeps focus in an empty app text box when Next is pressed, so the box stays open', () => {
+    document.body.innerHTML =
+      '<input id="name" /><div data-tour-ignore><button id="next">Next</button><input id="note" /></div><button id="board">x</button>';
+    const unshield = shieldTourUi();
+    byId('name').focus();
+    expect(press('next')).toBe(true);
+    // A press on the page, or on a field in the tour UI, still moves focus.
+    expect(press('board')).toBe(false);
+    expect(press('note')).toBe(false);
+    unshield();
+    expect(press('next')).toBe(false);
+  });
+
+  it('lets a filled box lose focus as usual, so it saves what was typed', () => {
+    document.body.innerHTML =
+      '<input id="name" value="Unit 1" /><div data-tour-ignore><button id="next">Next</button></div>';
+    const unshield = shieldTourUi();
+    byId('name').focus();
+    expect(press('next')).toBe(false);
+    unshield();
+  });
+
+  it('ignores checkboxes and other controls that are pressed, not typed into', () => {
+    document.body.innerHTML =
+      '<input id="box" type="checkbox" /><div data-tour-ignore><button id="next">Next</button></div>';
+    const unshield = shieldTourUi();
+    byId('box').focus();
+    expect(press('next')).toBe(false);
+    unshield();
+  });
+});
+
+describe('isTypingField and isBlankField', () => {
+  it('counts text inputs, textareas and editable text, not buttons, checkboxes or selects', () => {
+    document.body.innerHTML =
+      '<input id="t" /><input id="n" type="number" /><textarea id="a"></textarea><input id="c" type="checkbox" /><input id="r" type="range" /><select id="s"></select><button id="b">B</button><div id="w"><span>Name</span><input id="inner" type="search" /></div>';
+    for (const id of ['t', 'n', 'a'])
+      expect(isTypingField(byId(id))).toBe(true);
+    for (const id of ['c', 'r', 's', 'b'])
+      expect(isTypingField(byId(id))).toBe(false);
+    expect(isTypingField(null)).toBe(false);
+    expect(isBlankField(byId('t'))).toBe(true);
+    (byId('t') as HTMLInputElement).value = 'Unit 1';
+    expect(isBlankField(byId('t'))).toBe(false);
   });
 });
 
