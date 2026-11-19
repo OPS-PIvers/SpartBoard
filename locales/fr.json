@@ -5142,5 +5142,12 @@
     "tidyUndo": "Annuler",
     "tidyDone": "Mis en forme.",
     "tidyNoChange": "Rien à mettre en forme."
+  },
+  "quizQuestionAudio": {
+    "play": "Écouter l'audio",
+    "stop": "Arrêter",
+    "retry": "Réessayer",
+    "label": "Question audio",
+    "playCount": "Écouter l'audio ({{used}}/{{total}})"
   }
 }

@@ -5142,5 +5142,12 @@
     "tidyUndo": "Rückgängig",
     "tidyDone": "Aufgeräumt.",
     "tidyNoChange": "Nichts aufzuräumen."
+  },
+  "quizQuestionAudio": {
+    "play": "Audio abspielen",
+    "stop": "Stopp",
+    "retry": "Erneut versuchen",
+    "label": "Audiofrage",
+    "playCount": "Audio abspielen ({{used}}/{{total}})"
   }
 }

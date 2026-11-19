@@ -6584,5 +6584,12 @@
     "tidyUndo": "Undo",
     "tidyDone": "Tidied up.",
     "tidyNoChange": "Nothing to tidy up."
+  },
+  "quizQuestionAudio": {
+    "play": "Play audio",
+    "stop": "Stop",
+    "retry": "Try again",
+    "label": "Audio question",
+    "playCount": "Play audio ({{used}}/{{total}})"
   }
 }

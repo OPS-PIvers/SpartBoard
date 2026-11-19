@@ -5142,5 +5142,12 @@
     "tidyUndo": "Deshacer",
     "tidyDone": "Ordenado.",
     "tidyNoChange": "No hay nada que ordenar."
+  },
+  "quizQuestionAudio": {
+    "play": "Reproducir audio",
+    "stop": "Detener",
+    "retry": "Intentar de nuevo",
+    "label": "Pregunta de audio",
+    "playCount": "Reproducir audio ({{used}}/{{total}})"
   }
 }

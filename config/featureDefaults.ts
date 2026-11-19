@@ -1734,6 +1734,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'quiz-question-audio': {
+    label: 'Recorded question audio',
+    icon: Mic,
+    description: 'Teachers record their voice for a quiz question.',
+    group: 'questions',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'quiz',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'assigned-tab': {
     label: 'Assigned tab',
     icon: ClipboardList,

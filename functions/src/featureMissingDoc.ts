@@ -91,6 +91,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'va-score-only-verdicts',
   'widget-settings-defaults',
   'assigned-tab',
+  'quiz-question-audio',
 ];
 
 // Mirror of `missingDocPublic: true` flags and their `defaultMinTier` (null = none); config/featureDefaults.test.ts keeps it in sync.

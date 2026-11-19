@@ -592,6 +592,7 @@ export function toPublicQuestion(
   };
   if (q.targets?.length) base.targets = q.targets.map((t) => ({ ...t }));
   if (q.modifiedText?.trim()) base.modifiedText = q.modifiedText.trim();
+  if (q.promptAudio?.driveFileId) base.promptAudio = { ...q.promptAudio };
   if (
     (q.type === 'FIB' || isFreeResponseType(q.type)) &&
     isAnswerKeyboard(q.answerKeyboard)

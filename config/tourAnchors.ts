@@ -2737,6 +2737,37 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-editor.prompt-record-audio': {
+    label: 'Record audio button on the question prompt in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-audio-stop': {
+    label:
+      'Stop recording button in the question audio popover in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-audio-play': {
+    label: 'Play button for the recorded question audio in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-audio-rerecord': {
+    label: 'Record again button for the question audio in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-audio-replays': {
+    label: 'Replays limit for the question audio in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-audio-remove': {
+    label: 'Remove button for the question audio in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-editor.prompt-accents': {
     label: 'Accents switch on the question prompt in the Quiz editor',
     perWidgetType: true,

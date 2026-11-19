@@ -138,6 +138,7 @@ import {
   resolveStimuli,
   splitStimuliForLayout,
   stimulusPlayKey,
+  promptAudioPlayId,
 } from '@/utils/quizStimuli';
 import { splitStimuliForTabs } from '@/utils/quizStimulusTabs';
 import { StimulusTabsPanel } from './StimulusTabsPanel';
@@ -4078,6 +4079,13 @@ export const ActiveQuiz: React.FC<{
     currentQuestion,
     localizedStrings
   );
+  // The recording is the original wording, so a modified prompt drops it.
+  const promptAudio = modifiedServed ? undefined : currentQuestion.promptAudio;
+  const promptAudioViews = playsUsedFor(promptAudioPlayId(currentQuestion.id));
+  // Only a limited recording needs its plays counted on the response.
+  const recordPromptAudioView = promptAudio?.playLimit
+    ? () => handleStimulusPlayCompleted(promptAudioPlayId(currentQuestion.id))
+    : undefined;
   const isMultiAnswer = currentQuestion.type === 'MA';
   const options =
     displayQuestion.type === 'MC' || displayQuestion.type === 'MA'
@@ -4792,7 +4800,9 @@ export const ActiveQuiz: React.FC<{
           )}
 
           {/* Question; the recorded audio is the original wording, so a modified prompt has none yet. */}
-          {readAloudOn && !modifiedServed ? (
+          {readAloudOn &&
+          !modifiedServed &&
+          (!promptAudio || displayQuestion.text.trim() !== '') ? (
             <div
               ref={promptWrapRef}
               tabIndex={-1}
@@ -4803,6 +4813,10 @@ export const ActiveQuiz: React.FC<{
                 blankCount={currentQuestion.blankCount}
                 light={light}
                 className={`flex-1 ${headingText}`}
+                audio={promptAudio}
+                questionId={currentQuestion.id}
+                audioViewsUsed={promptAudioViews}
+                onAudioView={recordPromptAudioView}
               />
               <ReadAloudButton
                 variant="prominent"
@@ -4823,6 +4837,10 @@ export const ActiveQuiz: React.FC<{
                 blankCount={currentQuestion.blankCount}
                 light={light}
                 className={headingText}
+                audio={promptAudio}
+                questionId={currentQuestion.id}
+                audioViewsUsed={promptAudioViews}
+                onAudioView={recordPromptAudioView}
               />
             </div>
           )}
@@ -6238,7 +6256,13 @@ const ReviewPhase: React.FC<{
           })}
         </p>
         <h2 className="text-lg font-bold text-white mb-6 leading-snug max-w-md whitespace-pre-line">
-          <PromptText text={currentQuestion.text} />
+          <PromptText
+            text={
+              currentQuestion.text.trim()
+                ? currentQuestion.text
+                : t('quizQuestionAudio.label', 'Audio question')
+            }
+          />
         </h2>
 
         {/* Correct answer */}
