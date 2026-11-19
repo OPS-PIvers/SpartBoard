@@ -1,6 +1,6 @@
 # 025 — One entrance duration for modals and their backdrops
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: 3dcc1cd
 - **Severity**: LOW
 - **Category**: Cohesion & tokens
