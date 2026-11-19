@@ -41,6 +41,23 @@ const listeners = new Set<() => void>();
 const progress = new Map<string, VoiceFillProgress>();
 
 let snapshot: ReadonlyMap<string, VoiceFillProgress> = new Map();
+// The UTC day the server refused for the daily voice limit; fills wait for the next day.
+let exhaustedDay: string | null = null;
+
+const utcDay = (): string => new Date().toISOString().slice(0, 10);
+
+// Only the server's daily limit counts; a Cloud Run 429 also arrives as resource-exhausted.
+const isDailyVoiceLimit = (err: unknown): boolean => {
+  const details =
+    typeof err === 'object' && err !== null
+      ? (err as { details?: unknown }).details
+      : undefined;
+  return (
+    typeof details === 'object' &&
+    details !== null &&
+    (details as { reason?: unknown }).reason === 'speakVoiceDaily'
+  );
+};
 
 const notify = (): void => {
   snapshot = new Map(progress);
@@ -189,7 +206,12 @@ async function runWorker(setId: string, job: Job): Promise<void> {
       void scheduleWrite(setId, job);
     } catch (err) {
       // Those cards stay pending; the next save or edit opening tries again.
-      logError('speakVoiceFill.lookup', err, { setId });
+      if (isDailyVoiceLimit(err)) {
+        exhaustedDay = utcDay();
+        job.queue = [];
+      } else {
+        logError('speakVoiceFill.lookup', err, { setId });
+      }
     }
     job.done += batch.length;
     progress.set(setId, { done: job.done, total: job.total });
@@ -216,7 +238,7 @@ export function startVoiceFill(
   call: SpeakLookupCall = callVoiceLookup
 ): void {
   const language = speakLanguageOf(set.termLanguage);
-  if (!language) return;
+  if (!language || exhaustedDay === utcDay()) return;
   const waiting = applyVoiceResults(set).cards.filter(cardWaitsOnVoices);
   if (waiting.length === 0) return;
   const job: Job = jobs.get(set.id) ?? {
@@ -263,5 +285,6 @@ export function resetVoiceFillForTests(): void {
   jobs.clear();
   results.clear();
   progress.clear();
+  exhaustedDay = null;
   notify();
 }

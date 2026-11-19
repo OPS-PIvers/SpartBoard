@@ -338,12 +338,17 @@ async function isDistrictStaff(
 export const shareMembershipV1 = onCall(
   { memory: '256MiB', timeoutSeconds: 60, maxInstances: 10 },
   async (request): Promise<{ changed: boolean } | ShareHostInfo> => {
-    await assertViewAsAllowed(request);
-    if (!request.auth)
-      throw new HttpsError('unauthenticated', 'Sign in first.');
-    const db = admin.firestore();
     try {
       const action = parseShareMembershipAction(request.data);
+      // shareHost only reads, so a locked View-as tab may confirm a host.
+      if (action.action === 'shareHost') {
+        await assertViewAsAllowed(request, { read: true });
+      } else {
+        await assertViewAsAllowed(request);
+      }
+      if (!request.auth)
+        throw new HttpsError('unauthenticated', 'Sign in first.');
+      const db = admin.firestore();
       const hostLookup = makeHostLookup(db);
       if (action.action === 'shareHost') {
         if (request.auth.token.firebase?.sign_in_provider === 'anonymous') {

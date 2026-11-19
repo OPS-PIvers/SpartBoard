@@ -310,6 +310,26 @@ export function lackingLunchNotesKey(dashboard: Dashboard): string | null {
   return keys.length > 0 ? keys.join(';') : null;
 }
 
+// A Drive read that still lacked notes is tried again after this long, since another device's notes may land later.
+export const LUNCH_NOTES_REREAD_MS = 60_000;
+
+export interface LunchNotesRead {
+  key: string;
+  drivePii: Record<string, unknown>;
+  readAt: number;
+  complete: boolean;
+}
+
+/** True when a cached pre-save Drive read still answers for this sent list. */
+export function lunchNotesReadFresh(
+  known: LunchNotesRead | undefined,
+  key: string,
+  now: number
+): known is LunchNotesRead {
+  if (!known || known.key !== key) return false;
+  return known.complete || now - known.readAt < LUNCH_NOTES_REREAD_MS;
+}
+
 /** True when a Lunch Count on the board lists a sent class whose notes this copy lacks, so a backup must not drop Drive's. */
 export function boardLacksLunchNotes(dashboard: Dashboard): boolean {
   return dashboard.widgets.some(
