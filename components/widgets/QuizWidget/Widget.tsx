@@ -5224,12 +5224,17 @@ const TeacherQuizWidget: React.FC<{
               if (hadColumn) columns.push(a.id);
             })
           );
-          await offerToolColumnsRemoval({
-            functions,
-            sessionIds: columns,
-            showConfirm,
-            addToast,
-          });
+          // The deletes already happened, so a failed column offer never counts against them.
+          try {
+            await offerToolColumnsRemoval({
+              functions,
+              sessionIds: columns,
+              showConfirm,
+              addToast,
+            });
+          } catch (err) {
+            logError('bulkDelete.toolColumns', err);
+          }
           return results.filter((r) => r.status === 'rejected').length;
         }}
         onArchiveDelete={async (a) => {

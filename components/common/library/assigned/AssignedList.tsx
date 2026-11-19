@@ -205,17 +205,17 @@ export function AssignedList<T extends AssignedListItem>({
     const bad = results.length - undos.length;
     for (const r of results)
       if (r.status === 'rejected') logError('AssignedList.bulk', r.reason);
-    // Undo is offered only when every changed row can be put back.
-    const all = undos.every((u) => u != null) ? undos : null;
+    // Undo puts back every row whose write can be undone.
+    const back = undos.filter((u) => u != null);
     if (undos.length > 0)
       addToast(
         done(undos.length),
         'success',
-        all
+        back.length > 0
           ? {
               label: 'Undo',
               onClick: () => {
-                void Promise.allSettled(all.map((u) => u?.())).then((rs) => {
+                void Promise.allSettled(back.map((u) => u())).then((rs) => {
                   const k = rs.filter((r) => r.status === 'rejected').length;
                   if (k > 0)
                     addToast(`${plural(k)} could not be undone.`, 'error');
