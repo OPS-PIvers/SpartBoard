@@ -12,7 +12,7 @@ Every PR goes into `dev-paul`, never `main`. Paul promotes dev-paul to prod.
 - `git status` is clean and every commit belongs to this change.
 - `git fetch origin && git rebase origin/dev-paul`.
 - `pnpm exec vitest related --run <changed source and test files>` passes.
-- User-facing change? It's behind a feature flag (see `/new-feature`). A new `public/changelog.json` entry waits until the flag opens to everyone.
+- User-facing change? It's behind a feature flag (see `/new-feature`). A new What's New entry waits until the flag opens to everyone. Notes go in a new `changelog.d/<name>.json` file, never in `public/changelog.json` itself.
 
 ## 2. Open the PR
 
@@ -26,6 +26,7 @@ The body says: what changed and why, how it was checked (tests, `/show-me` scree
 ## 3. Wait for checks and review
 
 - `gh pr checks <number> --watch` in the background. The required check is `summary`.
+- No checks a few minutes after a push, or a `merge-conflict` label: the branch conflicts with `dev-paul`, and GitHub runs no checks until it doesn't. Check with `gh pr view <number> --json mergeable` (`CONFLICTING`). Run `git fetch origin dev-paul && git merge origin/dev-paul`, resolve keeping both sides, run the related tests and push. Do it yourself; don't wait to be asked.
 - When the Claude PR Review finishes, read it: `gh pr view <number> --comments` and `gh api repos/OPS-PIvers/SpartBoard/pulls/<number>/comments`.
 - Every finding gets either a fix (new commit, push) or a one-line reply saying why it doesn't apply. Don't ignore any.
 - A check fails: read the log (`gh run view <run id> --log-failed`), fix the cause, push. Never skip or disable a check or a test.
