@@ -14,9 +14,9 @@ import {
   CLASSLINK_TENANT_URL,
 } from './secrets';
 import { loadTeacherClassIds } from './studentIdentity';
-import { isTestClassAuthority } from './studentAssignmentTargets';
+import { isTestClassAuthority } from './studentTargetDirectory';
 import { assertViewAsAllowed } from './viewAsGuard';
-import { chunk } from './shared';
+import { chunk } from './utils/chunk';
 import {
   VERIFIED_CLASSES_COLLECTION,
   writeVerifiedClasses,
