@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
 import { ClassChecklist } from './ClassChecklist';
 import {
@@ -10,6 +10,7 @@ import { SAMPLE_ROSTERS } from './assignStepperTestRosters';
 import { ClassChecklistCoursesContext } from './classChecklistCourses';
 import type { ClassRoster } from '@/types';
 import type { Course } from '@/utils/course/contract';
+import { setTourRunning } from '@/components/tours/tourState';
 
 const Harness = ({
   initial = EMPTY_ASSIGN_CLASSES_VALUE,
@@ -254,6 +255,27 @@ describe('ClassChecklist with Courses', () => {
       classIds: ['s1', 'solo', 's2', 'gone'],
       studentsByClass: {},
     });
+  });
+
+  it('stays open after ticking a half-picked Course', () => {
+    render(
+      <CourseHarness initial={{ classIds: ['s1'], studentsByClass: {} }} />
+    );
+    fireEvent.click(screen.getByRole('checkbox', { name: /Sample Course/ }));
+    expect(screen.getByLabelText(/Mock Period 1\s*1 student$/)).toBeChecked();
+  });
+
+  it('opens every Course while a tour runs, so saved row steps find their class', () => {
+    render(<CourseHarness />);
+    expect(screen.queryByLabelText(/Mock Period 1\s*24 students/)).toBeNull();
+    act(() => setTourRunning(true));
+    try {
+      expect(
+        screen.getByLabelText(/Mock Period 1\s*24 students/)
+      ).toBeVisible();
+    } finally {
+      act(() => setTourRunning(false));
+    }
   });
 
   it('single select keeps every class flat', () => {

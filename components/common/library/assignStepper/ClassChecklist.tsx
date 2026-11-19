@@ -10,6 +10,7 @@ import { ChevronRight } from 'lucide-react';
 import type { ClassRoster } from '@/types';
 import { AuthContext } from '@/context/AuthContextValue';
 import { useCourses } from '@/hooks/useCourses';
+import { useTourRunning } from '@/components/tours/tourState';
 import type { Course } from '@/utils/course/contract';
 import { courseGroups } from '@/utils/course/courseGroups';
 import {
@@ -87,6 +88,8 @@ export const ClassChecklist: React.FC<ClassChecklistProps> = ({
     [rosters]
   );
   const [openById, setOpenById] = useState<Record<string, boolean>>({});
+  // Saved tours point at class rows, so every Course stays open during a tour.
+  const tourRunning = useTourRunning();
 
   // Picks outside this list (a class gone from an edited assignment) are kept.
   const setPicked = (ids: Set<string>) =>
@@ -181,7 +184,7 @@ export const ClassChecklist: React.FC<ClassChecklistProps> = ({
     const picked = available.filter((r) => value.classIds.includes(r.id));
     const all = available.length > 0 && picked.length === available.length;
     const some = picked.length > 0 && !all;
-    const open = openById[course.id] ?? some;
+    const open = tourRunning || (openById[course.id] ?? some);
     const rowKey = `row-${(indexOf.get(members[0].id) ?? 0) + 1}`;
     const listId = `${groupName}-${course.id}`;
     const off = disabled || available.length === 0;
@@ -207,7 +210,10 @@ export const ClassChecklist: React.FC<ClassChecklistProps> = ({
         checked={all}
         indeterminate={some}
         disabled={off}
-        onChange={() => toggleCourse(members)}
+        onChange={() => {
+          setOpenById((prev) => ({ ...prev, [course.id]: open }));
+          toggleCourse(members);
+        }}
         {...tourFieldAttr('assign-classes.course', 'assign', rowKey)}
       />
     );
