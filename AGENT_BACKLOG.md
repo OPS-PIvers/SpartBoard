@@ -1,5 +1,6 @@
 # Agent backlog
 
+- **AB-311 App Check on the poll code callables** (S, security). Blocked on PT-272 (console setup and site keys). Call `initializeAppCheck` with the reCAPTCHA Enterprise key in the client Firebase init (`config/firebase.ts`, with a debug token for localhost and `VITE_AUTH_BYPASS`), then set `enforceAppCheck: true` on `resolvePollCodeV1` and `claimPollCodeV1` in `functions/src/pollCodeResolve.ts` once Paul has seen verified-request metrics. Also consider a 6-character poll code (alphabet in `functions/src/pollCodeResolve.ts` and `utils/pollCode.ts`) accepted alongside live 5-character ones.
 Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the brief is the whole hand-off. Anything that needs Paul to click, test, decide or approve is in [PAUL_TODO.md](PAUL_TODO.md), not here.
 
 ## How to use this file
@@ -9,7 +10,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
 - **Release review findings.** Fix small (S) findings inside the release as `release fix:` PRs. File an item here only for work that is M or larger, needs a flag or rules design, or can't ship in that release.
 - **Agent-only means agent-only.** An item in Ready needs nothing from Paul. When an item needs new wording, the agent builds it and asks Paul with a screenshot and a decision card in its thread; when it needs a real decision, it goes to PAUL_TODO.md and the item moves to Blocked.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-310**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-313**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -102,6 +103,7 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
 ### Performance and cost
 
+- **AB-308 Speech to text paid engine hardening** (M; release 2026.11.19d review, #6320). In `functions/src/speechToText.ts`: (1) bill AI transcription from the clip's real length (container timestamps, or true up from what the model processed) instead of the client's `durationMs` floored by size (#6321 narrowed this); (2) the single `ai_usage/global_speech_to_text_YYYY-MM` doc is written in a transaction on every clip, so a class dictating at once contends and falls back to free dictation; shard it; (3) `getSpeechToTextAccessV1` has no rate limit; (4) `assigningTeacher` accepts a pointer after the assignment closes; (5) `utils/speechToText/hybridEngine.ts` `revise` keeps sending a clip after Stop and unmount and still spends the student's limits, and in Writing a revise or Tidy up inflates `dictatedCount`; (6) `modelSupportsInputs` (`functions/src/aiModels.ts`) is not enforced server-side. Done when each has a test.
 - **AB-306 Cache Intl.DisplayNames in language labels** (S; release 2026.11.19c review of #6278). `utils/languageDisplayLabel.ts` builds a new `Intl.DisplayNames` on every call, and it runs per row in language lists and override summaries. Keep one instance per locale in a module Map. Done when `utils/languageDisplayLabel.test.ts` still passes and a test shows a second call reuses the instance.
 - **AB-56 Web tour list cost** (M). Unblocked: rules headroom is about 25 KB since #5637; measure `check:rules-size` before and after. Store each tour's start host and step count at publish so `webToursListV1` stops reading every step.
 - **AB-99 Activity Wall cleanup retries starve behind repeat failures** (S, LOW). Since #5060 `retryStorageCleanup` (`functions/src/sweepActivityWallArchives.ts`) pages through flagged submissions but starts from the first doc every hourly run and stops at `MAX_CLEANUP_RETRIES_PER_RUN` (200), so 200+ docs that keep failing still hide later ones until the 7-day orphan sweep. Stamp a last-attempt time on failure and order by it (needs a collection-group index), or save the cursor between runs. Done when: a test with more failing docs than the cap shows a later doc retried within two runs. Same PR: check the cap per doc read (not only between pages, it can reach ~299 today) and stop the retry phase on a wall-clock budget so a slow Storage can't starve the orphan sweep in the 540 s run (release #5072 review).
@@ -109,6 +111,9 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 - **AB-14 Bundle guard and image compression** (M, _re-verify_). P3: `manualChunks` plus a bundle-size CI guard (also check the DashboardView chunk against the 500 KB warning). P4: client-side image compression on upload paths.
 
 ### Quiz, Video Activity and Guided Learning
+
+- **AB-309 Recorded question audio and assign auto-translate leftovers** (M; release 2026.11.19d review, #6320). (1) Re-recording or removing prompt audio (`PromptAudioField.tsx`, `usePromptAudio.ts`) leaves the old public Drive file; delete it only when no assigned snapshot uses it. (2) Auto-translate at assign (`utils/quizAutoTranslate.ts`, QuizWidget `Widget.tsx`) keeps running after its 45 s race; a re-assign in that window starts a second translation and orphans a sidecar. It also marks every fresh question reviewed. (3) Only the widget assign path auto-translates; PLC pickup, PLC new assignment, LTI and Classroom apply a preset language with no translation or warning. (4) `groupFromStanding` (`modificationGroups.ts`) drops a seeded student's `openAt`, `closeAt`, `questionIds`, `rubricOverrideByQuestion` and `spellingHelp`; `withStandingGroups` deletes a blank group the teacher is still filling when a new class brings presets. Done when each has a test.
+- **AB-310 Speech to text and tab-away minors** (M overall; release 2026.11.19d review; filed, not fixed in the release, because every part sits behind the admin-only `speech-to-text` or `quiz-question-audio` flag and (3) is a bundle split; do it before PT-265 or PT-269 opens a flag). (1) `utils/speechToText/textRules.ts` turns content words "colon", "comma", "punto", "coma" into marks; add guard words like English "period" has. (2) `hooks/useTabAwayTracker.ts`: a focus loss held during a mic prompt is dropped, not back-dated, when the page then goes hidden. (3) The FIB single input and quiz editor statically import the paid dictation engine; lazy-load it behind the override. (4) `components/quiz/QuestionAudioButton.tsx` small variant uses fixed Tailwind sizes in the Quiz monitor card (`CurrentQuestionCard.tsx`); give it a cqmin-scaled variant.
 
 - **AB-297 GL Results flash old session targets** (S). `sessionLoaded` in `GuidedLearningResults.tsx` (~:130) never resets when `sessionId` changes, so a new session's responses can show briefly against the old session's class targets. Reset with `key={sessionId}` on the component or the adjust-state-while-rendering pattern, with a test. From the #6253 review.
 - **AB-298 Matching and Ordering banks re-shuffle on back-navigation** (S). Issue #6254. `components/quiz/MatchingResponseInput.tsx` and `OrderingResponseInput.tsx` shuffle the bank with `Math.random` on every remount; placed items restore, but the bank order jumps. Seed the shuffle per student and question the way `utils/quizShuffle.ts` does, with a test. Close #6254 in the PR.
@@ -331,6 +336,11 @@ claude/project-thread-o5lwcn (Assignments hub Assigned list PR; delete after it 
 claude/project-thread-uw7zn6 (#6326)
 claude/project-thread-uw7zn6-ab112 (this docs PR, delete after it merges)
 claude/project-thread-cwkydz (#6328; this docs PR reuses it, delete after it merges)
+claude/project-thread-rk43x7 (release #6320)
+release-fix/stt-charge-floor (#6321)
+release-fix/stt-client (#6322)
+release-fix/widget-notes (#6323)
+docs/release-2026-11-19d-followups (this docs PR, delete after it merges)
 
 claude/project-thread-qd0xi5 (#6301; this docs PR reuses it, delete after it merges)
 claude/project-thread-dsduhb (#6279; this docs PR reuses it, delete after it merges)
@@ -788,7 +798,6 @@ The plan holds the slices; build the **Next** one and update this line in the sa
 
 Each names what unblocks it. When the blocker clears, move the item to Ready.
 
-- **AB-308 App Check on the poll code callables** (S, security). Blocked on PT-269 (console setup and site keys). Call `initializeAppCheck` with the reCAPTCHA Enterprise key in the client Firebase init (`config/firebase.ts`, with a debug token for localhost and `VITE_AUTH_BYPASS`), then set `enforceAppCheck: true` on `resolvePollCodeV1` and `claimPollCodeV1` in `functions/src/pollCodeResolve.ts` once Paul has seen verified-request metrics. Also consider a 6-character poll code (alphabet in `functions/src/pollCodeResolve.ts` and `utils/pollCode.ts`) accepted alongside live 5-character ones.
 - **AB-8 Pseudonym call errors** (S). Blocked on PT-259 (prod log count). `getPseudonymsForAssignmentV1` returned 79 × 404 and 34 × 403 out of 876 calls in the 30 days to 2026-10-01. #3733 likely fixed part of it. If Paul's count since 2026-10-01 is still above zero, find the callers from the log entries and fix them; if zero, delete this item.
 - **AB-17 Excluded-student count on assignment cards** (S). Blocked on PT-260. Cards don't show how many students were excluded at assign. It is teacher-visible, so it needs a preview flag; PT-260 picks yes or no, and a yes names the flag, label and card placement.
 - **AB-296 Drop the Focus old-stamp fallback** (S, security, rules). Blocked until one release after #6252 is live on prod. Remove the `sh == null` stamp-only branch in `focusSubShareLive` (`firestore.rules`), so a sub reads a focus session only through a live share named in `subMonitorShares`. Add a rules test that an old-stamped sub with no map entry is denied while another sub's entry exists. Note in the PR: `subMonitorUntil` is one max shared by all subs, and opening with a second share replaces the sub's entry.
