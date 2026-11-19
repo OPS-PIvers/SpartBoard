@@ -121,6 +121,9 @@ export const PUBLIC_MISSING_DOC_FEATURES: Readonly<
   'dashboard-layout': null,
   'instructional-routine': null,
   'assignments-hub': null,
+  'group-symbols': null,
+  'group-schedules': null,
+  'group-settings': null,
 };
 
 /** Who a missing `global_permissions` doc lets in, as the client's `canAccessFeature` decides it. */

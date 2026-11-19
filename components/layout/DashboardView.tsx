@@ -1896,7 +1896,8 @@ export const DashboardView: React.FC = () => {
       <AnnotationOverlay />
       <ToastContainer />
       <AnnouncementOverlay />
-      {canAccessFeature('group-reminders') && <GroupReminderHost />}
+      {canAccessFeature('group-reminders') &&
+        canAccessFeature('group-schedules') && <GroupReminderHost />}
       {canAccessFeature('schoology-quiz-import') && <SchoologyReviewHost />}
       {universalImport && (
         <ImportScreenHost

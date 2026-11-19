@@ -61,6 +61,8 @@ import {
   MessageSquare,
   SlidersHorizontal,
   LogIn,
+  Shapes,
+  Settings2,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -1024,6 +1026,40 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
+  },
+  // Per-step access for the class group editor; public until an admin narrows it.
+  'group-symbols': {
+    label: 'Group symbols',
+    icon: Shapes,
+    description: 'Symbol step when a teacher makes a class group.',
+    stage: 'permanent',
+    afterLaunch: 'keep',
+    category: 'students',
+    defaultAccessLevel: 'public',
+    defaultEnabled: true,
+    missingDocPublic: true,
+  },
+  'group-schedules': {
+    label: 'Group schedules',
+    icon: CalendarClock,
+    description: 'Schedule step and board reminders for class groups.',
+    stage: 'permanent',
+    afterLaunch: 'keep',
+    category: 'students',
+    defaultAccessLevel: 'public',
+    defaultEnabled: true,
+    missingDocPublic: true,
+  },
+  'group-settings': {
+    label: 'Group additional settings',
+    icon: Settings2,
+    description: 'Additional settings step for class groups.',
+    stage: 'permanent',
+    afterLaunch: 'keep',
+    category: 'students',
+    defaultAccessLevel: 'public',
+    defaultEnabled: true,
+    missingDocPublic: true,
   },
   // Share content binding (H2): opt-in sub-share calendars, no legacy pick seed. Admin-only until Paul has tested it.
   'share-content-safeguards': {

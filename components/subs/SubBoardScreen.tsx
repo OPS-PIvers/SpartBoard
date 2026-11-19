@@ -171,7 +171,8 @@ export const SubBoardScreenContent: React.FC<SubBoardScreenContentProps> = ({
         <SubBoardCanvas resetKey={resetKey} />
       </main>
       {/* The teacher's pull-out reminders fire once the sub loads the class lists. */}
-      {canAccessFeature('group-reminders') && <GroupReminderHost />}
+      {canAccessFeature('group-reminders') &&
+        canAccessFeature('group-schedules') && <GroupReminderHost />}
     </div>
   );
 };

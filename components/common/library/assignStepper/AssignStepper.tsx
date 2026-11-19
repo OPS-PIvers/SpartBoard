@@ -33,6 +33,14 @@ export interface AssignStepperProps {
     onClick: () => void;
     anchor?: TourAnchorAttrs;
   };
+  /** Inline only: a Cancel button left of submit. */
+  onCancel?: () => void;
+  cancelAnchor?: TourAnchorAttrs;
+  submitAnchor?: TourAnchorAttrs;
+  /** Inline only: pins Cancel and submit to the bottom of the scrolling parent. */
+  stickyFooter?: boolean;
+  /** False when submit only saves a local draft, so View as neither locks nor confirms it. */
+  viewAsGuard?: boolean;
 }
 
 export const AssignStepper: React.FC<AssignStepperProps> = ({
@@ -51,6 +59,11 @@ export const AssignStepper: React.FC<AssignStepperProps> = ({
   zIndex,
   inline = false,
   altAction,
+  onCancel,
+  cancelAnchor,
+  submitAnchor = tourAttr('assign-stepper.submit'),
+  viewAsGuard = true,
+  stickyFooter = false,
 }) => {
   const titleId = useId();
   const outward = useViewAsOutward();
@@ -95,11 +108,12 @@ export const AssignStepper: React.FC<AssignStepperProps> = ({
     });
   }, [current]);
 
-  const blocked = disabled || submitting || outward.locked;
+  const blocked = disabled || submitting || (viewAsGuard && outward.locked);
 
   const handleSubmit = useCallback(async () => {
     if (blocked) return;
     if (
+      viewAsGuard &&
       outward.active &&
       !(await outward.confirm(submitLabel, VIEW_AS_WRITES.assign))
     )
@@ -110,7 +124,7 @@ export const AssignStepper: React.FC<AssignStepperProps> = ({
     } finally {
       setPending(false);
     }
-  }, [blocked, outward, submitLabel, onSubmit]);
+  }, [blocked, viewAsGuard, outward, submitLabel, onSubmit]);
 
   const close = submitting ? () => undefined : onClose;
 
@@ -159,11 +173,14 @@ export const AssignStepper: React.FC<AssignStepperProps> = ({
 
   const submitButton = (
     <button
-      {...tourAttr('assign-stepper.submit')}
+      {...submitAnchor}
       type="button"
       onClick={() => void handleSubmit()}
       disabled={blocked}
-      title={outward.lockedTitle ?? (disabled ? disabledReason : undefined)}
+      title={
+        (viewAsGuard ? outward.lockedTitle : undefined) ??
+        (disabled ? disabledReason : undefined)
+      }
       className="inline-flex items-center gap-1.5 px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
     >
       {submitting ? (
@@ -214,6 +231,8 @@ export const AssignStepper: React.FC<AssignStepperProps> = ({
               ? undefined
               : () => openStep(continueTo[i] as number)
           }
+          anchor={step.anchor}
+          continueAnchor={step.continueAnchor}
         >
           {step.body}
         </AssignStep>
@@ -226,7 +245,22 @@ export const AssignStepper: React.FC<AssignStepperProps> = ({
       <div aria-label={title} role="group">
         {topSwitch && <div className="mb-4">{topSwitch}</div>}
         {stepList}
-        <div className="flex justify-end pt-3">{submitButton}</div>
+        <div
+          className={`flex items-center pt-3 ${onCancel ? 'justify-between' : 'justify-end'} ${stickyFooter ? 'sticky bottom-0 bg-white pb-1' : ''}`}
+        >
+          {onCancel && (
+            <button
+              {...cancelAnchor}
+              type="button"
+              onClick={onCancel}
+              disabled={submitting}
+              className="px-4 py-2 text-sm font-bold text-slate-600 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          )}
+          {submitButton}
+        </div>
       </div>
     );
   }
