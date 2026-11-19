@@ -716,10 +716,32 @@ describe('ActivityWallWidget on a Synced or View-Only board', () => {
 
   beforeEach(() => {
     mockLinkedShareId.current = 'share-1';
+    mockRecordedHost.current = 'host-1';
     mockLibraryEntries.current = [];
     mockGetDoc.mockResolvedValue({
       data: () => ({ originalAuthor: 'host-1' }),
     });
+  });
+
+  it("doesn't list the board while its host is unrecorded, whatever the share doc names", async () => {
+    mockRecordedHost.current = null;
+    mockLibraryEntries.current = [makeEntry()];
+    sessionDocData = {
+      'activity_wall_sessions/teacher-1_wall-1/boardAccess/boards': {
+        boardShareIds: [],
+      },
+    };
+    renderWidget();
+    await screen.findByText('Warm Up');
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(mockSetDoc).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        __path: 'activity_wall_sessions/teacher-1_wall-1/boardAccess/boards',
+      }),
+      expect.anything(),
+      expect.anything()
+    );
   });
 
   it("shows the host's wall read-only to a View-Only member", async () => {

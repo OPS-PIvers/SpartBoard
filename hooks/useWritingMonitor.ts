@@ -5,6 +5,7 @@ import { db } from '@/config/firebase';
 import type { WritingAssignmentSession, WritingResponse } from '@/types';
 import { logError } from '@/utils/logError';
 import { getServerNow } from '@/utils/serverTime';
+import { readWritingResponse } from '@/utils/writingMonitor';
 
 export interface WritingMonitorState {
   session: WritingAssignmentSession | null;
@@ -75,8 +76,8 @@ export function useWritingMonitor(
     const stopResponses = onSnapshot(
       collection(sessionRef, 'responses'),
       (snap) => {
-        const responses = snap.docs.map(
-          (d) => ({ ...d.data(), studentUid: d.id }) as WritingResponse
+        const responses = snap.docs.map((d) =>
+          readWritingResponse(d.data(), d.id)
         );
         const at = getServerNow();
         const moved: Record<string, number> = {};

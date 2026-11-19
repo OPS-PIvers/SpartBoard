@@ -11,6 +11,7 @@ import {
 } from './miniAppEditPrompt';
 import { parseGeminiJson } from './parseGeminiJson';
 import { adminPassesMissingDoc } from './featureMissingDoc';
+import { isExcludedFrom } from './permissionExclusion';
 import {
   buildStepTextParts,
   clampStepTextResponse,
@@ -319,6 +320,21 @@ async function resolveCallerIsAdmin(
   return getCachedAdminStatus(db, token.email.toLowerCase());
 }
 
+/** Admin status for these flags: an admin on any of their exclude lists is treated as a teacher. */
+async function resolveCallerIsAdminFor(
+  db: admin.firestore.Firestore,
+  token: { email?: string; email_verified?: boolean },
+  featureIds: readonly string[]
+): Promise<boolean> {
+  if (!(await resolveCallerIsAdmin(db, token))) return false;
+  const docs = await Promise.all(
+    featureIds.map((id) => db.collection('global_permissions').doc(id).get())
+  );
+  return !docs.some((d) =>
+    isExcludedFrom(d.exists ? d.data() : undefined, token.email)
+  );
+}
+
 // Beta-allowlist membership, gated on email_verified for the same reason as resolveCallerIsAdmin.
 function isVerifiedBetaMember(
   token: { email?: string; email_verified?: boolean },
@@ -384,6 +400,11 @@ function assertPermissionAllows(
 ): void {
   if (!perm.enabled)
     throw new HttpsError('permission-denied', messages.disabled);
+  if (isExcludedFrom(perm, token.email))
+    throw new HttpsError(
+      'permission-denied',
+      'You do not have access to this feature.'
+    );
   if (perm.accessLevel === 'admin') {
     throw new HttpsError('permission-denied', messages.adminOnly);
   }
@@ -631,6 +652,7 @@ export {
   recordAiUsage,
   refundAiUsage,
   resolveCallerIsAdmin,
+  resolveCallerIsAdminFor,
 };
 
 // Claude rejects a declared media type that doesn't match the bytes, so read it from the data URL or magic bytes.
@@ -678,17 +700,6 @@ export const generateWithAI = onCall(
     const db = admin.firestore();
     await assertAiTeacherCaller(db, callerToken);
 
-    // Check if user is an admin (cached for 5 minutes per warm instance).
-    const isAdmin = await resolveCallerIsAdmin(db, callerToken);
-
-    // W7: classify the caller as external (no org) for the daily-cap branch.
-    // Resolved BEFORE the transaction (collectionGroup read must not be inside
-    // it) and only for non-admins (admins are exempt, so the lookup is wasted
-    // for them). Cached per-domain; fail-safe toward "org" — see helper docs.
-    const isExternal = isAdmin
-      ? false
-      : await isExternalCaller(db, callerToken);
-
     // 1. Determine specific feature ID if applicable.
     //
     // Only include genTypes that are ALSO keys in the promptMap below.
@@ -702,6 +713,21 @@ export const generateWithAI = onCall(
       .toLowerCase()
       .trim();
     const specificFeatureId = specificFeatureIdFor(genType, data?.source);
+
+    // Admin (cached 5 min); an admin on either flag's exclude list runs the teacher gate.
+    const isAdmin = await resolveCallerIsAdminFor(db, callerToken, [
+      'gemini-functions',
+      ...(specificFeatureId ? [specificFeatureId] : []),
+    ]);
+
+    // W7: classify the caller as external (no org) for the daily-cap branch.
+    // Resolved BEFORE the transaction (collectionGroup read must not be inside
+    // it) and only for non-admins (admins are exempt, so the lookup is wasted
+    // for them). Cached per-domain; fail-safe toward "org" — see helper docs.
+    const isExternal = isAdmin
+      ? false
+      : await isExternalCaller(db, callerToken);
+
     const templateLayout =
       genType === 'dashboard-layout' && data?.layoutMode === 'templates';
     // Checked before usage is charged, so a bad list costs no generation.
@@ -753,6 +779,12 @@ export const generateWithAI = onCall(
 
           if (globalPerm) {
             const { accessLevel, betaUsers = [] } = globalPerm;
+            if (isExcludedFrom(globalPerm, email)) {
+              throw new HttpsError(
+                'permission-denied',
+                'You do not have access to Gemini functions.'
+              );
+            }
             if (accessLevel === 'admin') {
               throw new HttpsError(
                 'permission-denied',
@@ -809,6 +841,12 @@ export const generateWithAI = onCall(
                 accessLevel: specAccessLevel,
                 betaUsers: specBetaUsers = [],
               } = specPerm;
+              if (isExcludedFrom(specPerm, email)) {
+                throw new HttpsError(
+                  'permission-denied',
+                  `You do not have access to ${specificFeatureId}.`
+                );
+              }
               if (specAccessLevel === 'admin') {
                 throw new HttpsError(
                   'permission-denied',
@@ -1863,6 +1901,17 @@ export function validateAndBucketQuizQuestions(
  * Uses Gemini's multimodal video understanding to analyze a YouTube video
  * and generate timestamped multiple-choice questions.
  */
+const MAX_YOUTUBE_URL_LENGTH = 2048;
+const YOUTUBE_ID_RE =
+  /(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:embed\/|v\/|shorts\/|live\/|watch\?(?:[^&#\s]*&)*?v=))([A-Za-z0-9_-]{11})/;
+
+/** The 11-char YouTube id in `url`, or undefined; bounded input and no `.+` backtracking. */
+export function extractYouTubeVideoId(url: unknown): string | undefined {
+  if (typeof url !== 'string' || url.length > MAX_YOUTUBE_URL_LENGTH)
+    return undefined;
+  return YOUTUBE_ID_RE.exec(url)?.[1];
+}
+
 export const generateVideoActivity = onCall(
   {
     memory: '1GiB',
@@ -1917,10 +1966,7 @@ export const generateVideoActivity = onCall(
     const bufferedTotal = bufferedRequestCount(total);
 
     // Extract video ID from URL
-    const videoIdMatch = url.match(
-      /(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:embed\/|v\/|shorts\/|live\/|watch\?v=|watch\?.+&v=))([A-Za-z0-9_-]{11})/
-    );
-    const videoId = videoIdMatch?.[1];
+    const videoId = extractYouTubeVideoId(url);
 
     if (!videoId) {
       throw new HttpsError(
@@ -1939,7 +1985,10 @@ export const generateVideoActivity = onCall(
     const db = admin.firestore();
 
     // Check if user is an admin (unlimited)
-    const isAdmin = await resolveCallerIsAdmin(db, request.auth.token);
+    const isAdmin = await resolveCallerIsAdminFor(db, request.auth.token, [
+      'gemini-functions',
+      'video-activity-ai',
+    ]);
 
     const fromImport = data.source === 'import';
     if (!isAdmin) {
@@ -2126,7 +2175,10 @@ export const transcribeVideoWithGemini = onCall(
     }
 
     // Check admin status
-    const isAdmin = await resolveCallerIsAdmin(db, request.auth.token);
+    const isAdmin = await resolveCallerIsAdminFor(db, request.auth.token, [
+      'gemini-functions',
+      'video-activity-audio-transcription',
+    ]);
 
     if (!isAdmin) {
       if (geminiDoc.exists) {
@@ -2144,6 +2196,12 @@ export const transcribeVideoWithGemini = onCall(
           request.auth.token,
           uid,
           'You do not have access to Gemini functions.'
+        );
+      }
+      if (isExcludedFrom(perm, request.auth.token.email)) {
+        throw new HttpsError(
+          'permission-denied',
+          'You do not have access to Gemini audio transcription.'
         );
       }
       if (perm.accessLevel === 'admin') {
@@ -2274,10 +2332,7 @@ export const transcribeVideoWithGemini = onCall(
     }
     const bufferedTotal = bufferedRequestCount(total);
 
-    const videoIdMatch = url.match(
-      /(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:embed\/|v\/|shorts\/|live\/|watch\?v=|watch\?.+&v=))([A-Za-z0-9_-]{11})/
-    );
-    const videoId = videoIdMatch?.[1];
+    const videoId = extractYouTubeVideoId(url);
 
     if (!videoId) {
       throw new HttpsError(
@@ -2486,7 +2541,12 @@ export const generateGuidedLearning = onCall(
 
     // Charged only after the request is known to be well-formed.
     const token = request.auth?.token ?? {};
-    if (!(await resolveCallerIsAdmin(db, token))) {
+    if (
+      !(await resolveCallerIsAdminFor(db, token, [
+        'gemini-functions',
+        'guided-learning-ai',
+      ]))
+    ) {
       await enforceAiFeatureAccess(db, token, uid, 'guided-learning-ai', false);
     } else {
       await recordAiUsage(db, token, uid, 'guided-learning-ai');
@@ -2645,7 +2705,12 @@ export const draftGuidedLearningStepTextV1 = onCall(
     const db = admin.firestore();
     await assertAiTeacherCaller(db, request.auth.token);
     const parsedRequest = parseStepTextRequest(request.data);
-    if (!(await resolveCallerIsAdmin(db, request.auth.token))) {
+    if (
+      !(await resolveCallerIsAdminFor(db, request.auth.token, [
+        'gemini-functions',
+        'guided-learning-ai',
+      ]))
+    ) {
       await enforceAiFeatureAccess(
         db,
         request.auth.token,

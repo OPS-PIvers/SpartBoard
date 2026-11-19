@@ -9,8 +9,12 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'widget',
     widgetType: 'quiz',
     needs: ['widget-on-stage'],
-    files: [Q, `${C}QuizManager.tsx`],
+    files: [Q, `${C}QuizManager.tsx`, `${C}QuizAssignedTab.tsx`],
     inner: {
+      'library-shell.assigned-close-all':
+        'library-shell.archive-menu:quiz#row-1',
+      'library-shell.assigned-move-to-done':
+        'library-shell.archive-menu:quiz#row-1',
       'quiz-library.bulk-merge': 'quiz.select-mode',
       'quiz-library.bulk-share-plc': 'quiz.select-mode',
       'quiz-library.preview-close': 'library-shell.card-open:quiz#row-1',
@@ -375,8 +379,14 @@ export const SURFACES: TourSurfaceMap = {
     files: [
       `${C}RubricScoringPanel.tsx`,
       `${C}RubricGradingPanel.tsx`,
+      `${C}RubricGradingSettings.tsx`,
       `${C}RubricTableModal.tsx`,
     ],
+    inner: {
+      'quiz-grading.rubric-auto-advance': 'quiz-grading.rubric-settings:quiz',
+      'quiz-grading.rubric-open-next': 'quiz-grading.rubric-settings:quiz',
+      'quiz-grading.rubric-order': 'quiz-grading.rubric-settings:quiz',
+    },
   },
   'quiz.student-results-control': {
     label: 'Per-student results visibility control',

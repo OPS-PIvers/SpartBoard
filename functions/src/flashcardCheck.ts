@@ -11,6 +11,7 @@ import { matchFlashcardAnswer } from './flashcardMatch';
 import { isPeriodFrozen } from './quizSessionContent';
 import { assertViewAsAllowed } from './viewAsGuard';
 import { verifiedStaffIdentity, type StaffIdentity } from './staffAudience';
+import { isForeignPointer } from './pointerOwnership';
 
 // Local mirrors of the root types.ts shapes; functions cannot import root code.
 type FlashcardMode = 'flashcards' | 'write' | 'test' | 'speak';
@@ -343,9 +344,19 @@ async function loadOpenCheck(
   if (!sessionSnap.exists)
     throw new HttpsError('not-found', 'Assignment not found.');
   const session: Record<string, unknown> = sessionSnap.data() ?? {};
-  const pointer: Record<string, unknown> = pointerSnap.exists
+  const pointerData: Record<string, unknown> = pointerSnap.exists
     ? (pointerSnap.data() ?? {})
     : {};
+  // A pointer stamped for another session or teacher is treated as absent.
+  const ownPointer =
+    pointerSnap.exists &&
+    !isForeignPointer(pointerData, {
+      sessionId: assignmentId,
+      teacherUid:
+        typeof session.teacherUid === 'string' ? session.teacherUid : null,
+      kind: 'flashcards',
+    });
+  const pointer: Record<string, unknown> = ownPointer ? pointerData : {};
 
   // A Staff-audience session takes signed-in district staff in place of class students.
   const staffSession = session.audience === 'staff';
@@ -371,7 +382,7 @@ async function loadOpenCheck(
       );
     const classIds = sessionClassIds(session);
     sharedClassId = caller.classIds.find((c) => classIds.includes(c));
-    if (!pointerSnap.exists && sharedClassId === undefined)
+    if (!ownPointer && sharedClassId === undefined)
       throw new HttpsError(
         'permission-denied',
         'Not assigned to this student.'

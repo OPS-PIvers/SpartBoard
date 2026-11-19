@@ -27,7 +27,7 @@
 # Usage: ./firebase-deploy-with-retry.sh <project-id>
 # Required env: GOOGLE_APPLICATION_CREDENTIALS pointing at a service
 # account JSON file with deploy permissions.
-# Optional env: FIREBASE_DEPLOY_MAX_ATTEMPTS (default 6).
+# Optional env: FIREBASE_DEPLOY_MAX_ATTEMPTS (default 10, about 30 minutes of backoff).
 # Optional env: FIREBASE_DEPLOY_ONLY (default functions,firestore:indexes,storage;
 # empty skips the CLI deploy) and RELEASE_FIRESTORE_RULES (default true).
 # Every deploy naming functions first runs function-delete-check.mjs (never delete a function some
@@ -37,7 +37,7 @@
 set -uo pipefail
 
 PROJECT_ID="${1:?usage: $0 <project-id>}"
-MAX_ATTEMPTS="${FIREBASE_DEPLOY_MAX_ATTEMPTS:-6}"
+MAX_ATTEMPTS="${FIREBASE_DEPLOY_MAX_ATTEMPTS:-10}"
 MAX_BACKOFF=300
 DEPLOY_ONLY="${FIREBASE_DEPLOY_ONLY-functions,firestore:indexes,storage}"
 RELEASE_RULES="${RELEASE_FIRESTORE_RULES:-true}"
@@ -129,8 +129,8 @@ release_firestore_rules() {
     return 0
   fi
   local code wait
-  # The script retries each call for about 15s; firebaserules outages have outlasted that (prod run 40790168222).
-  for wait in 60 120 0; do
+  # firebaserules outages have lasted over 20 minutes (prod runs 44238939254, 44314799654), so wait out 30.
+  for wait in 60 120 180 240 300 300 300 300 0; do
     echo "::group::release firestore.rules"
     node scripts/releaseFirestoreRules.mjs "$PROJECT_ID" 2>&1 | tee "$RULES_LOG"
     code=${PIPESTATUS[0]}

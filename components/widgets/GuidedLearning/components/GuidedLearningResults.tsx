@@ -636,7 +636,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
             </>
           );
         }}
-        renderActions={(row) => {
+        renderActions={(row, rowIndex) => {
           const r = row.response;
           if (!r) return null;
           const final = finalFor(r, overlayNow);
@@ -672,6 +672,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
               {resultsActions && (
                 <StudentResultsControl
                   responseKey={r.studentAnonymousId}
+                  tourRow={rowIndex + 1}
                   override={r.resultsOverride}
                   completed={typeof r.completedAt === 'number'}
                   displayName={row.name}

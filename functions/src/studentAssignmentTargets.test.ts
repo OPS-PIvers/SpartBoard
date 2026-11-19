@@ -133,9 +133,24 @@ function makeDb(state: StubState) {
       return Promise.resolve();
     },
   });
+  const childDocs = (path: string) =>
+    [...state.docs.entries()].filter(
+      ([p]) =>
+        p.startsWith(`${path}/`) && !p.slice(path.length + 1).includes('/')
+    );
   const collectionRef = (path: string) => ({
     __path: path,
     doc: (id: string) => docRef(`${path}/${id}`),
+    where: (field: string, _op: '==', value: unknown) => ({
+      limit: () => ({
+        get: () =>
+          Promise.resolve({
+            docs: childDocs(path)
+              .filter(([, data]) => data[field] === value)
+              .map(([p]) => snapFor(p)),
+          }),
+      }),
+    }),
     limit: () => ({
       get: () =>
         Promise.resolve({
@@ -153,9 +168,14 @@ function makeDb(state: StubState) {
     const data = state.docs.get(path);
     return {
       exists: data !== undefined,
+      id: path.split('/').pop() ?? '',
       ref: docRef(path),
       get: (field: string) => data?.[field],
       data: () => data,
+      // Map insertion order stands in for Firestore's create time.
+      createTime: {
+        toMillis: () => [...state.docs.keys()].indexOf(path),
+      },
     };
   };
 
@@ -984,6 +1004,137 @@ describe('handleSetAssignmentTargets', () => {
 // would never reach their pointer doc.
 // ---------------------------------------------------------------------------
 
+describe('handleSetAssignmentTargets — assignment id bound to the session', () => {
+  it('refuses a foreign assignment id paired with the caller own session', async () => {
+    state.docs.set(`users/${TEACHER_UID}/quiz_assignments/victim-session`, {
+      id: 'victim-session',
+    });
+    await expect(
+      run(baseInput({ assignmentId: 'victim-session' }))
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(
+      [...state.docs.keys()].filter((k) => k.endsWith('/items/victim-session'))
+    ).toHaveLength(0);
+  });
+
+  it('accepts a mini-app assignment id stored on the session', async () => {
+    state.docs.set(`users/${TEACHER_UID}/miniapp_assignments/arch-1`, {
+      id: 'arch-1',
+    });
+    state.docs.set('mini_app_sessions/mini-s', {
+      teacherUid: TEACHER_UID,
+      assignmentId: 'arch-1',
+    });
+    const input = { kind: 'mini-app' as const, sessionId: 'mini-s' };
+    await run(baseInput({ ...input, assignmentId: 'arch-1' }));
+    expect(
+      state.docs.get(
+        `student_assignments/${computeStudentUid(SOURCED_A, HMAC)}/items/arch-1`
+      )
+    ).toMatchObject({ sessionId: 'mini-s', teacherUid: TEACHER_UID });
+    state.docs.set(`users/${TEACHER_UID}/miniapp_assignments/other`, {
+      id: 'other',
+    });
+    await expect(
+      run(baseInput({ ...input, assignmentId: 'other' }))
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+
+  const victimPointerKeys = () =>
+    [...state.docs.keys()].filter((k) => k.endsWith('/items/victim-w'));
+
+  it('refuses a quiz session id that is another teacher writing session id', async () => {
+    state.docs.set('writing_assignment_sessions/victim-w', {
+      teacherUid: OTHER_TEACHER_UID,
+    });
+    state.docs.set(`users/${TEACHER_UID}/quiz_assignments/victim-w`, {
+      id: 'victim-w',
+    });
+    state.docs.set('quiz_sessions/victim-w', { teacherUid: TEACHER_UID });
+    await expect(
+      run(
+        baseInput({
+          assignmentId: 'victim-w',
+          sessionId: 'victim-w',
+          window: { closeAt: 9_999_999_999_999 },
+        })
+      )
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(victimPointerKeys()).toHaveLength(0);
+  });
+
+  it('refuses a forged mini-app assignment id naming another teacher session', async () => {
+    state.docs.set('writing_assignment_sessions/victim-w', {
+      teacherUid: OTHER_TEACHER_UID,
+    });
+    state.docs.set(`users/${TEACHER_UID}/miniapp_assignments/victim-w`, {
+      id: 'victim-w',
+    });
+    state.docs.set('mini_app_sessions/mini-s', {
+      teacherUid: TEACHER_UID,
+      assignmentId: 'victim-w',
+    });
+    await expect(
+      run(
+        baseInput({
+          kind: 'mini-app',
+          sessionId: 'mini-s',
+          assignmentId: 'victim-w',
+        })
+      )
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(victimPointerKeys()).toHaveLength(0);
+  });
+
+  it('refuses a forged mini-app assignment id another teacher mini-app session carries', async () => {
+    state.docs.set('mini_app_sessions/victim-mini', {
+      teacherUid: OTHER_TEACHER_UID,
+      assignmentId: 'victim-w',
+    });
+    state.docs.set(`users/${TEACHER_UID}/miniapp_assignments/victim-w`, {
+      id: 'victim-w',
+    });
+    state.docs.set('mini_app_sessions/mini-s', {
+      teacherUid: TEACHER_UID,
+      assignmentId: 'victim-w',
+    });
+    await expect(
+      run(
+        baseInput({
+          kind: 'mini-app',
+          sessionId: 'mini-s',
+          assignmentId: 'victim-w',
+        })
+      )
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(victimPointerKeys()).toHaveLength(0);
+  });
+});
+
+describe('handleSetAssignmentTargets — first claimant owns a mini-app key', () => {
+  it('lets the owner target when a later foreign session copies its assignment id', async () => {
+    state.docs.set(`users/${TEACHER_UID}/miniapp_assignments/owned-w`, {
+      id: 'owned-w',
+    });
+    state.docs.set('mini_app_sessions/mini-s', {
+      teacherUid: TEACHER_UID,
+      assignmentId: 'owned-w',
+    });
+    state.docs.set('mini_app_sessions/copycat', {
+      teacherUid: OTHER_TEACHER_UID,
+      assignmentId: 'owned-w',
+    });
+    const result = await run(
+      baseInput({
+        kind: 'mini-app',
+        sessionId: 'mini-s',
+        assignmentId: 'owned-w',
+      })
+    );
+    expect(result).toMatchObject({ written: 1 });
+  });
+});
+
 describe('handleSetAssignmentTargets — pointers owned by another teacher', () => {
   const uidA = () => computeStudentUid(SOURCED_A, HMAC);
   const victimPointer = (extra: Record<string, unknown> = {}) => ({
@@ -1027,6 +1178,17 @@ describe('handleSetAssignmentTargets — pointers owned by another teacher', () 
     expect(state.docs.get(assignmentPath())).toMatchObject({
       targetStudents: [],
     });
+  });
+
+  it('treats a same-teacher pointer of another kind as foreign', async () => {
+    state.docs.set(
+      pointerPath(uidA()),
+      victimPointer({ kind: 'writing', teacherUid: TEACHER_UID })
+    );
+    const before = { ...state.docs.get(pointerPath(uidA())) };
+    const result = await run(baseInput());
+    expect(result.written).toBe(0);
+    expect(state.docs.get(pointerPath(uidA()))).toEqual(before);
   });
 
   it('does not overwrite the other teacher pointer with a skip marker', async () => {

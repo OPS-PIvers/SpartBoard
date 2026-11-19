@@ -5,6 +5,11 @@ import { ExternalLink, Link2, Loader2 } from 'lucide-react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import {
+  agendaAspect,
+  previewBoxMaxWidth,
+  previewFrameStyle,
+} from '@/utils/course/agendaFrame';
+import {
   FAMILY_PAGES_COLLECTION,
   type FamilyPage as FamilyPageData,
 } from '@/utils/course/contract';
@@ -85,16 +90,18 @@ export const FamilyPageView: React.FC<{ page: FamilyPageData }> = ({
             >
               {t('course.family.page.agenda')}
             </h2>
-            <div className="mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-              <div className="relative aspect-video w-full">
-                <iframe
-                  src={deckEmbedUrl(agenda.fileId)}
-                  title={agenda.title}
-                  className="absolute inset-0 h-full w-full"
-                  referrerPolicy="no-referrer"
-                  allowFullScreen
-                />
-              </div>
+            <div
+              className="mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-white [container-type:inline-size]"
+              style={{ maxWidth: previewBoxMaxWidth(agendaAspect(agenda)) }}
+            >
+              <iframe
+                src={deckEmbedUrl(agenda.fileId)}
+                title={agenda.title}
+                className="block w-full border-0"
+                style={previewFrameStyle(agendaAspect(agenda))}
+                referrerPolicy="no-referrer"
+                allowFullScreen
+              />
             </div>
             <a
               href={deckOpenUrl(agenda.fileId)}

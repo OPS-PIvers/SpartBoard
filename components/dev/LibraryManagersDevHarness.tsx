@@ -1,6 +1,6 @@
 // Real library managers on fixture data at /library-managers-dev (dev and auth-bypass builds only), for layout checks.
 
-import React, { useMemo, useState } from 'react';
+import React, { useContext, useMemo, useState } from 'react';
 import {
   DashboardContext,
   type DashboardContextValue,
@@ -18,15 +18,48 @@ import {
   type ReopenStudentOption,
 } from '@/components/widgets/QuizWidget/components/ReopenStudentsDialog';
 import { QuizPreview } from '@/components/widgets/QuizWidget/components/QuizPreview';
+import { AssignedResponsesFixture } from '@/components/widgets/QuizWidget/components/assignedResponsesFixture';
+import { AssignmentsHubModal } from '@/components/assignmentsHub/AssignmentsHubModal';
+import { UnifiedAssignmentsFixture } from '@/components/assignmentsHub/useUnifiedAssignments';
+import { HUB_FIXTURE } from './hubAssignedFixtures';
+import {
+  ASSIGNED_FIXTURES,
+  ASSIGNED_QUIZZES,
+  ASSIGNED_RESPONSES,
+  ASSIGNED_ROSTERS,
+  loadAssignedQuiz,
+  VA_ASSIGNED_FIXTURES,
+  VA_ASSIGNED_QUESTIONS,
+  VA_ASSIGNED_RESPONSES,
+} from './assignedTabFixtures';
+import { RunAssignedResponsesFixture } from '@/components/common/library/assigned/runAssignedFixture';
+import {
+  GL_ASSIGNED,
+  MA_ASSIGNED,
+  NOOP_RUN_LIFECYCLE,
+  RUN_ASSIGNED_RESPONSES,
+} from './runAssignedFixtures';
 import type { BankSource } from '@/utils/questionBankRecords';
 import type { QuizData } from '@/types';
 import { VideoActivityManager } from '@/components/widgets/VideoActivityWidget/components/VideoActivityManager';
+import { VaAssignedFixture } from '@/components/widgets/VideoActivityWidget/components/vaAssignedFixture';
+import { videoActivityLifecycle } from '@/components/widgets/VideoActivityWidget/videoActivityLifecycle';
 import { GuidedLearningManager } from '@/components/widgets/GuidedLearning/components/GuidedLearningManager';
 import { AssignmentClassesModal } from '@/components/common/library/AssignmentClassesModal';
 import { MiniAppManager } from '@/components/widgets/MiniApp/components/MiniAppManager';
 import { MiniAppSubmissionsMonitor } from '@/components/widgets/MiniApp/components/MiniAppSubmissionsMonitor';
 import type { PeriodAccessActions } from '@/hooks/usePeriodAccess';
 import { FlashcardLibrary } from '@/components/widgets/Flashcards/FlashcardLibrary';
+import { WritingAssignedTab } from '@/components/widgets/Writing/components/WritingAssignedTab';
+import { WritingAssignedFixture } from '@/components/widgets/Writing/components/writingAssignedFixture';
+import { LibraryShell } from '@/components/common/library';
+import {
+  FLASHCARD_ASSIGNED_FIXTURES,
+  FLASHCARD_ASSIGNED_RESPONSES,
+  WRITING_ASSIGNED_COUNTS,
+  WRITING_ASSIGNED_FIXTURES,
+  WRITING_ASSIGNED_GRADING,
+} from './assignedKindFixtures';
 import { FlashcardAssignmentSettingsModal } from '@/components/widgets/Flashcards/FlashcardAssignmentSettingsModal';
 import { WallLibraryModal } from '@/components/widgets/ActivityWall/WallLibraryModal';
 import type { LibraryTab } from '@/components/common/library/types';
@@ -321,7 +354,14 @@ const WALLS: ActivityWallLibraryEntry[] = range((i) => ({
 
 const LIBRARY_HARNESS_VIEWS = [
   'quiz',
+  'quiz-assigned',
+  'assignments-hub',
+  'flashcards-assigned',
+  'writing-assigned',
+  'mini-app-assigned',
+  'guided-learning-assigned',
   'video-activity',
+  'video-activity-assigned',
   'guided-learning',
   'mini-app',
   'flashcards',
@@ -414,9 +454,14 @@ const districtPreview = (source: BankSource): QuizData => ({
   ],
 });
 
-const QuizView: React.FC<{ variant?: 'quiz' | 'review' }> = ({ variant }) => {
+const QuizView: React.FC<{
+  variant?: 'quiz' | 'review';
+  assigned?: boolean;
+}> = ({ variant, assigned = false }) => {
   const [previewing, setPreviewing] = useState<QuizData | null>(null);
-  const [tab, setTab] = useState<QuizManagerTab>('library');
+  const [tab, setTab] = useState<QuizManagerTab>(
+    assigned ? 'active' : 'library'
+  );
   const [reopening, setReopening] = useState(false);
   const [quizzes, setQuizzes] = useState(QUIZZES);
   const [banks, setBanks] = useState(BANKS);
@@ -514,6 +559,21 @@ const QuizView: React.FC<{ variant?: 'quiz' | 'review' }> = ({ variant }) => {
         onArchiveDelete={asyncNoop}
         onImportPaperResponses={noop}
         onReprintPaperSheets={noop}
+        {...(assigned
+          ? {
+              quizzes: [...quizzes, ...ASSIGNED_QUIZZES],
+              rosters: ASSIGNED_ROSTERS,
+              assignments: ASSIGNED_FIXTURES,
+              onLoadQuizData: loadAssignedQuiz,
+              config: { ...QUIZ_CONFIG, activeAssignmentId: 'eco' },
+              classLifecycle: {
+                pauseAssignment: asyncNoop,
+                resumeAssignment: asyncNoop,
+                deactivateAssignment: asyncNoop,
+                reopenAssignment: asyncNoop,
+              },
+            }
+          : {})}
       />
       <ReopenStudentsDialog
         isOpen={reopening}
@@ -556,6 +616,46 @@ const VideoActivityView: React.FC = () => {
   );
 };
 
+const VA_LIFECYCLE = videoActivityLifecycle({
+  pauseAssignment: asyncNoop,
+  resumeAssignment: asyncNoop,
+  deactivateAssignment: asyncNoop,
+  reactivateAssignment: asyncNoop,
+});
+
+const VideoActivityAssignedView: React.FC = () => (
+  <VaAssignedFixture.Provider
+    value={{
+      responses: VA_ASSIGNED_RESPONSES,
+      questions: VA_ASSIGNED_QUESTIONS,
+    }}
+  >
+    <VideoActivityManager
+      userId="mock-user-id"
+      activities={ACTIVITIES}
+      loading={false}
+      error={null}
+      onNew={noop}
+      onImport={noop}
+      onEdit={noop}
+      onDelete={noop}
+      onAssign={() => Promise.resolve('')}
+      rosters={ASSIGNED_ROSTERS}
+      assignments={VA_ASSIGNED_FIXTURES}
+      assignmentsLoading={false}
+      onArchiveCopyUrl={noop}
+      onArchiveMonitor={noop}
+      onArchiveResults={noop}
+      onArchivePublishScores={noop}
+      onArchiveDeactivate={asyncNoop}
+      onArchivePauseResume={asyncNoop}
+      onArchiveReactivate={asyncNoop}
+      onArchiveDelete={asyncNoop}
+      classLifecycle={VA_LIFECYCLE}
+    />
+  </VaAssignedFixture.Provider>
+);
+
 const VideoActivityManagerView: React.FC<{
   onArchiveEditClasses: (a: VideoActivityAssignment) => void;
 }> = ({ onArchiveEditClasses }) => (
@@ -591,13 +691,21 @@ const GuidedLearningView: React.FC = () => {
 
 const GuidedLearningManagerView: React.FC<{
   onAssignmentEditClasses: (a: GuidedLearningAssignment) => void;
-}> = ({ onAssignmentEditClasses }) => (
+  assigned?: boolean;
+}> = ({ onAssignmentEditClasses, assigned = false }) => (
   <GuidedLearningManager
     onAssignmentEditClasses={onAssignmentEditClasses}
+    {...(assigned
+      ? {
+          classLifecycle: NOOP_RUN_LIFECYCLE,
+          rosters: ASSIGNED_ROSTERS,
+          assignedFocusCounter: 1,
+        }
+      : {})}
     userId="mock-user-id"
     sets={GL_SETS}
     buildingSets={[]}
-    assignments={GL_ASSIGNMENTS}
+    assignments={assigned ? GL_ASSIGNED : GL_ASSIGNMENTS}
     loading={false}
     buildingLoading={false}
     assignmentsLoading={false}
@@ -640,8 +748,10 @@ const MONITOR_SUBMISSIONS = [0, 3].map((i) => ({
   payload: { completed: true, levelReached: i + 2 },
 }));
 
-const MiniAppView: React.FC = () => {
-  const [tab, setTab] = useState<LibraryTab>('library');
+const MiniAppView: React.FC<{ assigned?: boolean }> = ({
+  assigned = false,
+}) => {
+  const [tab, setTab] = useState<LibraryTab>(assigned ? 'active' : 'library');
   const [monitoring, setMonitoring] = useState<MiniAppAssignment | null>(null);
   const [periods, setPeriods] = useState<Record<string, PeriodAccess>>(() =>
     Object.fromEntries(
@@ -715,7 +825,10 @@ const MiniAppView: React.FC = () => {
         onTabChange={setTab}
         personalLibrary={MINI_APPS}
         globalLibrary={[]}
-        assignments={MINI_APP_ASSIGNMENTS}
+        assignments={assigned ? MA_ASSIGNED : MINI_APP_ASSIGNMENTS}
+        {...(assigned
+          ? { classLifecycle: NOOP_RUN_LIFECYCLE, rosters: ASSIGNED_ROSTERS }
+          : {})}
         onCreate={noop}
         onEdit={noop}
         onDelete={noop}
@@ -855,8 +968,10 @@ const useFixtureFolders = (
   };
 };
 
-const FlashcardsView: React.FC = () => {
-  const [tab, setTab] = useState<LibraryTab>('library');
+const FlashcardsView: React.FC<{ assigned?: boolean }> = ({
+  assigned = false,
+}) => {
+  const [tab, setTab] = useState<LibraryTab>(assigned ? 'active' : 'library');
   const [sets, setSets] = useState(() =>
     FLASHCARD_SETS.map((set, i) => ({
       ...set,
@@ -887,8 +1002,21 @@ const FlashcardsView: React.FC = () => {
         loading={false}
         error={null}
         folders={folders}
-        assignments={FLASHCARD_ASSIGNMENTS}
+        assignments={
+          assigned ? FLASHCARD_ASSIGNED_FIXTURES : FLASHCARD_ASSIGNMENTS
+        }
         assignmentsLoading={false}
+        {...(assigned
+          ? {
+              rosters: ASSIGNED_ROSTERS,
+              pinnedAssignmentId: 'new',
+              classLifecycle: {
+                end: asyncNoop,
+                reopen: asyncNoop,
+                onWindowCleared: asyncNoop,
+              },
+            }
+          : {})}
         tab={tab}
         onTabChange={setTab}
         onNew={noop}
@@ -933,6 +1061,78 @@ const ActivityWallView: React.FC = () => (
 );
 
 const ReviewView: React.FC = () => <QuizView variant="review" />;
+const QuizAssignedView: React.FC = () => (
+  <AssignedResponsesFixture.Provider value={ASSIGNED_RESPONSES}>
+    <QuizView assigned />
+  </AssignedResponsesFixture.Provider>
+);
+
+// The sidebar Assignments hub on fixtures for every kind (ASSIGNED_TAB.md D18).
+const AssignmentsHubView: React.FC = () => {
+  const dashboard = useContext(DashboardContext);
+  const value = useMemo(
+    () =>
+      ({ ...dashboard, rosters: ASSIGNED_ROSTERS }) as DashboardContextValue,
+    [dashboard]
+  );
+  return (
+    <DashboardContext.Provider value={value}>
+      <UnifiedAssignmentsFixture.Provider value={HUB_FIXTURE}>
+        <AssignedResponsesFixture.Provider value={ASSIGNED_RESPONSES}>
+          <AssignmentsHubModal onClose={() => undefined} />
+        </AssignedResponsesFixture.Provider>
+      </UnifiedAssignmentsFixture.Provider>
+    </DashboardContext.Provider>
+  );
+};
+
+const FlashcardsAssignedView: React.FC = () => (
+  <RunAssignedResponsesFixture.Provider value={FLASHCARD_ASSIGNED_RESPONSES}>
+    <FlashcardsView assigned />
+  </RunAssignedResponsesFixture.Provider>
+);
+
+const WRITING_FIXTURE = {
+  counts: WRITING_ASSIGNED_COUNTS,
+  grading: WRITING_ASSIGNED_GRADING,
+};
+const WritingAssignedView: React.FC = () => {
+  const [tab, setTab] = useState<LibraryTab>('active');
+  return (
+    <WritingAssignedFixture.Provider value={WRITING_FIXTURE}>
+      <LibraryShell
+        widgetLabel="Writing"
+        widgetType="writing"
+        tab={tab}
+        onTabChange={setTab}
+        counts={{ library: 4 }}
+        tabLabels={{ archive: 'Completed' }}
+        visibleTabs={['library', 'active', 'archive']}
+        assignedLayout
+      >
+        <WritingAssignedTab
+          records={WRITING_ASSIGNED_FIXTURES}
+          loading={false}
+          rosters={ASSIGNED_ROSTERS}
+          onMonitor={noop}
+          onResults={noop}
+          onDelete={noop}
+        />
+      </LibraryShell>
+    </WritingAssignedFixture.Provider>
+  );
+};
+
+const MiniAppAssignedView: React.FC = () => (
+  <RunAssignedResponsesFixture.Provider value={RUN_ASSIGNED_RESPONSES}>
+    <MiniAppView assigned />
+  </RunAssignedResponsesFixture.Provider>
+);
+const GuidedLearningAssignedView: React.FC = () => (
+  <RunAssignedResponsesFixture.Provider value={RUN_ASSIGNED_RESPONSES}>
+    <GuidedLearningManagerView onAssignmentEditClasses={noop} assigned />
+  </RunAssignedResponsesFixture.Provider>
+);
 
 const VIEW_COMPONENTS: Record<HarnessView, React.FC> = {
   quiz: QuizView,
@@ -942,6 +1142,13 @@ const VIEW_COMPONENTS: Record<HarnessView, React.FC> = {
   flashcards: FlashcardsView,
   'activity-wall': ActivityWallView,
   review: ReviewView,
+  'quiz-assigned': QuizAssignedView,
+  'assignments-hub': AssignmentsHubView,
+  'video-activity-assigned': VideoActivityAssignedView,
+  'flashcards-assigned': FlashcardsAssignedView,
+  'writing-assigned': WritingAssignedView,
+  'mini-app-assigned': MiniAppAssignedView,
+  'guided-learning-assigned': GuidedLearningAssignedView,
 };
 
 const SIZE = new URLSearchParams(window.location.search);

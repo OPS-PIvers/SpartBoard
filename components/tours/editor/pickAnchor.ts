@@ -6,7 +6,11 @@ import {
   type TourAnchorDef,
   type TourAnchorId,
 } from '@/config/tourAnchors';
-import { accessibleName, roleOf } from '@/components/tours/resolveTourAnchor';
+import {
+  accessibleName,
+  roleOf,
+  rowKeyOf,
+} from '@/components/tours/resolveTourAnchor';
 import type { TourSlots } from '@/components/tours/tourSession';
 import { untaggedControlOf } from '@/components/tours/popups';
 import { fitActionToAnchor } from './stepStatus';
@@ -65,7 +69,7 @@ export function registeredAnchorAt(
     if (id === WHOLE_BOARD_ANCHOR || !isTourAnchorId(id)) continue;
     const def = defOf(id);
     const type = el.getAttribute('data-tour-widget-type');
-    const field = el.getAttribute('data-tour-field');
+    const field = rowKeyOf(el);
     const anchor = type ? `${id}:${type}${field ? `#${field}` : ''}` : id;
     const widgetId = isWidgetScoped(def)
       ? el.closest('[data-tour-widget]')?.getAttribute('data-tour-widget')

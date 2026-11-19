@@ -31,13 +31,35 @@ export interface UpdateWritingSessionInput extends PeriodAccessPatch {
     /** Added to the stored list. */
     removedStudentRefs?: StudentTargetRef[];
   };
+  /** Assigned tab: brings an ended session back, clearing the record's marks. */
+  reopen?: boolean;
+  /** Assigned tab: ends the session (D21). */
+  end?: boolean;
+  /** Ends the session when this patch closes its last class (D21). */
+  endIfAllClosed?: boolean;
+  /** Record-only Assigned tab marks (D24, D5); null clears one. */
+  marks?: { closedAt?: number | null; doneAt?: number | null };
 }
 
 /** No client writes a Writing session or its record; these edits go through the server. */
 export async function updateWritingSession(
   input: UpdateWritingSessionInput
 ): Promise<void> {
-  await httpsCallable(functions, 'updateWritingSessionV1')(input);
+  const res = await httpsCallable<
+    UpdateWritingSessionInput,
+    { updated: boolean; assignedTab?: true }
+  >(
+    functions,
+    'updateWritingSessionV1'
+  )(input);
+  // An older server drops the Assigned tab fields without saying so.
+  const assignedTabCall =
+    input.reopen != null ||
+    input.end != null ||
+    input.endIfAllClosed != null ||
+    input.marks != null;
+  if (assignedTabCall && res.data?.assignedTab !== true)
+    throw new Error('updateWritingSessionV1 predates the Assigned tab fields.');
 }
 
 export async function endWritingSession(sessionId: string): Promise<void> {

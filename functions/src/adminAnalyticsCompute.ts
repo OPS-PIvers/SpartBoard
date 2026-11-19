@@ -615,8 +615,8 @@ export async function computeAnalyticsForOrg(
     'import-ai-board',
   ];
 
-  // Read-aloud is Cloud Text-to-Speech, not AI; it shares ai_usage only for its billing counters.
-  const NON_AI_USAGE_COUNTERS = ['tts'];
+  // Read-aloud and Speak voices are Cloud Text-to-Speech, not AI; they share ai_usage only for counters.
+  const NON_AI_USAGE_COUNTERS = ['tts', 'speak-voices'];
 
   // Features that write no `{uid}_{date}` overall doc, so their per-feature count feeds the totals.
   const FEATURES_WITHOUT_OVERALL_DOC = [

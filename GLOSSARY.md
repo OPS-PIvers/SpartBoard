@@ -140,6 +140,36 @@ _Avoid_: reopen (that is Projects and quizzes), send back
 The protections a teacher can switch on for an assigned activity: blocking copy and paste, and counting time away from the tab. It never means the Writing record.
 _Avoid_: lockdown, Focus session (that is the extension limiting a student's tabs)
 
+## Assigned work
+
+**Assignment**:
+A Library item given to one or more Classes for students to do. It is one thing however many Classes get it, and it has no status of its own: it is Active until it is Done.
+_Avoid_: session (that is a student activity), instance, run
+
+**Ready**:
+A Class's state before the assignment has been opened for it. Scheduled is the same state with an opening time set.
+_Avoid_: waiting, not started (that is a student who hasn't begun)
+
+**Open**:
+A Class's students can do the assignment now, whether the teacher opened it or a schedule did.
+_Avoid_: live (that is Live view and Live tours), active, started, in progress
+
+**Paused**:
+A short freeze for one Class during a lesson; work is saved and the teacher is expected to Resume. Never the way to finish a Class.
+_Avoid_: stopped, locked
+
+**Closed**:
+A Class is finished with the assignment and its students can no longer work on it. The teacher can Reopen it.
+_Avoid_: ended, archived, completed, inactive
+
+**Reopen**:
+Letting a Closed Class, or chosen students in it, back into an assignment at once. Students who have used every attempt stay out.
+_Avoid_: reactivate, restart, return (that is giving writing back)
+
+**Done**:
+An assignment with every Class Closed, nothing waiting for a grade and its scores published. It leaves the Active list by itself.
+_Avoid_: completed (that is a student's finished attempt), archive, ended
+
 ## Getting Started
 
 **Help Center**:

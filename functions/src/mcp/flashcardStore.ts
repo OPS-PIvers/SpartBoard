@@ -122,7 +122,7 @@ export function mergeCards(
       previous?.speak && previous.term === card.term
         ? previous.speak
         : undefined;
-    // Claude never edits pictures; a kept card keeps its own.
+    // A kept card keeps its pictures; term_picture and definition_picture change them after.
     return {
       id,
       term: card.term,

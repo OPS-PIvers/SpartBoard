@@ -115,6 +115,7 @@ export function getAssignStepTitle(
       activity === 'writing')
   )
     return 'Integrity';
+  if (id === 'feedback' && activity === 'quiz') return 'Results';
   if (id === 'when' && effectiveKind(activity, ctx.kind) === 'resource') {
     return 'Available';
   }

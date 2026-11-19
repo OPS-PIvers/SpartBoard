@@ -2871,6 +2871,18 @@
   ],
   "widgetNotes": [
     {
+      "id": "quiz-assign-order-2026-11-19",
+      "widget": "quiz",
+      "date": "2026-11-19",
+      "text": "Assign steps now follow a new order. What students see is now called Results."
+    },
+    {
+      "id": "schedule-lines-now-2026-11-19",
+      "widget": "schedule",
+      "date": "2026-11-19",
+      "text": "In the lines style, the current period is a solid band. Icons now match your font color in every style."
+    },
+    {
       "id": "quiz-rubric-grading-2026-11-17",
       "widget": "quiz",
       "date": "2026-11-17",

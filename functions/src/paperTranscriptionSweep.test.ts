@@ -34,6 +34,8 @@ vi.mock('firebase-functions/v2/https', () => ({
 import {
   AWAITING_DRIVE_HOLD_MS,
   JOB_QUERY_LIMIT,
+  MAX_CROPS_PER_RUN,
+  MAX_OBJECTS_PER_OWNER_PER_RUN,
   buildExpiryWarningEmail,
   parseCropPath,
   parsePagePath,
@@ -42,6 +44,22 @@ import {
   type CropSweepDeps,
   type ListedCrop,
 } from './paperTranscriptionSweep';
+
+/** A Storage-like lister: name order, 1000 a page, honoring startOffset. */
+function pagedLister(objects: ListedCrop[]): CropSweepDeps['listCrops'] {
+  const sorted = [...objects].sort((a, b) => (a.path < b.path ? -1 : 1));
+  return (pageToken, startOffset) => {
+    const from = pageToken
+      ? Number(pageToken)
+      : sorted.findIndex((o) => !startOffset || o.path >= startOffset);
+    if (from < 0) return Promise.resolve({ crops: [] });
+    const end = from + 1000;
+    return Promise.resolve({
+      crops: sorted.slice(from, end),
+      ...(end < sorted.length ? { nextPageToken: String(end) } : {}),
+    });
+  };
+}
 
 const NOW = Date.parse('2026-09-25T15:00:00Z');
 const DAY = 24 * 60 * 60 * 1000;
@@ -265,6 +283,56 @@ describe('runPaperCropSweep', () => {
     expect(s.deleted).toEqual(['paper_written_crops/t1/scanX/1/q1.webp']);
   });
 
+  it('removes names the import never writes once they are 7 days old', async () => {
+    const junk = [
+      'paper_written_crops/t1/__x__/1/q1.webp',
+      'paper_written_crops/t1/scanX/x/q1.webp',
+      'paper_written_crops/t1/scanX/1/q1',
+    ];
+    const s = setup({}, [
+      ...junk.map((p) => old(p)),
+      old('paper_written_crops/t1/__y__/1/q1.webp', DAY),
+    ]);
+    const summary = await runPaperCropSweep(s.deps);
+    expect(s.deleted).toEqual(junk);
+    expect(summary.unimportedDeleted).toBe(3);
+  });
+
+  it("still reaches a later owner's crops when one owner floods the prefix", async () => {
+    const flood = Array.from({ length: MAX_CROPS_PER_RUN + 10 }, (_, i) =>
+      old(`paper_written_crops/a0/scanJ/1/q${i}.webp`, DAY)
+    );
+    const s = setup({}, [], {
+      listCrops: pagedLister([
+        ...flood,
+        old('paper_written_crops/t1/scanX/1/q1.webp'),
+      ]),
+    });
+    const summary = await runPaperCropSweep(s.deps);
+    expect(s.deleted).toEqual(['paper_written_crops/t1/scanX/1/q1.webp']);
+    expect(summary.listed).toBe(MAX_OBJECTS_PER_OWNER_PER_RUN + 1);
+  });
+
+  it('visits every object of an owner holding more than the cap across consecutive runs', async () => {
+    const total = MAX_OBJECTS_PER_OWNER_PER_RUN + 500;
+    const objects = [
+      ...Array.from({ length: total }, (_, i) =>
+        old(
+          `paper_written_crops/t1/scanX/1/q${String(i).padStart(5, '0')}.webp`
+        )
+      ),
+      old('paper_written_crops/t2/scanX/1/q1.webp'),
+    ];
+    const s = setup({}, [], { listCrops: pagedLister(objects) });
+    const first = await runPaperCropSweep(s.deps);
+    expect(first.listed).toBe(MAX_OBJECTS_PER_OWNER_PER_RUN + 1);
+    expect(new Set(s.deleted).size).toBe(MAX_OBJECTS_PER_OWNER_PER_RUN + 1);
+    await runPaperCropSweep(s.deps);
+    expect(new Set(s.deleted)).toEqual(new Set(objects.map((o) => o.path)));
+    const third = await runPaperCropSweep(s.deps);
+    expect(third.listed).toBe(MAX_OBJECTS_PER_OWNER_PER_RUN + 1);
+  });
+
   it('removes a crop its answer no longer points at, keeping newer-scan crops', async () => {
     const s = setup(
       {
@@ -453,6 +521,29 @@ describe('runPaperCropSweep, kept pages', () => {
       pagePath('scan2', 5),
       'paper_pages/t1/scan2/3/notes.png',
     ]);
+  });
+
+  it('removes a page whose scan id could never be a recorded scan, after 7 days', async () => {
+    const s = setup({}, [listed('paper_pages/t1/__x__/3/1.webp')]);
+    const summary = await runPaperCropSweep(s.deps);
+    expect(summary.pagesUnimportedDeleted).toBe(1);
+    expect(s.deleted).toEqual(['paper_pages/t1/__x__/3/1.webp']);
+  });
+
+  it("handles a later owner's pages when one owner floods the prefix past the run cap", async () => {
+    const flood = Array.from({ length: MAX_CROPS_PER_RUN + 10 }, (_, i) =>
+      listed(`paper_pages/a0/junk/${i + 1}/1.webp`, DAY)
+    );
+    const s = setup({}, [], 'archived');
+    s.deps.listPages = pagedLister([
+      ...flood,
+      listed(pagePath('scanX')),
+      listed(pagePath()),
+    ]);
+    const summary = await runPaperCropSweep(s.deps);
+    expect(s.deleted).toEqual([pagePath('scanX')]);
+    expect(summary.pagesArchived).toBe(1);
+    expect(summary.pagesListed).toBe(MAX_OBJECTS_PER_OWNER_PER_RUN + 2);
   });
 
   it('K12: removes a page a rescan replaced once it is 7 days old', async () => {

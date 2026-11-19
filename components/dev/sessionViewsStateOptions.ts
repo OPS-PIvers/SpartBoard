@@ -47,6 +47,8 @@ export type StateKey =
   | 'timed'
   | 'per-period'
   | 'past-due'
+  | 'assigned-tab'
+  | 'assigned-single'
   | 'multi-class'
   | 'no-answer-key'
   | 'stop'
@@ -111,6 +113,8 @@ const SESSION_STATE_LABELS: Record<string, string> = {
   timed: 'Timed (monitor)',
   'per-period': 'Per-class assessment (monitor)',
   'past-due': 'Per-class past the due (monitor)',
+  'assigned-tab': 'Assigned tab, per class (monitor)',
+  'assigned-single': 'Assigned tab, one class (monitor)',
   'multi-class': 'Several classes',
   'no-answer-key': 'Answer key unread (VA monitor)',
   stop: 'Stop checkpoint (monitor)',

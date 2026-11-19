@@ -130,6 +130,7 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
   widgetType,
   folderView,
   folderViewMode = 'list',
+  assignedLayout = false,
 }) => {
   const activeFolderView =
     tab === 'library' || tab === 'banks' ? (folderView ?? null) : null;
@@ -166,16 +167,20 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
       : []),
     {
       key: 'active',
-      label: tabLabels?.active ?? 'In Progress',
+      label: assignedLayout ? 'Assigned' : (tabLabels?.active ?? 'In Progress'),
       icon: Activity,
       count: counts?.active,
     },
-    {
-      key: 'archive',
-      label: tabLabels?.archive ?? 'Archive',
-      icon: ArchiveIcon,
-      count: counts?.archive,
-    },
+    ...(assignedLayout
+      ? []
+      : [
+          {
+            key: 'archive' as const,
+            label: tabLabels?.archive ?? 'Archive',
+            icon: ArchiveIcon,
+            count: counts?.archive,
+          },
+        ]),
   ];
   // Embedded callers (e.g. PLC dashboard tile) pass `visibleTabs` to drop
   // chrome they don't need. Empty array would be a footgun (renders no

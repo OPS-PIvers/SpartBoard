@@ -22,11 +22,15 @@ export async function driveTokenFor(
 ): Promise<string> {
   const hit = tokenCache.get(uid);
   if (hit && hit.expiresAt > now + 60_000) return hit.token;
-  const [{ refreshGoogleAccessTokenForUid }, { isNeedsConsentError }] =
-    await Promise.all([import('../googleOAuth'), import('../needsConsent')]);
+  const [
+    { DRIVE_FILE_SCOPE, refreshGoogleAccessTokenForUid },
+    { isNeedsConsentError },
+  ] = await Promise.all([import('../googleOAuth'), import('../needsConsent')]);
   try {
-    const { accessToken, expiresIn } =
-      await refreshGoogleAccessTokenForUid(uid);
+    const { accessToken, expiresIn } = await refreshGoogleAccessTokenForUid(
+      uid,
+      { scope: DRIVE_FILE_SCOPE }
+    );
     tokenCache.set(uid, {
       token: accessToken,
       expiresAt: now + expiresIn * 1000,
@@ -220,19 +224,26 @@ export async function slideImageFolder(token: string): Promise<string> {
   return findOrCreateFolder(token, 'HotspotImages', assets);
 }
 
-/** Saves a slide image in that folder, viewable by link; returns its id, and trashes it on any later failure. */
-export async function uploadSlideImage(
+/** The teacher's SpartBoard/Assets/Claude pictures folder, where pictures shared in a Claude chat land. */
+export async function claudePictureFolder(token: string): Promise<string> {
+  const root = await findOrCreateFolder(token, DRIVE_APP_FOLDER);
+  const assets = await findOrCreateFolder(token, 'Assets', root);
+  return findOrCreateFolder(token, 'Claude pictures', assets);
+}
+
+async function createImageFile(
   token: string,
   folderId: string,
   bytes: Buffer,
   mimeType: string,
-  fileName: string
+  fileName: string,
+  appProperties?: Record<string, string>
 ): Promise<string> {
   const boundary = `spartboard-${Date.now().toString(36)}`;
   const metadata = JSON.stringify({
     name: fileName,
     parents: [folderId],
-    appProperties: GL_SLIDE_APP_PROPERTIES,
+    ...(appProperties ? { appProperties } : {}),
   });
   const body = Buffer.concat([
     Buffer.from(
@@ -250,8 +261,12 @@ export async function uploadSlideImage(
       body: new Uint8Array(body),
     }
   );
-  if (!created.ok) throw new Error(`drive slide upload ${created.status}`);
-  const { id } = (await created.json()) as { id: string };
+  if (!created.ok) throw new Error(`drive image upload ${created.status}`);
+  return ((await created.json()) as { id: string }).id;
+}
+
+/** Makes a file viewable by link, trashing it if that fails. */
+async function shareByLink(token: string, id: string): Promise<void> {
   try {
     const shared = await driveFetch(
       token,
@@ -267,8 +282,94 @@ export async function uploadSlideImage(
     await trashDriveFile(token, id);
     throw err;
   }
+}
+
+/** Saves a picture privately in the teacher's Drive; returns its id. */
+export async function uploadPrivateImage(
+  token: string,
+  folderId: string,
+  bytes: Buffer,
+  mimeType: string,
+  fileName: string
+): Promise<string> {
+  return createImageFile(token, folderId, bytes, mimeType, fileName);
+}
+
+/** Saves a slide image in that folder, viewable by link; returns its id, and trashes it on any later failure. */
+export async function uploadSlideImage(
+  token: string,
+  folderId: string,
+  bytes: Buffer,
+  mimeType: string,
+  fileName: string
+): Promise<string> {
+  const id = await createImageFile(
+    token,
+    folderId,
+    bytes,
+    mimeType,
+    fileName,
+    GL_SLIDE_APP_PROPERTIES
+  );
+  await shareByLink(token, id);
   return id;
 }
+
+/** The teacher's SpartBoard/Assets/<name> folder, the same one the app uploads into. */
+export async function assetFolder(
+  token: string,
+  name: string
+): Promise<string> {
+  const root = await findOrCreateFolder(token, DRIVE_APP_FOLDER);
+  const assets = await findOrCreateFolder(token, 'Assets', root);
+  return findOrCreateFolder(token, name, assets);
+}
+
+/** Copies an uploaded picture into a folder as its own file, viewable by link. */
+export async function copyPictureShared(
+  token: string,
+  folderId: string,
+  pictureId: string,
+  fileName: string,
+  appProperties?: Record<string, string>
+): Promise<string> {
+  const copied = await driveFetch(
+    token,
+    `${DRIVE_API}/files/${encodeURIComponent(pictureId)}/copy?fields=id`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: fileName,
+        parents: [folderId],
+        ...(appProperties ? { appProperties } : {}),
+      }),
+    }
+  );
+  if (copied.status === 404)
+    throw new ToolError(
+      "That picture is missing from the teacher's Google Drive. Add it again."
+    );
+  if (!copied.ok) throw new Error(`drive picture copy ${copied.status}`);
+  const { id } = (await copied.json()) as { id: string };
+  await shareByLink(token, id);
+  return id;
+}
+
+/** Copies an uploaded picture into the slide folder as its own slide file, viewable by link. */
+export const copyPictureToSlide = (
+  token: string,
+  folderId: string,
+  pictureId: string,
+  fileName: string
+): Promise<string> =>
+  copyPictureShared(
+    token,
+    folderId,
+    pictureId,
+    fileName,
+    GL_SLIDE_APP_PROPERTIES
+  );
 
 /** Best-effort move to the teacher's Drive trash, for an upload whose save failed. */
 export async function trashDriveFile(token: string, id: string): Promise<void> {

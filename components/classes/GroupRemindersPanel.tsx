@@ -154,7 +154,7 @@ export const GroupRemindersPanel: React.FC<GroupRemindersPanelProps> = ({
           </p>
           <button
             onClick={openNew}
-            {...tourAttr('roster-groups.new-empty')}
+            {...tourAttr('roster-groups.new')}
             className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-white bg-brand-blue-primary rounded-lg hover:bg-brand-blue-dark transition-colors"
           >
             <Plus size={16} />
@@ -853,7 +853,7 @@ const StudentsStep: React.FC<{
         </span>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-1 p-4">
-        {shown.map((s) => (
+        {shown.map((s, shownIndex) => (
           <label
             key={s.id}
             className="flex items-center gap-2 py-1 text-sm text-slate-700 cursor-pointer"
@@ -865,7 +865,7 @@ const StudentsStep: React.FC<{
               {...tourFieldAttr(
                 'group-wizard.student',
                 'group-wizard',
-                `student-${students.indexOf(s) + 1}`
+                `row-${shownIndex + 1}`
               )}
               className="rounded-sm border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
             />

@@ -30,6 +30,7 @@ import { httpsCallable } from 'firebase/functions';
 import {
   auth,
   googleProvider,
+  quickSignInProvider,
   db,
   functions,
   isAuthBypass,
@@ -39,6 +40,11 @@ import {
   GOOGLE_CALENDAR_READONLY_SCOPE,
 } from '@/config/firebase';
 import { resolveAuthBypassFeatureOverride } from '@/utils/authBypassFeatureOverrides';
+import {
+  inactivityTimeoutMs,
+  readQuickSignIn,
+  writeQuickSignIn,
+} from '@/utils/quickSignIn';
 import {
   FeaturePermission,
   WidgetType,
@@ -119,7 +125,11 @@ import {
   INTERNAL_TIER_DOMAINS,
   meetsMinTier,
 } from '@/utils/userTier';
-import { isBetaUser as isBetaUserShared } from '@/utils/betaAccess';
+import {
+  isBetaUser as isBetaUserShared,
+  isExcludedUser,
+  withOwnGrants,
+} from '@/utils/betaAccess';
 import { OPERATOR_ORG_ID } from '@/config/organization';
 import { normalizePenColors } from '@/utils/penColors';
 import { AppPickersSwitch } from '@/components/common/AppPickersSwitch';
@@ -304,7 +314,6 @@ const clampSettingsDrawerWidth = (n: number): number =>
   Math.min(MAX_SETTINGS_DRAWER_WIDTH, Math.max(MIN_SETTINGS_DRAWER_WIDTH, n));
 
 const LAST_ACTIVITY_KEY = 'spart_last_activity';
-const INACTIVITY_TIMEOUT_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const ACTIVITY_UPDATE_INTERVAL_MS = 5 * 60 * 1000; // Update activity timestamp every 5 minutes
 
 /**
@@ -460,6 +469,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     email: string | null;
     features: string[];
     global: string[];
+    excludedFeatures: string[];
+    excludedGlobal: string[];
   } | null>(null);
   const [selectedBuildings, setSelectedBuildingsState] = useState<string[]>([]);
   // null = never set; grades derive from the selected buildings until then.
@@ -505,6 +516,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [quizGraderAutoAdvance, setQuizGraderAutoAdvanceState] = useState(true);
   const [rubricLevelOrder, setRubricLevelOrderState] =
     useState<RubricLevelOrder>('high-first');
+  const [rubricAutoAdvance, setRubricAutoAdvanceState] = useState(false);
+  const [rubricOpenNext, setRubricOpenNextState] = useState(true);
   const [spartyEnabled, setSpartyEnabledState] = useState(true);
   const [alignmentGuidesEnabled, setAlignmentGuidesEnabledState] =
     useState(false);
@@ -1946,9 +1959,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           email: grantEmail,
           features: list(d?.features),
           global: list(d?.global),
+          excludedFeatures: list(d?.excludedFeatures),
+          excludedGlobal: list(d?.excludedGlobal),
         });
       },
-      () => setBetaGrants({ email: grantEmail, features: [], global: [] })
+      () =>
+        setBetaGrants({
+          email: grantEmail,
+          features: [],
+          global: [],
+          excludedFeatures: [],
+          excludedGlobal: [],
+        })
     );
   }, [hasLiveUser, grantEmail]);
 
@@ -1958,9 +1980,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!grantEmail || betaGrants?.email !== grantEmail)
       return publicFeaturePermissions;
     return publicFeaturePermissions.map((p) =>
-      betaGrants.features.includes(p.widgetType)
-        ? { ...p, betaUsers: [grantEmail] }
-        : p
+      withOwnGrants(
+        p,
+        p.widgetType,
+        betaGrants.features,
+        betaGrants.excludedFeatures,
+        grantEmail
+      )
     );
   }, [
     isAdmin,
@@ -1975,9 +2001,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!grantEmail || betaGrants?.email !== grantEmail)
       return publicGlobalPermissions;
     return publicGlobalPermissions.map((p) =>
-      betaGrants.global.includes(p.featureId)
-        ? { ...p, betaUsers: [grantEmail] }
-        : p
+      withOwnGrants(
+        p,
+        p.featureId,
+        betaGrants.global,
+        betaGrants.excludedGlobal,
+        grantEmail
+      )
     );
   }, [
     isAdmin,
@@ -2292,6 +2322,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           setRubricLevelOrderState(
             data.rubricLevelOrder === 'low-first' ? 'low-first' : 'high-first'
           );
+          setRubricAutoAdvanceState(data.rubricAutoAdvance === true);
+          setRubricOpenNextState(data.rubricOpenNext !== false);
           setSpartyEnabledState(
             typeof data.spartyEnabled === 'boolean' ? data.spartyEnabled : true
           );
@@ -2736,6 +2768,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       quizGraderMode?: 'question' | 'student';
       quizGraderAutoAdvance?: boolean;
       rubricLevelOrder?: RubricLevelOrder;
+      rubricAutoAdvance?: boolean;
+      rubricOpenNext?: boolean;
       spartyEnabled?: boolean;
       alignmentGuidesEnabled?: boolean;
       spellCheckEnabled?: boolean;
@@ -2764,6 +2798,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (updates.rubricLevelOrder !== undefined) {
         setRubricLevelOrderState(updates.rubricLevelOrder);
       }
+      if (updates.rubricAutoAdvance !== undefined) {
+        setRubricAutoAdvanceState(updates.rubricAutoAdvance);
+      }
+      if (updates.rubricOpenNext !== undefined) {
+        setRubricOpenNextState(updates.rubricOpenNext);
+      }
       if (updates.spartyEnabled !== undefined) {
         setSpartyEnabledState(updates.spartyEnabled);
       }
@@ -2784,6 +2824,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         quizGraderMode?: 'question' | 'student';
         quizGraderAutoAdvance?: boolean;
         rubricLevelOrder?: RubricLevelOrder;
+        rubricAutoAdvance?: boolean;
+        rubricOpenNext?: boolean;
         spartyEnabled?: boolean;
         alignmentGuidesEnabled?: boolean;
         spellCheckEnabled?: boolean;
@@ -2828,6 +2870,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         updates.rubricLevelOrder === 'low-first'
       ) {
         sanitizedUpdates.rubricLevelOrder = updates.rubricLevelOrder;
+      }
+      if (typeof updates.rubricAutoAdvance === 'boolean') {
+        sanitizedUpdates.rubricAutoAdvance = updates.rubricAutoAdvance;
+      }
+      if (typeof updates.rubricOpenNext === 'boolean') {
+        sanitizedUpdates.rubricOpenNext = updates.rubricOpenNext;
       }
       if (typeof updates.spartyEnabled === 'boolean') {
         sanitizedUpdates.spartyEnabled = updates.spartyEnabled;
@@ -3150,19 +3198,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
-        // Check for inactivity timeout — if the user hasn't used the app in
-        // over 7 days, force a full re-login so Google OAuth tokens (Drive,
-        // Calendar, Sheets) are freshly issued. This prevents the common issue
-        // of stale tokens silently failing to load rosters and Drive data.
+        // Check for inactivity timeout — if the user hasn't used the app past
+        // the idle limit (7 days, 30 with quick sign-in), force a full re-login
+        // so Google OAuth tokens (Drive, Calendar, Sheets) are freshly issued.
+        // This prevents stale tokens silently failing to load rosters and Drive data.
         const lastActivity = localStorage.getItem(LAST_ACTIVITY_KEY);
+        const idleLimitMs = inactivityTimeoutMs(readQuickSignIn(localStorage));
         if (lastActivity) {
           const lastActivityTime = parseInt(lastActivity, 10);
           // Treat corrupted/unparseable values as stale — safer to force
           // re-login than to silently skip the inactivity check.
           const elapsed = Number.isFinite(lastActivityTime)
             ? Date.now() - lastActivityTime
-            : INACTIVITY_TIMEOUT_MS + 1;
-          if (elapsed > INACTIVITY_TIMEOUT_MS) {
+            : idleLimitMs + 1;
+          if (elapsed > idleLimitMs) {
             localStorage.removeItem(LAST_ACTIVITY_KEY);
             localStorage.removeItem(GOOGLE_ACCESS_TOKEN_KEY);
             localStorage.removeItem(GOOGLE_TOKEN_EXPIRY_KEY);
@@ -3351,6 +3400,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // If the feature is disabled, no one can access it (including admins)
       if (!permission.enabled) return false;
+      if (isExcludedUser(permission.excludedUsers, user.email)) return false;
 
       // Admins can access everything (except disabled features)
       if (isAdmin) return true;
@@ -3429,6 +3479,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       userEmail: string | null
     ): boolean => {
       if (!permission.enabled) return false;
+      if (isExcludedUser(permission.excludedUsers, userEmail)) return false;
       if (isAdmin) return true;
       switch (permission.accessLevel) {
         case 'admin':
@@ -3498,6 +3549,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     },
     [user, globalPermissions, resolvePermissionAccess, isAdmin, userTier]
   );
+
+  // Remember the quick-sign-in flag on this device; the next sign-in runs before permissions load.
+  const quickSignInAllowed =
+    !isAuthBypass &&
+    !isViewAsTab &&
+    !!user &&
+    isAdmin !== null &&
+    globalPermissionsLoaded
+      ? canAccessFeature('quick-sign-in')
+      : null;
+  useEffect(() => {
+    if (quickSignInAllowed === null) return;
+    writeQuickSignIn(localStorage, quickSignInAllowed);
+  }, [quickSignInAllowed]);
 
   usePageSpellCheck(!spellCheckEnabled);
 
@@ -3582,7 +3647,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       return;
     }
     try {
-      const result = await signInWithPopup(auth, googleProvider);
+      const provider = readQuickSignIn(localStorage)
+        ? quickSignInProvider
+        : googleProvider;
+      const result = await signInWithPopup(auth, provider);
       // Sign-in succeeded — safe to clear the sticky deactivation flag now.
       setAccessDeactivated(false);
       const credential = GoogleAuthProvider.credentialFromResult(result);
@@ -3634,6 +3702,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       localStorage.removeItem(LAST_ACTIVITY_KEY);
       localStorage.removeItem(GOOGLE_ACCESS_TOKEN_KEY);
       localStorage.removeItem(GOOGLE_TOKEN_EXPIRY_KEY);
+      // A shared Chromebook's next user starts on the legacy sign-in until their own flag loads.
+      writeQuickSignIn(localStorage, false);
       backendConsentLatchRef.current = newBackendConsentLatch(null);
       await firebaseSignOut(auth);
       setGoogleAccessToken(null);
@@ -3713,6 +3783,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       quizGraderMode,
       quizGraderAutoAdvance,
       rubricLevelOrder,
+      rubricAutoAdvance,
+      rubricOpenNext,
       spartyEnabled,
       alignmentGuidesEnabled,
       spellCheckEnabled,
@@ -3798,6 +3870,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       quizGraderMode,
       quizGraderAutoAdvance,
       rubricLevelOrder,
+      rubricAutoAdvance,
+      rubricOpenNext,
       spartyEnabled,
       alignmentGuidesEnabled,
       spellCheckEnabled,

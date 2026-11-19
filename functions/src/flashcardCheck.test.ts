@@ -201,6 +201,25 @@ describe('handleSubmitFlashcardCheck access', () => {
     );
   });
 
+  it('ignores an exclusion planted by another teacher', async () => {
+    const db = makeDb({
+      [SESSION_PATH]: session(),
+      [POINTER_PATH]: {
+        excluded: true,
+        teacherUid: 'other-teacher',
+        sessionId: 'other-session',
+      },
+    });
+    await expect(
+      handleSubmitFlashcardCheck(
+        db,
+        student,
+        { assignmentId: 'a1', answerLog: writeLog({}) },
+        NOW
+      )
+    ).resolves.toBeDefined();
+  });
+
   it('rejects submissions after the close window and grace', async () => {
     const db = makeDb({
       [SESSION_PATH]: session({ closeAt: NOW - WINDOW_GRACE_MS - 1 }),

@@ -158,7 +158,7 @@ describe('LtiDeepLinkPicker — assign stepper step bodies', () => {
       'When',
       'Attempts and order',
       'Quiz integrity',
-      'What students see',
+      'Results',
     ])
       expect(screen.getByRole('region', { name })).toBeTruthy();
     expect(screen.queryByLabelText(/due date \(optional\)/i)).toBeNull();

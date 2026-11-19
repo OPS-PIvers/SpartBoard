@@ -104,8 +104,7 @@ export interface RestoredSharedQuiz {
 /**
  * Rebuild shared content in the importer's library: each inlined bank is saved
  * as a new bank of theirs and the slots are pointed at it. Slots whose bank
- * was never inlined (links made before banks travelled) are kept so the
- * editor can flag them.
+ * was never inlined are kept unbound so the editor can flag them.
  */
 export async function restoreSharedQuizContent(
   shared: SharedQuizContent,
@@ -145,12 +144,7 @@ export async function restoreSharedQuizContent(
     bankSlots = slots.map((slot) => {
       const id = newIdByKey.get(bankSlotKey(slot));
       if (!id) {
-        // Pre-2026-09-29 links carried no banks: keep the group, never a sharer-supplied pin.
-        if (!sharedBanks) {
-          const { syncOwnerUid: _pin, ...unpinned } = slot;
-          return unpinned;
-        }
-        // Newer links inline every bank, so a missing one is crafted: drop its link.
+        // A bank that was not inlined stays unbound, so it never resolves to someone else's bank.
         const { syncGroupId: _g, syncOwnerUid: _o, ...unbound } = slot;
         return unbound;
       }

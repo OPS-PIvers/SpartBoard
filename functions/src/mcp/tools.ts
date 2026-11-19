@@ -1,4 +1,10 @@
 // MCP tool definitions for the Claude connector (plan: "Tools", PR 1).
+import {
+  PICTURE_TOOLS,
+  applyCardPictures,
+  picturesOn,
+  registerPictureTools,
+} from './pictureUploads';
 import * as admin from '../firebaseAdmin';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
@@ -169,9 +175,19 @@ const speakSummary = (speak: SpeakSaveResult) =>
       }
     : {};
 
+const pictureRef = z
+  .string()
+  .max(100)
+  .nullable()
+  .optional()
+  .describe(
+    'A picture ref from start_picture_upload; null removes the picture; omit to keep it.'
+  );
 const cardInput = z.object({
   term: z.string().min(1).max(MAX_TERM),
   definition: z.string().min(1).max(MAX_DEFINITION),
+  term_picture: pictureRef,
+  definition_picture: pictureRef,
 });
 const languageInput = z
   .string()
@@ -574,18 +590,30 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
           },
           now
         );
-        const speak = await prepareSpeakSave(db, ctx, draft, input.speak);
-        await reserveWrite(ctx);
-        const set = speak.set;
-        const batch = db.batch();
-        stageSetWrite(db, batch, uid, set);
-        logActivity(ctx, batch, {
-          action: 'create',
-          itemType: 'flashcard_set',
-          itemId: set.id,
-          title: set.title,
-        });
-        await batch.commit();
+        const discardPictures = await applyCardPictures(
+          ctx,
+          input.cards,
+          draft.cards
+        );
+        let speak: Awaited<ReturnType<typeof prepareSpeakSave>>;
+        let set: FlashcardSet;
+        try {
+          speak = await prepareSpeakSave(db, ctx, draft, input.speak);
+          await reserveWrite(ctx);
+          set = speak.set;
+          const batch = db.batch();
+          stageSetWrite(db, batch, uid, set);
+          logActivity(ctx, batch, {
+            action: 'create',
+            itemType: 'flashcard_set',
+            itemId: set.id,
+            title: set.title,
+          });
+          await batch.commit();
+        } catch (err) {
+          await discardPictures();
+          throw err;
+        }
         return {
           ...summarizeSet(set),
           where_to_find_it: 'SpartBoard > Flashcards widget > library',
@@ -649,9 +677,17 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
             ? mergeCards(existing.cards, input.cards)
             : existing.cards,
         };
-        const speak = await prepareSpeakSave(db, ctx, next, input.speak);
-        await reserveWrite(ctx);
-        return saveFlashcardEdit(ctx, existing, speak, 'update');
+        const discardPictures = input.cards
+          ? await applyCardPictures(ctx, input.cards, next.cards)
+          : () => Promise.resolve();
+        try {
+          const speak = await prepareSpeakSave(db, ctx, next, input.speak);
+          await reserveWrite(ctx);
+          return await saveFlashcardEdit(ctx, existing, speak, 'update');
+        } catch (err) {
+          await discardPictures();
+          throw err;
+        }
       })
   );
 
@@ -768,6 +804,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
   registerMeetingTools(server, ctx);
   registerStandardsTools(server, ctx);
   registerBoardTools(server, ctx);
+  registerPictureTools(server, ctx);
 }
 
 /** Listed only when Mini App results are on; get_mini_app_spec stays listed and serves the basic spec. */
@@ -777,12 +814,14 @@ const RESULTS_ONLY_TOOLS = ['get_mini_app_results_summary'] as const;
 export async function hiddenToolsFor(
   ctx: ToolContext
 ): Promise<ReadonlySet<string>> {
-  const [admin, resultsOn] = await Promise.all([
+  const [admin, resultsOn, pictures] = await Promise.all([
     isAdmin(ctx).catch(() => false),
     miniAppResultsOn(ctx).catch(() => false),
+    picturesOn(ctx).catch(() => false),
   ]);
   return new Set([
     ...(admin ? [] : [...ADMIN_ONLY_TOOLS, ...WEB_TOUR_TOOLS]),
     ...(resultsOn ? [] : RESULTS_ONLY_TOOLS),
+    ...(pictures ? [] : PICTURE_TOOLS),
   ]);
 }

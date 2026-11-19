@@ -680,3 +680,141 @@ describe('content/readAloud', () => {
     await assertFails(getDoc(doc(asStudent(), raPath)));
   });
 });
+
+describe('Close and Reopen a class (ASSIGNED_TAB D9, D24)', () => {
+  const S = 'pa-close';
+  const sessionPath = `quiz_sessions/${S}`;
+  const assignmentPath = `users/${TEACHER_UID}/quiz_assignments/${S}`;
+  const closeRow = (at: number) => ({
+    [`periodAccess.${CLASS_A}.state`]: 'closed',
+    [`periodAccess.${CLASS_A}.closedAt`]: at,
+    [`periodAccess.${CLASS_A}.pausedAt`]: at,
+  });
+  const reopenRow = {
+    [`periodAccess.${CLASS_A}.state`]: 'open',
+    [`periodAccess.${CLASS_A}.openAt`]: null,
+    [`periodAccess.${CLASS_A}.closeAt`]: null,
+    [`periodAccess.${CLASS_A}.closedAt`]: null,
+  };
+  const respRef = (uid: string) =>
+    doc(asStudent(uid), `quiz_sessions/${S}/responses/${uid}`);
+
+  beforeEach(async () => {
+    const periodAccess = {
+      [CLASS_A]: period(),
+      [CLASS_B]: period({ state: 'closed', label: 'P3' }),
+    };
+    await seedSession(S, {
+      accessMode: 'assessment',
+      attemptLimit: 1,
+      periodAccess,
+    });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), assignmentPath), {
+        id: S,
+        teacherUid: TEACHER_UID,
+        status: 'active',
+        periodAccess,
+      });
+    });
+  });
+
+  it('lets the teacher read and write closedAt on the session and the assignment', async () => {
+    const db = asTeacher();
+    const batch = writeBatch(db);
+    batch.update(doc(db, sessionPath), closeRow(Date.now()));
+    batch.update(doc(db, assignmentPath), closeRow(Date.now()));
+    await assertSucceeds(batch.commit());
+    await assertSucceeds(getDoc(doc(db, sessionPath)));
+    await assertSucceeds(getDoc(doc(db, assignmentPath)));
+    await assertSucceeds(updateDoc(doc(db, sessionPath), reopenRow));
+    await assertSucceeds(updateDoc(doc(db, assignmentPath), reopenRow));
+  });
+
+  it('never lets a student write closedAt, nor read the assignment', async () => {
+    const db = asStudent();
+    await assertSucceeds(getDoc(doc(db, sessionPath)));
+    await assertFails(updateDoc(doc(db, sessionPath), closeRow(Date.now())));
+    await assertFails(
+      updateDoc(doc(db, sessionPath), {
+        [`periodAccess.${CLASS_A}.closedAt`]: null,
+      })
+    );
+    await assertFails(getDoc(doc(db, assignmentPath)));
+    await assertFails(updateDoc(doc(db, assignmentPath), closeRow(1)));
+  });
+
+  it("never lets another teacher write closedAt on someone else's quiz", async () => {
+    const db = testEnv
+      .authenticatedContext('other-teacher', {
+        email: 'other@example.org',
+        email_verified: true,
+      })
+      .firestore();
+    await assertFails(updateDoc(doc(db, sessionPath), closeRow(Date.now())));
+    await assertFails(updateDoc(doc(db, assignmentPath), closeRow(1)));
+    await assertFails(getDoc(doc(db, assignmentPath)));
+  });
+
+  it('refuses answers once the class is closed, past the flush grace', async () => {
+    await seedResponse(S, OTHER_UID, {
+      studentUid: OTHER_UID,
+      classId: CLASS_A,
+      status: 'in-progress',
+    });
+    await assertSucceeds(
+      updateDoc(doc(asTeacher(), sessionPath), closeRow(Date.now() - 20_000))
+    );
+    await assertFails(
+      updateDoc(respRef(OTHER_UID), {
+        answers: [answer],
+        status: 'in-progress',
+      })
+    );
+  });
+
+  it('D9: after Reopen, a student at the attempt limit stays locked out while another works', async () => {
+    await seedResponse(S, STUDENT_UID, {
+      studentUid: STUDENT_UID,
+      classId: CLASS_A,
+      status: 'completed',
+      submittedAt: 5,
+      completedAttempts: 1,
+    });
+    await seedResponse(S, OTHER_UID, {
+      studentUid: OTHER_UID,
+      classId: CLASS_A,
+      status: 'in-progress',
+    });
+    const teacher = asTeacher();
+    await assertSucceeds(
+      updateDoc(doc(teacher, sessionPath), closeRow(Date.now() - 20_000))
+    );
+    await assertSucceeds(updateDoc(doc(teacher, sessionPath), reopenRow));
+    const retake = {
+      status: 'joined',
+      answers: [],
+      score: null,
+      submittedAt: null,
+    };
+    await assertFails(updateDoc(respRef(STUDENT_UID), retake));
+    await assertFails(
+      updateDoc(respRef(STUDENT_UID), {
+        answers: [answer],
+        status: 'in-progress',
+        submittedAt: null,
+      })
+    );
+    await assertSucceeds(
+      updateDoc(respRef(OTHER_UID), {
+        answers: [answer],
+        status: 'in-progress',
+      })
+    );
+    // Control: the same retake passes once the limit allows another attempt.
+    await assertSucceeds(
+      updateDoc(doc(teacher, sessionPath), { attemptLimit: 2 })
+    );
+    await assertSucceeds(updateDoc(respRef(STUDENT_UID), retake));
+  });
+});

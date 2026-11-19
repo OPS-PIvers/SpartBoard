@@ -32,6 +32,7 @@ import {
   type WritingResponseStatus,
   type WritingTurnedInBy,
 } from './writingResponseState';
+import { isForeignPointer } from './pointerOwnership';
 
 export const WRITING_SESSIONS = 'writing_assignment_sessions';
 export const WRITING_RESPONSES = 'responses';
@@ -227,7 +228,16 @@ async function loadStudentAccess(
   if (!sessionSnap.exists)
     throw new HttpsError('not-found', 'Assignment not found.');
   const session: Data = sessionSnap.data() ?? {};
-  const pointer: Data = pointerSnap.exists ? (pointerSnap.data() ?? {}) : {};
+  // A pointer stamped for another session or teacher is treated as absent.
+  const ownPointer =
+    pointerSnap.exists &&
+    !isForeignPointer(pointerSnap.data(), {
+      sessionId: sid,
+      teacherUid:
+        typeof session.teacherUid === 'string' ? session.teacherUid : null,
+      kind: 'writing',
+    });
+  const pointer: Data = ownPointer ? (pointerSnap.data() ?? {}) : {};
   if (pointer.excluded === true)
     throw new HttpsError('permission-denied', 'Not assigned to this student.');
   const shared = caller.classIds.find((c) =>
@@ -235,7 +245,7 @@ async function loadStudentAccess(
   );
   const classId =
     shared ?? (typeof pointer.classId === 'string' ? pointer.classId : '');
-  if (!pointerSnap.exists && shared === undefined)
+  if (!ownPointer && shared === undefined)
     throw new HttpsError('permission-denied', 'Not assigned to this student.');
   return { session, pointer, classId };
 }

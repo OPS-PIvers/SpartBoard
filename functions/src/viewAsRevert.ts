@@ -30,6 +30,7 @@ export const PII_WIDGET_FIELDS: readonly string[] = [
   'names',
   'roster',
   'customRoster',
+  'lastSubmittedDetails',
 ];
 
 const PROTECTED_WIDGET_KEYS = new Set(['id', 'type']);

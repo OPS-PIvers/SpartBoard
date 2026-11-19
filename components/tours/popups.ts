@@ -38,8 +38,8 @@ export interface Box {
 /** Inside an open menu or popover, which a step's spotlight lights along with its control. */
 export const isInPopup = (el: Element): boolean => el.closest(POPUP) !== null;
 
-/** Open menus and popovers on screen, which the tour's own UI keeps clear of. */
-export function openPopupBoxes(): Box[] {
+/** Open menus and popovers on screen, which the tour's own UI keeps clear of; `inside` is the step's control, and `beside` drops a menu that holds it. */
+export function openPopupBoxes(inside?: Element | null, beside = false): Box[] {
   if (typeof document === 'undefined') return [];
   const els = new Set<Element>(document.querySelectorAll(POPUP));
   document
@@ -47,12 +47,15 @@ export function openPopupBoxes(): Box[] {
     .forEach((opener) => {
       const id = opener.getAttribute('aria-controls')?.split(/\s+/)[0];
       const el = id ? document.getElementById(id) : null;
-      if (el) els.add(el);
+      // An open accordion section holding the control is where it lives, not a menu it opened.
+      if (el && !(inside && el.contains(inside))) els.add(el);
     });
   const area = window.innerWidth * window.innerHeight;
   const boxes: Box[] = [];
   els.forEach((el) => {
     if (el.closest('[data-tour-ignore], [data-tour-overlay]')) return;
+    // The spotlight lights a control inside a menu by itself, not the whole menu.
+    if (beside && inside && el.contains(inside)) return;
     const r = el.getBoundingClientRect();
     // Full-screen panels are the page, not a popover over it.
     if (r.width <= 0 || r.height <= 0 || r.width * r.height > area / 2) return;
@@ -83,6 +86,22 @@ export function withNearbyPopups(target: Box, popups: readonly Box[]): Box {
     };
   }
   return out;
+}
+
+/** The target grown to cover the label around its control, such as the name beside a checkbox. */
+export function withLabel(target: Box, el: Element): Box {
+  const label = el.closest('label');
+  if (!label) return target;
+  const r = label.getBoundingClientRect();
+  if (r.width <= 0 || r.height <= 0) return target;
+  const x = Math.min(target.x, r.x);
+  const y = Math.min(target.y, r.y);
+  return {
+    x,
+    y,
+    w: Math.max(target.x + target.w, r.x + r.width) - x,
+    h: Math.max(target.y + target.h, r.y + r.height) - y,
+  };
 }
 
 const SHIELDED = ['pointerdown', 'mousedown', 'touchstart'] as const;

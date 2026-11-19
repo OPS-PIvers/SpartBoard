@@ -33,6 +33,11 @@ vi.mock('firebase/firestore', () => ({
 
 import { ImportOffersSection } from './ImportOffersSection';
 
+const savePermissionMock = vi.fn((..._args: unknown[]) =>
+  Promise.resolve(true)
+);
+const updatePermissionMock = vi.fn();
+
 const perm = (
   featureId: GlobalFeature,
   over: Partial<GlobalFeaturePermission> = {}
@@ -48,21 +53,36 @@ const editor = {
   getPermission: (id: GlobalFeature) =>
     id === 'import-activity-wall'
       ? perm(id, { accessLevel: 'beta', betaUsers: ['a@x', 'b@x'] })
-      : id === 'import-new-board'
+      : id === 'import-new-board' || id === 'import-google-forms'
         ? perm(id, { accessLevel: 'admin' })
         : id === 'universal-import'
           ? perm(id, { config: { dailyLimit: 15 } })
           : perm(id),
+  isSaved: () => true,
+  savePermission: savePermissionMock,
+  updatePermission: updatePermissionMock,
+  showMessage: () => undefined,
 } as unknown as Parameters<typeof ImportOffersSection>[0]['editor'];
+
+const KINDS: Record<string, string> = {
+  'Web link': 'web',
+  'Google Form': 'form',
+};
 
 const open = (name: string) => {
   fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${name}`) }));
   return within(
-    screen.getByTestId(
-      `import-source-${name === 'Web link' ? 'web' : 'document'}`
-    )
+    screen.getByTestId(`import-source-${KINDS[name] ?? 'document'}`)
   );
 };
+
+const levelOf = (
+  scope: Pick<typeof screen, 'getByRole'>,
+  label: string
+): string | null | undefined =>
+  scope
+    .getByRole('radiogroup', { name: `${label} access` })
+    .querySelector('[aria-checked="true"]')?.textContent;
 
 describe('ImportOffersSection', () => {
   beforeEach(() => {
@@ -102,11 +122,49 @@ describe('ImportOffersSection', () => {
     );
   });
 
-  it('shows who a rolling-out widget is live for', () => {
+  it('shows who each rolling-out widget is live for on its row', () => {
     render(<ImportOffersSection editor={editor} />);
     const web = open('Web link');
-    expect(web.getByText('Preview: admins and 2 testers')).toBeInTheDocument();
-    expect(web.getByText('Preview: admins')).toBeInTheDocument();
+    expect(levelOf(web, 'Import: Activity Wall, Web link')).toBe('Beta');
+    expect(levelOf(web, 'Import: New board, Web link')).toBe('Admin');
+    expect(levelOf(web, 'Import: Link, Web link')).toBe('Public');
+  });
+
+  it('puts the form access on the Google Form row, and the quiz document gate on its Quiz', () => {
+    savePermissionMock.mockClear();
+    updatePermissionMock.mockClear();
+    render(<ImportOffersSection editor={editor} />);
+    const form = open('Google Form');
+    expect(levelOf(form, 'Import: Google Forms')).toBe('Admin');
+    expect(
+      form.getAllByRole('radiogroup', { name: 'Import: Google Forms access' })
+    ).toHaveLength(1);
+    expect(
+      form.getByRole('radiogroup', {
+        name: 'Build a quiz from a test document, Google Form access',
+      })
+    ).toBeInTheDocument();
+    fireEvent.click(
+      within(
+        form.getByRole('radiogroup', { name: 'Import: Google Forms access' })
+      ).getByRole('radio', { name: 'Public' })
+    );
+    expect(updatePermissionMock).toHaveBeenCalledWith('import-google-forms', {
+      accessLevel: 'public',
+    });
+    expect(savePermissionMock).toHaveBeenCalledWith('import-google-forms');
+  });
+
+  it('lists the ways in with their own access', () => {
+    render(<ImportOffersSection editor={editor} />);
+    for (const label of [
+      'Import: send from the Chrome extension',
+      'Import: drop onto a board',
+      'Import: add straight to the board',
+    ])
+      expect(
+        screen.getByRole('radiogroup', { name: `${label} access` })
+      ).toBeInTheDocument();
   });
 
   it('gives each AI widget its own switch and limit, keeping the old switch in step', async () => {

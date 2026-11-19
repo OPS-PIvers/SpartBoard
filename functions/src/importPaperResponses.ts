@@ -674,6 +674,7 @@ export async function handleImportPaperResponses(
       : false;
     const quota = await readPaperHandwritingQuota(db, {
       uid: caller.uid,
+      email: caller.email,
       isAdmin,
       nowMs: now,
     });
@@ -1284,12 +1285,17 @@ export async function handlePublishPaperResults(
   if (session.status === 'paused' && classIds.length === 0) {
     writes.set(
       db.collection('quiz_sessions').doc(assignmentId),
-      { status: 'ended', endedAt: now, autoProgressAt: null },
+      {
+        status: 'ended',
+        endedAt: now,
+        autoProgressAt: null,
+        revealedAnswers: admin.firestore.FieldValue.delete(),
+      },
       { merge: true }
     );
     writes.set(
       userRef.collection('quiz_assignments').doc(assignmentId),
-      { status: 'inactive', updatedAt: now },
+      { status: 'inactive', updatedAt: now, closedAt: now },
       { merge: true }
     );
     pending += 2;
@@ -1369,6 +1375,11 @@ export const importPaperResponsesV1 = onCall(
   },
   async (request) => {
     await assertViewAsAllowed(request);
+    // Same staff-or-admin gate as the crop and page upload rules, so excluded teachers get a clear error.
+    if (request.auth) {
+      const { assertAiTeacherCaller } = await import('./aiCallerGate');
+      await assertAiTeacherCaller(admin.firestore(), request.auth.token);
+    }
     const caller: ImportPaperCaller | null = request.auth
       ? {
           uid: request.auth.uid,

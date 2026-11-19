@@ -460,11 +460,62 @@ describe('commitProjectGroupsV1 ClassLink check', () => {
     expect(h.docStore.has(`${RUN_PATH}/groups/g1`)).toBe(false);
   };
 
-  it('mints no uid, and still saves the group, when the caller teaches no ClassLink class', async () => {
+  it('mints no uid, and still saves a local-roster group, when the caller teaches no ClassLink class', async () => {
     h.taught = null;
-    const result = await call({ runId: RUN_ID, groups: [groupEntry()] });
+    const result = await call({
+      runId: RUN_ID,
+      groups: [groupEntry({ classId: 'local:roster-1' })],
+    });
     expect(h.docStore.get(`${RUN_PATH}/groups/g1`).memberUids).toEqual([]);
     expect(result.membersResolved).toBe(0);
+  });
+
+  it('refuses a group placed in a class the caller does not teach', async () => {
+    await expect(
+      call({
+        runId: RUN_ID,
+        groups: [
+          groupEntry({ classId: 'class-other', classLinkSourcedIds: [] }),
+        ],
+      })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expectNothingWritten();
+  });
+
+  it('checks enrollment against the group class, not every taught class', async () => {
+    h.enrollment.set('class-a', new Set(['SID-1']));
+    h.enrollment.set('class-b', new Set(['SID-b-only']));
+    await call({
+      runId: RUN_ID,
+      groups: [groupEntry({ classLinkSourcedIds: ['SID-1', 'SID-b-only'] })],
+    });
+    expect(h.docStore.get(`${RUN_PATH}/groups/g1`).memberUids).toEqual([
+      expectedUid('SID-1'),
+    ]);
+    expect(h.enrollmentLookups.map((l) => l.classId)).toEqual(['class-a']);
+  });
+
+  it('keeps an existing group in its stored class without a ClassLink check', async () => {
+    h.docStore.set(`${RUN_PATH}/groups/g1`, {
+      id: 'g1',
+      classId: 'legacy-class',
+      memberUids: ['kept'],
+    });
+    h.taught = null;
+    await call({
+      runId: RUN_ID,
+      groups: [
+        groupEntry({
+          classId: 'legacy-class',
+          classLinkSourcedIds: [],
+          keepMemberUids: ['kept'],
+        }),
+      ],
+    });
+    expect(h.teacherLookups).toEqual([]);
+    expect(h.docStore.get(`${RUN_PATH}/groups/g1`).memberUids).toEqual([
+      'kept',
+    ]);
   });
 
   it('mints a uid for a student of any taught class, whatever class id the group carries', async () => {
@@ -535,7 +586,12 @@ describe('commitProjectGroupsV1 ClassLink check', () => {
     h.enrollment.set('many-149', new Set(['SID-late']));
     const result = await call({
       runId: RUN_ID,
-      groups: [groupEntry({ classLinkSourcedIds: ['SID-late'] })],
+      groups: [
+        groupEntry({
+          classId: 'local:roster-1',
+          classLinkSourcedIds: ['SID-late'],
+        }),
+      ],
     });
     expect(h.enrollmentLookups).toHaveLength(150);
     expect(h.docStore.get(`${RUN_PATH}/groups/g1`).memberUids).toEqual([
@@ -561,7 +617,10 @@ describe('commitProjectGroupsV1 ClassLink check', () => {
       h.taught = new Set(Array.from({ length: 30 }, (_, i) => `slow-${i}`));
       h.onEnrollmentLookup = () => vi.setSystemTime(Date.now() + 100_000);
       await expect(
-        call({ runId: RUN_ID, groups: [groupEntry()] })
+        call({
+          runId: RUN_ID,
+          groups: [groupEntry({ classId: 'local:roster-1' })],
+        })
       ).rejects.toThrow('Roster service unavailable.');
       expect(h.enrollmentLookups.length).toBeLessThan(30);
       expectNothingWritten();
@@ -590,11 +649,11 @@ describe('commitProjectGroupsV1 ClassLink check', () => {
     ]);
   });
 
-  it('needs no ClassLink check when a group imports no students', async () => {
+  it('needs no ClassLink check when a local-roster group imports no students', async () => {
     h.taught = null;
     await call({
       runId: RUN_ID,
-      groups: [groupEntry({ classLinkSourcedIds: [] })],
+      groups: [groupEntry({ classId: 'local:r', classLinkSourcedIds: [] })],
     });
     expect(h.teacherLookups).toEqual([]);
     expect(h.docStore.get(`${RUN_PATH}/groups/g1`).memberUids).toEqual([]);
@@ -645,14 +704,12 @@ describe('commitProjectGroupsV1 test-class members', () => {
     ]);
   });
 
-  it('places no test students for a caller who does not administer test classes', async () => {
+  it('refuses a test-class group from a caller who does not administer test classes', async () => {
     h.docStore.delete('organizations/org-1/members/paul@school.org');
-    const result = await call(
-      { runId: RUN_ID, groups: [testGroup()] },
-      ADMIN_AUTH
-    );
-    expect(h.docStore.get(`${RUN_PATH}/groups/g1`).memberUids).toEqual([]);
-    expect(result.membersResolved).toBe(0);
+    await expect(
+      call({ runId: RUN_ID, groups: [testGroup()] }, ADMIN_AUTH)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(h.docStore.has(`${RUN_PATH}/groups/g1`)).toBe(false);
   });
 
   it('counts test emails toward the member ceiling', async () => {
@@ -730,6 +787,8 @@ describe('commitProjectGroupsV1 edits and deletes', () => {
     seedGroup('g2', ['u2']);
     h.docStore.set(`${RUN_PATH}/groups/g1/uploads/up1`, { id: 'up1' });
     h.docStore.set(`${RUN_PATH}/grades/g1`, { groupId: 'g1' });
+    h.docStore.set(`${RUN_PATH}/grades/g1/overrides/u1`, { points: 3 });
+    h.docStore.set(`${RUN_PATH}/grades/g2/overrides/u2`, { points: 4 });
 
     const result = await call({
       runId: RUN_ID,
@@ -738,11 +797,16 @@ describe('commitProjectGroupsV1 edits and deletes', () => {
     });
 
     expect(result.groupsDeleted).toBe(1);
-    expect(h.recursiveDeletes).toEqual([`${RUN_PATH}/groups/g1`]);
+    expect(h.recursiveDeletes).toEqual([
+      `${RUN_PATH}/groups/g1`,
+      `${RUN_PATH}/grades/g1`,
+    ]);
     expect(h.docStore.has(`${RUN_PATH}/groups/g1`)).toBe(false);
     expect(h.docStore.has(`${RUN_PATH}/groups/g1/uploads/up1`)).toBe(false);
     expect(h.docStore.has(`${RUN_PATH}/grades/g1`)).toBe(false);
+    expect(h.docStore.has(`${RUN_PATH}/grades/g1/overrides/u1`)).toBe(false);
     expect(h.docStore.has(`${RUN_PATH}/groups/g2`)).toBe(true);
+    expect(h.docStore.has(`${RUN_PATH}/grades/g2/overrides/u2`)).toBe(true);
   });
 
   it('drops a class from the run with its last group', async () => {

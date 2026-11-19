@@ -135,8 +135,8 @@ describe('/subs portal: only staff publish substitute shares', () => {
     });
   }
 
-  it('a non-staff session can still make an ordinary board share', async () => {
-    await assertSucceeds(
+  it('a non-staff session cannot host an ordinary board share either', async () => {
+    await assertFails(
       setDoc(doc(asStudentGoogle(), 'shared_boards/plain'), {
         originalAuthor: STUDENT_UID,
         widgets: [],

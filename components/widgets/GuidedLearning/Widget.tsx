@@ -62,6 +62,8 @@ import { openHelpCenterTourId } from './utils/helpCenterSets';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { useGuidedLearningSessionTeacher } from '@/hooks/useGuidedLearningSession';
 import { useGuidedLearningAssignments } from '@/hooks/useGuidedLearningAssignments';
+import { useSetAssignmentTargets } from '@/hooks/useSetAssignmentTargets';
+import { guidedLearningLifecycle } from './utils/glClassLifecycle';
 import { useFolders } from '@/hooks/useFolders';
 import { useBusyIdSet } from '@/hooks/useBusyIdSet';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
@@ -344,7 +346,21 @@ const TeacherGuidedLearningWidget: React.FC<{
     publishAssignmentScores,
     unpublishAssignmentScores,
     setAssignmentClasses,
-  } = useGuidedLearningAssignments(user?.uid);
+  } = useGuidedLearningAssignments(user?.uid, canAccessFeature('assigned-tab'));
+  const { setAssignmentTargets: setTargets } = useSetAssignmentTargets();
+  const uid = user?.uid;
+  // ASSIGNED_TAB.md D21: the whole-run writes the Assigned tab's class actions drive.
+  const classLifecycle = useMemo(
+    () =>
+      uid
+        ? guidedLearningLifecycle(uid, {
+            archiveAssignment,
+            setAssignmentTargets: setTargets,
+          })
+        : null,
+    [uid, archiveAssignment, setTargets]
+  );
+  const [assignedFocus, setAssignedFocus] = useState(0);
 
   // Local component state
   const [loadingSet, setLoadingSet] = useState(false);
@@ -971,6 +987,8 @@ const TeacherGuidedLearningWidget: React.FC<{
               answerKeys: answerKeysForSteps(data.steps),
               stepTargets: stepTargetsForSteps(data.steps),
             });
+            // D17: the teacher lands on Assigned with the new row on top.
+            setAssignedFocus((n) => n + 1);
           } catch (err) {
             console.warn('[GuidedLearning] Failed to record assignment:', err);
           }
@@ -1647,6 +1665,9 @@ const TeacherGuidedLearningWidget: React.FC<{
                   assignmentsLoading={assignmentsLoading}
                   hasOlderAssignments={hasOlderAssignments}
                   onShowOlderAssignments={showOlderAssignments}
+                  classLifecycle={classLifecycle}
+                  rosters={rosters}
+                  assignedFocusCounter={assignedFocus}
                   isDriveConnected={isDriveConnected}
                   isAdmin={isAdmin ?? false}
                   onPlay={(setId, driveFileId, buildingEntry) => {

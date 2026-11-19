@@ -227,6 +227,27 @@ describe('synced_question_banks/{groupId}', () => {
     await assertFails(deleteDoc(doc(as(MEMBER_UID), syncedPath)));
     await assertSucceeds(deleteDoc(doc(as(OWNER_UID), syncedPath)));
   });
+
+  it('a deleted bank id stays reserved for its first owner (security #18)', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `synced_bank_owners/${GROUP_ID}`), {
+        ownerUid: OWNER_UID,
+        at: 1,
+      });
+    });
+    const forged = syncedDoc({ ownerUid: MEMBER_UID });
+    await assertFails(setDoc(doc(as(MEMBER_UID), syncedPath), forged));
+    await assertSucceeds(
+      setDoc(
+        doc(as(MEMBER_UID), 'synced_question_banks/fresh'),
+        syncedDoc({ id: 'fresh', ownerUid: MEMBER_UID })
+      )
+    );
+    await assertSucceeds(setDoc(doc(as(OWNER_UID), syncedPath), syncedDoc()));
+    await assertFails(
+      getDoc(doc(as(OWNER_UID), `synced_bank_owners/${GROUP_ID}`))
+    );
+  });
 });
 
 describe('plcs/{plcId}/question_banks/{entryId}', () => {

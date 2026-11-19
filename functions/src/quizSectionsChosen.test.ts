@@ -228,3 +228,62 @@ describe('teacher picks (countedChoices)', () => {
     expect(run({ sec: ['q2'] }).teamAveragePercent).toBe(100);
   });
 });
+
+describe('prototype-named section ids', () => {
+  const sections = [
+    { id: 'constructor', chooseCount: 1, questionIds: ['q1', 'q2'] },
+    { id: 'toString', chooseCount: 1, questionIds: ['q3', 'q4'] },
+    { id: '__proto__', chooseCount: 1, questionIds: ['q5', 'q6'] },
+  ];
+  const answers = ['q1', 'q2', 'q3', 'q4', 'q5', 'q6'].map((questionId) => ({
+    questionId,
+    answer: 'x',
+  }));
+
+  it('never throws on ids that name Object.prototype members', () => {
+    expect([...notChosenIds(sections, answers, undefined, {})]).toEqual([
+      'q2',
+      'q4',
+      'q6',
+    ]);
+  });
+
+  it('reads a __proto__ pick parsed from a response as an own key', () => {
+    const picked = parseCountedChoices({
+      status: 'completed',
+      completedAttempts: 0,
+      countedChoices: {
+        attempt: 0,
+        bySection: JSON.parse(
+          '{"__proto__":["q6"],"constructor":["q2"]}'
+        ) as unknown,
+      },
+    });
+    expect([...notChosenIds(sections, answers, undefined, picked)]).toEqual([
+      'q1',
+      'q4',
+      'q5',
+    ]);
+  });
+
+  it('ignores a pick that is not an array of strings', () => {
+    const picked = { constructor: [7], toString: 'q4' } as unknown as Record<
+      string,
+      string[]
+    >;
+    expect([...notChosenIds(sections, answers, undefined, picked)]).toEqual([
+      'q2',
+      'q4',
+      'q6',
+    ]);
+  });
+
+  it('keeps the old strip result and stays fast on 400,000 unclosed <', () => {
+    const start = Date.now();
+    const ids = notChosenIds(pickOne, [
+      { questionId: 'q2', answer: '<'.repeat(400_000) },
+    ]);
+    expect(Date.now() - start).toBeLessThan(1000);
+    expect([...ids]).toEqual(['q3']);
+  });
+});

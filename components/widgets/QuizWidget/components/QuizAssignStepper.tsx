@@ -11,6 +11,7 @@ import {
   getAssignSteps,
   getAssignStepTitle,
   type AssignStepDef,
+  type AssignStepId,
 } from '@/components/common/library/assignStepper/assignSteps';
 import { ClassChecklist } from '@/components/common/library/assignStepper/ClassChecklist';
 import { StudentPickMenu } from '@/components/common/library/assignStepper/StudentPickMenu';
@@ -33,6 +34,7 @@ import { useQuizRuleGates } from '@/components/common/library/assignStepper/Quiz
 import { quizRuleStepDefs } from '@/components/common/library/assignStepper/quizRuleStepDefs';
 import { SharingStep } from '@/components/common/library/assignStepper/SharingStep';
 import { WrittenAnswersStep } from '@/components/common/library/assignStepper/WrittenAnswersStep';
+import { HandRaiseRow } from '@/components/common/library/assignStepper/QuizFeedbackStep';
 import { formatWrittenAnswersValue } from '@/components/common/library/assignStepper/WrittenAnswersStep.format';
 import { Printer } from 'lucide-react';
 import { AuthContext } from '@/context/AuthContextValue';
@@ -193,11 +195,9 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
     ? clampQuizTimeLimitMinutes(behavior.sessionOptions.timeLimitMinutes)
     : null;
   const timeLimitLabel =
-    sessionMinutes != null
-      ? `${sessionMinutes} min`
-      : modifications?.hasQuestionTimeLimits
-        ? 'Standard'
-        : undefined;
+    sessionMinutes != null || modifications?.hasQuestionTimeLimits
+      ? 'Same as class'
+      : undefined;
   // Without a time limit the time rule does nothing, so the summary leaves it out; the override stays for when one is set.
   const withTime = (list: ModificationGroup[]) =>
     timeLimitLabel
@@ -292,20 +292,6 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
       ),
     },
   };
-  if (sharing) {
-    bodies.sharing = {
-      value: needsPlc
-        ? PICK_A_PLC
-        : formatSharingValue(sharing.value, { plcs }),
-      body: (
-        <SharingStep
-          value={sharing.value}
-          onChange={sharing.onChange}
-          plcs={plcs}
-        />
-      ),
-    };
-  }
   const ruleSteps = new Map(
     quizRuleStepDefs({
       value: behavior,
@@ -313,15 +299,66 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
       gates,
       hasManualGrading,
       handRaiseMode,
+      hideHandRaise: true,
     }).map((step) => [step.id, step])
   );
 
-  const stepIds = getAssignSteps('quiz', ctx);
+  // The last step holds written answers, raise a hand and PLC sharing.
+  const handRaiseShown = handRaiseMode === 'teacher-choice';
+  const extrasShown = !!written || handRaiseShown;
+  const lastTitle =
+    extrasShown && inPlc
+      ? 'Additional settings and sharing'
+      : extrasShown
+        ? 'Additional settings'
+        : getAssignStepTitle('sharing', 'quiz', ctx);
+  const handRaiseOn = behavior.sessionOptions.handRaiseEnabled === true;
+  const onPaperWritten = written?.value.where === 'paper';
+  const lastParts = [
+    onPaperWritten
+      ? formatWrittenAnswersValue(written.value, written.count)
+      : null,
+    handRaiseShown && handRaiseOn ? 'Raise hand on' : null,
+    sharing && inPlc
+      ? needsPlc
+        ? PICK_A_PLC
+        : formatSharingValue(sharing.value, { plcs })
+      : null,
+  ].filter((part): part is string => !!part);
+  // Only what differs from the defaults is named, so the summary stays short.
+  const lastValue =
+    lastParts.join(', ') ||
+    (written ? 'Written answers on the device' : 'Raise hand off');
+  if (extrasShown || inPlc) {
+    bodies.sharing = {
+      value: lastValue,
+      body: (
+        <div className="space-y-1.5">
+          {written && <WrittenAnswersStep {...written} />}
+          {handRaiseShown && (
+            <HandRaiseRow value={behavior} onChange={onBehaviorChange} />
+          )}
+          {sharing && inPlc && (
+            <SharingStep
+              value={sharing.value}
+              onChange={sharing.onChange}
+              plcs={plcs}
+            />
+          )}
+        </div>
+      ),
+    };
+  }
+
+  const stepIds: AssignStepId[] = getAssignSteps('quiz', ctx).filter(
+    (id) => id !== 'sharing'
+  );
+  if (bodies.sharing) stepIds.push('sharing');
   // The step stays listed before a class is picked so later steps keep their numbers.
   const modsListed = groupsOn && !!modifications && !staff;
   const modsShown = modsListed && picked.length > 0;
   if (modsListed) {
-    stepIds.splice(stepIds.indexOf('classes') + 1, 0, 'modifications');
+    stepIds.splice(stepIds.indexOf('feedback'), 0, 'modifications');
   }
   if (modsListed && !modsShown) {
     bodies.modifications = {
@@ -364,13 +401,6 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
       ),
     };
   }
-  if (written) {
-    stepIds.splice(stepIds.indexOf('when') + 1, 0, 'written');
-    bodies.written = {
-      value: formatWrittenAnswersValue(written.value, written.count),
-      body: <WrittenAnswersStep {...written} />,
-    };
-  }
   const printedGroups =
     printedVersionsAvailable && modsShown
       ? printedGroupPicks(groups, groupRows)
@@ -379,7 +409,7 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   const steps: AssignStepDef[] = stepIds.map((id) => {
     const step = ruleSteps.get(id) ?? {
       id,
-      title: getAssignStepTitle(id, 'quiz', ctx),
+      title: id === 'sharing' ? lastTitle : getAssignStepTitle(id, 'quiz', ctx),
       ...bodies[id],
     };
     return id === 'classes' && audience

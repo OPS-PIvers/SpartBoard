@@ -280,6 +280,7 @@ export { recomputePlcAssessments } from './recomputePlcAssessments';
 
 // Poll join codes resolve through server-written poll_codes pointers.
 export { pollCodePointer } from './pollCodePointer';
+export { syncedBankOwnerRegistry } from './syncedBankOwners';
 export {
   resolvePollCodeV1,
   mintPollCodeV1,
@@ -329,6 +330,7 @@ export {
 // /plcIndex/{plcId} in sync) so the org "PLCs in my building" directory never
 // exposes teacher emails/displayNames. Decision 1.1 hardening. ──────────────
 export { mirrorPlcIndex } from './mirrorPlcIndex';
+export { cascadePlcDeleteV1 } from './plcDeleteCascade';
 
 // My Groups: admin-made building groups and their auto-roster (docs/plans/shipped/MY_GROUPS.md).
 export {
@@ -425,6 +427,10 @@ export { expireActivityWallShares } from './expireActivityWallShares';
 export { saveSharedActivityWallV1 } from './sharedActivityWallEdit';
 export { finalizeIdleQuizAttempts } from './finalizeIdleQuizAttempts';
 export { finalizeExpiredQuizAttempts } from './finalizeExpiredQuizAttempts';
+export {
+  queueVideoClassTurnIns,
+  sweepVideoClassTurnIns,
+} from './videoClassTurnIn';
 export {
   exchangeGoogleAuthCode,
   refreshGoogleAccessToken,

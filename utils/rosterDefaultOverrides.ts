@@ -6,6 +6,9 @@
 
 import type { StudentOverride } from '@/types';
 
+/** Three-state switches where `false` means "Allow" rather than cleared. */
+const TRI_STATE_KEYS = new Set<string>(['blockCopyPaste']);
+
 /**
  * True when an override carries no active accommodation. The editor patches
  * fields to `undefined` when cleared, so a "cleared" override is an object of
@@ -15,9 +18,10 @@ export const isEmptyStudentOverride = (
   override: StudentOverride | undefined
 ): boolean => {
   if (!override) return true;
-  const values: unknown[] = Object.values(override);
-  return values.every((value) => {
-    if (value === undefined || value === null || value === false) return true;
+  const entries: Array<[string, unknown]> = Object.entries(override);
+  return entries.every(([key, value]) => {
+    if (value === undefined || value === null) return true;
+    if (value === false) return !TRI_STATE_KEYS.has(key);
     if (Array.isArray(value)) return value.length === 0;
     if (typeof value === 'object') return Object.keys(value).length === 0;
     return false;
@@ -33,7 +37,8 @@ const compactStudentOverride = (override: StudentOverride): StudentOverride => {
   const entries: Array<[string, unknown]> = Object.entries(override);
   for (const [key, value] of entries) {
     if (WINDOW_SHIFT_KEYS.has(key)) continue;
-    if (value === undefined || value === false) continue;
+    if (value === undefined) continue;
+    if (value === false && !TRI_STATE_KEYS.has(key)) continue;
     if (Array.isArray(value) && value.length === 0) continue;
     if (
       value !== null &&

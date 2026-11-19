@@ -21,7 +21,9 @@ export const CALLER_WINDOW_MS = 60 * MINUTE_MS;
 export const GLOBAL_WINDOW_MS = 10 * MINUTE_MS;
 const JOIN_TTL_MS = 7 * 24 * 60 * MINUTE_MS;
 export const POLL_CODE_CALLER_MAX_MISSES = 10;
-export const POLL_CODE_GLOBAL_MAX_MISSES = 100;
+export const POLL_CODE_GLOBAL_MAX_MISSES = 300;
+// At the global cap a caller's first codes still go through, so a flood can't lock out every student.
+export const POLL_CODE_GLOBAL_FREE_CODES = 2;
 // Mirrors utils/pollCode.ts.
 const ALPHABET = 'ACDEFGHJKMNPQRTUVWXY34679';
 const CODE_LENGTH = 5;
@@ -43,40 +45,117 @@ export const pollJoinId = (sessionId: string, uid: string): string =>
 
 const expireAt = (ms: number) => admin.firestore.Timestamp.fromMillis(ms);
 
-/** Records one new missed code on the caller's and the global counters. */
-export type RecordMiss = (
-  caller: DocRef,
-  global: DocRef,
-  code: string,
-  now: number
-) => Promise<void>;
+/** Counts one new missed code on the shared counter. */
+export type RecordMiss = (global: DocRef, now: number) => Promise<void>;
 
-const recordMissWithIncrements: RecordMiss = async (
-  caller,
-  global,
-  code,
-  now
-) => {
-  const fv = admin.firestore.FieldValue;
-  await Promise.all([
-    caller.set(
-      {
-        codes: fv.arrayUnion(code),
-        expireAt: expireAt(now + 2 * CALLER_WINDOW_MS),
-      },
-      { merge: true }
-    ),
-    global.set(
-      {
-        misses: fv.increment(1),
-        expireAt: expireAt(now + 2 * GLOBAL_WINDOW_MS),
-      },
-      { merge: true }
-    ),
-  ]);
+const recordMissWithIncrement: RecordMiss = async (global, now) => {
+  await global.set(
+    {
+      misses: admin.firestore.FieldValue.increment(1),
+      expireAt: expireAt(now + 2 * GLOBAL_WINDOW_MS),
+    },
+    { merge: true }
+  );
 };
 
 let warnedGlobalBucket = -1;
+
+const tooMany = () =>
+  new HttpsError('resource-exhausted', 'Too many poll code lookups.');
+
+interface LookupSlot {
+  callerRef: DocRef;
+  globalRef: DocRef;
+  /** False for a code this caller already spent a slot on in this window. */
+  fresh: boolean;
+}
+
+const codesOf = (data: Record<string, unknown> | undefined): string[] =>
+  Array.isArray(data?.codes)
+    ? (data.codes as unknown[]).filter(
+        (c): c is string => typeof c === 'string'
+      )
+    : [];
+
+/** Takes the caller's slot for `code` before anything about the code is revealed; throws resource-exhausted at either cap. */
+export async function takeLookupSlot(
+  db: Firestore,
+  uid: string,
+  code: string,
+  now: number
+): Promise<LookupSlot> {
+  const callerRef = db
+    .collection(LIMITS)
+    .doc(`uid__${uid}__${Math.floor(now / CALLER_WINDOW_MS)}`);
+  const globalRef = db
+    .collection(LIMITS)
+    .doc(`global__${Math.floor(now / GLOBAL_WINDOW_MS)}`);
+  const globalMisses: unknown = (await globalRef.get()).data()?.misses;
+  const fresh = await db.runTransaction(async (tx) => {
+    const codes = codesOf((await tx.get(callerRef)).data());
+    if (codes.includes(code)) return false;
+    if (codes.length >= POLL_CODE_CALLER_MAX_MISSES) throw tooMany();
+    if (
+      codes.length >= POLL_CODE_GLOBAL_FREE_CODES &&
+      typeof globalMisses === 'number' &&
+      globalMisses >= POLL_CODE_GLOBAL_MAX_MISSES
+    ) {
+      const bucket = Math.floor(now / GLOBAL_WINDOW_MS);
+      if (warnedGlobalBucket !== bucket) {
+        warnedGlobalBucket = bucket;
+        logger.warn('[pollCode] global miss cap reached; refusing new codes', {
+          misses: globalMisses,
+        });
+      }
+      throw tooMany();
+    }
+    tx.set(
+      callerRef,
+      {
+        codes: [...codes, code],
+        expireAt: expireAt(now + 2 * CALLER_WINDOW_MS),
+      },
+      { merge: true }
+    );
+    return true;
+  });
+  return { callerRef, globalRef, fresh };
+}
+
+/** A hit gives the slot back, even after earlier misses on that code, so only misses use up the caller's budget. */
+async function refundSlot(
+  db: Firestore,
+  slot: LookupSlot,
+  code: string
+): Promise<void> {
+  try {
+    await db.runTransaction(async (tx) => {
+      const codes = codesOf((await tx.get(slot.callerRef)).data());
+      if (!codes.includes(code)) return;
+      tx.set(
+        slot.callerRef,
+        { codes: codes.filter((c) => c !== code) },
+        { merge: true }
+      );
+    });
+  } catch (err) {
+    logger.warn('[pollCode] slot refund failed', err);
+  }
+}
+
+/** Counts a new miss on the shared counter. */
+async function countMiss(
+  slot: LookupSlot,
+  now: number,
+  recordMiss: RecordMiss
+): Promise<void> {
+  if (!slot.fresh) return;
+  try {
+    await recordMiss(slot.globalRef, now);
+  } catch (err) {
+    logger.warn('[pollCode] miss counter write failed', err);
+  }
+}
 
 /** The session a code opened and the caller's voter id in it, which keys their votes instead of their uid. */
 export interface PollJoin {
@@ -129,52 +208,21 @@ export async function resolvePollCode(
   uid: string,
   code: string,
   now: number = Date.now(),
-  recordMiss: RecordMiss = recordMissWithIncrements
+  recordMiss: RecordMiss = recordMissWithIncrement
 ): Promise<PollJoin | null> {
   if (!code) return null;
-  const globalBucket = Math.floor(now / GLOBAL_WINDOW_MS);
-  const callerRef = db
-    .collection(LIMITS)
-    .doc(`uid__${uid}__${Math.floor(now / CALLER_WINDOW_MS)}`);
-  const globalRef = db.collection(LIMITS).doc(`global__${globalBucket}`);
-  const [callerSnap, globalSnap] = await Promise.all([
-    callerRef.get(),
-    globalRef.get(),
-  ]);
-  const rawCodes: unknown = callerSnap.data()?.codes;
-  const codes = Array.isArray(rawCodes)
-    ? rawCodes.filter((c): c is string => typeof c === 'string')
-    : [];
-  const repeat = codes.includes(code);
-  if (!repeat && codes.length >= POLL_CODE_CALLER_MAX_MISSES) {
-    throw new HttpsError('resource-exhausted', 'Too many poll code lookups.');
-  }
-  const globalMisses: unknown = globalSnap.data()?.misses;
-  // The shared count only warns for now; it never stops a lookup.
-  if (
-    typeof globalMisses === 'number' &&
-    globalMisses >= POLL_CODE_GLOBAL_MAX_MISSES &&
-    warnedGlobalBucket !== globalBucket
-  ) {
-    warnedGlobalBucket = globalBucket;
-    logger.warn('[resolvePollCodeV1] global miss count over threshold', {
-      misses: globalMisses,
-    });
-  }
+  const slot = await takeLookupSlot(db, uid, code, now);
   const pointer = await db.collection('poll_codes').doc(code).get();
   const sessionId: unknown = pointer.data()?.sessionId;
-  if (typeof sessionId !== 'string' || !sessionId) {
-    if (!repeat) {
-      try {
-        await recordMiss(callerRef, globalRef, code, now);
-      } catch (err) {
-        logger.warn('[resolvePollCodeV1] miss counter write failed', err);
-      }
-    }
+  const session =
+    typeof sessionId === 'string' && sessionId
+      ? await db.collection('poll_sessions').doc(sessionId).get()
+      : null;
+  if (typeof sessionId !== 'string' || !session?.exists) {
+    await countMiss(slot, now, recordMiss);
     return null;
   }
-  const session = await db.collection('poll_sessions').doc(sessionId).get();
-  if (!session.exists) return null;
+  await refundSlot(db, slot, code);
   // The join is what lets this device read the session and vote, so a failed write fails the call.
   try {
     return { sessionId, voterId: await recordJoin(db, sessionId, uid, now) };
@@ -187,6 +235,7 @@ export async function resolvePollCode(
 export const POLL_CODE_MINT_MAX_PER_HOUR = 30;
 // A reservation whose session never appeared frees up after this long.
 export const RESERVATION_TTL_MS = 15 * MINUTE_MS;
+export const PARKED_CODE_TTL_MS = 90 * 24 * 60 * MINUTE_MS;
 
 /** Reserve a random free code for `teacherUid`, pointing it at their session id as pollCodePointer would. */
 export async function mintPollCode(
@@ -223,10 +272,15 @@ export async function mintPollCode(
         const data = pointer.data() ?? {};
         const sid: unknown = data.sessionId;
         const at: unknown = data.reservedAt ?? data.updatedAt;
-        const stale = typeof at === 'number' && now - at > RESERVATION_TTL_MS;
-        if (!stale || typeof sid !== 'string' || !sid) return false;
-        if ((await tx.get(db.collection('poll_sessions').doc(sid))).exists) {
-          return false;
+        const age = typeof at === 'number' ? now - at : 0;
+        if (typeof sid !== 'string' || !sid) {
+          // A parked code goes back to the pool once its teacher has left it long enough.
+          if (age <= PARKED_CODE_TTL_MS) return false;
+        } else {
+          if (age <= RESERVATION_TTL_MS) return false;
+          if ((await tx.get(db.collection('poll_sessions').doc(sid))).exists) {
+            return false;
+          }
         }
       }
       tx.set(ref, {
@@ -333,16 +387,44 @@ const boardShowsCode = (share: Record<string, unknown>, code: string) =>
       w.config.joinCode === code
   );
 
-/** Lets `uid` take over `code` when both they and its holder are on the shared board that shows it. */
+const notOnBoard = () =>
+  new HttpsError('permission-denied', 'Not on this board.');
+
+/** Lets `uid` take over `code` when both they and its holder are on the shared board that shows it; every refusal looks the same and counts as a miss. */
 export async function claimPollCode(
+  db: Firestore,
+  uid: string,
+  code: string,
+  shareId: string,
+  now: number = Date.now(),
+  recordMiss: RecordMiss = recordMissWithIncrement
+): Promise<true> {
+  if (!code || !shareId || shareId.includes('/') || shareId.length > 128) {
+    throw new HttpsError('invalid-argument', 'A code and board are required.');
+  }
+  const slot = await takeLookupSlot(db, uid, code, now);
+  let claimed = false;
+  try {
+    claimed = await claimPollCodeTx(db, uid, code, shareId);
+  } catch (err) {
+    if (!(err instanceof HttpsError) || err.code !== 'permission-denied') {
+      throw err;
+    }
+  }
+  if (!claimed) {
+    await countMiss(slot, now, recordMiss);
+    throw notOnBoard();
+  }
+  await refundSlot(db, slot, code);
+  return true;
+}
+
+async function claimPollCodeTx(
   db: Firestore,
   uid: string,
   code: string,
   shareId: string
 ): Promise<boolean> {
-  if (!code || !shareId || shareId.includes('/') || shareId.length > 128) {
-    throw new HttpsError('invalid-argument', 'A code and board are required.');
-  }
   const pointerRef = db.collection('poll_codes').doc(code);
   const shareRef = db.collection('shared_boards').doc(shareId);
   return db.runTransaction(async (tx) => {
@@ -350,14 +432,13 @@ export async function claimPollCode(
       tx.get(pointerRef),
       tx.get(shareRef),
     ]);
-    // No holder yet: the caller's own session write creates the pointer.
     if (!pointer.exists) return false;
     const members = pointerMembers(pointer.data());
     if (members.includes(uid)) return true;
     const share: Record<string, unknown> = shareSnap.data() ?? {};
     const mode = share.intendedMode;
     if (!shareSnap.exists || mode === 'substitute' || mode === 'copy') {
-      throw new HttpsError('permission-denied', 'Not a shared board.');
+      throw notOnBoard();
     }
     const linkId = share.linkedCollectionId;
     const linkSnap =
@@ -380,7 +461,7 @@ export async function claimPollCode(
       typeof holder !== 'string' ||
       !boardShowsCode(share, code)
     ) {
-      throw new HttpsError('permission-denied', 'Not on this board.');
+      throw notOnBoard();
     }
     // The share's host can list anyone as a participant, so the holder's place must be one they made.
     const holderLinked =
@@ -410,7 +491,7 @@ export async function claimPollCode(
           d.data().linkedShareEnded !== true
       )
     ) {
-      throw new HttpsError('permission-denied', 'Not on this board.');
+      throw notOnBoard();
     }
     tx.update(pointerRef, { memberUids: [...members, uid] });
     return true;

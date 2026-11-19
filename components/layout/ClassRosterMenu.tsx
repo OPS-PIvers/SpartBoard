@@ -108,13 +108,17 @@ const ClassRosterMenu: React.FC<Props> = ({
           </div>
         )}
 
-        {rosters.map((r) => (
+        {rosters.map((r, rowIndex) => (
           <div
             key={r.id}
             className={`flex items-center justify-between rounded hover:bg-slate-50 group ${activeRosterId === r.id ? 'bg-blue-50' : ''}`}
           >
             <button
-              {...tourFieldAttr('classes.roster-menu-item', 'classes', r.id)}
+              {...tourFieldAttr(
+                'classes.roster-menu-item',
+                'classes',
+                `row-${rowIndex + 1}`
+              )}
               className="flex items-center gap-2 p-2 flex-1 text-left"
               onClick={() =>
                 setActiveRoster(activeRosterId === r.id ? null : r.id)

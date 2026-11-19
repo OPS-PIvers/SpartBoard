@@ -258,4 +258,27 @@ describe('CourseClassList', () => {
     expect(screen.getAllByLabelText('Course name')).toHaveLength(1);
     expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
   });
+
+  it('puts the Course menu on the Course row and tells each row whether it is a section', () => {
+    const { container } = render(
+      <CourseClassList
+        rosters={rosters}
+        courses={[course]}
+        saveCourse={vi.fn()}
+        renderRow={(r, _i, inCourse) => (
+          <li key={r.id}>{`${r.name}:${inCourse ? 'section' : 'own'}`}</li>
+        )}
+        renderCourseMenu={(sections, rowKey, name) => (
+          <span>{`menu ${name} ${rowKey} ${sections.map((s) => s.id).join(',')}`}</span>
+        )}
+      />
+    );
+    const linked = within(
+      container.querySelector('[data-course-group="linked"]') as HTMLElement
+    );
+    expect(linked.getByText('menu English 9 row-1 p2,p5')).toBeInTheDocument();
+    fireEvent.click(linked.getByRole('button', { name: /2 sections/ }));
+    expect(linked.getByText('English 9 P2:section')).toBeInTheDocument();
+    expect(screen.getByText('Speech P3:own')).toBeInTheDocument();
+  });
 });

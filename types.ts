@@ -3680,7 +3680,14 @@ export interface LunchCountConfig {
   /** Classes (lunch time and grade) it sent that day, so another class can still submit */
   lastSubmittedClasses?: string[];
   /** Notes and pizza count sent today, by class key, so a resend can prefill them. */
-  lastSubmittedDetails?: Record<string, { notes: string; extraPizza: number }>;
+  lastSubmittedDetails?: Record<
+    string,
+    { notes: string; extraPizza: number; sentAt?: number }
+  >;
+  /** Extra pizza count sent today, by class key; it names no one, so it syncs with the board. */
+  lastSubmittedPizza?: Record<string, number>;
+  /** When each class was sent today and whether its notes were blank; it names no one, so it syncs with the board. */
+  lastSubmittedSends?: Record<string, { sentAt: number; notesBlank: boolean }>;
   cardColor?: string;
   cardOpacity?: number;
   fontFamily?: GlobalFontFamily;
@@ -5534,6 +5541,15 @@ export interface SubLaunchedSessionFields {
   subMonitorUntil?: number;
 }
 
+/** Every assignment widget kind; tests/assignmentShells.static.test.ts reads this union. */
+export type AssignmentKind =
+  | 'quiz'
+  | 'video-activity'
+  | 'guided-learning'
+  | 'mini-app'
+  | 'flashcards'
+  | 'writing';
+
 /** Per-period gate state (docs/plans/shipped/PER_PERIOD_ASSIGNMENT_ACCESS.md). */
 export type PeriodAccessState = 'closed' | 'open' | 'paused';
 
@@ -5552,6 +5568,10 @@ export interface PeriodAccess {
   rosterId?: string;
   /** Epoch ms of the last pause or close, so a draft flush landing just after it is kept. */
   pausedAt?: number;
+  /** Epoch ms the teacher closed this class; absent or null means Ready, never closed (ASSIGNED_TAB D24). */
+  closedAt?: number | null;
+  /** Epoch ms the teacher last opened or resumed this class (ASSIGNED_TAB D11). */
+  openedAt?: number | null;
 }
 
 export type AccessMode = 'assessment' | 'assignment';
@@ -7612,6 +7632,12 @@ export interface QuizAssignment
   /** Open/close window (epoch ms). Absent = always open (legacy behavior). */
   openAt?: number | null;
   closeAt?: number | null;
+  /** Teacher-only close mark for an assignment with no `periodAccess` (ASSIGNED_TAB D24). */
+  closedAt?: number | null;
+  /** Set by Move to Done (ASSIGNED_TAB D5): Done while ended, whatever its grading. */
+  doneAt?: number | null;
+  /** Last Resume or Assigned tab open of a single line (ASSIGNED_TAB D11). */
+  openedAt?: number | null;
   /**
    * Count of student-target refs the most recent `setAssignmentTargetsV1`
    * call couldn't add (PII-free — a plain number, no names). Persisted so
@@ -10285,6 +10311,9 @@ export interface FlashcardAssignment
   dueAt?: number | null;
   /** PLC this assignment's class-level results are shared with. */
   plcShare?: { plcId: string; sharedAt: number } | null;
+  /** Assigned tab: single-line Close mark (D24) and Move to Done mark (D5). */
+  closedAt?: number | null;
+  doneAt?: number | null;
 }
 
 /** `flashcard_sessions/{assignmentId}/progress/{studentUid}`. */
@@ -10450,7 +10479,7 @@ export interface ProjectRun extends SessionWorkKindFields {
   /** Retired: students only ever see their own group. Old runs keep it until backfilled. */
   showStatusToStudents?: boolean;
   acceptingUpdates: boolean;
-  /** Groups can submit; set when a teacher with the project-submit preview starts or edits the run. */
+  /** Groups can submit; set when the teacher starts or edits an open run. Absent on older runs. */
   studentSubmit?: boolean;
   /** D42 — absent on runs made before the field existed. */
   createdAt?: number;
@@ -10549,7 +10578,7 @@ export interface ProjectGroupGrade {
   comment?: string;
   released: boolean;
   gradedAt: number;
-  /** Absolute per-member points + note, keyed by member uid (A4). */
+  /** Absolute per-member points + note by member uid (A4); stored as `grades/{groupId}/overrides/{uid}`, never on this doc. */
   overridesByUid?: Record<string, { points: number; note?: string }>;
 }
 
@@ -10756,6 +10785,9 @@ export interface WritingAssignmentRecord {
   overridesByStudentUid?: Record<string, StudentOverride>;
   targetSkippedCount?: number;
   removedStudentRefs?: StudentTargetRef[];
+  /** Assigned tab marks, written by `updateWritingSessionV1`: single-line Close (D24) and Move to Done (D5). */
+  closedAt?: number | null;
+  doneAt?: number | null;
 }
 
 /** The Writing record summary (D9), kept on the response and copied onto each frozen copy. */
@@ -11711,6 +11743,7 @@ export type GlobalFeature =
   | 'claude-connector'
   /** Guided Learning tools inside the Claude connector; building and Help Center sets stay admin-only. */
   | 'claude-connector-guided-learning'
+  | 'claude-picture-uploads'
   /** Teacher-paced (live) Video Activity sessions, chosen at assign time (docs/plans/shipped/VA_TEACHER_PACED.md). */
   | 'video-activity-live'
   /** Quiz Student view: teachers take a quiz as students see it, with focus-mode toggles; nothing is saved. */
@@ -11723,10 +11756,10 @@ export type GlobalFeature =
   | 'quiz-live-view-nudge-note'
   /** Live view's Screenshot button. */
   | 'quiz-live-view-screenshot'
+  /** Sign-in picks an account instead of forcing Google's consent page; idle sign-out after 30 days instead of 7. */
+  | 'quick-sign-in'
   /** Teacher picture and PDF uploads need Google Drive; without it they ask to reconnect instead of saving to Firebase Storage. */
   | 'drive-only-uploads'
-  /** Quiz Monitor lists the whole class roster, with students who haven't joined under Not started. */
-  | 'quiz-monitor-roster'
   /** Quiz setting that shows students their score as soon as they submit. */
   | 'quiz-score-on-submit'
   | 'modification-groups'
@@ -11736,8 +11769,6 @@ export type GlobalFeature =
   | 'paper-printed-versions'
   /** Paper sheets: fill-in-the-blank prints a write-in line per blank, read back on import. */
   | 'paper-fill-in-blank'
-  /** Projects: a group submits its project; the teacher sees Submitted, Late or Missing and can reopen. */
-  | 'project-submit'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */
   | 'gradebook'
   /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */
@@ -11784,8 +11815,6 @@ export type GlobalFeature =
   | 'lunch-count-redesign'
   /** Weather: a details panel (dew point, humidity, wind and more) in buildings the admin allows. */
   | 'weather-details'
-  /** Checklist empty state with an Add button, larger footer buttons hidden on small cards. */
-  | 'checklist-small-card'
   /** Seating Chart saved seating plans, shuffle rules and print (poll-pro/SEATING_CHART_PLAN.md). */
   | 'seating-chart-plans'
   /** Sound widget target level, Too loud alert, calibration, quiet time goal and summary (pro-grade-2/NOISE_METER_PLAN.md). */
@@ -11798,8 +11827,6 @@ export type GlobalFeature =
   | 'flashcards-speak'
   /** Teachers add their own YouTube songs to the Music widget's station list. */
   | 'music-my-songs'
-  /** Embed widget setting that stops the embedded page from opening new tabs. */
-  | 'embed-block-new-tabs'
   /** Copy, paste and print blocking and fullscreen on quiz and video activity pages (CHROME_EXTENSION.md F14). */
   | 'focus-sessions'
   | 'input-signals'
@@ -11830,14 +11857,18 @@ export type GlobalFeature =
   | 'import-straight-to-board'
   /** AI questions on a YouTube import (docs/plans/IMPORT.md D35). */
   | 'video-import-ai'
-  /** Right-click menu on the board background. */
-  | 'board-context-menu'
   /** Manual assignments get a due date, and Assign remembers the When step. */
   | 'assign-due-date'
   /** Reopen an ended quiz for selected students only. */
   | 'reopen-selected-students'
   /** A score-only Video Activity publish keeps right/wrong off students' answers. */
-  | 'va-score-only-verdicts';
+  | 'va-score-only-verdicts'
+  /** Every widget's Settings tab can save its settings as the teacher's default for new copies. */
+  | 'widget-settings-defaults'
+  /** Library and Assigned tabs with a status per class (docs/plans/ASSIGNED_TAB.md D19). */
+  | 'assigned-tab'
+  /** The sidebar Assignments hub; on for everyone until an admin narrows it. */
+  | 'assignments-hub';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {
@@ -11903,6 +11934,8 @@ export interface GlobalFeaturePermission {
   featureId: GlobalFeature;
   accessLevel: AccessLevel;
   betaUsers: string[];
+  /** People who never get this feature, admins included; beats every other rule. */
+  excludedUsers?: string[];
   enabled: boolean;
   /**
    * Building IDs allowed access. Empty array or `undefined` means
@@ -12002,6 +12035,8 @@ export interface FeaturePermission {
   accessLevel: AccessLevel;
   /** Array of email addresses for beta testing access (only used when accessLevel is 'beta') */
   betaUsers: string[];
+  /** People who never get this widget, admins included; beats every other rule. */
+  excludedUsers?: string[];
   /** When false, disables the widget for everyone including admins */
   enabled: boolean;
   /** Optional override for grade levels. If set, this takes precedence over the static configuration. */
@@ -13003,6 +13038,8 @@ export interface GuidedLearningAssignment
   /** Open/close window (epoch ms). Absent = always open (legacy behavior). */
   openAt?: number | null;
   closeAt?: number | null;
+  /** A future close that End replaced with now; Reopen puts it back while it is still ahead. */
+  closeAtBeforeEnd?: number | null;
   /** Count of `setAssignmentTargetsV1` `skipped` refs from the most recent
    *  targeting save — surfaced as a discreet row marker (spec §5 B3). */
   targetSkippedCount?: number;

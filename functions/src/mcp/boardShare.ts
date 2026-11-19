@@ -30,6 +30,7 @@ export const PII_WIDGET_FIELDS = [
   'names',
   'roster',
   'customRoster',
+  'lastSubmittedDetails',
 ] as const;
 
 // Same name-key rules as widgetPiiKeys in utils/dashboardPII.ts.
@@ -144,13 +145,21 @@ const NOT_OWNER =
   'Another teacher owns this board and shares it with this teacher, so Claude cannot change it. Make changes in SpartBoard.';
 
 /** True when a guest's ended copy could still come back to life from its share. */
-async function shareStillLive(ctx: ToolContext, board: Doc): Promise<boolean> {
+async function shareStillLive(
+  ctx: ToolContext,
+  board: Doc,
+  boardCreatedMs: number | undefined
+): Promise<boolean> {
   const snap = await ctx.db
     .doc(`shared_boards/${str(board.linkedShareId)}`)
     .get();
   if (!snap.exists) return false;
   const host = str(board.linkedShareHostUid);
-  return !host || str(snap.get('originalAuthor')) === host;
+  if (host) return str(snap.get('originalAuthor')) === host;
+  // A host-less copy, as the client rules: a share made after the board was re-created at its id.
+  const shareCreatedMs = snap.createTime?.toMillis();
+  if (shareCreatedMs === undefined || boardCreatedMs === undefined) return true;
+  return shareCreatedMs <= boardCreatedMs;
 }
 
 async function readLiveShare(
@@ -222,7 +231,8 @@ async function readLinkedEntry(
 /** Refuses boards another teacher owns; for a live board, finds its share and synced-collection entry. */
 export async function shareStateOf(
   ctx: ToolContext,
-  board: Doc
+  board: Doc,
+  boardCreatedMs?: number
 ): Promise<ShareState> {
   const shareId = str(board.linkedShareId);
   if (!shareId) return { share: null, link: null };
@@ -232,7 +242,7 @@ export async function shareStateOf(
     if (
       role === 'viewer' ||
       board.linkedShareEnded !== true ||
-      (await shareStillLive(ctx, board))
+      (await shareStillLive(ctx, board, boardCreatedMs))
     )
       throw new ToolError(NOT_OWNER);
     return { share: null, link: null };

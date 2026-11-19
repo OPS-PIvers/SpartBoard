@@ -33,6 +33,7 @@ import {
 import { assertViewAsAllowed } from './viewAsGuard';
 import { isAiTeacherCaller, type AiCallerToken } from './aiCallerGate';
 import { generateAi } from './aiRouter';
+import { isExcludedFrom } from './permissionExclusion';
 
 type Firestore = admin.firestore.Firestore;
 type Data = Record<string, unknown>;
@@ -178,7 +179,10 @@ export async function adminSkipsGoalCoachQuota(
       db.collection('global_permissions').doc(id).get()
     )
   );
-  return flags.every((d) => d.data()?.enabled !== false);
+  // An excluded admin falls to the teacher gate, which refuses them.
+  return flags.every(
+    (d) => d.data()?.enabled !== false && !isExcludedFrom(d.data(), token.email)
+  );
 }
 
 function defaultDeps(): GoalCoachDeps {

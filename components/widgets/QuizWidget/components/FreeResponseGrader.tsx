@@ -75,7 +75,7 @@ import { EditorModalShell } from '@/components/common/EditorModalShell';
 import { AuthContext } from '@/context/AuthContextValue';
 import { useDialog } from '@/context/useDialog';
 import { sanitizeQuizResponse } from '@/utils/security';
-import { countWords } from '@/utils/wordCount';
+import { countWordsCached } from '@/utils/wordCount';
 import { wordCounterLabel, wordLimitStatus } from '@/utils/wordLimit';
 import { highlightClass, htmlToPlainText } from '@/utils/writtenAnnotations';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
@@ -1747,7 +1747,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   // The stored answer is sanitized rich-text HTML; back-translation always
   // operates on the plain-text projection the annotation pipeline already uses.
   const studentAnswerPlainText = htmlToPlainText(studentAnswer);
-  const answerWordCount = countWords(studentAnswer);
+  const answerWordCount = countWordsCached(studentAnswer);
   const outsideWordRange =
     !isMedia && wordLimitStatus(answerWordCount, question).tone !== 'ok';
   const tabSwitches = response?.tabSwitchWarnings ?? 0;
@@ -2788,6 +2788,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                       onJumpToTagged={handleJumpToTagged}
                       tagCountKind={isMedia ? 'note' : 'highlight'}
                       onSaveRubric={onSaveRubric}
+                      hideTotal
                     />
                   </div>
                 )}

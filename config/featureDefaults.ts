@@ -3,7 +3,6 @@ import type React from 'react';
 import {
   ClipboardList,
   MonitorPlay,
-  Users,
   Camera,
   PenLine,
   BarChart,
@@ -63,6 +62,7 @@ import {
   CalendarClock,
   MessageSquare,
   SlidersHorizontal,
+  LogIn,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -838,6 +838,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'claude-picture-uploads': {
+    label: 'Claude connector: pictures from the chat',
+    icon: Bot,
+    description:
+      "Pictures a teacher shares with Claude can go on Guided Learning slides, quiz questions and flashcards. They save to the teacher's Google Drive.",
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'integrations',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Teacher-paced (live) Video Activity: the Assign dialog's live option (docs/plans/shipped/VA_TEACHER_PACED.md).
   'video-activity-live': {
     label: 'Video Activity live mode',
@@ -922,21 +934,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     missingDocPublic: false,
     requires: 'quiz-live-view',
   },
-  // Quiz Monitor roster: students who haven't joined show under Not started.
-  'quiz-monitor-roster': {
-    label: 'Quiz Monitor class roster',
-    icon: Users,
-    description:
-      "Monitor lists every student in the class, including those who haven't joined.",
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'quiz',
-    modalLabel: 'Class roster',
-    group: 'assigning',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Quiz "Show score on submit" setting. Admin-only until Paul has used it with a class.
   'quiz-score-on-submit': {
     label: 'Quiz score on submit',
@@ -1005,17 +1002,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     modalLabel: 'Fill-in-the-blank on paper',
     group: 'questions',
     requires: 'paper-handwritten-responses',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'project-submit': {
-    label: 'Project submit',
-    icon: ClipboardCheck,
-    description:
-      'Groups submit their project; teachers see Submitted, Late or Missing and can reopen.',
-    stage: 'preview',
-    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -1330,18 +1316,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'checklist-small-card': {
-    label: 'Checklist small cards',
-    icon: ListChecks,
-    description:
-      'An Add tasks button when empty, and a cleaner footer on small cards.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'checklist',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'seating-chart-plans': {
     label: 'Seating Chart: seating plans',
     icon: LayoutGrid,
@@ -1422,18 +1396,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     widget: 'music',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Embed setting for touch panels where a tap opens the embedded deck in a new tab.
-  'embed-block-new-tabs': {
-    label: 'Block new tabs in Embed',
-    icon: MonitorPlay,
-    description:
-      'Embed widgets get a setting that stops the embedded page from opening new tabs.',
-    stage: 'preview',
-    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -1685,23 +1647,24 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Teacher uploads go only to Drive; without Drive they ask to reconnect. Admin-only until Paul has used it on prod.
-  'drive-only-uploads': {
-    label: 'Uploads save to Drive only',
-    icon: HardDrive,
+  // Sign-in without the forced consent page, and a 30-day idle sign-out. Admin-only until Paul has used it on prod.
+  'quick-sign-in': {
+    label: 'Quick sign-in',
+    icon: LogIn,
     description:
-      'Pictures and PDFs a teacher uploads save only to their Google Drive. Without Drive, they are asked to reconnect.',
+      'Signing in only asks which Google account to use. Teachers stay signed in until they are away for 30 days.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'board-context-menu': {
-    label: 'Board right-click menu',
-    icon: MousePointerClick,
+  // Teacher uploads go only to Drive; without Drive they ask to reconnect. Admin-only until Paul has used it on prod.
+  'drive-only-uploads': {
+    label: 'Uploads save to Drive only',
+    icon: HardDrive,
     description:
-      'Right-click the board background to paste, tidy up, change the background or copy a link to the board.',
+      'Pictures and PDFs a teacher uploads save only to their Google Drive. Without Drive, they are asked to reconnect.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
@@ -1752,6 +1715,38 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
+  },
+  'widget-settings-defaults': {
+    label: 'Widgets: save settings as my default',
+    icon: SlidersHorizontal,
+    description:
+      "Each widget's Settings tab can save its settings. New copies of that widget on any board start with them.",
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'assigned-tab': {
+    label: 'Assigned tab',
+    icon: ClipboardList,
+    description: 'Library and Assigned tabs. Each class has its own status.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'assignments-hub': {
+    label: 'Assignments hub',
+    icon: ClipboardList,
+    description: 'The Assignments list in the sidebar menu.',
+    stage: 'permanent',
+    afterLaunch: 'keep',
+    category: 'sharing',
+    defaultAccessLevel: 'public',
+    defaultEnabled: true,
+    missingDocPublic: true,
   },
 };
 

@@ -160,6 +160,7 @@ export interface UseGuidedLearningAssignmentsResult {
 
 /** Closed assignments listed before "Show older"; open ones are always listed in full. */
 export const GL_ASSIGNMENTS_PAGE_SIZE = 50;
+const GL_MARKED_LIMIT = 200;
 
 interface AssignmentsState {
   open: GuidedLearningAssignment[];
@@ -238,6 +239,25 @@ const assignmentsSource: SharedSource<AssignmentsState> = {
   },
 };
 
+// Rows closed through the Assigned tab, which may still wait on publishing past the recent page.
+const markedSource: SharedSource<GuidedLearningAssignment[]> = {
+  id: 'gl-assignments-marked',
+  initial: [],
+  start: (userId, update) =>
+    // Single-field range, so no composite index.
+    onSnapshot(
+      query(
+        collection(db, 'users', userId, GL_ASSIGNMENTS_COLLECTION),
+        where('closedAt', '>', 0),
+        orderBy('closedAt', 'desc'),
+        limit(GL_MARKED_LIMIT)
+      ),
+      (snap) => update(() => toAssignments(snap)),
+      (err) =>
+        console.error('[useGuidedLearningAssignments] Closed rows error:', err)
+    ),
+};
+
 /** Open and recent listeners overlap; keep the fresher copy of each doc, newest first. */
 export const mergeAssignments = (
   open: GuidedLearningAssignment[],
@@ -252,12 +272,17 @@ export const mergeAssignments = (
 };
 
 export const useGuidedLearningAssignments = (
-  userId: string | undefined
+  userId: string | undefined,
+  assignedTabOn = false
 ): UseGuidedLearningAssignmentsResult => {
   const shared = useSharedSubscription(assignmentsSource, userId ?? null);
+  const marked = useSharedSubscription(
+    markedSource,
+    assignedTabOn && userId ? userId : null
+  );
   const assignments = useMemo(
-    () => mergeAssignments(shared.open, shared.recent),
-    [shared.open, shared.recent]
+    () => mergeAssignments(shared.open, [...shared.recent, ...marked]),
+    [shared.open, shared.recent, marked]
   );
   const loading = userId ? !(shared.openLoaded && shared.recentLoaded) : false;
   const error = userId ? shared.error : null;

@@ -319,10 +319,14 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
         </p>
       ) : (
         <ul className="flex flex-col gap-2">
-          {sortedTeammates.map((m) => (
+          {sortedTeammates.map((m, rowIndex) => (
             <li key={m.uid}>
               <button
-                {...tourFieldAttr('plc-print.teammate', 'plc', m.uid)}
+                {...tourFieldAttr(
+                  'plc-print.teammate',
+                  'plc',
+                  `row-${rowIndex + 1}`
+                )}
                 type="button"
                 onClick={() => setTargetUid(m.uid)}
                 className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left transition-colors hover:border-brand-blue-light focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
@@ -444,7 +448,7 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
 
   const rosterList = (
     <ul className="flex flex-col gap-2">
-      {rosters.map((roster) => {
+      {rosters.map((roster, rowIndex) => {
         const selected = selectedRosterIds.has(roster.id);
         const expanded = expandedRosterId === roster.id;
         const namesUnavailable = roster.students.length === 0;
@@ -461,7 +465,7 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
                 {...tourFieldAttr(
                   'plc-print.roster-checkbox',
                   'plc',
-                  roster.id
+                  `row-${rowIndex + 1}`
                 )}
                 type="checkbox"
                 checked={selected}
@@ -490,7 +494,7 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
                   {...tourFieldAttr(
                     'plc-print.roster-expand',
                     'plc',
-                    roster.id
+                    `row-${rowIndex + 1}`
                   )}
                   type="button"
                   onClick={() =>
@@ -515,14 +519,14 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
             </div>
             {expanded && (
               <ul className="border-t border-slate-100 px-3 py-2">
-                {roster.students.map((student) => (
+                {roster.students.map((student, studentIndex) => (
                   <li key={student.id}>
                     <label className="flex items-center gap-2 py-1 text-sm text-slate-700">
                       <input
                         {...tourFieldAttr(
                           'plc-print.student-checkbox',
                           'plc',
-                          student.id
+                          `row-${rowIndex + 1}-item-${studentIndex + 1}`
                         )}
                         type="checkbox"
                         checked={!excludedStudentIds.has(student.id)}

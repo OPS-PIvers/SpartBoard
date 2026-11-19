@@ -10,6 +10,7 @@ import {
   type TimeToolClockFields,
   type TimeToolPhase,
   withTimerStartSeconds,
+  fitTimeToolClock,
 } from './timeToolClock';
 import { TIME_TOOL_MAX_DURATION_SECONDS } from '@/config/timeTool';
 
@@ -467,5 +468,26 @@ describe('startFreshClock', () => {
       startTime: NOW,
     });
     expect(clockStateOf(fresh).phase).toBe('running');
+  });
+});
+
+describe('fitTimeToolClock', () => {
+  it('starts a saved stopwatch at zero over a timer layer', () => {
+    expect(
+      fitTimeToolClock({ mode: 'stopwatch', duration: 120, elapsedTime: 120 })
+    ).toEqual({ mode: 'stopwatch', duration: 120, elapsedTime: 0 });
+  });
+
+  it('starts a saved timer full over a stopwatch layer', () => {
+    expect(fitTimeToolClock({ mode: 'timer', elapsedTime: 0 })).toEqual({
+      mode: 'timer',
+      duration: 600,
+      elapsedTime: 600,
+    });
+  });
+
+  it('leaves a running length alone', () => {
+    const layer = { mode: 'timer', duration: 120, elapsedTime: 120 };
+    expect(fitTimeToolClock(layer)).toBe(layer);
   });
 });

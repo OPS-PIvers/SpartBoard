@@ -1,5 +1,5 @@
 // Full rubric as a table, opened from the grader's rubric panel; picks are highlighted and the rubric can be edited in place.
-import React, { useState } from 'react';
+import React, { useState, type ReactNode } from 'react';
 import { ArrowLeftRight, Check, Pencil, Plus, Trash2, X } from 'lucide-react';
 import type {
   Rubric,
@@ -19,6 +19,13 @@ import {
   RUBRIC_MIN_LEVELS,
   rubricMaxPoints,
 } from '@/utils/rubricPoints';
+import { isScoringGuide, newGuideRow } from '@/utils/rubricGuide';
+import {
+  GuideRowFields,
+  RubricTemplateSwitch,
+  type GuideFieldAnchor,
+} from './RubricGuideFields';
+import { useRubricTemplateSwitch } from '@/hooks/useRubricTemplateSwitch';
 
 interface RubricTableModalProps {
   rubric: Rubric;
@@ -32,7 +39,17 @@ interface RubricTableModalProps {
   initialEditing?: boolean;
   /** Lets editing add and remove criteria and levels. */
   editStructure?: boolean;
+  /** Lets editing add and remove levels only, keeping the criteria fixed. */
+  editLevels?: boolean;
   saveLabel?: string;
+  /** The host owns the draft: the table always edits it and the host supplies the toolbar and footer. */
+  controlled?: {
+    draft: Rubric;
+    setDraft: React.Dispatch<React.SetStateAction<Rubric>>;
+    toolbar?: ReactNode;
+    belowTable?: ReactNode;
+    footer: ReactNode;
+  };
 }
 
 const pts = (n: number) => `${n} pt${n === 1 ? '' : 's'}`;
@@ -65,6 +82,8 @@ const removeButton =
 const textButton =
   'flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-semibold text-brand-blue-primary transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-brand-blue-primary';
 
+const addButton =
+  'touch-target-expand mx-auto flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300 bg-white text-brand-blue-primary shadow-sm transition-colors hover:border-brand-blue-primary hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-brand-blue-primary';
 const fieldCore =
   'rounded-md border border-slate-300 bg-white px-2 py-1 text-slate-900 placeholder:text-slate-400 focus:border-brand-blue-primary focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/30';
 const fieldBase = `w-full ${fieldCore}`;
@@ -81,6 +100,41 @@ const newLevel = (points: number, label = ''): RubricLevel => ({
 
 const nextPoints = (levels: RubricLevel[]) =>
   levels.reduce((m, l) => Math.max(m, l.points), -1) + 1;
+
+const tableGuideAnchor: GuideFieldAnchor = (field, key) => {
+  switch (field) {
+    case 'guidelines':
+      return tourFieldAttr(
+        'quiz-grading.rubric-table-guide-guidelines',
+        'quiz',
+        key
+      );
+    case 'example':
+      return tourFieldAttr(
+        'quiz-grading.rubric-table-guide-example',
+        'quiz',
+        key
+      );
+    case 'example-add':
+      return tourFieldAttr(
+        'quiz-grading.rubric-table-guide-example-add',
+        'quiz',
+        key
+      );
+    case 'example-remove':
+      return tourFieldAttr(
+        'quiz-grading.rubric-table-guide-example-remove',
+        'quiz',
+        key
+      );
+    case 'points':
+      return tourFieldAttr(
+        'quiz-grading.rubric-table-guide-points',
+        'quiz',
+        key
+      );
+  }
+};
 
 const fieldSizing =
   typeof CSS !== 'undefined' && CSS.supports?.('field-sizing', 'content');
@@ -100,11 +154,22 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
   onSave,
   initialEditing = false,
   editStructure = false,
+  editLevels = false,
   saveLabel = 'Save',
+  controlled,
 }) => {
-  const [draft, setDraft] = useState<Rubric | null>(() =>
+  const [ownDraft, setOwnDraft] = useState<Rubric | null>(() =>
     initialEditing ? clone(rubric) : null
   );
+  const draft = controlled ? controlled.draft : ownDraft;
+  const setDraft = (
+    update: Rubric | null | ((d: Rubric | null) => Rubric | null)
+  ) => {
+    if (!controlled) return setOwnDraft(update);
+    controlled.setDraft(
+      (prev) => (typeof update === 'function' ? update(prev) : update) ?? prev
+    );
+  };
   // Fixed when editing starts, so typing a label or adding a level doesn't switch layouts.
   const [editShared, setEditShared] = useState(
     () =>
@@ -117,6 +182,16 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
   const [fullscreen, setFullscreen] = useState(false);
   const editing = draft !== null;
   const shown = draft ?? rubric;
+  const guideEditing = editing && isScoringGuide(shown);
+  // Converting rebuilds every row's levels, so shared columns are re-checked.
+  const switchTemplate = useRubricTemplateSwitch(draft, (next) => {
+    setDraft(next);
+    setEditShared(
+      sharedLabels(
+        next.criteria.map((c) => orderRubricLevels(c.levels, order))
+      ) !== null
+    );
+  });
 
   const rows = shown.criteria.map((c) => orderRubricLevels(c.levels, order));
   const columns = rows.reduce((n, r) => Math.max(n, r.length), 0);
@@ -188,7 +263,9 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
 
   const draftHeaders = headers;
   const structure = editing && editStructure;
-  const addColumn = structure && editShared && columns < RUBRIC_MAX_LEVELS;
+  const levelEdits = editing && (editStructure || editLevels);
+  // The add-level control sits after the last level, in a trailing column when a row is full.
+  const addColumn = levelEdits && columns < RUBRIC_MAX_LEVELS;
 
   const startEditing = () => {
     setError(null);
@@ -204,6 +281,8 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
   const addCriterion = () =>
     setDraft((d) => {
       if (!d) return d;
+      if (isScoringGuide(d))
+        return { ...d, criteria: [...d.criteria, newGuideRow()] };
       const template = d.criteria[0]?.levels ?? [newLevel(0), newLevel(1)];
       return {
         ...d,
@@ -295,6 +374,28 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
     }
   };
 
+  // Per-row add for criteria with their own level names; shared columns add from the header.
+  const rowAdd = (ri: number, criterionId: string) =>
+    levelEdits &&
+    !editShared &&
+    (shown.criteria.find((c) => c.id === criterionId)?.levels.length ?? 0) <
+      RUBRIC_MAX_LEVELS && (
+      <button
+        type="button"
+        onClick={() => addLevel(criterionId)}
+        aria-label={`Add level to criterion ${ri + 1}`}
+        title="Add level"
+        {...tourFieldAttr(
+          'quiz-grading.rubric-table-add-level',
+          'quiz',
+          String(ri + 1)
+        )}
+        className={addButton}
+      >
+        <Plus className="h-5 w-5" aria-hidden />
+      </button>
+    );
+
   const header = (
     <div className="flex shrink-0 items-start gap-3 px-6 pb-4 pt-6">
       <div className="min-w-0 flex-1">
@@ -341,16 +442,25 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
           )}
         </p>
       </div>
-      <button
-        type="button"
-        onClick={onOrderChange}
-        {...tourTypeAttr('quiz-grading.rubric-table-order', 'quiz')}
-        aria-label={`Level order: ${order === 'high-first' ? 'Highest' : 'Lowest'} first. Switch to ${order === 'high-first' ? 'lowest' : 'highest'} first`}
-        className="flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-semibold text-brand-blue-primary transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
-      >
-        <ArrowLeftRight className="h-4 w-4" aria-hidden />
-        {order === 'high-first' ? 'Highest first' : 'Lowest first'}
-      </button>
+      {levelEdits && (
+        <RubricTemplateSwitch
+          guide={isScoringGuide(shown)}
+          onSwitch={(toGuide) => void switchTemplate(toGuide)}
+          anchor={tourTypeAttr('quiz-grading.rubric-table-template', 'quiz')}
+        />
+      )}
+      {!guideEditing && (
+        <button
+          type="button"
+          onClick={onOrderChange}
+          {...tourTypeAttr('quiz-grading.rubric-table-order', 'quiz')}
+          aria-label={`Level order: ${order === 'high-first' ? 'Highest' : 'Lowest'} first. Switch to ${order === 'high-first' ? 'lowest' : 'highest'} first`}
+          className="flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-semibold text-brand-blue-primary transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
+        >
+          <ArrowLeftRight className="h-4 w-4" aria-hidden />
+          {order === 'high-first' ? 'Highest first' : 'Lowest first'}
+        </button>
+      )}
       <FullscreenToggleButton
         fullscreen={fullscreen}
         onToggle={() => setFullscreen(!fullscreen)}
@@ -378,44 +488,51 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
       onFullscreenChange={setFullscreen}
       ariaLabel={rubric.title}
       footer={
-        <div className="flex flex-col items-center gap-2">
-          {error && (
-            <p className="text-sm font-semibold text-brand-red-dark">{error}</p>
-          )}
-          {editing ? (
-            <div className="flex justify-center gap-3">
+        controlled ? (
+          controlled.footer
+        ) : (
+          <div className="flex flex-col items-center gap-2">
+            {error && (
+              <p className="text-sm font-semibold text-brand-red-dark">
+                {error}
+              </p>
+            )}
+            {editing ? (
+              <div className="flex justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={stopEditing}
+                  disabled={saving}
+                  {...tourTypeAttr('quiz-grading.rubric-table-cancel', 'quiz')}
+                  className="rounded-lg border border-slate-300 bg-white px-6 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void save()}
+                  disabled={saving || dupes.size > 0}
+                  {...tourTypeAttr('quiz-grading.rubric-table-save', 'quiz')}
+                  className="rounded-lg bg-brand-blue-primary px-8 py-2.5 text-sm font-bold text-white transition-colors hover:bg-brand-blue-dark disabled:opacity-50"
+                >
+                  {saving ? 'Saving…' : saveLabel}
+                </button>
+              </div>
+            ) : (
               <button
                 type="button"
-                onClick={stopEditing}
-                disabled={saving}
-                {...tourTypeAttr('quiz-grading.rubric-table-cancel', 'quiz')}
-                className="rounded-lg border border-slate-300 bg-white px-6 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
+                onClick={onClose}
+                {...tourTypeAttr('quiz-grading.rubric-table-close', 'quiz')}
+                className="rounded-lg bg-brand-blue-primary px-8 py-2.5 text-sm font-bold text-white transition-colors hover:bg-brand-blue-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary"
               >
-                Cancel
+                Close
               </button>
-              <button
-                type="button"
-                onClick={() => void save()}
-                disabled={saving || dupes.size > 0}
-                {...tourTypeAttr('quiz-grading.rubric-table-save', 'quiz')}
-                className="rounded-lg bg-brand-blue-primary px-8 py-2.5 text-sm font-bold text-white transition-colors hover:bg-brand-blue-dark disabled:opacity-50"
-              >
-                {saving ? 'Saving…' : saveLabel}
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={onClose}
-              {...tourTypeAttr('quiz-grading.rubric-table-close', 'quiz')}
-              className="rounded-lg bg-brand-blue-primary px-8 py-2.5 text-sm font-bold text-white transition-colors hover:bg-brand-blue-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary"
-            >
-              Close
-            </button>
-          )}
-        </div>
+            )}
+          </div>
+        )
       }
     >
+      {controlled?.toolbar}
       {editing ? (
         <textarea
           ref={autoGrow}
@@ -433,156 +550,127 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
             'quiz',
             'description'
           )}
-          className={`${growField} mb-4 max-w-3xl text-sm`}
+          className={`${growField} mb-4 text-sm`}
         />
       ) : (
         rubric.description && (
-          <p className="mb-4 max-w-3xl text-sm leading-relaxed text-slate-600">
+          <p className="mb-4 text-sm leading-relaxed text-slate-600">
             {rubric.description}
           </p>
         )
       )}
-      <div className="overflow-x-auto rounded-xl border border-slate-200">
-        <table
-          className="w-full min-w-[44rem] table-fixed border-collapse text-left"
-          style={
-            editing
-              ? { minWidth: `${15 + columns * 12 + (addColumn ? 3.5 : 0)}rem` }
-              : undefined
-          }
-        >
-          <colgroup>
-            <col className="w-60" />
-            {Array.from({ length: columns }, (_, i) => (
-              <col key={i} />
-            ))}
-            {addColumn && <col className="w-14" />}
-          </colgroup>
-          {draftHeaders && (
-            <thead>
-              <tr className="bg-slate-50">
-                <th
-                  scope="col"
-                  className="sticky left-0 bg-slate-50 px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-500"
-                >
-                  Criteria
-                </th>
-                {draftHeaders.map((label, i) => (
-                  <th
-                    key={i}
-                    scope="col"
-                    className="border-l border-slate-200 px-4 py-3 text-sm font-bold text-slate-800"
-                  >
-                    {editing ? (
-                      <span className="flex items-start gap-1">
-                        <textarea
-                          ref={autoGrow}
-                          rows={1}
-                          value={label}
-                          onChange={(e) => {
-                            renameColumn(i, e.target.value);
-                            autoGrow(e.target);
-                          }}
-                          placeholder="Level name"
-                          aria-label={`Level ${i + 1} name`}
-                          {...tourFieldAttr(
-                            'quiz-grading.rubric-table-field',
-                            'quiz',
-                            `column-${i + 1}`
-                          )}
-                          className={`${growField} min-w-0 flex-1 text-sm font-bold`}
-                        />
-                        {structure && columns > RUBRIC_MIN_LEVELS && (
-                          <button
-                            type="button"
-                            onClick={() => removeLevel(i)}
-                            aria-label={`Remove level ${i + 1}`}
-                            {...tourFieldAttr(
-                              'quiz-grading.rubric-table-remove-level',
-                              'quiz',
-                              String(i + 1)
-                            )}
-                            className={removeButton}
-                          >
-                            <Trash2 className="h-4 w-4" aria-hidden />
-                          </button>
-                        )}
-                      </span>
-                    ) : (
-                      label
+      {guideEditing ? (
+        <div className="divide-y divide-slate-200 rounded-xl border border-slate-200">
+          {shown.criteria.map((criterion, ri) => (
+            <div
+              key={criterion.id}
+              className="grid gap-4 px-4 py-4 sm:grid-cols-[15rem_1fr]"
+            >
+              <span className="flex items-start gap-1">
+                <textarea
+                  ref={autoGrow}
+                  rows={1}
+                  placeholder="Part name"
+                  value={criterion.name}
+                  onChange={(e) => {
+                    patchCriterion(criterion.id, { name: e.target.value });
+                    autoGrow(e.target);
+                  }}
+                  aria-label={`Criterion ${ri + 1} name`}
+                  {...tourFieldAttr(
+                    'quiz-grading.rubric-table-field',
+                    'quiz',
+                    `${ri + 1}-name`
+                  )}
+                  className={`${growField} min-w-0 flex-1 text-sm font-bold`}
+                />
+                {structure && shown.criteria.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeCriterion(criterion.id)}
+                    aria-label={`Remove criterion ${ri + 1}`}
+                    {...tourFieldAttr(
+                      'quiz-grading.rubric-table-remove-criterion',
+                      'quiz',
+                      String(ri + 1)
                     )}
-                  </th>
-                ))}
-                {addColumn && (
+                    className={removeButton}
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden />
+                  </button>
+                )}
+              </span>
+              <GuideRowFields
+                criterion={criterion}
+                index={ri}
+                onPatch={(patch) => patchCriterion(criterion.id, patch)}
+                anchor={tableGuideAnchor}
+              />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <table
+            className="w-full min-w-[44rem] table-fixed border-collapse text-left"
+            style={
+              editing
+                ? {
+                    minWidth: `${15 + columns * 12 + (addColumn ? 3.5 : 0)}rem`,
+                  }
+                : undefined
+            }
+          >
+            <colgroup>
+              <col className="w-60" />
+              {Array.from({ length: columns }, (_, i) => (
+                <col key={i} />
+              ))}
+              {addColumn && <col className="w-14" />}
+            </colgroup>
+            {draftHeaders && (
+              <thead>
+                <tr className="bg-slate-50">
                   <th
                     scope="col"
-                    className="border-l border-slate-200 px-1 py-3"
+                    className="sticky left-0 bg-slate-50 px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-500"
                   >
-                    <button
-                      type="button"
-                      onClick={() => addLevel()}
-                      aria-label="Add level"
-                      title="Add level"
-                      {...tourFieldAttr(
-                        'quiz-grading.rubric-table-add-level',
-                        'quiz',
-                        'all'
-                      )}
-                      className="mx-auto flex h-9 w-9 items-center justify-center rounded-md text-brand-blue-primary transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
-                    >
-                      <Plus className="h-5 w-5" aria-hidden />
-                    </button>
+                    Criteria
                   </th>
-                )}
-              </tr>
-            </thead>
-          )}
-          <tbody>
-            {shown.criteria.map((criterion, ri) => {
-              const picked = editing ? undefined : scores.get(criterion.id);
-              const levels = rows[ri];
-              const max = criterionMaxPoints(criterion);
-              const hasDupes = dupes.has(criterion.id);
-              return (
-                <tr
-                  key={criterion.id}
-                  className={`align-top ${draftHeaders || ri > 0 ? 'border-t border-slate-200' : ''}`}
-                >
-                  <th
-                    scope="row"
-                    className="sticky left-0 bg-slate-50 px-4 py-4 font-normal"
-                  >
-                    {editing ? (
-                      <>
+                  {draftHeaders.map((label, i) => (
+                    <th
+                      key={i}
+                      scope="col"
+                      className="border-l border-slate-200 px-4 py-3 text-sm font-bold text-slate-800"
+                    >
+                      {editing ? (
                         <span className="flex items-start gap-1">
                           <textarea
                             ref={autoGrow}
                             rows={1}
-                            placeholder="Criterion name"
-                            value={criterion.name}
+                            value={label}
                             onChange={(e) => {
-                              patchCriterion(criterion.id, {
-                                name: e.target.value,
-                              });
+                              renameColumn(i, e.target.value);
                               autoGrow(e.target);
                             }}
-                            aria-label={`Criterion ${ri + 1} name`}
+                            placeholder="Level name"
+                            aria-label={`Level ${i + 1} name`}
                             {...tourFieldAttr(
                               'quiz-grading.rubric-table-field',
                               'quiz',
-                              `${ri + 1}-name`
+                              `column-${i + 1}`
                             )}
                             className={`${growField} min-w-0 flex-1 text-sm font-bold`}
                           />
-                          {structure && shown.criteria.length > 1 && (
+                          {levelEdits && columns > RUBRIC_MIN_LEVELS && (
                             <button
                               type="button"
-                              onClick={() => removeCriterion(criterion.id)}
-                              aria-label={`Remove criterion ${ri + 1}`}
+                              onClick={() => removeLevel(i)}
+                              aria-label={`Remove level ${i + 1}`}
                               {...tourFieldAttr(
-                                'quiz-grading.rubric-table-remove-criterion',
+                                'quiz-grading.rubric-table-remove-level',
                                 'quiz',
-                                String(ri + 1)
+                                String(i + 1)
                               )}
                               className={removeButton}
                             >
@@ -590,236 +678,308 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
                             </button>
                           )}
                         </span>
-                        <textarea
-                          ref={autoGrow}
-                          rows={2}
-                          value={criterion.description ?? ''}
-                          onChange={(e) => {
-                            patchCriterion(criterion.id, {
-                              description: e.target.value,
-                            });
-                            autoGrow(e.target);
-                          }}
-                          placeholder="Description"
-                          aria-label={`Criterion ${ri + 1} description`}
-                          {...tourFieldAttr(
-                            'quiz-grading.rubric-table-field',
-                            'quiz',
-                            `${ri + 1}-description`
-                          )}
-                          className={`${growField} mt-2 min-h-14 text-xs leading-relaxed`}
-                        />
-                        {structure &&
-                          !editShared &&
-                          criterion.levels.length < RUBRIC_MAX_LEVELS && (
-                            <button
-                              type="button"
-                              onClick={() => addLevel(criterion.id)}
-                              {...tourFieldAttr(
-                                'quiz-grading.rubric-table-add-level',
-                                'quiz',
-                                String(ri + 1)
-                              )}
-                              className={`${textButton} mt-2`}
-                            >
-                              <Plus className="h-4 w-4" aria-hidden />
-                              Add level
-                            </button>
-                          )}
-                      </>
-                    ) : (
-                      <>
-                        <span className="block break-words text-sm font-bold leading-snug text-slate-900">
-                          {criterion.name}
-                        </span>
-                        {criterion.description && (
-                          <span className="mt-1.5 block whitespace-pre-line text-xs leading-relaxed text-slate-500">
-                            {criterion.description}
-                          </span>
-                        )}
-                        {criterion.guide && (
-                          <RubricGuideExamples
-                            examples={criterion.guide.examples ?? []}
-                          />
-                        )}
-                      </>
-                    )}
-                    <span
-                      className={`mt-3 block text-xs font-semibold tabular-nums ${
-                        hasDupes
-                          ? 'text-brand-red-dark'
-                          : picked
-                            ? 'text-brand-blue-primary'
-                            : 'text-slate-500'
-                      }`}
+                      ) : (
+                        label
+                      )}
+                    </th>
+                  ))}
+                  {addColumn && (
+                    <th
+                      scope="col"
+                      className="border-l border-slate-200 px-1 py-3"
                     >
-                      {hasDupes
-                        ? 'Each level needs different points'
-                        : picked
-                          ? `${picked.points} of ${pts(max)}`
-                          : pts(max)}
-                    </span>
-                  </th>
-                  {Array.from({ length: columns }, (_, i) => {
-                    const level = levels[i];
-                    if (!level)
-                      return (
-                        <td
-                          key={i}
-                          className="border-l border-slate-200 bg-slate-50/50"
-                        />
-                      );
-                    const cellRemove = structure &&
-                      !editShared &&
-                      levels.length > RUBRIC_MIN_LEVELS && (
-                        // eslint-disable-next-line no-restricted-syntax -- a remove button per rubric level cell, not a number picker
+                      {editShared && (
                         <button
                           type="button"
-                          onClick={() => removeLevel(i, criterion.id)}
-                          aria-label={`Remove criterion ${ri + 1} level ${i + 1}`}
+                          onClick={() => addLevel()}
+                          aria-label="Add level"
+                          title="Add level"
                           {...tourFieldAttr(
-                            'quiz-grading.rubric-table-remove-level',
+                            'quiz-grading.rubric-table-add-level',
                             'quiz',
-                            `${ri + 1}-${i + 1}`
+                            'all'
                           )}
-                          className={removeButton}
+                          className={addButton}
                         >
-                          <Trash2 className="h-4 w-4" aria-hidden />
+                          <Plus className="h-5 w-5" aria-hidden />
                         </button>
-                      );
-                    const isPicked = picked?.levelId === level.id;
-                    if (editing) {
-                      return (
-                        <td
-                          key={level.id}
-                          className="border-l border-slate-200 bg-white px-3 py-3"
-                        >
-                          {!draftHeaders && (
-                            <span className="mb-2 flex items-start gap-1">
-                              <textarea
-                                ref={autoGrow}
-                                rows={1}
-                                value={level.label}
-                                onChange={(e) => {
-                                  patchLevel(criterion.id, level.id, {
-                                    label: e.target.value,
-                                  });
-                                  autoGrow(e.target);
-                                }}
-                                aria-label={`Criterion ${ri + 1} level ${i + 1} name`}
-                                {...tourFieldAttr(
-                                  'quiz-grading.rubric-table-field',
-                                  'quiz',
-                                  `${ri + 1}-${i + 1}-label`
-                                )}
-                                placeholder="Level name"
-                                className={`${growField} min-w-0 flex-1 text-sm font-bold`}
-                              />
-                              {cellRemove}
-                            </span>
-                          )}
-                          <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
-                            <input
-                              type="number"
-                              min={0}
-                              step="any"
-                              value={level.points}
+                      )}
+                    </th>
+                  )}
+                </tr>
+              </thead>
+            )}
+            <tbody>
+              {shown.criteria.map((criterion, ri) => {
+                const picked = editing ? undefined : scores.get(criterion.id);
+                const levels = rows[ri];
+                const max = criterionMaxPoints(criterion);
+                const hasDupes = dupes.has(criterion.id);
+                return (
+                  <tr
+                    key={criterion.id}
+                    className={`align-top ${draftHeaders || ri > 0 ? 'border-t border-slate-200' : ''}`}
+                  >
+                    <th
+                      scope="row"
+                      className="sticky left-0 bg-slate-50 px-4 py-4 font-normal"
+                    >
+                      {editing ? (
+                        <>
+                          <span className="flex items-start gap-1">
+                            <textarea
+                              ref={autoGrow}
+                              rows={1}
+                              placeholder="Criterion name"
+                              value={criterion.name}
                               onChange={(e) => {
-                                const n = Number(e.target.value);
-                                if (Number.isFinite(n) && n >= 0)
-                                  patchLevel(criterion.id, level.id, {
-                                    points: n,
-                                  });
+                                patchCriterion(criterion.id, {
+                                  name: e.target.value,
+                                });
+                                autoGrow(e.target);
                               }}
-                              aria-label={`Criterion ${ri + 1} level ${i + 1} points`}
-                              aria-invalid={hasDupes || undefined}
+                              aria-label={`Criterion ${ri + 1} name`}
                               {...tourFieldAttr(
                                 'quiz-grading.rubric-table-field',
                                 'quiz',
-                                `${ri + 1}-${i + 1}-points`
+                                `${ri + 1}-name`
                               )}
-                              className={`${fieldCore} w-16 text-right text-sm font-bold tabular-nums aria-[invalid]:border-brand-red-primary`}
+                              className={`${growField} min-w-0 flex-1 text-sm font-bold`}
                             />
-                            pts
-                          </label>
+                            {structure && shown.criteria.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => removeCriterion(criterion.id)}
+                                aria-label={`Remove criterion ${ri + 1}`}
+                                {...tourFieldAttr(
+                                  'quiz-grading.rubric-table-remove-criterion',
+                                  'quiz',
+                                  String(ri + 1)
+                                )}
+                                className={removeButton}
+                              >
+                                <Trash2 className="h-4 w-4" aria-hidden />
+                              </button>
+                            )}
+                          </span>
                           <textarea
                             ref={autoGrow}
-                            rows={3}
-                            value={level.description ?? ''}
+                            rows={2}
+                            value={criterion.description ?? ''}
                             onChange={(e) => {
-                              patchLevel(criterion.id, level.id, {
+                              patchCriterion(criterion.id, {
                                 description: e.target.value,
                               });
                               autoGrow(e.target);
                             }}
                             placeholder="Description"
-                            aria-label={`Criterion ${ri + 1} level ${i + 1} description`}
+                            aria-label={`Criterion ${ri + 1} description`}
                             {...tourFieldAttr(
                               'quiz-grading.rubric-table-field',
                               'quiz',
-                              `${ri + 1}-${i + 1}-description`
+                              `${ri + 1}-description`
                             )}
-                            className={`${growField} mt-2 min-h-16 text-[13px] leading-relaxed`}
+                            className={`${growField} mt-2 min-h-14 text-xs leading-relaxed`}
                           />
-                        </td>
-                      );
-                    }
-                    return (
-                      <td
-                        key={level.id}
-                        aria-current={isPicked || undefined}
-                        className={`border-l px-4 py-4 ${
-                          isPicked
-                            ? 'border-brand-blue-primary bg-brand-blue-primary text-white'
-                            : 'border-slate-200 bg-white text-slate-900'
+                        </>
+                      ) : (
+                        <>
+                          <span className="block break-words text-sm font-bold leading-snug text-slate-900">
+                            {criterion.name}
+                          </span>
+                          {criterion.description && (
+                            <span className="mt-1.5 block whitespace-pre-line text-xs leading-relaxed text-slate-500">
+                              {criterion.description}
+                            </span>
+                          )}
+                          {criterion.guide && (
+                            <RubricGuideExamples
+                              examples={criterion.guide.examples ?? []}
+                            />
+                          )}
+                        </>
+                      )}
+                      <span
+                        className={`mt-3 block text-xs font-semibold tabular-nums ${
+                          hasDupes
+                            ? 'text-brand-red-dark'
+                            : picked
+                              ? 'text-brand-blue-primary'
+                              : 'text-slate-500'
                         }`}
                       >
-                        <span className="flex items-center justify-between gap-2">
-                          {draftHeaders ? (
-                            <span
-                              className={`text-sm font-bold tabular-nums ${isPicked ? 'text-white' : 'text-slate-700'}`}
-                            >
-                              {pts(level.points)}
-                            </span>
-                          ) : (
-                            <span className="break-words text-sm font-bold">
-                              {level.label}
-                            </span>
-                          )}
-                          {isPicked ? (
-                            <Check
-                              className="h-4 w-4 shrink-0"
-                              aria-label="Selected"
+                        {hasDupes
+                          ? 'Each level needs different points'
+                          : picked
+                            ? `${picked.points} of ${pts(max)}`
+                            : pts(max)}
+                      </span>
+                    </th>
+                    {Array.from({ length: columns }, (_, i) => {
+                      const level = levels[i];
+                      if (!level)
+                        return (
+                          <td
+                            key={i}
+                            className="border-l border-slate-200 bg-slate-50/50 px-3 py-3 align-middle"
+                          >
+                            {i === levels.length && rowAdd(ri, criterion.id)}
+                          </td>
+                        );
+                      const cellRemove = levelEdits &&
+                        !editShared &&
+                        levels.length > RUBRIC_MIN_LEVELS && (
+                          // eslint-disable-next-line no-restricted-syntax -- a remove button per rubric level cell, not a number picker
+                          <button
+                            type="button"
+                            onClick={() => removeLevel(i, criterion.id)}
+                            aria-label={`Remove criterion ${ri + 1} level ${i + 1}`}
+                            {...tourFieldAttr(
+                              'quiz-grading.rubric-table-remove-level',
+                              'quiz',
+                              `${ri + 1}-${i + 1}`
+                            )}
+                            className={removeButton}
+                          >
+                            <Trash2 className="h-4 w-4" aria-hidden />
+                          </button>
+                        );
+                      const isPicked = picked?.levelId === level.id;
+                      if (editing) {
+                        return (
+                          <td
+                            key={level.id}
+                            className="border-l border-slate-200 bg-white px-3 py-3"
+                          >
+                            {!draftHeaders && (
+                              <span className="mb-2 flex items-start gap-1">
+                                <textarea
+                                  ref={autoGrow}
+                                  rows={1}
+                                  value={level.label}
+                                  onChange={(e) => {
+                                    patchLevel(criterion.id, level.id, {
+                                      label: e.target.value,
+                                    });
+                                    autoGrow(e.target);
+                                  }}
+                                  aria-label={`Criterion ${ri + 1} level ${i + 1} name`}
+                                  {...tourFieldAttr(
+                                    'quiz-grading.rubric-table-field',
+                                    'quiz',
+                                    `${ri + 1}-${i + 1}-label`
+                                  )}
+                                  placeholder="Level name"
+                                  className={`${growField} min-w-0 flex-1 text-sm font-bold`}
+                                />
+                                {cellRemove}
+                              </span>
+                            )}
+                            <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+                              <input
+                                type="number"
+                                min={0}
+                                step="any"
+                                value={level.points}
+                                onChange={(e) => {
+                                  const n = Number(e.target.value);
+                                  if (Number.isFinite(n) && n >= 0)
+                                    patchLevel(criterion.id, level.id, {
+                                      points: n,
+                                    });
+                                }}
+                                aria-label={`Criterion ${ri + 1} level ${i + 1} points`}
+                                aria-invalid={hasDupes || undefined}
+                                {...tourFieldAttr(
+                                  'quiz-grading.rubric-table-field',
+                                  'quiz',
+                                  `${ri + 1}-${i + 1}-points`
+                                )}
+                                className={`${fieldCore} w-16 text-right text-sm font-bold tabular-nums aria-[invalid]:border-brand-red-primary`}
+                              />
+                              pts
+                            </label>
+                            <textarea
+                              ref={autoGrow}
+                              rows={3}
+                              value={level.description ?? ''}
+                              onChange={(e) => {
+                                patchLevel(criterion.id, level.id, {
+                                  description: e.target.value,
+                                });
+                                autoGrow(e.target);
+                              }}
+                              placeholder="Description"
+                              aria-label={`Criterion ${ri + 1} level ${i + 1} description`}
+                              {...tourFieldAttr(
+                                'quiz-grading.rubric-table-field',
+                                'quiz',
+                                `${ri + 1}-${i + 1}-description`
+                              )}
+                              className={`${growField} mt-2 min-h-16 text-[13px] leading-relaxed`}
                             />
-                          ) : (
-                            !draftHeaders && (
-                              <span className="shrink-0 text-sm font-semibold tabular-nums text-slate-500">
+                          </td>
+                        );
+                      }
+                      return (
+                        <td
+                          key={level.id}
+                          aria-current={isPicked || undefined}
+                          className={`border-l px-4 py-4 ${
+                            isPicked
+                              ? 'border-brand-blue-primary bg-brand-blue-primary text-white'
+                              : 'border-slate-200 bg-white text-slate-900'
+                          }`}
+                        >
+                          <span className="flex items-center justify-between gap-2">
+                            {draftHeaders ? (
+                              <span
+                                className={`text-sm font-bold tabular-nums ${isPicked ? 'text-white' : 'text-slate-700'}`}
+                              >
                                 {pts(level.points)}
                               </span>
-                            )
-                          )}
-                        </span>
-                        {level.description && (
-                          <span
-                            className={`mt-2 block whitespace-pre-line text-[13px] leading-relaxed ${
-                              isPicked ? 'text-white' : 'text-slate-600'
-                            }`}
-                          >
-                            {level.description}
+                            ) : (
+                              <span className="break-words text-sm font-bold">
+                                {level.label}
+                              </span>
+                            )}
+                            {isPicked ? (
+                              <Check
+                                className="h-4 w-4 shrink-0"
+                                aria-label="Selected"
+                              />
+                            ) : (
+                              !draftHeaders && (
+                                <span className="shrink-0 text-sm font-semibold tabular-nums text-slate-500">
+                                  {pts(level.points)}
+                                </span>
+                              )
+                            )}
                           </span>
-                        )}
+                          {level.description && (
+                            <span
+                              className={`mt-2 block whitespace-pre-line text-[13px] leading-relaxed ${
+                                isPicked ? 'text-white' : 'text-slate-600'
+                              }`}
+                            >
+                              {level.description}
+                            </span>
+                          )}
+                        </td>
+                      );
+                    })}
+                    {addColumn && (
+                      <td className="border-l border-slate-200 bg-slate-50/50 px-1 py-3 align-middle">
+                        {levels.length === columns && rowAdd(ri, criterion.id)}
                       </td>
-                    );
-                  })}
-                  {addColumn && (
-                    <td className="border-l border-slate-200 bg-slate-50/50" />
-                  )}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+                    )}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
       {structure && (
         <button
           type="button"
@@ -828,9 +988,10 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
           className={`${textButton} mt-3`}
         >
           <Plus className="h-4 w-4" aria-hidden />
-          Add criterion
+          {guideEditing ? 'Add part' : 'Add criterion'}
         </button>
       )}
+      {controlled?.belowTable}
     </Modal>
   );
 };

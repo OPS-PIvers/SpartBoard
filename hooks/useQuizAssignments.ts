@@ -163,7 +163,7 @@ import {
   resolveGateBuildingIds,
   resolveQuizHandRaiseEnabled,
 } from '@/utils/quizHandRaise';
-import { getPlcMemberEmails } from '@/utils/plc';
+import { getPlcMemberEmails, importedPlcLinkage } from '@/utils/plc';
 import { prepareQuizReadAloudInBackground } from '@/utils/quizReadAloudApi';
 import { readAloudTranslationLocales } from '@/config/quizReadAloud';
 import { alignToPreviousOrder } from '@/utils/quizLocalizedArrays';
@@ -260,9 +260,16 @@ async function commitQuizLifecycle(
             ])
           )
         : {};
+    // A reopened or resumed quiz is no longer closed or moved to Done (ASSIGNED_TAB D24).
+    const clearMarks =
+      event.type === 'reopen' || event.type === 'resume'
+        ? { closedAt: deleteField(), doneAt: deleteField() }
+        : {};
+    // D11 measures a single line left open from its last Resume.
+    const opened = event.type === 'resume' ? { openedAt: now } : {};
     tx.update(
       doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
-      { ...patches.assignment, ...clearPicks }
+      { ...patches.assignment, ...clearPicks, ...clearMarks, ...opened }
     );
     // A repeat Pause, or a Reopen after a paused End, keeps the open pause's start.
     const sessionPatch = { ...patches.session };
@@ -276,6 +283,7 @@ async function commitQuizLifecycle(
     }
     tx.update(sessionRef, {
       ...sessionPatch,
+      ...(event.type === 'end' ? { revealedAnswers: deleteField() } : {}),
       ...clearPicks,
       ...clearPasses,
       ...(pauseSpans ? { pauseSpans } : {}),
@@ -595,6 +603,8 @@ export interface UseQuizAssignmentsResult {
     plcHandling?: {
       isMember: (plcId: string) => boolean;
       onNonMember: (info: { plcId: string; plcName: string }) => void;
+      /** The importer's own view of the live PLC; the share's sheet, name and roster are never kept. */
+      liveLinkage?: (plcId: string) => PlcLinkage | undefined;
     },
     /**
      * Import mode chosen by the user in the picker modal. Default `'copy'`
@@ -3107,21 +3117,23 @@ export const useQuizAssignments = (
       //     keeping repopulation tied to the importer's own PLC selection
       //     rather than the originator's.
       //
-      // EXCEPTION: members of the share's PLC keep `plc` wiring so their
-      // exports route to the same shared sheet that the originator and
-      // every other peer use (already shared with all members at sheet
-      // creation time in Widget.tsx → createPlcSheetAndShare).
+      // EXCEPTION: members of the share's PLC get `plc` wiring rebuilt from
+      // their own live view of that PLC, never from the share's copy.
       const sharedPlc = shared.assignmentSettings.plc;
       const importerIsPlcMember =
         !!sharedPlc && !!plcHandling && plcHandling.isMember(sharedPlc.id);
 
+      const livePlc =
+        sharedPlc && importerIsPlcMember
+          ? plcHandling?.liveLinkage?.(sharedPlc.id)
+          : undefined;
       const importedSettings: QuizAssignmentSettings = {
         ...shared.assignmentSettings,
         className: undefined,
         teacherName: undefined,
         periodName: undefined,
         periodNames: undefined,
-        plc: importerIsPlcMember ? shared.assignmentSettings.plc : undefined,
+        plc: livePlc ? importedPlcLinkage(livePlc, sharedPlc) : undefined,
       };
 
       if (sharedPlc && !importerIsPlcMember && plcHandling) {

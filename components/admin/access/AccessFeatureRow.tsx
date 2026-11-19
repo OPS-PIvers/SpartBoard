@@ -99,6 +99,8 @@ const permissionChips = (
         {permission.betaUsers.length === 1 ? '' : 's'}
       </Chip>
     );
+  const excluded = permission.excludedUsers?.length ?? 0;
+  if (excluded > 0) chips.push(<Chip key="excluded">{excluded} excluded</Chip>);
   if (GEMINI_FEATURES.includes(featureId)) {
     const on = (permission.config?.dailyLimitEnabled as boolean) ?? true;
     const limit =
@@ -504,6 +506,13 @@ export const AccessFeatureRow: React.FC<AccessFeatureRowProps> = ({
               variant="expanded"
             />
           )}
+          <BetaUsersPanel
+            kind="excluded"
+            betaUsers={permission.excludedUsers ?? []}
+            onChange={(excludedUsers) => onUpdate({ excludedUsers })}
+            showMessage={showMessage}
+            variant="expanded"
+          />
           {GEMINI_FEATURES.includes(featureId) && (
             <DailyLimitEditor
               featureId={featureId}

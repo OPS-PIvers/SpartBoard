@@ -80,7 +80,13 @@ export function landingRowState(
   }
   if (a.live) return 'live';
   if (getWindowState(a, nowMs) === 'upcoming') return 'upcoming';
-  if (check && !onPaper && isMissingStillOpen(a, check.turnIn, nowMs)) {
+  // A paused or not-yet-open quiz can't be done now, so it is never Missing.
+  if (
+    check &&
+    !onPaper &&
+    !a.held &&
+    isMissingStillOpen(a, check.turnIn, nowMs)
+  ) {
     return 'missing-open';
   }
   return turnIn === 'in-progress' ? 'in-progress' : 'open';

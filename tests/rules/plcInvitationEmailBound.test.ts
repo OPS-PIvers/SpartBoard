@@ -62,7 +62,7 @@ beforeEach(async () => {
       name: 'Math PLC',
       leadUid: LEAD_UID,
       memberUids: [LEAD_UID],
-      memberEmails: [LEAD_EMAIL],
+      memberEmails: { [LEAD_UID]: LEAD_EMAIL },
     });
   });
 });
@@ -220,6 +220,26 @@ describe('plc_invitations — manager create gate (M-1: lead OR coLead)', () => 
   it('a plain member canNOT create an invite', async () => {
     await assertFails(
       setDoc(doc(asPlainMember(), invitePath), m1Invite(MEMBER_UID, invitee))
+    );
+  });
+
+  it('a manager cannot invite their own address or an active member (security #14)', async () => {
+    for (const email of [LEAD_EMAIL, MEMBER_EMAIL, COLEAD_EMAIL]) {
+      await assertFails(
+        setDoc(
+          doc(asLead(), `plc_invitations/${inviteDocId(M1_PLC_ID, email)}`),
+          m1Invite(LEAD_UID, email)
+        )
+      );
+    }
+    await assertFails(
+      setDoc(
+        doc(
+          asCoLead(),
+          `plc_invitations/${inviteDocId(M1_PLC_ID, COLEAD_EMAIL)}`
+        ),
+        m1Invite(COLEAD_UID, COLEAD_EMAIL)
+      )
     );
   });
 

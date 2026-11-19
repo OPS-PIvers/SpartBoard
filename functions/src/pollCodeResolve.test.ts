@@ -41,6 +41,7 @@ import {
   POLL_CODE_CALLER_MAX_MISSES,
   POLL_CODE_GLOBAL_MAX_MISSES,
   POLL_CODE_MINT_MAX_PER_HOUR,
+  PARKED_CODE_TTL_MS,
   RESERVATION_TTL_MS,
 } from './pollCodeResolve';
 import { makeStubFirestore, type StubData } from './testing/stubFirestore';
@@ -57,12 +58,9 @@ const live: Record<string, StubData> = {
 };
 
 const setup = (seed: Record<string, StubData> = live) => {
-  const stub = makeStubFirestore(seed);
+  const stub = makeStubFirestore(seed, { serialTransactions: true });
   // Plain read-modify-write stand-in for the FieldValue increments.
-  const recordMiss: RecordMiss = (caller, global, code) => {
-    const c = stub.get(caller.path);
-    const codes = Array.isArray(c?.codes) ? (c.codes as string[]) : [];
-    stub.store.set(caller.path, { codes: [...codes, code] });
+  const recordMiss: RecordMiss = (global) => {
     const misses = stub.get(global.path)?.misses;
     stub.store.set(global.path, {
       misses: (typeof misses === 'number' ? misses : 0) + 1,
@@ -191,16 +189,48 @@ describe('resolvePollCode', () => {
     );
   });
 
-  it('never refuses a valid code over the shared count, and warns once', async () => {
+  it('at the shared cap, refuses a caller with earlier misses but lets a fresh caller join (security #8)', async () => {
     const { resolve } = setup({
       ...live,
       [GLOBAL_DOC]: { misses: POLL_CODE_GLOBAL_MAX_MISSES },
-      [CALLER_DOC('missing')]: { codes: ['ZZZZZ'] },
+      [CALLER_DOC('missing')]: { codes: ['ZZZZZ', 'WWWWW'] },
     });
+    // A student's first codes still go through, so a flood can't lock out every join.
     expect(await resolve('fresh-uid', 'K3F9Q')).toBe('t1_K3F9Q');
-    expect(await resolve('missing', 'K3F9Q')).toBe('t1_K3F9Q');
-    expect(await resolve('missing', 'YYYYY')).toBeNull();
+    await expect(resolve('missing', 'YYYYY')).rejects.toMatchObject({
+      code: 'resource-exhausted',
+    });
+    await expect(resolve('missing', 'K3F9Q')).rejects.toMatchObject({
+      code: 'resource-exhausted',
+    });
+    // A code this caller already looked up is answered the same as before.
+    expect(await resolve('missing', 'ZZZZZ')).toBeNull();
     expect(logger.warn).toHaveBeenCalledTimes(1);
+  });
+
+  it('gives a parallel burst from one caller at most the cap (security #8)', async () => {
+    const { resolve } = setup();
+    const n = POLL_CODE_CALLER_MAX_MISSES + 5;
+    const results = await Promise.allSettled(
+      Array.from({ length: n }, (_, i) => resolve('burst', `P${i}`))
+    );
+    const answered = results.filter((r) => r.status === 'fulfilled');
+    expect(answered).toHaveLength(POLL_CODE_CALLER_MAX_MISSES);
+  });
+
+  it('gives back the slot on a hit, so joining never uses up the budget', async () => {
+    const { stub, resolve } = setup();
+    expect(await resolve('anon1', 'K3F9Q')).toBe('t1_K3F9Q');
+    expect(stub.get(CALLER_DOC('anon1'))?.codes).toEqual([]);
+  });
+
+  it('gives back a slot when a code that missed later hits', async () => {
+    const { stub, resolve } = setup({});
+    expect(await resolve('anon1', 'K3F9Q')).toBeNull();
+    stub.store.set('poll_codes/K3F9Q', live['poll_codes/K3F9Q']);
+    stub.store.set('poll_sessions/t1_K3F9Q', live['poll_sessions/t1_K3F9Q']);
+    expect(await resolve('anon1', 'K3F9Q')).toBe('t1_K3F9Q');
+    expect(stub.get(CALLER_DOC('anon1'))?.codes).toEqual([]);
   });
 
   it('never fails the call when a counter write fails', async () => {
@@ -216,7 +246,7 @@ describe('resolvePollCode', () => {
     await resolvePollCode(stub.db as unknown as Db, 'a', 'AAAAA', NOW);
     const byPath = new Map(stub.writes.map((w) => [w.path, w.data]));
     expect(byPath.get(GLOBAL_DOC)?.misses).toEqual({ __increment: 1 });
-    expect(byPath.get(CALLER_DOC('a'))?.codes).toEqual({ __union: ['AAAAA'] });
+    expect(byPath.get(CALLER_DOC('a'))?.codes).toEqual(['AAAAA']);
   });
 
   it('ignores an empty code', async () => {
@@ -264,6 +294,20 @@ describe('mintPollCode', () => {
     const picks = [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2];
     expect(await mintPollCode(db, 't1', NOW, () => picks.shift() ?? 0)).toBe(
       'DDDDD'
+    );
+  });
+
+  it('reclaims a parked code only after its long hold (review of #9)', async () => {
+    const { db } = setup({
+      'poll_codes/AAAAA': { teacherUid: 'x', updatedAt: NOW - 1000 },
+      'poll_codes/CCCCC': {
+        teacherUid: 'x',
+        updatedAt: NOW - PARKED_CODE_TTL_MS - 1,
+      },
+    });
+    const picks = [0, 0, 0, 0, 0, 1, 1, 1, 1, 1];
+    expect(await mintPollCode(db, 't1', NOW, () => picks.shift() ?? 0)).toBe(
+      'CCCCC'
     );
   });
 
@@ -434,11 +478,17 @@ describe('claimPollCode', () => {
     });
   });
 
-  it('is a no-op for the holder and when no pointer exists', async () => {
+  it('is a no-op for the holder, and refuses a missing code like any other (security #9)', async () => {
     expect(await claim(seed(board()), 'tA')).toBe(true);
     const empty = makeStubFirestore({ 'shared_boards/sb1': board() });
-    expect(await claim(empty, 'tB')).toBe(false);
+    const missing = await claim(empty, 'tB').catch((e: Error) => e);
+    const held = await claim(seed(board()), 'tX').catch((e: Error) => e);
+    expect(missing).toMatchObject({ code: 'permission-denied' });
+    expect((missing as Error).message).toBe((held as Error).message);
     expect(empty.has('poll_codes/K3F9Q')).toBe(false);
+    expect(
+      Array.from(empty.store.keys()).some((k) => k.includes('uid__tB__'))
+    ).toBe(true);
   });
 
   it('refuses a teacher who is not on the board, or only views it', async () => {

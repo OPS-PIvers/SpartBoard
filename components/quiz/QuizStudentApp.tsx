@@ -360,6 +360,7 @@ import { AssignmentExcludedNotice } from '@/components/student/AssignmentExclude
 import { StudentBrandBackdrop } from '@/components/student/StudentBrandBackdrop';
 import { resolveEffectiveWindow } from '@/utils/assignmentWindow';
 import { effectivePageProtections } from '@/utils/pageProtections';
+import { isForeignPointer } from '@/utils/pointerOwnership';
 import { PageProtectionGuards } from '@/components/common/PageProtectionGuards';
 import {
   getScoreSuffix,
@@ -706,7 +707,14 @@ const QuizJoinFlow: React.FC<{
             const snap = await getDoc(
               doc(db, 'student_assignments', uid, 'items', info.sessionId)
             );
-            if (snap.exists() && snap.data()?.excluded === true) {
+            if (
+              snap.exists() &&
+              snap.data()?.excluded === true &&
+              !isForeignPointer(snap.data(), {
+                sessionId: info.sessionId,
+                kind: 'quiz',
+              })
+            ) {
               dispatchFlow({ type: 'excluded' });
               return;
             }
@@ -853,7 +861,9 @@ const QuizJoinFlow: React.FC<{
   const myStudentUid = isStudentRole ? (auth.currentUser?.uid ?? null) : null;
   const myPointer = useStudentAssignmentPointer(
     myStudentUid,
-    session?.assignmentId ?? null
+    session?.assignmentId ?? null,
+    true,
+    { sessionId: session?.id, teacherUid: session?.teacherUid, kind: 'quiz' }
   );
   const myOverride: StudentOverride | undefined = myPointer?.override;
   // D28/D34: Spanish students get the Spanish shell; the choice is never persisted.

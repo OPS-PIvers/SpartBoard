@@ -45,6 +45,10 @@ const renderPanel = (
     flag?: boolean;
     order?: RubricLevelOrder;
     updateAccountPreferences?: AuthContextType['updateAccountPreferences'];
+    hideTotal?: boolean;
+    autoAdvance?: boolean;
+    openNext?: boolean;
+    initialScores?: WrittenAnswerRubricScore[];
   } = {}
 ) => {
   const onChange = vi.fn<(s: WrittenAnswerRubricScore[], p: number) => void>();
@@ -53,6 +57,8 @@ const renderPanel = (
     canAccessFeature: (id) =>
       id === 'rubric-grading-v2' ? opts.flag !== false : true,
     rubricLevelOrder: opts.order ?? 'high-first',
+    rubricAutoAdvance: opts.autoAdvance ?? false,
+    rubricOpenNext: opts.openNext ?? true,
     updateAccountPreferences:
       opts.updateAccountPreferences ?? vi.fn().mockResolvedValue(undefined),
   };
@@ -62,6 +68,8 @@ const renderPanel = (
         rubric={{ ...rubric, id: `r${++renders}` }}
         maxPoints={6}
         onChange={onChange}
+        hideTotal={opts.hideTotal}
+        initialScores={opts.initialScores}
       />
     </AuthContext.Provider>
   );
@@ -85,29 +93,99 @@ describe('RubricGradingPanel (rubric-grading-v2)', () => {
 
   it('shows collapsed point buttons, highest first by default', () => {
     renderPanel();
-    expect(levelButtons('Thesis').map((b) => b.textContent)).toEqual([
-      '4',
-      '3',
-      '1',
-    ]);
+    expect(
+      levelButtons('Thesis').map((b) => b.getAttribute('aria-label'))
+    ).toEqual(['Exceeds, 4 pts', 'Meets, 3 pts', 'Below, 1 pt']);
   });
 
   it('shows lowest first when the teacher prefers it', () => {
     renderPanel({ order: 'low-first' });
-    expect(levelButtons('Thesis').map((b) => b.textContent)).toEqual([
-      '1',
-      '3',
-      '4',
-    ]);
+    expect(
+      levelButtons('Thesis').map((b) => b.getAttribute('aria-label'))
+    ).toEqual(['Below, 1 pt', 'Meets, 3 pts', 'Exceeds, 4 pts']);
   });
 
   it('saves the order switch to the teacher preferences', () => {
     const updateAccountPreferences = vi.fn().mockResolvedValue(undefined);
     renderPanel({ updateAccountPreferences });
-    fireEvent.click(screen.getByRole('button', { name: /Level order/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Rubric settings' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Lowest' }));
     expect(updateAccountPreferences).toHaveBeenCalledWith({
       rubricLevelOrder: 'low-first',
     });
+  });
+
+  it('saves the jump switch and disables Auto-open while it is off', () => {
+    const updateAccountPreferences = vi.fn().mockResolvedValue(undefined);
+    renderPanel({ updateAccountPreferences });
+    fireEvent.click(screen.getByRole('button', { name: 'Rubric settings' }));
+    expect(
+      screen.getByRole('switch', { name: 'Auto-open next category' })
+    ).toBeDisabled();
+    fireEvent.click(
+      screen.getByRole('switch', { name: 'Auto-advance to next category' })
+    );
+    expect(updateAccountPreferences).toHaveBeenCalledWith({
+      rubricAutoAdvance: true,
+    });
+  });
+
+  it('opens the first unscored criterion when jump and open next are on', () => {
+    renderPanel({
+      autoAdvance: true,
+      initialScores: [{ criterionId: 'c1', levelId: 'c1l2', points: 3 }],
+    });
+    expect(screen.getByRole('button', { name: /^Evidence/ })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
+    expect(screen.getByRole('button', { name: /^Thesis/ })).toHaveAttribute(
+      'aria-expanded',
+      'false'
+    );
+  });
+
+  it('closes a scored criterion and opens the next one', () => {
+    renderPanel({ autoAdvance: true });
+    expect(screen.getByRole('button', { name: /^Thesis/ })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
+    fireEvent.click(screen.getByRole('button', { name: /^3\s*Meets/ }));
+    expect(screen.getByRole('button', { name: /^Thesis/ })).toHaveAttribute(
+      'aria-expanded',
+      'false'
+    );
+    expect(screen.getByRole('button', { name: /^Evidence/ })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
+  });
+
+  it('keeps criteria closed when open next is off', () => {
+    renderPanel({ autoAdvance: true, openNext: false });
+    expect(screen.getByRole('button', { name: /^Thesis/ })).toHaveAttribute(
+      'aria-expanded',
+      'false'
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Meets, 3 pts' }));
+    expect(screen.getByRole('button', { name: /^Evidence/ })).toHaveAttribute(
+      'aria-expanded',
+      'false'
+    );
+  });
+
+  it('does not move on when a scored criterion is changed', () => {
+    renderPanel({
+      autoAdvance: true,
+      initialScores: [{ criterionId: 'c1', levelId: 'c1l2', points: 3 }],
+    });
+    openCriterion('Thesis');
+    fireEvent.click(screen.getByRole('button', { name: /^4\s*Exceeds/ }));
+    expect(screen.getByRole('button', { name: /^Thesis/ })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
   });
 
   it('selects a level, then deselects it on a second tap', () => {
@@ -124,58 +202,32 @@ describe('RubricGradingPanel (rubric-grading-v2)', () => {
     expect(meets).toHaveAttribute('aria-pressed', 'false');
   });
 
-  it('expands a criterion to show its description and level descriptions', () => {
+  it('shows criterion and level descriptions only when expanded', () => {
     renderPanel();
     expect(screen.queryByText('Clarity of the claim')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: /^Thesis/ }));
+    expect(screen.queryByText('No thesis')).toBeNull();
+    openCriterion('Thesis');
     expect(screen.getByText('Clarity of the claim')).toBeInTheDocument();
     expect(screen.getByText('No thesis')).toBeInTheDocument();
   });
 
-  it('takes a score override in the criterion box and keeps the level', () => {
-    const { onChange } = renderPanel();
-    fireEvent.click(screen.getByRole('button', { name: 'Meets, 3 pts' }));
+  it('expands and collapses every criterion at once', () => {
+    renderPanel();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Expand all criteria' })
+    );
+    expect(screen.getByText('No thesis')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { expanded: true }).length).toBe(2);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Collapse all criteria' })
+    );
+    expect(screen.queryByText('No thesis')).toBeNull();
+  });
+
+  it('has no per-criterion score box', () => {
+    renderPanel();
     openCriterion('Thesis');
-    fireEvent.change(screen.getByLabelText('Score for Thesis'), {
-      target: { value: '2.5' },
-    });
-    expect(onChange).toHaveBeenLastCalledWith(
-      [{ criterionId: 'c1', levelId: 'c1l2', points: 2.5 }],
-      2.5
-    );
-  });
-
-  it('picks the matching level when a typed score equals one', () => {
-    const { onChange } = renderPanel();
-    openCriterion('Thesis');
-    fireEvent.change(screen.getByLabelText('Score for Thesis'), {
-      target: { value: '4' },
-    });
-    expect(onChange).toHaveBeenLastCalledWith(
-      [{ criterionId: 'c1', levelId: 'c1l3', points: 4 }],
-      4
-    );
-  });
-
-  it('scores with no level when the typed score matches none', () => {
-    const { onChange } = renderPanel();
-    openCriterion('Evidence');
-    fireEvent.change(screen.getByLabelText('Score for Evidence'), {
-      target: { value: '1.5' },
-    });
-    expect(onChange).toHaveBeenLastCalledWith(
-      [{ criterionId: 'c2', levelId: '', points: 1.5 }],
-      1.5
-    );
-  });
-
-  it('ignores a score above the criterion max', () => {
-    const { onChange } = renderPanel();
-    openCriterion('Evidence');
-    const box = screen.getByLabelText('Score for Evidence');
-    fireEvent.change(box, { target: { value: '9' } });
-    expect(onChange).not.toHaveBeenCalled();
-    expect(box).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.queryByLabelText('Score for Thesis')).toBeNull();
   });
 
   it('opens the full rubric as a table', () => {
@@ -268,6 +320,39 @@ describe('rescoreRubricGrades', () => {
     expect(out[0][1].pointsAwarded).toBe(5.5);
     expect(out[0][1].rubricScores?.[0].points).toBe(3.5);
   });
+
+  it('caps a score on a removed level at the row max and keeps lower ones', async () => {
+    const { rescoreRubricGrades } = await import('@/utils/rubricPoints');
+    const after = {
+      ...rubric,
+      criteria: rubric.criteria.map((c) =>
+        c.id === 'c1'
+          ? { ...c, levels: c.levels.filter((l) => l.id !== 'c1l3') }
+          : c
+      ),
+    };
+    const grade = (levelId: string, points: number) => ({
+      pointsAwarded: points + 2,
+      gradedBy: 't',
+      gradedAt: 1,
+      rubricScores: [
+        { criterionId: 'c1', levelId, points },
+        { criterionId: 'c2', levelId: 'c2l2', points: 2 },
+      ],
+    });
+    const out = rescoreRubricGrades(rubric, after, {
+      top: grade('c1l3', 4),
+      low: grade('c1l1', 1),
+    });
+    expect(out).toHaveLength(1);
+    expect(out[0][0]).toBe('top');
+    expect(out[0][1].rubricScores?.[0]).toEqual({
+      criterionId: 'c1',
+      levelId: 'c1l3',
+      points: 3,
+    });
+    expect(out[0][1].pointsAwarded).toBe(5);
+  });
 });
 
 describe('Full rubric table editing', () => {
@@ -358,5 +443,127 @@ describe('Full rubric table editing', () => {
       'Meets',
       '',
     ]);
+  });
+
+  it('lets the grader add and remove levels on a criterion row but not criteria', async () => {
+    const onSave = vi
+      .fn<(r: Rubric) => Promise<void>>()
+      .mockResolvedValue(undefined);
+    const onClose = vi.fn();
+    const { RubricTableModal } =
+      await import('@/components/widgets/QuizWidget/components/RubricTableModal');
+    render(
+      <RubricTableModal
+        rubric={rubric}
+        order="high-first"
+        onOrderChange={vi.fn()}
+        scores={new Map()}
+        onClose={onClose}
+        onSave={onSave}
+        initialEditing
+        editLevels
+      />
+    );
+    expect(screen.queryByRole('button', { name: 'Add criterion' })).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'Remove criterion 1' })
+    ).toBeNull();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Add level to criterion 2' })
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Remove criterion 1 level 3' })
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
+    const saved = onSave.mock.calls[0][0];
+    expect(saved.criteria[0].levels.map((l) => l.id)).toEqual(['c1l2', 'c1l3']);
+    expect(saved.criteria[1].levels.map((l) => l.points)).toEqual([1, 2, 3]);
+  });
+
+  it('switches the table to a scoring guide and saves guide rows', async () => {
+    const onSave = vi
+      .fn<(r: Rubric) => Promise<void>>()
+      .mockResolvedValue(undefined);
+    const onClose = vi.fn();
+    const { RubricTableModal } =
+      await import('@/components/widgets/QuizWidget/components/RubricTableModal');
+    render(
+      <RubricTableModal
+        rubric={rubric}
+        order="high-first"
+        onOrderChange={vi.fn()}
+        scores={new Map()}
+        onClose={onClose}
+        onSave={onSave}
+        initialEditing
+        editLevels
+      />
+    );
+    fireEvent.click(screen.getByRole('radio', { name: 'Scoring guide' }));
+    const points = await screen.findByRole('spinbutton', {
+      name: 'Part 2 points',
+    });
+    fireEvent.change(points, { target: { value: '3' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
+    const saved = onSave.mock.calls[0][0];
+    expect(saved.criteria.every((c) => c.guide)).toBe(true);
+    expect(saved.criteria.map((c) => c.id)).toEqual(['c1', 'c2']);
+    expect(saved.criteria[1].levels.map((l) => l.points)).toEqual([0, 1, 2, 3]);
+  });
+
+  it('falls back to per-row levels when a guide round trip leaves rows uneven', async () => {
+    const { RubricTableModal } =
+      await import('@/components/widgets/QuizWidget/components/RubricTableModal');
+    const shared: Rubric = {
+      ...rubric,
+      criteria: rubric.criteria.map((c) => ({
+        ...c,
+        levels: c.levels.slice(0, 2).map((l, i) => ({
+          ...l,
+          label: i ? 'Meets' : 'Below',
+        })),
+      })),
+    };
+    render(
+      <RubricTableModal
+        rubric={shared}
+        order="high-first"
+        onOrderChange={vi.fn()}
+        scores={new Map()}
+        onClose={vi.fn()}
+        onSave={vi.fn().mockResolvedValue(undefined)}
+        initialEditing
+        editLevels
+      />
+    );
+    expect(
+      screen.queryByRole('button', { name: 'Add level to criterion 1' })
+    ).toBeNull();
+    fireEvent.click(screen.getByRole('radio', { name: 'Scoring guide' }));
+    await screen.findByRole('spinbutton', { name: 'Part 1 points' });
+    fireEvent.click(screen.getByRole('radio', { name: 'Levels' }));
+    expect(
+      await screen.findByRole('button', { name: 'Add level to criterion 1' })
+    ).toBeTruthy();
+  });
+
+  it('drops the total row when the grader shows the score, keeping the scored count', () => {
+    renderPanel({ hideTotal: true });
+    expect(screen.queryByText('Rubric total')).toBeNull();
+    expect(screen.getByText(/0 of 2 criteria scored/)).toBeInTheDocument();
+  });
+
+  it('shows the picked score on the criterion row', () => {
+    renderPanel();
+    const thesis = screen.getByRole('group', { name: /Thesis/ });
+    fireEvent.click(screen.getByRole('button', { name: 'Meets, 3 pts' }));
+    expect(within(thesis).getAllByText('3')).toHaveLength(2);
+  });
+
+  it('shows the total row by default', () => {
+    renderPanel();
+    expect(screen.getByText('Rubric total')).toBeInTheDocument();
   });
 });

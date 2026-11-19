@@ -203,6 +203,7 @@
       "markPlcAssessmentDirtyOnSession",
       "migratePlcs",
       "mirrorPlcIndex",
+      "cascadePlcDeleteV1",
       "onPlcMeetingSegmentUploaded",
       "onUserProfileBuildingsChangedV1",
       "plcGoalCoachV1",
@@ -215,7 +216,8 @@
       "runPlcMeetingNotesJob",
       "setPlcNormingFlagV1",
       "sweepPlcRecordingAudio",
-      "syncBuildingGroupV1"
+      "syncBuildingGroupV1",
+      "syncedBankOwnerRegistry"
     ],
     "student": [
       "claimPollCodeV1",

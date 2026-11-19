@@ -22,6 +22,7 @@ import {
 import { parseGeminiJson } from './parseGeminiJson';
 import { LANGUAGE_TAG_RE } from './languageTag';
 import { adminPassesMissingDoc } from './featureMissingDoc';
+import { isExcludedFrom } from './permissionExclusion';
 import { canonicalizeBuildingIdsServer } from './buildingIds';
 import {
   hashQuestionForTranslation,
@@ -29,6 +30,7 @@ import {
 } from './quizTranslationHash';
 import { assertViewAsAllowed } from './viewAsGuard';
 import { generateAi } from './aiRouter';
+import { assertAiTeacherCaller } from './aiCallerGate';
 
 type Firestore = admin.firestore.Firestore;
 
@@ -457,6 +459,7 @@ export async function assertQuizTranslationFeature(
   // narrowing limits on a `let` reassigned inside try/catch.
   const data = raw as Record<string, unknown>;
   if (data.enabled !== true) deny();
+  if (isExcludedFrom(data, email)) deny();
   const isAdmin = await isSpartBoardAdmin(db, email);
   const accessLevel =
     typeof data.accessLevel === 'string' ? data.accessLevel : '';
@@ -487,13 +490,16 @@ export async function assertQuizTranslationFeature(
   }
 }
 
-/** The `gemini-functions` kill switch stops translation too. */
-export async function assertGeminiEnabled(db: Firestore): Promise<void> {
+/** The `gemini-functions` kill switch, and its exclude list, stop translation too. */
+export async function assertGeminiEnabled(
+  db: Firestore,
+  email?: string | null
+): Promise<void> {
   const snap = await db
     .collection('global_permissions')
     .doc('gemini-functions')
     .get();
-  if (snap.data()?.enabled === false)
+  if (snap.data()?.enabled === false || isExcludedFrom(snap.data(), email))
     throw new HttpsError(
       'permission-denied',
       'Gemini functions are currently disabled by an administrator.'
@@ -1217,12 +1223,13 @@ export const translateQuizV1 = onCall(
         'Caller email must be verified.'
       );
     const deps = buildDefaultDeps();
+    await assertAiTeacherCaller(deps.db, request.auth.token);
     await assertQuizTranslationFeature(
       deps.db,
       request.auth.token.email,
       request.auth.uid
     );
-    await assertGeminiEnabled(deps.db);
+    await assertGeminiEnabled(deps.db, request.auth.token.email);
     return translateQuiz(
       parseTranslateQuizRequest(request.data),
       request.auth.uid,
@@ -1252,6 +1259,8 @@ export const translateResponseV1 = onCall(
         'permission-denied',
         'Caller email must be verified.'
       );
+    const deps = buildDefaultDeps();
+    await assertAiTeacherCaller(deps.db, request.auth.token);
     const data = (request.data ?? {}) as Record<string, unknown>;
     const text = typeof data.text === 'string' ? data.text.trim() : '';
     const sourceLocale =
@@ -1264,13 +1273,12 @@ export const translateResponseV1 = onCall(
       );
     if (!LANGUAGE_TAG_RE.test(sourceLocale))
       throw new HttpsError('invalid-argument', 'A language tag is required.');
-    const deps = buildDefaultDeps();
     await assertQuizTranslationFeature(
       deps.db,
       request.auth.token.email,
       request.auth.uid
     );
-    await assertGeminiEnabled(deps.db);
+    await assertGeminiEnabled(deps.db, request.auth.token.email);
     return translateResponse({ text, sourceLocale }, request.auth.uid, deps);
   }
 );

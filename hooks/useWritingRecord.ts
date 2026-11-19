@@ -1,5 +1,11 @@
 import { useEffect, useState } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
+import {
+  collection,
+  documentId,
+  getDocs,
+  query,
+  where,
+} from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type { WritingRecordChunk } from '@/utils/writingRecord';
 import { logError } from '@/utils/logError';
@@ -8,6 +14,10 @@ export type WritingRecordLoad =
   | { kind: 'loading' }
   | { kind: 'error' }
   | { kind: 'ready'; chunks: WritingRecordChunk[] };
+
+/** The only chunk ids a save can write (0 to 9), so stray docs are never read. */
+const CHUNK_IDS = Array.from({ length: 10 }, (_, i) => String(i));
+const CHUNK_MAX = 200_000;
 
 /** One piece's edit log chunks, read once when opened; `version` reads them again. */
 export function useWritingRecordChunks(
@@ -25,13 +35,16 @@ export function useWritingRecordChunks(
   useEffect(() => {
     let live = true;
     getDocs(
-      collection(
-        db,
-        'writing_assignment_sessions',
-        sessionId,
-        'responses',
-        studentUid,
-        'log'
+      query(
+        collection(
+          db,
+          'writing_assignment_sessions',
+          sessionId,
+          'responses',
+          studentUid,
+          'log'
+        ),
+        where(documentId(), 'in', CHUNK_IDS)
       )
     )
       .then((snap) => {
@@ -39,7 +52,9 @@ export function useWritingRecordChunks(
         const chunks = snap.docs.flatMap((d) => {
           const index = Number(d.id);
           const log: unknown = d.get('log');
-          return Number.isInteger(index) && typeof log === 'string'
+          return Number.isInteger(index) &&
+            typeof log === 'string' &&
+            log.length <= CHUNK_MAX
             ? [{ index, log }]
             : [];
         });

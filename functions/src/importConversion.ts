@@ -8,11 +8,12 @@ import {
   enforceAiFeatureAccess,
   recordAiUsage,
   refundAiUsage,
-  resolveCallerIsAdmin,
+  resolveCallerIsAdminFor,
   type AiExtraCap,
   type AiUsageCharge,
 } from './aiGeneration';
 import { importAiAccess, type ImportAiAccess } from './importSettings';
+import { isExcludedFrom } from './permissionExclusion';
 import { assertViewAsAllowed } from './viewAsGuard';
 import { generateAi } from './aiRouter';
 import { getAiModelConfig } from './aiModelConfig';
@@ -128,6 +129,7 @@ export async function runConversion(
         limit: access.limit,
         message: access.limitMessage,
       });
+  let modelReplied = false;
   try {
     const fitted = fitSourceText(
       req.source.text,
@@ -138,6 +140,7 @@ export async function runConversion(
       integration,
       buildConversionPrompt({ ...req, source }, allowed)
     );
+    modelReplied = true;
     const truncated = fitted.truncated || req.clipped;
     switch (req.target) {
       case 'flashcards':
@@ -160,7 +163,8 @@ export async function runConversion(
         };
     }
   } catch (error) {
-    if (charge.docIds.length > 0) {
+    // A reply that fails to parse stays charged; a failure before or in the call refunds.
+    if (!modelReplied && charge.docIds.length > 0) {
       await deps.refund(charge).catch(() => undefined);
     }
     if (error instanceof HttpsError) throw error;
@@ -199,6 +203,7 @@ export async function layoutFlagAllows(
   ).data();
   if (!perm) return true;
   if (perm.enabled === false) return false;
+  if (isExcludedFrom(perm, verifiedEmail(token))) return false;
   if (isAdmin) return true;
   const { isGlobalFeatureGranted } = await import('./featureGrant');
   return isGlobalFeatureGranted(
@@ -231,7 +236,11 @@ function defaultDeps(): ConversionDeps {
           ?.config?.dailyLimit
       );
     },
-    isAdmin: (token) => resolveCallerIsAdmin(db, token),
+    isAdmin: (token) =>
+      resolveCallerIsAdminFor(db, token, [
+        'gemini-functions',
+        UNIVERSAL_IMPORT_FEATURE_ID,
+      ]),
     flagsOn: () => importFlagsOn(db),
     layoutAllowed: (token, uid, isAdmin) =>
       layoutFlagAllows(db, token, uid, isAdmin),

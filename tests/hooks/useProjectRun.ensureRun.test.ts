@@ -201,9 +201,9 @@ describe('useProjectRun — ensureRun clearing an already-imported rubric/dueAt'
         });
       });
 
-    it('stamps a new run when the teacher has the preview', async () => {
+    it('stamps a new run', async () => {
       const { result } = renderHook(() =>
-        useProjectRun(TEACHER_UID, PROJECT_ID, TEACHER_UID, true)
+        useProjectRun(TEACHER_UID, PROJECT_ID, TEACHER_UID)
       );
       await act(async () => {
         await result.current.ensureRun(baseProject);
@@ -214,7 +214,7 @@ describe('useProjectRun — ensureRun clearing an already-imported rubric/dueAt'
 
     it('never stamps a closed run, so its groups stay Turned in', async () => {
       const { result } = renderHook(() =>
-        useProjectRun(TEACHER_UID, PROJECT_ID, TEACHER_UID, true)
+        useProjectRun(TEACHER_UID, PROJECT_ID, TEACHER_UID)
       );
       existingRun(false);
       await act(async () => {
@@ -224,7 +224,7 @@ describe('useProjectRun — ensureRun clearing an already-imported rubric/dueAt'
       expect(payload.studentSubmit).toBeUndefined();
     });
 
-    it('leaves runs alone without the preview', async () => {
+    it('stamps an open run made before submissions existed', async () => {
       const { result } = renderHook(() =>
         useProjectRun(TEACHER_UID, PROJECT_ID, TEACHER_UID)
       );
@@ -233,7 +233,7 @@ describe('useProjectRun — ensureRun clearing an already-imported rubric/dueAt'
         await result.current.ensureRun(baseProject);
       });
       const payload = mockSetDoc.mock.calls[0][1] as Record<string, unknown>;
-      expect(payload.studentSubmit).toBeUndefined();
+      expect(payload.studentSubmit).toBe(true);
     });
   });
 });

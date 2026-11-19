@@ -6,6 +6,7 @@ import axios from 'axios';
 import type { Firestore } from 'firebase-admin/firestore';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import { isGlobalFeatureGranted } from './featureGrant';
+import { isExcludedFrom } from './permissionExclusion';
 import { QUIZ_READ_ALOUD_FEATURE_ID } from './quizReadAloud';
 import './functionsInit';
 import { ANTHROPIC_API_KEY } from './secrets';
@@ -379,6 +380,11 @@ export async function chargeOcrQuota(
         'permission-denied',
         'Gemini functions are currently disabled by an administrator.'
       );
+    if (isExcludedFrom(gemini.data(), email))
+      throw new HttpsError(
+        'permission-denied',
+        'You do not have access to Gemini functions.'
+      );
     const used = specific.exists ? Number(specific.data()?.count ?? 0) : 0;
     const config = (perm.data()?.config ?? {}) as {
       dailyLimit?: unknown;
@@ -430,8 +436,13 @@ export function buildDefaultExtractDeps(): ExtractDeps {
       );
     },
     getAccessToken: async (teacherUid) => {
-      const { refreshGoogleAccessTokenForUid } = await import('./googleOAuth');
-      return (await refreshGoogleAccessTokenForUid(teacherUid)).accessToken;
+      const { DRIVE_FILE_SCOPE, refreshGoogleAccessTokenForUid } =
+        await import('./googleOAuth');
+      return (
+        await refreshGoogleAccessTokenForUid(teacherUid, {
+          scope: DRIVE_FILE_SCOPE,
+        })
+      ).accessToken;
     },
     downloadDriveFile: async (token, fileId) => {
       const { downloadDriveFileById } =

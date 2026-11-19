@@ -9,7 +9,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
 - **Release review findings.** Fix small (S) findings inside the release as `release fix:` PRs. File an item here only for work that is M or larger, needs a flag or rules design, or can't ship in that release.
 - **Agent-only means agent-only.** An item in Ready needs nothing from Paul. When an item needs new wording, the agent builds it and asks Paul with a screenshot and a decision card in its thread; when it needs a real decision, it goes to PAUL_TODO.md and the item moves to Blocked.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-284**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-290**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -20,6 +20,9 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 ## Ready
 
 ### Security and correctness
+
+- **AB-289 Video Activity: turn in let-in and reopened students after their pass ends** (S, from #6238 review). A closed VA class's turn-in (teacher tab and `functions/src/videoClassTurnIn.ts`) skips students with a live `studentAccess` pass or on `reopenedFor`, then never looks again, so their attempt stays open for good. Quiz covers this through `classClosedOver` in the idle sweep. Re-queue the marker for the latest pass expiry (or re-check closed classes on a slow sweep), with functions tests.
+- **AB-284 Follow-ups from the 2026-11-18 security PR sweep** (S, #6151-#6154 reviews; nothing blocking). (1) Projects (#6152): migrate legacy `overridesByUid` maps on the server (grades trigger, legacy map wins over `grades/{groupId}/overrides/*`) so a released grade stays readable to members without a teacher visit and a previous-client edit isn't shadowed; do it before Projects opens beyond admins. (2) Lunch Count (#6154): the pre-save Drive read caches "Drive lacks these notes" per sent list, so another device's notes that reach Drive later are overwritten until the sent list changes; re-read on a negative result at most once a minute. (3) `shareMembershipV1` `shareHost` is behind the write View-as guard, so a locked View-as tab can't confirm a share host; add a mixed mode to `viewAsCallableCoverage.test.ts` and guard `shareHost` with `{ read: true }`. (4) Speak voices (#6153): `speakVoiceFill.ts` swallows `resource-exhausted`; stop retrying for the day, and don't charge terms the 420 s budget never reached. (5) `recomputePlcAssessments` retries a permanently failing item every 5 minutes forever; add an attempt cap, and a test for the `assignmentId` doc-id check. (6) `expireSubShares`: shares whose grants can never be revoked are kept and re-read every hour; give them a terminal state after N days so they can't fill the 5,000-doc window.
 
 - **AB-283 Follow-ups from release 2026.11.18** (S, #6138 review; nothing blocking). (1) `.github/scripts/affected-functions.mjs` `RUNTIME_FEATURE_ID_CALLERS` still names `quizMediaArchive.ts` and `aiGeneration.ts`, but the variable-id flag lookup now lives in `functions/src/featureGrant.ts` (`isGlobalFeatureGranted`); add it so a release that only adds a flag id to `ADMIN_PREVIEW_FEATURES` redeploys its callers. (2) The prod deploy starts the Firestore rules release before the function delete check, so a failed check leaves new rules live with old functions; run the delete check first.
 - **AB-275 Board save race and cross-board saves** (M, from AB-65 triage of #4786 and #4773). (1) A widget deleted within one save round-trip of being added can reappear: when the active board isn't pending but another board is, `knownIds` is empty (`context/DashboardContext.tsx`, around the sync merge). Track recently saved widget ids so the merge can tell a delete from a not-yet-seen add. (2) `saveDashboards` runs one transaction per board, so a cross-board config apply and the tour keep are no longer atomic; batch them or make each step safe to retry. Add a test for each.
@@ -245,7 +248,52 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 - **AB-272 Quiz assign Supports file sources: minors** (S, release 2026.11.17c review; `modification-groups` only). (1) `Assets/QuizSupports` is not in `DRIVE_UPLOAD_FOLDERS` (`hooks/useStorage.ts`), as `.claude/rules/storage-uploads.md` asks. (2) `SupportsEditor.tsx` `uploadFiles` silently drops files past `MAX_SUPPORTS`, and a partial failure closes the form and loses the error. (3) `FileAddSources.tsx` `UrlAddRow` clears the pasted link even when the add failed. Done with a test per fix.
 - **AB-112 Delete merged branches (local agent)** (S, recurring). Branch deletes are a local agent job, not Paul's; cloud sessions can't delete branches. From a local checkout, list remote branches with no open PR whose work is merged or abandoned (never `main`, `dev-*` or `scheduled-tasks`), then `git push origin --delete` them. Threads that merge a PR add their branch to the list below by PR instead of to PAUL_TODO.md. Done when the list is empty; keep the item for future adds.
 
-  <details><summary>Branches to delete (178, checked 2026-11-01)</summary>
+  <details><summary>Branches to delete (179, checked 2026-11-01)</summary>
+
+claude/project-thread-6v7ytk (class left open flag; delete after it merges)
+claude/project-thread-2xxi1c (Video Activity background turn-in PR; delete after it merges)
+claude/project-thread-kejiop (#6236; this docs PR reuses it, delete after it merges)
+claude/project-thread-30h9gb (Video Activity Assigned tab PR; delete after it merges)
+claude/project-thread-xomk7l (Flashcards and Writing Assigned tabs; delete after its PR merges)
+claude/project-thread-6nd30t (Mini Apps and Guided Learning Assigned tabs; delete after it merges)
+claude/assigned-tab-pr0 (#6216)
+claude/assigned-tab-reopen-turnin (#6225)
+claude/assigned-tab-quiz-window (#6233)
+claude/project-thread-5uuvdq (this docs PR, delete after it merges)
+claude/project-thread-j4paf2 (#6227; this docs PR reuses it, delete after it merges)
+claude/project-thread-7u8ra6 (#6226; this docs PR reuses it, delete after it merges)
+claude/project-thread-ce51ew (#6222; this docs PR reuses it, delete after it merges)
+claude/project-thread-4zd7sk (#6214, #6220; this docs PR reuses it, delete after it merges)
+claude/project-thread-nrzbl4 (#6217; this docs PR reuses it, delete after it merges)
+claude/project-thread-7dhc7a (#6215; this docs PR reuses it, delete after it merges)
+claude/project-thread-r8x8gv (#6213)
+claude/project-thread-r8x8gv-ab112 (this docs PR, delete after it merges)
+claude/project-thread-vyyos0 (#6202; this docs PR reuses it, delete after it merges)
+claude/project-thread-yyrdz8 (#6198; this docs PR reuses it, delete after it merges)
+claude/project-thread-h3n64u (#6194; this docs PR reuses it, delete after it merges)
+claude/project-thread-ygwr09 (#6187; this docs PR reuses it, delete after it merges)
+security/q-drive-grants (#6151)
+security/o-ai-quota-and-sweeps (#6153)
+security/r-projects-assignments (#6152)
+security/i-synced-boards (#6154)
+claude/project-thread-tmtq9h (this docs PR, delete after it merges)
+claude/project-thread-czge1w (#6168; this docs PR reuses it, delete after it merges)
+claude/project-thread-huw2kb (#6176)
+claude/ab112-course-menu (this docs PR, delete after it merges)
+claude/project-thread-imr8je (#6163; this docs PR reuses it, delete after it merges)
+hotfix/view-as-edit-mode (#6166)
+claude/project-thread-hm2dnv (#6162, then its AB-112 docs PR and the rubric modal follow-up PR; delete after all merge)
+claude/project-thread-vgif9w (#6179, #6182, #6186, #6188, #6191 and its AB-112 docs PR; delete after all merge)
+claude/project-thread-ivlo9j (#6158; this docs PR reuses it, delete after it merges)
+claude/project-thread-s4hzrk (#6159)
+claude/project-thread-8q5g3q (#6180)
+claude/project-thread-8q5g3q-docs (this docs PR, delete after it merges)
+claude/ab112-s4hzrk (this docs PR, delete after it merges)
+claude/project-thread-rnvyvu (#6149)
+claude/project-thread-rnvyvu-ab112 (this docs PR, delete after it merges)
+claude/project-thread-eibt0b (#6230)
+claude/project-thread-eibt0b-ab112 (this docs PR, delete after it merges)
+claude/project-thread-o5lwcn (Assignments hub Assigned list PR; delete after it merges)
 
 claude/project-thread-2jo0s2 (#6137, #6139; this docs PR reuses it, delete after it merges)
 claude/kind-johnson-owvr5o (#6134)
@@ -365,6 +413,7 @@ claude/backlog-closeout-20261116 (this docs PR, delete after it merges)
 claude/backlog-ab-173-20261117 (#6125)
 claude/backlog-ab-214-20261117 (#6126)
 claude/backlog-ab-218-20261117 (#6127)
+claude/project-thread-71uopu (release heads #6148 and #6155, then its follow-ups docs PR; delete after it merges)
 claude/backlog-ab-64-20261117 (#6128)
 claude/backlog-ab-60-20261117 (#6129)
 claude/backlog-ab-11-20261117 (#6131)
@@ -472,7 +521,8 @@ retire/tours
 retire/quiz-editor
 retire/quiz-assigning
 retire/quiz-results
-claude/project-thread-mclg4c
+retire/nov18-flags
+claude/project-thread-mclg4c (also claude/ab112-nov18, this docs PR)
 claude/claude-security-fix-find_01hdwd6jykvej5w2jqqm7yvi-3zioml
 nightly/widgets-2026-11-13
 nightly/dashboard-2026-11-13
@@ -584,6 +634,8 @@ claude/project-thread-h6xnku-docs (this docs PR, delete after it merges)
 claude/project-thread-gn0o0p (#6119)
 claude/d4-ab112 (this docs PR, delete after it merges)
 claude/project-thread-skf281 (#6121, then this docs PR; delete after it merges)
+claude/project-thread-whigxe (#6229)
+claude/project-thread-whigxe-ab112 (this docs PR, delete after it merges)
 
 ```
 git push origin --delete claude/project-thread-1ylvse
@@ -651,11 +703,10 @@ git push origin --delete nightly/unifier-log-2026-11-14 nightly/state-data-2026-
 git push origin --delete claude/project-thread-6hlkkz claude/project-thread-6hlkkz-ab112
 git push origin --delete claude/project-thread-776f0z claude/ab112-776f0z
 git push origin --delete claude/project-thread-hnyuke claude/project-thread-hnyuke-ab112
+git push origin --delete claude/project-thread-5qafu6
 ```
 
   </details>
-
-- **AB-150 Paused quiz vanishes from My Assignments** (S). `hooks/useStudentAssignments.ts` quiz `activeFilter` is `waiting|active`, so a paused quiz shows in neither the Active nor the Ended list. Add `paused` to the Active filter. It adds one status listener per class chunk, so check `tests/hooks/useStudentAssignments.listenerCount.test.tsx` and the quiz composite index first. Left out of the Q2 state-machine slice to keep prod listener counts unchanged.
 
 ### Plans with a next slice
 
@@ -683,6 +734,10 @@ The plan holds the slices; build the **Next** one and update this line in the sa
 
 Each names what unblocks it. When the blocker clears, move the item to Ready.
 
+- **AB-285 Grades projection trusts only verified class enrollment** (M, security #2). Blocked on PT-146. The grade projection writes a student Grades entry only when the owner's `verified_classes` list has the class and the class-scoped roster vouches for the student (reuse `projectMemberAuthority`, narrowed to that class). The grade index ignores a `studentUid` change written by the owner. Local-roster classes have no server-trusted enrollment: decide with Paul before they lose student entries. Existing bad entries need a prod reprojection pass (PT item, Paul's OK). Security #3 is AB-166, same blocker.
+- **AB-286 Name-hidden Activity Walls keep names off peers' devices** (M, security #5). Blocked on PT-252. On name-hidden walls, rules accept only the placeholder label from students. Peer-readable posts carry a per-wall author key instead of the student uid, and own-posts and the gradebook switch to that key. If Paul says yes, the teacher reads real names from a teacher-only author doc. Rules tests cover reads and writes; check `check:rules-size` first.
+- **AB-287 PIN joins need a server-near join time** (S, security #4). Blocked on PT-253. Require `joinedAtOk` (within 5 minutes of server time) on every PIN join create, and have the client stamp `joinedAt` from server time. Add a dry-run-first script that back-fills `retired_pins` for local rosters with linked students. The PIN join rule is near the expression limit: measure it before adding.
+- **AB-288 LTI launch binding defaults to enforce** (S, security #7). Blocked on PT-214. After Paul turns on `launchBinding: 'enforce'` on prod and it holds, change `parseLaunchBindingMode` to default to `enforce`, so a missing `lti_config` no longer falls back to log-only. Embedded launches already relaunch top-level when they have a `login_hint`.
 - **AB-282 Offline saves, touch alignment guides and nudge-note languages** (S each). Blocked on PT-244. (1) `hooks/useFirestore.ts` `deferSave` retries `unavailable` and `deadline-exceeded` forever; add a maximum age only if Paul accepts dropping very old offline edits. (2) Touch users have no Alt key to move past an alignment guide; add the gesture Paul picks. (3) Live view nudge notes fall back to English for quiz languages other than es, fr and de (AB-214 item 4); add languages only if Paul wants them.
 - **AB-250 Refuse a quiz retake that keeps the answer key** (S, security, rules; blocked until the release carrying #6020 is live on prod for one release). Add `keyGone(d)` back to the completed to joined branch of `statusMoveOk` in firestore.rules, so a retake must strip `revealedAnswers`, `revealedRubricExamples`, `revealedExplanations` and the same keys in `resultsOverride`; flip the rules test "a retake that leaves the key in place is still allowed" (`tests/rules/quizResultsOverride.test.ts`) back to REJECTED. Re-add cases (a retake writing `revealedAnswers` onto a doc with none, and `resultsOverride.revealedExplanations` onto an override without it) already ship refused in #6020.
 - **AB-254 Withhold VA check verdicts from PIN joiners** (S, security). Blocked on PT-230. Security finding `find_01DCttpG`: in self-paced sessions with show result and reveal answer on, `checkVideoActivityAnswerV1` returns right/wrong and the answer key to PIN joiners; #5820's fix was reverted because it changes what PIN joiners see. Do what PT-230 picks: gate the fix on the session teacher's flag server side, or ship it for everyone, with a functions test.

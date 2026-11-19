@@ -739,6 +739,15 @@ const TeacherQuizWidget: React.FC<{
     shareAssignmentWithPlc,
     stopSharingAssignmentWithPlc,
   } = useQuizAssignments(user?.uid);
+  const assignedTabLifecycle = useMemo(
+    () => ({
+      pauseAssignment,
+      resumeAssignment,
+      deactivateAssignment,
+      reopenAssignment,
+    }),
+    [pauseAssignment, resumeAssignment, deactivateAssignment, reopenAssignment]
+  );
 
   // M17 individual-assignment targeting (spec §5 B3). Skipped refs from the
   // most recent `setAssignmentTargetsV1` call, keyed by assignment id, so the
@@ -2334,8 +2343,7 @@ const TeacherQuizWidget: React.FC<{
   // Also auto-reveals the CURRENT question when entering review phase.
   useEffect(() => {
     if (!liveSession || !loadedQuizData) return;
-    if (liveSession.status !== 'active' && liveSession.status !== 'ended')
-      return;
+    if (liveSession.status !== 'active') return;
 
     const shouldReveal =
       (liveSession.showResultToStudent ?? false) ||
@@ -2343,7 +2351,7 @@ const TeacherQuizWidget: React.FC<{
     if (!shouldReveal) return;
 
     const questions = loadedQuizData.questions;
-    // Reveal past questions + current question during review phase or when quiz ended
+    // Reveal past questions + current question during review phase
     const upTo = autoRevealCount(liveSession, questions.length);
     for (let i = 0; i < upTo; i++) {
       const q = questions[i];
@@ -3536,6 +3544,17 @@ const TeacherQuizWidget: React.FC<{
           }
           rosterTargets={monitorActiveAssignment ?? null}
           responsesLoaded={liveResponsesLoaded}
+          assignedTab={
+            canAccessFeature('assigned-tab') &&
+            !isReview &&
+            monitorActiveAssignment &&
+            getAssignmentWidgetKind(monitorActiveAssignment) === 'quiz'
+              ? {
+                  assignment: monitorActiveAssignment,
+                  lifecycle: assignedTabLifecycle,
+                }
+              : null
+          }
           assignmentSettings={
             monitorActiveAssignment &&
             getAssignmentWidgetKind(monitorActiveAssignment) === 'quiz' ? (
@@ -4714,6 +4733,7 @@ const TeacherQuizWidget: React.FC<{
         }}
         // ─── Archive tab ─────────────────────────────────────────────────────
         managerTab={config.managerTab ?? 'library'}
+        classLifecycle={assignedTabLifecycle}
         revealRequest={revealRequest}
         onTabChange={(tab) => handleUpdateQuizConfig({ managerTab: tab })}
         // ─── Banks tab ───────────────────────────────────────────────────────

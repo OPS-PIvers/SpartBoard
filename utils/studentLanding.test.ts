@@ -103,6 +103,15 @@ describe('landingRowState', () => {
     );
   });
 
+  it('never marks a paused or not-yet-open quiz missing', () => {
+    for (const held of ['paused', 'not-open'] as const) {
+      const row = a({ dueAt: NOW - DAY, held });
+      expect(landingRowState(row, checked(row, 'not-started'), NOW)).toBe(
+        'open'
+      );
+    }
+  });
+
   it('moves closed, unsubmitted work with a due date to missing and drops it without one', () => {
     const due = a({
       channel: 'ended',

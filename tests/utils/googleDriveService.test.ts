@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { GoogleDriveService, DriveFile } from '@/utils/googleDriveService';
 import { Dashboard } from '@/types';
+import {
+  __resetDriveAuthErrorsForTests,
+  setDriveAuthErrorHandler,
+} from '@/utils/driveAuthErrors';
 
 // Helper to mock fetch responses
 const mockFetch = (
@@ -407,7 +411,13 @@ describe('GoogleDriveService', () => {
           ok: true,
           json: () => Promise.resolve({ files: [{ id: 'dashboards-folder' }] }),
         } as Response)
-        // 3. update content (PATCH)
+        // 3. list permissions (private already)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () =>
+            Promise.resolve({ permissions: [{ id: 'o', type: 'user' }] }),
+        } as Response)
+        // 4. update content (PATCH)
         .mockResolvedValueOnce({
           ok: true,
         } as Response);
@@ -419,6 +429,116 @@ describe('GoogleDriveService', () => {
         expect.stringContaining('/files/existing-id'),
         expect.objectContaining({ method: 'PATCH' })
       );
+    });
+
+    it('revokes a domain grant on the backup before writing names to it', async () => {
+      const fetchSpy = vi
+        .spyOn(global, 'fetch')
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ files: [{ id: 'app-folder' }] }),
+        } as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ files: [{ id: 'dashboards-folder' }] }),
+        } as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              permissions: [
+                { id: 'owner', type: 'user', role: 'owner' },
+                { id: 'dom', type: 'domain', role: 'reader' },
+                { id: 'any', type: 'anyone', role: 'reader' },
+              ],
+            }),
+        } as Response)
+        .mockResolvedValueOnce({ ok: true } as Response)
+        .mockResolvedValueOnce({ ok: true } as Response)
+        .mockResolvedValueOnce({ ok: true } as Response);
+
+      await service.exportDashboard({
+        ...mockDashboard,
+        driveFileId: 'shared-id',
+      });
+
+      const calls = fetchSpy.mock.calls.map(
+        ([url, init]) => `${init?.method ?? 'GET'} ${url as string}`
+      );
+      expect(calls.slice(3)).toEqual([
+        expect.stringMatching(
+          /^DELETE .*\/files\/shared-id\/permissions\/dom(\?.*)?$/
+        ),
+        expect.stringMatching(
+          /^DELETE .*\/files\/shared-id\/permissions\/any(\?.*)?$/
+        ),
+        expect.stringMatching(/^PATCH .*\/files\/shared-id\?uploadType=media$/),
+      ]);
+    });
+
+    it('does not mark a backup private when a grant cannot be revoked', async () => {
+      vi.spyOn(global, 'fetch')
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () =>
+            Promise.resolve({ permissions: [{ id: 'dom', type: 'domain' }] }),
+        } as Response)
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 403,
+          text: () => Promise.resolve('inherited'),
+        } as Response);
+
+      __resetDriveAuthErrorsForTests();
+      const reconnectPrompt = vi.fn();
+      setDriveAuthErrorHandler(reconnectPrompt);
+      try {
+        await expect(service.keepBackupPrivate('stuck-id')).rejects.toThrow(
+          'stays unsaved'
+        );
+        // Reconnecting can't remove an inherited grant, so no Reconnect prompt.
+        expect(reconnectPrompt).not.toHaveBeenCalled();
+        // Later saves skip the file without asking Drive again.
+        const calls = vi.mocked(global.fetch).mock.calls.length;
+        await expect(service.keepBackupPrivate('stuck-id')).rejects.toThrow(
+          'stays unsaved'
+        );
+        expect(vi.mocked(global.fetch).mock.calls.length).toBe(calls);
+        // The 5 s board export stops there too, rather than searching Drive by name.
+        vi.mocked(global.fetch).mockResolvedValue({
+          ok: true,
+          json: () => Promise.resolve({ files: [{ id: 'folder' }] }),
+        } as Response);
+        await expect(
+          service.exportDashboard({ ...mockDashboard, driveFileId: 'stuck-id' })
+        ).rejects.toThrow('stays unsaved');
+        const urls = vi
+          .mocked(global.fetch)
+          .mock.calls.slice(calls)
+          .map(([url]) => decodeURIComponent(url as string));
+        expect(urls.some((u) => u.includes('.spart'))).toBe(false);
+      } finally {
+        __resetDriveAuthErrorsForTests();
+      }
+    });
+
+    it('treats a refused permission list as a shared backup, without a Reconnect prompt', async () => {
+      __resetDriveAuthErrorsForTests();
+      const reconnectPrompt = vi.fn();
+      setDriveAuthErrorHandler(reconnectPrompt);
+      vi.spyOn(global, 'fetch').mockResolvedValueOnce({
+        ok: false,
+        status: 403,
+        text: () => Promise.resolve('forbidden'),
+      } as Response);
+      try {
+        await expect(service.keepBackupPrivate('no-list-id')).rejects.toThrow(
+          'stays unsaved'
+        );
+        expect(reconnectPrompt).not.toHaveBeenCalled();
+      } finally {
+        __resetDriveAuthErrorsForTests();
+      }
     });
 
     it('should create new file if ID not present and name not found', async () => {

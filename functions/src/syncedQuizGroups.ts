@@ -23,6 +23,7 @@
 
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from './firebaseAdmin';
+import { isAiTeacherCaller } from './aiCallerGate';
 import { assertViewAsAllowed } from './viewAsGuard';
 import { assertNotDistrictGroup } from './districtLibraryGuard';
 import { assertShareAuthorInGroup } from './plcSyncJoinGuards';
@@ -184,8 +185,7 @@ export const joinSyncedQuizGroup = onCall<JoinSyncedQuizGroupRequest>(
       throw new HttpsError('unauthenticated', 'Sign in to join a synced quiz.');
     }
     if (
-      request.auth?.token.firebase?.sign_in_provider === 'anonymous' ||
-      request.auth?.token.studentRole === true
+      !(await isAiTeacherCaller(admin.firestore(), request.auth?.token ?? {}))
     ) {
       throw new HttpsError(
         'permission-denied',

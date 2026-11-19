@@ -103,6 +103,8 @@ vi.mock('@/context/useAuth', () => ({
     quizGraderMode: 'question',
     quizGraderAutoAdvance: true,
     rubricLevelOrder: 'high-first',
+    rubricAutoAdvance: false,
+    rubricOpenNext: true,
     spartyEnabled: true,
     alignmentGuidesEnabled: false,
     spellCheckEnabled: true,
@@ -311,29 +313,6 @@ describe('EmbedWidget', () => {
     expect(screen.getByTitle('Embed Content').getAttribute('sandbox')).toBe(
       'allow-scripts allow-forms'
     );
-  });
-
-  it('ignores Block new tabs when its preview flag is off', () => {
-    const original = vi.mocked(useAuth).getMockImplementation();
-    const auth = vi.mocked(useAuth)();
-    vi.mocked(useAuth).mockImplementation(() => ({
-      ...auth,
-      canAccessFeature: (id: string) => id !== 'embed-block-new-tabs',
-    }));
-    onTestFinished(() => {
-      if (original) vi.mocked(useAuth).mockImplementation(original);
-    });
-    render(
-      <EmbedWidget
-        widget={{
-          ...baseWidget,
-          config: { ...baseWidget.config, blockNewTabs: true },
-        }}
-      />
-    );
-    expect(
-      screen.getByTitle('Embed Content').getAttribute('sandbox')
-    ).toContain('allow-popups');
   });
 
   it('renders an iframe with srcDoc in code mode', () => {
@@ -669,6 +648,8 @@ describe('EmbedWidget', () => {
         quizGraderMode: 'question',
         quizGraderAutoAdvance: true,
         rubricLevelOrder: 'high-first',
+        rubricAutoAdvance: false,
+        rubricOpenNext: true,
         spartyEnabled: true,
         alignmentGuidesEnabled: false,
         spellCheckEnabled: true,

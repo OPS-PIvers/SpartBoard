@@ -597,7 +597,7 @@ describe('QuizAssignmentSettingsModal — on the assign stepper', () => {
       'When',
       'Attempts and order',
       'Quiz integrity',
-      'What students see',
+      'Results',
       'Sharing',
     ])
       expect(headers).toContain(title);

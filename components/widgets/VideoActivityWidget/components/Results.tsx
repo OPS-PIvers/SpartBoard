@@ -867,7 +867,7 @@ export const Results: React.FC<ResultsProps> = ({
                       anchor={tourFieldAttr(
                         'video-activity.results-question-row',
                         'video-activity',
-                        q.id
+                        `row-${idx + 1}`
                       )}
                       trailing={
                         skipped ? (
@@ -877,7 +877,7 @@ export const Results: React.FC<ResultsProps> = ({
                             {...tourFieldAttr(
                               'video-activity.results-mark-toggle',
                               'video-activity',
-                              q.id
+                              `row-${idx + 1}`
                             )}
                             type="button"
                             aria-expanded={marking}
@@ -960,6 +960,7 @@ export const Results: React.FC<ResultsProps> = ({
                       <VaShortAnswerMarking
                         sessionId={session.id}
                         question={q}
+                        questionRow={idx + 1}
                         responses={responses.filter((r) =>
                           isVaResponseCompleted(r)
                         )}
@@ -1000,7 +1001,7 @@ export const Results: React.FC<ResultsProps> = ({
                     : -1;
                   return sb - sa;
                 })
-                .map((r) => {
+                .map((r, responseIndex) => {
                   const score = getStudentScore(r);
                   // When the question set hasn't loaded (or the response's
                   // answers map to no loaded question), the score is a phantom
@@ -1179,6 +1180,7 @@ export const Results: React.FC<ResultsProps> = ({
                           {resultsActions && r._responseKey && (
                             <StudentResultsControl
                               responseKey={r._responseKey}
+                              tourRow={responseIndex + 1}
                               override={r.resultsOverride}
                               completed={isVaResponseCompleted(r)}
                               displayName={displayName || 'this student'}

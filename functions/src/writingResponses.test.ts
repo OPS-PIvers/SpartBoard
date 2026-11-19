@@ -142,6 +142,17 @@ describe('openWritingV1', () => {
     });
   });
 
+  it('ignores a pointer another teacher wrote for their own session', async () => {
+    store.set('student_assignments/stu9/items/s1', {
+      classId: 'c9',
+      teacherUid: 'other-teacher',
+      sessionId: 'other-session',
+    });
+    await expect(open(1_000, outsider)).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+  });
+
   it('refuses teachers and PIN sign-ins (D20)', async () => {
     await expect(open(1_000, teacher)).rejects.toMatchObject({
       code: 'permission-denied',

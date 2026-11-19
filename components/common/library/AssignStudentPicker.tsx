@@ -385,7 +385,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
 
       {draftSelected.length > 0 && (
         <div className="flex flex-wrap gap-1.5 px-4 py-3 border-b border-slate-100">
-          {draftSelected.map((ref) => {
+          {draftSelected.map((ref, rowIndex) => {
             const key = studentTargetRefKey(ref);
             const resolvedName = nameByKey.get(key);
             const unknownLabel = t('assignStudentPicker.unknownStudent', {
@@ -405,7 +405,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
                   {...tourFieldAttr(
                     'assign-students-legacy.remove-selected',
                     'assign',
-                    key
+                    `row-${rowIndex + 1}`
                   )}
                   className="hover:bg-brand-blue-primary/20 rounded-full p-0.5 transition-colors"
                   aria-label={t('assignStudentPicker.removeStudent', {
@@ -423,7 +423,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
 
       <div className="flex" style={{ height: 380 }}>
         <div className="w-56 shrink-0 border-r border-slate-100 overflow-y-auto custom-scrollbar py-2">
-          {rosters.map((roster) => (
+          {rosters.map((roster, rowIndex) => (
             <div key={roster.id}>
               <button
                 type="button"
@@ -431,7 +431,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
                 {...tourFieldAttr(
                   'assign-students-legacy.roster',
                   'assign',
-                  roster.id
+                  `row-${rowIndex + 1}`
                 )}
                 className={`w-full text-left px-4 py-2 text-sm font-bold transition-colors ${
                   roster.id === activeRosterId
@@ -449,7 +449,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
               </button>
               {roster.groups && roster.groups.length > 0 && (
                 <div className="px-4 pb-2 flex flex-wrap gap-1.5">
-                  {roster.groups.map((group) => {
+                  {roster.groups.map((group, groupIndex) => {
                     const {
                       members,
                       targetable: targetableMembers,
@@ -485,7 +485,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
                           {...tourFieldAttr(
                             'assign-students-legacy.group',
                             'assign',
-                            group.id
+                            `row-${rowIndex + 1}-item-${groupIndex + 1}`
                           )}
                           className="px-2 py-0.5 rounded-full bg-slate-100 hover:bg-slate-200 text-xxs font-bold text-slate-600 transition-colors"
                         >
@@ -552,7 +552,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
           </div>
 
           <div className="flex-1 overflow-y-auto custom-scrollbar py-1">
-            {rows.map((row) => {
+            {rows.map((row, rowIndex) => {
               const disabled = row.ref === null;
               const checked = row.ref
                 ? selectedKeys.has(studentTargetRefKey(row.ref))
@@ -575,7 +575,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
                       {...tourFieldAttr(
                         'assign-students-legacy.student',
                         'assign',
-                        row.studentId
+                        `row-${rowIndex + 1}`
                       )}
                       className="rounded-sm border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary disabled:opacity-50"
                     />

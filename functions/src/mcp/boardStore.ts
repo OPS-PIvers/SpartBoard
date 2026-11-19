@@ -153,6 +153,7 @@ const PII_KEYS = new Set([
   'names',
   'roster',
   'customRoster',
+  'lastSubmittedDetails',
   'assignments',
 ]);
 // Student, class and session state; Claude never sees or writes it (D18).

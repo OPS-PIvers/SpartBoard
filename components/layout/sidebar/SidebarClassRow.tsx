@@ -29,6 +29,8 @@ interface SidebarClassRowProps {
   /** Absent when the class has no student page or the feature is off. */
   onViewStudentPage?: () => void;
   onDelete: () => void;
+  /** A section of a linked Course: syncing and the student page move to the Course menu. */
+  inCourse?: boolean;
 }
 
 // Divider-row layout for My Classes: the name wraps instead of truncating.
@@ -43,6 +45,7 @@ export const SidebarClassRow: React.FC<SidebarClassRowProps> = ({
   onLinkClassroom,
   onViewStudentPage,
   onDelete,
+  inCourse = false,
 }) => {
   const { t } = useTranslation();
   const activeLabel = isActive
@@ -52,38 +55,41 @@ export const SidebarClassRow: React.FC<SidebarClassRowProps> = ({
   const needsBackfill =
     !r.classlinkClassId && r.students.some((s) => s.classLinkSourcedId);
 
+  // A Course section only needs the picker until it has its own ClassLink class.
+  const showClassLink = !inCourse || !r.classlinkClassId;
   const items: OverflowMenuItem[] = [];
-  if (classLinkEnabled) {
-    items.push(
-      {
-        id: 'sync-classlink',
-        label: needsBackfill
+  if (classLinkEnabled && showClassLink) {
+    items.push({
+      id: 'sync-classlink',
+      label:
+        needsBackfill || inCourse
           ? t('sidebar.classes.linkClassLink', {
               defaultValue: 'Link to ClassLink class',
             })
           : t('sidebar.classes.syncClassLink', {
               defaultValue: 'Sync with ClassLink',
             }),
-        icon: RefreshCw,
-        onClick: onSyncClassLink,
-        tourAnchor: tourFieldAttr('classes.sync-classlink', 'classes', rowKey),
-      },
-      {
-        id: 'link-classroom',
-        label: r.googleClassroomCourseId
-          ? t('sidebar.classes.changeGoogleClassroomLink', {
-              defaultValue: 'Change Google Classroom link',
-            })
-          : t('sidebar.classes.linkGoogleClassroom.button', {
-              defaultValue: 'Link to Google Classroom',
-            }),
-        icon: GraduationCap,
-        onClick: onLinkClassroom,
-        tourAnchor: tourFieldAttr('classes.link-classroom', 'classes', rowKey),
-      }
-    );
+      icon: RefreshCw,
+      onClick: onSyncClassLink,
+      tourAnchor: tourFieldAttr('classes.sync-classlink', 'classes', rowKey),
+    });
   }
-  if (onViewStudentPage) {
+  if (classLinkEnabled) {
+    items.push({
+      id: 'link-classroom',
+      label: r.googleClassroomCourseId
+        ? t('sidebar.classes.changeGoogleClassroomLink', {
+            defaultValue: 'Change Google Classroom link',
+          })
+        : t('sidebar.classes.linkGoogleClassroom.button', {
+            defaultValue: 'Link to Google Classroom',
+          }),
+      icon: GraduationCap,
+      onClick: onLinkClassroom,
+      tourAnchor: tourFieldAttr('classes.link-classroom', 'classes', rowKey),
+    });
+  }
+  if (onViewStudentPage && !inCourse) {
     items.push({
       id: 'view-student-page',
       label: t('sidebar.classes.viewStudentPage', {
