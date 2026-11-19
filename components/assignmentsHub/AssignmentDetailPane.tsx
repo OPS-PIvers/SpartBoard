@@ -688,6 +688,7 @@ export const AssignmentDetailPane: React.FC<{
               }
               availabilityEachClass={false}
               readAloudAvailable={readAloudAvailable}
+              speechToTextAvailable={canAccessFeature('speech-to-text')}
             />
             {!classContext && (
               <p className="text-xs text-slate-500">

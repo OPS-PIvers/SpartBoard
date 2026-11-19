@@ -38,6 +38,7 @@ import { HandRaiseRow } from '@/components/common/library/assignStepper/QuizFeed
 import { formatWrittenAnswersValue } from '@/components/common/library/assignStepper/WrittenAnswersStep.format';
 import { Printer } from 'lucide-react';
 import { AuthContext } from '@/context/AuthContextValue';
+import { SPEECH_TO_TEXT_FEATURE } from '@/utils/speechToText/types';
 import { clampQuizTimeLimitMinutes } from '@/utils/quizTimeLimit';
 import { languageDisplayLabel } from '@/utils/languageDisplayLabel';
 import {
@@ -472,6 +473,9 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
             quizMode
             quizContext={modifications.quizContext}
             pageProtectionsAvailable
+            speechToTextAvailable={
+              auth?.canAccessFeature?.(SPEECH_TO_TEXT_FEATURE) === true
+            }
           />
         ) : undefined
       }

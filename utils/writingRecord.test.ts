@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { WritingRecorder } from '@/utils/writingRecorder';
-import { textAfter } from '@/utils/writingLog';
+import { parseWritingLog, textAfter } from '@/utils/writingLog';
 import {
   draftMarkAt,
+  isKeptAfterPurge,
   joinWritingLog,
   purgedInserts,
   readWritingRecord,
@@ -169,5 +170,20 @@ describe('readWritingRecord', () => {
       ]);
       expect(r.inserts.untyped.map((p) => p.text)).toEqual(['said aloud']);
     }
+  });
+});
+
+describe('dictated passages (Speech to text)', () => {
+  const log = '0:a;D5,,, spoken words;S0,,, tool;P3,,, pasted';
+
+  it('lists each dictated passage apart from pastes and untyped additions', () => {
+    const ins = writingInserts(parseWritingLog(log).edits);
+    expect(ins.dictated).toEqual([{ at: 2, text: ' spoken words' }]);
+    expect(ins.untyped.map((p) => p.text)).toEqual([' tool']);
+    expect(ins.pastes.map((p) => p.text)).toEqual([' pasted']);
+  });
+
+  it('does not keep dictated text past the yearly purge', () => {
+    expect(isKeptAfterPurge('D5,,, spoken words')).toBe(false);
   });
 });

@@ -1,3 +1,5 @@
+import { QUIZ_TRANSLATION_LANGUAGES } from '@/config/quizTranslation';
+
 /** App language code to recognition locale. Hmong has no recogniser; Somali is tried and falls back at runtime (D12). */
 const DICTATION_LOCALES: Readonly<Record<string, string>> = {
   en: 'en-US',
@@ -20,4 +22,16 @@ export function dictationLanguages(translationLanguage?: string): string[] {
   const code = base(translationLanguage);
   if (code !== 'en' && dictationLocaleFor(code)) out.push(code);
   return out;
+}
+
+const NATIVE_LABELS: Readonly<Record<string, string>> = {
+  en: 'English',
+  ...Object.fromEntries(
+    QUIZ_TRANSLATION_LANGUAGES.map((l) => [l.code, l.nativeLabel])
+  ),
+};
+
+/** The language's own name for itself, shown on the Dictate language switch. */
+export function dictationLanguageLabel(code: string): string {
+  return NATIVE_LABELS[base(code)] ?? code.toUpperCase();
 }

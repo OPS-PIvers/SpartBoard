@@ -256,12 +256,19 @@ describe('turnInWritingV1', () => {
     await turnIn({
       html: '<p>a</p>',
       saveCount: 4,
-      summary: { awayMs: 3, junk: 'x'.repeat(10), pasteCount: 'no' },
+      summary: {
+        awayMs: 3,
+        junk: 'x'.repeat(10),
+        pasteCount: 'no',
+        dictatedCount: 2,
+        dictatedChars: 40,
+      },
     });
     const summary = store.get(`${RESP}/drafts/1`).summary;
     expect(summary.awayMs).toBe(3);
     expect(summary).not.toHaveProperty('junk');
     expect(summary.pasteCount).toBe(0);
+    expect(summary).toMatchObject({ dictatedCount: 2, dictatedChars: 40 });
   });
 
   it('refuses after the teacher ends the assignment, past the grace', async () => {

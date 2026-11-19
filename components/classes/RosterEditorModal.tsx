@@ -50,6 +50,8 @@ interface RosterEditorModalProps {
   ) => Promise<void> | void;
   /** Host-resolved 'quiz-read-aloud' gate, forwarded to the accommodations editor. */
   readAloudAvailable?: boolean;
+  /** Host-resolved 'speech-to-text' gate, forwarded to the accommodations editor. */
+  speechToTextAvailable?: boolean;
   /** Bell periods to tag the class with; the picker is hidden when absent. */
   bellPeriodOptions?: BuildingBellPeriodOption[];
   /** Host-resolved 'group-reminders' gate: symbols, schedules and the group wizard. */
@@ -75,6 +77,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
   onClose,
   onSave,
   readAloudAvailable = false,
+  speechToTextAvailable = false,
   bellPeriodOptions,
   groupRemindersEnabled = false,
   groupReminderEmailsEnabled = false,
@@ -389,6 +392,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
             groups={groups}
             overrides={defaultOverrides}
             readAloudAvailable={readAloudAvailable}
+            speechToTextAvailable={speechToTextAvailable}
             onChange={setDefaultOverrides}
             onAddStudents={() => setActiveTab('students')}
           />
@@ -397,6 +401,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
             students={validStudents}
             overrides={defaultOverrides}
             readAloudAvailable={readAloudAvailable}
+            speechToTextAvailable={speechToTextAvailable}
             onChange={setDefaultOverrides}
             onAddStudents={() => setActiveTab('students')}
           />
@@ -928,6 +933,7 @@ interface RosterAccommodationsPanelProps {
   students: Student[];
   overrides: Record<string, StudentOverride>;
   readAloudAvailable: boolean;
+  speechToTextAvailable: boolean;
   onChange: (overrides: Record<string, StudentOverride>) => void;
   onAddStudents: () => void;
 }
@@ -944,6 +950,7 @@ const RosterAccommodationsPanel: React.FC<RosterAccommodationsPanelProps> = ({
   students,
   overrides,
   readAloudAvailable,
+  speechToTextAvailable,
   onChange,
   onAddStudents,
 }) => {
@@ -995,6 +1002,7 @@ const RosterAccommodationsPanel: React.FC<RosterAccommodationsPanelProps> = ({
                 quizMode
                 allowWindowShift={false}
                 readAloudAvailable={readAloudAvailable}
+                speechToTextAvailable={speechToTextAvailable}
                 pageProtectionsAvailable
                 peers={peers}
                 onChange={(next) =>

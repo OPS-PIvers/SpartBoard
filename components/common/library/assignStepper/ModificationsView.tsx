@@ -50,6 +50,8 @@ export interface ModificationsListProps extends ModificationsScope {
   flashcardsMode?: boolean;
   answerChoicesAvailable?: boolean;
   readAloudAvailable?: boolean;
+  /** Quiz and Writing only. Host passes `canAccessFeature('speech-to-text')`. */
+  speechToTextAvailable?: boolean;
   /** Quiz and Video Activity: shows the copy, paste and print choice (focus-sessions flag). */
   pageProtectionsAvailable?: boolean;
   /** Writing: shows the spelling help choice (D22). */
@@ -77,6 +79,7 @@ const StudentModificationRow: React.FC<{
   flashcardsMode: boolean;
   answerChoicesAvailable: boolean;
   readAloudAvailable: boolean;
+  speechToTextAvailable: boolean;
   pageProtectionsAvailable: boolean;
   writingMode: boolean;
   questions: OverrideEditorQuestion[];
@@ -94,6 +97,7 @@ const StudentModificationRow: React.FC<{
   flashcardsMode,
   answerChoicesAvailable,
   readAloudAvailable,
+  speechToTextAvailable,
   pageProtectionsAvailable,
   writingMode,
   questions,
@@ -146,6 +150,7 @@ const StudentModificationRow: React.FC<{
           flashcardsMode={flashcardsMode}
           answerChoicesAvailable={answerChoicesAvailable}
           readAloudAvailable={readAloudAvailable}
+          speechToTextAvailable={speechToTextAvailable}
           pageProtectionsAvailable={pageProtectionsAvailable}
           writingMode={writingMode}
           questions={questions}
@@ -169,6 +174,7 @@ export const ModificationsList: React.FC<ModificationsListProps> = ({
   flashcardsMode = false,
   answerChoicesAvailable = false,
   readAloudAvailable = false,
+  speechToTextAvailable = false,
   pageProtectionsAvailable = false,
   writingMode = false,
   canPickClasses = true,
@@ -443,6 +449,7 @@ export const ModificationsList: React.FC<ModificationsListProps> = ({
                 flashcardsMode={flashcardsMode}
                 answerChoicesAvailable={answerChoicesAvailable}
                 readAloudAvailable={readAloudAvailable}
+                speechToTextAvailable={speechToTextAvailable}
                 pageProtectionsAvailable={pageProtectionsAvailable}
                 writingMode={writingMode}
                 questions={quizContext?.questions ?? []}
@@ -584,6 +591,7 @@ export const ModificationsList: React.FC<ModificationsListProps> = ({
                     flashcardsMode={flashcardsMode}
                     answerChoicesAvailable={answerChoicesAvailable}
                     readAloudAvailable={readAloudAvailable}
+                    speechToTextAvailable={speechToTextAvailable}
                     pageProtectionsAvailable={pageProtectionsAvailable}
                     writingMode={writingMode}
                     questions={quizContext?.questions ?? []}

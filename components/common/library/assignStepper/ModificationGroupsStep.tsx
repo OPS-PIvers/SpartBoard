@@ -23,6 +23,8 @@ import { Toggle } from '@/components/common/Toggle';
 import { useQuizTranslationSettings } from '@/hooks/useQuizTranslationSettings';
 import { QUIZ_TRANSLATION_LANGUAGES } from '@/config/quizTranslation';
 import { QUIZ_READ_ALOUD_FEATURE } from '@/config/quizReadAloud';
+import { SPEECH_TO_TEXT_FEATURE } from '@/utils/speechToText/types';
+import { dictationLocaleFor } from '@/utils/speechToText/languages';
 import { languageDisplayLabel } from '@/utils/languageDisplayLabel';
 import { summarizeOverride } from '@/utils/studentOverrideSummary';
 import {
@@ -354,6 +356,8 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
   const auth = useContext(AuthContext);
   const readAloudOn =
     auth?.canAccessFeature?.(QUIZ_READ_ALOUD_FEATURE) === true;
+  const speechToTextOn =
+    auth?.canAccessFeature?.(SPEECH_TO_TEXT_FEATURE) === true;
   const translationOn = auth?.canAccessFeature?.('quiz-translation') === true;
   const { languages } = useQuizTranslationSettings(translationOn);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -592,6 +596,26 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
                 />
               </Row>
             )}
+            {speechToTextOn && (
+              <Row label="Speech to text">
+                <Toggle
+                  size="sm"
+                  checked={group.speechToText}
+                  onChange={(speechToText) => set(group.id, { speechToText })}
+                  label="Speech to text"
+                  anchor={tourAttr('assign-mods.speech-to-text')}
+                />
+              </Row>
+            )}
+            {speechToTextOn &&
+              group.speechToText &&
+              group.language &&
+              !dictationLocaleFor(group.language) && (
+                <p className="pb-1.5 text-xs text-slate-500">
+                  Not available in {languageDisplayLabel(group.language)}. These
+                  students will dictate in English.
+                </p>
+              )}
             {translationOn && languageOptions.length > 0 && (
               <Row label="Language">
                 <select

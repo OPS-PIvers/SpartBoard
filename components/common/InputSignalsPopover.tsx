@@ -114,7 +114,7 @@ export const InputSignalsBadge: React.FC<InputSignalsBadgeProps> = ({
               ? 'Details about the device the student used. These are common and not a concern on their own.'
               : 'How answers were entered looked different from usual. Each sign has everyday causes. Use them as a reason to talk, not as proof.'}
           </p>
-          {attempts.map(({ attempt, findings, browsers }) => (
+          {attempts.map(({ attempt, findings, browsers, dictatedChars }) => (
             <div key={attempt} className="mt-3">
               <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
                 {attempts.length > 1 ? `Attempt ${attempt + 1}: ` : ''}
@@ -143,6 +143,11 @@ export const InputSignalsBadge: React.FC<InputSignalsBadgeProps> = ({
                   </li>
                 ))}
               </ul>
+              {!!dictatedChars && (
+                <p className="mt-2 border-t border-slate-100 pt-2 text-xs text-slate-600">
+                  Dictated characters: {dictatedChars.toLocaleString()}
+                </p>
+              )}
               {browsers.length > 0 && (
                 <p className="mt-2 border-t border-slate-100 pt-2 text-xs text-slate-600">
                   Browser: {browsers.join('; ')}

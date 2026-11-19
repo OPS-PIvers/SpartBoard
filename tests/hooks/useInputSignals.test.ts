@@ -2,7 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, renderHook } from '@testing-library/react';
 import type { InputSignalCounts } from '@/types';
 import { parseWritingLog, textAfter } from '@/utils/writingLog';
-import { INPUT_SIGNALS_FLUSH_EVENT } from '@/utils/inputSignals';
+import {
+  INPUT_SIGNALS_FLUSH_EVENT,
+  dispatchDictation,
+} from '@/utils/inputSignals';
 import {
   editorPlainText,
   useInputSignals,
@@ -170,6 +173,24 @@ describe('useInputSignals', () => {
     expect(saved.delChars).toBe(1);
     const { edits } = parseWritingLog(saved.log);
     expect(textAfter(edits, edits.length)).toBe('cat');
+  });
+
+  it('records dictated text as dictated, never as typed, unkeyed or pasted', () => {
+    const { save, unmount } = setup();
+    const box = document.createElement('textarea');
+    document.body.appendChild(box);
+    dispatchDictation(box, 'before', 0);
+    box.value = 'Plants need light.';
+    dispatchDictation(box, 'after', 18);
+    unmount();
+    const saved = save.mock.calls[0][1].q1;
+    expect(saved.dictatedChars).toBe(18);
+    expect(saved.chars).toBeUndefined();
+    expect(saved.unkeyedChars).toBeUndefined();
+    expect(saved.pastedChars).toBeUndefined();
+    const { edits } = parseWritingLog(saved.log ?? '');
+    expect(edits.map((e) => e.kind)).toEqual(['dictated']);
+    expect(textAfter(edits, edits.length)).toBe('Plants need light.');
   });
 
   it('holds a large log back on a question change and hide, but not on a turn-in', () => {

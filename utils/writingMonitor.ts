@@ -32,7 +32,14 @@ export function safeWritingSummary(
     SUMMARY_NUMBERS.map((k) => [k, num(r[k]) ?? 0])
   ) as Record<(typeof SUMMARY_NUMBERS)[number], number>;
   const stopped = num(r.logStoppedAt);
-  return stopped === undefined ? out : { ...out, logStoppedAt: stopped };
+  const dictated = num(r.dictatedCount);
+  return {
+    ...out,
+    ...(stopped === undefined ? {} : { logStoppedAt: stopped }),
+    ...(dictated === undefined
+      ? {}
+      : { dictatedCount: dictated, dictatedChars: num(r.dictatedChars) ?? 0 }),
+  };
 }
 
 /** A response doc as the teacher views read it, with its summary made safe. */

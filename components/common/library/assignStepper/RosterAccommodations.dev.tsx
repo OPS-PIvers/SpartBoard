@@ -38,6 +38,7 @@ const Preview: React.FC = () => (
     onClose={() => undefined}
     onSave={() => undefined}
     readAloudAvailable
+    speechToTextAvailable
   />
 );
 

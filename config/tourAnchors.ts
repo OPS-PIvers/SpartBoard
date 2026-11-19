@@ -1559,6 +1559,10 @@ export const TOUR_ANCHORS = {
     label: 'Read aloud switch for a modification group',
     panel: true,
   },
+  'assign-mods.speech-to-text': {
+    label: 'Speech to text switch for a modification group',
+    panel: true,
+  },
   'assign-mods.printed': {
     label: 'Printed version switch for a modification group',
     panel: true,
@@ -15111,6 +15115,10 @@ export const TOUR_ANCHORS = {
   },
   'override-row.read-aloud': {
     label: 'Read aloud checkbox in the override editor',
+    panel: true,
+  },
+  'override-row.speech-to-text': {
+    label: 'Speech to text checkbox in the override editor',
     panel: true,
   },
   'override-row.spelling-help': {

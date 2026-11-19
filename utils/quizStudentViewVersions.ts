@@ -29,6 +29,7 @@ export function previewOverride(
     out.hiddenOptionIdsByQuestion = override.hiddenOptionIdsByQuestion;
   if (override.timeMultiplier) out.timeMultiplier = override.timeMultiplier;
   if (override.readAloud === true) out.readAloud = true;
+  if (override.speechToText === true) out.speechToText = true;
   if (override.language) out.language = override.language;
   if (override.modifiedQuestions === true) out.modifiedQuestions = true;
   if (override.supports?.length) out.supports = override.supports;
@@ -70,6 +71,7 @@ export function overrideRuleLabels(
     );
   if (override.modifiedQuestions) parts.push('modified questions');
   if (override.readAloud) parts.push('read aloud');
+  if (override.speechToText) parts.push('speech to text');
   if (override.language) parts.push(languageLabel(override.language));
   const supports = override.supports?.length ?? 0;
   if (supports > 0)

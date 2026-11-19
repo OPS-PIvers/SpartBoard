@@ -4,6 +4,9 @@ import {
   saveDelayMs,
   BIG_LOG_BYTES,
   BIG_LOG_EVERY_MS,
+  DICTATION_PENDING_MS,
+  DictationTracker,
+  isDictatedInsert,
   INSERT_APPROVAL_MS,
   LOG_EVERY_MS,
   insertApproved,
@@ -155,5 +158,57 @@ describe('saveDelayMs (D15)', () => {
     expect(saveDelayMs({ ...watched, serverNow: 61_000, now: 1_000 })).toBe(
       SAVE_IDLE_MS
     );
+  });
+});
+
+describe('DictationTracker (Speech to text)', () => {
+  it('labels the change made in the announcing turn, whatever the editor inserted', () => {
+    const t = new DictationTracker();
+    t.announce('hello there', 'I say ', 1_000);
+    expect(t.landing).toBe(true);
+    expect(t.active(1_000)).toBe(true);
+    expect(t.settle('I say Hello there. ')).toEqual({
+      prev: 'I say ',
+      next: 'I say Hello there. ',
+    });
+    expect(t.landing).toBe(false);
+    expect(t.active(1_001)).toBe(false);
+    expect(t.settle('anything')).toBeNull();
+  });
+
+  it('waits for a passage that lands after the turn, then claims it once', () => {
+    const t = new DictationTracker();
+    t.announce('the cat sat', 'a ', 1_000);
+    expect(t.settle('a ')).toBeNull();
+    expect(t.landing).toBe(false);
+    expect(t.claim('a ', 'a x', 1_100)).toBe(false);
+    expect(t.claim('a x', 'a x the cat sat ', 1_200)).toBe(true);
+    expect(
+      t.claim('a x the cat sat ', 'a x the cat sat the cat sat', 1_300)
+    ).toBe(false);
+  });
+
+  it('drops an announcement nothing followed', () => {
+    const t = new DictationTracker();
+    t.announce('the cat sat', '', 1_000);
+    t.settle('');
+    expect(t.active(1_000 + DICTATION_PENDING_MS)).toBe(false);
+    expect(t.claim('', 'the cat sat', 1_000 + DICTATION_PENDING_MS)).toBe(
+      false
+    );
+  });
+});
+
+describe('isDictatedInsert', () => {
+  it('allows for spacing, case and a diff that shares its edges', () => {
+    expect(isDictatedInsert('the cat', ' The cat ')).toBe(true);
+    expect(isDictatedInsert('cat sat', ' sat')).toBe(true);
+    expect(isDictatedInsert('it was the best', 'was the best it')).toBe(true);
+  });
+
+  it('refuses unrelated or empty text', () => {
+    expect(isDictatedInsert('the cat', 'x')).toBe(false);
+    expect(isDictatedInsert('ok', 'no')).toBe(false);
+    expect(isDictatedInsert('the cat', '  ')).toBe(false);
   });
 });

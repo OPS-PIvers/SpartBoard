@@ -10813,6 +10813,9 @@ export interface WritingResponseSummary {
   /** Text added without typing or pasting (an extension, dictation). */
   untypedCount: number;
   untypedChars: number;
+  /** Speech to text: passages dictated and their characters; absent until a student dictates. */
+  dictatedCount?: number;
+  dictatedChars?: number;
   /** Time away from the tab and how many times. */
   awayMs: number;
   awayCount: number;

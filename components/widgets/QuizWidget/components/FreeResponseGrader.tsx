@@ -2471,6 +2471,16 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                         {tg('timedOutUnderMinimum')}
                       </span>
                     )}
+                    {attemptNumber === undefined &&
+                      !!textEntry &&
+                      (response?.dictated ?? []).includes(
+                        textEntry.questionId
+                      ) && (
+                        <span className="inline-flex items-center gap-1 rounded-sm bg-slate-200 px-1.5 py-0.5 text-xxs uppercase tracking-wider text-slate-700">
+                          <Mic aria-hidden className="h-3 w-3" />
+                          {tg('dictated', { defaultValue: 'Dictated' })}
+                        </span>
+                      )}
                     {gradedChip}
                   </div>
                 )}
