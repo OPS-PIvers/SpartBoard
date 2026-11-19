@@ -97,8 +97,6 @@ Test on your real prod account, then set the row to Public (Previews, or Widgets
 
 - [ ] **PT-262 🤖 Move old Projects grade overrides** (AB-284, #6256, dev then prod after the release). Projects grades written before #6256 keep overrides in an old field until someone grades them again. In a cloud SpartBoard thread:
   > Run `scripts/cloud-run.sh scripts/backfill-project-grade-overrides.mjs --project dev` as a dry run, then again with `--apply`. After the release, run `CLOUD_RUN_PROJECT=prod scripts/cloud-run.sh scripts/backfill-project-grade-overrides.mjs --project prod` as a dry run and show me the count, then re-run with `--apply` after I say go.
-- [ ] **PT-249 🤖 Park old poll join codes at the release with #6188** (security #8/#9, prod write, right after that release deploys). Only a minted code gets a pointer now. A widget whose code the old trigger dropped can't be joined until the backfill parks it for its teacher. In a cloud SpartBoard thread:
-  > Run `CLOUD_RUN_PROJECT=prod scripts/cloud-run.sh scripts/backfill-poll-code-pointers.mjs --project prod` as a dry run and show me the count, then re-run with `--apply` after I say go.
 - [ ] **PT-250 🤖 Clear revealed answers on ended quiz runs** (security #1, #6186, prod write). Ending a run now clears `revealedAnswers`; runs that ended earlier still hold them.
   > On prod, count `quiz_sessions` with `status: 'ended'` that still hold `revealedAnswers`: dry run with the count, then remove the field after I say go.
 - [ ] **PT-251 🤖 Close deleted-PLC leftovers** (security #15, #6191, prod). Ids deleted before #6191 have no tombstone and keep their subcollections.
