@@ -40,7 +40,6 @@ import {
 import {
   PromptAudioHost,
   PromptAudioMicButton,
-  PromptAudioRow,
   type PromptAudioState,
 } from './PromptAudioField';
 
@@ -139,8 +138,8 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
         }
         anchor={anchor}
         toolbarEnd={
-          canRecord && audioState ? (
-            <PromptAudioMicButton state={audioState} />
+          audioState ? (
+            <PromptAudioMicButton state={audioState} canRecord={canRecord} />
           ) : undefined
         }
       />
@@ -252,9 +251,6 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
         )}
         {hasPromptMath(q.text) && (
           <PromptMathPreview text={q.text} onEdit={openEquation} />
-        )}
-        {audioState && (
-          <PromptAudioRow state={audioState} canRecord={canRecord} />
         )}
       </div>
     );
