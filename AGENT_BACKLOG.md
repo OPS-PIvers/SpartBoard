@@ -9,7 +9,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
 - **Release review findings.** Fix small (S) findings inside the release as `release fix:` PRs. File an item here only for work that is M or larger, needs a flag or rules design, or can't ship in that release.
 - **Agent-only means agent-only.** An item in Ready needs nothing from Paul. When an item needs new wording, the agent builds it and asks Paul with a screenshot and a decision card in its thread; when it needs a real decision, it goes to PAUL_TODO.md and the item moves to Blocked.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-307**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-308**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -195,6 +195,7 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
 ### Widgets and UI
 
+- **AB-307 Brand-align the hand-built dialogs** (M). #6327 gave every `Modal` one header (`components/common/ModalHeader.tsx`: brand blue, or the widget's `LIBRARY_HEADER_ACCENTS` colour for widget-owned modals) and a `bg-slate-50` footer with a hairline. About 75 dialogs still skip `Modal` and draw their own `fixed inset-0` shell with a white header (`grep -rl 'fixed inset-0' components | xargs grep -L '<Modal'`), plus the dark `DialogContainer` confirms and `plc/redesignMockup/LayoutEditorModal`. Move each to `Modal` + `ModalHeader` where it is a real dialog, keep `variant="bare"` surfaces (Lunch Count) untouched, and move the custom-header modals that still hand-copy `bg-brand-blue-primary … rounded-t-2xl` onto `ModalHeader`. Screenshot each whole modal before and after. Done when no dialog has a plain white header bar.
 - **AB-305 Lunch Count redesign: translate, settle the fit, keep the date fresh** (S; release 2026.11.19c review of #6282; admin-only behind `lunch-count-redesign`). Do before that flag opens. (1) `components/widgets/LunchCount/redesign/RedesignedLunchCount.tsx` and `LunchZone.tsx` hardcode English ("Daily Lunch Count", "Submit Report", "Assign N More Students", zone names, "Unassigned", "Show photo of"); move them to `locales/*.json` (#6282 deleted the old `short*` keys). (2) `useBoardFit.ts` `fitsAt` runs up to 9 reflows per `fit()` on every board resize frame; run the board-resize path through one rAF so a drag on a Chromebook with 30+ students stays smooth. (3) The header date is `new Date()` per render and goes stale past midnight; tick it at midnight. Done when the face renders translated in es and a test covers the rAF-batched fit.
 - **AB-281 Small widget polish** (S, from AB-65 triage). (1) The Countdown grid's 12px bottom padding can add a scrollbar at the smallest sizes. (2) Number Line has a visible jump at the 500px width threshold. (3) A very long Activity Wall composer prompt grows without limit; cap it with `max-h` and scroll. Screenshot each before and after.
 - **AB-266 QR stuck on an old Text sync with no Text widget** (S). Since Connections went Public, `hiddenWithConnections` hides the old per-widget link toggles. A QR with `syncWithTextWidget: true` and no Text widget never converts (`utils/legacyConnections.ts`), so `QRDestinationField` keeps the URL box disabled and the teacher can't turn the sync off. Treat a sync with no Text widget as unsynced (or show the toggle while unconverted), and check the other unconverted toggles (Music `syncWithTimeTool`, Random `autoStartTimer` with no Timer) for the same trap.
@@ -756,6 +757,7 @@ git push origin --delete claude/project-thread-776f0z claude/ab112-776f0z
 git push origin --delete claude/project-thread-hnyuke claude/project-thread-hnyuke-ab112
 git push origin --delete claude/project-thread-5qafu6
 git push origin --delete claude/project-thread-sbqr9b claude/ab112-sbqr9b
+git push origin --delete claude/project-thread-icqtrs claude/project-thread-icqtrs-docs
 ```
 
   </details>
