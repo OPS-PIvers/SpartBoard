@@ -15,6 +15,7 @@ import {
 } from '@/utils/notebookSvgEdit';
 import { PEN_COLORS, PEN_WIDTHS, Tool, isShapeTool } from './pageEditorTypes';
 import { tourTypeAttr } from '@/config/tourAnchors';
+import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
 import {
   NotebookZoom,
   useNotebookZoom,
@@ -322,9 +323,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   const spaceDownRef = useRef(false);
   const [panning, setPanning] = useState(false);
   const [spaceDown, setSpaceDown] = useState(false);
-  const reducedMotion =
-    typeof window !== 'undefined' &&
-    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const reducedMotion = usePrefersReducedMotion();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
   // Group holding one highlight rect per selected object.
