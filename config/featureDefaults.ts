@@ -441,6 +441,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'speech-to-text': {
+    label: 'Speech to text',
+    icon: Mic,
+    description:
+      'An accommodation that lets a student dictate written answers in Quiz and Writing.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'students',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Quiz translation for multilingual learners. Admin-only while the Languages
   // tab ships in stacked PRs; fail-closed so a missing doc grants nobody.
   'quiz-translation': {

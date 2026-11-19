@@ -26,6 +26,7 @@ import {
   Underline,
 } from 'lucide-react';
 import { sanitizeQuizResponse } from '@/utils/security';
+import type { EditorDictation } from '@/utils/speechToText/types';
 import {
   ensureTopLevelBlocks,
   needsBlockNormalization,
@@ -104,6 +105,8 @@ interface WrittenResponseEditorProps {
   minHeightPx?: number;
   /** False keeps locked text at full contrast, for work shown read-only. */
   dimWhenDisabled?: boolean;
+  /** Speech to text: shows Dictate and lets dictated text in even when paste is blocked. */
+  dictation?: EditorDictation;
   ref?: React.Ref<WrittenResponseEditorHandle>;
 }
 

@@ -1,6 +1,7 @@
 // Mirror of isAdminPreviewFeature in config/featureDefaults.ts; config/featureDefaults.test.ts keeps it in sync.
 export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-read-aloud',
+  'speech-to-text',
   'quiz-translation',
   'question-bank-ai',
   'schoology-quiz-import',

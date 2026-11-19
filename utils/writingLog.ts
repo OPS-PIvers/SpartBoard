@@ -11,7 +11,7 @@ export const utf8Length = (s: string): number => encoder.encode(s).length;
 const END_MARK = '!';
 
 export type WritingEditKind =
-  'typed' | 'pasted' | 'sync' | 'restored' | 'format';
+  'typed' | 'pasted' | 'dictated' | 'sync' | 'restored' | 'format';
 
 export interface WritingEdit {
   /** Ms since the edit before it. */
