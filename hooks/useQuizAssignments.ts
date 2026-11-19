@@ -217,6 +217,7 @@ import {
   responsesAnsweringRemoved,
   shouldCheckSyncRemovals,
 } from '@/utils/districtLibraryOrigin';
+import { withVerifiedClassesRetry } from '@/utils/verifiedClassesRefresh';
 
 /** A pass for a student reopened after End runs until the teacher ends the quiz again. */
 const REOPEN_PASS_MS = 365 * 24 * 60 * 60 * 1000;
@@ -2072,40 +2073,48 @@ export const useQuizAssignments = (
         };
       }
 
-      const batch = writeBatch(db);
-      batch.set(
-        doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
-        // Teacher-side twin of the session marker, so a later sync knows
-        // whether to look for committed takes without reading the session.
-        sessionHasRecording
-          ? { ...assignment, mediaResponseEnabled: true }
-          : assignment
-      );
-      batch.set(doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId), sessionDoc);
-      // Written whenever the flag is on, so switching the setting on later has a key to grade with.
-      // Review games always need it: checkQuizGameAnswerV1 grades from it (plan D31).
-      if (scoreOnSubmitOn || mode === 'game') {
-        batch.set(scoreKeyRef(userId, assignmentId), {
-          questions: buildScoreOnSubmitKey(sessionQuestions),
-        });
-      }
-      if (sessionContent) {
+      // A batch can't be re-committed, so the class list retry rebuilds it.
+      const commitCreate = () => {
+        const batch = writeBatch(db);
         batch.set(
-          doc(
-            db,
-            QUIZ_SESSIONS_COLLECTION,
-            assignmentId,
-            QUIZ_CONTENT_COLLECTION,
-            QUIZ_CONTENT_DOC
-          ),
-          sessionContent
+          doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
+          // Teacher-side twin of the session marker, so a later sync knows
+          // whether to look for committed takes without reading the session.
+          sessionHasRecording
+            ? { ...assignment, mediaResponseEnabled: true }
+            : assignment
         );
-      }
-      // Same batch as the session: a session whose pointer never landed would be
-      // unjoinable by code.
-      addJoinCodeOwnerToBatch(batch, code, userId, now);
-      addJoinCodePointerToBatch(batch, code, assignmentId, userId, now);
-      await batch.commit();
+        batch.set(doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId), sessionDoc);
+        // Written whenever the flag is on, so switching the setting on later has a key to grade with.
+        // Review games always need it: checkQuizGameAnswerV1 grades from it (plan D31).
+        if (scoreOnSubmitOn || mode === 'game') {
+          batch.set(scoreKeyRef(userId, assignmentId), {
+            questions: buildScoreOnSubmitKey(sessionQuestions),
+          });
+        }
+        if (sessionContent) {
+          batch.set(
+            doc(
+              db,
+              QUIZ_SESSIONS_COLLECTION,
+              assignmentId,
+              QUIZ_CONTENT_COLLECTION,
+              QUIZ_CONTENT_DOC
+            ),
+            sessionContent
+          );
+        }
+        // Same batch as the session: a session whose pointer never landed would be
+        // unjoinable by code.
+        addJoinCodeOwnerToBatch(batch, code, userId, now);
+        addJoinCodePointerToBatch(batch, code, assignmentId, userId, now);
+        return batch.commit();
+      };
+      await withVerifiedClassesRetry(
+        userId,
+        targetClassIds.length > 0,
+        commitCreate
+      );
 
       // R1: synthesize up front, billed to the teacher; the student fallback
       // covers the assign-then-start race. Override-only flags added later go
@@ -2705,7 +2714,6 @@ export const useQuizAssignments = (
         classPeriodByClassId: cleanedClassPeriodByClassId,
       };
 
-      const batch = writeBatch(db);
       const assignmentRef = doc(
         db,
         'users',
@@ -2713,20 +2721,29 @@ export const useQuizAssignments = (
         QUIZ_ASSIGNMENTS_COLLECTION,
         assignmentId
       );
-      batchUpdateWithPaths(batch, assignmentRef, assignmentPatch, rowWrites);
-      batchUpdateWithPaths(
-        batch,
-        doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId),
-        sessionPatch,
-        rowWrites
-      );
+      const commitEdit = () => {
+        const batch = writeBatch(db);
+        batchUpdateWithPaths(batch, assignmentRef, assignmentPatch, rowWrites);
+        batchUpdateWithPaths(
+          batch,
+          doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId),
+          sessionPatch,
+          rowWrites
+        );
+        return batch.commit();
+      };
       await viewAsDirectSave(
         assignmentRef,
         [
           ...Object.keys(assignmentPatch),
           ...(rowWrites.length > 0 ? ['periodAccess'] : []),
         ],
-        () => batch.commit()
+        () =>
+          withVerifiedClassesRetry(
+            userId,
+            cleanedClassIds.length > 0,
+            commitEdit
+          )
       );
     },
     [userId]
