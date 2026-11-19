@@ -29,6 +29,7 @@ const ROSTERS: ClassRoster[] = [
     defaultOverridesByStudentId: {
       a1: { readAloud: true },
       a2: { language: 'ru' },
+      a3: { language: 'hmn', speechToText: true },
     },
     students: [
       student('a1', 'Maya', 'Alvarez'),
@@ -79,6 +80,7 @@ const Preview: React.FC = () => {
             onBack={() => setOpen(false)}
             quizMode
             readAloudAvailable
+            speechToTextAvailable
             quizContext={{
               questions: [],
               rubrics: [],

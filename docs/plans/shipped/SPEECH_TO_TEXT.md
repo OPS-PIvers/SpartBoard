@@ -1,6 +1,6 @@
 # Speech to text: a dictation accommodation
 
-Approved by Paul 2026-11-19 (grilling session, cloud). Glossary term: **Speech to text** (`GLOSSARY.md`, Student work). Two PRs, each built by parallel agents on separate files after one shared contract commit.
+Approved by Paul 2026-11-19 (grilling session, cloud). Both PRs are built (#6291 and the paid extras); what is left is Paul's testing, tracked in PAUL_TODO.md. Glossary term: **Speech to text** (`GLOSSARY.md`, Student work). Two PRs, each built by parallel agents on separate files after one shared contract commit.
 
 ## Problem
 
@@ -24,6 +24,9 @@ A student who can't type well has no way to answer a written question in SpartBo
 - **D9. AI tidy-up is admin-gated and off by default.** The student taps "Tidy up" on a passage they just dictated. The model may add only punctuation, capitals and paragraph breaks. The function rejects the result if the sequence of words differs from the input. The student sees before and after and can undo.
 - **D10. Each paid piece has its own monthly cap.** Past the cap, dictation carries on with the free engine with no message to the student, and the Tidy up button disappears. Admins see usage against the cap.
 
+- **D8a. The paid engine's model is the admin's pick on the AI tab.** The default is the standard Gemini model, which takes our "exact words, natural punctuation" instruction. Gemini 3.5 Transcribe can be picked instead (audio features only). It takes no instructions, so the AI router sends it only the audio, the language and a mode.
+- **D8b. The admin chooses that model's mode** (Paul, 2026-11-19): Exact words (the default; no punctuation from the model, so the client keeps the free engine's punctuation where the words line up) or Smart (punctuates, but also fixes grammar and drops repeats).
+
 ### Rules of use
 
 - **D11. The recording is never stored.** Audio lives in memory while it is transcribed. Only text is kept.
@@ -38,10 +41,19 @@ A student who can't type well has no way to answer a written question in SpartBo
 - **D17. Two PRs.** PR 1 is the whole free accommodation. PR 2 is the paid engine, tidy-up, admin panel and caps. PR 2 can start once PR 1's contract commit is on `dev-paul`.
 - **D18. No changelog entry until the flag opens to everyone.**
 
+### Revised gating for the paid extras (Paul, 2026-11-19)
+
+These replace the admin settings doc and Quiz settings tab that D8-D10 and D16 first shipped with.
+
+- **D19. Each paid extra is its own flag:** `speech-to-text-ai-transcription` and `speech-to-text-tidy-up`, Previews rows nested under Speech to text, admin only to start, graduating to Features > Students.
+- **D20. The server checks the assigning teacher's flags**, as Read aloud does: Speech to text, the extra's own flag, and the AI master switch. A student's page asks `getSpeechToTextAccessV1` which extras apply.
+- **D21. Limits are on the row.** A daily limit per student in the standard `ai_usage` counters (300 phrases, 30 tidy-ups by default), and an adjustable monthly limit for the whole district (minutes of speech, tidy-ups) with this month's use beside it. The overall per-user AI daily limit is not applied to students for these two.
+- **D22. The Exact words / Smart mode is a select on the AI transcription row.**
+
 ## Cost
 
 - **PR 1 costs nothing.** No function calls, no Storage, no model download.
-- **Paid engine:** Gemini 3.5 Transcribe is priced at $3.50 per million audio input tokens (25 tokens per second) and $21 per million output tokens, about 0.9 cents per minute of speech. Thirty students dictating ten minutes a week for a school year is roughly $100. Confirm the price on Google's Vertex pricing page before setting the default cap.
+- **Paid engine:** Gemini 3.5 Transcribe is listed at $2 per million audio input tokens (25 tokens per second) and $12 per million output tokens, about half a cent per minute of speech; the live model is $3.50 and $21. Thirty students dictating ten minutes a week for a school year is roughly $55. These are Google AI Studio's list prices; Vertex prices may differ.
 - **Tidy-up:** one short text call per tap, on the cheapest text tier.
 
 ## Facts the build depends on

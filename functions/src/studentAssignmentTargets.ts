@@ -171,6 +171,7 @@ export interface StudentOverride {
   blockCopyPaste?: boolean;
   /** Writing only (D22): leaves the right-click spelling menu on. */
   spellingHelp?: boolean;
+  speechToText?: boolean;
   openAt?: number;
   closeAt?: number;
   /** BCP-47 code. Shape-validated only — membership in the org list is enforced elsewhere. */
@@ -531,6 +532,7 @@ export function sanitizeOverride(raw: unknown): StudentOverride | null {
   if (typeof src.blockCopyPaste === 'boolean')
     out.blockCopyPaste = src.blockCopyPaste;
   if (src.spellingHelp === true) out.spellingHelp = true;
+  if (src.speechToText === true) out.speechToText = true;
 
   if (typeof src.openAt === 'number' && Number.isFinite(src.openAt))
     out.openAt = src.openAt;

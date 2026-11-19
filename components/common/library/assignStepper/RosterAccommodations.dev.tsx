@@ -28,7 +28,17 @@ const ROSTER: ClassRoster = {
   groups: [
     { id: 'mods', name: 'Modified Assessments', studentIds: ['b', 'c', 'f'] },
   ],
-  defaultOverridesByStudentId: { c: { timeMultiplier: 1.5 } },
+  defaultOverridesByStudentId: {
+    b: { readAloud: true, speechToText: true, language: 'es' },
+    c: {
+      readAloud: true,
+      speechToText: true,
+      language: 'es',
+      timeMultiplier: 1.5,
+    },
+    f: { readAloud: true, speechToText: true, language: 'es' },
+    d: { answerChoices: 2, modifiedQuestions: true },
+  },
 };
 
 const Preview: React.FC = () => (
@@ -38,6 +48,7 @@ const Preview: React.FC = () => (
     onClose={() => undefined}
     onSave={() => undefined}
     readAloudAvailable
+    speechToTextAvailable
   />
 );
 

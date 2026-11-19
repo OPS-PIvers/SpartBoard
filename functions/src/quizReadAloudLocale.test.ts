@@ -206,6 +206,24 @@ describe('translation locale → voice', () => {
 });
 
 describe('localizedSessionQuestion', () => {
+  it('serves an audio-only prompt with an empty stem, not a half-translation', () => {
+    const silent = {
+      ...MC,
+      text: '',
+      localized: { es: { text: '', choices: ['3', '4', '5'] } },
+    };
+    expect(localizedSessionQuestion(silent, 'es')).toMatchObject({
+      text: '',
+      choices: ['3', '4', '5'],
+    });
+    expect(
+      localizedSessionQuestion(
+        { ...MC, localized: { es: { text: '', choices: ['3', '4', '5'] } } },
+        'es'
+      )
+    ).toBeNull();
+  });
+
   it('projects the stored translation for a servable question', () => {
     expect(localizedSessionQuestion(MC, 'es')).toMatchObject({
       text: '¿Cuánto es 2 + 2?',

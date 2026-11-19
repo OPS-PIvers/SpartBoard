@@ -7,6 +7,7 @@ import type {
 import {
   WRITING_LOG_BUDGET,
   WRITING_LOG_MAX,
+  type WritingEditKind,
   WritingLogWriter,
   diffText,
   utf8Length,
@@ -24,6 +25,25 @@ export const INPUT_SIGNALS_FLUSH_EVENT = 'spartboard:quiz:flush-signals';
 /** Detail of the flush event: each save in flight pushes its promise so the sender can await it. */
 export type InputSignalsFlushDetail = { saves: Promise<void>[] };
 
+/** Sent by an answer box around text put in by Speech to text, which fires no input event of its own. */
+export const DICTATION_EVENT = 'spartboard:quiz:dictated';
+
+/** `before` lets the recorder read the box first; `after` carries how many characters were dictated. */
+export type DictationEventDetail = { phase: 'before' | 'after'; chars: number };
+
+export function dispatchDictation(
+  field: HTMLElement,
+  phase: DictationEventDetail['phase'],
+  chars: number
+): void {
+  field.dispatchEvent(
+    new CustomEvent<DictationEventDetail>(DICTATION_EVENT, {
+      bubbles: true,
+      detail: { phase, chars },
+    })
+  );
+}
+
 const COUNT_KEYS = [
   'clicks',
   'jumpClicks',
@@ -37,6 +57,7 @@ const COUNT_KEYS = [
   'unkeyedChars',
   'pastes',
   'pastedChars',
+  'dictatedChars',
   'scripted',
   'dels',
   'delChars',
@@ -78,6 +99,7 @@ const emptyCounts = (): Counts => ({
   unkeyedChars: 0,
   pastes: 0,
   pastedChars: 0,
+  dictatedChars: 0,
   scripted: 0,
   dels: 0,
   delChars: 0,
@@ -191,15 +213,40 @@ export class InputSignalCollector {
         c.midInserts += 1;
       }
     }
-    if (!options.log || this.question === NO_QUESTION) return;
+    if (!options.log) return;
+    // The editor re-inserts a paste as plain typing, so the paste event marks it.
+    this.logEdit(prev, text, t, t <= this.pasteUntil ? 'pasted' : kind);
+  }
+
+  /** Speech to text changed an answer box; `chars` were dictated in. Never counted as typed, unkeyed or pasted. */
+  dictated(
+    field: object,
+    text: string,
+    chars: number,
+    t: number,
+    log: boolean
+  ): void {
+    const prev = this.fieldText.get(field);
+    this.fieldText.set(field, text);
+    if (chars > 0) this.bucket().dictatedChars += chars;
+    if (log && prev !== undefined && prev !== text)
+      this.logEdit(prev, text, t, 'dictated');
+  }
+
+  private logEdit(
+    prev: string,
+    text: string,
+    t: number,
+    kind: WritingEditKind
+  ): void {
+    if (this.question === NO_QUESTION) return;
     let writer = this.writers.get(this.question);
     if (!writer) {
       writer = new WritingLogWriter(this.baseLogs[this.question]);
       this.writers.set(this.question, writer);
     }
-    // The editor re-inserts a paste as plain typing, so the paste event marks it.
-    const how = t <= this.pasteUntil ? 'pasted' : kind;
-    this.logRoom -= writer.write(prev, text, t, how, this.logRoom);
+    this.logRoom -= writer.write(prev, text, t, kind, this.logRoom);
+    this.dirty = true;
   }
 
   /** Bytes of edit log this page load is carrying. */
@@ -743,6 +790,8 @@ export interface AttemptFindings {
   findings: InputFinding[];
   /** Browsers the attempt ran in, such as "Chrome 141, macOS". */
   browsers: string[];
+  /** Characters entered with Speech to text; a fact about the attempt, not a sign. */
+  dictatedChars?: number;
 }
 
 /** Every attempt that has something to show, latest first. `answers` belong to `currentAttempt`. */
@@ -774,6 +823,10 @@ export function inputFindingsByAttempt(
           hidden
         ),
         browsers: perQuestion[NO_QUESTION]?.browser?.split('|') ?? [],
+        dictatedChars: Object.values(perQuestion).reduce(
+          (n, c) => n + (c.dictatedChars ?? 0),
+          0
+        ),
       };
     })
     .filter((a) => a.findings.length > 0);

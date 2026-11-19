@@ -81,6 +81,11 @@ export {
 export { prepareQuizReadAloudV1, synthesizeQuizAudioV1 } from './quizReadAloud';
 export { synthesizeGuidedLearningNarrationV1 } from './guidedLearningNarration';
 export { translateQuizV1, translateResponseV1 } from './quizTranslation';
+export {
+  transcribeSpeechV1,
+  tidyDictationV1,
+  getSpeechToTextAccessV1,
+} from './speechToText';
 export { extractStimulusReadAloudTextV1 } from './quizStimulusText';
 export { extractQuizFromDocumentV1 } from './quizDocumentExtract';
 

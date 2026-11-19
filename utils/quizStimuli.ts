@@ -190,6 +190,9 @@ export function stimulusPlayKey(attemptIndex: number, stimulusId: string) {
   return `a${attemptIndex}:${stimulusId}`;
 }
 
+/** The `stimulusPlays` id a question's recorded prompt counts its views under. */
+export const promptAudioPlayId = (questionId: string) => `prompt-${questionId}`;
+
 /** Partition stimuli into doc-shaped (side panel) vs inline media. */
 export function splitStimuliForLayout(stimuli: QuizStimulus[]): {
   docShaped: QuizStimulus[];

@@ -39,6 +39,7 @@ import {
   getDoc,
   writeBatch,
   increment,
+  arrayUnion,
   deleteField,
   runTransaction,
   serverTimestamp,
@@ -591,6 +592,7 @@ export function toPublicQuestion(
   };
   if (q.targets?.length) base.targets = q.targets.map((t) => ({ ...t }));
   if (q.modifiedText?.trim()) base.modifiedText = q.modifiedText.trim();
+  if (q.promptAudio?.driveFileId) base.promptAudio = { ...q.promptAudio };
   if (
     (q.type === 'FIB' || isFreeResponseType(q.type)) &&
     isAnswerKeyboard(q.answerKeyboard)
@@ -2249,6 +2251,8 @@ export interface UseQuizSessionStudentResult {
       locale?: string;
       /** A revisit draft while Live view watches: a changed one saves over the submitted answer. */
       liveRevisit?: boolean;
+      /** Part of this answer was dictated with Speech to text; recorded on the response once. */
+      dictated?: boolean;
     }
   ) => Promise<void>;
   /**
@@ -2414,6 +2418,8 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
   // Starts `undefined` (pointer not yet resolved) so a submit racing the
   // pointer load leaves any existing snapshot untouched.
   const servedQuestionIdsRef = useRef<string[] | null | undefined>(undefined);
+  // Dictated markers already sent this page load, as session/response/question.
+  const dictatedSentRef = useRef<Set<string>>(new Set());
   const setServedQuestionIds = useCallback((ids: string[] | null) => {
     servedQuestionIdsRef.current = ids && ids.length > 0 ? ids : null;
   }, []);
@@ -3157,6 +3163,17 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
                 hasClassPeriod: !!classPeriod,
               })
             );
+            // The new attempt starts with nothing dictated.
+            dictatedSentRef.current.clear();
+            if ((existing.dictated ?? []).length > 0) {
+              void updateDoc(responseRef, { dictated: [] }).catch(
+                (err: unknown) =>
+                  console.error(
+                    '[useQuizSession] dictated marker reset failed:',
+                    err
+                  )
+              );
+            }
           } else if (
             (classPeriod && existing.classPeriod !== classPeriod) ||
             needsAttemptClock(sessionData, existing)
@@ -3516,6 +3533,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         timedOutUnderMinimum?: boolean;
         locale?: string;
         liveRevisit?: boolean;
+        dictated?: boolean;
       }
     ) => {
       const sessionId = sessionIdRef.current;
@@ -3530,6 +3548,24 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         RESPONSES_COLLECTION,
         responseKey
       );
+
+      // Its own small write: the rules take one new id at a time, and the answer write is near their size limit.
+      const dictatedKey = `${sessionId}/${responseKey}/${questionId}`;
+      if (
+        opts?.dictated === true &&
+        !dictatedSentRef.current.has(dictatedKey) &&
+        myResponseRef.current != null &&
+        !isAnswerLocked(myResponseRef.current) &&
+        !(myResponseRef.current.dictated ?? []).includes(questionId)
+      ) {
+        dictatedSentRef.current.add(dictatedKey);
+        void updateDoc(responseRef, {
+          dictated: arrayUnion(questionId),
+        }).catch((err: unknown) => {
+          dictatedSentRef.current.delete(dictatedKey);
+          console.error('[useQuizSession] dictated marker write failed:', err);
+        });
+      }
 
       // Pure given a live `existing` doc — shared by both the draft and
       // submit paths below so the guard/rewrite logic can't drift between

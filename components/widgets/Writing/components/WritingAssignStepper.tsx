@@ -1,5 +1,5 @@
 // Writing assign on the shared accordion stepper: Classes, When, Writing rules, Integrity (WRITING_ASSIGNMENT.md §4.3).
-import React, { useMemo, useState } from 'react';
+import React, { useContext, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAssignWhen } from '@/hooks/useLastAssignWhen';
 import { AssignStepper } from '@/components/common/library/assignStepper/AssignStepper';
@@ -40,6 +40,8 @@ import {
 import { useQuizRuleGates } from '@/components/common/library/assignStepper/QuizRuleStepGates';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { applyWhen } from '@/utils/assignAvailability';
+import { AuthContext } from '@/context/AuthContextValue';
+import { SPEECH_TO_TEXT_FEATURE } from '@/utils/speechToText/types';
 import { buildPeriodGate } from '@/utils/periodPlan';
 import {
   EMPTY_ASSIGN_TARGETING_VALUE,
@@ -71,6 +73,7 @@ export const WritingAssignStepper: React.FC<WritingAssignStepperProps> = ({
   onAssign,
 }) => {
   const { t } = useTranslation();
+  const auth = useContext(AuthContext);
   const gates = useQuizRuleGates();
   const [classes, setClasses] = useState<AssignClassesValue>({
     classIds: [],
@@ -246,6 +249,9 @@ export const WritingAssignStepper: React.FC<WritingAssignStepperProps> = ({
             onBack={() => setShowMods(false)}
             quizMode={false}
             writingMode
+            speechToTextAvailable={
+              auth?.canAccessFeature?.(SPEECH_TO_TEXT_FEATURE) === true
+            }
           />
         ) : undefined
       }

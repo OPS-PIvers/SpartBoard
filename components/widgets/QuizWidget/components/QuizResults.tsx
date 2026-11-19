@@ -4,6 +4,7 @@
  * Allows exporting to Google Sheets.
  */
 
+import { promptLabel } from '@/utils/quizPromptText';
 import { MathText } from '@/components/common/MathText';
 import { plainMathText } from '@/utils/promptMath';
 import { AnswerPictureText } from '@/components/quiz/AnswerPictureText';
@@ -3999,7 +4000,7 @@ const QuestionsScreen: React.FC<{
                 className="block font-sans text-brand-gray-dark truncate"
                 style={{ fontSize: 'min(13px, 4.5cqmin)' }}
               >
-                <MathText text={q.text} format />
+                <MathText text={promptLabel(q)} format />
               </span>
             </button>
 
@@ -4421,6 +4422,10 @@ const StudentDrilldownPanel: React.FC<{
                 <StudentAnswerLine
                   key={line.questionId}
                   line={line}
+                  dictated={
+                    !picked &&
+                    (liveResponse.dictated ?? []).includes(line.questionId)
+                  }
                   onCountInstead={
                     line.mark === 'notChosen' && line.answerText
                       ? countInsteadFor(line.questionId)

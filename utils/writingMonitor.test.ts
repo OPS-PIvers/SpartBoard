@@ -235,6 +235,18 @@ describe('summary values a student wrote (security #6)', () => {
     expect(safeWritingSummary('junk')).toBeUndefined();
   });
 
+  it('keeps the dictated counts only when they are numbers', () => {
+    expect(
+      safeWritingSummary({ dictatedCount: 3, dictatedChars: 412 })
+    ).toMatchObject({ dictatedCount: 3, dictatedChars: 412 });
+    expect(
+      safeWritingSummary({ dictatedCount: 2, dictatedChars: 'many' })
+    ).toMatchObject({ dictatedCount: 2, dictatedChars: 0 });
+    expect(safeWritingSummary({ dictatedCount: 'x' })).not.toHaveProperty(
+      'dictatedCount'
+    );
+  });
+
   it('builds monitor rows without throwing on a malformed summary', () => {
     const r = readWritingResponse(
       {

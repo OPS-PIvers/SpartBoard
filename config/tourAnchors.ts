@@ -1559,6 +1559,10 @@ export const TOUR_ANCHORS = {
     label: 'Read aloud switch for a modification group',
     panel: true,
   },
+  'assign-mods.speech-to-text': {
+    label: 'Speech to text switch for a modification group',
+    panel: true,
+  },
   'assign-mods.printed': {
     label: 'Printed version switch for a modification group',
     panel: true,
@@ -1627,10 +1631,6 @@ export const TOUR_ANCHORS = {
     destructive: true,
     panel: true,
   },
-  'assign-mods.preview-group': {
-    label: 'Preview button on a group in the Assign dialog Modifications step',
-    panel: true,
-  },
   'assign-mods.remove-group': {
     label: 'Remove group button in the Assign dialog Modifications step',
     destructive: true,
@@ -1677,12 +1677,6 @@ export const TOUR_ANCHORS = {
   'assign-mods.generate-translation': {
     label:
       'Generate translation button in the Assign dialog modifications view',
-    perField: true,
-    panel: true,
-  },
-  'assign-mods.group-generate-translation': {
-    label:
-      'Generate translation button in the Assign dialog Modifications step',
     perField: true,
     panel: true,
   },
@@ -2730,6 +2724,37 @@ export const TOUR_ANCHORS = {
   },
   'quiz-editor.prompt-numbers': {
     label: 'Numbered list button on the question prompt in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-record-audio': {
+    label: 'Record audio button on the question prompt in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-audio-stop': {
+    label:
+      'Stop recording button in the question audio popover in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-audio-play': {
+    label: 'Play button for the recorded question audio in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-audio-rerecord': {
+    label: 'Record again button for the question audio in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-audio-replays': {
+    label: 'Replays limit for the question audio in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-audio-remove': {
+    label: 'Remove button for the question audio in the Quiz editor',
     perWidgetType: true,
     panel: true,
   },
@@ -9621,6 +9646,16 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'admin.features.monthly-cap-number': {
+    label: 'Monthly limit box on a feature row',
+    perField: true,
+    panel: true,
+  },
+  'admin.features.transcribe-mode': {
+    label: 'Transcription mode select on the AI transcription row',
+    perField: true,
+    panel: true,
+  },
   'admin.access.expand': {
     label: 'Row expand button in Features, Widgets and Previews',
     perField: true,
@@ -15113,6 +15148,10 @@ export const TOUR_ANCHORS = {
     label: 'Read aloud checkbox in the override editor',
     panel: true,
   },
+  'override-row.speech-to-text': {
+    label: 'Speech to text checkbox in the override editor',
+    panel: true,
+  },
   'override-row.spelling-help': {
     label: 'Spelling help checkbox in the override editor',
     panel: true,
@@ -18714,6 +18753,16 @@ export const TOUR_ANCHORS = {
     keyHint: 'roster-editor#row-1 for the first row',
     rows: true,
     rowList: 'roster-accommodations-pick-students',
+  },
+  'roster-editor.accommodations-answer-choices': {
+    label:
+      'Answer choices control for a student or group in the roster editor Accommodations tab',
+    panel: true,
+  },
+  'roster-editor.accommodations-modified-questions': {
+    label:
+      'Modified questions switch for a student or group in the roster editor Accommodations tab',
+    panel: true,
   },
   'roster-editor.accommodations-done': {
     label: 'Done button that closes the Accommodations Add menu',

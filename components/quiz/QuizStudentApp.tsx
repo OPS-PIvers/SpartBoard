@@ -138,8 +138,10 @@ import {
   resolveStimuli,
   splitStimuliForLayout,
   stimulusPlayKey,
+  promptAudioPlayId,
 } from '@/utils/quizStimuli';
 import { splitStimuliForTabs } from '@/utils/quizStimulusTabs';
+import { promptLabel } from '@/utils/quizPromptText';
 import { StimulusTabsPanel } from './StimulusTabsPanel';
 import { StimulusPanelDivider } from './StimulusPanelDivider';
 import { useStimulusPanelWidth } from '@/hooks/useStimulusPanelWidth';
@@ -304,6 +306,8 @@ import {
   localizedQuizTitle,
 } from '@/utils/quizLocalizedDisplay';
 import { useEphemeralAppLanguage } from '@/hooks/useEphemeralAppLanguage';
+import { dictationLanguages } from '@/utils/speechToText/languages';
+import type { EditorDictation } from '@/utils/speechToText/types';
 import { languageNativeLabel } from '@/utils/languageNativeLabel';
 import {
   toCanonicalAnswer,
@@ -319,7 +323,8 @@ import {
   FIB_BLANK_SEP,
   revealedBlanksMatch,
 } from '@/utils/quizFibBlanks';
-import { FibMultiBlankInput } from './FibMultiBlankInput';
+import { FibDictateMic, FibMultiBlankInput } from './FibMultiBlankInput';
+import { FIB_ROW_ATTR } from '@/utils/speechToText/blankPhrase';
 import { QuestionPrompt } from './QuestionPrompt';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { FibChoiceBlanksInput } from './FibChoiceBlanksInput';
@@ -423,6 +428,8 @@ export const QuizStudentApp: React.FC<QuizStudentAppProps> = ({
   // minted by `studentLoginV1`. Resolved at mount; used to drive the
   // auto-join branch in `QuizJoinFlow`. Anonymous joiners stay `false`.
   const [isStudentRole, setIsStudentRole] = useState(false);
+  // A PIN-proven token: signed in for one session only, so no paid Speech to text (D15).
+  const [isPinLogin, setIsPinLogin] = useState(false);
 
   // Sign in anonymously on mount only when nobody is signed in yet — SSO
   // students arriving from `/my-assignments` already have a custom-token
@@ -452,6 +459,7 @@ export const QuizStudentApp: React.FC<QuizStudentAppProps> = ({
           // identity. The Firestore rules re-validate on every write.
           const tokenResult = await user.getIdTokenResult();
           setIsStudentRole(tokenResult.claims?.studentRole === true);
+          setIsPinLogin(tokenResult.claims?.pinLogin === true);
         }
       } catch (err) {
         console.warn('[QuizStudentApp] Auth init failed:', err);
@@ -486,6 +494,7 @@ export const QuizStudentApp: React.FC<QuizStudentAppProps> = ({
   return (
     <QuizJoinFlow
       isStudentRole={isStudentRole}
+      paidDictationAllowed={isStudentRole && !isPinLogin}
       embedded={embedded}
       watermarkNameOverride={watermarkNameOverride}
     />
@@ -559,9 +568,16 @@ const QuizPreviewLobby: React.FC = () => {
 
 const QuizJoinFlow: React.FC<{
   isStudentRole: boolean;
+  /** Signed in with a school account, not a PIN (D15). */
+  paidDictationAllowed: boolean;
   embedded: boolean;
   watermarkNameOverride?: string;
-}> = ({ isStudentRole, embedded, watermarkNameOverride }) => {
+}> = ({
+  isStudentRole,
+  paidDictationAllowed,
+  embedded,
+  watermarkNameOverride,
+}) => {
   const { t } = useTranslation();
   const params = new URLSearchParams(window.location.search);
   const urlCode = params.get('code') ?? '';
@@ -1042,6 +1058,18 @@ const QuizJoinFlow: React.FC<{
     });
   }, [isViewOnly, session?.id, authedUid]);
 
+  // Questions answered with Speech to text in this attempt; saved with the answer.
+  const dictatedIdsRef = useRef<{ attempt: number; ids: Set<string> }>({
+    attempt: 0,
+    ids: new Set(),
+  });
+  const dictatedAttempt = myResponse?.completedAttempts ?? 0;
+  const dictatedIdsFor = useCallback((attempt: number): Set<string> => {
+    if (dictatedIdsRef.current.attempt !== attempt) {
+      dictatedIdsRef.current = { attempt, ids: new Set() };
+    }
+    return dictatedIdsRef.current.ids;
+  }, []);
   const handleAnswer = useCallback(
     async (
       questionId: string,
@@ -1057,9 +1085,22 @@ const QuizJoinFlow: React.FC<{
       // rejects the write defense-in-depth, but skip it client-side too so
       // the console stays clean.
       if (isViewOnly) return;
-      await submitAnswer(questionId, answer, speedBonus, opts);
+      await submitAnswer(
+        questionId,
+        answer,
+        speedBonus,
+        dictatedIdsFor(dictatedAttempt).has(questionId)
+          ? { ...opts, dictated: true }
+          : opts
+      );
     },
-    [submitAnswer, isViewOnly]
+    [submitAnswer, isViewOnly, dictatedIdsFor, dictatedAttempt]
+  );
+  const markDictated = useCallback(
+    (questionId: string) => {
+      dictatedIdsFor(dictatedAttempt).add(questionId);
+    },
+    [dictatedIdsFor, dictatedAttempt]
   );
 
   // Uploads around a turn-in: it waits briefly, and a failure after it is handed to the server.
@@ -1860,6 +1901,7 @@ const QuizJoinFlow: React.FC<{
               reportTabSwitch={reportTabSwitch}
               saveTabExits={saveTabExits}
               saveInputSignals={isViewOnly ? undefined : saveInputSignals}
+              onDictated={isViewOnly ? undefined : markDictated}
               onReportLivePosition={isViewOnly ? undefined : reportLivePosition}
               onSetHandRaised={setHandRaised}
               onStartAttemptClock={isViewOnly ? undefined : startAttemptClock}
@@ -1877,6 +1919,11 @@ const QuizJoinFlow: React.FC<{
                 isStudentRole &&
                 (myOverride?.readAloud === true ||
                   session.readAloudAll === true)
+              }
+              paidDictationAssignmentId={
+                paidDictationAllowed && myPointer && session.assignmentId
+                  ? session.assignmentId
+                  : undefined
               }
             />
           </RecordingNoticeDrawingContext.Provider>
@@ -2044,8 +2091,12 @@ export const ActiveQuiz: React.FC<{
   drawIds?: string[];
   /** Effective close (M17 F2): pointer top-level `closeAt` when present, else the session's. */
   effectiveCloseAt?: number;
+  /** A question's answer took dictated text. */
+  onDictated?: (questionId: string) => void;
   /** SSO student flagged for read-aloud (override or `readAloudAll`); the light shell decides the rest. */
   readAloudRequested?: boolean;
+  /** Signed-in student's pointer id (D15): lets the paid Speech to text extras run. */
+  paidDictationAssignmentId?: string;
   /** The page requires fullscreen, so leaving fullscreen counts as a tab exit. */
   fullscreenRequired?: boolean;
   /** Teacher's Live view: follow this question and mirror saved answers; null until one is known. */
@@ -2072,6 +2123,7 @@ export const ActiveQuiz: React.FC<{
   reportTabSwitch,
   saveTabExits,
   saveInputSignals,
+  onDictated,
   onSetHandRaised,
   onStartAttemptClock,
   onSubmitPart,
@@ -2084,6 +2136,7 @@ export const ActiveQuiz: React.FC<{
   drawIds,
   effectiveCloseAt,
   readAloudRequested,
+  paidDictationAssignmentId,
   fullscreenRequired = false,
   watchQuestionId,
   watchTabWarning,
@@ -2353,6 +2406,12 @@ export const ActiveQuiz: React.FC<{
     override
   ).blockClipboard;
   const quoteEditorRef = useRef<WrittenResponseEditorHandle | null>(null);
+  // Speech to text (D15): any student whose override carries it, signed in or not.
+  const speechToText = override?.speechToText === true && !watching;
+  const dictationLangs = useMemo(
+    () => dictationLanguages(override?.language),
+    [override?.language]
+  );
   const handleBlockedClipboard = (e: React.ClipboardEvent<HTMLDivElement>) =>
     e.preventDefault();
   const handleBlockedDrop = (e: React.DragEvent<HTMLDivElement>) =>
@@ -4034,6 +4093,13 @@ export const ActiveQuiz: React.FC<{
     currentQuestion,
     localizedStrings
   );
+  // The recording is the original wording, so a modified prompt drops it.
+  const promptAudio = modifiedServed ? undefined : currentQuestion.promptAudio;
+  const promptAudioViews = playsUsedFor(promptAudioPlayId(currentQuestion.id));
+  // Only a limited recording needs its plays counted on the response.
+  const recordPromptAudioView = promptAudio?.playLimit
+    ? () => handleStimulusPlayCompleted(promptAudioPlayId(currentQuestion.id))
+    : undefined;
   const isMultiAnswer = currentQuestion.type === 'MA';
   const options =
     displayQuestion.type === 'MC' || displayQuestion.type === 'MA'
@@ -4180,6 +4246,15 @@ export const ActiveQuiz: React.FC<{
     seededQuestionsRef.current.has(currentQuestion.id) ? 'seeded' : 'init'
   }`;
   const accentKeys = answerAccents(currentQuestion.answerKeyboard);
+  const dictation: EditorDictation | undefined = speechToText
+    ? {
+        languages: dictationLangs,
+        onInsert: () => onDictated?.(currentQuestion.id),
+        ...(paidDictationAssignmentId
+          ? { paid: { assignmentId: paidDictationAssignmentId } }
+          : {}),
+      }
+    : undefined;
   const fibInputCls = light
     ? 'bg-white border-slate-300 text-slate-900 placeholder-slate-400 focus:border-brand-blue-light'
     : 'bg-slate-800 border-slate-700 text-white focus:border-violet-500';
@@ -4739,7 +4814,9 @@ export const ActiveQuiz: React.FC<{
           )}
 
           {/* Question; the recorded audio is the original wording, so a modified prompt has none yet. */}
-          {readAloudOn && !modifiedServed ? (
+          {readAloudOn &&
+          !modifiedServed &&
+          (!promptAudio || displayQuestion.text.trim() !== '') ? (
             <div
               ref={promptWrapRef}
               tabIndex={-1}
@@ -4750,6 +4827,10 @@ export const ActiveQuiz: React.FC<{
                 blankCount={currentQuestion.blankCount}
                 light={light}
                 className={`flex-1 ${headingText}`}
+                audio={promptAudio}
+                questionId={currentQuestion.id}
+                audioViewsUsed={promptAudioViews}
+                onAudioView={recordPromptAudioView}
               />
               <ReadAloudButton
                 variant="prominent"
@@ -4770,6 +4851,10 @@ export const ActiveQuiz: React.FC<{
                 blankCount={currentQuestion.blankCount}
                 light={light}
                 className={headingText}
+                audio={promptAudio}
+                questionId={currentQuestion.id}
+                audioViewsUsed={promptAudioViews}
+                onAudioView={recordPromptAudioView}
               />
             </div>
           )}
@@ -5267,6 +5352,7 @@ export const ActiveQuiz: React.FC<{
                         light={light}
                         inputClassName={fibInputCls}
                         math={mathKeyboardOn}
+                        dictation={dictation}
                         onEnter={() => {
                           const cleaned = cleanBlankAnswer(
                             submittableAnswer ?? ''
@@ -5302,26 +5388,40 @@ export const ActiveQuiz: React.FC<{
                         />
                       </React.Suspense>
                     ) : (
-                      <input
-                        type="text"
-                        value={liveAnswer ?? ''}
-                        onChange={(e) => setCacheForCurrent(e.target.value)}
-                        disabled={submitted && !isStudentPaced}
-                        placeholder={t('quizStudent.answer.placeholder')}
-                        className={`w-full px-5 py-4 border-2 rounded-2xl text-base focus:outline-hidden focus:ring-0 disabled:opacity-50 ${fibInputCls}`}
-                        onKeyDown={(e) => {
-                          if (e.key !== 'Enter') return;
-                          const trimmed = cleanBlankAnswer(
-                            submittableAnswer ?? ''
-                          );
-                          if (!trimmed) return;
-                          if (isStudentPaced) {
-                            void handleSubmitAndAdvance(trimmed);
-                          } else if (!submitted) {
-                            void handleSubmit(trimmed);
-                          }
-                        }}
-                      />
+                      <div
+                        className="flex items-center gap-3"
+                        {...{ [FIB_ROW_ATTR]: '' }}
+                      >
+                        <input
+                          type="text"
+                          value={liveAnswer ?? ''}
+                          onChange={(e) => setCacheForCurrent(e.target.value)}
+                          disabled={submitted && !isStudentPaced}
+                          placeholder={t('quizStudent.answer.placeholder')}
+                          className={`w-full min-w-0 px-5 py-4 border-2 rounded-2xl text-base focus:outline-hidden focus:ring-0 disabled:opacity-50 ${fibInputCls}`}
+                          onKeyDown={(e) => {
+                            if (e.key !== 'Enter') return;
+                            const trimmed = cleanBlankAnswer(
+                              submittableAnswer ?? ''
+                            );
+                            if (!trimmed) return;
+                            if (isStudentPaced) {
+                              void handleSubmitAndAdvance(trimmed);
+                            } else if (!submitted) {
+                              void handleSubmit(trimmed);
+                            }
+                          }}
+                        />
+                        {dictation && (
+                          <FibDictateMic
+                            key={currentQuestion.id}
+                            dictation={dictation}
+                            onPhrase={setCacheForCurrent}
+                            disabled={submitted && !isStudentPaced}
+                            light={light}
+                          />
+                        )}
+                      </div>
                     )}
                   </AccentKeysArea>
                   <div className="animate-in fade-in slide-in-from-bottom-2 space-y-3">
@@ -5559,6 +5659,7 @@ export const ActiveQuiz: React.FC<{
                           blockClipboard={blockCopyPaste}
                           light={light}
                           mathEnabled={mathKeyboardOn}
+                          dictation={dictation}
                           ref={quoteEditorRef}
                         />
                       </React.Suspense>
@@ -6169,7 +6270,13 @@ const ReviewPhase: React.FC<{
           })}
         </p>
         <h2 className="text-lg font-bold text-white mb-6 leading-snug max-w-md whitespace-pre-line">
-          <PromptText text={currentQuestion.text} />
+          <PromptText
+            text={
+              currentQuestion.text.trim()
+                ? currentQuestion.text
+                : t('quizQuestionAudio.label', 'Audio question')
+            }
+          />
         </h2>
 
         {/* Correct answer */}
@@ -7023,7 +7130,7 @@ export const PublishedScoreReview: React.FC<{
                           <p
                             className={`flex-1 min-w-0 wrap-break-word whitespace-pre-line text-sm font-semibold ${qTextCls}`}
                           >
-                            {recapQuestion.text}
+                            {promptLabel(recapQuestion)}
                           </p>
                           {isCorrect && (
                             <Check

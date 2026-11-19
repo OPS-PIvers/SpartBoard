@@ -31,6 +31,7 @@ import {
 import { QUIZ_TRANSLATION_LANGUAGES } from '@/config/quizTranslation';
 import { PAGE_PROTECTIONS_FEATURE } from '@/utils/pageProtections';
 import { useQuizTranslationSettings } from '@/hooks/useQuizTranslationSettings';
+import { dictationLocaleFor } from '@/utils/speechToText/languages';
 
 export interface OverrideEditorQuestionOption {
   id: string;
@@ -74,6 +75,8 @@ export interface OverrideEditorRowProps {
   defaultExpanded?: boolean;
   /** Quiz only. Shows the "Read aloud" checkbox; the host resolves the 'quiz-read-aloud' gate. */
   readAloudAvailable?: boolean;
+  /** Quiz, Writing and the roster only. Shows "Speech to text"; the host resolves the 'speech-to-text' gate. */
+  speechToTextAvailable?: boolean;
   /** Quiz and Video Activity only; the row also needs the focus-sessions flag. */
   pageProtectionsAvailable?: boolean;
   /** Writing only. Shows "Spelling help" (D22). */
@@ -148,6 +151,7 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
   peers = [],
   defaultExpanded = false,
   readAloudAvailable = false,
+  speechToTextAvailable = false,
   pageProtectionsAvailable = false,
   writingMode = false,
   allowWindowShift = true,
@@ -510,6 +514,33 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
               <p className="mt-0.5 text-xs text-slate-500">
                 {t('quizReadAloud.help', 'Signed-in students only.')}
               </p>
+            </div>
+          )}
+
+          {speechToTextAvailable && (
+            <div>
+              <label className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+                <input
+                  type="checkbox"
+                  checked={override.speechToText === true}
+                  {...tourAttr('override-row.speech-to-text')}
+                  onChange={(e) =>
+                    patch({ speechToText: e.target.checked ? true : undefined })
+                  }
+                />
+                {t('studentOverride.speechToText', 'Speech to text')}
+              </label>
+              {override.speechToText === true &&
+                override.language &&
+                !dictationLocaleFor(override.language) && (
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    {t(
+                      'studentOverride.speechToTextLanguageNote',
+                      'Not available in {{language}}. This student will dictate in English.',
+                      { language: languageDisplayLabel(override.language) }
+                    )}
+                  </p>
+                )}
             </div>
           )}
 

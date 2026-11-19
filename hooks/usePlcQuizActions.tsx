@@ -45,6 +45,7 @@ import {
   applyPlcStepperStudentPicks,
   savePlcStepperFinalScore,
   plcStepperCreateFields,
+  withPlanAnswerChoices,
   type PlcQuizStepperPlan,
 } from '@/components/plc/plcQuizStepperAssign';
 import { useSetAssignmentTargets } from '@/hooks/useSetAssignmentTargets';
@@ -89,7 +90,7 @@ function formatDate(ms: number): string {
 
 export function usePlcQuizActions(plc: Plc): PlcQuizActionsApi {
   const { t } = useTranslation();
-  const { user, getAssignmentMode } = useAuth();
+  const { user, getAssignmentMode, canAccessFeature } = useAuth();
   // D11: an assign uses this teacher's last-used settings, not the author's.
   const { lastUsed: lastAssignSettings } = useLastQuizAssignSettings(
     user?.uid,
@@ -455,7 +456,15 @@ export function usePlcQuizActions(plc: Plc): PlcQuizActionsApi {
           { loadBankContentsForQuiz, saveDriveSnapshot }
         );
         const plcLinkage = buildPlcLinkage(plc);
-        const fields = plcStepperCreateFields(plan, rosters);
+        const quizPlan: PlcQuizStepperPlan = canAccessFeature(
+          'modification-groups'
+        )
+          ? {
+              ...plan,
+              mixed: withPlanAnswerChoices(plan.mixed, content.questions),
+            }
+          : plan;
+        const fields = plcStepperCreateFields(quizPlan, rosters);
         const created = await createAssignment(
           {
             id: savedMeta.id,
@@ -503,7 +512,7 @@ export function usePlcQuizActions(plc: Plc): PlcQuizActionsApi {
         });
         await applyPlcStepperStudentPicks({
           assignmentId: created.id,
-          plan,
+          plan: quizPlan,
           setAssignmentTargets,
           setAssignmentTargetSkippedCount,
           addToast,
@@ -584,6 +593,7 @@ export function usePlcQuizActions(plc: Plc): PlcQuizActionsApi {
       user,
       loadBankContentsForQuiz,
       saveDriveSnapshot,
+      canAccessFeature,
     ]
   );
 

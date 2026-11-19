@@ -2319,6 +2319,13 @@ describe('sanitizeOverride', () => {
     expect(long?.kind === 'text' && long.text.length).toBe(1000);
   });
 
+  it('keeps speech to text only when true', () => {
+    expect(sanitizeOverride({ speechToText: true })).toEqual({
+      speechToText: true,
+    });
+    expect(sanitizeOverride({ speechToText: 'yes' })).toBeNull();
+  });
+
   it('keeps modified questions only when true', () => {
     expect(sanitizeOverride({ modifiedQuestions: true })).toEqual({
       modifiedQuestions: true,

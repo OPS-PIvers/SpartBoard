@@ -287,6 +287,16 @@ describe('responses: student writes', () => {
     await assertSucceeds(
       updateDoc(doc(asStudent(STUDENT), RESP), save({ summary: full }))
     );
+    // Speech to text: the dictated counts are optional numbers.
+    await assertSucceeds(
+      updateDoc(
+        doc(asStudent(STUDENT), RESP),
+        save({
+          summary: { ...full, dictatedCount: 3, dictatedChars: 412 },
+          saveCount: 8,
+        })
+      )
+    );
     for (const extra of [
       { suspicious: true },
       { grade: 10 },
@@ -475,6 +485,8 @@ describe('responses: student writes', () => {
       { wordCount: '3', savedAt: 2 },
       { wordCount: 3, savedAt: { x: 1 } },
       { wordCount: 3, logStoppedAt: 'later' },
+      { wordCount: 3, dictatedCount: '3' },
+      { wordCount: 3, dictatedChars: true },
     ])
       await assertFails(
         updateDoc(doc(asStudent(STUDENT), RESP), save({ summary: bad }))

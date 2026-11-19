@@ -30,6 +30,7 @@
  *
  * UI reuses the Classroom add-on's light-theme AddonShell kit.
  */
+import { withQuizAnswerChoices } from '@/components/common/library/assignStepper/modificationGroups';
 import React, {
   useCallback,
   useEffect,
@@ -292,7 +293,8 @@ const LtiDeepLinkFlow: React.FC = () => {
     >
   >(new Map());
 
-  const { user, signInWithGoogle, googleAccessToken } = useAuth();
+  const { user, signInWithGoogle, googleAccessToken, canAccessFeature } =
+    useAuth();
   // VA rules are edited here, prefilled from last-used else the activity (V3).
   const lastVaRules = useLastVideoAssignSettings(user?.uid, true);
   const [editedVaRules, setEditedVaRules] = useState<{
@@ -639,7 +641,7 @@ const LtiDeepLinkFlow: React.FC = () => {
           quizData.questions,
           resolvedWindow.targeting.overridesByKey
         );
-        const resolvedTargeting: AssignTargetingValue = expandClassTargeting(
+        const expanded = expandClassTargeting(
           {
             ...resolvedWindow.targeting,
             overridesByKey: hiddenOptions.overridesByKey,
@@ -678,6 +680,12 @@ const LtiDeepLinkFlow: React.FC = () => {
           selectedQuiz.driveFileId,
           { loadBankContentsForQuiz, saveDriveSnapshot }
         );
+        const resolvedTargeting: AssignTargetingValue = {
+          ...expanded,
+          overridesByKey: canAccessFeature('modification-groups')
+            ? withQuizAnswerChoices(expanded.overridesByKey, content.questions)
+            : expanded.overridesByKey,
+        };
 
         // Gradebook scale = the points a student can earn, so a 17/20 quiz reads 17/20 in Schoology.
         const maxPoints = quizMaxPoints(
@@ -791,6 +799,7 @@ const LtiDeepLinkFlow: React.FC = () => {
       await signAndReturn(created, selectedQuiz.title, returnUrl);
     },
     [
+      canAccessFeature,
       ltiClassContext,
       selectedQuiz,
       saveLastAssignSettings,

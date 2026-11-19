@@ -2560,6 +2560,12 @@ export type ActivityWallLayout =
 export type ActivityWallSubmissionType =
   'text' | 'word' | 'photo' | 'link' | 'file' | 'video';
 
+/** Per-wall submission toggles; a wall saved before the Text toggle has no `text` key and keeps text on. */
+export type ActivityWallAllowedTypes = Record<
+  Exclude<ActivityWallSubmissionType, 'text' | 'word'>,
+  boolean
+> & { text?: boolean };
+
 /** Wall background: a Tailwind class string (color/gradient) or a preset image URL. */
 export interface ActivityWallAppearance {
   kind: 'color' | 'gradient' | 'image';
@@ -2701,10 +2707,7 @@ export interface ActivityWallLibraryEntry {
   /** Dated timeline only: the teacher hid every date so students judge order first. */
   timelineDatesHidden?: boolean;
   mapCenter?: { lat: number; lng: number; zoom: number };
-  allowedTypes?: Record<
-    Exclude<ActivityWallSubmissionType, 'text' | 'word'>,
-    boolean
-  >;
+  allowedTypes?: ActivityWallAllowedTypes;
   appearance?: ActivityWallAppearance;
   allowGuests?: boolean;
   showNames?: boolean;
@@ -2825,10 +2828,7 @@ export interface ActivityWallSession extends SessionWorkKindFields {
   tableRows?: ActivityWallSection[];
   tableCols?: ActivityWallSection[];
   mapCenter?: { lat: number; lng: number; zoom: number };
-  allowedTypes?: Record<
-    Exclude<ActivityWallSubmissionType, 'text' | 'word'>,
-    boolean
-  >;
+  allowedTypes?: ActivityWallAllowedTypes;
   appearance?: ActivityWallAppearance;
   allowGuests?: boolean;
   showNames?: boolean;
@@ -4536,13 +4536,25 @@ export type QuizStimulusPlacement = 'panel' | 'inline';
 /** How students fill a FIB question's blanks; absent means typed (M6). */
 export type FibBlankType = 'typed' | 'dropdown' | 'drag';
 
+/** A teacher's recording of a question prompt, saved link-shared in their Drive. */
+export interface QuestionAudio {
+  driveFileId: string;
+  durationSec: number;
+  mimeType: string;
+  /** Plays a student may start per attempt (first listen plus replays); absent = unlimited. */
+  playLimit?: number;
+}
+
 export interface QuizQuestion {
   id: string;
   /** Time limit in seconds. 0 = no time limit. */
   timeLimit: number;
+  /** May be empty when `promptAudio` is set. */
   text: string;
   /** Modified wording of the prompt for students in a group with modified questions; same answer key. */
   modifiedText?: string;
+  /** The teacher's recorded prompt, played to students with or instead of `text`. */
+  promptAudio?: QuestionAudio;
   type: QuizQuestionType;
   /**
    * MC/FIB: the correct answer text. Multi-blank FIB: one answer per blank joined by `FIB_BLANK_SEP`.
@@ -5370,6 +5382,8 @@ export interface QuizPublicQuestion {
   id: string;
   type: QuizQuestion['type'];
   text: string;
+  /** Projected verbatim from {@link QuizQuestion.promptAudio}. */
+  promptAudio?: QuestionAudio;
   /** The teacher's modified prompt, shown only to students whose override asks for it. */
   modifiedText?: string;
   timeLimit: number;
@@ -6248,6 +6262,8 @@ export interface InputSignalCounts {
   pastes?: number;
   /** Characters a paste or drop put into an answer box. */
   pastedChars?: number;
+  /** Characters the student dictated with Speech to text. */
+  dictatedChars?: number;
   /** Clicks, key presses and edits the browser marks as made by a script. */
   scripted?: number;
   /** Edits that removed text, and how many characters they removed. */
@@ -6434,6 +6450,8 @@ export interface QuizResponse extends StaffResponseFields {
   tabExits?: TabExit[];
   /** Written only when the session carries `inputSignals`. */
   inputSignals?: InputSignals;
+  /** Ids of questions the student dictated any part of with Speech to text. */
+  dictated?: string[];
   /**
    * Number of tab-switch / focus-loss events the student has accumulated while
    * viewing **published results**. Distinct from `tabSwitchWarnings`, which
@@ -7368,6 +7386,8 @@ export interface StudentOverride {
   blockCopyPaste?: boolean;
   /** Writing only (D22): leaves the right-click spelling menu on. */
   spellingHelp?: boolean;
+  /** Quiz and Writing: the student may dictate written answers; needs 'speech-to-text'. */
+  speechToText?: boolean;
   openAt?: number;
   closeAt?: number; // per-student window shift (epoch ms)
   /** BCP-47 code, e.g. 'es' | 'so' | 'hmn'. Absent = English. Shape-validated only. */
@@ -10807,6 +10827,9 @@ export interface WritingResponseSummary {
   /** Text added without typing or pasting (an extension, dictation). */
   untypedCount: number;
   untypedChars: number;
+  /** Speech to text: passages dictated and their characters; absent until a student dictates. */
+  dictatedCount?: number;
+  dictatedChars?: number;
   /** Time away from the tab and how many times. */
   awayMs: number;
   awayCount: number;
@@ -11695,6 +11718,9 @@ export type GlobalFeature =
   /** Fail-closed; read it through `canAccessQuizWhiteboardResponse`, which also needs `quiz-media-response`. */
   | 'quiz-whiteboard-response'
   | 'quiz-read-aloud'
+  | 'speech-to-text'
+  | 'speech-to-text-ai-transcription'
+  | 'speech-to-text-tidy-up'
   /** Teacher-authored AI quiz translations for multilingual learners. */
   | 'quiz-translation'
   /** "Draft with AI" inside the question-bank editor; AND-ed with `gemini-functions`. */
@@ -11872,7 +11898,24 @@ export type GlobalFeature =
   /** Library and Assigned tabs with a status per class (docs/plans/ASSIGNED_TAB.md D19). */
   | 'assigned-tab'
   /** The sidebar Assignments hub; on for everyone until an admin narrows it. */
-  | 'assignments-hub';
+  | 'assignments-hub'
+  /** Teachers record their voice for a quiz question prompt. */
+  | 'quiz-question-audio';
+
+/** Which paid dictation extras a student's page may use, from `getSpeechToTextAccessV1`. */
+export interface SpeechToTextSettings {
+  /** `hybrid` sends each spoken phrase to the AI transcriber; `browser` is the free engine alone. */
+  engine: 'browser' | 'hybrid';
+  /** Offers the student the Tidy up button. */
+  tidyUp: boolean;
+}
+
+/** `ai_usage/global_speech_to_text_{YYYY-MM}`: this month's paid dictation use. */
+export interface SpeechToTextUsage {
+  seconds?: number;
+  clips?: number;
+  tidyCalls?: number;
+}
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

@@ -4736,6 +4736,16 @@ service cloud.firestore {
                  n.diff(o).affectedKeys().hasOnly([k]) &&
                  n[k] is map && n[k].keys().size() <= 500 && n[k].keys().hasAll(o.get(k, {}).keys());
         }
+        // Speech to text: while answers are open, add one dictated question id (300 at most) or clear the list for a retake.
+        function dictatedOk() {
+          let n = incoming().dictated;
+          let o = existing().get('dictated', []);
+          let k = o.size();
+          return (existing().get('status', '') != 'completed' || existing().get('unlocked', false)) &&
+                 n is list &&
+                 (n.size() == 0 ||
+                  (k < 300 && n.size() == k + 1 && (k == 0 || n[0:k] == o) && n[k] is string && n[k].size() <= 64));
+        }
 
         // While a student is frozen (session paused, or their period not open),
         // writes that answer or finish are refused; hand, tab, results and
@@ -4825,7 +4835,7 @@ service cloud.firestore {
           incoming().get('tabExits', null) == null &&
           incoming().get('partHeld', null) == null &&
           incoming().get('liveView', null) == null &&
-          !incoming().keys().hasAny(['turnIn', 'inputSignals']) &&
+          !incoming().keys().hasAny(['turnIn', 'inputSignals', 'dictated']) &&
           incoming().get('partsDone', null) == null &&
           incoming().get('dealtQuestionIds', null) == null &&
           // Per-student publication and the answer key are teacher-written only.
@@ -5032,6 +5042,8 @@ service cloud.firestore {
           studentUpdateOk(sessionData(), incoming().diff(existing()).affectedKeys()) ||
           // Input-signal saves come alone, after the main branch so its costliest path doesn't pay for them.
           (authUid() == existing().studentUid && changedOnly(['inputSignals']) && signalsOk(sessionData())) ||
+          // The dictated marker comes alone too.
+          (authUid() == existing().studentUid && changedOnly(['dictated']) && dictatedOk()) ||
           // The teacher can update any field; another admin can't touch identity or the server-written archive, override and paper fields.
           liveUid(sessionTeacherUid()) ||
           (isSiteAdmin() && !changed(['studentUid', 'artifactArchive', 'hasStuckArchive', 'resultsOverride', 'paperSeat', 'paperBatchId', 'paperWrittenBatchId', 'paperWrittenSeat', 'backTranslations', 'liveView']))
@@ -6280,6 +6292,11 @@ service cloud.firestore {
                  (!(t in ['photo', 'link', 'file', 'video']) ||
                   awSession().get('allowedTypes', {}).get(t, false) == true);
         }
+        // Students post text unless the wall turned it off (absent = on); teacher posts skip this.
+        function awTextOk() {
+          return incoming().get('type', 'text') != 'text' ||
+                 awSession().get('allowedTypes', {}).get('text', true) == true;
+        }
         // Per-student cap is enforced through the doc id: `{uid}__{n}` with
         // n < maxPostsPerStudent. One-doc-per-slot means a student cannot
         // exceed the cap by racing writes (same pattern as quiz responses).
@@ -6400,6 +6417,7 @@ service cloud.firestore {
              awPadletAccessOk() &&
              incoming().authorUid == authUid() &&
              awTypeAllowed() &&
+             awTextOk() &&
              awWithinPostCap()));
         // Teacher posts from the widget face: auto-approved even under
         // moderation, stamped authorRole 'teacher' so the card is labelled.
@@ -7074,11 +7092,13 @@ service cloud.firestore {
         // Every summary value is a number, so the monitor and Live view never read a string or map.
         function wrSummaryOk(m) {
           return m.keys().hasOnly(['wordCount', 'savedAt', 'writingMs', 'sessions', 'pasteCount',
-            'pastedChars', 'untypedCount', 'untypedChars', 'awayMs', 'awayCount', 'logStoppedAt'])
+            'pastedChars', 'untypedCount', 'untypedChars', 'awayMs', 'awayCount', 'logStoppedAt',
+            'dictatedCount', 'dictatedChars'])
             && optNumber(m, 'wordCount') && optNumber(m, 'savedAt') && optNumber(m, 'writingMs')
             && optNumber(m, 'sessions') && optNumber(m, 'pasteCount') && optNumber(m, 'pastedChars')
             && optNumber(m, 'untypedCount') && optNumber(m, 'untypedChars') && optNumber(m, 'awayMs')
-            && optNumber(m, 'awayCount') && optNumber(m, 'logStoppedAt');
+            && optNumber(m, 'awayCount') && optNumber(m, 'logStoppedAt')
+            && optNumber(m, 'dictatedCount') && optNumber(m, 'dictatedChars');
         }
         function wrR() { return dbGet4('writing_assignment_sessions', sid, 'responses', uid).data; }
         allow read: if wrMine() || wrTeacher();

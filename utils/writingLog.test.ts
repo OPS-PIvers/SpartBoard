@@ -337,3 +337,44 @@ describe('summary cost across many bursts (security #20)', () => {
     expect(Date.now() - start).toBeLessThan(3000);
   });
 });
+
+describe('dictated edits (Speech to text)', () => {
+  it('round-trips a dictated edit through the log', () => {
+    const w = new WritingLogWriter(undefined);
+    w.write('', 'I ', 0, 'typed', 1e6);
+    w.write('I ', 'I said this, twice; really!', 40, 'dictated', 1e6);
+    w.write('I said this, twice; really!', 'I said this!', 90, 'typed', 1e6);
+    expect(w.value).toContain(';D');
+    const { edits } = parseWritingLog(w.value);
+    expect(edits.map((e) => e.kind)).toEqual(['typed', 'dictated', 'typed']);
+    expect(edits[1]).toMatchObject({
+      pos: 2,
+      del: 0,
+      ins: 'said this, twice; really!',
+    });
+    expect(textAfter(edits, edits.length)).toBe('I said this!');
+    const again = new WritingLogWriter(w.value);
+    expect(again.current).toBe('I said this!');
+  });
+
+  it('still reads a log written before dictation existed', () => {
+    const { edits } = parseWritingLog('T1;0:a;P2s,,, pasted;S0,,,x;R0,0,,y');
+    expect(edits.map((e) => e.kind)).toEqual([
+      'typed',
+      'pasted',
+      'sync',
+      'restored',
+    ]);
+  });
+
+  it('counts dictated characters apart from pasted and untyped ones', () => {
+    const w = new WritingLogWriter(undefined);
+    w.write('', 'a', 0, 'typed', 1e6);
+    w.write('a', 'a spoken words', 50, 'dictated', 1e6);
+    const s = summarizeWriting(parseWritingLog(w.value).edits);
+    expect(s.dictatedChars).toBe(13);
+    expect(s.pastedChars).toBe(0);
+    expect(s.syncChars).toBe(0);
+    expect(s.edits).toBe(2);
+  });
+});

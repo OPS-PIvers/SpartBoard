@@ -1,5 +1,6 @@
 // Print response sheets again for a Paper assignment: the same seats, so a lost sheet still imports as its student.
 
+import { promptLabel } from '@/utils/quizPromptText';
 import React, { useMemo, useState } from 'react';
 import { AlertTriangle, Check, Printer } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
@@ -276,7 +277,7 @@ export const PaperStacksReprintDialog: React.FC<ReprintDialogProps> = ({
               questionTexts: sheetQuestions.map((q) => {
                 const tr = translation?.questions[q.id];
                 return {
-                  text: tr?.text ?? q.text,
+                  text: tr?.text?.trim() ? tr.text : promptLabel(q),
                   choices: (batch.choiceOrder?.[q.id] ?? []).map(
                     (c) => tr?.choices?.[c] ?? c
                   ),

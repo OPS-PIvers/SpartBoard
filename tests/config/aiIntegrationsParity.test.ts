@@ -77,6 +77,7 @@ describe('AI integrations registry', () => {
       'quizTranslation.ts',
       'webTourWriting.ts',
       'importConversionAi.ts',
+      'speechToText.ts',
     ]
       .map(serverSource)
       .join('\n');

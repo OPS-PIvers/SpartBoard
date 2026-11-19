@@ -44,6 +44,7 @@ import {
   timedTurnInDue,
 } from '@/utils/writingResponseState';
 import {
+  DictationTracker,
   LOG_EVERY_MS,
   insertApproved,
   isLogDue,
@@ -116,6 +117,9 @@ const codeOf = (err: unknown): string => {
   return typeof code === 'string' ? code : '';
 };
 
+const editableIn = (root: HTMLElement | null): HTMLElement | null =>
+  root?.querySelector<HTMLElement>('[contenteditable="true"]') ?? null;
+
 const isOnline = () =>
   typeof navigator === 'undefined' ? true : navigator.onLine;
 
@@ -167,6 +171,8 @@ export function useWritingPiece(args: {
   const pendingKindRef = useRef<{ kind: InsertKind; at: number } | null>(null);
   const approvedAtRef = useRef<number | null>(null);
   const clipboardRef = useRef(new InsideClipboard());
+  const dictationRef = useRef(new DictationTracker());
+  const editorRootRef = useRef<HTMLElement | null>(null);
   const allowPasteRef = useRef(allowPaste);
   const closedRef = useRef(closed);
   useLayoutEffect(() => {
@@ -688,10 +694,39 @@ export function useWritingPiece(args: {
     }, COPY_DEBOUNCE_MS);
   }, [runSave, storeCopy]);
 
+  /** Speech to text (D13, D14): Dictate is about to insert `text`; the change that follows is logged as dictated. */
+  const onDictationInsert = useCallback((text: string) => {
+    const el = editableIn(editorRootRef.current);
+    const rec = recorderRef.current;
+    if (!el || !rec || !holdingRef.current) return;
+    const tracker = dictationRef.current;
+    tracker.announce(text, editorPlainText(el), Date.now());
+    // The editor inserts in this same turn, so by the microtask the whole passage is in.
+    queueMicrotask(() => {
+      const now = editableIn(editorRootRef.current);
+      const edit = now ? tracker.settle(editorPlainText(now)) : null;
+      if (!edit || !holdingRef.current) return;
+      primeRef.current = null;
+      rec.edit(edit.prev, edit.next, performance.now(), 'dictated', Date.now());
+    });
+  }, []);
+
   /** The editor's sanitized HTML after each change. */
   const onEditorChange = useCallback(
     (next: string) => {
       if (!holdingRef.current) return;
+      // A dictated passage that arrived late and with no input event is logged here.
+      const tracker = dictationRef.current;
+      const el =
+        tracker.landing || !tracker.active(Date.now())
+          ? null
+          : editableIn(editorRootRef.current);
+      const rec = recorderRef.current;
+      if (el && rec) {
+        const text = editorPlainText(el);
+        if (tracker.claim(rec.text, text, Date.now()))
+          rec.edit(rec.text, text, performance.now(), 'dictated', Date.now());
+      }
       htmlRef.current = next;
       setHtml(next);
       setDirty(next !== savedHtmlRef.current);
@@ -705,6 +740,7 @@ export function useWritingPiece(args: {
   const bindEditor = useCallback((root: HTMLElement | null) => {
     listeners.current?.();
     listeners.current = null;
+    editorRootRef.current = root;
     if (!root) return;
     const host = (t: EventTarget | null): HTMLElement | null =>
       t instanceof HTMLElement && t.isContentEditable
@@ -714,7 +750,12 @@ export function useWritingPiece(args: {
       const el = host(e.target);
       if (!el) return;
       const type = e instanceof InputEvent ? e.inputType : '';
-      if (!insertApproved(type, approvedAtRef.current, Date.now())) {
+      const now = Date.now();
+      // D13: dictated text is never held to the paste setting.
+      if (
+        !dictationRef.current.active(now) &&
+        !insertApproved(type, approvedAtRef.current, now)
+      ) {
         e.preventDefault();
         setNotice('paste-blocked');
         return;
@@ -725,9 +766,16 @@ export function useWritingPiece(args: {
       const el = host(e.target);
       const rec = recorderRef.current;
       if (!el || !rec || !holdingRef.current) return;
+      // A passage Dictate is inserting right now is logged whole once its turn ends.
+      if (dictationRef.current.landing) return;
       const next = editorPlainText(el);
       const prev = primeRef.current ?? rec.text;
       primeRef.current = null;
+      if (dictationRef.current.claim(prev, next, Date.now())) {
+        pendingKindRef.current = null;
+        rec.edit(prev, next, e.timeStamp, 'dictated', Date.now());
+        return;
+      }
       const pending = pendingKindRef.current;
       pendingKindRef.current = null;
       const type = e instanceof InputEvent ? e.inputType : '';
@@ -908,6 +956,7 @@ export function useWritingPiece(args: {
     flushBeforeLeave,
     clearNotice: () => setNotice(null),
     onEditorChange,
+    onDictationInsert,
     bindEditor,
     allowInsert,
     onEditorCopy,

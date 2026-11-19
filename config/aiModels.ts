@@ -1,4 +1,5 @@
 import {
+  AUDIO_ONLY_GEMINI_MODELS,
   KNOWN_GEMINI_MODELS,
   RETIRED_GEMINI_MODELS,
 } from '@/config/geminiModels';
@@ -78,18 +79,28 @@ const GEMINI_PRICES: Record<
     priceChange: { from: '2027-01-01', input: 1.5, output: 7.5 },
   },
   'gemini-3.5-flash-lite': { price: { input: 0.3, output: 2.5 } },
+  // Checked 2026-11-19; audio input is 25 tokens a second, about half a cent a minute.
+  'gemini-3.5-transcribe': { price: { input: 2, output: 12 } },
   'gemini-2.5-flash': { price: { input: 0.3, output: 2.5 } },
   'gemini-2.5-flash-lite': { price: { input: 0.1, output: 0.4 } },
 };
 
-export const GEMINI_MODEL_OPTIONS: readonly AiModelOption[] =
-  KNOWN_GEMINI_MODELS.map((m) => ({
+export const GEMINI_MODEL_OPTIONS: readonly AiModelOption[] = [
+  ...KNOWN_GEMINI_MODELS.map((m) => ({
     id: m.value,
     label: m.label,
     provider: 'gemini' as const,
     ...GEMINI_PRICES[m.value],
     note: 'Billed through Google Cloud',
-  }));
+  })),
+  ...AUDIO_ONLY_GEMINI_MODELS.map((m) => ({
+    id: m.value,
+    label: m.label,
+    provider: 'gemini' as const,
+    ...GEMINI_PRICES[m.value],
+    note: 'Audio transcription only. Billed through Google Cloud',
+  })),
+];
 
 export const AI_MODEL_OPTIONS: readonly AiModelOption[] = [
   ...GEMINI_MODEL_OPTIONS,
@@ -114,13 +125,21 @@ export const providerOf = (model: string): AiProvider =>
 
 const CLAUDE_INPUTS: readonly AiInputKind[] = ['text', 'image', 'pdf'];
 
+const isAudioOnlyModel = (model: string): boolean =>
+  AUDIO_ONLY_GEMINI_MODELS.some((m) => m.value === model);
+
 /** Gemini reads every input; Claude reads text, images and PDFs, and a Word file falls back to Gemini on the server. */
 export const modelReadsInputs = (
   model: string,
-  inputs: readonly AiInputKind[]
+  inputs: readonly AiInputKind[],
+  integrationId?: string
 ): boolean =>
-  providerOf(model) === 'gemini' ||
-  inputs.every((kind) => kind === 'docx' || CLAUDE_INPUTS.includes(kind));
+  isAudioOnlyModel(model)
+    ? integrationId === 'speech-to-text-transcribe' &&
+      inputs.length > 0 &&
+      inputs.every((kind) => kind === 'audio')
+    : providerOf(model) === 'gemini' ||
+      inputs.every((kind) => kind === 'docx' || CLAUDE_INPUTS.includes(kind));
 
 export const aiModelLabel = (model: string): string =>
   findModel(model)?.label ?? model;

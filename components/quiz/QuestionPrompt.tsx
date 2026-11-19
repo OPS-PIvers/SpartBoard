@@ -1,24 +1,42 @@
 // The question text a student reads; a short stem is a bold heading, a long or multi-paragraph one reads as body text.
 import React from 'react';
+import type { QuestionAudio } from '@/types';
 import { PromptText } from '@/components/common/PromptText';
 import { isLongPrompt, spacedPrompt } from '@/utils/quizPromptText';
 import { NumberedBlanksText } from './FibMultiBlankInput';
+import { QuestionAudioButton } from './QuestionAudioButton';
 
 export const QuestionPrompt: React.FC<{
   text: string;
   blankCount?: number;
   light: boolean;
   className?: string;
-}> = ({ text, blankCount, light, className = '' }) => {
+  /** The teacher's recording, played from a button above any text. */
+  audio?: QuestionAudio;
+  /** Views of the recording used this attempt, for its view limit. */
+  audioViewsUsed?: number;
+  onAudioView?: () => void;
+  /** Keys the play button so each question starts fresh. */
+  questionId?: string;
+}> = ({
+  questionId,
+  text,
+  blankCount,
+  light,
+  className = '',
+  audio,
+  audioViewsUsed,
+  onAudioView,
+}) => {
   const long = isLongPrompt(text);
   const shown = long ? spacedPrompt(text) : text;
-  return (
+  const heading = (cls: string) => (
     <h2
       className={`wrap-break-word whitespace-pre-line ${
         long
           ? 'text-lg font-medium leading-relaxed'
           : 'text-xl font-bold leading-snug'
-      } ${className}`}
+      } ${cls}`}
     >
       {(blankCount ?? 0) >= 2 ? (
         <NumberedBlanksText text={shown} light={light} />
@@ -26,5 +44,18 @@ export const QuestionPrompt: React.FC<{
         <PromptText text={shown} />
       )}
     </h2>
+  );
+  if (!audio) return heading(className);
+  return (
+    <div className={`flex flex-col items-start gap-3 ${className}`}>
+      <QuestionAudioButton
+        key={`${questionId ?? ''}:${audio.driveFileId}`}
+        audio={audio}
+        light={light}
+        viewsUsed={audioViewsUsed}
+        onViewStart={onAudioView}
+      />
+      {text.trim() !== '' && heading('')}
+    </div>
   );
 };

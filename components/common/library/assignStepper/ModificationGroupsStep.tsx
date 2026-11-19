@@ -8,21 +8,15 @@ import React, {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  ChevronDown,
-  Eye,
-  Plus,
-  Search,
-  Trash2,
-  User,
-  Users,
-} from 'lucide-react';
+import { ChevronDown, Plus, Search, Trash2, User, Users } from 'lucide-react';
 import { AuthContext } from '@/context/AuthContextValue';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { Toggle } from '@/components/common/Toggle';
 import { useQuizTranslationSettings } from '@/hooks/useQuizTranslationSettings';
 import { QUIZ_TRANSLATION_LANGUAGES } from '@/config/quizTranslation';
 import { QUIZ_READ_ALOUD_FEATURE } from '@/config/quizReadAloud';
+import { SPEECH_TO_TEXT_FEATURE } from '@/utils/speechToText/types';
+import { dictationLocaleFor } from '@/utils/speechToText/languages';
 import { languageDisplayLabel } from '@/utils/languageDisplayLabel';
 import { summarizeOverride } from '@/utils/studentOverrideSummary';
 import {
@@ -43,6 +37,7 @@ import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import {
   groupRuleLabels,
   hiddenOptionIdsForRule,
+  isBlankGroup,
   newModificationGroup,
   withGroupStudents,
   type AnswerChoicesRule,
@@ -70,14 +65,14 @@ export interface ModificationGroupsStepProps {
   onSharingChange?: (sharing: boolean) => void;
   /** Shows the Printed version row (`paper-printed-versions`). */
   printedAvailable?: boolean;
-  /** Opens Student view on this group's version; absent hides Preview. */
-  onPreview?: (groupId: string) => void;
+  /** Drive files of class presets: shared with the class, so never deleted here. */
+  keepFileIds?: ReadonlySet<string>;
 }
 
-const Row: React.FC<{ label: string; children: React.ReactNode }> = ({
-  label,
-  children,
-}) => (
+export const ModificationRow: React.FC<{
+  label: string;
+  children: React.ReactNode;
+}> = ({ label, children }) => (
   <div className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-1.5 py-1.5">
     <span className="text-sm font-medium text-slate-700">{label}</span>
     {children}
@@ -342,24 +337,26 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
   overridesByKey,
   onSharingChange,
   printedAvailable = false,
-  onPreview,
+  keepFileIds,
 }) => {
   const { t } = useTranslation();
   const { driveService } = useGoogleDrive();
   const deleteDriveCopies = (supports: QuizSupport[] | undefined) => {
     for (const s of supports ?? [])
-      if (s.kind === 'drive')
+      if (s.kind === 'drive' && !keepFileIds?.has(s.fileId))
         void driveService?.deleteFile(s.fileId).catch(() => undefined);
   };
   const auth = useContext(AuthContext);
   const readAloudOn =
     auth?.canAccessFeature?.(QUIZ_READ_ALOUD_FEATURE) === true;
+  const speechToTextOn =
+    auth?.canAccessFeature?.(SPEECH_TO_TEXT_FEATURE) === true;
   const translationOn = auth?.canAccessFeature?.('quiz-translation') === true;
   const { languages } = useQuizTranslationSettings(translationOn);
   const [openId, setOpenId] = useState<string | null>(null);
 
   const list = groups;
-  const openGroup = list.find((g) => g.id === openId) ?? list.at(-1);
+  const openGroup = list.find((g) => g.id === openId) ?? list[0];
   const rowByKey = useMemo(
     () => new Map(rows.map((r) => [r.key, r] as const)),
     [rows]
@@ -411,11 +408,11 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
         : [],
     [rows, overridesByKey, translation]
   );
-  const generateDisabled =
+  // Assign translates on its own, so the notice shows only when it can't.
+  const autoTranslateBlocked =
     isNonEnglishQuizSource(translation?.sourceLanguage) ||
     translation?.hasBankSlots === true ||
-    (translation?.cap?.remaining ?? 1) <= 0 ||
-    !!translation?.generating;
+    (translation?.cap?.remaining ?? 1) <= 0;
 
   if (rows.length === 0) {
     return (
@@ -435,7 +432,7 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
 
   return (
     <div className="space-y-3">
-      {advisory.map((entry) => (
+      {(autoTranslateBlocked ? advisory : []).map((entry) => (
         <div
           key={entry.locale}
           role="status"
@@ -449,21 +446,6 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
               language: languageDisplayLabel(entry.locale),
             })}
           </span>
-          {translation?.onGenerate && (
-            <button
-              type="button"
-              disabled={generateDisabled}
-              onClick={() => translation.onGenerate?.([entry.locale])}
-              {...tourFieldAttr(
-                'assign-mods.group-generate-translation',
-                'assign',
-                entry.locale
-              )}
-              className="touch-target-expand shrink-0 rounded-md border border-amber-300 bg-white px-2.5 py-1 font-bold text-amber-800 hover:bg-amber-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
-            >
-              {t('quizTranslation.assign.generate')}
-            </button>
-          )}
         </div>
       ))}
       {list.map((group, index) => {
@@ -486,8 +468,12 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
                   {names.length > 0 ? names.join('; ') : 'No students'}
                 </span>
                 <span className="block truncate text-xs text-slate-500">
-                  {groupRuleLabels(group, languageDisplayLabel).join(', ') ||
-                    'No changes'}
+                  {[
+                    ...groupRuleLabels(group, languageDisplayLabel),
+                    ...summarizeOverride(group.carried ?? {}, t).map(
+                      (chip) => chip.charAt(0).toLowerCase() + chip.slice(1)
+                    ),
+                  ].join(', ') || 'No changes'}
                 </span>
               </span>
               <span className="shrink-0 text-xs font-bold text-brand-blue-primary">
@@ -503,7 +489,7 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
             className={`divide-y divide-slate-100 ${list.length > 1 ? 'border-t border-slate-200 pt-1' : ''}`}
           >
             <div className="pb-2">
-              <Row label="Students">
+              <ModificationRow label="Students">
                 <StudentsMenu
                   rows={rows}
                   classGroups={classGroups}
@@ -517,7 +503,7 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
                     )
                   }
                 />
-              </Row>
+              </ModificationRow>
               {names.length > 0 && (
                 <p className="text-xs leading-relaxed text-slate-500">
                   {names.join('; ')}
@@ -534,7 +520,7 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
               )}
             </div>
             {answerChoicesUseful && (
-              <Row label="Answer choices">
+              <ModificationRow label="Answer choices">
                 <SegmentedControl<AnswerChoicesRule>
                   role="radiogroup"
                   ariaLabel="Answer choices"
@@ -547,10 +533,10 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
                     { value: 'two', label: '2 choices' },
                   ]}
                 />
-              </Row>
+              </ModificationRow>
             )}
             {timeLimitLabel && (
-              <Row label="Time limit">
+              <ModificationRow label="Time limit">
                 <SegmentedControl<string>
                   role="radiogroup"
                   ariaLabel="Time limit"
@@ -566,10 +552,10 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
                     { value: 'unlimited', label: 'None' },
                   ]}
                 />
-              </Row>
+              </ModificationRow>
             )}
             {hasModifiedQuestions && (
-              <Row label="Modified questions">
+              <ModificationRow label="Modified questions">
                 <Toggle
                   size="sm"
                   checked={group.modifiedQuestions === true}
@@ -579,10 +565,10 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
                   label="Modified questions"
                   anchor={tourAttr('assign-mods.modified-questions')}
                 />
-              </Row>
+              </ModificationRow>
             )}
             {readAloudOn && (
-              <Row label="Read aloud">
+              <ModificationRow label="Read aloud">
                 <Toggle
                   size="sm"
                   checked={group.readAloud}
@@ -590,10 +576,30 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
                   label="Read aloud"
                   anchor={tourAttr('assign-mods.read-aloud')}
                 />
-              </Row>
+              </ModificationRow>
             )}
+            {speechToTextOn && (
+              <ModificationRow label="Speech to text">
+                <Toggle
+                  size="sm"
+                  checked={group.speechToText}
+                  onChange={(speechToText) => set(group.id, { speechToText })}
+                  label="Speech to text"
+                  anchor={tourAttr('assign-mods.speech-to-text')}
+                />
+              </ModificationRow>
+            )}
+            {speechToTextOn &&
+              group.speechToText &&
+              group.language &&
+              !dictationLocaleFor(group.language) && (
+                <p className="pb-1.5 text-xs text-slate-500">
+                  Not available in {languageDisplayLabel(group.language)}. These
+                  students will dictate in English.
+                </p>
+              )}
             {translationOn && languageOptions.length > 0 && (
-              <Row label="Language">
+              <ModificationRow label="Language">
                 <select
                   value={group.language ?? ''}
                   onChange={(e) =>
@@ -610,10 +616,10 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
                     </option>
                   ))}
                 </select>
-              </Row>
+              </ModificationRow>
             )}
             {printedAvailable && (
-              <Row label="Printed version">
+              <ModificationRow label="Printed version">
                 <Toggle
                   size="sm"
                   checked={group.printed === true}
@@ -621,43 +627,35 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
                   label="Printed version"
                   anchor={tourAttr('assign-mods.printed')}
                 />
-              </Row>
+              </ModificationRow>
             )}
             <SupportsEditor
               supports={group.supports ?? []}
               onChange={(update) => updateSupports(group.id, update)}
               onSharingChange={onSharingChange}
+              keepFileIds={keepFileIds}
             />
-            {(!!onPreview || list.length > 1) && (
-              <div className="flex items-center justify-between gap-3 pt-2">
-                {onPreview ? (
-                  <button
-                    type="button"
-                    onClick={() => onPreview(group.id)}
-                    {...tourAttr('assign-mods.preview-group')}
-                    className="touch-target-expand inline-flex items-center gap-1 text-xs font-bold text-brand-blue-primary hover:underline"
-                  >
-                    <Eye className="h-3.5 w-3.5" aria-hidden />
-                    Preview
-                  </button>
-                ) : (
-                  <span />
-                )}
-                {list.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      deleteDriveCopies(group.supports);
-                      onChange(list.filter((g) => g.id !== group.id));
-                      setOpenId(null);
-                    }}
-                    {...tourAttr('assign-mods.remove-group')}
-                    className="touch-target-expand inline-flex items-center gap-1 text-xs font-bold text-brand-red-primary hover:underline"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                    Remove group
-                  </button>
-                )}
+            {group.carried && (
+              <p className="py-1.5 text-xs text-slate-500">
+                {summarizeOverride(group.carried, t).join(', ')}
+              </p>
+            )}
+            {(list.length > 1 || !isBlankGroup(group)) && (
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    deleteDriveCopies(group.supports);
+                    const rest = list.filter((g) => g.id !== group.id);
+                    onChange(rest.length > 0 ? rest : [newModificationGroup()]);
+                    setOpenId(null);
+                  }}
+                  {...tourAttr('assign-mods.remove-group')}
+                  className="touch-target-expand inline-flex items-center gap-1 text-xs font-bold text-brand-red-primary hover:underline"
+                >
+                  <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                  Remove group
+                </button>
               </div>
             )}
           </div>

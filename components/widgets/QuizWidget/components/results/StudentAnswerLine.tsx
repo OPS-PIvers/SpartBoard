@@ -6,6 +6,7 @@ import {
   Circle,
   CircleSlash,
   Clock,
+  Mic,
   MinusCircle,
   Pencil,
   XCircle,
@@ -173,7 +174,9 @@ export const StudentAnswerLine: React.FC<{
   onOpenGrader?: () => void;
   /** Swaps this answer in for the one that counts in its section. */
   onCountInstead?: () => void;
-}> = ({ line, onOpenGrader, onCountInstead }) => {
+  /** The student used Speech to text on this answer. */
+  dictated?: boolean;
+}> = ({ line, onOpenGrader, onCountInstead, dictated = false }) => {
   const { icon: MarkIcon, className } = MARK_STYLE[line.mark];
   const answer = answerLabel(line);
   const orderSpots =
@@ -297,6 +300,20 @@ export const StudentAnswerLine: React.FC<{
           ) : (
             <span className="italic text-brand-gray-primary">
               {line.mark === 'notChosen' ? 'Not chosen' : 'No answer'}
+            </span>
+          )}
+          {dictated && !!answer && (
+            <span
+              className="inline-flex items-center align-middle rounded-sm bg-brand-gray-lightest font-sans font-semibold text-brand-gray-dark"
+              style={{
+                ...SMALL_TEXT,
+                gap: 'min(3px, 0.8cqmin)',
+                padding: '0 min(4px, 1cqmin)',
+                marginLeft: 'min(6px, 1.5cqmin)',
+              }}
+            >
+              <Mic aria-hidden style={SMALL_ICON} />
+              Dictated
             </span>
           )}
         </Field>

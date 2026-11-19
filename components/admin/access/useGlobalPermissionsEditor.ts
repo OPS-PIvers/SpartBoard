@@ -16,7 +16,18 @@ import {
   PAPER_HANDWRITTEN_DEFAULT_DAILY_LIMIT,
   PAPER_HANDWRITTEN_FEATURE,
 } from '@/utils/paperWritten';
-import type { GlobalFeature, GlobalFeaturePermission } from '@/types';
+import {
+  SPEECH_AI_TRANSCRIPTION_FEATURE,
+  SPEECH_DEFAULT_DAILY_LIMITS,
+  SPEECH_ROW_KEYS,
+  SPEECH_TIDY_UP_FEATURE,
+  SPEECH_TO_TEXT_DEFAULT_CAPS,
+} from '@/config/speechToText';
+import type {
+  GlobalFeature,
+  GlobalFeaturePermission,
+  SpeechToTextUsage,
+} from '@/types';
 
 /** Features with an AI daily usage limit. */
 export const GEMINI_FEATURES: GlobalFeature[] = [
@@ -41,6 +52,8 @@ export const GEMINI_FEATURES: GlobalFeature[] = [
   'dashboard-layout',
   'instructional-routine',
   'ocr',
+  SPEECH_AI_TRANSCRIPTION_FEATURE,
+  SPEECH_TIDY_UP_FEATURE,
 ];
 
 /** Daily limits the server applies to admins too. */
@@ -68,6 +81,44 @@ export const EXTRA_DAILY_LIMITS: Partial<
   },
 };
 
+/** What a daily limit counts, where the default "per day" wording would mislead. */
+export const DAILY_LIMIT_NOTES: Partial<Record<GlobalFeature, string>> = {
+  [SPEECH_AI_TRANSCRIPTION_FEATURE]: 'phrases per student, per day.',
+  [SPEECH_TIDY_UP_FEATURE]: 'tidy-ups per student, per day.',
+};
+
+/** A district-wide monthly limit on a feature's row, saved in its config. */
+export interface MonthlyCap {
+  capKey: string;
+  /** In stored units. */
+  defaultValue: number;
+  /** Stored units per unit shown, e.g. 60 for seconds shown as minutes. */
+  perUnit: number;
+  unit: string;
+  shortUnit: string;
+  usageField: keyof SpeechToTextUsage;
+}
+
+/** Features with a monthly limit; the server reads the same config key. */
+export const MONTHLY_CAPS: Partial<Record<GlobalFeature, MonthlyCap>> = {
+  [SPEECH_AI_TRANSCRIPTION_FEATURE]: {
+    capKey: SPEECH_ROW_KEYS.monthlyCapSeconds,
+    defaultValue: SPEECH_TO_TEXT_DEFAULT_CAPS.monthlyCapSeconds,
+    perUnit: 60,
+    unit: 'minutes of speech',
+    shortUnit: 'minutes',
+    usageField: 'seconds',
+  },
+  [SPEECH_TIDY_UP_FEATURE]: {
+    capKey: SPEECH_ROW_KEYS.monthlyCapTidyCalls,
+    defaultValue: SPEECH_TO_TEXT_DEFAULT_CAPS.monthlyCapTidyCalls,
+    perUnit: 1,
+    unit: 'tidy-ups',
+    shortUnit: 'tidy-ups',
+    usageField: 'tidyCalls',
+  },
+};
+
 /** Features whose admin card picks the Gemini model tier. */
 export const MODEL_TIER_FEATURES: GlobalFeature[] = [PAPER_HANDWRITTEN_FEATURE];
 
@@ -79,6 +130,10 @@ export const defaultDailyLimit = (featureId: GlobalFeature): number => {
   if (featureId === 'quiz-translation') return 40;
   if (featureId === PAPER_HANDWRITTEN_FEATURE)
     return PAPER_HANDWRITTEN_DEFAULT_DAILY_LIMIT;
+  if (featureId === SPEECH_AI_TRANSCRIPTION_FEATURE)
+    return SPEECH_DEFAULT_DAILY_LIMITS.transcription;
+  if (featureId === SPEECH_TIDY_UP_FEATURE)
+    return SPEECH_DEFAULT_DAILY_LIMITS.tidyUp;
   return 20;
 };
 

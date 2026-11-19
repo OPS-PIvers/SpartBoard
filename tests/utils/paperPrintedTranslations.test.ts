@@ -46,6 +46,7 @@ const group = (patch: Partial<ModificationGroup>): ModificationGroup => ({
   answerChoices: 'all',
   time: 'standard',
   readAloud: false,
+  speechToText: false,
   ...patch,
 });
 

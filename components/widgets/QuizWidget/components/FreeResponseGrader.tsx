@@ -9,6 +9,8 @@
  * primary recording slot, so nothing already in `grading` changes meaning.
  */
 
+import { promptLabel } from '@/utils/quizPromptText';
+import { QuestionAudioButton } from '@/components/quiz/QuestionAudioButton';
 import { PromptText } from '@/components/common/PromptText';
 import { TabExitsPopover } from '@/components/common/TabExitsPopover';
 import { InputSignalsBadge } from '@/components/common/InputSignalsPopover';
@@ -2339,8 +2341,11 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                 </button>
               </span>
             </div>
+            {question.promptAudio && (
+              <QuestionAudioButton audio={question.promptAudio} size="small" />
+            )}
             <p className="text-sm font-semibold leading-snug text-slate-900">
-              <PromptText text={question.text} />
+              <PromptText text={promptLabel(question)} />
             </p>
             <CollapsibleStimuli
               stimuli={resolveStimuli(question.stimulusIds, quiz.stimuli)}
@@ -2471,6 +2476,16 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                         {tg('timedOutUnderMinimum')}
                       </span>
                     )}
+                    {attemptNumber === undefined &&
+                      !!textEntry &&
+                      (response?.dictated ?? []).includes(
+                        textEntry.questionId
+                      ) && (
+                        <span className="inline-flex items-center gap-1 rounded-sm bg-slate-200 px-1.5 py-0.5 text-xxs uppercase tracking-wider text-slate-700">
+                          <Mic aria-hidden className="h-3 w-3" />
+                          {tg('dictated', { defaultValue: 'Dictated' })}
+                        </span>
+                      )}
                     {gradedChip}
                   </div>
                 )}

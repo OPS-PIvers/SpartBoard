@@ -1,4 +1,4 @@
-// Reads a Writing record (D9, D21, D25): the edit log across its chunks, draft marks, and each paste and untyped addition.
+// Reads a Writing record (D9, D21, D25): the edit log across its chunks, draft marks, and each paste, dictated passage and untyped addition.
 import type { WritingDraft, WritingResponseSummary } from '@/types';
 import {
   parseWritingLog,
@@ -73,7 +73,7 @@ export function draftMarkAt(
   return Math.min(start + before, joined.edits.length);
 }
 
-/** A paste, or text added without typing or pasting (an extension, dictation). */
+/** A paste, a dictated passage, or text added without typing, pasting or Dictate (an extension). */
 export interface WritingRecordInsert {
   /** Edits before it, for jumping playback there. */
   at: number;
@@ -82,26 +82,29 @@ export interface WritingRecordInsert {
 
 export interface WritingRecordInserts {
   pastes: WritingRecordInsert[];
+  dictated: WritingRecordInsert[];
   untyped: WritingRecordInsert[];
 }
 
 const isUntyped = (e: WritingEdit) =>
   e.kind === 'sync' && e.ins.trim().length > 0;
 
-/** Every paste and untyped addition the log holds, in order. */
+/** Every paste, dictated passage and untyped addition the log holds, in order. */
 export function writingInserts(
   edits: readonly WritingEdit[]
 ): WritingRecordInserts {
-  const out: WritingRecordInserts = { pastes: [], untyped: [] };
+  const out: WritingRecordInserts = { pastes: [], dictated: [], untyped: [] };
   edits.forEach((e, i) => {
     if (e.kind === 'pasted' && e.ins.length > 0)
       out.pastes.push({ at: i + 1, text: e.ins });
+    else if (e.kind === 'dictated' && e.ins.length > 0)
+      out.dictated.push({ at: i + 1, text: e.ins });
     else if (isUntyped(e)) out.untyped.push({ at: i + 1, text: e.ins });
   });
   return out;
 }
 
-/** D21: the yearly purge keeps only these tokens, so pastes and untyped text outlive the playback. */
+/** D21: the yearly purge keeps only these tokens, so pastes and untyped text outlive the playback; dictated text is the student's own writing and goes. */
 export const isKeptAfterPurge = (token: string): boolean =>
   token[0] === 'P' || token[0] === 'S';
 

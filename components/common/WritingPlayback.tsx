@@ -51,6 +51,7 @@ const count = (n: number, one: string, many = `${one}s`) =>
 const EDIT_LABEL: Record<WritingEdit['kind'], string | null> = {
   typed: null,
   pasted: 'Pasted',
+  dictated: 'Dictated',
   sync: 'Appeared without typing',
   restored: 'Already here after a page reload',
   format: null,
@@ -149,6 +150,8 @@ export const WritingPlayer: React.FC<{
     shownKind(last.kind)
       ? last.ins.length
       : 0;
+  // Dictated text is a fact about an accommodation, so it never takes the amber of a paste.
+  const dictatedNow = last?.kind === 'dictated';
   const next = atEnd ? undefined : edits[index];
   const nextSession = sessionAt.get(index);
   const inPause =
@@ -215,12 +218,15 @@ export const WritingPlayer: React.FC<{
       {summary &&
         ((summary.pastedChars > 0 && !hidePasted) ||
           (summary.syncChars > 0 && !hideUnkeyed) ||
+          summary.dictatedChars > 0 ||
           summary.restoredChars > 0) && (
           <p className="text-sm text-slate-700">
             {[
               summary.pastedChars > 0 &&
                 !hidePasted &&
                 `${count(summary.pastedChars, 'character')} pasted`,
+              summary.dictatedChars > 0 &&
+                `${count(summary.dictatedChars, 'character')} dictated`,
               summary.restoredChars > 0 &&
                 `${count(summary.restoredChars, 'character')} typed just before a page reload were not recorded`,
               summary.syncChars > 0 &&
@@ -237,7 +243,7 @@ export const WritingPlayer: React.FC<{
         className={`${boxHeight} overflow-y-auto whitespace-pre-wrap break-words rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-900`}
       >
         {text.slice(0, caret - marked)}
-        <mark className="bg-amber-200">
+        <mark className={dictatedNow ? 'bg-slate-200' : 'bg-amber-200'}>
           {text.slice(caret - marked, caret)}
         </mark>
         <span
@@ -248,7 +254,7 @@ export const WritingPlayer: React.FC<{
       </div>
       <div className="flex h-6 items-center gap-2">
         <p
-          className={`text-xs font-semibold ${atEnd && facts?.endNote ? 'text-slate-700' : markAt.has(index) ? 'text-teal-800' : nextSession !== undefined ? 'text-brand-blue-primary' : 'text-amber-700'}`}
+          className={`text-xs font-semibold ${atEnd && facts?.endNote ? 'text-slate-700' : markAt.has(index) ? 'text-teal-800' : nextSession !== undefined ? 'text-brand-blue-primary' : dictatedNow ? 'text-slate-700' : 'text-amber-700'}`}
         >
           {note}
         </p>

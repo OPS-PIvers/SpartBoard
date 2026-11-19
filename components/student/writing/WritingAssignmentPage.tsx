@@ -1,5 +1,11 @@
 // `/writing/{sessionId}`: the student's Writing assignment, read live from the session and their own response.
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Loader2 } from 'lucide-react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
@@ -8,6 +14,7 @@ import type { WritingAssignmentSession } from '@/types';
 import { useStudentAssignmentPointer } from '@/hooks/useStudentAssignmentPointer';
 import { useTabAwayTracker } from '@/hooks/useTabAwayTracker';
 import { useWritingPiece } from '@/hooks/useWritingPiece';
+import { dictationLanguages } from '@/utils/speechToText/languages';
 import { PageProtectionGuards } from '@/components/common/PageProtectionGuards';
 import { effectivePageProtections } from '@/utils/pageProtections';
 import { deriveWritingView, writingClosed } from '@/utils/writingStudentView';
@@ -44,7 +51,9 @@ function useMinuteClock(): number {
 const WritingPiecePage: React.FC<{
   session: WritingAssignmentSession;
   studentUid: string;
-}> = ({ session, studentUid }) => {
+  /** Signed in with a school account, not a PIN. */
+  signedIn: boolean;
+}> = ({ session, studentUid, signedIn }) => {
   const now = useMinuteClock();
   // Per-student accommodations live on the student's own pointer, never on the session (M17).
   const pointer = useStudentAssignmentPointer(studentUid, session.id, true, {
@@ -113,6 +122,26 @@ const WritingPiecePage: React.FC<{
     releaseRef.current = tracker.release;
   });
 
+  // Speech to text: only a student whose override grants it gets Dictate.
+  const canDictate = override?.speechToText === true;
+  const dictateLanguage = override?.language;
+  const onDictationInsert = piece.onDictationInsert;
+  // D15: the paid extras need a signed-in student; the pointer doc is keyed by the session id.
+  const paidAssignmentId = pointer && signedIn ? session.id : null;
+  const dictation = useMemo(
+    () =>
+      canDictate
+        ? {
+            languages: dictationLanguages(dictateLanguage),
+            onInsert: onDictationInsert,
+            ...(paidAssignmentId
+              ? { paid: { assignmentId: paidAssignmentId } }
+              : {}),
+          }
+        : undefined,
+    [canDictate, dictateLanguage, onDictationInsert, paidAssignmentId]
+  );
+
   const response = piece.response;
   const readOnlyHtml = response?.html ?? '';
   return (
@@ -159,6 +188,7 @@ const WritingPiecePage: React.FC<{
           onDismissUnsent: piece.dismissUnsent,
           onUnsentCopy: piece.onUnsentCopy,
           onEditorChange: piece.onEditorChange,
+          dictation,
           allowInsert: piece.allowInsert,
           onEditorCopy: piece.onEditorCopy,
           bindEditor: piece.bindEditor,
@@ -183,7 +213,7 @@ const WritingPiecePage: React.FC<{
 };
 
 export const WritingAssignmentPage: React.FC = () => {
-  const { pseudonymUid } = useStudentAuth();
+  const { pseudonymUid, pinLogin } = useStudentAuth();
   const sessionId = writingSessionIdFromPath(window.location.pathname);
   const [view, setView] = useState<View>({ kind: 'loading' });
 
@@ -242,6 +272,7 @@ export const WritingAssignmentPage: React.FC = () => {
       key={`${sessionId}:${pseudonymUid}`}
       session={view.session}
       studentUid={pseudonymUid}
+      signedIn={!pinLogin}
     />
   );
 };

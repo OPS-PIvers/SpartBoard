@@ -2030,14 +2030,17 @@
       "spellingHelp": "Rechtschreibhilfe",
       "language": "{{language}}",
       "copyPastePrintBlocked": "Kein Kopieren, Einfügen oder Drucken",
-      "copyPastePrintAllowed": "Kopieren, Einfügen und Drucken erlaubt"
+      "copyPastePrintAllowed": "Kopieren, Einfügen und Drucken erlaubt",
+      "speechToText": "Sprache zu Text"
     },
     "language": "Sprache",
     "spellingHelp": "Rechtschreibhilfe",
     "noChanges": "Keine Änderungen",
     "copyPastePrint": "Kopieren, Einfügen und Drucken",
     "copyPastePrintBlock": "Sperren",
-    "copyPastePrintAllow": "Erlauben"
+    "copyPastePrintAllow": "Erlauben",
+    "speechToText": "Sprache zu Text",
+    "speechToTextLanguageNote": "Nicht verfügbar auf {{language}}. Diese Schülerin oder dieser Schüler diktiert auf Englisch."
   },
   "assignTargeting": {
     "expandAffordance": "Anpassungen bearbeiten oder hinzufügen",
@@ -3048,7 +3051,8 @@
       },
       "classFilter": "Nach Klasse filtern",
       "allClasses": "Alle Klassen",
-      "countInstead": "Stattdessen zählen"
+      "countInstead": "Stattdessen zählen",
+      "dictated": "Diktiert"
     },
     "results": {
       "gradeButton": "Freie Antworten bewerten"
@@ -5111,5 +5115,38 @@
     "show": "Anzeigen",
     "madeBadge": "Mit Claude erstellt",
     "editedBadge": "Von Claude bearbeitet"
+  },
+  "dictate": {
+    "button": "Diktieren",
+    "starting": "Startet…",
+    "listening": "Hört zu… zum Stoppen tippen",
+    "listeningShort": "Hört zu",
+    "stop": "Diktieren beenden",
+    "language": "Diktiersprache",
+    "languageSwitch": "Diktat auf {{language}}. Zu {{next}} wechseln.",
+    "error": {
+      "micBlocked": "Das Mikrofon ist blockiert. Klicke auf das Symbol links in der Adressleiste, schalte Mikrofon ein und tippe dann erneut auf Diktieren.",
+      "noMic": "Kein Mikrofon gefunden. Schließe ein Mikrofon oder Headset an und tippe dann erneut auf Diktieren.",
+      "network": "Diktieren braucht Internet. Prüfe deine Verbindung und tippe dann erneut auf Diktieren.",
+      "languageUnsupported": "Diktieren versteht diese Sprache auf diesem Gerät nicht und hört deshalb auf Englisch zu.",
+      "unknown": "Diktieren wurde beendet. Tippe auf Diktieren, um neu zu starten."
+    },
+    "tidyUp": "Aufräumen",
+    "tidyingUp": "Wird aufgeräumt…",
+    "tidyUpHint": "Fügt Satzzeichen und Großbuchstaben zu deinem Diktat hinzu. Deine Wörter bleiben gleich.",
+    "tidyBefore": "Deins",
+    "tidyAfter": "Aufgeräumt",
+    "tidyUse": "Das verwenden",
+    "tidyKeep": "Meins behalten",
+    "tidyUndo": "Rückgängig",
+    "tidyDone": "Aufgeräumt.",
+    "tidyNoChange": "Nichts aufzuräumen."
+  },
+  "quizQuestionAudio": {
+    "play": "Audio abspielen",
+    "stop": "Stopp",
+    "retry": "Erneut versuchen",
+    "label": "Audiofrage",
+    "playCount": "Audio abspielen ({{used}}/{{total}})"
   }
 }

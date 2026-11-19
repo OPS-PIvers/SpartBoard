@@ -50,6 +50,8 @@ interface RosterEditorModalProps {
   ) => Promise<void> | void;
   /** Host-resolved 'quiz-read-aloud' gate, forwarded to the accommodations editor. */
   readAloudAvailable?: boolean;
+  /** Host-resolved 'speech-to-text' gate, forwarded to the accommodations editor. */
+  speechToTextAvailable?: boolean;
   /** Bell periods to tag the class with; the picker is hidden when absent. */
   bellPeriodOptions?: BuildingBellPeriodOption[];
   /** Host-resolved 'group-reminders' gate: symbols, schedules and the group wizard. */
@@ -75,6 +77,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
   onClose,
   onSave,
   readAloudAvailable = false,
+  speechToTextAvailable = false,
   bellPeriodOptions,
   groupRemindersEnabled = false,
   groupReminderEmailsEnabled = false,
@@ -168,6 +171,8 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
 
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Count of Drive shares in flight, so Save waits for every one of them.
+  const [sharesInFlight, setSharesInFlight] = useState(0);
   const viewAs = useViewAs();
 
   const handleSave = async () => {
@@ -283,7 +288,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
           )}
           <button
             onClick={handleSave}
-            disabled={!name.trim() || saving}
+            disabled={!name.trim() || saving || sharesInFlight > 0}
             {...tourAttr('roster-editor.save')}
             className="bg-brand-blue-primary text-white px-5 py-2 rounded-xl flex gap-1.5 items-center text-sm font-bold uppercase tracking-wider hover:bg-brand-blue-dark shadow-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -389,14 +394,19 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
             groups={groups}
             overrides={defaultOverrides}
             readAloudAvailable={readAloudAvailable}
+            speechToTextAvailable={speechToTextAvailable}
             onChange={setDefaultOverrides}
             onAddStudents={() => setActiveTab('students')}
+            onSharingChange={(sharing) =>
+              setSharesInFlight((n) => Math.max(0, n + (sharing ? 1 : -1)))
+            }
           />
         ) : activeTab === 'accommodations' && roster ? (
           <RosterAccommodationsPanel
             students={validStudents}
             overrides={defaultOverrides}
             readAloudAvailable={readAloudAvailable}
+            speechToTextAvailable={speechToTextAvailable}
             onChange={setDefaultOverrides}
             onAddStudents={() => setActiveTab('students')}
           />
@@ -844,7 +854,7 @@ const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = ({
                       'roster-editor',
                       groupKey
                     )}
-                    className="p-1 text-slate-400 hover:text-brand-blue-primary rounded-md transition-colors"
+                    className="shrink-0 p-1 text-slate-400 hover:text-brand-blue-primary rounded-md transition-colors"
                     aria-label={t('sidebar.classes.editGroupMembers', {
                       defaultValue: 'Edit group members',
                     })}
@@ -852,7 +862,7 @@ const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = ({
                     <UsersRound size={16} />
                   </button>
                   <input
-                    className="flex-1 px-2 py-1 text-sm font-bold rounded-md border border-transparent hover:border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-hidden transition-colors"
+                    className="min-w-0 flex-1 px-2 py-1 text-sm font-bold rounded-md border border-transparent hover:border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-hidden transition-colors"
                     value={group.name}
                     onChange={(e) => renameGroup(group.id, e.target.value)}
                     {...tourFieldAttr(
@@ -861,7 +871,7 @@ const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = ({
                       groupKey
                     )}
                   />
-                  <span className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
+                  <span className="shrink-0 whitespace-nowrap text-xxs font-bold text-slate-400 uppercase tracking-widest">
                     {t('sidebar.classes.groupMemberCount', {
                       count: memberCount,
                       defaultValue: '{{count}} student',
@@ -878,7 +888,7 @@ const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = ({
                     aria-label={t('sidebar.classes.removeGroup', {
                       defaultValue: 'Remove group',
                     })}
-                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                    className="shrink-0 p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
                   >
                     <X size={16} />
                   </button>
@@ -928,6 +938,7 @@ interface RosterAccommodationsPanelProps {
   students: Student[];
   overrides: Record<string, StudentOverride>;
   readAloudAvailable: boolean;
+  speechToTextAvailable: boolean;
   onChange: (overrides: Record<string, StudentOverride>) => void;
   onAddStudents: () => void;
 }
@@ -944,6 +955,7 @@ const RosterAccommodationsPanel: React.FC<RosterAccommodationsPanelProps> = ({
   students,
   overrides,
   readAloudAvailable,
+  speechToTextAvailable,
   onChange,
   onAddStudents,
 }) => {
@@ -995,6 +1007,7 @@ const RosterAccommodationsPanel: React.FC<RosterAccommodationsPanelProps> = ({
                 quizMode
                 allowWindowShift={false}
                 readAloudAvailable={readAloudAvailable}
+                speechToTextAvailable={speechToTextAvailable}
                 pageProtectionsAvailable
                 peers={peers}
                 onChange={(next) =>

@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import type { InputSignalCounts } from '@/types';
 import {
+  DICTATION_EVENT,
+  type DictationEventDetail,
   INPUT_SIGNALS_FLUSH_EVENT,
   type InputSignalsFlushDetail,
   InputSignalCollector,
@@ -281,6 +283,22 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
         );
       }
     };
+    // Speech to text edits the box without an input event, so the box announces it.
+    const onDictation = (e: Event) => {
+      if (!isAnswerBox(e.target)) return;
+      const detail = (e as CustomEvent<DictationEventDetail>).detail;
+      if (detail?.phase === 'before') {
+        collector.primeText(e.target, answerText(e.target));
+      } else if (detail?.phase === 'after') {
+        collector.dictated(
+          e.target,
+          answerText(e.target),
+          Number.isFinite(detail.chars) ? Math.max(0, detail.chars) : 0,
+          e.timeStamp,
+          isLongAnswer(e.target)
+        );
+      }
+    };
     const onHidden = () => {
       if (visible()) collector.clock(performance.now(), true);
       else flush(undefined, true);
@@ -319,6 +337,7 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
     document.addEventListener('drop', onDrop, opts);
     document.addEventListener('beforeinput', onBeforeInput, opts);
     document.addEventListener('input', onInput, opts);
+    document.addEventListener(DICTATION_EVENT, onDictation, opts);
     document.addEventListener('visibilitychange', onHidden);
     window.addEventListener('pagehide', onPageHide);
     window.addEventListener('resize', onResize);
@@ -334,6 +353,7 @@ export function useInputSignals(args: UseInputSignalsArgs): void {
       document.removeEventListener('drop', onDrop, opts);
       document.removeEventListener('beforeinput', onBeforeInput, opts);
       document.removeEventListener('input', onInput, opts);
+      document.removeEventListener(DICTATION_EVENT, onDictation, opts);
       document.removeEventListener('visibilitychange', onHidden);
       window.removeEventListener('pagehide', onPageHide);
       window.removeEventListener('resize', onResize);

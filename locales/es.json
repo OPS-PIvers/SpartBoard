@@ -2030,14 +2030,17 @@
       "spellingHelp": "Ayuda ortográfica",
       "language": "{{language}}",
       "copyPastePrintBlocked": "Sin copiar, pegar ni imprimir",
-      "copyPastePrintAllowed": "Copiar, pegar e imprimir permitido"
+      "copyPastePrintAllowed": "Copiar, pegar e imprimir permitido",
+      "speechToText": "Voz a texto"
     },
     "language": "Idioma",
     "spellingHelp": "Ayuda ortográfica",
     "noChanges": "Sin cambios",
     "copyPastePrint": "Copiar, pegar e imprimir",
     "copyPastePrintBlock": "Bloquear",
-    "copyPastePrintAllow": "Permitir"
+    "copyPastePrintAllow": "Permitir",
+    "speechToText": "Voz a texto",
+    "speechToTextLanguageNote": "No disponible en {{language}}. Este estudiante dictará en inglés."
   },
   "assignTargeting": {
     "expandAffordance": "Editar o añadir adaptaciones",
@@ -3048,7 +3051,8 @@
       },
       "classFilter": "Filtrar por clase",
       "allClasses": "Todas las clases",
-      "countInstead": "Contar esta en su lugar"
+      "countInstead": "Contar esta en su lugar",
+      "dictated": "Dictado"
     },
     "results": {
       "gradeButton": "Calificar respuestas libres"
@@ -5111,5 +5115,38 @@
     "show": "Mostrar",
     "madeBadge": "Hecho con Claude",
     "editedBadge": "Editado por Claude"
+  },
+  "dictate": {
+    "button": "Dictar",
+    "starting": "Iniciando…",
+    "listening": "Escuchando… toca para detener",
+    "listeningShort": "Escuchando",
+    "stop": "Dejar de dictar",
+    "language": "Idioma de dictado",
+    "languageSwitch": "Dictando en {{language}}. Cambiar a {{next}}.",
+    "error": {
+      "micBlocked": "El micrófono está bloqueado. Haz clic en el icono a la izquierda de la barra de direcciones, activa Micrófono y toca Dictar otra vez.",
+      "noMic": "No se encontró ningún micrófono. Conecta un micrófono o auriculares y toca Dictar otra vez.",
+      "network": "Dictar necesita internet. Revisa tu conexión y toca Dictar otra vez.",
+      "languageUnsupported": "Dictar no puede escuchar ese idioma en este dispositivo, así que está escuchando en inglés.",
+      "unknown": "Dictar se detuvo. Toca Dictar para empezar otra vez."
+    },
+    "tidyUp": "Ordenar",
+    "tidyingUp": "Ordenando…",
+    "tidyUpHint": "Añade puntuación y mayúsculas a lo que acabas de dictar. Tus palabras no cambian.",
+    "tidyBefore": "El tuyo",
+    "tidyAfter": "Ordenado",
+    "tidyUse": "Usar este",
+    "tidyKeep": "Dejar el mío",
+    "tidyUndo": "Deshacer",
+    "tidyDone": "Ordenado.",
+    "tidyNoChange": "No hay nada que ordenar."
+  },
+  "quizQuestionAudio": {
+    "play": "Reproducir audio",
+    "stop": "Detener",
+    "retry": "Intentar de nuevo",
+    "label": "Pregunta de audio",
+    "playCount": "Reproducir audio ({{used}}/{{total}})"
   }
 }

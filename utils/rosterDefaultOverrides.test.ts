@@ -138,3 +138,29 @@ describe('group accommodations', () => {
     expect(next.z).toBeUndefined();
   });
 });
+
+describe('group supports', () => {
+  const a = { kind: 'text' as const, title: 'A', text: 'a' };
+  const b = { kind: 'text' as const, title: 'B', text: 'b' };
+  const c = { kind: 'text' as const, title: 'C', text: 'c' };
+
+  it('shows the supports every member has', () => {
+    expect(
+      sharedStudentOverride({ x: { supports: [a, b] }, y: { supports: [a] } }, [
+        'x',
+        'y',
+      ])
+    ).toEqual({ supports: [a] });
+  });
+
+  it('adds and removes a group support without replacing members’ own', () => {
+    const start = { x: { supports: [a, b] }, y: { supports: [a] } };
+    const added = applyGroupOverride(start, ['x', 'y'], { supports: [a, c] });
+    expect(added).toEqual({
+      x: { supports: [a, b, c] },
+      y: { supports: [a, c] },
+    });
+    const removed = applyGroupOverride(added, ['x', 'y'], { supports: [c] });
+    expect(removed).toEqual({ x: { supports: [b, c] }, y: { supports: [c] } });
+  });
+});

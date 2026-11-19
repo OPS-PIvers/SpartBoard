@@ -1,9 +1,24 @@
 // Accommodations tab (Modification groups flag): only the students and groups the teacher added, as hairline rows.
-import React, { useId, useMemo, useState } from 'react';
+import React, {
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, Plus, Search, User, Users, X } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronUp,
+  Plus,
+  Search,
+  User,
+  Users,
+  X,
+} from 'lucide-react';
 import type { RosterGroup, Student, StudentOverride } from '@/types';
-import { OverrideEditorRow } from '@/components/common/library/OverrideEditorRow';
+import { StandingAccommodationRules } from './StandingAccommodationRules';
+import { summarizeOverride } from '@/utils/studentOverrideSummary';
 import { usePickMenu } from '@/components/common/library/assignStepper/usePickMenu';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import {
@@ -18,8 +33,22 @@ export interface RosterAccommodationsListProps {
   groups: RosterGroup[];
   overrides: Record<string, StudentOverride>;
   readAloudAvailable: boolean;
+  speechToTextAvailable?: boolean;
   onChange: (overrides: Record<string, StudentOverride>) => void;
   onAddStudents: () => void;
+  /** True while a support's Drive file is still being shared. */
+  onSharingChange?: (sharing: boolean) => void;
+}
+
+interface Entry {
+  key: string;
+  name: string;
+  override: StudentOverride;
+  peers: Array<{ id: string; name: string; override: StudentOverride }>;
+  /** Applies an edit to the latest settings, so a slow Drive share can't undo later edits. */
+  update: (fn: (prev: StudentOverride) => StudentOverride) => void;
+  remove: React.ReactNode;
+  anchor?: ReturnType<typeof tourFieldAttr>;
 }
 
 const lastFirst = (s: Student) =>
@@ -48,14 +77,24 @@ export const RosterAccommodationsList: React.FC<
   groups,
   overrides,
   readAloudAvailable,
+  speechToTextAvailable = false,
   onChange,
   onAddStudents,
+  onSharingChange,
 }) => {
   const { t } = useTranslation();
   // Added this session but with nothing set yet; anyone with a setting is always listed.
   const [addedStudents, setAddedStudents] = useState<string[]>([]);
   const [addedGroups, setAddedGroups] = useState<string[]>([]);
   const [openKey, setOpenKey] = useState<string | null>(null);
+  const latest = useRef(overrides);
+  useLayoutEffect(() => {
+    latest.current = overrides;
+  });
+  const commit = (next: Record<string, StudentOverride>) => {
+    latest.current = next;
+    onChange(next);
+  };
 
   const sorted = useMemo(() => [...students].sort(byLastName), [students]);
   const allGroups: GroupRow[] = groups
@@ -151,13 +190,66 @@ export const RosterAccommodationsList: React.FC<
     </button>
   );
 
-  const rowProps = {
-    quizMode: true,
-    allowWindowShift: false,
-    readAloudAvailable,
-    pageProtectionsAvailable: true,
-    appearance: 'row' as const,
-  };
+  const entries: Entry[] = [
+    ...listedGroups.map((row, rowIndex) => ({
+      key: `g:${row.group.id}`,
+      name: `${row.group.name} (${countLabel(row.memberIds.length)})`,
+      override: row.shared,
+      peers: peersFor(row.memberIds),
+      update: (fn: (prev: StudentOverride) => StudentOverride) => {
+        const cur = latest.current;
+        commit(
+          applyGroupOverride(
+            cur,
+            row.memberIds,
+            fn(sharedStudentOverride(cur, row.memberIds))
+          )
+        );
+      },
+      remove: removeButton(
+        `Remove ${row.group.name}`,
+        () => removeGroup(row),
+        `group-${row.group.id}`
+      ),
+      anchor: tourFieldAttr(
+        'roster-editor.accommodations-group',
+        'roster-editor',
+        `row-${rowIndex + 1}`
+      ),
+    })),
+    ...listedStudents.map((s) => ({
+      key: `s:${s.id}`,
+      name: lastFirst(s),
+      override: overrides[s.id] ?? {},
+      peers: peersFor([s.id]),
+      update: (fn: (prev: StudentOverride) => StudentOverride) => {
+        const cur = latest.current;
+        commit(setRosterDefaultOverride(cur, s.id, fn(cur[s.id] ?? {})));
+      },
+      remove: removeButton(
+        `Remove ${lastFirst(s)}`,
+        () => removeStudent(s.id),
+        `student-${s.id}`
+      ),
+    })),
+  ];
+  const rules = (entry: Entry) => (
+    <>
+      <StandingAccommodationRules
+        override={entry.override}
+        onUpdate={entry.update}
+        readAloudAvailable={readAloudAvailable}
+        speechToTextAvailable={speechToTextAvailable}
+        onSharingChange={onSharingChange}
+      />
+      {entry.peers.length > 0 && (
+        <CopyFromRow
+          peers={entry.peers}
+          onCopy={(next) => entry.update(() => next)}
+        />
+      )}
+    </>
+  );
 
   if (students.length === 0) {
     return (
@@ -207,58 +299,35 @@ export const RosterAccommodationsList: React.FC<
           </p>
         ) : (
           <div className="divide-y divide-slate-200 border-y border-slate-200">
-            {listedGroups.map((row, rowIndex) => {
-              const key = `g:${row.group.id}`;
+            {entries.map((entry) => {
+              const open = openKey === entry.key;
               return (
-                <div
-                  key={key}
-                  {...tourFieldAttr(
-                    'roster-editor.accommodations-group',
-                    'roster-editor',
-                    `row-${rowIndex + 1}`
-                  )}
-                >
-                  <OverrideEditorRow
-                    {...rowProps}
-                    studentName={`${row.group.name} (${countLabel(row.memberIds.length)})`}
-                    override={row.shared}
-                    peers={peersFor(row.memberIds)}
-                    expanded={openKey === key}
-                    onExpandedChange={(next) => setOpenKey(next ? key : null)}
-                    onChange={(next) =>
-                      onChange(
-                        applyGroupOverride(overrides, row.memberIds, next)
-                      )
-                    }
-                    trailing={removeButton(
-                      `Remove ${row.group.name}`,
-                      () => removeGroup(row),
-                      `group-${row.group.id}`
-                    )}
-                  />
+                <div key={entry.key} {...entry.anchor}>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setOpenKey(open ? null : entry.key)}
+                      aria-expanded={open}
+                      {...tourAttr('override-row.toggle')}
+                      className="flex min-w-0 flex-1 items-center gap-3 py-2.5 text-left"
+                    >
+                      <EntrySummary entry={entry} />
+                      {open ? (
+                        <ChevronUp
+                          className="h-4 w-4 shrink-0 text-slate-400"
+                          aria-hidden
+                        />
+                      ) : (
+                        <ChevronDown
+                          className="h-4 w-4 shrink-0 text-slate-400"
+                          aria-hidden
+                        />
+                      )}
+                    </button>
+                    {entry.remove}
+                  </div>
+                  {open && <div className="pb-3">{rules(entry)}</div>}
                 </div>
-              );
-            })}
-            {listedStudents.map((s) => {
-              const key = `s:${s.id}`;
-              return (
-                <OverrideEditorRow
-                  key={key}
-                  {...rowProps}
-                  studentName={lastFirst(s)}
-                  override={overrides[s.id] ?? {}}
-                  peers={peersFor([s.id])}
-                  expanded={openKey === key}
-                  onExpandedChange={(next) => setOpenKey(next ? key : null)}
-                  onChange={(next) =>
-                    onChange(setRosterDefaultOverride(overrides, s.id, next))
-                  }
-                  trailing={removeButton(
-                    `Remove ${lastFirst(s)}`,
-                    () => removeStudent(s.id),
-                    `student-${s.id}`
-                  )}
-                />
               );
             })}
           </div>
@@ -406,3 +475,46 @@ const AddMenu: React.FC<{
     </div>
   );
 };
+
+const EntrySummary: React.FC<{ entry: Entry }> = ({ entry }) => {
+  const { t } = useTranslation();
+  const chips = summarizeOverride(entry.override, t, {
+    answerChoicesAsRule: true,
+  });
+  return (
+    <span className="min-w-0 flex-1">
+      <span className="block truncate text-sm font-semibold text-slate-800">
+        {entry.name}
+      </span>
+      <span className="block truncate text-xs text-slate-500">
+        {chips.length > 0 ? chips.join(', ') : 'No accommodations'}
+      </span>
+    </span>
+  );
+};
+
+const CopyFromRow: React.FC<{
+  peers: Entry['peers'];
+  onCopy: (next: StudentOverride) => void;
+}> = ({ peers, onCopy }) => (
+  <div className="flex min-h-11 items-center justify-between gap-3 border-t border-slate-100 py-1.5">
+    <span className="text-sm font-medium text-slate-700">Copy from</span>
+    <select
+      value=""
+      onChange={(e) => {
+        const peer = peers.find((p) => p.id === e.target.value);
+        if (peer) onCopy(structuredClone(peer.override));
+      }}
+      aria-label="Copy from"
+      {...tourAttr('override-row.copy-source')}
+      className="h-8 w-44 rounded-lg border border-slate-300 bg-white px-2.5 text-sm text-slate-700 touch:h-11"
+    >
+      <option value="">Select a student</option>
+      {peers.map((p) => (
+        <option key={p.id} value={p.id}>
+          {p.name}
+        </option>
+      ))}
+    </select>
+  </div>
+);
