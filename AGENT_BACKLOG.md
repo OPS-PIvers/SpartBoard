@@ -253,6 +253,8 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
   <details><summary>Branches to delete (190, checked 2026-11-01)</summary>
 
+claude/project-thread-xutx1d (#6281)
+claude/project-thread-xutx1d-branches (this docs PR, delete after it merges)
 nightly/build-2026-11-19 (#6264)
 nightly/dashboard-2026-11-19 (#6263)
 nightly/widgets-2026-11-19 (#6262)
