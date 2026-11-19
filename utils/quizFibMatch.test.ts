@@ -35,6 +35,10 @@ const CASES: [string, string, string, boolean][] = [
   ['2.5', '2,5', 'es', true],
   ['3,14 m', '3.14 m', 'es', true],
   ['mano', 'a mano', 'es', false],
+  ['meiosis', 'mitosis', 'es', false],
+  ['endotérmica', 'exotérmica', 'es', false],
+  ['40 grados', '-40 grados', 'es', false],
+  ['1/3 metros', '1/2 metros', 'es', false],
 ];
 
 describe('fibLenientMatch', () => {
@@ -106,6 +110,15 @@ describe('lenient grading only for a translated student', () => {
         fibAcceptedAnswers({ q1: { es: ['exotérmica'] } }, 'q1', 'es', ['es'])
       ).isCorrect
     ).toBe(false);
+  });
+
+  it('still accepts a punctuation-only key exactly', () => {
+    const q = { ...fib('?'), alternateAnswers: ['!'] } as QuizQuestion;
+    const extras = fibAcceptedAnswers({ q1: { es: ['¿'] } }, 'q1', 'es', [
+      'es',
+    ]);
+    expect(gradeAnswer(q, '!', undefined, extras).isCorrect).toBe(true);
+    expect(gradeAnswer(q, '¿', undefined, extras).isCorrect).toBe(true);
   });
 
   it('matches accepted answers exactly even for a translated student', () => {

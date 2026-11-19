@@ -78,15 +78,14 @@ export function relaxFibAnswer(value: string, locale: string): string {
   return dropArticle(base, locale);
 }
 
-const NUMBER = /\d+(?:[.,]\d+)?/gu;
+const NUMBER = /[-−+]?\d+(?:[.,/]\d+)?/gu;
 
 // "31,4" and "31.4" are the same number; neither ever costs a typo.
 const canonicalNumbers = (value: string): string =>
   value.replace(NUMBER, (n) => n.replace(',', '.'));
 
-/** The Flashcards rule: none up to 3 letters, 1 up to 6, then 2. */
-const typoAllowance = (length: number): number =>
-  length <= 3 ? 0 : length <= 6 ? 1 : 2;
+/** One wrong letter from 4 letters up; two would let near neighbours like mitosis and meiosis through. */
+const typoAllowance = (length: number): number => (length <= 3 ? 0 : 1);
 
 /** True when `given` equals `key` once case, accents, end punctuation and one leading article are set aside. */
 export function fibRelaxedEqual(
@@ -112,7 +111,7 @@ export function fibLenientMatch(
   const kn = k.match(NUMBER) ?? [];
   const gn = g.match(NUMBER) ?? [];
   if (kn.length !== gn.length || kn.some((n, i) => n !== gn[i])) return false;
-  const letters = Array.from(k.replace(/[\d.,]/gu, '')).length;
+  const letters = Array.from(k.replace(NUMBER, '')).length;
   return flashcardEditDistance(g, k) <= typoAllowance(letters);
 }
 
@@ -127,6 +126,13 @@ export function fibLenientAccepts(
   if (!locale) return false;
   const t = normalize(given);
   if (t === '') return false;
+  // Anything the exact path accepts stays accepted, including punctuation-only keys.
+  if (
+    [...keys, ...extras.answers, ...extras.exact].some(
+      (k) => normalize(k) === t
+    )
+  )
+    return true;
   return (
     keys.some((k) => k.trim() !== '' && fibRelaxedEqual(given, k, 'en')) ||
     extras.answers.some(

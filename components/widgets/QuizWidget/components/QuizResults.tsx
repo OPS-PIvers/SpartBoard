@@ -4373,7 +4373,10 @@ const StudentDrilldownPanel: React.FC<{
     questions,
     drilldown,
   ]);
-  const servedLocale = servedLocaleForResponse(liveResponse, fibGrading);
+  const { canAccessFeature } = useAuth();
+  const servedLocale = canAccessFeature('modification-groups')
+    ? servedLocaleForResponse(liveResponse, fibGrading)
+    : undefined;
   const translatedKeyFor = (questionId: string) => {
     const key = servedLocale
       ? fibGrading?.answers?.[questionId]?.[servedLocale]?.[0]
