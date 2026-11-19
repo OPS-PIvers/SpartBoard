@@ -46,8 +46,14 @@ export function normalizeModelName(raw: unknown): string | undefined {
     );
     return undefined;
   }
-  return trimmed;
+  return RETIRED_GEMINI_REPLACEMENTS[trimmed] ?? trimmed;
 }
+
+// Taken off the AI tab; a saved pick runs the replacement. Mirrors RETIRED_GEMINI_MODELS in config/geminiModels.ts.
+export const RETIRED_GEMINI_REPLACEMENTS: Readonly<Record<string, string>> = {
+  'gemini-4-argon': 'gemini-4-neon',
+  'gemini-4-carbon': 'gemini-4-neon',
+};
 
 // Deprecated per docs/AI_MODELS.md; rejecting them makes a stale Firestore override self-heal to the default instead of needing a manual sweep.
 const RETIRED_MODEL_ID_PREFIXES = ['gemini-1.', 'gemini-2.0-'];
