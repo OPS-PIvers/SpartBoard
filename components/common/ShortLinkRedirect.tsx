@@ -20,7 +20,7 @@ export const ShortLinkRedirect: React.FC = () => {
   // `/` is robust against trailing slashes (`/r/code/`) and stray
   // sub-segments (`/r/code/extra`) — we always take the first segment
   // after `/r/`.
-  // Slugs are stored lowercase; an older mixed-case id still resolves as typed.
+  // The code as typed wins; a miss retries it lowercase, since slugs are stored lowercase.
   const rawCode = window.location.pathname.split('/')[2] ?? '';
   const code = rawCode.toLowerCase();
   const [state, setState] = useState<ResolveState>(() =>
@@ -33,11 +33,11 @@ export const ShortLinkRedirect: React.FC = () => {
 
     void (async () => {
       try {
-        let linkCode = code;
-        let link = await resolveShortLink(code);
+        let linkCode = rawCode;
+        let link = await resolveShortLink(rawCode);
         if (!link && rawCode !== code) {
-          linkCode = rawCode;
-          link = await resolveShortLink(rawCode);
+          linkCode = code;
+          link = await resolveShortLink(code);
         }
         if (cancelled) return;
         if (!link) {
