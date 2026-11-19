@@ -76,10 +76,10 @@ export interface ModificationGroupsStepProps {
   onPreview?: (groupId: string) => void;
 }
 
-const Row: React.FC<{ label: string; children: React.ReactNode }> = ({
-  label,
-  children,
-}) => (
+export const ModificationRow: React.FC<{
+  label: string;
+  children: React.ReactNode;
+}> = ({ label, children }) => (
   <div className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-1.5 py-1.5">
     <span className="text-sm font-medium text-slate-700">{label}</span>
     {children}
@@ -507,7 +507,7 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
             className={`divide-y divide-slate-100 ${list.length > 1 ? 'border-t border-slate-200 pt-1' : ''}`}
           >
             <div className="pb-2">
-              <Row label="Students">
+              <ModificationRow label="Students">
                 <StudentsMenu
                   rows={rows}
                   classGroups={classGroups}
@@ -521,7 +521,7 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
                     )
                   }
                 />
-              </Row>
+              </ModificationRow>
               {names.length > 0 && (
                 <p className="text-xs leading-relaxed text-slate-500">
                   {names.join('; ')}
@@ -538,7 +538,7 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
               )}
             </div>
             {answerChoicesUseful && (
-              <Row label="Answer choices">
+              <ModificationRow label="Answer choices">
                 <SegmentedControl<AnswerChoicesRule>
                   role="radiogroup"
                   ariaLabel="Answer choices"
@@ -551,10 +551,10 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
                     { value: 'two', label: '2 choices' },
                   ]}
                 />
-              </Row>
+              </ModificationRow>
             )}
             {timeLimitLabel && (
-              <Row label="Time limit">
+              <ModificationRow label="Time limit">
                 <SegmentedControl<string>
                   role="radiogroup"
                   ariaLabel="Time limit"
@@ -570,10 +570,10 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
                     { value: 'unlimited', label: 'None' },
                   ]}
                 />
-              </Row>
+              </ModificationRow>
             )}
             {hasModifiedQuestions && (
-              <Row label="Modified questions">
+              <ModificationRow label="Modified questions">
                 <Toggle
                   size="sm"
                   checked={group.modifiedQuestions === true}
@@ -583,10 +583,10 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
                   label="Modified questions"
                   anchor={tourAttr('assign-mods.modified-questions')}
                 />
-              </Row>
+              </ModificationRow>
             )}
             {readAloudOn && (
-              <Row label="Read aloud">
+              <ModificationRow label="Read aloud">
                 <Toggle
                   size="sm"
                   checked={group.readAloud}
@@ -594,10 +594,10 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
                   label="Read aloud"
                   anchor={tourAttr('assign-mods.read-aloud')}
                 />
-              </Row>
+              </ModificationRow>
             )}
             {speechToTextOn && (
-              <Row label="Speech to text">
+              <ModificationRow label="Speech to text">
                 <Toggle
                   size="sm"
                   checked={group.speechToText}
@@ -605,7 +605,7 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
                   label="Speech to text"
                   anchor={tourAttr('assign-mods.speech-to-text')}
                 />
-              </Row>
+              </ModificationRow>
             )}
             {speechToTextOn &&
               group.speechToText &&
@@ -617,7 +617,7 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
                 </p>
               )}
             {translationOn && languageOptions.length > 0 && (
-              <Row label="Language">
+              <ModificationRow label="Language">
                 <select
                   value={group.language ?? ''}
                   onChange={(e) =>
@@ -634,10 +634,10 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
                     </option>
                   ))}
                 </select>
-              </Row>
+              </ModificationRow>
             )}
             {printedAvailable && (
-              <Row label="Printed version">
+              <ModificationRow label="Printed version">
                 <Toggle
                   size="sm"
                   checked={group.printed === true}
@@ -645,7 +645,7 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
                   label="Printed version"
                   anchor={tourAttr('assign-mods.printed')}
                 />
-              </Row>
+              </ModificationRow>
             )}
             <SupportsEditor
               supports={group.supports ?? []}

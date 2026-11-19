@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { ClassRoster } from '@/types';
+import type { ClassRoster, QuizQuestion } from '@/types';
 import type { ClassStudentRow } from '@/utils/studentTargetRef';
 import {
   formatModificationGroupsValue,
@@ -7,6 +7,7 @@ import {
   hiddenOptionIdsForRule,
   overrideForGroup,
   overridesFromGroups,
+  withQuizAnswerChoices,
   rowsInClasses,
   withGroupStudents,
   type ModificationGroup,
@@ -284,5 +285,54 @@ describe('formatModificationGroupsValue', () => {
         scope
       )
     ).toBe('2 students in 2 groups');
+  });
+});
+
+describe('standing answer choices', () => {
+  it('a group left at All keeps the class answer choices', () => {
+    const out = overrideForGroup(
+      group({ answerChoices: 'all' }),
+      { answerChoices: 2 },
+      QUESTIONS
+    );
+    expect(out.hiddenOptionIdsByQuestion?.q1).toHaveLength(2);
+    expect(out.hiddenOptionIdsByQuestion?.q2).toBeUndefined();
+  });
+
+  it('a group never loosens a class rule, and joins supports', () => {
+    const own = { kind: 'text' as const, title: 'Own', text: 'a' };
+    const shared = { kind: 'text' as const, title: 'Group', text: 'b' };
+    const out = overrideForGroup(
+      group({ answerChoices: 'drop-one', supports: [shared] }),
+      { answerChoices: 2, supports: [own] },
+      QUESTIONS
+    );
+    expect(out.hiddenOptionIdsByQuestion?.q1).toHaveLength(2);
+    expect(out.supports).toEqual([own, shared]);
+  });
+
+  it('turns answer choices into hidden option text for the quiz', () => {
+    const questions = [
+      {
+        id: 'q1',
+        type: 'MC',
+        text: 'Q',
+        correctAnswer: 'R',
+        incorrectAnswers: ['W0', 'W1', 'W2'],
+        timeLimit: 0,
+      },
+    ] as unknown as QuizQuestion[];
+    const out = withQuizAnswerChoices(
+      {
+        a: { answerChoices: 3 },
+        b: { readAloud: true },
+        c: { answerChoices: 2, hiddenOptionIdsByQuestion: { q1: ['W0'] } },
+      },
+      questions
+    );
+    expect(out.a.hiddenOptionIdsByQuestion?.q1).toHaveLength(1);
+    expect(out.a.hiddenOptionIdsByQuestion?.q1[0]).toMatch(/^W\d$/);
+    expect(out.b).toEqual({ readAloud: true });
+    expect(out.c.hiddenOptionIdsByQuestion).toEqual({ q1: ['W0'] });
   });
 });

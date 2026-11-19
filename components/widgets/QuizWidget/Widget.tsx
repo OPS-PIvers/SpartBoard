@@ -266,6 +266,7 @@ import { printedGroupTranslations } from '@/utils/paperPrintedTranslations';
 import { QuizDriveService } from '@/utils/quizDriveService';
 import { MockQuizDriveService } from '@/utils/mockQuizDriveService';
 import type { PrintedGroupPick } from '@/components/common/library/assignStepper/modificationGroups';
+import { withQuizAnswerChoices } from '@/components/common/library/assignStepper/modificationGroups';
 import {
   browserStimulusImageDeps,
   resolveStimulusImages,
@@ -3945,19 +3946,34 @@ const TeacherQuizWidget: React.FC<{
             overridesByKey: hiddenOptions.overridesByKey,
           };
           // Stepper: whole classes as today, narrowed classes to their picked students (D5b).
-          const mixedTargeting = stepper
+          // Class answer choices become this quiz's hidden options for each student.
+          const withAnswerChoices = (
+            value: AssignTargetingValue
+          ): AssignTargetingValue => ({
+            ...value,
+            overridesByKey: canAccessFeature('modification-groups')
+              ? withQuizAnswerChoices(value.overridesByKey, assignQuestions)
+              : value.overridesByKey,
+          });
+          const rawMixed = stepper
             ? expandMixedTargeting(
                 targetingWithOptions,
                 stepper.classes,
                 rosters
               )
             : undefined;
+          const mixedTargeting = rawMixed && {
+            ...rawMixed,
+            targeting: withAnswerChoices(rawMixed.targeting),
+          };
           const resolvedTargeting: AssignTargetingValue =
             mixedTargeting?.targeting ??
-            expandClassTargeting(targetingWithOptions, {
-              rosters,
-              selectedRosterIds: rosterIds,
-            });
+            withAnswerChoices(
+              expandClassTargeting(targetingWithOptions, {
+                rosters,
+                selectedRosterIds: rosterIds,
+              })
+            );
           for (const warning of hiddenOptions.warnings) {
             addToast(warning, 'warning');
           }
