@@ -26,7 +26,7 @@ are in [docs/ONBOARDING.md](docs/ONBOARDING.md).
 - Install with `pnpm run install:all` (root + `functions/`), not bare `pnpm install`.
 - `pnpm run test:rules` boots the Firestore emulator (`vitest.rules.config.ts`, `tests/rules/`).
 - `pnpm run test:counts` fails if Vitest silently collected fewer suites than baseline. CI shards with `test:shard --shard=I/N` (rules with `RULES_SHARD=I/N pnpm run test:rules`), then `test:merge-reports` before `test:counts`.
-- `pnpm run changelog:draft` prints a draft `public/changelog.json` entry. Every bullet must be rewritten before committing — the rules are in [docs/DEV_WORKFLOW.md](docs/DEV_WORKFLOW.md#how-to-write-a-release-note), and both `overview` and `details` are shown to every user.
+- `pnpm run changelog:draft` prints a draft release note. Save it as a new `changelog.d/<name>.json` file (see `changelog.d/README.md`), never as an edit to the shared `public/changelog.json`. Every bullet must be rewritten before committing — the rules are in [docs/DEV_WORKFLOW.md](docs/DEV_WORKFLOW.md#how-to-write-a-release-note), and both `overview` and `details` are shown to every user.
 - `pnpm run <script> -- <flags>` forwards a literal `--` and Vitest then ignores the flags. Omit the `--`.
 - Claude Code dev servers (`.claude/launch.json`): `vite-dev` (3000, real sign-in on `spartboard-dev`), `vite-dev-prod` (3004, localhost on **prod**, red banner), `vite-harness` (56300, `VITE_AUTH_BYPASS=true`, for `/*-dev` harness pages and screenshots only), `vite-verify` (56320, bypass plus a dummy Firebase project so nothing reaches any backend; driven by the `verify-spartboard` skill), `functions-emulator` (5001).
 
@@ -80,7 +80,7 @@ Every new user-facing feature or behaviour change reaches `main` switched **off 
 - **Admins always pass admin/beta gates**, so "on for Paul" really means Paul plus the other `/admins`. Say so in the PR if that matters for the feature.
 - **The PR description must say** which flag gates the feature, its starting access level, and the admin path to open it: Admin Settings > Access > Previews (or Widgets for a widget) > set to Public. A `stage: 'preview'` flag that is saved Public shows "Ready to retire" or "Ready to graduate" there; Paul asks an agent to retire it (delete the gate and the registry entry, add the changelog note) or to graduate it (`stage: 'permanent'`). Paul flips it after testing in prod; agents never open a flag to Public on prod themselves.
 - **Exempt:** bug fixes that restore intended behaviour, copy and styling tweaks, internal/admin-only tools, and dev-only tooling. When in doubt, flag it.
-- **Changelog:** a flagged feature gets its `public/changelog.json` entry when the flag opens to everyone, not when the code merges.
+- **Changelog:** a flagged feature gets its What's New entry (a `changelog.d/` fragment) when the flag opens to everyone, not when the code merges.
 
 ## Architecture gotchas
 
@@ -134,9 +134,11 @@ allowlist fails toward a cosmetic annoyance.
 
 - **Every PR targets `dev-paul`, never `main`**, including cloud-session PRs. A session branch can start from `main`, so before the first push run `git rebase --onto origin/dev-paul $(git merge-base HEAD origin/main)` if `git log origin/dev-paul..HEAD` shows commits that are not yours. Only Paul's promotion PRs and `/hotfix` PRs go into `main`. Rulesets require a PR and a green `summary` check on `main` and `dev-paul`; only Paul can bypass, and only Paul merges into `main`.
 - Pushes to `dev-*` deploy to `spartboard-dev`; pushes to `main` deploy production. See "Firebase projects" above.
+- **No checks on a PR means look for a merge conflict first.** GitHub runs no `pull_request` checks while a PR conflicts with its base, and shows no error. The PR Conflicts workflow labels it `merge-conflict` and comments. When CI hasn't started a few minutes after a push, check `mergeable` on the PR (`mergeable_state: dirty` is a conflict). If it conflicts, run `git fetch origin <base> && git merge origin/<base>`, resolve keeping both sides' intent, run the related tests, and push without waiting to be asked. Never force-push to fix a conflict.
+- **Don't create shared-file conflicts.** Release notes go in a new `changelog.d/<name>.json` file and merged branches in a new `docs/branch-cleanup/` file, one per PR. Don't append to a shared list in another file.
 - `pr-validation.yml` runs on every PR; its `summary` job is the required check and fails when any job fails. Docs-only PRs pass in seconds. `preflight` waits for an in-progress `firebase-dev-deploy.yml` run on the PR's head SHA and, if it passed, skips everything except E2E. Release PRs (`dev-paul` into `main`) skip the widget grader.
 - A push to `main` skips the checks when its tree equals an already-validated PR head, deploys only changed backend targets, then smoke-tests prod (`scripts/smoke-test.mjs`) and rolls hosting back to the previous release, opening an issue, if it fails.
-- **Release notes**: `public/changelog.json` is read by teachers, not developers. Never name a feature flag, a Firestore path or an internal mechanism in it, and check every claim against what admin settings actually enable rather than what the code defines. See [docs/DEV_WORKFLOW.md](docs/DEV_WORKFLOW.md#how-to-write-a-release-note).
+- **Release notes** (`public/changelog.json` plus `changelog.d/` fragments) are read by teachers, not developers. Never name a feature flag, a Firestore path or an internal mechanism in it, and check every claim against what admin settings actually enable rather than what the code defines. See [docs/DEV_WORKFLOW.md](docs/DEV_WORKFLOW.md#how-to-write-a-release-note).
 - **Comments**: One short line max — never multi-paragraph docstrings or multi-line comment blocks. Root-cause narrative and verification rationale belong in the PR description, not the diff. Exception: match the surrounding file's convention where one already differs consistently (e.g. `firestore.rules`). Enforced in review; see [docs/routines/debugger.md](docs/routines/debugger.md).
 - Widgets are not virtualized — keep dashboards to about 20 widgets.
 
