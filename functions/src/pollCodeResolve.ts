@@ -22,11 +22,13 @@ export const GLOBAL_WINDOW_MS = 10 * MINUTE_MS;
 const JOIN_TTL_MS = 7 * 24 * 60 * MINUTE_MS;
 export const POLL_CODE_CALLER_MAX_MISSES = 10;
 export const POLL_CODE_GLOBAL_MAX_MISSES = 300;
-// The global cap is split over shards so a class joining at once doesn't contend on one doc.
-export const POLL_CODE_GLOBAL_SHARDS = 10;
-export const POLL_CODE_SHARD_MAX_MISSES = Math.ceil(
+// Many small shards keep a school joining at once off any one doc; rounding down keeps the shards from summing past the total.
+export const POLL_CODE_GLOBAL_SHARDS = 100;
+export const POLL_CODE_SHARD_MAX_MISSES = Math.floor(
   POLL_CODE_GLOBAL_MAX_MISSES / POLL_CODE_GLOBAL_SHARDS
 );
+// A full shard sends the lookup to another one, so a refusal means the district is near its cap.
+export const POLL_CODE_SHARD_PROBES = 5;
 // Mirrors utils/pollCode.ts.
 const ALPHABET = 'ACDEFGHJKMNPQRTUVWXY34679';
 const CODE_LENGTH = 5;
@@ -69,35 +71,21 @@ const codesOf = (data: Record<string, unknown> | undefined): string[] =>
 const countOf = (data: Record<string, unknown> | undefined): number =>
   typeof data?.misses === 'number' ? data.misses : 0;
 
-/** Reserves the caller's slot and one global miss for `code` in one transaction, before anything about the code is revealed; throws resource-exhausted at either cap. */
-export async function takeLookupSlot(
+/** Reserves the caller slot and a miss on one shard, or null when it is full; throws at the caller cap. */
+async function reserveOnShard(
   db: Firestore,
-  uid: string,
+  callerRef: DocRef,
+  shardRef: DocRef,
   code: string,
-  now: number,
-  pickShard: () => number = () => randomInt(POLL_CODE_GLOBAL_SHARDS)
-): Promise<LookupSlot> {
-  const bucket = Math.floor(now / GLOBAL_WINDOW_MS);
-  const callerRef = db
-    .collection(LIMITS)
-    .doc(`uid__${uid}__${Math.floor(now / CALLER_WINDOW_MS)}`);
-  const shardRef = db
-    .collection(LIMITS)
-    .doc(`global__${bucket}__${pickShard() % POLL_CODE_GLOBAL_SHARDS}`);
+  now: number
+): Promise<LookupSlot | null> {
   return db.runTransaction(async (tx) => {
     const codes = codesOf((await tx.get(callerRef)).data());
     if (codes.includes(code)) return { callerRef, shardRef: null };
     if (codes.length >= POLL_CODE_CALLER_MAX_MISSES) throw tooMany();
+    // Read only after the caller clears, so a repeat or capped caller never locks the shard.
     const misses = countOf((await tx.get(shardRef)).data());
-    if (misses >= POLL_CODE_SHARD_MAX_MISSES) {
-      if (warnedGlobalBucket !== bucket) {
-        warnedGlobalBucket = bucket;
-        logger.warn('[pollCode] global miss cap reached; refusing new codes', {
-          misses,
-        });
-      }
-      throw tooMany();
-    }
+    if (misses >= POLL_CODE_SHARD_MAX_MISSES) return null;
     tx.set(
       callerRef,
       {
@@ -115,7 +103,42 @@ export async function takeLookupSlot(
   });
 }
 
-/** A hit gives back the caller's slot and the reserved global miss, so only misses use up either budget. */
+/** Reserves the caller's slot and one global miss before the lookup, probing shards one transaction at a time; throws resource-exhausted at either cap. */
+export async function takeLookupSlot(
+  db: Firestore,
+  uid: string,
+  code: string,
+  now: number,
+  pickShard: () => number = () => randomInt(POLL_CODE_GLOBAL_SHARDS)
+): Promise<LookupSlot> {
+  const bucket = Math.floor(now / GLOBAL_WINDOW_MS);
+  const callerRef = db
+    .collection(LIMITS)
+    .doc(`uid__${uid}__${Math.floor(now / CALLER_WINDOW_MS)}`);
+  const tried = new Set<number>();
+  for (let probe = 0; probe < POLL_CODE_SHARD_PROBES; probe += 1) {
+    let shard = Math.abs(Math.trunc(pickShard())) % POLL_CODE_GLOBAL_SHARDS;
+    while (tried.has(shard)) shard = (shard + 1) % POLL_CODE_GLOBAL_SHARDS;
+    tried.add(shard);
+    const slot = await reserveOnShard(
+      db,
+      callerRef,
+      db.collection(LIMITS).doc(`global__${bucket}__${shard}`),
+      code,
+      now
+    );
+    if (slot) return slot;
+  }
+  if (warnedGlobalBucket !== bucket) {
+    warnedGlobalBucket = bucket;
+    logger.warn('[pollCode] global miss cap reached; refusing new codes', {
+      probes: POLL_CODE_SHARD_PROBES,
+    });
+  }
+  throw tooMany();
+}
+
+/** A hit gives back both reservations so only misses spend budget; a failed refund is logged, not fatal. */
 async function refundSlot(
   db: Firestore,
   slot: LookupSlot,

@@ -41,6 +41,7 @@ import {
   POLL_CODE_GLOBAL_MAX_MISSES,
   POLL_CODE_GLOBAL_SHARDS,
   POLL_CODE_SHARD_MAX_MISSES,
+  POLL_CODE_SHARD_PROBES,
   POLL_CODE_MINT_MAX_PER_HOUR,
   PARKED_CODE_TTL_MS,
   RESERVATION_TTL_MS,
@@ -53,6 +54,16 @@ const CALLER_DOC = (uid: string, now = NOW) =>
   `poll_code_limits/uid__${uid}__${Math.floor(now / CALLER_WINDOW_MS)}`;
 const SHARD_DOC = (shard: number, now = NOW) =>
   `poll_code_limits/global__${Math.floor(now / GLOBAL_WINDOW_MS)}__${shard}`;
+const shardMisses = (stub: { get: (p: string) => StubData | undefined }) =>
+  Array.from({ length: POLL_CODE_GLOBAL_SHARDS }, (_, i) =>
+    Number(stub.get(SHARD_DOC(i))?.misses ?? 0)
+  );
+const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
+// A picker that returns each of `picks` in turn, then the last one forever.
+const picks = (...order: number[]) => {
+  let i = 0;
+  return () => order[Math.min(i++, order.length - 1)];
+};
 // Every shard already at its cap, so the district-wide budget is spent.
 const fullShards = (): Record<string, StubData> =>
   Object.fromEntries(
@@ -198,7 +209,7 @@ describe('resolvePollCode', () => {
 
   it('at the global cap, refuses every fresh uid with no free allowance, live code or not', async () => {
     const { stub, resolve } = setup({ ...live, ...fullShards() });
-    for (const shard of [0, 4, 9]) {
+    for (const shard of [0, 4, POLL_CODE_GLOBAL_SHARDS - 1]) {
       await expect(
         resolve(`fresh${shard}`, 'K3F9Q', NOW, () => shard)
       ).rejects.toMatchObject({ code: 'resource-exhausted' });
@@ -273,31 +284,159 @@ describe('resolvePollCode', () => {
     const refused = results.filter((r) => r.status === 'rejected');
     expect(answered).toHaveLength(POLL_CODE_GLOBAL_MAX_MISSES);
     expect(refused).toHaveLength(100);
-    const total = Array.from({ length: POLL_CODE_GLOBAL_SHARDS }, (_, i) =>
-      Number(stub.get(SHARD_DOC(i))?.misses ?? 0)
-    ).reduce((a, b) => a + b, 0);
-    expect(total).toBe(POLL_CODE_GLOBAL_MAX_MISSES);
+    expect(sum(shardMisses(stub))).toBe(POLL_CODE_GLOBAL_MAX_MISSES);
+  });
+
+  it('keeps the shards from summing past the district cap', () => {
+    expect(
+      POLL_CODE_GLOBAL_SHARDS * POLL_CODE_SHARD_MAX_MISSES
+    ).toBeLessThanOrEqual(POLL_CODE_GLOBAL_MAX_MISSES);
+    expect(POLL_CODE_SHARD_PROBES).toBeLessThanOrEqual(POLL_CODE_GLOBAL_SHARDS);
+  });
+
+  it('moves to another shard when the chosen one is full', async () => {
+    const { stub, resolve } = setup({
+      ...live,
+      [SHARD_DOC(7)]: { misses: POLL_CODE_SHARD_MAX_MISSES },
+    });
+    expect(await resolve('anon1', 'AAAAA', NOW, picks(7, 8))).toBeNull();
+    expect(stub.get(SHARD_DOC(7))?.misses).toBe(POLL_CODE_SHARD_MAX_MISSES);
+    expect(stub.get(SHARD_DOC(8))?.misses).toBe(1);
+    expect(stub.get(CALLER_DOC('anon1'))?.codes).toEqual(['AAAAA']);
+  });
+
+  it('never probes the same shard twice, even if the picker repeats itself', async () => {
+    const { stub, resolve } = setup({
+      ...live,
+      [SHARD_DOC(5)]: { misses: POLL_CODE_SHARD_MAX_MISSES },
+    });
+    expect(await resolve('anon1', 'AAAAA', NOW, () => 5)).toBeNull();
+    expect(stub.get(SHARD_DOC(6))?.misses).toBe(1);
+  });
+
+  it('refuses only once every probed shard is full', async () => {
+    const full = Object.fromEntries(
+      Array.from({ length: POLL_CODE_SHARD_PROBES }, (_, i) => [
+        SHARD_DOC(i),
+        { misses: POLL_CODE_SHARD_MAX_MISSES },
+      ])
+    );
+    const order = Array.from({ length: POLL_CODE_SHARD_PROBES }, (_, i) => i);
+    const { stub, resolve } = setup({ ...live, ...full });
+    await expect(
+      resolve('anon1', 'K3F9Q', NOW, picks(...order))
+    ).rejects.toMatchObject({ code: 'resource-exhausted' });
+    expect(stub.has(CALLER_DOC('anon1'))).toBe(false);
+    expect(stub.has(`poll_joins/${pollJoinId('t1_K3F9Q', 'anon1')}`)).toBe(
+      false
+    );
+    // One more probe's worth of room on the last shard is enough to get through.
+    stub.store.set(SHARD_DOC(order.length - 1), { misses: 0 });
+    expect(await resolve('anon1', 'AAAAA', NOW, picks(...order))).toBeNull();
+    expect(stub.get(SHARD_DOC(order.length - 1))?.misses).toBe(1);
+  });
+
+  it('stops probing after the probe budget while other shards still have room', async () => {
+    const { stub, resolve } = setup(live);
+    const order = Array.from({ length: POLL_CODE_SHARD_PROBES }, (_, i) => i);
+    for (const i of order) {
+      stub.store.set(SHARD_DOC(i), { misses: POLL_CODE_SHARD_MAX_MISSES });
+    }
+    stub.store.set(SHARD_DOC(POLL_CODE_SHARD_PROBES), { misses: 0 });
+    await expect(
+      resolve('anon1', 'AAAAA', NOW, picks(...order, POLL_CODE_SHARD_PROBES))
+    ).rejects.toMatchObject({ code: 'resource-exhausted' });
+    expect(stub.get(SHARD_DOC(POLL_CODE_SHARD_PROBES))?.misses).toBe(0);
   });
 
   it('never lets random shard picks exceed the global cap either', async () => {
     const { stub, resolve } = setup();
     const results = await Promise.allSettled(
       Array.from({ length: 500 }, (_, i) =>
-        resolve(`bot${i}`, `M${i}`, NOW, () => Math.floor(Math.random() * 10))
+        resolve(`bot${i}`, `M${i}`, NOW, () =>
+          Math.floor(Math.random() * POLL_CODE_GLOBAL_SHARDS)
+        )
       )
     );
     const answered = results.filter((r) => r.status === 'fulfilled').length;
     expect(answered).toBeLessThanOrEqual(POLL_CODE_GLOBAL_MAX_MISSES);
-    for (let i = 0; i < POLL_CODE_GLOBAL_SHARDS; i += 1) {
-      expect(Number(stub.get(SHARD_DOC(i))?.misses ?? 0)).toBeLessThanOrEqual(
-        POLL_CODE_SHARD_MAX_MISSES
-      );
+    for (const misses of shardMisses(stub)) {
+      expect(misses).toBeLessThanOrEqual(POLL_CODE_SHARD_MAX_MISSES);
     }
+    expect(sum(shardMisses(stub))).toBeLessThanOrEqual(
+      POLL_CODE_GLOBAL_MAX_MISSES
+    );
   });
 
-  it('keeps resolving valid codes under the cap while a sweep is under way', async () => {
+  it('lets a whole school of 500 devices join at once, with the default shard picker', async () => {
+    const { stub } = setup();
+    const results = await Promise.allSettled(
+      Array.from({ length: 500 }, (_, i) =>
+        resolvePollCode(stub.db as unknown as Db, `kid${i}`, 'K3F9Q', NOW)
+      )
+    );
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(500);
+    expect(sum(shardMisses(stub))).toBe(0);
+    expect(stub.has(`poll_joins/${pollJoinId('t1_K3F9Q', 'kid499')}`)).toBe(
+      true
+    );
+  });
+
+  it('lets classes of 30 join at once while the district is two thirds through its miss budget', async () => {
+    const seeded = Object.fromEntries(
+      Array.from({ length: POLL_CODE_GLOBAL_SHARDS }, (_, i) => [
+        SHARD_DOC(i),
+        { misses: POLL_CODE_SHARD_MAX_MISSES - 1 },
+      ])
+    );
+    const { stub } = setup({ ...live, ...seeded });
+    // A seeded generator keeps the shard picks, and so the test, repeatable.
+    let seed = 12345;
+    const pick = () => {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      return Math.floor(seed / 65536) % POLL_CODE_GLOBAL_SHARDS;
+    };
+    for (let wave = 0; wave < 5; wave += 1) {
+      const results = await Promise.allSettled(
+        Array.from({ length: 30 }, (_, i) =>
+          resolvePollCode(
+            stub.db as unknown as Db,
+            `kid${wave}_${i}`,
+            'K3F9Q',
+            NOW,
+            pick
+          )
+        )
+      );
+      expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(30);
+    }
+    expect(
+      shardMisses(stub).every((m) => m === POLL_CODE_SHARD_MAX_MISSES - 1)
+    ).toBe(true);
+  });
+
+  it('still answers a hit when the refund cannot be written', async () => {
+    const { stub, resolve } = setup();
+    let limitWrites = 0;
+    stub.hooks.beforeWrite = (_op, path) => {
+      // The first two limit writes are the reservation; the refund is the third.
+      if (path.startsWith('poll_code_limits/') && (limitWrites += 1) > 2) {
+        throw new Error('contended');
+      }
+    };
+    expect(await resolve('anon1', 'K3F9Q')).toBe('t1_K3F9Q');
+    expect(stub.has(`poll_joins/${pollJoinId('t1_K3F9Q', 'anon1')}`)).toBe(
+      true
+    );
+    expect(logger.warn).toHaveBeenCalledWith(
+      '[pollCode] slot refund failed',
+      expect.any(Error)
+    );
+  });
+
+  it('keeps resolving valid codes while a sweep is under way', async () => {
     const { resolve } = setup();
-    for (let i = 0; i < POLL_CODE_GLOBAL_MAX_MISSES - 1; i += 1) {
+    for (let i = 0; i < (POLL_CODE_GLOBAL_MAX_MISSES * 2) / 3; i += 1) {
       await resolve(`bot${i}`, `M${i}`, NOW, () => i);
     }
     expect(await resolve('student', 'K3F9Q', NOW, () => 9)).toBe('t1_K3F9Q');
