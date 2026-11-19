@@ -84,6 +84,23 @@ describe('useMonitorData when Quiz settings adds a class', () => {
     expect(result.current.notJoined).toHaveLength(5);
   });
 
+  it('keeps a one-class session on its class so Start and Pause stay', () => {
+    const { result } = renderHook(() =>
+      useMonitorData(
+        session(['Period 1'], ['r1']),
+        [],
+        quiz,
+        {} as QuizConfig,
+        rosters,
+        null,
+        false,
+        targets,
+        true
+      )
+    );
+    expect(result.current.selectedPeriods).toEqual(['Period 1']);
+  });
+
   it('still opens a per-period session on its first class', () => {
     const { result } = renderHook(() =>
       useMonitorData(

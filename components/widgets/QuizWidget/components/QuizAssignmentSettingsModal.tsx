@@ -462,8 +462,15 @@ export const QuizAssignmentSettingsModal: React.FC<
         : [];
     // The steps wait for the questions so Modifications opens on the saved groups.
     if (!editContext)
-      return !inline ? null : (
-        <div className="flex justify-center py-8" role="status">
+      return (
+        <div
+          className={
+            inline
+              ? 'flex justify-center py-8'
+              : 'fixed inset-0 z-dialog flex items-center justify-center bg-slate-900/60 backdrop-blur-xs'
+          }
+          role="status"
+        >
           <Loader2
             className="h-5 w-5 animate-spin text-slate-400"
             aria-label="Loading"
