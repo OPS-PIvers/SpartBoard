@@ -22,6 +22,8 @@ export const LEAD_IN_ROTATE_MS = 1_000;
 
 const PREFERRED_MIME_TYPES = ['audio/webm;codecs=opus', 'audio/webm'] as const;
 const MAX_CLIP_MS = SPEECH_CLIP_MAX_SECONDS * 1_000;
+// Well under the server's 128 kbps billing floor, so a clip is billed its spoken length.
+const DICTATION_BITS_PER_SECOND = 32_000;
 
 export interface HybridEngineOptions {
   /** The student's assignment pointer id, sent with every clip. */
@@ -81,7 +83,9 @@ function createTape(stream: MediaStream): Tape {
   const startTake = (): void => {
     const recorder = new MediaRecorder(
       stream,
-      mimeType ? { mimeType } : undefined
+      mimeType
+        ? { mimeType, audioBitsPerSecond: DICTATION_BITS_PER_SECOND }
+        : { audioBitsPerSecond: DICTATION_BITS_PER_SECOND }
     );
     const take: Take = { recorder, chunks: [], startedAt: Date.now() };
     recorder.ondataavailable = (event) => {

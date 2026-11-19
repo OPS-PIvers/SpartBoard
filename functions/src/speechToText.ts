@@ -32,7 +32,7 @@ export const SPEECH_TO_TEXT_DEFAULT_CAPS = {
 } as const;
 
 export const SPEECH_CLIP_MIN_MS = 200;
-// Billing floor: audio bytes at 128 kbps, so a client can't understate a clip's length.
+// Billing floor: audio bytes at 128 kbps (the client records at 32 kbps), capped at the clip limit.
 const SPEECH_FLOOR_BYTES_PER_SECOND = 16_000;
 export const TRANSCRIBE_MAX_CALLS_PER_MINUTE = 20;
 export const TIDY_MAX_CALLS_PER_MINUTE = 10;
@@ -499,9 +499,12 @@ export function speechChargeSeconds(
   request: Pick<TranscribeSpeechRequest, 'durationMs' | 'audioBase64'>
 ): number {
   const bytes = Math.floor((request.audioBase64.length * 3) / 4);
-  return Math.max(
-    Math.ceil(request.durationMs / 1000),
-    Math.ceil(bytes / SPEECH_FLOOR_BYTES_PER_SECOND)
+  return Math.min(
+    SPEECH_CLIP_MAX_SECONDS,
+    Math.max(
+      Math.ceil(request.durationMs / 1000),
+      Math.ceil(bytes / SPEECH_FLOOR_BYTES_PER_SECOND)
+    )
   );
 }
 
