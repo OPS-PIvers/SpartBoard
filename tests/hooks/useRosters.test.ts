@@ -1219,6 +1219,7 @@ describe('useRosters — roster file envelope (M17 A4)', () => {
     const standing = {
       timeMultiplier: 1.5 as const,
       readAloud: true,
+      speechToText: true,
       tabWarningThreshold: 'off' as const,
       openAt: 1_700_000_000_000,
     };

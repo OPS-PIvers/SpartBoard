@@ -103,6 +103,8 @@ export interface AssignTargetingSectionProps {
   quizContext?: AssignTargetingQuizContext;
   /** Quiz only. Host passes `canAccessFeature('quiz-read-aloud')`. */
   readAloudAvailable?: boolean;
+  /** Quiz and Writing only. Host passes `canAccessFeature('speech-to-text')`. */
+  speechToTextAvailable?: boolean;
   /**
    * Fired on first expansion into 'students' mode (F1 fix — the host lazily
    * loads full quiz content only when the teacher actually opens this
@@ -176,6 +178,7 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
   kind,
   quizContext,
   readAloudAvailable = false,
+  speechToTextAvailable = false,
   onExpand,
   allowModifications = true,
   canPickClasses = true,
@@ -187,6 +190,8 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
   scheduleHidden = false,
 }) => {
   const { t } = useTranslation();
+  const speechToTextOn =
+    speechToTextAvailable && (kind === 'quiz' || kind === 'writing');
   const [openedAt] = useState(() => new Date());
   const [pickerOpen, setPickerOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -384,6 +389,7 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
         writingMode={kind === 'writing'}
         quizContext={quizContext}
         readAloudAvailable={readAloudAvailable}
+        speechToTextAvailable={speechToTextOn}
         canPickClasses={canPickClasses}
         cqScaled={cqScaled}
         showAll={showAll}
@@ -482,6 +488,7 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
                     quizMode={kind === 'quiz'}
                     writingMode={kind === 'writing'}
                     readAloudAvailable={readAloudAvailable}
+                    speechToTextAvailable={speechToTextOn}
                     questions={quizContext?.questions ?? []}
                     rubrics={quizContext?.rubrics ?? []}
                     peers={peers}

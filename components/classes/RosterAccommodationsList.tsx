@@ -18,6 +18,7 @@ export interface RosterAccommodationsListProps {
   groups: RosterGroup[];
   overrides: Record<string, StudentOverride>;
   readAloudAvailable: boolean;
+  speechToTextAvailable?: boolean;
   onChange: (overrides: Record<string, StudentOverride>) => void;
   onAddStudents: () => void;
 }
@@ -48,6 +49,7 @@ export const RosterAccommodationsList: React.FC<
   groups,
   overrides,
   readAloudAvailable,
+  speechToTextAvailable = false,
   onChange,
   onAddStudents,
 }) => {
@@ -155,6 +157,7 @@ export const RosterAccommodationsList: React.FC<
     quizMode: true,
     allowWindowShift: false,
     readAloudAvailable,
+    speechToTextAvailable,
     pageProtectionsAvailable: true,
     appearance: 'row' as const,
   };

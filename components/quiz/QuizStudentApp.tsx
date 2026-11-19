@@ -304,6 +304,8 @@ import {
   localizedQuizTitle,
 } from '@/utils/quizLocalizedDisplay';
 import { useEphemeralAppLanguage } from '@/hooks/useEphemeralAppLanguage';
+import { dictationLanguages } from '@/utils/speechToText/languages';
+import type { EditorDictation } from '@/utils/speechToText/types';
 import { languageNativeLabel } from '@/utils/languageNativeLabel';
 import {
   toCanonicalAnswer,
@@ -319,7 +321,8 @@ import {
   FIB_BLANK_SEP,
   revealedBlanksMatch,
 } from '@/utils/quizFibBlanks';
-import { FibMultiBlankInput } from './FibMultiBlankInput';
+import { FibDictateMic, FibMultiBlankInput } from './FibMultiBlankInput';
+import { FIB_ROW_ATTR } from '@/utils/speechToText/blankPhrase';
 import { QuestionPrompt } from './QuestionPrompt';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { FibChoiceBlanksInput } from './FibChoiceBlanksInput';
@@ -1042,6 +1045,8 @@ const QuizJoinFlow: React.FC<{
     });
   }, [isViewOnly, session?.id, authedUid]);
 
+  // Questions answered with Speech to text on this page load; saved with the answer.
+  const dictatedIdsRef = useRef<Set<string>>(new Set());
   const handleAnswer = useCallback(
     async (
       questionId: string,
@@ -1057,10 +1062,20 @@ const QuizJoinFlow: React.FC<{
       // rejects the write defense-in-depth, but skip it client-side too so
       // the console stays clean.
       if (isViewOnly) return;
-      await submitAnswer(questionId, answer, speedBonus, opts);
+      await submitAnswer(
+        questionId,
+        answer,
+        speedBonus,
+        dictatedIdsRef.current.has(questionId)
+          ? { ...opts, dictated: true }
+          : opts
+      );
     },
     [submitAnswer, isViewOnly]
   );
+  const markDictated = useCallback((questionId: string) => {
+    dictatedIdsRef.current.add(questionId);
+  }, []);
 
   // Uploads around a turn-in: it waits briefly, and a failure after it is handed to the server.
   const [uploadGate] = useState(createTurnInUploadGate);
@@ -1860,6 +1875,7 @@ const QuizJoinFlow: React.FC<{
               reportTabSwitch={reportTabSwitch}
               saveTabExits={saveTabExits}
               saveInputSignals={isViewOnly ? undefined : saveInputSignals}
+              onDictated={isViewOnly ? undefined : markDictated}
               onReportLivePosition={isViewOnly ? undefined : reportLivePosition}
               onSetHandRaised={setHandRaised}
               onStartAttemptClock={isViewOnly ? undefined : startAttemptClock}
@@ -2044,6 +2060,8 @@ export const ActiveQuiz: React.FC<{
   drawIds?: string[];
   /** Effective close (M17 F2): pointer top-level `closeAt` when present, else the session's. */
   effectiveCloseAt?: number;
+  /** A question's answer took dictated text. */
+  onDictated?: (questionId: string) => void;
   /** SSO student flagged for read-aloud (override or `readAloudAll`); the light shell decides the rest. */
   readAloudRequested?: boolean;
   /** The page requires fullscreen, so leaving fullscreen counts as a tab exit. */
@@ -2072,6 +2090,7 @@ export const ActiveQuiz: React.FC<{
   reportTabSwitch,
   saveTabExits,
   saveInputSignals,
+  onDictated,
   onSetHandRaised,
   onStartAttemptClock,
   onSubmitPart,
@@ -2353,6 +2372,12 @@ export const ActiveQuiz: React.FC<{
     override
   ).blockClipboard;
   const quoteEditorRef = useRef<WrittenResponseEditorHandle | null>(null);
+  // Speech to text (D15): any student whose override carries it, signed in or not.
+  const speechToText = override?.speechToText === true && !watching;
+  const dictationLangs = useMemo(
+    () => dictationLanguages(override?.language),
+    [override?.language]
+  );
   const handleBlockedClipboard = (e: React.ClipboardEvent<HTMLDivElement>) =>
     e.preventDefault();
   const handleBlockedDrop = (e: React.DragEvent<HTMLDivElement>) =>
@@ -4180,6 +4205,12 @@ export const ActiveQuiz: React.FC<{
     seededQuestionsRef.current.has(currentQuestion.id) ? 'seeded' : 'init'
   }`;
   const accentKeys = answerAccents(currentQuestion.answerKeyboard);
+  const dictation: EditorDictation | undefined = speechToText
+    ? {
+        languages: dictationLangs,
+        onInsert: () => onDictated?.(currentQuestion.id),
+      }
+    : undefined;
   const fibInputCls = light
     ? 'bg-white border-slate-300 text-slate-900 placeholder-slate-400 focus:border-brand-blue-light'
     : 'bg-slate-800 border-slate-700 text-white focus:border-violet-500';
@@ -5267,6 +5298,7 @@ export const ActiveQuiz: React.FC<{
                         light={light}
                         inputClassName={fibInputCls}
                         math={mathKeyboardOn}
+                        dictation={dictation}
                         onEnter={() => {
                           const cleaned = cleanBlankAnswer(
                             submittableAnswer ?? ''
@@ -5302,26 +5334,40 @@ export const ActiveQuiz: React.FC<{
                         />
                       </React.Suspense>
                     ) : (
-                      <input
-                        type="text"
-                        value={liveAnswer ?? ''}
-                        onChange={(e) => setCacheForCurrent(e.target.value)}
-                        disabled={submitted && !isStudentPaced}
-                        placeholder={t('quizStudent.answer.placeholder')}
-                        className={`w-full px-5 py-4 border-2 rounded-2xl text-base focus:outline-hidden focus:ring-0 disabled:opacity-50 ${fibInputCls}`}
-                        onKeyDown={(e) => {
-                          if (e.key !== 'Enter') return;
-                          const trimmed = cleanBlankAnswer(
-                            submittableAnswer ?? ''
-                          );
-                          if (!trimmed) return;
-                          if (isStudentPaced) {
-                            void handleSubmitAndAdvance(trimmed);
-                          } else if (!submitted) {
-                            void handleSubmit(trimmed);
-                          }
-                        }}
-                      />
+                      <div
+                        className="flex items-center gap-3"
+                        {...{ [FIB_ROW_ATTR]: '' }}
+                      >
+                        <input
+                          type="text"
+                          value={liveAnswer ?? ''}
+                          onChange={(e) => setCacheForCurrent(e.target.value)}
+                          disabled={submitted && !isStudentPaced}
+                          placeholder={t('quizStudent.answer.placeholder')}
+                          className={`w-full min-w-0 px-5 py-4 border-2 rounded-2xl text-base focus:outline-hidden focus:ring-0 disabled:opacity-50 ${fibInputCls}`}
+                          onKeyDown={(e) => {
+                            if (e.key !== 'Enter') return;
+                            const trimmed = cleanBlankAnswer(
+                              submittableAnswer ?? ''
+                            );
+                            if (!trimmed) return;
+                            if (isStudentPaced) {
+                              void handleSubmitAndAdvance(trimmed);
+                            } else if (!submitted) {
+                              void handleSubmit(trimmed);
+                            }
+                          }}
+                        />
+                        {dictation && (
+                          <FibDictateMic
+                            key={currentQuestion.id}
+                            dictation={dictation}
+                            onPhrase={setCacheForCurrent}
+                            disabled={submitted && !isStudentPaced}
+                            light={light}
+                          />
+                        )}
+                      </div>
                     )}
                   </AccentKeysArea>
                   <div className="animate-in fade-in slide-in-from-bottom-2 space-y-3">
@@ -5559,6 +5605,7 @@ export const ActiveQuiz: React.FC<{
                           blockClipboard={blockCopyPaste}
                           light={light}
                           mathEnabled={mathKeyboardOn}
+                          dictation={dictation}
                           ref={quoteEditorRef}
                         />
                       </React.Suspense>

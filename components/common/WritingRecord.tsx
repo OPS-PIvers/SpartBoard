@@ -1,4 +1,4 @@
-// The Writing record (D9): the summary, each paste and untyped addition with its text, and facts-only playback.
+// The Writing record (D9): the summary, each paste, dictated passage and untyped addition with its text, and facts-only playback.
 import React, { useMemo, useState } from 'react';
 import { Loader2, Play } from 'lucide-react';
 import type { WritingDraft, WritingResponseSummary } from '@/types';
@@ -15,6 +15,9 @@ const WRITING_RECORD_STRINGS = {
   timeWriting: 'Time writing',
   sessions: 'Writing sessions',
   pastes: 'Pastes',
+  dictated: 'Dictated',
+  passages: (n: number) =>
+    `${n.toLocaleString()} ${n === 1 ? 'passage' : 'passages'}`,
   untyped: 'Added without typing',
   away: 'Time away',
   none: 'None',
@@ -55,6 +58,7 @@ const SummaryRow: React.FC<{ summary: WritingRecordFacts['summary'] }> = ({
   const s = summary ?? {};
   const paste = num(s.pasteCount);
   const untyped = num(s.untypedCount);
+  const dictated = num(s.dictatedCount);
   const away = num(s.awayCount);
   const rows: [string, string][] = [
     [S.timeWriting, span(num(s.writingMs))],
@@ -65,6 +69,15 @@ const SummaryRow: React.FC<{ summary: WritingRecordFacts['summary'] }> = ({
         ? S.none
         : `${paste.toLocaleString()} (${S.chars(num(s.pastedChars))})`,
     ],
+    // Shown only for a student who dictated, so other records read as before.
+    ...(dictated === 0
+      ? []
+      : [
+          [
+            S.dictated,
+            `${S.passages(dictated)}, ${S.chars(num(s.dictatedChars))}`,
+          ] satisfies [string, string],
+        ]),
     [
       S.untyped,
       untyped === 0
@@ -187,6 +200,11 @@ export const WritingRecordView: React.FC<{
           <InsertList
             title={S.pastes}
             items={record.inserts.pastes}
+            onPlay={onPlay}
+          />
+          <InsertList
+            title={S.dictated}
+            items={record.inserts.dictated}
             onPlay={onPlay}
           />
           <InsertList

@@ -110,6 +110,12 @@ export const summarizeOverride = (
     chips.push(
       t('studentOverride.chip.readAloud', { defaultValue: 'Read aloud' })
     );
+  if (override.speechToText)
+    chips.push(
+      t('studentOverride.chip.speechToText', {
+        defaultValue: 'Speech to text',
+      })
+    );
   if (override.spellingHelp)
     chips.push(
       t('studentOverride.chip.spellingHelp', { defaultValue: 'Spelling help' })

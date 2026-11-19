@@ -3,6 +3,7 @@ import {
   isWritingUnlocked,
   type WritingResponseStatus,
 } from '@/utils/writingResponseState';
+import { diffText } from '@/utils/writingLog';
 
 /** The rules tie every save to its tab: `tabId:saveCount`. */
 export const saveKeyOf = (tabId: string, saveCount: number): string =>
@@ -112,4 +113,74 @@ export function insertApproved(
 ): boolean {
   if (!GUARDED_INPUTS.has(inputType)) return true;
   return approvedAt !== null && now - approvedAt < INSERT_APPROVAL_MS;
+}
+
+/** A Dictate announcement labels the edit that follows it within this long. */
+export const DICTATION_PENDING_MS = 1_500;
+
+const spokenKey = (s: string): string =>
+  s.replace(/\s+/g, ' ').trim().toLowerCase();
+
+/** Whether an edit inserted the passage Dictate announced; spacing, case and a character or two may differ. */
+export function isDictatedInsert(announced: string, inserted: string): boolean {
+  const said = spokenKey(announced);
+  const got = spokenKey(inserted);
+  if (!said || !got) return false;
+  if (said.includes(got) || got.includes(said)) return true;
+  return said.length >= 8 && Math.abs(said.length - got.length) <= 2;
+}
+
+interface PendingDictation {
+  text: string;
+  at: number;
+  /** The plain text just before the passage went in. */
+  before: string;
+  /** The turn that announced it has ended. */
+  settled: boolean;
+}
+
+/** Labels the edit Dictate announces (SPEECH_TO_TEXT.md D13, D14), however the editor puts the text in. */
+export class DictationTracker {
+  private pending: PendingDictation | null = null;
+
+  /** Dictate is about to insert `text`; `before` is the box's plain text now. */
+  announce(text: string, before: string, now: number): void {
+    this.pending = { text, at: now, before, settled: false };
+  }
+
+  /** An announced passage may still land, so the paste guard stands down. */
+  active(now: number): boolean {
+    return (
+      this.pending !== null && now - this.pending.at < DICTATION_PENDING_MS
+    );
+  }
+
+  /** The passage is going in during the announcing turn; `settle` logs it whole, so input events wait. */
+  get landing(): boolean {
+    return this.pending !== null && !this.pending.settled;
+  }
+
+  /** End of the announcing turn: the change since the announcement is the dictated edit, or null when nothing landed yet. */
+  settle(next: string): { prev: string; next: string } | null {
+    const p = this.pending;
+    if (!p) return null;
+    p.settled = true;
+    if (next === p.before) return null;
+    this.pending = null;
+    return { prev: p.before, next };
+  }
+
+  /** A later edit: true, once, when it inserts the announced passage. */
+  claim(prev: string, next: string, now: number): boolean {
+    const p = this.pending;
+    if (!p) return false;
+    if (now - p.at >= DICTATION_PENDING_MS) {
+      this.pending = null;
+      return false;
+    }
+    const d = diffText(prev, next);
+    if (!d || !isDictatedInsert(p.text, d.ins)) return false;
+    this.pending = null;
+    return true;
+  }
 }

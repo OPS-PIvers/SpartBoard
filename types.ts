@@ -6248,6 +6248,8 @@ export interface InputSignalCounts {
   pastes?: number;
   /** Characters a paste or drop put into an answer box. */
   pastedChars?: number;
+  /** Characters the student dictated with Speech to text. */
+  dictatedChars?: number;
   /** Clicks, key presses and edits the browser marks as made by a script. */
   scripted?: number;
   /** Edits that removed text, and how many characters they removed. */
@@ -6434,6 +6436,8 @@ export interface QuizResponse extends StaffResponseFields {
   tabExits?: TabExit[];
   /** Written only when the session carries `inputSignals`. */
   inputSignals?: InputSignals;
+  /** Ids of questions the student dictated any part of with Speech to text. */
+  dictated?: string[];
   /**
    * Number of tab-switch / focus-loss events the student has accumulated while
    * viewing **published results**. Distinct from `tabSwitchWarnings`, which
@@ -7368,6 +7372,8 @@ export interface StudentOverride {
   blockCopyPaste?: boolean;
   /** Writing only (D22): leaves the right-click spelling menu on. */
   spellingHelp?: boolean;
+  /** Quiz and Writing: the student may dictate written answers; needs 'speech-to-text'. */
+  speechToText?: boolean;
   openAt?: number;
   closeAt?: number; // per-student window shift (epoch ms)
   /** BCP-47 code, e.g. 'es' | 'so' | 'hmn'. Absent = English. Shape-validated only. */
@@ -10807,6 +10813,9 @@ export interface WritingResponseSummary {
   /** Text added without typing or pasting (an extension, dictation). */
   untypedCount: number;
   untypedChars: number;
+  /** Speech to text: passages dictated and their characters; absent until a student dictates. */
+  dictatedCount?: number;
+  dictatedChars?: number;
   /** Time away from the tab and how many times. */
   awayMs: number;
   awayCount: number;
@@ -11695,6 +11704,7 @@ export type GlobalFeature =
   /** Fail-closed; read it through `canAccessQuizWhiteboardResponse`, which also needs `quiz-media-response`. */
   | 'quiz-whiteboard-response'
   | 'quiz-read-aloud'
+  | 'speech-to-text'
   /** Teacher-authored AI quiz translations for multilingual learners. */
   | 'quiz-translation'
   /** "Draft with AI" inside the question-bank editor; AND-ed with `gemini-functions`. */

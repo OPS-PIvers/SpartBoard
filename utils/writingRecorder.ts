@@ -102,6 +102,12 @@ export class WritingRecorder {
       untypedChars: num(b.untypedChars),
       awayMs: num(b.awayMs),
       awayCount: num(b.awayCount),
+      ...(num(b.dictatedCount) > 0
+        ? {
+            dictatedCount: num(b.dictatedCount),
+            dictatedChars: num(b.dictatedChars),
+          }
+        : {}),
       ...(typeof b.logStoppedAt === 'number'
         ? { logStoppedAt: b.logStoppedAt }
         : {}),
@@ -113,13 +119,16 @@ export class WritingRecorder {
     prev: string,
     next: string,
     t: number,
-    kind: Extract<WritingEditKind, 'typed' | 'pasted' | 'restored'>,
+    kind: Extract<
+      WritingEditKind,
+      'typed' | 'pasted' | 'dictated' | 'restored'
+    >,
     wall: number
   ): void {
     const d = diffText(prev, next);
     if (!d) return;
     const c = this.counts;
-    // Text that changed between events, with no typing or paste: an extension or dictation.
+    // Text that changed between events, with no typing, paste or Dictate: an extension, or the device's own voice typing.
     if (this.lastText !== null && this.lastText !== prev) {
       const gap = diffText(this.lastText, prev);
       // Line breaks that a list or paragraph change moves are not text.
@@ -131,6 +140,11 @@ export class WritingRecorder {
     if (kind === 'pasted') {
       c.pasteCount += 1;
       c.pastedChars += d.ins.length;
+    }
+    // Speech to text: its own count, written only once a student has dictated.
+    if (kind === 'dictated') {
+      c.dictatedCount = num(c.dictatedCount) + 1;
+      c.dictatedChars = num(c.dictatedChars) + d.ins.length;
     }
     if (this.lastT !== null)
       c.writingMs += Math.min(Math.max(0, t - this.lastT), PAUSE_CAP_MS);

@@ -14,6 +14,7 @@ import { StimulusTabsPanel } from '@/components/quiz/StimulusTabsPanel';
 import { StimulusRenderer } from '@/components/quiz/QuizStimulusView';
 import { WrittenResponseEditor } from '@/components/quiz/WrittenResponseEditor';
 import type { WritingAssignmentSession } from '@/types';
+import type { EditorDictation } from '@/utils/speechToText/types';
 import type { UnsentWriting, WritingNotice } from '@/hooks/useWritingPiece';
 import type { WritingPageView } from '@/utils/writingStudentView';
 import { sanitizeQuizResponse } from '@/utils/security';
@@ -48,6 +49,8 @@ export interface WritingShellPiece {
   onDismissUnsent: (savedAt: number) => void;
   onUnsentCopy: (text: string) => void;
   onEditorChange: (html: string) => void;
+  /** Speech to text: set only for a student who has the accommodation. */
+  dictation?: EditorDictation;
   allowInsert: (text: string, via: 'paste' | 'drop' | 'drag-inside') => boolean;
   onEditorCopy: (text: string) => void;
   bindEditor: (el: HTMLElement | null) => void;
@@ -321,6 +324,7 @@ export const WritingStudentShell: React.FC<{
         allowInsert={piece.allowInsert}
         onCopyText={piece.onEditorCopy}
         blockContextMenu={piece.contextMenuOff}
+        dictation={view.editable ? piece.dictation : undefined}
         minHeightPx={440}
       />
     </div>

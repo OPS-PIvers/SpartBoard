@@ -20,8 +20,10 @@ const groups = [{ id: 'g', name: 'Modified', studentIds: ['b', 'c'] }];
 let latest: Record<string, StudentOverride> = {};
 const Host = ({
   initial = {},
+  speechToTextAvailable = false,
 }: {
   initial?: Record<string, StudentOverride>;
+  speechToTextAvailable?: boolean;
 }) => {
   const [overrides, setOverrides] = useState(initial);
   return (
@@ -30,6 +32,7 @@ const Host = ({
       groups={groups}
       overrides={overrides}
       readAloudAvailable={false}
+      speechToTextAvailable={speechToTextAvailable}
       onChange={(next) => {
         latest = next;
         setOverrides(next);
@@ -44,6 +47,23 @@ describe('RosterAccommodationsList', () => {
     render(<Host initial={{ a: { timeMultiplier: 2 } }} />);
     expect(screen.getByText('Abdi, Hamza')).toBeInTheDocument();
     expect(screen.queryByText('Bui, Linh')).toBeNull();
+  });
+
+  it('sets Speech to text on a student when the flag is on', () => {
+    render(
+      <Host initial={{ a: { timeMultiplier: 2 } }} speechToTextAvailable />
+    );
+    fireEvent.click(screen.getByText('Abdi, Hamza'));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Speech to text' }));
+    expect(latest).toEqual({ a: { timeMultiplier: 2, speechToText: true } });
+  });
+
+  it('hides Speech to text when the flag is off', () => {
+    render(<Host initial={{ a: { timeMultiplier: 2 } }} />);
+    fireEvent.click(screen.getByText('Abdi, Hamza'));
+    expect(
+      screen.queryByRole('checkbox', { name: 'Speech to text' })
+    ).toBeNull();
   });
 
   it('shows the empty line when no one has accommodations', () => {

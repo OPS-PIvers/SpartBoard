@@ -1,6 +1,11 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { MathText } from '@/components/common/MathText';
 import { joinBlanks, splitBlanks } from '@/utils/quizFibBlanks';
+import type { EditorDictation } from '@/utils/speechToText/types';
+import { useDictation } from '@/hooks/useDictation';
+import { DictateButton } from '@/components/common/dictate/DictateButton';
+import { dispatchDictation } from '@/utils/inputSignals';
+import { FIB_ROW_ATTR, blankPhrase } from '@/utils/speechToText/blankPhrase';
 
 const MathAnswerField = React.lazy(
   () => import('@/components/student/keyboards/MathAnswerField')
@@ -34,6 +39,42 @@ export const NumberedBlanksText: React.FC<{ text: string; light: boolean }> = ({
   />
 );
 
+/** Compact Dictate mic for one blank: takes a single phrase and hands it over as the blank's answer. */
+export const FibDictateMic: React.FC<{
+  dictation: EditorDictation;
+  onPhrase: (text: string) => void;
+  disabled: boolean;
+  light: boolean;
+}> = ({ dictation, onPhrase, disabled, light }) => {
+  const wrapRef = useRef<HTMLSpanElement | null>(null);
+  const controller = useDictation({
+    enabled: !disabled,
+    languages: dictation.languages,
+    singlePhrase: true,
+    onCommit: (text) => {
+      const phrase = blankPhrase(text);
+      if (!phrase) return;
+      dictation.onInsert?.(phrase);
+      onPhrase(phrase);
+      const field = wrapRef.current
+        ?.closest(`[${FIB_ROW_ATTR}]`)
+        ?.querySelector('input');
+      if (field) dispatchDictation(field, 'after', [...phrase].length);
+    },
+  });
+  if (!controller.supported) return null;
+  return (
+    <span ref={wrapRef} className="shrink-0">
+      <DictateButton
+        controller={controller}
+        size="compact"
+        light={light}
+        disabled={disabled}
+      />
+    </span>
+  );
+};
+
 /** One text box per blank; the value is the blanks joined by `FIB_BLANK_SEP`. */
 export const FibMultiBlankInput: React.FC<{
   count: number;
@@ -45,6 +86,8 @@ export const FibMultiBlankInput: React.FC<{
   inputClassName: string;
   /** Each blank is an equation box. */
   math?: boolean;
+  /** Speech to text: a Dictate mic on the blank the student is in; a phrase replaces that blank. */
+  dictation?: EditorDictation;
 }> = ({
   count,
   value,
@@ -54,7 +97,9 @@ export const FibMultiBlankInput: React.FC<{
   light,
   inputClassName,
   math = false,
+  dictation,
 }) => {
+  const [active, setActive] = useState(0);
   const parts = splitBlanks(value);
   const update = (index: number, text: string) => {
     const next = Array.from({ length: count }, (_, i) =>
@@ -65,7 +110,11 @@ export const FibMultiBlankInput: React.FC<{
   return (
     <div className="space-y-3">
       {Array.from({ length: count }, (_, i) => (
-        <label key={i} className="flex items-center gap-3">
+        <label
+          key={i}
+          className="flex items-center gap-3"
+          {...{ [FIB_ROW_ATTR]: '' }}
+        >
           <span className="text-xl leading-none">
             <BlankBadge n={i + 1} light={light} />
           </span>
@@ -87,6 +136,7 @@ export const FibMultiBlankInput: React.FC<{
               aria-label={`Blank ${i + 1}`}
               value={parts[i] ?? ''}
               onChange={(e) => update(i, e.target.value)}
+              onFocus={() => setActive(i)}
               disabled={disabled}
               className={`flex-1 min-w-0 px-5 py-4 border-2 rounded-2xl text-base focus:outline-hidden focus:ring-0 disabled:opacity-50 ${inputClassName}`}
               onKeyDown={(e) => {
@@ -97,6 +147,14 @@ export const FibMultiBlankInput: React.FC<{
                 if (nextInput) nextInput.focus();
                 else onEnter();
               }}
+            />
+          )}
+          {dictation && !math && i === Math.min(active, count - 1) && (
+            <FibDictateMic
+              dictation={dictation}
+              onPhrase={(text) => update(i, text)}
+              disabled={disabled}
+              light={light}
             />
           )}
         </label>

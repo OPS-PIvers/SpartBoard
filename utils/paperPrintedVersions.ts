@@ -154,6 +154,7 @@ export function recordPick(
       answerChoices,
       time: 'standard',
       readAloud: false,
+      speechToText: false,
       printed: true,
       ...(modifiedQuestions ? { modifiedQuestions } : {}),
       ...(supports?.length ? { supports } : {}),

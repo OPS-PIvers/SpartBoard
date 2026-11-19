@@ -178,3 +178,40 @@ describe('WritingRecorder.stopLog (D21)', () => {
     expect(s.pasteCount).toBe(1);
   });
 });
+
+describe('WritingRecorder dictation (Speech to text)', () => {
+  it('counts a dictated passage on its own, never as a paste or untyped text', () => {
+    const rec = fresh();
+    rec.edit('', 'a ', 0, 'typed', MIN);
+    rec.edit('a ', 'a spoken words', 10, 'dictated', MIN);
+    rec.edit('a spoken words', 'a spoken words.', 20, 'typed', MIN);
+    const { edits } = parseWritingLog(rec.openChunk.log);
+    expect(edits.map((e) => e.kind)).toEqual(['typed', 'dictated', 'typed']);
+    expect(rec.summary(3, 1)).toMatchObject({
+      dictatedCount: 1,
+      dictatedChars: 12,
+      pasteCount: 0,
+      pastedChars: 0,
+      untypedCount: 0,
+      untypedChars: 0,
+    });
+  });
+
+  it('leaves the dictated keys out until a student dictates', () => {
+    const rec = fresh();
+    rec.edit('', 'a', 0, 'typed', MIN);
+    expect(rec.summary(1, 1)).not.toHaveProperty('dictatedCount');
+    expect(rec.summary(1, 1)).not.toHaveProperty('dictatedChars');
+  });
+
+  it('carries on from the saved dictated counts', () => {
+    const rec = fresh({
+      base: { ...emptyWritingSummary(0), dictatedCount: 2, dictatedChars: 30 },
+    });
+    rec.edit('', 'more', 0, 'dictated', MIN);
+    expect(rec.summary(1, 1)).toMatchObject({
+      dictatedCount: 3,
+      dictatedChars: 34,
+    });
+  });
+});

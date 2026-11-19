@@ -26,6 +26,10 @@ import {
   Underline,
 } from 'lucide-react';
 import { sanitizeQuizResponse } from '@/utils/security';
+import type { EditorDictation } from '@/utils/speechToText/types';
+import { useDictation } from '@/hooks/useDictation';
+import { DictateButton } from '@/components/common/dictate/DictateButton';
+import { dispatchDictation } from '@/utils/inputSignals';
 import {
   ensureTopLevelBlocks,
   needsBlockNormalization,
@@ -104,6 +108,8 @@ interface WrittenResponseEditorProps {
   minHeightPx?: number;
   /** False keeps locked text at full contrast, for work shown read-only. */
   dimWhenDisabled?: boolean;
+  /** Speech to text: shows Dictate and lets dictated text in even when paste is blocked. */
+  dictation?: EditorDictation;
   ref?: React.Ref<WrittenResponseEditorHandle>;
 }
 
@@ -111,6 +117,13 @@ export interface WrittenResponseEditorHandle {
   /** Inserts a passage quote at the student's last cursor spot, or at the end. */
   insertQuote: (quote: { stimulusId: string; text: string }) => void;
 }
+
+const BLOCK_SELECTOR = 'p, li, div, blockquote';
+const ENGLISH_ONLY: readonly string[] = ['en'];
+const DICTATION_UNDO_DEPTH = 20;
+
+/** One dictated passage as it sits in the editor, so "undo that" can take it back out. */
+type DictatedPiece = { node: Text; text: string } | { node: Element };
 
 const ESSAY_MIN_HEIGHT_PX = 352; // ~22rem — comfortable on a laptop
 const MAX_HEIGHT_PX_CAP = 900; // hard cap so the editor can't push the page
@@ -135,6 +148,7 @@ const WrittenResponseEditorInner: React.FC<
   blockContextMenu = false,
   minHeightPx,
   dimWhenDisabled = true,
+  dictation,
   ref,
 }) => {
   const editorRef = useRef<HTMLDivElement | null>(null);
@@ -310,14 +324,16 @@ const WrittenResponseEditorInner: React.FC<
     onChange(clean);
   };
 
-  // Puts nodes at the student's last cursor spot (or the end), never inside a quote or equation.
-  const placeNodes = (nodes: Node[]) => {
+  // The student's last cursor spot (or the end), never inside a quote or equation; null when `create` is off and the box is empty.
+  const insertionRange = (create: boolean): Range | null => {
     const el = editorRef.current;
-    if (!el || disabled || nodes.length === 0) return;
-    let range = savedRangeRef.current;
+    if (!el) return null;
+    let range = savedRangeRef.current?.cloneRange() ?? null;
     if (!range || !el.contains(range.commonAncestorContainer)) {
       const block =
-        el.lastElementChild ?? el.appendChild(document.createElement('p'));
+        el.lastElementChild ??
+        (create ? el.appendChild(document.createElement('p')) : null);
+      if (!block) return null;
       range = document.createRange();
       range.selectNodeContents(block);
       range.collapse(false);
@@ -346,14 +362,27 @@ const WrittenResponseEditorInner: React.FC<
     }
     // Insert after a highlighted passage of the student's own writing rather than replacing it.
     range.collapse(false);
+    return range;
+  };
+
+  // Puts nodes at the insertion spot; `autoSpace` adds a space after a word.
+  const placeNodes = (
+    nodes: Node[],
+    options: { autoSpace?: boolean; beforeInsert?: () => void } = {}
+  ) => {
+    const el = editorRef.current;
+    if (!el || disabled || nodes.length === 0) return;
+    const range = insertionRange(true);
+    if (!range) return;
     const { startContainer, startOffset } = range;
     const before =
       startContainer.nodeType === Node.TEXT_NODE
         ? (startContainer.textContent ?? '').slice(0, startOffset)
         : (startContainer.childNodes[startOffset - 1]?.textContent ?? '');
-    if (before && !/\s$/.test(before)) {
+    if (options.autoSpace !== false && before && !/\s$/.test(before)) {
       nodes.unshift(document.createTextNode(' '));
     }
+    options.beforeInsert?.();
     const fragment = document.createDocumentFragment();
     fragment.append(...nodes);
     range.insertNode(fragment);
@@ -367,6 +396,88 @@ const WrittenResponseEditorInner: React.FC<
     savedRangeRef.current = caret.cloneRange();
     handleInput();
   };
+
+  const dictatedRef = useRef<DictatedPiece[][]>([]);
+
+  // Dictated text goes straight into the DOM, so no paste, drop or input event fires for it.
+  const insertDictated = (text: string) => {
+    const el = editorRef.current;
+    if (!el || disabled || !text) return;
+    const pieces: DictatedPiece[] = [];
+    text.split('\n').forEach((line, i) => {
+      if (i > 0) pieces.push({ node: document.createElement('br') });
+      if (line)
+        pieces.push({ node: document.createTextNode(line), text: line });
+    });
+    placeNodes(
+      pieces.map((p) => p.node),
+      {
+        autoSpace: false,
+        beforeInsert: () => {
+          dictation?.onInsert?.(text);
+          dispatchDictation(el, 'before', 0);
+        },
+      }
+    );
+    dictatedRef.current = [...dictatedRef.current, pieces].slice(
+      -DICTATION_UNDO_DEPTH
+    );
+    dispatchDictation(el, 'after', [...text].length);
+  };
+
+  // "Undo that": takes the last dictated passage back out if it is still there, unedited.
+  const undoDictated = () => {
+    const el = editorRef.current;
+    const pieces = dictatedRef.current[dictatedRef.current.length - 1];
+    if (!el || disabled || !pieces) return;
+    dictatedRef.current = dictatedRef.current.slice(0, -1);
+    const intact = pieces.every(
+      (p) =>
+        el.contains(p.node) && (!('text' in p) || p.node.data.includes(p.text))
+    );
+    if (!intact) return;
+    dispatchDictation(el, 'before', 0);
+    const caret = document.createRange();
+    caret.setStartBefore(pieces[0].node);
+    for (const p of pieces) {
+      if ('text' in p) {
+        const at = p.node.data.lastIndexOf(p.text);
+        if (p === pieces[0]) caret.setStart(p.node, at);
+        p.node.deleteData(at, p.text.length);
+      } else {
+        p.node.remove();
+      }
+    }
+    caret.collapse(true);
+    savedRangeRef.current = caret;
+    handleInput();
+    dispatchDictation(el, 'after', 0);
+  };
+
+  // Text in the caret's paragraph up to the caret, so dictation spaces and capitalises to fit.
+  const dictationTextBefore = (): string => {
+    const range = insertionRange(false);
+    const el = editorRef.current;
+    if (!range || !el) return '';
+    const startEl =
+      range.startContainer instanceof Element
+        ? range.startContainer
+        : range.startContainer.parentElement;
+    const block = startEl?.closest(BLOCK_SELECTOR);
+    const before = document.createRange();
+    before.selectNodeContents(block && el.contains(block) ? block : el);
+    before.setEnd(range.startContainer, range.startOffset);
+    return before.toString();
+  };
+
+  const dictationController = useDictation({
+    enabled: dictation !== undefined && !disabled,
+    languages: dictation?.languages ?? ENGLISH_ONLY,
+    onCommit: insertDictated,
+    onUndo: undoDictated,
+    textBefore: dictationTextBefore,
+  });
+  const dictationInterim = dictation ? dictationController.interim : '';
 
   useImperativeHandle(ref, () => ({
     insertQuote: (quote) => {
@@ -550,6 +661,18 @@ const WrittenResponseEditorInner: React.FC<
             </ToolbarButton>
           </>
         )}
+        {dictation && dictationController.supported && (
+          <>
+            <div
+              className={`w-px h-5 mx-1 ${light ? 'bg-slate-200' : 'bg-slate-700'}`}
+            />
+            <DictateButton
+              controller={dictationController}
+              light={light}
+              disabled={disabled}
+            />
+          </>
+        )}
         <div className="flex-1" />
         <span
           className={`text-xs font-mono px-2 py-0.5 rounded ${
@@ -705,6 +828,15 @@ const WrittenResponseEditorInner: React.FC<
           </button>
         )}
       </div>
+      {dictationInterim && (
+        <p
+          data-testid="dictation-interim"
+          aria-live="polite"
+          className={`px-2 text-sm italic ${light ? 'text-slate-500' : 'text-slate-300'}`}
+        >
+          {dictationInterim}
+        </p>
+      )}
     </div>
   );
 };

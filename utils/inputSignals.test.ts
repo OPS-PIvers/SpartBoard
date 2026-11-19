@@ -473,3 +473,57 @@ describe('browser and profile', () => {
     ).toEqual(['Chrome 141, macOS', 'Edge 140, Windows']);
   });
 });
+
+describe('dictated text', () => {
+  it('counts dictated characters apart from typed, unkeyed and pasted ones', () => {
+    const c = new InputSignalCollector(true);
+    c.setQuestion('q1');
+    const field = {};
+    c.primeText(field, '');
+    c.dictated(field, 'Plants need light and water to grow.', 36, 1000, true);
+    expect(c.takeDirty()).toBe(true);
+    const saved = c.snapshot().q1;
+    expect(saved.dictatedChars).toBe(36);
+    expect(saved.chars).toBeUndefined();
+    expect(saved.unkeyedChars).toBeUndefined();
+    expect(saved.pastedChars).toBeUndefined();
+    expect(describeInputSignals(c.snapshot())).toEqual([]);
+  });
+
+  it('logs the edit as dictated and adds counts across page loads', () => {
+    const c = new InputSignalCollector(true);
+    c.setQuestion('q1');
+    const field = {};
+    c.primeText(field, 'Start.');
+    c.dictated(field, 'Start. Spoken.', 8, 1000, true);
+    const first = c.snapshot();
+    expect(first.q1.log).toBeTruthy();
+    expect(first.q1.log).not.toBe(
+      (() => {
+        const typed = new InputSignalCollector(true);
+        typed.setQuestion('q1');
+        typed.primeText(field, 'Start.');
+        typed.textEdit(field, 'Start. Spoken.', 1000, 'typed', {
+          log: true,
+          composing: false,
+        });
+        return typed.snapshot().q1.log;
+      })()
+    );
+    const merged = addSignals(first, { q1: { dictatedChars: 4 } });
+    expect(merged.q1.dictatedChars).toBe(12);
+    expect(
+      inputFindingsByAttempt(
+        { '0': { q1: { dictatedChars: 12, pastes: 1, pastedChars: 5 } } },
+        0
+      )[0].dictatedChars
+    ).toBe(12);
+  });
+
+  it('keeps a one-line blank out of the edit log', () => {
+    const c = new InputSignalCollector(true);
+    c.setQuestion('q1');
+    c.dictated({}, 'Blue whale', 10, 1000, false);
+    expect(c.snapshot().q1).toEqual({ dictatedChars: 10 });
+  });
+});

@@ -11,7 +11,7 @@ export const utf8Length = (s: string): number => encoder.encode(s).length;
 const END_MARK = '!';
 
 export type WritingEditKind =
-  'typed' | 'pasted' | 'sync' | 'restored' | 'format';
+  'typed' | 'pasted' | 'dictated' | 'sync' | 'restored' | 'format';
 
 export interface WritingEdit {
   /** Ms since the edit before it. */
@@ -58,6 +58,7 @@ export function diffText(
 const KIND_MARK: Record<WritingEditKind, string> = {
   typed: '',
   pasted: 'P',
+  dictated: 'D',
   sync: 'S',
   restored: 'R',
   format: 'F',
@@ -131,13 +132,15 @@ export function parseWritingLog(
     const kind: WritingEditKind =
       token[0] === 'P'
         ? 'pasted'
-        : token[0] === 'S'
-          ? 'sync'
-          : token[0] === 'R'
-            ? 'restored'
-            : token[0] === 'F'
-              ? 'format'
-              : 'typed';
+        : token[0] === 'D'
+          ? 'dictated'
+          : token[0] === 'S'
+            ? 'sync'
+            : token[0] === 'R'
+              ? 'restored'
+              : token[0] === 'F'
+                ? 'format'
+                : 'typed';
     const body = kind === 'typed' ? token : token.slice(1);
     const short = /^([0-9a-z]+):(.*)$/s.exec(body);
     const parts = short ? [short[1], '', '', short[2]] : body.split(',');
@@ -313,7 +316,7 @@ export class WritingLogWriter {
 }
 
 export interface WritingSummary {
-  /** Typed or pasted edits. */
+  /** Typed, pasted or dictated edits. */
   edits: number;
   /** Edits that removed text. */
   deletions: number;
@@ -321,6 +324,8 @@ export interface WritingSummary {
   /** Whole words swapped for a different word earlier in the text; typo fixes and plain additions or cuts don't count. */
   wordsReplaced: number;
   pastedChars: number;
+  /** Characters spoken with Speech to text. */
+  dictatedChars: number;
   /** Characters that appeared mid-page with no typing or paste event. */
   syncChars: number;
   /** Characters already in the box after a page reload that the log had not saved. */
@@ -452,6 +457,7 @@ export function summarizeWriting(edits: WritingEdit[]): WritingSummary {
     deletedChars: 0,
     wordsReplaced: 0,
     pastedChars: 0,
+    dictatedChars: 0,
     syncChars: 0,
     restoredChars: 0,
     writingMs: 0,
@@ -490,6 +496,7 @@ export function summarizeWriting(edits: WritingEdit[]): WritingSummary {
     s.edits += 1;
     s.writingMs += Math.min(e.dt, PAUSE_CAP_MS);
     if (e.kind === 'pasted') s.pastedChars += e.ins.length;
+    if (e.kind === 'dictated') s.dictatedChars += e.ins.length;
     if (e.del > 0) {
       s.deletions += 1;
       s.deletedChars += e.del;

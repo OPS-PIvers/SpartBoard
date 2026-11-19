@@ -40,6 +40,7 @@ import {
 import { LinkSchoologyModal } from '@/components/classes/LinkSchoologyModal';
 import { useSchoologySeenSections } from '@/hooks/useSchoologySeenSections';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { SPEECH_TO_TEXT_FEATURE } from '@/utils/speechToText/types';
 import { SidebarClassRow } from './SidebarClassRow';
 import { CourseClassList } from '@/components/classes/course/CourseClassList';
 import { CourseActionsMenu } from '@/components/classes/course/CourseActionsMenu';
@@ -660,6 +661,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
           onClose={() => setEditingRosterId(null)}
           onSave={handleSaveRoster}
           readAloudAvailable={canAccessFeature('quiz-read-aloud')}
+          speechToTextAvailable={canAccessFeature(SPEECH_TO_TEXT_FEATURE)}
           groupRemindersEnabled={groupRemindersEnabled}
           groupReminderEmailsEnabled={groupReminderEmails.enabled}
           groupSteps={{

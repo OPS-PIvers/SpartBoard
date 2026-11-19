@@ -3,7 +3,9 @@ import type { ClassRoster } from '@/types';
 import type { ClassStudentRow } from '@/utils/studentTargetRef';
 import {
   formatModificationGroupsValue,
+  groupRuleLabels,
   hiddenOptionIdsForRule,
+  overrideForGroup,
   overridesFromGroups,
   rowsInClasses,
   withGroupStudents,
@@ -41,6 +43,7 @@ const group = (patch: Partial<ModificationGroup>): ModificationGroup => ({
   answerChoices: 'all',
   time: 'standard',
   readAloud: false,
+  speechToText: false,
   ...patch,
 });
 
@@ -90,6 +93,17 @@ describe('overridesFromGroups', () => {
       language: 'es',
     });
     expect(out.c).toBeUndefined();
+  });
+
+  it('turns Speech to text on and never clears a standing one', () => {
+    const on = group({ studentKeys: ['a'], speechToText: true });
+    expect(overrideForGroup(on, undefined, QUESTIONS)).toEqual({
+      speechToText: true,
+    });
+    expect(
+      overrideForGroup(group({}), { speechToText: true }, QUESTIONS)
+    ).toEqual({ speechToText: true });
+    expect(groupRuleLabels(on)).toEqual(['speech to text']);
   });
 
   it('never shortens standing extra time', () => {

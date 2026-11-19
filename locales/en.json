@@ -3325,14 +3325,17 @@
       "spellingHelp": "Spelling help",
       "language": "{{language}}",
       "copyPastePrintBlocked": "No copy, paste or print",
-      "copyPastePrintAllowed": "Copy, paste and print allowed"
+      "copyPastePrintAllowed": "Copy, paste and print allowed",
+      "speechToText": "Speech to text"
     },
     "language": "Language",
     "spellingHelp": "Spelling help",
     "noChanges": "No changes",
     "copyPastePrint": "Copy, paste and print",
     "copyPastePrintBlock": "Block",
-    "copyPastePrintAllow": "Allow"
+    "copyPastePrintAllow": "Allow",
+    "speechToText": "Speech to text",
+    "speechToTextLanguageNote": "Not available in {{language}}. This student will dictate in English."
   },
   "assignTargeting": {
     "expandAffordance": "Edit or add modifications",
@@ -4357,7 +4360,8 @@
       },
       "classFilter": "Filter by class",
       "allClasses": "All classes",
-      "countInstead": "Count this instead"
+      "countInstead": "Count this instead",
+      "dictated": "Dictated"
     },
     "results": {
       "gradeButton": "Grade Free Response"
@@ -6553,5 +6557,21 @@
     "title": "Supports",
     "close": "Close",
     "resize": "Resize supports"
+  },
+  "dictate": {
+    "button": "Dictate",
+    "starting": "Starting…",
+    "listening": "Listening… tap to stop",
+    "listeningShort": "Listening",
+    "stop": "Stop dictating",
+    "language": "Dictation language",
+    "languageSwitch": "Dictating in {{language}}. Switch to {{next}}.",
+    "error": {
+      "micBlocked": "Microphone is blocked. Click the icon at the left of the address bar, turn on Microphone, then tap Dictate again.",
+      "noMic": "No microphone found. Plug in a microphone or headset, then tap Dictate again.",
+      "network": "Dictate needs the internet. Check your connection, then tap Dictate again.",
+      "languageUnsupported": "Dictate can't hear that language on this device, so it is listening in English.",
+      "unknown": "Dictate stopped. Tap Dictate to start again."
+    }
   }
 }

@@ -4421,6 +4421,10 @@ const StudentDrilldownPanel: React.FC<{
                 <StudentAnswerLine
                   key={line.questionId}
                   line={line}
+                  dictated={
+                    !picked &&
+                    (liveResponse.dictated ?? []).includes(line.questionId)
+                  }
                   onCountInstead={
                     line.mark === 'notChosen' && line.answerText
                       ? countInsteadFor(line.questionId)

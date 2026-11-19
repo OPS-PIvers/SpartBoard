@@ -6374,6 +6374,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-mods.speech-to-text",
+    "label": "Speech to text switch for a modification group",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": [
+          "assign-step.modifications"
+        ],
+        "reveal": "assign-step.modifications"
+      }
+    ]
+  },
+  {
     "id": "assign-mods.printed",
     "label": "Printed version switch for a modification group",
     "scope": "board",
@@ -65399,6 +65415,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "override-row.read-aloud",
     "label": "Read aloud checkbox in the override editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.override-row",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "override-row.speech-to-text",
+    "label": "Speech to text checkbox in the override editor",
     "scope": "board",
     "panel": true,
     "routes": [

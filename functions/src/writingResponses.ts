@@ -64,6 +64,8 @@ const SUMMARY_KEYS = [
   'pastedChars',
   'untypedCount',
   'untypedChars',
+  'dictatedCount',
+  'dictatedChars',
   'awayMs',
   'awayCount',
   'logStoppedAt',

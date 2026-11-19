@@ -469,6 +469,105 @@ describe('OverrideEditorRow', () => {
     expect(screen.getByText('Read aloud')).toBeInTheDocument();
     expect(screen.queryByText('No accommodations')).not.toBeInTheDocument();
   });
+
+  it('hides Speech to text unless the host makes it available', () => {
+    render(
+      <OverrideEditorRow
+        studentName="Ada Lovelace"
+        override={{}}
+        onChange={vi.fn()}
+        quizMode
+        defaultExpanded
+      />
+    );
+    expect(
+      screen.queryByRole('checkbox', { name: 'Speech to text' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('emits speechToText: true and clears it back to undefined', () => {
+    const onChange = vi.fn();
+    const { rerender } = render(
+      <OverrideEditorRow
+        studentName="Ada Lovelace"
+        override={{}}
+        onChange={onChange}
+        writingMode
+        speechToTextAvailable
+        defaultExpanded
+      />
+    );
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Speech to text' }));
+    expect(onChange).toHaveBeenCalledWith({ speechToText: true });
+
+    rerender(
+      <OverrideEditorRow
+        studentName="Ada Lovelace"
+        override={{ speechToText: true }}
+        onChange={onChange}
+        writingMode
+        speechToTextAvailable
+        defaultExpanded
+      />
+    );
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Speech to text' }));
+    expect(onChange).toHaveBeenLastCalledWith({ speechToText: undefined });
+  });
+
+  it('keeps speechToText when another setting changes with no control shown', () => {
+    const onChange = vi.fn();
+    render(
+      <OverrideEditorRow
+        studentName="Ada Lovelace"
+        override={{ speechToText: true }}
+        onChange={onChange}
+        defaultExpanded
+      />
+    );
+    fireEvent.click(screen.getByRole('tab', { name: '2x' }));
+    expect(onChange).toHaveBeenCalledWith({
+      speechToText: true,
+      timeMultiplier: 2,
+    });
+  });
+
+  it('notes a language that cannot be dictated, only with Speech to text on', () => {
+    const { rerender } = render(
+      <OverrideEditorRow
+        studentName="Ada Lovelace"
+        override={{ speechToText: true, language: 'hmn' }}
+        onChange={vi.fn()}
+        quizMode
+        speechToTextAvailable
+        defaultExpanded
+      />
+    );
+    expect(screen.getByText(/will dictate in English/)).toBeInTheDocument();
+
+    rerender(
+      <OverrideEditorRow
+        studentName="Ada Lovelace"
+        override={{ speechToText: true, language: 'es' }}
+        onChange={vi.fn()}
+        quizMode
+        speechToTextAvailable
+        defaultExpanded
+      />
+    );
+    expect(screen.queryByText(/will dictate in English/)).toBeNull();
+
+    rerender(
+      <OverrideEditorRow
+        studentName="Ada Lovelace"
+        override={{ language: 'hmn' }}
+        onChange={vi.fn()}
+        quizMode
+        speechToTextAvailable
+        defaultExpanded
+      />
+    );
+    expect(screen.queryByText(/will dictate in English/)).toBeNull();
+  });
 });
 
 describe('OverrideEditorRow flashcards mode', () => {
