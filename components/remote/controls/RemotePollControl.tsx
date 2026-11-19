@@ -386,7 +386,7 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
                 </div>
                 <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden">
                   <div
-                    className={`h-full rounded-full transition-all duration-300 ${BAR_COLORS[i % BAR_COLORS.length]}`}
+                    className={`h-full rounded-full transition-[width] duration-300 ${BAR_COLORS[i % BAR_COLORS.length]}`}
                     style={{ width: `${pct}%` }}
                   />
                 </div>
@@ -413,7 +413,7 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
                 </div>
                 <div className="w-full h-1.5 rounded-full bg-white/10 mb-3 overflow-hidden">
                   <div
-                    className={`h-full rounded-full transition-all duration-300 ${BAR_COLORS[i % BAR_COLORS.length]}`}
+                    className={`h-full rounded-full transition-[width] duration-300 ${BAR_COLORS[i % BAR_COLORS.length]}`}
                     style={{ width: `${pct}%` }}
                   />
                 </div>
