@@ -29,4 +29,22 @@ describe('backfill-synced-bank-owners', () => {
     expect(claims.has('undefined')).toBe(false);
     expect(agreedOwner(claims.get('g2'))).toBeNull();
   });
+
+  it('never reserves an id that only a PLC header names', () => {
+    const claims = collectClaims({
+      userBanks: [],
+      liveBanks: [],
+      plcHeaders: [{ groupId: 'g3', sharedBy: 'member' }],
+    });
+    expect(agreedOwner(claims.get('g3'))).toBeNull();
+  });
+
+  it('lets a PLC header veto an owner-written source', () => {
+    const claims = collectClaims({
+      userBanks: [{ uid: 'a', groupId: 'g4' }],
+      liveBanks: [],
+      plcHeaders: [{ groupId: 'g4', sharedBy: 'member' }],
+    });
+    expect(agreedOwner(claims.get('g4'))).toBeNull();
+  });
 });

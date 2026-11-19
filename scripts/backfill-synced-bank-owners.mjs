@@ -5,7 +5,9 @@
  * can be claimed by the first staff user to create it. This records the owner wherever the evidence
  * agrees: the owner's own `users/{uid}/question_banks` metadata (`sync.groupId`, owner-written only),
  * the live `synced_question_banks` doc's `ownerUid`, and PLC `question_banks` headers (`sharedBy`).
- * An id whose sources name more than one uid is listed and left alone for a person to decide.
+ * PLC members can write `sharedBy`, so it can veto but never prove ownership: an id needs at least one
+ * owner-written source. Ids whose sources disagree, or that only PLC headers name, are listed and left
+ * alone for a person to decide.
  *
  * Usage:
  *   node scripts/backfill-synced-bank-owners.mjs            # dry run, counts and conflicts
@@ -36,25 +38,27 @@ function loadCredentials() {
   process.exit(1);
 }
 
-/** The one uid every source names for an id, or null when they disagree or name none. */
+/** The one uid every source names, if an owner-written source names it; otherwise null. */
 export function agreedOwner(claims) {
-  const uids = new Set(
-    (claims ?? []).filter((u) => typeof u === 'string' && u !== '')
+  const valid = (claims ?? []).filter(
+    (c) => typeof c.uid === 'string' && c.uid !== ''
   );
-  return uids.size === 1 ? [...uids][0] : null;
+  const uids = new Set(valid.map((c) => c.uid));
+  if (uids.size !== 1 || !valid.some((c) => c.trusted)) return null;
+  return [...uids][0];
 }
 
 /** groupId → claimed owner uids, from user metadata, live canonicals and PLC headers. */
 export function collectClaims({ userBanks, liveBanks, plcHeaders }) {
   const claims = new Map();
-  const add = (groupId, uid) => {
+  const add = (groupId, uid, trusted) => {
     if (typeof groupId !== 'string' || !groupId) return;
     if (!claims.has(groupId)) claims.set(groupId, []);
-    claims.get(groupId).push(uid);
+    claims.get(groupId).push({ uid, trusted });
   };
-  for (const b of userBanks) add(b.groupId, b.uid);
-  for (const b of liveBanks) add(b.groupId, b.ownerUid);
-  for (const h of plcHeaders) add(h.groupId, h.sharedBy);
+  for (const b of userBanks) add(b.groupId, b.uid, true);
+  for (const b of liveBanks) add(b.groupId, b.ownerUid, true);
+  for (const h of plcHeaders) add(h.groupId, h.sharedBy, false);
   return claims;
 }
 
@@ -99,7 +103,8 @@ async function main() {
     if (reservedIds.has(groupId)) continue;
     const owner = agreedOwner(uids);
     if (owner) toWrite.push({ groupId, owner });
-    else conflicts.push({ groupId, uids: [...new Set(uids)] });
+    else
+      conflicts.push({ groupId, uids: [...new Set(uids.map((c) => c.uid))] });
   }
 
   console.log(
