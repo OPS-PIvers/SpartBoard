@@ -473,8 +473,11 @@ service cloud.firestore {
     }
     function onVerifiedList(added) {
       let vc = dbExists('verified_classes', authUid()) ? dbGet('verified_classes', authUid()).data : {};
-      return !(vc.get('classlinkAt', null) is number || classTargetsEnforced()) ||
-        vc.get('ids', []).toSet().hasAll(added);
+      let ids = vc.get('ids', []).toSet();
+      let t = classTargets(incoming());
+      // Before enforce, one unlisted LMS id (an LTI launch may not have recorded it) is not refused.
+      return ids.hasAll(added) || !classTargetsEnforced() && (!(vc.get('classlinkAt', null) is number) ||
+        added.difference(ids).hasOnly([t[0]]) && t[0].matches('^(schoology|classroom):.+'));
     }
     function classTargetsEnforced() {
       return dbExists('admin_settings', 'verified_classes_fill') &&

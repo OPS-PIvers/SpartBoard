@@ -272,6 +272,52 @@ describe.each(KINDS)('$name', (kind) => {
   });
 });
 
+describe('LMS class ids before enforce', () => {
+  const LMS = 'schoology:course-77';
+  const LMS_KINDS = KINDS.filter((k) =>
+    ['quiz_sessions', 'video_activity_sessions'].includes(k.name)
+  );
+
+  describe.each(LMS_KINDS)('$name', (kind) => {
+    it('lets a ClassLink-verified teacher target an unlisted Schoology class', async () => {
+      await assertSucceeds(
+        setDoc(
+          doc(asAttacker(), kind.path(ATTACKER)),
+          kind.data(ATTACKER, [LMS])
+        )
+      );
+    });
+
+    it('refuses the unlisted Schoology class once enforce is on', async () => {
+      await seed('admin_settings/verified_classes_fill', {
+        enabled: true,
+        enforce: true,
+      });
+      await assertFails(
+        setDoc(
+          doc(asAttacker(), kind.path(ATTACKER)),
+          kind.data(ATTACKER, [LMS])
+        )
+      );
+    });
+
+    it('still refuses an unlisted ClassLink class alongside it', async () => {
+      await assertFails(
+        setDoc(
+          doc(asAttacker(), kind.path(ATTACKER)),
+          kind.data(ATTACKER, [THEIRS])
+        )
+      );
+      await assertFails(
+        setDoc(
+          doc(asAttacker(), kind.path(ATTACKER)),
+          kind.data(ATTACKER, [LMS, THEIRS])
+        )
+      );
+    });
+  });
+});
+
 describe('the student class channel', () => {
   it("lists only the real teacher's quiz session for that class's students", async () => {
     await assertSucceeds(
