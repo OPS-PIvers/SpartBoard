@@ -7,7 +7,7 @@ Moved from the retired GEMINI.md. Code comments in `config/geminiModels.ts` and 
   Credentials — there is no Gemini API key. See `docs/gemini-api-terms-audit.md`.
 - **Location:** `global`. The Gemini 3.x models are served from the global endpoint;
   regional endpoints such as `us-central1` return model-not-found for them.
-- **Models:** `gemini-3.7-flash` (High Complexity, the default; Gemini 3.8 Flash and Gemini 4 Hydrogen, Carbon and Argon can be picked in the Gemini Models card) and `gemini-3.5-flash-lite` (Standard/OCR).
+- **Models:** `gemini-3.7-flash` (High Complexity, the default; Gemini 3.8 Flash and Gemini 4 Hydrogen and Neon can be picked on the AI tab; Gemini 4 Argon and Carbon were retired on 2026-11-19, and `normalizeModelName` runs a saved pick of either as `gemini-4-neon`) and `gemini-3.5-flash-lite` (Standard/OCR).
 - **Selection Logic:**
   - `gemini-3.7-flash`: Used for complex code generation (`mini-app`) and deep multimodal analysis (`guided-learning`).
   - `gemini-3.5-flash-lite`: Used for standard JSON tasks (polls, quizzes, layouts) and high-speed multimodal tasks like `ocr`.
