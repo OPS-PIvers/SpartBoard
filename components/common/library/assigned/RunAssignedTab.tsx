@@ -26,6 +26,7 @@ import {
   deriveAssignedStatus,
   runStatus,
   scoresShown,
+  type AssignedClass,
   type AssignedExtras,
   type AssignedInput,
   type AssignedResponse,
@@ -35,6 +36,7 @@ import { BELL_CLOSE_CUSHION_MS, type EpochWindow } from '@/utils/periodPlan';
 import { logError } from '@/utils/logError';
 import type { LibraryMenuAction } from '../types';
 import { AssignedList } from './AssignedList';
+import { AssignedLeftOpenFlag } from './AssignedLeftOpenFlag';
 import { AssignedRow } from './AssignedRow';
 import { RunAssignedResponsesFixture } from './runAssignedFixture';
 import {
@@ -263,6 +265,15 @@ export function RunAssignedTab<A extends RunAssignment>(
         emptyTitle={emptyTitle}
         emptySub={emptySub}
         tourWidgetType={tourWidgetType}
+        renderLeftOpen={(row, cls, index, leaveOpen) => (
+          <RunLeftOpenHost<A>
+            row={row}
+            cls={cls}
+            index={index}
+            onLeaveOpen={leaveOpen}
+            {...props}
+          />
+        )}
         renderRow={(row, index) => (
           <RunAssignedRowHost<A> row={row} index={index} now={now} {...props} />
         )}
@@ -316,6 +327,51 @@ const NO_LIFECYCLE: AssignmentLifecycle = {
   end: () => Promise.reject(new Error('Sign in to change this.')),
   reopen: () => Promise.reject(new Error('Sign in to change this.')),
 };
+
+/** D11: Close or Leave open for one class left open, with the row's own class actions. */
+function RunLeftOpenHost<A extends RunAssignment>({
+  row,
+  cls,
+  index,
+  onLeaveOpen,
+  rosters,
+  collections,
+  lifecycle,
+  tourWidgetType,
+  title,
+}: RunAssignedTabProps<A> & {
+  row: RowModel<A>;
+  cls: AssignedClass;
+  index: number;
+  onLeaveOpen: () => void;
+}): React.ReactElement {
+  const a = row.assignment;
+  const actions = useAssignmentClassActions(
+    a,
+    collections,
+    lifecycle ?? NO_LIFECYCLE,
+    rosters
+  );
+  const run = usePeriodRunner(a.periodAccess, 'RunAssignedTab.leftOpen');
+  const [busy, setBusy] = useState(false);
+  const single = row.status.singleLine;
+  return (
+    <AssignedLeftOpenFlag
+      title={title(a)}
+      classLabel={single ? null : cls.label}
+      busy={busy}
+      onClose={() => {
+        setBusy(true);
+        void run(() => actions.closeClass(single ? null : cls.key)).finally(
+          () => setBusy(false)
+        );
+      }}
+      onLeaveOpen={onLeaveOpen}
+      tourIndex={index}
+      tourWidgetType={tourWidgetType}
+    />
+  );
+}
 
 function RunAssignedRowHost<A extends RunAssignment>({
   row,

@@ -20,6 +20,7 @@ import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import type { ClassRoster, WritingAssignmentRecord } from '@/types';
 import {
+  AssignedLeftOpenFlag,
   AssignedList,
   AssignedRow,
   type ClassActionKind,
@@ -36,6 +37,7 @@ import {
 import { writingAssignedInput } from '@/utils/assignedAdapters';
 import {
   deriveAssignedStatus,
+  type AssignedClass,
   type AssignedResponse,
   type AssignedStatus,
 } from '@/utils/assignedStatus';
@@ -312,6 +314,15 @@ export const WritingAssignedTab: React.FC<WritingAssignedTabProps> = ({
       emptyTitle="Nothing assigned yet"
       emptySub="Assign one from the Library."
       tourWidgetType="writing"
+      renderLeftOpen={(row, cls, index, leaveOpen) => (
+        <WritingLeftOpenHost
+          row={row}
+          cls={cls}
+          index={index}
+          rosters={rosters}
+          onLeaveOpen={leaveOpen}
+        />
+      )}
       renderRow={(row, index) => (
         <WritingAssignedRowHost
           row={row}
@@ -321,6 +332,37 @@ export const WritingAssignedTab: React.FC<WritingAssignedTabProps> = ({
           {...handlers}
         />
       )}
+    />
+  );
+};
+
+/** D11: Close or Leave open for one class left open, with the row's own class actions. */
+const WritingLeftOpenHost: React.FC<{
+  row: RowModel;
+  cls: AssignedClass;
+  index: number;
+  rosters: ClassRoster[];
+  onLeaveOpen: () => void;
+}> = ({ row, cls, index, rosters, onLeaveOpen }) => {
+  const r = row.record;
+  const actions = useWritingClassActions(r, rosters);
+  const run = usePeriodRunner(r.periodAccess, 'WritingAssignedTab.leftOpen');
+  const [busy, setBusy] = useState(false);
+  const single = row.status.singleLine;
+  return (
+    <AssignedLeftOpenFlag
+      title={r.title || 'Untitled writing assignment'}
+      classLabel={single ? null : cls.label}
+      busy={busy}
+      onClose={() => {
+        setBusy(true);
+        void run(() => actions.closeClass(single ? null : cls.key)).finally(
+          () => setBusy(false)
+        );
+      }}
+      onLeaveOpen={onLeaveOpen}
+      tourIndex={index}
+      tourWidgetType="writing"
     />
   );
 };

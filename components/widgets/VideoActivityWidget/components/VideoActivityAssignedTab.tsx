@@ -19,6 +19,7 @@ import type {
   VideoActivitySession,
 } from '@/types';
 import {
+  AssignedLeftOpenFlag,
   AssignedList,
   AssignedRow,
   type ClassActionKind,
@@ -32,6 +33,7 @@ import { usePeriodRunner } from '@/hooks/usePeriodRunner';
 import { useAssignmentClassActions } from '@/hooks/useAssignmentClassActions';
 import {
   deriveAssignedStatus,
+  type AssignedClass,
   type AssignedStatus,
 } from '@/utils/assignedStatus';
 import {
@@ -390,6 +392,16 @@ export const VideoActivityAssignedTab: React.FC<
       emptyTitle={emptyTitle}
       emptySub={emptySub}
       tourWidgetType="video-activity"
+      renderLeftOpen={(row, cls, index, leaveOpen) => (
+        <VideoActivityLeftOpenHost
+          row={row}
+          cls={cls}
+          index={index}
+          rosters={rosters}
+          lifecycle={lifecycle}
+          onLeaveOpen={leaveOpen}
+        />
+      )}
       renderRow={(row, index) => (
         <VideoActivityAssignedRowHost
           row={row}
@@ -400,6 +412,41 @@ export const VideoActivityAssignedTab: React.FC<
           {...handlers}
         />
       )}
+    />
+  );
+};
+
+/** D11: Close or Leave open for one class left open, with the row's own class actions. */
+const VideoActivityLeftOpenHost: React.FC<{
+  row: RowModel;
+  cls: AssignedClass;
+  index: number;
+  rosters: ClassRoster[];
+  lifecycle: VideoActivityLifecycle;
+  onLeaveOpen: () => void;
+}> = ({ row, cls, index, rosters, lifecycle, onLeaveOpen }) => {
+  const a = row.assignment;
+  const actions = useAssignmentClassActions(a, COLLECTIONS, lifecycle, rosters);
+  const run = usePeriodRunner(
+    a.periodAccess,
+    'VideoActivityAssignedTab.leftOpen'
+  );
+  const [busy, setBusy] = useState(false);
+  const single = row.status.singleLine;
+  return (
+    <AssignedLeftOpenFlag
+      title={a.activityTitle}
+      classLabel={single ? null : cls.label}
+      busy={busy}
+      onClose={() => {
+        setBusy(true);
+        void run(() => actions.closeClass(single ? null : cls.key)).finally(
+          () => setBusy(false)
+        );
+      }}
+      onLeaveOpen={onLeaveOpen}
+      tourIndex={index}
+      tourWidgetType="video-activity"
     />
   );
 };
