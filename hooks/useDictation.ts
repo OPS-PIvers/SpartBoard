@@ -13,6 +13,7 @@ import {
 } from '@/utils/speechToText/browserEngine';
 import { dictationLocaleFor } from '@/utils/speechToText/languages';
 import { applyTextRules } from '@/utils/speechToText/textRules';
+import { beginMicPermissionPrompt } from '@/utils/permissionPrompt';
 import type {
   DictationController,
   DictationErrorCode,
@@ -67,90 +68,105 @@ export function useDictation(
   const sessionCounter = useRef(0);
   /** Id of the listening session in progress; 0 when idle. */
   const activeSession = useRef(0);
-
-  const begin = useCallback((first: string) => {
-    const run = (lang: string, keepError: boolean): void => {
-      const engine = (engineRef.current ??= createBrowserEngine());
-      if (!engine) return;
-      const id = ++sessionCounter.current;
-      activeSession.current = id;
-      const live = () => activeSession.current === id;
-      const committed: string[] = [];
-      let finished = false;
-
-      setStatus('starting');
-      setInterim('');
-      if (!keepError) setError(null);
-
-      engine.start(
-        { locale: dictationLocaleFor(lang) ?? 'en-US' },
-        {
-          onStart: () => {
-            if (live()) setStatus('listening');
-          },
-          onInterim: (text) => {
-            if (live() && !finished) setInterim(text);
-          },
-          onFinal: (raw) => {
-            if (!live() || finished) return;
-            const current = latest.current;
-            const phrase = applyTextRules(raw, {
-              textBefore: current.textBefore
-                ? current.textBefore()
-                : committed.join(''),
-              language: lang,
-              punctuates: engine.punctuates,
-            });
-            setInterim('');
-            if (phrase.kind === 'undo') {
-              const last = committed.pop();
-              if (last !== undefined) current.onUndo?.(last);
-              return;
-            }
-            if (phrase.kind !== 'text') return;
-            committed.push(phrase.text);
-            current.onCommit(phrase.text);
-            if (current.singlePhrase) {
-              finished = true;
-              engine.stop();
-            }
-          },
-          onError: (code) => {
-            if (!live()) return;
-            setError(code);
-            if (code !== 'language-unsupported' || lang === FALLBACK_LANGUAGE)
-              return;
-            // D12: carry on in English and stop offering this language.
-            setDropped((list) =>
-              list.includes(lang) ? list : [...list, lang]
-            );
-            setChosen(FALLBACK_LANGUAGE);
-            run(FALLBACK_LANGUAGE, true);
-          },
-          onEnd: () => {
-            if (!live()) return;
-            activeSession.current = 0;
-            setStatus('idle');
-            setInterim('');
-          },
-        }
-      );
-    };
-    run(first, false);
+  /** Settles the mic prompt window the student's click opened. */
+  const endPrompt = useRef<(() => void) | null>(null);
+  const settlePrompt = useCallback(() => {
+    endPrompt.current?.();
+    endPrompt.current = null;
   }, []);
 
+  const begin = useCallback(
+    (first: string) => {
+      const run = (lang: string, keepError: boolean): void => {
+        const engine = (engineRef.current ??= createBrowserEngine());
+        if (!engine) return;
+        const id = ++sessionCounter.current;
+        activeSession.current = id;
+        const live = () => activeSession.current === id;
+        const committed: string[] = [];
+        let finished = false;
+
+        setStatus('starting');
+        setInterim('');
+        if (!keepError) setError(null);
+
+        engine.start(
+          { locale: dictationLocaleFor(lang) ?? 'en-US' },
+          {
+            onStart: () => {
+              if (live()) setStatus('listening');
+            },
+            onInterim: (text) => {
+              if (live() && !finished) setInterim(text);
+            },
+            onFinal: (raw) => {
+              if (!live() || finished) return;
+              const current = latest.current;
+              const phrase = applyTextRules(raw, {
+                textBefore: current.textBefore
+                  ? current.textBefore()
+                  : committed.join(''),
+                language: lang,
+                punctuates: engine.punctuates,
+              });
+              setInterim('');
+              if (phrase.kind === 'undo') {
+                const last = committed.pop();
+                if (last !== undefined) current.onUndo?.(last);
+                return;
+              }
+              if (phrase.kind !== 'text') return;
+              committed.push(phrase.text);
+              current.onCommit(phrase.text);
+              if (current.singlePhrase) {
+                finished = true;
+                engine.stop();
+              }
+            },
+            onError: (code) => {
+              if (!live()) return;
+              settlePrompt();
+              setError(code);
+              if (code !== 'language-unsupported' || lang === FALLBACK_LANGUAGE)
+                return;
+              // D12: carry on in English and stop offering this language.
+              setDropped((list) =>
+                list.includes(lang) ? list : [...list, lang]
+              );
+              setChosen(FALLBACK_LANGUAGE);
+              run(FALLBACK_LANGUAGE, true);
+            },
+            onEnd: () => {
+              if (!live()) return;
+              settlePrompt();
+              activeSession.current = 0;
+              setStatus('idle');
+              setInterim('');
+            },
+          }
+        );
+      };
+      run(first, false);
+    },
+    [settlePrompt]
+  );
+
   const halt = useCallback(() => {
+    settlePrompt();
     if (activeSession.current === 0) return;
     activeSession.current = 0;
     engineRef.current?.abort();
     setStatus('idle');
     setInterim('');
-  }, []);
+  }, [settlePrompt]);
 
   const start = useCallback(() => {
     if (!supported || activeSession.current !== 0) return;
+    settlePrompt();
+    // The first listen can show the browser's mic prompt, which must not count as leaving the tab.
+    endPrompt.current = beginMicPermissionPrompt();
     begin(language);
-  }, [supported, language, begin]);
+  }, [supported, language, begin, settlePrompt]);
 
   const stop = useCallback(() => {
     if (activeSession.current === 0) return;
