@@ -23,6 +23,7 @@ export default mergeConfig(
       exclude: [
         ...configDefaults.exclude,
         'tests/e2e/**',
+        'tests/e2e-emulator/**',
         // Firestore rules tests need the Firestore emulator. Excluded from
         // the default vitest run (`pnpm test`) so a dev doesn't need Java
         // installed locally; they run via `pnpm test:rules` (which wraps
