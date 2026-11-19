@@ -156,7 +156,7 @@ export const ScoreboardItem = React.memo(
       60,
       110 / digitCount
     ).toFixed(1)}cqw, 42cqh), 200px)`;
-    const amountButtonClass = `bg-white ${buttonIconColor} rounded-lg shadow-xs hover:bg-slate-50 active:scale-95 transition-all shrink min-w-0 font-black tabular-nums leading-none`;
+    const amountButtonClass = `bg-white ${buttonIconColor} rounded-lg shadow-xs hover:bg-slate-50 active:scale-95 transition shrink min-w-0 font-black tabular-nums leading-none`;
     const amountButtonStyle: React.CSSProperties = {
       fontSize: 'clamp(9px, min(8cqmin, 6.5cqw), 40px)',
       padding: 'clamp(3px, 3cqmin, 16px) clamp(3px, 2.5cqw, 22px)',
@@ -168,7 +168,7 @@ export const ScoreboardItem = React.memo(
 
     return (
       <div
-        className={`${colorClass} text-white rounded-2xl border border-white/20 shadow-xs relative group transition-all hover:shadow-md`}
+        className={`${colorClass} text-white rounded-2xl border border-white/20 shadow-xs relative group transition hover:shadow-md`}
         style={{ containerType: 'size' }}
       >
         {/* Padding lives inside so its cqmin resolves against the card, not the board. */}
@@ -296,7 +296,7 @@ export const ScoreboardItem = React.memo(
                   fieldKey
                 )}
                 data-tour-widget={widgetId}
-                className={`bg-white ${buttonIconColor} rounded-lg shadow-xs hover:bg-slate-50 active:scale-95 transition-all shrink-0 flex items-center justify-center`}
+                className={`bg-white ${buttonIconColor} rounded-lg shadow-xs hover:bg-slate-50 active:scale-95 transition shrink-0 flex items-center justify-center`}
                 style={{ padding: 'clamp(4px, 6cqmin, 28px)' }}
               >
                 <Minus
@@ -327,7 +327,7 @@ export const ScoreboardItem = React.memo(
                   fieldKey
                 )}
                 data-tour-widget={widgetId}
-                className={`bg-white ${buttonIconColor} rounded-lg shadow-xs hover:bg-slate-50 active:scale-95 transition-all shrink-0 flex items-center justify-center`}
+                className={`bg-white ${buttonIconColor} rounded-lg shadow-xs hover:bg-slate-50 active:scale-95 transition shrink-0 flex items-center justify-center`}
                 style={{ padding: 'clamp(4px, 6cqmin, 28px)' }}
               >
                 <Plus
