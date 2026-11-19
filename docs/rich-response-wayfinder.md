@@ -244,23 +244,7 @@ sharing a deadline against another change:**
 3. 🔴 **The "absent means unanswered" fix — four sites** (RR-06 finding 4): `assignmentExportShared.ts:170-178`, `quizDriveService.readPlcSheet`, `plcContributions.ts:99-114`, `quizDriveService.ts:718-741`. **Lands with RR-08's always-write change or before it, never after.** Wider than item 2 — that one mis-grades a student with several takes; this one mis-reports every student on every question in every quiz.
 4. 🔴 **The drawing page-space migration** (RR-B4 sub-decision 6) — read-time and pure, no backfill, behind a one-way `pageSpaceMigrated` flag. **The trap is the scalars**: `width`, `strokeWidth` and `fontSize` must scale by the same `k` or every migrated drawing returns as hairline strokes and tiny text over correctly-placed geometry. The only item here that can visibly move a teacher's saved work — its own PR, its own before/after screenshots.
 
-📌 **Six shipped inconsistencies the audits found, all belonging in issues rather
-than here — and 🔴 RR-10 corrected one of them in the direction that makes it
-worse.** From RR-C2: the two background-upload paths **disagree about Drive
-sharing type** for the same asset class (`useStorage.ts:47` passes `userDomain`
-→ `type:'domain'`; `useGoogleDrive.ts:85` passes `undefined` → `type:'anyone'`);
-and `global_pdfs` is **readable by any anonymous student today** on both rule sets
-(`firestore.rules:3320`, `storage.rules:108`). From RR-C3: the VA answer-key
-exposure, and Matching/Ordering banks **re-randomizing with `Math.random` on
-back-navigation**, defeating the stability guarantee `utils/quizShuffle.ts:10-12`
-documents. 🔴 **From RR-10, correcting RR-C3's "dead shuffle controls" finding:**
-VA's `shuffleAnswerOptions` is **not dead — it is ignored.**
-`QuestionOverlay.tsx:83-95` shuffles MC and MA options **unconditionally**, keyed
-by question id, and never reads the flag. So setting it **true** happens to match
-reality and setting it **false silently does not** — the failure lands precisely
-on the choice a teacher makes deliberately, which is strictly worse than a control
-that does nothing in both directions. Only `shuffleQuestions` is genuinely unread,
-and it is meaningless anyway because VA questions fire at timestamps.
+📌 **Shipped inconsistencies the audits found, re-checked 2026-11-19.** Still open: Matching/Ordering banks re-shuffle on back-navigation ([#6254](https://github.com/OPS-PIvers/SpartBoard/issues/6254)). Fixed since: the VA answer key now lives in a separate key doc, VA `shuffleAnswerOptions` is read via `videoActivityAnswerRules`, and the transcription flag is `missingDocPublic: false` with `failClosedForAdmins`. The Drive sharing-type difference is deliberate (student-visible images use `anyone`, the rest the teacher's domain).
 
 📌 **Two shipped defects this map found and deliberately did not fix** — both
 belong in issues: RR-05 finding 3 (`video-activity-audio-transcription` declares
