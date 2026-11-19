@@ -13,7 +13,7 @@ export const QuestionAudioButton: React.FC<{
   size?: 'large' | 'small';
   light?: boolean;
   className?: string;
-  /** Student only: views already used this attempt; enforces `audio.playLimit`. */
+  /** Student only: plays already started this attempt; enforces `audio.playLimit`. */
   viewsUsed?: number;
   /** Student only: called once each time playback actually starts. */
   onViewStart?: () => void;
@@ -36,10 +36,12 @@ export const QuestionAudioButton: React.FC<{
     viewsUsed !== undefined &&
     typeof audio.playLimit === 'number' &&
     audio.playLimit > 0;
-  const remaining = limited
-    ? Math.max(0, (audio.playLimit ?? 0) - Math.max(viewsUsed ?? 0, localViews))
-    : null;
+  const used = Math.max(viewsUsed ?? 0, localViews);
+  const remaining = limited ? Math.max(0, (audio.playLimit ?? 0) - used) : null;
   const usedUp = remaining === 0;
+  // The first listen is free; the limit's other plays are replays.
+  const replaysLeft =
+    remaining === null ? null : used === 0 ? remaining - 1 : remaining;
 
   useEffect(() => {
     const el = ref.current;
@@ -65,7 +67,7 @@ export const QuestionAudioButton: React.FC<{
   const active = status === 'loading' || status === 'playing';
   const label =
     usedUp && !active
-      ? t('quizQuestionAudio.noViewsLeft', 'No views left')
+      ? t('quizQuestionAudio.noReplaysLeft', 'No replays left')
       : status === 'failed'
         ? t('quizQuestionAudio.retry', 'Try again')
         : active
@@ -116,13 +118,13 @@ export const QuestionAudioButton: React.FC<{
           </span>
         )}
       </button>
-      {remaining !== null && remaining > 0 && (
+      {replaysLeft !== null && replaysLeft > 0 && (
         <span
           className={`text-sm font-semibold ${light ? 'text-slate-500' : 'text-slate-300'}`}
         >
-          {t('quizQuestionAudio.viewsLeft', {
-            count: remaining,
-            defaultValue: '{{count}} views left',
+          {t('quizQuestionAudio.replaysLeft', {
+            count: replaysLeft,
+            defaultValue: '{{count}} replays left',
           })}
         </span>
       )}

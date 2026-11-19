@@ -4541,7 +4541,7 @@ export interface QuestionAudio {
   driveFileId: string;
   durationSec: number;
   mimeType: string;
-  /** Times a student may start it per attempt; absent = unlimited. */
+  /** Plays a student may start per attempt (first listen plus replays); absent = unlimited. */
   playLimit?: number;
 }
 

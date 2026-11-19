@@ -55,7 +55,7 @@ export const PromptAudioRow: React.FC<{
 }> = ({ state, canRecord }) => {
   const { audio, onChange, saving, recorder } = state;
   const [playing, setPlaying] = useState(false);
-  const viewsId = React.useId();
+  const replaysId = React.useId();
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
 
   if (recorder.phase !== 'idle') {
@@ -171,13 +171,13 @@ export const PromptAudioRow: React.FC<{
       </div>
       <div className="flex min-h-8 items-center gap-3 pl-6">
         <label
-          htmlFor={viewsId}
+          htmlFor={replaysId}
           className="text-xs font-bold uppercase tracking-wider text-slate-500"
         >
-          Views
+          Replays
         </label>
         <select
-          id={viewsId}
+          id={replaysId}
           value={audio.playLimit ?? ''}
           onChange={(e) => {
             const n = Number(e.target.value);
@@ -186,12 +186,13 @@ export const PromptAudioRow: React.FC<{
             onChange(n > 0 ? { ...rest, playLimit: n } : rest);
           }}
           className="rounded-md border border-slate-300 bg-white py-1 pl-2 pr-7 text-sm text-slate-800 focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
-          {...tourTypeAttr('quiz-editor.prompt-audio-views', 'quiz')}
+          {...tourTypeAttr('quiz-editor.prompt-audio-replays', 'quiz')}
         >
           <option value="">Unlimited</option>
-          <option value="1">1</option>
-          <option value="2">2</option>
-          <option value="3">3</option>
+          <option value="1">None</option>
+          <option value="2">1</option>
+          <option value="3">2</option>
+          <option value="4">3</option>
         </select>
       </div>
     </div>

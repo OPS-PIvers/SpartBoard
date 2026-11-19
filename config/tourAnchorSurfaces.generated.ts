@@ -600,7 +600,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'quiz-editor.prompt-audio-stop': ['quiz.editor'],
     'quiz-editor.prompt-audio-play': ['quiz.editor'],
     'quiz-editor.prompt-audio-rerecord': ['quiz.editor'],
-    'quiz-editor.prompt-audio-views': ['quiz.editor'],
+    'quiz-editor.prompt-audio-replays': ['quiz.editor'],
     'quiz-editor.prompt-audio-remove': ['quiz.editor'],
     'quiz-editor.prompt-accents': ['quiz.editor'],
     'quiz-editor.prompt-accent-language': ['quiz.editor'],

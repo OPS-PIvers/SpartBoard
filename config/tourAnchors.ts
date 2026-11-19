@@ -2757,8 +2757,8 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
-  'quiz-editor.prompt-audio-views': {
-    label: 'Views limit for the question audio in the Quiz editor',
+  'quiz-editor.prompt-audio-replays': {
+    label: 'Replays limit for the question audio in the Quiz editor',
     perWidgetType: true,
     panel: true,
   },

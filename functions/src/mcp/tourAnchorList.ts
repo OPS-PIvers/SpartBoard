@@ -10969,8 +10969,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "quiz-editor.prompt-audio-views",
-    "label": "Views limit for the question audio in the Quiz editor",
+    "id": "quiz-editor.prompt-audio-replays",
+    "label": "Replays limit for the question audio in the Quiz editor",
     "scope": "widget type",
     "panel": true,
     "keys": [

@@ -14,7 +14,7 @@ const SAMPLE_AUDIO: QuestionAudio = {
   driveFileId: 'dev-sample',
   durationSec: 12,
   mimeType: 'audio/mp4',
-  playLimit: 2,
+  playLimit: 3,
 };
 
 const AudioSection: React.FC = () => {

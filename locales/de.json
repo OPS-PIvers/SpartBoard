@@ -5137,8 +5137,8 @@
     "stop": "Stopp",
     "retry": "Erneut versuchen",
     "label": "Audiofrage",
-    "viewsLeft_one": "Noch {{count}} Wiedergabe",
-    "viewsLeft_other": "Noch {{count}} Wiedergaben",
-    "noViewsLeft": "Keine Wiedergaben mehr"
+    "replaysLeft_one": "Noch {{count}} Wiederholung",
+    "replaysLeft_other": "Noch {{count}} Wiederholungen",
+    "noReplaysLeft": "Keine Wiederholungen mehr"
   }
 }
