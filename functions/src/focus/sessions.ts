@@ -897,6 +897,7 @@ export async function handleFocusOpen(
     input.shareId,
     now
   );
+  const shareId = shortId(input.shareId, 'shareId');
   await db.runTransaction(async (tx) => {
     const fresh = (await tx.get(ref)).data() ?? {};
     const raw: unknown = fresh.subMonitorUids;
@@ -905,9 +906,15 @@ export async function handleFocusOpen(
       : [];
     const until =
       typeof fresh.subMonitorUntil === 'number' ? fresh.subMonitorUntil : 0;
+    const shares =
+      fresh.subMonitorShares && typeof fresh.subMonitorShares === 'object'
+        ? (fresh.subMonitorShares as Record<string, string>)
+        : {};
     tx.update(ref, {
       subMonitorUids: uids.includes(who.uid) ? uids : [...uids, who.uid],
       subMonitorUntil: Math.max(until, expiresAt),
+      // The rules read through this share, so ending it or removing the sub ends the read.
+      subMonitorShares: { ...shares, [who.uid]: shareId },
     });
   });
   return { sessionId };

@@ -7346,7 +7346,15 @@ service cloud.firestore {
     match /focus_sessions/{sessionId} {
       function focusReader(s) {
         return liveStaffSignedIn() &&
-               (authUid() in s.get('teacherUids', []) || isSubMonitor(s));
+               (authUid() in s.get('teacherUids', []) || (isSubMonitor(s) && focusSubShareLive(s)));
+      }
+      // A sub's stamp holds only while the share it names is live and names them; stamps without one are pre-AB-97.
+      function focusSubShareLive(s) {
+        let m = s.get('subMonitorShares', {});
+        let sh = !(authUid() in m) ? null : dbGet('shared_collections', m[authUid()]).data;
+        return sh == null ||
+               (sh.get('expiresAt', 0) > request.time.toMillis() &&
+                request.auth.token.get('email', '').lower() in sh.get('subEmails', []));
       }
       allow get: if focusReader(existing());
       // Only the teacher query where('teacherUids', 'array-contains', uid) is provable; a sub reads by id.
