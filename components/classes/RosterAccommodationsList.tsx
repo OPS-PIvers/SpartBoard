@@ -290,7 +290,7 @@ export const RosterAccommodationsList: React.FC<
           onToggleGroup={toggleGroup}
         />
       </div>
-      <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto pb-4">
+      <div className="scroll-bleed min-h-0 flex-1 overflow-y-auto pb-4">
         {empty ? (
           <p className="py-6 text-center text-sm text-slate-500">
             {t('sidebar.classes.accommodationsEmpty', {

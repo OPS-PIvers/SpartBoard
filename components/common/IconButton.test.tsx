@@ -61,6 +61,12 @@ describe('IconButton', () => {
     expect(button.className).toContain('focus-visible:ring-offset-white');
   });
 
+  it('presses to 97% when enabled', () => {
+    render(<IconButton icon={<span>Icon</span>} label="Press Button" />);
+    const button = screen.getByRole('button', { name: /press button/i });
+    expect(button.className).toContain('enabled:active:scale-[0.97]');
+  });
+
   it('handles disabled state', () => {
     render(
       <IconButton icon={<span>Icon</span>} label="Test Button" disabled />

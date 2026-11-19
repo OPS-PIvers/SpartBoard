@@ -3817,6 +3817,7 @@ describe('index barrel — deployed export set', () => {
     'translateResponseV1',
     'transcribeSpeechV1',
     'tidyDictationV1',
+    'getSpeechToTextAccessV1',
     'generateGuidedLearning',
     'getAiProviderStatusV1',
     'draftGuidedLearningStepTextV1',

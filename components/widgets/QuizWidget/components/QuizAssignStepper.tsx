@@ -2,7 +2,13 @@
 import { GoogleDriveService } from '@/utils/googleDriveService';
 import React, { useContext, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ClassRoster, Plc, QuizBehaviorSettings } from '@/types';
+import type {
+  ClassRoster,
+  Plc,
+  QuizBehaviorSettings,
+  StudentOverride,
+} from '@/types';
+import type { LucideIcon } from 'lucide-react';
 import type { AssignTargetingValue } from '@/utils/studentTargetRef';
 import type { QuizHandRaiseMode } from '@/utils/quizHandRaise';
 import type { AssignPeriodAccessContext } from '@/components/common/library/AssignPeriodAccessSection';
@@ -42,25 +48,21 @@ import { SPEECH_TO_TEXT_FEATURE } from '@/utils/speechToText/types';
 import { clampQuizTimeLimitMinutes } from '@/utils/quizTimeLimit';
 import { languageDisplayLabel } from '@/utils/languageDisplayLabel';
 import {
-  previewOverride,
-  STANDARD_VERSION,
-  STANDARD_VERSION_ID,
-  type StudentViewVersion,
-} from '@/utils/quizStudentViewVersions';
-import {
   countUnresolvableStudents,
   modificationClassGroups,
   modificationRows,
 } from '@/components/common/library/assignStepper/ModificationsView.helpers';
 import { ModificationGroupsStep } from '@/components/common/library/assignStepper/ModificationGroupsStep';
 import {
+  editedOverrides,
+  groupRulesOf,
   formatModificationGroupsValue,
-  groupRuleLabels,
   newModificationGroup,
-  overrideForGroup,
   overridesFromGroups,
   printedGroupPicks,
   rowsInClasses,
+  standingDriveFileIds,
+  withStandingGroups,
   type ModificationGroup,
   type PrintedGroupPick,
 } from '@/components/common/library/assignStepper/modificationGroups';
@@ -96,11 +98,6 @@ export interface QuizAssignStepperProps {
     hasQuestionTimeLimits?: boolean;
     /** Some question has a modified version, so groups can opt into it. */
     hasModifiedQuestions?: boolean;
-    /** Opens Student view with Standard plus each group's version. */
-    onPreviewVersions?: (
-      versions: StudentViewVersion[],
-      initialVersionId: string
-    ) => void;
   };
   /** Omit when sharing is fixed (PLC quiz assign, D21): no Sharing step. */
   sharing?: {
@@ -123,7 +120,29 @@ export interface QuizAssignStepperProps {
   onClose: () => void;
   onSubmit: (extra: {
     printedGroups: PrintedGroupPick[];
+    /** What the Modifications step shows, so assign serves exactly that. */
+    overridesByKey?: AssignTargetingValue['overridesByKey'];
   }) => void | Promise<void>;
+  /** Quiz settings on a launched assignment: same steps, opened on what was saved. */
+  edit?: QuizAssignStepperEdit;
+}
+
+export interface QuizAssignStepperEdit {
+  /** The assignment's saved per-student overrides; the step opens with them as groups. */
+  savedOverrides: Record<string, StudentOverride>;
+  /** Classes it went to; their students open on their saved rules, not the class presets. */
+  savedClassIds: readonly string[];
+  /** Languages the live session serves; any other is flagged, since nothing translates after assign. */
+  servedLocales: readonly string[];
+  /** Set when it went to picked students: only they can join a group. */
+  targetKeys?: ReadonlySet<string>;
+  inline?: boolean;
+  /** Settings' own When step: a launched assignment edits its window, not how it starts. */
+  when: Omit<AssignStepDef, 'id' | 'title'>;
+  /** PLC results sharing, which settings starts and stops right away. */
+  sharing?: Omit<AssignStepDef, 'id' | 'title'>;
+  submitIcon?: LucideIcon;
+  disabled?: boolean;
 }
 
 const SELECT_A_CLASS_FIRST = 'Select a class first';
@@ -149,6 +168,7 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   printedVersionsAvailable = false,
   onClose,
   onSubmit,
+  edit,
 }) => {
   const { t } = useTranslation();
   const gates = useQuizRuleGates();
@@ -157,11 +177,51 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   const auth = useContext(AuthContext);
   const groupsOn =
     !!modifications && auth?.canAccessFeature?.('modification-groups') === true;
-  const [groups, setGroups] = useState<ModificationGroup[]>(() => [
-    newModificationGroup(),
-  ]);
   const usable = rosters.filter((r) => !r.loadError);
   const staff = audience?.audience === 'staff';
+  // Every roster, not just the checked ones, so a student on two rosters carries both presets.
+  const allRows = modificationRows({ rosters: usable });
+  const presetByKey = new Map(
+    allRows.map((row) => [row.key, row.defaultOverride] as const)
+  );
+  // Editing, a saved class's students open on what was saved; a newly checked class brings its presets.
+  const savedClass = new Set(edit?.savedClassIds ?? []);
+  const startingRule = (row: { key: string; rosterId: string }) =>
+    edit && (row.key in edit.savedOverrides || savedClass.has(row.rosterId))
+      ? groupRulesOf(edit.savedOverrides[row.key])
+      : presetByKey.get(row.key);
+  // Students the step reaches for these classes; their class presets arrive as groups.
+  const reachedRows = (next: AssignClassesValue) =>
+    groupsOn && !staff
+      ? rowsInClasses(
+          modificationRows({
+            rosters: usable,
+            selectedRosterIds: next.classIds,
+          }),
+          next,
+          usable
+        )
+          .filter((row) => !edit?.targetKeys || edit.targetKeys.has(row.key))
+          .map((row) => {
+            const { defaultOverride: _own, ...rest } = row;
+            const merged = startingRule(row);
+            return merged && Object.keys(merged).length > 0
+              ? { ...rest, defaultOverride: merged }
+              : rest;
+          })
+      : [];
+  const [seeded, setSeeded] = useState<ReadonlySet<string>>(
+    () => new Set(reachedRows(classes).map((row) => row.key))
+  );
+  const [groups, setGroups] = useState<ModificationGroup[]>(() =>
+    withStandingGroups(
+      [newModificationGroup()],
+      reachedRows(classes),
+      new Set()
+    )
+  );
+  // What the step opened with, so Save rewrites only the students whose rules changed.
+  const [openedWith] = useState(() => ({ groups, seeded }));
   const picked = staff
     ? []
     : usable.filter((r) => classes.classIds.includes(r.id));
@@ -170,28 +230,28 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   const ctx = { kind: 'work' as const, inPlc };
   const needsPlc = !!sharing && inPlc && sharingNeedsPlc(sharing.value, plcs);
   // Staff hides the Due row, so a due date can't hold Assign back.
-  const backwards = whenBackwards(
-    staff
-      ? {
-          ...when,
-          availability: { ...when.availability, manualDue: undefined },
-        }
-      : when,
-    picked,
-    periodAccess?.bellWindow
-  );
+  // Editing, settings checks its own window through `edit.disabled`.
+  const backwards =
+    !edit &&
+    whenBackwards(
+      staff
+        ? {
+            ...when,
+            availability: { ...when.availability, manualDue: undefined },
+          }
+        : when,
+      picked,
+      periodAccess?.bellWindow
+    );
 
-  const groupRows =
-    groupsOn && !staff
-      ? rowsInClasses(
-          modificationRows({
-            rosters: usable,
-            selectedRosterIds: classes.classIds,
-          }),
-          classes,
-          usable
-        )
-      : [];
+  const groupRows = reachedRows(classes);
+  // Supports already in use, by a class preset or the saved assignment, are never deleted here.
+  const keepFileIds = new Set([
+    ...standingDriveFileIds(allRows),
+    ...Object.values(edit?.savedOverrides ?? {}).flatMap((o) =>
+      (o.supports ?? []).flatMap((s) => (s.kind === 'drive' ? [s.fileId] : []))
+    ),
+  ]);
   const sessionMinutes = gates.timeLimitOn
     ? clampQuizTimeLimitMinutes(behavior.sessionOptions.timeLimitMinutes)
     : null;
@@ -204,43 +264,38 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
     timeLimitLabel
       ? list
       : list.map((g) => ({ ...g, time: 'standard' as const }));
-  const previewGroup = (groupId: string) => {
-    if (!modifications?.onPreviewVersions) return;
-    const versions: StudentViewVersion[] = [STANDARD_VERSION];
-    withTime(groups).forEach((group, i) => {
-      const override = previewOverride(
-        overrideForGroup(group, undefined, modifications.quizContext.questions)
-      );
-      if (!override) return;
-      const rules = groupRuleLabels(group, languageDisplayLabel).filter(
-        (rule) => rule !== 'printed version'
-      );
-      versions.push({
-        id: group.id,
-        label: `Group ${i + 1} · ${rules.join(', ')}`,
-        override,
-      });
-    });
-    modifications.onPreviewVersions(
-      versions,
-      versions.some((v) => v.id === groupId) ? groupId : STANDARD_VERSION_ID
+  // Every roster, not just the checked ones, so re-checking a class keeps its students' rules.
+  const groupOverrides = (
+    list: ModificationGroup[],
+    shown: ReadonlySet<string>
+  ) =>
+    overridesFromGroups(
+      printedVersionsAvailable
+        ? list
+        : list.map((g) => ({ ...g, printed: false })),
+      allRows,
+      shown
     );
-  };
-  const applyGroups = (next: ModificationGroup[]) => {
+  const applyGroups = (
+    next: ModificationGroup[],
+    shown: ReadonlySet<string> = seeded
+  ) => {
     setGroups(next);
     if (!modifications) return;
-    // Every roster, not just the checked ones, so re-checking a class keeps its students' rules.
-    const allRows = modificationRows({ rosters: usable });
     modifications.onTargetingChange({
       ...modifications.targeting,
-      overridesByKey: overridesFromGroups(
-        printedVersionsAvailable
-          ? next
-          : next.map((g) => ({ ...g, printed: false })),
-        allRows,
-        modifications.quizContext.questions
-      ),
+      overridesByKey: groupOverrides(next, shown),
     });
+  };
+
+  // A newly reached student brings their class presets in as a group, once.
+  const changeClasses = (next: AssignClassesValue) => {
+    onClassesChange(next);
+    const rows = reachedRows(next);
+    if (rows.every((row) => seeded.has(row.key))) return;
+    const shown = new Set([...seeded, ...rows.map((row) => row.key)]);
+    applyGroups(withStandingGroups(groups, rows, seeded), shown);
+    setSeeded(shown);
   };
 
   const bodies: Record<string, Omit<AssignStepDef, 'id' | 'title'>> = {
@@ -251,14 +306,16 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
           <ClassChecklist
             rosters={rosters}
             value={classes}
-            onChange={onClassesChange}
+            onChange={changeClasses}
           />
-          <StudentPickMenu
-            rosters={usable}
-            value={classes}
-            onChange={onClassesChange}
-          />
-          {modifications && !groupsOn && picked.length > 0 && (
+          {!edit && (
+            <StudentPickMenu
+              rosters={usable}
+              value={classes}
+              onChange={changeClasses}
+            />
+          )}
+          {modifications && !groupsOn && !edit && picked.length > 0 && (
             <ModificationsLink
               rosters={usable}
               selectedRosterIds={classes.classIds}
@@ -269,7 +326,7 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
         </div>
       ),
     },
-    when: {
+    when: edit?.when ?? {
       value: formatWhenValue(when, {
         variant: 'when',
         rosterCount: picked.length,
@@ -313,6 +370,9 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
       : extrasShown
         ? 'Additional settings'
         : getAssignStepTitle('sharing', 'quiz', ctx);
+  const sharingTitle = edit
+    ? getAssignStepTitle('sharing', 'quiz', ctx)
+    : lastTitle;
   const handRaiseOn = behavior.sessionOptions.handRaiseEnabled === true;
   const onPaperWritten = written?.value.where === 'paper';
   const lastParts = [
@@ -330,7 +390,9 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   const lastValue =
     lastParts.join(', ') ||
     (written ? 'Written answers on the device' : 'Raise hand off');
-  if (extrasShown || inPlc) {
+  if (edit) {
+    if (edit.sharing) bodies.sharing = edit.sharing;
+  } else if (extrasShown || inPlc) {
     bodies.sharing = {
       value: lastValue,
       body: (
@@ -397,7 +459,8 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
             setSharingCount((n) => Math.max(0, n + (sharing ? 1 : -1)))
           }
           printedAvailable={printedVersionsAvailable}
-          onPreview={modifications.onPreviewVersions ? previewGroup : undefined}
+          keepFileIds={keepFileIds}
+          servedLocales={edit?.servedLocales}
         />
       ),
     };
@@ -410,7 +473,8 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   const steps: AssignStepDef[] = stepIds.map((id) => {
     const step = ruleSteps.get(id) ?? {
       id,
-      title: id === 'sharing' ? lastTitle : getAssignStepTitle(id, 'quiz', ctx),
+      title:
+        id === 'sharing' ? sharingTitle : getAssignStepTitle(id, 'quiz', ctx),
       ...bodies[id],
     };
     return id === 'classes' && audience
@@ -429,14 +493,14 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
           : null;
         for (const g of groups)
           for (const sup of g.supports ?? [])
-            if (sup.kind === 'drive')
+            if (sup.kind === 'drive' && !keepFileIds.has(sup.fileId))
               void drive?.deleteFile(sup.fileId).catch(() => undefined);
         onClose();
       }}
       title={title}
       steps={steps}
       submitLabel={onPaper ? 'Assign and print' : submitLabel}
-      submitIcon={onPaper ? Printer : undefined}
+      submitIcon={onPaper ? Printer : edit?.submitIcon}
       altAction={
         onAssignOnPaper && !onPaper
           ? {
@@ -447,8 +511,26 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
             }
           : undefined
       }
-      onSubmit={() => onSubmit({ printedGroups })}
-      disabled={needsPlc || backwards || sharingCount > 0}
+      onSubmit={() =>
+        onSubmit({
+          printedGroups,
+          ...(groupsOn && !staff
+            ? {
+                overridesByKey: edit
+                  ? editedOverrides(
+                      edit.savedOverrides,
+                      groupOverrides(openedWith.groups, openedWith.seeded),
+                      groupOverrides(groups, seeded)
+                    )
+                  : groupOverrides(groups, seeded),
+              }
+            : {}),
+        })
+      }
+      inline={edit?.inline}
+      disabled={
+        needsPlc || backwards || sharingCount > 0 || edit?.disabled === true
+      }
       disabledReason={
         needsPlc
           ? PICK_A_PLC

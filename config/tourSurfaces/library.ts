@@ -146,7 +146,6 @@ export const SURFACES: TourSurfaceMap = {
       'assign-mods.language': 'assign-step.modifications',
       'assign-mods.group': 'assign-step.modifications',
       'assign-mods.add-group': 'assign-step.modifications',
-      'assign-mods.group-generate-translation': 'assign-step.modifications',
       'assign-mods.supports-add': 'assign-step.modifications',
       'assign-mods.modified-questions': 'assign-step.modifications',
       'assign-mods.supports-kind': 'assign-mods.supports-add',
@@ -162,7 +161,6 @@ export const SURFACES: TourSurfaceMap = {
       'assign-mods.support-file-url-add':
         'assign-mods.supports-kind:assign#drive',
       'assign-mods.support-remove': 'assign-step.modifications',
-      'assign-mods.preview-group': 'assign-step.modifications',
       'assign-mods.remove-group': 'assign-step.modifications',
     },
   },

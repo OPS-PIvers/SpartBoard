@@ -61,7 +61,6 @@ export const ColumnsLayout: React.FC<WallRenderProps> = ({
         gap: scale.gap,
         padding: scale.pad,
         gridTemplateColumns: `repeat(auto-fit, minmax(${columnMinWidth}, 1fr))`,
-        scrollbarWidth: 'thin',
       }}
       data-testid="aw-layout-columns"
     >

@@ -572,6 +572,8 @@ interface QuizManagerProps {
   /** Reopens an ended per-class quiz for picked students only. */
   onArchiveReopenStudents?: (assignment: QuizAssignment) => void;
   onArchiveDelete?: (assignment: QuizAssignment) => void | Promise<void>;
+  /** Assigned tab bulk delete, already confirmed; resolves to how many failed. */
+  onArchiveDeleteMany?: (assignments: QuizAssignment[]) => Promise<number>;
   /** Signed-in teacher's display name; default `teacherName` on new assignments. */
   defaultTeacherName?: string;
   /**
@@ -905,6 +907,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onArchiveReopen,
   onArchiveReopenStudents,
   onArchiveDelete,
+  onArchiveDeleteMany,
   defaultTeacherName,
   syncedGroups,
   onPullSyncedQuiz,
@@ -2344,6 +2347,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   );
   const handleStepperAssign = (extra?: {
     printedGroups: PrintedGroupPick[];
+    overridesByKey?: AssignTargetingValue['overridesByKey'];
   }): void => {
     if (!assignTarget) return;
     if (plcs.length > 0 && sharingNeedsPlc(assignOptions, plcs)) return;
@@ -2375,7 +2379,11 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     const bellWindow = periodAccess?.bellWindow;
     const applied = applyWhen(
       {
-        ...(assignToStaff ? EMPTY_ASSIGN_TARGETING_VALUE : assignTargeting),
+        ...(assignToStaff
+          ? EMPTY_ASSIGN_TARGETING_VALUE
+          : extra?.overridesByKey
+            ? { ...assignTargeting, overridesByKey: extra.overridesByKey }
+            : assignTargeting),
         availability: assignToStaff
           ? { ...assignWhen.availability, manualDue: undefined }
           : assignWhen.availability,
@@ -3145,6 +3153,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           rosters={rosters}
           lifecycle={classLifecycle}
           pinnedId={config.activeAssignmentId ?? null}
+          onBulkDelete={onArchiveDeleteMany}
           emptyTitle="Nothing active"
           emptySub={
             isViewOnly
@@ -3341,16 +3350,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
               (assignQuizData?.questions ?? []).some(
                 (q) => !!q.modifiedText?.trim() || !!q.modifiedRubricSnapshot
               ) || (assignQuizData?.bankSlots?.length ?? 0) > 0,
-            ...(onStudentView
-              ? {
-                  onPreviewVersions: (versions, initialVersionId) =>
-                    onStudentView(assignTarget, {
-                      behavior: assignBehavior,
-                      versions,
-                      initialVersionId,
-                    }),
-                }
-              : {}),
           }}
           sharing={{
             value: assignOptions,

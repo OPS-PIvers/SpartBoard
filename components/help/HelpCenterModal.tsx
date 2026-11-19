@@ -90,9 +90,9 @@ export const HelpCenterModal: React.FC<HelpCenterModalProps> = ({
     // Marker lets the global Ctrl+/ handler toggle Help even though the search box has focus.
     <div
       data-help-modal=""
-      className="flex items-center gap-3 px-5 py-4 border-b border-slate-200 shrink-0"
+      className="flex items-center gap-3 px-5 py-3.5 shrink-0 bg-brand-blue-primary text-white rounded-t-2xl"
     >
-      <h2 className="font-black text-lg text-slate-900 shrink-0">
+      <h2 className="font-black text-lg text-white shrink-0">
         {t('helpCenter.title')}
       </h2>
       <div className="relative flex-1 min-w-0 max-w-md">
@@ -105,7 +105,7 @@ export const HelpCenterModal: React.FC<HelpCenterModalProps> = ({
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t('helpCenter.search')}
           aria-label={t('helpCenter.search')}
-          className="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-light/40"
+          className="w-full pl-9 pr-3 py-2 rounded-lg bg-white border border-white text-sm text-slate-800 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-white/60"
           {...tourAttr('help-center.search')}
         />
       </div>
@@ -113,7 +113,7 @@ export const HelpCenterModal: React.FC<HelpCenterModalProps> = ({
         type="button"
         onClick={onClose}
         aria-label={t('helpCenter.close')}
-        className="ml-auto p-1 rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+        className="ml-auto p-1 rounded-full text-white/80 hover:bg-white/15 hover:text-white transition-colors"
         {...tourAttr('help-center.close')}
       >
         <X size={20} />

@@ -86,16 +86,16 @@ export const QuizAssignmentImportModeModal: React.FC<
       maxWidth="max-w-md"
       contentClassName=""
       customHeader={
-        <div className="flex items-start justify-between px-5 pt-5 pb-3 border-b border-slate-100">
+        <div className="flex items-start justify-between gap-3 px-5 py-3.5 bg-emerald-700 text-white rounded-t-2xl">
           <div className="flex items-start gap-3">
-            <div className="shrink-0 w-9 h-9 rounded-lg bg-brand-blue-lighter/40 text-brand-blue-primary flex items-center justify-center">
+            <div className="shrink-0 w-9 h-9 rounded-lg bg-white/15 text-white flex items-center justify-center">
               <Cloud className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900">
+              <h2 className="text-base font-bold text-white">
                 Import shared assignment
               </h2>
-              <p className="text-xs text-slate-500 mt-0.5 truncate max-w-[20rem]">
+              <p className="text-xs text-white/80 mt-0.5 truncate max-w-[20rem]">
                 {quizTitle}
                 {originatorName ? ` · from ${originatorName}` : ''}
               </p>
@@ -106,7 +106,7 @@ export const QuizAssignmentImportModeModal: React.FC<
             onClick={onClose}
             aria-label="Close"
             // no-tour-anchor: choose-how-to-import prompt that only appears for a shared assignment link
-            className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+            className="shrink-0 rounded-lg p-1 text-white/80 hover:bg-white/15 hover:text-white transition-colors"
           >
             <X className="w-5 h-5" />
           </button>

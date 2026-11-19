@@ -542,7 +542,7 @@ const WrittenResponseEditorInner: React.FC<
   });
   const dictationInterim = dictation ? dictationController.interim : '';
   const paidSettings = useSpeechToTextSettings(
-    dictation?.paid !== undefined && !disabled
+    disabled ? undefined : dictation?.paid?.assignmentId
   );
   const tidyOffered =
     dictation?.paid !== undefined &&

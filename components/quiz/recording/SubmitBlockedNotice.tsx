@@ -88,7 +88,14 @@ export const SubmitBlockedNotice: React.FC<{
                   light ? 'text-slate-800' : 'text-slate-100'
                 }`}
               >
-                <MathText text={q.text} format />
+                <MathText
+                  text={
+                    q.text.trim()
+                      ? q.text
+                      : t('quizQuestionAudio.label', 'Audio question')
+                  }
+                  format
+                />
               </span>
               <ArrowRight
                 aria-hidden

@@ -2420,6 +2420,8 @@
       "yourAnswers": "Deine Antworten",
       "otherQuestions": "Andere Fragen",
       "yourAnswer": "Deine Antwort:",
+      "yourAnswerTag": "Deine Antwort",
+      "correctAnswerTag": "Richtige Antwort",
       "scoreOnly": "Deine Lehrkraft hat deine Punktzahl veröffentlicht. Einzelne Antworten werden bei dieser Aufgabe nicht gezeigt."
     },
     "rubric": {
@@ -3721,8 +3723,7 @@
     "close": "Schließen",
     "tabs": {
       "behavior": "Verhalten",
-      "languages": "Sprachen",
-      "speechToText": "Sprache zu Text"
+      "languages": "Sprachen"
     },
     "selectBuilding": "Schule zur Konfiguration auswählen",
     "building": "Schule",
@@ -5142,5 +5143,12 @@
     "tidyUndo": "Rückgängig",
     "tidyDone": "Aufgeräumt.",
     "tidyNoChange": "Nichts aufzuräumen."
+  },
+  "quizQuestionAudio": {
+    "play": "Audio abspielen",
+    "stop": "Stopp",
+    "retry": "Erneut versuchen",
+    "label": "Audiofrage",
+    "playCount": "Audio abspielen ({{used}}/{{total}})"
   }
 }

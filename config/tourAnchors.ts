@@ -1358,6 +1358,24 @@ export const TOUR_ANCHORS = {
     rows: true,
     rowList: 'assign-classes',
   },
+  'assign-classes.course': {
+    label: 'Course checkbox in the Assign dialog class list',
+    perField: true,
+    keyPattern: 'assign#row-[1-9]\\d*',
+    keyHint: 'assign#row-1 for the first row',
+    panel: true,
+    rows: true,
+    rowList: 'assign-classes',
+  },
+  'assign-classes.course-expand': {
+    label: 'Show the sections in a Course in the Assign dialog class list',
+    perField: true,
+    keyPattern: 'assign#row-[1-9]\\d*',
+    keyHint: 'assign#row-1 for the first row',
+    panel: true,
+    rows: true,
+    rowList: 'assign-classes',
+  },
   'assign-classes.select-all': {
     label: 'Select all button in the Assign dialog class list',
     panel: true,
@@ -1631,10 +1649,6 @@ export const TOUR_ANCHORS = {
     destructive: true,
     panel: true,
   },
-  'assign-mods.preview-group': {
-    label: 'Preview button on a group in the Assign dialog Modifications step',
-    panel: true,
-  },
   'assign-mods.remove-group': {
     label: 'Remove group button in the Assign dialog Modifications step',
     destructive: true,
@@ -1681,12 +1695,6 @@ export const TOUR_ANCHORS = {
   'assign-mods.generate-translation': {
     label:
       'Generate translation button in the Assign dialog modifications view',
-    perField: true,
-    panel: true,
-  },
-  'assign-mods.group-generate-translation': {
-    label:
-      'Generate translation button in the Assign dialog Modifications step',
     perField: true,
     panel: true,
   },
@@ -2734,6 +2742,37 @@ export const TOUR_ANCHORS = {
   },
   'quiz-editor.prompt-numbers': {
     label: 'Numbered list button on the question prompt in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-record-audio': {
+    label: 'Record audio button on the question prompt in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-audio-stop': {
+    label:
+      'Stop recording button in the question audio popover in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-audio-play': {
+    label: 'Play button for the recorded question audio in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-audio-rerecord': {
+    label: 'Record again button for the question audio in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-audio-replays': {
+    label: 'Replays limit for the question audio in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-audio-remove': {
+    label: 'Remove button for the question audio in the Quiz editor',
     perWidgetType: true,
     panel: true,
   },
@@ -6711,6 +6750,33 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'library-shell.assigned-select': {
+    label: 'Select on the Assigned tab; starts picking several assignments',
+  },
+  'library-shell.assigned-select-row': {
+    label: 'Checkbox on an Assigned row while picking several assignments',
+    perField: true,
+    panel: true,
+    rows: true,
+    rowList: 'assignment-rows',
+  },
+  'library-shell.assigned-select-all': {
+    label: 'Select all box in the Assigned tab selection bar',
+    panel: true,
+  },
+  'library-shell.assigned-bulk-action': {
+    label: 'Close, Move to Done or Delete in the Assigned tab selection bar',
+    persists: true,
+    destructive: true,
+    perField: true,
+    panel: true,
+    keyPattern: '[a-z-]+#(close|move-to-done|delete)',
+    keyHint: 'quiz#delete is Delete for the picked quizzes',
+  },
+  'library-shell.assigned-select-cancel': {
+    label: 'Cancel in the Assigned tab selection bar',
+    panel: true,
+  },
   'widget-settings.calendar.remove-calendar': {
     label: 'Remove a personal calendar in Calendar settings',
     perField: true,
@@ -9622,6 +9688,16 @@ export const TOUR_ANCHORS = {
   },
   'admin.features.model-tier': {
     label: 'Model select on a feature row',
+    perField: true,
+    panel: true,
+  },
+  'admin.features.monthly-cap-number': {
+    label: 'Monthly limit box on a feature row',
+    perField: true,
+    panel: true,
+  },
+  'admin.features.transcribe-mode': {
+    label: 'Transcription mode select on the AI transcription row',
     perField: true,
     panel: true,
   },

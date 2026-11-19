@@ -260,10 +260,10 @@ export const SchoologyInboxModal: React.FC<SchoologyInboxModalProps> = ({
   };
 
   const header = (
-    <div className="flex items-center justify-between gap-4 px-6 py-4 border-b border-slate-200 shrink-0 bg-white rounded-t-2xl">
+    <div className="flex items-center justify-between gap-4 px-6 py-3.5 shrink-0 bg-emerald-700 text-white rounded-t-2xl">
       <h3
         id="schoology-inbox-title"
-        className="font-black text-lg text-slate-800 truncate"
+        className="font-black text-lg text-white truncate"
       >
         From Schoology
       </h3>
@@ -272,7 +272,7 @@ export const SchoologyInboxModal: React.FC<SchoologyInboxModalProps> = ({
         {...tourTypeAttr('quiz-import.schoology-close', 'quiz')}
         onClick={close}
         disabled={busy}
-        className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 transition-colors shrink-0 disabled:opacity-40"
+        className="p-1.5 hover:bg-white/15 rounded-full text-white/80 transition-colors shrink-0 disabled:opacity-40"
         aria-label="Close From Schoology"
       >
         <X size={20} />
@@ -601,7 +601,7 @@ export const SchoologyInboxModal: React.FC<SchoologyInboxModalProps> = ({
       onClose={close}
       customHeader={header}
       footer={footer}
-      footerClassName="shrink-0 border-t border-slate-200 rounded-b-2xl"
+      footerClassName=""
       maxWidth="max-w-2xl"
       className="font-sans"
       contentClassName="px-6 py-5 bg-slate-50"

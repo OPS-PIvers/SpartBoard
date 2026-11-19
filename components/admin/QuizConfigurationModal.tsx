@@ -8,7 +8,6 @@ import {
   Save,
   Loader2,
   Languages,
-  Mic,
   Settings2,
   ToggleRight,
 } from 'lucide-react';
@@ -17,7 +16,6 @@ import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { BuildingSelector } from './BuildingSelector';
 import { DockDefaultsPanel } from './DockDefaultsPanel';
 import { QuizReadAloudConfigurationPanel } from './QuizReadAloudConfigurationPanel';
-import { SpeechToTextConfigurationPanel } from './SpeechToTextConfigurationPanel';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
 import { canonicalBuildingId } from '@/config/buildings';
@@ -71,12 +69,11 @@ export const QuizConfigurationModal: React.FC<QuizConfigurationModalProps> = ({
   const { addToast } = useDashboard();
   const { showConfirm } = useDialog();
   const BUILDINGS = useAdminBuildings();
-  const [tab, setTab] = useState<
-    'behavior' | 'features' | 'languages' | 'speech'
-  >('behavior');
+  const [tab, setTab] = useState<'behavior' | 'features' | 'languages'>(
+    'behavior'
+  );
   const [saving, setSaving] = useState(false);
   const [languagesDirty, setLanguagesDirty] = useState(false);
-  const [speechDirty, setSpeechDirty] = useState(false);
   const [selectedBuildingId, setSelectedBuildingId] =
     useBuildingSelection(BUILDINGS);
   const [config, setConfig] = useState<QuizGlobalConfig>(() =>
@@ -118,11 +115,9 @@ export const QuizConfigurationModal: React.FC<QuizConfigurationModalProps> = ({
   const configDirty =
     JSON.stringify(config) !==
     JSON.stringify(normalizeConfig(permission.config));
-  const panelsDirty = languagesDirty || speechDirty;
-  const isDirty = configDirty || panelsDirty || featuresDirty;
-  // Languages and Speech to text own their Save; the footer saves there only for switch edits.
-  const showFooterSave =
-    (tab !== 'languages' && tab !== 'speech') || featuresDirty;
+  const isDirty = configDirty || languagesDirty || featuresDirty;
+  // The Languages tab owns its own Save; the footer saves there only for switch edits.
+  const showFooterSave = tab !== 'languages' || featuresDirty;
 
   // Same discard prompt the generic admin config modal path uses.
   const requestClose = async () => {
@@ -157,8 +152,8 @@ export const QuizConfigurationModal: React.FC<QuizConfigurationModalProps> = ({
         return;
       }
       addToast(t('quizAdmin.saved', 'Quiz configuration saved.'), 'success');
-      // Closing would drop an unsaved panel draft.
-      if (!panelsDirty) onClose();
+      // Closing would drop an unsaved languages draft.
+      if (!languagesDirty) onClose();
     } catch (err) {
       console.error('Failed to save quiz config:', err);
       addToast(
@@ -190,16 +185,16 @@ export const QuizConfigurationModal: React.FC<QuizConfigurationModalProps> = ({
     };
 
   const header = (
-    <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+    <div className="px-6 py-3.5 flex items-center justify-between gap-3 bg-brand-blue-primary text-white rounded-t-2xl shrink-0">
       <div className="flex items-center gap-3">
-        <div className="p-2 bg-brand-blue-lighter rounded-xl text-brand-blue-primary">
+        <div className="p-2 bg-white/15 rounded-xl text-white">
           <Hand className="w-6 h-6" />
         </div>
         <div>
-          <h2 className="text-lg font-black text-slate-800 tracking-tight">
+          <h2 className="text-lg font-black text-white tracking-tight">
             {t('quizAdmin.title', 'Quiz Administration')}
           </h2>
-          <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">
+          <p className="text-xs text-white/80 font-medium uppercase tracking-wider">
             {features
               ? t(
                   'quizAdmin.subtitleFeatures',
@@ -213,7 +208,7 @@ export const QuizConfigurationModal: React.FC<QuizConfigurationModalProps> = ({
         {...tourTypeAttr('admin.widget-config.close', 'quiz')}
         onClick={() => void requestClose()}
         aria-label={t('quizAdmin.close', 'Close')}
-        className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
+        className="p-2 hover:bg-white/15 rounded-full text-white/80 transition-colors"
       >
         <X className="w-6 h-6" />
       </button>
@@ -265,7 +260,7 @@ export const QuizConfigurationModal: React.FC<QuizConfigurationModalProps> = ({
       footer={footer}
       className="p-0!"
       contentClassName=""
-      footerClassName="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between w-full shrink-0"
+      footerClassName="px-6 py-4 flex items-center justify-between w-full"
     >
       <div className="p-6 space-y-6">
         <div className="flex gap-2">
@@ -289,11 +284,6 @@ export const QuizConfigurationModal: React.FC<QuizConfigurationModalProps> = ({
                 id: 'languages' as const,
                 label: t('quizAdmin.tabs.languages', 'Languages'),
                 icon: Languages,
-              },
-              {
-                id: 'speech' as const,
-                label: t('quizAdmin.tabs.speechToText', 'Speech to text'),
-                icon: Mic,
               },
             ] as const
           ).map(({ id, label, icon: Icon }) => (
@@ -441,9 +431,6 @@ export const QuizConfigurationModal: React.FC<QuizConfigurationModalProps> = ({
         <section className="space-y-6" hidden={tab !== 'languages'}>
           {languageFeatures}
           <QuizReadAloudConfigurationPanel onDirtyChange={setLanguagesDirty} />
-        </section>
-        <section hidden={tab !== 'speech'}>
-          <SpeechToTextConfigurationPanel onDirtyChange={setSpeechDirty} />
         </section>
       </div>
     </Modal>

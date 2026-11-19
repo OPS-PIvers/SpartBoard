@@ -717,7 +717,10 @@ export function useWritingPiece(args: {
       if (!holdingRef.current) return;
       // A dictated passage that arrived late and with no input event is logged here.
       const tracker = dictationRef.current;
-      const el = tracker.landing ? null : editableIn(editorRootRef.current);
+      const el =
+        tracker.landing || !tracker.active(Date.now())
+          ? null
+          : editableIn(editorRootRef.current);
       const rec = recorderRef.current;
       if (el && rec) {
         const text = editorPlainText(el);

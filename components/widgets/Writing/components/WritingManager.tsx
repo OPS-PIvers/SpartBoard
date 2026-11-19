@@ -692,6 +692,12 @@ export const WritingManager: React.FC<{ widget: WidgetData }> = ({
           onMonitor={(r) => update({ view: 'monitor', monitorSessionId: r.id })}
           onResults={(r) => update({ view: 'results', resultsSessionId: r.id })}
           onDelete={(r) => void handleDeleteRecord(r)}
+          onBulkDelete={async (list) => {
+            const results = await Promise.allSettled(
+              list.map((x) => sessions.remove(x.id))
+            );
+            return results.filter((x) => x.status === 'rejected').length;
+          }}
         />
       ) : tab === 'active' ? (
         renderRecords(activeRecords, 'active')

@@ -217,10 +217,16 @@ export function parseWallChanges(raw: unknown): Record<string, unknown> {
       if (!isRecord(value)) invalid('allowedTypes is not valid.');
       const types: Record<string, boolean> = {};
       for (const [type, on] of Object.entries(value)) {
-        if (!MEDIA_TYPES.includes(type) || typeof on !== 'boolean')
+        if (
+          (type !== 'text' && !MEDIA_TYPES.includes(type)) ||
+          typeof on !== 'boolean'
+        )
           invalid('allowedTypes is not valid.');
         types[type] = on;
       }
+      // Text stays on unless turned off; a wall needs one way to post.
+      if (types.text === false && !MEDIA_TYPES.some((t) => types[t] === true))
+        invalid('allowedTypes is not valid.');
       out.allowedTypes = types;
     } else if (key === 'appearance') {
       out.appearance = parseAppearance(value);

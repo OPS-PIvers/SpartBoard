@@ -15,6 +15,7 @@ import type {
   ClassRoster,
   PeriodAccess,
   QuizData,
+  QuizAssignment,
   QuizMetadata,
   StudentOverride,
   StudentTargetRef,
@@ -107,6 +108,40 @@ function resolveClassName(
   return '—';
 }
 
+/** A quiz assignment as a hub row, which the targeting edit path saves from. */
+export function quizAssignmentRow(
+  a: QuizAssignment,
+  rosterNamesById: Map<string, string>
+): UnifiedAssignmentRow {
+  return {
+    id: a.id,
+    kind: 'quiz',
+    title: a.quizTitle,
+    className: resolveClassName(a.className, a.rosterIds, rosterNamesById),
+    status: a.status,
+    targetMode: a.targetMode === 'students' ? 'students' : 'class',
+    targetSkippedCount: a.targetSkippedCount ?? 0,
+    openAt: a.openAt,
+    closeAt: a.closeAt,
+    dueAt: a.dueAt,
+    ...(a.dueLocks ? { dueLocks: true } : {}),
+    createdAt: a.createdAt,
+    sessionId: a.id,
+    rosterIds: a.rosterIds,
+    periodNames: a.periodNames,
+    classIds: a.classIds,
+    classPeriodByClassId: a.classPeriodByClassId,
+    targetStudents: a.targetStudents,
+    excludedTargets: a.excludedTargets,
+    overridesBySourcedId: a.overridesBySourcedId,
+    removedStudentRefs: a.removedStudentRefs,
+    ...(a.plc ? { plc: { id: a.plc.id, name: a.plc.name } } : {}),
+    ...(a.periodAccess ? { periodAccess: a.periodAccess } : {}),
+    quizId: a.quizId,
+    syncGroupId: a.sync?.groupId,
+  };
+}
+
 export const useUnifiedAssignments = (
   userId: string | undefined,
   rosters: ClassRoster[],
@@ -142,33 +177,9 @@ export const useUnifiedAssignments = (
   }, [rosters]);
 
   const rows = useMemo<UnifiedAssignmentRow[]>(() => {
-    const quizRows: UnifiedAssignmentRow[] = quiz.assignments.map((a) => ({
-      id: a.id,
-      kind: 'quiz',
-      title: a.quizTitle,
-      className: resolveClassName(a.className, a.rosterIds, rosterNamesById),
-      status: a.status,
-      targetMode: a.targetMode === 'students' ? 'students' : 'class',
-      targetSkippedCount: a.targetSkippedCount ?? 0,
-      openAt: a.openAt,
-      closeAt: a.closeAt,
-      dueAt: a.dueAt,
-      ...(a.dueLocks ? { dueLocks: true } : {}),
-      createdAt: a.createdAt,
-      sessionId: a.id,
-      rosterIds: a.rosterIds,
-      periodNames: a.periodNames,
-      classIds: a.classIds,
-      classPeriodByClassId: a.classPeriodByClassId,
-      targetStudents: a.targetStudents,
-      excludedTargets: a.excludedTargets,
-      overridesBySourcedId: a.overridesBySourcedId,
-      removedStudentRefs: a.removedStudentRefs,
-      ...(a.plc ? { plc: { id: a.plc.id, name: a.plc.name } } : {}),
-      ...(a.periodAccess ? { periodAccess: a.periodAccess } : {}),
-      quizId: a.quizId,
-      syncGroupId: a.sync?.groupId,
-    }));
+    const quizRows = quiz.assignments.map((a) =>
+      quizAssignmentRow(a, rosterNamesById)
+    );
 
     const vaRows: UnifiedAssignmentRow[] = va.assignments.map((a) => ({
       id: a.id,

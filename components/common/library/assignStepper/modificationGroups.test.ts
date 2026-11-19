@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ClassRoster, QuizQuestion } from '@/types';
 import type { ClassStudentRow } from '@/utils/studentTargetRef';
 import {
+  editedOverrides,
   formatModificationGroupsValue,
   groupRuleLabels,
   hiddenOptionIdsForRule,
@@ -9,7 +10,10 @@ import {
   overridesFromGroups,
   withQuizAnswerChoices,
   rowsInClasses,
+  standingDriveFileIds,
+  standingGroupsFor,
   withGroupStudents,
+  withStandingGroups,
   type ModificationGroup,
 } from './modificationGroups';
 
@@ -74,6 +78,8 @@ describe('hiddenOptionIdsForRule', () => {
   });
 });
 
+const ALL: ReadonlySet<string> = new Set(['a', 'b', 'c', 'd', 's', 'f']);
+
 describe('overridesFromGroups', () => {
   const rows = [
     row('a', 'c1'),
@@ -81,19 +87,24 @@ describe('overridesFromGroups', () => {
     row('c', 'c1'),
   ];
 
-  it('sets grouped students only, keeping standing accommodations', () => {
+  it('gives grouped students exactly their group’s rules', () => {
     const out = overridesFromGroups(
       [group({ studentKeys: ['a', 'b'], time: 1.5, readAloud: true })],
       rows,
-      QUESTIONS
+      ALL
     );
     expect(out.a).toEqual({ timeMultiplier: 1.5, readAloud: true });
-    expect(out.b).toEqual({
-      timeMultiplier: 1.5,
-      readAloud: true,
-      language: 'es',
-    });
+    expect(out.b).toEqual({ timeMultiplier: 1.5, readAloud: true });
     expect(out.c).toBeUndefined();
+  });
+
+  it('clears the class preset of a student taken out of every group', () => {
+    const out = overridesFromGroups([group({})], rows, ALL);
+    expect(out).toEqual({ b: {} });
+  });
+
+  it('keeps the preset of a student the step never showed', () => {
+    expect(overridesFromGroups([group({})], rows, new Set())).toEqual({});
   });
 
   it('turns Speech to text on and never clears a standing one', () => {
@@ -107,19 +118,31 @@ describe('overridesFromGroups', () => {
     expect(groupRuleLabels(on)).toEqual(['speech to text']);
   });
 
-  it('never shortens standing extra time', () => {
+  it('lets a group loosen a class preset for this assignment', () => {
     const standing = [
       row('s', 'c1', { defaultOverride: { timeMultiplier: 2 } }),
-      row('u', 'c1', { defaultOverride: { timeMultiplier: 'unlimited' } }),
     ];
     const out = overridesFromGroups(
-      [group({ studentKeys: ['s', 'u', 'a'], time: 1.5 })],
+      [group({ studentKeys: ['s', 'a'], time: 1.5 })],
       [...rows, ...standing],
-      QUESTIONS
+      ALL
     );
-    expect(out.s.timeMultiplier).toBe(2);
-    expect(out.u.timeMultiplier).toBe('unlimited');
+    expect(out.s.timeMultiplier).toBe(1.5);
     expect(out.a.timeMultiplier).toBe(1.5);
+  });
+
+  it('keeps carried focus rules', () => {
+    const out = overridesFromGroups(
+      [
+        group({
+          studentKeys: ['a'],
+          carried: { blockCopyPaste: false, tabAwayLimit: 30 },
+        }),
+      ],
+      rows,
+      ALL
+    );
+    expect(out.a).toEqual({ blockCopyPaste: false, tabAwayLimit: 30 });
   });
 
   it('gives every grouped student the group’s supports', () => {
@@ -129,17 +152,17 @@ describe('overridesFromGroups', () => {
     const out = overridesFromGroups(
       [group({ studentKeys: ['a', 'b'], supports })],
       rows,
-      QUESTIONS
+      ALL
     );
     expect(out.a.supports).toEqual(supports);
-    expect(out.b).toEqual({ supports, language: 'es' });
+    expect(out.b).toEqual({ supports });
   });
 
   it('turns on modified questions for grouped students', () => {
     const out = overridesFromGroups(
       [group({ studentKeys: ['a'], modifiedQuestions: true })],
       rows,
-      QUESTIONS
+      ALL
     );
     expect(out.a.modifiedQuestions).toBe(true);
   });
@@ -148,7 +171,7 @@ describe('overridesFromGroups', () => {
     const out = overridesFromGroups(
       [group({ studentKeys: ['a'], printed: true })],
       rows,
-      QUESTIONS
+      ALL
     );
     expect(out.a.onPaper).toBe(true);
   });
@@ -157,10 +180,81 @@ describe('overridesFromGroups', () => {
     expect(
       overridesFromGroups(
         [group({ studentKeys: ['zz'], time: 2 })],
-        rows,
-        QUESTIONS
+        rows.filter((r) => !r.defaultOverride),
+        ALL
       )
     ).toEqual({});
+  });
+});
+
+describe('class presets as groups', () => {
+  const rows = [
+    row('a', 'c1', {
+      defaultOverride: { timeMultiplier: 1.5, readAloud: true, language: 'es' },
+    }),
+    row('b', 'c1'),
+    row('c', 'c1', {
+      defaultOverride: { language: 'es', readAloud: true, timeMultiplier: 1.5 },
+    }),
+    row('d', 'c1', {
+      defaultOverride: {
+        answerChoices: 3,
+        blockCopyPaste: false,
+        modifiedQuestions: true,
+      },
+    }),
+  ];
+
+  it('makes one group per distinct preset', () => {
+    const groups = standingGroupsFor(rows, new Set());
+    expect(groups.map((g) => g.studentKeys)).toEqual([['a', 'c'], ['d']]);
+    expect(groups[0]).toMatchObject({
+      time: 1.5,
+      readAloud: true,
+      language: 'es',
+      answerChoices: 'all',
+    });
+    expect(groups[1]).toMatchObject({
+      answerChoices: 'drop-one',
+      modifiedQuestions: true,
+      carried: { blockCopyPaste: false },
+    });
+  });
+
+  it('applies the same rules the preset would', () => {
+    const groups = standingGroupsFor(rows, new Set());
+    const out = overridesFromGroups(groups, rows, ALL);
+    expect(out.a).toEqual({
+      timeMultiplier: 1.5,
+      readAloud: true,
+      language: 'es',
+    });
+    expect(out.d).toEqual({
+      modifiedQuestions: true,
+      blockCopyPaste: false,
+      answerChoices: 3,
+    });
+    expect(out.b).toBeUndefined();
+  });
+
+  it('replaces the blank starting group and skips students already seeded', () => {
+    const blank = group({ id: 'blank' });
+    const first = withStandingGroups([blank], rows, new Set());
+    expect(first.some((g) => g.id === 'blank')).toBe(false);
+    expect(withStandingGroups(first, rows, new Set(['a', 'c', 'd']))).toBe(
+      first
+    );
+  });
+
+  it('never deletes a preset’s Drive file', () => {
+    const withFile = [
+      row('f', 'c1', {
+        defaultOverride: {
+          supports: [{ kind: 'drive', title: 'Notes', fileId: 'file-1' }],
+        },
+      }),
+    ];
+    expect(standingDriveFileIds(withFile)).toEqual(new Set(['file-1']));
   });
 });
 
@@ -334,5 +428,44 @@ describe('standing answer choices', () => {
     expect(out.a.hiddenOptionIdsByQuestion?.q1[0]).toMatch(/^W\d$/);
     expect(out.b).toEqual({ readAloud: true });
     expect(out.c.hiddenOptionIdsByQuestion).toEqual({ q1: ['W0'] });
+  });
+});
+
+describe('editedOverrides', () => {
+  const saved = {
+    a: { readAloud: true, hiddenOptionIdsByQuestion: { q1: ['x'] } },
+    b: { answerChoices: 3 as const, hiddenOptionIdsByQuestion: { q1: ['y'] } },
+    c: { timeMultiplier: 2 as const },
+  };
+
+  it('keeps an untouched student exactly as saved', () => {
+    const same = { a: { readAloud: true }, b: { answerChoices: 3 as const } };
+    expect(editedOverrides(saved, same, same)).toEqual(saved);
+  });
+
+  it('keeps hand-picked hidden options when the group sets no answer rule', () => {
+    const out = editedOverrides(
+      saved,
+      { a: { readAloud: true } },
+      { a: { speechToText: true } }
+    );
+    expect(out.a).toEqual({
+      speechToText: true,
+      hiddenOptionIdsByQuestion: { q1: ['x'] },
+    });
+  });
+
+  it('drops hidden options from an old answer rule so assign can redo them', () => {
+    const out = editedOverrides(
+      saved,
+      { b: { answerChoices: 3 } },
+      { b: { answerChoices: 2 } }
+    );
+    expect(out.b).toEqual({ answerChoices: 2 });
+  });
+
+  it('removes a student taken out of every group', () => {
+    const out = editedOverrides(saved, { c: { timeMultiplier: 2 } }, {});
+    expect(out).not.toHaveProperty('c');
   });
 });

@@ -138,8 +138,10 @@ import {
   resolveStimuli,
   splitStimuliForLayout,
   stimulusPlayKey,
+  promptAudioPlayId,
 } from '@/utils/quizStimuli';
 import { splitStimuliForTabs } from '@/utils/quizStimulusTabs';
+import { promptLabel } from '@/utils/quizPromptText';
 import { StimulusTabsPanel } from './StimulusTabsPanel';
 import { StimulusPanelDivider } from './StimulusPanelDivider';
 import { useStimulusPanelWidth } from '@/hooks/useStimulusPanelWidth';
@@ -254,6 +256,7 @@ import { CrossOutChoiceButton } from './CrossOutChoiceButton';
 import { AnswerImage, AnswerImageZoomButton } from './AnswerImage';
 import { pictureOnlyName } from './pictureOnlyName';
 import { AnswerPictureText } from './AnswerPictureText';
+import { RecapChoiceList } from './RecapChoiceList';
 import { publicImageOnlyPictures } from '@/utils/quizAnswerImages';
 import { hasSideBank } from './structuredLayout';
 import { OrderingListInput } from './OrderingListInput';
@@ -1056,8 +1059,18 @@ const QuizJoinFlow: React.FC<{
     });
   }, [isViewOnly, session?.id, authedUid]);
 
-  // Questions answered with Speech to text on this page load; saved with the answer.
-  const dictatedIdsRef = useRef<Set<string>>(new Set());
+  // Questions answered with Speech to text in this attempt; saved with the answer.
+  const dictatedIdsRef = useRef<{ attempt: number; ids: Set<string> }>({
+    attempt: 0,
+    ids: new Set(),
+  });
+  const dictatedAttempt = myResponse?.completedAttempts ?? 0;
+  const dictatedIdsFor = useCallback((attempt: number): Set<string> => {
+    if (dictatedIdsRef.current.attempt !== attempt) {
+      dictatedIdsRef.current = { attempt, ids: new Set() };
+    }
+    return dictatedIdsRef.current.ids;
+  }, []);
   const handleAnswer = useCallback(
     async (
       questionId: string,
@@ -1077,16 +1090,19 @@ const QuizJoinFlow: React.FC<{
         questionId,
         answer,
         speedBonus,
-        dictatedIdsRef.current.has(questionId)
+        dictatedIdsFor(dictatedAttempt).has(questionId)
           ? { ...opts, dictated: true }
           : opts
       );
     },
-    [submitAnswer, isViewOnly]
+    [submitAnswer, isViewOnly, dictatedIdsFor, dictatedAttempt]
   );
-  const markDictated = useCallback((questionId: string) => {
-    dictatedIdsRef.current.add(questionId);
-  }, []);
+  const markDictated = useCallback(
+    (questionId: string) => {
+      dictatedIdsFor(dictatedAttempt).add(questionId);
+    },
+    [dictatedIdsFor, dictatedAttempt]
+  );
 
   // Uploads around a turn-in: it waits briefly, and a failure after it is handed to the server.
   const [uploadGate] = useState(createTurnInUploadGate);
@@ -4078,6 +4094,13 @@ export const ActiveQuiz: React.FC<{
     currentQuestion,
     localizedStrings
   );
+  // The recording is the original wording, so a modified prompt drops it.
+  const promptAudio = modifiedServed ? undefined : currentQuestion.promptAudio;
+  const promptAudioViews = playsUsedFor(promptAudioPlayId(currentQuestion.id));
+  // Only a limited recording needs its plays counted on the response.
+  const recordPromptAudioView = promptAudio?.playLimit
+    ? () => handleStimulusPlayCompleted(promptAudioPlayId(currentQuestion.id))
+    : undefined;
   const isMultiAnswer = currentQuestion.type === 'MA';
   const options =
     displayQuestion.type === 'MC' || displayQuestion.type === 'MA'
@@ -4792,7 +4815,9 @@ export const ActiveQuiz: React.FC<{
           )}
 
           {/* Question; the recorded audio is the original wording, so a modified prompt has none yet. */}
-          {readAloudOn && !modifiedServed ? (
+          {readAloudOn &&
+          !modifiedServed &&
+          (!promptAudio || displayQuestion.text.trim() !== '') ? (
             <div
               ref={promptWrapRef}
               tabIndex={-1}
@@ -4803,6 +4828,10 @@ export const ActiveQuiz: React.FC<{
                 blankCount={currentQuestion.blankCount}
                 light={light}
                 className={`flex-1 ${headingText}`}
+                audio={promptAudio}
+                questionId={currentQuestion.id}
+                audioViewsUsed={promptAudioViews}
+                onAudioView={recordPromptAudioView}
               />
               <ReadAloudButton
                 variant="prominent"
@@ -4823,6 +4852,10 @@ export const ActiveQuiz: React.FC<{
                 blankCount={currentQuestion.blankCount}
                 light={light}
                 className={headingText}
+                audio={promptAudio}
+                questionId={currentQuestion.id}
+                audioViewsUsed={promptAudioViews}
+                onAudioView={recordPromptAudioView}
               />
             </div>
           )}
@@ -6238,7 +6271,13 @@ const ReviewPhase: React.FC<{
           })}
         </p>
         <h2 className="text-lg font-bold text-white mb-6 leading-snug max-w-md whitespace-pre-line">
-          <PromptText text={currentQuestion.text} />
+          <PromptText
+            text={
+              currentQuestion.text.trim()
+                ? currentQuestion.text
+                : t('quizQuestionAudio.label', 'Audio question')
+            }
+          />
         </h2>
 
         {/* Correct answer */}
@@ -6566,6 +6605,7 @@ export const PublishedScoreReview: React.FC<{
     visibility === 'score-and-responses' ||
     visibility === 'score-responses-and-answers';
   const showAnswers = visibility === 'score-responses-and-answers';
+  const showChoiceList = session.recapAllOptions === true;
 
   const scorePercent =
     typeof myResponse.score === 'number' ? myResponse.score : null;
@@ -7092,7 +7132,7 @@ export const PublishedScoreReview: React.FC<{
                           <p
                             className={`flex-1 min-w-0 wrap-break-word whitespace-pre-line text-sm font-semibold ${qTextCls}`}
                           >
-                            {recapQuestion.text}
+                            {promptLabel(recapQuestion)}
                           </p>
                           {isCorrect && (
                             <Check
@@ -7126,6 +7166,25 @@ export const PublishedScoreReview: React.FC<{
                               light={light}
                               hideEmptyResponse={hasRecordedTake}
                               paper={paperReviewFor(ans, idx + 1)}
+                            />
+                          ) : showChoiceList &&
+                            (q.type === 'MC' || q.type === 'MA') &&
+                            (q.choices?.length ?? 0) > 0 ? (
+                            <RecapChoiceList
+                              question={recapQuestion}
+                              canonicalChoices={q.choices ?? []}
+                              hiddenChoices={
+                                session.sessionMode === 'student'
+                                  ? override?.hiddenOptionIdsByQuestion?.[q.id]
+                                  : undefined
+                              }
+                              studentAnswer={studentAnswer}
+                              verdict={ans?.isCorrect}
+                              correctAnswer={
+                                showAnswers ? correctAnswer : undefined
+                              }
+                              pictures={publicImageOnlyPictures(q)}
+                              light={light}
                             />
                           ) : (
                             <>

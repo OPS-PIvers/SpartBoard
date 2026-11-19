@@ -87,6 +87,7 @@ export const previewFeatures = (
 /** Preview flags whose add-ons (`requires`) nest under their row instead of listing on their own. */
 export const PREVIEW_GROUP_PARENTS: readonly GlobalFeature[] = [
   'universal-import',
+  'speech-to-text',
 ];
 
 /** Preview add-ons of a group parent, or none when the parent has left Previews. */

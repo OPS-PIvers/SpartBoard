@@ -9,6 +9,8 @@
  * primary recording slot, so nothing already in `grading` changes meaning.
  */
 
+import { promptLabel } from '@/utils/quizPromptText';
+import { QuestionAudioButton } from '@/components/quiz/QuestionAudioButton';
 import { PromptText } from '@/components/common/PromptText';
 import { TabExitsPopover } from '@/components/common/TabExitsPopover';
 import { InputSignalsBadge } from '@/components/common/InputSignalsPopover';
@@ -2339,8 +2341,11 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                 </button>
               </span>
             </div>
+            {question.promptAudio && (
+              <QuestionAudioButton audio={question.promptAudio} size="small" />
+            )}
             <p className="text-sm font-semibold leading-snug text-slate-900">
-              <PromptText text={question.text} />
+              <PromptText text={promptLabel(question)} />
             </p>
             <CollapsibleStimuli
               stimuli={resolveStimuli(question.stimulusIds, quiz.stimuli)}

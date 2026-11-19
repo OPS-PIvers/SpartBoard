@@ -203,16 +203,16 @@ export const BloomsTaxonomyConfigurationModal: React.FC<
   if (!isOpen) return null;
 
   const header = (
-    <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+    <div className="px-6 py-3.5 flex items-center justify-between gap-3 bg-brand-blue-primary text-white rounded-t-2xl shrink-0">
       <div className="flex items-center gap-3">
-        <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600">
+        <div className="p-2 bg-white/15 rounded-xl text-white">
           <Triangle className="w-6 h-6" />
         </div>
         <div>
-          <h2 className="text-lg font-black text-slate-800 tracking-tight">
+          <h2 className="text-lg font-black text-white tracking-tight">
             Bloom&apos;s Taxonomy Administration
           </h2>
-          <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">
+          <p className="text-xs text-white/80 font-medium uppercase tracking-wider">
             Content & Categories
           </p>
         </div>
@@ -220,7 +220,7 @@ export const BloomsTaxonomyConfigurationModal: React.FC<
       <button
         // no-tour-anchor: header X duplicates the anchored footer Close
         onClick={onClose}
-        className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
+        className="p-2 hover:bg-white/15 rounded-full text-white/80 transition-colors"
       >
         <X className="w-6 h-6" />
       </button>
@@ -269,7 +269,7 @@ export const BloomsTaxonomyConfigurationModal: React.FC<
       footer={footer}
       className="p-0!"
       contentClassName=""
-      footerClassName="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between w-full shrink-0"
+      footerClassName="px-6 py-4 flex items-center justify-between w-full"
     >
       <div className="p-6 space-y-8">
         {/* Building Selector */}

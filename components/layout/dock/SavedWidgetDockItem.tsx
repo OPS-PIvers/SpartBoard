@@ -91,7 +91,7 @@ export const SavedWidgetDockItem: React.FC<SavedWidgetDockItemProps> = ({
           onPointerCancel={longPress.onPointerCancel}
           onClick={handleClick}
           {...tourFieldAttr('dock.saved-item', 'saved', widget.id)}
-          className={`group flex flex-col items-center gap-1 min-w-[50px] transition-transform active:scale-90 relative ${
+          className={`group flex flex-col items-center gap-1 min-w-[50px] transition-transform duration-160 ease-out active:scale-95 relative ${
             isEditMode
               ? 'cursor-default touch-none'
               : dockPosition === 'left' || dockPosition === 'right'

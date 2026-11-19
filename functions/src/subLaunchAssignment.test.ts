@@ -1089,6 +1089,32 @@ describe('findAnswerField', () => {
 });
 
 describe('publicQuestionFromKey', () => {
+  it('carries a recorded prompt and drops a malformed one', () => {
+    const audio = {
+      driveFileId: 'f1',
+      durationSec: 3.5,
+      mimeType: 'audio/mp4',
+    };
+    expect(
+      publicQuestionFromKey({
+        id: 'a1',
+        type: 'MC',
+        text: '',
+        correctAnswer: 'x',
+        promptAudio: audio,
+      }).promptAudio
+    ).toEqual(audio);
+    expect(
+      publicQuestionFromKey({
+        id: 'a2',
+        type: 'MC',
+        text: 'x',
+        correctAnswer: 'x',
+        promptAudio: { durationSec: 3 },
+      }).promptAudio
+    ).toBeUndefined();
+  });
+
   it('carries a known answer keyboard on typed questions only', () => {
     expect(
       publicQuestionFromKey({

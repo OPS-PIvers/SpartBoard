@@ -268,15 +268,12 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
   };
 
   const customHeader = (
-    <div className="flex items-center justify-between gap-4 px-6 py-4 border-b border-slate-200 shrink-0">
+    <div className="flex items-center justify-between gap-4 px-6 py-3.5 shrink-0 bg-brand-blue-primary text-white rounded-t-2xl">
       <div className="flex items-center gap-2 min-w-0">
-        <Users
-          className="w-4 h-4 text-brand-blue-primary shrink-0"
-          aria-hidden="true"
-        />
+        <Users className="w-4 h-4 text-white/80 shrink-0" aria-hidden="true" />
         <h3
           id={MODAL_LABEL_ID}
-          className="font-black text-lg text-slate-800 truncate"
+          className="font-black text-lg text-white truncate"
         >
           {t('assignStudentPicker.title', { defaultValue: 'Choose students' })}
         </h3>
@@ -285,7 +282,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
         type="button"
         onClick={onClose}
         {...tourAttr('assign-students-legacy.close')}
-        className="text-slate-400 hover:text-slate-600 p-1 rounded-full transition-colors"
+        className="text-white/80 hover:text-white p-1 rounded-full transition-colors"
         aria-label={t('common.close', { defaultValue: 'Close' })}
       >
         <X className="w-4 h-4" />
@@ -329,7 +326,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
       onClose={onClose}
       customHeader={customHeader}
       footer={footer}
-      footerClassName="shrink-0 border-t border-slate-200 bg-white"
+      footerClassName=""
       maxWidth="max-w-3xl"
       className="bg-white rounded-2xl shadow-2xl"
       contentClassName="p-0"
