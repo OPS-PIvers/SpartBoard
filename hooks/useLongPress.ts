@@ -4,6 +4,36 @@ import React, { useRef, useCallback, useEffect } from 'react';
 const MOVE_THRESHOLD = 15;
 /** How long the pointer must be held before firing. */
 const HOLD_DELAY_MS = 600;
+/** How long after release a stray click from the held press is still swallowed. */
+const RELEASE_GRACE_MS = 500;
+
+// After a long press fires, swallow the release's click and compat mousedown so it can't also tap or start a drag.
+function swallowReleaseOfHeldPress(): void {
+  let graceTimer: ReturnType<typeof setTimeout> | null = null;
+  const stop = (e: Event) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === 'click') done();
+  };
+  const onRelease = () => {
+    graceTimer ??= setTimeout(done, RELEASE_GRACE_MS);
+  };
+  function done() {
+    if (graceTimer) clearTimeout(graceTimer);
+    window.removeEventListener('click', stop, true);
+    window.removeEventListener('mousedown', stop, true);
+    window.removeEventListener('pointerup', onRelease, true);
+    window.removeEventListener('pointercancel', onRelease, true);
+    window.removeEventListener('pointerdown', done, true);
+    window.removeEventListener('keydown', done, true);
+  }
+  window.addEventListener('click', stop, true);
+  window.addEventListener('mousedown', stop, true);
+  window.addEventListener('pointerup', onRelease, true);
+  window.addEventListener('pointercancel', onRelease, true);
+  window.addEventListener('pointerdown', done, true);
+  window.addEventListener('keydown', done, true);
+}
 
 interface UseLongPressOptions {
   /** Skip long-press detection entirely (e.g. during edit/drag mode). */
@@ -42,7 +72,11 @@ export function useLongPress(
       clear();
       if (options?.disabled) return;
       startPosRef.current = { x: e.clientX, y: e.clientY };
-      timerRef.current = setTimeout(onLongPress, HOLD_DELAY_MS);
+      timerRef.current = setTimeout(() => {
+        timerRef.current = null;
+        swallowReleaseOfHeldPress();
+        onLongPress();
+      }, HOLD_DELAY_MS);
     },
     [clear, onLongPress, options]
   );
