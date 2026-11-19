@@ -34,7 +34,7 @@ import {
   isEmailOnDomains,
   loadExclusiveOrgDomains,
 } from './orgDomainOwnership';
-import { chunk as chunksOf } from './shared';
+import { chunk as chunksOf } from './utils/chunk';
 import {
   type WidgetUsage,
   WidgetUsageTracker,
