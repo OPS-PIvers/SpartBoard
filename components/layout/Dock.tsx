@@ -1630,10 +1630,10 @@ export const Dock: React.FC = () => {
                         position: 'fixed',
                         left: livePopoverPos.left,
                         bottom: livePopoverPos.bottom,
-                        transform: 'translateX(-50%)',
+                        translate: '-50% 0',
                         zIndex: Z_INDEX.popover,
                       }}
-                      className="w-64 overflow-hidden animate-in slide-in-from-bottom-2 duration-200"
+                      className="w-64 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200"
                     >
                       {' '}
                       <div className="p-4 flex flex-col items-center gap-2 text-center">
