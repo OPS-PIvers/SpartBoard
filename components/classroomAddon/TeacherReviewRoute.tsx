@@ -53,7 +53,10 @@ import {
   useQuizAssignments,
   countPendingPaperTranscripts,
 } from '@/hooks/useQuizAssignments';
-import type { FibGradingContext } from '@/utils/quizFibAnswers';
+import {
+  fibGradingFromAssignment,
+  type FibGradingContext,
+} from '@/utils/quizFibAnswers';
 import {
   useQuizSessionTeacher,
   getResponseDocKey,
@@ -211,15 +214,10 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
         : undefined,
     [assignments, sessionId]
   );
-  const fibGrading = useMemo<FibGradingContext>(() => {
-    return {
-      answers: assignment?.localizedFibAnswers ?? null,
-      overridesByStudentUid: assignment?.overridesByStudentUid ?? null,
-      overridesBySourcedId: assignment?.overridesBySourcedId ?? null,
-      servedLanguageByStudentUid:
-        assignment?.servedLanguageByStudentUid ?? null,
-    };
-  }, [assignment]);
+  const fibGrading = useMemo<FibGradingContext>(
+    () => fibGradingFromAssignment(assignment),
+    [assignment]
+  );
 
   // A leftover studentRole custom-token session in the partitioned iframe has a
   // uid but is not the teacher — only a Google session may resolve the session.

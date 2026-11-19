@@ -1,4 +1,9 @@
 import type { QuizQuestion } from '@/types';
+import {
+  fibExtrasParts,
+  fibLenientMatch,
+  type FibExtras,
+} from './quizFibMatch';
 
 // Joins per-blank values in a multi-blank key or answer; no keyboard types it. Mirrored in functions/src/plcAssessmentMath.ts.
 export const FIB_BLANK_SEP = '\u001F';
@@ -91,17 +96,28 @@ export function scoreFibBlanks(
   q: FibKey,
   given: string,
   normalize: (s: string) => string,
-  extra: readonly string[] = []
+  extra: FibExtras = []
 ): { correct: number; total: number } {
   const accepted = fibBlankAccepted(q);
   const typed = splitBlanks(given);
-  const extraParts = extra.map(splitBlanks);
+  const { answers: extraAnswers, lenientLocale } = fibExtrasParts(extra);
+  const extraParts = extraAnswers.map(splitBlanks);
   let correct = 0;
   accepted.forEach((answers, i) => {
-    const t = normalize(typed[i] ?? '');
+    const raw = typed[i] ?? '';
+    const t = normalize(raw);
     if (t === '') return;
     const pool = [...answers, ...extraParts.map((p) => p[i] ?? '')];
-    if (pool.some((a) => a.trim() !== '' && normalize(a) === t)) correct++;
+    if (
+      pool.some(
+        (a) =>
+          a.trim() !== '' &&
+          (lenientLocale
+            ? fibLenientMatch(raw, a, lenientLocale)
+            : normalize(a) === t)
+      )
+    )
+      correct++;
   });
   return { correct, total: accepted.length };
 }

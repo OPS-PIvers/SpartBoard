@@ -2,6 +2,11 @@
 // Local mirrors of the root `types.ts` shapes; functions cannot import across the repo root.
 
 import { notChosenIds, type ChooseSection } from './quizSectionsChosen';
+import {
+  fibExtrasParts,
+  fibLenientMatch,
+  type FibExtras,
+} from './quizFibMatch';
 
 export const AGGREGATE_SCHEMA_VERSION = 8;
 
@@ -144,6 +149,8 @@ export interface SessionInput {
   scorePublishedAt: number | null;
   /** Assignment-doc FIB answer keys, `{ [questionId]: { [locale]: string[] } }`. */
   localizedFibAnswers?: Record<string, Record<string, string[]>>;
+  /** Assignment-doc served locales graded with typo leniency. */
+  lenientFibLocales?: string[];
   /** Assignment-doc per-student overrides; only the served `language` is used here. */
   overridesByStudentUid?: Record<string, { language?: string }>;
   /** The session's sections; a choose-N section leaves unchosen questions out. */
@@ -152,18 +159,42 @@ export interface SessionInput {
   paperWrittenQuestionIds?: string[];
 }
 
+/** Locale key for answers a teacher accepted in results; they count for every student. */
+export const ANY_LOCALE = '*';
+
+const cleanFibList = (value: unknown): string[] =>
+  Array.isArray(value)
+    ? value.filter((a): a is string => typeof a === 'string' && a.trim() !== '')
+    : [];
+
+/** Mirrors utils/quizFibAnswers.ts fibAcceptedAnswers: served-locale key, teacher-accepted answers, leniency. */
+export function fibExtrasFor(
+  byLocale: Record<string, unknown> | undefined,
+  locale: string | undefined,
+  lenientLocales: readonly string[] | undefined
+): FibExtras {
+  const accepted = cleanFibList(byLocale?.[ANY_LOCALE]);
+  const translated =
+    locale && locale !== ANY_LOCALE ? cleanFibList(byLocale?.[locale]) : [];
+  const answers = [...translated, ...accepted];
+  return locale && translated.length > 0 && lenientLocales?.includes(locale)
+    ? { answers, lenientLocale: locale }
+    : answers;
+}
+
 /** Accepted FIB answers for the locale the TEACHER served, never a client-asserted one. */
 export function servedFibAnswers(
-  session: Pick<SessionInput, 'localizedFibAnswers' | 'overridesByStudentUid'>,
+  session: Pick<
+    SessionInput,
+    'localizedFibAnswers' | 'overridesByStudentUid' | 'lenientFibLocales'
+  >,
   studentUid: string,
   questionId: string
-): string[] {
-  const locale = session.overridesByStudentUid?.[studentUid]?.language;
-  if (!locale) return [];
-  const answers = session.localizedFibAnswers?.[questionId]?.[locale];
-  if (!Array.isArray(answers)) return [];
-  return answers.filter(
-    (a): a is string => typeof a === 'string' && a.trim() !== ''
+): FibExtras {
+  return fibExtrasFor(
+    session.localizedFibAnswers?.[questionId],
+    session.overridesByStudentUid?.[studentUid]?.language,
+    session.lenientFibLocales
   );
 }
 
@@ -633,21 +664,31 @@ export const FIB_BLANK_SEP = '\u001F';
 export function scoreFibBlanksServer(
   question: Pick<GroupQuestion, 'blankAlternates'> & { correctAnswer: string },
   studentAnswer: string,
-  extra: readonly string[] = []
+  extra: FibExtras = []
 ): { correct: number; total: number } {
   const mains = question.correctAnswer.split(FIB_BLANK_SEP);
   const typed = studentAnswer.split(FIB_BLANK_SEP);
-  const extraParts = extra.map((e) => e.split(FIB_BLANK_SEP));
+  const { answers: extraAnswers, lenientLocale } = fibExtrasParts(extra);
+  const extraParts = extraAnswers.map((e) => e.split(FIB_BLANK_SEP));
   let correct = 0;
   mains.forEach((main, i) => {
-    const t = normalizeAnswer(typed[i] ?? '');
+    const raw = typed[i] ?? '';
+    const t = normalizeAnswer(raw);
     if (t === '') return;
     const pool = [
       main,
       ...(question.blankAlternates?.[i]?.answers ?? []),
       ...extraParts.map((p) => p[i] ?? ''),
     ];
-    if (pool.some((a) => a.trim() !== '' && normalizeAnswer(a) === t))
+    if (
+      pool.some(
+        (a) =>
+          a.trim() !== '' &&
+          (lenientLocale
+            ? fibLenientMatch(raw, a, lenientLocale)
+            : normalizeAnswer(a) === t)
+      )
+    )
       correct++;
   });
   return { correct, total: mains.length };
@@ -695,7 +736,7 @@ export function gradeGroupAnswer(
   studentAnswer: string,
   manual: ManualGrade | undefined,
   /** FIB only: translated accepted answers for the locale served to this student. */
-  acceptedAnswers?: readonly string[],
+  acceptedAnswers?: FibExtras,
   /** Paper answers only: the public `paperTranscript`, passed only for a `paperAttested` response. */
   paperTranscript?: RawAnswer['paperTranscript']
 ): LocalGrade {
@@ -843,12 +884,20 @@ export function gradeGroupAnswer(
       state,
     };
   }
+  const extras = fibExtrasParts(acceptedAnswers);
+  const lenient = extras.lenientLocale;
   const isCorrect =
     correct === given ||
     (question.type === 'FIB' &&
       given !== '' &&
-      [...(question.alternateAnswers ?? []), ...(acceptedAnswers ?? [])].some(
-        (a) => normalizeAnswer(a) === given
+      [
+        ...(lenient ? [question.correctAnswer] : []),
+        ...(question.alternateAnswers ?? []),
+        ...extras.answers,
+      ].some((a) =>
+        lenient
+          ? fibLenientMatch(studentAnswer, a, lenient)
+          : normalizeAnswer(a) === given
       ));
   return {
     isCorrect,

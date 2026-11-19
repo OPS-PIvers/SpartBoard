@@ -156,6 +156,11 @@ import {
   scoreFibBlanks,
 } from '@/utils/quizFibBlanks';
 import {
+  fibExtrasParts,
+  fibLenientMatch,
+  type FibExtras,
+} from '@/utils/quizFibMatch';
+import {
   ANONYMOUS_JOIN_BLOCKED_MESSAGE,
   isAnonymousJoinBlocked,
 } from '@/utils/anonymousJoin';
@@ -949,7 +954,7 @@ export function gradeAnswer(
    * FIB only: translated accepted answers for this question, snapshotted on the
    * assignment doc. Normalized the same way the English comparison is.
    */
-  acceptedAnswers?: readonly string[],
+  acceptedAnswers?: FibExtras,
   /** Paper written answers only: the answer's public `paperTranscript` state, via `gradingPaperTranscript` in utils/paperWritten. */
   paperTranscript?: import('@/types').PaperTranscriptState
 ): GradeResult {
@@ -1028,12 +1033,20 @@ export function gradeAnswer(
     };
   }
   if (question.type === 'MC' || question.type === 'FIB') {
+    const extras = fibExtrasParts(acceptedAnswers);
+    const lenient = extras.lenientLocale;
     const isCorrect =
       correct === given ||
       (question.type === 'FIB' &&
         given !== '' &&
-        [...(question.alternateAnswers ?? []), ...(acceptedAnswers ?? [])].some(
-          (a) => normalizeAnswer(a) === given
+        [
+          ...(lenient ? [question.correctAnswer] : []),
+          ...(question.alternateAnswers ?? []),
+          ...extras.answers,
+        ].some((a) =>
+          lenient
+            ? fibLenientMatch(studentAnswer, a, lenient)
+            : normalizeAnswer(a) === given
         ));
     return {
       isCorrect,

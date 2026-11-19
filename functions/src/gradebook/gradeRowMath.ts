@@ -18,6 +18,7 @@ import {
   parsePaperWrittenQuestionIds,
   parseManualGrades,
 } from '../recomputePlcAssessments';
+import type { FibExtras } from '../quizFibMatch';
 import { notChosenIds, parseChooseSections } from '../quizSectionsChosen';
 import { isCompletionOnly, type TargetEvidence } from '../gradebookCore';
 import type {
@@ -290,7 +291,7 @@ export interface QuestionScoreInput {
   answers: RawAnswer[];
   servedQuestionIds?: string[];
   manualGrades?: Record<string, ManualGrade>;
-  fibAnswersByQuestion?: Record<string, string[]>;
+  fibAnswersByQuestion?: Record<string, FibExtras>;
   sectionsRaw?: unknown;
   /** Teacher picks of which answers count, by choose-N section id. */
   countedChoices?: Record<string, string[]>;
@@ -427,7 +428,7 @@ export function isPublished(session: Doc, perStudent: Doc): boolean {
 
 export interface QuizContext {
   questions: GroupQuestion[];
-  fibAnswersByStudent: (studentUid: string) => Record<string, string[]>;
+  fibAnswersByStudent: (studentUid: string) => Record<string, FibExtras>;
   overrideQuestionIds: (studentUid: string) => string[];
   /** Stacks printed for modification groups (`paper-printed-versions`). */
   paperCopyBatchIds?: ReadonlySet<string>;

@@ -17191,6 +17191,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-results.accept-answer",
+    "label": "Accept button beside a missed fill-in-the-blank answer in a student report in Quiz results, by question",
+    "scope": "field",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "quiz.student-answer-line",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "quiz-results.count-instead",
     "label": "Count this instead button beside a question in a student report in Quiz results, by question",
     "scope": "field",

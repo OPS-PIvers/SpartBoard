@@ -7510,10 +7510,12 @@ export interface QuizAssignment
   /** Owning widget, written on create. */
   widgetKind?: QuizWidgetKind;
   /**
-   * FIB answer keys translated at assign time, `{ [questionId]: { [locale]: string[] } }`.
+   * FIB answer keys translated at assign time, `{ [questionId]: { [locale]: string[] } }`; locale `*` holds answers a teacher accepted for everyone.
    * Teacher-owned only: the session doc is world-readable to students, so it never carries this.
    */
   localizedFibAnswers?: Record<string, Record<string, string[]>>;
+  /** Served locales whose FIB answers are graded with typo leniency (an EL student's translation, never the quiz's own language). */
+  lenientFibLocales?: string[];
   quizId: string;
   quizTitle: string;
   /** Drive file id of the source quiz so the monitor can hydrate after reload. */

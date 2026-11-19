@@ -168,6 +168,8 @@ import {
 import { FinalScoreNote } from '@/components/gradebook/FinalScoreNote';
 import { CountedChoicesPicker } from './results/CountedChoicesPicker';
 import { saveCountedChoices } from '@/hooks/quizCountedChoicesWrite';
+import { acceptFibAnswer } from '@/hooks/quizAcceptFibAnswer';
+import { languageDisplayLabel } from '@/utils/languageDisplayLabel';
 import { overAnsweredResponseSections } from '@/utils/quizSections';
 import {
   countedChoiceSections,
@@ -179,7 +181,11 @@ import {
   makeQuestionGradeFn,
   type QuestionStat,
 } from '@/utils/quizQuestionStats';
-import { computeStudentDrilldown } from '@/utils/quizStudentDrilldown';
+import {
+  computeStudentDrilldown,
+  type StudentQuestionLine,
+} from '@/utils/quizStudentDrilldown';
+import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
 import {
   printStudentReport,
   type StudentReportTarget,
@@ -243,10 +249,12 @@ import {
   computeTargetStats,
   type QuizTargetStats,
 } from '@/utils/quizTargetStats';
-import type {
-  FibGradingContext,
-  LocalizedFibAnswers,
+import {
+  servedLocaleForResponse,
+  type FibGradingContext,
+  type LocalizedFibAnswers,
 } from '@/utils/quizFibAnswers';
+import { displayFibAnswer } from '@/utils/quizFibBlanks';
 import { computeDokStats, quizHasDok } from '@/utils/quizDok';
 import { explanationsForQuestion } from '@/utils/quizExplanations';
 import { QuizTargetResults } from './QuizTargetResults';
@@ -394,6 +402,8 @@ interface QuizResultsProps {
   > | null;
   /** Translated FIB answer keys snapshotted on the assignment doc (PR4). */
   localizedFibAnswers?: LocalizedFibAnswers | null;
+  /** Served locales graded with typo leniency. */
+  lenientFibLocales?: readonly string[] | null;
   /** Per-student overrides keyed by pseudonym uid; names each student's served locale. */
   overridesByStudentUid?: Record<
     string,
@@ -407,6 +417,8 @@ interface QuizResultsProps {
   paperSheetsEnabled?: boolean;
   /** Dev harness: replaces the Firestore save of which answers count. */
   countedChoicesSaver?: SaveCountedChoices;
+  /** Dev harness: replaces the Firestore write behind Accept. */
+  fibAnswerAccepter?: AcceptFibAnswer;
   /** Opens the assignment's Publish results dialog; the footer button renders only when provided. */
   onPublishScores?: () => void;
   /** Per-student publishing handlers; the controls render only when provided. */
@@ -415,6 +427,8 @@ interface QuizResultsProps {
   variant?: QuizWidgetKind;
 }
 
+/** Adds a typed answer to this assignment's fill-in-the-blank key. */
+type AcceptFibAnswer = (questionId: string, answer: string) => Promise<void>;
 const NAMES_LOADING_TITLE = 'Loading student names…';
 
 const HIDE_NAMES_KEY = 'spartboard.quizResults.hideNames';
@@ -510,6 +524,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   onExportedResponseIdsSaved,
   overridesBySourcedId,
   localizedFibAnswers = null,
+  lenientFibLocales = null,
   overridesByStudentUid = null,
   servedLanguageByStudentUid = null,
   plcView = false,
@@ -517,6 +532,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   studentResultsActions,
   onPublishScores,
   countedChoicesSaver,
+  fibAnswerAccepter,
   variant = 'quiz',
 }) => {
   const outward = useViewAsOutward();
@@ -527,12 +543,14 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   const fibGrading = useMemo<FibGradingContext>(
     () => ({
       answers: localizedFibAnswers,
+      lenientLocales: lenientFibLocales,
       overridesByStudentUid,
       overridesBySourcedId,
       servedLanguageByStudentUid,
     }),
     [
       localizedFibAnswers,
+      lenientFibLocales,
       overridesByStudentUid,
       overridesBySourcedId,
       servedLanguageByStudentUid,
@@ -953,6 +971,34 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
         saveCountedChoices({ sessionId, responseKey, sectionId, picked, quiz }))
     );
   }, [session, plcView, isReview, user?.uid, quiz, countedChoicesSaver]);
+
+  // Only the session's teacher accepts an answer; it joins this assignment's key and re-scores.
+  const viewerUid = user?.uid;
+  const acceptFibAnswerFor = useMemo<AcceptFibAnswer | undefined>(() => {
+    const sessionId = session?.id;
+    if (
+      !sessionId ||
+      plcView ||
+      isReview ||
+      !viewerUid ||
+      viewerUid !== session?.teacherUid ||
+      !canAccessFeature('modification-groups')
+    )
+      return undefined;
+    return (
+      fibAnswerAccepter ??
+      ((questionId, answer) =>
+        acceptFibAnswer({ sessionId, questionId, answer, quiz }))
+    );
+  }, [
+    session,
+    plcView,
+    isReview,
+    viewerUid,
+    quiz,
+    canAccessFeature,
+    fibAnswerAccepter,
+  ]);
 
   // Same teacher-owner path as the grade write; a dotted path keeps the other hashes.
   const saveBackTranslation = useCallback(
@@ -2767,6 +2813,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
               expandedKey={expandedStudentKey}
               onExpandedKeyChange={setExpandedStudentKey}
               onSaveCountedChoices={saveCountedChoicesFor}
+              onAcceptFibAnswer={acceptFibAnswerFor}
               focusKey={focusStudentKey}
               onFocused={() => setFocusStudentKey(null)}
               finalOverlay={finalOverlay}
@@ -4215,6 +4262,8 @@ const StudentDrilldownPanel: React.FC<{
   paperWrittenQuestionIds?: readonly string[];
   /** Saves which answers count in an over-answered section; absent hides the picker. */
   onSaveCountedChoices?: SaveCountedChoices;
+  /** Accepts a typed fill-in-the-blank answer for this assignment; absent hides Accept. */
+  onAcceptFibAnswer?: AcceptFibAnswer;
 }> = ({
   rubricFor,
   drawOrder,
@@ -4234,6 +4283,7 @@ const StudentDrilldownPanel: React.FC<{
   sections,
   paperWrittenQuestionIds,
   onSaveCountedChoices,
+  onAcceptFibAnswer,
 }) => {
   const [includeAnswers, setIncludeAnswers] = useState(true);
   const liveKey = getResponseDocKey(liveResponse) as string;
@@ -4323,6 +4373,46 @@ const StudentDrilldownPanel: React.FC<{
     questions,
     drilldown,
   ]);
+  const servedLocale = servedLocaleForResponse(liveResponse, fibGrading);
+  const translatedKeyFor = (questionId: string) => {
+    const key = servedLocale
+      ? fibGrading?.answers?.[questionId]?.[servedLocale]?.[0]
+      : undefined;
+    return servedLocale && key?.trim()
+      ? {
+          label: `${languageDisplayLabel(servedLocale)} answer`,
+          text: displayFibAnswer(key),
+        }
+      : undefined;
+  };
+  const [accepting, setAccepting] = useState<string | null>(null);
+  const acceptFor = (line: StudentQuestionLine) => {
+    const raw = selectRepresentativeAnswers(liveResponse.answers ?? []).get(
+      line.questionId
+    )?.answer;
+    if (
+      !onAcceptFibAnswer ||
+      picked ||
+      line.type !== 'FIB' ||
+      (line.mark !== 'incorrect' && line.mark !== 'partial') ||
+      !raw?.trim()
+    )
+      return undefined;
+    return async () => {
+      setAccepting(line.questionId);
+      try {
+        await onAcceptFibAnswer(line.questionId, raw);
+        addToast('Answer accepted for every student.', 'success');
+      } catch (err) {
+        addToast(
+          err instanceof Error ? err.message : 'Could not accept.',
+          'error'
+        );
+      } finally {
+        setAccepting(null);
+      }
+    };
+  };
   const saveCounted = async (sectionId: string, ids: string[] | null) => {
     if (!onSaveCountedChoices) return;
     try {
@@ -4422,6 +4512,9 @@ const StudentDrilldownPanel: React.FC<{
                 <StudentAnswerLine
                   key={line.questionId}
                   line={line}
+                  translatedKey={translatedKeyFor(line.questionId)}
+                  onAccept={acceptFor(line)}
+                  accepting={accepting === line.questionId}
                   dictated={
                     !picked &&
                     (liveResponse.dictated ?? []).includes(line.questionId)
@@ -4534,6 +4627,7 @@ const StudentsScreen: React.FC<{
   liveLogByKey?: ReadonlyMap<string, QuizLiveLogEntry[]>;
   paperCopyBatchIds?: readonly string[];
   onSaveCountedChoices?: SaveCountedChoices;
+  onAcceptFibAnswer?: AcceptFibAnswer;
 }> = ({
   rubricFor,
   liveLogByKey,
@@ -4568,6 +4662,7 @@ const StudentsScreen: React.FC<{
   view,
   onViewChange,
   onSaveCountedChoices,
+  onAcceptFibAnswer,
 }) => {
   const questionOrder = useMemo(() => questions.map((q) => q.id), [questions]);
   const questionWords = useMemo(
@@ -5355,6 +5450,7 @@ const StudentsScreen: React.FC<{
                   sections={session?.sections}
                   paperWrittenQuestionIds={session?.paperWrittenQuestionIds}
                   onSaveCountedChoices={onSaveCountedChoices}
+                  onAcceptFibAnswer={onAcceptFibAnswer}
                   resultsControl={
                     resultsActions ? (
                       <StudentResultsControl
