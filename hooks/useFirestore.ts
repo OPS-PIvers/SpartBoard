@@ -100,7 +100,7 @@ class MockDashboardStore {
     );
   }
 
-  // A plain write echoes before it returns; a baseline save is a transaction, which echoes after. Echoing those early made the board autosave loop.
+  // A baseline save echoes after it returns, like a Firestore transaction.
   saveDashboard(dashboard: Dashboard, echoAfterReturn = false): void {
     const index = this.dashboards.findIndex((d) => d.id === dashboard.id);
     if (index >= 0) {
