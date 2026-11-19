@@ -103,4 +103,11 @@ describe('toSeconds', () => {
     expect(toSeconds('25:00')).toBe(-1);
     expect(toSeconds('')).toBe(-1);
   });
+
+  it('needs the am/pm right after a colon-less hour', () => {
+    expect(toSeconds('5 games')).toBe(-1);
+    expect(toSeconds('8 camp')).toBe(-1);
+    expect(toSeconds('10 am - 12 pm')).toBe(at(10));
+    expect(toSeconds('10:00 AM - 12:00 PM')).toBe(at(10));
+  });
 });

@@ -20,12 +20,14 @@ export const formatDayHeader = (date: string) => {
 export const toSeconds = (t: string | undefined): number => {
   if (!t) return -1;
   const lower = t.toLowerCase();
-  const match = /^\s*(\d{1,2})(?::(\d{1,2}))?/.exec(lower);
-  if (!match || (match[2] === undefined && !/[ap]m/.test(lower))) return -1;
+  const match = /^\s*(\d{1,2})(?::(\d{1,2}))?(?:\s*([ap])\.?m\b)?/.exec(lower);
+  if (!match || (match[2] === undefined && !match[3])) return -1;
   let h = parseInt(match[1], 10);
   const m = match[2] === undefined ? 0 : parseInt(match[2], 10);
-  if (lower.includes('pm') && h < 12) h += 12;
-  if (lower.includes('am') && h === 12) h = 0;
+  const isPm = match[3] ? match[3] === 'p' : lower.includes('pm');
+  const isAm = match[3] ? match[3] === 'a' : lower.includes('am');
+  if (isPm && h < 12) h += 12;
+  if (isAm && h === 12) h = 0;
   if (h > 23 || m > 59) return -1;
   return h * 3600 + m * 60;
 };
