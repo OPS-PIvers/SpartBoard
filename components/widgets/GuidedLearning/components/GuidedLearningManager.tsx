@@ -294,6 +294,8 @@ export interface GuidedLearningManagerProps {
   onAssignmentDeleteMany?: (
     assignments: GuidedLearningAssignment[]
   ) => Promise<number>;
+  /** Opens the publish dialog once for several closed assignments. */
+  onAssignmentPublishMany?: (assignments: GuidedLearningAssignment[]) => void;
   /**
    * Open the publish-scores picker modal for an archived assignment. Set
    * ⇒ the archive kebab gains a "Publish scores" / "Update published
@@ -530,6 +532,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   onAssignmentUnarchive,
   onAssignmentDelete,
   onAssignmentDeleteMany,
+  onAssignmentPublishMany,
   onAssignmentPublishScores,
   onAssignmentUnpublishScores,
   assignmentMode = 'submissions',
@@ -1521,6 +1524,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       collections={GL_CLASS_COLLECTIONS}
       lifecycle={classLifecycle ?? null}
       onBulkDelete={onAssignmentDeleteMany}
+      onBulkPublish={onAssignmentPublishMany}
       tourWidgetType="guided-learning"
       emptyTitle="Nothing active"
       emptySub={

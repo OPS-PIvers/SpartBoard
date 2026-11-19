@@ -4,6 +4,7 @@ import { NotebookObjectLink, PlacedNotebookAsset } from '@/types';
 import { clampPosFrac, clampWidthFrac } from '@/utils/notebookPlacedAssets';
 import { NotebookZoom, useNotebookZoomGestures } from '../useNotebookZoom';
 import { tourTypeAttr } from '@/config/tourAnchors';
+import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
 
 /** dataTransfer type for an asset dragged from the Assets panel onto a page. */
 export const NOTEBOOK_ASSET_MIME = 'application/notebook-asset';
@@ -79,9 +80,7 @@ export const PageCanvas: React.FC<PageCanvasProps> = ({
   const dragRef = useRef<DragSession | null>(null);
   const panRef = useRef<{ x: number; y: number } | null>(null);
   const [panning, setPanning] = useState(false);
-  const reducedMotion =
-    typeof window !== 'undefined' &&
-    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const reducedMotion = usePrefersReducedMotion();
 
   useNotebookZoomGestures(zoom);
 

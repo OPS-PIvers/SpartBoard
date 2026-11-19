@@ -200,7 +200,7 @@ function FlipCardBlock({
       }
     >
       <div
-        className="w-full h-full relative transition-transform duration-500"
+        className="w-full h-full relative transition-transform duration-500 motion-reduce:transition-none"
         style={{
           transformStyle: 'preserve-3d',
           transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
@@ -296,9 +296,10 @@ function BadgeBlock({
       }
     >
       <div
-        className="transition-all duration-500"
+        className="transition-[transform,opacity] duration-200 ease-out-strong motion-reduce:transition-opacity"
         style={{
-          transform: isRevealed ? 'scale(1)' : 'scale(0)',
+          transform: isRevealed ? 'scale(1)' : 'scale(0.95)',
+          opacity: isRevealed ? 1 : 0,
           fontSize: 'min(48px, 20cqmin)',
         }}
       >

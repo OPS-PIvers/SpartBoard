@@ -231,7 +231,7 @@ export const CurrentQuestionCard: React.FC<CurrentQuestionCardProps> = ({
           style={{ height: 'min(6px, 1.5cqmin)' }}
         >
           <div
-            className="h-full bg-brand-blue-primary rounded-full transition-all"
+            className="h-full bg-brand-blue-primary rounded-full transition-[width]"
             style={{ width: `${pct}%` }}
           />
         </div>

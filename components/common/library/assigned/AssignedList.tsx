@@ -5,6 +5,7 @@ import {
   Inbox,
   Loader2,
   PowerOff,
+  Send,
   Trash2,
 } from 'lucide-react';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
@@ -35,8 +36,10 @@ import { LibrarySelectToggle } from '../LibrarySelectToggle';
 export interface AssignedListItem {
   id: string;
   status: AssignedStatus;
-  /** True when the row cannot be moved to Done by hand (view-only shares). */
-  noMoveToDone?: boolean;
+  /** A view-only share: no Move to Done or Publish scores. */
+  viewOnly?: boolean;
+  /** Scores already published; bulk publish leaves the row out. */
+  published?: boolean;
 }
 
 interface AssignedListProps<T extends AssignedListItem> {
@@ -56,7 +59,13 @@ interface AssignedListProps<T extends AssignedListItem> {
     leaveOpen: () => void
   ) => React.ReactNode;
   /** Turns on selecting several rows. `remove` deletes them and resolves to how many failed. */
-  bulk?: { remove: (items: T[]) => Promise<number> };
+  bulk?: {
+    remove: (items: T[]) => Promise<number>;
+    /** Opens the publish dialog once for these closed rows. */
+    publish?: (items: T[]) => void;
+    /** Rows that can never publish (no scores); they are left out silently. */
+    canPublish?: (item: T) => boolean;
+  };
 }
 
 const plural = (n: number) => `${n} assignment${n === 1 ? '' : 's'}`;
@@ -233,8 +242,16 @@ export function AssignedList<T extends AssignedListItem>({
     i.status.classes.some((c) => c.status !== 'closed')
   );
   const canMove = selected.some(
-    (i) => i.status.bucket === 'active' && !i.noMoveToDone
+    (i) => i.status.bucket === 'active' && !i.viewOnly
   );
+  const isClosed = (i: T) =>
+    i.status.classes.every((c) => c.status === 'closed');
+  // Already-published rows are left out so a bulk run never re-pushes LMS grades.
+  const scored = selected.filter(
+    (i) => !i.viewOnly && !i.published && (bulk?.canPublish?.(i) ?? true)
+  );
+  const publishable = scored.filter(isClosed);
+  const openSkipped = scored.length - publishable.length;
   const n = selected.length;
   const actions: AssignedBulkAction[] = !bulk
     ? []
@@ -266,6 +283,23 @@ export function AssignedList<T extends AssignedListItem>({
                     (k) => `${k} moved to Done.`,
                     (k) => `${plural(k)} could not be moved.`
                   ),
+              },
+            ]
+          : []),
+        ...(bulk.publish && publishable.length > 0
+          ? [
+              {
+                id: 'publish',
+                label: 'Publish scores',
+                icon: Send,
+                run: () => {
+                  bulk.publish?.(publishable);
+                  if (openSkipped > 0)
+                    addToast(
+                      `${plural(openSkipped)} ${openSkipped === 1 ? 'was' : 'were'} skipped. ${openSkipped === 1 ? 'It is' : 'They are'} not closed yet.`,
+                      'info'
+                    );
+                },
               },
             ]
           : []),

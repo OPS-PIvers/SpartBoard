@@ -454,7 +454,7 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   <img
                     src={activeStation.thumbnail}
                     alt={activeStation.title}
-                    className={`w-full h-full rounded-xl object-cover shadow-lg transition-all duration-500 ${isPlaying ? 'animate-pulse-slow' : ''}`}
+                    className="w-full h-full rounded-xl object-cover shadow-lg"
                   />
                 ) : (
                   <div
@@ -600,7 +600,7 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   <img
                     src={activeStation.thumbnail}
                     alt={activeStation.title}
-                    className={`w-full h-full rounded-2xl object-cover shadow-2xl transition-all duration-500 group-hover:scale-105 ${isPlaying ? 'animate-pulse-slow' : ''}`}
+                    className="w-full h-full rounded-2xl object-cover shadow-2xl transition-[scale] duration-500 group-hover:scale-105"
                     style={{
                       border: `min(2px, 0.5cqmin) solid ${activeStation.color || '#e2e8f0'}22`,
                     }}
