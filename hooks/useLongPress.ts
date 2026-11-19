@@ -25,12 +25,14 @@ function swallowReleaseOfHeldPress(): void {
     window.removeEventListener('pointerup', onRelease, true);
     window.removeEventListener('pointercancel', onRelease, true);
     window.removeEventListener('pointerdown', done, true);
+    window.removeEventListener('keydown', done, true);
   }
   window.addEventListener('click', stop, true);
   window.addEventListener('mousedown', stop, true);
   window.addEventListener('pointerup', onRelease, true);
   window.addEventListener('pointercancel', onRelease, true);
   window.addEventListener('pointerdown', done, true);
+  window.addEventListener('keydown', done, true);
 }
 
 interface UseLongPressOptions {

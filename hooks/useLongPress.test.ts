@@ -139,4 +139,20 @@ describe('useLongPress', () => {
     expect(onClick).toHaveBeenCalledTimes(1);
     button.remove();
   });
+
+  it('stops swallowing clicks on the next key press when the release never reached the page', () => {
+    vi.useFakeTimers();
+    const onClick = vi.fn();
+    const button = document.createElement('button');
+    button.addEventListener('click', onClick);
+    document.body.appendChild(button);
+    const { result } = renderHook(() => useLongPress(vi.fn()));
+
+    result.current.onPointerDown(fakePointerEvent());
+    vi.advanceTimersByTime(600);
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    button.click();
+    expect(onClick).toHaveBeenCalledTimes(1);
+    button.remove();
+  });
 });
