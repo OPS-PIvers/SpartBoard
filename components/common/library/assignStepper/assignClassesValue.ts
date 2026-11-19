@@ -39,10 +39,26 @@ export function withClassStudents(
   return { ...value, studentsByClass };
 }
 
+type ClassLabelRoster = Pick<ClassRoster, 'id' | 'name'> &
+  Partial<Pick<ClassRoster, 'studentCount'>>;
+
+const sharesName = (r: ClassLabelRoster, rosters: ClassLabelRoster[]) =>
+  rosters.some((o) => o.id !== r.id && o.name === r.name);
+
+/** A class's name, plus its student count when another class has the same name. */
+export function classLabel(
+  r: ClassLabelRoster,
+  rosters: ClassLabelRoster[]
+): string {
+  return sharesName(r, rosters) && r.studentCount !== undefined
+    ? `${r.name} (${studentCountLabel(r.studentCount)})`
+    : r.name;
+}
+
 /** Collapsed Classes step text, e.g. "Sample 2 (3 students), Sample 3". */
 export function formatClassesValue(
   value: AssignClassesValue,
-  rosters: Pick<ClassRoster, 'id' | 'name'>[]
+  rosters: ClassLabelRoster[]
 ): string {
   const picked = rosters.filter((r) => value.classIds.includes(r.id));
   if (picked.length === 0) return 'No classes (link only)';
@@ -53,9 +69,10 @@ export function formatClassesValue(
   return picked
     .map((r) => {
       const refs = value.studentsByClass[r.id];
-      return refs?.length
-        ? `${r.name} (${studentCountLabel(refs.length)})`
-        : r.name;
+      if (!refs?.length) return classLabel(r, rosters);
+      return sharesName(r, rosters) && r.studentCount !== undefined
+        ? `${r.name} (${refs.length} of ${studentCountLabel(r.studentCount)})`
+        : `${r.name} (${studentCountLabel(refs.length)})`;
     })
     .join(', ');
 }
