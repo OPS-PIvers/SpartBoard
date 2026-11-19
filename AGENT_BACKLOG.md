@@ -254,6 +254,7 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
   <details><summary>Branches to delete (179, checked 2026-11-01)</summary>
 
 claude/project-thread-6v7ytk (#6243)
+claude/project-thread-vyicgs (#6267; this docs PR reuses it, delete after it merges)
 claude/project-thread-6v7ytk-kinds (class left open flag for every kind; delete after it merges)
 claude/project-thread-2xxi1c (Video Activity background turn-in PR; delete after it merges)
 claude/project-thread-kejiop (#6236; this docs PR reuses it, delete after it merges)
