@@ -546,6 +546,9 @@ retire/quiz-editor
 retire/quiz-assigning
 retire/quiz-results
 retire/nov18-flags
+retire/nov19-flags
+claude/ab112-nov18
+claude/ab112-nov19 (this docs PR)
 claude/project-thread-mclg4c (also claude/ab112-nov18, this docs PR)
 claude/claude-security-fix-find_01hdwd6jykvej5w2jqqm7yvi-3zioml
 nightly/widgets-2026-11-13
