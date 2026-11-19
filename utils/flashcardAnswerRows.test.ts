@@ -78,5 +78,7 @@ describe('answerDisplayLines', () => {
     ]);
     expect(answerDisplayLines('el/la doctor/a')).toEqual(['el/la doctor/a']);
     expect(answerDisplayLines('the doctor')).toEqual(['the doctor']);
+    expect(answerDisplayLines('12 / 4')).toEqual(['12 / 4']);
+    expect(answerDisplayLines('x = 3 / 4')).toEqual(['x = 3 / 4']);
   });
 });
