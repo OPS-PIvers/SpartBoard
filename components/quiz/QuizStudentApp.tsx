@@ -256,6 +256,7 @@ import { CrossOutChoiceButton } from './CrossOutChoiceButton';
 import { AnswerImage, AnswerImageZoomButton } from './AnswerImage';
 import { pictureOnlyName } from './pictureOnlyName';
 import { AnswerPictureText } from './AnswerPictureText';
+import { RecapChoiceList } from './RecapChoiceList';
 import { publicImageOnlyPictures } from '@/utils/quizAnswerImages';
 import { hasSideBank } from './structuredLayout';
 import { OrderingListInput } from './OrderingListInput';
@@ -6604,6 +6605,7 @@ export const PublishedScoreReview: React.FC<{
     visibility === 'score-and-responses' ||
     visibility === 'score-responses-and-answers';
   const showAnswers = visibility === 'score-responses-and-answers';
+  const showChoiceList = session.recapAllOptions === true;
 
   const scorePercent =
     typeof myResponse.score === 'number' ? myResponse.score : null;
@@ -7164,6 +7166,25 @@ export const PublishedScoreReview: React.FC<{
                               light={light}
                               hideEmptyResponse={hasRecordedTake}
                               paper={paperReviewFor(ans, idx + 1)}
+                            />
+                          ) : showChoiceList &&
+                            (q.type === 'MC' || q.type === 'MA') &&
+                            (q.choices?.length ?? 0) > 0 ? (
+                            <RecapChoiceList
+                              question={recapQuestion}
+                              canonicalChoices={q.choices ?? []}
+                              hiddenChoices={
+                                session.sessionMode === 'student'
+                                  ? override?.hiddenOptionIdsByQuestion?.[q.id]
+                                  : undefined
+                              }
+                              studentAnswer={studentAnswer}
+                              verdict={ans?.isCorrect}
+                              correctAnswer={
+                                showAnswers ? correctAnswer : undefined
+                              }
+                              pictures={publicImageOnlyPictures(q)}
+                              light={light}
                             />
                           ) : (
                             <>

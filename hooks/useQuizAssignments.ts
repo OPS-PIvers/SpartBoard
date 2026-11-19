@@ -1502,6 +1502,8 @@ export const useQuizAssignments = (
   const stimulusQuotesOn =
     authContext?.canAccessFeature?.('quiz-stimulus-quotes') === true;
   const crossOutOn = authContext?.canAccessFeature?.('quiz-cross-out') === true;
+  const recapAllOptionsOn =
+    authContext?.canAccessFeature?.('quiz-recap-all-options') === true;
   const inputSignalsOn =
     authContext?.canAccessFeature?.(INPUT_SIGNALS_FEATURE) === true;
   const pageProtectionsOn =
@@ -1934,6 +1936,7 @@ export const useQuizAssignments = (
           ? { allowStimulusQuotes: opts.allowStimulusQuotes ?? true }
           : {}),
         ...(crossOutOn ? { allowCrossOut: true } : {}),
+        ...(recapAllOptionsOn ? { recapAllOptions: true } : {}),
         ...(inputSignalsOn ? { inputSignals: true } : {}),
         orderingList: true,
         stimulusTabs: true,
@@ -2171,6 +2174,7 @@ export const useQuizAssignments = (
       timeLimitOn,
       stimulusQuotesOn,
       crossOutOn,
+      recapAllOptionsOn,
       inputSignalsOn,
       pageProtectionsOn,
     ]
@@ -4005,6 +4009,7 @@ export const useQuizAssignments = (
       };
       // Clears a legacy key; a live-reveal map is moot once results are published.
       sessionPatch.revealedAnswers = deleteField();
+      if (recapAllOptionsOn) sessionPatch.recapAllOptions = true;
       firstBatch.update(sessionRef, sessionPatch);
       if (refreshServerKey) {
         firstBatch.set(scoreKeyRef(userId, assignmentId), {
@@ -4077,7 +4082,7 @@ export const useQuizAssignments = (
         paperResponses,
       };
     },
-    [userId]
+    [userId, recapAllOptionsOn]
   );
 
   const publishResultsForStudents = useCallback<
