@@ -94,6 +94,7 @@ import { useBusyIdSet } from '@/hooks/useBusyIdSet';
 import { useFolders } from '@/hooks/useFolders';
 import { useGooglePicker } from '@/hooks/useGooglePicker';
 import { useQuizDocumentImportGate } from '@/hooks/useQuizDocumentImportGate';
+import { useQuizCapabilities } from '@/hooks/useQuizCapabilities';
 import {
   attachDocumentImages as attachImagesToQuiz,
   driveStimulusUploader,
@@ -462,7 +463,8 @@ const TeacherQuizWidget: React.FC<{
     selectedBuildings,
     gradesTaught,
   } = useAuth();
-  const districtLibraryOn = canAccessFeature('district-library');
+  const { districtLibraryOn, canUseQuizAi, canImportFromSchoology } =
+    useQuizCapabilities();
   const viewAsDrive = useViewAsDriveStatus();
   const titleOf = useConnectionWidgetTitle();
   const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
@@ -472,8 +474,6 @@ const TeacherQuizWidget: React.FC<{
   const canImportDocuments = useQuizDocumentImportGate();
   const claudeReview = useClaudeReview('quizzes');
   // D1: the AI reader has its own admin-default permission, AND-ed with the AI one.
-  const canUseQuizAi =
-    canAccessFeature('gemini-functions') && canAccessFeature('quiz');
   const canUseAiReader =
     canImportDocuments &&
     canAccessFeature('quiz-document-ai-reader') &&
@@ -699,7 +699,6 @@ const TeacherQuizWidget: React.FC<{
   const [reopenPickFor, setReopenPickFor] = useState<string | null>(null);
   const [bankImportOpen, setBankImportOpen] = useState(false);
   const pendingHandoff = useImportHandoff(widget.id);
-  const canImportFromSchoology = canAccessFeature('schoology-quiz-import');
   const [bankCartridge, setBankCartridge] = useState<File | null>(null);
   const [quizCartridge, setQuizCartridge] = useState<File | null>(null);
   // Quizzes a Schoology import (.imscc or the extension) already saved, so a retry only re-runs the folder move.
