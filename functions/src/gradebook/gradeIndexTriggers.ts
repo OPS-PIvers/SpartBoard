@@ -70,39 +70,36 @@ export async function handleStudentDocWrite(
     before: dataOf(event.data?.before),
     after: dataOf(event.data?.after),
   };
-  if (kind === 'projects') {
-    // Runs whether or not the index is on: a legacy map keeps a released grade unreadable to members.
-    await migrateLegacyProjectOverrides(
-      admin.firestore(),
-      sessionId,
-      docId,
-      write.after
-    ).catch((err: unknown) =>
-      logger.error('projects: legacy override migration failed', {
+  if (docWriteMatters(write)) {
+    await guarded('student doc', { kind, sessionId, docId }, async () => {
+      const db = admin.firestore();
+      try {
+        await applyDocWrite(db, write);
+      } catch (err) {
+        // Let the recompute worker heal the row instead of dropping the update.
+        await markSessionDirty(db, kind, sessionId);
+        throw err;
+      }
+    });
+  }
+  // Runs whether or not the index is on: a legacy map keeps a released grade unreadable to members.
+  if (kind === 'projects')
+    await failUnlessStale(event.time, async () => {
+      await migrateLegacyProjectOverrides(
+        admin.firestore(),
         sessionId,
         docId,
-        error: err instanceof Error ? err.message : String(err),
-      })
-    );
-  }
-  if (!docWriteMatters(write)) return;
-  await guarded('student doc', { kind, sessionId, docId }, async () => {
-    const db = admin.firestore();
-    try {
-      await applyDocWrite(db, write);
-    } catch (err) {
-      // Let the recompute worker heal the row instead of dropping the update.
-      await markSessionDirty(db, kind, sessionId);
-      throw err;
-    }
-  });
+        write.after
+      );
+    });
 }
 
 const studentDocTrigger = (kind: GradeKind) =>
   onDocumentWritten(
     {
       ...TRIGGER_OPTS,
-      ...(kind === 'projects' ? { secrets: ROSTER_SECRETS } : {}),
+      // Projects retry so a failed legacy override migration runs again.
+      ...(kind === 'projects' ? { secrets: ROSTER_SECRETS, retry: true } : {}),
       document: `${SESSION_COLLECTION[kind]}/{sessionId}/${STUDENT_SUBCOLLECTION[kind]}/{docId}`,
     },
     (event) => handleStudentDocWrite(kind, event as unknown as WriteEvent)

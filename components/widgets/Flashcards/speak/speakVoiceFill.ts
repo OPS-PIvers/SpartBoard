@@ -46,12 +46,17 @@ let exhaustedDay: string | null = null;
 
 const utcDay = (): string => new Date().toISOString().slice(0, 10);
 
-const isResourceExhausted = (err: unknown): boolean => {
-  const code =
+// Only the server's daily limit counts; a Cloud Run 429 also arrives as resource-exhausted.
+const isDailyVoiceLimit = (err: unknown): boolean => {
+  const details =
     typeof err === 'object' && err !== null
-      ? (err as { code?: unknown }).code
+      ? (err as { details?: unknown }).details
       : undefined;
-  return typeof code === 'string' && code.endsWith('resource-exhausted');
+  return (
+    typeof details === 'object' &&
+    details !== null &&
+    (details as { reason?: unknown }).reason === 'speakVoiceDaily'
+  );
 };
 
 const notify = (): void => {
@@ -201,7 +206,7 @@ async function runWorker(setId: string, job: Job): Promise<void> {
       void scheduleWrite(setId, job);
     } catch (err) {
       // Those cards stay pending; the next save or edit opening tries again.
-      if (isResourceExhausted(err)) {
+      if (isDailyVoiceLimit(err)) {
         exhaustedDay = utcDay();
         job.queue = [];
       } else {

@@ -723,6 +723,37 @@ describe('runRecomputePlcAssessments failure cap', () => {
     expect(counts.scanned).toBe(0);
     expect(stub.get('plcs/plc-1/aggregates/grp-1')?.schemaVersion).toBe(3);
   });
+
+  it('pages past capped stale aggregates to reach the rest', async () => {
+    const stub = seedPipeline({
+      'plcs/plc-1/assessments/grp-1': {
+        id: 'grp-1',
+        kind: 'quiz',
+        syncGroupId: 'grp-1',
+        status: 'active',
+        dirtyAt: null,
+      },
+      'plcs/plc-0/aggregates/a': { assessmentId: 'a', schemaVersion: 3 },
+      'plcs/plc-0/aggregates/b': { assessmentId: 'b', schemaVersion: 3 },
+      'plcs/plc-1/aggregates/grp-1': {
+        assessmentId: 'grp-1',
+        schemaVersion: 3,
+      },
+      'plc_recompute_failures/plc-0/recompute_failures/a': {
+        count: RECOMPUTE_MAX_FAILURES,
+      },
+      'plc_recompute_failures/plc-0/recompute_failures/b': {
+        count: RECOMPUTE_MAX_FAILURES,
+      },
+    });
+    const counts = await runRecomputePlcAssessments(stub.db as unknown as Db, {
+      limit: 1,
+    });
+    expect(counts.scanned).toBe(1);
+    expect(stub.get('plcs/plc-1/aggregates/grp-1')?.schemaVersion).toBe(
+      AGGREGATE_SCHEMA_VERSION
+    );
+  });
 });
 
 describe('recomputeOnePlcAssessment assignmentId check', () => {

@@ -460,7 +460,8 @@ export async function chargeSpeakVoiceTerms(
     if (used + terms > SPEAK_VOICE_DAILY_TERMS)
       throw new HttpsError(
         'resource-exhausted',
-        'Daily pronunciation voice limit reached. Try again tomorrow.'
+        'Daily pronunciation voice limit reached. Try again tomorrow.',
+        { reason: 'speakVoiceDaily' }
       );
     tx.set(ref, { count: used + terms, updatedAt: nowMs }, { merge: true });
   });

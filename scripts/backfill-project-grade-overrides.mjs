@@ -75,21 +75,24 @@ for (const run of runs.docs) {
     counts.grades++;
     if (!('overridesByUid' in grade.data())) continue;
     counts.migrated++;
-    // One transaction per grade, so a teacher's save mid-run isn't overwritten.
-    await db.runTransaction(async (tx) => {
+    // One transaction per grade; counted after it, since a retried callback reruns.
+    const moved = await db.runTransaction(async (tx) => {
       const snap = await tx.get(grade.ref);
       const data = snap.data();
-      if (!snap.exists || !data || !('overridesByUid' in data)) return;
+      if (!snap.exists || !data || !('overridesByUid' in data)) return 0;
       const legacy = isRecord(data.overridesByUid) ? data.overridesByUid : {};
+      let n = 0;
       for (const [uid, value] of Object.entries(legacy)) {
         if (!isMemberDocId(uid) || !isRecord(value)) continue;
-        counts.overrides++;
+        n++;
         if (apply) tx.set(grade.ref.collection('overrides').doc(uid), value);
       }
       const rest = { ...data };
       delete rest.overridesByUid;
       if (apply) tx.set(grade.ref, rest);
+      return n;
     });
+    counts.overrides += moved;
   }
 }
 

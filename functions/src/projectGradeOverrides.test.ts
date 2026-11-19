@@ -101,4 +101,25 @@ describe('migrateLegacyProjectOverrides', () => {
     expect(stub.get(GRADE)?.overridesByUid).toBeUndefined();
     expect(stub.get(`${GRADE}/overrides/s1`)?.points).toBe(10);
   });
+
+  it('rethrows a failed migration so the trigger retries, until the event is stale', async () => {
+    const stub = makeStubFirestore({ [GRADE]: legacyGrade });
+    (stub.db as { runTransaction: unknown }).runTransaction = () =>
+      Promise.reject(new Error('aborted'));
+    vi.mocked(admin.firestore).mockReturnValue(stub.db as never);
+    const event = (time: string) => ({
+      params: { sessionId: 'run1', docId: 'g1' },
+      time,
+      data: {
+        before: { exists: false, data: () => undefined },
+        after: { exists: true, data: () => legacyGrade },
+      },
+    });
+    await expect(
+      handleStudentDocWrite('projects', event(new Date().toISOString()))
+    ).rejects.toThrow('aborted');
+    await expect(
+      handleStudentDocWrite('projects', event('2000-01-01T00:00:00Z'))
+    ).resolves.toBeUndefined();
+  });
 });

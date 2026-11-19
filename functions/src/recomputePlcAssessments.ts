@@ -496,6 +496,9 @@ export interface RecomputeCounts {
 /** Consecutive failures after which an assessment stops retrying until a new trigger marks it dirty. */
 export const RECOMPUTE_MAX_FAILURES = 12;
 
+/** Most stale aggregates one run looks at, skipped ones included. */
+const STALE_SCAN_LIMIT = 500;
+
 /** Server-only failure count; the assessment doc can't take new fields without a rules change. */
 function failureRef(
   db: Firestore,
@@ -588,15 +591,21 @@ export async function runRecomputePlcAssessments(
   };
   for (const doc of dirtySnap.docs) await recompute(doc);
 
-  // Spare budget refreshes aggregates written by an older schema.
-  const remaining = limit - dirtySnap.docs.length;
-  if (remaining > 0) {
-    const staleSnap = await db
+  // Spare budget refreshes aggregates written by an older schema; capped ones are paged past, not counted.
+  let remaining = limit - dirtySnap.docs.length;
+  let after: admin.firestore.QueryDocumentSnapshot | undefined;
+  let staleScanned = 0;
+  while (remaining > 0 && staleScanned < STALE_SCAN_LIMIT) {
+    const pageSize = remaining;
+    let query = db
       .collectionGroup('aggregates')
       .where('schemaVersion', '<', AGGREGATE_SCHEMA_VERSION)
-      .limit(remaining)
-      .get();
+      .limit(pageSize);
+    if (after) query = query.startAfter(after);
+    const staleSnap = await query.get();
+    if (staleSnap.empty) break;
     for (const doc of staleSnap.docs) {
+      staleScanned++;
       const plcId = doc.ref.parent.parent?.id;
       const failures: unknown = plcId
         ? (await failureRef(db, plcId, doc.id).get()).data()?.count
@@ -604,8 +613,11 @@ export async function runRecomputePlcAssessments(
       // A stale aggregate that keeps failing waits for a new dirty mark instead.
       if (typeof failures === 'number' && failures >= RECOMPUTE_MAX_FAILURES)
         continue;
+      remaining--;
       await recompute(doc);
     }
+    if (staleSnap.docs.length < pageSize) break;
+    after = staleSnap.docs[staleSnap.docs.length - 1];
   }
   return counts;
 }

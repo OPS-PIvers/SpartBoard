@@ -3,9 +3,11 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('firebase-functions/v2/https', () => {
   class FakeHttpsError extends Error {
     code: string;
-    constructor(code: string, message: string) {
+    details: unknown;
+    constructor(code: string, message: string, details?: unknown) {
       super(message);
       this.code = code;
+      this.details = details;
     }
   }
   return {
@@ -506,6 +508,7 @@ describe('lookupSpeakReferencesV1', () => {
     usage.set(key, { count: SPEAK_VOICE_DAILY_TERMS });
     await expect(call({ auth: teacher, data })).rejects.toMatchObject({
       code: 'resource-exhausted',
+      details: { reason: 'speakVoiceDaily' },
     });
     expect(usage.get(key)?.count).toBe(SPEAK_VOICE_DAILY_TERMS);
   });
