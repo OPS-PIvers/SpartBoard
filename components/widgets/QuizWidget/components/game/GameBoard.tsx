@@ -3,6 +3,7 @@ import { Pause } from 'lucide-react';
 import type { QuizLeaderboardEntry } from '@/types';
 import type { GameBoardStats, GameClock } from '@/utils/quizGame';
 import { formatGameClock } from '@/utils/quizGame';
+import { prefersReducedMotion as reducedMotion } from '@/hooks/usePrefersReducedMotion';
 
 export interface GameBoardProps {
   clock: GameClock;
@@ -28,13 +29,6 @@ const keyOf = (e: QuizLeaderboardEntry): string =>
   e.studentUid ?? e.pin ?? e.name ?? `rank-${e.rank}`;
 
 const firstName = (name: string): string => name.trim().split(/\s+/)[0] ?? name;
-
-function reducedMotion(): boolean {
-  return (
-    typeof window !== 'undefined' &&
-    !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-  );
-}
 
 const CountUp: React.FC<{ value: number }> = ({ value }) => {
   const [shown, setShown] = useState(value);

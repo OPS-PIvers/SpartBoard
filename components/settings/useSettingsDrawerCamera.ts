@@ -5,15 +5,11 @@ import { useEffect, useRef } from 'react';
 import { clampPan, viewportToWrapper, type Point } from '@/utils/zoomPanMath';
 import { requestPan, getPan } from './panSetterRegistry';
 import type { DrawerPlacement, DrawerRect } from './useSettingsDrawerPlacement';
+import { prefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
 
 const PAN_DURATION_MS = 220;
 
 const easeOutCubic = (t: number): number => 1 - Math.pow(1 - t, 3);
-
-const prefersReducedMotion = (): boolean =>
-  typeof window !== 'undefined' &&
-  typeof window.matchMedia === 'function' &&
-  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 export interface ComputeDrawerPanArgs {
   rect: DrawerRect;

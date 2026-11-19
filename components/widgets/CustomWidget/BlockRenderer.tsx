@@ -296,9 +296,10 @@ function BadgeBlock({
       }
     >
       <div
-        className="transition-all duration-500"
+        className="transition-[transform,opacity] duration-200 ease-out-strong motion-reduce:transition-opacity"
         style={{
-          transform: isRevealed ? 'scale(1)' : 'scale(0)',
+          transform: isRevealed ? 'scale(1)' : 'scale(0.95)',
+          opacity: isRevealed ? 1 : 0,
           fontSize: 'min(48px, 20cqmin)',
         }}
       >

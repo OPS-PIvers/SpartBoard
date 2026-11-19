@@ -257,6 +257,7 @@ import {
 
 // Upper bound on the cloud dock read before the dock falls back to cache/defaults.
 const DOCK_HYDRATION_TIMEOUT_MS = 10000;
+const TOAST_EXIT_MS = 200;
 
 // Helper to migrate legacy visibleTools to dockItems
 const migrateToDockItems = (
@@ -1300,10 +1301,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // fire immediately after hydration sets dockItems to the cloud value.
   const lastSavedDockDataRef = useRef<string | null>(null);
 
-  const removeToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
-
   const toastTimersRef = useRef(new Set<ReturnType<typeof setTimeout>>());
   useEffect(() => {
     const timers = toastTimersRef.current;
@@ -1311,6 +1308,17 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       timers.forEach((t) => clearTimeout(t));
       timers.clear();
     };
+  }, []);
+
+  const removeToast = useCallback((id: string) => {
+    setToasts((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, leaving: true } : t))
+    );
+    const timer = setTimeout(() => {
+      toastTimersRef.current.delete(timer);
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, TOAST_EXIT_MS);
+    toastTimersRef.current.add(timer);
   }, []);
 
   const addToast = useCallback(

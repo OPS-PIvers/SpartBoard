@@ -139,6 +139,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'quiz-whiteboard-response',
   'remote-control',
   'reopen-selected-students',
+  'results-print-v2',
   'roster-groups',
   'routine-guide',
   'rubric-grading-v2',
