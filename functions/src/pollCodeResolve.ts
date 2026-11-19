@@ -1,4 +1,4 @@
-// Poll join codes resolve here, under per-caller and global miss caps, so the short code space can't be swept.
+// Poll join codes resolve here, under per-caller and sharded global miss caps reserved before the lookup, so the short code space can't be swept.
 import { createHmac, randomBytes, randomInt } from 'crypto';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
@@ -22,8 +22,11 @@ export const GLOBAL_WINDOW_MS = 10 * MINUTE_MS;
 const JOIN_TTL_MS = 7 * 24 * 60 * MINUTE_MS;
 export const POLL_CODE_CALLER_MAX_MISSES = 10;
 export const POLL_CODE_GLOBAL_MAX_MISSES = 300;
-// At the global cap a caller's first codes still go through, so a flood can't lock out every student.
-export const POLL_CODE_GLOBAL_FREE_CODES = 2;
+// The global cap is split over shards so a class joining at once doesn't contend on one doc.
+export const POLL_CODE_GLOBAL_SHARDS = 10;
+export const POLL_CODE_SHARD_MAX_MISSES = Math.ceil(
+  POLL_CODE_GLOBAL_MAX_MISSES / POLL_CODE_GLOBAL_SHARDS
+);
 // Mirrors utils/pollCode.ts.
 const ALPHABET = 'ACDEFGHJKMNPQRTUVWXY34679';
 const CODE_LENGTH = 5;
@@ -45,19 +48,6 @@ export const pollJoinId = (sessionId: string, uid: string): string =>
 
 const expireAt = (ms: number) => admin.firestore.Timestamp.fromMillis(ms);
 
-/** Counts one new missed code on the shared counter. */
-export type RecordMiss = (global: DocRef, now: number) => Promise<void>;
-
-const recordMissWithIncrement: RecordMiss = async (global, now) => {
-  await global.set(
-    {
-      misses: admin.firestore.FieldValue.increment(1),
-      expireAt: expireAt(now + 2 * GLOBAL_WINDOW_MS),
-    },
-    { merge: true }
-  );
-};
-
 let warnedGlobalBucket = -1;
 
 const tooMany = () =>
@@ -65,9 +55,8 @@ const tooMany = () =>
 
 interface LookupSlot {
   callerRef: DocRef;
-  globalRef: DocRef;
-  /** False for a code this caller already spent a slot on in this window. */
-  fresh: boolean;
+  /** The global shard this lookup reserved a miss on; null for a code this caller already spent a slot on in this window. */
+  shardRef: DocRef | null;
 }
 
 const codesOf = (data: Record<string, unknown> | undefined): string[] =>
@@ -77,34 +66,34 @@ const codesOf = (data: Record<string, unknown> | undefined): string[] =>
       )
     : [];
 
-/** Takes the caller's slot for `code` before anything about the code is revealed; throws resource-exhausted at either cap. */
+const countOf = (data: Record<string, unknown> | undefined): number =>
+  typeof data?.misses === 'number' ? data.misses : 0;
+
+/** Reserves the caller's slot and one global miss for `code` in one transaction, before anything about the code is revealed; throws resource-exhausted at either cap. */
 export async function takeLookupSlot(
   db: Firestore,
   uid: string,
   code: string,
-  now: number
+  now: number,
+  pickShard: () => number = () => randomInt(POLL_CODE_GLOBAL_SHARDS)
 ): Promise<LookupSlot> {
+  const bucket = Math.floor(now / GLOBAL_WINDOW_MS);
   const callerRef = db
     .collection(LIMITS)
     .doc(`uid__${uid}__${Math.floor(now / CALLER_WINDOW_MS)}`);
-  const globalRef = db
+  const shardRef = db
     .collection(LIMITS)
-    .doc(`global__${Math.floor(now / GLOBAL_WINDOW_MS)}`);
-  const globalMisses: unknown = (await globalRef.get()).data()?.misses;
-  const fresh = await db.runTransaction(async (tx) => {
+    .doc(`global__${bucket}__${pickShard() % POLL_CODE_GLOBAL_SHARDS}`);
+  return db.runTransaction(async (tx) => {
     const codes = codesOf((await tx.get(callerRef)).data());
-    if (codes.includes(code)) return false;
+    if (codes.includes(code)) return { callerRef, shardRef: null };
     if (codes.length >= POLL_CODE_CALLER_MAX_MISSES) throw tooMany();
-    if (
-      codes.length >= POLL_CODE_GLOBAL_FREE_CODES &&
-      typeof globalMisses === 'number' &&
-      globalMisses >= POLL_CODE_GLOBAL_MAX_MISSES
-    ) {
-      const bucket = Math.floor(now / GLOBAL_WINDOW_MS);
+    const misses = countOf((await tx.get(shardRef)).data());
+    if (misses >= POLL_CODE_SHARD_MAX_MISSES) {
       if (warnedGlobalBucket !== bucket) {
         warnedGlobalBucket = bucket;
         logger.warn('[pollCode] global miss cap reached; refusing new codes', {
-          misses: globalMisses,
+          misses,
         });
       }
       throw tooMany();
@@ -117,12 +106,16 @@ export async function takeLookupSlot(
       },
       { merge: true }
     );
-    return true;
+    tx.set(
+      shardRef,
+      { misses: misses + 1, expireAt: expireAt(now + 2 * GLOBAL_WINDOW_MS) },
+      { merge: true }
+    );
+    return { callerRef, shardRef };
   });
-  return { callerRef, globalRef, fresh };
 }
 
-/** A hit gives the slot back, even after earlier misses on that code, so only misses use up the caller's budget. */
+/** A hit gives back the caller's slot and the reserved global miss, so only misses use up either budget. */
 async function refundSlot(
   db: Firestore,
   slot: LookupSlot,
@@ -131,29 +124,23 @@ async function refundSlot(
   try {
     await db.runTransaction(async (tx) => {
       const codes = codesOf((await tx.get(slot.callerRef)).data());
+      const shard = slot.shardRef ? await tx.get(slot.shardRef) : null;
       if (!codes.includes(code)) return;
       tx.set(
         slot.callerRef,
         { codes: codes.filter((c) => c !== code) },
         { merge: true }
       );
+      if (slot.shardRef && shard) {
+        tx.set(
+          slot.shardRef,
+          { misses: Math.max(0, countOf(shard.data()) - 1) },
+          { merge: true }
+        );
+      }
     });
   } catch (err) {
     logger.warn('[pollCode] slot refund failed', err);
-  }
-}
-
-/** Counts a new miss on the shared counter. */
-async function countMiss(
-  slot: LookupSlot,
-  now: number,
-  recordMiss: RecordMiss
-): Promise<void> {
-  if (!slot.fresh) return;
-  try {
-    await recordMiss(slot.globalRef, now);
-  } catch (err) {
-    logger.warn('[pollCode] miss counter write failed', err);
   }
 }
 
@@ -202,26 +189,51 @@ async function recordJoin(
   return voterId;
 }
 
-/** The session a code opens for `uid` (recording the join), or null on a miss; throws resource-exhausted when capped. */
+/** A device that already joined the session behind `code` rejoins even at a cap, since that reveals nothing it doesn't hold. */
+async function rejoinExisting(
+  db: Firestore,
+  uid: string,
+  code: string,
+  now: number
+): Promise<PollJoin | null> {
+  const sessionId: unknown = (
+    await db.collection('poll_codes').doc(code).get()
+  ).data()?.sessionId;
+  if (typeof sessionId !== 'string' || !sessionId) return null;
+  const [session, joined] = await Promise.all([
+    db.collection('poll_sessions').doc(sessionId).get(),
+    db.collection(JOINS).doc(pollJoinId(sessionId, uid)).get(),
+  ]);
+  if (!session.exists || joined.data()?.uid !== uid) return null;
+  return { sessionId, voterId: await recordJoin(db, sessionId, uid, now) };
+}
+
+/** The session a code opens for `uid` (recording the join), or null on a miss; throws resource-exhausted when capped, except for a device rejoining. */
 export async function resolvePollCode(
   db: Firestore,
   uid: string,
   code: string,
   now: number = Date.now(),
-  recordMiss: RecordMiss = recordMissWithIncrement
+  pickShard?: () => number
 ): Promise<PollJoin | null> {
   if (!code) return null;
-  const slot = await takeLookupSlot(db, uid, code, now);
+  let slot: LookupSlot;
+  try {
+    slot = await takeLookupSlot(db, uid, code, now, pickShard);
+  } catch (err) {
+    if (err instanceof HttpsError && err.code === 'resource-exhausted') {
+      const rejoin = await rejoinExisting(db, uid, code, now);
+      if (rejoin) return rejoin;
+    }
+    throw err;
+  }
   const pointer = await db.collection('poll_codes').doc(code).get();
   const sessionId: unknown = pointer.data()?.sessionId;
   const session =
     typeof sessionId === 'string' && sessionId
       ? await db.collection('poll_sessions').doc(sessionId).get()
       : null;
-  if (typeof sessionId !== 'string' || !session?.exists) {
-    await countMiss(slot, now, recordMiss);
-    return null;
-  }
+  if (typeof sessionId !== 'string' || !session?.exists) return null;
   await refundSlot(db, slot, code);
   // The join is what lets this device read the session and vote, so a failed write fails the call.
   try {
@@ -397,12 +409,12 @@ export async function claimPollCode(
   code: string,
   shareId: string,
   now: number = Date.now(),
-  recordMiss: RecordMiss = recordMissWithIncrement
+  pickShard?: () => number
 ): Promise<true> {
   if (!code || !shareId || shareId.includes('/') || shareId.length > 128) {
     throw new HttpsError('invalid-argument', 'A code and board are required.');
   }
-  const slot = await takeLookupSlot(db, uid, code, now);
+  const slot = await takeLookupSlot(db, uid, code, now, pickShard);
   let claimed = false;
   try {
     claimed = await claimPollCodeTx(db, uid, code, shareId);
@@ -411,10 +423,7 @@ export async function claimPollCode(
       throw err;
     }
   }
-  if (!claimed) {
-    await countMiss(slot, now, recordMiss);
-    throw notOnBoard();
-  }
+  if (!claimed) throw notOnBoard();
   await refundSlot(db, slot, code);
   return true;
 }

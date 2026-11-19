@@ -35,11 +35,12 @@ import {
   normalizePollCodeInput,
   pollJoinId,
   resolvePollCode,
-  type RecordMiss,
   CALLER_WINDOW_MS,
   GLOBAL_WINDOW_MS,
   POLL_CODE_CALLER_MAX_MISSES,
   POLL_CODE_GLOBAL_MAX_MISSES,
+  POLL_CODE_GLOBAL_SHARDS,
+  POLL_CODE_SHARD_MAX_MISSES,
   POLL_CODE_MINT_MAX_PER_HOUR,
   PARKED_CODE_TTL_MS,
   RESERVATION_TTL_MS,
@@ -50,7 +51,16 @@ type Db = Parameters<typeof resolvePollCode>[0];
 const NOW = 60 * 60 * 1000 * 10;
 const CALLER_DOC = (uid: string, now = NOW) =>
   `poll_code_limits/uid__${uid}__${Math.floor(now / CALLER_WINDOW_MS)}`;
-const GLOBAL_DOC = `poll_code_limits/global__${Math.floor(NOW / GLOBAL_WINDOW_MS)}`;
+const SHARD_DOC = (shard: number, now = NOW) =>
+  `poll_code_limits/global__${Math.floor(now / GLOBAL_WINDOW_MS)}__${shard}`;
+// Every shard already at its cap, so the district-wide budget is spent.
+const fullShards = (): Record<string, StubData> =>
+  Object.fromEntries(
+    Array.from({ length: POLL_CODE_GLOBAL_SHARDS }, (_, i) => [
+      SHARD_DOC(i),
+      { misses: POLL_CODE_SHARD_MAX_MISSES },
+    ])
+  );
 
 const live: Record<string, StubData> = {
   'poll_codes/K3F9Q': { sessionId: 't1_K3F9Q', teacherUid: 't1' },
@@ -59,16 +69,13 @@ const live: Record<string, StubData> = {
 
 const setup = (seed: Record<string, StubData> = live) => {
   const stub = makeStubFirestore(seed, { serialTransactions: true });
-  // Plain read-modify-write stand-in for the FieldValue increments.
-  const recordMiss: RecordMiss = (global) => {
-    const misses = stub.get(global.path)?.misses;
-    stub.store.set(global.path, {
-      misses: (typeof misses === 'number' ? misses : 0) + 1,
-    });
-    return Promise.resolve();
-  };
-  const resolve = (uid: string, code: string, now = NOW) =>
-    resolvePollCode(stub.db as unknown as Db, uid, code, now, recordMiss).then(
+  const resolve = (
+    uid: string,
+    code: string,
+    now = NOW,
+    pickShard: () => number = () => 0
+  ) =>
+    resolvePollCode(stub.db as unknown as Db, uid, code, now, pickShard).then(
       (join) => join?.sessionId ?? null
     );
   return { stub, db: stub.db as unknown as Db, resolve };
@@ -167,7 +174,7 @@ describe('resolvePollCode', () => {
       expect(await resolve('anon1', 'AAAAA')).toBeNull();
     }
     expect(stub.get(CALLER_DOC('anon1'))?.codes).toEqual(['AAAAA']);
-    expect(stub.get(GLOBAL_DOC)?.misses).toBe(1);
+    expect(stub.get(SHARD_DOC(0))?.misses).toBe(1);
   });
 
   it('refuses a capped caller with resource-exhausted, even for a live code', async () => {
@@ -189,23 +196,119 @@ describe('resolvePollCode', () => {
     );
   });
 
-  it('at the shared cap, refuses a caller with earlier misses but lets a fresh caller join (security #8)', async () => {
+  it('at the global cap, refuses every fresh uid with no free allowance, live code or not', async () => {
+    const { stub, resolve } = setup({ ...live, ...fullShards() });
+    for (const shard of [0, 4, 9]) {
+      await expect(
+        resolve(`fresh${shard}`, 'K3F9Q', NOW, () => shard)
+      ).rejects.toMatchObject({ code: 'resource-exhausted' });
+      await expect(
+        resolve(`fresh${shard}`, 'YYYYY', NOW, () => shard)
+      ).rejects.toMatchObject({ code: 'resource-exhausted' });
+    }
+    expect(stub.has(`poll_joins/${pollJoinId('t1_K3F9Q', 'fresh0')}`)).toBe(
+      false
+    );
+    expect(logger.warn).toHaveBeenCalled();
+  });
+
+  it('answers a code the caller already missed at the global cap, and resets in the next window', async () => {
     const { resolve } = setup({
       ...live,
-      [GLOBAL_DOC]: { misses: POLL_CODE_GLOBAL_MAX_MISSES },
-      [CALLER_DOC('missing')]: { codes: ['ZZZZZ', 'WWWWW'] },
+      ...fullShards(),
+      [CALLER_DOC('missing')]: { codes: ['ZZZZZ'] },
     });
-    // A student's first codes still go through, so a flood can't lock out every join.
-    expect(await resolve('fresh-uid', 'K3F9Q')).toBe('t1_K3F9Q');
-    await expect(resolve('missing', 'YYYYY')).rejects.toMatchObject({
-      code: 'resource-exhausted',
-    });
-    await expect(resolve('missing', 'K3F9Q')).rejects.toMatchObject({
-      code: 'resource-exhausted',
-    });
-    // A code this caller already looked up is answered the same as before.
     expect(await resolve('missing', 'ZZZZZ')).toBeNull();
-    expect(logger.warn).toHaveBeenCalledTimes(1);
+    await expect(resolve('anon2', 'K3F9Q')).rejects.toMatchObject({
+      code: 'resource-exhausted',
+    });
+    expect(await resolve('anon2', 'K3F9Q', NOW + GLOBAL_WINDOW_MS)).toBe(
+      't1_K3F9Q'
+    );
+  });
+
+  it('lets a device that already joined rejoin at the global cap, but nobody else', async () => {
+    const { stub, resolve } = setup({
+      ...live,
+      ...fullShards(),
+      [`poll_joins/${pollJoinId('t1_K3F9Q', 'member')}`]: {
+        sessionId: 't1_K3F9Q',
+        uid: 'member',
+      },
+    });
+    expect(await resolve('member', 'K3F9Q')).toBe('t1_K3F9Q');
+    expect(stub.get(`poll_joins/${pollJoinId('t1_K3F9Q', 'member')}`)).toEqual(
+      expect.objectContaining({ joinedAt: NOW })
+    );
+    await expect(resolve('outsider', 'K3F9Q')).rejects.toMatchObject({
+      code: 'resource-exhausted',
+    });
+    // A wrong code gets no answer from the rejoin path.
+    await expect(resolve('member', 'YYYYY')).rejects.toMatchObject({
+      code: 'resource-exhausted',
+    });
+  });
+
+  it('lets a capped caller who already joined rejoin', async () => {
+    const { resolve } = setup({
+      ...live,
+      [`poll_joins/${pollJoinId('t1_K3F9Q', 'member')}`]: {
+        sessionId: 't1_K3F9Q',
+        uid: 'member',
+      },
+    });
+    await fillCaller(resolve, 'member', POLL_CODE_CALLER_MAX_MISSES);
+    expect(await resolve('member', 'K3F9Q')).toBe('t1_K3F9Q');
+  });
+
+  it('never lets concurrent fresh uids exceed the global cap', async () => {
+    const { stub, resolve } = setup();
+    const n = POLL_CODE_GLOBAL_MAX_MISSES + 100;
+    const results = await Promise.allSettled(
+      Array.from({ length: n }, (_, i) =>
+        resolve(`bot${i}`, `M${i}`, NOW, () => i)
+      )
+    );
+    const answered = results.filter((r) => r.status === 'fulfilled');
+    const refused = results.filter((r) => r.status === 'rejected');
+    expect(answered).toHaveLength(POLL_CODE_GLOBAL_MAX_MISSES);
+    expect(refused).toHaveLength(100);
+    const total = Array.from({ length: POLL_CODE_GLOBAL_SHARDS }, (_, i) =>
+      Number(stub.get(SHARD_DOC(i))?.misses ?? 0)
+    ).reduce((a, b) => a + b, 0);
+    expect(total).toBe(POLL_CODE_GLOBAL_MAX_MISSES);
+  });
+
+  it('never lets random shard picks exceed the global cap either', async () => {
+    const { stub, resolve } = setup();
+    const results = await Promise.allSettled(
+      Array.from({ length: 500 }, (_, i) =>
+        resolve(`bot${i}`, `M${i}`, NOW, () => Math.floor(Math.random() * 10))
+      )
+    );
+    const answered = results.filter((r) => r.status === 'fulfilled').length;
+    expect(answered).toBeLessThanOrEqual(POLL_CODE_GLOBAL_MAX_MISSES);
+    for (let i = 0; i < POLL_CODE_GLOBAL_SHARDS; i += 1) {
+      expect(Number(stub.get(SHARD_DOC(i))?.misses ?? 0)).toBeLessThanOrEqual(
+        POLL_CODE_SHARD_MAX_MISSES
+      );
+    }
+  });
+
+  it('keeps resolving valid codes under the cap while a sweep is under way', async () => {
+    const { resolve } = setup();
+    for (let i = 0; i < POLL_CODE_GLOBAL_MAX_MISSES - 1; i += 1) {
+      await resolve(`bot${i}`, `M${i}`, NOW, () => i);
+    }
+    expect(await resolve('student', 'K3F9Q', NOW, () => 9)).toBe('t1_K3F9Q');
+  });
+
+  it('gives the global reservation back on a hit, so joining never spends the district budget', async () => {
+    const { stub, resolve } = setup();
+    for (let i = 0; i < 40; i += 1) {
+      expect(await resolve(`s${i}`, 'K3F9Q')).toBe('t1_K3F9Q');
+    }
+    expect(stub.get(SHARD_DOC(0))?.misses).toBe(0);
   });
 
   it('gives a parallel burst from one caller at most the cap (security #8)', async () => {
@@ -233,20 +336,22 @@ describe('resolvePollCode', () => {
     expect(stub.get(CALLER_DOC('anon1'))?.codes).toEqual([]);
   });
 
-  it('never fails the call when a counter write fails', async () => {
+  it('fails closed when the budget cannot be reserved', async () => {
     const stub = makeStubFirestore(live);
-    const failing: RecordMiss = () => Promise.reject(new Error('contention'));
+    stub.hooks.beforeWrite = (_op, path) => {
+      if (path.startsWith('poll_code_limits/')) throw new Error('down');
+    };
     await expect(
-      resolvePollCode(stub.db as unknown as Db, 'a', 'AAAAA', NOW, failing)
-    ).resolves.toBeNull();
+      resolvePollCode(stub.db as unknown as Db, 'a', 'K3F9Q', NOW)
+    ).rejects.toThrow('down');
+    expect(stub.has(`poll_joins/${pollJoinId('t1_K3F9Q', 'a')}`)).toBe(false);
   });
 
-  it('counts misses with blind increments by default', async () => {
+  it('reserves the caller slot and one global miss together before the lookup', async () => {
     const stub = makeStubFirestore(live);
-    await resolvePollCode(stub.db as unknown as Db, 'a', 'AAAAA', NOW);
-    const byPath = new Map(stub.writes.map((w) => [w.path, w.data]));
-    expect(byPath.get(GLOBAL_DOC)?.misses).toEqual({ __increment: 1 });
-    expect(byPath.get(CALLER_DOC('a'))?.codes).toEqual(['AAAAA']);
+    await resolvePollCode(stub.db as unknown as Db, 'a', 'AAAAA', NOW, () => 3);
+    expect(stub.get(SHARD_DOC(3))?.misses).toBe(1);
+    expect(stub.get(CALLER_DOC('a'))?.codes).toEqual(['AAAAA']);
   });
 
   it('ignores an empty code', async () => {
@@ -574,6 +679,34 @@ describe('claimPollCode', () => {
         'tX'
       )
     ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+
+  it('shares the global miss budget: a refused claim counts, a won one is given back, and the cap refuses', async () => {
+    const stub = seed(board());
+    await claimPollCode(
+      stub.db as unknown as Db,
+      'tB',
+      'K3F9Q',
+      'sb1',
+      NOW,
+      () => 2
+    );
+    expect(stub.get(SHARD_DOC(2))?.misses ?? 0).toBe(0);
+    await expect(
+      claimPollCode(
+        stub.db as unknown as Db,
+        'tX',
+        'K3F9Q',
+        'sb1',
+        NOW,
+        () => 2
+      )
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(stub.get(SHARD_DOC(2))?.misses).toBe(1);
+    const full = seed(board(), fullShards());
+    await expect(
+      claimPollCode(full.db as unknown as Db, 'tB', 'K3F9Q', 'sb1', NOW)
+    ).rejects.toMatchObject({ code: 'resource-exhausted' });
   });
 
   it('rejects a malformed board id', async () => {
