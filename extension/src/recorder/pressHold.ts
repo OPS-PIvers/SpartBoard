@@ -12,6 +12,9 @@ export const HELD_EVENTS = [
 
 const OWN_HOST = '[data-spart-extension]';
 
+// A pointer that moves this far is a drag, which the page gets at once.
+export const DRAG_PX = 6;
+
 // A press is let through after this even when no picture comes back.
 export const MAX_HOLD_MS = 2500;
 
@@ -130,14 +133,23 @@ export function createPressHold(
     if (e.type !== 'pointerdown' && e.type !== 'pointerup') e.preventDefault();
   };
 
+  let start: { x: number; y: number } | null = null;
+  const onMove = (e: Event) => {
+    if (!queue || !start || !isReal(e) || !(e instanceof MouseEvent)) return;
+    if (Math.hypot(e.clientX - start.x, e.clientY - start.y) >= DRAG_PX)
+      flush();
+  };
+
   for (const type of HELD_EVENTS)
     win.addEventListener(type, onEvent, { capture: true });
+  win.addEventListener('pointermove', onMove, { capture: true });
 
   return {
     hold: (first) => {
       if (!queue) {
         queue = [];
         timer = setTimeout(flush, MAX_HOLD_MS);
+        start = { x: first.clientX, y: first.clientY };
       }
       onEvent(first);
       const mine = generation;
@@ -150,6 +162,7 @@ export function createPressHold(
       flush();
       for (const type of HELD_EVENTS)
         win.removeEventListener(type, onEvent, { capture: true });
+      win.removeEventListener('pointermove', onMove, { capture: true });
     },
   };
 }

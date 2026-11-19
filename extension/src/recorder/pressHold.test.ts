@@ -7,7 +7,7 @@ import {
   it,
   vi,
 } from 'vitest';
-import { canHold, createPressHold, MAX_HOLD_MS } from './pressHold';
+import { canHold, createPressHold, DRAG_PX, MAX_HOLD_MS } from './pressHold';
 
 // As in Chrome, a pointer event is a mouse event; the shared jsdom mock is not.
 class ChromePointerEvent extends MouseEvent {
@@ -158,6 +158,20 @@ describe('press hold', () => {
     expect(ownClicks).toHaveBeenCalledOnce();
     link.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(seen.map((s) => s.type)).toEqual(['click']);
+  });
+
+  it('lets a drag go at once so the page can follow it', () => {
+    const { link, seen, start } = setup();
+    start(link);
+    press(link, 'mousedown');
+    const move = new window.PointerEvent('pointermove', {
+      bubbles: true,
+      clientX: 12 + DRAG_PX,
+      clientY: 34,
+    });
+    real.add(move);
+    link.dispatchEvent(move);
+    expect(seen.map((s) => s.type)).toEqual(['pointerdown', 'mousedown']);
   });
 
   it('drops a held press whose target left the page', () => {

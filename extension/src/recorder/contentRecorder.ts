@@ -137,10 +137,15 @@ function start(): () => void {
       e.pointerType !== 'touch' && canHold(pressed(e) ?? el)
         ? press.hold(e)
         : null;
-    void chrome.runtime
-      .sendMessage({ type: 'rec/click', target })
-      .catch(() => undefined)
-      .finally(() => release?.());
+    try {
+      void chrome.runtime
+        .sendMessage({ type: 'rec/click', target })
+        .catch(() => undefined)
+        .finally(() => release?.());
+    } catch {
+      // A script left behind by an extension update throws here.
+      release?.();
+    }
   };
   const swallow = (e: Event) => {
     if (!e.isTrusted || !shooter.picking()) return;
