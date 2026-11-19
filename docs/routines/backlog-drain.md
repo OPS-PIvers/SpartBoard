@@ -23,7 +23,7 @@ A scheduled trigger runs this nightly at 8:40 PM America/Chicago, in the "Audit 
    - New wording: build it, take a screenshot in the real app, post it in the thread with a decision card (two or three wording options), and keep the PR open until he picks.
    - A real decision, a prod data step or a prod check: add a `PT-` item to `PAUL_TODO.md`, move the AB item to Blocked naming it, and post one decision card in the thread.
    - An item that isn't worth doing (a minor with no user impact, never security): move it to Known limits with a one-line reason in the same PR, and list it in the weekly line.
-7. **Close out.** Add the night's merged branches to AB-112 in one small docs PR and merge it. Post in the thread only if something needs Paul or a PR is stuck.
+7. **Close out.** Each PR adds its own branch as a file in `docs/branch-cleanup/` (AB-112), so no separate docs PR is needed. Post in the thread only if something needs Paul or a PR is stuck.
 
 ## Weekly line (Sunday run)
 

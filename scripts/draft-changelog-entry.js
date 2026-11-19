@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
  * Drafts a "What's New" changelog entry from recent git commits and prints it
- * to stdout. The output is intentionally a *draft* — paste it into
- * public/changelog.json and rewrite every bullet before committing. The rules
+ * to stdout. The output is intentionally a *draft* — put it in a new
+ * changelog.d/<name>.json fragment and rewrite every bullet before committing. The rules
  * are in docs/DEV_WORKFLOW.md ("How to write a release note"); commit subjects
  * are never publishable as written.
  *
@@ -19,6 +19,7 @@ import { fileURLToPath } from 'url';
 import { changedWidgetTypes } from './checkReleaseWidgetNotes.ts';
 import { classifyCommit, stripCommitPrefix } from './changelogCommitSubject.ts';
 import { resolveWidgetFiles } from './widget-grader/widgetFiles.ts';
+import { loadChangelog } from './changelogFragments.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -33,8 +34,9 @@ const sinceOverride = sinceIdx >= 0 ? args[sinceIdx + 1] : null;
 const readLastEntryDate = () => {
   if (!fs.existsSync(changelogPath)) return null;
   try {
-    const parsed = JSON.parse(fs.readFileSync(changelogPath, 'utf8'));
-    return parsed?.entries?.[0]?.date ?? null;
+    return (
+      loadChangelog(path.resolve(__dirname, '..')).entries[0]?.date ?? null
+    );
   } catch {
     return null;
   }
@@ -112,7 +114,7 @@ const draftEntry = {
 };
 
 process.stdout.write(
-  `// Draft entry — paste at the top of public/changelog.json entries[].\n` +
+  `// Draft entry — put it in the "entries" array of a new changelog.d/<name>.json file.\n` +
     `// Rewrite every bullet first: see "How to write a release note" in docs/DEV_WORKFLOW.md.\n` +
     `// Sourced from ${lines.length} commit(s)` +
     (since ? ` since ${since}` : ' (no prior entry — last 50 commits)') +
@@ -145,7 +147,7 @@ if (widgetTypes.length > 0) {
     feature: 'TODO: the flag gating this change, or delete this line',
   }));
   process.stdout.write(
-    `\n// Widget notes — add to the top-level "widgetNotes" array, or put "no-widget-note: <widget> <why>" in the release PR.\n` +
+    `\n// Widget notes — put them in the "widgetNotes" array of that changelog.d/<name>.json file, or put "no-widget-note: <widget> <why>" in the release PR.\n` +
       JSON.stringify(notes, null, 2) +
       '\n'
   );

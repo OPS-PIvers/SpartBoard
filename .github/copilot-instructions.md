@@ -30,6 +30,6 @@ SpartBoard is a classroom dashboard (React, TypeScript, Vite, Firebase). There i
 
 ## Reviewing a pull request
 
-- `public/changelog.json` is read by teachers: no flag names, Firestore paths or internal mechanisms, and a flagged feature gets its entry only when the flag opens to everyone.
+- Release notes (`public/changelog.json`, new ones as `changelog.d/<name>.json` fragments) are read by teachers: no flag names, Firestore paths or internal mechanisms, and a flagged feature gets its entry only when the flag opens to everyone.
 - A change to `firestore.rules` follows `.claude/rules/firestore-rules.md` (size caps and shorthands).
 - Rules and function changes must tolerate a teacher's already-open tab running the previous client when they reach `main`.
