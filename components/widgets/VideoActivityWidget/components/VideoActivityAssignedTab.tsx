@@ -271,6 +271,7 @@ interface RowModel {
   bells: Record<string, EpochWindow | null>;
   /** A closed self-paced single line still holds answered, unfinished attempts. */
   owesTurnIn: boolean;
+  noMoveToDone: boolean;
 }
 
 /** The Video Activity Assigned tab: one row per assignment, one status per class (ASSIGNED_TAB.md slice 5). */
@@ -365,6 +366,7 @@ export const VideoActivityAssignedTab: React.FC<
           needsGrading,
           bells,
           owesTurnIn,
+          noMoveToDone: a.mode === 'view-only',
         };
       }),
     [

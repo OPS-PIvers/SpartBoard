@@ -206,6 +206,7 @@ export interface QuizAssignedRowModel {
   assignment: QuizAssignment;
   needsGrading: number | null;
   bells: Record<string, EpochWindow | null>;
+  noMoveToDone: boolean;
 }
 
 /** Quiz rows for any Assigned list: the widget tab and the Assignments hub (D18). */
@@ -279,7 +280,14 @@ export function useQuizAssignedRows(
           }),
           now
         );
-        return { id: a.id, status, assignment: a, needsGrading, bells };
+        return {
+          id: a.id,
+          status,
+          assignment: a,
+          needsGrading,
+          bells,
+          noMoveToDone: a.mode === 'view-only',
+        };
       }),
     [
       assignments,

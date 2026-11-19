@@ -192,6 +192,7 @@ interface RowModel<A> {
   status: AssignedStatus;
   assignment: A;
   bells: Record<string, EpochWindow | null>;
+  noMoveToDone: boolean;
 }
 
 /** The Assigned tab for a kind driven by `useAssignmentClassActions` (ASSIGNED_TAB.md slice 5). */
@@ -245,7 +246,13 @@ export function RunAssignedTab<A extends RunAssignment>(
       toInput(a, { responses, needsGrading: 0, classSizes, bellFor }),
       now
     );
-    return { id: a.id, status, assignment: a, bells };
+    return {
+      id: a.id,
+      status,
+      assignment: a,
+      bells,
+      noMoveToDone: viewOnly(a),
+    };
   });
 
   // D17: a just-assigned row that nothing has opened yet sits on top.

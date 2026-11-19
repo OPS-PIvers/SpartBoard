@@ -35,6 +35,8 @@ import { LibrarySelectToggle } from '../LibrarySelectToggle';
 export interface AssignedListItem {
   id: string;
   status: AssignedStatus;
+  /** True when the row cannot be moved to Done by hand (view-only shares). */
+  noMoveToDone?: boolean;
 }
 
 interface AssignedListProps<T extends AssignedListItem> {
@@ -230,7 +232,9 @@ export function AssignedList<T extends AssignedListItem>({
   const canClose = selected.some((i) =>
     i.status.classes.some((c) => c.status !== 'closed')
   );
-  const canMove = selected.some((i) => i.status.bucket === 'active');
+  const canMove = selected.some(
+    (i) => i.status.bucket === 'active' && !i.noMoveToDone
+  );
   const n = selected.length;
   const actions: AssignedBulkAction[] = !bulk
     ? []

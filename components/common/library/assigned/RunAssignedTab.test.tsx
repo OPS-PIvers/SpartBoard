@@ -169,7 +169,7 @@ describe('RunAssignedTab', () => {
 describe('RunAssignedTab bulk select', () => {
   const two = () => [
     ma({ id: 'a1', periodAccess: { p2: row('P2', { state: 'open' }) } }),
-    ma({ id: 'a2', assignmentName: 'Maps app', status: 'paused' }),
+    ma({ id: 'a2', assignmentName: 'Maps app', status: 'active' }),
   ];
 
   it('shows no Select without a bulk delete', () => {
@@ -214,6 +214,17 @@ describe('RunAssignedTab bulk select', () => {
     expect(addToast).toHaveBeenCalledWith('1 assignment deleted.', 'success');
   });
 
+  it('offers no Move to Done for a view-only share', async () => {
+    renderTab(
+      [ma({ id: 'v1', mode: 'view-only' })],
+      {},
+      vi.fn(() => Promise.resolve(0))
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Select' }));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Select all' }));
+    expect(screen.queryByRole('button', { name: 'Move to Done' })).toBeNull();
+  });
+
   it('Cancel clears the picks and brings the row buttons back', async () => {
     renderTab(
       two(),
@@ -222,7 +233,7 @@ describe('RunAssignedTab bulk select', () => {
     );
     await userEvent.click(screen.getByRole('button', { name: 'Select' }));
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(screen.getByRole('button', { name: 'Monitor' })).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: 'Monitor' })).toHaveLength(2);
     expect(screen.queryByRole('checkbox')).toBeNull();
   });
 });
