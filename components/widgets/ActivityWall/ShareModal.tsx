@@ -20,6 +20,7 @@ import { buildGalleryLink, buildShortLinkUrl } from '@/utils/activityWallLinks';
 import type { ActivityWallLibraryEntry, SharedActivityWall } from '@/types';
 import { isSandboxed } from '@/utils/tourSandbox';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 
 type ShareTab = 'student' | 'gallery';
 
@@ -435,10 +436,13 @@ export const ActivityWallShareModal: React.FC<ActivityWallShareModalProps> = ({
       maxWidth="max-w-md"
       contentClassName=""
       customHeader={
-        <div className="border-b border-slate-100">
-          <div className="flex items-start justify-between px-5 pt-5 pb-3">
+        <div
+          className="rounded-t-2xl text-white"
+          style={{ backgroundColor: LIBRARY_HEADER_ACCENTS['activity-wall'] }}
+        >
+          <div className="flex items-start justify-between gap-3 px-5 pt-3.5 pb-2">
             <div className="flex items-start gap-3">
-              <div className="shrink-0 w-9 h-9 rounded-lg bg-brand-blue-lighter/40 text-brand-blue-primary flex items-center justify-center">
+              <div className="shrink-0 w-9 h-9 rounded-lg bg-white/15 text-white flex items-center justify-center">
                 {tab === 'gallery' ? (
                   <ExternalLink className="w-5 h-5" />
                 ) : (
@@ -446,10 +450,8 @@ export const ActivityWallShareModal: React.FC<ActivityWallShareModalProps> = ({
                 )}
               </div>
               <div>
-                <h2 className="text-base font-bold text-slate-900">
-                  Share wall
-                </h2>
-                <p className="text-xs text-slate-500 mt-0.5 truncate max-w-[20rem]">
+                <h2 className="text-base font-bold text-white">Share wall</h2>
+                <p className="text-xs text-white/80 mt-0.5 truncate max-w-[20rem]">
                   {entry?.title ?? 'Activity Wall'}
                 </p>
               </div>
@@ -459,7 +461,7 @@ export const ActivityWallShareModal: React.FC<ActivityWallShareModalProps> = ({
               onClick={onClose}
               aria-label="Close"
               {...tourTypeAttr('activity-wall-link.close', 'activity-wall')}
-              className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer"
+              className="shrink-0 rounded-lg p-1 text-white/80 hover:bg-white/15 hover:text-white transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -483,10 +485,10 @@ export const ActivityWallShareModal: React.FC<ActivityWallShareModalProps> = ({
                     'activity-wall',
                     t.id
                   )}
-                  className={`-mb-px border-b-2 px-3 py-2 text-sm font-semibold transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${
+                  className={`-mb-px border-b-2 px-3 py-2 text-sm font-semibold transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/60 ${
                     selected
-                      ? 'border-brand-blue-primary text-brand-blue-primary'
-                      : 'border-transparent text-slate-500 hover:text-slate-700'
+                      ? 'border-white text-white'
+                      : 'border-transparent text-white/75 hover:text-white'
                   }`}
                 >
                   {t.label}

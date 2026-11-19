@@ -286,16 +286,14 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
   };
 
   const header = (
-    <div className="flex items-start justify-between border-b border-slate-100 px-5 pb-3 pt-5">
+    <div className="flex items-start justify-between gap-3 px-5 py-3.5 bg-emerald-700 text-white rounded-t-2xl">
       <div className="flex items-start gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-blue-lighter/40 text-brand-blue-primary">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/15 text-white">
           <ScanText className="h-5 w-5" />
         </div>
         <div>
-          <h2 className="text-base font-bold text-slate-900">
-            Import questions
-          </h2>
-          <p className="mt-0.5 max-w-[24rem] truncate text-xs text-slate-500">
+          <h2 className="text-base font-bold text-white">Import questions</h2>
+          <p className="mt-0.5 max-w-[24rem] truncate text-xs text-white/80">
             {quiz.title || 'Untitled paper test'}
           </p>
         </div>
@@ -305,7 +303,7 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
         {...tourTypeAttr('quiz-import.paper-text-close', 'quiz')}
         onClick={onClose}
         aria-label="Close"
-        className="shrink-0 rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+        className="shrink-0 rounded-lg p-1 text-white/80 transition-colors hover:bg-white/15 hover:text-white"
       >
         <X className="h-5 w-5" />
       </button>
