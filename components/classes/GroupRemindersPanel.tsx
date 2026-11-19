@@ -343,6 +343,36 @@ const GroupWizard: React.FC<GroupWizardProps> = ({
   const offLabel = t('groupReminders.off', { defaultValue: 'Off' });
   const nextAnchor = tourAttr('group-wizard.next');
 
+  const preview = (
+    <div
+      className="hidden md:block shrink-0"
+      {...tourAttr('group-wizard.preview')}
+    >
+      <GroupReminderCard
+        symbol={symbol}
+        message={
+          reminder.showMessage
+            ? reminder.message.trim() ||
+              t('groupReminders.defaultMessage', {
+                defaultValue: 'Time to go',
+              })
+            : undefined
+        }
+        name={
+          reminder.showName && group.name.trim() ? group.name.trim() : undefined
+        }
+        time={
+          reminder.showTime
+            ? formatReminderTime(reminder.alerts[0]?.time ?? '09:00')
+            : undefined
+        }
+        snoozeMinutes={reminder.snoozeMinutes}
+        onSnooze={() => undefined}
+        onDismiss={() => undefined}
+      />
+    </div>
+  );
+
   const stepDefs: AssignStepDef[] = [
     {
       id: 'group-students',
@@ -388,6 +418,7 @@ const GroupWizard: React.FC<GroupWizardProps> = ({
           name={group.name}
           onSymbol={setSymbol}
           onName={(name) => setGroup((g) => ({ ...g, name }))}
+          preview={preview}
         />
       ),
     });
@@ -413,6 +444,7 @@ const GroupWizard: React.FC<GroupWizardProps> = ({
           reminder={reminder}
           emailAlertsEnabled={emailAlertsEnabled}
           onChange={setReminder}
+          preview={preview}
         />
       ),
     });
@@ -444,66 +476,33 @@ const GroupWizard: React.FC<GroupWizardProps> = ({
     : t('groupReminders.editGroup', { defaultValue: 'Edit group' });
 
   return (
-    <div className="flex-1 min-h-0 flex gap-4">
-      <div
-        className="flex-1 min-w-0 overflow-y-auto custom-scrollbar"
-        {...tourAttr('group-wizard.steps')}
-      >
-        <h3 className="text-sm font-bold text-slate-800 mb-3">{title}</h3>
-        <AssignStepper
-          isOpen
-          inline
-          onClose={onCancel}
-          title={title}
-          steps={stepDefs}
-          submitLabel={t('groupReminders.saveGroup', {
-            defaultValue: 'Save group',
-          })}
-          submitIcon={Save}
-          onSubmit={() => onSave(group)}
-          disabled={!canSave}
-          disabledReason={t('groupReminders.pickStudents', {
-            defaultValue: 'Select at least one student.',
-          })}
-          onCancel={onCancel}
-          cancelLabel={t('common.cancel', { defaultValue: 'Cancel' })}
-          cancelAnchor={tourAttr('group-wizard.cancel')}
-          submitAnchor={tourAttr('group-wizard.finish')}
-          viewAsGuard={false}
-          stickyFooter
-        />
-      </div>
-      {(visible.symbol || visible.schedule) && (
-        <div
-          className="hidden lg:flex w-[320px] shrink-0 border border-slate-200 bg-slate-100 rounded-xl items-end justify-end p-5"
-          {...tourAttr('group-wizard.preview')}
-        >
-          <GroupReminderCard
-            symbol={symbol}
-            message={
-              reminder.showMessage
-                ? reminder.message.trim() ||
-                  t('groupReminders.defaultMessage', {
-                    defaultValue: 'Time to go',
-                  })
-                : undefined
-            }
-            name={
-              reminder.showName && group.name.trim()
-                ? group.name.trim()
-                : undefined
-            }
-            time={
-              reminder.showTime
-                ? formatReminderTime(reminder.alerts[0]?.time ?? '09:00')
-                : undefined
-            }
-            snoozeMinutes={reminder.snoozeMinutes}
-            onSnooze={() => undefined}
-            onDismiss={() => undefined}
-          />
-        </div>
-      )}
+    <div
+      className="flex-1 min-h-0 overflow-y-auto custom-scrollbar"
+      {...tourAttr('group-wizard.steps')}
+    >
+      <h3 className="text-sm font-bold text-slate-800 mb-3">{title}</h3>
+      <AssignStepper
+        isOpen
+        inline
+        onClose={onCancel}
+        title={title}
+        steps={stepDefs}
+        submitLabel={t('groupReminders.saveGroup', {
+          defaultValue: 'Save group',
+        })}
+        submitIcon={Save}
+        onSubmit={() => onSave(group)}
+        disabled={!canSave}
+        disabledReason={t('groupReminders.pickStudents', {
+          defaultValue: 'Select at least one student.',
+        })}
+        onCancel={onCancel}
+        cancelLabel={t('common.cancel', { defaultValue: 'Cancel' })}
+        cancelAnchor={tourAttr('group-wizard.cancel')}
+        submitAnchor={tourAttr('group-wizard.finish')}
+        viewAsGuard={false}
+        stickyFooter
+      />
     </div>
   );
 };
@@ -540,7 +539,8 @@ const SymbolStep: React.FC<{
   name: string;
   onSymbol: (patch: Partial<RosterGroupSymbol>) => void;
   onName: (name: string) => void;
-}> = ({ symbol, name, onSymbol, onName }) => {
+  preview?: React.ReactNode;
+}> = ({ symbol, name, onSymbol, onName, preview }) => {
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const icons = searchGroupIcons(query);
@@ -550,24 +550,29 @@ const SymbolStep: React.FC<{
 
   return (
     <div className="flex flex-col gap-5">
-      <GroupNameField name={name} onName={onName} />
-      <div className="flex flex-col gap-2">
-        <div className="relative max-w-sm">
-          <Search
-            size={16}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-            aria-hidden="true"
-          />
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={searchLabel}
-            aria-label={searchLabel}
-            {...tourAttr('group-wizard.icon-search')}
-            className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-hidden"
-          />
+      <div className="flex items-start gap-10">
+        <div className="flex-1 min-w-0 max-w-sm flex flex-col gap-4">
+          <GroupNameField name={name} onName={onName} />
+          <div className="relative max-w-sm">
+            <Search
+              size={16}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              aria-hidden="true"
+            />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={searchLabel}
+              aria-label={searchLabel}
+              {...tourAttr('group-wizard.icon-search')}
+              className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-hidden"
+            />
+          </div>
         </div>
+        {preview}
+      </div>
+      <div className="flex flex-col gap-2">
         <div className="grid grid-cols-[repeat(auto-fill,minmax(2.75rem,1fr))] gap-1.5 max-h-60 overflow-y-auto custom-scrollbar p-1 -mx-1">
           {icons.map(({ id, Icon }) => {
             const on = symbol.icon === id;
@@ -692,7 +697,7 @@ const ReminderCardSettings: React.FC<{
   };
 
   return (
-    <div className="border-t border-slate-100 pt-4 flex flex-col gap-3 max-w-md">
+    <div className="flex-1 min-w-0 flex flex-col gap-3 max-w-md">
       <SettingRow label={labels.sound}>
         <div className="flex items-center gap-1">
           <select
@@ -887,7 +892,8 @@ const ScheduleStep: React.FC<{
   reminder: RosterGroupReminder;
   emailAlertsEnabled: boolean;
   onChange: (patch: Partial<RosterGroupReminder>) => void;
-}> = ({ reminder, emailAlertsEnabled, onChange }) => {
+  preview?: React.ReactNode;
+}> = ({ reminder, emailAlertsEnabled, onChange, preview }) => {
   const { t } = useTranslation();
   const onBoardLabel = t('groupReminders.reminderOnBoard', {
     defaultValue: 'Reminder on the board',
@@ -1117,11 +1123,14 @@ const ScheduleStep: React.FC<{
           )}
         </p>
       )}
-      <ReminderCardSettings
-        reminder={reminder}
-        emailAlertsEnabled={emailAlertsEnabled}
-        onChange={onChange}
-      />
+      <div className="border-t border-slate-100 pt-4 flex items-start gap-10">
+        <ReminderCardSettings
+          reminder={reminder}
+          emailAlertsEnabled={emailAlertsEnabled}
+          onChange={onChange}
+        />
+        {preview}
+      </div>
     </div>
   );
 };
