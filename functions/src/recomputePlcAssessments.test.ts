@@ -22,6 +22,7 @@ import {
   parseCompletedResponse,
   parseLocalizedFibAnswers,
   parseServedLanguages,
+  RECOMPUTE_MAX_FAILURES,
   recomputeOnePlcAssessment,
   runRecomputePlcAssessments,
   syncedGroupEntitled,
@@ -653,6 +654,117 @@ describe('runRecomputePlcAssessments', () => {
     };
     await runRecomputePlcAssessments(stub.db as unknown as Db);
     expect(stub.get('plcs/plc-2/assessments/older')?.dirtyAt).toBe(NOW + 7);
+  });
+});
+
+describe('runRecomputePlcAssessments failure cap', () => {
+  const FAIL = 'plc_recompute_failures/plc-2/recompute_failures/older';
+  const failing = (count?: number) => {
+    const stub = seedPipeline({
+      'plcs/plc-2/assessments/older': {
+        id: 'older',
+        syncGroupId: 'grp-older',
+        dirtyAt: NOW - 50_000,
+      },
+      ...(count === undefined ? {} : { [FAIL]: { count } }),
+    });
+    stub.hooks.beforeWrite = (op, path) => {
+      if (op === 'set' && path === 'plcs/plc-2/aggregates/older')
+        throw new Error('boom');
+    };
+    return stub;
+  };
+
+  it('counts each failure and keeps retrying below the cap', async () => {
+    const stub = failing();
+    await runRecomputePlcAssessments(stub.db as unknown as Db);
+    expect(stub.get(FAIL)?.count).toBe(1);
+    expect(typeof stub.get('plcs/plc-2/assessments/older')?.dirtyAt).toBe(
+      'number'
+    );
+  });
+
+  it('stops retrying once the cap is reached', async () => {
+    const stub = failing(RECOMPUTE_MAX_FAILURES - 1);
+    const counts = await runRecomputePlcAssessments(stub.db as unknown as Db);
+    expect(counts.failed).toBe(1);
+    expect(stub.get(FAIL)?.count).toBe(RECOMPUTE_MAX_FAILURES);
+    expect(stub.get('plcs/plc-2/assessments/older')?.dirtyAt).toBeNull();
+    const again = await runRecomputePlcAssessments(stub.db as unknown as Db);
+    expect(again.failed).toBe(0);
+  });
+
+  it('clears the failure count after a successful recompute', async () => {
+    const stub = failing(3);
+    stub.hooks.beforeWrite = undefined;
+    await runRecomputePlcAssessments(stub.db as unknown as Db);
+    expect(stub.has(FAIL)).toBe(false);
+    expect(stub.has('plcs/plc-2/aggregates/older')).toBe(true);
+  });
+
+  it('skips a stale aggregate that has hit the cap', async () => {
+    const stub = seedPipeline({
+      'plcs/plc-1/assessments/grp-1': {
+        id: 'grp-1',
+        kind: 'quiz',
+        syncGroupId: 'grp-1',
+        status: 'active',
+        dirtyAt: null,
+      },
+      'plcs/plc-1/aggregates/grp-1': {
+        assessmentId: 'grp-1',
+        schemaVersion: 3,
+      },
+      'plc_recompute_failures/plc-1/recompute_failures/grp-1': {
+        count: RECOMPUTE_MAX_FAILURES,
+      },
+    });
+    const counts = await runRecomputePlcAssessments(stub.db as unknown as Db);
+    expect(counts.scanned).toBe(0);
+    expect(stub.get('plcs/plc-1/aggregates/grp-1')?.schemaVersion).toBe(3);
+  });
+});
+
+describe('recomputeOnePlcAssessment assignmentId check', () => {
+  it('treats a malformed assignmentId as no assignment instead of failing', async () => {
+    for (const assignmentId of ['x/y', 'x//y', '__x__']) {
+      const stub = seedPipeline();
+      stub.store.set('quiz_sessions/sess-a', {
+        ...stub.get('quiz_sessions/sess-a'),
+        assignmentId,
+      });
+      // Real Firestore throws on these ids; the stub has to be told to.
+      const realCollection = stub.db.collection.bind(stub.db);
+      const strictDoc =
+        <T>(doc: (id: string) => T) =>
+        (id: string) => {
+          if (!id || id.includes('/') || /^__.*__$/.test(id))
+            throw new Error(`Invalid document id ${id}`);
+          return doc(id);
+        };
+      (stub.db as { collection: (path: string) => unknown }).collection = (
+        path
+      ) => {
+        const col = realCollection(path);
+        return {
+          ...col,
+          doc: (uid: string) => {
+            const user = col.doc(uid);
+            return {
+              ...user,
+              collection: (name: string) => {
+                const sub = user.collection(name);
+                return { ...sub, doc: strictDoc(sub.doc) };
+              },
+            };
+          },
+        };
+      };
+      const counts = await runRecomputePlcAssessments(stub.db as unknown as Db);
+      expect(counts.failed).toBe(0);
+      expect(stub.has('plcs/plc-1/aggregates/grp-1')).toBe(true);
+      expect(stub.get('plcs/plc-1/assessments/grp-1')?.dirtyAt).toBeNull();
+    }
   });
 });
 

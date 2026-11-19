@@ -15,9 +15,12 @@ vi.mock('firebase-functions/v2/https', () => {
 });
 vi.mock('../functionsInit', () => ({}));
 // Voice readings need Cloud TTS and the model; voiceRefs.test.ts covers them.
+const voiceRead = vi.hoisted(() => ({
+  fn: (): Promise<unknown> => Promise.resolve([]),
+}));
 vi.mock('./voiceRefs', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./voiceRefs')>()),
-  createVoiceReader: () => ({ read: () => Promise.resolve([]) }),
+  createVoiceReader: () => ({ read: () => voiceRead.fn() }),
 }));
 vi.mock('../classlinkShared', () => ({ ALLOWED_ORIGINS: [] }));
 const usage = new Map<string, Record<string, unknown>>();
@@ -55,6 +58,7 @@ import {
   SPEAK_G2P_VOICES_PENDING,
 } from './lookup';
 import { loadPhonemizer } from './espeak';
+import { VoiceServiceError } from './voiceRefs';
 import type { FlashcardCardSpeak, SpeakDialect, SpeakLanguage } from './types';
 
 const DIALECTS: Record<SpeakLanguage, SpeakDialect[]> = {
@@ -515,6 +519,28 @@ describe('lookupSpeakReferencesV1', () => {
     await expect(call({ auth: teacher, data })).rejects.toMatchObject({
       code: 'resource-exhausted',
     });
+  });
+
+  it('gives back the terms the voice run never reached', async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const key = `ai_usage/t1_speak-voices_${today}`;
+    voiceRead.fn = () => Promise.reject(new VoiceServiceError('off'));
+    try {
+      await call({
+        auth: teacher,
+        data: {
+          ...data,
+          terms: [
+            { cardId: 'a', term: 'cat' },
+            { cardId: 'b', term: 'dog' },
+            { cardId: 'c', term: 'sun' },
+          ],
+        },
+      });
+    } finally {
+      voiceRead.fn = () => Promise.resolve([]);
+    }
+    expect(usage.get(key)?.count).toBe(1);
   });
 
   it('never charges or blocks the quick check without voices', async () => {

@@ -39,6 +39,7 @@ import {
   applyAttemptWrite,
 } from '../quizAttemptHistory';
 import { stampTurnIn } from '../quizTurnIn';
+import { migrateLegacyProjectOverrides } from '../projectGradeOverrides';
 import {
   TRIGGER_OPTS,
   dataOf,
@@ -69,6 +70,21 @@ export async function handleStudentDocWrite(
     before: dataOf(event.data?.before),
     after: dataOf(event.data?.after),
   };
+  if (kind === 'projects') {
+    // Runs whether or not the index is on: a legacy map keeps a released grade unreadable to members.
+    await migrateLegacyProjectOverrides(
+      admin.firestore(),
+      sessionId,
+      docId,
+      write.after
+    ).catch((err: unknown) =>
+      logger.error('projects: legacy override migration failed', {
+        sessionId,
+        docId,
+        error: err instanceof Error ? err.message : String(err),
+      })
+    );
+  }
   if (!docWriteMatters(write)) return;
   await guarded('student doc', { kind, sessionId, docId }, async () => {
     const db = admin.firestore();
