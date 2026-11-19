@@ -613,12 +613,12 @@ describe('transcribeSpeech', () => {
   it('sends Somali as so-SO and an unmapped language with no locale', async () => {
     const { deps, generate } = setup();
     await transcribeSpeech({ ...CLIP, language: 'so' }, STUDENT, deps);
-    expect(generate.mock.calls[0][0].transcription.languageCodes).toEqual([
+    expect(generate.mock.calls[0][0].transcription?.languageCodes).toEqual([
       'so-SO',
     ]);
     __resetSpeechRateLimits();
     await transcribeSpeech({ ...CLIP, language: 'hmn' }, STUDENT, deps);
-    expect(generate.mock.calls[1][0].transcription.languageCodes).toBe(
+    expect(generate.mock.calls[1][0].transcription?.languageCodes).toBe(
       undefined
     );
   });
