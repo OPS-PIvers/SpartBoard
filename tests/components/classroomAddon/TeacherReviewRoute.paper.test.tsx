@@ -64,6 +64,9 @@ const publishAssignmentScores = vi.fn((..._args: unknown[]) =>
   Promise.resolve({ responsesUpdated: 1, paperResponses: 1 })
 );
 let assignments: Record<string, unknown>[] = [];
+vi.mock('@/hooks/usePlcs', () => ({
+  usePlcs: () => ({ plcs: [], loading: false }),
+}));
 vi.mock('@/hooks/useQuestionBanks', () => ({
   useQuestionBanks: () => ({
     banks: [],
