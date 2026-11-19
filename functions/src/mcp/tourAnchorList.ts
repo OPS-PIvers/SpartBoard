@@ -39688,6 +39688,38 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "admin.features.monthly-cap-number",
+    "label": "Monthly limit box on a feature row",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.shared.access-controls",
+        "kind": "shared",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.features.transcribe-mode",
+    "label": "Transcription mode select on the AI transcription row",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.shared.access-controls",
+        "kind": "shared",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "admin.access.expand",
     "label": "Row expand button in Features, Widgets and Previews",
     "scope": "field",
@@ -40187,19 +40219,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#widgets",
           "admin.widgets.configure:admin#quiz",
           "admin.widget-config.field:quiz#tab-languages"
-        ],
-        "needs": [
-          "admin"
-        ]
-      },
-      {
-        "surface": "admin.widgets.config.quiz.speech",
-        "kind": "panel",
-        "path": [
-          "sidebar.admin-settings",
-          "admin.settings.tab:admin#widgets",
-          "admin.widgets.configure:admin#quiz",
-          "admin.widget-config.field:quiz#tab-speech"
         ],
         "needs": [
           "admin"
