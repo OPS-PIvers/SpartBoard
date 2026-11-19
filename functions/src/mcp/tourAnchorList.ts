@@ -27016,6 +27016,14 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "persists": true,
     "routes": [
       {
+        "surface": "board.assignments-hub",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.assignments"
+        ]
+      },
+      {
         "surface": "library.shell",
         "kind": "shared",
         "path": [

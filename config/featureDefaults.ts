@@ -1738,6 +1738,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'assignments-hub': {
+    label: 'Assignments hub',
+    icon: ClipboardList,
+    description: 'The Assignments list in the sidebar menu.',
+    stage: 'permanent',
+    afterLaunch: 'keep',
+    category: 'sharing',
+    defaultAccessLevel: 'public',
+    defaultEnabled: true,
+    missingDocPublic: true,
+  },
 };
 
 /** Retired global ids the Dock reads until a Widgets-page doc exists (plan D3). */

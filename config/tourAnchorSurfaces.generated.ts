@@ -1452,6 +1452,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
       'widgets.writing.face',
     ],
     'library-shell.assigned-move-to-done': [
+      'board.assignments-hub',
       'library.shell',
       'library.video-activity',
       'quiz.face',

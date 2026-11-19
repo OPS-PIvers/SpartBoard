@@ -27,7 +27,7 @@ import {
   mainActionLabel,
 } from '@/components/common/library/assigned';
 import type { LibraryMenuAction } from '@/components/common/library/types';
-import { tourTypeAttr } from '@/config/tourAnchors';
+import { tourTypeAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
 import { todaysBell } from '@/hooks/usePeriodAccess';
 import { usePeriodRunner } from '@/hooks/usePeriodRunner';
 import {
@@ -197,7 +197,7 @@ const fmtTime = (ms: number) =>
     minute: '2-digit',
   });
 
-interface RowModel {
+export interface QuizAssignedRowModel {
   id: string;
   status: AssignedStatus;
   assignment: QuizAssignment;
@@ -205,19 +205,14 @@ interface RowModel {
   bells: Record<string, EpochWindow | null>;
 }
 
-/** The Quiz Assigned tab: one row per assignment, one status per class (ASSIGNED_TAB.md slice 2). */
-export const QuizAssignedTab: React.FC<QuizAssignedTabProps> = ({
-  assignments,
-  loading,
-  quizzes,
-  loadQuizData,
-  rosters,
-  lifecycle,
-  pinnedId,
-  emptyTitle,
-  emptySub,
-  ...handlers
-}) => {
+/** Quiz rows for any Assigned list: the widget tab and the Assignments hub (D18). */
+// eslint-disable-next-line react-refresh/only-export-components -- kept beside the tab so parallel slices touch one file
+export function useQuizAssignedRows(
+  assignments: QuizAssignment[],
+  quizzes: QuizMetadata[],
+  loadQuizData: ((quiz: QuizMetadata) => Promise<QuizData | null>) | undefined,
+  rosters: ClassRoster[]
+): { rows: QuizAssignedRowModel[]; now: number } {
   const { featurePermissions } = useAuth();
   const now = useNow();
   const liveIds = useMemo(
@@ -238,7 +233,7 @@ export const QuizAssignedTab: React.FC<QuizAssignedTabProps> = ({
   }, [assignments, responsesById, quizzes]);
   const questionsByQuizId = useQuestionsByQuizId(gradingMetas, loadQuizData);
 
-  const rows: RowModel[] = useMemo(
+  const rows: QuizAssignedRowModel[] = useMemo(
     () =>
       assignments.map((a) => {
         const responses = wantsLiveData(a) ? (responsesById[a.id] ?? null) : [];
@@ -292,6 +287,28 @@ export const QuizAssignedTab: React.FC<QuizAssignedTabProps> = ({
       now,
     ]
   );
+  return { rows, now };
+}
+
+/** The Quiz Assigned tab: one row per assignment, one status per class (ASSIGNED_TAB.md slice 2). */
+export const QuizAssignedTab: React.FC<QuizAssignedTabProps> = ({
+  assignments,
+  loading,
+  quizzes,
+  loadQuizData,
+  rosters,
+  lifecycle,
+  pinnedId,
+  emptyTitle,
+  emptySub,
+  ...handlers
+}) => {
+  const { rows, now } = useQuizAssignedRows(
+    assignments,
+    quizzes,
+    loadQuizData,
+    rosters
+  );
 
   // D17: only a just-assigned row that nothing has opened yet sits on top.
   const pinned = rows.find((r) => r.id === pinnedId);
@@ -305,7 +322,7 @@ export const QuizAssignedTab: React.FC<QuizAssignedTabProps> = ({
       : null;
 
   return (
-    <AssignedList<RowModel>
+    <AssignedList<QuizAssignedRowModel>
       items={rows}
       loading={loading}
       pinnedId={freshPin}
@@ -340,7 +357,7 @@ export const QuizAssignedTab: React.FC<QuizAssignedTabProps> = ({
 
 /** D11: Close or Leave open for one class left open, with the row's own class actions. */
 const QuizLeftOpenHost: React.FC<{
-  row: RowModel;
+  row: QuizAssignedRowModel;
   cls: AssignedClass;
   index: number;
   rosters: ClassRoster[];
@@ -370,12 +387,22 @@ const QuizLeftOpenHost: React.FC<{
   );
 };
 
-interface RowHostProps extends QuizAssignedHandlers {
-  row: RowModel;
+export interface QuizAssignedRowHostProps extends QuizAssignedHandlers {
+  row: QuizAssignedRowModel;
   index: number;
   now: number;
   rosters: ClassRoster[];
   lifecycle: QuizLifecycle;
+  /** The Assignments hub tags its rows as its own (D18). */
+  tourWidgetType?: string;
+  /** Main-button kinds this list can act on; others show no button. */
+  mainKinds?: readonly AssignedStatus['action']['kind'][];
+  /** Extra inline items after the status line, such as the hub's kind label. */
+  meta?: React.ReactNode;
+  /** Hub selection, passed through to the row. */
+  selected?: boolean;
+  onSelect?: () => void;
+  selectAnchor?: TourAnchorAttrs;
 }
 
 /** Puts back what Close for all classes or Move to Done changed (D10 Undo). */
@@ -405,7 +432,7 @@ async function undoClose(
   });
 }
 
-const QuizAssignedRowHost: React.FC<RowHostProps> = ({
+export const QuizAssignedRowHost: React.FC<QuizAssignedRowHostProps> = ({
   row,
   index,
   now,
@@ -417,6 +444,12 @@ const QuizAssignedRowHost: React.FC<RowHostProps> = ({
   legacyPrimary,
   menu,
   monitorBadge,
+  tourWidgetType = 'quiz',
+  mainKinds,
+  meta,
+  selected,
+  onSelect,
+  selectAnchor,
 }) => {
   const { assignment: a, status, needsGrading, bells } = row;
   const { user } = useAuth();
@@ -515,7 +548,7 @@ const QuizAssignedRowHost: React.FC<RowHostProps> = ({
       id: 'assigned-close-all',
       label: 'Close for all classes',
       icon: PowerOff,
-      anchor: tourTypeAttr('library-shell.assigned-close-all', 'quiz'),
+      anchor: tourTypeAttr('library-shell.assigned-close-all', tourWidgetType),
       onClick: () =>
         withUndo(
           () => actions.closeAll(),
@@ -527,7 +560,10 @@ const QuizAssignedRowHost: React.FC<RowHostProps> = ({
       id: 'assigned-move-to-done',
       label: 'Move to Done',
       icon: CheckCircle2,
-      anchor: tourTypeAttr('library-shell.assigned-move-to-done', 'quiz'),
+      anchor: tourTypeAttr(
+        'library-shell.assigned-move-to-done',
+        tourWidgetType
+      ),
       onClick: () =>
         withUndo(() => actions.moveToDone(), `${a.quizTitle} moved to Done.`),
     });
@@ -566,7 +602,9 @@ const QuizAssignedRowHost: React.FC<RowHostProps> = ({
   const badge = status.action.kind === 'monitor' ? monitorBadge?.(a) : null;
   const mainLabel = legacy
     ? legacy.label
-    : viewOnly
+    : viewOnly ||
+        (mainKinds && paper) ||
+        (mainKinds && !mainKinds.includes(status.action.kind))
       ? null
       : mainActionLabel(status.action, needsGrading);
   const onMain = () => {
@@ -634,7 +672,11 @@ const QuizAssignedRowHost: React.FC<RowHostProps> = ({
       menuActions={menuActions}
       busy={busy}
       tourIndex={index}
-      tourWidgetType="quiz"
+      tourWidgetType={tourWidgetType}
+      meta={meta}
+      selected={selected}
+      onSelect={onSelect}
+      selectAnchor={selectAnchor}
     />
   );
 };

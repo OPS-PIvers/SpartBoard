@@ -45,6 +45,11 @@ vi.mock('@/hooks/useAssignmentPseudonyms', async () => {
 vi.mock('@/hooks/useAssignmentRosterStatus', () => ({
   useAssignmentRosterStatus: vi.fn(),
 }));
+vi.mock('@/components/assignmentsHub/HubAssignedList', () => ({
+  HubAssignedList: ({ rows }: { rows: { id: string }[] }) => (
+    <div data-testid="hub-assigned-list">{rows.map((r) => r.id).join(',')}</div>
+  ),
+}));
 
 const quizAssignment = {
   id: 'quiz-1',
@@ -74,16 +79,18 @@ function setupHooks({
   flashcardAssignments = [],
   writingRecords = [],
   writingOn = true,
+  assignedOn = false,
 }: {
   quizAssignments?: unknown[];
   vaAssignments?: unknown[];
   flashcardAssignments?: unknown[];
   writingRecords?: unknown[];
   writingOn?: boolean;
+  assignedOn?: boolean;
 } = {}) {
   (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
     user: { uid: 'teacher-1' },
-    canAccessFeature: () => false,
+    canAccessFeature: (id: string) => assignedOn && id === 'assigned-tab',
     canAccessWidget: () => writingOn,
   });
   (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
@@ -139,6 +146,16 @@ describe('AssignmentsHubModal', () => {
     expect(screen.getByText('Volcano Video')).toBeInTheDocument();
     expect(screen.getByText('Individual')).toBeInTheDocument();
     expect(screen.getByText('2 skipped')).toBeInTheDocument();
+  });
+
+  it('with the Assigned tab on, shows the shared Assigned list and drops the status filter', () => {
+    setupHooks({ assignedOn: true });
+    render(<AssignmentsHubModal onClose={vi.fn()} />);
+    expect(screen.getByTestId('hub-assigned-list')).toHaveTextContent(
+      'quiz-1,va-1'
+    );
+    expect(screen.queryByText('Any status')).not.toBeInTheDocument();
+    expect(screen.getByText('All types')).toBeInTheDocument();
   });
 
   it('lists Writing assignments from the teacher records', () => {

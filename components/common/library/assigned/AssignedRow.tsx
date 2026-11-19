@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import { tourFieldAttr } from '@/config/tourAnchors';
+import { tourFieldAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
 import type { AssignedClass, AssignedStatus } from '@/utils/assignedStatus';
 import { OverflowMenu } from '../LibraryOverflowMenu';
 import type { LibraryMenuAction } from '../types';
 import {
   CLASS_ACTION_LABEL,
+  CLASS_STATUS_WORD,
   classActions,
   classDetail,
   statusLineSegments,
@@ -44,6 +45,14 @@ export interface AssignedRowProps {
   busy?: boolean;
   tourIndex: number;
   tourWidgetType: string;
+  /** The Assignments hub marks the row its detail pane shows. */
+  selected?: boolean;
+  /** Clicking the title also picks the row, as in the hub. */
+  onSelect?: () => void;
+  /** Tour anchor for the title when it picks the row. */
+  selectAnchor?: TourAnchorAttrs;
+  /** Drops turned-in counts the caller can't place in a class. */
+  hideCounts?: boolean;
 }
 
 const TONE_CLASS: Record<LineTone, string> = {
@@ -126,15 +135,24 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
   busy = false,
   tourIndex,
   tourWidgetType,
+  selected = false,
+  onSelect,
+  selectAnchor,
+  hideCounts = false,
 }) => {
   const [expanded, setExpanded] = useState(false);
   const rowKey = `row-${tourIndex + 1}`;
   const done = status.bucket === 'done';
   const canExpand = classControls && !status.singleLine;
   const live = status.classes.some((c) => c.status === 'open');
-  const segments = lineOverride ?? statusLineSegments(status, nowMs);
+  const derived = lineOverride ?? statusLineSegments(status, nowMs);
+  const segments = hideCounts ? derived.filter((seg) => !seg.glued) : derived;
   const toggle = () => {
     if (canExpand) setExpanded((v) => !v);
+  };
+  const pick = () => {
+    onSelect?.();
+    toggle();
   };
   const main =
     status.action.kind === 'choose-class' && canExpand
@@ -143,7 +161,8 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
 
   return (
     <div
-      className="border-b border-slate-200/60 last:border-b-0"
+      className={`border-b border-slate-200/60 last:border-b-0 ${selected ? 'bg-brand-blue-lighter/40' : ''}`}
+      aria-current={selected || undefined}
       style={{ padding: 'min(10px, 2.2cqmin) min(6px, 1.4cqmin)' }}
       aria-busy={busy || undefined}
     >
@@ -162,8 +181,20 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
         </div>
         {/* no-tour-anchor: same toggle as the classes button beside the main action */}
         <div
-          className={`min-w-0 flex-1 ${canExpand ? 'cursor-pointer' : ''}`}
-          onClick={toggle}
+          className={`min-w-0 flex-1 ${canExpand || onSelect ? 'cursor-pointer' : ''}`}
+          onClick={pick}
+          {...(onSelect
+            ? {
+                ...selectAnchor,
+                role: 'button',
+                tabIndex: 0,
+                onKeyDown: (e: React.KeyboardEvent) => {
+                  if (e.key !== 'Enter' && e.key !== ' ') return;
+                  e.preventDefault();
+                  pick();
+                },
+              }
+            : {})}
         >
           <div
             className={`truncate ${done ? 'font-semibold text-slate-500' : 'font-bold text-brand-blue-dark'}`}
@@ -185,7 +216,14 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
               {segments.map((seg, i) => (
                 <React.Fragment key={i}>
                   {i > 0 && ' '}
-                  <span className="whitespace-nowrap">
+                  {/* A long class name wraps instead of running under the button. */}
+                  <span
+                    className={
+                      seg.text.length > 24
+                        ? '[overflow-wrap:anywhere]'
+                        : 'whitespace-nowrap'
+                    }
+                  >
                     {i > 0 && !seg.glued && '· '}
                     <span className={TONE_CLASS[seg.tone]}>{seg.text}</span>
                   </span>
@@ -303,7 +341,14 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
                   className="text-slate-500 tabular-nums"
                   style={{ fontSize: 'min(11.5px, 3.3cqmin)' }}
                 >
-                  {classDetail(c, nowMs, bellLabel?.(c) ?? null, classCounts)}
+                  {hideCounts
+                    ? CLASS_STATUS_WORD[c.status]
+                    : classDetail(
+                        c,
+                        nowMs,
+                        bellLabel?.(c) ?? null,
+                        classCounts
+                      )}
                 </div>
               </div>
               <div
