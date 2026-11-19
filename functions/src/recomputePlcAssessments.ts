@@ -532,7 +532,10 @@ async function requeueFailed(
     const [snap, failSnap] = await Promise.all([tx.get(ref), tx.get(failRef)]);
     const current: unknown = snap.data()?.dirtyAt;
     const prior: unknown = failSnap.data()?.count;
-    const count = (typeof prior === 'number' ? prior : 0) + 1;
+    // A parked assessment that a new trigger marked dirty starts a fresh run of retries.
+    const base =
+      typeof prior === 'number' && prior < RECOMPUTE_MAX_FAILURES ? prior : 0;
+    const count = base + 1;
     const now = Date.now();
     tx.set(failRef, { plcId, assessmentId, count, lastFailedAt: now });
     // A claimed (negated) mark or the one this batch read moves; a newer trigger's mark is left alone.
