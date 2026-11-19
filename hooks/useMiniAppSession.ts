@@ -69,7 +69,7 @@ export interface CreateMiniAppSessionOptions {
   dueAt?: number | null;
   /** Submissions Enabled or Study Resource; absent keeps the kind default. */
   workKind?: WorkKind;
-  /** The teacher archive's assignment id, also used as the session id (the rule requires they match). */
+  /** The teacher archive's assignment id, also used as the session id. */
   assignmentId?: string;
   /** Per-period gate; the app then moves to `content/app`. */
   periodGate?: Pick<MiniAppSession, 'accessMode' | 'periodAccess'>;
