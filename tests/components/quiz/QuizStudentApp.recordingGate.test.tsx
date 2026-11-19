@@ -255,6 +255,53 @@ describe('QuizStudentApp — recording gate', () => {
     await waitFor(() => expect(spies.completeQuiz).toHaveBeenCalledTimes(1));
   });
 
+  it('warns on the review Submit when the only recording failed to upload', async () => {
+    spies.showConfirm.mockResolvedValueOnce(false);
+    hookState.session = buildSession({
+      mediaResponseEnabled: true,
+      reviewStep: true,
+    });
+    hookState.myResponse = buildResponse({
+      _responseKey: 'sso-uid-1',
+      recordingNoticeAckedAt: 1700000000000,
+      answers: [
+        {
+          questionId: 'q1',
+          answer: '',
+          answeredAt: 1700000001000,
+          status: 'submitted',
+          takeIndex: 1,
+          artifacts: [
+            {
+              id: 'art-1',
+              slot: 'primary',
+              kind: 'audio',
+              storagePath: 'p',
+              uploadState: 'failed',
+              durationMs: 1000,
+              mimeType: 'audio/webm',
+            },
+          ],
+        },
+      ],
+    });
+    window.sessionStorage.setItem(
+      'spartboard:quiz-review:session-1:sso-uid-1:0',
+      JSON.stringify({ marked: [], open: true, returnTo: false })
+    );
+    render(<QuizStudentApp />);
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: /SUBMIT QUIZ/i })
+    );
+    await waitFor(() => expect(spies.showConfirm).toHaveBeenCalledTimes(1));
+    expect(String(spies.showConfirm.mock.calls[0][0])).toMatch(
+      /1 question has no answer/
+    );
+    expect(spies.completeQuiz).not.toHaveBeenCalled();
+    window.sessionStorage.clear();
+  });
+
   it('does not block when a dead microphone already resolved the slot', async () => {
     hookState.session = buildSession({ mediaResponseEnabled: true });
     hookState.myResponse = buildResponse({

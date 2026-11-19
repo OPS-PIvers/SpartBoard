@@ -3281,6 +3281,10 @@ export const ActiveQuiz: React.FC<{
           }
           if (!finishesQuiz) return;
           try {
+            document.dispatchEvent(
+              new CustomEvent('spartboard:quiz:flush-written')
+            );
+            await commitActiveTake();
             await onCompleteRef.current();
           } catch (err) {
             console.error('[QuizStudentApp] onComplete failed:', err);
@@ -3809,6 +3813,22 @@ export const ActiveQuiz: React.FC<{
     openRecordingIds.has(q.id)
   );
 
+  // Recording questions count by slot: a failed upload is open, a dead mic is resolved.
+  const blankCount = (part?: number) => {
+    const inPart = (index: number) =>
+      part == null || partOf(orderedPublicQuestions[index]) <= part;
+    const recordingIds = new Set(recordingQuestionEntries.map(({ q }) => q.id));
+    const typed = reviewCounts(
+      currentReviewRows().filter(
+        (row) => inPart(row.index) && !recordingIds.has(row.id)
+      )
+    ).unanswered;
+    const recording = openRecordingQuestions.filter(({ index }) =>
+      inPart(index)
+    ).length;
+    return typed + recording;
+  };
+
   // Blanks never block a submit; the student confirms and may go back instead.
   const confirmSubmitWithBlanks = (blank: number) =>
     showConfirm(
@@ -3892,12 +3912,7 @@ export const ActiveQuiz: React.FC<{
           (isStudentPaced || openRecordingQuestions.length > 0) &&
           !isAttemptSubmitted(myResponse)
         ) {
-          const ok = await confirmSubmitWithBlanks(
-            Math.max(
-              reviewCounts(currentReviewRows()).unanswered,
-              openRecordingQuestions.length
-            )
-          );
+          const ok = await confirmSubmitWithBlanks(blankCount());
           if (!ok) return;
         }
         setSelectedAnswer(answer);
@@ -3928,9 +3943,7 @@ export const ActiveQuiz: React.FC<{
   // The last question of a part: confirm, then lock it and stop unless the next part is open.
   const finishPart = async (part: number) => {
     if (!onSubmitPart || !myResponse) return;
-    const blank = openRecordingQuestions.filter(
-      ({ index }) => partOf(orderedPublicQuestions[index]) <= part
-    ).length;
+    const blank = blankCount(part);
     const ok = await showConfirm(
       blank > 0
         ? t('quizSubmit.confirmBlank', { count: blank })
@@ -4016,12 +4029,8 @@ export const ActiveQuiz: React.FC<{
       setReviewOpen(true);
       return;
     }
-    if (
-      openRecordingQuestions.length > 0 &&
-      !(await confirmSubmitWithBlanks(openRecordingQuestions.length))
-    ) {
-      return;
-    }
+    const blank = blankCount();
+    if (blank > 0 && !(await confirmSubmitWithBlanks(blank))) return;
     setSaveError(null);
     try {
       await onComplete();
@@ -4048,7 +4057,7 @@ export const ActiveQuiz: React.FC<{
       await attemptTimeUpSubmit();
       return;
     }
-    const blank = reviewCounts(currentReviewRows()).unanswered;
+    const blank = blankCount();
     if (blank > 0 && !isAttemptSubmitted(myResponse)) {
       advancingRef.current = true;
       const ok = await confirmSubmitWithBlanks(blank).finally(() => {

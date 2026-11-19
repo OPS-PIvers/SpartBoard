@@ -128,6 +128,7 @@ vi.mock('@/hooks/useQuizSession', () => ({
 }));
 
 import { QuizStudentApp } from '@/components/quiz/QuizStudentApp';
+import { registerActiveTake } from '@/components/quiz/recording/activeTake';
 
 function mintUser(opts: {
   uid: string;
@@ -270,14 +271,27 @@ describe('QuizStudentApp — question timer runs out', () => {
       answers: [],
       recordingNoticeAckedAt: 1700000000000,
     };
+    const order: string[] = [];
+    mockCompleteQuiz.mockImplementation(() => {
+      order.push('complete');
+      return Promise.resolve();
+    });
     render(<QuizStudentApp />);
     fireEvent.click(await screen.findByRole('button', { name: /^Next$/ }));
     await screen.findByText(/Pick one/i);
+    const unregister = registerActiveTake({
+      commitNow: () => {
+        order.push('commit');
+        return Promise.resolve();
+      },
+    });
     fireEvent.click(screen.getByRole('button', { name: /Beta/ }));
 
     await waitFor(() => expect(mockCompleteQuiz).toHaveBeenCalledTimes(1), {
       timeout: 4000,
     });
+    unregister();
+    expect(order).toEqual(['commit', 'complete']);
     expect(mockSubmitAnswer).toHaveBeenCalledWith('q1', 'Beta', 0, undefined);
   }, 10000);
 
