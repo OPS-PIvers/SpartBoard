@@ -732,6 +732,7 @@ git push origin --delete claude/project-thread-6hlkkz claude/project-thread-6hlk
 git push origin --delete claude/project-thread-776f0z claude/ab112-776f0z
 git push origin --delete claude/project-thread-hnyuke claude/project-thread-hnyuke-ab112
 git push origin --delete claude/project-thread-5qafu6
+git push origin --delete claude/project-thread-sbqr9b claude/ab112-sbqr9b
 ```
 
   </details>
