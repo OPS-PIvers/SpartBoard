@@ -313,6 +313,7 @@ claude/project-thread-eibt0b (#6230)
 claude/project-thread-eibt0b-ab112 (this docs PR, delete after it merges)
 claude/project-thread-o5lwcn (Assignments hub Assigned list PR; delete after it merges)
 
+claude/project-thread-dsduhb (#6279; this docs PR reuses it, delete after it merges)
 claude/project-thread-2jo0s2 (#6137, #6139; this docs PR reuses it, delete after it merges)
 claude/kind-johnson-owvr5o (#6134)
 claude/project-thread-yv7q1n-ab112 (#6090)
