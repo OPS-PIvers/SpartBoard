@@ -24,4 +24,12 @@ describe('ShortLinkRedirect', () => {
     await waitFor(() => expect(resolveShortLink).toHaveBeenCalled());
     expect(resolveShortLink).toHaveBeenCalledWith('math-help');
   });
+
+  it('falls back to the code as typed for an older mixed-case link', async () => {
+    window.history.pushState({}, '', '/r/OldLink');
+    render(<ShortLinkRedirect />);
+    await waitFor(() => expect(resolveShortLink).toHaveBeenCalledTimes(2));
+    expect(resolveShortLink).toHaveBeenNthCalledWith(1, 'oldlink');
+    expect(resolveShortLink).toHaveBeenNthCalledWith(2, 'OldLink');
+  });
 });
