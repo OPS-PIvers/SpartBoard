@@ -244,7 +244,7 @@ export const MetaItem: React.FC<{
   children: React.ReactNode;
 }> = ({ label, htmlFor, children }) => (
   <div className="flex min-h-8 items-center gap-3">
-    <label htmlFor={htmlFor} className={`${metaLabelClass} w-36`}>
+    <label htmlFor={htmlFor} className={`${metaLabelClass} w-36 max-w-[50%]`}>
       {label}
     </label>
     <div className="flex min-w-0 flex-1">{children}</div>

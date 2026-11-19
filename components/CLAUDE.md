@@ -10,6 +10,7 @@ Loaded when working under `components/`.
 ## Scroll panels
 
 - **Scroll panels keep bottom padding.** Put the end padding on the element that scrolls (`overflow-y-auto pb-*`), or on a child that grows with its content. Never pad a box pinned to `h-full` inside a scroller: its padding lands at the viewport edge and long content runs flush to the bottom (shipped three times, last in Admin Settings > Features). An Admin Settings tab that owns its own scroll opts in with `fillHeight: true`. `tests/e2e/scroll-end-padding.spec.ts` measures every Admin Settings tab, Profile & Settings section, the settings drawer and every widget library tab (via the `/library-managers-dev` fixture page); add any new tabbed panel surface to it. `tests/scrollEndPadding.static.test.ts` fails when a scroller's direct child is `h-full`/`h-screen`. A full page needs its own `h-screen [height:100dvh] overflow-y-auto` root (`h-dvh` so phone toolbars don't hide the end): `body` is `overflow: hidden`, so a `min-h-screen` page never scrolls.
+- **No sideways scrollbars by accident.** `index.css` styles every scrollbar (slim, shown on hover) and clips sideways overflow on `overflow-y-auto` scrollers, so add `overflow-x-auto` only where sideways scrolling is the point. Never style scrollbars per component (`tests/scrollbars.static.test.ts`). Content that is really too wide gets clipped, so let rows shrink (`min-w-0`, `flex-wrap`); `tests/e2e/scroll-end-padding.spec.ts` also fails on a stray sideways scrollbar.
 
 ## Text contrast and motion
 

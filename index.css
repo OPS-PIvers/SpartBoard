@@ -15,6 +15,12 @@
 }
 
 @layer base {
+  /* A vertical scroller never grows a sideways bar from stray overflow. Utilities win, so overflow-x-auto still opts in. */
+  .overflow-y-auto,
+  .overflow-y-scroll {
+    overflow-x: hidden;
+  }
+
   *,
   ::after,
   ::before,
@@ -66,19 +72,47 @@
   box-shadow: 0 0 20px #22c55e;
 }
 
-/* Scrollbar Styling */
+/* One slim scrollbar app-wide: a 4px rounded thumb in a 10px grab area, no track, no arrows. */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 10px;
+  height: 10px;
 }
-::-webkit-scrollbar-track {
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
   background: transparent;
 }
-::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 10px;
+::-webkit-scrollbar-button {
+  display: none;
 }
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.2);
+::-webkit-scrollbar-thumb {
+  background-color: rgb(100 116 139 / 0.3);
+  background-clip: content-box;
+  border: 3px solid transparent;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover,
+::-webkit-scrollbar-thumb:active {
+  background-color: rgb(100 116 139 / 0.55);
+}
+/* Mouse and trackpad: the thumb shows only while the pointer is over its scroller. */
+@media (hover: hover) and (pointer: fine) {
+  ::-webkit-scrollbar-thumb {
+    background-color: transparent;
+  }
+  :hover::-webkit-scrollbar-thumb {
+    background-color: rgb(100 116 139 / 0.3);
+  }
+  :hover::-webkit-scrollbar-thumb:hover,
+  :hover::-webkit-scrollbar-thumb:active {
+    background-color: rgb(100 116 139 / 0.55);
+  }
+}
+/* Firefox has no ::-webkit-scrollbar; Chrome would drop the styles above if it saw these. */
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(100 116 139 / 0.35) transparent;
+  }
 }
 
 /* Rich-text surfaces (Notes widget, FRQ editor, graded responses): Tailwind
