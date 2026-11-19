@@ -4114,6 +4114,7 @@ export interface MathToolsConfig {
 /** Number line display mode */
 export type NumberLineMode = 'integers' | 'decimals' | 'fractions';
 
+// Legacy: no reader since the place value tool was replaced; kept for saved boards.
 export interface PlaceValueBlock {
   id: string;
   type: '1' | '10' | '100' | '1000';
@@ -4151,7 +4152,9 @@ export interface MathToolConfig {
   stickerMode?: boolean;
   /** For manipulative piece stickers – identifies the specific piece (e.g. 'unit', 'rod', '1-2', 'hexagon') */
   stickerPiece?: string;
+  // Legacy saved-board data; nothing reads it.
   placeValueBlocks?: PlaceValueBlock[];
+  // Legacy saved-board data; nothing reads it.
   placeValueColumns?: string[];
 }
 
