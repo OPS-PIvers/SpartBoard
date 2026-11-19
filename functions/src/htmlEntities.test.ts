@@ -21,4 +21,10 @@ describe('decodeHtmlEntities', () => {
       '&bogus; &#0; &#xD800;'
     );
   });
+
+  it('does not resolve inherited Object.prototype names', () => {
+    expect(decodeHtmlEntities('&constructor; &toString; &__proto__;')).toBe(
+      '&constructor; &toString; &__proto__;'
+    );
+  });
 });

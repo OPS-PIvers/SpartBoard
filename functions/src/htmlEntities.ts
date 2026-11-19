@@ -30,7 +30,10 @@ export function decodeHtmlEntities(value: string): string {
   return value.replace(
     /&(?:([a-z]+)|#x([0-9a-f]+)|#(\d+));/gi,
     (match, name: string | undefined, hex?: string, dec?: string) => {
-      if (name) return NAMED[name.toLowerCase()] ?? match;
+      if (name) {
+        const key = name.toLowerCase();
+        return Object.hasOwn(NAMED, key) ? NAMED[key] : match;
+      }
       const code = hex ? parseInt(hex, 16) : parseInt(dec ?? '', 10);
       const valid =
         Number.isFinite(code) &&
