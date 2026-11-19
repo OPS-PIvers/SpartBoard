@@ -4,6 +4,13 @@ import React, { useState } from 'react';
 import type { QuizAssignment } from '@/types';
 import { QuizAssignmentSettingsModal } from '@/components/widgets/QuizWidget/components/QuizAssignmentSettingsModal';
 import { SAMPLE_ROSTERS } from './assignStepperTestRosters';
+import { classStudentRows } from '@/utils/studentTargetRef';
+
+// Avery has a saved modification, so Modifications opens on a group.
+const avery = classStudentRows({
+  rosters: SAMPLE_ROSTERS,
+  selectedRosterIds: ['c1'],
+}).find((row) => row.studentId === 'a')?.key;
 
 const day = (offset: number, hour: number) => {
   const d = new Date();
@@ -31,6 +38,7 @@ export const ASSIGNMENT = {
   dueAt: day(1, 15),
   dueAtHasTime: true,
   plc: { id: 'plc-1', name: 'Grade 8 Science PLC', sheetUrl: '' },
+  overridesBySourcedId: avery ? { [avery]: { readAloud: true } } : {},
 } as unknown as QuizAssignment;
 
 const Preview: React.FC = () => {
