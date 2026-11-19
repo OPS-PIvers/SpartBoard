@@ -37,6 +37,7 @@ describe('planAssignmentClassEdit', () => {
         periodNames: ['Period 1', 'Period 3'],
         classPeriodByClassId: { 'cl.1': 'Period 1' },
         removedRosterNames: [],
+        removedClassIds: [],
       }
     );
   });
@@ -49,6 +50,16 @@ describe('planAssignmentClassEdit', () => {
         previousRosterIds: ['1', '2', '3'],
       }).removedRosterNames
     ).toEqual(['Period 2', 'Period 3']);
+  });
+
+  it('names the class ids and keys of the unchecked classes only', () => {
+    expect(
+      planAssignmentClassEdit({
+        rosters,
+        rosterIds: ['1'],
+        previousRosterIds: ['1', '2', '3'],
+      }).removedClassIds
+    ).toEqual(['cl-2', 'roster:2', 'roster:3']);
   });
 
   it('adds a row on the shared window and removes unchecked rows on a per-period session', () => {
@@ -87,7 +98,7 @@ describe('planAssignmentClassEdit', () => {
 });
 
 describe('stageAssignmentClassEdit', () => {
-  it('records the dropped classes on the session', () => {
+  it('records only the unchecked classes, not a stale one, on the session', () => {
     const update = vi.fn();
     const batch = { update } as unknown as WriteBatch;
     stageAssignmentClassEdit(batch, {
@@ -96,13 +107,13 @@ describe('stageAssignmentClassEdit', () => {
       edit: planAssignmentClassEdit({
         rosters,
         rosterIds: ['1'],
-        previousRosterIds: ['1', '3'],
+        previousRosterIds: ['1', '2', '3'],
       }),
       now: 1,
       sessionFields: [],
       currentSession: {
-        classIds: ['cl.1', 'cl-9', 'classroom:c1'],
-        classPeriodByClassId: { 'cl-9': 'Period 9' },
+        classIds: ['cl.1', 'cl-2', 'cl-9', 'classroom:c1'],
+        classPeriodByClassId: { 'cl-2': 'Period 2', 'cl-9': 'Period 9' },
       },
       keepClassIds: ['classroom:c1'],
     });
@@ -110,8 +121,8 @@ describe('stageAssignmentClassEdit', () => {
     expect(sessionCall?.[1]).toMatchObject({
       classIds: ['cl.1', 'classroom:c1'],
       removedClasses: {
-        classIds: ['cl-9'],
-        periodNames: ['Period 3', 'Period 9'],
+        classIds: ['cl-2'],
+        periodNames: ['Period 2', 'Period 3'],
       },
     });
   });
