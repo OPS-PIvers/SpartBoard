@@ -165,7 +165,7 @@ export async function runGroupReminderEmails(
   db: admin.firestore.Firestore,
   auth: Pick<admin.auth.Auth, 'getUser'>,
   now: Date,
-  /** Whether the owner may still get group alerts (the group-schedules flag). */
+  /** Whether the owner may still get group alerts (group-reminders and group-schedules). */
   canEmail: (uid: string, email: string) => Promise<boolean> = () =>
     Promise.resolve(true)
 ): Promise<{ scanned: number; queued: number }> {
@@ -179,7 +179,10 @@ export async function runGroupReminderEmails(
       const user = await auth.getUser(uid).catch(() => null);
       const email = provenGoogleEmail(user);
       const allowed = email
-        ? await canEmail(uid, email).catch(() => false)
+        ? await canEmail(uid, email).catch((err: unknown) => {
+            logger.warn('groupReminderEmails: flag check failed', { uid, err });
+            return false;
+          })
         : false;
       emails.set(uid, allowed ? email : null);
     }
@@ -237,7 +240,9 @@ export const groupReminderEmails = onSchedule(
       db,
       admin.auth(),
       new Date(),
-      (uid, email) => isGlobalFeatureGranted(db, 'group-schedules', email, uid)
+      async (uid, email) =>
+        (await isGlobalFeatureGranted(db, 'group-reminders', email, uid)) &&
+        isGlobalFeatureGranted(db, 'group-schedules', email, uid)
     );
     if (counts.queued > 0) logger.info('groupReminderEmails: run', counts);
   }
