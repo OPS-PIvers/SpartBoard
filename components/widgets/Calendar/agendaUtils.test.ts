@@ -103,4 +103,15 @@ describe('toSeconds', () => {
     expect(toSeconds('25:00')).toBe(-1);
     expect(toSeconds('')).toBe(-1);
   });
+
+  it('leaves ranges untimed and takes am/pm only right after the time', () => {
+    expect(toSeconds('11:30 - 12:15 pm')).toBe(-1);
+    expect(toSeconds('10 am - 12 pm')).toBe(-1);
+    expect(toSeconds('2:30 - 3:30')).toBe(-1);
+    expect(formatTime('10 am - 12 pm')).toBe('10 am - 12 pm');
+    expect(toSeconds('12:00 Exam')).toBe(at(12));
+    expect(toSeconds('8:00 equipment check')).toBe(at(8));
+    expect(toSeconds('8 camp')).toBe(-1);
+    expect(toSeconds('9:15 am assembly')).toBe(at(9, 15));
+  });
 });

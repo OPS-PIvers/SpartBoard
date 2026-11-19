@@ -16,16 +16,17 @@ export const formatDayHeader = (date: string) => {
   };
 };
 
-/** Seconds since midnight for "14:30", "2:30 PM" or "3pm", or -1. */
+/** Seconds since midnight for "14:30", "2:30 PM" or "3pm" (am/pm must follow the time; ranges are untimed), or -1. */
 export const toSeconds = (t: string | undefined): number => {
   if (!t) return -1;
-  const lower = t.toLowerCase();
-  const match = /^\s*(\d{1,2})(?::(\d{1,2}))?/.exec(lower);
-  if (!match || (match[2] === undefined && !/[ap]m/.test(lower))) return -1;
+  const match = /^\s*(\d{1,2})(?::(\d{1,2}))?\s*(?:([ap])\.?m\b\.?)?\D*$/.exec(
+    t.toLowerCase()
+  );
+  if (!match || (match[2] === undefined && match[3] === undefined)) return -1;
   let h = parseInt(match[1], 10);
   const m = match[2] === undefined ? 0 : parseInt(match[2], 10);
-  if (lower.includes('pm') && h < 12) h += 12;
-  if (lower.includes('am') && h === 12) h = 0;
+  if (match[3] === 'p' && h < 12) h += 12;
+  if (match[3] === 'a' && h === 12) h = 0;
   if (h > 23 || m > 59) return -1;
   return h * 3600 + m * 60;
 };
