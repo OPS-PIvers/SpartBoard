@@ -145,6 +145,13 @@ import { QuizEditorModal } from './components/QuizEditorModal';
 import { QuizPreview } from './components/QuizPreview';
 import { QuizResults } from './components/QuizResults';
 import { QuizAssignmentSettingsModal } from './components/QuizAssignmentSettingsModal';
+import { useTranslation } from 'react-i18next';
+import {
+  assignmentRowToTargetingValue,
+  useAssignmentDetailActions,
+} from '@/hooks/useAssignmentDetailActions';
+import { quizAssignmentRow } from '@/components/assignmentsHub/useUnifiedAssignments';
+import { loadServedLocales, servedLocalesOf } from '@/utils/quizServedLocales';
 import { dueAtByClassIdFromRosters } from '@/utils/perClassDueDates';
 import { SharePlcResultsModal } from './components/SharePlcResultsModal';
 import { QuizAssignmentImportSetupModal } from '@/components/quiz/QuizAssignmentImportSetupModal';
@@ -201,7 +208,10 @@ import { loadFinalScoreOverlay } from '@/hooks/gradebook/useFinalScoreOverlay';
 import { saveAttemptPolicy } from '@/hooks/gradebook/useGradebookColumnWrites';
 import { applyFinalScoresToEntries } from '@/utils/gradebook/finalScoreOverlay';
 import { quizLiveRaw } from '@/utils/gradebook/liveRawScores';
-import type { FibGradingContext } from '@/utils/quizFibAnswers';
+import {
+  fibGradingFromAssignment,
+  type FibGradingContext,
+} from '@/utils/quizFibAnswers';
 import { getClassroomAttachments } from '@/utils/classroomAttachments';
 import { hasValidMaxPoints } from '@/utils/runClassroomGradePush';
 import { quizMaxPoints } from '@/utils/quizMaxPoints';
@@ -437,6 +447,8 @@ const TeacherQuizWidget: React.FC<{
     pendingQuizReveal,
     clearPendingQuizReveal,
   } = useDashboard();
+  const { t } = useTranslation();
+  const { saveEdit: saveTargetingEdit } = useAssignmentDetailActions();
   const {
     user,
     isAdmin,
@@ -2164,13 +2176,7 @@ const TeacherQuizWidget: React.FC<{
     : undefined;
   const fibGradingRef = useRef<FibGradingContext>({});
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
-  fibGradingRef.current = {
-    answers: liveAssignment?.localizedFibAnswers ?? null,
-    overridesByStudentUid: liveAssignment?.overridesByStudentUid ?? null,
-    overridesBySourcedId: liveAssignment?.overridesBySourcedId ?? null,
-    servedLanguageByStudentUid:
-      liveAssignment?.servedLanguageByStudentUid ?? null,
-  };
+  fibGradingRef.current = fibGradingFromAssignment(liveAssignment);
 
   // ─── Callback for child components to update quiz config ────────────────────
   const handleUpdateQuizConfig = useCallback(
@@ -2941,12 +2947,8 @@ const TeacherQuizWidget: React.FC<{
       toast?: (message: string, type?: Toast['type']) => void;
     }
   ): Promise<boolean> => {
-    const publishFibGrading: FibGradingContext = {
-      answers: target.localizedFibAnswers ?? null,
-      overridesByStudentUid: target.overridesByStudentUid ?? null,
-      overridesBySourcedId: target.overridesBySourcedId ?? null,
-      servedLanguageByStudentUid: target.servedLanguageByStudentUid ?? null,
-    };
+    const publishFibGrading: FibGradingContext =
+      fibGradingFromAssignment(target);
     if (visibility === 'none') {
       await unpublishAssignmentScores(target.id);
       if (!quiet) toast('Scores unpublished.', 'success');
@@ -3363,6 +3365,7 @@ const TeacherQuizWidget: React.FC<{
           }}
           overridesBySourcedId={activeAssignment?.overridesBySourcedId ?? null}
           localizedFibAnswers={activeAssignment?.localizedFibAnswers ?? null}
+          lenientFibLocales={activeAssignment?.lenientFibLocales ?? null}
           overridesByStudentUid={
             activeAssignment?.overridesByStudentUid ?? null
           }
@@ -3450,12 +3453,37 @@ const TeacherQuizWidget: React.FC<{
       onShareResults={() => setSharePlcResultsTarget(target)}
       onStopSharing={() => handleStopSharingPlc(target)}
       inline={inline}
+      translation={{
+        sourceLanguage: quizzes.find((q) => q.id === target.quizId)?.language,
+      }}
+      // The monitor already holds the live quiz and session; a dialog reads them.
+      editContext={
+        inline &&
+        loadedQuizData &&
+        liveSession?.id === target.id &&
+        // A per-period session's questions arrive from a second listener.
+        (!liveSession.questionsInContent ||
+          liveSession.publicQuestions.length > 0)
+          ? {
+              quizData: loadedQuizData,
+              servedLocales: servedLocalesOf(liveSession.publicQuestions),
+            }
+          : undefined
+      }
+      loadEditContext={async () => {
+        const meta = quizzes.find((q) => q.id === target.quizId);
+        const [quizData, servedLocales] = await Promise.all([
+          meta ? loadAnswerKeyQuizQuietly(meta, target) : null,
+          loadServedLocales(target.id).catch(() => []),
+        ]);
+        return { quizData, servedLocales };
+      }}
       onClose={() => {
         // Inline, onClose runs only after a save; reload the steps from the saved assignment.
         if (inline) setInlineSettingsRev((n) => n + 1);
         else setEditingAssignment(null);
       }}
-      onSave={async (patch) => {
+      onSave={async (patch, extra) => {
         try {
           // Class targeting must be dual-written to BOTH the assignment
           // doc AND the live session doc (rosterIds/classIds/classId/
@@ -3518,6 +3546,36 @@ const TeacherQuizWidget: React.FC<{
               removedRosterNames,
               uncheckedRosterClassIds(uncheckedRosters)
             );
+          }
+          // Modifications save the way the Assignments hub edits them: the assignment and each student's copy.
+          if (extra?.overridesByKey && user?.uid) {
+            const saved = assignments.find((a) => a.id === target.id) ?? target;
+            const row = quizAssignmentRow(
+              saved,
+              new Map(rosters.map((r) => [r.id, r.name]))
+            );
+            const classIds = rosterIds ?? previousRosterIdsFor(saved, rosters);
+            const result = await saveTargetingEdit(
+              row,
+              user.uid,
+              {
+                ...assignmentRowToTargetingValue(row),
+                overridesByKey: extra.overridesByKey,
+              },
+              {
+                rosters: rosters.filter((r) => classIds.includes(r.id)),
+                selectedRosterIds: classIds,
+              }
+            );
+            if (result.skipped.length > 0)
+              addToast(
+                t('assignmentsHub.detail.editSkipped', {
+                  defaultValue:
+                    '{{count}} student(s) could not be saved to this assignment.',
+                  count: result.skipped.length,
+                }),
+                'warning'
+              );
           }
           addToast('Assignment settings saved.', 'success');
           if (!inline) setEditingAssignment(null);
@@ -3740,6 +3798,7 @@ const TeacherQuizWidget: React.FC<{
           localizedFibAnswers={
             monitorActiveAssignment?.localizedFibAnswers ?? null
           }
+          lenientFibLocales={monitorActiveAssignment?.lenientFibLocales ?? null}
           rosterTargets={monitorActiveAssignment ?? null}
           responsesLoaded={liveResponsesLoaded}
           assignedTab={
@@ -4510,6 +4569,9 @@ const TeacherQuizWidget: React.FC<{
                   ? { workKind: resolvedTargeting.workKind }
                   : {}),
                 ...(translationIndex ? { translationIndex } : {}),
+                ...(canAccessFeature('modification-groups')
+                  ? { lenientTranslatedFib: true }
+                  : {}),
               }
             );
             assignmentSaved = true;
