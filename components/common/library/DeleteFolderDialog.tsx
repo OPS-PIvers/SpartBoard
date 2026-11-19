@@ -112,7 +112,7 @@ export const DeleteFolderDialog: React.FC<DeleteFolderDialogProps> = ({
   };
 
   const header = (
-    <div className="flex items-center gap-2.5 px-5 py-3.5 bg-brand-blue-primary text-white rounded-t-2xl mb-4">
+    <div className="flex items-center gap-2.5 px-5 py-3.5 bg-brand-blue-primary text-white rounded-t-2xl">
       <span
         className={`shrink-0 flex items-center justify-center w-9 h-9 rounded-xl bg-amber-100 ${swatch?.icon ?? 'text-amber-700'}`}
       >
