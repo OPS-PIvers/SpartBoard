@@ -5838,9 +5838,11 @@ service cloud.firestore {
       allow get: if signedIn();
       allow list: if signedIn() && sessionListScoped();
       // Only authenticated (non-anonymous) teachers can create sessions they own
+      // A pointer key can only name this doc, so no session can carry another teacher's key.
       allow create: if liveStaffSignedIn() &&
         sessionStaff() &&
-        myNewTeacher();
+        myNewTeacher() &&
+        incoming().get('assignmentId', sessionId) == sessionId;
       // Teachers can rename, end, re-window or re-period their own sessions
       allow update: if staffSignedIn() &&
         myOldTeacher() &&

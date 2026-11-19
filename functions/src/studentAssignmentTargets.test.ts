@@ -84,6 +84,15 @@ interface StubState {
     op: 'set' | 'delete';
     data?: Record<string, unknown>;
   }[];
+  /** Query pages read, so the flood scan's pagination is assertable. */
+  queryPages?: number;
+}
+
+interface StubQuery {
+  select: () => StubQuery;
+  limit: (n: number) => StubQuery;
+  startAfter: (snap: { ref: { __path: string } }) => StubQuery;
+  get: () => Promise<{ docs: unknown[] }>;
 }
 
 /** Applies `{merge: true}` set semantics, `FieldValue.delete()` sentinel included. */
@@ -141,16 +150,29 @@ function makeDb(state: StubState) {
   const collectionRef = (path: string) => ({
     __path: path,
     doc: (id: string) => docRef(`${path}/${id}`),
-    where: (field: string, _op: '==', value: unknown) => ({
-      limit: () => ({
-        get: () =>
-          Promise.resolve({
-            docs: childDocs(path)
-              .filter(([, data]) => data[field] === value)
-              .map(([p]) => snapFor(p)),
-          }),
-      }),
-    }),
+    where: (field: string, _op: '==', value: unknown) => {
+      const matches = () =>
+        childDocs(path)
+          .filter(([, data]) => data[field] === value)
+          .map(([p]) => p)
+          .sort();
+      const query = (max: number, after?: string): StubQuery => ({
+        select: () => query(max, after),
+        limit: (n: number) => query(n, after),
+        startAfter: (snap: { ref: { __path: string } }) =>
+          query(max, snap.ref.__path),
+        get: () => {
+          state.queryPages = (state.queryPages ?? 0) + 1;
+          return Promise.resolve({
+            docs: matches()
+              .filter((p) => after === undefined || p > after)
+              .slice(0, max)
+              .map((p) => snapFor(p)),
+          });
+        },
+      });
+      return query(Number.POSITIVE_INFINITY);
+    },
     limit: () => ({
       get: () =>
         Promise.resolve({
@@ -1132,6 +1154,63 @@ describe('handleSetAssignmentTargets — first claimant owns a mini-app key', ()
       })
     );
     expect(result).toMatchObject({ written: 1 });
+  });
+});
+
+describe('handleSetAssignmentTargets — a flood of copied keys locks no one out', () => {
+  const flood = (i: number) => `flood-${String(i).padStart(4, '0')}`;
+  const plantFlood = (count: number) => {
+    for (let i = 0; i < count; i += 1)
+      state.docs.set(`mini_app_sessions/${flood(i)}`, {
+        teacherUid: OTHER_TEACHER_UID,
+        assignmentId: 'owned-w',
+      });
+    state.docs.set(`users/${OTHER_TEACHER_UID}/miniapp_assignments/owned-w`, {
+      id: 'owned-w',
+    });
+  };
+  const miniInput = (sessionId: string, sourcedId = SOURCED_A) =>
+    baseInput({
+      kind: 'mini-app',
+      sessionId,
+      assignmentId: 'owned-w',
+      add: [{ kind: 'classlink', sourcedId }],
+    });
+
+  beforeEach(() => {
+    state.docs.set(`users/${TEACHER_UID}/miniapp_assignments/owned-w`, {
+      id: 'owned-w',
+    });
+    state.docs.set('mini_app_sessions/mini-s', {
+      teacherUid: TEACHER_UID,
+      assignmentId: 'owned-w',
+    });
+  });
+
+  it.each([1, 51, 1200])(
+    'lets the owner target after %i planted copies and refuses the planter',
+    async (count) => {
+      plantFlood(count);
+      await expect(run(miniInput('mini-s'))).resolves.toMatchObject({
+        written: 1,
+      });
+      await expect(
+        run(miniInput(flood(count - 1), SOURCED_B), OTHER_TEACHER_UID)
+      ).rejects.toMatchObject({ code: 'permission-denied' });
+    }
+  );
+
+  it('scans past the first page to refuse a planter whose session id is the key', async () => {
+    plantFlood(1200);
+    state.docs.set('mini_app_sessions/owned-w', {
+      teacherUid: OTHER_TEACHER_UID,
+      assignmentId: 'owned-w',
+    });
+    state.queryPages = 0;
+    await expect(
+      run(miniInput('owned-w', SOURCED_B), OTHER_TEACHER_UID)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(state.queryPages).toBeGreaterThan(1);
   });
 });
 

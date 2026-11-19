@@ -69,9 +69,7 @@ export interface CreateMiniAppSessionOptions {
   dueAt?: number | null;
   /** Submissions Enabled or Study Resource; absent keeps the kind default. */
   workKind?: WorkKind;
-  /** M17 E2 F1: the teacher archive's assignment id (distinct from the
-   *  session id for mini-app). Written onto the session doc so the student
-   *  app can resolve its own pointer doc, which the CF keys by this id. */
+  /** The teacher archive's assignment id, also used as the session id (the rule requires they match). */
   assignmentId?: string;
   /** Per-period gate; the app then moves to `content/app`. */
   periodGate?: Pick<MiniAppSession, 'accessMode' | 'periodAccess'>;
@@ -117,7 +115,7 @@ export const useMiniAppSessionTeacher = (): UseMiniAppSessionTeacherResult => {
       assignmentName: string,
       options?: CreateMiniAppSessionOptions
     ): Promise<string> => {
-      const sessionId = crypto.randomUUID();
+      const sessionId = options?.assignmentId ?? crypto.randomUUID();
       const trimmedName = assignmentName.trim();
       const cleanedClassIds = (options?.classIds ?? []).filter(
         (c): c is string => typeof c === 'string' && c.length > 0

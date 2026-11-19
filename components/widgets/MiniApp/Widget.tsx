@@ -671,11 +671,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       // Mode is locked org-wide by the admin and frozen onto the session at
       // creation. The session/assignment hooks derive `submissionsEnabled`
       // from `mode` so the two fields can never diverge.
-      // M17 E2 F1: mini-app is the one kind whose archive-row assignment id
-      // differs from the session id (Quiz/VA/GL share one UUID). Generate it
-      // up front so it can be written onto the session doc — the student app
-      // reads its pointer doc at this id, which `setAssignmentTargetsV1` also
-      // uses as the pointer key.
+      // One UUID for the archive row, the session doc and the pointer key, as Quiz/VA/GL do.
       const generatedAssignmentId = crypto.randomUUID();
       const periodGate = stepperPlan?.periodGate;
       const results =
