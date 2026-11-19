@@ -244,8 +244,12 @@ export function AssignedList<T extends AssignedListItem>({
   );
   const isClosed = (i: T) =>
     i.status.classes.every((c) => c.status === 'closed');
+  // Already-published rows are left out so a bulk run never re-pushes LMS grades.
   const scored = selected.filter(
-    (i) => !i.viewOnly && (bulk?.canPublish?.(i) ?? true)
+    (i) =>
+      !i.viewOnly &&
+      i.status.grading !== 'scores-published' &&
+      (bulk?.canPublish?.(i) ?? true)
   );
   const publishable = scored.filter(isClosed);
   const openSkipped = scored.length - publishable.length;

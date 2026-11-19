@@ -24,7 +24,10 @@ export function reportBulkPublish(
       'success'
     );
   if (failed > 0)
-    addToast(`Scores could not be published for ${plural(failed)}.`, 'error');
+    addToast(
+      `Scores could not be ${unpublish ? 'unpublished' : 'published'} for ${plural(failed)}.`,
+      'error'
+    );
 }
 
 /** Publishes each target in turn with one shared Classroom token, then reports once. */
@@ -40,7 +43,7 @@ export async function runBulkPublish<A extends { id: string }>({
   unpublish: boolean;
   /** Called once, before any await, so the consent popup still counts as a click. */
   mintToken?: () => Promise<string | null>;
-  /** Resolves false when the target was skipped with its own message. */
+  /** Resolves false when the target was skipped with its own message, so it is not counted again. */
   publishOne: (target: A, token: string | null) => Promise<boolean>;
   addToast: (message: string, type?: Toast['type']) => void;
   logKey: string;
@@ -54,13 +57,15 @@ export async function runBulkPublish<A extends { id: string }>({
     }
   }
   let ok = 0;
+  let failed = 0;
   for (const t of targets) {
     try {
       if (await publishOne(t, token)) ok++;
     } catch (err) {
+      failed++;
       logError(logKey, err, { assignmentId: t.id });
     }
   }
-  reportBulkPublish(addToast, ok, targets.length - ok, unpublish);
+  reportBulkPublish(addToast, ok, failed, unpublish);
   return ok;
 }

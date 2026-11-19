@@ -32,6 +32,22 @@ describe('runBulkPublish', () => {
     );
   });
 
+  it('does not count a target that reported its own skip', async () => {
+    const addToast = vi.fn();
+    await runBulkPublish({
+      targets: [{ id: 'a' }, { id: 'b' }],
+      unpublish: false,
+      publishOne: (t) => Promise.resolve(t.id === 'a'),
+      addToast,
+      logKey: 'test',
+    });
+    expect(addToast).toHaveBeenCalledTimes(1);
+    expect(addToast).toHaveBeenCalledWith(
+      'Scores published for 1 assignment.',
+      'success'
+    );
+  });
+
   it('skips the token when unpublishing', async () => {
     const addToast = vi.fn();
     const mintToken = vi.fn(() => Promise.resolve('tok'));

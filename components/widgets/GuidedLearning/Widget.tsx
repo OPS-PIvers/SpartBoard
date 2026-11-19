@@ -2156,10 +2156,16 @@ const TeacherGuidedLearningWidget: React.FC<{
                   await unpublishAssignmentScores(t.id);
                   return true;
                 }
+                const driveFileId = sets.find(
+                  (x) => x.id === t.setId
+                )?.driveFileId;
+                const building = buildingSets.find((x) => x.id === t.setId);
+                if (!driveFileId && !building)
+                  throw new Error('Set is no longer in the library.');
                 const data = await loadSetQuietly(
                   t.setId,
-                  sets.find((x) => x.id === t.setId)?.driveFileId,
-                  buildingSets.find((x) => x.id === t.setId)
+                  driveFileId,
+                  building
                 );
                 if (!data) return false;
                 await publishAssignmentScores(

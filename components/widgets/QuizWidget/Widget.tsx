@@ -937,6 +937,11 @@ const TeacherQuizWidget: React.FC<{
     const paper = (bulkPublishing ?? []).filter((a) => a.hasPaperWritten);
     return paper.length > 0
       ? {
+          initialMode: paper.every(
+            (a) => a.writtenReturnMode === paper[0].writtenReturnMode
+          )
+            ? paper[0].writtenReturnMode
+            : undefined,
           loadPendingCount: async () =>
             (
               await Promise.all(
@@ -2918,13 +2923,17 @@ const TeacherQuizWidget: React.FC<{
     />
   ) : null;
 
-  // Publishes one assignment; throws on failure, false when the answer key could not load.
+  // Publishes one assignment; throws on failure, false when the answer-key loader already said why.
   const publishQuizScoresFor = async (
     target: QuizAssignment,
     visibility: PublishScoresVisibility,
     protection: ResultsProtection | undefined,
     writtenReturnMode: WrittenReturnMode | undefined,
-    { quiet, token }: { quiet: boolean; token?: string | null }
+    {
+      quiet,
+      token,
+      endsAssignment = false,
+    }: { quiet: boolean; token?: string | null; endsAssignment?: boolean }
   ): Promise<boolean> => {
     const publishFibGrading: FibGradingContext = {
       answers: target.localizedFibAnswers ?? null,
@@ -2932,197 +2941,188 @@ const TeacherQuizWidget: React.FC<{
       overridesBySourcedId: target.overridesBySourcedId ?? null,
       servedLanguageByStudentUid: target.servedLanguageByStudentUid ?? null,
     };
-    try {
-      if (visibility === 'none') {
-        await unpublishAssignmentScores(target.id);
-        if (!quiet) addToast('Scores unpublished.', 'success');
-        return true;
-      }
-      // Publish = Push: if this assignment is linked to Google Classroom,
-      // pre-mint the final-grade token NOW (this click is a user gesture)
-      // so the GIS popup isn't blocked after publish's awaits. A dismissed
-      // popup leaves the token null → publish still proceeds, GC push is
-      // skipped. (Schoology pushes server-side and needs no token.)
-      // Only partner-first attachments (SpartBoard owns the courseWork)
-      // with the feature enabled are eligible for the FINAL push — this
-      // also keeps the restricted classroom.coursework.students scope
-      // request behind the flag.
-      // Eligible = partner-first attachments (SpartBoard owns the
-      // courseWork) with a valid scale, when the feature is on. One per
-      // linked course (multi-course fan-out).
-      const classroomFinalAttachments = canAssignToClassroom
-        ? getClassroomAttachments(target).filter(
-            (a) => a.ownsCourseWork && hasValidMaxPoints(a.maxPoints)
-          )
-        : [];
-      let classroomToken: string | null = token ?? null;
-      if (token === undefined && classroomFinalAttachments.length > 0) {
-        try {
-          classroomToken = await requestClassroomFinalGradeToken(
-            user?.email ?? undefined
-          );
-        } catch {
-          classroomToken = null;
-        }
-      }
-      const meta = quizzes.find((q) => q.id === target.quizId);
-      if (!meta)
-        throw new Error(
-          'Quiz is no longer in your library — cannot publish scores.'
+    if (visibility === 'none') {
+      await unpublishAssignmentScores(target.id);
+      if (!quiet) addToast('Scores unpublished.', 'success');
+      return true;
+    }
+    // Publish = Push: if this assignment is linked to Google Classroom,
+    // pre-mint the final-grade token NOW (this click is a user gesture)
+    // so the GIS popup isn't blocked after publish's awaits. A dismissed
+    // popup leaves the token null → publish still proceeds, GC push is
+    // skipped. (Schoology pushes server-side and needs no token.)
+    // Only partner-first attachments (SpartBoard owns the courseWork)
+    // with the feature enabled are eligible for the FINAL push — this
+    // also keeps the restricted classroom.coursework.students scope
+    // request behind the flag.
+    // Eligible = partner-first attachments (SpartBoard owns the
+    // courseWork) with a valid scale, when the feature is on. One per
+    // linked course (multi-course fan-out).
+    const classroomFinalAttachments = canAssignToClassroom
+      ? getClassroomAttachments(target).filter(
+          (a) => a.ownsCourseWork && hasValidMaxPoints(a.maxPoints)
+        )
+      : [];
+    let classroomToken: string | null = token ?? null;
+    if (token === undefined && classroomFinalAttachments.length > 0) {
+      try {
+        classroomToken = await requestClassroomFinalGradeToken(
+          user?.email ?? undefined
         );
-      const data = await loadAnswerKeyQuizQuietly(meta, target);
-      if (!data) return false;
-      if (publishEndsAssignment && target.status !== 'inactive') {
-        await deactivateAssignment(target.id);
+      } catch {
+        classroomToken = null;
       }
-      const result = await publishAssignmentScores(
-        target.id,
-        data,
-        visibility,
-        protection,
-        writtenReturnMode
+    }
+    const meta = quizzes.find((q) => q.id === target.quizId);
+    if (!meta)
+      throw new Error(
+        'Quiz is no longer in your library — cannot publish scores.'
       );
-      if (!quiet)
-        addToast(
-          result.responsesUpdated > 0
-            ? `Scores published to ${result.responsesUpdated} student${result.responsesUpdated === 1 ? '' : 's'}.`
-            : 'Scores published. Students will see results once they submit.',
-          'success'
-        );
-      // Paper administrations have no class channel; pointers make
-      // the published result reachable from My Assignments (Q34).
-      // The grading pass counts paper rows too, covering imports
-      // that predate the assignment flag.
-      if (
-        paperSheets.enabled &&
-        (target.hasPaperResponses || result.paperResponses > 0)
-      ) {
-        try {
-          const link = httpsCallable<
-            { assignmentId: string },
-            {
-              pointersWritten: number;
-              unlinked: number;
-              unplaced: number;
-            }
-          >(functions, 'publishPaperResultsV1');
-          const linked = (await link({ assignmentId: target.id })).data;
-          if (linked.unlinked > 0) {
-            addToast(
-              `${linked.unlinked} paper response${linked.unlinked === 1 ? ' has' : 's have'} no student login to link to; those students can see results only from your view.`,
-              'info'
-            );
+    const data = await loadAnswerKeyQuizQuietly(meta, target);
+    if (!data) return false;
+    if (endsAssignment && target.status !== 'inactive') {
+      await deactivateAssignment(target.id);
+    }
+    const result = await publishAssignmentScores(
+      target.id,
+      data,
+      visibility,
+      protection,
+      writtenReturnMode
+    );
+    if (!quiet)
+      addToast(
+        result.responsesUpdated > 0
+          ? `Scores published to ${result.responsesUpdated} student${result.responsesUpdated === 1 ? '' : 's'}.`
+          : 'Scores published. Students will see results once they submit.',
+        'success'
+      );
+    // Paper administrations have no class channel; pointers make
+    // the published result reachable from My Assignments (Q34).
+    // The grading pass counts paper rows too, covering imports
+    // that predate the assignment flag.
+    if (
+      paperSheets.enabled &&
+      (target.hasPaperResponses || result.paperResponses > 0)
+    ) {
+      try {
+        const link = httpsCallable<
+          { assignmentId: string },
+          {
+            pointersWritten: number;
+            unlinked: number;
+            unplaced: number;
           }
-          if (linked.unplaced > 0) {
-            addToast(
-              `${linked.unplaced} paper response${linked.unplaced === 1 ? ' belongs' : 's belong'} to a student whose roster has no class link yet; sync the roster and publish again to reach them.`,
-              'info'
-            );
-          }
-        } catch (err) {
-          logError('QuizWidget.publishPaperResults', err, {
-            assignmentId: target.id,
-          });
+        >(functions, 'publishPaperResultsV1');
+        const linked = (await link({ assignmentId: target.id })).data;
+        if (linked.unlinked > 0) {
           addToast(
-            'Scores published, but paper results could not be linked to student accounts.',
-            'error'
+            `${linked.unlinked} paper response${linked.unlinked === 1 ? ' has' : 's have'} no student login to link to; those students can see results only from your view.`,
+            'info'
           );
         }
-      }
-      const finalOverlay = await loadFinalScoreOverlay(
-        {
-          kind: 'quiz',
-          sessionId: target.id,
-          teacherUid: user?.uid,
-          uid: user?.uid,
-        },
-        canAccessFeature('gradebook')
-      );
-      const withFinal = (
-        entries: ClassroomGradeEntry[],
-        responses: QuizResponse[],
-        maxPoints: number
-      ) => {
-        if (!finalOverlay) return entries;
-        const byUid = new Map(responses.map((r) => [r.studentUid, r]));
-        return applyFinalScoresToEntries(
-          entries,
-          maxPoints,
-          finalOverlay,
-          (uid) => {
-            const r = byUid.get(uid);
-            return r
-              ? quizLiveRaw(r, data.questions, publishFibGrading, pushPaperIds)
-              : null;
-          },
-          Date.now()
+        if (linked.unplaced > 0) {
+          addToast(
+            `${linked.unplaced} paper response${linked.unplaced === 1 ? ' belongs' : 's belong'} to a student whose roster has no class link yet; sync the roster and publish again to reach them.`,
+            'info'
+          );
+        }
+      } catch (err) {
+        logError('QuizWidget.publishPaperResults', err, {
+          assignmentId: target.id,
+        });
+        addToast(
+          'Scores published, but paper results could not be linked to student accounts.',
+          'error'
         );
-      };
-      // The session's bank slots count each draw once, not the whole pool.
-      const pushSession = await getDoc(
-        doc(db, QUIZ_SESSIONS_COLLECTION, target.id)
-      )
-        .then((snap) => snap.data() as QuizSession | undefined)
-        .catch(() => undefined);
-      // Fall back to the assignment's mirror when the session read fails.
-      const pushPaperIds =
-        pushSession?.paperWrittenQuestionIds ?? target.paperWrittenQuestionIds;
-      const pushMaxPoints = quizMaxPoints(
-        data.questions,
-        pushSession?.sections ?? sessionSectionsFor(data),
-        pushSession?.bankSlots
-      );
-      // Chain the LMS grade push(es) — never throws (publish already
-      // committed; a push failure is its own toast).
-      await runPublishGradePush<QuizResponse>({
-        functions,
-        addToast,
+      }
+    }
+    const finalOverlay = await loadFinalScoreOverlay(
+      {
         kind: 'quiz',
         sessionId: target.id,
-        classroomFinalAttachments,
-        classroomToken,
-        schoologyMaxPoints: pushMaxPoints,
-        buildClassroomGrades: (responses) => {
-          // All attachments share the assignment's maxPoints.
-          const mp = classroomFinalAttachments[0]?.maxPoints;
-          return mp != null
-            ? withFinal(
-                buildQuizClassroomGradeEntries(
-                  responses,
-                  data.questions,
-                  mp,
-                  publishFibGrading,
-                  pushPaperIds
-                ),
+        teacherUid: user?.uid,
+        uid: user?.uid,
+      },
+      canAccessFeature('gradebook')
+    );
+    const withFinal = (
+      entries: ClassroomGradeEntry[],
+      responses: QuizResponse[],
+      maxPoints: number
+    ) => {
+      if (!finalOverlay) return entries;
+      const byUid = new Map(responses.map((r) => [r.studentUid, r]));
+      return applyFinalScoresToEntries(
+        entries,
+        maxPoints,
+        finalOverlay,
+        (uid) => {
+          const r = byUid.get(uid);
+          return r
+            ? quizLiveRaw(r, data.questions, publishFibGrading, pushPaperIds)
+            : null;
+        },
+        Date.now()
+      );
+    };
+    // The session's bank slots count each draw once, not the whole pool.
+    const pushSession = await getDoc(
+      doc(db, QUIZ_SESSIONS_COLLECTION, target.id)
+    )
+      .then((snap) => snap.data() as QuizSession | undefined)
+      .catch(() => undefined);
+    // Fall back to the assignment's mirror when the session read fails.
+    const pushPaperIds =
+      pushSession?.paperWrittenQuestionIds ?? target.paperWrittenQuestionIds;
+    const pushMaxPoints = quizMaxPoints(
+      data.questions,
+      pushSession?.sections ?? sessionSectionsFor(data),
+      pushSession?.bankSlots
+    );
+    // Chain the LMS grade push(es) — never throws (publish already
+    // committed; a push failure is its own toast).
+    await runPublishGradePush<QuizResponse>({
+      functions,
+      addToast,
+      kind: 'quiz',
+      sessionId: target.id,
+      classroomFinalAttachments,
+      classroomToken,
+      schoologyMaxPoints: pushMaxPoints,
+      buildClassroomGrades: (responses) => {
+        // All attachments share the assignment's maxPoints.
+        const mp = classroomFinalAttachments[0]?.maxPoints;
+        return mp != null
+          ? withFinal(
+              buildQuizClassroomGradeEntries(
                 responses,
-                mp
-              )
-            : [];
-        },
-        buildSchoologyGrades: (responses) => {
-          const mp = pushMaxPoints;
-          return withFinal(
-            buildQuizClassroomGradeEntries(
+                data.questions,
+                mp,
+                publishFibGrading,
+                pushPaperIds
+              ),
               responses,
-              data.questions,
-              mp,
-              publishFibGrading,
-              pushPaperIds
-            ),
+              mp
+            )
+          : [];
+      },
+      buildSchoologyGrades: (responses) => {
+        const mp = pushMaxPoints;
+        return withFinal(
+          buildQuizClassroomGradeEntries(
             responses,
-            mp
-          );
-        },
-      });
-      return true;
-    } catch (err) {
-      logError('QuizWidget.publishAssignmentScores', err, {
-        assignmentId: target.id,
-        visibility,
-      });
-      throw err;
-    }
-    return false;
+            data.questions,
+            mp,
+            publishFibGrading,
+            pushPaperIds
+          ),
+          responses,
+          mp
+        );
+      },
+    });
+    return true;
   };
   const saveLastProtection = async (protection?: ResultsProtection) => {
     // Persist the teacher's last protection choice so the next
@@ -3175,7 +3175,7 @@ const TeacherQuizWidget: React.FC<{
                   visibility,
                   protection,
                   writtenReturnMode,
-                  { quiet: false }
+                  { quiet: false, endsAssignment: publishEndsAssignment }
                 )
               )
                 setPublishingAssignment(null);
@@ -3213,7 +3213,7 @@ const TeacherQuizWidget: React.FC<{
                 t,
                 visibility,
                 protection,
-                writtenReturnMode,
+                t.hasPaperWritten ? writtenReturnMode : undefined,
                 {
                   quiet: true,
                   token,
