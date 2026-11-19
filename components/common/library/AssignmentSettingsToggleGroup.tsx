@@ -427,7 +427,17 @@ export const AssignmentSettingsToggleGroup: React.FC<
               'show-right-wrong'
             )}
             checked={options.showResultToStudent ?? false}
-            onChange={(v) => update('showResultToStudent', v)}
+            onChange={(v) =>
+              onOptionsChange(
+                v
+                  ? { ...options, showResultToStudent: true }
+                  : {
+                      ...options,
+                      showResultToStudent: false,
+                      showCorrectAnswerToStudent: false,
+                    }
+              )
+            }
           />
           <ToggleRow
             compact
@@ -437,7 +447,10 @@ export const AssignmentSettingsToggleGroup: React.FC<
               'assign',
               'reveal-correct'
             )}
-            checked={options.showCorrectAnswerToStudent ?? false}
+            checked={
+              (options.showResultToStudent ?? false) &&
+              (options.showCorrectAnswerToStudent ?? false)
+            }
             onChange={(v) => update('showCorrectAnswerToStudent', v)}
             disabled={!options.showResultToStudent}
           />
