@@ -14,6 +14,7 @@
 
 import React, { useContext, useId, useMemo, useState } from 'react';
 import { MathText } from '@/components/common/MathText';
+import { languageDisplayLabel } from '@/utils/languageDisplayLabel';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronRight, ChevronUp, Copy } from 'lucide-react';
 import type { Rubric, StudentOverride } from '@/types';
@@ -530,7 +531,7 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
                 </option>
                 {languageOptions.map((language) => (
                   <option key={language.code} value={language.code}>
-                    {language.nativeLabel}
+                    {languageDisplayLabel(language.code)}
                   </option>
                 ))}
               </select>

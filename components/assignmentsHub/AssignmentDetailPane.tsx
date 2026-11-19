@@ -6,7 +6,7 @@
 // map keyed by uid since its submissions ARE keyed by the resolved pseudonym.
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { languageNativeLabel } from '@/utils/languageNativeLabel';
+import { languageDisplayLabel } from '@/utils/languageDisplayLabel';
 import { newlyRequestedLocales } from '@/utils/quizTranslationAdvisory';
 import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
@@ -707,7 +707,7 @@ export const AssignmentDetailPane: React.FC<{
                   count: entry.names.length,
                   others: entry.names.length - 1,
                   name: entry.names[0],
-                  language: languageNativeLabel(entry.locale),
+                  language: languageDisplayLabel(entry.locale),
                 })}
               </p>
             ))}
