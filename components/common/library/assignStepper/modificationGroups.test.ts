@@ -77,6 +77,8 @@ describe('hiddenOptionIdsForRule', () => {
   });
 });
 
+const ALL: ReadonlySet<string> = new Set(['a', 'b', 'c', 'd', 's', 'f']);
+
 describe('overridesFromGroups', () => {
   const rows = [
     row('a', 'c1'),
@@ -88,7 +90,7 @@ describe('overridesFromGroups', () => {
     const out = overridesFromGroups(
       [group({ studentKeys: ['a', 'b'], time: 1.5, readAloud: true })],
       rows,
-      QUESTIONS
+      ALL
     );
     expect(out.a).toEqual({ timeMultiplier: 1.5, readAloud: true });
     expect(out.b).toEqual({ timeMultiplier: 1.5, readAloud: true });
@@ -96,8 +98,12 @@ describe('overridesFromGroups', () => {
   });
 
   it('clears the class preset of a student taken out of every group', () => {
-    const out = overridesFromGroups([group({})], rows, QUESTIONS);
+    const out = overridesFromGroups([group({})], rows, ALL);
     expect(out).toEqual({ b: {} });
+  });
+
+  it('keeps the preset of a student the step never showed', () => {
+    expect(overridesFromGroups([group({})], rows, new Set())).toEqual({});
   });
 
   it('turns Speech to text on and never clears a standing one', () => {
@@ -118,7 +124,7 @@ describe('overridesFromGroups', () => {
     const out = overridesFromGroups(
       [group({ studentKeys: ['s', 'a'], time: 1.5 })],
       [...rows, ...standing],
-      QUESTIONS
+      ALL
     );
     expect(out.s.timeMultiplier).toBe(1.5);
     expect(out.a.timeMultiplier).toBe(1.5);
@@ -133,7 +139,7 @@ describe('overridesFromGroups', () => {
         }),
       ],
       rows,
-      QUESTIONS
+      ALL
     );
     expect(out.a).toEqual({ blockCopyPaste: false, tabAwayLimit: 30 });
   });
@@ -145,7 +151,7 @@ describe('overridesFromGroups', () => {
     const out = overridesFromGroups(
       [group({ studentKeys: ['a', 'b'], supports })],
       rows,
-      QUESTIONS
+      ALL
     );
     expect(out.a.supports).toEqual(supports);
     expect(out.b).toEqual({ supports });
@@ -155,7 +161,7 @@ describe('overridesFromGroups', () => {
     const out = overridesFromGroups(
       [group({ studentKeys: ['a'], modifiedQuestions: true })],
       rows,
-      QUESTIONS
+      ALL
     );
     expect(out.a.modifiedQuestions).toBe(true);
   });
@@ -164,7 +170,7 @@ describe('overridesFromGroups', () => {
     const out = overridesFromGroups(
       [group({ studentKeys: ['a'], printed: true })],
       rows,
-      QUESTIONS
+      ALL
     );
     expect(out.a.onPaper).toBe(true);
   });
@@ -174,7 +180,7 @@ describe('overridesFromGroups', () => {
       overridesFromGroups(
         [group({ studentKeys: ['zz'], time: 2 })],
         rows.filter((r) => !r.defaultOverride),
-        QUESTIONS
+        ALL
       )
     ).toEqual({});
   });
@@ -216,18 +222,16 @@ describe('class presets as groups', () => {
 
   it('applies the same rules the preset would', () => {
     const groups = standingGroupsFor(rows, new Set());
-    const out = overridesFromGroups(groups, rows, QUESTIONS);
+    const out = overridesFromGroups(groups, rows, ALL);
     expect(out.a).toEqual({
       timeMultiplier: 1.5,
       readAloud: true,
       language: 'es',
     });
-    expect(out.d).toMatchObject({
+    expect(out.d).toEqual({
       modifiedQuestions: true,
       blockCopyPaste: false,
-      hiddenOptionIdsByQuestion: {
-        q1: [expect.stringMatching(/^q1-incorrect/)],
-      },
+      answerChoices: 3,
     });
     expect(out.b).toBeUndefined();
   });

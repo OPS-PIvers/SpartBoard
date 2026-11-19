@@ -259,7 +259,8 @@ const moreTime = (
 export function overrideForGroup(
   group: ModificationGroup,
   standing: StudentOverride | undefined,
-  questions: OverrideEditorQuestion[]
+  /** Omit to leave the answer-choice rule for assign to apply to the served questions. */
+  questions?: OverrideEditorQuestion[]
 ): StudentOverride {
   const next: StudentOverride = { ...(standing ?? {}) };
   if (group.time !== 'standard')
@@ -270,8 +271,13 @@ export function overrideForGroup(
     CHOICE_RANK[group.answerChoices] >= CHOICE_RANK[standingRule]
       ? group.answerChoices
       : standingRule;
-  const hidden = hiddenOptionIdsForRule(questions, rule);
-  if (hidden) next.hiddenOptionIdsByQuestion = hidden;
+  if (questions) {
+    const hidden = hiddenOptionIdsForRule(questions, rule);
+    if (hidden) next.hiddenOptionIdsByQuestion = hidden;
+  } else if (rule !== 'all') {
+    // Assign turns this into hidden options over every served question, bank draws included.
+    next.answerChoices = rule === 'drop-one' ? 3 : 2;
+  }
   if (group.readAloud) next.readAloud = true;
   if (group.speechToText) next.speechToText = true;
   if (group.language) next.language = group.language;
@@ -293,19 +299,21 @@ export function overrideForGroup(
 export function overridesFromGroups(
   groups: ModificationGroup[],
   rows: ClassStudentRow[],
-  questions: OverrideEditorQuestion[]
+  /** Preset students the step has shown; only they can be taken out of their preset. */
+  seeded: ReadonlySet<string>
 ): Record<string, StudentOverride> {
   const rowByKey = new Map(rows.map((row) => [row.key, row] as const));
   const out: Record<string, StudentOverride> = {};
   for (const group of groups) {
     for (const key of group.studentKeys) {
       if (!rowByKey.has(key)) continue;
-      out[key] = overrideForGroup(group, undefined, questions);
+      out[key] = overrideForGroup(group, undefined);
     }
   }
   // A preset student the teacher took out of every group gets nothing this time.
   for (const row of rows)
-    if (row.defaultOverride && !(row.key in out)) out[row.key] = {};
+    if (row.defaultOverride && seeded.has(row.key) && !(row.key in out))
+      out[row.key] = {};
   return out;
 }
 

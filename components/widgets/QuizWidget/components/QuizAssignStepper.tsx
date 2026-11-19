@@ -148,6 +148,11 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
     !!modifications && auth?.canAccessFeature?.('modification-groups') === true;
   const usable = rosters.filter((r) => !r.loadError);
   const staff = audience?.audience === 'staff';
+  // Every roster, not just the checked ones, so a student on two rosters carries both presets.
+  const allRows = modificationRows({ rosters: usable });
+  const presetByKey = new Map(
+    allRows.map((row) => [row.key, row.defaultOverride] as const)
+  );
   // Students the step reaches for these classes; their class presets arrive as groups.
   const reachedRows = (next: AssignClassesValue) =>
     groupsOn && !staff
@@ -158,7 +163,11 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
           }),
           next,
           usable
-        )
+        ).map((row) => {
+          const { defaultOverride: _own, ...rest } = row;
+          const merged = presetByKey.get(row.key);
+          return merged ? { ...rest, defaultOverride: merged } : rest;
+        })
       : [];
   const [seeded, setSeeded] = useState<ReadonlySet<string>>(
     () => new Set(reachedRows(classes).map((row) => row.key))
@@ -190,7 +199,6 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   );
 
   const groupRows = reachedRows(classes);
-  const allRows = modificationRows({ rosters: usable });
   const keepFileIds = standingDriveFileIds(allRows);
   const sessionMinutes = gates.timeLimitOn
     ? clampQuizTimeLimitMinutes(behavior.sessionOptions.timeLimitMinutes)
@@ -204,7 +212,10 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
     timeLimitLabel
       ? list
       : list.map((g) => ({ ...g, time: 'standard' as const }));
-  const applyGroups = (next: ModificationGroup[]) => {
+  const applyGroups = (
+    next: ModificationGroup[],
+    shown: ReadonlySet<string> = seeded
+  ) => {
     setGroups(next);
     if (!modifications) return;
     // Every roster, not just the checked ones, so re-checking a class keeps its students' rules.
@@ -215,7 +226,7 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
           ? next
           : next.map((g) => ({ ...g, printed: false })),
         allRows,
-        modifications.quizContext.questions
+        shown
       ),
     });
   };
@@ -225,8 +236,9 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
     onClassesChange(next);
     const rows = reachedRows(next);
     if (rows.every((row) => seeded.has(row.key))) return;
-    applyGroups(withStandingGroups(groups, rows, seeded));
-    setSeeded(new Set([...seeded, ...rows.map((row) => row.key)]));
+    const shown = new Set([...seeded, ...rows.map((row) => row.key)]);
+    applyGroups(withStandingGroups(groups, rows, seeded), shown);
+    setSeeded(shown);
   };
 
   const bodies: Record<string, Omit<AssignStepDef, 'id' | 'title'>> = {

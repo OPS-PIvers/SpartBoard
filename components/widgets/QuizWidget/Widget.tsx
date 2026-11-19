@@ -1182,10 +1182,15 @@ const TeacherQuizWidget: React.FC<{
         })
     );
     // A slow translation finishes in the library for next time; this assign goes out without it.
-    const timedOut = new Promise<undefined>((resolve) =>
-      setTimeout(() => resolve(undefined), AUTO_TRANSLATE_WAIT_MS)
-    );
-    return (await Promise.race([work, timedOut])) ?? meta.translations;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timedOut = new Promise<undefined>((resolve) => {
+      timer = setTimeout(() => resolve(undefined), AUTO_TRANSLATE_WAIT_MS);
+    });
+    try {
+      return (await Promise.race([work, timedOut])) ?? meta.translations;
+    } finally {
+      clearTimeout(timer);
+    }
   };
   // Printed stacks in group order, each with its group's language for the sheets.
   const reprintGroupsFor = async (
