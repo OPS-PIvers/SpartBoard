@@ -1012,5 +1012,73 @@ describe('RosterEditorModal', () => {
       );
       expect(onClose).not.toHaveBeenCalled();
     });
+
+    it('never saves a class whose file failed to load', async () => {
+      const user = userEvent.setup();
+      const onSave = vi.fn().mockResolvedValue(undefined);
+      const onClose = vi.fn();
+      render(
+        <RosterEditorModal
+          isOpen
+          roster={{ ...existing, students: [], loadError: 'Drive 429' }}
+          onClose={onClose}
+          onSave={onSave}
+        />
+      );
+      expect(screen.getByRole('alert')).toHaveTextContent('Failed to load');
+      const nameInput = screen.getByDisplayValue('Period 2');
+      await user.type(nameInput, 'x');
+      await user.click(screen.getByRole('button', { name: /^close$/i }));
+      expect(onClose).toHaveBeenCalled();
+      expect(onSave).not.toHaveBeenCalled();
+    });
+
+    it('does not resend groups after a grouped student is deleted', async () => {
+      const user = userEvent.setup();
+      const onSave = vi.fn().mockResolvedValue(undefined);
+      const roster: ClassRoster = {
+        ...existing,
+        students: [
+          { id: 's1', firstName: 'Ada', lastName: 'Lovelace', pin: '01' },
+          { id: 's2', firstName: 'Bo', lastName: 'Diddley', pin: '02' },
+        ],
+        groups: [{ id: 'g', name: 'G', studentIds: ['s2'] }],
+      };
+      const { rerender } = render(
+        <RosterEditorModal
+          isOpen
+          roster={roster}
+          onClose={vi.fn()}
+          onSave={onSave}
+        />
+      );
+      await user.click(
+        screen.getAllByRole('button', { name: /remove student/i })[1]
+      );
+      await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1), {
+        timeout: 4000,
+      });
+      expect(onSave.mock.calls[0][2]).toEqual([
+        { id: 'g', name: 'G', studentIds: [] },
+      ]);
+      // The host hands back the pruned roster after the save.
+      rerender(
+        <RosterEditorModal
+          isOpen
+          roster={{
+            ...roster,
+            students: [roster.students[0]],
+            groups: [{ id: 'g', name: 'G', studentIds: [] }],
+          }}
+          onClose={vi.fn()}
+          onSave={onSave}
+        />
+      );
+      await user.type(screen.getByDisplayValue('Ada'), 'm');
+      await waitFor(() => expect(onSave).toHaveBeenCalledTimes(2), {
+        timeout: 4000,
+      });
+      expect(onSave.mock.calls[1]).toHaveLength(2);
+    });
   });
 });

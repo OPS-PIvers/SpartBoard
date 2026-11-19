@@ -190,7 +190,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
 
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  // Count of Drive shares in flight, so Save waits for every one of them.
+  // Count of Drive shares in flight, so Save and close wait for every one of them.
   const [sharesInFlight, setSharesInFlight] = useState(0);
   const viewAs = useViewAs();
   const dialog = useContext(DialogContext);
@@ -207,28 +207,38 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
 
   // One write with only the tabs that differ from the saved class.
   const writeRoster = async (rosterName: string, students: Student[]) => {
+    // Drop deleted students first, as the saved copy does, so they don't read as a change.
+    const ids = new Set(students.map((st) => st.id));
+    const keptGroups = groups.map((g) =>
+      g.studentIds.every((id) => ids.has(id))
+        ? g
+        : { ...g, studentIds: g.studentIds.filter((id) => ids.has(id)) }
+    );
+    const keptOverrides = Object.fromEntries(
+      Object.entries(defaultOverrides).filter(([id]) => ids.has(id))
+    );
     const groupsChanged =
-      JSON.stringify(groups) !== JSON.stringify(initialGroups);
+      JSON.stringify(keptGroups) !== JSON.stringify(initialGroups);
     const overridesChanged =
-      JSON.stringify(defaultOverrides) !== JSON.stringify(initialOverrides);
+      JSON.stringify(keptOverrides) !== JSON.stringify(initialOverrides);
     const bellChanged = bellKey(bellPeriod) !== bellKey(initialBell);
     if (bellChanged) {
       await onSave(
         rosterName,
         students,
-        groupsChanged ? groups : undefined,
-        overridesChanged ? defaultOverrides : undefined,
+        groupsChanged ? keptGroups : undefined,
+        overridesChanged ? keptOverrides : undefined,
         bellPeriod
       );
     } else if (overridesChanged) {
       await onSave(
         rosterName,
         students,
-        groupsChanged ? groups : undefined,
-        defaultOverrides
+        groupsChanged ? keptGroups : undefined,
+        keptOverrides
       );
     } else if (groupsChanged) {
-      await onSave(rosterName, students, groups);
+      await onSave(rosterName, students, keptGroups);
     } else {
       await onSave(rosterName, students);
     }
@@ -268,8 +278,10 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
     applyAssignedPins(sent, withPins);
   };
   const persistRef = useRef(persist);
+  const sharesRef = useRef(sharesInFlight);
   useLayoutEffect(() => {
     persistRef.current = persist;
+    sharesRef.current = sharesInFlight;
   });
 
   const draftToken = useMemo(
@@ -285,18 +297,24 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
   const autosave = useAutosave({
     draftToken,
     resetKey: roster?.id,
-    enabled: roster !== null,
+    // A class whose file failed to load opens empty, so saving it would wipe the real one.
+    enabled: roster !== null && !roster.loadError,
     delayMs: 1500,
     onSave: () => persistRef.current(),
   });
 
   // Waits for the last autosave before closing, and asks only if it failed.
   const requestClose = async () => {
-    if (roster === null) {
+    if (roster === null || roster.loadError) {
       onClose();
       return;
     }
-    const saved = await autosave.flush();
+    // A Drive share adds its support when it finishes, so let it land first.
+    const giveUpAt = Date.now() + 60_000;
+    while (sharesRef.current > 0 && Date.now() < giveUpAt) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    const saved = sharesRef.current === 0 && (await autosave.flush());
     if (!saved && dialog) {
       const leave = await dialog.showConfirm(
         t('sidebar.classes.closeUnsaved', {
@@ -380,7 +398,18 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
               </select>
             </label>
           )}
-          {roster ? (
+          {roster?.loadError ? (
+            <div
+              role="alert"
+              title={roster.loadError}
+              className="min-h-[38px] flex items-center gap-1.5 px-2 text-sm font-bold text-red-600"
+            >
+              <AlertTriangle size={16} aria-hidden="true" />
+              {t('sidebar.classes.loadFailed', {
+                defaultValue: 'Failed to load',
+              })}
+            </div>
+          ) : roster ? (
             <div
               className="min-h-[38px] flex items-center px-2"
               {...tourAttr('roster-editor.save')}
