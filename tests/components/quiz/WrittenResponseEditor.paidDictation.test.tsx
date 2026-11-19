@@ -9,8 +9,18 @@ import { DEFAULT_SPEECH_TO_TEXT_SETTINGS } from '@/config/speechToText';
 import type { SpeechToTextSettings } from '@/types';
 import { resetPaidDictationState } from '@/utils/speechToText/paidCalls';
 
-const hook = vi.hoisted(() => ({
-  options: null as UseDictationOptions | null,
+interface HookMock {
+  options: UseDictationOptions | null;
+  status: DictationController['status'];
+  tidyUp: boolean;
+  settingsEnabled: boolean;
+  callable: ReturnType<
+    typeof vi.fn<(request: unknown) => Promise<{ data: unknown }>>
+  >;
+}
+
+const hook = vi.hoisted<HookMock>(() => ({
+  options: null,
   status: 'idle',
   tidyUp: true,
   settingsEnabled: false,

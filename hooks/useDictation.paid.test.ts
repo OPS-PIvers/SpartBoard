@@ -14,9 +14,17 @@ import { DEFAULT_SPEECH_TO_TEXT_SETTINGS } from '@/config/speechToText';
 import type { SpeechToTextSettings } from '@/types';
 import { resetDictationPreference, useDictation } from './useDictation';
 
-const mocks = vi.hoisted(() => ({
+interface PaidMocks {
+  engine: SpeechToTextSettings['engine'];
+  settingsEnabled: boolean[];
+  callable: ReturnType<
+    typeof vi.fn<(request: unknown) => Promise<{ data: unknown }>>
+  >;
+}
+
+const mocks = vi.hoisted<PaidMocks>(() => ({
   engine: 'browser',
-  settingsEnabled: [] as boolean[],
+  settingsEnabled: [],
   callable: vi.fn<(request: unknown) => Promise<{ data: unknown }>>(),
 }));
 
