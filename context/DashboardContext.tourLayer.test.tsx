@@ -518,19 +518,19 @@ describe('DashboardContext addWidgets template placements', () => {
     act(() =>
       stateRef.current?.addWidgets([{ type: 'clock', placement: zone }])
     );
-    const out = stateRef.current?.activeDashboard?.widgets.at(-1);
-    expect(out?.w).toBeCloseTo(flat.w);
-    expect(out?.h).toBeCloseTo(flat.h);
+    const out = stateRef.current?.activeDashboard?.widgets.at(-1) as WidgetData;
+    expect(out.w).toBeCloseTo(flat.w);
+    expect(out.h).toBeCloseTo(flat.h);
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const minX = vw / 2 - vw / 2 / 0.5;
     const maxX = vw / 2 + vw / 2 / 0.5;
     const minY = vh / 2 - vh / 2 / 0.5;
     const maxY = vh / 2 + vh / 2 / 0.5;
-    expect(out!.x).toBeGreaterThanOrEqual(minX);
-    expect(out!.x + out!.w).toBeLessThanOrEqual(maxX);
-    expect(out!.y).toBeGreaterThanOrEqual(minY);
-    expect(out!.y + out!.h).toBeLessThanOrEqual(maxY);
+    expect(out.x).toBeGreaterThanOrEqual(minX);
+    expect(out.x + out.w).toBeLessThanOrEqual(maxX);
+    expect(out.y).toBeGreaterThanOrEqual(minY);
+    expect(out.y + out.h).toBeLessThanOrEqual(maxY);
   });
 
   it('never builds a giant widget from an extreme aspect ratio', async () => {
