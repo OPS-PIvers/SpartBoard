@@ -5,6 +5,7 @@ import type { QuestionAudio } from '@/types';
 import { tourTypeAttr } from '@/config/tourAnchors';
 import { formatAudioDuration, questionAudioUrl } from '@/utils/questionAudio';
 import { usePromptAudio } from './usePromptAudio';
+import { SegmentedControl } from '@/components/common/SegmentedControl';
 
 export type PromptAudioState = ReturnType<typeof usePromptAudio>;
 
@@ -16,6 +17,15 @@ export const PromptAudioHost: React.FC<{
 }> = ({ audio, onChange, children }) => (
   <>{children(usePromptAudio(audio, onChange))}</>
 );
+
+// playLimit counts every play, so it is replays + 1; '' is unlimited.
+const REPLAY_OPTIONS = [
+  { value: '', label: 'Unlimited' },
+  { value: '1', label: 'None' },
+  { value: '2', label: '1' },
+  { value: '3', label: '2' },
+  { value: '4', label: '3' },
+];
 
 const rowButton =
   'inline-flex min-h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-brand-blue-primary disabled:opacity-40';
@@ -31,25 +41,35 @@ export const PromptAudioMicButton: React.FC<{
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const showPanel = open || recording || saving;
 
+  const stopRecording = recorder.stop;
   useEffect(() => {
-    if (!open) return;
+    if (!showPanel) return;
     const onDown = (e: PointerEvent) => {
       const target = e.target as Element | null;
-      // The app's select list and dialogs render outside the popover.
-      if (target?.closest?.('[data-click-outside-ignore], [role="dialog"]'))
-        return;
-      if (!wrapRef.current?.contains(target)) setOpen(false);
+      const wrap = wrapRef.current;
+      if (!wrap || !target || wrap.contains(target)) return;
+      if (target.closest?.('[data-click-outside-ignore]')) return;
+      // A dialog opened over the editor (like the mic-blocked notice) is not a click away.
+      const dialog = target.closest?.('[role="dialog"]');
+      if (dialog && !dialog.contains(wrap)) return;
+      setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
+      if (e.key !== 'Escape') return;
+      // Stop here so the editor modal behind stays open.
+      e.stopPropagation();
+      if (recording) stopRecording();
+      setOpen(false);
+      if (wrapRef.current?.contains(document.activeElement))
+        wrapRef.current.querySelector('button')?.focus();
     };
     document.addEventListener('pointerdown', onDown);
-    document.addEventListener('keydown', onKey);
+    document.addEventListener('keydown', onKey, true);
     return () => {
       document.removeEventListener('pointerdown', onDown);
-      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('keydown', onKey, true);
     };
-  }, [open]);
+  }, [showPanel, recording, stopRecording]);
 
   if (!audio && !canRecord && !recording && !saving) return null;
 
@@ -68,7 +88,15 @@ export const PromptAudioMicButton: React.FC<{
   const label = recording ? 'Stop' : audio ? 'Question audio' : 'Record audio';
 
   return (
-    <div ref={wrapRef} className="relative">
+    <div
+      ref={wrapRef}
+      className="relative"
+      onBlur={(e) => {
+        // Tabbing out closes it, so a later Escape belongs to whatever has focus.
+        const next = e.relatedTarget as Node | null;
+        if (next && !e.currentTarget.contains(next)) setOpen(false);
+      }}
+    >
       <button
         type="button"
         aria-label={label}
@@ -116,7 +144,6 @@ const PromptAudioPanel: React.FC<{
 }> = ({ state, canRecord, onRemoved }) => {
   const { audio, onChange, saving, recorder } = state;
   const [playing, setPlaying] = useState(false);
-  const replaysId = React.useId();
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   if (recorder.phase !== 'idle') {
@@ -224,31 +251,26 @@ const PromptAudioPanel: React.FC<{
           Remove
         </button>
       </div>
-      <div className="flex min-h-10 items-center gap-3 px-1 pt-1.5">
-        <label
-          htmlFor={replaysId}
+      <div className="flex flex-col gap-1.5 px-1 pt-2">
+        <span
+          aria-hidden
           className="text-xs font-bold uppercase tracking-wider text-slate-500"
         >
           Replays
-        </label>
-        <select
-          id={replaysId}
-          value={audio.playLimit ?? ''}
-          onChange={(e) => {
-            const n = Number(e.target.value);
+        </span>
+        <SegmentedControl
+          role="radiogroup"
+          ariaLabel="Replays"
+          value={String(audio.playLimit ?? '')}
+          onChange={(v) => {
+            const n = Number(v);
             const rest: QuestionAudio = { ...audio };
             delete rest.playLimit;
             onChange(n > 0 ? { ...rest, playLimit: n } : rest);
           }}
-          className="ml-auto rounded-md border border-slate-300 bg-white py-1 pl-2 pr-7 text-sm text-slate-800 focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
-          {...tourTypeAttr('quiz-editor.prompt-audio-replays', 'quiz')}
-        >
-          <option value="">Unlimited</option>
-          <option value="1">None</option>
-          <option value="2">1</option>
-          <option value="3">2</option>
-          <option value="4">3</option>
-        </select>
+          options={REPLAY_OPTIONS}
+          anchor={tourTypeAttr('quiz-editor.prompt-audio-replays', 'quiz')}
+        />
       </div>
       <audio
         ref={audioRef}

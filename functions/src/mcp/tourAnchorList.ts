@@ -5534,6 +5534,40 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-classes.course",
+    "label": "Course checkbox in the Assign dialog class list",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "assign#row-[1-9]\\d*",
+    "key_hint": "assign#row-1 for the first row",
+    "row_wildcard": true,
+    "row_list": "assign-classes",
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "assign-classes.course-expand",
+    "label": "Show the sections in a Course in the Assign dialog class list",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "assign#row-[1-9]\\d*",
+    "key_hint": "assign#row-1 for the first row",
+    "row_wildcard": true,
+    "row_list": "assign-classes",
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "assign-classes.select-all",
     "label": "Select all button in the Assign dialog class list",
     "scope": "board",

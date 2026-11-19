@@ -2,15 +2,18 @@
 // node scripts/checkReleaseWidgetNotes.ts --base origin/main   (PR body in $PR_BODY)
 
 import { execFileSync } from 'node:child_process';
-import { appendFileSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { appendFileSync, realpathSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   resolveWidgetFiles,
   type WidgetFiles,
 } from './widget-grader/widgetFiles.ts';
-
-const CHANGELOG = 'public/changelog.json';
+import {
+  FRAGMENT_DIR,
+  loadChangelog,
+  loadChangelogAtRef,
+} from './changelogFragments.ts';
 
 /** Widget types owning a changed file; shared window and config files name no widget. */
 export function changedWidgetTypes(
@@ -77,8 +80,9 @@ export function missingNotes(
 }
 
 const isMain =
-  process.argv[1] &&
-  fileURLToPath(import.meta.url) === process.argv[1].replace(/\\/g, '/');
+  !!process.argv[1] &&
+  realpathSync(fileURLToPath(import.meta.url)) ===
+    realpathSync(resolve(process.argv[1]));
 
 if (isMain) {
   const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -91,16 +95,11 @@ if (isMain) {
     .split('\n')
     .filter(Boolean);
   const types = changedWidgetTypes(changed, resolveWidgetFiles(root));
-  let baseSource: string | null = null;
-  try {
-    baseSource = git('show', `${base}:${CHANGELOG}`);
-  } catch {
-    baseSource = null;
-  }
+  const baseChangelog = loadChangelogAtRef(root, base);
   const missing = missingNotes(
     types,
-    noteIdsByWidget(baseSource),
-    noteIdsByWidget(readFileSync(join(root, CHANGELOG), 'utf8')),
+    noteIdsByWidget(baseChangelog && JSON.stringify(baseChangelog)),
+    noteIdsByWidget(JSON.stringify(loadChangelog(root))),
     excusedTypes(process.env.PR_BODY ?? '')
   );
 
@@ -110,7 +109,7 @@ if (isMain) {
       ? [
           `Missing a widget note: ${missing.join(', ')}.`,
           '',
-          `For each one, add a note to "widgetNotes" in ${CHANGELOG} (give it "feature" when a flag still gates the change),`,
+          `For each one, add a note to "widgetNotes" in a ${FRAGMENT_DIR}/<name>.json file (give it "feature" when a flag still gates the change),`,
           'or add a line to the PR description saying why teachers will not notice, e.g.',
           `  no-widget-note: ${missing[0]} internal refactor, nothing on screen changed`,
           'See "Widget notes" in docs/DEV_WORKFLOW.md.',
