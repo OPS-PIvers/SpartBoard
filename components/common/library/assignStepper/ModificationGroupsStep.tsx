@@ -67,6 +67,8 @@ export interface ModificationGroupsStepProps {
   printedAvailable?: boolean;
   /** Drive files of class presets: shared with the class, so never deleted here. */
   keepFileIds?: ReadonlySet<string>;
+  /** Editing a launched quiz: the languages it serves, since nothing translates after assign. */
+  servedLocales?: readonly string[];
 }
 
 export const ModificationRow: React.FC<{
@@ -85,6 +87,23 @@ const TIME_RULES: Record<string, TimeRule> = {
   '2': 2,
   unlimited: 'unlimited',
 };
+
+// A launched quiz covers exactly the languages its session serves.
+const servedCoverage = (locales: readonly string[]) => ({
+  index: Object.fromEntries(
+    locales.map((locale) => [
+      locale,
+      {
+        driveFileId: '',
+        reviewedCount: 1,
+        staleCount: 0,
+        questionCount: 1,
+        sourceHashes: {},
+        updatedAt: 0,
+      },
+    ])
+  ),
+});
 
 const studentsLabel = (n: number) => (n === 1 ? '1 student' : `${n} students`);
 
@@ -338,6 +357,7 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
   onSharingChange,
   printedAvailable = false,
   keepFileIds,
+  servedLocales,
 }) => {
   const { t } = useTranslation();
   const { driveService } = useGoogleDrive();
@@ -403,13 +423,14 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
               name: row.name,
               language: effectiveClassOverride(row, overridesByKey)?.language,
             })),
-            translation
+            servedLocales ? servedCoverage(servedLocales) : translation
           )
         : [],
-    [rows, overridesByKey, translation]
+    [rows, overridesByKey, translation, servedLocales]
   );
   // Assign translates on its own, so the notice shows only when it can't.
   const autoTranslateBlocked =
+    !!servedLocales ||
     isNonEnglishQuizSource(translation?.sourceLanguage) ||
     translation?.hasBankSlots === true ||
     (translation?.cap?.remaining ?? 1) <= 0;

@@ -400,3 +400,55 @@ export function formatModificationGroupsValue(
     ? `${studentsLabel(total)}: ${rules.join(', ')}`
     : studentsLabel(total);
 }
+
+// Per-student fields the groups never set, so an edit keeps them.
+const KEPT_ON_EDIT = [
+  'questionIds',
+  'rubricOverrideByQuestion',
+  'spellingHelp',
+  'openAt',
+  'closeAt',
+  'onPaper',
+] as const satisfies readonly (keyof StudentOverride)[];
+
+/** A saved override as the groups see it: only the rules a group sets. */
+export function groupRulesOf(
+  saved: StudentOverride | undefined
+): StudentOverride | undefined {
+  if (!saved) return undefined;
+  const rules: StudentOverride = { ...saved };
+  for (const field of KEPT_ON_EDIT) delete rules[field];
+  delete rules.hiddenOptionIdsByQuestion;
+  return Object.keys(rules).length > 0 ? rules : undefined;
+}
+
+/** Overrides after editing a live assignment: a student whose rules didn't change keeps their saved override exactly. */
+export function editedOverrides(
+  saved: Record<string, StudentOverride>,
+  /** `overridesFromGroups` for the groups the step opened with. */
+  baseline: Record<string, StudentOverride>,
+  /** `overridesFromGroups` for the groups now. */
+  next: Record<string, StudentOverride>
+): Record<string, StudentOverride> {
+  const out: Record<string, StudentOverride> = { ...saved };
+  for (const key of new Set([...Object.keys(baseline), ...Object.keys(next)])) {
+    const now = next[key];
+    if (sortedJson(baseline[key]) === sortedJson(now)) continue;
+    const before = saved[key];
+    const merged: StudentOverride = {};
+    for (const field of KEPT_ON_EDIT)
+      if (before?.[field] !== undefined)
+        Object.assign(merged, { [field]: before[field] });
+    // Hand-picked hidden options stay unless the group now sets an answer-choice rule.
+    if (
+      before?.hiddenOptionIdsByQuestion &&
+      !before.answerChoices &&
+      !now?.answerChoices
+    )
+      merged.hiddenOptionIdsByQuestion = before.hiddenOptionIdsByQuestion;
+    Object.assign(merged, now ?? {});
+    if (Object.keys(merged).length > 0) out[key] = merged;
+    else delete out[key];
+  }
+  return out;
+}
