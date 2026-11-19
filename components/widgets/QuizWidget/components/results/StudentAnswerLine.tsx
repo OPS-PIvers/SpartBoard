@@ -2,6 +2,7 @@ import React from 'react';
 import { MathText } from '@/components/common/MathText';
 import { plainPromptText } from '@/utils/promptMath';
 import {
+  Check,
   CheckCircle2,
   Circle,
   CircleSlash,
@@ -176,7 +177,20 @@ export const StudentAnswerLine: React.FC<{
   onCountInstead?: () => void;
   /** The student used Speech to text on this answer. */
   dictated?: boolean;
-}> = ({ line, onOpenGrader, onCountInstead, dictated = false }) => {
+  /** The translated key for the language this student was served. */
+  translatedKey?: { label: string; text: string };
+  /** Accepts this typed answer for every student in the assignment. */
+  onAccept?: () => void;
+  accepting?: boolean;
+}> = ({
+  line,
+  onOpenGrader,
+  onCountInstead,
+  dictated = false,
+  translatedKey,
+  onAccept,
+  accepting = false,
+}) => {
   const { icon: MarkIcon, className } = MARK_STYLE[line.mark];
   const answer = answerLabel(line);
   const orderSpots =
@@ -265,6 +279,25 @@ export const StudentAnswerLine: React.FC<{
             Count this instead
           </button>
         )}
+        {onAccept && (
+          <button
+            type="button"
+            onClick={onAccept}
+            disabled={accepting}
+            aria-label={`Accept this answer for Q${line.number}`}
+            title="Counts this answer as correct for every student."
+            {...tourFieldAttr(
+              'quiz-results.accept-answer',
+              'quiz',
+              String(line.number)
+            )}
+            className="touch-target-expand relative inline-flex items-center shrink-0 rounded-sm font-sans font-semibold text-brand-blue-primary hover:underline disabled:opacity-60 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
+            style={{ ...SMALL_TEXT, gap: 'min(3px, 0.8cqmin)' }}
+          >
+            <Check aria-hidden style={SMALL_ICON} />
+            Accept
+          </button>
+        )}
         {line.mark !== 'excused' && (
           <span
             className="font-sans text-brand-gray-dark tabular-nums shrink-0 text-right"
@@ -326,6 +359,9 @@ export const StudentAnswerLine: React.FC<{
               size={PICTURE_SIZE}
             />
           </Field>
+        )}
+        {!orderSpots && showsMissedKey(line) && translatedKey && (
+          <Field label={translatedKey.label}>{translatedKey.text}</Field>
         )}
         {comment && <Field label="Comment">{comment}</Field>}
         {rubricRows.map((row) => (

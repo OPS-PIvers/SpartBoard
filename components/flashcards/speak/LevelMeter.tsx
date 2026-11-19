@@ -1,11 +1,7 @@
 import React, { useState } from 'react';
 import { cx } from '../playerUtils';
 import { useMicLevel } from './useMicLevel';
-
-const prefersReducedMotion = (): boolean =>
-  typeof window !== 'undefined' &&
-  typeof window.matchMedia === 'function' &&
-  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+import { prefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
 
 export const LevelMeter: React.FC<{
   level: number;

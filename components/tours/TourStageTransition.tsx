@@ -5,7 +5,7 @@ import {
   useTourHidden,
 } from '@/context/dashboardCanvasStore';
 import type { WidgetData } from '@/types';
-import { prefersReducedMotion } from './usePrefersReducedMotion';
+import { prefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
 import {
   STAGE_FADE_MS,
   STAGE_MOVE_MS,

@@ -7512,10 +7512,12 @@ export interface QuizAssignment
   /** Owning widget, written on create. */
   widgetKind?: QuizWidgetKind;
   /**
-   * FIB answer keys translated at assign time, `{ [questionId]: { [locale]: string[] } }`.
+   * FIB answer keys translated at assign time, `{ [questionId]: { [locale]: string[] } }`; locale `*` holds answers a teacher accepted for everyone.
    * Teacher-owned only: the session doc is world-readable to students, so it never carries this.
    */
   localizedFibAnswers?: Record<string, Record<string, string[]>>;
+  /** Served locales whose FIB answers are graded with typo leniency (an EL student's translation, never the quiz's own language). */
+  lenientFibLocales?: string[];
   quizId: string;
   quizTitle: string;
   /** Drive file id of the source quiz so the monitor can hydrate after reload. */
@@ -11660,6 +11662,8 @@ export interface Toast {
     /** Keeps the toast until the teacher dismisses it or takes the action. */
     persist?: boolean;
   };
+  /** Set while the toast eases out, just before it is removed. */
+  leaving?: boolean;
 }
 
 export type WidgetCategory =
@@ -11904,7 +11908,9 @@ export type GlobalFeature =
   /** The sidebar Assignments hub; on for everyone until an admin narrows it. */
   | 'assignments-hub'
   /** Teachers record their voice for a quiz question prompt. */
-  | 'quiz-question-audio';
+  | 'quiz-question-audio'
+  /** Print results with Settings and Students tabs and a Course > class > student picker. */
+  | 'results-print-v2';
 
 /** Which paid dictation extras a student's page may use, from `getSpeechToTextAccessV1`. */
 export interface SpeechToTextSettings {

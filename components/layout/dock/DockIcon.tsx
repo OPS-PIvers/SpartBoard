@@ -16,7 +16,7 @@ export const DockIcon: React.FC<DockIconProps> = ({
   title,
 }) => {
   const finalClassName = [
-    'relative w-10 h-10 md:w-12 md:h-12 rounded-2xl text-white shadow-lg transition-[transform,background-color] duration-200',
+    'relative w-10 h-10 md:w-12 md:h-12 rounded-2xl text-white shadow-lg transition-[scale,background-color] duration-200',
     color,
     className,
   ]

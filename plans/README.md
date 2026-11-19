@@ -89,17 +89,17 @@ Plans for the audit's remaining findings (6 to 14), written against `dev-paul` a
 
 | Plan | Title                                                                                        | Severity | Effort | Depends on | Status |
 | ---- | -------------------------------------------------------------------------------------------- | -------- | ------ | ---------- | ------ |
-| 015  | Sidebar panels: slide on ease-out in 200ms, and make the main panel slide at all             | MEDIUM   | S      | none       | TODO   |
-| 016  | Fix transition lists that name `transform` but animate `translate` or `scale`                | MEDIUM   | S      | none       | TODO   |
-| 017  | Make two anchored popovers scale from their trigger                                          | MEDIUM   | S      | none       | TODO   |
-| 018  | Board toasts: ease in with a transition and ease out before they are removed                 | MEDIUM   | M      | none       | TODO   |
-| 019  | Fix or remove four motion classes that do nothing                                            | MEDIUM   | S      | none       | TODO   |
-| 020  | Measure whether `transition-all` makes widget contents lag on resize, and fix Scoreboard     | MEDIUM   | S      | none       | TODO   |
-| 021  | Progress bars: animate `width` only, and stop the video timeline marker trailing the pointer | MEDIUM   | S      | none       | TODO   |
-| 022  | Respect reduced motion on the random wheel and on card flips                                 | MEDIUM   | S      | none       | TODO   |
-| 023  | One shared reduced-motion helper in `hooks/`                                                 | LOW      | M      | none       | TODO   |
-| 024  | Custom Widget reveal: grow from 95% with a fade, not from nothing                            | LOW      | S      | none       | TODO   |
-| 025  | One entrance duration for modals and their backdrops                                         | LOW      | S      | none       | TODO   |
+| 015  | Sidebar panels: slide on ease-out in 200ms, and make the main panel slide at all             | MEDIUM   | S      | none       | DONE   |
+| 016  | Fix transition lists that name `transform` but animate `translate` or `scale`                | MEDIUM   | S      | none       | DONE   |
+| 017  | Make two anchored popovers scale from their trigger                                          | MEDIUM   | S      | none       | DONE   |
+| 018  | Board toasts: ease in with a transition and ease out before they are removed                 | MEDIUM   | M      | none       | DONE   |
+| 019  | Fix or remove four motion classes that do nothing                                            | MEDIUM   | S      | none       | DONE   |
+| 020  | Measure whether `transition-all` makes widget contents lag on resize, and fix Scoreboard     | MEDIUM   | S      | none       | DONE   |
+| 021  | Progress bars: animate `width` only, and stop the video timeline marker trailing the pointer | MEDIUM   | S      | none       | DONE   |
+| 022  | Respect reduced motion on the random wheel and on card flips                                 | MEDIUM   | S      | none       | DONE   |
+| 023  | One shared reduced-motion helper in `hooks/`                                                 | LOW      | M      | none       | DONE   |
+| 024  | Custom Widget reveal: grow from 95% with a fade, not from nothing                            | LOW      | S      | none       | DONE   |
+| 025  | One entrance duration for modals and their backdrops                                         | LOW      | S      | none       | DONE   |
 
 Order and overlaps:
 
@@ -110,6 +110,19 @@ Order and overlaps:
 - 018 changes `types.ts` and `context/DashboardContext.tsx`, so it is the only one that needs a type-check run; 023 moves a module the extension imports and needs `type-check:all`.
 
 Three plans start by measuring, because their problem was derived from code and never observed: 016 (transitions that should snap), 020 (contents lagging on resize; the plan stops and is marked REJECTED if the lag is not there) and 021 part B (timeline marker trailing the pointer).
+
+All eleven were executed, reviewed and merged on 2026-11-19, one PR each. What the measure-first plans found:
+
+- **016:** all three transitions really did snap (settings drawer slide, Dock icon hover grow, maximized widget bar) and now ease.
+- **020:** the resize lag is real. Scoreboard contents kept changing for 133ms after the widget stopped resizing; they now settle on the same frame. About 160 other widget elements have the same `transition-all` shape and were not touched.
+- **021:** the video timeline marker trailed the pointer by up to 590px during a drag; it now stays within 2px.
+
+Left open by the plans as executed:
+
+- Eight popovers still scale from their centre (017 covered two).
+- Three places in `context/DashboardContext.tsx` and the substitute portal remove a toast without the new exit (018).
+- The random wheel's result still waits four seconds under reduced motion (022).
+- The settings drawer has no exit transition (noticed in 016).
 
 Scoped down from the audit table, on closer reading:
 

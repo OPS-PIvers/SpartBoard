@@ -1,6 +1,6 @@
 # 023 — One shared reduced-motion helper in `hooks/`
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: 3dcc1cd
 - **Severity**: LOW
 - **Category**: Accessibility (also Cohesion)

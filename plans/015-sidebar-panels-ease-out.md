@@ -1,6 +1,6 @@
 # 015 — Sidebar panels: slide on ease-out in 200ms, and make the main panel slide at all
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: 3dcc1cd
 - **Severity**: MEDIUM
 - **Category**: Easing & duration (also Performance, Accessibility)

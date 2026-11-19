@@ -3,11 +3,13 @@ import {
   getAuth,
   initializeAuth,
   inMemoryPersistence,
+  connectAuthEmulator,
   GoogleAuthProvider,
   Auth,
 } from 'firebase/auth';
 import {
   Firestore,
+  connectFirestoreEmulator,
   disableNetwork,
   initializeFirestore,
 } from 'firebase/firestore';
@@ -48,6 +50,12 @@ const isLocalhostOrigin =
 
 export const isAuthBypass =
   import.meta.env.VITE_AUTH_BYPASS === 'true' && isLocalhostOrigin;
+
+// Browser tests only: point Auth and Firestore at the local emulators (tests/e2e-emulator).
+const useEmulators =
+  import.meta.env.VITE_FIREBASE_EMULATORS === 'true' &&
+  isAuthBypass &&
+  !import.meta.env.PROD;
 
 let app: FirebaseApp;
 let auth: Auth;
@@ -133,6 +141,12 @@ if (isConfigured) {
     ignoreUndefinedProperties: true,
     experimentalForceLongPolling: true,
   });
+  if (useEmulators) {
+    connectAuthEmulator(auth, 'http://127.0.0.1:9099', {
+      disableWarnings: true,
+    });
+    connectFirestoreEmulator(db, '127.0.0.1', 8080);
+  }
   // The dummy project has no backend; offline, listeners answer from the local cache at once instead of retrying for ~30 s.
   if (
     import.meta.env.DEV &&

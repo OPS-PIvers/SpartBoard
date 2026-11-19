@@ -95,6 +95,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'widget-settings-defaults',
   'assigned-tab',
   'quiz-question-audio',
+  'results-print-v2',
 ];
 
 // Mirror of `missingDocPublic: true` flags and their `defaultMinTier` (null = none); config/featureDefaults.test.ts keeps it in sync.

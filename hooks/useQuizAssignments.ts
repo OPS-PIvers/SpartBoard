@@ -53,6 +53,8 @@ import {
 } from '@/utils/quizTranslationPublish';
 import {
   collectLocalizedFibAnswers,
+  keepTeacherAccepted,
+  lenientLocalesFor,
   fibAcceptedAnswers,
 } from '@/utils/quizFibAnswers';
 import { fibTranslationIssue } from '@/utils/quizFibTranslation';
@@ -391,6 +393,8 @@ export interface CreateAssignmentOptions extends AudienceSessionFields {
   bankSlots?: QuizSessionBankSlot[];
   /** `QuizMetadata.translations` — lets publish load sidecars with zero extra reads (§4.2). */
   translationIndex?: Record<string, QuizTranslationIndexEntry>;
+  /** Grade translated fill-in-the-blank answers with typo leniency (Modification groups preview). */
+  lenientTranslatedFib?: boolean;
   /** Per-period gate; its questions move to `content/questions` until each period opens. */
   accessMode?: AccessMode;
   periodAccess?: Record<string, PeriodAccess>;
@@ -1062,6 +1066,8 @@ export interface ResponseGradingContext {
   overridesByStudentUid: Record<string, StudentOverride>;
   servedLanguageByStudentUid: Record<string, string>;
   localizedFibAnswers: Record<string, Record<string, string[]>>;
+  /** Served locales graded with typo leniency. */
+  lenientFibLocales?: string[];
   /** The session's sections; a choose-N section leaves unchosen questions out (E14). */
   sections?: QuizSessionSection[];
   /** Hybrid paper quiz: an unscanned written answer holds the score. */
@@ -1095,6 +1101,11 @@ export function buildResponseGradingContext(
       string,
       Record<string, string[]>
     >,
+    lenientFibLocales: Array.isArray(assignmentData?.lenientFibLocales)
+      ? (assignmentData.lenientFibLocales as unknown[]).filter(
+          (l): l is string => typeof l === 'string'
+        )
+      : undefined,
     paperWrittenQuestionIds: Array.isArray(
       assignmentData?.paperWrittenQuestionIds
     )
@@ -1241,7 +1252,12 @@ export function gradeResponseForPublish(
         q,
         a.answer,
         manualGrade,
-        fibAcceptedAnswers(localizedFibAnswers, q.id, servedLocale),
+        fibAcceptedAnswers(
+          localizedFibAnswers,
+          q.id,
+          servedLocale,
+          ctx.lenientFibLocales
+        ),
         gradingPaperTranscript(q, data, a)
       )
     );
@@ -1660,6 +1676,7 @@ export const useQuizAssignments = (
         workKind,
         bankSlots,
         translationIndex,
+        lenientTranslatedFib,
         accessMode,
         periodAccess,
         widgetKind,
@@ -1854,6 +1871,11 @@ export const useQuizAssignments = (
       );
       if (Object.keys(localizedFibAnswers).length > 0)
         assignment.localizedFibAnswers = localizedFibAnswers;
+      const lenientFibLocales = lenientTranslatedFib
+        ? lenientLocalesFor(localizedFibAnswers, quiz.language)
+        : [];
+      if (lenientFibLocales.length > 0)
+        assignment.lenientFibLocales = lenientFibLocales;
       const sessionPublicQuestions = sessionQuestions.map((q) =>
         projectPublicQuestionForMode(
           q,
@@ -1942,7 +1964,9 @@ export const useQuizAssignments = (
         stimulusTabs: true,
         ...(mode === 'student' ? { reviewStep: true } : {}),
         showResultToStudent: opts.showResultToStudent ?? false,
-        showCorrectAnswerToStudent: opts.showCorrectAnswerToStudent ?? false,
+        showCorrectAnswerToStudent:
+          (opts.showResultToStudent ?? false) &&
+          (opts.showCorrectAnswerToStudent ?? false),
         showCorrectOnBoard: opts.showCorrectOnBoard ?? false,
         showLearningTargets: opts.showLearningTargets ?? false,
         ...(opts.showExplanations ? { showExplanations: true } : {}),
@@ -3587,10 +3611,14 @@ export const useQuizAssignments = (
       // local copy, and rewriting that on every sync would be a
       // surprise. Sync only touches the question content + version
       // bookkeeping.
-      const syncedFibAnswers = collectLocalizedFibAnswers(
-        canonicalQuestions,
-        servedTranslations,
-        freshByLocale
+      const syncedFibAnswers = keepTeacherAccepted(
+        collectLocalizedFibAnswers(
+          canonicalQuestions,
+          servedTranslations,
+          freshByLocale
+        ),
+        assignment.localizedFibAnswers,
+        new Set(canonicalQuestions.map((q) => q.id))
       );
       const firstBatch = writeBatch(db);
       firstBatch.update(assignmentRef, {

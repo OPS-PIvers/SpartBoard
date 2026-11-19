@@ -1,3 +1,4 @@
+import { scoresShown } from '@/utils/assignedStatus';
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import {
   collection,
@@ -80,6 +81,8 @@ interface QuizAssignedTabProps extends QuizAssignedHandlers {
   emptySub: string;
   /** Deletes without asking; resolves to how many failed. Turns on bulk select. */
   onBulkDelete?: (assignments: QuizAssignment[]) => Promise<number>;
+  /** Opens the publish dialog once for the picked closed rows. */
+  onBulkPublish?: (assignments: QuizAssignment[]) => void;
 }
 
 const TICK_MS = 30_000;
@@ -206,7 +209,8 @@ export interface QuizAssignedRowModel {
   assignment: QuizAssignment;
   needsGrading: number | null;
   bells: Record<string, EpochWindow | null>;
-  noMoveToDone: boolean;
+  viewOnly: boolean;
+  published: boolean;
 }
 
 /** Quiz rows for any Assigned list: the widget tab and the Assignments hub (D18). */
@@ -286,7 +290,8 @@ export function useQuizAssignedRows(
           assignment: a,
           needsGrading,
           bells,
-          noMoveToDone: a.mode === 'view-only',
+          viewOnly: a.mode === 'view-only',
+          published: scoresShown(a.scoreVisibility),
         };
       }),
     [
@@ -313,6 +318,7 @@ export const QuizAssignedTab: React.FC<QuizAssignedTabProps> = ({
   emptyTitle,
   emptySub,
   onBulkDelete,
+  onBulkPublish,
   ...handlers
 }) => {
   const { rows, now } = useQuizAssignedRows(
@@ -343,7 +349,12 @@ export const QuizAssignedTab: React.FC<QuizAssignedTabProps> = ({
       tourWidgetType="quiz"
       bulk={
         onBulkDelete
-          ? { remove: (rows) => onBulkDelete(rows.map((r) => r.assignment)) }
+          ? {
+              remove: (rows) => onBulkDelete(rows.map((r) => r.assignment)),
+              publish: onBulkPublish
+                ? (rows) => onBulkPublish(rows.map((r) => r.assignment))
+                : undefined,
+            }
           : undefined
       }
       renderLeftOpen={(row, cls, index, leaveOpen) =>
