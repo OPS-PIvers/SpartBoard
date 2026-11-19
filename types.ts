@@ -7636,6 +7636,8 @@ export interface QuizAssignment
   closedAt?: number | null;
   /** Set by Move to Done (ASSIGNED_TAB D5): Done while ended, whatever its grading. */
   doneAt?: number | null;
+  /** Last Resume or Assigned tab open of a single line (ASSIGNED_TAB D11). */
+  openedAt?: number | null;
   /**
    * Count of student-target refs the most recent `setAssignmentTargetsV1`
    * call couldn't add (PII-free — a plain number, no names). Persisted so
