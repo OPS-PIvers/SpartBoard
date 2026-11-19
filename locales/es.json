@@ -3721,8 +3721,7 @@
     "close": "Cerrar",
     "tabs": {
       "behavior": "Comportamiento",
-      "languages": "Idiomas",
-      "speechToText": "Voz a texto"
+      "languages": "Idiomas"
     },
     "selectBuilding": "Selecciona la escuela que quieres configurar",
     "building": "Escuela",
@@ -5142,5 +5141,12 @@
     "tidyUndo": "Deshacer",
     "tidyDone": "Ordenado.",
     "tidyNoChange": "No hay nada que ordenar."
+  },
+  "quizQuestionAudio": {
+    "play": "Reproducir audio",
+    "stop": "Detener",
+    "retry": "Intentar de nuevo",
+    "label": "Pregunta de audio",
+    "playCount": "Reproducir audio ({{used}}/{{total}})"
   }
 }

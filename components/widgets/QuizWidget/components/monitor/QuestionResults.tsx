@@ -1,4 +1,5 @@
 import React from 'react';
+import { promptLabel } from '@/utils/quizPromptText';
 import { MathText } from '@/components/common/MathText';
 import { ChevronRight, Lock } from 'lucide-react';
 import { tourFieldAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
@@ -100,7 +101,7 @@ export const QuestionResults: React.FC<QuestionResultsProps> = ({
     items={quizData.questions.map((q, i) => ({
       id: q.id,
       label: `Q${i + 1}`,
-      text: q.text,
+      text: promptLabel(q),
       answered: responses.filter((r) =>
         r.answers.some((a) => a.questionId === q.id)
       ).length,
@@ -229,7 +230,7 @@ export const QuestionDetail: React.FC<QuestionDetailProps> = ({
   return (
     <ItemDetailView
       heading={`Question ${index + 1}`}
-      text={question.text}
+      text={promptLabel(question)}
       totalAnswered={totalAnswered}
       rows={rows}
       live={live}

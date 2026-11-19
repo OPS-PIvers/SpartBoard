@@ -41,6 +41,15 @@ A student who can't type well has no way to answer a written question in SpartBo
 - **D17. Two PRs.** PR 1 is the whole free accommodation. PR 2 is the paid engine, tidy-up, admin panel and caps. PR 2 can start once PR 1's contract commit is on `dev-paul`.
 - **D18. No changelog entry until the flag opens to everyone.**
 
+### Revised gating for the paid extras (Paul, 2026-11-19)
+
+These replace the admin settings doc and Quiz settings tab that D8-D10 and D16 first shipped with.
+
+- **D19. Each paid extra is its own flag:** `speech-to-text-ai-transcription` and `speech-to-text-tidy-up`, Previews rows nested under Speech to text, admin only to start, graduating to Features > Students.
+- **D20. The server checks the assigning teacher's flags**, as Read aloud does: Speech to text, the extra's own flag, and the AI master switch. A student's page asks `getSpeechToTextAccessV1` which extras apply.
+- **D21. Limits are on the row.** A daily limit per student in the standard `ai_usage` counters (300 phrases, 30 tidy-ups by default), and an adjustable monthly limit for the whole district (minutes of speech, tidy-ups) with this month's use beside it. The overall per-user AI daily limit is not applied to students for these two.
+- **D22. The Exact words / Smart mode is a select on the AI transcription row.**
+
 ## Cost
 
 - **PR 1 costs nothing.** No function calls, no Storage, no model download.

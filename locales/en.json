@@ -5037,8 +5037,7 @@
     "close": "Close",
     "tabs": {
       "behavior": "Behavior",
-      "languages": "Languages",
-      "speechToText": "Speech to text"
+      "languages": "Languages"
     },
     "selectBuilding": "Select building to configure",
     "building": "Building",
@@ -6584,5 +6583,12 @@
     "tidyUndo": "Undo",
     "tidyDone": "Tidied up.",
     "tidyNoChange": "Nothing to tidy up."
+  },
+  "quizQuestionAudio": {
+    "play": "Play audio",
+    "stop": "Stop",
+    "retry": "Try again",
+    "label": "Audio question",
+    "playCount": "Play audio ({{used}}/{{total}})"
   }
 }

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   ROLLOUT_ONLY_SWITCHES,
   countAccessMatches,
+  featuresTabFeatures,
   groupChildLabel,
   matchesSearch,
   previewFeatures,
@@ -10,6 +11,7 @@ import {
 } from './accessSearch';
 import { FEATURE_DEFAULTS } from '@/config/featureDefaults';
 import { ROLLOUT_SWITCHES } from '@/config/rolloutSwitches';
+import type { GlobalFeature } from '@/types';
 
 describe('matchesSearch', () => {
   it('needs every word, in any field, ignoring case', () => {
@@ -53,6 +55,30 @@ describe('preview groups', () => {
     ).toBe(true);
     expect(previewGroupChildren('universal-import', kids)).toEqual([]);
     expect(previewGroupChildren('paper-answer-sheets', all)).toEqual([]);
+  });
+
+  it('nests the paid Speech to text extras under Speech to text', () => {
+    const all = previewFeatures();
+    expect(previewGroupChildren('speech-to-text', all)).toEqual([
+      'speech-to-text-ai-transcription',
+      'speech-to-text-tidy-up',
+    ]);
+    expect(groupChildLabel('speech-to-text-ai-transcription')).toBe(
+      'AI transcription'
+    );
+    expect(groupChildLabel('speech-to-text-tidy-up')).toBe('Tidy up');
+  });
+
+  it('lists them under Features > Students once graduated', () => {
+    const graduated = new Set<GlobalFeature>([
+      'speech-to-text-ai-transcription',
+      'speech-to-text-tidy-up',
+    ]);
+    for (const id of graduated) {
+      expect(previewFeatures(graduated)).not.toContain(id);
+      expect(featuresTabFeatures(graduated)).toContain(id);
+      expect(FEATURE_DEFAULTS[id].category).toBe('students');
+    }
   });
 
   it('drops the parent prefix from a nested label', () => {

@@ -1,56 +1,72 @@
 import { useEffect, useState } from 'react';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '@/config/firebase';
 import {
   DEFAULT_SPEECH_TO_TEXT_SETTINGS,
-  SPEECH_TO_TEXT_SETTINGS_DOC,
-  normalizeSpeechToTextSettings,
+  SPEECH_TO_TEXT_ACCESS_CALLABLE,
 } from '@/config/speechToText';
 import type { SpeechToTextSettings } from '@/types';
+import type { SpeechToTextAccessRequest } from '@/utils/speechToText/types';
 
-// Read once per page; a failed or missing read means everything is off.
-let pending: Promise<SpeechToTextSettings> | null = null;
-let loaded: SpeechToTextSettings | null = null;
+// Asked once per page per assignment; an error or refusal means both extras are off.
+const pending = new Map<string, Promise<SpeechToTextSettings>>();
+const loaded = new Map<string, SpeechToTextSettings>();
 
-function loadSettings(): Promise<SpeechToTextSettings> {
-  pending ??= getDoc(doc(db, 'admin_settings', SPEECH_TO_TEXT_SETTINGS_DOC))
-    .then((snap) =>
-      snap.exists()
-        ? normalizeSpeechToTextSettings(snap.data())
-        : DEFAULT_SPEECH_TO_TEXT_SETTINGS
-    )
+function readAccess(raw: unknown): SpeechToTextSettings {
+  if (typeof raw !== 'object' || raw === null)
+    return DEFAULT_SPEECH_TO_TEXT_SETTINGS;
+  const data: { transcription?: unknown; tidyUp?: unknown } = raw;
+  return {
+    engine: data.transcription === true ? 'hybrid' : 'browser',
+    tidyUp: data.tidyUp === true,
+  };
+}
+
+function loadSettings(assignmentId: string): Promise<SpeechToTextSettings> {
+  const existing = pending.get(assignmentId);
+  if (existing) return existing;
+  const call = httpsCallable<SpeechToTextAccessRequest, unknown>(
+    functions,
+    SPEECH_TO_TEXT_ACCESS_CALLABLE
+  );
+  const request = call({ assignmentId })
+    .then((result) => readAccess(result.data))
     .catch(() => DEFAULT_SPEECH_TO_TEXT_SETTINGS)
     .then((settings) => {
-      loaded = settings;
+      loaded.set(assignmentId, settings);
       return settings;
     });
-  return pending;
+  pending.set(assignmentId, request);
+  return request;
 }
 
-/** Test hook: forget the settings read earlier on this page. */
+/** Test hook: forget the answers from earlier on this page. */
 export function resetSpeechToTextSettingsCache(): void {
-  pending = null;
-  loaded = null;
+  pending.clear();
+  loaded.clear();
 }
 
-/** The paid Speech to text switches; the defaults (all off) until read, and whenever `enabled` is false. */
+/** Which paid Speech to text extras this assignment allows; all off until answered, and with no assignment. */
 export function useSpeechToTextSettings(
-  enabled: boolean
+  assignmentId: string | undefined
 ): SpeechToTextSettings {
-  const [settings, setSettings] = useState<SpeechToTextSettings | null>(
-    () => loaded
-  );
+  const [answer, setAnswer] = useState<{
+    assignmentId: string;
+    settings: SpeechToTextSettings;
+  } | null>(null);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (assignmentId === undefined || loaded.has(assignmentId)) return;
     let alive = true;
-    void loadSettings().then((next) => {
-      if (alive) setSettings(next);
+    void loadSettings(assignmentId).then((settings) => {
+      if (alive) setAnswer({ assignmentId, settings });
     });
     return () => {
       alive = false;
     };
-  }, [enabled]);
+  }, [assignmentId]);
 
-  return enabled && settings ? settings : DEFAULT_SPEECH_TO_TEXT_SETTINGS;
+  if (assignmentId === undefined) return DEFAULT_SPEECH_TO_TEXT_SETTINGS;
+  if (answer?.assignmentId === assignmentId) return answer.settings;
+  return loaded.get(assignmentId) ?? DEFAULT_SPEECH_TO_TEXT_SETTINGS;
 }
