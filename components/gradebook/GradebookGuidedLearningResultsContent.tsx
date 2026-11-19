@@ -30,11 +30,11 @@ export const GradebookGuidedLearningResultsContent: React.FC<Props> = ({
   sessionId,
   onClose,
 }) => {
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
   const { sets, buildingSets, loading, buildingLoading, loadSetData } =
     useGuidedLearning(user?.uid);
   const { assignments, loading: assignmentsLoading } =
-    useGuidedLearningAssignments(user?.uid);
+    useGuidedLearningAssignments(user?.uid, canAccessFeature('assigned-tab'));
   const assignment = assignments.find((a) => a.sessionId === sessionId);
   const [loaded, setLoaded] = useState<{
     setId: string;
