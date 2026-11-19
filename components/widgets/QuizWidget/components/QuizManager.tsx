@@ -574,6 +574,8 @@ interface QuizManagerProps {
   onArchiveDelete?: (assignment: QuizAssignment) => void | Promise<void>;
   /** Assigned tab bulk delete, already confirmed; resolves to how many failed. */
   onArchiveDeleteMany?: (assignments: QuizAssignment[]) => Promise<number>;
+  /** Opens the publish dialog once for several closed assignments. */
+  onArchivePublishMany?: (assignments: QuizAssignment[]) => void;
   /** Signed-in teacher's display name; default `teacherName` on new assignments. */
   defaultTeacherName?: string;
   /**
@@ -908,6 +910,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onArchiveReopenStudents,
   onArchiveDelete,
   onArchiveDeleteMany,
+  onArchivePublishMany,
   defaultTeacherName,
   syncedGroups,
   onPullSyncedQuiz,
@@ -3154,6 +3157,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           lifecycle={classLifecycle}
           pinnedId={config.activeAssignmentId ?? null}
           onBulkDelete={onArchiveDeleteMany}
+          onBulkPublish={onArchivePublishMany}
           emptyTitle="Nothing active"
           emptySub={
             isViewOnly

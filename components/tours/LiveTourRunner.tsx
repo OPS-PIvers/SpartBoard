@@ -139,7 +139,7 @@ import {
   type SavedTour,
 } from './tourResume';
 import { recordTourFinished } from '@/utils/gettingStartedProgress';
-import { usePrefersReducedMotion } from './usePrefersReducedMotion';
+import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
 import {
   isInPopup,
   isBlankField,

@@ -13,10 +13,6 @@ export const AUDIO_CAPTURE_STATES = [
   'take-limit',
   'window-closed',
   'mic-unavailable',
-  // Not AudioResponseCapture — SubmitBlockedNotice, the self-paced quiz's
-  // submit gate. Only reachable in production behind the light prop (the
-  // quiz app is light-only); the dark variant stays a harness-only fixture.
-  'submit-blocked',
 ] as const;
 /** Same states in the dark (teacher-paced) shell. */
 export const AUDIO_CAPTURE_DARK_STATES = AUDIO_CAPTURE_STATES.map(
@@ -101,6 +97,7 @@ export const STUDENT_QUIZ_STATES = [
   'sq-supports-stimuli',
   'sq-modified',
   'sq-reopened',
+  'sq-review-blank',
   'sq-unlocked',
   'sq-images-ordering',
   'sq-images-matching',

@@ -10,7 +10,7 @@ import type { Dashboard, WidgetData } from '@/types';
 import { TourStageTransition } from './TourStageTransition';
 
 let reduced = false;
-vi.mock('./usePrefersReducedMotion', () => ({
+vi.mock('@/hooks/usePrefersReducedMotion', () => ({
   prefersReducedMotion: () => reduced,
 }));
 

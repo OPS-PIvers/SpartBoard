@@ -2001,11 +2001,15 @@ service cloud.firestore {
         'parentCommentId'
       ]);
     }
-    // A student token's first name, or 'Student', is the only label it may post under.
-    function wallLabelOk() {
+    // A name-hidden wall (showNames off, or unset on a non-name legacy mode) stores only a placeholder label.
+    function wallNamesHidden(s) {
+      return s.get('showNames', s.get('identificationMode', 'anonymous') in ['name', 'name-pin']) != true;
+    }
+    // Name-shown: a student token's first name or 'Student'. Name-hidden: a placeholder only.
+    function wallLabelOk(hidden) {
       let n = request.auth.token.get('firstName', null);
       let l = incoming().get('participantLabel', 'Student');
-      return n == null || l == n || l == 'Student';
+      return hidden ? l in ['Anonymous', 'Student', 'Guest'] : (n == null || l == n || l == 'Student');
     }
     function wallLikeKeysOk() {
       return newKeys().hasOnly([
@@ -2113,7 +2117,7 @@ service cloud.firestore {
           incoming().content.size() > 0 &&
           incoming().content.size() <= 2000 &&
           isStr('participantLabel') &&
-          wallLabelOk() &&
+          wallLabelOk(wallNamesHidden(dbGet('activity_wall_sessions', parentShare().sessionId).data)) &&
           myAuthorUid() &&
           isInt('createdAt');
         // Commenter can delete their own comment; share owner / admin can
@@ -5077,8 +5081,8 @@ service cloud.firestore {
           (authUid() == existing().studentUid && changedOnly(['inputSignals']) && signalsOk(sessionData())) ||
           // The dictated marker comes alone too.
           (authUid() == existing().studentUid && changedOnly(['dictated']) && dictatedOk()) ||
-          // The teacher can update any field; another admin can't touch identity or the server-written archive, override and paper fields.
-          liveUid(sessionTeacherUid()) ||
+          // The teacher can update any field but the student identity the gradebook keys on; another admin also can't touch the server-written archive, override and paper fields.
+          (liveUid(sessionTeacherUid()) && !changed(['studentUid', 'classId'])) ||
           (isSiteAdmin() && !changed(['studentUid', 'artifactArchive', 'hasStuckArchive', 'resultsOverride', 'paperSeat', 'paperBatchId', 'paperWrittenBatchId', 'paperWrittenSeat', 'backTranslations', 'liveView']))
         );
         allow delete: if signedIn() &&
@@ -5765,8 +5769,8 @@ service cloud.firestore {
         // exclusive by intent — the teacher branch checks only
         // session owner, so a student falls through to the student branch.
         allow update: if signedIn() && (
-          // Teacher branch.
-          vaOwner(vaS()) ||
+          // Teacher branch; the student identity the gradebook keys on stays as the student wrote it.
+          (vaOwner(vaS()) && !changed(['studentUid', 'classId'])) ||
           // Student results-view counters; allowed after close like quiz's.
           (existing().studentUid == authUid() && vaGate() && resultsGuardWrite()) ||
           // Student branch — same invariants as before PR3.
@@ -6442,7 +6446,7 @@ service cloud.firestore {
           isInt('submittedAt') &&
           incoming().status == (awSessionModerationEnabled() ? 'pending' : 'approved') &&
           awFieldTypesOk() &&
-          wallLabelOk() &&
+          wallLabelOk(wallNamesHidden(awSession())) &&
           // authorUid is an ownership claim on every session shape, not just padlet ones.
           (!('authorUid' in incoming()) ||
            (incoming().authorUid == authUid() &&
@@ -6640,7 +6644,7 @@ service cloud.firestore {
           incoming().content.size() <= 2000 &&
           isStr('participantLabel') &&
           incoming().participantLabel.size() <= 200 &&
-          wallLabelOk() &&
+          wallLabelOk(wallNamesHidden(awParentSession()) && !awIsOwner()) &&
           incoming().authorUid == authUid() &&
           isInt('createdAt');
         allow delete: if signedIn() &&

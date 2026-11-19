@@ -1,6 +1,6 @@
 # 022 — Respect reduced motion on the random wheel and on card flips
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: 3dcc1cd
 - **Severity**: MEDIUM
 - **Category**: Accessibility
