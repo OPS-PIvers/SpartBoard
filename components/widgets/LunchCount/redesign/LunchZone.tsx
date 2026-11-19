@@ -10,58 +10,43 @@ type ChipHandlers = Omit<
   'className' | 'style'
 >;
 
-interface ChipGridProps {
+// Zone labels and menu names; `--lc-base` is the widget's text-size setting.
+export const ZONE_TEXT =
+  'calc(clamp(12px, calc(3.4cqmin - 0.5px), 30px) * var(--lc-base, 1))';
+// Every name chip and the Unassigned label; useBoardFit lowers `--lc-fit` until every chip is on screen.
+export const CHIP_TEXT =
+  'calc(clamp(12px, calc(3.4cqmin - 0.5px), 30px) * var(--lc-base, 1) * var(--lc-fit, 1))';
+export const CHIP_GAP = 'calc(clamp(6px, 1.6cqmin, 14px) * var(--lc-fit, 1))';
+
+export const CHIP_CLASS =
+  'flex items-center max-w-full rounded-xl bg-white text-slate-800 font-medium leading-tight shadow-sm wrap-anywhere transition-colors hover:bg-slate-50 active:bg-slate-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary [-webkit-tap-highlight-color:transparent]';
+
+interface ChipListProps {
   students: LunchStudent[];
-  flowIntoParent?: boolean;
-  fontSize?: string;
   draggingIds: Set<string>;
   handlers: ChipHandlers;
 }
 
-// One text size for labels, entree and chips keeps the board calm.
-export const ZONE_TEXT = 'clamp(12px, calc(3.4cqmin - 0.5px), 30px)';
-// Count row height: a stacked zone never shrinks past its count and label.
-export const ZONE_HEAD =
-  'calc(clamp(32px, calc(20cqmin - 40px), 120px) + clamp(6px, calc(4cqmin - 8px), 18px) + clamp(3px, calc(3cqmin - 9px), 12px))';
-export const CHIP_HEIGHT = 'max(36px, min(64px, 2.4em))';
-// The Unassigned tray's text, which useTrayFit may shrink so every name fits.
-export const TRAY_TEXT = `max(12px, calc(${ZONE_TEXT} * var(--tray-scale, 1)))`;
-
-export const CHIP_CLASS =
-  'flex items-center max-w-full rounded-xl bg-white text-slate-800 font-bold leading-tight shadow-xs wrap-anywhere transition-colors hover:bg-slate-50 active:bg-slate-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary [-webkit-tap-highlight-color:transparent]';
-
-export const ChipGrid: React.FC<ChipGridProps> = ({
+export const ChipList: React.FC<ChipListProps> = ({
   students,
-  flowIntoParent = false,
-  fontSize = ZONE_TEXT,
   draggingIds,
   handlers,
-}) => {
-  if (students.length === 0) return null;
-  return (
-    <div
-      className={`flex flex-wrap w-full ${flowIntoParent ? '[@container_(max-width:1199px)_or_(max-height:699px)]:contents' : ''}`}
-      style={{ gap: 'clamp(6px, 1.8cqmin, 14px)' }}
-    >
-      {students.map((student) => (
-        <DragChip
-          key={student.id}
-          name={student.name}
-          isDragging={draggingIds.has(student.id)}
-          data-student-id={student.id}
-          data-student-name={student.name}
-          {...handlers}
-          className={CHIP_CLASS}
-          style={{
-            fontSize,
-            minHeight: CHIP_HEIGHT,
-            padding: '0.35em 0.6em',
-          }}
-        />
-      ))}
-    </div>
-  );
-};
+}) => (
+  <>
+    {students.map((student) => (
+      <DragChip
+        key={student.id}
+        name={student.name}
+        isDragging={draggingIds.has(student.id)}
+        data-student-id={student.id}
+        data-student-name={student.name}
+        {...handlers}
+        className={CHIP_CLASS}
+        style={{ fontSize: CHIP_TEXT, padding: '0.45em 0.7em' }}
+      />
+    ))}
+  </>
+);
 
 interface LunchZoneProps {
   zone: LunchZoneId;
@@ -80,6 +65,8 @@ interface LunchZoneProps {
   draggingIds: Set<string>;
   handlers: ChipHandlers;
 }
+
+const PAD = 'clamp(6px, 2.4cqmin, 20px)';
 
 export const LunchZone: React.FC<LunchZoneProps> = ({
   zone,
@@ -109,129 +96,119 @@ export const LunchZone: React.FC<LunchZoneProps> = ({
           : null;
   const line = menuText ?? subLabel ?? null;
   const imageUrl = menu.kind === 'item' ? menuItem?.imageUrl : undefined;
-  const fullLine =
-    line !== null && menu.kind === 'item' && sides.length > 0
-      ? [line, ...sides.map((s) => s.name)].join(' · ')
-      : (line ?? undefined);
+  const showSides = menu.kind === 'item' && sides.length > 0;
 
   return (
     <section
       data-drop-zone={zone}
       data-testid={testId}
       aria-label={label}
-      className={`flex flex-col min-w-0 flex-1 [@container(max-height:349px)]:min-h-0 [@container(max-height:349px)]:overflow-y-auto [@container(max-height:349px)]:custom-scrollbar [@container_(max-aspect-ratio:0.7)_and_(min-height:350px)]:min-h-[var(--zone-head)] [@container(max-aspect-ratio:0.7)]:overflow-y-auto [@container(max-aspect-ratio:0.7)]:custom-scrollbar [@container(max-aspect-ratio:0.7)]:flex-[1_1_auto] ${zone === 'hot' ? '[@container_(max-width:1199px)_and_(min-aspect-ratio:0.71)]:flex-[1.8_1_0%]' : ''} rounded-2xl transition-colors ${
+      className={`flex flex-col min-w-0 rounded-2xl transition-colors ${
         isOver ? tone.over : tone.fill
       }`}
-      style={{ '--zone-head': ZONE_HEAD } as React.CSSProperties}
+      style={{ padding: PAD, gap: 'clamp(4px, 1.4cqmin, 12px)' }}
     >
-      <div
-        className="flex flex-wrap items-center shrink-0"
-        style={{
-          columnGap: 'clamp(8px, 2.5cqmin, 20px)',
-          rowGap: 'clamp(4px, 1.2cqmin, 10px)',
-          padding:
-            'clamp(6px, calc(4cqmin - 8px), 18px) clamp(8px, calc(4cqmin - 8px), 24px) 0',
-        }}
-      >
+      <div className="flex items-start justify-between min-w-0 gap-2">
         <span
-          data-lunch-count={zone}
-          className={`font-black tabular-nums leading-none ${COUNT_COLOR[zone]}`}
-          style={{ fontSize: 'clamp(32px, calc(20cqmin - 40px), 120px)' }}
-        >
-          {count}
-        </span>
-        <span
-          className={`flex-[1_1_min-content] font-black leading-tight min-w-0 wrap-break-word ${tone.label}`}
+          className={`min-w-0 font-semibold leading-tight wrap-break-word ${tone.label}`}
           style={{ fontSize: ZONE_TEXT }}
         >
           {label}
         </span>
+        <span
+          data-lunch-count={zone}
+          className={`shrink-0 font-bold tabular-nums leading-none ${COUNT_COLOR[zone]}`}
+          style={{
+            fontSize: 'calc(clamp(20px, 7cqmin, 96px) * var(--lc-base, 1))',
+          }}
+        >
+          {count}
+        </span>
       </div>
       {line !== null ? (
         <div
-          className="shrink-0"
-          style={{
-            padding:
-              'clamp(4px, calc(3cqmin - 8px), 14px) clamp(8px, calc(4cqmin - 8px), 24px) 0',
-          }}
+          className="flex items-center min-w-0"
+          style={{ gap: 'clamp(6px, 1.6cqmin, 14px)' }}
         >
+          {imageUrl && menuItem ? (
+            // no-tour-anchor: a photo of today's menu item, different every day
+            <button
+              type="button"
+              onClick={() => onPeekItem(menuItem)}
+              className="relative touch-target-expand shrink-0 rounded-lg overflow-hidden bg-white active:opacity-80 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary [@container(max-height:299px)]:hidden [@container(max-width:639px)]:hidden"
+              style={{
+                width: 'clamp(28px, 11cqmin, 96px)',
+                height: 'clamp(28px, 11cqmin, 96px)',
+              }}
+              aria-label={`Show photo of ${menuItem.name}`}
+            >
+              <img
+                src={imageUrl}
+                alt=""
+                className="w-full h-full object-cover"
+                loading="lazy"
+              />
+            </button>
+          ) : null}
           <div
-            className="flex items-center"
-            style={{ gap: 'clamp(8px, 2cqmin, 14px)' }}
+            className="flex-1 min-w-0 flex flex-col"
+            style={{ gap: 'clamp(2px, 0.8cqmin, 8px)' }}
           >
-            {imageUrl && menuItem ? (
-              // no-tour-anchor: a photo of today's menu item, different every day
-              <button
-                type="button"
-                onClick={() => onPeekItem(menuItem)}
-                className="relative touch-target-expand shrink-0 rounded-lg overflow-hidden bg-white active:opacity-80 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
-                style={{
-                  width: 'clamp(32px, 11cqmin, 96px)',
-                  height: 'clamp(32px, 11cqmin, 96px)',
-                }}
-                aria-label={`Show photo of ${menuItem.name}`}
-              >
-                <img
-                  src={imageUrl}
-                  alt=""
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                />
-              </button>
-            ) : null}
             <div
-              title={fullLine}
-              className={`flex-1 min-w-0 font-semibold leading-snug line-clamp-2 wrap-anywhere ${tone.text}`}
-              style={{ fontSize: ZONE_TEXT }}
+              title={line}
+              className={`font-semibold leading-snug line-clamp-3 wrap-anywhere ${tone.text}`}
+              style={{ fontSize: `calc(${ZONE_TEXT} * 1.08)` }}
             >
               {line}
-              {sides.length > 0 && menu.kind === 'item' ? (
-                <span className="hidden [@container_(min-width:1200px)_and_(min-height:700px)]:inline font-normal opacity-80">
-                  {sides.map((s, i) => (
-                    <React.Fragment key={`${s.name}-${i}`}>
-                      <span aria-hidden="true" style={{ margin: '0 0.4em' }}>
+            </div>
+            {showSides ? (
+              <div
+                title={sides.map((s) => s.name).join(' · ')}
+                className={`rounded bg-white/60 leading-snug line-clamp-2 wrap-anywhere opacity-80 ${tone.text} [@container(max-height:379px)]:hidden [@container(max-width:559px)]:hidden`}
+                style={{
+                  fontSize: `max(10px, calc(${ZONE_TEXT} * 0.55))`,
+                  padding: '0.15em 0.4em',
+                }}
+              >
+                {sides.map((s, i) => (
+                  <React.Fragment key={`${s.name}-${i}`}>
+                    {i > 0 ? (
+                      <span aria-hidden="true" style={{ margin: '0 0.35em' }}>
                         ·
                       </span>
-                      {s.imageUrl ? (
-                        // no-tour-anchor: a photo of today's side dish, different every day
-                        <button
-                          type="button"
-                          onClick={() => onPeekItem(s)}
-                          className="underline decoration-slate-400 underline-offset-2 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
-                          aria-label={`Show photo of ${s.name}`}
-                        >
-                          {s.name}
-                        </button>
-                      ) : (
-                        <span>{s.name}</span>
-                      )}
-                    </React.Fragment>
-                  ))}
-                </span>
-              ) : null}
-            </div>
+                    ) : null}
+                    {s.imageUrl ? (
+                      // no-tour-anchor: a photo of today's side dish, different every day
+                      <button
+                        type="button"
+                        onClick={() => onPeekItem(s)}
+                        className="underline decoration-slate-400 underline-offset-2 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+                        aria-label={`Show photo of ${s.name}`}
+                      >
+                        {s.name}
+                      </button>
+                    ) : (
+                      <span>{s.name}</span>
+                    )}
+                  </React.Fragment>
+                ))}
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}
-      {/* Zero base height: the zone's minimum is its count and menu, so the Unassigned tray can take the rest. */}
-      <div
-        className="grow h-0 min-h-0 overflow-y-auto custom-scrollbar flex flex-col"
-        style={{
-          fontSize: ZONE_TEXT,
-          padding: `${students.length > 0 ? 'clamp(6px, calc(3cqmin - 6px), 18px)' : '0px'} clamp(8px, calc(4cqmin - 8px), 24px) clamp(8px, calc(4cqmin - 8px), 24px)`,
-          // Keep one row of this zone's names visible so a mis-sorted child can be dragged back.
-          minHeight:
-            students.length > 0
-              ? `calc(${CHIP_HEIGHT} + clamp(6px, calc(3cqmin - 6px), 18px) + clamp(8px, calc(4cqmin - 8px), 24px))`
-              : undefined,
-        }}
-      >
-        <ChipGrid
-          students={students}
-          draggingIds={draggingIds}
-          handlers={handlers}
-        />
-      </div>
+      {students.length > 0 ? (
+        <div
+          className="flex flex-wrap content-start min-w-0"
+          style={{ gap: CHIP_GAP, paddingTop: 'clamp(2px, 0.8cqmin, 8px)' }}
+        >
+          <ChipList
+            students={students}
+            draggingIds={draggingIds}
+            handlers={handlers}
+          />
+        </div>
+      ) : null}
     </section>
   );
 };

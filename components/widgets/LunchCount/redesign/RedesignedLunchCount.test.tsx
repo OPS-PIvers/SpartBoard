@@ -1241,13 +1241,23 @@ describe('LunchCountRedesign — new face', () => {
     expect(screen.queryByText('Menu not available')).toBeNull();
   });
 
-  it('has a short remaining label for the compact count board', () => {
+  it('has a short remaining label for a narrow widget', () => {
     render(
       <LunchCountWidget widget={widgetWith({ assignments: { s1: 'hot' } })} />
     );
     expect(screen.getByText('1 left')).toBeInTheDocument();
-    const board = document.querySelector('[data-lunch-count-board="compact"]');
-    expect(board).toHaveTextContent('Hot1Bento0Home0');
+  });
+
+  it('keeps every name chip on the board, with no count-only face', () => {
+    render(
+      <LunchCountWidget widget={widgetWith({ assignments: { s1: 'hot' } })} />
+    );
+    const board = document.querySelector('[data-lunch-count-board]');
+    const chips = board?.querySelectorAll('[data-student-id]') ?? [];
+    expect(chips.length).toBeGreaterThan(1);
+    expect(
+      document.querySelector('[data-lunch-count-board="compact"]')
+    ).toBeNull();
   });
 
   it('hands a high school board to the middle/high face', () => {

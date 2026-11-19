@@ -1421,9 +1421,6 @@
       "left": "Encore {{count}}",
       "refreshMenu": "Actualiser le menu",
       "clearAll": "Effacer toutes les affectations",
-      "shortHot": "Chaud",
-      "shortBento": "Bento",
-      "shortHome": "Maison",
       "assignMoreOutsideGroup": "Encore {{count}} à placer, {{hidden}} hors de ce groupe"
     },
     "quiz": {

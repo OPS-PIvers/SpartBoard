@@ -9,24 +9,26 @@ import { ActiveClassChip } from '@/components/common/ActiveClassChip';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { tourAttr } from '@/config/tourAnchors';
 import { hexToRgba } from '@/utils/styles';
+import { resolveBaseTextScale } from '@/config/widgetAppearance';
 import { WidgetLayout } from '../../WidgetLayout';
 import { SubmitReportModal } from '../SubmitReportModal';
 import { MissingInfoModal } from '../MissingInfoModal';
 import { useLunchCountModel } from './useLunchCountModel';
-import type { LunchZoneId } from './useLunchCountModel';
-import { COUNT_COLOR, isMiddleHighSite, menuLine } from './lunchCountFormat';
+import { isMiddleHighSite, menuLine } from './lunchCountFormat';
 import {
-  CHIP_HEIGHT,
-  ChipGrid,
+  CHIP_GAP,
+  CHIP_TEXT,
+  ChipList,
   LunchZone,
-  TRAY_TEXT,
-  ZONE_HEAD,
+  ZONE_TEXT,
 } from './LunchZone';
 import { PhotoPeek } from './PhotoPeek';
-import { useTrayFit } from './useTrayFit';
+import { useBoardFit } from './useBoardFit';
 import { MiddleHighLunchCount } from '../MiddleHighLunchCount';
 
-// Bands are container queries on the widget body: compact (count board), wide (tray left), tall (zones stacked).
+const PAD = 'clamp(6px, 2.4cqmin, 20px)';
+
+// Paul's layout: three zones across the top, the Unassigned tray below; useBoardFit keeps every chip on screen.
 export const LunchCountRedesign: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
@@ -52,12 +54,11 @@ export const LunchCountRedesign: React.FC<{ widget: WidgetData }> = ({
     dragHandlers,
   } = model;
 
+  const baseScale = resolveBaseTextScale(widget.baseTextSize);
   const boardRef = useRef<HTMLDivElement>(null);
-  const trayRef = useRef<HTMLElement>(null);
-  useTrayFit(
+  useBoardFit(
     boardRef,
-    trayRef,
-    `${schoolSite}|${allRosterStudents.length}|${hiddenRemaining}|${stats.hotLunch},${stats.bentoBox},${stats.homeLunch}|${cachedMenu?.hotLunch?.name ?? ''}|${cachedMenu?.bentoBox?.name ?? ''}|${isSyncing}|${groupedStudents.unassigned.map((s) => s.name).join()}`
+    `${baseScale}|${schoolSite}|${allRosterStudents.length}|${hiddenRemaining}|${stats.hotLunch},${stats.bentoBox},${stats.homeLunch}|${cachedMenu?.hotLunch?.name ?? ''}|${cachedMenu?.bentoBox?.name ?? ''}|${isSyncing}|${groupedStudents.unassigned.map((s) => s.name).join()}`
   );
 
   const [peekedItem, setPeekedItem] = useState<LunchMenuItem | null>(null);
@@ -123,27 +124,9 @@ export const LunchCountRedesign: React.FC<{ widget: WidgetData }> = ({
   };
 
   const iconStyle = {
-    width: 'clamp(16px, 5cqmin, 28px)',
-    height: 'clamp(16px, 5cqmin, 28px)',
+    width: 'clamp(16px, 4.4cqmin, 30px)',
+    height: 'clamp(16px, 4.4cqmin, 30px)',
   };
-
-  const compactLabels: { zone: LunchZoneId; label: string; count: number }[] = [
-    {
-      zone: 'hot',
-      label: t('widgets.lunchCount.shortHot'),
-      count: stats.hotLunch,
-    },
-    {
-      zone: 'bento',
-      label: t('widgets.lunchCount.shortBento'),
-      count: stats.bentoBox,
-    },
-    {
-      zone: 'home',
-      label: t('widgets.lunchCount.shortHome'),
-      count: stats.homeLunch,
-    },
-  ];
 
   return (
     <>
@@ -152,149 +135,142 @@ export const LunchCountRedesign: React.FC<{ widget: WidgetData }> = ({
         header={
           <div
             className="flex flex-wrap items-center"
-            style={{
-              backgroundColor: hexToRgba(cardColor, cardOpacity),
-              padding:
-                'min(10px, 2cqmin, max(4px, 2.5cqmin - 6px)) clamp(6px, 4cqmin, 20px)',
-              columnGap: 'min(14px, 3cqmin, 1.67cqmin + 1.33px)',
-              rowGap: 'min(8px, 1.5cqmin)',
-            }}
+            style={
+              {
+                '--lc-base': baseScale,
+                backgroundColor: hexToRgba(cardColor, cardOpacity),
+                padding: `${PAD} ${PAD} 0`,
+                columnGap: 'clamp(8px, 2.4cqmin, 20px)',
+                rowGap: 'clamp(4px, 1.2cqmin, 10px)',
+              } as React.CSSProperties
+            }
           >
-            <div className="flex flex-col min-w-0 [@container_(max-width:219px)_or_(max-height:179px)]:hidden">
-              <h3
-                className="font-bold text-slate-800 leading-tight"
-                style={{ fontSize: 'clamp(13px, 3.3cqmin, 24px)' }}
-              >
-                Daily Lunch Count
-              </h3>
-              <p
-                className="text-slate-600 leading-tight"
-                style={{ fontSize: 'clamp(12px, 3cqmin, 18px)' }}
-              >
-                {new Date().toLocaleDateString('en-US', {
-                  weekday: 'short',
-                  month: 'short',
-                  day: 'numeric',
-                })}
-              </p>
-            </div>
-            {rosterMode === 'class' && (
-              <div className="max-w-full [@container_(min-width:520px)_and_(max-width:1199px)]:max-w-[40%] [@container_(min-width:520px)_and_(max-width:1199px)]:min-w-0 [@container_(max-width:219px)_or_(max-height:179px)]:hidden">
-                <ActiveClassChip
-                  compact
-                  className="max-w-full"
-                  anchor={tourAttr(
-                    'lunch-count.class-chip',
-                    widget.id,
-                    widget.type
-                  )}
-                  {...(rosterGroupsEnabled
-                    ? {
-                        groupSelection: {
-                          selectedGroupId: rosterPoolGroupId,
-                          onSelectGroup: handleSelectPoolGroup,
-                        },
-                      }
-                    : {})}
-                />
-              </div>
-            )}
-
             <div
-              className="flex items-center justify-end flex-[1_1_min(100%,360px)] min-w-[min(100%,360px)]"
+              className="flex flex-[1_0_auto] items-center max-w-full"
               style={{ gap: 'clamp(8px, 2cqmin, 16px)' }}
             >
-              {!isEmpty && (
-                <Button
-                  {...tourAttr(
-                    'lunch-count.open-report',
-                    widget.id,
-                    widget.type
-                  )}
-                  onClick={model.handleOpenReport}
-                  disabled={!ready}
-                  variant={ready ? 'primary' : 'secondary'}
-                  className="flex-1 min-w-0 rounded-lg leading-tight text-center [@container(min-width:520px)]:whitespace-nowrap active:brightness-95"
-                  style={{
-                    opacity: 1,
-                    padding:
-                      'min(8px, 1.5cqmin, 0.9cqmin + 0.6px) min(14px, 3cqmin, 1.67cqmin + 1.33px)',
-                    fontSize: 'clamp(11px, 2.8cqmin, 18px)',
-                    minHeight: 'max(32px, min(48px, 9cqmin))',
-                    maxWidth: 'min(420px, 100%)',
-                  }}
+              <div className="flex flex-col min-w-0 whitespace-nowrap [@container(max-width:599px)]:hidden [@container(max-height:259px)]:hidden">
+                <h3
+                  className="font-semibold text-slate-800 leading-tight"
+                  style={{ fontSize: ZONE_TEXT }}
                 >
-                  {ready ? (
-                    <span
-                      className="flex items-center justify-center"
-                      style={{ gap: 'min(8px, 1.5cqmin)' }}
-                    >
-                      <CheckCircle2 aria-hidden="true" style={iconStyle} />
-                      Submit Report
-                    </span>
-                  ) : (
-                    <>
-                      <span className="flex items-center justify-center [@container_(max-width:219px)_or_(max-height:179px)]:hidden">
-                        {hiddenRemaining > 0
-                          ? t('widgets.lunchCount.assignMoreOutsideGroup', {
-                              count: reportStats.remaining,
-                              hidden: hiddenRemaining,
-                            })
-                          : `Assign ${reportStats.remaining} More Students`}
-                      </span>
-                      <span className="hidden [@container_(max-width:219px)_or_(max-height:179px)]:inline">
-                        {t('widgets.lunchCount.left', {
-                          count: reportStats.remaining,
-                        })}
-                      </span>
-                    </>
-                  )}
-                </Button>
-              )}
-              <div
-                className="flex shrink-0 [@container_(max-width:219px)_or_(max-height:179px)]:hidden"
-                style={{ gap: 'clamp(8px, 2cqmin, 16px)' }}
-              >
-                <IconButton
-                  {...tourAttr(
-                    'lunch-count.refresh-menu',
-                    widget.id,
-                    widget.type
-                  )}
-                  onClick={() => void fetchNutrislice()}
-                  disabled={isSyncing}
-                  label={t('widgets.lunchCount.refreshMenu')}
-                  variant="glass"
-                  shape="square"
-                  className="active:bg-slate-800/15"
-                  style={{ padding: 'clamp(6px, 2cqmin, 14px)' }}
-                  icon={
-                    <RefreshCw
-                      aria-hidden="true"
-                      className={
-                        isSyncing
-                          ? 'animate-spin motion-reduce:animate-none'
-                          : ''
-                      }
-                      style={iconStyle}
-                    />
-                  }
-                />
-                <IconButton
-                  {...tourAttr(
-                    'lunch-count.reset-assignments',
-                    widget.id,
-                    widget.type
-                  )}
-                  onClick={model.handleReset}
-                  label={t('widgets.lunchCount.clearAll')}
-                  variant="glass"
-                  shape="square"
-                  className="active:bg-slate-800/15"
-                  style={{ padding: 'clamp(6px, 2cqmin, 14px)' }}
-                  icon={<Undo2 aria-hidden="true" style={iconStyle} />}
-                />
+                  Daily Lunch Count
+                </h3>
+                <p
+                  className="text-slate-600 leading-tight"
+                  style={{ fontSize: `calc(${ZONE_TEXT} * 0.8)` }}
+                >
+                  {new Date().toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                  })}
+                </p>
               </div>
+              {rosterMode === 'class' && (
+                <div className="min-w-0 max-w-full">
+                  <ActiveClassChip
+                    compact
+                    className="max-w-full"
+                    anchor={tourAttr(
+                      'lunch-count.class-chip',
+                      widget.id,
+                      widget.type
+                    )}
+                    {...(rosterGroupsEnabled
+                      ? {
+                          groupSelection: {
+                            selectedGroupId: rosterPoolGroupId,
+                            onSelectGroup: handleSelectPoolGroup,
+                          },
+                        }
+                      : {})}
+                  />
+                </div>
+              )}
+            </div>
+            {!isEmpty && (
+              <Button
+                {...tourAttr('lunch-count.open-report', widget.id, widget.type)}
+                onClick={model.handleOpenReport}
+                disabled={!ready}
+                variant={ready ? 'primary' : 'secondary'}
+                className="flex-[1_1_240px] min-w-0 rounded-lg uppercase font-semibold tracking-[0.1em] leading-tight text-center active:brightness-95"
+                style={{
+                  opacity: 1,
+                  padding: '0.6em 1.4em',
+                  fontSize: `calc(clamp(11px, 2.6cqmin, 22px) * var(--lc-base, 1))`,
+                  maxWidth: 'min(460px, 100%)',
+                }}
+              >
+                {ready ? (
+                  <span
+                    className="flex items-center justify-center"
+                    style={{ gap: '0.5em' }}
+                  >
+                    <CheckCircle2 aria-hidden="true" style={iconStyle} />
+                    Submit Report
+                  </span>
+                ) : (
+                  <>
+                    <span className="[@container(max-width:299px)]:hidden">
+                      {hiddenRemaining > 0
+                        ? t('widgets.lunchCount.assignMoreOutsideGroup', {
+                            count: reportStats.remaining,
+                            hidden: hiddenRemaining,
+                          })
+                        : `Assign ${reportStats.remaining} More Students`}
+                    </span>
+                    <span className="hidden [@container(max-width:299px)]:inline">
+                      {t('widgets.lunchCount.left', {
+                        count: reportStats.remaining,
+                      })}
+                    </span>
+                  </>
+                )}
+              </Button>
+            )}
+            <div
+              className="flex flex-[1_0_auto] justify-end"
+              style={{ gap: 'clamp(4px, 1.6cqmin, 14px)' }}
+            >
+              <IconButton
+                {...tourAttr(
+                  'lunch-count.refresh-menu',
+                  widget.id,
+                  widget.type
+                )}
+                onClick={() => void fetchNutrislice()}
+                disabled={isSyncing}
+                label={t('widgets.lunchCount.refreshMenu')}
+                variant="ghost"
+                shape="square"
+                className="touch-target-expand text-slate-700 active:bg-slate-800/15"
+                style={{ padding: 'clamp(4px, 1.4cqmin, 12px)' }}
+                icon={
+                  <RefreshCw
+                    aria-hidden="true"
+                    className={
+                      isSyncing ? 'animate-spin motion-reduce:animate-none' : ''
+                    }
+                    style={iconStyle}
+                  />
+                }
+              />
+              <IconButton
+                {...tourAttr(
+                  'lunch-count.reset-assignments',
+                  widget.id,
+                  widget.type
+                )}
+                onClick={model.handleReset}
+                label={t('widgets.lunchCount.clearAll')}
+                variant="ghost"
+                shape="square"
+                className="touch-target-expand text-slate-700 active:bg-slate-800/15"
+                style={{ padding: 'clamp(4px, 1.4cqmin, 12px)' }}
+                icon={<Undo2 aria-hidden="true" style={iconStyle} />}
+              />
             </div>
           </div>
         }
@@ -319,48 +295,23 @@ export const LunchCountRedesign: React.FC<{ widget: WidgetData }> = ({
               className="flex-1 min-w-0 flex"
               style={{
                 backgroundColor: hexToRgba(cardColor, cardOpacity),
-                padding: '0 clamp(6px, 4cqmin, 20px) clamp(6px, 4cqmin, 20px)',
+                padding: PAD,
               }}
             >
               <div
-                data-lunch-count-board="compact"
-                className="hidden flex-1 grid-cols-3 divide-x divide-slate-200 [@container_(max-width:219px)_or_(max-height:179px)]:grid"
-              >
-                {compactLabels.map(({ zone, label, count }) => (
-                  <div
-                    key={zone}
-                    className="flex flex-col items-center justify-center min-w-0 text-center"
-                    style={{ gap: '1cqmin', padding: '2cqmin 1cqmin' }}
-                  >
-                    <span
-                      className="font-bold text-slate-800 leading-tight"
-                      style={{ fontSize: 'clamp(10px, 9cqmin, 16px)' }}
-                    >
-                      {label}
-                    </span>
-                    <span
-                      className={`font-black tabular-nums leading-none ${COUNT_COLOR[zone]}`}
-                      style={{ fontSize: 'clamp(18px, 28cqmin, 64px)' }}
-                    >
-                      {count}
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              <div
                 ref={boardRef}
-                className="flex flex-1 min-w-0 flex-col [@container(min-aspect-ratio:2.2)]:flex-row [@container_(max-width:219px)_or_(max-height:179px)]:hidden"
-                style={{ gap: 'clamp(8px, 2.4cqmin, 20px)' }}
+                data-lunch-count-board
+                className="flex flex-1 min-w-0 min-h-0 flex-col overflow-y-auto custom-scrollbar"
+                style={
+                  {
+                    '--lc-base': baseScale,
+                    gap: 'clamp(6px, 2cqmin, 18px)',
+                  } as React.CSSProperties
+                }
               >
                 <div
-                  className="flex flex-[1_1_0%] min-w-0 flex-row [@container(max-aspect-ratio:0.7)]:flex-col [@container_(max-aspect-ratio:0.7)_and_(min-height:350px)]:min-h-[var(--zones-min)] [@container(max-height:349px)]:min-h-0"
-                  style={
-                    {
-                      gap: 'clamp(8px, 2.4cqmin, 20px)',
-                      '--zones-min': `calc(3 * ${ZONE_HEAD} + 2 * clamp(8px, 2.4cqmin, 20px))`,
-                    } as React.CSSProperties
-                  }
+                  className="grid grid-cols-3 flex-[1_0_auto]"
+                  style={{ gap: 'clamp(6px, 2cqmin, 18px)' }}
                 >
                   <LunchZone
                     {...zoneCommon}
@@ -399,36 +350,25 @@ export const LunchCountRedesign: React.FC<{ widget: WidgetData }> = ({
                 </div>
 
                 <section
-                  ref={trayRef}
                   data-drop-zone="unassigned"
                   data-testid="unassigned-zone"
                   aria-label="Unassigned"
-                  className={`flex flex-col min-h-0 flex-[0_1_auto] overflow-y-auto custom-scrollbar rounded-2xl [@container_(max-height:349px)_and_(not_(min-aspect-ratio:2.2))]:max-h-[50%] [@container_(max-width:1199px)_or_(max-height:699px)]:flex-row [@container_(max-width:1199px)_or_(max-height:699px)]:flex-wrap [@container_(max-width:1199px)_or_(max-height:699px)]:items-center [@container_(max-width:1199px)_or_(max-height:699px)]:content-start [@container(min-aspect-ratio:2.2)]:order-first [@container(min-aspect-ratio:2.2)]:shrink-0 [@container(min-aspect-ratio:2.2)]:w-[var(--tray-w,26%)] ${
+                  className={`flex flex-wrap items-center content-start shrink-0 rounded-2xl transition-colors ${
                     overZones.has('unassigned')
                       ? 'bg-slate-200 ring-4 ring-inset ring-slate-500'
                       : 'bg-slate-100'
                   }`}
-                  style={{
-                    fontSize: TRAY_TEXT,
-                    gap: 'clamp(8px, 2.4cqmin, 20px)',
-                    padding: 'clamp(8px, 2.4cqmin, 20px)',
-                    minHeight:
-                      groupedStudents.unassigned.length > 0
-                        ? `min(100%, calc(${CHIP_HEIGHT} + 2 * clamp(8px, 2.4cqmin, 20px)))`
-                        : undefined,
-                  }}
+                  style={{ gap: CHIP_GAP, padding: PAD }}
                 >
                   <div
-                    className="font-black text-slate-700 leading-tight wrap-anywhere"
-                    style={{ marginRight: '0.4em' }}
+                    className="font-semibold text-slate-600 leading-tight wrap-anywhere"
+                    style={{ fontSize: CHIP_TEXT, marginRight: '0.3em' }}
                   >
                     Unassigned ({stats.remaining})
                     {hiddenRemaining > 0 &&
                       ` · ${hiddenRemaining} outside this group`}
                   </div>
-                  <ChipGrid
-                    flowIntoParent
-                    fontSize={TRAY_TEXT}
+                  <ChipList
                     students={groupedStudents.unassigned}
                     draggingIds={draggingIds}
                     handlers={dragHandlers}
