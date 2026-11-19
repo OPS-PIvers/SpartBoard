@@ -440,6 +440,7 @@ const RECOGNITION_LOCALES: Readonly<Record<string, string>> = {
   en: 'en-US',
   es: 'es-US',
   ru: 'ru-RU',
+  so: 'so-SO',
 };
 const baseLanguage = (code: string): string =>
   code.trim().toLowerCase().split('-')[0];
@@ -549,6 +550,7 @@ export async function transcribeSpeech(
     };
     if (!(await reserveSpeechUsage(deps.db, wanted))) return fallback('cap');
     charge = wanted;
+    const locale = RECOGNITION_LOCALES[baseLanguage(request.language)];
     const result = await deps.generate({
       integration: 'speech-to-text-transcribe',
       parts: [
@@ -566,9 +568,8 @@ export async function transcribeSpeech(
       maxOutputTokens: 1024,
       thinkingLevel: ThinkingLevel.LOW,
       transcription: {
-        languageCodes: [
-          RECOGNITION_LOCALES[baseLanguage(request.language)] ?? 'en-US',
-        ],
+        // An unmapped language sends no locale, so the model detects it instead of forcing English.
+        ...(locale ? { languageCodes: [locale] } : {}),
         mode: config.transcribeMode,
       },
     });
