@@ -506,7 +506,7 @@ export const DialogContainer: React.FC = () => {
       // overlay excludes it from that check, so confirming/cancelling a dialog
       // leaves the settings panel underneath exactly as it was.
       data-settings-exclude
-      className="fixed inset-0 z-dialog flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150"
+      className="fixed inset-0 z-dialog flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200"
       {...backdropProps}
     >
       {renderDialog()}
