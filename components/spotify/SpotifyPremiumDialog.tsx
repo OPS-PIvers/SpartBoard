@@ -53,7 +53,7 @@ export const SpotifyPremiumDialog: React.FC<Props> = ({
   };
 
   const customHeader = (
-    <div className="flex items-center gap-2.5 px-6 py-3.5 mb-4 bg-brand-blue-primary text-white rounded-t-2xl">
+    <div className="flex items-center gap-2.5 px-6 py-3.5 bg-brand-blue-primary text-white rounded-t-2xl">
       <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
         <Music2 className="w-5 h-5 text-green-700" />
       </div>

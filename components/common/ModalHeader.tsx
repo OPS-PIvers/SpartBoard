@@ -50,16 +50,16 @@ export const ModalHeader: React.FC<ModalHeaderProps> = ({
           {eyebrow}
         </div>
       )}
-      {typeof title === 'string' ? (
-        <h3
-          id={titleId}
-          className="font-black text-lg leading-snug text-white break-words"
-        >
-          {title}
-        </h3>
-      ) : (
-        title
-      )}
+      {typeof title === 'string'
+        ? title && (
+            <h3
+              id={titleId}
+              className="font-black text-lg leading-snug text-white break-words"
+            >
+              {title}
+            </h3>
+          )
+        : title}
       {subtitle !== undefined && subtitle !== null && subtitle !== '' && (
         <div className="text-xs mt-0.5 text-white/80">{subtitle}</div>
       )}

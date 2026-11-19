@@ -415,7 +415,7 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
                 'quiz',
                 'title'
               )}
-              className={`${fieldBase} max-w-xl text-lg font-bold`}
+              className={`${fieldBase} max-w-xl text-lg font-bold focus:ring-white/70`}
             />
           ) : (
             <h3 className="break-words text-lg font-bold text-white">

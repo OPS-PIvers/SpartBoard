@@ -582,10 +582,10 @@ export function ImportWizard<TData>({
           idx < activeIdx ? 'done' : idx === activeIdx ? 'active' : 'upcoming';
         const tone =
           state === 'active'
-            ? 'bg-brand-blue-primary text-white'
+            ? 'bg-white text-brand-blue-primary'
             : state === 'done'
               ? 'bg-emerald-500 text-white'
-              : 'bg-slate-200 text-slate-500';
+              : 'bg-white/15 text-white/80';
         return (
           <li key={s.key} className="flex items-center gap-2">
             <span
@@ -600,7 +600,7 @@ export function ImportWizard<TData>({
             {idx < STEPS.length - 1 && (
               <span
                 aria-hidden="true"
-                className="w-4 h-px bg-slate-300 shrink-0"
+                className="w-4 h-px bg-white/40 shrink-0"
               />
             )}
           </li>

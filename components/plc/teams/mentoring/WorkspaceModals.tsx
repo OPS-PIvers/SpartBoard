@@ -41,14 +41,14 @@ export const DocEmbedModal: React.FC<{
             Open in Docs
             <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
           </a>
-          <Button
-            variant="ghost"
-            size="sm"
+          <button
+            type="button"
             onClick={onClose}
             {...tourAttr('teams.doc-embed.close')}
+            className="rounded-lg px-2 py-1 text-sm font-semibold text-white/80 transition-colors hover:bg-white/15 hover:text-white"
           >
             Close
-          </Button>
+          </button>
         </div>
       }
     >

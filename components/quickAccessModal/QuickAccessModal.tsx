@@ -82,7 +82,7 @@ export const QuickAccessModal: React.FC<QuickAccessModalProps> = ({
               <div
                 key={i}
                 className={`w-2 h-2 rounded-full ${
-                  i < selected.length ? 'bg-brand-blue-primary' : 'bg-slate-200'
+                  i < selected.length ? 'bg-white' : 'bg-white/30'
                 }`}
               />
             ))}

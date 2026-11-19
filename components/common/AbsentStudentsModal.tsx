@@ -88,17 +88,17 @@ export const AbsentStudentsModal: React.FC<AbsentStudentsModalProps> = ({
 
   const title = (
     <div className="flex items-center gap-3">
-      <div className="p-2 bg-red-50 rounded-full text-red-500">
+      <div className="p-2 bg-white/15 rounded-full text-white">
         <UserX size={20} />
       </div>
       <div className="flex flex-col min-w-0">
-        <span className="font-bold text-base text-slate-900 truncate">
+        <span className="font-bold text-base text-white truncate">
           {t('widgets.random.absent.title', {
             defaultValue: 'Mark absent — {{date}}',
             date: formattedDate,
           })}
         </span>
-        <span className="text-xs text-slate-500">
+        <span className="text-xs text-white/80">
           {t('widgets.random.absent.summary', {
             defaultValue: '{{present}} present · {{absent}} absent',
             present: presentCount,
