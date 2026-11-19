@@ -41,8 +41,9 @@ export const PromptAudioMicButton: React.FC<{
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const showPanel = open || recording || saving;
 
+  const stopRecording = recorder.stop;
   useEffect(() => {
-    if (!open) return;
+    if (!showPanel) return;
     const onDown = (e: PointerEvent) => {
       const target = e.target as Element | null;
       const wrap = wrapRef.current;
@@ -57,6 +58,7 @@ export const PromptAudioMicButton: React.FC<{
       if (e.key !== 'Escape') return;
       // Stop here so the editor modal behind stays open.
       e.stopPropagation();
+      if (recording) stopRecording();
       setOpen(false);
       if (wrapRef.current?.contains(document.activeElement))
         wrapRef.current.querySelector('button')?.focus();
@@ -67,7 +69,7 @@ export const PromptAudioMicButton: React.FC<{
       document.removeEventListener('pointerdown', onDown);
       document.removeEventListener('keydown', onKey, true);
     };
-  }, [open]);
+  }, [showPanel, recording, stopRecording]);
 
   if (!audio && !canRecord && !recording && !saving) return null;
 
@@ -86,7 +88,15 @@ export const PromptAudioMicButton: React.FC<{
   const label = recording ? 'Stop' : audio ? 'Question audio' : 'Record audio';
 
   return (
-    <div ref={wrapRef} className="relative">
+    <div
+      ref={wrapRef}
+      className="relative"
+      onBlur={(e) => {
+        // Tabbing out closes it, so a later Escape belongs to whatever has focus.
+        const next = e.relatedTarget as Node | null;
+        if (next && !e.currentTarget.contains(next)) setOpen(false);
+      }}
+    >
       <button
         type="button"
         aria-label={label}

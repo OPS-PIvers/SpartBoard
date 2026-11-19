@@ -60,3 +60,17 @@ describe('PromptAudioMicButton popover', () => {
     expect(onChange).toHaveBeenLastCalledWith(audio);
   });
 });
+
+describe('PromptAudioMicButton focus', () => {
+  it('closes when focus tabs out of the popover', () => {
+    renderInEditorDialog();
+    fireEvent.click(screen.getByRole('button', { name: 'Question audio' }));
+    const outside = document.createElement('button');
+    document.body.appendChild(outside);
+    fireEvent.blur(screen.getByRole('button', { name: /Play/ }), {
+      relatedTarget: outside,
+    });
+    outside.remove();
+    expect(popover()).toBeNull();
+  });
+});
