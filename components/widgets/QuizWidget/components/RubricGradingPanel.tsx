@@ -277,7 +277,10 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
   };
 
   return (
-    <section aria-label="Rubric scoring" className="@container flex flex-col">
+    <section
+      aria-label="Rubric scoring"
+      className="flex flex-col [container-type:inline-size]"
+    >
       <header className="pb-2">
         <div className="flex items-center gap-1">
           <button
