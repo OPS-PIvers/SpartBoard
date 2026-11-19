@@ -52,6 +52,24 @@ export const AI_INTEGRATIONS: readonly AiIntegration[] = [
     inputs: ['text'],
   },
   {
+    id: 'speech-to-text-transcribe',
+    label: 'Speech to text transcription',
+    description:
+      'Turns each phrase a student dictates into text when the paid engine is on. Always uses Gemini.',
+    group: 'Quizzes',
+    tier: 'standard',
+    inputs: ['audio'],
+  },
+  {
+    id: 'speech-to-text-tidy',
+    label: 'Speech to text tidy-up',
+    description:
+      'Adds punctuation and capitals to dictated text without changing a word.',
+    group: 'Quizzes',
+    tier: 'standard',
+    inputs: ['text'],
+  },
+  {
     id: 'response-translation',
     label: 'Student answer translation',
     description: 'Translates a student’s written answer into English.',

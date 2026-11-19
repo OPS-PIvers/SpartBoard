@@ -11,6 +11,8 @@ export interface SpeechEngineCallbacks {
   onInterim: (text: string) => void;
   /** A finished phrase, raw from the engine. */
   onFinal: (text: string) => void;
+  /** The microphone is live. */
+  onStart?: () => void;
   onError: (code: DictationErrorCode) => void;
   /** The engine stopped listening, by request or on its own. */
   onEnd: () => void;
@@ -48,6 +50,8 @@ export interface UseDictationOptions {
   onUndo?: (text: string) => void;
   /** Text before the caret, so capitalisation and spacing fit what is already written. */
   textBefore?: () => string;
+  /** Signed-in students only: lets the paid engine run when an admin has it on. */
+  paid?: PaidDictation;
 }
 
 export interface DictationController {
@@ -72,4 +76,37 @@ export interface EditorDictation {
   languages: readonly string[];
   /** Called just before dictated text goes into the box, so the caller can label the edit. */
   onInsert?: (text: string) => void;
+  /** Signed-in students only: lets the paid engine and Tidy up run when an admin has them on. */
+  paid?: PaidDictation;
+}
+
+/** Why a paid call was not served; the student carries on with the free engine (D10). */
+export type PaidDictationFallback = 'off' | 'cap' | 'ineligible' | 'error';
+
+/** `transcribeSpeechV1` request: one short clip of speech, never stored (D8, D11). */
+export interface TranscribeSpeechRequest {
+  /** The student's assignment pointer id, proving the accommodation. */
+  assignmentId: string;
+  audioBase64: string;
+  /** Such as `audio/webm;codecs=opus`. */
+  mimeType: string;
+  durationMs: number;
+  /** App language code the student is dictating in. */
+  language: string;
+}
+
+/** `tidyDictationV1` request: one dictated passage to punctuate (D9). */
+export interface TidyDictationRequest {
+  assignmentId: string;
+  text: string;
+  language: string;
+}
+
+/** Both callables answer with text, or a fallback and no text. */
+export type PaidDictationResponse =
+  { text: string } | { fallback: PaidDictationFallback };
+
+/** Paid extras for one text box; absent keeps dictation on the free engine. */
+export interface PaidDictation {
+  assignmentId: string;
 }
