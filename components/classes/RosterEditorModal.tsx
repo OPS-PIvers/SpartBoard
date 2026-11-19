@@ -1,8 +1,22 @@
-import React, { useContext, useMemo, useState } from 'react';
+import React, {
+  useContext,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { AuthContext } from '@/context/AuthContextValue';
 import { RosterAccommodationsList } from './RosterAccommodationsList';
 import { useTranslation } from 'react-i18next';
-import { Save, AlertTriangle, X, Plus, Users, UsersRound } from 'lucide-react';
+import {
+  Save,
+  AlertTriangle,
+  X,
+  Plus,
+  Users,
+  UsersRound,
+  Loader2,
+} from 'lucide-react';
 import {
   Student,
   ClassRoster,
@@ -15,6 +29,10 @@ import { SplitClassFooter } from './SplitClassFooter';
 import { GroupRemindersPanel } from './GroupRemindersPanel';
 import { ALL_GROUP_STEPS, type GroupEditorSteps } from '@/utils/groupReminders';
 import { Modal } from '@/components/common/Modal';
+import { AutosaveIndicator } from '@/components/common/EditorModalShell';
+import { useAutosave } from '@/hooks/useAutosave';
+import { DialogContext } from '@/context/DialogContextValue';
+import { assignPins } from '@/utils/rosterPins';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { ChecklistSelect } from '@/components/gradebook/settings/ChecklistSelect';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
@@ -92,6 +110,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
     updateRow,
     deleteRow,
     bulkPasteInto,
+    applyAssignedPins,
     showLastNames,
     handleToggleLastNames,
     showPins,
@@ -174,55 +193,130 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
   // Count of Drive shares in flight, so Save waits for every one of them.
   const [sharesInFlight, setSharesInFlight] = useState(0);
   const viewAs = useViewAs();
+  const dialog = useContext(DialogContext);
 
-  const handleSave = async () => {
-    if (!name.trim() || saving) return;
+  const saveFailedMessage = () =>
+    viewAs?.readOnly
+      ? t('sidebar.classes.saveViewOnly', {
+          defaultValue: 'Read-only in View as, so this class was not saved.',
+        })
+      : t('sidebar.classes.saveFailed', {
+          defaultValue:
+            'Could not save this class. Your changes are still here — check your Google Drive connection and try again.',
+        });
+
+  // One write with only the tabs that differ from the saved class.
+  const writeRoster = async (rosterName: string, students: Student[]) => {
     const groupsChanged =
       JSON.stringify(groups) !== JSON.stringify(initialGroups);
     const overridesChanged =
       JSON.stringify(defaultOverrides) !== JSON.stringify(initialOverrides);
     const bellChanged = bellKey(bellPeriod) !== bellKey(initialBell);
+    if (bellChanged) {
+      await onSave(
+        rosterName,
+        students,
+        groupsChanged ? groups : undefined,
+        overridesChanged ? defaultOverrides : undefined,
+        bellPeriod
+      );
+    } else if (overridesChanged) {
+      await onSave(
+        rosterName,
+        students,
+        groupsChanged ? groups : undefined,
+        defaultOverrides
+      );
+    } else if (groupsChanged) {
+      await onSave(rosterName, students, groups);
+    } else {
+      await onSave(rosterName, students);
+    }
+  };
+
+  // New Class only: an existing class saves on its own below.
+  const handleSave = async () => {
+    if (!name.trim() || saving) return;
     setSaveError(null);
     setSaving(true);
     try {
-      if (bellChanged) {
-        await onSave(
-          name.trim(),
-          validStudents,
-          groupsChanged ? groups : undefined,
-          overridesChanged ? defaultOverrides : undefined,
-          bellPeriod
-        );
-      } else if (overridesChanged) {
-        await onSave(
-          name.trim(),
-          validStudents,
-          groupsChanged ? groups : undefined,
-          defaultOverrides
-        );
-      } else if (groupsChanged) {
-        await onSave(name.trim(), validStudents, groups);
-      } else {
-        await onSave(name.trim(), validStudents);
-      }
+      await writeRoster(name.trim(), validStudents);
     } catch (err) {
       // Keep the modal open with the teacher's edits intact — closing here
       // would discard them with no indication the save never landed.
       console.error('Failed to save roster:', err);
-      setSaveError(
-        viewAs?.readOnly
-          ? t('sidebar.classes.saveViewOnly', {
-              defaultValue:
-                'Read-only in View as, so this class was not saved.',
-            })
-          : t('sidebar.classes.saveFailed', {
-              defaultValue:
-                'Could not save this class. Your changes are still here — check your Google Drive connection and try again.',
-            })
-      );
+      setSaveError(saveFailedMessage());
       return;
     } finally {
       setSaving(false);
+    }
+    onClose();
+  };
+
+  // Autosave for an existing class. PINs are filled in here so the rows show what was saved.
+  const persist = async () => {
+    const sent = validStudents;
+    const withPins = assignPins(sent);
+    try {
+      await writeRoster(name.trim() || (roster?.name ?? ''), withPins);
+      setSaveError(null);
+    } catch (err) {
+      console.error('Failed to save roster:', err);
+      setSaveError(saveFailedMessage());
+      throw err;
+    }
+    applyAssignedPins(sent, withPins);
+  };
+  const persistRef = useRef(persist);
+  useLayoutEffect(() => {
+    persistRef.current = persist;
+  });
+
+  const draftToken = useMemo(
+    () => [
+      name.trim(),
+      JSON.stringify(validStudents),
+      JSON.stringify(groups),
+      JSON.stringify(defaultOverrides),
+      bellKey(bellPeriod),
+    ],
+    [name, validStudents, groups, defaultOverrides, bellPeriod]
+  );
+  const autosave = useAutosave({
+    draftToken,
+    resetKey: roster?.id,
+    enabled: roster !== null,
+    delayMs: 1500,
+    onSave: () => persistRef.current(),
+  });
+
+  // Waits for the last autosave before closing, and asks only if it failed.
+  const requestClose = async () => {
+    if (roster === null) {
+      onClose();
+      return;
+    }
+    const saved = await autosave.flush();
+    if (!saved && dialog) {
+      const leave = await dialog.showConfirm(
+        t('sidebar.classes.closeUnsaved', {
+          defaultValue:
+            'Your latest changes could not be saved. Closing now will lose them.',
+        }),
+        {
+          title: t('sidebar.classes.closeUnsavedTitle', {
+            defaultValue: 'Close without saving?',
+          }),
+          variant: 'warning',
+          confirmLabel: t('sidebar.classes.closeAnyway', {
+            defaultValue: 'Close anyway',
+          }),
+          cancelLabel: t('sidebar.classes.keepEditing', {
+            defaultValue: 'Keep editing',
+          }),
+        }
+      );
+      if (!leave) return;
     }
     onClose();
   };
@@ -234,7 +328,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={() => void requestClose()}
       allowFullscreen
       maxWidth="max-w-5xl"
       className="h-[85vh]"
@@ -286,14 +380,37 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
               </select>
             </label>
           )}
-          <button
-            onClick={handleSave}
-            disabled={!name.trim() || saving || sharesInFlight > 0}
-            {...tourAttr('roster-editor.save')}
-            className="bg-brand-blue-primary text-white px-5 py-2 rounded-xl flex gap-1.5 items-center text-sm font-bold uppercase tracking-wider hover:bg-brand-blue-dark shadow-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Save size={16} /> {t('common.save', { defaultValue: 'Save' })}
-          </button>
+          {roster ? (
+            <div
+              className="min-h-[38px] flex items-center px-2"
+              {...tourAttr('roster-editor.save')}
+            >
+              <AutosaveIndicator
+                status={autosave.status === 'idle' ? 'saved' : autosave.status}
+                onRetry={() => void autosave.flush({ force: true })}
+              />
+            </div>
+          ) : (
+            <button
+              onClick={handleSave}
+              disabled={!name.trim() || saving || sharesInFlight > 0}
+              {...tourAttr('roster-editor.save')}
+              className="bg-brand-blue-primary text-white px-5 py-2 rounded-xl flex gap-1.5 items-center text-sm font-bold uppercase tracking-wider hover:bg-brand-blue-dark shadow-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saving ? (
+                <Loader2
+                  size={16}
+                  className="animate-spin"
+                  aria-hidden="true"
+                />
+              ) : (
+                <Save size={16} />
+              )}{' '}
+              {saving
+                ? t('common.saving', { defaultValue: 'Saving…' })
+                : t('common.save', { defaultValue: 'Save' })}
+            </button>
+          )}
         </div>
 
         {saveError && (
@@ -1068,10 +1185,11 @@ function buildGridTemplate(
 ): string {
   const parts = ['2rem'];
   if (showPins) parts.push('5rem');
-  parts.push('minmax(0, 1fr)');
-  if (showLastNames) parts.push('minmax(0, 1fr)');
+  parts.push('minmax(5rem, 1fr)');
+  if (showLastNames) parts.push('minmax(5rem, 1fr)');
   if (showEmails) parts.push('minmax(0, 1.4fr)');
-  if (showRestrictions) parts.push('minmax(9rem, 14rem)');
+  // Shrinks to its icon on a phone so the name columns keep their width.
+  if (showRestrictions) parts.push('minmax(3.5rem, 14rem)');
   parts.push('2rem');
   return parts.join(' ');
 }
