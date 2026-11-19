@@ -1693,7 +1693,7 @@ export const DashboardView: React.FC = () => {
       id="dashboard-root"
       {...tourAttr('board.whole')}
       style={cssVars}
-      className={`relative h-screen w-screen overflow-hidden transition-all duration-1000 ${fontClass}`}
+      className={`relative h-screen w-screen overflow-hidden ${fontClass}`}
       onClick={(e) => {
         e.stopPropagation();
         setSelectedWidgetId(null);
@@ -1954,7 +1954,7 @@ export const DashboardView: React.FC = () => {
       {isSpotlightLive(activeDashboard.settings, activeDashboard.widgets) &&
         createPortal(
           <div
-            className="fixed inset-0 z-backdrop bg-slate-900/80 transition-opacity duration-500 ease-in-out"
+            className="fixed inset-0 z-backdrop bg-slate-900/80 animate-in fade-in duration-200"
             onClick={() => updateDashboardSettings({ spotlightWidgetId: null })}
             aria-hidden="true"
           />,
