@@ -64,3 +64,24 @@ export function monthlySpeechToTextUsageDocId(date: Date = new Date()): string {
   const m = String(date.getUTCMonth() + 1).padStart(2, '0');
   return `global_speech_to_text_${y}-${m}`;
 }
+
+/** Flags for the two paid extras; each is a Previews row with its limits in the row's config. */
+export const SPEECH_AI_TRANSCRIPTION_FEATURE =
+  'speech-to-text-ai-transcription' as const;
+export const SPEECH_TIDY_UP_FEATURE = 'speech-to-text-tidy-up' as const;
+
+/** Tells a student's page which paid extras their teacher's flags allow. */
+export const SPEECH_TO_TEXT_ACCESS_CALLABLE = 'getSpeechToTextAccessV1';
+
+/** Per-student daily limits when the row has none saved. */
+export const SPEECH_DEFAULT_DAILY_LIMITS = {
+  transcription: 300,
+  tidyUp: 30,
+} as const;
+
+/** Row config keys beside `dailyLimit` and `dailyLimitEnabled`. */
+export const SPEECH_ROW_KEYS = {
+  monthlyCapSeconds: 'monthlyCapSeconds',
+  monthlyCapTidyCalls: 'monthlyCapTidyCalls',
+  transcribeMode: 'transcribeMode',
+} as const;

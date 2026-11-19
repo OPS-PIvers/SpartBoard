@@ -11705,6 +11705,8 @@ export type GlobalFeature =
   | 'quiz-whiteboard-response'
   | 'quiz-read-aloud'
   | 'speech-to-text'
+  | 'speech-to-text-ai-transcription'
+  | 'speech-to-text-tidy-up'
   /** Teacher-authored AI quiz translations for multilingual learners. */
   | 'quiz-translation'
   /** "Draft with AI" inside the question-bank editor; AND-ed with `gemini-functions`. */
