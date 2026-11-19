@@ -736,13 +736,16 @@ export function pointerKeyForSession(
 /** Page size for the scan of mini-app sessions that carry a pointer key. */
 const CLAIM_SCAN_PAGE = 500;
 
-/** Refuses a pointer key when another teacher's doc carrying it predates the caller's own session. */
+/** Server-only record of the teacher verified to own a pointer key, so later calls skip the scan. */
+export const POINTER_KEY_CLAIMS_COLLECTION = 'assignment_key_claims';
+
+/** Refuses a pointer key another teacher owns; returns the claim to record once the call succeeds, if new. */
 export async function assertPointerKeyUnclaimed(
   db: admin.firestore.Firestore,
   callerUid: string,
   key: string,
   callerSession: admin.firestore.DocumentSnapshot
-): Promise<void> {
+): Promise<(() => Promise<unknown>) | null> {
   // A key first exists on its owner's session, so every copy is created later and can't outrank it.
   const created = (snap: admin.firestore.DocumentSnapshot): number =>
     snap.createTime?.toMillis() ?? Number.POSITIVE_INFINITY;
@@ -757,6 +760,12 @@ export async function assertPointerKeyUnclaimed(
       'Assignment id belongs to another teacher.'
     );
   };
+  const claimRef = db.collection(POINTER_KEY_CLAIMS_COLLECTION).doc(key);
+  const claim = await claimRef.get();
+  if (claim.exists) {
+    if (claim.get('teacherUid') !== callerUid) refuse();
+    return null;
+  }
   const sessionSnaps = await db.getAll(
     ...STUDENT_ASSIGNMENT_KINDS.map((k) =>
       db.collection(SESSION_COLLECTION_BY_KIND[k]).doc(key)
@@ -771,9 +780,10 @@ export async function assertPointerKeyUnclaimed(
   for (;;) {
     const { docs } = await page.get();
     if (docs.some(foreignEarlier)) refuse();
-    if (docs.length < CLAIM_SCAN_PAGE) return;
+    if (docs.length < CLAIM_SCAN_PAGE) break;
     page = page.startAfter(docs[docs.length - 1]);
   }
+  return () => claimRef.set({ teacherUid: callerUid, claimedAt: Date.now() });
 }
 
 /**
@@ -823,7 +833,7 @@ export async function handleSetAssignmentTargets(
       'Assignment does not belong to this session.'
     );
   }
-  await assertPointerKeyUnclaimed(
+  const recordKeyClaim = await assertPointerKeyUnclaimed(
     db,
     callerUid,
     input.assignmentId,
@@ -1361,6 +1371,7 @@ export async function handleSetAssignmentTargets(
   if (readAloudGained && onReadAloudGained) {
     await onReadAloudGained(input.sessionId, [...readAloudLocales]);
   }
+  if (recordKeyClaim) await recordKeyClaim();
 
   return {
     written: landed.length,

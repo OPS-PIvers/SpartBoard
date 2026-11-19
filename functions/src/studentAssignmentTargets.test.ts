@@ -1212,6 +1212,31 @@ describe('handleSetAssignmentTargets — a flood of copied keys locks no one out
     ).rejects.toMatchObject({ code: 'permission-denied' });
     expect(state.queryPages).toBeGreaterThan(1);
   });
+
+  it('records the owner claim so later calls skip the flood scan', async () => {
+    plantFlood(1200);
+    await run(miniInput('mini-s'));
+    expect(state.docs.get('assignment_key_claims/owned-w')).toMatchObject({
+      teacherUid: TEACHER_UID,
+    });
+    state.queryPages = 0;
+    await expect(run(miniInput('mini-s', SOURCED_B))).resolves.toMatchObject({
+      written: 1,
+    });
+    expect(state.queryPages).toBe(0);
+    await expect(
+      run(miniInput(flood(0), SOURCED_B), OTHER_TEACHER_UID)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(state.queryPages).toBe(0);
+  });
+
+  it('writes no claim when the scan refuses the caller', async () => {
+    plantFlood(1);
+    await expect(
+      run(miniInput(flood(0), SOURCED_B), OTHER_TEACHER_UID)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(state.docs.has('assignment_key_claims/owned-w')).toBe(false);
+  });
 });
 
 describe('handleSetAssignmentTargets — pointers owned by another teacher', () => {
