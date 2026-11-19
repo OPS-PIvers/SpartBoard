@@ -413,7 +413,7 @@ function gradebookRight(item: DoneItem, isNew: boolean): React.ReactNode {
     );
   }
   if (item.row?.state === 'closed' && !item.grade) {
-    return <span className="text-xs text-slate-500">Not turned in</span>;
+    return <span className="text-xs text-slate-500">Not graded yet</span>;
   }
   return (
     <>
