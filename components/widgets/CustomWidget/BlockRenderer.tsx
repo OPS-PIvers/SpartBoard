@@ -200,7 +200,7 @@ function FlipCardBlock({
       }
     >
       <div
-        className="w-full h-full relative transition-transform duration-500"
+        className="w-full h-full relative transition-transform duration-500 motion-reduce:transition-none"
         style={{
           transformStyle: 'preserve-3d',
           transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
