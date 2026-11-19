@@ -1463,6 +1463,11 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
       'quiz.face',
       'widgets.writing.face',
     ],
+    'library-shell.assigned-select': ['library.shell'],
+    'library-shell.assigned-select-row': ['library.shell'],
+    'library-shell.assigned-select-all': ['library.shell'],
+    'library-shell.assigned-bulk-action': ['library.shell'],
+    'library-shell.assigned-select-cancel': ['library.shell'],
     'widget-settings.calendar.remove-calendar': ['widgets.calendar.settings'],
     'widget-settings.hotspot-image.load-library-item': [
       'widgets.hotspot-image.settings',
