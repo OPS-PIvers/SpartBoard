@@ -4262,6 +4262,12 @@ export const TOUR_ANCHORS = {
     rows: true,
     rowList: 'quiz-results-counted-answers',
   },
+  'quiz-results.accept-answer': {
+    label:
+      'Accept button beside a missed fill-in-the-blank answer in a student report in Quiz results, by question',
+    perField: true,
+    persists: true,
+  },
   'quiz-results.count-instead': {
     label:
       'Count this instead button beside a question in a student report in Quiz results, by question',
