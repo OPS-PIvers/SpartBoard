@@ -651,17 +651,16 @@ describe('controlPatches', () => {
     );
   });
   // ASSIGNED_TAB D20/D24: a sub End marks the quiz closed; a sub Resume clears the marks.
-  it('stamps a quiz End with closedAt and clears the marks on Resume', () => {
-    expect(controlPatches('quiz', 'end', NOW).assignment.closedAt).toBe(NOW);
-    expect(controlPatches('quiz', 'resume', NOW).assignment).toMatchObject({
-      closedAt: null,
-      doneAt: null,
-    });
+  it('stamps a quiz or video End with closedAt and clears the marks on Resume', () => {
+    for (const kind of ['quiz', 'videoActivity'] as const) {
+      expect(controlPatches(kind, 'end', NOW).assignment.closedAt).toBe(NOW);
+      expect(controlPatches(kind, 'resume', NOW).assignment).toMatchObject({
+        closedAt: null,
+        doneAt: null,
+      });
+    }
     expect(
-      controlPatches('videoActivity', 'end', NOW).assignment
-    ).not.toHaveProperty('closedAt');
-    expect(
-      controlPatches('videoActivity', 'resume', NOW).assignment
+      controlPatches('flashcards', 'end', NOW).assignment
     ).not.toHaveProperty('closedAt');
   });
 });

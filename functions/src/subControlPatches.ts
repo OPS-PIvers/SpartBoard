@@ -45,7 +45,10 @@ export function controlPatches(
     // A sub-launched quiz is always self-paced, so active is where it resumes
     // to; there is no teacher-paced question index to restore.
     // A resumed quiz is no longer closed or moved to Done (ASSIGNED_TAB D24).
-    const marks = kind === 'quiz' ? { closedAt: null, doneAt: null } : {};
+    const marks =
+      kind === 'quiz' || kind === 'videoActivity'
+        ? { closedAt: null, doneAt: null }
+        : {};
     return {
       session: { status: 'active' },
       assignment: { status: 'active', updatedAt: now, ...marks },
@@ -64,7 +67,8 @@ export function controlPatches(
   if (kind === 'videoActivity') {
     return {
       session: { status: 'ended', endedAt: now },
-      assignment: { status: 'inactive', updatedAt: now },
+      // closedAt keeps it out of the pre-rollout Done rule, as for a quiz (ASSIGNED_TAB D20).
+      assignment: { status: 'inactive', updatedAt: now, closedAt: now },
       state: 'ended',
     };
   }

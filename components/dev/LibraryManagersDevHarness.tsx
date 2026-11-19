@@ -25,6 +25,9 @@ import {
   ASSIGNED_RESPONSES,
   ASSIGNED_ROSTERS,
   loadAssignedQuiz,
+  VA_ASSIGNED_FIXTURES,
+  VA_ASSIGNED_QUESTIONS,
+  VA_ASSIGNED_RESPONSES,
 } from './assignedTabFixtures';
 import { RunAssignedResponsesFixture } from '@/components/common/library/assigned/runAssignedFixture';
 import {
@@ -36,6 +39,8 @@ import {
 import type { BankSource } from '@/utils/questionBankRecords';
 import type { QuizData } from '@/types';
 import { VideoActivityManager } from '@/components/widgets/VideoActivityWidget/components/VideoActivityManager';
+import { VaAssignedFixture } from '@/components/widgets/VideoActivityWidget/components/vaAssignedFixture';
+import { videoActivityLifecycle } from '@/components/widgets/VideoActivityWidget/videoActivityLifecycle';
 import { GuidedLearningManager } from '@/components/widgets/GuidedLearning/components/GuidedLearningManager';
 import { AssignmentClassesModal } from '@/components/common/library/AssignmentClassesModal';
 import { MiniAppManager } from '@/components/widgets/MiniApp/components/MiniAppManager';
@@ -352,6 +357,7 @@ const LIBRARY_HARNESS_VIEWS = [
   'mini-app-assigned',
   'guided-learning-assigned',
   'video-activity',
+  'video-activity-assigned',
   'guided-learning',
   'mini-app',
   'flashcards',
@@ -605,6 +611,46 @@ const VideoActivityView: React.FC = () => {
     </>
   );
 };
+
+const VA_LIFECYCLE = videoActivityLifecycle({
+  pauseAssignment: asyncNoop,
+  resumeAssignment: asyncNoop,
+  deactivateAssignment: asyncNoop,
+  reactivateAssignment: asyncNoop,
+});
+
+const VideoActivityAssignedView: React.FC = () => (
+  <VaAssignedFixture.Provider
+    value={{
+      responses: VA_ASSIGNED_RESPONSES,
+      questions: VA_ASSIGNED_QUESTIONS,
+    }}
+  >
+    <VideoActivityManager
+      userId="mock-user-id"
+      activities={ACTIVITIES}
+      loading={false}
+      error={null}
+      onNew={noop}
+      onImport={noop}
+      onEdit={noop}
+      onDelete={noop}
+      onAssign={() => Promise.resolve('')}
+      rosters={ASSIGNED_ROSTERS}
+      assignments={VA_ASSIGNED_FIXTURES}
+      assignmentsLoading={false}
+      onArchiveCopyUrl={noop}
+      onArchiveMonitor={noop}
+      onArchiveResults={noop}
+      onArchivePublishScores={noop}
+      onArchiveDeactivate={asyncNoop}
+      onArchivePauseResume={asyncNoop}
+      onArchiveReactivate={asyncNoop}
+      onArchiveDelete={asyncNoop}
+      classLifecycle={VA_LIFECYCLE}
+    />
+  </VaAssignedFixture.Provider>
+);
 
 const VideoActivityManagerView: React.FC<{
   onArchiveEditClasses: (a: VideoActivityAssignment) => void;
@@ -1074,6 +1120,7 @@ const VIEW_COMPONENTS: Record<HarnessView, React.FC> = {
   'activity-wall': ActivityWallView,
   review: ReviewView,
   'quiz-assigned': QuizAssignedView,
+  'video-activity-assigned': VideoActivityAssignedView,
   'flashcards-assigned': FlashcardsAssignedView,
   'writing-assigned': WritingAssignedView,
   'mini-app-assigned': MiniAppAssignedView,

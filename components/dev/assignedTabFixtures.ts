@@ -6,6 +6,9 @@ import type {
   QuizData,
   QuizMetadata,
   QuizResponse,
+  VideoActivityAssignment,
+  VideoActivityQuestion,
+  VideoActivityResponse,
 } from '@/types';
 
 const now = Date.now();
@@ -226,3 +229,81 @@ export const loadAssignedQuiz = (meta: QuizMetadata): Promise<QuizData> =>
           },
     ],
   } as unknown as QuizData);
+
+/** The same rows as Video Activity assignments, plus a live run (view=video-activity-assigned). */
+export const VA_ASSIGNED_FIXTURES: VideoActivityAssignment[] = [
+  ...ASSIGNED_FIXTURES.filter((a) => !a.paper).map(
+    (a): VideoActivityAssignment => ({
+      id: a.id,
+      activityId: `va-${a.id}`,
+      activityTitle: a.quizTitle.replace(
+        /Quiz|Check|Pretest|Exit Ticket/,
+        'Video'
+      ),
+      activityDriveFileId: `drive-${a.id}`,
+      teacherUid: a.teacherUid,
+      status: a.status,
+      createdAt: a.createdAt,
+      updatedAt: a.updatedAt,
+      rosterIds: a.rosterIds,
+      mode: a.mode,
+      scoreVisibility: a.scoreVisibility,
+      periodAccess: a.periodAccess,
+      sessionSettings: {} as VideoActivityAssignment['sessionSettings'],
+      ...(a.closedAt != null ? { closedAt: a.closedAt } : {}),
+    })
+  ),
+  {
+    id: 'live',
+    activityId: 'va-live',
+    activityTitle: 'Plant Cells Live Video',
+    activityDriveFileId: 'drive-live',
+    teacherUid: 'mock-user-id',
+    status: 'active',
+    sessionMode: 'teacher',
+    createdAt: now - 20 * MIN,
+    updatedAt: now - 20 * MIN,
+    rosterIds: [KEYS[0]],
+    sessionSettings: {} as VideoActivityAssignment['sessionSettings'],
+  },
+];
+
+const vaResponse = (r: QuizResponse, i: number): VideoActivityResponse =>
+  ({
+    id: `${r.studentUid}-${i}`,
+    classId: r.classId,
+    joinedAt: r.joinedAt,
+    completedAt: r.status === 'completed' ? now - 5 * MIN : null,
+    answers: (r.answers ?? []).map((a) => ({
+      questionId: a.questionId,
+      answer: a.answer,
+    })),
+  }) as unknown as VideoActivityResponse;
+
+export const VA_ASSIGNED_RESPONSES: Record<string, VideoActivityResponse[]> = {
+  ...Object.fromEntries(
+    Object.entries(ASSIGNED_RESPONSES).map(([id, rs]) => [
+      id,
+      rs.map(vaResponse),
+    ])
+  ),
+  live: many(KEYS[0], 'in-progress', 22).map(vaResponse),
+};
+
+/** One choice question, except Osmosis, whose short answer waits for a grade. */
+export const VA_ASSIGNED_QUESTIONS: Record<string, VideoActivityQuestion[]> =
+  Object.fromEntries(
+    VA_ASSIGNED_FIXTURES.map((a) => [
+      a.id,
+      [
+        {
+          id: 'q1',
+          type: a.id === 'osmosis' ? 'SA' : 'MC',
+          text: 'Why?',
+          timestamp: 10,
+          correctAnswer: a.id === 'osmosis' ? '' : 'B',
+          incorrectAnswers: a.id === 'osmosis' ? [] : ['A'],
+        } as unknown as VideoActivityQuestion,
+      ],
+    ])
+  );

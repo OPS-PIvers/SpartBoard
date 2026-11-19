@@ -1445,11 +1445,13 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'library-shell.assigned-done-section': ['library.shell'],
     'library-shell.assigned-close-all': [
       'library.shell',
+      'library.video-activity',
       'quiz.face',
       'widgets.writing.face',
     ],
     'library-shell.assigned-move-to-done': [
       'library.shell',
+      'library.video-activity',
       'quiz.face',
       'widgets.writing.face',
     ],

@@ -26943,6 +26943,18 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "reveal": "library-shell.archive-menu"
       },
       {
+        "surface": "library.video-activity",
+        "kind": "widget",
+        "widget_type": "video-activity",
+        "path": [
+          "library-shell.archive-menu:video-activity#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:video-activity#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      },
+      {
         "surface": "quiz.face",
         "kind": "widget",
         "widget_type": "quiz",
@@ -26982,6 +26994,18 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.archive-menu"
         ],
         "reveal": "library-shell.archive-menu"
+      },
+      {
+        "surface": "library.video-activity",
+        "kind": "widget",
+        "widget_type": "video-activity",
+        "path": [
+          "library-shell.archive-menu:video-activity#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:video-activity#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
       },
       {
         "surface": "quiz.face",
