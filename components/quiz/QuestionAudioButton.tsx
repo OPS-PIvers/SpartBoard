@@ -13,11 +13,33 @@ export const QuestionAudioButton: React.FC<{
   size?: 'large' | 'small';
   light?: boolean;
   className?: string;
-}> = ({ audio, size = 'large', light = true, className = '' }) => {
+  /** Student only: views already used this attempt; enforces `audio.playLimit`. */
+  viewsUsed?: number;
+  /** Student only: called once each time playback actually starts. */
+  onViewStart?: () => void;
+}> = ({
+  audio,
+  size = 'large',
+  light = true,
+  className = '',
+  viewsUsed,
+  onViewStart,
+}) => {
   const { t } = useTranslation();
   const ref = useRef<HTMLAudioElement | null>(null);
+  const countedRef = useRef(true);
   const [status, setStatus] = useState<Status>('idle');
+  // Counts this device's views too, so a failed save can't hand back a view.
+  const [localViews, setLocalViews] = useState(0);
   const url = questionAudioUrl(audio);
+  const limited =
+    viewsUsed !== undefined &&
+    typeof audio.playLimit === 'number' &&
+    audio.playLimit > 0;
+  const remaining = limited
+    ? Math.max(0, (audio.playLimit ?? 0) - Math.max(viewsUsed ?? 0, localViews))
+    : null;
+  const usedUp = remaining === 0;
 
   useEffect(() => {
     const el = ref.current;
@@ -28,7 +50,8 @@ export const QuestionAudioButton: React.FC<{
 
   const start = () => {
     const el = ref.current;
-    if (!el) return;
+    if (!el || usedUp) return;
+    countedRef.current = false;
     if (status === 'failed') el.load();
     setStatus('loading');
     el.currentTime = 0;
@@ -41,11 +64,13 @@ export const QuestionAudioButton: React.FC<{
 
   const active = status === 'loading' || status === 'playing';
   const label =
-    status === 'failed'
-      ? t('quizQuestionAudio.retry', 'Try again')
-      : active
-        ? t('quizQuestionAudio.stop', 'Stop')
-        : t('quizQuestionAudio.play', 'Play question');
+    usedUp && !active
+      ? t('quizQuestionAudio.noViewsLeft', 'No views left')
+      : status === 'failed'
+        ? t('quizQuestionAudio.retry', 'Try again')
+        : active
+          ? t('quizQuestionAudio.stop', 'Stop')
+          : t('quizQuestionAudio.play', 'Play question');
   const Icon =
     status === 'loading'
       ? Loader2
@@ -67,13 +92,14 @@ export const QuestionAudioButton: React.FC<{
         type="button"
         aria-pressed={status === 'playing'}
         aria-busy={status === 'loading'}
+        disabled={usedUp && !active}
         onClick={active ? stop : start}
         onPointerDown={(e) => e.stopPropagation()}
         className={`inline-flex shrink-0 items-center justify-center gap-2 border-2 font-bold transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/60 ${
           large
             ? 'min-h-11 rounded-2xl px-4 text-base'
             : 'min-h-8 rounded-lg px-2.5 text-xs'
-        } ${tone} ${className}`}
+        } ${tone} disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
       >
         <Icon
           className={`${large ? 'h-5 w-5' : 'h-3.5 w-3.5'} ${
@@ -84,18 +110,34 @@ export const QuestionAudioButton: React.FC<{
           aria-hidden
         />
         <span>{label}</span>
-        {status !== 'failed' && audio.durationSec > 0 && (
+        {status !== 'failed' && !usedUp && audio.durationSec > 0 && (
           <span className="font-semibold tabular-nums opacity-70">
             {formatAudioDuration(audio.durationSec)}
           </span>
         )}
       </button>
+      {remaining !== null && remaining > 0 && (
+        <span
+          className={`text-sm font-semibold ${light ? 'text-slate-500' : 'text-slate-300'}`}
+        >
+          {t('quizQuestionAudio.viewsLeft', {
+            count: remaining,
+            defaultValue: '{{count}} views left',
+          })}
+        </span>
+      )}
       <audio
         ref={ref}
         src={url}
         preload="none"
         className="hidden"
-        onPlaying={() => setStatus('playing')}
+        onPlaying={() => {
+          setStatus('playing');
+          if (countedRef.current) return;
+          countedRef.current = true;
+          setLocalViews((n) => Math.max(n, viewsUsed ?? 0) + 1);
+          onViewStart?.();
+        }}
         onEnded={() => setStatus('idle')}
         onPause={() => setStatus((s) => (s === 'failed' ? s : 'idle'))}
         onError={() => setStatus((s) => (s === 'idle' ? s : 'failed'))}

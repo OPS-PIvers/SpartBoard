@@ -44,6 +44,7 @@ export function usePromptAudio(
         driveFileId: file.id,
         durationSec: Math.round(take.durationSec * 10) / 10,
         mimeType: take.mimeType,
+        ...(audio?.playLimit ? { playLimit: audio.playLimit } : {}),
       });
     } catch (err) {
       await showAlert(

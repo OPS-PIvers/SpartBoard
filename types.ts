@@ -4541,6 +4541,8 @@ export interface QuestionAudio {
   driveFileId: string;
   durationSec: number;
   mimeType: string;
+  /** Times a student may start it per attempt; absent = unlimited. */
+  playLimit?: number;
 }
 
 export interface QuizQuestion {

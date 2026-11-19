@@ -2757,6 +2757,11 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-editor.prompt-audio-views': {
+    label: 'Views limit for the question audio in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-editor.prompt-audio-remove': {
     label: 'Remove button for the question audio in the Quiz editor',
     perWidgetType: true,

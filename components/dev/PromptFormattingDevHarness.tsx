@@ -14,6 +14,7 @@ const SAMPLE_AUDIO: QuestionAudio = {
   driveFileId: 'dev-sample',
   durationSec: 12,
   mimeType: 'audio/mp4',
+  playLimit: 2,
 };
 
 const AudioSection: React.FC = () => {
@@ -27,6 +28,7 @@ const AudioSection: React.FC = () => {
     timeLimit: 0,
   });
   const ref = useRef<HTMLTextAreaElement>(null);
+  const [views, setViews] = useState(0);
   return (
     <>
       <section
@@ -54,6 +56,15 @@ const AudioSection: React.FC = () => {
           light
           className="text-slate-900"
           audio={q.promptAudio}
+          audioViewsUsed={views}
+          onAudioView={() => setViews((n) => n + 1)}
+        />
+        <QuestionPrompt
+          text=""
+          light
+          className="text-slate-900"
+          audio={q.promptAudio}
+          audioViewsUsed={q.promptAudio?.playLimit ?? 0}
         />
       </section>
     </>

@@ -13,7 +13,18 @@ export const QuestionPrompt: React.FC<{
   className?: string;
   /** The teacher's recording, played from a button above any text. */
   audio?: QuestionAudio;
-}> = ({ text, blankCount, light, className = '', audio }) => {
+  /** Views of the recording used this attempt, for its view limit. */
+  audioViewsUsed?: number;
+  onAudioView?: () => void;
+}> = ({
+  text,
+  blankCount,
+  light,
+  className = '',
+  audio,
+  audioViewsUsed,
+  onAudioView,
+}) => {
   const long = isLongPrompt(text);
   const shown = long ? spacedPrompt(text) : text;
   const heading = (cls: string) => (
@@ -38,6 +49,8 @@ export const QuestionPrompt: React.FC<{
         key={audio.driveFileId}
         audio={audio}
         light={light}
+        viewsUsed={audioViewsUsed}
+        onViewStart={onAudioView}
       />
       {text.trim() !== '' && heading('')}
     </div>

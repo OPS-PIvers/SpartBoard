@@ -55,6 +55,7 @@ export const PromptAudioRow: React.FC<{
 }> = ({ state, canRecord }) => {
   const { audio, onChange, saving, recorder } = state;
   const [playing, setPlaying] = useState(false);
+  const viewsId = React.useId();
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
 
   if (recorder.phase !== 'idle') {
@@ -109,63 +110,90 @@ export const PromptAudioRow: React.FC<{
   };
 
   return (
-    <div className="mt-2 flex items-center gap-1 border-y border-slate-200 py-1">
-      <span className="flex min-w-0 flex-1 items-center gap-2 whitespace-nowrap text-sm font-semibold text-slate-800">
-        <Mic className="h-4 w-4 text-slate-500" aria-hidden />
-        Question audio
-        <span className="font-normal tabular-nums text-slate-500">
-          {formatAudioDuration(audio.durationSec)}
+    <div className="mt-2 border-y border-slate-200 py-1">
+      <div className="flex items-center gap-1">
+        <span className="flex min-w-0 flex-1 items-center gap-2 whitespace-nowrap text-sm font-semibold text-slate-800">
+          <Mic className="h-4 w-4 text-slate-500" aria-hidden />
+          Question audio
+          <span className="font-normal tabular-nums text-slate-500">
+            {formatAudioDuration(audio.durationSec)}
+          </span>
         </span>
-      </span>
-      <button
-        type="button"
-        onClick={togglePlay}
-        className={rowButton}
-        {...tourTypeAttr('quiz-editor.prompt-audio-play', 'quiz')}
-      >
-        {playing ? (
-          <Square className="h-3.5 w-3.5 fill-current" aria-hidden />
-        ) : (
-          <Play className="h-3.5 w-3.5 fill-current" aria-hidden />
+        <button
+          type="button"
+          onClick={togglePlay}
+          className={rowButton}
+          {...tourTypeAttr('quiz-editor.prompt-audio-play', 'quiz')}
+        >
+          {playing ? (
+            <Square className="h-3.5 w-3.5 fill-current" aria-hidden />
+          ) : (
+            <Play className="h-3.5 w-3.5 fill-current" aria-hidden />
+          )}
+          {playing ? 'Stop' : 'Play'}
+        </button>
+        {canRecord && (
+          <button
+            type="button"
+            onClick={() => {
+              audioRef.current?.pause();
+              setPlaying(false);
+              void recorder.start();
+            }}
+            className={rowButton}
+            {...tourTypeAttr('quiz-editor.prompt-audio-rerecord', 'quiz')}
+          >
+            <RotateCcw className="h-3.5 w-3.5" aria-hidden />
+            Record again
+          </button>
         )}
-        {playing ? 'Stop' : 'Play'}
-      </button>
-      {canRecord && (
         <button
           type="button"
           onClick={() => {
             audioRef.current?.pause();
             setPlaying(false);
-            void recorder.start();
+            onChange(undefined);
           }}
-          className={rowButton}
-          {...tourTypeAttr('quiz-editor.prompt-audio-rerecord', 'quiz')}
+          className={`${rowButton} hover:text-brand-red-primary`}
+          {...tourTypeAttr('quiz-editor.prompt-audio-remove', 'quiz')}
         >
-          <RotateCcw className="h-3.5 w-3.5" aria-hidden />
-          Record again
+          <Trash2 className="h-3.5 w-3.5" aria-hidden />
+          Remove
         </button>
-      )}
-      <button
-        type="button"
-        onClick={() => {
-          audioRef.current?.pause();
-          setPlaying(false);
-          onChange(undefined);
-        }}
-        className={`${rowButton} hover:text-brand-red-primary`}
-        {...tourTypeAttr('quiz-editor.prompt-audio-remove', 'quiz')}
-      >
-        <Trash2 className="h-3.5 w-3.5" aria-hidden />
-        Remove
-      </button>
-      <audio
-        ref={audioRef}
-        src={questionAudioUrl(audio)}
-        preload="none"
-        className="hidden"
-        onEnded={() => setPlaying(false)}
-        onError={() => setPlaying(false)}
-      />
+        <audio
+          ref={audioRef}
+          src={questionAudioUrl(audio)}
+          preload="none"
+          className="hidden"
+          onEnded={() => setPlaying(false)}
+          onError={() => setPlaying(false)}
+        />
+      </div>
+      <div className="flex min-h-8 items-center gap-3 pl-6">
+        <label
+          htmlFor={viewsId}
+          className="text-xs font-bold uppercase tracking-wider text-slate-500"
+        >
+          Views
+        </label>
+        <select
+          id={viewsId}
+          value={audio.playLimit ?? ''}
+          onChange={(e) => {
+            const n = Number(e.target.value);
+            const rest: QuestionAudio = { ...audio };
+            delete rest.playLimit;
+            onChange(n > 0 ? { ...rest, playLimit: n } : rest);
+          }}
+          className="rounded-md border border-slate-300 bg-white py-1 pl-2 pr-7 text-sm text-slate-800 focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
+          {...tourTypeAttr('quiz-editor.prompt-audio-views', 'quiz')}
+        >
+          <option value="">Unlimited</option>
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+        </select>
+      </div>
     </div>
   );
 };

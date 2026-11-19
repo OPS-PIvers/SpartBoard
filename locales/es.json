@@ -5136,6 +5136,9 @@
     "play": "Reproducir la pregunta",
     "stop": "Detener",
     "retry": "Intentar de nuevo",
-    "label": "Pregunta de audio"
+    "label": "Pregunta de audio",
+    "viewsLeft_one": "Te queda {{count}} reproducción",
+    "viewsLeft_other": "Te quedan {{count}} reproducciones",
+    "noViewsLeft": "No te quedan reproducciones"
   }
 }

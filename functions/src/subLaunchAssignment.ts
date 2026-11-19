@@ -345,6 +345,9 @@ function publicPromptAudio(raw: unknown): Record<string, unknown> | null {
     driveFileId: a.driveFileId,
     durationSec: typeof a.durationSec === 'number' ? a.durationSec : 0,
     mimeType: typeof a.mimeType === 'string' ? a.mimeType : '',
+    ...(typeof a.playLimit === 'number' && a.playLimit > 0
+      ? { playLimit: a.playLimit }
+      : {}),
   };
 }
 

@@ -5136,6 +5136,9 @@
     "play": "Écouter la question",
     "stop": "Arrêter",
     "retry": "Réessayer",
-    "label": "Question audio"
+    "label": "Question audio",
+    "viewsLeft_one": "Il reste {{count}} écoute",
+    "viewsLeft_other": "Il reste {{count}} écoutes",
+    "noViewsLeft": "Plus d'écoutes"
   }
 }

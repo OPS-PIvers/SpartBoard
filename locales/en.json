@@ -6578,6 +6578,9 @@
     "play": "Play question",
     "stop": "Stop",
     "retry": "Try again",
-    "label": "Audio question"
+    "label": "Audio question",
+    "viewsLeft_one": "{{count}} view left",
+    "viewsLeft_other": "{{count}} views left",
+    "noViewsLeft": "No views left"
   }
 }

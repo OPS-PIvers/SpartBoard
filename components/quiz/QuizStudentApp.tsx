@@ -138,6 +138,7 @@ import {
   resolveStimuli,
   splitStimuliForLayout,
   stimulusPlayKey,
+  promptAudioPlayId,
 } from '@/utils/quizStimuli';
 import { splitStimuliForTabs } from '@/utils/quizStimulusTabs';
 import { StimulusTabsPanel } from './StimulusTabsPanel';
@@ -4061,6 +4062,9 @@ export const ActiveQuiz: React.FC<{
   );
   // The recording is the original wording, so a modified prompt drops it.
   const promptAudio = modifiedServed ? undefined : currentQuestion.promptAudio;
+  const promptAudioViews = playsUsedFor(promptAudioPlayId(currentQuestion.id));
+  const recordPromptAudioView = () =>
+    handleStimulusPlayCompleted(promptAudioPlayId(currentQuestion.id));
   const isMultiAnswer = currentQuestion.type === 'MA';
   const options =
     displayQuestion.type === 'MC' || displayQuestion.type === 'MA'
@@ -4786,6 +4790,8 @@ export const ActiveQuiz: React.FC<{
                 light={light}
                 className={`flex-1 ${headingText}`}
                 audio={promptAudio}
+                audioViewsUsed={promptAudioViews}
+                onAudioView={recordPromptAudioView}
               />
               <ReadAloudButton
                 variant="prominent"
@@ -4807,6 +4813,8 @@ export const ActiveQuiz: React.FC<{
                 light={light}
                 className={headingText}
                 audio={promptAudio}
+                audioViewsUsed={promptAudioViews}
+                onAudioView={recordPromptAudioView}
               />
             </div>
           )}
