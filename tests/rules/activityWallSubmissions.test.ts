@@ -369,6 +369,76 @@ describe('activity wall submissions — type gating', () => {
   });
 });
 
+describe('activity wall submissions — text toggle', () => {
+  const textOff = {
+    text: false,
+    photo: true,
+    link: false,
+    file: false,
+    video: false,
+  };
+
+  it('denies a text post when the wall turned text off', async () => {
+    await seedSession(padletSession({ allowedTypes: textOff }));
+    await assertFails(
+      setDoc(doc(asStudent(), submissionPath('sub-1')), newSubmission())
+    );
+  });
+
+  it('still allows a media post when text is off', async () => {
+    await seedSession(padletSession({ allowedTypes: textOff }));
+    await assertSucceeds(
+      setDoc(
+        doc(asStudent(), submissionPath('sub-1')),
+        newSubmission({
+          type: 'photo',
+          content: `activity_wall_media/${SESSION_ID}/sub-1/c.jpg`,
+          storagePath: `activity_wall_media/${SESSION_ID}/sub-1/c.jpg`,
+          archiveStatus: 'firebase',
+          fileName: 'c.jpg',
+          mimeType: 'image/jpeg',
+          sizeBytes: 1234,
+        })
+      )
+    );
+  });
+
+  it('allows a text post when text is explicitly on', async () => {
+    await seedSession(
+      padletSession({ allowedTypes: { ...textOff, text: true } })
+    );
+    await assertSucceeds(
+      setDoc(doc(asStudent(), submissionPath('sub-1')), newSubmission())
+    );
+  });
+
+  it('still lets the owner teacher post text when text is off', async () => {
+    await seedSession(padletSession({ allowedTypes: textOff }));
+    await assertSucceeds(
+      setDoc(
+        doc(asTeacher(), submissionPath('teacher-1')),
+        newSubmission({
+          id: 'teacher-1',
+          authorUid: TEACHER_UID,
+          authorRole: 'teacher',
+        })
+      )
+    );
+  });
+
+  it('keeps earlier text posts readable after text is turned off', async () => {
+    await seedSession(
+      padletSession({ allowedTypes: textOff, studentsCanSeePosts: false })
+    );
+    await seedSubmission('sub-1', newSubmission());
+    await assertSucceeds(getDoc(doc(asTeacher(), submissionPath('sub-1'))));
+    await assertSucceeds(getDoc(doc(asStudent(), submissionPath('sub-1'))));
+    await assertFails(
+      getDoc(doc(asStudent(OTHER_STUDENT_UID), submissionPath('sub-1')))
+    );
+  });
+});
+
 describe('activity wall submissions — per-student cap', () => {
   beforeEach(async () => {
     await seedSession(padletSession({ maxPostsPerStudent: 3 }));

@@ -6292,6 +6292,11 @@ service cloud.firestore {
                  (!(t in ['photo', 'link', 'file', 'video']) ||
                   awSession().get('allowedTypes', {}).get(t, false) == true);
         }
+        // Students post text unless the wall turned it off (absent = on); teacher posts skip this.
+        function awTextOk() {
+          return incoming().get('type', 'text') != 'text' ||
+                 awSession().get('allowedTypes', {}).get('text', true) == true;
+        }
         // Per-student cap is enforced through the doc id: `{uid}__{n}` with
         // n < maxPostsPerStudent. One-doc-per-slot means a student cannot
         // exceed the cap by racing writes (same pattern as quiz responses).
@@ -6412,6 +6417,7 @@ service cloud.firestore {
              awPadletAccessOk() &&
              incoming().authorUid == authUid() &&
              awTypeAllowed() &&
+             awTextOk() &&
              awWithinPostCap()));
         // Teacher posts from the widget face: auto-approved even under
         // moderation, stamped authorRole 'teacher' so the card is labelled.

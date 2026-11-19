@@ -237,17 +237,17 @@ export const BackgroundsModal: React.FC<BackgroundsModalProps> = ({
       contentClassName="px-0 pb-0 flex"
       ariaLabelledby="backgrounds-modal-title"
       customHeader={
-        <div className="flex items-center justify-between p-6 pb-4 shrink-0 border-b border-slate-100">
+        <div className="flex items-center justify-between gap-3 px-6 py-3.5 shrink-0 bg-brand-blue-primary text-white rounded-t-2xl">
           <h3
             id="backgrounds-modal-title"
-            className="font-black text-lg text-slate-800"
+            className="font-black text-lg text-white"
           >
             {t('backgrounds.title', { defaultValue: 'Backgrounds' })}
           </h3>
           <button
             {...tourAttr('backgrounds.close')}
             onClick={onClose}
-            className="p-1 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
+            className="p-1 hover:bg-white/15 rounded-full text-white/80 transition-colors"
             aria-label={t('common.close', { defaultValue: 'Close' })}
           >
             <X size={20} />

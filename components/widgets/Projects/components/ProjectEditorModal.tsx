@@ -32,6 +32,7 @@ import { RubricBuilderPanel } from '@/components/widgets/QuizWidget/components/R
 import { MAX_STEPS, parseStepLines } from '../projectSteps';
 import { tourAttr } from '@/config/tourAnchors';
 import { stripRubricExamples } from '@/utils/rubricGuide';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 
 /** ms epoch <-> datetime-local input value (local time, no seconds). */
 const msToLocalInputValue = (ms: number | undefined): string => {
@@ -526,6 +527,7 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
 
   return (
     <EditorWorkspace
+      headerAccent={LIBRARY_HEADER_ACCENTS.projects}
       isOpen={isOpen}
       title={draft.title}
       onTitleChange={(next) => patch({ title: next })}

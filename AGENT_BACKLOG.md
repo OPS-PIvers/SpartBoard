@@ -195,6 +195,7 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
 ### Widgets and UI
 
+- **AB-307 Brand-align the hand-built dialogs** (M). #6327 gave every `Modal` one header (`components/common/ModalHeader.tsx`: brand blue, or the widget's `LIBRARY_HEADER_ACCENTS` colour for widget-owned modals) and a `bg-slate-50` footer with a hairline. About 75 dialogs still skip `Modal` and draw their own `fixed inset-0` shell with a white header (`grep -rl 'fixed inset-0' components | xargs grep -L '<Modal'`), plus the dark `DialogContainer` confirms and `plc/redesignMockup/LayoutEditorModal`. Move each to `Modal` + `ModalHeader` where it is a real dialog, keep `variant="bare"` surfaces (Lunch Count) untouched, and move the custom-header modals that still hand-copy `bg-brand-blue-primary … rounded-t-2xl` onto `ModalHeader`. Screenshot each whole modal before and after. Done when no dialog has a plain white header bar.
 - **AB-305 Lunch Count redesign: translate, settle the fit, keep the date fresh** (S; release 2026.11.19c review of #6282; admin-only behind `lunch-count-redesign`). Do before that flag opens. (1) `components/widgets/LunchCount/redesign/RedesignedLunchCount.tsx` and `LunchZone.tsx` hardcode English ("Daily Lunch Count", "Submit Report", "Assign N More Students", zone names, "Unassigned", "Show photo of"); move them to `locales/*.json` (#6282 deleted the old `short*` keys). (2) `useBoardFit.ts` `fitsAt` runs up to 9 reflows per `fit()` on every board resize frame; run the board-resize path through one rAF so a drag on a Chromebook with 30+ students stays smooth. (3) The header date is `new Date()` per render and goes stale past midnight; tick it at midnight. Done when the face renders translated in es and a test covers the rAF-batched fit.
 - **AB-281 Small widget polish** (S, from AB-65 triage). (1) The Countdown grid's 12px bottom padding can add a scrollbar at the smallest sizes. (2) Number Line has a visible jump at the 500px width threshold. (3) A very long Activity Wall composer prompt grows without limit; cap it with `max-h` and scroll. Screenshot each before and after.
 - **AB-266 QR stuck on an old Text sync with no Text widget** (S). Since Connections went Public, `hiddenWithConnections` hides the old per-widget link toggles. A QR with `syncWithTextWidget: true` and no Text widget never converts (`utils/legacyConnections.ts`), so `QRDestinationField` keeps the URL box disabled and the teacher can't turn the sync off. Treat a sync with no Text widget as unsynced (or show the toggle while unconverted), and check the other unconverted toggles (Music `syncWithTimeTool`, Random `autoStartTimer` with no Timer) for the same trap.
@@ -256,7 +257,11 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
   <details><summary>Branches to delete (190, checked 2026-11-01)</summary>
 
+claude/project-thread-fa7cvi (#6317, then this docs PR; delete after it merges)
+claude/project-thread-1pw1yd (#6316, then this docs PR; delete after it merges)
 claude/project-thread-14bvaw (#6302, then this docs PR; delete after it merges)
+claude/project-thread-tx2kko (#6309)
+claude/project-thread-tx2kko-ab112 (this docs PR; delete after it merges)
 claude/release-fix-2026-11-19c (#6298)
 claude/release-2026-11-19c-followups (this docs PR, delete after it merges)
 claude/project-thread-w12g03 (release #6292 branch, delete after it merges)
@@ -323,6 +328,9 @@ claude/project-thread-rnvyvu-ab112 (this docs PR, delete after it merges)
 claude/project-thread-eibt0b (#6230)
 claude/project-thread-eibt0b-ab112 (this docs PR, delete after it merges)
 claude/project-thread-o5lwcn (Assignments hub Assigned list PR; delete after it merges)
+claude/project-thread-uw7zn6 (#6326)
+claude/project-thread-uw7zn6-ab112 (this docs PR, delete after it merges)
+claude/project-thread-cwkydz (#6328; this docs PR reuses it, delete after it merges)
 
 claude/project-thread-qd0xi5 (#6301; this docs PR reuses it, delete after it merges)
 claude/project-thread-dsduhb (#6279; this docs PR reuses it, delete after it merges)
@@ -749,6 +757,7 @@ git push origin --delete claude/project-thread-776f0z claude/ab112-776f0z
 git push origin --delete claude/project-thread-hnyuke claude/project-thread-hnyuke-ab112
 git push origin --delete claude/project-thread-5qafu6
 git push origin --delete claude/project-thread-sbqr9b claude/ab112-sbqr9b
+git push origin --delete claude/project-thread-icqtrs claude/project-thread-icqtrs-docs
 ```
 
   </details>

@@ -819,6 +819,7 @@ const DEVICE_ATTEMPT_FIELDS = [
   'tabSwitchWarnings',
   'tabExits',
   'inputSignals',
+  'dictated',
   'resultsTabWarnings',
   'resultsLockedOut',
   'resultsLockedOutAt',

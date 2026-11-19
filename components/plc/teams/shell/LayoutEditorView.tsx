@@ -190,9 +190,9 @@ export const LayoutEditorView: React.FC<LayoutEditorViewProps> = ({
       maxWidth="max-w-2xl"
       ariaLabel={title}
       customHeader={
-        <div className="mb-2 flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 p-6 pb-0">
-          <h3 className="text-lg font-black text-slate-800">{title}</h3>
-          <span className={META}>
+        <div className="mb-4 flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 bg-brand-blue-primary px-6 py-3.5 text-white rounded-t-2xl">
+          <h3 className="text-lg font-black text-white">{title}</h3>
+          <span className="text-xs text-white/80">
             {t('teams.layout.everyoneSees', {
               defaultValue: 'Everyone on the team sees this layout.',
             })}
@@ -201,7 +201,7 @@ export const LayoutEditorView: React.FC<LayoutEditorViewProps> = ({
             type="button"
             onClick={onClose}
             {...tourAttr('teams.layout.close')}
-            className="ml-auto rounded-full p-1 text-slate-400 transition-colors hover:bg-slate-100"
+            className="ml-auto rounded-full p-1 text-white/80 transition-colors hover:bg-white/15 hover:text-white"
             aria-label={t('plcDashboard.close', { defaultValue: 'Close' })}
           >
             <X size={20} />

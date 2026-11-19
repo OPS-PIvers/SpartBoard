@@ -2344,6 +2344,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   );
   const handleStepperAssign = (extra?: {
     printedGroups: PrintedGroupPick[];
+    overridesByKey?: AssignTargetingValue['overridesByKey'];
   }): void => {
     if (!assignTarget) return;
     if (plcs.length > 0 && sharingNeedsPlc(assignOptions, plcs)) return;
@@ -2375,7 +2376,11 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     const bellWindow = periodAccess?.bellWindow;
     const applied = applyWhen(
       {
-        ...(assignToStaff ? EMPTY_ASSIGN_TARGETING_VALUE : assignTargeting),
+        ...(assignToStaff
+          ? EMPTY_ASSIGN_TARGETING_VALUE
+          : extra?.overridesByKey
+            ? { ...assignTargeting, overridesByKey: extra.overridesByKey }
+            : assignTargeting),
         availability: assignToStaff
           ? { ...assignWhen.availability, manualDue: undefined }
           : assignWhen.availability,
@@ -3341,16 +3346,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
               (assignQuizData?.questions ?? []).some(
                 (q) => !!q.modifiedText?.trim() || !!q.modifiedRubricSnapshot
               ) || (assignQuizData?.bankSlots?.length ?? 0) > 0,
-            ...(onStudentView
-              ? {
-                  onPreviewVersions: (versions, initialVersionId) =>
-                    onStudentView(assignTarget, {
-                      behavior: assignBehavior,
-                      versions,
-                      initialVersionId,
-                    }),
-                }
-              : {}),
           }}
           sharing={{
             value: assignOptions,

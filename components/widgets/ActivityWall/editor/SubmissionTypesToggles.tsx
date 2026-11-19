@@ -1,49 +1,61 @@
 import React from 'react';
-import type { ActivityWallLibraryEntry } from '@/types';
+import type { ActivityWallAllowedTypes } from '@/types';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { wallTypeOn, type WallPostType } from '@/utils/activityWallTypes';
 import { ToggleRow } from './ToggleRow';
 
-type AllowedTypes = NonNullable<ActivityWallLibraryEntry['allowedTypes']>;
-
 interface SubmissionTypesTogglesProps {
-  value: AllowedTypes;
-  onChange: (value: AllowedTypes) => void;
+  value: ActivityWallAllowedTypes;
+  onChange: (value: ActivityWallAllowedTypes) => void;
   widgetId: string;
   widgetType: string;
 }
 
-const TYPE_ROWS: { key: keyof AllowedTypes; label: string; hint?: string }[] = [
+const TYPE_ROWS: { key: WallPostType; label: string; hint?: string }[] = [
+  { key: 'text', label: 'Text' },
   { key: 'photo', label: 'Photo' },
   { key: 'link', label: 'Link' },
   { key: 'file', label: 'File', hint: 'PDF or an Office document.' },
   { key: 'video', label: 'Video', hint: 'Up to 200 MB.' },
 ];
 
-/** Per-wall submission kinds. Text is always on and is not a toggle. */
+/** Per-wall submission kinds; the last one left on can't be turned off. */
 export const SubmissionTypesToggles: React.FC<SubmissionTypesTogglesProps> = ({
   value,
   onChange,
   widgetId,
   widgetType,
-}) => (
-  <div
-    {...tourAttr('activity-wall-editor.submission-types', widgetId, widgetType)}
-    className="space-y-2"
-  >
-    <p className="text-xs text-slate-600">Text is always on.</p>
-    {TYPE_ROWS.map((row) => (
-      <ToggleRow
-        key={row.key}
-        label={row.label}
-        hint={row.hint}
-        checked={value[row.key]}
-        onChange={(next) => onChange({ ...value, [row.key]: next })}
-        anchor={tourFieldAttr(
-          'activity-wall-editor.submission-type',
-          widgetType,
-          row.key
-        )}
-      />
-    ))}
-  </div>
-);
+}) => {
+  const onCount = TYPE_ROWS.filter((row) => wallTypeOn(value, row.key)).length;
+  return (
+    <div
+      {...tourAttr(
+        'activity-wall-editor.submission-types',
+        widgetId,
+        widgetType
+      )}
+    >
+      <p className="text-xs text-slate-600">Keep at least one type on.</p>
+      <div className="divide-y divide-slate-200/70">
+        {TYPE_ROWS.map((row) => {
+          const on = wallTypeOn(value, row.key);
+          return (
+            <ToggleRow
+              key={row.key}
+              label={row.label}
+              hint={row.hint}
+              checked={on}
+              disabled={on && onCount === 1}
+              onChange={(next) => onChange({ ...value, [row.key]: next })}
+              anchor={tourFieldAttr(
+                'activity-wall-editor.submission-type',
+                widgetType,
+                row.key
+              )}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+};

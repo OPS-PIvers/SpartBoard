@@ -11,4 +11,21 @@ describe('modelReadsInputs', () => {
     expect(modelReadsInputs('claude-sonnet-5-5', ['audio'])).toBe(false);
     expect(modelReadsInputs('gemini-3.7-flash', ['video'])).toBe(true);
   });
+
+  it('offers the transcription-only model to Speech to text alone', () => {
+    expect(
+      modelReadsInputs(
+        'gemini-3.5-transcribe',
+        ['audio'],
+        'speech-to-text-transcribe'
+      )
+    ).toBe(true);
+    expect(
+      modelReadsInputs(
+        'gemini-3.5-transcribe',
+        ['audio'],
+        'plc-meeting-transcribe'
+      )
+    ).toBe(false);
+  });
 });

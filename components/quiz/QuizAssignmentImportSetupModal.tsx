@@ -112,18 +112,18 @@ export const QuizAssignmentImportSetupModal: React.FC<
       maxWidth="max-w-md"
       contentClassName=""
       customHeader={
-        <div className="flex items-start justify-between px-5 pt-5 pb-3 border-b border-slate-100">
+        <div className="flex items-start justify-between gap-3 px-5 py-3.5 bg-brand-blue-primary text-white rounded-t-2xl">
           <div className="flex items-start gap-3">
             <div className="shrink-0 w-9 h-9 rounded-lg bg-violet-100 text-violet-700 flex items-center justify-center">
               <ClipboardList className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900">
+              <h2 className="text-base font-bold text-white">
                 {t('quizAssignmentImportSetupModal.title', {
                   defaultValue: 'Set up imported assignment',
                 })}
               </h2>
-              <p className="text-xs text-slate-500 mt-0.5 truncate max-w-[18rem]">
+              <p className="text-xs text-white/80 mt-0.5 truncate max-w-[18rem]">
                 {assignment.quizTitle}
               </p>
             </div>
@@ -133,7 +133,7 @@ export const QuizAssignmentImportSetupModal: React.FC<
             {...tourTypeAttr('quiz-import.setup-close', 'quiz')}
             onClick={guardedClose}
             disabled={saving}
-            className="text-slate-400 hover:text-slate-600 p-1 -m-1 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="text-white/80 hover:text-white p-1 -m-1 disabled:opacity-50 disabled:cursor-not-allowed"
             aria-label={t('quizAssignmentImportSetupModal.close', {
               defaultValue: 'Close',
             })}
@@ -189,7 +189,7 @@ export const QuizAssignmentImportSetupModal: React.FC<
           </div>
         </div>
       }
-      footerClassName="px-5 py-3 bg-slate-50 border-t border-slate-100 shrink-0"
+      footerClassName="px-5 py-3"
     >
       <div className="px-5 py-4 space-y-4">
         {noRosters ? (

@@ -4,6 +4,7 @@ import { Modal } from '@/components/common/Modal';
 import { LearningTargetsManager } from '@/components/plc/settings/LearningTargetsManager';
 import { usePersonalLearningTargets } from '@/hooks/useLearningTargets';
 import { useStandardsCatalog } from '@/hooks/useStandardsCatalog';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 
 interface PersonalLearningTargetsModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export const PersonalLearningTargetsModal: React.FC<
   const { benchmarks } = useStandardsCatalog();
   return (
     <Modal
+      accent={LIBRARY_HEADER_ACCENTS.quiz}
       isOpen={isOpen}
       onClose={onClose}
       title={t('learningTargets.personal.title', {

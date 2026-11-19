@@ -1,6 +1,7 @@
 import { test, expect, type Locator, type Page } from '@playwright/test';
 import { dismissWelcomeToast } from './helpers/dismissWelcomeToast';
 import { expectScrollEndPadding } from './helpers/scrollEndPadding';
+import { expectNoSideScroll } from './helpers/sideScroll';
 
 const openBoard = async (page: Page): Promise<void> => {
   await page.goto('/');
@@ -31,6 +32,7 @@ const checkEveryTab = async (
     // Let lazy data and loading states settle before measuring.
     await page.waitForTimeout(400);
     await expectScrollEndPadding(dialog, `${surface} > ${name}`);
+    await expectNoSideScroll(dialog, `${surface} > ${name}`);
   }
 };
 
@@ -119,6 +121,7 @@ for (const view of LIBRARY_VIEWS) {
       }
       await page.waitForTimeout(300);
       await expectScrollEndPadding(body, `${view} library > ${name}`);
+      await expectNoSideScroll(body, `${view} library > ${name}`);
     }
     // An open preview pane must not pin the list to the panel height.
     const firstTab = count > 0 ? tabs.first() : null;
@@ -160,6 +163,7 @@ for (const [label, width] of [
       await tab.click();
       await page.waitForTimeout(200);
       await expectScrollEndPadding(body, `student ${label} > ${name}`);
+      await expectNoSideScroll(body, `student ${label} > ${name}`);
     }
   });
 }
