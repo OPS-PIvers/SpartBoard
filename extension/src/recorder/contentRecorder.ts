@@ -4,6 +4,7 @@ import { uniqueSelector } from './pageBlur';
 import { isRecorderInternal, type FrameRectReply } from './messages';
 import { loadLexend } from '../fonts';
 import { createShooter } from './shooter';
+import { canHold, createPressHold } from './pressHold';
 
 const FLAG = '__spartTourRecorder';
 // The overlay's own hosts never count as clicks on the site.
@@ -103,12 +104,21 @@ const frameRect = (url: string, index: number): FrameRectReply => {
 // While Click to blur is on, these never reach the page, so a pick can't follow a link.
 const SWALLOWED = ['pointerup', 'mousedown', 'mouseup', 'click', 'auxclick'];
 
+/** The element actually pressed, inside any open shadow root. */
+const pressed = (e: Event): Element | null => {
+  const first = e.composedPath()[0];
+  return first instanceof Element ? first : null;
+};
+
 function start(): () => void {
   const pill = showPill();
   const shooter = createShooter(document, pill.setShown);
+  const press = createPressHold(window);
   const onPointerDown = (e: PointerEvent) => {
     // Only real presses by the admin; the page can't make steps by dispatching events.
     if (!e.isTrusted || e.button !== 0) return;
+    // A second press while one is held (a double click) joins it as the same step.
+    if (press.holding()) return;
     const el = e.target instanceof Element ? e.target : null;
     if (!el || el.closest(OWN_HOST)) return;
     if (shooter.picking()) {
@@ -121,9 +131,16 @@ function start(): () => void {
         .catch(() => undefined);
       return;
     }
+    const target = captureTarget(el);
+    // The page sees a mouse press only after its picture, so the picture shows the page before it.
+    const release =
+      e.pointerType !== 'touch' && canHold(pressed(e) ?? el)
+        ? press.hold(e)
+        : null;
     void chrome.runtime
-      .sendMessage({ type: 'rec/click', target: captureTarget(el) })
-      .catch(() => undefined);
+      .sendMessage({ type: 'rec/click', target })
+      .catch(() => undefined)
+      .finally(() => release?.());
   };
   const swallow = (e: Event) => {
     if (!e.isTrusted || !shooter.picking()) return;
@@ -160,6 +177,7 @@ function start(): () => void {
   const stop = () => {
     pill.remove();
     shooter.dispose();
+    press.dispose();
     removeEventListener('pointerdown', onPointerDown, { capture: true });
     for (const type of SWALLOWED)
       removeEventListener(type, swallow, { capture: true });

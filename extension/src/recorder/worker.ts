@@ -193,9 +193,23 @@ async function placeInTop(
   return viewport ? { rect: out, viewport } : null;
 }
 
+/** Records one press; `shot` runs once its picture is taken or skipped, so the frame can let the press reach the page. */
 async function onClick(
   target: CapturedTarget,
-  sender: chrome.runtime.MessageSender
+  sender: chrome.runtime.MessageSender,
+  shot: () => void
+): Promise<void> {
+  try {
+    await recordClick(target, sender, shot);
+  } finally {
+    shot();
+  }
+}
+
+async function recordClick(
+  target: CapturedTarget,
+  sender: chrome.runtime.MessageSender,
+  shot: () => void
 ): Promise<void> {
   const tabId = sender.tab?.id;
   const frameId = sender.frameId ?? 0;
@@ -219,6 +233,7 @@ async function onClick(
     tab.active && clickedUrl && tab.url === clickedUrl
       ? await captureBlurred(tab, frames, clickedUrl)
       : null;
+  shot();
   const path = frameId === 0 ? [] : framePath(frames, frameId);
   const placed =
     frameId === 0
@@ -562,9 +577,16 @@ export function installRecorder(origins: readonly string[] = []): void {
   chrome.runtime.onMessage.addListener((msg, sender, reply) => {
     if (sender.id !== chrome.runtime.id) return false;
     if (sender.tab) {
-      if (isRecorderInternal(msg, 'rec/click'))
-        void onClick(msg.target, sender);
-      else if (isRecorderInternal(msg, 'rec/blurPick'))
+      if (isRecorderInternal(msg, 'rec/click')) {
+        let replied = false;
+        void onClick(msg.target, sender, () => {
+          if (replied) return;
+          replied = true;
+          reply(true);
+        });
+        return true;
+      }
+      if (isRecorderInternal(msg, 'rec/blurPick'))
         void onBlurPick(msg.selector, msg.on, sender);
       return false;
     }
