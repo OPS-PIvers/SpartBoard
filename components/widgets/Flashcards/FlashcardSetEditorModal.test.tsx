@@ -56,13 +56,12 @@ const baseSet = (overrides: Partial<FlashcardSet> = {}): FlashcardSet => ({
   ...overrides,
 });
 
-const auth = (speak: boolean, images = false) =>
+const auth = (speak: boolean) =>
   ({
     googleAccessToken: 'token',
     refreshGoogleToken: () => Promise.resolve('token'),
     canAccessFeature: (id: string) =>
-      (speak && id === 'flashcards-speak') ||
-      (images && id === 'flashcard-card-images'),
+      speak && id === 'flashcards-speak',
   }) as unknown as AuthContextType;
 
 const lookup = vi.fn<SpeakLookupCall>((input) =>
@@ -78,7 +77,6 @@ const renderModal = (opts: {
   set?: FlashcardSet;
   isNew?: boolean;
   speak?: boolean;
-  images?: boolean;
 }) => {
   const onPersist = vi.fn<
     (set: FlashcardSet, o: { final: boolean }) => Promise<void>
@@ -86,7 +84,7 @@ const renderModal = (opts: {
   const onClose = vi.fn();
   render(
     <AuthContext.Provider
-      value={auth(opts.speak ?? false, opts.images ?? false)}
+      value={auth(opts.speak ?? false)}
     >
       <FlashcardSetEditorModal
         set={opts.set ?? baseSet()}
@@ -327,15 +325,9 @@ describe('FlashcardSetEditorModal', () => {
     expect(screen.queryByLabelText('Term 1, accepted answer C')).toBeNull();
   });
 
-  it('shows image buttons only with the card images flag', () => {
-    renderModal({});
-    expect(screen.queryByLabelText('Add image to Term 1')).toBeNull();
-  });
-
   it('shows a side picture as a small preview button, and swaps it with the text', () => {
     const url = 'https://lh3.googleusercontent.com/d/1AbCdEfGhIjKlMnOp';
     renderModal({
-      images: true,
       set: baseSet({
         cards: [
           { id: 'c1', term: 'hola', definition: 'hello', termImageUrl: url },

@@ -38,6 +38,7 @@ export const RETIRED_TOUR_FEATURES: readonly string[] = [
   'district-library-folders',
   'embed-block-new-tabs',
   'flashcard-answer-rows',
+  'flashcard-card-images',
   'flashcards-check-sync',
   'flashcards-missed-cards',
   'flashcards-study-settings',

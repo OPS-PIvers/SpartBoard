@@ -58,7 +58,6 @@ import {
   CloudSun,
   SquareChevronDown,
   Split,
-  ImagePlus,
   CalendarClock,
   MessageSquare,
   SlidersHorizontal,
@@ -624,17 +623,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: SquareChevronDown,
     description:
       'Stimuli, learning targets and DOK use the same field style as Type.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Flashcards card images. Admin-only until Paul has tested it in prod.
-  'flashcard-card-images': {
-    label: 'Flashcards card images',
-    icon: ImagePlus,
-    description: 'Teachers can paste or pick an image for each side of a card.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

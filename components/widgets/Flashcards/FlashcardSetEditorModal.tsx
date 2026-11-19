@@ -119,9 +119,7 @@ export const FlashcardSetEditorModal: React.FC<
   const refreshDriveToken = auth?.refreshGoogleToken;
   // Pictures live in the teacher's Drive, so the picker needs Drive connected.
   const uploadImage: CardImageUploader | null =
-    driveToken &&
-    refreshDriveToken &&
-    auth.canAccessFeature('flashcard-card-images')
+    driveToken && refreshDriveToken
       ? async (file) => {
           const [images, { GoogleDriveService }] = await Promise.all([
             import('@/utils/flashcardImages'),

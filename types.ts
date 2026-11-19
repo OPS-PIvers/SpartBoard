@@ -9968,7 +9968,7 @@ export interface FlashcardCard {
   id: string;
   term: string;
   definition: string;
-  /** Pictures shown with each side (flag flashcard-card-images). */
+  /** Pictures shown with each side. */
   termImageUrl?: string;
   definitionImageUrl?: string;
   speak?: FlashcardCardSpeak;
@@ -11725,7 +11725,6 @@ export type GlobalFeature =
   | 'quiz-stimulus-preview'
   /** Question editor metadata (stimuli, targets, DOK) as labeled fields like Type and Points. */
   | 'question-editor-fields'
-  | 'flashcard-card-images'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
   | 'live-tour-editing-v2'
   /** Handwritten free-response boxes on paper answer sheets, transcribed for grading. */
