@@ -11906,7 +11906,9 @@ export type GlobalFeature =
   /** The sidebar Assignments hub; on for everyone until an admin narrows it. */
   | 'assignments-hub'
   /** Teachers record their voice for a quiz question prompt. */
-  | 'quiz-question-audio';
+  | 'quiz-question-audio'
+  /** Print results with Settings and Students tabs and a Course > class > student picker. */
+  | 'results-print-v2';
 
 /** Which paid dictation extras a student's page may use, from `getSpeechToTextAccessV1`. */
 export interface SpeechToTextSettings {

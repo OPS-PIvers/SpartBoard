@@ -106,6 +106,34 @@ describe('buildResultsPrintHtml — key and marks', () => {
     expect(render(html).querySelectorAll('li.opt .tick')).toHaveLength(1);
   });
 
+  it('drops repeated marks when the new print layout asks for compact marks', () => {
+    const compact = (s: ResultsPrintStudent, keyMode: 'off' | 'all') =>
+      Array.from(
+        render(
+          buildResultsPrintHtml(
+            { ...job([s]), compactMarks: true },
+            opts({ keyMode })
+          )
+        ).querySelectorAll('li.opt')
+      ).map((li) => li.textContent?.replace(/\s+/g, ' ').trim());
+
+    expect(
+      compact(student({}, [mc], { q1: ['Oslo', 'Paris', 'Rome'] }), 'all')
+    ).toEqual(['○ A. Oslo', '○ B. Paris Correct answer', '● C. Rome']);
+
+    const ma = q('q1', 'MA', 'Paris|Lyon', {
+      text: 'Cities in France?',
+      incorrectAnswers: ['Rome'],
+    });
+    const rows = compact(
+      student({ r: response({ q1: 'Paris|Rome' }) }, [ma]),
+      'all'
+    );
+    expect(rows).toContain('☑ Paris ✓');
+    expect(rows).toContain('☑ Rome ✗');
+    expect(rows).toContain('☐ Lyon Correct answer');
+  });
+
   it('shows the key on missed questions only, or on every question', () => {
     const questions = [mc, q('q2', 'FIB', 'blue')];
     const s = student({ r: response({ q1: 'Rome', q2: 'blue' }) }, questions);
