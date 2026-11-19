@@ -73,12 +73,13 @@ function createdSinceRoot(plc: LinkSnap, snap: LinkSnap): boolean {
   return rootAt !== undefined && at !== undefined && at >= rootAt;
 }
 
-/** True when this PLC's header names a participant, or the group was made for this PLC with an active keyed member in it; the header (and a stamped group) must postdate the root. */
+/** True when this PLC's header names a participant, or the group was made for this PLC with an active keyed member in it; a group not stamped for this PLC also needs `sharerDetached` (the sharer's detach marker names this header), and the header must postdate the root. */
 export function isGroupLinkedToPlc(
   plcId: string,
   plc: LinkSnap,
   header: LinkSnap,
-  group: LinkSnap
+  group: LinkSnap,
+  sharerDetached = false
 ): boolean {
   const plcData = plc.data();
   const headerData = header.data();
@@ -92,10 +93,12 @@ export function isGroupLinkedToPlc(
   ) {
     return true;
   }
-  // A group made outside this PLC is still linked while an active PLC member participates, via a header newer than the root.
+  // An unstamped group needs server-made proof the sharer left via this header.
   const stamped = groupData?.plcId === plcId;
   if (
-    stamped ? !createdSinceRoot(plc, group) : !createdSinceRoot(plc, header)
+    stamped
+      ? !createdSinceRoot(plc, group)
+      : !sharerDetached || !createdSinceRoot(plc, header)
   ) {
     return false;
   }
@@ -117,9 +120,10 @@ export function assertGroupLinkedToPlc(
   plcId: string,
   plc: LinkSnap,
   header: LinkSnap,
-  group: LinkSnap
+  group: LinkSnap,
+  sharerDetached = false
 ): void {
-  if (isGroupLinkedToPlc(plcId, plc, header, group)) return;
+  if (isGroupLinkedToPlc(plcId, plc, header, group, sharerDetached)) return;
   throw new HttpsError(
     'permission-denied',
     'This synced group is not shared with this PLC.'

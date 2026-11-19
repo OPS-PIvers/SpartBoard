@@ -21,6 +21,8 @@ import { assertViewAsAllowed } from './viewAsGuard';
 import { assertNotDistrictGroup } from './districtLibraryGuard';
 import {
   assertGroupLinkedToPlc,
+  PLC_DETACHED_SUBCOLLECTION,
+  isDetachMarkerFor,
   assertPlcContentEditor,
   assertPlcMember,
 } from './plcSyncJoinGuards';
@@ -107,7 +109,27 @@ export async function handleJoinPlcAssignmentSyncGroup(
     );
     if (!alreadyJoined) {
       assertPlcContentEditor(plcSnap.data(), uid);
-      assertGroupLinkedToPlc(plcId, plcSnap, templateSnap, groupSnap);
+      const sharerId = (
+        templateSnap.data() as { sharedBy?: unknown } | undefined
+      )?.sharedBy;
+      const sharerMarker =
+        typeof sharerId === 'string' && sharerId.length > 0
+          ? await tx.get(
+              groupRef.collection(PLC_DETACHED_SUBCOLLECTION).doc(sharerId)
+            )
+          : undefined;
+      const sharerDetached = isDetachMarkerFor(
+        sharerMarker?.data(),
+        plcId,
+        plcAssignmentId
+      );
+      assertGroupLinkedToPlc(
+        plcId,
+        plcSnap,
+        templateSnap,
+        groupSnap,
+        sharerDetached
+      );
       assertNotDistrictGroup(groupSnap.data());
       const now = Date.now();
       participants[uid] = { joinedAt: now };

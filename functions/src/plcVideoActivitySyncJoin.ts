@@ -107,11 +107,30 @@ export async function handleJoinPlcVideoActivitySyncGroup(
       const markerRef = groupRef
         .collection(PLC_DETACHED_SUBCOLLECTION)
         .doc(uid);
+      const sharerId = (entrySnap.data() as { sharedBy?: unknown } | undefined)
+        ?.sharedBy;
+      const sharerMarker =
+        typeof sharerId === 'string' && sharerId.length > 0
+          ? await tx.get(
+              groupRef.collection(PLC_DETACHED_SUBCOLLECTION).doc(sharerId)
+            )
+          : undefined;
+      const sharerDetached = isDetachMarkerFor(
+        sharerMarker?.data(),
+        plcId,
+        plcVideoActivityId
+      );
       const markerSnap = await tx.get(markerRef);
       if (isDetachMarkerFor(markerSnap.data(), plcId, plcVideoActivityId)) {
         tx.delete(markerRef);
       } else {
-        assertGroupLinkedToPlc(plcId, plcSnap, entrySnap, groupSnap);
+        assertGroupLinkedToPlc(
+          plcId,
+          plcSnap,
+          entrySnap,
+          groupSnap,
+          sharerDetached
+        );
       }
       const now = Date.now();
       participants[uid] = { joinedAt: now };

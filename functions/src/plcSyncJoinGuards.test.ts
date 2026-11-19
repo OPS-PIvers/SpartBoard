@@ -13,6 +13,7 @@ vi.mock('firebase-functions/v2/https', () => ({
 import {
   assertShareAuthorInGroup,
   isGroupLinkedToPlc,
+  isDetachMarkerFor,
 } from './plcSyncJoinGuards';
 
 describe('assertShareAuthorInGroup', () => {
@@ -74,8 +75,18 @@ describe('isGroupLinkedToPlc', () => {
       100
     );
     expect(
-      isGroupLinkedToPlc('p', twoMembers, snap({ sharedBy: 'a' }, 200), outside)
+      isGroupLinkedToPlc(
+        'p',
+        twoMembers,
+        snap({ sharedBy: 'a' }, 200),
+        outside,
+        true
+      )
     ).toBe(true);
+    // Forged header: no detach marker for the sharer.
+    expect(
+      isGroupLinkedToPlc('p', twoMembers, snap({ sharedBy: 'a' }, 200), outside)
+    ).toBe(false);
   });
 
   it('refuses an outside-made group whose participants are not active PLC members', () => {
@@ -85,7 +96,13 @@ describe('isGroupLinkedToPlc', () => {
       100
     );
     expect(
-      isGroupLinkedToPlc('p', removed, snap({ sharedBy: 'a' }, 200), outside)
+      isGroupLinkedToPlc(
+        'p',
+        removed,
+        snap({ sharedBy: 'a' }, 200),
+        outside,
+        true
+      )
     ).toBe(false);
   });
 
@@ -96,7 +113,8 @@ describe('isGroupLinkedToPlc', () => {
         'p',
         snap({ members: { a: { status: 'active' } } }, 300),
         snap({ sharedBy: 'gone' }, 200),
-        outside
+        outside,
+        true
       )
     ).toBe(false);
   });
@@ -110,5 +128,15 @@ describe('isGroupLinkedToPlc', () => {
         snap({ plcId: 'p', participants: { a: { joinedAt: 1 } } })
       )
     ).toBe(false);
+  });
+});
+
+describe('isDetachMarkerFor', () => {
+  it('requires both the PLC id and the header id to match', () => {
+    const m = { plcId: 'p', plcContentId: 'h' };
+    expect(isDetachMarkerFor(m, 'p', 'h')).toBe(true);
+    expect(isDetachMarkerFor(m, 'q', 'h')).toBe(false);
+    expect(isDetachMarkerFor(m, 'p', 'x')).toBe(false);
+    expect(isDetachMarkerFor(undefined, 'p', 'h')).toBe(false);
   });
 });

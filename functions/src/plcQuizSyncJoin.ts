@@ -112,11 +112,31 @@ export async function handleJoinPlcQuizSyncGroup(
       const markerRef = groupRef
         .collection(PLC_DETACHED_SUBCOLLECTION)
         .doc(uid);
+      const sharerId = (
+        plcQuizSnap.data() as { sharedBy?: unknown } | undefined
+      )?.sharedBy;
+      const sharerMarker =
+        typeof sharerId === 'string' && sharerId.length > 0
+          ? await tx.get(
+              groupRef.collection(PLC_DETACHED_SUBCOLLECTION).doc(sharerId)
+            )
+          : undefined;
+      const sharerDetached = isDetachMarkerFor(
+        sharerMarker?.data(),
+        plcId,
+        plcQuizId
+      );
       const markerSnap = await tx.get(markerRef);
       if (isDetachMarkerFor(markerSnap.data(), plcId, plcQuizId)) {
         tx.delete(markerRef);
       } else {
-        assertGroupLinkedToPlc(plcId, plcSnap, plcQuizSnap, groupSnap);
+        assertGroupLinkedToPlc(
+          plcId,
+          plcSnap,
+          plcQuizSnap,
+          groupSnap,
+          sharerDetached
+        );
       }
       const now = Date.now();
       participants[uid] = { joinedAt: now };
