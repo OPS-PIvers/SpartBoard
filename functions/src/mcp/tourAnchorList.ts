@@ -14618,15 +14618,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ],
     "routes": [
       {
-        "surface": "quiz.face",
-        "kind": "widget",
-        "widget_type": "quiz",
-        "path": [],
-        "needs": [
-          "widget-on-stage"
-        ]
-      },
-      {
         "surface": "quiz.results.print",
         "kind": "modal",
         "path": [
@@ -14652,15 +14643,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "row_wildcard": true,
     "row_list": "quiz-print-results-student-select",
     "routes": [
-      {
-        "surface": "quiz.face",
-        "kind": "widget",
-        "widget_type": "quiz",
-        "path": [],
-        "needs": [
-          "widget-on-stage"
-        ]
-      },
       {
         "surface": "quiz.results.print",
         "kind": "modal",
@@ -14711,11 +14693,18 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ],
     "routes": [
       {
-        "surface": "quiz.face",
-        "kind": "widget",
-        "widget_type": "quiz",
-        "path": [],
+        "surface": "quiz.results.print",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-results.print:quiz",
+          "quiz-print.results-tab:quiz#students"
+        ],
+        "reveal": "quiz-print.results-tab:quiz#students",
         "needs": [
+          "library-item",
+          "student-data",
           "widget-on-stage"
         ]
       }
@@ -14730,11 +14719,18 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "row_list": "quiz-print-results-groups",
     "routes": [
       {
-        "surface": "quiz.face",
-        "kind": "widget",
-        "widget_type": "quiz",
-        "path": [],
+        "surface": "quiz.results.print",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-results.print:quiz",
+          "quiz-print.results-tab:quiz#students"
+        ],
+        "reveal": "quiz-print.results-tab:quiz#students",
         "needs": [
+          "library-item",
+          "student-data",
           "widget-on-stage"
         ]
       }
@@ -14749,11 +14745,18 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "row_list": "quiz-print-results-groups",
     "routes": [
       {
-        "surface": "quiz.face",
-        "kind": "widget",
-        "widget_type": "quiz",
-        "path": [],
+        "surface": "quiz.results.print",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-results.print:quiz",
+          "quiz-print.results-tab:quiz#students"
+        ],
+        "reveal": "quiz-print.results-tab:quiz#students",
         "needs": [
+          "library-item",
+          "student-data",
           "widget-on-stage"
         ]
       }
@@ -14768,11 +14771,18 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "row_list": "quiz-print-results-groups",
     "routes": [
       {
-        "surface": "quiz.face",
-        "kind": "widget",
-        "widget_type": "quiz",
-        "path": [],
+        "surface": "quiz.results.print",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-results.print:quiz",
+          "quiz-print.results-tab:quiz#students"
+        ],
+        "reveal": "quiz-print.results-tab:quiz#students",
         "needs": [
+          "library-item",
+          "student-data",
           "widget-on-stage"
         ]
       }
@@ -14787,11 +14797,18 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "row_list": "quiz-print-results-groups",
     "routes": [
       {
-        "surface": "quiz.face",
-        "kind": "widget",
-        "widget_type": "quiz",
-        "path": [],
+        "surface": "quiz.results.print",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-results.print:quiz",
+          "quiz-print.results-tab:quiz#students"
+        ],
+        "reveal": "quiz-print.results-tab:quiz#students",
         "needs": [
+          "library-item",
+          "student-data",
           "widget-on-stage"
         ]
       }
@@ -14801,7 +14818,23 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-print.results-written-mode",
     "label": "Written answers mode radios in the Quiz widget",
     "scope": "field",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.results.print",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-results.print:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
   },
   {
     "id": "quiz-print.roster-expand",
