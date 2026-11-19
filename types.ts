@@ -11725,8 +11725,6 @@ export type GlobalFeature =
   | 'quiz-stimulus-preview'
   /** Question editor metadata (stimuli, targets, DOK) as labeled fields like Type and Points. */
   | 'question-editor-fields'
-  /** Flashcards editor: each accepted answer on its own row; slash shorthand spells out. */
-  | 'flashcard-answer-rows'
   | 'flashcard-card-images'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
   | 'live-tour-editing-v2'

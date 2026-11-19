@@ -10,11 +10,7 @@ import type { SpeakRowProps } from './useFlashcardEditorState';
 import { AnswerAltFields, AnswerMainField } from './AnswerRowFields';
 import { CardImageButton } from './CardImageControls';
 import { useCardImage, type CardImageUploader } from './useCardImage';
-import {
-  ANSWER_FIELD_CLASS,
-  answerFieldStyle,
-  useAnswerRows,
-} from './useAnswerRows';
+import { useAnswerRows } from './useAnswerRows';
 
 interface SortableCardRowProps {
   card: FlashcardCard;
@@ -24,11 +20,9 @@ interface SortableCardRowProps {
   onRemove: (id: string) => void;
   onAddAfter: (index: number) => void;
   speak: SpeakRowProps | null;
-  /** Accepted answers as rows (flag flashcard-answer-rows). */
-  answerRows: boolean;
   termLanguage: string;
   definitionLanguage: string;
-  /** Card images (flag flashcard-card-images); null hides the picker. */
+  /** Card images; null hides the picker (no Drive connected). */
   uploadImage: CardImageUploader | null;
 }
 
@@ -40,7 +34,6 @@ export const SortableCardRow: React.FC<SortableCardRowProps> = ({
   onRemove,
   onAddAfter,
   speak,
-  answerRows,
   termLanguage,
   definitionLanguage,
   uploadImage,
@@ -109,12 +102,12 @@ export const SortableCardRow: React.FC<SortableCardRowProps> = ({
         />
       ) : undefined;
     const definitionKeyDown =
-      answerRows && definitionRows.rows.length > 1
+      definitionRows.rows.length > 1
         ? (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
             if (event.key === 'Enter') addOnEnterOrTabOut(event);
           }
         : addOnEnterOrTabOut;
-    const field = answerRows ? (
+    const field = (
       <AnswerMainField
         answers={answers}
         cardId={card.id}
@@ -127,40 +120,6 @@ export const SortableCardRow: React.FC<SortableCardRowProps> = ({
         textareaAnchor={textareaAnchor}
         extraButton={imageButton}
       />
-    ) : (
-      <div className="relative min-w-0">
-        <label>
-          <span className="sr-only">{label}</span>
-          <textarea
-            value={isTerm ? card.term : card.definition}
-            onChange={(event) =>
-              onChange(
-                card.id,
-                isTerm
-                  ? { term: event.target.value }
-                  : { definition: event.target.value }
-              )
-            }
-            onKeyDown={isTerm ? undefined : addOnEnterOrTabOut}
-            maxLength={maxLength}
-            rows={1}
-            className={ANSWER_FIELD_CLASS}
-            style={answerFieldStyle(
-              imageButton ? 'min(36px, 9cqmin)' : undefined
-            )}
-            placeholder={isTerm ? 'Term' : 'Definition'}
-            {...textareaAnchor}
-          />
-        </label>
-        {imageButton && (
-          <div
-            className="absolute top-1/2 right-0 flex -translate-y-1/2 items-center"
-            style={{ marginRight: 'min(6px, 1.5cqmin)' }}
-          >
-            {imageButton}
-          </div>
-        )}
-      </div>
     );
     if (!uploadImage) return field;
     return (
@@ -188,7 +147,7 @@ export const SortableCardRow: React.FC<SortableCardRowProps> = ({
   };
 
   const hasAlternates =
-    answerRows && (termRows.rows.length > 1 || definitionRows.rows.length > 1);
+    termRows.rows.length > 1 || definitionRows.rows.length > 1;
 
   const {
     attributes,

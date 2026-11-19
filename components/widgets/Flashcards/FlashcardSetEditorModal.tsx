@@ -115,7 +115,6 @@ export const FlashcardSetEditorModal: React.FC<
     composeSet,
   } = state;
   const auth = useContext(AuthContext);
-  const answerRows = auth?.canAccessFeature('flashcard-answer-rows') ?? false;
   const driveToken = auth?.googleAccessToken;
   const refreshDriveToken = auth?.refreshGoogleToken;
   // Pictures live in the teacher's Drive, so the picker needs Drive connected.
@@ -136,15 +135,13 @@ export const FlashcardSetEditorModal: React.FC<
       : null;
   const importCards = (incoming: FlashcardCard[]): void =>
     appendCards(
-      answerRows
-        ? incoming.map((card) => ({
-            ...card,
-            term: joinAnswerRows(expandAnswerRows(card.term, termLanguage)),
-            definition: joinAnswerRows(
-              expandAnswerRows(card.definition, definitionLanguage)
-            ),
-          }))
-        : incoming
+      incoming.map((card) => ({
+        ...card,
+        term: joinAnswerRows(expandAnswerRows(card.term, termLanguage)),
+        definition: joinAnswerRows(
+          expandAnswerRows(card.definition, definitionLanguage)
+        ),
+      }))
     );
   // A column is guessed at most once, and never after the teacher picks its language.
   const [settledLanguage, setSettledLanguage] = useState({
@@ -530,7 +527,6 @@ export const FlashcardSetEditorModal: React.FC<
                   onRemove={removeCard}
                   onAddAfter={addCardAfter}
                   speak={speakRow}
-                  answerRows={answerRows}
                   termLanguage={termLanguage}
                   definitionLanguage={definitionLanguage}
                   uploadImage={uploadImage}

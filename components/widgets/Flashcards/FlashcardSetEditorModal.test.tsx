@@ -56,13 +56,12 @@ const baseSet = (overrides: Partial<FlashcardSet> = {}): FlashcardSet => ({
   ...overrides,
 });
 
-const auth = (speak: boolean, answerRows = false, images = false) =>
+const auth = (speak: boolean, images = false) =>
   ({
     googleAccessToken: 'token',
     refreshGoogleToken: () => Promise.resolve('token'),
     canAccessFeature: (id: string) =>
       (speak && id === 'flashcards-speak') ||
-      (answerRows && id === 'flashcard-answer-rows') ||
       (images && id === 'flashcard-card-images'),
   }) as unknown as AuthContextType;
 
@@ -79,7 +78,6 @@ const renderModal = (opts: {
   set?: FlashcardSet;
   isNew?: boolean;
   speak?: boolean;
-  answerRows?: boolean;
   images?: boolean;
 }) => {
   const onPersist = vi.fn<
@@ -88,11 +86,7 @@ const renderModal = (opts: {
   const onClose = vi.fn();
   render(
     <AuthContext.Provider
-      value={auth(
-        opts.speak ?? false,
-        opts.answerRows ?? false,
-        opts.images ?? false
-      )}
+      value={auth(opts.speak ?? false, opts.images ?? false)}
     >
       <FlashcardSetEditorModal
         set={opts.set ?? baseSet()}
@@ -288,7 +282,7 @@ describe('FlashcardSetEditorModal', () => {
   });
 
   it('spells slash shorthand out into accepted-answer rows on blur', () => {
-    renderModal({ answerRows: true });
+    renderModal({});
     const term = screen.getByLabelText('Term 1');
     fireEvent.change(term, { target: { value: 'el/la doctor/a' } });
     expect(screen.queryByLabelText('Term 1, accepted answer B')).toBeNull();
@@ -317,7 +311,6 @@ describe('FlashcardSetEditorModal', () => {
 
   it('splits saved slash shorthand into rows from the fork button', () => {
     renderModal({
-      answerRows: true,
       set: baseSet({
         termLanguage: 'es-ES',
         cards: [{ id: 'c1', term: 'el/la guía', definition: 'guide' }],

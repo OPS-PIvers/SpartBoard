@@ -630,18 +630,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Flashcards accepted answers as rows. Admin-only until Paul has tested it in prod.
-  'flashcard-answer-rows': {
-    label: 'Flashcards answer rows',
-    icon: Split,
-    description:
-      'Each accepted answer gets its own row, and slash shorthand spells out into rows.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Flashcards card images. Admin-only until Paul has tested it in prod.
   'flashcard-card-images': {
     label: 'Flashcards card images',

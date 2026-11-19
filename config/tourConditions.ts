@@ -37,6 +37,7 @@ export const RETIRED_TOUR_FEATURES: readonly string[] = [
   'claude-connector-apps',
   'district-library-folders',
   'embed-block-new-tabs',
+  'flashcard-answer-rows',
   'flashcards-check-sync',
   'flashcards-missed-cards',
   'flashcards-study-settings',
