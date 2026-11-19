@@ -739,6 +739,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
     students: rows.map((s) => withPaper(s.student)),
     ...(hasPaperWritten ? { writtenMode: printMode } : {}),
     ...(imageMarkup ? { imageMarkup } : {}),
+    ...(v2 ? { compactMarks: true } : {}),
   });
 
   // The board may be projected, so the preview wears the on-screen name (D10).

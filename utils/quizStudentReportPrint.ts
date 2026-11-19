@@ -241,6 +241,8 @@ export interface ResultsPrintJob {
   writtenMode?: WrittenReturnMode;
   /** The teacher has `paper-image-markup`: image markup prints with the written feedback. */
   imageMarkup?: boolean;
+  /** `results-print-v2`: one-choice picks leave right or wrong to the row label. */
+  compactMarks?: boolean;
 }
 
 const NO_PERIOD_LABEL = 'No class period';
@@ -350,12 +352,13 @@ function mcAnswer(
   line: StudentQuestionLine,
   student: ResultsPrintStudent,
   options: QuizResultsPrintOptions,
-  showKey: boolean
+  showKey: boolean,
+  compactMarks: boolean
 ): string {
   const multi = line.type === 'MA';
   const opts = line.options ?? [];
   // Only a Correct, Partial or Incorrect row label already speaks for the pick.
-  const verdict = VERDICT_MARKS.has(line.mark);
+  const verdict = compactMarks && VERDICT_MARKS.has(line.mark);
   const items = opts
     .map((opt, i) => {
       const letter =
@@ -630,7 +633,8 @@ function answerBlock(
   student: ResultsPrintStudent,
   options: QuizResultsPrintOptions,
   writtenMode?: WrittenReturnMode,
-  imageMarkup = false
+  imageMarkup = false,
+  compactMarks = false
 ): string {
   const showKey = keyApplies(line, options.keyMode);
   const keyLine = (label: string, text: string) =>
@@ -648,7 +652,7 @@ function answerBlock(
     return `<div class="answer">${line.answerText ? answerTextHtml(line.answerText, line) : '<em>No answer</em>'}</div>${keyLine('Correct answer', answerTextHtml(line.correctAnswerText ?? '', line))}`;
   }
   if (line.type === 'MC' || line.type === 'MA')
-    return mcAnswer(line, student, options, showKey);
+    return mcAnswer(line, student, options, showKey, compactMarks);
   if (line.type === 'Matching') return matchingAnswer(line, options, showKey);
   if (line.type === 'Ordering' && line.order) {
     const given =
@@ -727,7 +731,7 @@ function studentReport(
       const text = options.includeQuestions
         ? `<div class="text">${promptPrintHtml(line.text)}</div>`
         : '';
-      return `${stim}<li data-unit><span class="qn">${line.number}.</span><div>${text}${answerBlock(line, student, options, job.writtenMode, job.imageMarkup)}${explanationHtml(line, options)}</div>${markCell(line, options)}</li>`;
+      return `${stim}<li data-unit><span class="qn">${line.number}.</span><div>${text}${answerBlock(line, student, options, job.writtenMode, job.imageMarkup, job.compactMarks)}${explanationHtml(line, options)}</div>${markCell(line, options)}</li>`;
     })
     .join('');
   const questions =

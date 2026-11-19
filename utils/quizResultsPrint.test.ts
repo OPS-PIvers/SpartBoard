@@ -101,20 +101,37 @@ describe('buildResultsPrintHtml — key and marks', () => {
     expect(html).not.toContain('Correct answer');
     const picked = render(html).querySelector('li.opt.picked');
     expect(picked?.textContent).toContain('Rome');
-    // One-choice questions leave the verdict to the row's Correct/Incorrect.
-    expect(render(html).querySelectorAll('li.opt .tick')).toHaveLength(0);
+    expect(picked?.textContent).toContain('✗');
+    // Only the student's own pick carries a mark.
+    expect(render(html).querySelectorAll('li.opt .tick')).toHaveLength(1);
   });
 
-  it('tags only the key options the student did not pick', () => {
-    const html = buildResultsPrintHtml(
-      job([student({}, [mc], { q1: ['Oslo', 'Paris', 'Rome'] })]),
-      opts({ keyMode: 'all' })
+  it('drops repeated marks when the new print layout asks for compact marks', () => {
+    const compact = (s: ResultsPrintStudent, keyMode: 'off' | 'all') =>
+      Array.from(
+        render(
+          buildResultsPrintHtml(
+            { ...job([s]), compactMarks: true },
+            opts({ keyMode })
+          )
+        ).querySelectorAll('li.opt')
+      ).map((li) => li.textContent?.replace(/\s+/g, ' ').trim());
+
+    expect(
+      compact(student({}, [mc], { q1: ['Oslo', 'Paris', 'Rome'] }), 'all')
+    ).toEqual(['○ A. Oslo', '○ B. Paris Correct answer', '● C. Rome']);
+
+    const ma = q('q1', 'MA', 'Paris|Lyon', {
+      text: 'Cities in France?',
+      incorrectAnswers: ['Rome'],
+    });
+    const rows = compact(
+      student({ r: response({ q1: 'Paris|Rome' }) }, [ma]),
+      'all'
     );
-    const rows = Array.from(render(html).querySelectorAll('li.opt')).map((li) =>
-      li.textContent?.replace(/\s+/g, ' ').trim()
-    );
-    expect(rows).toContain('○ B. Paris Correct answer');
-    expect(rows).toContain('● C. Rome');
+    expect(rows).toContain('☑ Paris ✓');
+    expect(rows).toContain('☑ Rome ✗');
+    expect(rows).toContain('☐ Lyon Correct answer');
   });
 
   it('shows the key on missed questions only, or on every question', () => {
@@ -149,7 +166,7 @@ describe('buildResultsPrintHtml — key and marks', () => {
       li.textContent?.replace(/\s+/g, ' ').trim()
     );
     expect(rows).toHaveLength(3);
-    expect(rows).toContain('☑ Paris ✓');
+    expect(rows).toContain('☑ Paris ✓ Correct answer');
     expect(rows).toContain('☑ Rome ✗');
     expect(rows).toContain('☐ Lyon Correct answer');
   });
@@ -186,7 +203,7 @@ describe('buildResultsPrintHtml — key and marks', () => {
       Array.from(paper.querySelectorAll('li.opt')).map((li) =>
         li.textContent?.replace(/\s+/g, ' ').trim()
       )
-    ).toEqual(['○ A. Oslo', '● B. Rome', '○ C. Paris']);
+    ).toEqual(['○ A. Oslo', '● B. Rome ✗', '○ C. Paris']);
 
     const online = render(buildResultsPrintHtml(job([student()]), opts()));
     expect(online.querySelector('.letter')).toBeNull();
