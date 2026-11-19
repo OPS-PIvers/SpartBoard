@@ -6672,7 +6672,7 @@ export type PaperPageItem =
       lines: number;
       /** Absent = lines, as every map printed before box styles. */
       style?: PaperBoxStyle;
-      /** Fill in the blank: one write-in line per blank (`paper-fill-in-blank`). */
+      /** Fill in the blank: one write-in line per blank. */
       blanks?: number;
     };
 
@@ -9968,7 +9968,7 @@ export interface FlashcardCard {
   id: string;
   term: string;
   definition: string;
-  /** Pictures shown with each side (flag flashcard-card-images). */
+  /** Pictures shown with each side. */
   termImageUrl?: string;
   definitionImageUrl?: string;
   speak?: FlashcardCardSpeak;
@@ -11725,9 +11725,6 @@ export type GlobalFeature =
   | 'quiz-stimulus-preview'
   /** Question editor metadata (stimuli, targets, DOK) as labeled fields like Type and Points. */
   | 'question-editor-fields'
-  /** Flashcards editor: each accepted answer on its own row; slash shorthand spells out. */
-  | 'flashcard-answer-rows'
-  | 'flashcard-card-images'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
   | 'live-tour-editing-v2'
   /** Handwritten free-response boxes on paper answer sheets, transcribed for grading. */
@@ -11770,8 +11767,6 @@ export type GlobalFeature =
   | 'rubric-grading-v2'
   /** Quiz assign: a modification group can get a printed version, scanned back into the same results. */
   | 'paper-printed-versions'
-  /** Paper sheets: fill-in-the-blank prints a write-in line per blank, read back on import. */
-  | 'paper-fill-in-blank'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */
   | 'gradebook'
   /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */
@@ -11782,6 +11777,12 @@ export type GlobalFeature =
   | 'routine-guide'
   /** Class groups with a weekly schedule that pop a reminder on the open board. */
   | 'group-reminders'
+  /** Group reminders: the Symbol step of the class group editor. */
+  | 'group-symbols'
+  /** Group reminders: the Schedule step and the reminders it pops on the board. */
+  | 'group-schedules'
+  /** Group reminders: the Additional settings step of the class group editor. */
+  | 'group-settings'
   /** Sub shares bundle only the calendars the host ticks; board-share item picks are never seeded from share widgets. */
   | 'share-content-safeguards'
   /** My Classes "View Student Page": a class's student page, read from the teacher's own sessions. */

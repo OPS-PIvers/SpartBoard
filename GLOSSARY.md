@@ -140,6 +140,10 @@ _Avoid_: reopen (that is Projects and quizzes), send back
 The protections a teacher can switch on for an assigned activity: blocking copy and paste, and counting time away from the tab. It never means the Writing record.
 _Avoid_: lockdown, Focus session (that is the extension limiting a student's tabs)
 
+**Speech to text**:
+An accommodation that lets a student speak a written answer instead of typing it. The student's control for it is called Dictate. Only the words are kept, never the recording, and the teacher can see that an answer was dictated.
+_Avoid_: voice typing, dictation (as the accommodation's name), voice input, STT
+
 ## Assigned work
 
 **Assignment**:

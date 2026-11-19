@@ -1,6 +1,29 @@
 {
   "entries": [
     {
+      "version": "2026.11.19.1",
+      "date": "2026-11-19",
+      "title": "Flashcard pictures and answers",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Flashcards",
+          "items": [
+            {
+              "text": "Add a picture to either side of a card. Paste it, drop it in or pick a file. The picture is saved in your Google Drive."
+            },
+            {
+              "text": "Each accepted answer on a card gets its own row. Shorthand like el/la doctor/a spells out into a row for each answer."
+            },
+            {
+              "text": "When a card has more than one answer, study cards show the first one big. The other answers sit smaller below it."
+            }
+          ]
+        }
+      ],
+      "details": []
+    },
+    {
       "version": "2026.11.17.2",
       "date": "2026-11-17",
       "title": "Connect widgets",
@@ -2871,6 +2894,18 @@
   ],
   "widgetNotes": [
     {
+      "id": "flashcards-card-images-2026-11-19",
+      "widget": "flashcards",
+      "date": "2026-11-19",
+      "text": "Add a picture to either side of a card. Paste it, drop it in or pick a file."
+    },
+    {
+      "id": "flashcards-answer-rows-2026-11-19",
+      "widget": "flashcards",
+      "date": "2026-11-19",
+      "text": "Each accepted answer gets its own row. Shorthand like el/la doctor/a spells out into a row for each answer."
+    },
+    {
       "id": "quiz-assign-order-2026-11-19",
       "widget": "quiz",
       "date": "2026-11-19",
@@ -2894,7 +2929,7 @@
       "widget": "quiz",
       "date": "2026-11-17",
       "text": "Fill-in-the-blank questions now print on paper answer sheets with a line for each blank, and are scored when you import the sheets.",
-      "feature": "paper-fill-in-blank"
+      "feature": "paper-handwritten-responses"
     },
     {
       "id": "time-tool-connect-2026-11-17",

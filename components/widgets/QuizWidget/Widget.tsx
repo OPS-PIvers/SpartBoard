@@ -156,7 +156,7 @@ import { AssignToClassroomModal } from '@/components/classroomAddon/AssignToClas
 import { requestClassroomFinalGradeToken } from '@/components/classroomAddon/gisOAuth';
 import { doc, getDoc, writeBatch } from 'firebase/firestore';
 import { loadAssignedStudentView } from '@/utils/quizAssignedStudentViewLoad';
-import { languageNativeLabel } from '@/utils/languageNativeLabel';
+import { languageDisplayLabel } from '@/utils/languageDisplayLabel';
 import { QUIZ_TIME_LIMIT_FEATURE } from '@/utils/quizTimeLimit';
 import {
   versionsFromOverrides,
@@ -4860,7 +4860,7 @@ const TeacherQuizWidget: React.FC<{
                         ? {
                             versions: versionsFromOverrides(
                               a.overridesByStudentUid,
-                              languageNativeLabel
+                              languageDisplayLabel
                             ),
                           }
                         : {}),

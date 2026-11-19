@@ -15,8 +15,6 @@ import type {
 
 /** Contracts for handwritten paper answers; see docs/plans/shipped/QUIZ_PAPER_HANDWRITTEN_RESPONSES.md §3. */
 export const PAPER_HANDWRITTEN_FEATURE = 'paper-handwritten-responses';
-/** Fill in the blank prints a write-in line per blank; needs the handwritten flag too. */
-export const PAPER_FIB_FEATURE = 'paper-fill-in-blank';
 /** Off: inked boxes import as `image` and teachers grade the crop. */
 export const PAPER_HANDWRITING_AI_FEATURE = 'paper-handwriting-ai';
 

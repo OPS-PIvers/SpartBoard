@@ -1287,7 +1287,7 @@
 | Widgets | `CarRiderPro/Widget.tsx:32` case-sensitive `startsWith('https://')` (BlendingBoard lowercases first), low | 2026-11-19 | open |
 | Dashboard & Layout | `useUnifiedAssignments` guided-learning and mini-app rows omit `periodNames`/`classIds` that quiz/VA/flashcards/writing rows pass; unchecked whether those types carry them | 2026-11-19 | open |
 | State & Data | `useSeatedPeriodContent` `setTimeout(delay + 1000)` has no clamp to 2^31-1 ms (hardening); `dueReminders`, `importMissing`, `useFolderTree`, `rubricCsv` leads are stale (already fixed) | 2026-11-19 | open |
-| Admin & Config | `aiModels.ts` Gemini 4 Carbon/Argon prices lack a post-2026-11-30 `priceChange` (needs Paul's price); `previewStatus` "Live for: everyone" ignores `minTier` (cosmetic) | 2026-11-19 | open (needs Paul) |
+| Admin & Config | ~~`aiModels.ts` Gemini 4 Carbon/Argon prices lack a post-2026-11-30 `priceChange`~~ (fixed: both retired, $4/$20 from 2026-12-01 kept for past usage); `previewStatus` "Live for: everyone" ignores `minTier` (cosmetic) | 2026-11-19 | open (needs Paul) |
 | Build & Tooling | `extension/src/schoology/fetchRead.ts` `readItemBankFromSchoology` `breadcrumbs.map` throws on non-array/null entries (low); `scripts/checkRulesSize.mjs` reads `sourceCompiled` before its `const` (harmless) | 2026-11-19 | open |
 
 ## Notes & Gotchas

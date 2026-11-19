@@ -7,6 +7,8 @@ const ROW_SEPARATOR = /\s+\/\s+/u;
 // Exactly one space each side, so blank and space-ending rows round-trip.
 const ROWS_JOINER = ' / ';
 const COMPACT_SLASH = /\p{L}\/\p{L}/u;
+// A side with no letters around a spaced slash is math ("3 / 4"), not a list of answers.
+const HAS_LETTER = /\p{L}/u;
 
 /** A card side's accepted answers, one per row; the first is the one students see first. */
 export const splitAnswerRows = (text: string): string[] =>
@@ -58,5 +60,6 @@ export const answerDisplayLines = (text: string): string[] => {
     .split(ROW_SEPARATOR)
     .map((line) => line.trim())
     .filter(Boolean);
+  if (lines.some((line) => !HAS_LETTER.test(line))) return [text];
   return lines.length > 0 ? lines : [text];
 };

@@ -57,12 +57,12 @@ import {
   Utensils,
   CloudSun,
   SquareChevronDown,
-  Split,
-  ImagePlus,
   CalendarClock,
   MessageSquare,
   SlidersHorizontal,
   LogIn,
+  Shapes,
+  Settings2,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -630,29 +630,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Flashcards accepted answers as rows. Admin-only until Paul has tested it in prod.
-  'flashcard-answer-rows': {
-    label: 'Flashcards answer rows',
-    icon: Split,
-    description:
-      'Each accepted answer gets its own row, and slash shorthand spells out into rows.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Flashcards card images. Admin-only until Paul has tested it in prod.
-  'flashcard-card-images': {
-    label: 'Flashcards card images',
-    icon: ImagePlus,
-    description: 'Teachers can paste or pick an image for each side of a card.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Live tour editing v2 and tour materials. Admin-only until Paul has edited tours with it in prod.
   'live-tour-editing-v2': {
     label: 'Live tour editing v2',
@@ -990,22 +967,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Fill in the blank on paper sheets as write-in lines; needs handwritten answers too.
-  'paper-fill-in-blank': {
-    label: 'Fill-in-the-blank on paper',
-    icon: TextCursorInput,
-    description:
-      'Fill-in-the-blank questions print a write-in line for each blank and are scored on import.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'quiz',
-    modalLabel: 'Fill-in-the-blank on paper',
-    group: 'questions',
-    requires: 'paper-handwritten-responses',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Gradebook route and its data layer (docs/plans/GRADEBOOK.md D5).
   gradebook: {
     label: 'Gradebook',
@@ -1065,6 +1026,40 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
+  },
+  // Per-step access for the class group editor; public until an admin narrows it.
+  'group-symbols': {
+    label: 'Group symbols',
+    icon: Shapes,
+    description: 'Symbol step when a teacher makes a class group.',
+    stage: 'permanent',
+    afterLaunch: 'keep',
+    category: 'students',
+    defaultAccessLevel: 'public',
+    defaultEnabled: true,
+    missingDocPublic: true,
+  },
+  'group-schedules': {
+    label: 'Group schedules',
+    icon: CalendarClock,
+    description: 'Schedule step and board reminders for class groups.',
+    stage: 'permanent',
+    afterLaunch: 'keep',
+    category: 'students',
+    defaultAccessLevel: 'public',
+    defaultEnabled: true,
+    missingDocPublic: true,
+  },
+  'group-settings': {
+    label: 'Group additional settings',
+    icon: Settings2,
+    description: 'Additional settings step for class groups.',
+    stage: 'permanent',
+    afterLaunch: 'keep',
+    category: 'students',
+    defaultAccessLevel: 'public',
+    defaultEnabled: true,
+    missingDocPublic: true,
   },
   // Share content binding (H2): opt-in sub-share calendars, no legacy pick seed. Admin-only until Paul has tested it.
   'share-content-safeguards': {

@@ -197,4 +197,10 @@ describe('AssignStepper inline', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
   });
+  it('renders a Cancel next to submit when given onCancel', () => {
+    const onCancel = vi.fn();
+    renderStepper({ inline: true, submitLabel: 'Save', onCancel });
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
 });

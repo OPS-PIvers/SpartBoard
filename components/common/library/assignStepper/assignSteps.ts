@@ -1,5 +1,6 @@
 // Step list and shared types for the assign stepper (docs/plans/shipped/ASSIGN_STEPPER.md D4).
 import type React from 'react';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 
 export type AssignStepId =
   | 'classes'
@@ -17,6 +18,12 @@ export type AssignStepId =
   | 'written'
   | 'writing'
   | 'sharing';
+
+/** Steps of the class group editor, which reuses this stepper. */
+export type GroupStepId =
+  'group-students' | 'group-symbol' | 'group-schedule' | 'group-settings';
+
+export type StepperStepId = AssignStepId | GroupStepId;
 
 export type AssignActivity =
   'quiz' | 'video' | 'gl' | 'flashcards' | 'miniapp' | 'writing';
@@ -36,13 +43,17 @@ export interface AssignStepContext {
 }
 
 export interface AssignStepDef {
-  id: AssignStepId;
+  id: StepperStepId;
   title: string;
   /** One-line summary shown on the right while the step is closed (D13). */
   value: string;
   body: React.ReactNode;
   /** Shown greyed out with its value until it applies, so later steps keep their numbers. */
   disabled?: boolean;
+  /** Tour anchor for the step's header button; defaults to the Assign dialog's. */
+  anchor?: TourAnchorAttrs;
+  /** Tour anchor for this step's Continue button; defaults to the Assign dialog's. */
+  continueAnchor?: TourAnchorAttrs;
 }
 
 /** Quiz, Video Activity and Writing always collect work (D3). */

@@ -1282,7 +1282,6 @@ export const Dock: React.FC = () => {
                   }
                   onRemoveFromDock={() => undefined}
                   isEditMode={false}
-                  onLongPress={() => undefined}
                   globalStyle={globalStyle}
                   customLabel={getToolLabel(type)}
                   dockPosition={dockPosition}
@@ -1756,7 +1755,6 @@ export const Dock: React.FC = () => {
                       }
                       onRemoveFromDock={() => undefined}
                       isEditMode={false}
-                      onLongPress={() => undefined}
                       globalStyle={globalStyle}
                       customLabel={getToolLabel(type)}
                       dockPosition={dockPosition}

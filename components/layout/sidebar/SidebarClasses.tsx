@@ -662,6 +662,11 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
           readAloudAvailable={canAccessFeature('quiz-read-aloud')}
           groupRemindersEnabled={groupRemindersEnabled}
           groupReminderEmailsEnabled={groupReminderEmails.enabled}
+          groupSteps={{
+            symbol: canAccessFeature('group-symbols'),
+            schedule: canAccessFeature('group-schedules'),
+            settings: canAccessFeature('group-settings'),
+          }}
           bellPeriodOptions={bellPeriodOptions}
         />
       )}

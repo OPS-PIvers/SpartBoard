@@ -1421,9 +1421,6 @@
       "left": "Faltan {{count}}",
       "refreshMenu": "Actualizar menú",
       "clearAll": "Borrar todas las asignaciones",
-      "shortHot": "Caliente",
-      "shortBento": "Bento",
-      "shortHome": "Casa",
       "assignMoreOutsideGroup": "Asigna {{count}} más, {{hidden}} fuera de este grupo"
     },
     "quiz": {

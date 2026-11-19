@@ -148,8 +148,6 @@ export type GetPaperPageResponse =
   | { status: 'not-available'; reason: PaperPageUnavailableReason };
 
 export const PAPER_HANDWRITTEN_FEATURE = 'paper-handwritten-responses';
-/** Fill in the blank prints a write-in line per blank; needs the handwritten flag too. */
-export const PAPER_FIB_FEATURE = 'paper-fill-in-blank';
 export const PAPER_KEPT_PAGES_FEATURE = 'paper-kept-pages';
 /** Students see their own kept pages with their results (K1 lifted behind this flag). */
 export const PAPER_PAGES_STUDENT_VIEW_FEATURE = 'paper-pages-student-view';

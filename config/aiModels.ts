@@ -1,4 +1,7 @@
-import { KNOWN_GEMINI_MODELS } from '@/config/geminiModels';
+import {
+  KNOWN_GEMINI_MODELS,
+  RETIRED_GEMINI_MODELS,
+} from '@/config/geminiModels';
 
 export type AiProvider = 'gemini' | 'claude';
 
@@ -55,10 +58,17 @@ const GEMINI_PRICES: Record<
   string,
   Pick<AiModelOption, 'price' | 'priceChange'>
 > = {
-  // Gemini 4 prices checked 2026-11-12; Carbon and Argon list them through 2026-11-30.
+  // Gemini 4 prices checked 2026-11-19; Carbon and Argon are $2/$10 through 2026-11-30, then $4/$20.
   'gemini-4-hydrogen': { price: { input: 1.5, output: 7.5 } },
-  'gemini-4-carbon': { price: { input: 2, output: 10 } },
-  'gemini-4-argon': { price: { input: 2, output: 10 } },
+  'gemini-4-neon': { price: { input: 3, output: 15 } },
+  'gemini-4-carbon': {
+    price: { input: 2, output: 10 },
+    priceChange: { from: '2026-12-01', input: 4, output: 20 },
+  },
+  'gemini-4-argon': {
+    price: { input: 2, output: 10 },
+    priceChange: { from: '2026-12-01', input: 4, output: 20 },
+  },
   'gemini-3.8-flash': {
     price: { input: 0.75, output: 3.75 },
     priceChange: { from: '2027-01-01', input: 1.5, output: 7.5 },
@@ -86,6 +96,19 @@ export const AI_MODEL_OPTIONS: readonly AiModelOption[] = [
   ...CLAUDE_MODELS,
 ];
 
+// Not offered anywhere; kept so past usage still shows a name and a cost.
+const RETIRED_MODEL_OPTIONS: readonly AiModelOption[] =
+  RETIRED_GEMINI_MODELS.map((m) => ({
+    id: m.value,
+    label: m.label,
+    provider: 'gemini' as const,
+    ...GEMINI_PRICES[m.value],
+  }));
+
+const findModel = (model: string): AiModelOption | undefined =>
+  AI_MODEL_OPTIONS.find((m) => m.id === model) ??
+  RETIRED_MODEL_OPTIONS.find((m) => m.id === model);
+
 export const providerOf = (model: string): AiProvider =>
   model.startsWith('claude-') ? 'claude' : 'gemini';
 
@@ -100,14 +123,14 @@ export const modelReadsInputs = (
   inputs.every((kind) => kind === 'docx' || CLAUDE_INPUTS.includes(kind));
 
 export const aiModelLabel = (model: string): string =>
-  AI_MODEL_OPTIONS.find((m) => m.id === model)?.label ?? model;
+  findModel(model)?.label ?? model;
 
 /** List price for a model on a usage date, or undefined for an unknown model. */
 export const modelPriceOn = (
   model: string,
   date: string
 ): { input: number; output: number } | undefined => {
-  const option = AI_MODEL_OPTIONS.find((m) => m.id === model);
+  const option = findModel(model);
   if (option?.priceChange && date >= option.priceChange.from)
     return option.priceChange;
   return option?.price;

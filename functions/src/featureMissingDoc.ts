@@ -34,7 +34,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'modification-groups',
   'rubric-grading-v2',
   'paper-printed-versions',
-  'paper-fill-in-blank',
   'gradebook',
   'student-gradebook',
   'quiz-time-limit',
@@ -55,8 +54,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-calculator-stimulus',
   'quiz-stimulus-preview',
   'question-editor-fields',
-  'flashcard-answer-rows',
-  'flashcard-card-images',
   'lunch-count-redesign',
   'weather-details',
   'seating-chart-plans',
@@ -124,6 +121,9 @@ export const PUBLIC_MISSING_DOC_FEATURES: Readonly<
   'dashboard-layout': null,
   'instructional-routine': null,
   'assignments-hub': null,
+  'group-symbols': null,
+  'group-schedules': null,
+  'group-settings': null,
 };
 
 /** Who a missing `global_permissions` doc lets in, as the client's `canAccessFeature` decides it. */

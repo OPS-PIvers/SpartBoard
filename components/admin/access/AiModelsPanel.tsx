@@ -1,7 +1,7 @@
 import React from 'react';
 import { Save, Sparkles } from 'lucide-react';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
-import { KNOWN_GEMINI_MODELS } from '@/config/geminiModels';
+import { KNOWN_GEMINI_MODELS, currentModelId } from '@/config/geminiModels';
 import {
   AI_MODEL_OPTIONS,
   DEFAULT_ADVANCED_MODEL,
@@ -239,20 +239,48 @@ export const AiModelsPanel: React.FC = () => {
   }
 
   const permission = editor.getPermission('gemini-functions');
-  const config = permission.config ?? {};
+  const savedConfig = permission.config ?? {};
   const advancedModel =
-    typeof config.advancedModel === 'string' ? config.advancedModel : '';
+    typeof savedConfig.advancedModel === 'string'
+      ? currentModelId(savedConfig.advancedModel)
+      : '';
   const standardModel =
-    typeof config.standardModel === 'string' ? config.standardModel : '';
-  const allowed: string[] = Array.isArray(config.allowedModels)
-    ? (config.allowedModels as unknown[]).filter(
-        (m): m is string => typeof m === 'string'
-      )
+    typeof savedConfig.standardModel === 'string'
+      ? currentModelId(savedConfig.standardModel)
+      : '';
+  const allowed: string[] = Array.isArray(savedConfig.allowedModels)
+    ? [
+        ...new Set(
+          (savedConfig.allowedModels as unknown[])
+            .filter((m): m is string => typeof m === 'string')
+            .map(currentModelId)
+        ),
+      ]
     : GEMINI_IDS;
-  const integrationModels =
-    config.integrationModels && typeof config.integrationModels === 'object'
-      ? (config.integrationModels as Record<string, string>)
+  const integrationModels: Record<string, string> =
+    savedConfig.integrationModels &&
+    typeof savedConfig.integrationModels === 'object'
+      ? Object.fromEntries(
+          Object.entries(
+            savedConfig.integrationModels as Record<string, unknown>
+          )
+            .filter((e): e is [string, string] => typeof e[1] === 'string')
+            .map(([id, m]) => [id, currentModelId(m)])
+        )
       : {};
+  // Retired picks show as their replacement, and the next save writes that.
+  const config: Record<string, unknown> = {
+    ...savedConfig,
+    ...(typeof savedConfig.advancedModel === 'string' ? { advancedModel } : {}),
+    ...(typeof savedConfig.standardModel === 'string' ? { standardModel } : {}),
+    ...(Array.isArray(savedConfig.allowedModels)
+      ? { allowedModels: allowed }
+      : {}),
+    ...(savedConfig.integrationModels &&
+    typeof savedConfig.integrationModels === 'object'
+      ? { integrationModels }
+      : {}),
+  };
   const integrationLimits =
     config.integrationLimits && typeof config.integrationLimits === 'object'
       ? (config.integrationLimits as Record<string, IntegrationLimits>)

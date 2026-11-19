@@ -737,7 +737,7 @@ describe('createTeammatePaperBatchV1 — handwritten boxes (layoutVersion 2)', (
     ]);
   });
 
-  it('prints fill in the blank as lettered write-in lines when the caller has that flag too', async () => {
+  it('prints fill in the blank as lettered write-in lines', async () => {
     const fibQuiz = {
       questions: [
         QUESTIONS[0],
@@ -751,11 +751,6 @@ describe('createTeammatePaperBatchV1 — handwritten boxes (layoutVersion 2)', (
     };
     const { run } = create(writtenState(fibQuiz), writtenDeps(), WRITTEN_INPUT);
     const result = await run();
-    expect(granted).toHaveBeenCalledWith(
-      'paper-fill-in-blank',
-      null,
-      CALLER_UID
-    );
     const items = result.batch.pageMaps?.[0].items ?? [];
     expect(items.find((i) => i.questionId === 'q-fib')).toMatchObject({
       kind: 'written',
@@ -766,18 +761,6 @@ describe('createTeammatePaperBatchV1 — handwritten boxes (layoutVersion 2)', (
       written: true,
     });
     expect(result.blankAnswers).toEqual({ 'q-fib': ['cell', 'energy'] });
-
-    const off = create(
-      writtenState(fibQuiz),
-      writtenDeps({
-        isFeatureGranted: (id: string) =>
-          Promise.resolve(id !== 'paper-fill-in-blank'),
-      }),
-      WRITTEN_INPUT
-    );
-    const plain = await off.run();
-    expect('blankAnswers' in plain).toBe(false);
-    expect(plain.testPaper.map((r) => r.row)).toEqual([1]);
   });
 
   it('prints exactly as before without the opt-in', async () => {
@@ -800,13 +783,9 @@ describe('createTeammatePaperBatchV1 — handwritten boxes (layoutVersion 2)', (
   });
 
   it('keeps an MC-only quiz on the classic layout even with the feature', async () => {
-    // The base quiz's FIB stays off the sheet without the fill-in-the-blank flag.
     const { run } = create(
-      baseState(),
-      writtenDeps({
-        isFeatureGranted: (id: string) =>
-          Promise.resolve(id !== 'paper-fill-in-blank'),
-      }),
+      writtenState({ questions: [QUESTIONS[0], QUESTIONS[1]] }),
+      writtenDeps(),
       WRITTEN_INPUT
     );
     const result = await run();

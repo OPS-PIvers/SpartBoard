@@ -35,10 +35,7 @@ import {
   type PaperQuestion,
   type PaperSheetPlan,
 } from './paperBatchPlan';
-import {
-  PAPER_FIB_FEATURE,
-  PAPER_HANDWRITTEN_FEATURE,
-} from './paperWrittenTypes';
+import { PAPER_HANDWRITTEN_FEATURE } from './paperWrittenTypes';
 import {
   GOOGLE_OAUTH_CLIENT_ID,
   GOOGLE_OAUTH_CLIENT_SECRET,
@@ -648,17 +645,9 @@ export async function handleCreateTeammatePaperBatch(
       actor.email ?? null,
       actor.uid
     ));
-  const fibOn =
-    writtenOn &&
-    !!deps.isFeatureGranted &&
-    (await deps.isFeatureGranted(
-      PAPER_FIB_FEATURE,
-      actor.email ?? null,
-      actor.uid
-    ));
   const analysis = analyzePaperQuiz(questions, {
     written: writtenOn,
-    fib: fibOn,
+    fib: true,
     sections: content.sections,
     order: content.order,
   });

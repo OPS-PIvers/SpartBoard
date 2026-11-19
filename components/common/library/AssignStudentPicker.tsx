@@ -18,7 +18,7 @@
  */
 
 import React, { useMemo, useState } from 'react';
-import { languageNativeLabel } from '@/utils/languageNativeLabel';
+import { languageDisplayLabel } from '@/utils/languageDisplayLabel';
 import type { TranslationCoverageContext } from '@/utils/quizTranslationAdvisory';
 import {
   isNonEnglishQuizSource,
@@ -348,7 +348,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
                   count: entry.names.length,
                   others: entry.names.length - 1,
                   name: entry.names[0],
-                  language: languageNativeLabel(entry.locale),
+                  language: languageDisplayLabel(entry.locale),
                 })}
               </span>
               {translation?.onGenerate && (

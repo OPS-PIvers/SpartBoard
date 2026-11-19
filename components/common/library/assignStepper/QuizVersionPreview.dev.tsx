@@ -6,7 +6,7 @@ import { QuizAssignStepper } from '@/components/widgets/QuizWidget/components/Qu
 import { QuizStudentView } from '@/components/quiz/QuizStudentView';
 import { toOverrideEditorQuestions } from '@/components/common/library/toOverrideEditorQuestions';
 import { getQuizAssignPrefill } from '@/utils/quizBehavior';
-import { languageNativeLabel } from '@/utils/languageNativeLabel';
+import { languageDisplayLabel } from '@/utils/languageDisplayLabel';
 import { translateHiddenOptionIdsToText } from '@/utils/quizHiddenOptions';
 import {
   versionsFromOverrides,
@@ -151,7 +151,7 @@ const Preview: React.FC = () => {
                 QUIZ.questions,
                 targeting.overridesByKey
               ).overridesByKey,
-              languageNativeLabel
+              languageDisplayLabel
             ),
           })
         }
