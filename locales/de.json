@@ -1421,9 +1421,6 @@
       "left": "{{count}} offen",
       "refreshMenu": "Menü aktualisieren",
       "clearAll": "Alle Zuordnungen löschen",
-      "shortHot": "Warm",
-      "shortBento": "Bento",
-      "shortHome": "Zuhause",
       "assignMoreOutsideGroup": "Noch {{count}} zuordnen, {{hidden}} außerhalb dieser Gruppe"
     },
     "quiz": {

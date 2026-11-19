@@ -2604,9 +2604,6 @@
       "left": "{{count}} left",
       "refreshMenu": "Refresh menu",
       "clearAll": "Clear all assignments",
-      "shortHot": "Hot",
-      "shortBento": "Bento",
-      "shortHome": "Home",
       "assignMoreOutsideGroup": "Assign {{count}} more, {{hidden}} outside this group"
     },
     "quiz": {
