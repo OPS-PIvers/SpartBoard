@@ -30,6 +30,7 @@
  *
  * UI reuses the Classroom add-on's light-theme AddonShell kit.
  */
+import { withQuizAnswerChoices } from '@/components/common/library/assignStepper/modificationGroups';
 import React, {
   useCallback,
   useEffect,
@@ -639,13 +640,20 @@ const LtiDeepLinkFlow: React.FC = () => {
           quizData.questions,
           resolvedWindow.targeting.overridesByKey
         );
-        const resolvedTargeting: AssignTargetingValue = expandClassTargeting(
+        const expanded = expandClassTargeting(
           {
             ...resolvedWindow.targeting,
             overridesByKey: hiddenOptions.overridesByKey,
           },
           ltiClassContext
         );
+        const resolvedTargeting: AssignTargetingValue = {
+          ...expanded,
+          overridesByKey: withQuizAnswerChoices(
+            expanded.overridesByKey,
+            quizData.questions
+          ),
+        };
         if (hiddenOptions.warnings.length > 0) {
           setErrorMsg(`Note: ${hiddenOptions.warnings.join(' ')}`);
         }

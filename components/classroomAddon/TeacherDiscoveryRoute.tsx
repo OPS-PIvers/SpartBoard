@@ -23,6 +23,7 @@
  *        - Quiz → `/classroom-addon/student?code=<code>`
  *        - VA   → `/classroom-addon/student?kind=va&sessionId=<sessionId>`
  */
+import { withQuizAnswerChoices } from '@/components/common/library/assignStepper/modificationGroups';
 import React, {
   useCallback,
   useEffect,
@@ -617,13 +618,20 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
       Array.isArray(quizData?.questions) ? quizData.questions : [],
       windowTargeting.overridesByKey
     );
-    const resolvedTargeting: AssignTargetingValue = expandClassTargeting(
+    const expanded = expandClassTargeting(
       {
         ...windowTargeting,
         overridesByKey: hiddenOptions.overridesByKey,
       },
       addonClassContext
     );
+    const resolvedTargeting: AssignTargetingValue = {
+      ...expanded,
+      overridesByKey: withQuizAnswerChoices(
+        expanded.overridesByKey,
+        Array.isArray(quizData?.questions) ? quizData.questions : []
+      ),
+    };
     for (const warning of hiddenOptions.warnings) {
       append(`Note: ${warning}`);
     }

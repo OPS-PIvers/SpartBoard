@@ -15,6 +15,7 @@ import { User } from 'firebase/auth';
 import {
   ClassRoster,
   ClassRosterMeta,
+  QuizSupport,
   RosterGroup,
   RosterSyncSummary,
   RubricSnapshot,
@@ -231,6 +232,24 @@ function parseRubricSnapshot(raw: unknown): RubricSnapshot | null {
   return raw as RubricSnapshot;
 }
 
+// Shape only; the server sanitizer checks lengths and URLs again at assign.
+function parseSupports(raw: unknown): QuizSupport[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const out: QuizSupport[] = [];
+  for (const item of raw.slice(0, 5)) {
+    if (!item || typeof item !== 'object') continue;
+    const s = item as Record<string, unknown>;
+    if (typeof s.title !== 'string' || !s.title.trim()) continue;
+    if (s.kind === 'text' && typeof s.text === 'string')
+      out.push({ kind: 'text', title: s.title, text: s.text });
+    else if (s.kind === 'link' && typeof s.url === 'string')
+      out.push({ kind: 'link', title: s.title, url: s.url });
+    else if (s.kind === 'drive' && typeof s.fileId === 'string')
+      out.push({ kind: 'drive', title: s.title, fileId: s.fileId });
+  }
+  return out.length > 0 ? out : undefined;
+}
+
 function parseStudentOverride(raw: unknown): StudentOverride | null {
   if (!raw || typeof raw !== 'object') return null;
   const o = raw as Record<string, unknown>;
@@ -291,6 +310,11 @@ function parseStudentOverride(raw: unknown): StudentOverride | null {
   }
   if (o.readAloud === true) override.readAloud = true;
   if (o.speechToText === true) override.speechToText = true;
+  if (o.answerChoices === 2 || o.answerChoices === 3)
+    override.answerChoices = o.answerChoices;
+  if (o.modifiedQuestions === true) override.modifiedQuestions = true;
+  const supports = parseSupports(o.supports);
+  if (supports) override.supports = supports;
   if (typeof o.blockCopyPaste === 'boolean')
     override.blockCopyPaste = o.blockCopyPaste;
   if (typeof o.openAt === 'number') override.openAt = o.openAt;

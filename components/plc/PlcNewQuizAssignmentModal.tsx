@@ -231,6 +231,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
           when: stepperWhen,
           rosters,
           bellWindow: periodAccess?.bellWindow,
+          questions: data.questions,
         });
         const fields = plcStepperCreateFields(stepperPlan, rosters);
 

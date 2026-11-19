@@ -69,6 +69,9 @@ export const setRosterDefaultOverride = (
   return result;
 };
 
+/** A list field a group edits item by item. */
+const LIST_KEY = 'supports';
+
 const sameValue = (a: unknown, b: unknown) =>
   JSON.stringify(a) === JSON.stringify(b);
 
@@ -84,6 +87,16 @@ export const sharedStudentOverride = (
   const shared: Record<string, unknown> = {};
   const entries: Array<[string, unknown]> = Object.entries(first);
   for (const [key, value] of entries) {
+    if (key === LIST_KEY) {
+      // Supports each member has, so a group edit adds or removes items without replacing anyone's own.
+      const common = (value as unknown[]).filter((item) =>
+        rest.every((o) =>
+          (o.supports ?? []).some((other) => sameValue(other, item))
+        )
+      );
+      if (common.length > 0) shared[key] = common;
+      continue;
+    }
     if (
       rest.every((o) => sameValue((o as Record<string, unknown>)[key], value))
     )
@@ -107,9 +120,25 @@ export const applyGroupOverride = (
     .filter((key) => !sameValue(prev[key], after[key]));
   if (changed.length === 0) return overrides;
   let result = overrides;
+  const before = (prev[LIST_KEY] as unknown[] | undefined) ?? [];
+  const now = (after[LIST_KEY] as unknown[] | undefined) ?? [];
+  const added = now.filter((x) => !before.some((y) => sameValue(x, y)));
+  const removed = before.filter((x) => !now.some((y) => sameValue(x, y)));
   for (const id of studentIds) {
     const own: Record<string, unknown> = { ...(result[id] ?? {}) };
-    for (const key of changed) own[key] = after[key];
+    for (const key of changed) {
+      if (key !== LIST_KEY) {
+        own[key] = after[key];
+        continue;
+      }
+      const mine = ((own[key] as unknown[] | undefined) ?? []).filter(
+        (x) => !removed.some((y) => sameValue(x, y))
+      );
+      own[key] = [
+        ...mine,
+        ...added.filter((x) => !mine.some((y) => sameValue(x, y))),
+      ];
+    }
     result = setRosterDefaultOverride(result, id, own);
   }
   return result;
