@@ -91,6 +91,7 @@ export const PresentPacedAnswering: React.FC<PresentPacedAnsweringProps> = ({
       </p>
       {question.promptAudio && (
         <QuestionAudioButton
+          key={question.id}
           audio={question.promptAudio}
           light={t.strong !== 'text-white'}
         />

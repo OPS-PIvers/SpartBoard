@@ -277,7 +277,7 @@ export const PaperStacksReprintDialog: React.FC<ReprintDialogProps> = ({
               questionTexts: sheetQuestions.map((q) => {
                 const tr = translation?.questions[q.id];
                 return {
-                  text: tr?.text ?? promptLabel(q),
+                  text: tr?.text?.trim() ? tr.text : promptLabel(q),
                   choices: (batch.choiceOrder?.[q.id] ?? []).map(
                     (c) => tr?.choices?.[c] ?? c
                   ),

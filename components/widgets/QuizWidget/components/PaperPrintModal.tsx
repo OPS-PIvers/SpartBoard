@@ -1099,7 +1099,9 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                 const english = batch.choiceOrder?.[q.id] ?? [];
                 const tr = group?.translation?.questions[q.id];
                 return {
-                  text: plainPromptText(tr?.text ?? promptLabel(q)),
+                  text: plainPromptText(
+                    tr?.text?.trim() ? tr.text : promptLabel(q)
+                  ),
                   choices: english.map((c) => tr?.choices?.[c] ?? c),
                   ...choicePictureFields(q, english),
                 };

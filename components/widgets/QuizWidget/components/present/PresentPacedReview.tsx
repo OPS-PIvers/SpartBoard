@@ -54,6 +54,7 @@ export const PresentPacedReview: React.FC<PresentPacedReviewProps> = ({
       </p>
       {question.promptAudio && (
         <QuestionAudioButton
+          key={question.id}
           audio={question.promptAudio}
           light={t.strong !== 'text-white'}
         />

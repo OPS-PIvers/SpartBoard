@@ -16,7 +16,10 @@ export const QuestionPrompt: React.FC<{
   /** Views of the recording used this attempt, for its view limit. */
   audioViewsUsed?: number;
   onAudioView?: () => void;
+  /** Keys the play button so each question starts fresh. */
+  questionId?: string;
 }> = ({
+  questionId,
   text,
   blankCount,
   light,
@@ -46,7 +49,7 @@ export const QuestionPrompt: React.FC<{
   return (
     <div className={`flex flex-col items-start gap-3 ${className}`}>
       <QuestionAudioButton
-        key={audio.driveFileId}
+        key={`${questionId ?? ''}:${audio.driveFileId}`}
         audio={audio}
         light={light}
         viewsUsed={audioViewsUsed}

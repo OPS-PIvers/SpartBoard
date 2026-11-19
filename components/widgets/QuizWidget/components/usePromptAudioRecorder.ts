@@ -41,7 +41,8 @@ export function usePromptAudioRecorder(opts: {
   const timerRef = useRef<number | null>(null);
   const startedAtRef = useRef(0);
   const mountedRef = useRef(true);
-  const cancelStartRef = useRef(false);
+  // Each start() gets a token; a stop or a newer start makes older ones stale.
+  const startTokenRef = useRef(0);
   const optsRef = useRef(opts);
   useLayoutEffect(() => {
     optsRef.current = opts;
@@ -61,7 +62,7 @@ export function usePromptAudioRecorder(opts: {
       return;
     }
     // Still waiting on the mic permission: drop the start when it resolves.
-    cancelStartRef.current = true;
+    startTokenRef.current += 1;
     setPhase('idle');
   }, []);
 
@@ -75,7 +76,7 @@ export function usePromptAudioRecorder(opts: {
       optsRef.current.onMicBlocked();
       return;
     }
-    cancelStartRef.current = false;
+    const token = ++startTokenRef.current;
     setPhase('starting');
     let stream: MediaStream;
     try {
@@ -83,13 +84,13 @@ export function usePromptAudioRecorder(opts: {
         audio: { echoCancellation: true, noiseSuppression: true },
       });
     } catch {
+      if (!mountedRef.current || token !== startTokenRef.current) return;
       setPhase('idle');
       optsRef.current.onMicBlocked();
       return;
     }
-    if (!mountedRef.current || cancelStartRef.current) {
+    if (!mountedRef.current || token !== startTokenRef.current) {
       stream.getTracks().forEach((t) => t.stop());
-      cancelStartRef.current = false;
       return;
     }
     streamRef.current = stream;

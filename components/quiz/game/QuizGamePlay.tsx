@@ -744,6 +744,7 @@ const GameQuestion: React.FC<{
         <QuestionAudioButton
           key={question.id}
           audio={question.promptAudio}
+          viewsUsed={0}
           className="self-start"
         />
       )}
