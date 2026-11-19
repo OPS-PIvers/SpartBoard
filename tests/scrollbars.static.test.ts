@@ -18,7 +18,8 @@ const listFiles = (dir: string): string[] =>
 
 describe('scrollbars', () => {
   it('clips sideways overflow on every vertical scroller', () => {
-    const base = css.slice(css.indexOf('@layer base {'));
+    const start = css.indexOf('@layer base {');
+    const base = css.slice(start, css.indexOf('\n}', start));
     expect(base).toMatch(
       /\.overflow-y-auto,\s*\.overflow-y-scroll\s*\{\s*overflow-x:\s*hidden;/
     );
@@ -34,7 +35,7 @@ describe('scrollbars', () => {
     const offenders = ['components', 'context', 'hooks', 'utils']
       .flatMap(listFiles)
       .filter((file) =>
-        /::-webkit-scrollbar|scrollbar-(width|color)/.test(
+        /::-webkit-scrollbar|scrollbar-?(color|Color)|scrollbar-?(width|Width)(?!\s*:\s*['"]?none)/.test(
           readFileSync(join(repoRoot, file), 'utf8')
         )
       );

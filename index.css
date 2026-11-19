@@ -72,10 +72,10 @@
   box-shadow: 0 0 20px #22c55e;
 }
 
-/* One slim scrollbar app-wide: a 4px rounded thumb in a 10px grab area, no track, no arrows. */
+/* One slim scrollbar app-wide: a 4px rounded thumb in a 6px gutter, no track, no arrows. */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track,
 ::-webkit-scrollbar-corner {
@@ -87,7 +87,7 @@
 ::-webkit-scrollbar-thumb {
   background-color: rgb(100 116 139 / 0.3);
   background-clip: content-box;
-  border: 3px solid transparent;
+  border: 1px solid transparent;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover,
