@@ -247,6 +247,8 @@ export interface VideoActivityManagerProps {
   onArchiveDeleteMany?: (
     assignments: VideoActivityAssignment[]
   ) => Promise<number>;
+  /** Opens the publish dialog once for several closed assignments. */
+  onArchivePublishMany?: (assignments: VideoActivityAssignment[]) => void;
   onArchiveResults?: (assignment: VideoActivityAssignment) => void;
   /**
    * PR3 PLC sharing — invoked when the teacher picks "Share with PLC" on an
@@ -540,6 +542,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   onArchiveReactivate,
   onArchiveDelete,
   onArchiveDeleteMany,
+  onArchivePublishMany,
   onArchiveResults,
   onArchiveShare,
   onArchiveAssignToClassroom,
@@ -1580,6 +1583,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
           lifecycle={classLifecycle}
           pinnedId={lastAssignedId}
           onBulkDelete={onArchiveDeleteMany}
+          onBulkPublish={onArchivePublishMany}
           emptyTitle="Nothing active"
           emptySub={
             isViewOnly
