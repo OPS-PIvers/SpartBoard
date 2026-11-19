@@ -1,6 +1,6 @@
 // useUnifiedAssignments — normalizes the six per-teacher assignment collections into one flat, sortable list for the Assignments hub (spec §5 D1). Read-only.
 
-import { useMemo } from 'react';
+import { createContext, useContext, useMemo } from 'react';
 import {
   useQuizAssignments,
   type UseQuizAssignmentsResult,
@@ -14,6 +14,8 @@ import type {
   AssignmentKind,
   ClassRoster,
   PeriodAccess,
+  QuizData,
+  QuizMetadata,
   StudentOverride,
   StudentTargetRef,
 } from '@/types';
@@ -67,6 +69,23 @@ export interface UnifiedAssignmentRow {
   periodAccess?: Record<string, PeriodAccess>;
 }
 
+/** The raw docs and whole-run writes behind the rows, for the hub's Assigned list (D18). */
+export interface UnifiedAssignmentSources {
+  quiz: ReturnType<typeof useQuizAssignments>;
+  videoActivity: ReturnType<typeof useVideoActivityAssignments>;
+  guidedLearning: ReturnType<typeof useGuidedLearningAssignments>;
+  miniApp: ReturnType<typeof useMiniAppAssignments>;
+  flashcards: ReturnType<typeof useFlashcardAssignments>;
+  writing: ReturnType<typeof useWritingAssignmentSessions>;
+}
+
+/** Dev harness only: fixture docs in place of the teacher's listeners. */
+export const UnifiedAssignmentsFixture = createContext<{
+  sources: UnifiedAssignmentSources;
+  quizzes: QuizMetadata[];
+  loadQuizData: (driveFileId: string) => Promise<QuizData>;
+} | null>(null);
+
 /** Retroactive PLC results actions, forwarded from `useQuizAssignments`. */
 export interface QuizPlcActions {
   share: UseQuizAssignmentsResult['shareAssignmentWithPlc'];
@@ -96,15 +115,24 @@ export const useUnifiedAssignments = (
   rows: UnifiedAssignmentRow[];
   loading: boolean;
   quizPlcActions: QuizPlcActions;
+  sources: UnifiedAssignmentSources;
 } => {
-  const quiz = useQuizAssignments(userId);
-  const va = useVideoActivityAssignments(userId);
-  const gl = useGuidedLearningAssignments(userId);
-  const miniApp = useMiniAppAssignments(userId);
-  const flashcards = useFlashcardAssignments(userId);
-  const writing = useWritingAssignmentSessions(
-    writingEnabled ? userId : undefined
+  const fixture = useContext(UnifiedAssignmentsFixture)?.sources;
+  const uid = fixture ? undefined : userId;
+  const liveQuiz = useQuizAssignments(uid);
+  const liveVa = useVideoActivityAssignments(uid);
+  const liveGl = useGuidedLearningAssignments(uid);
+  const liveMiniApp = useMiniAppAssignments(uid);
+  const liveFlashcards = useFlashcardAssignments(uid);
+  const liveWriting = useWritingAssignmentSessions(
+    writingEnabled ? uid : undefined
   );
+  const quiz = fixture?.quiz ?? liveQuiz;
+  const va = fixture?.videoActivity ?? liveVa;
+  const gl = fixture?.guidedLearning ?? liveGl;
+  const miniApp = fixture?.miniApp ?? liveMiniApp;
+  const flashcards = fixture?.flashcards ?? liveFlashcards;
+  const writing = fixture?.writing ?? liveWriting;
 
   const rosterNamesById = useMemo(() => {
     const map = new Map<string, string>();
@@ -297,6 +325,14 @@ export const useUnifiedAssignments = (
     quizPlcActions: {
       share: quiz.shareAssignmentWithPlc,
       stopSharing: quiz.stopSharingAssignmentWithPlc,
+    },
+    sources: {
+      quiz,
+      videoActivity: va,
+      guidedLearning: gl,
+      miniApp,
+      flashcards,
+      writing,
     },
   };
 };

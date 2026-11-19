@@ -443,7 +443,7 @@ export const Sidebar: React.FC = () => {
           onClose={() => setSettingsModalSection(null)}
         />
       )}
-      {showAssignmentsHub && (
+      {showAssignmentsHub && canAccessFeature('assignments-hub') && (
         <AssignmentsHubModal onClose={() => setShowAssignmentsHub(false)} />
       )}
 
@@ -615,7 +615,7 @@ export const Sidebar: React.FC = () => {
                       </span>
                       <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
                     </button>
-                  ) : (
+                  ) : canAccessFeature('assignments-hub') ? (
                     <button
                       {...tourAttr('sidebar.assignments')}
                       onClick={() => {
@@ -634,7 +634,7 @@ export const Sidebar: React.FC = () => {
                       </span>
                       <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
                     </button>
-                  )}
+                  ) : null}
                   {/* Org-only surfaces: My Classes (incl. ClassLink import),
                       My Teams, and My Building(s). Hidden for external (no-org/
                       free-tier) users — buildings/PLCs/ClassLink are all org

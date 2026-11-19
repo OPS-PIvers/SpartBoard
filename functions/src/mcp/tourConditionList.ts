@@ -41,6 +41,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'assign-due-date',
   'assigned-tab',
   'assignment-modes',
+  'assignments-hub',
   'blooms-ai',
   'class-student-page',
   'claude-connector',
