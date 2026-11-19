@@ -28,6 +28,12 @@ describe('applyFields text_posts', () => {
     });
   });
 
+  it('keeps photos on when a legacy photo wall turns text off', () => {
+    const legacy = { ...base(), mode: 'photo', allowedTypes: undefined };
+    const wall = applyFields(legacy, { text_posts: false });
+    expect(wall.allowedTypes).toMatchObject({ text: false, photo: true });
+  });
+
   it('refuses a wall with no way to post', () => {
     expect(() => applyFields(base(), { text_posts: false })).toThrow(
       'Turn on at least one post type when text is off.'

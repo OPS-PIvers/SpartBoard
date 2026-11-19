@@ -391,7 +391,8 @@ export function applyFields(base: Wall, input: WallFieldInput): Wall {
   if (input.text_posts !== undefined) {
     next.allowedTypes = {
       ...(next.allowedTypes ?? {
-        photo: false,
+        // A pre-redesign wall has no allowedTypes; its photo mode still takes photos.
+        photo: base.mode === 'photo',
         link: false,
         file: false,
         video: false,

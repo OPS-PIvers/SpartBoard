@@ -25,16 +25,19 @@ export const ToggleRow: React.FC<ToggleRowProps> = ({
   const hintId = useId();
   return (
     <div className="flex items-center justify-between gap-3 py-2.5">
-      <label htmlFor={switchId} className="min-w-0 cursor-pointer">
-        <span className="block text-sm font-semibold text-slate-700">
+      <span className="min-w-0">
+        <label
+          htmlFor={switchId}
+          className="block cursor-pointer text-sm font-semibold text-slate-700"
+        >
           {label}
-        </span>
+        </label>
         {hint && (
           <span id={hintId} className="block text-xs text-slate-600">
             {hint}
           </span>
         )}
-      </label>
+      </span>
       <Toggle
         id={switchId}
         anchor={anchor}
