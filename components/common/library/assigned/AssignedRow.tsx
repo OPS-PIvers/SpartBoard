@@ -343,7 +343,12 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
                 >
                   {hideCounts
                     ? CLASS_STATUS_WORD[c.status]
-                    : classDetail(c, nowMs, bellLabel?.(c) ?? null, classCounts)}
+                    : classDetail(
+                        c,
+                        nowMs,
+                        bellLabel?.(c) ?? null,
+                        classCounts
+                      )}
                 </div>
               </div>
               <div

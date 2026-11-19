@@ -51,10 +51,10 @@ const writingActions = {
   ...classActions,
   closeAll: vi.fn(() => Promise.resolve()),
 };
-const undoWritingClose = vi.fn(() => Promise.resolve());
+const undoWritingClose = vi.fn((_prev: unknown) => Promise.resolve());
 vi.mock('@/hooks/useWritingClassActions', () => ({
   useWritingClassActions: () => writingActions,
-  undoWritingClose: (...a: unknown[]) => undoWritingClose(...a),
+  undoWritingClose: (prev: unknown) => undoWritingClose(prev),
 }));
 vi.mock('@/hooks/useSetAssignmentTargets', () => ({
   useSetAssignmentTargets: () => ({ setAssignmentTargets: vi.fn() }),
