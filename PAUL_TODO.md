@@ -1,7 +1,6 @@
 # Paul's to-do
 
-- [ ] **PT-272 You: turn on Firebase App Check for the poll join lookup** (security `find_018YVTiCChPEp8o73kHbE274`; AB-311 does the code half). The poll code lookup limits misses per district now, but a script can mint free anonymous accounts, so it can still burn that budget and block joins for a few minutes at a time. App Check ties calls to real browsers. In the [Firebase console](https://console.firebase.google.com/project/spartboard/appcheck) for both `spartboard` and `spartboard-dev`, register the web app with reCAPTCHA Enterprise (create a site key in Google Cloud, allow our hosts and localhost for dev), leave enforcement off, and give the two site keys to an agent in a thread so AB-311 can wire the client. Turn enforcement on for Cloud Functions only after a day of verified-request metrics looks healthy.
-      Work only a person can start. Everything an agent can do on its own is in [AGENT_BACKLOG.md](AGENT_BACKLOG.md).
+Work only a person can start. Everything an agent can do on its own is in [AGENT_BACKLOG.md](AGENT_BACKLOG.md).
 
 - **You**: only you can do it (prod clicks, your real account, a real device, Google or Admin Console, store listings, emails to IT, counsel or the district, money).
 - **🤖 With an agent**: you approve or steer and an agent does the work. Paste the prompt into any SpartBoard session. A step that needs the prod key says so; run that session on the PC that has it.
@@ -148,6 +147,7 @@ Test on your real prod account, then set the row to Public (Previews, or Widgets
 
 ## 4. Cloud and Google console
 
+- [ ] **PT-272 You: turn on Firebase App Check for the poll join lookup** (security `find_018YVTiCChPEp8o73kHbE274`; AB-311 does the code half). The poll code lookup limits misses per district now, but a script can mint free anonymous accounts, so it can still burn that budget and block joins for a few minutes at a time. App Check ties calls to real browsers. In the [Firebase console](https://console.firebase.google.com/project/spartboard/appcheck) for both `spartboard` and `spartboard-dev`, register the web app with reCAPTCHA Enterprise (create a site key in Google Cloud, allow our hosts and localhost for dev), leave enforcement off, and give the two site keys to an agent in a thread so AB-311 can wire the client. Turn enforcement on for Cloud Functions only after a day of verified-request metrics looks healthy.
 - [ ] **PT-259 You: count pseudonym call errors on prod** (AB-8). Open [this Logs Explorer query](<https://console.cloud.google.com/logs/query;query=resource.type%3D%22cloud_run_revision%22%20resource.labels.service_name%3D%22getpseudonymsforassignmentv1%22%20httpRequest.status%3D(403%20OR%20404);duration=P30D?project=spartboard>) and paste the count since 2026-10-01 into a SpartBoard thread. Cloud threads can't read prod logs.
 - [ ] **PT-239 You: raise the Cloud Functions mutation quota on prod** (#6089). Release deploys wait on "Per project mutation requests per minute per region". In the [prod Cloud Functions quotas](https://console.cloud.google.com/apis/api/cloudfunctions.googleapis.com/quotas?project=spartboard), find that quota for us-central1 and request 180. Optional: the same on [spartboard-dev](https://console.cloud.google.com/apis/api/cloudfunctions.googleapis.com/quotas?project=spartboard-dev).
 - [ ] **PT-74 🤖 Daily prod backup schedule** (delete protection and PITR are on; PITR's 7 days is the only recovery path).
@@ -180,7 +180,7 @@ Each prompt starts a grilling; the agent writes your answers into the plan and m
   - Offline edits wait in a queue until the connection returns, with no time limit. Drop edits older than some age, or keep retrying forever?
   - Touch users can't move a widget past an alignment guide (desktop uses Alt). Add a touch way, such as a long press, or leave it?
   - Live view nudge notes come in English, Spanish, French and German. Add more languages, or keep those four like the rest of the app?
-    > Ask me each PT-244 question with a decision card. Write my answers into AB-282, move a yes to Ready, and move a no to Known limits with my answer as the reason.
+  > Ask me each PT-244 question with a decision card. Write my answers into AB-282, move a yes to Ready, and move a no to Known limits with my answer as the reason.
 - [ ] **PT-235 🤖 Modified questions with their own answer key (quiz modifications part 3c).** On hold by your choice (2026-11-17) until you've tried modified wording and rubrics with a class (PT-228). The design is five flagged PRs, and every score path changes: student serving, all graders and score-on-submit, results and item analysis, the editor, then paper sheets. Say go when you want it.
   > Start quiz modifications part 3c from /mnt/project-files/assign-modifications/PART3-PLAN.md ("3c design"), one flagged PR per piece behind modification-groups.
 - [ ] **PT-230 Should PIN joiners stop seeing right/wrong and the answer key during a video activity?** In self-paced sessions with "show result" and "reveal answer" on, students who join by PIN still see both (security finding). Fixing it changes what they see. Put the fix behind a preview flag, or ship it for everyone? Tell an agent your choice (AB-254).
@@ -189,7 +189,7 @@ Each prompt starts a grilling; the agent writes your answers into the plan and m
   - Focus Redirect and Lock block other extensions' own pages, such as a PDF annotator's tab. Allow a short list of extension ids? (AB-73)
   - Flashcards accept either half of `yes/no`, `true/false` and `and/or` typed alone. Keep that, or only split gendered pairs like `el/la`? (AB-212)
   - Expired substitute shares can leave Drive access on a teacher's files that the server can't remove. Keep a hidden admin-only record so an agent can clean them up, or accept it? (AB-142)
-    > Ask me each PT-213 question with a decision card. Write my answer into each AB brief. Move a yes to Ready; move a "keep it" or "accept it" to Known limits with my answer as the reason.
+  > Ask me each PT-213 question with a decision card. Write my answer into each AB brief. Move a yes to Ready; move a "keep it" or "accept it" to Known limits with my answer as the reason.
 - [ ] **PT-145 Should quiz End turn in scanned written answers the student never opened on a device?** Turning them in uses an attempt and marks the device questions blank; leaving them open keeps them In Progress and off the gradebook. Tell an agent your choice (AB-152).
 - [ ] **PT-143 Should invited and inactive members count in org user totals?** Today every member doc counts regardless of status (kept as is in #5363). Tell an agent your choice.
 - [ ] **PT-87 🤖 PLC rename "Quizzes" to "Assessments"** scope (teacher-side widget? VA and rubrics as kinds? student copy?).
