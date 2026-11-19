@@ -443,3 +443,20 @@ describe('QuizAssignStepper editing a launched quiz', () => {
     ]);
   });
 });
+
+describe('QuizAssignStepper editing groups by rule', () => {
+  it('puts students with the same rules in one group whatever their own window', () => {
+    render(
+      <EditHarness
+        saved={{
+          [keyOf('c1', 'a')]: { readAloud: true, closeAt: 5 },
+          [keyOf('c1', 'c')]: { readAloud: true, questionIds: ['q1'] },
+          [keyOf('c1', 'b')]: { closeAt: 7 },
+        }}
+        onSubmit={vi.fn()}
+      />
+    );
+    const header = screen.getByRole('button', { name: /^\dModifications/ });
+    expect(header.textContent).toMatch(/2 students: read aloud$/);
+  });
+});

@@ -80,6 +80,8 @@ interface QuizAssignmentSettingsModalProps {
   ) => Promise<void> | void;
   /** The assigned questions and the languages the session serves, for the Modifications step. */
   loadEditContext?: () => Promise<SettingsEditContext>;
+  /** The same, already in hand (the live monitor); skips the load. */
+  editContext?: SettingsEditContext;
   /** True when the teacher belongs to at least one PLC. */
   canShareWithPlc?: boolean;
   /** Opens the "Share results with PLC…" picker (unlinked assignments). */
@@ -169,6 +171,7 @@ export const QuizAssignmentSettingsModal: React.FC<
   onStopSharing,
   inline = false,
   loadEditContext,
+  editContext: givenContext,
   translation,
 }) => {
   const [options, setOptions] = useState<SettingsOptions>(() =>
@@ -188,12 +191,20 @@ export const QuizAssignmentSettingsModal: React.FC<
   const [targeting, setTargeting] = useState<AssignTargetingValue>(
     EMPTY_ASSIGN_TARGETING_VALUE
   );
+  // Only the Modifications step needs the questions, so only it waits for them.
+  const needsContext =
+    (!!givenContext || !!loadEditContext) &&
+    getAssignmentWidgetKind(assignment) === 'quiz' &&
+    !isStaffAudience(assignment) &&
+    auth?.canAccessFeature?.('modification-groups') === true;
   const [loadedContext, setLoadedContext] =
     useState<SettingsEditContext | null>(null);
   const loadContext = useEffectEvent(() =>
     loadEditContext ? loadEditContext() : Promise.resolve(NO_EDIT_CONTEXT)
   );
+  const mustLoad = needsContext && !givenContext;
   useEffect(() => {
+    if (!mustLoad) return;
     let cancelled = false;
     void loadContext()
       .catch(() => NO_EDIT_CONTEXT)
@@ -203,8 +214,10 @@ export const QuizAssignmentSettingsModal: React.FC<
     return () => {
       cancelled = true;
     };
-  }, [assignment.id]);
-  const editContext = loadEditContext ? loadedContext : NO_EDIT_CONTEXT;
+  }, [assignment.id, mustLoad]);
+  const editContext = !needsContext
+    ? NO_EDIT_CONTEXT
+    : (givenContext ?? loadedContext);
   const [savedPolicy, setSavedPolicy] = useState<AttemptPolicy | null>(null);
   useEffect(() => {
     let cancelled = false;

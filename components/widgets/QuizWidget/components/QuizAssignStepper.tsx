@@ -55,6 +55,7 @@ import {
 import { ModificationGroupsStep } from '@/components/common/library/assignStepper/ModificationGroupsStep';
 import {
   editedOverrides,
+  groupRulesOf,
   formatModificationGroupsValue,
   newModificationGroup,
   overridesFromGroups,
@@ -187,7 +188,7 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   const savedClass = new Set(edit?.savedClassIds ?? []);
   const startingRule = (row: { key: string; rosterId: string }) =>
     edit && (row.key in edit.savedOverrides || savedClass.has(row.rosterId))
-      ? edit.savedOverrides[row.key]
+      ? groupRulesOf(edit.savedOverrides[row.key])
       : presetByKey.get(row.key);
   // Students the step reaches for these classes; their class presets arrive as groups.
   const reachedRows = (next: AssignClassesValue) =>

@@ -411,6 +411,17 @@ const KEPT_ON_EDIT = [
   'onPaper',
 ] as const satisfies readonly (keyof StudentOverride)[];
 
+/** A saved override as the groups see it: only the rules a group sets. */
+export function groupRulesOf(
+  saved: StudentOverride | undefined
+): StudentOverride | undefined {
+  if (!saved) return undefined;
+  const rules: StudentOverride = { ...saved };
+  for (const field of KEPT_ON_EDIT) delete rules[field];
+  delete rules.hiddenOptionIdsByQuestion;
+  return Object.keys(rules).length > 0 ? rules : undefined;
+}
+
 /** Overrides after editing a live assignment: a student whose rules didn't change keeps their saved override exactly. */
 export function editedOverrides(
   saved: Record<string, StudentOverride>,

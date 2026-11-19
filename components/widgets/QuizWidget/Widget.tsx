@@ -3371,13 +3371,21 @@ const TeacherQuizWidget: React.FC<{
       translation={{
         sourceLanguage: quizzes.find((q) => q.id === target.quizId)?.language,
       }}
+      // The monitor already holds the live quiz and session; a dialog reads them.
+      editContext={
+        inline &&
+        loadedQuizData &&
+        liveSession?.id === target.id &&
+        // A per-period session's questions arrive from a second listener.
+        (!liveSession.questionsInContent ||
+          liveSession.publicQuestions.length > 0)
+          ? {
+              quizData: loadedQuizData,
+              servedLocales: servedLocalesOf(liveSession.publicQuestions),
+            }
+          : undefined
+      }
       loadEditContext={async () => {
-        // The monitor already holds the live quiz and session; a dialog reads them.
-        if (inline && loadedQuizData && liveSession?.id === target.id)
-          return {
-            quizData: loadedQuizData,
-            servedLocales: servedLocalesOf(liveSession.publicQuestions),
-          };
         const meta = quizzes.find((q) => q.id === target.quizId);
         const [quizData, servedLocales] = await Promise.all([
           meta ? loadAnswerKeyQuizQuietly(meta, target) : null,
