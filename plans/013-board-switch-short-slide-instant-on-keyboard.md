@@ -1,7 +1,7 @@
 # 013 — Board switch: no animation from the keyboard, a short slide otherwise
 
 - **Status**: TODO
-- **Commit**: c4edf53
+- **Commit**: acb225c
 - **Severity**: HIGH
 - **Category**: Purpose & frequency (also Easing & duration, Interruptibility, Accessibility)
 - **Estimated scope**: 2 files, about 30 changed lines, plus one new test
@@ -12,7 +12,7 @@
 A teacher with one board per class section switches boards many times a day. Every switch plays a half-second animation in which the new board travels the full width of the screen. The old board is hidden with `display: none`, so it simply vanishes while the new one is still travelling.
 
 ```css
-/* index.css:213-234 — current */
+/* index.css:247-268 — current */
 /* Dashboard Transitions */
 @keyframes slideLeftIn {
   from {
@@ -38,7 +38,7 @@ A teacher with one board per class section switches boards many times a day. Eve
 ```
 
 ```css
-/* index.css:265-279 — current */
+/* index.css:299-313 — current */
 .animate-slide-left-in {
   animation: slideLeftIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
@@ -242,7 +242,7 @@ if (activeDashboard?.id !== lastDashboardId) {
 ## Steps
 
 1. Confirm plan 010 is merged: `index.css` must contain `--ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);`. If it does not, STOP.
-2. In `index.css`, change the `from` transforms of `slideLeftIn` (line 216) to `translateX(2%)` and of `slideRightIn` (line 227) to `translateX(-2%)`.
+2. In `index.css`, change the `from` transforms of `slideLeftIn` (line 250) to `translateX(2%)` and of `slideRightIn` (line 261) to `translateX(-2%)`.
 3. In `index.css`, replace the `.animate-slide-left-in`, `.animate-slide-right-in` and `.animate-fade-in` rules with the targets, and add the `@media (prefers-reduced-motion: reduce)` block directly after `.animate-fade-in`. Leave `.animate-slide-left-out`, `.animate-disclosure-expand`, `.animate-fade-out` and every other rule untouched.
 4. In `components/layout/DashboardView.tsx`, add the `keyboardSwitchId` state after line 569.
 5. Add `const activeDashboardId = activeDashboard?.id;` directly above the `animationClass` memo and replace the memo with the target.

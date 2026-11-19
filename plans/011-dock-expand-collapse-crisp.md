@@ -1,7 +1,7 @@
 # 011 — Make the Dock expand and collapse fast, with no bounce
 
 - **Status**: TODO
-- **Commit**: c4edf53
+- **Commit**: acb225c
 - **Severity**: HIGH
 - **Category**: Easing & duration (also Cohesion, Performance, Accessibility)
 - **Estimated scope**: 1 file, 2 class strings
@@ -29,7 +29,7 @@ The Dock is the most-used control in the app. Opening and closing it takes 500ms
 ```
 
 ```tsx
-// components/layout/Dock.tsx:1808-1814 — current (collapsed floating icon)
+// components/layout/Dock.tsx:1806-1812 — current (collapsed floating icon)
 <div
   className={`transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
     !isExpanded
@@ -94,7 +94,7 @@ Exact values: duration `200ms`; curve `cubic-bezier(0.23, 1, 0.32, 1)`; hidden e
 
 1. Confirm plan 010 is merged: `index.css` must contain `--ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);`. If it does not, STOP.
 2. In `components/layout/Dock.tsx`, replace the class expression at lines 1188-1198 with the expanded-view target above. The surrounding `<div` and its children stay as they are.
-3. In the same file, replace the class expression at lines 1809-1813 with the collapsed-icon target above.
+3. In the same file, replace the class expression at lines 1807-1811 with the collapsed-icon target above.
 4. Change nothing else in the file.
 
 ## Boundaries

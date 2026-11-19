@@ -1,7 +1,7 @@
 # 012 — Make Dock popovers rise from their icon instead of sliding in sideways
 
 - **Status**: TODO
-- **Commit**: c4edf53
+- **Commit**: acb225c
 - **Severity**: HIGH
 - **Category**: Physicality & origin
 - **Estimated scope**: 3 files, 5 inline-style lines and 3 class strings
@@ -24,7 +24,7 @@ enter: {
 During the animation the keyframe's `transform` replaces the inline one. So the popover starts at `translate3d(0, 0.5rem, 0)`, which is not centred, and interpolates to `translateX(-50%)`. A 224px-wide popover therefore starts 112px to the right of where it belongs and slides diagonally into place, instead of rising 8px from its icon. This was derived from the code and has not been confirmed in a browser: step 1 confirms it.
 
 ```tsx
-// components/layout/dock/ToolDockItem.tsx:166-177 — current ("Restorable" popover)
+// components/layout/dock/ToolDockItem.tsx:168-179 — current ("Restorable" popover)
 <GlassCard
   globalStyle={globalStyle}
   ref={popoverRef}
@@ -40,7 +40,7 @@ During the animation the keyframe's `transform` replaces the inline one. So the 
 ```
 
 ```tsx
-// components/layout/Dock.tsx:1627-1638 — current (live session popover)
+// components/layout/Dock.tsx:1626-1637 — current (live session popover)
 <GlassCard
   globalStyle={globalStyle}
   ref={livePopoverRef}
@@ -107,8 +107,8 @@ Exact replacements:
 
 | File                                                        | Current inline style line        | Target inline style line |
 | ----------------------------------------------------------- | -------------------------------- | ------------------------ |
-| `components/layout/dock/ToolDockItem.tsx:173`               | `transform: 'translateX(-50%)',` | `translate: '-50% 0',`   |
-| `components/layout/Dock.tsx:1634`                           | `transform: 'translateX(-50%)',` | `translate: '-50% 0',`   |
+| `components/layout/dock/ToolDockItem.tsx:175`               | `transform: 'translateX(-50%)',` | `translate: '-50% 0',`   |
+| `components/layout/Dock.tsx:1633`                           | `transform: 'translateX(-50%)',` | `translate: '-50% 0',`   |
 | `components/layout/dock/FolderItem.tsx` (dock left branch)  | `transform: 'translateY(-50%)',` | `translate: '0 -50%',`   |
 | `components/layout/dock/FolderItem.tsx` (dock right branch) | `transform: 'translateY(-50%)',` | `translate: '0 -50%',`   |
 | `components/layout/dock/FolderItem.tsx` (bottom branch)     | `transform: 'translateX(-50%)',` | `translate: '-50% 0',`   |
@@ -138,15 +138,15 @@ Duration stays `200ms`. The curve comes from plan 010's global rule if it is mer
 ## Steps
 
 1. Reproduce first. Start `vite-dev` (port 3000), sign in, open a board, add a widget and minimize it so its Dock icon shows a badge. In the DevTools Animations panel set playback to 10%, then click that Dock icon. Watch whether the "Restorable" popover starts off to the right and travels sideways. If it rises straight up with no sideways travel, the problem does not reproduce: STOP and report, changing nothing.
-2. In `components/layout/dock/ToolDockItem.tsx`, change line 173 and the class string on line 176 as shown in Target.
-3. In `components/layout/Dock.tsx`, change line 1634 and the class string on line 1637 as shown in Target.
+2. In `components/layout/dock/ToolDockItem.tsx`, change line 175 and the class string on line 178 as shown in Target.
+3. In `components/layout/Dock.tsx`, change line 1633 and the class string on line 1636 as shown in Target.
 4. In `components/layout/dock/FolderItem.tsx`, change the three `transform:` lines inside the style ternary (lines 182-221) and add `fade-in` to the class string that starts on line 222, as shown in Target.
 5. Change nothing else.
 
 ## Boundaries
 
 - Do NOT change how `popoverPos`, `livePopoverPos` or `anchorRect` are measured, and do NOT change `left`, `right`, `top`, `bottom` or `zIndex`.
-- Do NOT touch `const style = { transform: CSS.Translate.toString(transform), ... }` in `ToolDockItem.tsx` (around line 146). That is the drag-and-drop transform of the Dock item itself, not the popover.
+- Do NOT touch `const style = { transform: CSS.Translate.toString(transform), ... }` in `ToolDockItem.tsx` (around line 150). That is the drag-and-drop transform of the Dock item itself, not the popover.
 - Do NOT change durations or add `zoom-in-*`, `origin-*` or `ease-*` classes.
 - Do NOT touch the Dock expand and collapse transition (plan 011) or press feedback (plan 014).
 - Do NOT add new dependencies, a feature flag or a changelog entry: this is a bug fix in styling.

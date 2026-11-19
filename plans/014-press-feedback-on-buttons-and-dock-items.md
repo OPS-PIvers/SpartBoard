@@ -1,7 +1,7 @@
 # 014 — Give shared buttons press feedback and soften the Dock's press
 
 - **Status**: TODO
-- **Commit**: c4edf53
+- **Commit**: acb225c
 - **Severity**: HIGH
 - **Category**: Physicality & origin
 - **Estimated scope**: 6 files, about 10 class strings, plus 2 small tests
@@ -32,7 +32,7 @@ hero: 'bg-brand-blue-primary text-white shadow-lg shadow-brand-blue-primary/30 h
 Dock items do have a press state, but it shrinks them by 10%, which is outside the subtle 0.95 to 0.98 range and reads as a lurch on the most-tapped control in the app. Seven places use it:
 
 ```tsx
-// components/layout/dock/ToolDockItem.tsx:279 — current
+// components/layout/dock/ToolDockItem.tsx:281 — current
 className={`group flex flex-col items-center gap-1 min-w-[50px] transition-transform active:scale-90 relative ${
 
 // components/layout/dock/FolderItem.tsx:330 — current
@@ -41,16 +41,16 @@ className={`group flex flex-col items-center gap-1 min-w-[50px] transition-trans
 // components/layout/dock/SavedWidgetDockItem.tsx:94 — current
 className={`group flex flex-col items-center gap-1 min-w-[50px] transition-transform active:scale-90 relative ${
 
-// components/layout/Dock.tsx:1610 — current
+// components/layout/Dock.tsx:1609 — current
 className="group flex flex-col items-center gap-1 min-w-[50px] transition-transform active:scale-90 touch-pan-x relative focus-visible:outline-hidden"
 
-// components/layout/Dock.tsx:1713 — current
+// components/layout/Dock.tsx:1712 — current
 className="group flex flex-col items-center gap-1 min-w-[50px] transition-transform active:scale-90 touch-pan-x shrink-0"
 
-// components/layout/Dock.tsx:1787 — current
+// components/layout/Dock.tsx:1785 — current
 className="group flex flex-col items-center gap-1 min-w-[50px] transition-transform active:scale-90 touch-pan-x shrink-0"
 
-// components/layout/Dock.tsx:1847 — current (the round "open tools" button)
+// components/layout/Dock.tsx:1845 — current (the round "open tools" button)
 className={`w-14 h-14 flex items-center justify-center bg-brand-blue-primary text-white active:scale-90 transition shadow-xl shadow-brand-blue-primary/40 ${
 ```
 
@@ -83,7 +83,7 @@ hero: 'bg-brand-blue-primary text-white shadow-lg shadow-brand-blue-primary/30 h
 // replace exactly that fragment with:
 transition-transform duration-160 ease-out active:scale-95
 
-// components/layout/Dock.tsx:1847 — target: replace `active:scale-90 transition` with:
+// components/layout/Dock.tsx:1845 — target: replace `active:scale-90 transition` with:
 active:scale-95 transition duration-160 ease-out
 ```
 
@@ -93,7 +93,7 @@ Press feedback is kept under `prefers-reduced-motion`: a 3% to 5% scale is feedb
 
 ## Repo conventions to follow
 
-- Arbitrary numeric durations are written as bare numbers, for example `duration-900` in `components/widgets/QuizWidget/components/FreeResponseGrader.tsx:1980`. Write `duration-160`, not `duration-[160ms]`.
+- Arbitrary numeric durations are written as bare numbers, for example `duration-900` in `components/widgets/QuizWidget/components/FreeResponseGrader.tsx:1982`. Write `duration-160`, not `duration-[160ms]`.
 - Sub-5% press scales are written with brackets: `active:scale-[0.98]` is used 16 times in the repo. Write `enabled:active:scale-[0.97]`.
 - Exemplar of a Dock control that already presses in range: `components/layout/dock/QuickAccessButton.tsx:25` (`active:scale-95`).
 - Both shared components pass `disabled` to a real `<button>`, so the `enabled:` variant works.
@@ -105,8 +105,8 @@ Press feedback is kept under `prefers-reduced-motion`: a 3% to 5% scale is feedb
 1. In `components/common/IconButton.tsx` line 41, replace `transition-colors` with `transition duration-160 ease-out enabled:active:scale-[0.97]`.
 2. In `components/common/Button.tsx` line 35, replace the leading `transition` with `transition duration-160 ease-out enabled:active:scale-[0.97]`.
 3. In `components/common/Button.tsx` line 48, remove `active:scale-95 ` from the `hero` variant.
-4. In `components/layout/dock/ToolDockItem.tsx:279`, `components/layout/dock/FolderItem.tsx:330`, `components/layout/dock/SavedWidgetDockItem.tsx:94` and `components/layout/Dock.tsx` lines 1610, 1713 and 1787, replace `transition-transform active:scale-90` with `transition-transform duration-160 ease-out active:scale-95`.
-5. In `components/layout/Dock.tsx:1847`, replace `active:scale-90 transition` with `active:scale-95 transition duration-160 ease-out`.
+4. In `components/layout/dock/ToolDockItem.tsx:281`, `components/layout/dock/FolderItem.tsx:330`, `components/layout/dock/SavedWidgetDockItem.tsx:94` and `components/layout/Dock.tsx` lines 1609, 1712 and 1785, replace `transition-transform active:scale-90` with `transition-transform duration-160 ease-out active:scale-95`.
+5. In `components/layout/Dock.tsx:1845`, replace `active:scale-90 transition` with `active:scale-95 transition duration-160 ease-out`.
 6. Add one test to `components/common/Button.test.tsx` asserting a default `Button` has the class `enabled:active:scale-[0.97]`, and one to `components/common/IconButton.test.tsx` asserting the same on a default `IconButton`. Follow the assertion style already used in each file.
 
 ## Boundaries
