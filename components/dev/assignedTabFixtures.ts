@@ -89,7 +89,7 @@ export const ASSIGNED_FIXTURES: QuizAssignment[] = [
       : 'Cells Quiz',
     {
       periodAccess: rows((i) =>
-        i === 0 ? closed : i === 1 ? { state: 'open' } : {}
+        i === 0 ? closed : i === 1 ? { state: 'open', openedAt: now - DAY } : {}
       ),
     }
   ),
@@ -112,7 +112,9 @@ export const ASSIGNED_FIXTURES: QuizAssignment[] = [
   }),
   base('single', 'Vocabulary Warm-up', {
     rosterIds: [KEYS[1]],
-    periodAccess: { [KEYS[1]]: row(1, { state: 'open' }) },
+    periodAccess: {
+      [KEYS[1]]: row(1, { state: 'open', openedAt: now - DAY }),
+    },
   }),
   base('paper', 'Unit 3 Test (paper)', {
     status: 'paused',
