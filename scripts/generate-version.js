@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { execFileSync } from 'child_process';
 import { fileURLToPath } from 'url';
+import { loadChangelog } from './changelogFragments.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -13,22 +14,14 @@ const isDev =
 
 const publicDir = path.resolve(__dirname, '../public');
 
-// Try to derive the release id from the curated changelog so the toast,
+// Try to derive the release id from the curated changelog (with changelog.d/ fragments) so the toast,
 // the served version, and the modal all show the same value. Fall back to
 // a timestamp if the changelog is missing or empty.
 const readLatestChangelogVersion = () => {
   try {
-    const changelogPath = path.join(publicDir, 'changelog.json');
-    if (!fs.existsSync(changelogPath)) return null;
-    const raw = fs.readFileSync(changelogPath, 'utf8');
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed?.entries)) {
-      console.warn(
-        'changelog.json is missing an "entries" array, falling back to timestamp.'
-      );
-      return null;
-    }
-    const first = parsed.entries[0]?.version;
+    if (!fs.existsSync(path.join(publicDir, 'changelog.json'))) return null;
+    const first = loadChangelog(path.resolve(__dirname, '..')).entries[0]
+      ?.version;
     return typeof first === 'string' && first.length > 0 ? first : null;
   } catch (error) {
     console.warn(
