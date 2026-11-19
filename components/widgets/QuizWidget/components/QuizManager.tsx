@@ -573,9 +573,9 @@ interface QuizManagerProps {
   onArchiveReopenStudents?: (assignment: QuizAssignment) => void;
   onArchiveDelete?: (assignment: QuizAssignment) => void | Promise<void>;
   /** Assigned tab bulk delete, already confirmed; resolves to how many failed. */
+  onArchiveDeleteMany?: (assignments: QuizAssignment[]) => Promise<number>;
   /** Opens the publish dialog once for several closed assignments. */
   onArchivePublishMany?: (assignments: QuizAssignment[]) => void;
-  onArchiveDeleteMany?: (assignments: QuizAssignment[]) => Promise<number>;
   /** Signed-in teacher's display name; default `teacherName` on new assignments. */
   defaultTeacherName?: string;
   /**

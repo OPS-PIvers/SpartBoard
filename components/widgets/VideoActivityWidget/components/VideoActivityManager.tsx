@@ -244,11 +244,11 @@ export interface VideoActivityManagerProps {
   onArchiveReactivate?: (assignment: VideoActivityAssignment) => Promise<void>;
   onArchiveDelete?: (assignment: VideoActivityAssignment) => Promise<void>;
   /** Assigned tab bulk delete, already confirmed; resolves to how many failed. */
-  /** Opens the publish dialog once for several closed assignments. */
-  onArchivePublishMany?: (assignments: VideoActivityAssignment[]) => void;
   onArchiveDeleteMany?: (
     assignments: VideoActivityAssignment[]
   ) => Promise<number>;
+  /** Opens the publish dialog once for several closed assignments. */
+  onArchivePublishMany?: (assignments: VideoActivityAssignment[]) => void;
   onArchiveResults?: (assignment: VideoActivityAssignment) => void;
   /**
    * PR3 PLC sharing — invoked when the teacher picks "Share with PLC" on an

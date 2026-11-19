@@ -82,11 +82,11 @@ interface FlashcardLibraryProps {
   onAssignmentReopen: (assignment: FlashcardAssignment) => void;
   onAssignmentDelete: (assignment: FlashcardAssignment) => void;
   /** Assigned tab bulk delete, already confirmed; resolves to how many failed. */
-  /** Opens the publish dialog once for several closed assignments. */
-  onAssignmentPublishMany?: (assignments: FlashcardAssignment[]) => void;
   onAssignmentDeleteMany?: (
     assignments: FlashcardAssignment[]
   ) => Promise<number>;
+  /** Opens the publish dialog once for several closed assignments. */
+  onAssignmentPublishMany?: (assignments: FlashcardAssignment[]) => void;
   /** Surfaces a failed folder move as a toast. */
   onError?: (message: string) => void;
   onShareWithPlc?: (set: FlashcardSet) => void;

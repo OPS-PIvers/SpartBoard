@@ -291,11 +291,11 @@ export interface GuidedLearningManagerProps {
   onAssignmentUnarchive: (assignment: GuidedLearningAssignment) => void;
   onAssignmentDelete: (assignment: GuidedLearningAssignment) => void;
   /** Assigned tab bulk delete, already confirmed; resolves to how many failed. */
-  /** Opens the publish dialog once for several closed assignments. */
-  onAssignmentPublishMany?: (assignments: GuidedLearningAssignment[]) => void;
   onAssignmentDeleteMany?: (
     assignments: GuidedLearningAssignment[]
   ) => Promise<number>;
+  /** Opens the publish dialog once for several closed assignments. */
+  onAssignmentPublishMany?: (assignments: GuidedLearningAssignment[]) => void;
   /**
    * Open the publish-scores picker modal for an archived assignment. Set
    * ⇒ the archive kebab gains a "Publish scores" / "Update published
