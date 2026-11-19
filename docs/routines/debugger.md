@@ -782,6 +782,11 @@
 | 2026-11-18 | State & Data | Clean. Fuzzed `writingLog` (20k diffs) and `plcMeetingCadence` (3000 cadences vs a brute-force oracle); read a dozen utils and hooks, nothing reproducible. |
 | 2026-11-18 | Admin & Config | Announcements dismissal "Duration" input ignored a cleared box (`onChange` returned early), so it snapped back. Now `DraftNumberField`. Test fails before, passes after. PR: [#6143](https://github.com/ops-pivers/spartboard/pull/6143) |
 | 2026-11-18 | Build & Tooling | Clean. Function-codebase manifest checks (71 tests), gradebook math, paper transcription, rules and CI scripts read; no failing test found. |
+| 2026-11-19 | Widgets | Calendar Local events time parsers (`parseTimeSeconds` in `Widget.tsx`, `toSeconds` in `agendaUtils.ts`) both required a colon, so "3pm" counted as untimed (sort, dedupe, timer, agenda past/format). Deleted the duplicate; `toSeconds` accepts `H[:MM]` plus am/pm. Test fails before, passes after. PR: [#6262](https://github.com/ops-pivers/spartboard/pull/6262) |
+| 2026-11-19 | Dashboard & Layout | `ShortLinkRedirect` passed `/r/:code` verbatim to a lowercase-only slug lookup, so `/r/Math-Help` showed "Link not found". Lowercased at the parse point. Test fails before, passes after. PR: [#6263](https://github.com/ops-pivers/spartboard/pull/6263) |
+| 2026-11-19 | State & Data | Clean. Read poll/mini-app/live session hooks, autosave, idle timeout, date utils; every backlog lead was stale, intentional or unreachable. Did not read `DashboardContext`, `AuthContext`, `PlcContext` in depth. |
+| 2026-11-19 | Admin & Config | Clean. Read config pure logic (buildings, tours, AI models/limits), admin analytics/access hooks and panels; en vs de/es/fr placeholder diff found no drift. |
+| 2026-11-19 | Build & Tooling | `decodeHtmlEntities` (page import, link previews) left `&nbsp;`, `&rsquo;`, `&mdash;` etc. literal and let `&#0;`/surrogate refs through. Added named-entity table and code-point validation. Test fails before, passes after. PR: [#6264](https://github.com/ops-pivers/spartboard/pull/6264) |
 
 ## Backlog
 
@@ -1279,6 +1284,11 @@
 | State & Data | Latent: `buildAssignmentRosterRows` `removedStudentRefs` not deduped by `studentTargetRefKey`; `stableStringify` serializes any `Date` as `{}`; `parseMeetingCadence` lets a `NaN` weekday through; `datePicker.isoDate` maps years 0-99 to 19xx and has no tests | 2026-11-18 | open (low) |
 | Admin & Config | `CalendarConfigurationModal` `updateFrequencyHours` ignores a cleared field (same snap-back as #6143), unconfirmed | 2026-11-18 | open (low) |
 | Build & Tooling | Audit ~95 `.limit(` calls in `functions/src` lacking `orderBy`/`startAfter` for scheduled-sweep pagination cliffs; cosmetic: `mergeVitestReports.mjs` `startTime` minimum becomes 0 if a shard report omits it | 2026-11-18 | open (low) |
+| Widgets | `CarRiderPro/Widget.tsx:32` case-sensitive `startsWith('https://')` (BlendingBoard lowercases first), low | 2026-11-19 | open |
+| Dashboard & Layout | `useUnifiedAssignments` guided-learning and mini-app rows omit `periodNames`/`classIds` that quiz/VA/flashcards/writing rows pass; unchecked whether those types carry them | 2026-11-19 | open |
+| State & Data | `useSeatedPeriodContent` `setTimeout(delay + 1000)` has no clamp to 2^31-1 ms (hardening); `dueReminders`, `importMissing`, `useFolderTree`, `rubricCsv` leads are stale (already fixed) | 2026-11-19 | open |
+| Admin & Config | `aiModels.ts` Gemini 4 Carbon/Argon prices lack a post-2026-11-30 `priceChange` (needs Paul's price); `previewStatus` "Live for: everyone" ignores `minTier` (cosmetic) | 2026-11-19 | open (needs Paul) |
+| Build & Tooling | `extension/src/schoology/fetchRead.ts` `readItemBankFromSchoology` `breadcrumbs.map` throws on non-array/null entries (low); `scripts/checkRulesSize.mjs` reads `sourceCompiled` before its `const` (harmless) | 2026-11-19 | open |
 
 ## Notes & Gotchas
 
@@ -1758,3 +1768,6 @@
 - 2026-11-18: two fixes (#6142, #6143), three areas clean (Dashboard, State & Data, Build). Subagents ran scoped checks only; I swapped each source file back to `HEAD~1` to confirm every new test fails before and passes after, then ran one merged-tree `validate` + `build` (green). `dev-paul` moved during the run (docs, functions and rules only); branches were rebased and the new tests rerun. Baseline about 1 h, gate about 1 h. The Stop hook keeps asking to push the session branch; it holds only `dev-paul` history, so ignore it.
 
 - Run count: **127** | Last run: **2026-11-18**
+- 2026-11-19: three fixes (#6262-#6264), State & Data and Admin clean. Subagents ran scoped checks only; I swapped each source file back to `origin/dev-paul` to confirm every new test fails before and passes after, then ran one merged-tree `validate` + `build` (green). `dev-paul` did not move. Baseline about 1 h, gate about 1 h. The Stop hook keeps asking to push the session branch; it holds only `dev-paul` history, so ignore it.
+
+- Run count: **128** | Last run: **2026-11-19**
