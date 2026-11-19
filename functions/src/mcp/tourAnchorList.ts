@@ -14632,8 +14632,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.tab:quiz#archive",
           "library-shell.archive-primary-action:quiz#row-1",
-          "quiz-results.print:quiz"
+          "quiz-results.print:quiz",
+          "quiz-print.results-tab:quiz#students"
         ],
+        "reveal": "quiz-print.results-tab:quiz#students",
         "needs": [
           "library-item",
           "student-data",
@@ -14665,8 +14667,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.tab:quiz#archive",
           "library-shell.archive-primary-action:quiz#row-1",
-          "quiz-results.print:quiz"
+          "quiz-results.print:quiz",
+          "quiz-print.results-section-expand:quiz#row-1"
         ],
+        "reveal": "quiz-print.results-section-expand:quiz#row-1",
         "needs": [
           "library-item",
           "student-data",

@@ -975,6 +975,7 @@ export const RESULTS_PRINT_STYLES = `
   html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   body { margin: 0; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: #111; font-size: 10.5pt; line-height: 1.4; }
   .block + .block, .pad + .block { break-before: page; }
+  .sheet { line-height: normal; }
   .pad { break-before: page; height: 1px; }
   .head { display: grid; grid-template-columns: 1fr auto; column-gap: 6mm; align-items: start; border-bottom: 0.5mm solid #111; padding-bottom: 3mm; margin-bottom: 3mm; }
   .head > * { grid-column: 1; }

@@ -268,13 +268,22 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
   const keptPagesOn = canAccessFeature('paper-kept-pages') && !!sessionId;
   const [everyAttempt, setEveryAttempt] = useState(false);
   const hasEarlier = !!earlierAttempts && earlierAttempts.size > 0;
+  // The account copy rides the preview; without it the choice stays on this browser as before.
   const [choice, update] = useResultsPrintChoice(
-    teacherUid,
+    v2 ? teacherUid : null,
     reportChoice ? 'full-report' : undefined,
     (saved: SavedResultsPrintChoice): SavedResultsPrintChoice => {
       // Without the report choice, a saved missed-only scope would have no visible control.
       if (!reportChoice && saved.options.questionScope === 'missed') {
         return { preset: 'student-copy', options: applyPreset('student-copy') };
+      }
+      // Full report and Missed only aren't listed without the report choice, so show Custom.
+      if (
+        !reportChoice &&
+        saved.preset &&
+        REPORT_CHOICE_PRESETS.includes(saved.preset)
+      ) {
+        return { ...saved, preset: null };
       }
       // Without paper sheets the picker offers Report only (D26).
       return !sheetsAvailable && saved.options.layout !== 'report'
@@ -283,7 +292,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
     }
   );
   const ownCourses = useCourses(
-    !givenCourses && canAccessFeature('course-agenda')
+    v2 && !givenCourses && canAccessFeature('course-agenda')
   ).courses;
   const courses = givenCourses ?? ownCourses;
   const chosenOptions: QuizResultsPrintOptions = sheetsAvailable

@@ -36,7 +36,8 @@ export function useResultsPrintChoice(
         const raw: unknown = snap.data()?.[RESULTS_PRINT_PROFILE_FIELD];
         if (cancelled || !raw) return;
         const saved = parseResultsPrintChoice(raw, defaultPreset);
-        saveResultsPrintChoice(saved);
+        // A super admin viewing as a teacher keeps their own browser copy.
+        if (!viewAsBlocksWrite()) saveResultsPrintChoice(saved);
         setState((prev) =>
           prev.touched ? prev : { choice: adjust(saved), touched: false }
         );

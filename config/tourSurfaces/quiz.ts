@@ -356,7 +356,19 @@ export const SURFACES: TourSurfaceMap = {
     label: 'Print results dialog',
     kind: 'modal',
     opensWith: 'quiz-results.print:quiz',
-    files: [`${C}ResultsPrintModal.tsx`],
+    files: [`${C}ResultsPrintModal.tsx`, `${C}PrintStudentTree.tsx`],
+    inner: {
+      'quiz-print.results-select-all': 'quiz-print.results-tab:quiz#students',
+      'quiz-print.results-clear': 'quiz-print.results-tab:quiz#students',
+      'quiz-print.results-course': 'quiz-print.results-tab:quiz#students',
+      'quiz-print.results-course-expand':
+        'quiz-print.results-tab:quiz#students',
+      'quiz-print.results-section': 'quiz-print.results-tab:quiz#students',
+      'quiz-print.results-section-expand':
+        'quiz-print.results-tab:quiz#students',
+      'quiz-print.results-student-select':
+        'quiz-print.results-section-expand:quiz#row-1',
+    },
   },
   'quiz.grader': {
     label: 'Written answer grader',
