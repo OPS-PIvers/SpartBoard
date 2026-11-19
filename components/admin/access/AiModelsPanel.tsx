@@ -145,10 +145,11 @@ const IntegrationRow: React.FC<{
   const options = AI_MODEL_OPTIONS.filter(
     (m) =>
       (allowed.includes(m.id) || m.id === value) &&
-      modelReadsInputs(m.id, integration.inputs)
+      modelReadsInputs(m.id, integration.inputs, integration.id)
   );
   const unreadable =
-    value !== '' && !modelReadsInputs(value, integration.inputs);
+    value !== '' &&
+    !modelReadsInputs(value, integration.inputs, integration.id);
   const outputDefault =
     providerOf(value || tierModel) === 'claude'
       ? CLAUDE_OUTPUT_TOKENS_DEFAULTS[integration.tier].toLocaleString('en-US')
