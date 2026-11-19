@@ -234,7 +234,7 @@ export const StudentLandingLayout: React.FC<StudentLandingLayoutProps> = ({
       {selected && classPartition && (
         <nav
           aria-label={`${selected.name} sections`}
-          className="grid shrink-0 grid-cols-3 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] min-[896px]:hidden"
+          className="grid shrink-0 grid-cols-4 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] min-[896px]:hidden"
         >
           {landingTabs(classPartition, gradesEnabled, doneCount).map((t) => {
             const Icon = t.icon;

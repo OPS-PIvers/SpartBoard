@@ -13,4 +13,4 @@ export interface LandingClass {
   color: ClassColor;
 }
 
-export type LandingTab = 'assignments' | 'resources' | 'completed';
+export type LandingTab = 'assignments' | 'resources' | 'completed' | 'expired';

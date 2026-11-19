@@ -1,6 +1,7 @@
 import type React from 'react';
 import {
   BookOpen,
+  CalendarX2,
   ChartNoAxesColumn,
   CircleCheck,
   ListChecks,
@@ -39,6 +40,12 @@ export function landingTabs(
       label: gradesEnabled ? 'Gradebook' : 'Completed',
       count: doneCount,
       icon: gradesEnabled ? ChartNoAxesColumn : CircleCheck,
+    },
+    {
+      id: 'expired',
+      label: 'Expired',
+      count: p.expired.length,
+      icon: CalendarX2,
     },
   ];
 }

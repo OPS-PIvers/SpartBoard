@@ -450,7 +450,7 @@ function completedRight(
   if (item.missing)
     return <span className="text-xs font-semibold text-rose-700">Missing</span>;
   if (item.row?.state === 'closed')
-    return <span className="text-xs text-slate-500">Not turned in</span>;
+    return <span className="text-xs text-slate-500">Not graded yet</span>;
   if (check?.lockedOut)
     return (
       <span className="inline-flex items-center gap-1 text-xs font-semibold text-rose-700">

@@ -67,7 +67,11 @@ export const LandingClassView: React.FC<LandingClassViewProps> = ({
     </div>
   );
   const empty =
-    !p.live.length && !p.work.length && !p.resources.length && !p.done.length;
+    !p.live.length &&
+    !p.work.length &&
+    !p.resources.length &&
+    !p.done.length &&
+    !p.expired.length;
   if (empty && !gradesEnabled) {
     return (
       <>
@@ -121,6 +125,24 @@ export const LandingClassView: React.FC<LandingClassViewProps> = ({
     ) : (
       <EmptyBox text="No resources right now." />
     );
+  } else if (tab === 'expired') {
+    body = p.expired.length ? (
+      <ListBox>
+        {completedItems(p.expired).map((item) => (
+          <DoneRow
+            key={item.key}
+            item={item}
+            check={checks[item.key]}
+            nowMs={nowMs}
+            teachers={cls.teachers}
+            onLockedClick={onLockedClick}
+            onOpenGradeOnly={onOpenGradeOnly}
+          />
+        ))}
+      </ListBox>
+    ) : (
+      <EmptyBox text="Nothing expired." />
+    );
   } else if (gradesEnabled && grades) {
     body = (
       <LandingGradebook
@@ -166,7 +188,7 @@ export const LandingClassView: React.FC<LandingClassViewProps> = ({
         <div
           role="tablist"
           aria-label={`${cls.name} sections`}
-          className="hidden grid-cols-3 gap-1 rounded-xl bg-slate-200/70 p-1 min-[896px]:grid"
+          className="hidden grid-cols-4 gap-1 rounded-xl bg-slate-200/70 p-1 min-[896px]:grid"
         >
           {tabs.map((t) => (
             <button
