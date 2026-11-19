@@ -786,7 +786,7 @@ export const OrganizationPanel: React.FC = () => {
           )}
 
           <nav
-            className="flex flex-col gap-1 overflow-y-auto pb-3"
+            className="scroll-inset flex flex-col gap-1 overflow-y-auto pb-3"
             aria-label="Organization sections"
           >
             {visibleSections.map((s) => {

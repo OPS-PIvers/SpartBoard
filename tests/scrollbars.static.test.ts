@@ -31,6 +31,11 @@ describe('scrollbars', () => {
     expect(rule).toMatch(/height:/);
   });
 
+  it('offers the modal gutter classes', () => {
+    expect(css).toMatch(/\.scroll-bleed\s*\{[^}]*scrollbar-gutter:\s*stable/);
+    expect(css).toMatch(/\.scroll-inset::-webkit-scrollbar\s*\{/);
+  });
+
   it('keeps scrollbar styling in index.css only', () => {
     const offenders = ['components', 'context', 'hooks', 'utils']
       .flatMap(listFiles)

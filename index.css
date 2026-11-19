@@ -107,6 +107,16 @@
     background-color: rgb(100 116 139 / 0.55);
   }
 }
+/* A scroller inside a bordered card: the thumb floats 5px clear of the rows and the border. */
+.scroll-inset {
+  scrollbar-gutter: stable;
+}
+.scroll-inset::-webkit-scrollbar {
+  width: 14px;
+}
+.scroll-inset::-webkit-scrollbar-thumb {
+  border-width: 5px;
+}
 /* Firefox has no ::-webkit-scrollbar; Chrome would drop the styles above if it saw these. */
 @supports not selector(::-webkit-scrollbar) {
   * {
@@ -400,6 +410,13 @@ body:has([data-tour-bar]) [data-toast-stack] {
    Applied via ::after to expand the hit area without affecting visual layout.
    Self-positioned in the components layer so absolute/fixed/sticky utilities still win. */
 @layer components {
+  /* A scroller inside a padded modal: its bar moves out into the modal's 24px padding, 10px clear of the content. */
+  .scroll-bleed {
+    scrollbar-gutter: stable;
+    margin-right: -1rem;
+    padding-right: 10px;
+  }
+
   .touch-target-expand {
     position: relative;
   }
