@@ -9,7 +9,10 @@ import {
   overridesFromGroups,
   withQuizAnswerChoices,
   rowsInClasses,
+  standingDriveFileIds,
+  standingGroupsFor,
   withGroupStudents,
+  withStandingGroups,
   type ModificationGroup,
 } from './modificationGroups';
 
@@ -81,19 +84,20 @@ describe('overridesFromGroups', () => {
     row('c', 'c1'),
   ];
 
-  it('sets grouped students only, keeping standing accommodations', () => {
+  it('gives grouped students exactly their group’s rules', () => {
     const out = overridesFromGroups(
       [group({ studentKeys: ['a', 'b'], time: 1.5, readAloud: true })],
       rows,
       QUESTIONS
     );
     expect(out.a).toEqual({ timeMultiplier: 1.5, readAloud: true });
-    expect(out.b).toEqual({
-      timeMultiplier: 1.5,
-      readAloud: true,
-      language: 'es',
-    });
+    expect(out.b).toEqual({ timeMultiplier: 1.5, readAloud: true });
     expect(out.c).toBeUndefined();
+  });
+
+  it('clears the class preset of a student taken out of every group', () => {
+    const out = overridesFromGroups([group({})], rows, QUESTIONS);
+    expect(out).toEqual({ b: {} });
   });
 
   it('turns Speech to text on and never clears a standing one', () => {
@@ -107,19 +111,31 @@ describe('overridesFromGroups', () => {
     expect(groupRuleLabels(on)).toEqual(['speech to text']);
   });
 
-  it('never shortens standing extra time', () => {
+  it('lets a group loosen a class preset for this assignment', () => {
     const standing = [
       row('s', 'c1', { defaultOverride: { timeMultiplier: 2 } }),
-      row('u', 'c1', { defaultOverride: { timeMultiplier: 'unlimited' } }),
     ];
     const out = overridesFromGroups(
-      [group({ studentKeys: ['s', 'u', 'a'], time: 1.5 })],
+      [group({ studentKeys: ['s', 'a'], time: 1.5 })],
       [...rows, ...standing],
       QUESTIONS
     );
-    expect(out.s.timeMultiplier).toBe(2);
-    expect(out.u.timeMultiplier).toBe('unlimited');
+    expect(out.s.timeMultiplier).toBe(1.5);
     expect(out.a.timeMultiplier).toBe(1.5);
+  });
+
+  it('keeps carried focus rules', () => {
+    const out = overridesFromGroups(
+      [
+        group({
+          studentKeys: ['a'],
+          carried: { blockCopyPaste: false, tabAwayLimit: 30 },
+        }),
+      ],
+      rows,
+      QUESTIONS
+    );
+    expect(out.a).toEqual({ blockCopyPaste: false, tabAwayLimit: 30 });
   });
 
   it('gives every grouped student the group’s supports', () => {
@@ -132,7 +148,7 @@ describe('overridesFromGroups', () => {
       QUESTIONS
     );
     expect(out.a.supports).toEqual(supports);
-    expect(out.b).toEqual({ supports, language: 'es' });
+    expect(out.b).toEqual({ supports });
   });
 
   it('turns on modified questions for grouped students', () => {
@@ -157,10 +173,83 @@ describe('overridesFromGroups', () => {
     expect(
       overridesFromGroups(
         [group({ studentKeys: ['zz'], time: 2 })],
-        rows,
+        rows.filter((r) => !r.defaultOverride),
         QUESTIONS
       )
     ).toEqual({});
+  });
+});
+
+describe('class presets as groups', () => {
+  const rows = [
+    row('a', 'c1', {
+      defaultOverride: { timeMultiplier: 1.5, readAloud: true, language: 'es' },
+    }),
+    row('b', 'c1'),
+    row('c', 'c1', {
+      defaultOverride: { language: 'es', readAloud: true, timeMultiplier: 1.5 },
+    }),
+    row('d', 'c1', {
+      defaultOverride: {
+        answerChoices: 3,
+        blockCopyPaste: false,
+        modifiedQuestions: true,
+      },
+    }),
+  ];
+
+  it('makes one group per distinct preset', () => {
+    const groups = standingGroupsFor(rows, new Set());
+    expect(groups.map((g) => g.studentKeys)).toEqual([['a', 'c'], ['d']]);
+    expect(groups[0]).toMatchObject({
+      time: 1.5,
+      readAloud: true,
+      language: 'es',
+      answerChoices: 'all',
+    });
+    expect(groups[1]).toMatchObject({
+      answerChoices: 'drop-one',
+      modifiedQuestions: true,
+      carried: { blockCopyPaste: false },
+    });
+  });
+
+  it('applies the same rules the preset would', () => {
+    const groups = standingGroupsFor(rows, new Set());
+    const out = overridesFromGroups(groups, rows, QUESTIONS);
+    expect(out.a).toEqual({
+      timeMultiplier: 1.5,
+      readAloud: true,
+      language: 'es',
+    });
+    expect(out.d).toMatchObject({
+      modifiedQuestions: true,
+      blockCopyPaste: false,
+      hiddenOptionIdsByQuestion: {
+        q1: [expect.stringMatching(/^q1-incorrect/)],
+      },
+    });
+    expect(out.b).toBeUndefined();
+  });
+
+  it('replaces the blank starting group and skips students already seeded', () => {
+    const blank = group({ id: 'blank' });
+    const first = withStandingGroups([blank], rows, new Set());
+    expect(first.some((g) => g.id === 'blank')).toBe(false);
+    expect(withStandingGroups(first, rows, new Set(['a', 'c', 'd']))).toBe(
+      first
+    );
+  });
+
+  it('never deletes a preset’s Drive file', () => {
+    const withFile = [
+      row('f', 'c1', {
+        defaultOverride: {
+          supports: [{ kind: 'drive', title: 'Notes', fileId: 'file-1' }],
+        },
+      }),
+    ];
+    expect(standingDriveFileIds(withFile)).toEqual(new Set(['file-1']));
   });
 });
 

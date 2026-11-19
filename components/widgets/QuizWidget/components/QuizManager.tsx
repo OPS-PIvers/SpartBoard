@@ -3341,16 +3341,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
               (assignQuizData?.questions ?? []).some(
                 (q) => !!q.modifiedText?.trim() || !!q.modifiedRubricSnapshot
               ) || (assignQuizData?.bankSlots?.length ?? 0) > 0,
-            ...(onStudentView
-              ? {
-                  onPreviewVersions: (versions, initialVersionId) =>
-                    onStudentView(assignTarget, {
-                      behavior: assignBehavior,
-                      versions,
-                      initialVersionId,
-                    }),
-                }
-              : {}),
           }}
           sharing={{
             value: assignOptions,

@@ -22,6 +22,7 @@ import {
   QuizBehaviorSettings,
   QuizWidgetKind,
   Plc,
+  StudentOverride,
 } from '@/types';
 import {
   previousRosterIdsFor,
@@ -154,7 +155,17 @@ import { PublishScoresModal } from '@/components/common/library/PublishScoresMod
 import { PublishInProgressDialog } from '@/components/common/library/PublishInProgressDialog';
 import { AssignToClassroomModal } from '@/components/classroomAddon/AssignToClassroomModal';
 import { requestClassroomFinalGradeToken } from '@/components/classroomAddon/gisOAuth';
-import { doc, getDoc, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, setDoc, writeBatch } from 'firebase/firestore';
+import {
+  autoTranslateForAssign,
+  type AutoTranslateResult,
+} from '@/utils/quizAutoTranslate';
+import { targetedLocaleCounts } from '@/utils/quizTranslationPublish';
+import { isNonEnglishQuizSource } from '@/utils/quizTranslationAdvisory';
+import {
+  QUIZ_TRANSLATION_FEATURE,
+  isTranslatableQuestionType,
+} from '@/config/quizTranslation';
 import { loadAssignedStudentView } from '@/utils/quizAssignedStudentViewLoad';
 import { languageDisplayLabel } from '@/utils/languageDisplayLabel';
 import { QUIZ_TIME_LIMIT_FEATURE } from '@/utils/quizTimeLimit';
@@ -378,6 +389,10 @@ const VIEW_ONLY_SESSION_OPTIONS: Required<
 };
 
 const QUIZZES_COLLECTION = 'quizzes';
+/** Matches `translateQuizV1`'s 300s ceiling. */
+const AUTO_TRANSLATE_TIMEOUT_MS = 300_000;
+/** How long assign holds for a translation before it goes out in English. */
+const AUTO_TRANSLATE_WAIT_MS = 45_000;
 
 /** Staff assignments have no classes; ones made before the assignment doc carried `audience` keep it on their session. */
 async function isStaffQuizAssignment(a: QuizAssignment): Promise<boolean> {
@@ -1105,6 +1120,73 @@ const TeacherQuizWidget: React.FC<{
       : googleAccessToken
         ? new QuizDriveService(googleAccessToken)
         : null;
+  const autoTranslateTargetedLocales = async (
+    meta: QuizMetadata,
+    data: QuizData,
+    overridesByKey: Record<string, StudentOverride>
+  ): Promise<QuizMetadata['translations']> => {
+    const drive = translationLoader();
+    const uid = user?.uid;
+    const locales = Object.keys(targetedLocaleCounts(overridesByKey));
+    if (
+      !drive ||
+      !uid ||
+      locales.length === 0 ||
+      !canAccessFeature(QUIZ_TRANSLATION_FEATURE) ||
+      isNonEnglishQuizSource(data.language) ||
+      quizHasBankSlots(data) ||
+      isDistrictCopy(meta)
+    )
+      return meta.translations;
+    const translate = httpsCallable<
+      Record<string, unknown>,
+      AutoTranslateResult
+    >(functions, 'translateQuizV1', { timeout: AUTO_TRANSLATE_TIMEOUT_MS });
+    const work = autoTranslateForAssign(
+      data,
+      meta.translations,
+      locales,
+      {
+        loadTranslation: (fileId) => drive.loadTranslation(fileId),
+        saveTranslation: (locale, payload, existingFileId) =>
+          drive.saveTranslation(
+            data.id,
+            data.title,
+            locale,
+            payload,
+            existingFileId
+          ),
+        translate: async (locale, questionIds) =>
+          (
+            await translate({
+              quizId: data.id,
+              locale,
+              title: data.title,
+              questions: data.questions.filter((q) =>
+                isTranslatableQuestionType(q.type)
+              ),
+              questionIds,
+            })
+          ).data,
+        writeIndex: (locale, entry) =>
+          setDoc(
+            doc(db, 'users', uid, QUIZZES_COLLECTION, meta.id),
+            { translations: { [locale]: entry } },
+            { merge: true }
+          ),
+      },
+      (locale, err) =>
+        logError('QuizWidget.assignment.autoTranslate', err, {
+          quizId: meta.id,
+          locale,
+        })
+    );
+    // A slow translation finishes in the library for next time; this assign goes out without it.
+    const timedOut = new Promise<undefined>((resolve) =>
+      setTimeout(() => resolve(undefined), AUTO_TRANSLATE_WAIT_MS)
+    );
+    return (await Promise.race([work, timedOut])) ?? meta.translations;
+  };
   // Printed stacks in group order, each with its group's language for the sheets.
   const reprintGroupsFor = async (
     quiz: QuizData,
@@ -3978,6 +4060,16 @@ const TeacherQuizWidget: React.FC<{
             addToast(warning, 'warning');
           }
 
+          // Languages the targeted students need are translated before publish, so nobody waits on a teacher step.
+          const translationIndex =
+            stepper?.audience === 'staff'
+              ? meta.translations
+              : await autoTranslateTargetedLocales(
+                  meta,
+                  data,
+                  resolvedTargeting.overridesByKey
+                );
+
           // Derive session targets from selected rosters — `classIds` feeds
           // the student SSO gate via Firestore rules; `rosterIds` is mirrored
           // onto both assignment and session for reverse lookup.
@@ -4305,9 +4397,7 @@ const TeacherQuizWidget: React.FC<{
                 ...(resolvedTargeting.workKind
                   ? { workKind: resolvedTargeting.workKind }
                   : {}),
-                ...(meta.translations
-                  ? { translationIndex: meta.translations }
-                  : {}),
+                ...(translationIndex ? { translationIndex } : {}),
               }
             );
             assignmentSaved = true;
@@ -4333,7 +4423,7 @@ const TeacherQuizWidget: React.FC<{
                 assignmentId,
                 { ...data, questions: assignQuestions },
                 stepper.printedGroups,
-                meta.translations
+                translationIndex
               ).catch((err: unknown) =>
                 console.warn('[QuizWidget] printed groups not queued:', err)
               );
