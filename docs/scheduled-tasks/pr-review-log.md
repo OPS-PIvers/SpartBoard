@@ -5159,3 +5159,14 @@ rather than "no data") is also still open.
   - Ready: #6143, #6142.
   - Ready with minor notes: #6144 (the new Backlog rows are missing their date and status cells).
 - Notes: GitHub access went through MCP, and diffs were reviewed inline. Nothing was changed, so I didn't run lint, type-check or tests locally.
+
+## 2026-11-19
+
+- PRs reviewed (7): #6265 docs: nightly debugger run 128 log; #6264 fix(functions): decode common named HTML entities in page import and link previews; #6263 fix(short-links): resolve /r/:code case-insensitively; #6262 fix(calendar): read colon-less times like 3pm and share one time parser; #6258 unifier: run 151 log; #6175 docs: add agenda fit branches to AB-112; #6170 docs: add quick sign-in branches to AB-112
+- Comments processed: 4 total, 0 fixed, 0 explained. #6264's one inline thread (an `&constructor;` prototype lookup) was already fixed in 2f831dcf with a test, so I resolved it. The bot comments on #6263, #6175 and #6170 said "no issues" or raised only a known-minor note, so none needed a reply.
+- Fixes pushed: none
+- Reviews posted: 7
+  - Ready: #6265, #6264, #6263, #6258, #6175, #6170.
+  - Ready with minor notes: #6262 (the am/pm suffix check searches the whole string, so `"3 teams"` would parse as 3 AM; optional anchoring).
+  - #6175 and #6170 insert at the same line of the AB-112 list, so whichever merges second will need a trivial conflict resolution.
+- Notes: GitHub access went through MCP, and diffs were reviewed inline. Nothing was changed, so I didn't run lint, type-check or tests locally.
