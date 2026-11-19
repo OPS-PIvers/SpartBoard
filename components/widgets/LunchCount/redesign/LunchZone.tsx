@@ -117,9 +117,9 @@ export const LunchZone: React.FC<LunchZoneProps> = ({
         </span>
         <span
           data-lunch-count={zone}
-          className={`shrink-0 font-bold tabular-nums leading-none ${COUNT_COLOR[zone]}`}
+          className={`shrink-0 font-semibold tabular-nums leading-none ${COUNT_COLOR[zone]}`}
           style={{
-            fontSize: 'calc(clamp(20px, 7cqmin, 96px) * var(--lc-base, 1))',
+            fontSize: `calc(${ZONE_TEXT} * 1.5)`,
           }}
         >
           {count}
