@@ -172,6 +172,10 @@ function makeDb(state: StubState) {
       ref: docRef(path),
       get: (field: string) => data?.[field],
       data: () => data,
+      // Map insertion order stands in for Firestore's create time.
+      createTime: {
+        toMillis: () => [...state.docs.keys()].indexOf(path),
+      },
     };
   };
 
@@ -1104,6 +1108,30 @@ describe('handleSetAssignmentTargets — assignment id bound to the session', ()
       )
     ).rejects.toMatchObject({ code: 'permission-denied' });
     expect(victimPointerKeys()).toHaveLength(0);
+  });
+});
+
+describe('handleSetAssignmentTargets — first claimant owns a mini-app key', () => {
+  it('lets the owner target when a later foreign session copies its assignment id', async () => {
+    state.docs.set(`users/${TEACHER_UID}/miniapp_assignments/owned-w`, {
+      id: 'owned-w',
+    });
+    state.docs.set('mini_app_sessions/mini-s', {
+      teacherUid: TEACHER_UID,
+      assignmentId: 'owned-w',
+    });
+    state.docs.set('mini_app_sessions/copycat', {
+      teacherUid: OTHER_TEACHER_UID,
+      assignmentId: 'owned-w',
+    });
+    const result = await run(
+      baseInput({
+        kind: 'mini-app',
+        sessionId: 'mini-s',
+        assignmentId: 'owned-w',
+      })
+    );
+    expect(result).toMatchObject({ written: 1 });
   });
 });
 
