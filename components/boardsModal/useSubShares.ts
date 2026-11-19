@@ -174,7 +174,8 @@ export function useSubShares(enabled: boolean): SubSharesApi {
         const sharedRosters = shareRosterEntries(
           rosters,
           rosterIds,
-          canAccessFeature('group-reminders')
+          canAccessFeature('group-reminders') &&
+            canAccessFeature('group-schedules')
         );
         const shareCollection: Collection = collection ?? {
           id: (board as { id: string }).id,
