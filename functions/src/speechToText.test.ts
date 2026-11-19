@@ -52,6 +52,7 @@ import {
   monthlySpeechToTextUsageDocId,
   normalizeSpeechRowConfig,
   parseAccessRequest,
+  speechChargeSeconds,
   speechToTextAccess,
   parseTidyRequest,
   parseTranscribeRequest,
@@ -363,6 +364,19 @@ describe('request validation', () => {
   });
 });
 
+describe('speechChargeSeconds', () => {
+  it('charges the stated length for a normal clip', () => {
+    expect(
+      speechChargeSeconds({ durationMs: 4200, audioBase64: 'A'.repeat(80_000) })
+    ).toBe(5);
+  });
+  it('charges by audio size when the stated length is too short', () => {
+    expect(
+      speechChargeSeconds({ durationMs: 200, audioBase64: 'A'.repeat(700_000) })
+    ).toBe(30);
+  });
+});
+
 describe('transcribeSpeech', () => {
   it('returns the trimmed transcript and counts the clip', async () => {
     const { deps, docs, generate } = setup({}, '  Hello there.\n');
@@ -594,6 +608,19 @@ describe('transcribeSpeech', () => {
       languageCodes: ['en-US'],
       mode: 'smart',
     });
+  });
+
+  it('sends Somali as so-SO and an unmapped language with no locale', async () => {
+    const { deps, generate } = setup();
+    await transcribeSpeech({ ...CLIP, language: 'so' }, STUDENT, deps);
+    expect(generate.mock.calls[0][0].transcription?.languageCodes).toEqual([
+      'so-SO',
+    ]);
+    __resetSpeechRateLimits();
+    await transcribeSpeech({ ...CLIP, language: 'hmn' }, STUDENT, deps);
+    expect(generate.mock.calls[1][0].transcription?.languageCodes).toBe(
+      undefined
+    );
   });
 
   it('reserves before the model call', async () => {

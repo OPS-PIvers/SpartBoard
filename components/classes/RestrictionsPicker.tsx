@@ -70,6 +70,7 @@ export const RestrictionsPicker: React.FC<RestrictionsPickerProps> = ({
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="dialog"
+        title={label}
         className={`w-full flex items-center justify-between gap-1.5 px-2 py-1.5 text-xs font-bold rounded-md border transition-colors ${
           count > 0
             ? 'border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100'
@@ -78,7 +79,7 @@ export const RestrictionsPicker: React.FC<RestrictionsPickerProps> = ({
       >
         <span className="flex items-center gap-1.5 truncate">
           <UserX size={12} className="shrink-0" />
-          <span className="truncate">{label}</span>
+          <span className="truncate max-sm:sr-only">{label}</span>
         </span>
         <ChevronDown
           size={12}

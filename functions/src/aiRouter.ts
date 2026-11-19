@@ -22,6 +22,7 @@ import {
 } from './aiIntegrations';
 import {
   AUDIO_ONLY_MODEL_IDS,
+  TRANSCRIPT_INTEGRATIONS,
   providerOf,
   type AiProvider,
   type AiTier,
@@ -114,10 +115,17 @@ export function chooseModels(
   const preset = AI_INTEGRATION_DEFAULT_MODELS[req.integration];
   const allowedPreset =
     preset && config.allowedModels?.includes(preset) ? preset : undefined;
-  const model =
+  const picked =
     config.integrationModels[req.integration] ??
     normalizeModelName(req.legacyModel) ??
     allowedPreset;
+  // A transcription-only model can't return JSON or follow instructions, so other integrations skip it.
+  const model =
+    picked &&
+    AUDIO_ONLY_MODEL_IDS.includes(picked) &&
+    !TRANSCRIPT_INTEGRATIONS.includes(req.integration)
+      ? undefined
+      : picked;
   return {
     model: model ?? geminiFallback,
     geminiFallback,

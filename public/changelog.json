@@ -2894,6 +2894,33 @@
   ],
   "widgetNotes": [
     {
+      "id": "quiz-question-audio-2026-11-19",
+      "widget": "quiz",
+      "date": "2026-11-19",
+      "text": "Record your voice for a question. Students select Play audio to hear it.",
+      "feature": "quiz-question-audio"
+    },
+    {
+      "id": "quiz-speech-to-text-2026-11-19",
+      "widget": "quiz",
+      "date": "2026-11-19",
+      "text": "Turn on Speech to text for a student. They can dictate their written answers.",
+      "feature": "speech-to-text"
+    },
+    {
+      "id": "writing-speech-to-text-2026-11-19",
+      "widget": "writing",
+      "date": "2026-11-19",
+      "text": "Turn on Speech to text for a student. They can dictate their writing.",
+      "feature": "speech-to-text"
+    },
+    {
+      "id": "activity-wall-text-switch-2026-11-19",
+      "widget": "activity-wall",
+      "date": "2026-11-19",
+      "text": "You can turn off Text on a wall. Students then post only the types you leave on."
+    },
+    {
       "id": "flashcards-card-images-2026-11-19",
       "widget": "flashcards",
       "date": "2026-11-19",
