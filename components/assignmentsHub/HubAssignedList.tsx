@@ -22,6 +22,7 @@ import type {
   GuidedLearningResponse,
   QuizMetadata,
   VideoActivityResponse,
+  WritingAssignmentRecord,
   WritingResponse,
 } from '@/types';
 import {
@@ -62,6 +63,14 @@ import {
   GL_CLASS_COLLECTIONS,
   guidedLearningLifecycle,
 } from '@/components/widgets/GuidedLearning/utils/glClassLifecycle';
+import {
+  FLASHCARD_CLASS_COLLECTIONS,
+  flashcardLifecycle,
+} from '@/components/widgets/Flashcards/utils/flashcardClassLifecycle';
+import {
+  undoWritingClose,
+  useWritingClassActions,
+} from '@/hooks/useWritingClassActions';
 import {
   deriveAssignedStatus,
   runStatus,
@@ -116,6 +125,8 @@ interface OtherRowModel {
   title: string;
   status: AssignedStatus;
   run: OtherRun;
+  /** Set on Writing rows, whose class actions go through the server. */
+  writing?: WritingAssignmentRecord;
 }
 
 type HubItem =
@@ -276,6 +287,7 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
       kind: OtherKind;
       title: string;
       run: OtherRun;
+      writing?: WritingAssignmentRecord;
       adapt: (extras: AssignedExtras) => AssignedInput;
     }[] = [];
     for (const a of sources.videoActivity.assignments)
@@ -311,6 +323,7 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
         kind: 'writing',
         title: a.title,
         run: a,
+        writing: a,
         // Grading lives on the session, which the hub doesn't load, so a closed row stays Active.
         adapt: (x) => writingAssignedInput(a, null, x),
       });
@@ -334,7 +347,7 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
 
   const otherRows = useMemo<OtherRowModel[]>(
     () =>
-      runs.map(({ kind, title, run, adapt }) => {
+      runs.map(({ kind, title, run, writing, adapt }) => {
         const docs = wantsLiveData(run)
           ? (responsesByPath[pathOf(kind, run.sessionId ?? run.id)] ?? null)
           : [];
@@ -371,6 +384,7 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
           kind,
           title,
           run,
+          writing,
           status: deriveAssignedStatus(input, now),
         };
       }),
@@ -423,6 +437,7 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
   );
   const { endAssignment, reactivateAssignment } = sources.miniApp;
   const { archiveAssignment } = sources.guidedLearning;
+  const fc = sources.flashcards;
   const kindActions = useMemo<
     Partial<
       Record<
@@ -456,6 +471,14 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
                 setAssignmentTargets,
               }),
             },
+            flashcards: {
+              collections: FLASHCARD_CLASS_COLLECTIONS,
+              lifecycle: flashcardLifecycle(uid, {
+                endAssignment: fc.endAssignment,
+                reopenAssignment: fc.reopenAssignment,
+                setAssignmentTargets,
+              }),
+            },
           }
         : {}),
     }),
@@ -465,6 +488,8 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
       endAssignment,
       reactivateAssignment,
       archiveAssignment,
+      fc.endAssignment,
+      fc.reopenAssignment,
       setAssignmentTargets,
     ]
   );
@@ -577,7 +602,7 @@ interface OtherRowHostProps {
   index: number;
   now: number;
   rosters: ClassRoster[];
-  /** Null where the kind has no class actions yet (Flashcards, Writing): the row shows status only. */
+  /** Null for Writing, which brings its own actions, and where a kind has none: the row shows status only. */
   actions: {
     collections: AssignmentClassCollections;
     lifecycle: AssignmentLifecycle;
@@ -602,16 +627,25 @@ const OtherRowHost: React.FC<OtherRowHostProps> = ({
   onMonitor,
   selectAnchor,
 }) => {
-  const { status, run, title } = row;
+  const { status, run, title, writing } = row;
   const { addToast } = useDashboard();
   const { user } = useAuth();
   const uid = user?.uid;
-  const classActions = useAssignmentClassActions(
-    actions ? run : null,
+  const sharedActions = useAssignmentClassActions(
+    actions && !writing ? run : null,
     actions?.collections ?? NO_COLLECTIONS,
     actions?.lifecycle ?? NO_LIFECYCLE,
     rosters
   );
+  const writingActions = useWritingClassActions(writing ?? null, rosters);
+  const classActions = writing ? writingActions : sharedActions;
+  const hasActions = !!writing || actions != null;
+  // Puts the row back as it was before a Close or Move to Done.
+  const undo = (prev: OtherRun, closeOnly: boolean): Promise<void> | void => {
+    if (writing) return undoWritingClose(writing);
+    if (closeOnly) return classActions.reopenClass(null).then(() => undefined);
+    if (uid && actions) return undoMoveToDone(prev, uid, actions);
+  };
   const exec = usePeriodRunner(run.periodAccess, 'HubAssignedList.class');
   const [busy, setBusy] = useState(false);
   const runBusy = async (fn: () => Promise<unknown>) => {
@@ -624,7 +658,7 @@ const OtherRowHost: React.FC<OtherRowHostProps> = ({
   };
 
   const onClassAction = (kind: ClassActionKind, key: string | null) => {
-    if (kind === 'monitor' || !actions) return onMonitor();
+    if (kind === 'monitor' || !hasActions) return onMonitor();
     switch (kind) {
       case 'open':
       case 'resume':
@@ -639,9 +673,9 @@ const OtherRowHost: React.FC<OtherRowHostProps> = ({
   };
 
   const menuActions: LibraryMenuAction[] = [];
-  if (actions && status.singleLine) {
+  if (hasActions && status.singleLine) {
     const only = status.classes[0];
-    if (only?.status === 'open' && actions.lifecycle.pause)
+    if (only?.status === 'open' && actions?.lifecycle.pause)
       menuActions.push({
         id: 'assigned-pause',
         label: 'Pause',
@@ -662,10 +696,13 @@ const OtherRowHost: React.FC<OtherRowHostProps> = ({
         icon: PowerOff,
         onClick: () =>
           void runBusy(async () => {
-            await classActions.closeClass(null);
+            const prev = run;
+            await (writing
+              ? classActions.closeAll()
+              : classActions.closeClass(null));
             addToast(`${title} is closed.`, 'success', {
               label: 'Undo',
-              onClick: () => void exec(() => classActions.reopenClass(null)),
+              onClick: () => void exec(async () => undo(prev, true)),
             });
           }),
       });
@@ -678,7 +715,11 @@ const OtherRowHost: React.FC<OtherRowHostProps> = ({
       });
   }
   // D5/D10: a row whose grading the hub can't count still has a way out of Active.
-  if (actions && status.bucket === 'active' && status.line.kind !== 'view-only')
+  if (
+    hasActions &&
+    status.bucket === 'active' &&
+    status.line.kind !== 'view-only'
+  )
     menuActions.push({
       id: 'assigned-move-to-done',
       label: 'Move to Done',
@@ -690,10 +731,7 @@ const OtherRowHost: React.FC<OtherRowHostProps> = ({
           await classActions.moveToDone();
           addToast(`${title} moved to Done.`, 'success', {
             label: 'Undo',
-            onClick: () => {
-              if (!uid) return;
-              void exec(() => undoMoveToDone(prev, uid, actions));
-            },
+            onClick: () => void exec(async () => undo(prev, false)),
           });
         });
       },
@@ -702,7 +740,7 @@ const OtherRowHost: React.FC<OtherRowHostProps> = ({
 
   const acts =
     HUB_MAIN_KINDS.includes(status.action.kind) &&
-    (actions != null || status.action.kind === 'monitor');
+    (hasActions || status.action.kind === 'monitor');
   const onMain = () => {
     const { kind, classKey } = status.action;
     if (kind === 'open' || kind === 'resume') onClassAction(kind, classKey);
@@ -717,7 +755,7 @@ const OtherRowHost: React.FC<OtherRowHostProps> = ({
       mainLabel={acts ? mainActionLabel(status.action, null) : null}
       onMain={onMain}
       onClassAction={onClassAction}
-      classControls={actions != null}
+      classControls={hasActions}
       meta={meta}
       menuActions={menuActions}
       busy={busy}

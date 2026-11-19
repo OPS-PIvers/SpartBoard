@@ -47,6 +47,15 @@ vi.mock('@/hooks/useQuizClassActions', () => ({
 vi.mock('@/hooks/useAssignmentClassActions', () => ({
   useAssignmentClassActions: () => classActions,
 }));
+const writingActions = {
+  ...classActions,
+  closeAll: vi.fn(() => Promise.resolve()),
+};
+const undoWritingClose = vi.fn(() => Promise.resolve());
+vi.mock('@/hooks/useWritingClassActions', () => ({
+  useWritingClassActions: () => writingActions,
+  undoWritingClose: (...a: unknown[]) => undoWritingClose(...a),
+}));
 vi.mock('@/hooks/useSetAssignmentTargets', () => ({
   useSetAssignmentTargets: () => ({ setAssignmentTargets: vi.fn() }),
 }));
@@ -98,6 +107,13 @@ const flash = {
   kind: 'study',
   createdAt: 3,
 };
+const essay = {
+  id: 'w1',
+  title: 'Argument Essay',
+  teacherUid: 't1',
+  status: 'active',
+  createdAt: 5,
+};
 
 const sources = {
   quiz: {
@@ -120,8 +136,12 @@ const sources = {
     endAssignment: vi.fn(),
     reactivateAssignment: vi.fn(),
   },
-  flashcards: { assignments: [flash] },
-  writing: { records: [] },
+  flashcards: {
+    assignments: [flash],
+    endAssignment: vi.fn(),
+    reopenAssignment: vi.fn(),
+  },
+  writing: { records: [essay] },
 } as unknown as UnifiedAssignmentSources;
 
 const row = (id: string, kind: UnifiedAssignmentRow['kind']) =>
@@ -186,11 +206,27 @@ describe('HubAssignedList', () => {
     expect(openClass).toHaveBeenCalledWith('');
   });
 
-  it('a kind without class actions yet shows status only, and the title picks the row', () => {
+  it('Flashcards closes through the shared class actions, and the title picks the row', async () => {
     const onSelect = renderList([row('f1', 'flashcards')]);
-    expect(screen.queryByRole('button', { name: 'Open' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /more|actions|menu/i }));
+    await act(async () => {
+      fireEvent.click(screen.getByText('Close'));
+      await Promise.resolve();
+    });
+    expect(classActions.closeClass).toHaveBeenCalledWith(null);
     fireEvent.click(screen.getByText('Spanish Verbs'));
     expect(onSelect).toHaveBeenCalledWith('f1');
+  });
+
+  it('Writing closes through its server-backed actions, with Undo putting the record back', async () => {
+    renderList([row('w1', 'writing')]);
+    fireEvent.click(screen.getByRole('button', { name: /more|actions|menu/i }));
+    await act(async () => {
+      fireEvent.click(screen.getByText('Close'));
+      await Promise.resolve();
+    });
+    expect(writingActions.closeAll).toHaveBeenCalled();
+    expect(classActions.closeClass).not.toHaveBeenCalled();
   });
 
   it('marks the selected row', () => {
