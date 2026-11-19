@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  isBlankField,
   isTypingField,
   openPopupBoxes,
   shieldTourUi,
-  typingFieldOf,
   untaggedControlOf,
   withLabel,
   withNearbyPopups,
@@ -88,7 +88,7 @@ describe('shieldTourUi and text boxes', () => {
   });
 });
 
-describe('isTypingField and typingFieldOf', () => {
+describe('isTypingField and isBlankField', () => {
   it('counts text inputs, textareas and editable text, not buttons, checkboxes or selects', () => {
     document.body.innerHTML =
       '<input id="t" /><input id="n" type="number" /><textarea id="a"></textarea><input id="c" type="checkbox" /><input id="r" type="range" /><select id="s"></select><button id="b">B</button><div id="w"><span>Name</span><input id="inner" type="search" /></div>';
@@ -97,9 +97,9 @@ describe('isTypingField and typingFieldOf', () => {
     for (const id of ['c', 'r', 's', 'b'])
       expect(isTypingField(byId(id))).toBe(false);
     expect(isTypingField(null)).toBe(false);
-    expect(typingFieldOf(byId('w'))).toBe(byId('inner'));
-    expect(typingFieldOf(byId('t'))).toBe(byId('t'));
-    expect(typingFieldOf(byId('b'))).toBeNull();
+    expect(isBlankField(byId('t'))).toBe(true);
+    (byId('t') as HTMLInputElement).value = 'Unit 1';
+    expect(isBlankField(byId('t'))).toBe(false);
   });
 });
 

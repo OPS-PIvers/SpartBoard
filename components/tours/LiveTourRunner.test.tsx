@@ -3386,21 +3386,26 @@ describe('LiveTourRunner Autopilot performer', () => {
     );
   });
 
-  it('moves focus to the box a type step fills, not the heading', async () => {
+  it('keeps focus in the box a type step is filling, then hands it to the next heading', async () => {
     await begin(
       makeSet([
         { anchor: 'sidebar.boards', action: 'observe' },
         { anchor: 'dock.open-tools', action: 'type' },
+        { anchor: 'sidebar.annotate', action: 'observe' },
       ])
     );
     await tipIn();
-    expect(document.activeElement).toBe(screen.getByTestId('tour-step-title'));
-    const next = barButton('Next');
-    fireEvent.click(next);
-    next.blur();
+    name().focus();
+    fireEvent.change(name(), { target: { value: 'Hi' } });
+    fireEvent.click(barButton('Next'));
     await tipIn();
-    expect(progress()).toBe('2 / 2');
+    expect(progress()).toBe('2 / 3');
     expect(document.activeElement).toBe(name());
+    // Once that step is done, a filled box gives focus back to the step heading.
+    fireEvent.change(name(), { target: { value: 'Hi there' } });
+    await tipIn();
+    expect(progress()).toBe('3 / 3');
+    expect(document.activeElement).toBe(screen.getByTestId('tour-step-title'));
   });
 
   it('advances a type step once the field holds the text, without a blur', async () => {

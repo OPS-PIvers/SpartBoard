@@ -142,10 +142,10 @@ import { recordTourFinished } from '@/utils/gettingStartedProgress';
 import { usePrefersReducedMotion } from './usePrefersReducedMotion';
 import {
   isInPopup,
+  isBlankField,
   isTypingField,
   openPopupBoxes,
   shieldTourUi,
-  typingFieldOf,
   withLabel,
   withNearbyPopups,
 } from './popups';
@@ -2621,7 +2621,7 @@ export const LiveTourRunner: React.FC = () => {
     if (hintOn) playCursor();
   };
 
-  // Each step moves focus to its heading, or to the box a type step fills, so keyboard users land on it.
+  // Each step moves focus to its heading so keyboard and screen reader users land on it.
   const headingRef = useRef<HTMLDivElement | null>(null);
   // A paced tip mounts after the ring settles, so focus waits for it.
   const showingStep = running && !!step && rhythm.tipShown;
@@ -2629,10 +2629,13 @@ export const LiveTourRunner: React.FC = () => {
     // A dropdown the teacher just opened keeps focus, or the browser closes its list.
     const open = openPopup.current;
     if (open && open === document.activeElement) return;
-    // A text box keeps focus too, since many save or close on blur; the live region reads the step.
-    if (isTypingField(document.activeElement)) return;
-    const field = action === 'type' ? typingFieldOf(anchor.element) : null;
-    (field ?? headingRef.current)?.focus({ preventScroll: true });
+    // An empty box, or the one this step types into, keeps focus; the live region reads the step.
+    const active = document.activeElement;
+    if (isTypingField(active) && !active.closest('[data-tour-ignore]')) {
+      if (isBlankField(active)) return;
+      if (action === 'type' && anchor.element?.contains(active)) return;
+    }
+    headingRef.current?.focus({ preventScroll: true });
   });
   useEffect(() => {
     if (showingStep) focusStep();
