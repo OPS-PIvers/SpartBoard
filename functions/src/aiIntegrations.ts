@@ -22,6 +22,8 @@ export const AI_INTEGRATIONS = {
   'quiz-stimulus-ocr': { tier: 'standard', inputs: ['pdf', 'image'] },
   'paper-handwriting': { tier: 'standard', inputs: ['image'] },
   'quiz-translation': { tier: 'advanced', inputs: ['text'] },
+  'speech-to-text-transcribe': { tier: 'standard', inputs: ['audio'] },
+  'speech-to-text-tidy': { tier: 'standard', inputs: ['text'] },
   'response-translation': { tier: 'standard', inputs: ['text'] },
   'web-tour-writing': { tier: 'advanced', inputs: ['image'] },
   'flashcards-import': { tier: 'standard', inputs: ['text'] },

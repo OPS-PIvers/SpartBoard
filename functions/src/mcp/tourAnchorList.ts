@@ -40193,6 +40193,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         ]
       },
       {
+        "surface": "admin.widgets.config.quiz.speech",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#widgets",
+          "admin.widgets.configure:admin#quiz",
+          "admin.widget-config.field:quiz#tab-speech"
+        ],
+        "needs": [
+          "admin"
+        ]
+      },
+      {
         "surface": "admin.widgets.config.random",
         "kind": "modal",
         "path": [

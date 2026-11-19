@@ -1,4 +1,8 @@
 import {
+  carryPunctuation,
+  lacksPunctuation,
+} from '@/utils/speechToText/carryPunctuation';
+import {
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -9,18 +13,30 @@ import {
 import {
   createBrowserEngine,
   isBrowserEngineSupported,
-  type BrowserSpeechEngine,
 } from '@/utils/speechToText/browserEngine';
+import { createHybridEngine } from '@/utils/speechToText/hybridEngine';
+import { isPaidTranscribeOff } from '@/utils/speechToText/paidCalls';
 import { dictationLocaleFor } from '@/utils/speechToText/languages';
 import { applyTextRules } from '@/utils/speechToText/textRules';
 import type {
   DictationController,
   DictationErrorCode,
   DictationStatus,
+  SpeechEngine,
   UseDictationOptions,
 } from '@/utils/speechToText/types';
+import { useSpeechToTextSettings } from './useSpeechToTextSettings';
 
 const FALLBACK_LANGUAGE = 'en';
+const BROWSER_ENGINE = 'browser';
+
+/** One committed phrase, kept so a paid revision or "undo that" can find it. */
+interface CommittedPhrase {
+  text: string;
+  /** What stood before the caret when it was committed. */
+  before: string;
+  undone: boolean;
+}
 
 // The language a student picked carries to the next text box on the page.
 let preferredLanguage: string | null = null;
@@ -58,24 +74,56 @@ export function useDictation(
   const language =
     chosen !== null && languages.includes(chosen) ? chosen : languages[0];
 
+  // Signed-in students only (D15): the admin setting decides whether the paid engine runs.
+  const paidSettings = useSpeechToTextSettings(
+    options.enabled && options.paid !== undefined
+  );
+  const hybridFor =
+    options.paid !== undefined && paidSettings.engine === 'hybrid'
+      ? options.paid.assignmentId
+      : null;
+
   const latest = useRef(options);
+  const hybridRef = useRef(hybridFor);
   useLayoutEffect(() => {
     latest.current = options;
+    hybridRef.current = hybridFor;
   });
 
-  const engineRef = useRef<BrowserSpeechEngine | null>(null);
+  const engineRef = useRef<{ key: string; engine: SpeechEngine } | null>(null);
+  const mounted = useRef(true);
   const sessionCounter = useRef(0);
   /** Id of the listening session in progress; 0 when idle. */
   const activeSession = useRef(0);
 
   const begin = useCallback((first: string) => {
     const run = (lang: string, keepError: boolean): void => {
-      const engine = (engineRef.current ??= createBrowserEngine());
-      if (!engine) return;
+      const assignmentId = isPaidTranscribeOff() ? null : hybridRef.current;
+      const key =
+        assignmentId === null ? BROWSER_ENGINE : `hybrid:${assignmentId}`;
+      if (engineRef.current && engineRef.current.key !== key) {
+        activeSession.current = 0;
+        engineRef.current.engine.abort();
+        engineRef.current = null;
+      }
+      if (!engineRef.current) {
+        const base = createBrowserEngine();
+        if (!base) return;
+        engineRef.current = {
+          key,
+          engine:
+            assignmentId === null
+              ? base
+              : createHybridEngine(base, { assignmentId }),
+        };
+      }
+      const engine = engineRef.current.engine;
       const id = ++sessionCounter.current;
       activeSession.current = id;
       const live = () => activeSession.current === id;
-      const committed: string[] = [];
+      const committed: CommittedPhrase[] = [];
+      // One slot per phrase the engine finished, in order, so a revision finds its phrase.
+      const finals: (CommittedPhrase | null)[] = [];
       let finished = false;
 
       setStatus('starting');
@@ -83,7 +131,7 @@ export function useDictation(
       if (!keepError) setError(null);
 
       engine.start(
-        { locale: dictationLocaleFor(lang) ?? 'en-US' },
+        { locale: dictationLocaleFor(lang) ?? 'en-US', language: lang },
         {
           onStart: () => {
             if (live()) setStatus('listening');
@@ -92,28 +140,53 @@ export function useDictation(
             if (live() && !finished) setInterim(text);
           },
           onFinal: (raw) => {
+            const slot = finals.push(null) - 1;
             if (!live() || finished) return;
             const current = latest.current;
+            const before = current.textBefore
+              ? current.textBefore()
+              : committed.map((c) => c.text).join('');
             const phrase = applyTextRules(raw, {
-              textBefore: current.textBefore
-                ? current.textBefore()
-                : committed.join(''),
+              textBefore: before,
               language: lang,
               punctuates: engine.punctuates,
             });
             setInterim('');
             if (phrase.kind === 'undo') {
               const last = committed.pop();
-              if (last !== undefined) current.onUndo?.(last);
+              if (last === undefined) return;
+              last.undone = true;
+              current.onUndo?.(last.text);
               return;
             }
             if (phrase.kind !== 'text') return;
-            committed.push(phrase.text);
+            const entry = { text: phrase.text, before, undone: false };
+            committed.push(entry);
+            finals[slot] = entry;
             current.onCommit(phrase.text);
             if (current.singlePhrase) {
               finished = true;
               engine.stop();
             }
+          },
+          // May arrive after listening stopped; the phrase is still worth fixing.
+          onRevise: (slot, raw) => {
+            const entry = finals[slot];
+            if (!entry || entry.undone || !mounted.current) return;
+            // The model punctuates, so spoken punctuation rules stay off.
+            const phrase = applyTextRules(raw, {
+              textBefore: entry.before,
+              language: lang,
+              punctuates: true,
+            });
+            if (phrase.kind !== 'text') return;
+            // An exact-words transcript has no punctuation; keep what the free engine placed.
+            if (lacksPunctuation(raw))
+              phrase.text = carryPunctuation(entry.text, phrase.text);
+            if (phrase.text === entry.text) return;
+            const previous = entry.text;
+            entry.text = phrase.text;
+            latest.current.onRevise?.(previous, phrase.text);
           },
           onError: (code) => {
             if (!live()) return;
@@ -142,7 +215,7 @@ export function useDictation(
   const halt = useCallback(() => {
     if (activeSession.current === 0) return;
     activeSession.current = 0;
-    engineRef.current?.abort();
+    engineRef.current?.engine.abort();
     setStatus('idle');
     setInterim('');
   }, []);
@@ -154,7 +227,7 @@ export function useDictation(
 
   const stop = useCallback(() => {
     if (activeSession.current === 0) return;
-    engineRef.current?.stop();
+    engineRef.current?.engine.stop();
   }, []);
 
   const toggle = useCallback(() => {
@@ -171,6 +244,13 @@ export function useDictation(
     },
     [languages, language, begin]
   );
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!supported) return;
