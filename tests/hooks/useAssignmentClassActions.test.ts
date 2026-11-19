@@ -307,6 +307,12 @@ describe('useAssignmentClassActions', () => {
     expect(onWindowCleared).toHaveBeenCalledWith('a1', { closeAt: null });
   });
 
+  it('stamps when a single line is opened, so a class left open is measured from it', async () => {
+    const x = setup(run({ status: 'inactive', closedAt: 5 }), lifecycleOf({}));
+    await act(() => x.current.reopenClass(null));
+    expect(store.doc?.openedAt).toEqual(expect.any(Number));
+  });
+
   it('tells the kind which class opened or reopened', async () => {
     const onClassOpened = vi.fn(() => Promise.resolve());
     const x = setup(

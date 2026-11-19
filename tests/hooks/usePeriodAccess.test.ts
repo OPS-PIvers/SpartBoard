@@ -223,6 +223,7 @@ describe('usePeriodAccess', () => {
       'periodAccess.cl-1.state': 'open',
       'periodAccess.cl-1.openAt': null,
       'periodAccess.cl-1.closeAt': at(9, 5) + BELL_CLOSE_CUSHION_MS,
+      'periodAccess.cl-1.openedAt': at(8, 30),
     };
     expect(fieldWrites('quiz_sessions/s1')).toEqual([expected]);
     expect(fieldWrites('users/teacher-1/quiz_assignments/s1')).toEqual([
@@ -374,6 +375,7 @@ describe('usePeriodAccess', () => {
             state: 'open',
             openAt: null,
             closeAt: at(9, 5) + BELL_CLOSE_CUSHION_MS,
+            openedAt: at(8, 30),
           },
         },
       },
@@ -409,6 +411,7 @@ describe('usePeriodAccess', () => {
         'periodAccess.cl-1.openAt': null,
         'periodAccess.cl-1.closeAt': at(9, 5) + BELL_CLOSE_CUSHION_MS,
         'periodAccess.cl-1.closedAt': null,
+        'periodAccess.cl-1.openedAt': at(8, 30),
       },
     ];
     expect(fieldWrites('quiz_sessions/s1')).toEqual(writes);

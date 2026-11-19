@@ -265,9 +265,11 @@ async function commitQuizLifecycle(
       event.type === 'reopen' || event.type === 'resume'
         ? { closedAt: deleteField(), doneAt: deleteField() }
         : {};
+    // D11 measures a single line left open from its last Resume.
+    const opened = event.type === 'resume' ? { openedAt: now } : {};
     tx.update(
       doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
-      { ...patches.assignment, ...clearPicks, ...clearMarks }
+      { ...patches.assignment, ...clearPicks, ...clearMarks, ...opened }
     );
     // A repeat Pause, or a Reopen after a paused End, keeps the open pause's start.
     const sessionPatch = { ...patches.session };

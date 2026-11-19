@@ -6691,6 +6691,19 @@ export const TOUR_ANCHORS = {
     label: 'Done section header on the Assigned tab',
     perField: true,
   },
+  'library-shell.assigned-left-open-close': {
+    label: 'Close on a class left open flag at the top of the Assigned tab',
+    persists: true,
+    perField: true,
+    rows: true,
+  },
+  'library-shell.assigned-left-open-leave': {
+    label:
+      'Leave open on a class left open flag at the top of the Assigned tab',
+    persists: true,
+    perField: true,
+    rows: true,
+  },
   'library-shell.assigned-close-all': {
     label: 'Close for all classes, in an Assigned row menu',
     persists: true,
