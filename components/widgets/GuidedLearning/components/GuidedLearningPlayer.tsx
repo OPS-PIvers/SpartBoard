@@ -828,7 +828,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                 style={{ height: 'clamp(6px, 1.5cqmin, 10px)' }}
               >
                 <div
-                  className="h-full rounded-full bg-brand-blue-primary transition-all duration-200"
+                  className="h-full rounded-full bg-brand-blue-primary transition-[width] duration-200"
                   style={{
                     width: `${((currentIdx + 1) / steps.length) * 100}%`,
                   }}

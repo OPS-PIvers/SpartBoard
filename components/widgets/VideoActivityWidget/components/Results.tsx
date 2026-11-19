@@ -950,7 +950,7 @@ export const Results: React.FC<ResultsProps> = ({
                           }}
                         >
                           <div
-                            className={`h-full rounded-full transition-all ${colors.bar}`}
+                            className={`h-full rounded-full transition-[width] ${colors.bar}`}
                             style={{ width: `${accuracy}%` }}
                           />
                         </div>
