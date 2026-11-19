@@ -99,7 +99,7 @@ export const RestrictionsPicker: React.FC<RestrictionsPickerProps> = ({
               setOpen(false);
             }
           }}
-          className="absolute top-full right-0 mt-1 w-72 max-h-80 flex flex-col z-popover rounded-2xl border border-slate-200 bg-white text-slate-800 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+          className="absolute top-full right-0 mt-1 w-72 max-h-80 flex flex-col z-popover rounded-2xl border border-slate-200 bg-white text-slate-800 shadow-xl overflow-hidden origin-top-right animate-in fade-in zoom-in-95 duration-200"
         >
           <div className="p-2 border-b border-slate-200 flex items-center gap-2">
             <Search size={14} className="text-slate-400 shrink-0" />

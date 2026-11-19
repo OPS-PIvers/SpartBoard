@@ -1,6 +1,6 @@
 # 017 — Make two anchored popovers scale from their trigger
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: 3dcc1cd
 - **Severity**: MEDIUM
 - **Category**: Physicality & origin
