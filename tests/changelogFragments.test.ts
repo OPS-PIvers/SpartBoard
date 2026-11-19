@@ -86,17 +86,53 @@ describe('changelog fragments', () => {
     expect(compareVersions('2026.11.19', '2026.11.19.1')).toBeLessThan(0);
   });
 
-  it('rejects duplicate versions, duplicate note ids, stray keys and empty fragments', () => {
+  it('renumbers a clash between PRs instead of failing the build', () => {
+    const warnings: string[] = [];
+    const merged = mergeChangelog(
+      { entries: [entry('2026.11.19.1')], widgetNotes: [note('a')] },
+      [
+        {
+          name: 'one.json',
+          data: { entries: [entry('2026.11.19.2')], widgetNotes: [note('a')] },
+        },
+        {
+          name: 'two.json',
+          data: { entries: [entry('2026.11.19.2')], widgetNotes: [note('a')] },
+        },
+      ],
+      (m) => warnings.push(m)
+    );
+    expect(merged.entries.map((e) => e.version)).toEqual([
+      '2026.11.19.3',
+      '2026.11.19.2',
+      '2026.11.19.1',
+    ]);
+    expect(merged.widgetNotes?.map((n) => n.id)).toEqual(['a-2', 'a-3', 'a']);
+    expect(warnings).toHaveLength(3);
+  });
+
+  it('warns when a new entry is older than the newest one', () => {
+    const warnings: string[] = [];
+    mergeChangelog(
+      { entries: [entry('2026.11.19.1')] },
+      [{ name: 'old.json', data: { entries: [entry('2026.11.15.4')] } }],
+      (m) => warnings.push(m)
+    );
+    expect(warnings[0]).toMatch(/no update prompt/);
+  });
+
+  it('rejects stray keys, empty fragments and malformed items', () => {
     const base = { entries: [entry('2026.11.19.1')], widgetNotes: [note('a')] };
     const bad = (data: unknown) => () =>
       mergeChangelog(base, [{ name: 'bad.json', data }]);
-    expect(bad({ entries: [entry('2026.11.19.1')] })).toThrow(/already/);
-    expect(bad({ widgetNotes: [note('a')] })).toThrow(/already used/);
     expect(bad({ entries: [entry('2026.11.20.1')], version: 'x' })).toThrow(
       /only hold/
     );
     expect(bad({})).toThrow(/no entries/);
     expect(bad({ widgetNotes: [{ id: 'z' }] })).toThrow(/needs string/);
+    expect(bad({ entries: [{ title: 'no version' }] })).toThrow(
+      /needs a string/
+    );
   });
 
   it('loads every fragment in the repo without error', () => {

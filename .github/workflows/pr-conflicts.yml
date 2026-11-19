@@ -13,9 +13,10 @@ on:
     - cron: '23 * * * *'
   workflow_dispatch:
 
+# One run at a time, each over every open PR, so two runs never label or comment on the same PR twice.
 concurrency:
-  group: pr-conflicts-${{ github.event.pull_request.number || 'all' }}
-  cancel-in-progress: true
+  group: pr-conflicts
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -31,18 +32,22 @@ jobs:
         with:
           script: |
             const LABEL = 'merge-conflict';
+            // One comment per conflict: posted when the label goes on, so a later conflict gets a fresh comment.
             const MARKER = '<!-- pr-conflicts -->';
             const BASES = new Set(['dev-paul', 'main']);
-            const only = context.payload.pull_request?.number ?? null;
             const { owner, repo } = context.repo;
 
             try {
               await github.rest.issues.getLabel({ owner, repo, name: LABEL });
             } catch {
-              await github.rest.issues.createLabel({
-                owner, repo, name: LABEL, color: 'b60205',
-                description: 'Conflicts with its base branch, so CI will not run',
-              });
+              try {
+                await github.rest.issues.createLabel({
+                  owner, repo, name: LABEL, color: 'b60205',
+                  description: 'Conflicts with its base branch, so CI will not run',
+                });
+              } catch (err) {
+                if (err.status !== 422) throw err;
+              }
             }
 
             const query = `query($owner: String!, $repo: String!, $cursor: String) {
@@ -62,7 +67,7 @@ jobs:
                 out.push(...page.nodes);
                 cursor = page.pageInfo.hasNextPage ? page.pageInfo.endCursor : null;
               } while (cursor);
-              return out.filter((p) => BASES.has(p.baseRefName) && (only === null || p.number === only));
+              return out.filter((p) => BASES.has(p.baseRefName));
             };
 
             // GitHub computes mergeability lazily after a push; UNKNOWN means ask again shortly.

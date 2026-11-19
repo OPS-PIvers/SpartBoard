@@ -10,7 +10,7 @@ import {
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const CHANGELOG = 'public/changelog.json';
@@ -40,10 +40,14 @@ export function compareVersions(a: string, b: string): number {
   return 0;
 }
 
-/** Base file plus fragments; new entries slot in newest-first, new widget notes go on top. */
+const bumpVersion = (v: string) =>
+  /\.\d+$/.test(v) ? v.replace(/\d+$/, (n) => String(Number(n) + 1)) : `${v}.1`;
+
+/** Base file plus fragments; new entries slot in newest-first, new widget notes go on top. A clash renumbers instead of failing, so two PRs that merge cleanly can't break the build. */
 export function mergeChangelog(
   base: unknown,
-  fragments: Fragment[]
+  fragments: Fragment[],
+  warn: (msg: string) => void = (msg) => console.warn(msg)
 ): Changelog {
   if (!isObject(base) || !Array.isArray(base.entries)) {
     throw new Error(`${CHANGELOG} must be an object with an "entries" array`);
@@ -87,13 +91,15 @@ export function mergeChangelog(
           `${where}: every entry needs a string "version" and "date"`
         );
       }
-      if (versions.has(e.version)) {
-        throw new Error(
-          `${where}: version ${e.version} is already in the changelog; pick the next .N`
+      let version = e.version;
+      while (versions.has(version)) version = bumpVersion(version);
+      if (version !== e.version) {
+        warn(
+          `${where}: version ${e.version} is already used, so it ships as ${version}`
         );
       }
-      versions.add(e.version);
-      newEntries.push(e);
+      versions.add(version);
+      newEntries.push(version === e.version ? e : { ...e, version });
     }
     for (const n of fNotes) {
       if (
@@ -107,23 +113,36 @@ export function mergeChangelog(
           `${where}: every widget note needs string "id", "widget", "date" and "text"`
         );
       }
-      if (noteIds.has(n.id)) {
-        throw new Error(`${where}: widget note id ${n.id} is already used`);
+      let id = n.id;
+      for (let i = 2; noteIds.has(id); i += 1) id = `${n.id}-${i}`;
+      if (id !== n.id) {
+        warn(
+          `${where}: widget note id ${n.id} is already used, so it ships as ${id}`
+        );
       }
-      noteIds.add(n.id);
-      newNotes.push(n);
+      noteIds.add(id);
+      newNotes.push(id === n.id ? n : { ...n, id });
     }
   }
 
   newEntries.sort((a, b) =>
     compareVersions(b.version as string, a.version as string)
   );
+  const baseTop = entries.find((x) => typeof x.version === 'string')?.version;
   for (const e of newEntries) {
     const at = entries.findIndex(
       (x) =>
         typeof x.version === 'string' &&
         compareVersions(x.version, e.version as string) < 0
     );
+    if (
+      typeof baseTop === 'string' &&
+      compareVersions(baseTop, e.version as string) > 0
+    ) {
+      warn(
+        `changelog entry ${e.version as string} is older than the newest entry, so teachers get no update prompt for it`
+      );
+    }
     entries.splice(at < 0 ? entries.length : at, 0, e);
   }
   newNotes.sort((a, b) => (b.date as string).localeCompare(a.date as string));
@@ -191,8 +210,8 @@ export function loadChangelogAtRef(
 }
 
 const isMain =
-  process.argv[1] &&
-  fileURLToPath(import.meta.url) === process.argv[1].replace(/\\/g, '/');
+  !!process.argv[1] &&
+  resolve(fileURLToPath(import.meta.url)) === resolve(process.argv[1]);
 
 if (isMain) {
   const root = join(dirname(fileURLToPath(import.meta.url)), '..');

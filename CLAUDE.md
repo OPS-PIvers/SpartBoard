@@ -80,7 +80,7 @@ Every new user-facing feature or behaviour change reaches `main` switched **off 
 - **Admins always pass admin/beta gates**, so "on for Paul" really means Paul plus the other `/admins`. Say so in the PR if that matters for the feature.
 - **The PR description must say** which flag gates the feature, its starting access level, and the admin path to open it: Admin Settings > Access > Previews (or Widgets for a widget) > set to Public. A `stage: 'preview'` flag that is saved Public shows "Ready to retire" or "Ready to graduate" there; Paul asks an agent to retire it (delete the gate and the registry entry, add the changelog note) or to graduate it (`stage: 'permanent'`). Paul flips it after testing in prod; agents never open a flag to Public on prod themselves.
 - **Exempt:** bug fixes that restore intended behaviour, copy and styling tweaks, internal/admin-only tools, and dev-only tooling. When in doubt, flag it.
-- **Changelog:** a flagged feature gets its `public/changelog.json` entry when the flag opens to everyone, not when the code merges.
+- **Changelog:** a flagged feature gets its What's New entry (a `changelog.d/` fragment) when the flag opens to everyone, not when the code merges.
 
 ## Architecture gotchas
 
@@ -138,7 +138,7 @@ allowlist fails toward a cosmetic annoyance.
 - **Don't create shared-file conflicts.** Release notes go in a new `changelog.d/<name>.json` file and merged branches in a new `docs/branch-cleanup/` file, one per PR. Don't append to a shared list in another file.
 - `pr-validation.yml` runs on every PR; its `summary` job is the required check and fails when any job fails. Docs-only PRs pass in seconds. `preflight` waits for an in-progress `firebase-dev-deploy.yml` run on the PR's head SHA and, if it passed, skips everything except E2E. Release PRs (`dev-paul` into `main`) skip the widget grader.
 - A push to `main` skips the checks when its tree equals an already-validated PR head, deploys only changed backend targets, then smoke-tests prod (`scripts/smoke-test.mjs`) and rolls hosting back to the previous release, opening an issue, if it fails.
-- **Release notes**: `public/changelog.json` is read by teachers, not developers. Never name a feature flag, a Firestore path or an internal mechanism in it, and check every claim against what admin settings actually enable rather than what the code defines. See [docs/DEV_WORKFLOW.md](docs/DEV_WORKFLOW.md#how-to-write-a-release-note).
+- **Release notes** (`public/changelog.json` plus `changelog.d/` fragments) are read by teachers, not developers. Never name a feature flag, a Firestore path or an internal mechanism in it, and check every claim against what admin settings actually enable rather than what the code defines. See [docs/DEV_WORKFLOW.md](docs/DEV_WORKFLOW.md#how-to-write-a-release-note).
 - **Comments**: One short line max — never multi-paragraph docstrings or multi-line comment blocks. Root-cause narrative and verification rationale belong in the PR description, not the diff. Exception: match the surrounding file's convention where one already differs consistently (e.g. `firestore.rules`). Enforced in review; see [docs/routines/debugger.md](docs/routines/debugger.md).
 - Widgets are not virtualized — keep dashboards to about 20 widgets.
 
