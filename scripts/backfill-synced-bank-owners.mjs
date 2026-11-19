@@ -70,7 +70,10 @@ async function main() {
   const [reserved, live, banks] = await Promise.all([
     db.collection(OWNERS).select().get(),
     db.collection('synced_question_banks').select('ownerUid').get(),
-    db.collectionGroup('question_banks').get(),
+    db
+      .collectionGroup('question_banks')
+      .select('sync.groupId', 'syncGroupId', 'sharedBy')
+      .get(),
   ]);
   const reservedIds = new Set(reserved.docs.map((d) => d.id));
 
