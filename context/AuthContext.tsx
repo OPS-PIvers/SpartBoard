@@ -3702,6 +3702,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       localStorage.removeItem(LAST_ACTIVITY_KEY);
       localStorage.removeItem(GOOGLE_ACCESS_TOKEN_KEY);
       localStorage.removeItem(GOOGLE_TOKEN_EXPIRY_KEY);
+      // A shared Chromebook's next user starts on the legacy sign-in until their own flag loads.
+      writeQuickSignIn(localStorage, false);
       backendConsentLatchRef.current = newBackendConsentLatch(null);
       await firebaseSignOut(auth);
       setGoogleAccessToken(null);

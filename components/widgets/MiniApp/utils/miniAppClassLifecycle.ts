@@ -49,16 +49,21 @@ export function miniAppLifecycle(
         await getDoc(doc(db, 'users', uid, ASSIGNMENTS, id))
       ).data() as MiniAppAssignment | undefined;
       if (!row || !hasStudentPointers(row)) return;
-      await actions.setAssignmentTargets({
-        assignmentId: id,
-        kind: 'mini-app',
-        sessionId: row.sessionId,
-        targetMode: row.targetMode,
-        add: [],
-        remove: [],
-        overridesBySourcedId: {},
-        window: patch,
-      });
+      try {
+        await actions.setAssignmentTargets({
+          assignmentId: id,
+          kind: 'mini-app',
+          sessionId: row.sessionId,
+          targetMode: row.targetMode,
+          add: [],
+          remove: [],
+          overridesBySourcedId: {},
+          window: patch,
+        });
+      } catch (err) {
+        // A failed pointer sync must not stop Open.
+        console.error('[miniAppLifecycle] Pointer sync failed:', err);
+      }
     },
   };
 }

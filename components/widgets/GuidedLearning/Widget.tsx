@@ -346,7 +346,7 @@ const TeacherGuidedLearningWidget: React.FC<{
     publishAssignmentScores,
     unpublishAssignmentScores,
     setAssignmentClasses,
-  } = useGuidedLearningAssignments(user?.uid);
+  } = useGuidedLearningAssignments(user?.uid, canAccessFeature('assigned-tab'));
   const { setAssignmentTargets: setTargets } = useSetAssignmentTargets();
   const uid = user?.uid;
   // ASSIGNED_TAB.md D21: the whole-run writes the Assigned tab's class actions drive.

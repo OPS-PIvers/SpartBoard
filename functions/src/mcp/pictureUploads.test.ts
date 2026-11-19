@@ -328,6 +328,15 @@ describe('applyCardPictures', () => {
     expect(h.trashed).toEqual(['copy-of-d1']);
   });
 
+  it('ignores a clear when pictures are off', async () => {
+    h.granted = false;
+    const kept = 'https://lh3.googleusercontent.com/d/kept-file-id';
+    const cards = [{ termImageUrl: kept }];
+    await applyCardPictures(ctx, [{ term_picture: null }], cards);
+    expect(cards).toEqual([{ termImageUrl: kept }]);
+    h.granted = true;
+  });
+
   it('copies nothing when no picture changes', async () => {
     const discard = await applyCardPictures(ctx, [{}], [{}]);
     await discard();

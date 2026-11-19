@@ -165,8 +165,6 @@ const GL_MARKED_LIMIT = 200;
 interface AssignmentsState {
   open: GuidedLearningAssignment[];
   recent: GuidedLearningAssignment[];
-  /** Rows closed through the Assigned tab, which may still wait on publishing past the recent page. */
-  marked: GuidedLearningAssignment[];
   recentLimit: number;
   openLoaded: boolean;
   recentLoaded: boolean;
@@ -184,7 +182,6 @@ const assignmentsSource: SharedSource<AssignmentsState> = {
   initial: {
     open: [],
     recent: [],
-    marked: [],
     recentLimit: GL_ASSIGNMENTS_PAGE_SIZE,
     openLoaded: false,
     recentLoaded: false,
@@ -212,18 +209,6 @@ const assignmentsSource: SharedSource<AssignmentsState> = {
         })),
       onError
     );
-    // Single-field range, so no composite index.
-    const markedUnsub = onSnapshot(
-      query(
-        ref,
-        where('closedAt', '>', 0),
-        orderBy('closedAt', 'desc'),
-        limit(GL_MARKED_LIMIT)
-      ),
-      (snap) => update((prev) => ({ ...prev, marked: toAssignments(snap) })),
-      (err) =>
-        console.error('[useGuidedLearningAssignments] Closed rows error:', err)
-    );
     let recentLimit = GL_ASSIGNMENTS_PAGE_SIZE;
     let recentUnsub = (): void => undefined;
     const listenRecent = () => {
@@ -249,10 +234,28 @@ const assignmentsSource: SharedSource<AssignmentsState> = {
     return () => {
       olderLoaders.delete(userId);
       openUnsub();
-      markedUnsub();
       recentUnsub();
     };
   },
+};
+
+// Rows closed through the Assigned tab, which may still wait on publishing past the recent page.
+const markedSource: SharedSource<GuidedLearningAssignment[]> = {
+  id: 'gl-assignments-marked',
+  initial: [],
+  start: (userId, update) =>
+    // Single-field range, so no composite index.
+    onSnapshot(
+      query(
+        collection(db, 'users', userId, GL_ASSIGNMENTS_COLLECTION),
+        where('closedAt', '>', 0),
+        orderBy('closedAt', 'desc'),
+        limit(GL_MARKED_LIMIT)
+      ),
+      (snap) => update(() => toAssignments(snap)),
+      (err) =>
+        console.error('[useGuidedLearningAssignments] Closed rows error:', err)
+    ),
 };
 
 /** Open and recent listeners overlap; keep the fresher copy of each doc, newest first. */
@@ -269,12 +272,17 @@ export const mergeAssignments = (
 };
 
 export const useGuidedLearningAssignments = (
-  userId: string | undefined
+  userId: string | undefined,
+  assignedTabOn = false
 ): UseGuidedLearningAssignmentsResult => {
   const shared = useSharedSubscription(assignmentsSource, userId ?? null);
+  const marked = useSharedSubscription(
+    markedSource,
+    assignedTabOn && userId ? userId : null
+  );
   const assignments = useMemo(
-    () => mergeAssignments(shared.open, [...shared.recent, ...shared.marked]),
-    [shared.open, shared.recent, shared.marked]
+    () => mergeAssignments(shared.open, [...shared.recent, ...marked]),
+    [shared.open, shared.recent, marked]
   );
   const loading = userId ? !(shared.openLoaded && shared.recentLoaded) : false;
   const error = userId ? shared.error : null;

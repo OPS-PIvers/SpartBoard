@@ -430,26 +430,34 @@ export async function applyCardPictures(
 ): Promise<() => Promise<void>> {
   const wanted: { card: number; side: 'term' | 'definition'; ref: string }[] =
     [];
+  const clears: { card: number; side: 'term' | 'definition' }[] = [];
   inputs.forEach((input, i) => {
     for (const side of ['term', 'definition'] as const) {
       const value = input[`${side}_picture`];
-      if (value === null) delete cards[i][`${side}ImageUrl`];
+      if (value === null) clears.push({ card: i, side });
       else if (value !== undefined) wanted.push({ card: i, side, ref: value });
     }
   });
-  if (wanted.length === 0) return () => Promise.resolve();
+  if (wanted.length === 0 && clears.length === 0)
+    return () => Promise.resolve();
   const { isGlobalFeatureGranted } = await import('../featureGrant');
-  if (
-    !(await isGlobalFeatureGranted(
+  const allowed =
+    (await picturesOn(ctx)) &&
+    (await isGlobalFeatureGranted(
       ctx.db,
       CARD_IMAGES_FEATURE_ID,
       ctx.email,
       ctx.uid
-    ))
-  )
+    ));
+  if (!allowed) {
+    // With the flags off, Claude never edits pictures, so a clear is ignored.
+    if (wanted.length === 0) return () => Promise.resolve();
     throw new ToolError(
       'Card pictures are not turned on for this account yet.'
     );
+  }
+  clears.forEach((c) => delete cards[c.card][`${c.side}ImageUrl`]);
+  if (wanted.length === 0) return () => Promise.resolve();
   const token = await driveTokenFor(ctx.uid);
   const copies = await copyPicturesTo(
     ctx,

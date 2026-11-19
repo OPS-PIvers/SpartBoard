@@ -48,6 +48,15 @@ const asParticipant = () =>
     })
     .firestore();
 
+const OUTSIDE_UID = 'outside-teacher-uid';
+const asOutside = () =>
+  testEnv
+    .authenticatedContext(OUTSIDE_UID, {
+      email: 'teacher@other-school.org',
+      email_verified: true,
+    })
+    .firestore();
+
 const asNonParticipant = () =>
   testEnv
     .authenticatedContext(NON_PARTICIPANT_UID, { email: 'random@example.com' })
@@ -144,6 +153,42 @@ function describeVersionsCollection(
             doc(asNonParticipant(), versionPath),
             validSnapshot({ savedBy: NON_PARTICIPANT_UID })
           )
+        );
+      });
+
+      it('outside teacher who is the only participant can create', async () => {
+        await testEnv.withSecurityRulesDisabled(async (ctx) => {
+          await setDoc(doc(ctx.firestore(), groupPath), {
+            ...seedGroup(),
+            participants: { [OUTSIDE_UID]: { joinedAt: 1000 } },
+          });
+        });
+        await assertSucceeds(
+          setDoc(
+            doc(asOutside(), versionPath),
+            validSnapshot({ savedBy: OUTSIDE_UID })
+          )
+        );
+      });
+
+      it('outside teacher in a staff group CANNOT create', async () => {
+        await testEnv.withSecurityRulesDisabled(async (ctx) => {
+          await setDoc(doc(ctx.firestore(), groupPath), {
+            ...seedGroup(),
+            participants: {
+              [PARTICIPANT_UID]: { joinedAt: 1000 },
+              [OUTSIDE_UID]: { joinedAt: 1000 },
+            },
+          });
+        });
+        await assertFails(
+          setDoc(
+            doc(asOutside(), versionPath),
+            validSnapshot({ savedBy: OUTSIDE_UID })
+          )
+        );
+        await assertSucceeds(
+          setDoc(doc(asParticipant(), versionPath), validSnapshot())
         );
       });
 
