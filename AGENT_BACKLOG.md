@@ -257,6 +257,8 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
   <details><summary>Branches to delete (190, checked 2026-11-01)</summary>
 
 claude/project-thread-14bvaw (#6302, then this docs PR; delete after it merges)
+claude/project-thread-tx2kko (#6309)
+claude/project-thread-tx2kko-ab112 (this docs PR; delete after it merges)
 claude/release-fix-2026-11-19c (#6298)
 claude/release-2026-11-19c-followups (this docs PR, delete after it merges)
 claude/project-thread-w12g03 (release #6292 branch, delete after it merges)
