@@ -53,7 +53,7 @@ const fc = (
 export const FLASHCARD_ASSIGNED_FIXTURES: FlashcardAssignment[] = [
   fc('verbs', 'Spanish Verbs Check', {
     periodAccess: rows((i) =>
-      i === 0 ? closed : i === 1 ? { state: 'open' } : {}
+      i === 0 ? closed : i === 1 ? { state: 'open', openedAt: now - DAY } : {}
     ),
   }),
   fc('vocab', 'Unit 4 Vocabulary', {
@@ -122,7 +122,9 @@ const wr = (
 
 export const WRITING_ASSIGNED_FIXTURES: WritingAssignmentRecord[] = [
   wr('narrative', 'Personal Narrative', {
-    periodAccess: rows((i) => (i === 1 ? { state: 'open' } : {})),
+    periodAccess: rows((i) =>
+      i === 1 ? { state: 'open', openedAt: now - DAY } : {}
+    ),
   }),
   wr('argument', 'Argument Essay: School Start Times', {
     status: 'ended',

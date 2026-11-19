@@ -493,19 +493,57 @@ export interface RecomputeCounts {
   failed: number;
 }
 
-/** Moves a failed assessment to the back of the dirty queue, so repeat failures can't hold the head of every batch. */
+/** Consecutive failures after which an assessment stops retrying until a new trigger marks it dirty. */
+export const RECOMPUTE_MAX_FAILURES = 12;
+
+/** Most stale aggregates one run looks at, skipped ones included. */
+const STALE_SCAN_LIMIT = 500;
+
+/** Server-only failure count; the assessment doc can't take new fields without a rules change. */
+function failureRef(
+  db: Firestore,
+  plcId: string,
+  assessmentId: string
+): admin.firestore.DocumentReference {
+  return db.doc(
+    `plc_recompute_failures/${plcId}/recompute_failures/${assessmentId}`
+  );
+}
+
+async function clearFailures(
+  db: Firestore,
+  plcId: string,
+  assessmentId: string
+): Promise<void> {
+  const ref = failureRef(db, plcId, assessmentId);
+  if ((await ref.get()).exists) await ref.delete();
+}
+
+/** Moves a failed assessment to the back of the dirty queue, or parks it once it has failed too often. */
 async function requeueFailed(
   db: Firestore,
   plcId: string,
   assessmentId: string,
   seen: unknown
-): Promise<void> {
+): Promise<boolean> {
   const ref = db.doc(`plcs/${plcId}/assessments/${assessmentId}`);
-  await db.runTransaction(async (tx) => {
-    const current: unknown = (await tx.get(ref)).data()?.dirtyAt;
+  const failRef = failureRef(db, plcId, assessmentId);
+  return db.runTransaction(async (tx) => {
+    const [snap, failSnap] = await Promise.all([tx.get(ref), tx.get(failRef)]);
+    const current: unknown = snap.data()?.dirtyAt;
+    const prior: unknown = failSnap.data()?.count;
+    // A parked assessment that a new trigger marked dirty starts a fresh run of retries.
+    const base =
+      typeof prior === 'number' && prior < RECOMPUTE_MAX_FAILURES ? prior : 0;
+    const count = base + 1;
+    const now = Date.now();
+    tx.set(failRef, { plcId, assessmentId, count, lastFailedAt: now });
     // A claimed (negated) mark or the one this batch read moves; a newer trigger's mark is left alone.
-    if (typeof current === 'number' && (current <= 0 || current === seen))
-      tx.update(ref, { dirtyAt: Date.now() });
+    if (typeof current !== 'number' || (current > 0 && current !== seen))
+      return false;
+    const parked = count >= RECOMPUTE_MAX_FAILURES;
+    tx.update(ref, { dirtyAt: parked ? null : now });
+    return parked;
   });
 }
 
@@ -531,6 +569,7 @@ export async function runRecomputePlcAssessments(
     try {
       await recomputeOnePlcAssessment(db, plcId, doc.id);
       counts.recomputed++;
+      await clearFailures(db, plcId, doc.id).catch(() => undefined);
     } catch (err) {
       counts.failed++;
       logger.error('recomputePlcAssessments: recompute failed', {
@@ -540,20 +579,48 @@ export async function runRecomputePlcAssessments(
       });
       const seen: unknown =
         doc.ref.parent.id === 'assessments' ? doc.data().dirtyAt : undefined;
-      await requeueFailed(db, plcId, doc.id, seen).catch(() => undefined);
+      const parked = await requeueFailed(db, plcId, doc.id, seen).catch(
+        () => false
+      );
+      if (parked)
+        logger.error(
+          'recomputePlcAssessments: gave up after repeated failures',
+          {
+            plcId,
+            assessmentId: doc.id,
+          }
+        );
     }
   };
   for (const doc of dirtySnap.docs) await recompute(doc);
 
-  // Spare budget refreshes aggregates written by an older schema.
-  const remaining = limit - dirtySnap.docs.length;
-  if (remaining > 0) {
-    const staleSnap = await db
+  // Spare budget refreshes aggregates written by an older schema; capped ones are paged past, not counted.
+  let remaining = limit - dirtySnap.docs.length;
+  let after: admin.firestore.QueryDocumentSnapshot | undefined;
+  let staleScanned = 0;
+  while (remaining > 0 && staleScanned < STALE_SCAN_LIMIT) {
+    const pageSize = remaining;
+    let query = db
       .collectionGroup('aggregates')
       .where('schemaVersion', '<', AGGREGATE_SCHEMA_VERSION)
-      .limit(remaining)
-      .get();
-    for (const doc of staleSnap.docs) await recompute(doc);
+      .limit(pageSize);
+    if (after) query = query.startAfter(after);
+    const staleSnap = await query.get();
+    if (staleSnap.empty) break;
+    for (const doc of staleSnap.docs) {
+      staleScanned++;
+      const plcId = doc.ref.parent.parent?.id;
+      const failures: unknown = plcId
+        ? (await failureRef(db, plcId, doc.id).get()).data()?.count
+        : undefined;
+      // A stale aggregate that keeps failing waits for a new dirty mark instead.
+      if (typeof failures === 'number' && failures >= RECOMPUTE_MAX_FAILURES)
+        continue;
+      remaining--;
+      await recompute(doc);
+    }
+    if (staleSnap.docs.length < pageSize) break;
+    after = staleSnap.docs[staleSnap.docs.length - 1];
   }
   return counts;
 }

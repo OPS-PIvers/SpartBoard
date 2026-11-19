@@ -2,7 +2,8 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { describe, it, expect } from 'vitest';
 
-type Mode = 'read' | 'write' | 'outward' | 'session';
+// mixed: one read guard and one write guard, picked per action.
+type Mode = 'read' | 'write' | 'outward' | 'session' | 'mixed';
 
 // Reviewed View as mode per callable (docs/plans/shipped/ADMIN_VIEW_AS.md D7, D14); a new onCall needs a row here.
 const CALLABLE_MODES: Record<string, Mode> = {
@@ -64,7 +65,6 @@ const CALLABLE_MODES: Record<string, Mode> = {
   importPaperResponsesV1: 'write',
   plcMembershipV1: 'write',
   orgAdminV1: 'write',
-  shareMembershipV1: 'write',
   paperRewordSyncV1: 'write',
   leaveSyncedQuizGroup: 'write',
   leaveSyncedVideoActivityGroup: 'write',
@@ -164,6 +164,8 @@ const CALLABLE_MODES: Record<string, Mode> = {
   returnWritingV1: 'outward',
   returnWritingForRevisionV1: 'outward',
   saveWritingFeedbackV1: 'outward',
+  // One read guard for shareHost, one write guard for joins and leaves.
+  shareMembershipV1: 'mixed',
   // The session callables read the claim themselves.
   startViewAsSessionV1: 'session',
   startViewAsStudentV1: 'session',
@@ -202,6 +204,11 @@ function modeOf(options: string | undefined): Mode | 'unknown' {
   return 'unknown';
 }
 
+function mixedModeOf(modes: (Mode | 'unknown')[]): Mode | 'repeated' {
+  const sorted = [...modes].sort().join(',');
+  return sorted === 'read,write' ? 'mixed' : 'repeated';
+}
+
 interface Found {
   file: string;
   mode: Mode | 'missing' | 'unknown' | 'repeated';
@@ -226,9 +233,9 @@ function scan(): { callables: Map<string, Found>; strays: string[] } {
           ? 'session'
           : guards.length === 0
             ? 'missing'
-            : guards.length > 1
-              ? 'repeated'
-              : modeOf(guards[0][1]);
+            : guards.length === 1
+              ? modeOf(guards[0][1])
+              : mixedModeOf(guards.map((g) => modeOf(g[1])));
       callables.set(match[1], { file, mode });
     });
   }

@@ -309,7 +309,7 @@ describe('useVideoActivityAssignments — updateAssignmentSettings mirrors polic
     );
 
     vi.mocked(getDoc).mockResolvedValueOnce({
-      data: () => ({ classIds: ['old-cl', 'classroom:c1'] }),
+      data: () => ({ classIds: ['old-cl', 'stale-cl', 'classroom:c1'] }),
     } as unknown as Awaited<ReturnType<typeof getDoc>>);
     await act(async () => {
       await result.current.setAssignmentClasses('assignment-1', {
@@ -317,6 +317,7 @@ describe('useVideoActivityAssignments — updateAssignmentSettings mirrors polic
         classIds: ['cl-1'],
         periodNames: ['Period 1', 'Period 2'],
         classPeriodByClassId: { 'cl-1': 'Period 1' },
+        removedClassIds: ['old-cl'],
       });
     });
 

@@ -7,6 +7,8 @@ import {
   lunchNotesBehindKey,
   boardLacksLunchNotes,
   keepDriveLunchNotes,
+  lunchNotesReadFresh,
+  LUNCH_NOTES_REREAD_MS,
   DashboardPiiSupplement,
 } from '@/utils/dashboardPII';
 import { Dashboard } from '@/types';
@@ -465,5 +467,32 @@ describe('lunch report notes', () => {
       'board notes'
     );
     expect(boardLacksLunchNotes(withConfig({ ...both }))).toBe(false);
+  });
+});
+
+describe('lunchNotesReadFresh', () => {
+  const read = (complete: boolean) => ({
+    key: 'k',
+    drivePii: {},
+    readAt: 1000,
+    complete,
+  });
+
+  it('keeps a read that found every note until the sent list changes', () => {
+    expect(lunchNotesReadFresh(read(true), 'k', 1000 + 10 * 60_000)).toBe(true);
+    expect(lunchNotesReadFresh(read(true), 'other', 1000)).toBe(false);
+  });
+
+  it('re-reads a miss at most once a minute', () => {
+    expect(
+      lunchNotesReadFresh(read(false), 'k', 1000 + LUNCH_NOTES_REREAD_MS - 1)
+    ).toBe(true);
+    expect(
+      lunchNotesReadFresh(read(false), 'k', 1000 + LUNCH_NOTES_REREAD_MS)
+    ).toBe(false);
+  });
+
+  it('reads when nothing is cached', () => {
+    expect(lunchNotesReadFresh(undefined, 'k', 1000)).toBe(false);
   });
 });
