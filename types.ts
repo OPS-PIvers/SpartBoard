@@ -11777,6 +11777,12 @@ export type GlobalFeature =
   | 'routine-guide'
   /** Class groups with a weekly schedule that pop a reminder on the open board. */
   | 'group-reminders'
+  /** Group reminders: the Symbol step of the class group editor. */
+  | 'group-symbols'
+  /** Group reminders: the Schedule step and the reminders it pops on the board. */
+  | 'group-schedules'
+  /** Group reminders: the Additional settings step of the class group editor. */
+  | 'group-settings'
   /** Sub shares bundle only the calendars the host ticks; board-share item picks are never seeded from share widgets. */
   | 'share-content-safeguards'
   /** My Classes "View Student Page": a class's student page, read from the teacher's own sessions. */

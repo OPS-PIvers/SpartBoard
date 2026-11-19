@@ -6105,21 +6105,21 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'group-wizard.steps': {
-    label: 'Step list at the top of the group wizard',
+    label: 'Step list in the group editor',
     panel: true,
   },
   'group-wizard.step': {
     label:
-      'Students, Symbol, Schedule or Alerts step button in the group wizard',
+      'Students, Symbol, Schedule or Additional settings step in the group editor',
     perField: true,
     panel: true,
   },
   'group-wizard.student-search': {
-    label: 'Search students box in the group wizard',
+    label: 'Search students box in the group editor',
     panel: true,
   },
   'group-wizard.student': {
-    label: 'Student checkbox in the group wizard',
+    label: 'Student checkbox in the group editor',
     perField: true,
     panel: true,
     keyPattern: 'group-wizard#row-[1-9]\\d*',
@@ -6128,121 +6128,114 @@ export const TOUR_ANCHORS = {
     rowList: 'group-wizard-students',
   },
   'group-wizard.name': {
-    label: 'Group name box in the group wizard',
+    label: 'Group name box in the group editor',
     panel: true,
   },
   'group-wizard.icon-search': {
-    label: 'Search icons box in the group wizard',
+    label: 'Search icons box in the group editor',
     panel: true,
   },
   'group-wizard.icon': {
-    label: 'Icon button in the group wizard',
+    label: 'Icon button in the group editor',
     perField: true,
     panel: true,
   },
   'group-wizard.color': {
-    label: 'Color swatch in the group wizard',
+    label: 'Color swatch in the group editor',
     perField: true,
     panel: true,
   },
   'group-wizard.preview': {
-    label: 'Reminder preview in the group wizard',
+    label: 'Reminder preview in the group editor',
     panel: true,
   },
   'group-wizard.day': {
-    label: 'Weekday button in the group wizard Schedule step',
+    label: 'Weekday button in the group editor Schedule step',
     perField: true,
     panel: true,
   },
   'group-wizard.alert-time': {
-    label: 'Alert time box in the group wizard Schedule step',
+    label: 'Alert time box in the group editor Schedule step',
     perField: true,
     panel: true,
   },
   'group-wizard.alert-lead': {
-    label: 'Show reminder dropdown in the group wizard Schedule step',
+    label: 'Pops up dropdown in the group editor Schedule step',
     perField: true,
     panel: true,
   },
   'group-wizard.alert-remove': {
-    label: 'Remove alert button in the group wizard Schedule step',
+    label: 'Remove time button in the group editor Schedule step',
     perField: true,
     panel: true,
   },
   'group-wizard.add-alert': {
-    label: 'Add another alert button in the group wizard Schedule step',
+    label: 'Add another time button in the group editor Schedule step',
     panel: true,
   },
   'group-wizard.repeat': {
-    label: 'Repeats dropdown in the group wizard Schedule step',
+    label: 'Repeats dropdown in the group editor Schedule step',
     panel: true,
   },
   'group-wizard.start-date': {
-    label: 'Starting date box in the group wizard Schedule step',
+    label: 'Starting date box in the group editor Schedule step',
     panel: true,
   },
   'group-wizard.on-board': {
-    label: 'Reminder on the board switch in the group wizard Alerts step',
+    label: 'Reminder on the board switch in the group editor Schedule step',
     panel: true,
   },
   'group-wizard.sound': {
-    label: 'Sound dropdown in the group wizard Alerts step',
+    label: 'Sound dropdown in the group editor Schedule step',
     panel: true,
   },
   'group-wizard.play-sound': {
-    label: 'Play sound button in the group wizard Alerts step',
+    label: 'Play sound button in the group editor Schedule step',
     panel: true,
   },
   'group-wizard.snooze': {
-    label: 'Snooze dropdown in the group wizard Alerts step',
+    label: 'Snooze dropdown in the group editor Schedule step',
     panel: true,
   },
   'group-wizard.show-name': {
-    label: 'Show group name switch in the group wizard Alerts step',
+    label: 'Show group name switch in the group editor Schedule step',
     panel: true,
   },
   'group-wizard.show-time': {
-    label: 'Show time switch in the group wizard Alerts step',
+    label: 'Show time switch in the group editor Schedule step',
     panel: true,
   },
   'group-wizard.show-message': {
-    label: 'Show a message switch in the group wizard Alerts step',
+    label: 'Show a message switch in the group editor Schedule step',
     panel: true,
   },
   'group-wizard.message': {
-    label: 'Message box in the group wizard Alerts step',
+    label: 'Message box in the group editor Schedule step',
     panel: true,
   },
   'group-wizard.email-alert': {
-    label: 'Email alert switch in the group wizard Alerts step',
+    label: 'Email alert switch in the group editor Schedule step',
     panel: true,
   },
   'group-wizard.email-message': {
-    label: 'Email message box in the group wizard Alerts step',
+    label: 'Email message box in the group editor Schedule step',
     panel: true,
   },
   'group-wizard.group-maker': {
-    label: 'Enable in Group Maker switch in the group wizard Alerts step',
+    label:
+      'Enable in Group Maker switch in the group editor Additional settings step',
     panel: true,
   },
   'group-wizard.cancel': {
-    label: 'Cancel button on the first step of the group wizard',
-    panel: true,
-  },
-  'group-wizard.back': {
-    label: 'Back button in the group wizard',
+    label: 'Cancel button in the group editor',
     panel: true,
   },
   'group-wizard.next': {
-    label: 'Next button in the group wizard',
-    panel: true,
-  },
-  'group-wizard.save-now': {
-    label: 'Save group button on a middle step when editing a group',
+    label: 'Continue button on the open step in the group editor',
     panel: true,
   },
   'group-wizard.finish': {
-    label: 'Save group button on the last step of the group wizard',
+    label: 'Save group button in the group editor',
     panel: true,
   },
   'classlink-import.class-row': {

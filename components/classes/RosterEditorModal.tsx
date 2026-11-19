@@ -13,6 +13,7 @@ import {
 import type { BuildingBellPeriodOption } from '@/utils/bellSchedule';
 import { SplitClassFooter } from './SplitClassFooter';
 import { GroupRemindersPanel } from './GroupRemindersPanel';
+import { ALL_GROUP_STEPS, type GroupEditorSteps } from '@/utils/groupReminders';
 import { Modal } from '@/components/common/Modal';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { ChecklistSelect } from '@/components/gradebook/settings/ChecklistSelect';
@@ -54,6 +55,8 @@ interface RosterEditorModalProps {
   /** Host-resolved 'group-reminders' gate: symbols, schedules and the group wizard. */
   groupRemindersEnabled?: boolean;
   groupReminderEmailsEnabled?: boolean;
+  /** Host-resolved per-step gates for the group editor. */
+  groupSteps?: GroupEditorSteps;
 }
 
 const bellKey = (b: RosterBellPeriod | null | undefined): string =>
@@ -75,6 +78,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
   bellPeriodOptions,
   groupRemindersEnabled = false,
   groupReminderEmailsEnabled = false,
+  groupSteps = ALL_GROUP_STEPS,
 }) => {
   const { t } = useTranslation();
   const {
@@ -369,6 +373,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
             rosterName={name.trim()}
             groups={groups}
             emailAlertsEnabled={groupReminderEmailsEnabled}
+            steps={groupSteps}
             students={validStudents}
             onChange={setGroups}
           />
