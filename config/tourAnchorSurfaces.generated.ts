@@ -880,6 +880,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'quiz-grading.answer-grade': ['quiz.student-answer-line'],
     'quiz-grading.count-instead': ['quiz.grader'],
     'quiz-results.counted-answers': ['quiz.student-answer-line'],
+    'quiz-results.accept-answer': ['quiz.student-answer-line'],
     'quiz-results.count-instead': ['quiz.student-answer-line'],
     'quiz-results.drilldown-open-student': ['quiz.results'],
     'quiz-results.target-row-toggle': ['quiz.results'],

@@ -166,6 +166,8 @@ export interface QuizLiveMonitorProps {
   overridesBySourcedId?: Record<string, StudentOverride> | null;
   /** Translated FIB answer keys snapshotted on the assignment doc (PR4). */
   localizedFibAnswers?: LocalizedFibAnswers | null;
+  /** Served locales graded with typo leniency. */
+  lenientFibLocales?: readonly string[] | null;
   /** Per-student overrides keyed by pseudonym uid; names each student's served locale. */
   overridesByStudentUid?: Record<string, StudentOverride> | null;
   /** Write-once served language per uid; grades a de-targeted student's old work. */
@@ -262,6 +264,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     assessmentOnly: assessmentOnlyProp = false,
     overridesBySourcedId = null,
     localizedFibAnswers = null,
+    lenientFibLocales = null,
     overridesByStudentUid = null,
     servedLanguageByStudentUid = null,
     assignmentSettings,
@@ -276,12 +279,14 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
   const fibGrading = useMemo<FibGradingContext>(
     () => ({
       answers: localizedFibAnswers,
+      lenientLocales: lenientFibLocales,
       overridesByStudentUid,
       overridesBySourcedId,
       servedLanguageByStudentUid,
     }),
     [
       localizedFibAnswers,
+      lenientFibLocales,
       overridesByStudentUid,
       overridesBySourcedId,
       servedLanguageByStudentUid,
