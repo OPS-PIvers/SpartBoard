@@ -64,6 +64,8 @@ export async function acceptFibAnswer(opts: {
           const data = fresh.data() as QuizResponse | undefined;
           if (!data || typeof data.score !== 'number') return;
           const graded = gradeResponseForPublish(data, ctx);
+          // A slot still owed a grade keeps the saved score until the teacher grades it.
+          if (graded.score === null) return;
           // Verdicts a student can already see follow the new key; hidden ones stay hidden.
           const hadVerdicts = (data.answers ?? []).some(
             (a) => typeof a.isCorrect === 'boolean'

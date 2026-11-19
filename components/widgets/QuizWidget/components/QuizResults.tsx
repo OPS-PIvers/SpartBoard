@@ -4394,7 +4394,7 @@ const StudentDrilldownPanel: React.FC<{
       !onAcceptFibAnswer ||
       picked ||
       line.type !== 'FIB' ||
-      (line.mark !== 'incorrect' && line.mark !== 'partial') ||
+      line.mark !== 'incorrect' ||
       !raw?.trim()
     )
       return undefined;

@@ -175,7 +175,6 @@ export function syncedGroupEntitled(
   return false;
 }
 
-/** `{ [questionId]: { [locale]: string[] } }` from the teacher-owned assignment doc. */
 /** Assignment-doc `lenientFibLocales`; strings only. */
 export function parseLenientFibLocales(raw: unknown): string[] {
   return Array.isArray(raw)
@@ -183,6 +182,7 @@ export function parseLenientFibLocales(raw: unknown): string[] {
     : [];
 }
 
+/** `{ [questionId]: { [locale]: string[] } }` from the teacher-owned assignment doc. */
 export function parseLocalizedFibAnswers(
   raw: unknown
 ): Record<string, Record<string, string[]>> | undefined {

@@ -61,12 +61,11 @@ export function fibAcceptedAnswers(
     servedLocale && servedLocale !== ANY_LOCALE
       ? cleanList(byLocale?.[servedLocale])
       : [];
-  const answers = [...translated, ...accepted];
   return servedLocale &&
     translated.length > 0 &&
     lenientLocales?.includes(servedLocale)
-    ? { answers, lenientLocale: servedLocale }
-    : answers;
+    ? { answers: translated, exact: accepted, lenientLocale: servedLocale }
+    : [...translated, ...accepted];
 }
 
 /** Translated locales other than the quiz's own language; a World Language quiz stays exact. */

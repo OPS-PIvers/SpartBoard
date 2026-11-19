@@ -157,7 +157,7 @@ import {
 } from '@/utils/quizFibBlanks';
 import {
   fibExtrasParts,
-  fibLenientMatch,
+  fibLenientAccepts,
   type FibExtras,
 } from '@/utils/quizFibMatch';
 import {
@@ -1034,20 +1034,22 @@ export function gradeAnswer(
   }
   if (question.type === 'MC' || question.type === 'FIB') {
     const extras = fibExtrasParts(acceptedAnswers);
-    const lenient = extras.lenientLocale;
     const isCorrect =
       correct === given ||
       (question.type === 'FIB' &&
         given !== '' &&
-        [
-          ...(lenient ? [question.correctAnswer] : []),
-          ...(question.alternateAnswers ?? []),
-          ...extras.answers,
-        ].some((a) =>
-          lenient
-            ? fibLenientMatch(studentAnswer, a, lenient)
-            : normalizeAnswer(a) === given
-        ));
+        (extras.lenientLocale
+          ? fibLenientAccepts(
+              studentAnswer,
+              [question.correctAnswer, ...(question.alternateAnswers ?? [])],
+              extras,
+              normalizeAnswer
+            )
+          : [
+              ...(question.alternateAnswers ?? []),
+              ...extras.answers,
+              ...extras.exact,
+            ].some((a) => normalizeAnswer(a) === given)));
     return {
       isCorrect,
       pointsEarned: isCorrect ? max : 0,

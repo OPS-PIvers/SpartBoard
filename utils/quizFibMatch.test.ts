@@ -21,7 +21,7 @@ const CASES: [string, string, string, boolean][] = [
   ['la circunferencia', 'circunferencia', 'es', true],
   ['Circunferéncia', 'circunferencia', 'es', true],
   ['circunferensia', 'circunferencia', 'es', true],
-  ['the circumference', 'circumference', 'es', true],
+  ['the circumference', 'circumference', 'es', false],
   ['circunfrencia.', 'circunferencia', 'es', true],
   ['radio', 'circunferencia', 'es', false],
   ['sol', 'sal', 'es', false],
@@ -32,6 +32,9 @@ const CASES: [string, string, string, boolean][] = [
   ['', 'circunferencia', 'es', false],
   ['wareegga', 'wareegga', 'so', true],
   ['wareega', 'wareegga', 'so', true],
+  ['2.5', '2,5', 'es', true],
+  ['3,14 m', '3.14 m', 'es', true],
+  ['mano', 'a mano', 'es', false],
 ];
 
 describe('fibLenientMatch', () => {
@@ -79,9 +82,47 @@ describe('lenient grading only for a translated student', () => {
         .isCorrect
     ).toBe(true);
     expect(
-      gradeAnswer(fib('circumference'), 'circumferense', undefined, extras)
+      gradeAnswer(fib('circumference'), 'circunferensia', undefined, extras)
         .isCorrect
     ).toBe(true);
+    expect(
+      gradeAnswer(fib('circumference'), 'circumferense', undefined, extras)
+        .isCorrect
+    ).toBe(false);
+  });
+
+  it('never allows a typo on the quiz key', () => {
+    const extras = fibAcceptedAnswers({ q1: { es: ['mitosis'] } }, 'q1', 'es', [
+      'es',
+    ]);
+    expect(
+      gradeAnswer(fib('mitosis'), 'The Mitosis.', undefined, extras).isCorrect
+    ).toBe(true);
+    expect(
+      gradeAnswer(
+        fib('exothermic'),
+        'endothermic',
+        undefined,
+        fibAcceptedAnswers({ q1: { es: ['exotérmica'] } }, 'q1', 'es', ['es'])
+      ).isCorrect
+    ).toBe(false);
+  });
+
+  it('matches accepted answers exactly even for a translated student', () => {
+    const extras = fibAcceptedAnswers(
+      { q1: { es: ['circunferencia'], [ANY_LOCALE]: ['perimetro'] } },
+      'q1',
+      'es',
+      ['es']
+    );
+    expect(
+      gradeAnswer(fib('circumference'), 'Perimetro', undefined, extras)
+        .isCorrect
+    ).toBe(true);
+    expect(
+      gradeAnswer(fib('circumference'), 'perimetroo', undefined, extras)
+        .isCorrect
+    ).toBe(false);
   });
 
   it('stays exact without the lenient locale', () => {

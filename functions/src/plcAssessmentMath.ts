@@ -4,7 +4,7 @@
 import { notChosenIds, type ChooseSection } from './quizSectionsChosen';
 import {
   fibExtrasParts,
-  fibLenientMatch,
+  fibLenientAccepts,
   type FibExtras,
 } from './quizFibMatch';
 
@@ -176,10 +176,9 @@ export function fibExtrasFor(
   const accepted = cleanFibList(byLocale?.[ANY_LOCALE]);
   const translated =
     locale && locale !== ANY_LOCALE ? cleanFibList(byLocale?.[locale]) : [];
-  const answers = [...translated, ...accepted];
   return locale && translated.length > 0 && lenientLocales?.includes(locale)
-    ? { answers, lenientLocale: locale }
-    : answers;
+    ? { answers: translated, exact: accepted, lenientLocale: locale }
+    : [...translated, ...accepted];
 }
 
 /** Accepted FIB answers for the locale the TEACHER served, never a client-asserted one. */
@@ -668,28 +667,28 @@ export function scoreFibBlanksServer(
 ): { correct: number; total: number } {
   const mains = question.correctAnswer.split(FIB_BLANK_SEP);
   const typed = studentAnswer.split(FIB_BLANK_SEP);
-  const { answers: extraAnswers, lenientLocale } = fibExtrasParts(extra);
-  const extraParts = extraAnswers.map((e) => e.split(FIB_BLANK_SEP));
+  const parts = fibExtrasParts(extra);
+  const blank = (list: readonly string[], i: number) =>
+    list.map((e) => e.split(FIB_BLANK_SEP)[i] ?? '');
   let correct = 0;
   mains.forEach((main, i) => {
     const raw = typed[i] ?? '';
     const t = normalizeAnswer(raw);
     if (t === '') return;
-    const pool = [
-      main,
-      ...(question.blankAlternates?.[i]?.answers ?? []),
-      ...extraParts.map((p) => p[i] ?? ''),
-    ];
-    if (
-      pool.some(
-        (a) =>
-          a.trim() !== '' &&
-          (lenientLocale
-            ? fibLenientMatch(raw, a, lenientLocale)
-            : normalizeAnswer(a) === t)
-      )
-    )
-      correct++;
+    const keys = [main, ...(question.blankAlternates?.[i]?.answers ?? [])];
+    const translated = blank(parts.answers, i);
+    const exact = blank(parts.exact, i);
+    const ok = parts.lenientLocale
+      ? fibLenientAccepts(
+          raw,
+          keys,
+          { ...parts, answers: translated, exact },
+          normalizeAnswer
+        )
+      : [...keys, ...translated, ...exact].some(
+          (a) => a.trim() !== '' && normalizeAnswer(a) === t
+        );
+    if (ok) correct++;
   });
   return { correct, total: mains.length };
 }
@@ -885,20 +884,22 @@ export function gradeGroupAnswer(
     };
   }
   const extras = fibExtrasParts(acceptedAnswers);
-  const lenient = extras.lenientLocale;
   const isCorrect =
     correct === given ||
     (question.type === 'FIB' &&
       given !== '' &&
-      [
-        ...(lenient ? [question.correctAnswer] : []),
-        ...(question.alternateAnswers ?? []),
-        ...extras.answers,
-      ].some((a) =>
-        lenient
-          ? fibLenientMatch(studentAnswer, a, lenient)
-          : normalizeAnswer(a) === given
-      ));
+      (extras.lenientLocale
+        ? fibLenientAccepts(
+            studentAnswer,
+            [question.correctAnswer, ...(question.alternateAnswers ?? [])],
+            extras,
+            normalizeAnswer
+          )
+        : [
+            ...(question.alternateAnswers ?? []),
+            ...extras.answers,
+            ...extras.exact,
+          ].some((a) => normalizeAnswer(a) === given)));
   return {
     isCorrect,
     pointsEarned: isCorrect ? max : 0,

@@ -1,7 +1,7 @@
 import type { QuizQuestion } from '@/types';
 import {
   fibExtrasParts,
-  fibLenientMatch,
+  fibLenientAccepts,
   type FibExtras,
 } from './quizFibMatch';
 
@@ -100,24 +100,27 @@ export function scoreFibBlanks(
 ): { correct: number; total: number } {
   const accepted = fibBlankAccepted(q);
   const typed = splitBlanks(given);
-  const { answers: extraAnswers, lenientLocale } = fibExtrasParts(extra);
-  const extraParts = extraAnswers.map(splitBlanks);
+  const parts = fibExtrasParts(extra);
+  const blank = (list: readonly string[], i: number) =>
+    list.map((e) => splitBlanks(e)[i] ?? '');
   let correct = 0;
   accepted.forEach((answers, i) => {
     const raw = typed[i] ?? '';
     const t = normalize(raw);
     if (t === '') return;
-    const pool = [...answers, ...extraParts.map((p) => p[i] ?? '')];
-    if (
-      pool.some(
-        (a) =>
-          a.trim() !== '' &&
-          (lenientLocale
-            ? fibLenientMatch(raw, a, lenientLocale)
-            : normalize(a) === t)
-      )
-    )
-      correct++;
+    const translated = blank(parts.answers, i);
+    const exact = blank(parts.exact, i);
+    const ok = parts.lenientLocale
+      ? fibLenientAccepts(
+          raw,
+          answers,
+          { ...parts, answers: translated, exact },
+          normalize
+        )
+      : [...answers, ...translated, ...exact].some(
+          (a) => a.trim() !== '' && normalize(a) === t
+        );
+    if (ok) correct++;
   });
   return { correct, total: accepted.length };
 }
