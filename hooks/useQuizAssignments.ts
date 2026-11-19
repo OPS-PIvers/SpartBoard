@@ -4200,6 +4200,9 @@ export const useQuizAssignments = (
         if (patches.length > 0) {
           await commitResponsePatches(writeBatch(db), 0, patches);
         }
+        if (recapAllOptionsOn && session && session.recapAllOptions !== true) {
+          await updateDoc(sessionSnap.ref, { recapAllOptions: true });
+        }
       } catch (err) {
         logError('useQuizAssignments.publishResultsForStudents', err, {
           assignmentId,
@@ -4210,7 +4213,7 @@ export const useQuizAssignments = (
       }
       return { responsesUpdated: patches.length + paperWritten, skipped };
     },
-    [userId]
+    [userId, recapAllOptionsOn]
   );
 
   const writeResultsOverride = useCallback(

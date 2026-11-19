@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import type { QuizPublicQuestion } from '@/types';
 import type { AnswerPicture } from '@/utils/quizAnswerImages';
 import { recapChoiceMarks } from '@/utils/quizRecapChoiceMarks';
+import { parseMultiAnswer } from '@/utils/quizMultiAnswer';
+import { normalizeAnswer } from '@/hooks/useQuizSession';
 import { AnswerPictureText } from './AnswerPictureText';
 
 /** Every option of a choice question in the results recap, with the student's picks marked. */
@@ -37,6 +39,18 @@ export const RecapChoiceList: React.FC<{
       text: question.choices?.[i] ?? canonical,
     }))
     .filter((row) => !hidden.has(row.canonical));
+  // A pick that matches no shown option (reworded or since hidden) still shows.
+  const shownKeys = new Set(rows.map((row) => normalizeAnswer(row.canonical)));
+  for (const pick of question.type === 'MA'
+    ? parseMultiAnswer(studentAnswer)
+    : studentAnswer
+      ? [studentAnswer]
+      : []) {
+    if (!shownKeys.has(normalizeAnswer(pick))) {
+      shownKeys.add(normalizeAnswer(pick));
+      rows.push({ canonical: pick, text: pick });
+    }
+  }
   const marks = recapChoiceMarks(
     question.type,
     rows.map((row) => row.canonical),

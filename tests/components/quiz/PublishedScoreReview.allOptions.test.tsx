@@ -154,6 +154,26 @@ describe('PublishedScoreReview all answer options', () => {
     expect(marks(container)).toHaveLength(5);
   });
 
+  it('still shows a pick that matches no listed option', () => {
+    const override = {
+      hiddenOptionIdsByQuestion: { q1: ['Mantle'] },
+    } as unknown as StudentOverride;
+    const { container } = render(
+      <PublishedScoreReview
+        session={makeSession()}
+        myResponse={response}
+        visibility="score-and-responses"
+        override={override}
+        pin=""
+      />
+    );
+    expect(marks(container).slice(0, 3)).toEqual([
+      ['Crust', 'none'],
+      ['Outer core', 'none'],
+      ['MantleYour answer', 'wrong'],
+    ]);
+  });
+
   it('keeps the single answer line without the session stamp', () => {
     const { container } = render(
       <PublishedScoreReview
