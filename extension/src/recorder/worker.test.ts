@@ -163,6 +163,23 @@ describe('recorder worker', () => {
     );
   });
 
+  it('answers a click once its picture is taken, so the page gets the press after it', async () => {
+    const { send, chromeFake } = await setup();
+    // A click from a tab that isn't recording is let go at once.
+    expect(
+      await send(click, { tab: { id: 7, url: TAB_URL }, frameId: 0 })
+    ).toBe(true);
+    await send({ type: 'rec/start', tabId: 7 }, { url: PANEL_URL });
+    let shotTaken = false;
+    chromeFake.tabs.captureVisibleTab.mockImplementation(() => {
+      shotTaken = true;
+      return Promise.resolve('data:image/png;base64,AAAA');
+    });
+    const answered = send(click, { tab: { id: 7, url: TAB_URL }, frameId: 0 });
+    expect(await answered).toBe(true);
+    expect(shotTaken).toBe(true);
+  });
+
   it('stops recording when no side panel is open', async () => {
     const { send, chromeFake, store } = await setup();
     await send({ type: 'rec/start', tabId: 7 }, { url: PANEL_URL });
