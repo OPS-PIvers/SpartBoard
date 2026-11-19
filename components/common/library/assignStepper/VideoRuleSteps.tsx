@@ -134,13 +134,7 @@ export const VideoFeedbackStep: React.FC<VideoRuleStepProps> = ({
           'show-right-wrong'
         )}
         checked={rightWrong}
-        onChange={(showResultToStudent) =>
-          patch(
-            showResultToStudent
-              ? { showResultToStudent }
-              : { showResultToStudent, showCorrectAnswerToStudent: false }
-          )
-        }
+        onChange={(showResultToStudent) => patch({ showResultToStudent })}
       />
       <StepToggleRow
         label="Show the correct answer when wrong"
