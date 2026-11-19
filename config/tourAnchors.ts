@@ -2743,7 +2743,8 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'quiz-editor.prompt-audio-stop': {
-    label: 'Stop recording button under the question prompt in the Quiz editor',
+    label:
+      'Stop recording button in the question audio popover in the Quiz editor',
     perWidgetType: true,
     panel: true,
   },

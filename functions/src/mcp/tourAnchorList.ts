@@ -10904,7 +10904,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "quiz-editor.prompt-audio-stop",
-    "label": "Stop recording button under the question prompt in the Quiz editor",
+    "label": "Stop recording button in the question audio popover in the Quiz editor",
     "scope": "widget type",
     "panel": true,
     "keys": [
