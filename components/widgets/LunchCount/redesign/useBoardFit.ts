@@ -31,15 +31,22 @@ export function useBoardFit(
       board.style.setProperty('--lc-fit', String(lo));
     };
     fit();
-    // Refitting changes only the board's content, never its own box, so observing the board cannot loop.
-    const observer = new ResizeObserver(fit);
+    // A board resize refits now; a content resize (a swap, a new sides line) waits a frame, since refitting resizes the content.
+    let frame = 0;
+    const observer = new ResizeObserver((entries) => {
+      cancelAnimationFrame(frame);
+      if (entries.some((e) => e.target === board)) fit();
+      else frame = requestAnimationFrame(fit);
+    });
     observer.observe(board);
+    for (const child of Array.from(board.children)) observer.observe(child);
     let live = true;
     void document.fonts?.ready.then(() => {
       if (live) fit();
     });
     return () => {
       live = false;
+      cancelAnimationFrame(frame);
       observer.disconnect();
     };
   }, [boardRef, contentKey]);

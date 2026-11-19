@@ -149,7 +149,7 @@ export const LunchCountRedesign: React.FC<{ widget: WidgetData }> = ({
               className="flex flex-[1_0_auto] items-center max-w-full"
               style={{ gap: 'clamp(8px, 2cqmin, 16px)' }}
             >
-              <div className="flex flex-col min-w-0 whitespace-nowrap [@container(max-width:599px)]:hidden [@container(max-height:259px)]:hidden">
+              <div className="flex flex-col min-w-0 whitespace-nowrap [@container(max-width:599px)]:sr-only [@container(max-height:259px)]:sr-only">
                 <h3
                   className="font-semibold text-slate-800 leading-tight"
                   style={{ fontSize: ZONE_TEXT }}
