@@ -245,7 +245,7 @@ describe('QuizStudentApp — question timer runs out', () => {
     expect(mockCompleteQuiz).not.toHaveBeenCalled();
   }, 10000);
 
-  it('does not turn the quiz in while an earlier recording slot is still open', async () => {
+  it('turns the quiz in when the timer ends even with an earlier recording slot open', async () => {
     const recordingQ: QuizPublicQuestion = {
       id: 'q0',
       type: 'free-response',
@@ -275,15 +275,10 @@ describe('QuizStudentApp — question timer runs out', () => {
     await screen.findByText(/Pick one/i);
     fireEvent.click(screen.getByRole('button', { name: /Beta/ }));
 
-    expect(
-      await screen.findByText(
-        /One question still needs a recording/i,
-        {},
-        { timeout: 4000 }
-      )
-    ).toBeInTheDocument();
+    await waitFor(() => expect(mockCompleteQuiz).toHaveBeenCalledTimes(1), {
+      timeout: 4000,
+    });
     expect(mockSubmitAnswer).toHaveBeenCalledWith('q1', 'Beta', 0, undefined);
-    expect(mockCompleteQuiz).not.toHaveBeenCalled();
   }, 10000);
 
   it('shows a retry banner instead of failing silently when the timed-out save rejects', async () => {

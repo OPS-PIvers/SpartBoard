@@ -13,6 +13,7 @@ import type { QuizSession, QuizResponse, QuizPublicQuestion } from '@/types';
 const { mockAuth, hookState, spies } = vi.hoisted(() => ({
   spies: {
     completeQuiz: vi.fn().mockResolvedValue(undefined),
+    showConfirm: vi.fn().mockResolvedValue(true),
   },
   mockAuth: {
     onAuthStateChanged: vi.fn(),
@@ -30,6 +31,14 @@ const { mockAuth, hookState, spies } = vi.hoisted(() => ({
     session: null as QuizSession | null,
     myResponse: null as QuizResponse | null,
   },
+}));
+
+vi.mock('@/context/useDialog', () => ({
+  useDialog: () => ({
+    showAlert: vi.fn().mockResolvedValue(undefined),
+    showConfirm: spies.showConfirm,
+    showPrompt: vi.fn().mockResolvedValue(null),
+  }),
 }));
 
 vi.mock('@/hooks/useQuizRecordingNoticeSettings', () => ({
@@ -227,7 +236,8 @@ describe('QuizStudentApp — recording gate', () => {
     expect(screen.queryByText(/Before you record/i)).not.toBeInTheDocument();
   });
 
-  it('blocks the submit while a recording question is still open', async () => {
+  it('asks before submitting while a recording question is still open', async () => {
+    spies.showConfirm.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
     hookState.session = buildSession({ mediaResponseEnabled: true });
     hookState.myResponse = buildResponse({
       recordingNoticeAckedAt: 1700000000000,
@@ -235,16 +245,14 @@ describe('QuizStudentApp — recording gate', () => {
     render(<QuizStudentApp />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Submit quiz' }));
-
-    expect(
-      await screen.findByText(/One question still needs a recording/i)
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        /stays incomplete and the assignment cannot be submitted/i
-      )
-    ).toBeInTheDocument();
+    await waitFor(() => expect(spies.showConfirm).toHaveBeenCalledTimes(1));
+    expect(String(spies.showConfirm.mock.calls[0][0])).toMatch(
+      /1 question has no answer/
+    );
     expect(spies.completeQuiz).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Submit quiz' }));
+    await waitFor(() => expect(spies.completeQuiz).toHaveBeenCalledTimes(1));
   });
 
   it('does not block when a dead microphone already resolved the slot', async () => {
@@ -266,9 +274,7 @@ describe('QuizStudentApp — recording gate', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Submit quiz' }));
 
     await waitFor(() => expect(spies.completeQuiz).toHaveBeenCalledTimes(1));
-    expect(
-      screen.queryByText(/still needs a recording/i)
-    ).not.toBeInTheDocument();
+    expect(spies.showConfirm).not.toHaveBeenCalled();
   });
 
   it('does not block once a take is committed', async () => {
