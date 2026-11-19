@@ -580,7 +580,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
               </div>
             )}
 
-            <div className="flex-1 min-h-0 border border-slate-200 rounded-xl bg-white overflow-y-auto custom-scrollbar">
+            <div className="flex-1 min-h-0 border border-slate-200 rounded-xl bg-white overflow-y-auto scroll-inset">
               {rows.length === 0 ? (
                 <RosterEmptyState
                   title={t('sidebar.classes.emptyRosterTitle', {
@@ -965,7 +965,7 @@ const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = ({
   };
 
   return (
-    <div className="flex-1 min-h-0 border border-slate-200 rounded-xl bg-slate-50/30 overflow-y-auto custom-scrollbar">
+    <div className="flex-1 min-h-0 border border-slate-200 rounded-xl bg-slate-50/30 overflow-y-auto scroll-inset">
       {groups.length === 0 ? (
         <RosterEmptyState
           title={t('sidebar.classes.emptyGroupsTitle', {
@@ -1110,7 +1110,7 @@ const RosterAccommodationsPanel: React.FC<RosterAccommodationsPanelProps> = ({
     `${s.firstName} ${s.lastName}`.trim() || s.id;
 
   return (
-    <div className="flex-1 min-h-0 border border-slate-200 rounded-xl bg-slate-50/30 overflow-y-auto custom-scrollbar">
+    <div className="flex-1 min-h-0 border border-slate-200 rounded-xl bg-slate-50/30 overflow-y-auto scroll-inset">
       {students.length === 0 ? (
         <RosterEmptyState
           title={t('sidebar.classes.emptyAccommodationsTitle', {
