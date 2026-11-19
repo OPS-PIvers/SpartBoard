@@ -11796,6 +11796,8 @@ export type GlobalFeature =
   | 'quiz-score-on-submit'
   /** Published quiz results list every answer option, with the student's pick marked. */
   | 'quiz-recap-all-options'
+  /** Quiz assign stays open with a spinner until the save finishes, and shows a failed save inline. */
+  | 'quiz-assign-waits-for-save'
   | 'modification-groups'
   /** Rubric grading redesign: one-tap level buttons, expandable criteria, level order switch, full-rubric table. */
   | 'rubric-grading-v2'

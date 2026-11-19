@@ -4100,18 +4100,27 @@ const TeacherQuizWidget: React.FC<{
           dueAtByRosterId?: Record<string, number>,
           stepper?: QuizStepperAssign
         ) => {
+          // Flag on, a failure rejects so the stepper stays open and shows it inline.
+          const waitsForSave = canAccessFeature('quiz-assign-waits-for-save');
+          const fail = (message: string): void => {
+            if (waitsForSave) throw new Error(message);
+            addToast(message, 'error');
+          };
           // F1 fix — reuse the content QuizManager already fetched for the
           // B2 override editor (when the teacher expanded individual
           // targeting) instead of hitting Drive a second time. Class-wide
           // assigns never populate `preloadedQuizData`, so they still fetch
           // exactly once, here.
           const data = preloadedQuizData ?? (await loadQuiz(meta));
-          if (!data) return;
+          if (!data) {
+            if (waitsForSave) throw new Error('Could not load the quiz.');
+            return;
+          }
           // Autosave persists unfinished work, so assign can no longer assume
           // a saved quiz is a finished one.
           const blocker = quizAssignBlocker(data);
           if (blocker) {
-            addToast(`This quiz can't be assigned yet: ${blocker}.`, 'error');
+            fail(`This quiz can't be assigned yet: ${blocker}.`);
             return;
           }
           // Behavior comes from the assign modal — the quiz's saved settings
@@ -4130,9 +4139,8 @@ const TeacherQuizWidget: React.FC<{
           let sessionBankSlots: QuizSessionBankSlot[] | undefined;
           if (quizHasBankSlots(data)) {
             if (mode !== 'student') {
-              addToast(
-                'Random bank draws need Assessment Mode. Switch to Assessment Mode and try again.',
-                'error'
+              fail(
+                'Random bank draws need Assessment Mode. Switch to Assessment Mode and try again.'
               );
               return;
             }
@@ -4142,6 +4150,8 @@ const TeacherQuizWidget: React.FC<{
               resolved = resolveQuizAssignment(data, contents);
             } catch (err) {
               if (err instanceof BankSlotResolutionError) {
+                if (waitsForSave)
+                  throw new Error(err.problems.map((p) => p.message).join(' '));
                 for (const problem of err.problems) {
                   addToast(problem.message, 'error');
                 }
@@ -4149,11 +4159,10 @@ const TeacherQuizWidget: React.FC<{
                 logError('QuizWidget.assignment.resolveBanks', err, {
                   quizId: meta.id,
                 });
-                addToast(
+                fail(
                   err instanceof Error
                     ? err.message
-                    : 'Could not load the question banks for this quiz.',
-                  'error'
+                    : 'Could not load the question banks for this quiz.'
                 );
               }
               return;
@@ -4170,9 +4179,8 @@ const TeacherQuizWidget: React.FC<{
               logError('QuizWidget.assignment.saveDriveSnapshot', err, {
                 quizId: meta.id,
               });
-              addToast(
-                'Could not save the assignment copy to Google Drive. Check your Drive connection and try again.',
-                'error'
+              fail(
+                'Could not save the assignment copy to Google Drive. Check your Drive connection and try again.'
               );
               return;
             }
@@ -4404,9 +4412,8 @@ const TeacherQuizWidget: React.FC<{
                     logError('QuizWidget.assignment.writtenBoxSetup', err, {
                       quizId: meta.id,
                     });
-                    addToast(
-                      'Could not save the written answer sheets. Try again.',
-                      'error'
+                    fail(
+                      'Could not save the written answer sheets. Try again.'
                     );
                     return;
                   }
@@ -4422,16 +4429,14 @@ const TeacherQuizWidget: React.FC<{
               now: Date.now(),
             });
             if (!plan.ok && plan.reason === 'too-many-pages') {
-              addToast(
-                `This sheet needs ${plan.pageCount} pages. The most one sheet can print is ${MAX_PAGE}.`,
-                'error'
+              fail(
+                `This sheet needs ${plan.pageCount} pages. The most one sheet can print is ${MAX_PAGE}.`
               );
               return;
             }
             if (!plan.ok) {
-              addToast(
-                'None of the assigned questions are written. Choose On the device for written answers.',
-                'error'
+              fail(
+                'None of the assigned questions are written. Choose On the device for written answers.'
               );
               return;
             }
@@ -4451,7 +4456,7 @@ const TeacherQuizWidget: React.FC<{
               );
               if (images.failed.length > 0) {
                 images.release();
-                addToast(stimulusLoadErrorMessage(images.failed), 'error');
+                fail(stimulusLoadErrorMessage(images.failed));
                 return;
               }
               releaseImages = images.release;
@@ -4467,10 +4472,7 @@ const TeacherQuizWidget: React.FC<{
               logError('QuizWidget.assignment.writtenOnPaper', err, {
                 quizId: meta.id,
               });
-              addToast(
-                'Could not save the written answer sheets. Try again.',
-                'error'
-              );
+              fail('Could not save the written answer sheets. Try again.');
               return;
             }
             paperWritten = {
@@ -4759,10 +4761,11 @@ const TeacherQuizWidget: React.FC<{
                 () => undefined
               );
             }
-            addToast(
-              err instanceof Error ? err.message : 'Failed to start session',
-              'error'
-            );
+            const message =
+              err instanceof Error ? err.message : 'Failed to start session';
+            // Once saved, the assignment exists, so the stepper closes as before.
+            if (assignmentSaved) addToast(message, 'error');
+            else fail(message);
           }
         }}
         onResults={async (meta) => {
