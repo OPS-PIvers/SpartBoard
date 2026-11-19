@@ -41,6 +41,8 @@ Moved from the retired GEMINI.md. Code comments in `config/geminiModels.ts` and 
 - **Monitoring.** Each call increments `ai_call_log/{date}__{integration}__{model}` (calls, tokens,
   fallbacks, errors), which the AI tab shows for the last 30 days. Quotas still live in `ai_usage`.
 
+- **Transcription models.** `gemini-3.5-transcribe` (`AUDIO_ONLY_MODEL_IDS`, `AUDIO_ONLY_GEMINI_MODELS`) is offered on the AI tab for audio-only integrations and never as a tier default. It accepts no system instruction, thinking or schema, so `callTranscriber` in `aiRouter.ts` sends only the audio parts and `audioTranscriptionConfig` (language codes and mode from `AiRequest.transcription`). See `docs/plans/shipped/SPEECH_TO_TEXT.md` D8a.
+
 ## Pronunciation models (the one exception to `generateAi`)
 
 Flashcards Speak (`docs/multilingual-pronunciation-engine.md`, flag `flashcards-speak`) runs speech models that

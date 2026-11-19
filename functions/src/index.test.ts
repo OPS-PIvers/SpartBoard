@@ -3815,6 +3815,8 @@ describe('index barrel — deployed export set', () => {
     'transcribeVideoWithGemini',
     'translateQuizV1',
     'translateResponseV1',
+    'transcribeSpeechV1',
+    'tidyDictationV1',
     'generateGuidedLearning',
     'getAiProviderStatusV1',
     'draftGuidedLearningStepTextV1',

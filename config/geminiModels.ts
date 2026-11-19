@@ -38,6 +38,11 @@ export const KNOWN_GEMINI_MODELS = [
   // gemini-2.0-*/1.5-* dropped: docs/AI_MODELS.md marks them deprecated and normalizeModelName rejects them server-side. 2.5-* kept — Google's Vertex locations doc lists both as global-endpoint models.
 ] as const;
 
+// Transcription only: offered for audio features, never as a tier default. Mirrors AUDIO_ONLY_MODEL_IDS in functions/src/aiModels.ts.
+export const AUDIO_ONLY_GEMINI_MODELS = [
+  { value: 'gemini-3.5-transcribe', label: 'Gemini 3.5 Transcribe' },
+] as const;
+
 // Taken off the picker; a saved pick runs the replacement. Mirrors RETIRED_GEMINI_REPLACEMENTS in functions/src/shared.ts.
 export const RETIRED_GEMINI_MODELS = [
   {
