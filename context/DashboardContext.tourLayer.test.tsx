@@ -500,6 +500,39 @@ describe('DashboardContext addWidgets template placements', () => {
     expect(zoomed?.h).toBeCloseTo(flat.h / 2);
   });
 
+  it('keeps a template zone its size when zoomed out and inside the view', async () => {
+    const stateRef = setup();
+    await settle(stateRef, [makeDashboard([])]);
+    const zone = {
+      xProp: 0.3,
+      yProp: 0.1,
+      wProp: 0.3,
+      hProp: 0.5,
+      aspectRatio: 1,
+    };
+    act(() =>
+      stateRef.current?.addWidgets([{ type: 'clock', placement: zone }])
+    );
+    const [flat] = stateRef.current?.activeDashboard?.widgets ?? [];
+    act(() => stateRef.current?.setZoom(0.5));
+    act(() =>
+      stateRef.current?.addWidgets([{ type: 'clock', placement: zone }])
+    );
+    const out = stateRef.current?.activeDashboard?.widgets.at(-1);
+    expect(out?.w).toBeCloseTo(flat.w);
+    expect(out?.h).toBeCloseTo(flat.h);
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const minX = vw / 2 - vw / 2 / 0.5;
+    const maxX = vw / 2 + vw / 2 / 0.5;
+    const minY = vh / 2 - vh / 2 / 0.5;
+    const maxY = vh / 2 + vh / 2 / 0.5;
+    expect(out!.x).toBeGreaterThanOrEqual(minX);
+    expect(out!.x + out!.w).toBeLessThanOrEqual(maxX);
+    expect(out!.y).toBeGreaterThanOrEqual(minY);
+    expect(out!.y + out!.h).toBeLessThanOrEqual(maxY);
+  });
+
   it('never builds a giant widget from an extreme aspect ratio', async () => {
     const stateRef = setup();
     await settle(stateRef, [makeDashboard([])]);

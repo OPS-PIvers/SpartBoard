@@ -7852,8 +7852,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               const seen = {
                 x: tl.x,
                 y: tl.y,
-                w: flat.w / camera.zoom,
-                h: flat.h / camera.zoom,
+                w: flat.w / Math.max(1, camera.zoom),
+                h: flat.h / Math.max(1, camera.zoom),
               };
               const zoneWidget: WidgetData = atRest
                 ? flat
