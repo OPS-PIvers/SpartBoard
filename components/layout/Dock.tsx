@@ -1606,7 +1606,7 @@ export const Dock: React.FC = () => {
                         }
                       }}
                       aria-label={t('dock.viewLiveSession')}
-                      className="group flex flex-col items-center gap-1 min-w-[50px] transition-transform active:scale-90 touch-pan-x relative focus-visible:outline-hidden"
+                      className="group flex flex-col items-center gap-1 min-w-[50px] transition-transform duration-160 ease-out active:scale-95 touch-pan-x relative focus-visible:outline-hidden"
                     >
                       <DockIcon
                         color="bg-red-500"
@@ -1709,7 +1709,7 @@ export const Dock: React.FC = () => {
                           updateWidget(cw.id, { minimized: false })
                         }
                         {...tourAttr('dock.restore-custom')}
-                        className="group flex flex-col items-center gap-1 min-w-[50px] transition-transform active:scale-90 touch-pan-x shrink-0"
+                        className="group flex flex-col items-center gap-1 min-w-[50px] transition-transform duration-160 ease-out active:scale-95 touch-pan-x shrink-0"
                         title={`Restore: ${customWidgetTitleById.get((cw.config as { customWidgetId?: string }).customWidgetId ?? '') ?? 'Custom Widget'}`}
                       >
                         <DockIcon
@@ -1782,7 +1782,7 @@ export const Dock: React.FC = () => {
               ref={moreButtonRef}
               onClick={() => setShowMoreMenu(!showMoreMenu)}
               {...tourAttr('dock.more-widgets')}
-              className="group flex flex-col items-center gap-1 min-w-[50px] transition-transform active:scale-90 touch-pan-x shrink-0"
+              className="group flex flex-col items-center gap-1 min-w-[50px] transition-transform duration-160 ease-out active:scale-95 touch-pan-x shrink-0"
               title={t('sidebar.header.moreWidgets')}
             >
               <DockIcon
@@ -1842,7 +1842,7 @@ export const Dock: React.FC = () => {
             <button
               onClick={() => setIsExpanded(true)}
               {...tourAttr('dock.open-tools')}
-              className={`w-14 h-14 flex items-center justify-center bg-brand-blue-primary text-white active:scale-90 transition shadow-xl shadow-brand-blue-primary/40 ${
+              className={`w-14 h-14 flex items-center justify-center bg-brand-blue-primary text-white active:scale-95 transition duration-160 ease-out shadow-xl shadow-brand-blue-primary/40 ${
                 globalStyle.dockBorderRadius === 'none'
                   ? 'rounded-none'
                   : globalStyle.dockBorderRadius === 'full'

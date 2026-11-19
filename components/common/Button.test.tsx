@@ -45,6 +45,12 @@ describe('Button', () => {
     expect(button).toHaveClass('focus-visible:ring-offset-white');
   });
 
+  it('presses to 97% when enabled', () => {
+    render(<Button>Press me</Button>);
+    const button = screen.getByRole('button', { name: /press me/i });
+    expect(button).toHaveClass('enabled:active:scale-[0.97]');
+  });
+
   it('shows loading spinner when isLoading is true', () => {
     render(<Button isLoading>Click me</Button>);
     expect(screen.queryByText('Click me')).not.toBeInTheDocument();
