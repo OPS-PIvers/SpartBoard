@@ -352,7 +352,7 @@ export const ComposerSheet: React.FC<ComposerSheetProps> = ({
               aria-valuenow={progress}
             >
               <div
-                className="h-full bg-brand-blue-primary transition-all"
+                className="h-full bg-brand-blue-primary transition-[width]"
                 style={{ width: `${progress}%` }}
               />
             </div>

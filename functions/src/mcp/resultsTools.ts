@@ -175,6 +175,9 @@ async function quizSessionSummary(
         localizedFibAnswers: recompute.parseLocalizedFibAnswers(
           assignment.localizedFibAnswers
         ),
+        lenientFibLocales: recompute.parseLenientFibLocales(
+          assignment.lenientFibLocales
+        ),
         overridesByStudentUid: recompute.parseServedLanguages(
           assignment.overridesByStudentUid
         ),

@@ -293,6 +293,7 @@ export const gradeIndexQuizAssignment = onDocumentWritten(
         'dueAtByRosterId',
         'overridesByStudentUid',
         'localizedFibAnswers',
+        'lenientFibLocales',
         'servedLanguageByStudentUid',
         'paperCopyBatchIds',
       ],

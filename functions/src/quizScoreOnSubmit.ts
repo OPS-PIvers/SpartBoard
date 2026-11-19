@@ -4,10 +4,12 @@ import * as admin from './firebaseAdmin';
 import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import {
+  fibExtrasFor,
   gradeGroupAnswer,
   parseSyncedQuestion,
   type GroupQuestion,
 } from './plcAssessmentMath';
+import { fibExtrasParts, type FibExtras } from './quizFibMatch';
 import {
   notChosenIds,
   parseChooseSections,
@@ -43,7 +45,7 @@ export interface ScoreContext {
   /** Pointer override subset, used when the response has no snapshot. */
   overrideQuestionIds?: string[];
   /** Accepted FIB answers by question id for the locale this student was served. */
-  fibAnswersByQuestion: Record<string, string[]>;
+  fibAnswersByQuestion: Record<string, FibExtras>;
 }
 
 const isId = (value: unknown): value is string =>
@@ -185,11 +187,11 @@ export function scoreAttempt(
   };
 }
 
-/** Accepted translated FIB answers for the locale the teacher served this student. */
+/** Accepted translated FIB answers for the locale the teacher served this student, plus teacher-accepted ones. */
 export function servedFibAnswers(
   assignment: Record<string, unknown>,
   studentUid: string
-): Record<string, string[]> {
+): Record<string, FibExtras> {
   const override = asRecord(
     asRecord(assignment.overridesByStudentUid)[studentUid]
   );
@@ -199,16 +201,14 @@ export function servedFibAnswers(
       ? override.language
       : typeof served === 'string'
         ? served
-        : null;
-  if (!locale) return {};
-  const out: Record<string, string[]> = {};
+        : undefined;
+  const lenient = asStringList(assignment.lenientFibLocales);
+  const out: Record<string, FibExtras> = {};
   for (const [qid, byLocale] of Object.entries(
     asRecord(assignment.localizedFibAnswers)
   )) {
-    const list = asStringList(asRecord(byLocale)[locale]).filter(
-      (a) => a.trim() !== ''
-    );
-    if (list.length > 0) out[qid] = list;
+    const extras = fibExtrasFor(asRecord(byLocale), locale, lenient);
+    if (fibExtrasParts(extras).answers.length > 0) out[qid] = extras;
   }
   return out;
 }

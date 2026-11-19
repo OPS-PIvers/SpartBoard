@@ -607,7 +607,7 @@ export const PollResponsesPanel: React.FC<{
               </div>
               <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-indigo-500 transition-all duration-500 rounded-full"
+                  className="h-full bg-indigo-500 transition-[width] duration-500 rounded-full"
                   style={{ width: `${pct}%` }}
                 />
               </div>

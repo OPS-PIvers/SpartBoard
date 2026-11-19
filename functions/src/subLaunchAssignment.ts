@@ -247,6 +247,7 @@ const ANSWER_FIELDS = [
   'rubric',
   'revealedAnswers',
   'localizedFibAnswers',
+  'lenientFibLocales',
 ];
 
 export interface LaunchSubAssignmentInput {

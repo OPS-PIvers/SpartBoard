@@ -29,7 +29,7 @@ export const SidebarBoardsActive: React.FC<SidebarBoardsActiveProps> = ({
 
   return (
     <div
-      className={`absolute inset-0 p-4 flex flex-col gap-4 overflow-y-auto custom-scrollbar transition-all duration-300 ease-in-out ${
+      className={`absolute inset-0 p-4 flex flex-col gap-4 overflow-y-auto custom-scrollbar transition-[translate,opacity,visibility] duration-200 ease-out-strong motion-reduce:transition-[opacity,visibility] motion-reduce:translate-x-0 ${
         isVisible
           ? 'translate-x-0 opacity-100 visible'
           : 'translate-x-full opacity-0 invisible'
