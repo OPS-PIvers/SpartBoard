@@ -4,6 +4,7 @@ import * as admin from '../firebaseAdmin';
 import {
   ToolError,
   logActivity,
+  refundBoardOp,
   reserveBoardOp,
   snapshotRevision,
   type ToolContext,
@@ -1014,6 +1015,7 @@ async function commitBoardChange(
       await batch.commit();
     } catch (err) {
       if (attempt < COMMIT_ATTEMPTS && isPreconditionFailure(err)) continue;
+      await refundBoardOp(ctx).catch(() => undefined);
       if (isPreconditionFailure(err))
         throw new ToolError(
           'Nothing was changed: the board kept changing in SpartBoard. Try again in a moment.'
@@ -1256,7 +1258,12 @@ export async function createBoards(
       title: str(board.name),
     });
   }
-  await batch.commit();
+  try {
+    await batch.commit();
+  } catch (err) {
+    await refundBoardOp(ctx).catch(() => undefined);
+    throw err;
+  }
   return { boards, notes: [...session.notes] };
 }
 

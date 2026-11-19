@@ -593,6 +593,41 @@ describe('edit_board', () => {
     expect(docs.get(BOARD)?.name).toBe('Again');
   });
 
+  it('gives the daily board allowance back when the save never lands', async () => {
+    const { db, docs, failNext } = fakeDb(seed());
+    failNext.commits = 3;
+    const call = await connect(db);
+    const out = await call('edit_board', {
+      board_id: 'b1',
+      changes: [{ op: 'rename', name: 'Never' }],
+    });
+    expect(out.error).toMatch(/Nothing was changed/);
+    const usage = docs.get(
+      `users/u1/claude_usage/${new Date().toISOString().slice(0, 10)}`
+    );
+    expect(usage?.boardOps ?? 0).toBe(0);
+  });
+
+  it('gives the allowance back when create_board cannot save', async () => {
+    const { db, docs, failNext } = fakeDb(seed());
+    failNext.commits = 1;
+    const call = await connect(db);
+    const out = await call('create_board', {
+      boards: [
+        {
+          name: 'Fresh',
+          template_id: 'launch',
+          widgets: [{ type: 'text', zone_id: 'main' }],
+        },
+      ],
+    });
+    expect(out.error).toBeDefined();
+    const usage = docs.get(
+      `users/u1/claude_usage/${new Date().toISOString().slice(0, 10)}`
+    );
+    expect(usage?.boardOps ?? 0).toBe(0);
+  });
+
   it("refuses boards another teacher shares into this teacher's list", async () => {
     const s = seed();
     s[BOARD] = { ...s[BOARD], linkedShareId: 'sh', linkedShareRole: 'editor' };

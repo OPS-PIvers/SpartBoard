@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { DashboardProvider } from './DashboardContext';
 import { useDashboard } from './useDashboard';
 import { Dashboard, WidgetData } from '@/types';
+import { registerPanGetter } from '@/components/settings/panSetterRegistry';
 
 // ---------------------------------------------------------------------------
 // Mocks (mirrors DashboardContext.widgetHistory.test.tsx)
@@ -445,6 +446,34 @@ describe('DashboardContext addWidgets template placements', () => {
     expect(fallback.type).toBe('clock');
     expect(fallback.xProp).not.toBe(0.9);
     expect(fallback.wProp).not.toBe(0.5);
+  });
+
+  it('lays a template zone over the panned view', async () => {
+    const stateRef = setup();
+    await settle(stateRef, [makeDashboard([])]);
+    const zone = {
+      xProp: 0.3,
+      yProp: 0.1,
+      wProp: 0.3,
+      hProp: 0.5,
+      aspectRatio: 1,
+    };
+    act(() =>
+      stateRef.current?.addWidgets([{ type: 'clock', placement: zone }])
+    );
+    const [flat] = stateRef.current?.activeDashboard?.widgets ?? [];
+    const unregister = registerPanGetter(() => ({ x: 200, y: 100 }));
+    try {
+      act(() =>
+        stateRef.current?.addWidgets([{ type: 'clock', placement: zone }])
+      );
+    } finally {
+      unregister();
+    }
+    const panned = stateRef.current?.activeDashboard?.widgets.at(-1);
+    expect(panned?.x).toBeCloseTo(flat.x - 200);
+    expect(panned?.y).toBeCloseTo(flat.y - 100);
+    expect(panned?.w).toBeCloseTo(flat.w);
   });
 
   it('never builds a giant widget from an extreme aspect ratio', async () => {

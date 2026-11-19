@@ -117,6 +117,7 @@ import {
   type BoardCamera,
 } from '@/utils/widgetPlacement';
 import { getPan } from '@/components/settings/panSetterRegistry';
+import { viewportToWrapper } from '@/utils/zoomPanMath';
 import {
   migrateDashboardWidgets,
   hydrateWidgetPixels,
@@ -7834,10 +7835,29 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               const { aspectRatio, ...prop } = validatedPlacement;
               const { vpW, vpH } = getCurrentViewport();
               const { safeW, safeH } = getSafeViewport(vpW, vpH);
-              const zoneWidget = buildFromProp(
+              const flat = buildFromProp(
                 prop,
                 aspectRatio ?? (prop.wProp * safeW) / (prop.hProp * safeH)
               );
+              // A panned or zoomed view gets the zone laid over what the teacher sees.
+              const atRest =
+                camera.zoom === 1 && camera.pan.x === 0 && camera.pan.y === 0;
+              const tl = viewportToWrapper(
+                { x: flat.x, y: flat.y },
+                camera.zoom,
+                camera.pan,
+                vpW,
+                vpH
+              );
+              const seen = {
+                x: tl.x,
+                y: tl.y,
+                w: flat.w / camera.zoom,
+                h: flat.h / camera.zoom,
+              };
+              const zoneWidget: WidgetData = atRest
+                ? flat
+                : { ...flat, ...seen, ...pixelToProp(seen, vpW, vpH) };
               added.push(zoneWidget);
               return zoneWidget;
             }

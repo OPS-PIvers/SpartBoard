@@ -64,6 +64,19 @@ export const reserveWrite = (ctx: ToolContext, now = Date.now()) =>
     now
   );
 
+/** Gives back a reserved board call when its write did not land. */
+export async function refundBoardOp(
+  ctx: ToolContext,
+  now = Date.now()
+): Promise<void> {
+  const ref = ctx.db.doc(`users/${ctx.uid}/claude_usage/${utcDay(now)}`);
+  await ctx.db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const count = snap.exists ? Number(snap.get('boardOps') ?? 0) : 0;
+    if (count > 0) tx.set(ref, { boardOps: count - 1 }, { merge: true });
+  });
+}
+
 /** Board calls have their own daily allowance; one create_board or edit_board call is one (AI_BOARDS D22). */
 export const reserveBoardOp = (ctx: ToolContext, now = Date.now()) =>
   reserve(

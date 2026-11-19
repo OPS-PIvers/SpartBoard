@@ -5108,5 +5108,11 @@
     "title": "Hilfen",
     "close": "Schließen",
     "resize": "Größe der Hilfen ändern"
+  },
+  "claudeBoards": {
+    "editingToast": "Claude bearbeitet {{name}}",
+    "show": "Anzeigen",
+    "madeBadge": "Mit Claude erstellt",
+    "editedBadge": "Von Claude bearbeitet"
   }
 }
