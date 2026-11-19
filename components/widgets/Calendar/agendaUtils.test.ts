@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { CalendarEvent } from '@/types';
-import { formatDayHeader, groupAgendaDays, isPastEvent } from './agendaUtils';
+import {
+  formatDayHeader,
+  formatTime,
+  groupAgendaDays,
+  isPastEvent,
+  toSeconds,
+} from './agendaUtils';
 
 const today = '2026-10-05';
 const at = (h: number, m = 0) => h * 3600 + m * 60;
@@ -79,5 +85,22 @@ describe('groupAgendaDays', () => {
       'hide'
     );
     expect(days[0]).toEqual([today, []]);
+  });
+});
+
+describe('toSeconds', () => {
+  it('reads a colon-less am/pm time like "3pm"', () => {
+    expect(toSeconds('3pm')).toBe(at(15));
+    expect(toSeconds('9 AM')).toBe(at(9));
+    expect(toSeconds('12am')).toBe(0);
+    expect(formatTime('3pm')).toBe('3:00 PM');
+  });
+
+  it('keeps existing formats and rejects bare or invalid values', () => {
+    expect(toSeconds('14:30')).toBe(at(14, 30));
+    expect(toSeconds('2:30 PM')).toBe(at(14, 30));
+    expect(toSeconds('3')).toBe(-1);
+    expect(toSeconds('25:00')).toBe(-1);
+    expect(toSeconds('')).toBe(-1);
   });
 });
