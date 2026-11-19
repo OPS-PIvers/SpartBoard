@@ -112,6 +112,7 @@ describe('toSeconds', () => {
     expect(toSeconds('12:00 Exam')).toBe(at(12));
     expect(toSeconds('8:00 equipment check')).toBe(at(8));
     expect(toSeconds('8 camp')).toBe(-1);
+    expect(toSeconds('5 games')).toBe(-1);
     expect(toSeconds('9:15 am assembly')).toBe(at(9, 15));
   });
 });
