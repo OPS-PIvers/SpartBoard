@@ -1,6 +1,7 @@
 import * as admin from './firebaseAdmin';
 import type Anthropic from '@anthropic-ai/sdk';
 import {
+  AudioTranscriptionConfigMode,
   FinishReason,
   GoogleGenAI,
   type GenerateContentConfig,
@@ -19,7 +20,12 @@ import {
   AI_INTEGRATIONS_WITHOUT_FALLBACK,
   type AiIntegrationId,
 } from './aiIntegrations';
-import { providerOf, type AiProvider, type AiTier } from './aiModels';
+import {
+  AUDIO_ONLY_MODEL_IDS,
+  providerOf,
+  type AiProvider,
+  type AiTier,
+} from './aiModels';
 import { CLAUDE_OUTPUT_TOKENS_DEFAULTS } from './aiLimits';
 import { normalizeModelName } from './shared';
 
@@ -46,6 +52,8 @@ export interface AiRequest {
   legacyModel?: unknown;
   /** How long Claude may take before the call falls back to Gemini; leave room in the function's own timeout. */
   claudeTimeoutMs?: number;
+  /** Used only when the model is a transcription model, which takes no instructions. */
+  transcription?: { languageCodes?: string[]; mode?: 'verbatim' | 'smart' };
 }
 
 export interface AiResult {
@@ -142,10 +150,55 @@ export function toClaudeJsonSchema(schema: Schema): Record<string, unknown> {
   return out;
 }
 
+/** A transcription model: audio parts only, and none of the instruction, thinking or schema settings. */
+async function callTranscriber(
+  model: string,
+  req: AiRequest
+): Promise<Omit<AiResult, 'fellBack' | 'usedFallbackConfig'>> {
+  const ai = new GoogleGenAI(vertexClientOptions());
+  const result = await ai.models.generateContent({
+    model,
+    contents: [
+      { role: 'user', parts: req.parts.filter((p) => p.text === undefined) },
+    ],
+    config: {
+      audioTranscriptionConfig: {
+        languageCodes: req.transcription?.languageCodes,
+        mode:
+          req.transcription?.mode === 'smart'
+            ? AudioTranscriptionConfigMode.SMART
+            : AudioTranscriptionConfigMode.VERBATIM,
+      },
+    },
+  });
+  const candidate = result.candidates?.[0];
+  const spoken = (candidate?.content?.parts ?? [])
+    .map((p) => p.audioTranscription?.text ?? p.text ?? '')
+    .join(' ')
+    .trim();
+  const finishReason = candidate?.finishReason;
+  const usage = result.usageMetadata;
+  return {
+    text: spoken,
+    model,
+    provider: 'gemini',
+    stopped:
+      !finishReason || finishReason === FinishReason.STOP
+        ? 'complete'
+        : finishReason === FinishReason.MAX_TOKENS
+          ? 'max_tokens'
+          : 'other',
+    finishReason,
+    inputTokens: usage?.promptTokenCount ?? 0,
+    outputTokens: usage?.candidatesTokenCount ?? 0,
+  };
+}
+
 async function callGemini(
   model: string,
   req: AiRequest
 ): Promise<Omit<AiResult, 'fellBack' | 'usedFallbackConfig'>> {
+  if (AUDIO_ONLY_MODEL_IDS.includes(model)) return callTranscriber(model, req);
   const config: GenerateContentConfig = {};
   if (req.systemInstruction) config.systemInstruction = req.systemInstruction;
   if (req.responseMimeType) config.responseMimeType = req.responseMimeType;

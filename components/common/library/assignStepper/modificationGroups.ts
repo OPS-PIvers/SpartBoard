@@ -1,5 +1,12 @@
 // Modification groups: students who share one set of rules, expanded into per-student overrides at assign time.
-import type { ClassRoster, QuizSupport, StudentOverride } from '@/types';
+import type {
+  ClassRoster,
+  QuizQuestion,
+  QuizSupport,
+  StudentOverride,
+} from '@/types';
+import { toOverrideEditorQuestions } from '../toOverrideEditorQuestions';
+import { translateHiddenOptionIdsToText } from '@/utils/quizHiddenOptions';
 import type { ClassStudentRow } from '@/utils/studentTargetRef';
 import type { OverrideEditorQuestion } from '../OverrideEditorRow';
 import type { AssignClassesValue } from './assignClassesValue';
@@ -89,6 +96,46 @@ export function hiddenOptionIdsForRule(
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
+/** A class's standing answer choices (stored as Flashcards' 3 or 2) as a quiz rule. */
+export const standingAnswerChoicesRule = (
+  standing: StudentOverride | undefined
+): AnswerChoicesRule =>
+  standing?.answerChoices === 3
+    ? 'drop-one'
+    : standing?.answerChoices === 2
+      ? 'two'
+      : 'all';
+
+/** Overrides whose answer choices (3 or 2) become this quiz's hidden option texts. */
+export function withQuizAnswerChoices(
+  overridesByKey: Record<string, StudentOverride>,
+  questions: QuizQuestion[]
+): Record<string, StudentOverride> {
+  const needed = Object.values(overridesByKey).some(
+    (o) => !!o.answerChoices && !o.hiddenOptionIdsByQuestion
+  );
+  if (!needed || !Array.isArray(questions)) return overridesByKey;
+  const editorQuestions = toOverrideEditorQuestions({ questions });
+  const pending: Record<string, StudentOverride> = {};
+  for (const [key, o] of Object.entries(overridesByKey)) {
+    const rule = standingAnswerChoicesRule(o);
+    if (rule === 'all' || o.hiddenOptionIdsByQuestion) continue;
+    const hidden = hiddenOptionIdsForRule(editorQuestions, rule);
+    if (hidden) pending[key] = { ...o, hiddenOptionIdsByQuestion: hidden };
+  }
+  if (Object.keys(pending).length === 0) return overridesByKey;
+  return {
+    ...overridesByKey,
+    ...translateHiddenOptionIdsToText(questions, pending).overridesByKey,
+  };
+}
+
+const CHOICE_RANK: Record<AnswerChoicesRule, number> = {
+  all: 0,
+  'drop-one': 1,
+  two: 2,
+};
+
 const TIME_RANK = { 1.5: 1, 2: 2, unlimited: 3 } as const;
 
 // A group never shortens a standing accommodation's extra time.
@@ -107,12 +154,25 @@ export function overrideForGroup(
   const next: StudentOverride = { ...(standing ?? {}) };
   if (group.time !== 'standard')
     next.timeMultiplier = moreTime(standing?.timeMultiplier, group.time);
-  const hidden = hiddenOptionIdsForRule(questions, group.answerChoices);
+  // A group never loosens a standing answer-choice rule.
+  const standingRule = standingAnswerChoicesRule(standing);
+  const rule =
+    CHOICE_RANK[group.answerChoices] >= CHOICE_RANK[standingRule]
+      ? group.answerChoices
+      : standingRule;
+  const hidden = hiddenOptionIdsForRule(questions, rule);
   if (hidden) next.hiddenOptionIdsByQuestion = hidden;
   if (group.readAloud) next.readAloud = true;
   if (group.speechToText) next.speechToText = true;
   if (group.language) next.language = group.language;
-  if (group.supports?.length) next.supports = group.supports;
+  if (group.supports?.length) {
+    // Group supports join the student's own, never replace them.
+    const merged = [...(standing?.supports ?? [])];
+    for (const s of group.supports)
+      if (!merged.some((m) => JSON.stringify(m) === JSON.stringify(s)))
+        merged.push(s);
+    next.supports = merged.slice(0, MAX_SUPPORTS);
+  }
   if (group.modifiedQuestions) next.modifiedQuestions = true;
   if (group.printed) next.onPaper = true;
   return next;

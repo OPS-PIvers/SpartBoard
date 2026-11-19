@@ -1,8 +1,12 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { useState } from 'react';
 import type { StudentOverride } from '@/types';
 import { RosterAccommodationsList } from './RosterAccommodationsList';
+
+vi.mock('@/components/common/library/assignStepper/SupportsEditor', () => ({
+  SupportsEditor: () => null,
+}));
 
 const person = (id: string, first: string, last: string) => ({
   id,
@@ -54,16 +58,28 @@ describe('RosterAccommodationsList', () => {
       <Host initial={{ a: { timeMultiplier: 2 } }} speechToTextAvailable />
     );
     fireEvent.click(screen.getByText('Abdi, Hamza'));
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Speech to text' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Speech to text' }));
     expect(latest).toEqual({ a: { timeMultiplier: 2, speechToText: true } });
   });
 
   it('hides Speech to text when the flag is off', () => {
     render(<Host initial={{ a: { timeMultiplier: 2 } }} />);
     fireEvent.click(screen.getByText('Abdi, Hamza'));
-    expect(
-      screen.queryByRole('checkbox', { name: 'Speech to text' })
-    ).toBeNull();
+    expect(screen.queryByRole('switch', { name: 'Speech to text' })).toBeNull();
+  });
+
+  it('sets answer choices and modified questions on a student', () => {
+    render(<Host initial={{ a: { timeMultiplier: 2 } }} />);
+    fireEvent.click(screen.getByText('Abdi, Hamza'));
+    fireEvent.click(screen.getByRole('radio', { name: 'Remove 1 wrong' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Modified questions' }));
+    expect(latest).toEqual({
+      a: { timeMultiplier: 2, answerChoices: 3, modifiedQuestions: true },
+    });
+    fireEvent.click(screen.getByRole('radio', { name: 'All' }));
+    expect(latest).toEqual({
+      a: { timeMultiplier: 2, modifiedQuestions: true },
+    });
   });
 
   it('shows the empty line when no one has accommodations', () => {

@@ -11,6 +11,11 @@ import {
   markPopOutPending,
   resetHandOffForTests,
 } from '@/utils/attemptHandOff';
+import {
+  PERMISSION_PROMPT_MAX_MS,
+  beginPermissionPrompt,
+  resetPermissionPromptForTests,
+} from '@/utils/permissionPrompt';
 
 let hasFocus = true;
 let visibility: DocumentVisibilityState = 'visible';
@@ -89,6 +94,7 @@ describe('useTabAwayTracker', () => {
   });
   afterEach(() => {
     resetHandOffForTests();
+    resetPermissionPromptForTests();
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
@@ -453,5 +459,119 @@ describe('useTabAwayTracker', () => {
     expect(onLeave).not.toHaveBeenCalled();
     expect(saveExits).not.toHaveBeenCalled();
     expect(isHandedOff()).toBe(true);
+  });
+
+  describe('app permission prompt', () => {
+    it('does not count focus lost to a prompt the app asked for', async () => {
+      const { onLeave, saveExits } = setup();
+      const end = beginPermissionPrompt();
+      leave();
+      act(() => {
+        vi.advanceTimersByTime(3_000);
+      });
+      hasFocus = true;
+      act(() => {
+        window.dispatchEvent(new Event('focus'));
+      });
+      end();
+      act(() => {
+        vi.advanceTimersByTime(1_000);
+      });
+      await flush();
+      expect(onLeave).not.toHaveBeenCalled();
+      expect(saveExits).not.toHaveBeenCalled();
+    });
+
+    it('counts a later leave once focus is back from the prompt', async () => {
+      const { onLeave } = setup();
+      beginPermissionPrompt();
+      leave();
+      comeBack();
+      act(() => {
+        window.dispatchEvent(new Event('focus'));
+      });
+      act(() => {
+        vi.advanceTimersByTime(2_000);
+      });
+      leave();
+      await flush();
+      expect(onLeave).toHaveBeenCalledTimes(1);
+    });
+
+    it('counts from the start when focus is still away after the cap', async () => {
+      const { onLeave, lastSaved } = setup();
+      beginPermissionPrompt();
+      leave();
+      act(() => {
+        vi.advanceTimersByTime(PERMISSION_PROMPT_MAX_MS - 100);
+      });
+      expect(onLeave).not.toHaveBeenCalled();
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      await flush();
+      expect(onLeave).toHaveBeenCalledTimes(1);
+      expect(lastSaved()).toEqual([
+        { leftAt: 1_000_000, attempt: 0, questionIndex: 2 },
+      ]);
+    });
+
+    it('counts focus still away once the request settles', async () => {
+      const { onLeave, lastSaved } = setup();
+      const end = beginPermissionPrompt();
+      leave();
+      act(() => {
+        vi.advanceTimersByTime(2_000);
+      });
+      end();
+      act(() => {
+        vi.advanceTimersByTime(600);
+      });
+      await flush();
+      expect(onLeave).toHaveBeenCalledTimes(1);
+      expect(lastSaved()[0].leftAt).toBe(1_000_000);
+    });
+
+    it('still counts a tab switch while the prompt is open', async () => {
+      const { onLeave } = setup();
+      beginPermissionPrompt();
+      hasFocus = false;
+      visibility = 'hidden';
+      act(() => {
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+      await flush();
+      expect(onLeave).toHaveBeenCalledTimes(1);
+    });
+
+    it('gives no grace to a request made while focus is already away', async () => {
+      const { onLeave } = setup();
+      hasFocus = false;
+      beginPermissionPrompt();
+      act(() => {
+        window.dispatchEvent(new Event('blur'));
+      });
+      await flush();
+      expect(onLeave).toHaveBeenCalledTimes(1);
+    });
+
+    it('drops a held-back loss when tracking pauses', async () => {
+      const { hook, base, onLeave, lastSaved } = setup();
+      beginPermissionPrompt();
+      leave();
+      hook.rerender({ ...base, enabled: false });
+      act(() => {
+        vi.advanceTimersByTime(60_000);
+      });
+      hasFocus = true;
+      hook.rerender({ ...base });
+      act(() => {
+        vi.advanceTimersByTime(1_000);
+      });
+      leave();
+      await flush();
+      expect(onLeave).toHaveBeenCalledTimes(1);
+      expect(lastSaved()[0].leftAt).toBe(1_061_000);
+    });
   });
 });

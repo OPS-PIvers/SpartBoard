@@ -116,11 +116,12 @@ vi.mock('@/hooks/useQuizSession', () => ({
 
 import { QuizStudentApp } from '@/components/quiz/QuizStudentApp';
 
-function mintUser(uid: string) {
+function mintUser(uid: string, claims: Record<string, unknown> = {}) {
   return {
     uid,
     isAnonymous: false,
-    getIdTokenResult: () => Promise.resolve({ claims: { studentRole: true } }),
+    getIdTokenResult: () =>
+      Promise.resolve({ claims: { studentRole: true, ...claims } }),
   };
 }
 
@@ -239,5 +240,40 @@ describe('QuizStudentApp: Speech to text', () => {
     expect(call[0]).toBe('q1');
     expect(call[1]).toBe('Blue whale');
     expect(call[3]).toMatchObject({ dictated: true });
+  });
+
+  it('passes paid, with the pointer id, for a signed-in student', async () => {
+    withOverride({ speechToText: true });
+    render(<QuizStudentApp />);
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Dictate' })
+      ).toBeInTheDocument()
+    );
+    expect(dictationHook.options?.paid).toEqual({ assignmentId: 'asn-1' });
+  });
+
+  it('keeps a PIN joiner on the free engine', async () => {
+    mockAuth.currentUser = mintUser('sso-uid-1', { pinLogin: true });
+    withOverride({ speechToText: true });
+    render(<QuizStudentApp />);
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Dictate' })
+      ).toBeInTheDocument()
+    );
+    expect(dictationHook.options?.paid).toBeUndefined();
+  });
+
+  it('passes no paid when the session has no assignment id', async () => {
+    hookState.session = buildSession({ assignmentId: undefined });
+    withOverride({ speechToText: true });
+    render(<QuizStudentApp />);
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Dictate' })
+      ).toBeInTheDocument()
+    );
+    expect(dictationHook.options?.paid).toBeUndefined();
   });
 });

@@ -29,6 +29,28 @@ import { sanitizeQuizResponse } from '@/utils/security';
 import type { EditorDictation } from '@/utils/speechToText/types';
 import { useDictation } from '@/hooks/useDictation';
 import { DictateButton } from '@/components/common/dictate/DictateButton';
+import { TidyUpButton } from '@/components/common/dictate/TidyUpButton';
+import {
+  TidyUpNotice,
+  TidyUpPreview,
+} from '@/components/common/dictate/TidyUpPreview';
+import { useSpeechToTextSettings } from '@/hooks/useSpeechToTextSettings';
+import {
+  buildDictatedPassage,
+  caretEndsPassage,
+  latestDictatedRun,
+  passageIntact,
+  removePieces,
+  replacePieces,
+  type DictatedPassage,
+} from '@/utils/speechToText/dictatedPassage';
+import {
+  callTidyDictation,
+  isTidyUpOff,
+  markTidyUpOff,
+} from '@/utils/speechToText/paidCalls';
+import { TIDY_MAX_CHARS } from '@/config/speechToText';
+import { useTranslation } from 'react-i18next';
 import { dispatchDictation } from '@/utils/inputSignals';
 import {
   ensureTopLevelBlocks,
@@ -122,8 +144,15 @@ const BLOCK_SELECTOR = 'p, li, div, blockquote';
 const ENGLISH_ONLY: readonly string[] = ['en'];
 const DICTATION_UNDO_DEPTH = 20;
 
-/** One dictated passage as it sits in the editor, so "undo that" can take it back out. */
-type DictatedPiece = { node: Text; text: string } | { node: Element };
+/** Where Tidy up stands for this box. */
+type TidyState =
+  | { kind: 'idle' }
+  | { kind: 'loading' }
+  | { kind: 'same' }
+  | { kind: 'preview'; run: DictatedPassage[]; before: string; after: string }
+  | { kind: 'done'; passage: DictatedPassage; original: string };
+
+const TIDY_IDLE: TidyState = { kind: 'idle' };
 
 const ESSAY_MIN_HEIGHT_PX = 352; // ~22rem — comfortable on a laptop
 const MAX_HEIGHT_PX_CAP = 900; // hard cap so the editor can't push the page
@@ -151,6 +180,7 @@ const WrittenResponseEditorInner: React.FC<
   dictation,
   ref,
 }) => {
+  const { t } = useTranslation();
   const editorRef = useRef<HTMLDivElement | null>(null);
   // Open equation panel; `editing` when it changes the chip held in `editingChipRef`.
   const [mathDraft, setMathDraft] = useState<{
@@ -397,20 +427,18 @@ const WrittenResponseEditorInner: React.FC<
     handleInput();
   };
 
-  const dictatedRef = useRef<DictatedPiece[][]>([]);
+  const dictatedRef = useRef<DictatedPassage[]>([]);
+  const [hasDictated, setHasDictated] = useState(false);
+  const [tidy, setTidy] = useState<TidyState>(TIDY_IDLE);
+  const [tidyOff, setTidyOff] = useState(isTidyUpOff);
 
   // Dictated text goes straight into the DOM, so no paste, drop or input event fires for it.
   const insertDictated = (text: string) => {
     const el = editorRef.current;
     if (!el || disabled || !text) return;
-    const pieces: DictatedPiece[] = [];
-    text.split('\n').forEach((line, i) => {
-      if (i > 0) pieces.push({ node: document.createElement('br') });
-      if (line)
-        pieces.push({ node: document.createTextNode(line), text: line });
-    });
+    const passage = buildDictatedPassage(document, text);
     placeNodes(
-      pieces.map((p) => p.node),
+      passage.pieces.map((p) => p.node),
       {
         autoSpace: false,
         beforeInsert: () => {
@@ -419,39 +447,72 @@ const WrittenResponseEditorInner: React.FC<
         },
       }
     );
-    dictatedRef.current = [...dictatedRef.current, pieces].slice(
+    dictatedRef.current = [...dictatedRef.current, passage].slice(
       -DICTATION_UNDO_DEPTH
     );
+    setHasDictated(true);
+    setTidy(TIDY_IDLE);
     dispatchDictation(el, 'after', [...text].length);
   };
 
   // "Undo that": takes the last dictated passage back out if it is still there, unedited.
   const undoDictated = () => {
     const el = editorRef.current;
-    const pieces = dictatedRef.current[dictatedRef.current.length - 1];
-    if (!el || disabled || !pieces) return;
+    const passage = dictatedRef.current[dictatedRef.current.length - 1];
+    if (!el || disabled || !passage) return;
     dictatedRef.current = dictatedRef.current.slice(0, -1);
-    const intact = pieces.every(
-      (p) =>
-        el.contains(p.node) && (!('text' in p) || p.node.data.includes(p.text))
-    );
-    if (!intact) return;
+    setHasDictated(dictatedRef.current.length > 0);
+    setTidy(TIDY_IDLE);
+    if (!passageIntact(el, passage)) return;
     dispatchDictation(el, 'before', 0);
-    const caret = document.createRange();
-    caret.setStartBefore(pieces[0].node);
-    for (const p of pieces) {
-      if ('text' in p) {
-        const at = p.node.data.lastIndexOf(p.text);
-        if (p === pieces[0]) caret.setStart(p.node, at);
-        p.node.deleteData(at, p.text.length);
-      } else {
-        p.node.remove();
-      }
-    }
-    caret.collapse(true);
-    savedRangeRef.current = caret;
+    savedRangeRef.current = removePieces(passage.pieces);
     handleInput();
     dispatchDictation(el, 'after', 0);
+  };
+
+  // Swaps intact dictated passages for new text in place; the caller is told first so the edit is labelled dictated.
+  const swapDictated = (
+    run: readonly DictatedPassage[],
+    text: string
+  ): DictatedPassage | null => {
+    const el = editorRef.current;
+    if (!el || disabled || run.length === 0) return null;
+    if (!run.every((passage) => passageIntact(el, passage))) return null;
+    const pieces = run.flatMap((passage) => passage.pieces);
+    const before = run.map((passage) => passage.text).join('');
+    const next = buildDictatedPassage(document, text);
+    const follow = caretEndsPassage(savedRangeRef.current, pieces);
+    const sel = document.getSelection();
+    const followSelection =
+      !!sel &&
+      sel.rangeCount > 0 &&
+      caretEndsPassage(sel.getRangeAt(0), pieces);
+    dictation?.onInsert?.(text);
+    dispatchDictation(el, 'before', 0);
+    const after = replacePieces(pieces, next);
+    if (follow) savedRangeRef.current = after.cloneRange();
+    if (followSelection && sel) {
+      sel.removeAllRanges();
+      sel.addRange(after);
+    }
+    const at = dictatedRef.current.indexOf(run[0]);
+    const rest = dictatedRef.current.filter((p) => !run.includes(p));
+    rest.splice(at < 0 ? rest.length : at, 0, next);
+    dictatedRef.current = rest;
+    handleInput();
+    dispatchDictation(
+      el,
+      'after',
+      Math.max(0, [...text].length - [...before].length)
+    );
+    return next;
+  };
+
+  // The paid engine heard a phrase better: fix it only if the student has not touched it since.
+  const reviseDictated = (previous: string, next: string) => {
+    const at = dictatedRef.current.map((p) => p.text).lastIndexOf(previous);
+    if (at < 0 || !next) return;
+    swapDictated([dictatedRef.current[at]], next);
   };
 
   // Text in the caret's paragraph up to the caret, so dictation spaces and capitalises to fit.
@@ -475,9 +536,69 @@ const WrittenResponseEditorInner: React.FC<
     languages: dictation?.languages ?? ENGLISH_ONLY,
     onCommit: insertDictated,
     onUndo: undoDictated,
+    onRevise: reviseDictated,
     textBefore: dictationTextBefore,
+    paid: dictation?.paid,
   });
   const dictationInterim = dictation ? dictationController.interim : '';
+  const paidSettings = useSpeechToTextSettings(
+    dictation?.paid !== undefined && !disabled
+  );
+  const tidyOffered =
+    dictation?.paid !== undefined &&
+    paidSettings.tidyUp &&
+    !tidyOff &&
+    !disabled &&
+    dictationController.supported;
+  const showTidyButton =
+    tidyOffered && hasDictated && dictationController.status === 'idle';
+
+  const tidyPassage = async () => {
+    const el = editorRef.current;
+    const paid = dictation?.paid;
+    if (!el || !paid || disabled) return;
+    const run = latestDictatedRun(el, dictatedRef.current, TIDY_MAX_CHARS);
+    const before = run.map((passage) => passage.text).join('');
+    const lead = /^\s*/.exec(before)?.[0] ?? '';
+    const spoken = before.trim();
+    if (!spoken) {
+      setHasDictated(false);
+      return;
+    }
+    setTidy({ kind: 'loading' });
+    try {
+      const response = await callTidyDictation({
+        assignmentId: paid.assignmentId,
+        text: spoken,
+        language: dictationController.language,
+      });
+      if ('fallback' in response) throw new Error(response.fallback);
+      const tidied = response.text.trim();
+      setTidy(
+        !tidied || tidied === spoken
+          ? { kind: 'same' }
+          : { kind: 'preview', run, before: spoken, after: lead + tidied }
+      );
+    } catch {
+      // D10: no message; the button is gone for the rest of the page.
+      markTidyUpOff();
+      setTidyOff(true);
+      setTidy(TIDY_IDLE);
+    }
+  };
+
+  const acceptTidied = () => {
+    if (tidy.kind !== 'preview') return;
+    const original = tidy.run.map((passage) => passage.text).join('');
+    const passage = swapDictated(tidy.run, tidy.after);
+    setTidy(passage ? { kind: 'done', passage, original } : TIDY_IDLE);
+  };
+
+  const undoTidied = () => {
+    if (tidy.kind !== 'done') return;
+    swapDictated([tidy.passage], tidy.original);
+    setTidy(TIDY_IDLE);
+  };
 
   useImperativeHandle(ref, () => ({
     insertQuote: (quote) => {
@@ -671,6 +792,14 @@ const WrittenResponseEditorInner: React.FC<
               light={light}
               disabled={disabled}
             />
+            {showTidyButton && (
+              <TidyUpButton
+                onClick={() => void tidyPassage()}
+                busy={tidy.kind === 'loading'}
+                light={light}
+                disabled={disabled}
+              />
+            )}
           </>
         )}
         <div className="flex-1" />
@@ -836,6 +965,28 @@ const WrittenResponseEditorInner: React.FC<
         >
           {dictationInterim}
         </p>
+      )}
+      {tidyOffered && tidy.kind === 'preview' && (
+        <TidyUpPreview
+          before={tidy.before}
+          after={tidy.after.trim()}
+          onUse={acceptTidied}
+          onKeep={() => setTidy(TIDY_IDLE)}
+          light={light}
+        />
+      )}
+      {tidyOffered && tidy.kind === 'done' && (
+        <TidyUpNotice
+          message={t('dictate.tidyDone', 'Tidied up.')}
+          onUndo={undoTidied}
+          light={light}
+        />
+      )}
+      {tidyOffered && tidy.kind === 'same' && (
+        <TidyUpNotice
+          message={t('dictate.tidyNoChange', 'Nothing to tidy up.')}
+          light={light}
+        />
       )}
     </div>
   );

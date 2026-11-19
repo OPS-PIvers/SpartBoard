@@ -18,6 +18,10 @@ import {
   markHandedOff,
   subscribeHandOff,
 } from '@/utils/attemptHandOff';
+import {
+  isPermissionPromptOpen,
+  subscribePermissionPrompt,
+} from '@/utils/permissionPrompt';
 
 /** The exit the overlay shows: live while `outcome` is null, frozen once it closes. */
 export interface TabAwayState {
@@ -79,6 +83,8 @@ export function useTabAwayTracker(args: UseTabAwayTrackerArgs) {
   const localExitsRef = useRef<TabExit[] | null>(null);
   // Set once the student has been in fullscreen, so the first Start cover isn't an exit.
   const seenFullscreenRef = useRef(false);
+  // Focus lost to a permission prompt the app asked for: counts only if focus is still away when the prompt window closes.
+  const promptLossRef = useRef<OpenExit | null>(null);
   const [away, setAway] = useState<TabAwayState | null>(null);
   // Once the attempt moved to another tab, this copy stops watching.
   const handedOff = useSyncExternalStore(
@@ -146,23 +152,30 @@ export function useTabAwayTracker(args: UseTabAwayTrackerArgs) {
     const now = Date.now();
     // Debounce the blur + visibilitychange pair one exit fires.
     if (now - lastLeaveRef.current < 1000) return;
-    if (
-      document.visibilityState !== 'hidden' &&
-      document.hasFocus() &&
-      fullscreenOk()
-    )
+    const visible = document.visibilityState !== 'hidden';
+    if (visible && document.hasFocus() && fullscreenOk()) return;
+    // Only a focus loss waits on the prompt: a hidden page or a fullscreen exit counts at once.
+    const promptLoss = promptLossRef.current;
+    if (visible && fullscreenOk() && isPermissionPromptOpen()) {
+      promptLossRef.current ??= { leftAt: now, leftAtPerf: performance.now() };
       return;
+    }
+    promptLossRef.current = null;
     lastLeaveRef.current = now;
     guardRef.current = true;
 
-    const open: OpenExit = { leftAt: now, leftAtPerf: performance.now() };
+    // A prompt that held focus past its window counts from when focus left.
+    const open: OpenExit =
+      promptLoss && !isPermissionPromptOpen()
+        ? promptLoss
+        : { leftAt: now, leftAtPerf: performance.now() };
     openRef.current = open;
     setAway({ leftAtPerf: open.leftAtPerf, durationMs: null, outcome: null });
     const exits = currentExits();
     if (exits.length < TAB_EXITS_MAX) {
       persist([
         ...exits,
-        { leftAt: now, attempt: a.attempt, ...a.getPosition() },
+        { leftAt: open.leftAt, attempt: a.attempt, ...a.getPosition() },
       ]);
     }
 
@@ -190,6 +203,24 @@ export function useTabAwayTracker(args: UseTabAwayTrackerArgs) {
     return () => {
       document.removeEventListener('visibilitychange', onEvent);
       window.removeEventListener('blur', onEvent);
+    };
+  }, [enabled, handleLeave]);
+
+  // When the prompt window closes, a focus loss it held back counts if focus is still away.
+  useEffect(() => {
+    if (!enabled) return;
+    const unsubscribe = subscribePermissionPrompt(() => {
+      if (isPermissionPromptOpen() || !promptLossRef.current) return;
+      if (document.visibilityState !== 'hidden' && document.hasFocus()) {
+        promptLossRef.current = null;
+        return;
+      }
+      void handleLeave();
+    });
+    return () => {
+      unsubscribe();
+      // A loss held back before a pause must never back-date a later exit.
+      promptLossRef.current = null;
     };
   }, [enabled, handleLeave]);
 

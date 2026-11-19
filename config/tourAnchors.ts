@@ -18753,6 +18753,16 @@ export const TOUR_ANCHORS = {
     rows: true,
     rowList: 'roster-accommodations-pick-students',
   },
+  'roster-editor.accommodations-answer-choices': {
+    label:
+      'Answer choices control for a student or group in the roster editor Accommodations tab',
+    panel: true,
+  },
+  'roster-editor.accommodations-modified-questions': {
+    label:
+      'Modified questions switch for a student or group in the roster editor Accommodations tab',
+    panel: true,
+  },
   'roster-editor.accommodations-done': {
     label: 'Done button that closes the Accommodations Add menu',
     panel: true,

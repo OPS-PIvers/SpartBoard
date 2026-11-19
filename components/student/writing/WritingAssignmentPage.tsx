@@ -51,7 +51,9 @@ function useMinuteClock(): number {
 const WritingPiecePage: React.FC<{
   session: WritingAssignmentSession;
   studentUid: string;
-}> = ({ session, studentUid }) => {
+  /** Signed in with a school account, not a PIN. */
+  signedIn: boolean;
+}> = ({ session, studentUid, signedIn }) => {
   const now = useMinuteClock();
   // Per-student accommodations live on the student's own pointer, never on the session (M17).
   const pointer = useStudentAssignmentPointer(studentUid, session.id, true, {
@@ -124,15 +126,20 @@ const WritingPiecePage: React.FC<{
   const canDictate = override?.speechToText === true;
   const dictateLanguage = override?.language;
   const onDictationInsert = piece.onDictationInsert;
+  // D15: the paid extras need a signed-in student; the pointer doc is keyed by the session id.
+  const paidAssignmentId = pointer && signedIn ? session.id : null;
   const dictation = useMemo(
     () =>
       canDictate
         ? {
             languages: dictationLanguages(dictateLanguage),
             onInsert: onDictationInsert,
+            ...(paidAssignmentId
+              ? { paid: { assignmentId: paidAssignmentId } }
+              : {}),
           }
         : undefined,
-    [canDictate, dictateLanguage, onDictationInsert]
+    [canDictate, dictateLanguage, onDictationInsert, paidAssignmentId]
   );
 
   const response = piece.response;
@@ -206,7 +213,7 @@ const WritingPiecePage: React.FC<{
 };
 
 export const WritingAssignmentPage: React.FC = () => {
-  const { pseudonymUid } = useStudentAuth();
+  const { pseudonymUid, pinLogin } = useStudentAuth();
   const sessionId = writingSessionIdFromPath(window.location.pathname);
   const [view, setView] = useState<View>({ kind: 'loading' });
 
@@ -265,6 +272,7 @@ export const WritingAssignmentPage: React.FC = () => {
       key={`${sessionId}:${pseudonymUid}`}
       session={view.session}
       studentUid={pseudonymUid}
+      signedIn={!pinLogin}
     />
   );
 };

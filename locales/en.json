@@ -5037,7 +5037,8 @@
     "close": "Close",
     "tabs": {
       "behavior": "Behavior",
-      "languages": "Languages"
+      "languages": "Languages",
+      "speechToText": "Speech to text"
     },
     "selectBuilding": "Select building to configure",
     "building": "Building",
@@ -6572,7 +6573,17 @@
       "network": "Dictate needs the internet. Check your connection, then tap Dictate again.",
       "languageUnsupported": "Dictate can't hear that language on this device, so it is listening in English.",
       "unknown": "Dictate stopped. Tap Dictate to start again."
-    }
+    },
+    "tidyUp": "Tidy up",
+    "tidyingUp": "Tidying up…",
+    "tidyUpHint": "Adds punctuation and capital letters to what you just dictated. Your words stay the same.",
+    "tidyBefore": "Yours",
+    "tidyAfter": "Tidied up",
+    "tidyUse": "Use this",
+    "tidyKeep": "Keep mine",
+    "tidyUndo": "Undo",
+    "tidyDone": "Tidied up.",
+    "tidyNoChange": "Nothing to tidy up."
   },
   "quizQuestionAudio": {
     "play": "Play audio",
