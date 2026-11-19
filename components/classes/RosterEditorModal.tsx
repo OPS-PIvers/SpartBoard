@@ -854,7 +854,7 @@ const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = ({
                       'roster-editor',
                       groupKey
                     )}
-                    className="p-1 text-slate-400 hover:text-brand-blue-primary rounded-md transition-colors"
+                    className="shrink-0 p-1 text-slate-400 hover:text-brand-blue-primary rounded-md transition-colors"
                     aria-label={t('sidebar.classes.editGroupMembers', {
                       defaultValue: 'Edit group members',
                     })}
@@ -862,7 +862,7 @@ const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = ({
                     <UsersRound size={16} />
                   </button>
                   <input
-                    className="flex-1 px-2 py-1 text-sm font-bold rounded-md border border-transparent hover:border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-hidden transition-colors"
+                    className="min-w-0 flex-1 px-2 py-1 text-sm font-bold rounded-md border border-transparent hover:border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-hidden transition-colors"
                     value={group.name}
                     onChange={(e) => renameGroup(group.id, e.target.value)}
                     {...tourFieldAttr(
@@ -871,7 +871,7 @@ const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = ({
                       groupKey
                     )}
                   />
-                  <span className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
+                  <span className="shrink-0 whitespace-nowrap text-xxs font-bold text-slate-400 uppercase tracking-widest">
                     {t('sidebar.classes.groupMemberCount', {
                       count: memberCount,
                       defaultValue: '{{count}} student',
@@ -888,7 +888,7 @@ const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = ({
                     aria-label={t('sidebar.classes.removeGroup', {
                       defaultValue: 'Remove group',
                     })}
-                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                    className="shrink-0 p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
                   >
                     <X size={16} />
                   </button>
