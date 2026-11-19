@@ -48,6 +48,7 @@ type Wall = Record<string, unknown> & {
 };
 type Section = { id: string; label: string };
 type AllowedTypes = {
+  text?: boolean;
   photo: boolean;
   link: boolean;
   file: boolean;
@@ -212,7 +213,7 @@ function fullWall(wall: Wall) {
     table_rows: labels(wall.tableRows),
     table_columns: labels(wall.tableCols),
     post_types: [
-      'text',
+      ...(allowed.text === false ? [] : ['text']),
       ...(['photo', 'link', 'file', 'video'] as const).filter(
         (t) => allowed[t]
       ),
@@ -335,6 +336,10 @@ const wallFields = {
     .array(z.enum(['photo', 'link', 'file', 'video']))
     .optional()
     .describe('Besides text.'),
+  text_posts: z
+    .boolean()
+    .optional()
+    .describe('False turns text posts off, e.g. for a video-only wall.'),
   show_names: z.boolean().optional().describe("Show students' names on posts."),
   moderation: z.boolean().optional().describe('Teacher approves posts first.'),
   allow_likes: z.boolean().optional(),
@@ -355,6 +360,7 @@ type WallFieldInput = {
   table_rows?: string[];
   table_columns?: string[];
   post_types?: ('photo' | 'link' | 'file' | 'video')[];
+  text_posts?: boolean;
   show_names?: boolean;
   moderation?: boolean;
   allow_likes?: boolean;
@@ -362,7 +368,7 @@ type WallFieldInput = {
   max_posts_per_student?: number;
 };
 
-function applyFields(base: Wall, input: WallFieldInput): Wall {
+export function applyFields(base: Wall, input: WallFieldInput): Wall {
   const next: Wall = { ...base };
   if (input.prompt !== undefined) next.prompt = input.prompt.trim();
   if (input.layout !== undefined) next.layout = input.layout;
@@ -375,12 +381,33 @@ function applyFields(base: Wall, input: WallFieldInput): Wall {
   if (input.post_types !== undefined) {
     const set = new Set(input.post_types);
     next.allowedTypes = {
+      ...(base.allowedTypes as AllowedTypes | undefined),
       photo: set.has('photo'),
       link: set.has('link'),
       file: set.has('file'),
       video: set.has('video'),
     };
   }
+  if (input.text_posts !== undefined) {
+    next.allowedTypes = {
+      ...(next.allowedTypes ?? {
+        photo: false,
+        link: false,
+        file: false,
+        video: false,
+      }),
+      text: input.text_posts,
+    };
+  }
+  const types = next.allowedTypes as AllowedTypes | undefined;
+  if (
+    types?.text === false &&
+    !types.photo &&
+    !types.link &&
+    !types.file &&
+    !types.video
+  )
+    throw new ToolError('Turn on at least one post type when text is off.');
   if (input.show_names !== undefined) next.showNames = input.show_names;
   if (input.moderation !== undefined) next.moderationEnabled = input.moderation;
   if (input.allow_likes !== undefined) next.allowLikes = input.allow_likes;

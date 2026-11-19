@@ -94,7 +94,7 @@ describe('submitPost helpers', () => {
     });
   });
 
-  it('availableTypes always includes text and follows allowedTypes', () => {
+  it('availableTypes keeps text on by default and follows allowedTypes', () => {
     expect(availableTypes(session())).toEqual(['text']);
     expect(
       availableTypes(
@@ -103,6 +103,19 @@ describe('submitPost helpers', () => {
         })
       )
     ).toEqual(['text', 'photo', 'link', 'video']);
+    expect(
+      availableTypes(
+        session({
+          allowedTypes: {
+            text: false,
+            photo: false,
+            link: false,
+            file: false,
+            video: true,
+          },
+        })
+      )
+    ).toEqual(['video']);
   });
 
   it('nextCappedSlot picks the lowest free numeric slot and ignores uncapped ids', () => {

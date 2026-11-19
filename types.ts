@@ -2560,6 +2560,12 @@ export type ActivityWallLayout =
 export type ActivityWallSubmissionType =
   'text' | 'word' | 'photo' | 'link' | 'file' | 'video';
 
+/** Per-wall submission toggles; a wall saved before the Text toggle has no `text` key and keeps text on. */
+export type ActivityWallAllowedTypes = Record<
+  Exclude<ActivityWallSubmissionType, 'text' | 'word'>,
+  boolean
+> & { text?: boolean };
+
 /** Wall background: a Tailwind class string (color/gradient) or a preset image URL. */
 export interface ActivityWallAppearance {
   kind: 'color' | 'gradient' | 'image';
@@ -2701,10 +2707,7 @@ export interface ActivityWallLibraryEntry {
   /** Dated timeline only: the teacher hid every date so students judge order first. */
   timelineDatesHidden?: boolean;
   mapCenter?: { lat: number; lng: number; zoom: number };
-  allowedTypes?: Record<
-    Exclude<ActivityWallSubmissionType, 'text' | 'word'>,
-    boolean
-  >;
+  allowedTypes?: ActivityWallAllowedTypes;
   appearance?: ActivityWallAppearance;
   allowGuests?: boolean;
   showNames?: boolean;
@@ -2825,10 +2828,7 @@ export interface ActivityWallSession extends SessionWorkKindFields {
   tableRows?: ActivityWallSection[];
   tableCols?: ActivityWallSection[];
   mapCenter?: { lat: number; lng: number; zoom: number };
-  allowedTypes?: Record<
-    Exclude<ActivityWallSubmissionType, 'text' | 'word'>,
-    boolean
-  >;
+  allowedTypes?: ActivityWallAllowedTypes;
   appearance?: ActivityWallAppearance;
   allowGuests?: boolean;
   showNames?: boolean;

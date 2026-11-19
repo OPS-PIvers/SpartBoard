@@ -446,6 +446,23 @@ describe('handleSaveSharedActivityWall', () => {
     }
   });
 
+  it('accepts a wall with text off when another type is on', async () => {
+    const allowedTypes = {
+      text: false,
+      photo: false,
+      link: false,
+      file: false,
+      video: true,
+    };
+    const docs = seed();
+    await handleSaveSharedActivityWall(
+      makeDeps(docs),
+      caller(),
+      input({ changes: { allowedTypes } })
+    );
+    expect(docs[ENTRY].allowedTypes).toEqual(allowedTypes);
+  });
+
   it('rejects fields the editor does not own and malformed values', async () => {
     const bad = [
       { createdAt: 1 },
@@ -456,6 +473,7 @@ describe('handleSaveSharedActivityWall', () => {
       { layout: 'grid' },
       { maxPostsPerStudent: -1 },
       { allowedTypes: { script: true } },
+      { allowedTypes: { text: false, photo: false, video: false } },
       { sections: [{ id: 'a/b', label: 'x' }] },
       { title: 'x'.repeat(301) },
       { memberClassIds: {} },
