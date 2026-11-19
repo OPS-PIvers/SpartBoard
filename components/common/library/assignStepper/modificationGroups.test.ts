@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ClassRoster, QuizQuestion } from '@/types';
 import type { ClassStudentRow } from '@/utils/studentTargetRef';
 import {
+  editedOverrides,
   formatModificationGroupsValue,
   groupRuleLabels,
   hiddenOptionIdsForRule,
@@ -427,5 +428,44 @@ describe('standing answer choices', () => {
     expect(out.a.hiddenOptionIdsByQuestion?.q1[0]).toMatch(/^W\d$/);
     expect(out.b).toEqual({ readAloud: true });
     expect(out.c.hiddenOptionIdsByQuestion).toEqual({ q1: ['W0'] });
+  });
+});
+
+describe('editedOverrides', () => {
+  const saved = {
+    a: { readAloud: true, hiddenOptionIdsByQuestion: { q1: ['x'] } },
+    b: { answerChoices: 3 as const, hiddenOptionIdsByQuestion: { q1: ['y'] } },
+    c: { timeMultiplier: 2 as const },
+  };
+
+  it('keeps an untouched student exactly as saved', () => {
+    const same = { a: { readAloud: true }, b: { answerChoices: 3 as const } };
+    expect(editedOverrides(saved, same, same)).toEqual(saved);
+  });
+
+  it('keeps hand-picked hidden options when the group sets no answer rule', () => {
+    const out = editedOverrides(
+      saved,
+      { a: { readAloud: true } },
+      { a: { speechToText: true } }
+    );
+    expect(out.a).toEqual({
+      speechToText: true,
+      hiddenOptionIdsByQuestion: { q1: ['x'] },
+    });
+  });
+
+  it('drops hidden options from an old answer rule so assign can redo them', () => {
+    const out = editedOverrides(
+      saved,
+      { b: { answerChoices: 3 } },
+      { b: { answerChoices: 2 } }
+    );
+    expect(out.b).toEqual({ answerChoices: 2 });
+  });
+
+  it('removes a student taken out of every group', () => {
+    const out = editedOverrides(saved, { c: { timeMultiplier: 2 } }, {});
+    expect(out).not.toHaveProperty('c');
   });
 });
