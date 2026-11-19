@@ -125,24 +125,6 @@ export const LandingClassView: React.FC<LandingClassViewProps> = ({
     ) : (
       <EmptyBox text="No resources right now." />
     );
-  } else if (tab === 'expired') {
-    body = p.expired.length ? (
-      <ListBox>
-        {completedItems(p.expired).map((item) => (
-          <DoneRow
-            key={item.key}
-            item={item}
-            check={checks[item.key]}
-            nowMs={nowMs}
-            teachers={cls.teachers}
-            onLockedClick={onLockedClick}
-            onOpenGradeOnly={onOpenGradeOnly}
-          />
-        ))}
-      </ListBox>
-    ) : (
-      <EmptyBox text="Nothing expired." />
-    );
   } else if (gradesEnabled && grades) {
     body = (
       <LandingGradebook
@@ -159,9 +141,9 @@ export const LandingClassView: React.FC<LandingClassViewProps> = ({
       />
     );
   } else {
-    body = p.done.length ? (
+    const rows = (items: DoneItem[]) => (
       <ListBox>
-        {completedItems(p.done).map((item) => (
+        {items.map((item) => (
           <DoneRow
             key={item.key}
             item={item}
@@ -173,8 +155,29 @@ export const LandingClassView: React.FC<LandingClassViewProps> = ({
           />
         ))}
       </ListBox>
-    ) : (
-      <EmptyBox text="Nothing completed yet." />
+    );
+    body = (
+      <>
+        {p.done.length ? (
+          rows(completedItems(p.done))
+        ) : (
+          <EmptyBox text="Nothing completed yet." />
+        )}
+        {p.expired.length > 0 && (
+          <section className="mt-6" aria-labelledby={`expired-${cls.classId}`}>
+            <h2
+              id={`expired-${cls.classId}`}
+              className="mb-2 px-1 text-sm font-semibold text-slate-600"
+            >
+              Expired{' '}
+              <span className="font-normal tabular-nums text-slate-400">
+                {p.expired.length}
+              </span>
+            </h2>
+            {rows(completedItems(p.expired))}
+          </section>
+        )}
+      </>
     );
   }
 
@@ -188,7 +191,7 @@ export const LandingClassView: React.FC<LandingClassViewProps> = ({
         <div
           role="tablist"
           aria-label={`${cls.name} sections`}
-          className="hidden grid-cols-4 gap-1 rounded-xl bg-slate-200/70 p-1 min-[896px]:grid"
+          className="hidden grid-cols-3 gap-1 rounded-xl bg-slate-200/70 p-1 min-[896px]:grid"
         >
           {tabs.map((t) => (
             <button
