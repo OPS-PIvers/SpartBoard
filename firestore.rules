@@ -453,35 +453,23 @@ service cloud.firestore {
                existing().get('classId', '') in tok().get('classIds', [])));
     }
 
-    // Class targeting: a session write may add only class ids on the writer's
-    // server-written verified_classes/{uid}.ids list, so the class channels above
-    // (sessionListScoped and the response class gates) never surface another
-    // teacher's class. A list counts once ClassLink has answered for it
-    // (classlinkAt); until super admins turn on verified_classes_fill.enforce, a
-    // writer with no counted list is not narrowed (mirrors MISSING_LIST_ALLOWS).
+    // A session write may add only class ids on the writer's server-written verified_classes/{uid}.ids list.
     function classTargets(d) {
       let one = d.get('classId', null);
       return (d.get('classIds', null) is list ? d.classIds : []).concat(one is string && one != '' ? [one] : []);
     }
     function classTargetsWriteOk() {
-      return noDoc() ? classesTaught(classTargets(incoming()).toSet()) :
-        !changed(['classIds', 'classId']) ||
-        classesTaught(classTargets(incoming()).toSet().difference(classTargets(existing()).toSet()));
-    }
-    function classesTaught(added) {
-      return added.size() == 0 || onVerifiedList(added);
-    }
-    function onVerifiedList(added) {
-      let vc = dbExists('verified_classes', authUid()) ? dbGet('verified_classes', authUid()).data : {};
-      let ids = vc.get('ids', []).toSet();
       let t = classTargets(incoming());
-      // Before enforce, one unlisted LMS id (an LTI launch may not have recorded it) is not refused.
-      return ids.hasAll(added) || !classTargetsEnforced() && (!(vc.get('classlinkAt', null) is number) ||
-        added.difference(ids).hasOnly([t[0]]) && t[0].matches('^(schoology|classroom):.+'));
+      let added = t.removeAll(classTargets(noDoc() ? {} : existing()));
+      return added.size() == 0 || onVerifiedList(added, t[0]);
     }
-    function classTargetsEnforced() {
-      return dbExists('admin_settings', 'verified_classes_fill') &&
-        dbGet('admin_settings', 'verified_classes_fill').data.get('enforce', false) == true;
+    function onVerifiedList(added, first) {
+      let vc = dbExists('verified_classes', authUid()) ? dbGet('verified_classes', authUid()).data : {};
+      let ids = vc.get('ids', []);
+      // Before enforce, an uncounted list or one unlisted LMS id (LTI launch) is not refused.
+      return ids.hasAll(added) || !(dbExists('admin_settings', 'verified_classes_fill') &&
+        dbGet('admin_settings', 'verified_classes_fill').data.get('enforce', false) == true) &&
+        (!(vc.get('classlinkAt', null) is number) || added.removeAll(ids).hasOnly([first]) && first.matches('^(schoology|classroom):.+'));
     }
 
     // ---- Organization helpers (see docs/organization_wiring_implementation.md) ----
