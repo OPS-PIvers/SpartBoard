@@ -21,19 +21,17 @@
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-/* tailwindcss-animate sets no timing function, so entrances and exits would run on bare `ease`. */
-@layer base {
-  .animate-in,
-  .animate-out {
-    animation-timing-function: var(--ease-out-strong);
-  }
-}
-
 @layer base {
   /* A vertical scroller never grows a sideways bar from stray overflow. Utilities win, so overflow-x-auto still opts in. */
   .overflow-y-auto,
   .overflow-y-scroll {
     overflow-x: hidden;
+  }
+
+  /* tailwindcss-animate sets no timing function, so entrances and exits would run on bare `ease`. */
+  .animate-in,
+  .animate-out {
+    animation-timing-function: var(--ease-out-strong);
   }
 
   *,
