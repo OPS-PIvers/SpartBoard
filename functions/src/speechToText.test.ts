@@ -52,6 +52,7 @@ import {
   monthlySpeechToTextUsageDocId,
   normalizeSpeechRowConfig,
   parseAccessRequest,
+  speechChargeSeconds,
   speechToTextAccess,
   parseTidyRequest,
   parseTranscribeRequest,
@@ -360,6 +361,19 @@ describe('request validation', () => {
       parseTidyRequest({ ...PASSAGE, text: 'a'.repeat(TIDY_MAX_CHARS + 1) })
     ).toThrow();
     expect(parseTidyRequest(PASSAGE)).toEqual(PASSAGE);
+  });
+});
+
+describe('speechChargeSeconds', () => {
+  it('charges the stated length for a normal clip', () => {
+    expect(
+      speechChargeSeconds({ durationMs: 4200, audioBase64: 'A'.repeat(80_000) })
+    ).toBe(5);
+  });
+  it('charges by audio size when the stated length is too short', () => {
+    expect(
+      speechChargeSeconds({ durationMs: 200, audioBase64: 'A'.repeat(700_000) })
+    ).toBe(33);
   });
 });
 
