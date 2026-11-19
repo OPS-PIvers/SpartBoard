@@ -514,7 +514,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                 onPointerDown={handleMarkerPointerDown}
                 aria-label={`Question at ${formatHms(previewSec)}: ${q.text || 'untitled'} — drag to move, click to select`}
                 title={`${formatHms(previewSec)} — ${q.text || 'Untitled question'}`}
-                className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full transition-all touch-none ${dot} ${
+                className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full transition-[width,height,box-shadow,background-color] touch-none ${dot} ${
                   isDragging
                     ? `w-4 h-4 ring-2 cursor-grabbing ${amber ? '' : 'bg-emerald-600 ring-emerald-300'}`
                     : isActive

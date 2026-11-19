@@ -404,7 +404,7 @@ export const CourseImportScreen: React.FC<CourseImportScreenProps> = ({
         </p>
         <div className="h-2 overflow-hidden rounded-full bg-slate-200">
           <div
-            className="h-full bg-brand-blue-primary transition-all"
+            className="h-full bg-brand-blue-primary transition-[width]"
             style={{ width: `${pct}%` }}
           />
         </div>

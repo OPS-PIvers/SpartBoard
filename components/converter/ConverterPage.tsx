@@ -182,7 +182,7 @@ export const ConverterPage: React.FC = () => {
               <div className="w-full">
                 <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-indigo-500 transition-all duration-200"
+                    className="h-full bg-indigo-500 transition-[width] duration-200"
                     style={{ width: `${pct}%` }}
                   />
                 </div>

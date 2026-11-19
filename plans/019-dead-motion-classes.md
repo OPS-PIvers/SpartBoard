@@ -1,6 +1,6 @@
 # 019 — Fix or remove four motion classes that do nothing
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: 3dcc1cd
 - **Severity**: MEDIUM
 - **Category**: Easing & duration (dead motion)

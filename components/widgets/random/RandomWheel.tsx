@@ -51,7 +51,7 @@ export const RandomWheel: React.FC<RandomWheelProps> = ({
 
       <svg
         viewBox="0 0 300 300"
-        className="w-[95%] h-[95%] drop-shadow-2xl transition-transform duration-4000 cubic-bezier(0.15, 0, 0.15, 1)"
+        className="w-[95%] h-[95%] drop-shadow-2xl transition-transform duration-4000 motion-reduce:transition-none ease-[cubic-bezier(0.15,0,0.15,1)]"
         style={{
           transform: `rotate(${rotation}deg)`,
           maxWidth: wheelSize * 1.2,

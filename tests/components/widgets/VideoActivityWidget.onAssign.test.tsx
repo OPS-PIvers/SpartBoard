@@ -572,7 +572,7 @@ describe('VideoActivityWidget onAssign — rules on the assignment', () => {
     );
     fireEvent.click(
       within(dialog).getByRole('switch', {
-        name: /Show right and wrong to students/,
+        name: /Show right or wrong after each answer/,
       })
     );
     confirmAssign(dialog);

@@ -24,6 +24,7 @@ import {
 import { legacyRowId } from './gradeRowMath';
 import { GRADE_INDEX, stableStringify } from './gradeIndex';
 import type { IndexRow } from './types';
+import type { ClassStudents } from './projectMemberAuthority';
 
 type Firestore = admin.firestore.Firestore;
 type Doc = Record<string, unknown>;
@@ -228,6 +229,8 @@ interface ProjectionTarget {
 interface ProjectionExtra {
   standards: StudentStandardEntry[] | null;
   scale: ProficiencyScale;
+  /** Owners a roster no longer vouches for in this class; their entries and class-level fields go. */
+  untrusted?: ReadonlySet<string>;
 }
 
 const cutoffsOf = (s: ProficiencyScale) => {
@@ -252,11 +255,17 @@ export async function writeProjectionEntry(
     // An entry with no ownerUid predates per-entry owners; any owner may claim it.
     const ownerOf = (e: unknown): string => asString(asRecord(e).ownerUid);
     const entries = { ...asRecord(data.entries) };
+    let changed = false;
+    const untrusted = extra.untrusted ?? new Set<string>();
+    for (const [id, e] of Object.entries(entries)) {
+      if (!untrusted.has(ownerOf(e))) continue;
+      delete entries[id];
+      changed = true;
+    }
     const prev = entries[sessionId] as Doc | undefined;
     // Another owner's entry under this session id is theirs to change.
     if (prev && ownerOf(prev) && ownerOf(prev) !== target.ownerUid)
-      return false;
-    let changed = false;
+      return changed ? commitEntries(tx, ref, entries, now) : false;
     if (entry === null) {
       if (prev) {
         delete entries[sessionId];
@@ -286,6 +295,7 @@ export async function writeProjectionEntry(
       snap.exists &&
       docOwner !== '' &&
       docOwner !== target.ownerUid &&
+      !untrusted.has(docOwner) &&
       Object.values(entries).some((e) => ownerOf(e) === docOwner);
     if (
       !keepOwner &&
@@ -321,6 +331,117 @@ export async function writeProjectionEntry(
       });
     return true;
   });
+}
+
+/** Writes only the entries map, leaving the class-level fields as they are; true when it wrote. */
+function commitEntries(
+  tx: admin.firestore.Transaction,
+  ref: admin.firestore.DocumentReference,
+  entries: Doc,
+  now: number
+): true {
+  if (Object.keys(entries).length === 0) tx.delete(ref);
+  else tx.update(ref, { entries, updatedAt: now });
+  return true;
+}
+
+/** Removes this owner's entry for one session without touching any class-level field. */
+export async function dropProjectionEntry(
+  db: Firestore,
+  target: ProjectionTarget,
+  sessionId: string,
+  now: number
+): Promise<boolean> {
+  const ref = db.doc(projectionPath(target.studentUid, target.classId));
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) return false;
+    const entries = { ...asRecord(snap.data()?.entries) };
+    if (asString(asRecord(entries[sessionId]).ownerUid) !== target.ownerUid)
+      return false;
+    delete entries[sessionId];
+    return commitEntries(tx, ref, entries, now);
+  });
+}
+
+/** True when a server-trusted roster shows `ownerUid` teaches `classId` and `studentUid` is in it. */
+export type ClassEnrollmentCheck = (
+  ownerUid: string,
+  classId: string,
+  studentUid: string
+) => Promise<boolean>;
+
+const ENROLLMENT_CACHE_MS = 90_000;
+const enrollmentCache = new Map<
+  string,
+  { at: number; students: Promise<ClassStudents> }
+>();
+let enrollmentOverride: ClassEnrollmentCheck | null = null;
+
+export function __resetClassEnrollmentCache(): void {
+  enrollmentCache.clear();
+}
+
+/** Tests only: replaces the roster lookup every projection uses; null restores it. */
+export function __setClassEnrollmentCheck(
+  check: ClassEnrollmentCheck | null
+): void {
+  enrollmentOverride = check;
+}
+
+/** Looks each owner and class up once per 90 s; a failed, degraded or empty lookup is not cached. */
+export function defaultClassEnrollment(db: Firestore): ClassEnrollmentCheck {
+  if (enrollmentOverride) return enrollmentOverride;
+  return async (ownerUid, classId, studentUid) => {
+    const key = `${ownerUid}\n${classId}`;
+    const now = Date.now();
+    let entry = enrollmentCache.get(key);
+    if (!entry || now - entry.at > ENROLLMENT_CACHE_MS) {
+      const students = import('./projectMemberAuthority').then((m) =>
+        m.loadTaughtClassStudentUids(db, ownerUid, classId)
+      );
+      const stored = { at: now, students };
+      entry = stored;
+      enrollmentCache.set(key, stored);
+      void students.catch(() => {
+        if (enrollmentCache.get(key) === stored) enrollmentCache.delete(key);
+      });
+    }
+    const { uids, degraded } = await entry.students;
+    if ((uids.size === 0 || degraded) && enrollmentCache.get(key) === entry)
+      enrollmentCache.delete(key);
+    if (uids.has(studentUid)) return true;
+    // ClassLink could not answer, so retry rather than drop a real grade.
+    if (degraded) throw degraded;
+    return false;
+  };
+}
+
+/** Other owners on this student's class doc that the roster no longer vouches for. */
+async function untrustedOwners(
+  db: Firestore,
+  row: IndexRow & { classId: string },
+  enrolled: ClassEnrollmentCheck
+): Promise<Set<string>> {
+  const snap = await db.doc(projectionPath(row.studentUid, row.classId)).get();
+  const data = snap.data() ?? {};
+  const owners = new Set([
+    asString(data.ownerUid),
+    ...Object.values(asRecord(data.entries)).map((e) =>
+      asString(asRecord(e).ownerUid)
+    ),
+  ]);
+  owners.delete('');
+  owners.delete(row.ownerUid);
+  const out = new Set<string>();
+  for (const owner of owners) {
+    // A lookup that fails leaves what is there; it never adds anything.
+    const ok = await enrolled(owner, row.classId, row.studentUid).catch(
+      () => true
+    );
+    if (!ok) out.add(owner);
+  }
+  return out;
 }
 
 /** This student's standards in one class, from every row but `skipSessionId` plus `own`. */
@@ -395,65 +516,81 @@ export async function projectRow(
   db: Firestore,
   after: IndexRow | null,
   before: IndexRow | null,
-  now = Date.now()
+  now = Date.now(),
+  enrolled: ClassEnrollmentCheck = defaultClassEnrollment(db)
 ): Promise<void> {
+  const targetOf = (r: IndexRow & { classId: string }): ProjectionTarget => ({
+    studentUid: r.studentUid,
+    classId: r.classId,
+    ownerUid: r.ownerUid,
+  });
   if (
     before?.classId &&
     (!after ||
       after.classId !== before.classId ||
       after.ownerUid !== before.ownerUid)
   ) {
-    const { settings, scale } = await loadClassSettings(
-      db,
-      before.ownerUid,
-      before.rosterId
-    );
-    await writeProjectionEntry(
-      db,
-      {
-        studentUid: before.studentUid,
-        classId: before.classId,
-        ownerUid: before.ownerUid,
-      },
-      before.sessionId,
-      null,
-      {
-        standards: await classStandards(db, before, settings, scale, null, now),
-        scale,
-      },
-      now
-    );
+    const left = { ...before, classId: before.classId };
+    if (!(await enrolled(left.ownerUid, left.classId, left.studentUid))) {
+      await dropProjectionEntry(db, targetOf(left), left.sessionId, now);
+    } else {
+      await removeEntry(db, left, now);
+    }
   }
   if (!after?.classId) return;
+  const row = { ...after, classId: after.classId };
+  // Session classIds and response fields are teacher-written, so only a roster vouches for the class and student.
+  if (!(await enrolled(row.ownerUid, row.classId, row.studentUid))) {
+    await dropProjectionEntry(db, targetOf(row), row.sessionId, now);
+    return;
+  }
+  const untrusted = await untrustedOwners(db, row, enrolled);
   const [inputs, { settings, scale }] = await Promise.all([
-    loadRowInputs(db, after),
-    loadClassSettings(db, after.ownerUid, after.rosterId),
+    loadRowInputs(db, row),
+    loadClassSettings(db, row.ownerUid, row.rosterId),
   ]);
   const entry = buildStudentGradeEntry(
-    after,
+    row,
     inputs.mark,
     inputs.column,
     settings,
     now
   );
-  const standards = await classStandards(
+  const standards = await classStandards(db, row, settings, scale, inputs, now);
+  await writeProjectionEntry(
     db,
-    after,
-    settings,
-    scale,
-    inputs,
+    targetOf(row),
+    row.sessionId,
+    entry,
+    { standards, scale, untrusted },
     now
+  );
+}
+
+/** Clears a vouched row's entry and recomputes the class standards without it. */
+async function removeEntry(
+  db: Firestore,
+  before: IndexRow & { classId: string },
+  now: number
+): Promise<void> {
+  const { settings, scale } = await loadClassSettings(
+    db,
+    before.ownerUid,
+    before.rosterId
   );
   await writeProjectionEntry(
     db,
     {
-      studentUid: after.studentUid,
-      classId: after.classId,
-      ownerUid: after.ownerUid,
+      studentUid: before.studentUid,
+      classId: before.classId,
+      ownerUid: before.ownerUid,
     },
-    after.sessionId,
-    entry,
-    { standards, scale },
+    before.sessionId,
+    null,
+    {
+      standards: await classStandards(db, before, settings, scale, null, now),
+      scale,
+    },
     now
   );
 }
@@ -464,7 +601,8 @@ const REPROJECT_CHUNK = 10;
 export async function reprojectRows(
   db: Firestore,
   query: admin.firestore.Query,
-  keep: (row: IndexRow) => boolean = () => true
+  keep: (row: IndexRow) => boolean = () => true,
+  enrolled: ClassEnrollmentCheck = defaultClassEnrollment(db)
 ): Promise<number> {
   const snap = await query.get();
   const rows = snap.docs.map((d) => d.data() as IndexRow).filter(keep);
@@ -477,7 +615,8 @@ export async function reprojectRows(
   for (let i = 0; i < groups.length; i += REPROJECT_CHUNK) {
     await Promise.all(
       groups.slice(i, i + REPROJECT_CHUNK).map(async (group) => {
-        for (const r of group) await projectRow(db, r, null);
+        for (const r of group)
+          await projectRow(db, r, null, Date.now(), enrolled);
       })
     );
   }

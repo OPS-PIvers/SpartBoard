@@ -1,3 +1,4 @@
+import { scoresShown } from '@/utils/assignedStatus';
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import {
   collection,
@@ -97,6 +98,8 @@ interface VideoActivityAssignedTabProps extends VideoActivityAssignedHandlers {
   emptySub: string;
   /** Deletes without asking; resolves to how many failed. Turns on bulk select. */
   onBulkDelete?: (assignments: VideoActivityAssignment[]) => Promise<number>;
+  /** Opens the publish dialog once for the picked closed rows. */
+  onBulkPublish?: (assignments: VideoActivityAssignment[]) => void;
 }
 
 const TICK_MS = 30_000;
@@ -271,7 +274,8 @@ interface RowModel {
   bells: Record<string, EpochWindow | null>;
   /** A closed self-paced single line still holds answered, unfinished attempts. */
   owesTurnIn: boolean;
-  noMoveToDone: boolean;
+  viewOnly: boolean;
+  published: boolean;
 }
 
 /** The Video Activity Assigned tab: one row per assignment, one status per class (ASSIGNED_TAB.md slice 5). */
@@ -286,6 +290,7 @@ export const VideoActivityAssignedTab: React.FC<
   emptyTitle,
   emptySub,
   onBulkDelete,
+  onBulkPublish,
   ...handlers
 }) => {
   const { featurePermissions } = useAuth();
@@ -366,7 +371,8 @@ export const VideoActivityAssignedTab: React.FC<
           needsGrading,
           bells,
           owesTurnIn,
-          noMoveToDone: a.mode === 'view-only',
+          viewOnly: a.mode === 'view-only',
+          published: scoresShown(a.scoreVisibility),
         };
       }),
     [
@@ -400,7 +406,12 @@ export const VideoActivityAssignedTab: React.FC<
       tourWidgetType="video-activity"
       bulk={
         onBulkDelete
-          ? { remove: (rs) => onBulkDelete(rs.map((r) => r.assignment)) }
+          ? {
+              remove: (rs) => onBulkDelete(rs.map((r) => r.assignment)),
+              publish: onBulkPublish
+                ? (rs) => onBulkPublish(rs.map((r) => r.assignment))
+                : undefined,
+            }
           : undefined
       }
       renderLeftOpen={(row, cls, index, leaveOpen) => (

@@ -93,10 +93,12 @@ describe('FlashcardAssignmentSettingsModal', () => {
     fireEvent.click(screen.getByRole('switch', { name: 'Shuffle cards' }));
     fireEvent.click(screen.getByText('What students see'));
     fireEvent.click(
-      screen.getByRole('switch', { name: 'Show right and wrong to students' })
+      screen.getByRole('switch', {
+        name: 'Show right or wrong after each answer',
+      })
     );
     fireEvent.click(
-      screen.getByRole('switch', { name: 'Reveal correct answer to students' })
+      screen.getByRole('switch', { name: 'Show the correct answer when wrong' })
     );
     save();
     await waitFor(() => expect(onSave).toHaveBeenCalled());
@@ -127,10 +129,12 @@ describe('FlashcardAssignmentSettingsModal', () => {
     );
     fireEvent.click(screen.getByText('What students see'));
     fireEvent.click(
-      screen.getByRole('switch', { name: 'Show right and wrong to students' })
+      screen.getByRole('switch', {
+        name: 'Show right or wrong after each answer',
+      })
     );
     fireEvent.click(
-      screen.getByRole('switch', { name: 'Reveal correct answer to students' })
+      screen.getByRole('switch', { name: 'Show the correct answer when wrong' })
     );
     save();
     await waitFor(() => expect(onSave).toHaveBeenCalled());
