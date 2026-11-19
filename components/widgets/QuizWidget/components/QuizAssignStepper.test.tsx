@@ -5,10 +5,11 @@ import { getQuizAssignPrefill } from '@/utils/quizBehavior';
 import { defaultWhenValue } from '@/components/common/library/assignStepper/assignWhenValue';
 import { SAMPLE_ROSTERS } from '@/components/common/library/assignStepper/assignStepperTestRosters';
 import { QuizAssignStepper } from './QuizAssignStepper';
-import type { ClassRoster } from '@/types';
+import type { ClassRoster, StudentOverride } from '@/types';
 import { AuthContext } from '@/context/AuthContextValue';
 import {
   EMPTY_ASSIGN_TARGETING_VALUE,
+  classStudentRows,
   type AssignTargetingValue,
 } from '@/utils/studentTargetRef';
 import {
@@ -313,5 +314,149 @@ describe('QuizAssignStepper class presets', () => {
       { readAloud: true, timeMultiplier: 1.5 },
       { readAloud: true, timeMultiplier: 1.5 },
     ]);
+  });
+});
+
+const keyOf = (rosterId: string, studentId: string) => {
+  const row = classStudentRows({
+    rosters: SAMPLE_ROSTERS,
+    selectedRosterIds: ['c1', 'c2'],
+  }).find((r) => r.rosterId === rosterId && r.studentId === studentId);
+  if (!row) throw new Error('no row');
+  return row.key;
+};
+
+const EditHarness: React.FC<{
+  saved: Record<string, StudentOverride>;
+  savedClassIds?: string[];
+  onSubmit: (extra: unknown) => void;
+}> = ({ saved, savedClassIds = ['c1'], onSubmit }) => {
+  const [targeting, setTargeting] = useState<AssignTargetingValue>(
+    EMPTY_ASSIGN_TARGETING_VALUE
+  );
+  const [classes, setClasses] = useState<{
+    classIds: string[];
+    studentsByClass: Record<string, never>;
+  }>({ classIds: savedClassIds, studentsByClass: {} });
+  const auth = {
+    canAccessFeature: (id: string) =>
+      id === 'modification-groups' || id === 'quiz-read-aloud',
+  } as unknown as React.ContextType<typeof AuthContext>;
+  return (
+    <AuthContext.Provider value={auth}>
+      <QuizAssignStepper
+        title="Unit 1 checkpoint"
+        rosters={PRESET_ROSTERS}
+        classes={classes}
+        onClassesChange={(next) =>
+          setClasses({ classIds: next.classIds, studentsByClass: {} })
+        }
+        when={defaultWhenValue({
+          activity: 'quiz',
+          bellAvailable: false,
+          manualAvailable: false,
+        })}
+        onWhenChange={vi.fn()}
+        behavior={getQuizAssignPrefill(null)}
+        onBehaviorChange={vi.fn()}
+        modifications={{
+          targeting,
+          onTargetingChange: setTargeting,
+          quizContext: { questions: [], rubrics: [] },
+        }}
+        hasManualGrading={false}
+        handRaiseMode="force-off"
+        submitLabel="Save"
+        onClose={vi.fn()}
+        onSubmit={onSubmit}
+        edit={{
+          savedOverrides: saved,
+          savedClassIds,
+          servedLocales: [],
+          when: { value: 'Manual', body: null },
+        }}
+      />
+    </AuthContext.Provider>
+  );
+};
+
+const stepTitles = () =>
+  screen
+    .getAllByRole('button')
+    .map((b) => b.textContent ?? '')
+    .filter((text) => /^\d/.test(text))
+    .map((text) => text.replace(/^\d/, ''));
+
+describe('QuizAssignStepper editing a launched quiz', () => {
+  const avery = keyOf('c1', 'a');
+  const saved = { [avery]: { readAloud: true, closeAt: 99 } };
+  const submitted = (onSubmit: ReturnType<typeof vi.fn>) =>
+    (
+      onSubmit.mock.calls[0]?.[0] as {
+        overridesByKey: Record<string, StudentOverride>;
+      }
+    ).overridesByKey;
+
+  it('lists Modifications before Results, as assign does, with no student picker', () => {
+    render(<EditHarness saved={saved} onSubmit={vi.fn()} />);
+    const titles = stepTitles();
+    const mods = titles.findIndex((t) => t.startsWith('Modifications'));
+    expect(titles[mods - 1]).toMatch(/^Quiz integrity/);
+    expect(titles[mods + 1]).toMatch(/^Results/);
+    expect(screen.queryByText('Pick students')).toBeNull();
+  });
+
+  it('opens on the saved rules, not the class presets', () => {
+    render(<EditHarness saved={saved} onSubmit={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: /^\dModifications/ }));
+    expect(screen.getByRole('switch', { name: 'Read aloud' })).toBeChecked();
+    expect(screen.queryByText('Reading group A')).toBeNull();
+    expect(screen.queryByText(/Priya/)).toBeNull();
+  });
+
+  it('hands back the saved overrides untouched when nothing changed', () => {
+    const onSubmit = vi.fn();
+    render(<EditHarness saved={saved} onSubmit={onSubmit} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(submitted(onSubmit)).toEqual(saved);
+  });
+
+  it('keeps a student window when their group changes', () => {
+    const onSubmit = vi.fn();
+    render(<EditHarness saved={saved} onSubmit={onSubmit} />);
+    fireEvent.click(screen.getByRole('button', { name: /^\dModifications/ }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Read aloud' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(submitted(onSubmit)[avery]).toEqual({ closeAt: 99 });
+  });
+
+  it('brings a newly checked class in with its presets', () => {
+    const onSubmit = vi.fn();
+    render(
+      <EditHarness saved={{}} savedClassIds={['c2']} onSubmit={onSubmit} />
+    );
+    fireEvent.click(screen.getByRole('checkbox', { name: /^Sample 1/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(Object.values(submitted(onSubmit))).toEqual([
+      { readAloud: true, timeMultiplier: 1.5 },
+      { readAloud: true, timeMultiplier: 1.5 },
+    ]);
+  });
+});
+
+describe('QuizAssignStepper editing groups by rule', () => {
+  it('puts students with the same rules in one group whatever their own window', () => {
+    render(
+      <EditHarness
+        saved={{
+          [keyOf('c1', 'a')]: { readAloud: true, closeAt: 5 },
+          [keyOf('c1', 'c')]: { readAloud: true, questionIds: ['q1'] },
+          [keyOf('c1', 'b')]: { closeAt: 7 },
+        }}
+        onSubmit={vi.fn()}
+      />
+    );
+    const header = screen.getByRole('button', { name: /^\dModifications/ });
+    expect(header.textContent).toMatch(/2 students: read aloud$/);
   });
 });

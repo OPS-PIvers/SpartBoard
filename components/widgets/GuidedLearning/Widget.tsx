@@ -1852,6 +1852,13 @@ const TeacherGuidedLearningWidget: React.FC<{
                   onAssignmentDelete={(a) => {
                     void handleAssignmentDelete(a);
                   }}
+                  onAssignmentDeleteMany={async (list) => {
+                    const results = await Promise.allSettled(
+                      list.map((a) => deleteAssignment(a.id))
+                    );
+                    return results.filter((r) => r.status === 'rejected')
+                      .length;
+                  }}
                   onAssignmentPublishScores={(a) => {
                     setPublishingAssignment(a);
                   }}

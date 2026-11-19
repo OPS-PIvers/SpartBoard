@@ -199,6 +199,9 @@ const QuizMonitorDev: React.FC<
           rosters={SAMPLE_ROSTERS}
           onClose={() => undefined}
           onSave={() => undefined}
+          loadEditContext={() =>
+            Promise.resolve({ quizData: makeQuizData(), servedLocales: [] })
+          }
         />
       }
     />

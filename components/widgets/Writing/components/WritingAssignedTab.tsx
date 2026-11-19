@@ -23,6 +23,7 @@ import {
   AssignedLeftOpenFlag,
   AssignedList,
   AssignedRow,
+  useAssignedBulkOps,
   type ClassActionKind,
   mainActionLabel,
 } from '@/components/common/library/assigned';
@@ -63,6 +64,8 @@ interface WritingAssignedTabProps extends WritingAssignedHandlers {
   loading: boolean;
   rosters: ClassRoster[];
   pinnedId?: string | null;
+  /** Deletes without asking; resolves to how many failed. Turns on bulk select. */
+  onBulkDelete?: (records: WritingAssignmentRecord[]) => Promise<number>;
 }
 
 const TICK_MS = 30_000;
@@ -221,6 +224,7 @@ export const WritingAssignedTab: React.FC<WritingAssignedTabProps> = ({
   loading,
   rosters,
   pinnedId,
+  onBulkDelete,
   ...handlers
 }) => {
   const { featurePermissions } = useAuth();
@@ -314,6 +318,11 @@ export const WritingAssignedTab: React.FC<WritingAssignedTabProps> = ({
       emptyTitle="Nothing assigned yet"
       emptySub="Assign one from the Library."
       tourWidgetType="writing"
+      bulk={
+        onBulkDelete
+          ? { remove: (rs) => onBulkDelete(rs.map((x) => x.record)) }
+          : undefined
+      }
       renderLeftOpen={(row, cls, index, leaveOpen) => (
         <WritingLeftOpenHost
           row={row}
@@ -467,6 +476,23 @@ const WritingAssignedRowHost: React.FC<RowHostProps> = ({
       onClick: () =>
         withUndo(() => actions.moveToDone(), `${title} moved to Done.`),
     });
+  useAssignedBulkOps({
+    close: allClosed
+      ? undefined
+      : async () => {
+          const prev = r;
+          await actions.closeAll();
+          return () => undoWritingClose(prev);
+        },
+    moveToDone:
+      status.bucket === 'active'
+        ? async () => {
+            const prev = r;
+            await actions.moveToDone();
+            return () => undoWritingClose(prev);
+          }
+        : undefined,
+  });
   for (const item of [...singleLineItems, ...lifecycleItems])
     item.disabled = busy;
   const menuActions: LibraryMenuAction[] = [

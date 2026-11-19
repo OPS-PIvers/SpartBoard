@@ -6,12 +6,14 @@
  * date, targeting fields, and PLC results sharing (D12).
  */
 
-import React, { useContext, useEffect, useState } from 'react';
-import { ClipboardCheck, Pause, Save, Share2 } from 'lucide-react';
+import React, { useContext, useEffect, useEffectEvent, useState } from 'react';
+import { ClipboardCheck, Loader2, Pause, Save, Share2 } from 'lucide-react';
 import type {
   QuizAssignment,
   QuizBehaviorSettings,
   ClassRoster,
+  QuizData,
+  StudentOverride,
 } from '@/types';
 import type { QuizAssignmentSettingsPatch } from '@/hooks/useQuizAssignments';
 import { AssignAvailabilitySection } from '@/components/common/library/AssignAvailabilitySection';
@@ -37,21 +39,24 @@ import {
   type AssignClassPickerValue,
 } from '@/components/common/AssignClassPicker.helpers';
 import { formatBehaviorSummary } from '@/utils/quizBehavior';
-import { AssignStepper } from '@/components/common/library/assignStepper/AssignStepper';
 import {
   getAssignStepTitle,
   type AssignStepDef,
 } from '@/components/common/library/assignStepper/assignSteps';
 import { AssignWhenStep } from '@/components/common/library/assignStepper/AssignWhenStep';
 import { formatWhenValue } from '@/components/common/library/assignStepper/assignWhenValue';
-import { ClassChecklist } from '@/components/common/library/assignStepper/ClassChecklist';
-import {
-  formatClassesValue,
-  type AssignClassesValue,
-} from '@/components/common/library/assignStepper/assignClassesValue';
 import { periodAccessClassEdits } from '@/utils/periodPlan';
-import { useQuizRuleGates } from '@/components/common/library/assignStepper/QuizRuleStepGates';
-import { quizRuleStepDefs } from '@/components/common/library/assignStepper/quizRuleStepDefs';
+import { QuizAssignStepper } from './QuizAssignStepper';
+import { withQuizAnswerChoices } from '@/components/common/library/assignStepper/modificationGroups';
+import { toOverrideEditorQuestions } from '@/components/common/library/toOverrideEditorQuestions';
+import { quizNeedsManualGrading } from '@/utils/quizScoreOnSubmit';
+import { QUIZ_TRANSLATION_FEATURE } from '@/config/quizTranslation';
+import { isStaffAudience } from '@/utils/staffAudience';
+import {
+  EMPTY_ASSIGN_TARGETING_VALUE,
+  studentTargetRefKey,
+  type AssignTargetingValue,
+} from '@/utils/studentTargetRef';
 import { useTranslation } from 'react-i18next';
 import { getAssignmentWidgetKind } from '@/utils/quizWidgetKind';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
@@ -68,7 +73,15 @@ interface QuizAssignmentSettingsModalProps {
   assignment: QuizAssignment;
   rosters: ClassRoster[];
   onClose: () => void;
-  onSave: (patch: QuizAssignmentSettingsPatch) => Promise<void> | void;
+  /** `overridesByKey` is set when the Modifications step changed someone's rules. */
+  onSave: (
+    patch: QuizAssignmentSettingsPatch,
+    extra?: { overridesByKey?: Record<string, StudentOverride> }
+  ) => Promise<void> | void;
+  /** The assigned questions and the languages the session serves, for the Modifications step. */
+  loadEditContext?: () => Promise<SettingsEditContext>;
+  /** The same, already in hand (the live monitor); skips the load. */
+  editContext?: SettingsEditContext;
   /** True when the teacher belongs to at least one PLC. */
   canShareWithPlc?: boolean;
   /** Opens the "Share results with PLC…" picker (unlinked assignments). */
@@ -77,7 +90,19 @@ interface QuizAssignmentSettingsModalProps {
   onStopSharing?: () => void | Promise<void>;
   /** Renders the stepper in place (the live monitor's Settings screen) instead of a dialog. */
   inline?: boolean;
+  /** Translation index and source language of the quiz, for the language advisory. */
+  translation?: { sourceLanguage?: string };
 }
+
+export interface SettingsEditContext {
+  quizData: QuizData | null;
+  servedLocales: string[];
+}
+
+const NO_EDIT_CONTEXT: SettingsEditContext = {
+  quizData: null,
+  servedLocales: [],
+};
 
 /** Options object driven through AssignModal's `options` generic. */
 interface SettingsOptions {
@@ -145,6 +170,9 @@ export const QuizAssignmentSettingsModal: React.FC<
   onShareResults,
   onStopSharing,
   inline = false,
+  loadEditContext,
+  editContext: givenContext,
+  translation,
 }) => {
   const [options, setOptions] = useState<SettingsOptions>(() =>
     initialOptionsFor(assignment, rosters)
@@ -158,8 +186,38 @@ export const QuizAssignmentSettingsModal: React.FC<
   const [behavior, setBehavior] =
     useState<QuizBehaviorSettings>(initialBehavior);
   const { t } = useTranslation();
-  const ruleGates = useQuizRuleGates();
-  const user = useContext(AuthContext)?.user;
+  const auth = useContext(AuthContext);
+  const user = auth?.user;
+  const [targeting, setTargeting] = useState<AssignTargetingValue>(
+    EMPTY_ASSIGN_TARGETING_VALUE
+  );
+  // Only the Modifications step needs the questions, so only it waits for them.
+  const needsContext =
+    (!!givenContext || !!loadEditContext) &&
+    getAssignmentWidgetKind(assignment) === 'quiz' &&
+    !isStaffAudience(assignment) &&
+    auth?.canAccessFeature?.('modification-groups') === true;
+  const [loadedContext, setLoadedContext] =
+    useState<SettingsEditContext | null>(null);
+  const loadContext = useEffectEvent(() =>
+    loadEditContext ? loadEditContext() : Promise.resolve(NO_EDIT_CONTEXT)
+  );
+  const mustLoad = needsContext && !givenContext;
+  useEffect(() => {
+    if (!mustLoad) return;
+    let cancelled = false;
+    void loadContext()
+      .catch(() => NO_EDIT_CONTEXT)
+      .then((ctx) => {
+        if (!cancelled) setLoadedContext(ctx);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [assignment.id, mustLoad]);
+  const editContext = !needsContext
+    ? NO_EDIT_CONTEXT
+    : (givenContext ?? loadedContext);
   const [savedPolicy, setSavedPolicy] = useState<AttemptPolicy | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -242,7 +300,9 @@ export const QuizAssignmentSettingsModal: React.FC<
     return Object.keys(rows).length > 0 ? { periodAccessRows: rows } : {};
   };
 
-  const handleAssign = async () => {
+  const handleAssign = async (
+    overridesByKey?: Record<string, StudentOverride>
+  ) => {
     // Intentionally pass empty strings (not undefined) so that clearing a
     // field actually writes '' to Firestore. Using `|| undefined` would cause
     // updateDoc to skip the field and leave the previous value in place.
@@ -286,7 +346,22 @@ export const QuizAssignmentSettingsModal: React.FC<
         : {}),
     };
     try {
-      await onSave(patch);
+      const changed =
+        overridesByKey &&
+        JSON.stringify(overridesByKey) !==
+          JSON.stringify(assignment.overridesBySourcedId ?? {});
+      // A group's answer-choice rule becomes hidden options on the assigned questions, as at assign.
+      const withChoices =
+        changed && editContext?.quizData
+          ? withQuizAnswerChoices(
+              overridesByKey,
+              editContext.quizData.questions
+            )
+          : overridesByKey;
+      await onSave(
+        patch,
+        changed ? { overridesByKey: withChoices } : undefined
+      );
       const picked = behavior.finalScore;
       // Until the saved choice has loaded, any explicit pick is written.
       if (user?.uid && picked !== undefined && picked !== savedPolicy) {
@@ -385,51 +460,99 @@ export const QuizAssignmentSettingsModal: React.FC<
             },
           ]
         : [];
-    const classesValue: AssignClassesValue = {
-      classIds: options.picker.rosterIds,
-      studentsByClass: {},
-    };
-    const classesStep: AssignStepDef = {
-      id: 'classes',
-      title: getAssignStepTitle('classes', 'quiz', { kind: 'work' }),
-      value: formatClassesValue(classesValue, rosters),
-      body: (
-        <ClassChecklist
-          rosters={rosters}
-          value={classesValue}
-          onChange={(next) =>
-            setOptions((prev) => ({
-              ...prev,
-              picker: { ...prev.picker, rosterIds: next.classIds },
-            }))
+    // The steps wait for the questions so Modifications opens on the saved groups.
+    if (!editContext)
+      return (
+        <div
+          className={
+            inline
+              ? 'flex justify-center py-8'
+              : 'fixed inset-0 z-dialog flex items-center justify-center bg-slate-900/60 backdrop-blur-xs'
           }
-        />
-      ),
-    };
+          role="status"
+        >
+          <Loader2
+            className="h-5 w-5 animate-spin text-slate-400"
+            aria-label="Loading"
+          />
+        </div>
+      );
+    const { quizData, servedLocales } = editContext;
+    const studentsMode = assignment.targetMode === 'students';
+    const questions = quizData?.questions ?? [];
+    const translationOn =
+      auth?.canAccessFeature?.(QUIZ_TRANSLATION_FEATURE) === true;
     return (
-      <AssignStepper
-        isOpen
-        inline={inline}
-        onClose={onClose}
+      <QuizAssignStepper
         title={assignment.quizTitle}
-        steps={[
-          classesStep,
-          whenStep,
-          ...quizRuleStepDefs({
-            value: shownBehavior,
-            onChange: setBehavior,
-            gates: ruleGates,
-            handRaiseMode: 'force-off',
-          }),
-          ...sharingStep,
-        ]}
-        submitLabel="Save"
-        submitIcon={Save}
-        onSubmit={handleAssign}
-        disabled={
-          availabilityBackwards ||
-          (classRequired && selectedRostersForDue.length === 0)
+        rosters={rosters}
+        classes={{ classIds: options.picker.rosterIds, studentsByClass: {} }}
+        onClassesChange={(next) =>
+          setOptions((prev) => ({
+            ...prev,
+            picker: { ...prev.picker, rosterIds: next.classIds },
+          }))
         }
+        when={{ mode: 'scheduled', availability }}
+        onWhenChange={(next) => setAvailability(next.availability)}
+        behavior={shownBehavior}
+        onBehaviorChange={setBehavior}
+        // A staff assignment has no students to modify.
+        {...(quizData && !isStaffAudience(assignment)
+          ? {
+              modifications: {
+                targeting,
+                onTargetingChange: setTargeting,
+                quizContext: {
+                  questions: toOverrideEditorQuestions(quizData),
+                  rubrics: [],
+                  ...(translationOn
+                    ? {
+                        translation: {
+                          sourceLanguage: translation?.sourceLanguage,
+                          hasBankSlots: (quizData.bankSlots?.length ?? 0) > 0,
+                        },
+                      }
+                    : {}),
+                },
+                hasQuestionTimeLimits: questions.some((q) => q.timeLimit > 0),
+                hasModifiedQuestions: questions.some(
+                  (q) => !!q.modifiedText?.trim() || !!q.modifiedRubricSnapshot
+                ),
+              },
+            }
+          : {})}
+        hasManualGrading={quizNeedsManualGrading(questions)}
+        handRaiseMode="force-off"
+        submitLabel="Save"
+        onClose={onClose}
+        onSubmit={({ overridesByKey }) => handleAssign(overridesByKey)}
+        edit={{
+          savedOverrides: assignment.overridesBySourcedId ?? {},
+          savedClassIds: initialClassIds,
+          servedLocales,
+          ...(studentsMode
+            ? {
+                targetKeys: new Set(
+                  (assignment.targetStudents ?? []).map(studentTargetRefKey)
+                ),
+              }
+            : {}),
+          inline,
+          when: { value: whenStep.value, body: whenStep.body },
+          ...(sharingStep[0]
+            ? {
+                sharing: {
+                  value: sharingStep[0].value,
+                  body: sharingStep[0].body,
+                },
+              }
+            : {}),
+          submitIcon: Save,
+          disabled:
+            availabilityBackwards ||
+            (classRequired && selectedRostersForDue.length === 0),
+        }}
       />
     );
   }
@@ -452,7 +575,7 @@ export const QuizAssignmentSettingsModal: React.FC<
         availabilityBackwards ||
         (classRequired && selectedRostersForDue.length === 0)
       }
-      onAssign={handleAssign}
+      onAssign={() => handleAssign()}
       extraSlot={
         <>
           <AssignClassPicker

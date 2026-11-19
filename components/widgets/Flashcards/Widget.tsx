@@ -670,6 +670,20 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     );
   };
 
+  // Already confirmed; a PLC share that can't be stopped keeps its assignment.
+  const handleAssignmentDeleteMany = async (
+    list: FlashcardAssignment[]
+  ): Promise<number> => {
+    const results = await Promise.allSettled(
+      list.map(async (a) => {
+        if (a.plcShare && !(await plcSharing.stopSharingResults(a)))
+          throw new Error('PLC results could not be removed.');
+        await deleteAssignment(a.id);
+      })
+    );
+    return results.filter((r) => r.status === 'rejected').length;
+  };
+
   const showLibrary = (): void => {
     updateWidget(widget.id, {
       config: {
@@ -913,6 +927,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                 }
                 onError={(message) => addToast(message, 'error')}
                 onAssignmentDelete={(a) => void handleAssignmentDelete(a)}
+                onAssignmentDeleteMany={handleAssignmentDeleteMany}
                 onShareWithPlc={
                   plcSharing.enabled ? plcSharing.shareSet : undefined
                 }
