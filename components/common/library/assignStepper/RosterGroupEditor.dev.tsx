@@ -38,8 +38,17 @@ const ROSTER: ClassRoster = {
   ],
 };
 
+// ?hide=symbol,schedule mimics a building with those steps switched off.
+const hidden = new URLSearchParams(window.location.search).get('hide') ?? '';
+const groupSteps = {
+  symbol: !hidden.includes('symbol'),
+  schedule: !hidden.includes('schedule'),
+  settings: !hidden.includes('settings'),
+};
+
 const Preview: React.FC = () => (
   <RosterEditorModal
+    groupSteps={groupSteps}
     isOpen
     roster={ROSTER}
     onClose={() => undefined}
