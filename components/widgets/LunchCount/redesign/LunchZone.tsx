@@ -164,10 +164,9 @@ export const LunchZone: React.FC<LunchZoneProps> = ({
             {showSides ? (
               <div
                 title={sides.map((s) => s.name).join(' · ')}
-                className={`rounded bg-white/60 leading-snug line-clamp-2 wrap-anywhere opacity-80 ${tone.text} [@container(max-height:379px)]:hidden [@container(max-width:559px)]:hidden`}
+                className={`leading-snug line-clamp-2 wrap-anywhere opacity-80 ${tone.text} [@container(max-height:379px)]:hidden [@container(max-width:559px)]:hidden`}
                 style={{
                   fontSize: `max(10px, calc(${ZONE_TEXT} * 0.55))`,
-                  padding: '0.15em 0.4em',
                 }}
               >
                 {sides.map((s, i) => (
