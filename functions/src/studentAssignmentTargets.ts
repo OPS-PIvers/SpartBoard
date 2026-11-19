@@ -872,7 +872,7 @@ export function pointerKeyForSession(
 /** Most sessions that may share one mini-app archive id before the claim check gives up. */
 const MAX_MINI_APP_SESSIONS_PER_KEY = 50;
 
-/** Refuses a pointer key that names another teacher's session of any kind or another teacher's mini-app archive. */
+/** Refuses a pointer key whose first session, of any kind or a mini-app archive, is another teacher's. */
 export async function assertPointerKeyUnclaimed(
   db: admin.firestore.Firestore,
   callerUid: string,
@@ -894,9 +894,17 @@ export async function assertPointerKeyUnclaimed(
     ...sessionSnaps.filter((snap) => snap.exists),
     ...miniAppSnap.docs,
   ];
+  // The first session to carry a key owns it, so a later copy can't lock its owner out.
+  const first = claimants.reduce<(typeof claimants)[number] | undefined>(
+    (min, snap) =>
+      !min || snap.createTime.toMillis() < min.createTime.toMillis()
+        ? snap
+        : min,
+    undefined
+  );
   if (
     miniAppSnap.docs.length > MAX_MINI_APP_SESSIONS_PER_KEY ||
-    claimants.some((snap) => snap.get('teacherUid') !== callerUid)
+    (first !== undefined && first.get('teacherUid') !== callerUid)
   ) {
     throw new HttpsError(
       'permission-denied',
