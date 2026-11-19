@@ -75,3 +75,60 @@ export async function finalizeClassVideoResponses(
   );
   if (failed) throw failed.reason;
 }
+
+/** Turns in a closed single-line run's unfinished attempts; `closedAt` is the assignment's close mark, so a Reopen or Undo voids it. */
+export async function finalizeRunVideoResponses(
+  sessionId: string,
+  teacherUid: string,
+  closedAt: number,
+  now: number = Date.now()
+): Promise<void> {
+  const sessionRef = doc(db, SESSIONS, sessionId);
+  const assignmentRef = doc(
+    db,
+    'users',
+    teacherUid,
+    'video_activity_assignments',
+    sessionId
+  );
+  const marked = (a: { closedAt?: number | null } | undefined) =>
+    a?.closedAt === closedAt;
+  if (!marked((await getDoc(assignmentRef)).data())) return;
+  const sessionSnap = await getDoc(sessionRef);
+  if (!sessionSnap.exists()) return;
+  const session = sessionSnap.data() as VideoActivitySession;
+  const open = await getDocs(
+    query(collection(sessionRef, RESPONSES), where('completedAt', '==', null))
+  );
+  // A blank join stays Not started: turning it in would spend an attempt on nothing.
+  const picked = open.docs.filter((d) => {
+    const r = d.data() as VideoActivityResponse;
+    return (
+      r.unlocked !== true &&
+      !(session.reopenedFor ?? []).includes(r.studentUid) &&
+      Array.isArray(r.answers) &&
+      r.answers.length > 0
+    );
+  });
+  const results = await Promise.allSettled(
+    picked.map((d) =>
+      runTransaction(db, async (tx) => {
+        // A Reopen or Undo that lands while these run wins.
+        const a = await tx.get(assignmentRef);
+        if (!marked(a.data())) return;
+        const fresh = await tx.get(d.ref);
+        if (!fresh.exists()) return;
+        const r = fresh.data() as VideoActivityResponse;
+        if (r.unlocked === true) return;
+        const patch = completionPatch(r, now, {
+          increment: (n: number) => (r.completedAttempts ?? 0) + n,
+        });
+        if (patch) tx.update(d.ref, patch);
+      })
+    )
+  );
+  const failed = results.find(
+    (r): r is PromiseRejectedResult => r.status === 'rejected'
+  );
+  if (failed) throw failed.reason;
+}
