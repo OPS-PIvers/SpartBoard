@@ -33,6 +33,7 @@ export const DRIVE_UPLOAD_FOLDERS = [
   'Assets/HotspotImages',
   'Assets/PDFs',
   'Assets/PaperSheetStimuli',
+  'Assets/QuizAudio',
   'Assets/QuizStimuli',
   'Assets/Screenshots',
   'Assets/Stickers',

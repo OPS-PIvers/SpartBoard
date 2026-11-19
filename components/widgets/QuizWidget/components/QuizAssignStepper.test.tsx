@@ -5,6 +5,12 @@ import { getQuizAssignPrefill } from '@/utils/quizBehavior';
 import { defaultWhenValue } from '@/components/common/library/assignStepper/assignWhenValue';
 import { SAMPLE_ROSTERS } from '@/components/common/library/assignStepper/assignStepperTestRosters';
 import { QuizAssignStepper } from './QuizAssignStepper';
+import type { ClassRoster } from '@/types';
+import { AuthContext } from '@/context/AuthContextValue';
+import {
+  EMPTY_ASSIGN_TARGETING_VALUE,
+  type AssignTargetingValue,
+} from '@/utils/studentTargetRef';
 import {
   DEFAULT_WRITTEN_ANSWERS,
   type WrittenAnswersValue,
@@ -212,5 +218,100 @@ describe('QuizAssignStepper step order', () => {
     expect(
       screen.getByText('Allow students to raise a hand')
     ).toBeInTheDocument();
+  });
+});
+
+vi.mock('@/hooks/useGoogleDrive', () => ({
+  useGoogleDrive: () => ({ driveService: null }),
+}));
+
+const PRESET_ROSTERS: ClassRoster[] = SAMPLE_ROSTERS.map((r) =>
+  r.id === 'c1'
+    ? {
+        ...r,
+        defaultOverridesByStudentId: {
+          a: { readAloud: true, timeMultiplier: 1.5 },
+          c: { readAloud: true, timeMultiplier: 1.5 },
+        },
+      }
+    : r
+);
+
+const PresetHarness: React.FC<{
+  onTargeting: (next: AssignTargetingValue) => void;
+  onSubmit?: (extra: unknown) => void;
+}> = ({ onTargeting, onSubmit = vi.fn() }) => {
+  const [targeting, setTargeting] = useState<AssignTargetingValue>(
+    EMPTY_ASSIGN_TARGETING_VALUE
+  );
+  const auth = {
+    canAccessFeature: (id: string) =>
+      id === 'modification-groups' || id === 'quiz-read-aloud',
+  } as unknown as React.ContextType<typeof AuthContext>;
+  return (
+    <AuthContext.Provider value={auth}>
+      <QuizAssignStepper
+        title="Unit 1 checkpoint"
+        rosters={PRESET_ROSTERS}
+        classes={{ classIds: ['c1'], studentsByClass: {} }}
+        onClassesChange={vi.fn()}
+        when={defaultWhenValue({
+          activity: 'quiz',
+          bellAvailable: false,
+          manualAvailable: false,
+        })}
+        onWhenChange={vi.fn()}
+        behavior={getQuizAssignPrefill(null)}
+        onBehaviorChange={vi.fn()}
+        modifications={{
+          targeting,
+          onTargetingChange: (next) => {
+            setTargeting(next);
+            onTargeting(next);
+          },
+          quizContext: { questions: [], rubrics: [] },
+        }}
+        hasManualGrading={false}
+        handRaiseMode="teacher-choice"
+        submitLabel="Assign"
+        onClose={vi.fn()}
+        onSubmit={onSubmit}
+      />
+    </AuthContext.Provider>
+  );
+};
+
+describe('QuizAssignStepper class presets', () => {
+  it('arrive as a group in the Modifications step', () => {
+    render(<PresetHarness onTargeting={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: /^\dModifications/ }));
+    expect(screen.getByText('Reading group A')).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'Read aloud' })).toBeChecked();
+  });
+
+  it('can be removed for this assignment only', () => {
+    const onTargeting = vi.fn();
+    render(<PresetHarness onTargeting={onTargeting} />);
+    fireEvent.click(screen.getByRole('button', { name: /^\dModifications/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove group' }));
+    const last = onTargeting.mock.calls.at(-1)?.[0] as AssignTargetingValue;
+    expect(Object.values(last.overridesByKey)).toEqual([{}, {}]);
+    expect(PRESET_ROSTERS[0].defaultOverridesByStudentId?.a).toEqual({
+      readAloud: true,
+      timeMultiplier: 1.5,
+    });
+  });
+
+  it('assign serves what the step shows, even with no edits', () => {
+    const onSubmit = vi.fn();
+    render(<PresetHarness onTargeting={vi.fn()} onSubmit={onSubmit} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Assign' }));
+    const extra = onSubmit.mock.calls[0]?.[0] as {
+      overridesByKey: AssignTargetingValue['overridesByKey'];
+    };
+    expect(Object.values(extra.overridesByKey)).toEqual([
+      { readAloud: true, timeMultiplier: 1.5 },
+      { readAloud: true, timeMultiplier: 1.5 },
+    ]);
   });
 });

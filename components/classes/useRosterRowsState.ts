@@ -199,6 +199,27 @@ export function useRosterRowsState(roster: ClassRoster | null) {
     });
   }, []);
 
+  // Copies PINs filled in on save back onto rows the teacher hasn't touched since.
+  const applyAssignedPins = useCallback((sent: Student[], saved: Student[]) => {
+    const before = new Map(sent.map((s) => [s.id, s.pin]));
+    const after = new Map(
+      saved.filter((s) => s.pin !== before.get(s.id)).map((s) => [s.id, s])
+    );
+    if (after.size === 0) return;
+    setRows((rs) =>
+      rs.map((r) => {
+        const s = after.get(r.id);
+        if (!s || r.pin !== before.get(r.id)) return r;
+        return {
+          ...r,
+          pin: s.pin,
+          formerPins: s.formerPins,
+          formerPinsAt: s.formerPinsAt,
+        };
+      })
+    );
+  }, []);
+
   /**
    * Students ready to save: trimmed, skips fully-empty rows.
    * PIN zero-padding happens in useRosters downstream.
@@ -251,6 +272,7 @@ export function useRosterRowsState(roster: ClassRoster | null) {
     updateRow,
     deleteRow,
     bulkPasteInto,
+    applyAssignedPins,
     showLastNames,
     handleToggleLastNames,
     showPins,

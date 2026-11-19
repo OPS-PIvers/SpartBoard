@@ -6,6 +6,7 @@
  * the paper exists. See docs/plans/shipped/QUIZ_PAPER_ANSWER_SHEETS.md §6.
  */
 
+import { promptLabel } from '@/utils/quizPromptText';
 import { choicePictureFields } from '@/utils/quizAnswerImages';
 import { plainPromptText } from '@/utils/promptMath';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
@@ -1098,7 +1099,9 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                 const english = batch.choiceOrder?.[q.id] ?? [];
                 const tr = group?.translation?.questions[q.id];
                 return {
-                  text: plainPromptText(tr?.text ?? q.text),
+                  text: plainPromptText(
+                    tr?.text?.trim() ? tr.text : promptLabel(q)
+                  ),
                   choices: english.map((c) => tr?.choices?.[c] ?? c),
                   ...choicePictureFields(q, english),
                 };
@@ -2145,16 +2148,16 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
       maxWidth="max-w-2xl"
       contentClassName=""
       customHeader={
-        <div className="flex items-start justify-between border-b border-slate-100 px-5 pb-3 pt-5">
+        <div className="flex items-start justify-between gap-3 px-5 py-3.5 bg-emerald-700 text-white rounded-t-2xl">
           <div className="flex items-start gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-blue-lighter/40 text-brand-blue-primary">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/15 text-white">
               <Printer className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900">
+              <h2 className="text-base font-bold text-white">
                 Print response sheets
               </h2>
-              <p className="mt-0.5 max-w-[24rem] truncate text-xs text-slate-500">
+              <p className="mt-0.5 max-w-[24rem] truncate text-xs text-white/80">
                 {onCreateQuiz
                   ? 'New paper test'
                   : [quiz.title || 'Untitled paper test', group?.label]
@@ -2168,7 +2171,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
             onClick={onClose}
             aria-label="Close"
             {...tourTypeAttr('quiz-print.close', 'quiz')}
-            className="shrink-0 rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+            className="shrink-0 rounded-lg p-1 text-white/80 transition-colors hover:bg-white/15 hover:text-white"
           >
             <X className="h-5 w-5" />
           </button>

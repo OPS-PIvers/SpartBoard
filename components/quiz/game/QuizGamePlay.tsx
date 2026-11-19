@@ -5,6 +5,8 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { promptLabel } from '@/utils/quizPromptText';
+import { QuestionAudioButton } from '@/components/quiz/QuestionAudioButton';
 import { MathText } from '@/components/common/MathText';
 import { PromptText } from '@/components/common/PromptText';
 import { httpsCallable } from 'firebase/functions';
@@ -738,6 +740,14 @@ const GameQuestion: React.FC<{
         </div>
       )}
       {stimuli.length > 0 && <CollapsibleStimuli stimuli={stimuli} light />}
+      {question.promptAudio && (
+        <QuestionAudioButton
+          key={question.id}
+          audio={question.promptAudio}
+          viewsUsed={0}
+          className="self-start"
+        />
+      )}
       <h2 className="text-xl font-black leading-snug text-slate-900 sm:text-2xl">
         {multiBlank ? (
           <NumberedBlanksText text={question.text} light />
@@ -1078,7 +1088,7 @@ const SectionDivider: React.FC<{
                     {on && <Check className="h-3.5 w-3.5" />}
                   </span>
                   <span className="line-clamp-3">
-                    <MathText text={q.text} format />
+                    <MathText text={promptLabel(q)} format />
                   </span>
                 </button>
               );

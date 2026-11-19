@@ -32,7 +32,14 @@ export interface ModificationGroup {
   modifiedQuestions?: boolean;
   /** Prints this group's version on paper at assign; scans join the same results. */
   printed?: boolean;
+  /** Class focus rules the step has no row for, kept from the class's standing settings. */
+  carried?: CarriedRules;
 }
+
+export type CarriedRules = Pick<
+  StudentOverride,
+  'blockCopyPaste' | 'tabWarningThreshold' | 'tabAwayLimit'
+>;
 
 export const MAX_SUPPORTS = 5;
 
@@ -45,6 +52,109 @@ export const newModificationGroup = (): ModificationGroup => ({
   readAloud: false,
   speechToText: false,
 });
+
+const TIME_FROM_STANDING: Record<string, TimeRule> = {
+  '1.5': 1.5,
+  '2': 2,
+  unlimited: 'unlimited',
+};
+
+/** A class's standing settings as a group, so the step shows what the class presets apply. */
+export function groupFromStanding(
+  standing: StudentOverride,
+  studentKeys: string[]
+): ModificationGroup {
+  const carried: CarriedRules = {};
+  if (standing.blockCopyPaste !== undefined)
+    carried.blockCopyPaste = standing.blockCopyPaste;
+  if (standing.tabWarningThreshold !== undefined)
+    carried.tabWarningThreshold = standing.tabWarningThreshold;
+  if (standing.tabAwayLimit !== undefined)
+    carried.tabAwayLimit = standing.tabAwayLimit;
+  return {
+    ...newModificationGroup(),
+    studentKeys,
+    answerChoices: standingAnswerChoicesRule(standing),
+    time:
+      standing.timeMultiplier === undefined
+        ? 'standard'
+        : (TIME_FROM_STANDING[String(standing.timeMultiplier)] ?? 'standard'),
+    readAloud: standing.readAloud === true,
+    speechToText: standing.speechToText === true,
+    ...(standing.language ? { language: standing.language } : {}),
+    ...(standing.supports?.length
+      ? { supports: standing.supports.slice(0, MAX_SUPPORTS) }
+      : {}),
+    ...(standing.modifiedQuestions ? { modifiedQuestions: true } : {}),
+    ...(Object.keys(carried).length > 0 ? { carried } : {}),
+  };
+}
+
+const sortedJson = (value: unknown): string =>
+  JSON.stringify(value, (_key, v: unknown) =>
+    v && typeof v === 'object' && !Array.isArray(v)
+      ? Object.fromEntries(
+          Object.entries(v as Record<string, unknown>).sort(([a], [b]) =>
+            a.localeCompare(b)
+          )
+        )
+      : v
+  );
+
+/** One group per distinct standing setting among rows not seeded yet, in row order. */
+export function standingGroupsFor(
+  rows: ClassStudentRow[],
+  seeded: ReadonlySet<string>
+): ModificationGroup[] {
+  const buckets = new Map<
+    string,
+    { standing: StudentOverride; keys: string[] }
+  >();
+  for (const row of rows) {
+    if (!row.defaultOverride || seeded.has(row.key)) continue;
+    const id = sortedJson(row.defaultOverride);
+    const bucket = buckets.get(id);
+    if (bucket) bucket.keys.push(row.key);
+    else buckets.set(id, { standing: row.defaultOverride, keys: [row.key] });
+  }
+  return [...buckets.values()].map((b) =>
+    groupFromStanding(b.standing, b.keys)
+  );
+}
+
+/** True for the step's starting group: nobody in it and nothing set. */
+export const isBlankGroup = (g: ModificationGroup): boolean =>
+  g.studentKeys.length === 0 &&
+  g.answerChoices === 'all' &&
+  g.time === 'standard' &&
+  !g.readAloud &&
+  !g.speechToText &&
+  !g.language &&
+  !g.supports?.length &&
+  !g.modifiedQuestions &&
+  !g.printed &&
+  !g.carried;
+
+/** Adds the class presets of newly reached students as groups; a blank starting group gives way. */
+export function withStandingGroups(
+  groups: ModificationGroup[],
+  rows: ClassStudentRow[],
+  seeded: ReadonlySet<string>
+): ModificationGroup[] {
+  const added = standingGroupsFor(rows, seeded);
+  if (added.length === 0) return groups;
+  return [...groups.filter((g) => !isBlankGroup(g)), ...added];
+}
+
+/** Drive file ids of class preset supports, which the step must never delete. */
+export const standingDriveFileIds = (rows: ClassStudentRow[]): Set<string> =>
+  new Set(
+    rows.flatMap((row) =>
+      (row.defaultOverride?.supports ?? []).flatMap((s) =>
+        s.kind === 'drive' ? [s.fileId] : []
+      )
+    )
+  );
 
 /** Rows the Classes step sends the assignment to, so a group can't pick a student who won't get it. */
 export function rowsInClasses(
@@ -149,7 +259,8 @@ const moreTime = (
 export function overrideForGroup(
   group: ModificationGroup,
   standing: StudentOverride | undefined,
-  questions: OverrideEditorQuestion[]
+  /** Omit to leave the answer-choice rule for assign to apply to the served questions. */
+  questions?: OverrideEditorQuestion[]
 ): StudentOverride {
   const next: StudentOverride = { ...(standing ?? {}) };
   if (group.time !== 'standard')
@@ -160,8 +271,13 @@ export function overrideForGroup(
     CHOICE_RANK[group.answerChoices] >= CHOICE_RANK[standingRule]
       ? group.answerChoices
       : standingRule;
-  const hidden = hiddenOptionIdsForRule(questions, rule);
-  if (hidden) next.hiddenOptionIdsByQuestion = hidden;
+  if (questions) {
+    const hidden = hiddenOptionIdsForRule(questions, rule);
+    if (hidden) next.hiddenOptionIdsByQuestion = hidden;
+  } else if (rule !== 'all') {
+    // Assign turns this into hidden options over every served question, bank draws included.
+    next.answerChoices = rule === 'drop-one' ? 3 : 2;
+  }
   if (group.readAloud) next.readAloud = true;
   if (group.speechToText) next.speechToText = true;
   if (group.language) next.language = group.language;
@@ -175,24 +291,29 @@ export function overrideForGroup(
   }
   if (group.modifiedQuestions) next.modifiedQuestions = true;
   if (group.printed) next.onPaper = true;
+  if (group.carried) Object.assign(next, group.carried);
   return next;
 }
 
-/** Per-student overrides for every grouped student; anyone else keeps their standing accommodation. */
+/** Per-student overrides: the step shows every class preset as a group, so its groups are the whole truth. */
 export function overridesFromGroups(
   groups: ModificationGroup[],
   rows: ClassStudentRow[],
-  questions: OverrideEditorQuestion[]
+  /** Preset students the step has shown; only they can be taken out of their preset. */
+  seeded: ReadonlySet<string>
 ): Record<string, StudentOverride> {
   const rowByKey = new Map(rows.map((row) => [row.key, row] as const));
   const out: Record<string, StudentOverride> = {};
   for (const group of groups) {
     for (const key of group.studentKeys) {
-      const row = rowByKey.get(key);
-      if (!row) continue;
-      out[key] = overrideForGroup(group, row.defaultOverride, questions);
+      if (!rowByKey.has(key)) continue;
+      out[key] = overrideForGroup(group, undefined);
     }
   }
+  // A preset student the teacher took out of every group gets nothing this time.
+  for (const row of rows)
+    if (row.defaultOverride && seeded.has(row.key) && !(row.key in out))
+      out[row.key] = {};
   return out;
 }
 

@@ -29,7 +29,10 @@ const mocks = vi.hoisted<PaidMocks>(() => ({
 }));
 
 vi.mock('./useSpeechToTextSettings', () => ({
-  useSpeechToTextSettings: (enabled: boolean): SpeechToTextSettings => {
+  useSpeechToTextSettings: (
+    assignmentId: string | undefined
+  ): SpeechToTextSettings => {
+    const enabled = assignmentId !== undefined;
     mocks.settingsEnabled.push(enabled);
     return {
       ...DEFAULT_SPEECH_TO_TEXT_SETTINGS,

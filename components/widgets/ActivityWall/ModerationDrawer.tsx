@@ -16,6 +16,7 @@ import { ViewAsStudentButton } from '@/components/viewAs/ViewAsStudentButton';
 import { useMediaUrl } from '@/components/activityWall/render/useMediaUrl';
 import type { ActivityWallSubmission } from '@/types';
 import { tourTypeAttr } from '@/config/tourAnchors';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 
 interface SubmissionEdit {
   content?: string;
@@ -276,6 +277,7 @@ export const ModerationDrawer: React.FC<ModerationDrawerProps> = ({
 
   return (
     <Modal
+      accent={LIBRARY_HEADER_ACCENTS['activity-wall']}
       isOpen
       onClose={onClose}
       title="Moderate posts"

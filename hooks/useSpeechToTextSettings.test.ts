@@ -7,59 +7,77 @@ import {
 } from './useSpeechToTextSettings';
 
 const mocks = vi.hoisted(() => ({
-  getDoc:
-    vi.fn<() => Promise<{ exists: () => boolean; data: () => unknown }>>(),
-  doc: vi.fn((...path: unknown[]) => path.slice(1).join('/')),
+  call: vi.fn<(request: unknown) => Promise<{ data: unknown }>>(),
+  names: [] as string[],
 }));
 
-vi.mock('firebase/firestore', () => ({
-  getDoc: mocks.getDoc,
-  doc: mocks.doc,
+vi.mock('@/config/firebase', () => ({ functions: {} }));
+vi.mock('firebase/functions', () => ({
+  httpsCallable: (_functions: unknown, name: string) => {
+    mocks.names.push(name);
+    return mocks.call;
+  },
 }));
-
-const snap = (data: unknown) => ({
-  exists: () => data !== undefined,
-  data: () => data,
-});
 
 beforeEach(() => {
   resetSpeechToTextSettingsCache();
-  mocks.getDoc.mockReset();
-  mocks.doc.mockClear();
+  mocks.call.mockReset();
+  mocks.names.length = 0;
 });
 
 describe('useSpeechToTextSettings', () => {
-  it('reads nothing while disabled', () => {
-    const { result } = renderHook(() => useSpeechToTextSettings(false));
+  it('asks nothing without an assignment', () => {
+    const { result } = renderHook(() => useSpeechToTextSettings(undefined));
     expect(result.current).toEqual(DEFAULT_SPEECH_TO_TEXT_SETTINGS);
-    expect(mocks.getDoc).not.toHaveBeenCalled();
+    expect(mocks.call).not.toHaveBeenCalled();
   });
 
-  it('reads the admin doc once for the page and normalises it', async () => {
-    mocks.getDoc.mockResolvedValue(snap({ engine: 'hybrid', tidyUp: true }));
-    const first = renderHook(() => useSpeechToTextSettings(true));
+  it('asks the server once per assignment and maps the answer', async () => {
+    mocks.call.mockResolvedValue({
+      data: { transcription: true, tidyUp: true },
+    });
+    const first = renderHook(() => useSpeechToTextSettings('a1'));
     expect(first.result.current.engine).toBe('browser');
     await waitFor(() => expect(first.result.current.engine).toBe('hybrid'));
     expect(first.result.current.tidyUp).toBe(true);
-    expect(mocks.doc.mock.results[0]?.value).toBe(
-      'admin_settings/speech_to_text'
-    );
+    expect(mocks.names).toEqual(['getSpeechToTextAccessV1']);
+    expect(mocks.call).toHaveBeenCalledWith({ assignmentId: 'a1' });
 
-    const second = renderHook(() => useSpeechToTextSettings(true));
+    const second = renderHook(() => useSpeechToTextSettings('a1'));
     expect(second.result.current.engine).toBe('hybrid');
-    expect(mocks.getDoc).toHaveBeenCalledTimes(1);
+    expect(mocks.call).toHaveBeenCalledTimes(1);
   });
 
-  it('falls back to everything off when the doc is missing or unreadable', async () => {
-    mocks.getDoc.mockResolvedValue(snap(undefined));
-    const missing = renderHook(() => useSpeechToTextSettings(true));
-    await waitFor(() => expect(mocks.getDoc).toHaveBeenCalledTimes(1));
-    expect(missing.result.current).toEqual(DEFAULT_SPEECH_TO_TEXT_SETTINGS);
+  it('asks again for another assignment and keeps the answers apart', async () => {
+    mocks.call.mockImplementation((request) =>
+      Promise.resolve({
+        data: {
+          transcription: false,
+          tidyUp: JSON.stringify(request).includes('a2'),
+        },
+      })
+    );
+    const { result, rerender } = renderHook(
+      ({ id }: { id: string }) => useSpeechToTextSettings(id),
+      { initialProps: { id: 'a1' } }
+    );
+    await waitFor(() => expect(mocks.call).toHaveBeenCalledTimes(1));
+    expect(result.current.tidyUp).toBe(false);
+    rerender({ id: 'a2' });
+    await waitFor(() => expect(result.current.tidyUp).toBe(true));
+    expect(result.current.engine).toBe('browser');
+    expect(mocks.call).toHaveBeenCalledTimes(2);
+  });
 
-    resetSpeechToTextSettingsCache();
-    mocks.getDoc.mockRejectedValue(new Error('permission-denied'));
-    const denied = renderHook(() => useSpeechToTextSettings(true));
-    await waitFor(() => expect(mocks.getDoc).toHaveBeenCalledTimes(2));
+  it('turns both extras off on an error or a malformed answer', async () => {
+    mocks.call.mockRejectedValue(new Error('permission-denied'));
+    const denied = renderHook(() => useSpeechToTextSettings('a1'));
+    await waitFor(() => expect(mocks.call).toHaveBeenCalledTimes(1));
     expect(denied.result.current).toEqual(DEFAULT_SPEECH_TO_TEXT_SETTINGS);
+
+    mocks.call.mockResolvedValue({ data: { transcription: 'yes' } });
+    const odd = renderHook(() => useSpeechToTextSettings('a2'));
+    await waitFor(() => expect(mocks.call).toHaveBeenCalledTimes(2));
+    expect(odd.result.current).toEqual(DEFAULT_SPEECH_TO_TEXT_SETTINGS);
   });
 });

@@ -371,7 +371,7 @@ export const VideoActivityQuizDetailPane = React.memo(
               {VA_TYPE_LABELS[q.type] ?? typeMeta?.label ?? q.type}
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               disabled={selectedIndex <= 0}
@@ -478,7 +478,7 @@ export const VideoActivityQuizDetailPane = React.memo(
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-3">
             <div>
               <label className={labelClass}>Type</label>
               <QuestionTypeSelect

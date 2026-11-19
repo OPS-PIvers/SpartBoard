@@ -75,9 +75,9 @@ export function useDictation(
   const language =
     chosen !== null && languages.includes(chosen) ? chosen : languages[0];
 
-  // Signed-in students only (D15): the admin setting decides whether the paid engine runs.
+  // Signed-in students only (D15): the teacher's flags decide whether the paid engine runs.
   const paidSettings = useSpeechToTextSettings(
-    options.enabled && options.paid !== undefined
+    options.enabled ? options.paid?.assignmentId : undefined
   );
   const hybridFor =
     options.paid !== undefined && paidSettings.engine === 'hybrid'

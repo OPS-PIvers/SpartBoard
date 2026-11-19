@@ -51,7 +51,25 @@ import { DevProdDriveWriteError } from '@/utils/devDriveWriteGuard';
  * circuits there. Best-effort: a failure logs and returns — the roster
  * save itself has already succeeded, and the next save will retry.
  */
-async function syncRosterPinIndex(
+// Runs one roster's index rebuilds in order, so an older one never lands last.
+const pinIndexQueue = new Map<string, Promise<void>>();
+
+function syncRosterPinIndex(
+  rosterId: string,
+  rosterName: string,
+  students: Student[]
+): Promise<void> {
+  const run = (pinIndexQueue.get(rosterId) ?? Promise.resolve())
+    .catch(() => undefined)
+    .then(() => syncRosterPinIndexNow(rosterId, rosterName, students));
+  pinIndexQueue.set(rosterId, run);
+  void run.finally(() => {
+    if (pinIndexQueue.get(rosterId) === run) pinIndexQueue.delete(rosterId);
+  });
+  return run;
+}
+
+async function syncRosterPinIndexNow(
   rosterId: string,
   rosterName: string,
   students: Student[]

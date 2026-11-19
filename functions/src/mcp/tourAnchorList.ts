@@ -6647,22 +6647,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "assign-mods.preview-group",
-    "label": "Preview button on a group in the Assign dialog Modifications step",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.assign-stepper",
-        "kind": "shared",
-        "path": [
-          "assign-step.modifications"
-        ],
-        "reveal": "assign-step.modifications"
-      }
-    ]
-  },
-  {
     "id": "assign-mods.remove-group",
     "label": "Remove group button in the Assign dialog Modifications step",
     "scope": "board",
@@ -6819,22 +6803,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "assign-mods.open"
         ],
         "reveal": "assign-mods.open"
-      }
-    ]
-  },
-  {
-    "id": "assign-mods.group-generate-translation",
-    "label": "Generate translation button in the Assign dialog Modifications step",
-    "scope": "field",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.assign-stepper",
-        "kind": "shared",
-        "path": [
-          "assign-step.modifications"
-        ],
-        "reveal": "assign-step.modifications"
       }
     ]
   },
@@ -10865,6 +10833,138 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "keys": [
       "quiz",
       "writing"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.prompt-record-audio",
+    "label": "Record audio button on the question prompt in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.prompt-audio-stop",
+    "label": "Stop recording button in the question audio popover in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.prompt-audio-play",
+    "label": "Play button for the recorded question audio in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.prompt-audio-rerecord",
+    "label": "Record again button for the question audio in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.prompt-audio-replays",
+    "label": "Replays limit for the question audio in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.prompt-audio-remove",
+    "label": "Remove button for the question audio in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
     ],
     "routes": [
       {
@@ -39688,6 +39788,38 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "admin.features.monthly-cap-number",
+    "label": "Monthly limit box on a feature row",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.shared.access-controls",
+        "kind": "shared",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.features.transcribe-mode",
+    "label": "Transcription mode select on the AI transcription row",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.shared.access-controls",
+        "kind": "shared",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "admin.access.expand",
     "label": "Row expand button in Features, Widgets and Previews",
     "scope": "field",
@@ -40187,19 +40319,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#widgets",
           "admin.widgets.configure:admin#quiz",
           "admin.widget-config.field:quiz#tab-languages"
-        ],
-        "needs": [
-          "admin"
-        ]
-      },
-      {
-        "surface": "admin.widgets.config.quiz.speech",
-        "kind": "panel",
-        "path": [
-          "sidebar.admin-settings",
-          "admin.settings.tab:admin#widgets",
-          "admin.widgets.configure:admin#quiz",
-          "admin.widget-config.field:quiz#tab-speech"
         ],
         "needs": [
           "admin"

@@ -1631,10 +1631,6 @@ export const TOUR_ANCHORS = {
     destructive: true,
     panel: true,
   },
-  'assign-mods.preview-group': {
-    label: 'Preview button on a group in the Assign dialog Modifications step',
-    panel: true,
-  },
   'assign-mods.remove-group': {
     label: 'Remove group button in the Assign dialog Modifications step',
     destructive: true,
@@ -1681,12 +1677,6 @@ export const TOUR_ANCHORS = {
   'assign-mods.generate-translation': {
     label:
       'Generate translation button in the Assign dialog modifications view',
-    perField: true,
-    panel: true,
-  },
-  'assign-mods.group-generate-translation': {
-    label:
-      'Generate translation button in the Assign dialog Modifications step',
     perField: true,
     panel: true,
   },
@@ -2734,6 +2724,37 @@ export const TOUR_ANCHORS = {
   },
   'quiz-editor.prompt-numbers': {
     label: 'Numbered list button on the question prompt in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-record-audio': {
+    label: 'Record audio button on the question prompt in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-audio-stop': {
+    label:
+      'Stop recording button in the question audio popover in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-audio-play': {
+    label: 'Play button for the recorded question audio in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-audio-rerecord': {
+    label: 'Record again button for the question audio in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-audio-replays': {
+    label: 'Replays limit for the question audio in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-audio-remove': {
+    label: 'Remove button for the question audio in the Quiz editor',
     perWidgetType: true,
     panel: true,
   },
@@ -9622,6 +9643,16 @@ export const TOUR_ANCHORS = {
   },
   'admin.features.model-tier': {
     label: 'Model select on a feature row',
+    perField: true,
+    panel: true,
+  },
+  'admin.features.monthly-cap-number': {
+    label: 'Monthly limit box on a feature row',
+    perField: true,
+    panel: true,
+  },
+  'admin.features.transcribe-mode': {
+    label: 'Transcription mode select on the AI transcription row',
     perField: true,
     panel: true,
   },

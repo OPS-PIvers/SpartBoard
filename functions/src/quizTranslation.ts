@@ -617,7 +617,10 @@ export function validateQuizTranslation(
     const t = output[id];
     if (!q) return `Unknown question id: ${id}.`;
     if (!t) return `Missing translation for question ${id}.`;
-    if (typeof t.text !== 'string' || t.text.trim() === '')
+    if (
+      typeof t.text !== 'string' ||
+      (t.text.trim() === '' && (q.text ?? '').trim() !== '')
+    )
       return `Empty translated text for question ${id}.`;
 
     if (isMultipleChoice(q.type)) {
@@ -895,10 +898,14 @@ function shapeOutput(
   for (const q of parsed.questions ?? []) {
     if (!q || typeof q.id !== 'string') continue;
     // Unknown ids are kept so the validator can reject them by name.
-    questions[q.id] = restoreImageOnlyLabels(
-      byId.get(q.id),
-      pickForType(byId.get(q.id)?.type ?? '', q)
+    const source = byId.get(q.id);
+    const shaped = restoreImageOnlyLabels(
+      source,
+      pickForType(source?.type ?? '', q)
     );
+    // An audio-only prompt has no text, so the model must not invent one.
+    if (source && !source.text?.trim()) shaped.text = '';
+    questions[q.id] = shaped;
   }
   return {
     ...(typeof parsed.title === 'string' ? { title: parsed.title } : {}),

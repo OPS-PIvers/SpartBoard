@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { promptLabel } from '@/utils/quizPromptText';
+import { QuestionAudioButton } from '@/components/quiz/QuestionAudioButton';
 import { PromptText } from '@/components/common/PromptText';
 import { QuizQuestion, QuizSession } from '@/types';
 import { StimulusRenderer } from '@/components/quiz/QuizStimulusView';
@@ -85,8 +87,15 @@ export const PresentPacedAnswering: React.FC<PresentPacedAnsweringProps> = ({
         className={`font-sans font-semibold max-w-[80vw] leading-snug ${t.strong}`}
         style={{ fontSize: 'clamp(1.6rem, 5vw, 4.5rem)', textWrap: 'balance' }}
       >
-        <PromptText text={question.text} />
+        <PromptText text={promptLabel(question)} />
       </p>
+      {question.promptAudio && (
+        <QuestionAudioButton
+          key={question.id}
+          audio={question.promptAudio}
+          light={t.strong !== 'text-white'}
+        />
+      )}
       {stimuli.length > 0 && (
         <div
           className="w-full max-w-[70vw] flex flex-col"

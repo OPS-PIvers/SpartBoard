@@ -484,7 +484,7 @@ export const ChoiceOptionsEditor: React.FC<ChoiceOptionsEditorProps> = ({
             {...tourTypeAttr('quiz-editor.multi-correct', 'quiz')}
             className="w-4 h-4 accent-brand-blue-primary"
           />
-          <span className="font-bold text-xs text-slate-700 whitespace-nowrap">
+          <span className="font-bold text-xs text-slate-700">
             Multiple correct answers
           </span>
         </label>
@@ -502,7 +502,7 @@ export const ChoiceOptionsEditor: React.FC<ChoiceOptionsEditorProps> = ({
               {...tourTypeAttr('quiz-editor.choice-partial-credit', 'quiz')}
               className="w-4 h-4 accent-brand-blue-primary"
             />
-            <span className="font-bold text-xs text-slate-700 whitespace-nowrap">
+            <span className="font-bold text-xs text-slate-700">
               Partial credit
             </span>
           </label>

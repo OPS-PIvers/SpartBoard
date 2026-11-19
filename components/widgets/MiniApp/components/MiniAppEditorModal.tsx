@@ -42,6 +42,7 @@ import {
   buildPromptWithFileContext,
 } from '@/utils/ai';
 import { tourTypeAttr } from '@/config/tourAnchors';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 
 interface MiniAppEditorModalProps {
   isOpen: boolean;
@@ -311,6 +312,7 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
 
   return (
     <EditorModalShell
+      headerAccent={LIBRARY_HEADER_ACCENTS.miniApp}
       tourScope="miniApp"
       saveAnchor={tourTypeAttr('mini-app.editor-save', 'miniApp')}
       isOpen={isOpen}
