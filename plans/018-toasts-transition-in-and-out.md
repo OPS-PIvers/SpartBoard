@@ -1,6 +1,6 @@
 # 018 — Board toasts: ease in with a transition and ease out before they are removed
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: 3dcc1cd
 - **Severity**: MEDIUM
 - **Category**: Interruptibility (also Cohesion)
