@@ -52,13 +52,13 @@ export interface RubricScoringPanelProps {
   hideTotal?: boolean;
 }
 
-// Open levels sit side by side once the panel gives each one about 150px.
+// Open levels sit side by side once the panel gives each one about 130px.
 const LEVEL_GRID: Record<number, string> = {
   2: '@md:grid @md:grid-cols-2 @md:divide-x @md:divide-y-0',
   3: '@xl:grid @xl:grid-cols-3 @xl:divide-x @xl:divide-y-0',
   4: '@2xl:grid @2xl:grid-cols-4 @2xl:divide-x @2xl:divide-y-0',
-  5: '@3xl:grid @3xl:grid-cols-5 @3xl:divide-x @3xl:divide-y-0',
-  6: '@4xl:grid @4xl:grid-cols-6 @4xl:divide-x @4xl:divide-y-0',
+  5: '@2xl:grid @2xl:grid-cols-5 @2xl:divide-x @2xl:divide-y-0',
+  6: '@3xl:grid @3xl:grid-cols-6 @3xl:divide-x @3xl:divide-y-0',
 };
 
 const ptsLabel = (points: number) => `${points} pt${points === 1 ? '' : 's'}`;
@@ -463,12 +463,12 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
                           {level.points}
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="block text-sm font-semibold">
+                          <span className="block break-words text-sm font-semibold">
                             {level.label}
                           </span>
                           {level.description && (
                             <span
-                              className={`mt-0.5 block whitespace-pre-line text-xs leading-relaxed ${
+                              className={`mt-0.5 block whitespace-pre-line break-words text-xs leading-relaxed ${
                                 isSelected ? 'text-white/85' : 'text-slate-600'
                               }`}
                             >
