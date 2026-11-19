@@ -19,6 +19,7 @@ import { ProjectRubricSheet } from '@/components/student/project/ProjectRubricSh
 import { ProjectScoreCard } from '@/components/student/project/ProjectScoreCard';
 import { stepStateOf } from '../../projectSteps';
 import { tourTypeAttr } from '@/config/tourAnchors';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 
 interface GroupViewModalProps {
   run: ProjectRun;
@@ -77,13 +78,16 @@ export const GroupViewModal: React.FC<GroupViewModalProps> = ({
         className="bg-slate-50!"
         ariaLabel={`${group.name}: ${run.title}`}
         customHeader={
-          <div className="mb-5 flex shrink-0 flex-wrap items-start justify-between gap-3 p-6 pb-0">
+          <div
+            className="mb-5 flex shrink-0 flex-wrap items-start justify-between gap-3 rounded-t-2xl px-6 py-3.5 text-white"
+            style={{ backgroundColor: LIBRARY_HEADER_ACCENTS.projects }}
+          >
             <div className="min-w-0">
-              <h2 className="truncate text-2xl font-black tracking-tight text-slate-900">
+              <h2 className="truncate text-2xl font-black tracking-tight text-white">
                 {run.title}
               </h2>
               {run.dueAt && (
-                <p className="text-sm font-medium text-slate-500">
+                <p className="text-sm font-medium text-white/80">
                   Due {new Date(run.dueAt).toLocaleDateString()}
                 </p>
               )}
@@ -105,7 +109,7 @@ export const GroupViewModal: React.FC<GroupViewModalProps> = ({
                 onClick={onClose}
                 aria-label="Close"
                 {...tourTypeAttr('projects.view-close', 'projects')}
-                className="rounded-full p-1 text-slate-400 transition-colors hover:bg-slate-100"
+                className="rounded-full p-1 text-white/80 transition-colors hover:bg-white/15 hover:text-white"
               >
                 <X size={20} />
               </button>

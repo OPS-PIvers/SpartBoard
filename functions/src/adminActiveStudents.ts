@@ -8,7 +8,7 @@ import {
   CLASSLINK_TENANT_URL,
   STUDENT_PSEUDONYM_HMAC_SECRET,
 } from './secrets';
-import { chunk } from './shared';
+import { chunk } from './utils/chunk';
 import {
   ALLOWED_ORIGINS,
   ONEROSTER_BASE,

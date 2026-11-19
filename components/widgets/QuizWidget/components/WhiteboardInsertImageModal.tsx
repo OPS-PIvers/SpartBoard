@@ -7,6 +7,7 @@ import { tourTypeAttr } from '@/config/tourAnchors';
 import { WHITEBOARD_STARTING_IMAGES_MAX } from '@/config/quizRecordingDefaults';
 import { startingImageSrc } from '@/utils/whiteboard/startingPage';
 import { defaultImagePlacement } from './whiteboardStartingPageEdit';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 
 const imageFiles = (files: FileList | File[] | undefined | null) =>
   Array.from(files ?? []).filter((f) => f.type.startsWith('image/'));
@@ -64,6 +65,7 @@ export const WhiteboardInsertImageModal: React.FC<
 
   return (
     <Modal
+      accent={LIBRARY_HEADER_ACCENTS.quiz}
       isOpen
       onClose={onClose}
       title={tk('insertImage')}

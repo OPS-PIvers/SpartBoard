@@ -156,6 +156,18 @@ describe('affected-functions.mjs on the real functions codebase', () => {
   it('skips a module no function imports', () => {
     expect(affected(['functions/src/testing/stubFirestore.ts'])).toEqual([]);
   });
+
+  it('keeps student sign-in off the AI model and assigning hubs', () => {
+    for (const path of [
+      'functions/src/shared.ts',
+      'functions/src/studentAssignmentTargets.ts',
+    ]) {
+      const names = affected([path]);
+      expect(names, path).not.toBe('ALL');
+      expect(names, path).not.toContain('studentLoginV1');
+      expect(names, path).not.toContain('pinLoginV1');
+    }
+  });
 });
 
 describe('affected-functions.mjs edge cases', () => {

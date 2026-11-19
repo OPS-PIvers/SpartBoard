@@ -32,6 +32,7 @@ import {
   withEdits,
   type Corner,
 } from './whiteboardStartingPageEdit';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 
 type Tool = 'move' | 'pen' | 'eraser';
 const TOOLS: { id: Tool; icon: typeof Move }[] = [
@@ -287,6 +288,7 @@ export const WhiteboardStartingPagePreviewModal: React.FC<
 
   return (
     <Modal
+      accent={LIBRARY_HEADER_ACCENTS.quiz}
       isOpen
       onClose={onClose}
       title={tk('startingPageLabel')}

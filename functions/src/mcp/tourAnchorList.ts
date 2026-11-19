@@ -5534,6 +5534,40 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-classes.course",
+    "label": "Course checkbox in the Assign dialog class list",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "assign#row-[1-9]\\d*",
+    "key_hint": "assign#row-1 for the first row",
+    "row_wildcard": true,
+    "row_list": "assign-classes",
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "assign-classes.course-expand",
+    "label": "Show the sections in a Course in the Assign dialog class list",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "assign#row-[1-9]\\d*",
+    "key_hint": "assign#row-1 for the first row",
+    "row_wildcard": true,
+    "row_list": "assign-classes",
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "assign-classes.select-all",
     "label": "Select all button in the Assign dialog class list",
     "scope": "board",
@@ -6647,22 +6681,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "assign-mods.preview-group",
-    "label": "Preview button on a group in the Assign dialog Modifications step",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.assign-stepper",
-        "kind": "shared",
-        "path": [
-          "assign-step.modifications"
-        ],
-        "reveal": "assign-step.modifications"
-      }
-    ]
-  },
-  {
     "id": "assign-mods.remove-group",
     "label": "Remove group button in the Assign dialog Modifications step",
     "scope": "board",
@@ -6819,22 +6837,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "assign-mods.open"
         ],
         "reveal": "assign-mods.open"
-      }
-    ]
-  },
-  {
-    "id": "assign-mods.group-generate-translation",
-    "label": "Generate translation button in the Assign dialog Modifications step",
-    "scope": "field",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.assign-stepper",
-        "kind": "shared",
-        "path": [
-          "assign-step.modifications"
-        ],
-        "reveal": "assign-step.modifications"
       }
     ]
   },
@@ -10865,6 +10867,138 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "keys": [
       "quiz",
       "writing"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.prompt-record-audio",
+    "label": "Record audio button on the question prompt in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.prompt-audio-stop",
+    "label": "Stop recording button in the question audio popover in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.prompt-audio-play",
+    "label": "Play button for the recorded question audio in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.prompt-audio-rerecord",
+    "label": "Record again button for the question audio in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.prompt-audio-replays",
+    "label": "Replays limit for the question audio in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.prompt-audio-remove",
+    "label": "Remove button for the question audio in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
     ],
     "routes": [
       {
@@ -27046,6 +27180,76 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "library-shell.assigned-select",
+    "label": "Select on the Assigned tab; starts picking several assignments",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-select-row",
+    "label": "Checkbox on an Assigned row while picking several assignments",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "row_list": "assignment-rows",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-select-all",
+    "label": "Select all box in the Assigned tab selection bar",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-bulk-action",
+    "label": "Close, Move to Done or Delete in the Assigned tab selection bar",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "persists": true,
+    "key_pattern": "[a-z-]+#(close|move-to-done|delete)",
+    "key_hint": "quiz#delete is Delete for the picked quizzes",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-select-cancel",
+    "label": "Cancel in the Assigned tab selection bar",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "widget-settings.calendar.remove-calendar",
     "label": "Remove a personal calendar in Calendar settings",
     "scope": "field",
@@ -39688,6 +39892,38 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "admin.features.monthly-cap-number",
+    "label": "Monthly limit box on a feature row",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.shared.access-controls",
+        "kind": "shared",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.features.transcribe-mode",
+    "label": "Transcription mode select on the AI transcription row",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.shared.access-controls",
+        "kind": "shared",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "admin.access.expand",
     "label": "Row expand button in Features, Widgets and Previews",
     "scope": "field",
@@ -40187,19 +40423,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#widgets",
           "admin.widgets.configure:admin#quiz",
           "admin.widget-config.field:quiz#tab-languages"
-        ],
-        "needs": [
-          "admin"
-        ]
-      },
-      {
-        "surface": "admin.widgets.config.quiz.speech",
-        "kind": "panel",
-        "path": [
-          "sidebar.admin-settings",
-          "admin.settings.tab:admin#widgets",
-          "admin.widgets.configure:admin#quiz",
-          "admin.widget-config.field:quiz#tab-speech"
         ],
         "needs": [
           "admin"

@@ -131,10 +131,13 @@ const isAudioOnlyModel = (model: string): boolean =>
 /** Gemini reads every input; Claude reads text, images and PDFs, and a Word file falls back to Gemini on the server. */
 export const modelReadsInputs = (
   model: string,
-  inputs: readonly AiInputKind[]
+  inputs: readonly AiInputKind[],
+  integrationId?: string
 ): boolean =>
   isAudioOnlyModel(model)
-    ? inputs.length > 0 && inputs.every((kind) => kind === 'audio')
+    ? integrationId === 'speech-to-text-transcribe' &&
+      inputs.length > 0 &&
+      inputs.every((kind) => kind === 'audio')
     : providerOf(model) === 'gemini' ||
       inputs.every((kind) => kind === 'docx' || CLAUDE_INPUTS.includes(kind));
 

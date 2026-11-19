@@ -10,7 +10,7 @@ import {
   STUDENT_PSEUDONYM_HMAC_SECRET,
   GOOGLE_OAUTH_CLIENT_ID,
 } from './secrets';
-import { chunk } from './shared';
+import { chunk } from './utils/chunk';
 import { computeAssignmentPseudonym } from './assignmentPseudonym';
 import {
   ALLOWED_ORIGINS,
@@ -38,12 +38,12 @@ import {
 } from './studentEmailIdentity';
 import {
   MAX_TARGET_REFS,
+  isTestClassAuthority,
   loadTargetDirectory,
   resolveTargets,
   targetRefsFromAssignment,
-} from './studentAssignmentTargets';
+} from './studentTargetDirectory';
 import { assertViewAsAllowed } from './viewAsGuard';
-import { isTestClassAuthority } from './studentAssignmentTargets';
 import { BoundedLruMap } from './utils/boundedLruMap';
 import { studentFirstName } from './studentFirstName';
 

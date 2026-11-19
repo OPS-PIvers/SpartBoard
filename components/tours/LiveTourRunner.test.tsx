@@ -3325,6 +3325,89 @@ describe('LiveTourRunner Autopilot performer', () => {
     expect(document.activeElement).toBe(screen.getByTestId('tour-step-title'));
   });
 
+  it('leaves an empty text box the last step opened focused, so it stays open', async () => {
+    // Like the library's new folder box: it closes when it loses focus while empty.
+    const FolderBox: React.FC = () => {
+      const [open, setOpen] = useState(false);
+      return (
+        <div>
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            {...tourAttr('library-shell.new-folder')}
+          >
+            New folder
+          </button>
+          {open && (
+            <input
+              aria-label="Folder name"
+              autoFocus
+              onBlur={(e) => {
+                if (!e.currentTarget.value) setOpen(false);
+              }}
+              {...tourAttr('library-shell.new-folder-input')}
+            />
+          )}
+        </div>
+      );
+    };
+    h.loadTour.mockResolvedValue(
+      makeSet([
+        { anchor: 'library-shell.new-folder', action: 'click' },
+        { anchor: 'library-shell.new-folder-input', action: 'type' },
+        { anchor: 'sidebar.boards', action: 'observe' },
+      ])
+    );
+    render(
+      <>
+        <FolderBox />
+        <Controls />
+        <LiveTourRunner />
+      </>
+    );
+    act(() => {
+      requestStartTour({
+        setId: 'set-1',
+      });
+    });
+    await frames();
+    await tipIn();
+    fireEvent.click(screen.getByRole('button', { name: 'New folder' }));
+    await tipIn();
+    expect(progress()).toBe('2 / 3');
+    const box = screen.getByRole('textbox', { name: 'Folder name' });
+    expect(document.activeElement).toBe(box);
+    // Pressing Next keeps the empty box focused instead of closing it.
+    expect(fireEvent.mouseDown(barButton('Next'))).toBe(false);
+    expect(box).toBeInTheDocument();
+    // The step is still read out for screen reader users.
+    expect(screen.getByTestId('tour-announcer').textContent).toMatch(
+      /^Step 2 of 3/
+    );
+  });
+
+  it('keeps focus in the box a type step is filling, then hands it to the next heading', async () => {
+    await begin(
+      makeSet([
+        { anchor: 'sidebar.boards', action: 'observe' },
+        { anchor: 'dock.open-tools', action: 'type' },
+        { anchor: 'sidebar.annotate', action: 'observe' },
+      ])
+    );
+    await tipIn();
+    name().focus();
+    fireEvent.change(name(), { target: { value: 'Hi' } });
+    fireEvent.click(barButton('Next'));
+    await tipIn();
+    expect(progress()).toBe('2 / 3');
+    expect(document.activeElement).toBe(name());
+    // Once that step is done, a filled box gives focus back to the step heading.
+    fireEvent.change(name(), { target: { value: 'Hi there' } });
+    await tipIn();
+    expect(progress()).toBe('3 / 3');
+    expect(document.activeElement).toBe(screen.getByTestId('tour-step-title'));
+  });
+
   it('advances a type step once the field holds the text, without a blur', async () => {
     await begin(
       makeSet([

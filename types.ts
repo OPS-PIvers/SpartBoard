@@ -2560,6 +2560,12 @@ export type ActivityWallLayout =
 export type ActivityWallSubmissionType =
   'text' | 'word' | 'photo' | 'link' | 'file' | 'video';
 
+/** Per-wall submission toggles; a wall saved before the Text toggle has no `text` key and keeps text on. */
+export type ActivityWallAllowedTypes = Record<
+  Exclude<ActivityWallSubmissionType, 'text' | 'word'>,
+  boolean
+> & { text?: boolean };
+
 /** Wall background: a Tailwind class string (color/gradient) or a preset image URL. */
 export interface ActivityWallAppearance {
   kind: 'color' | 'gradient' | 'image';
@@ -2701,10 +2707,7 @@ export interface ActivityWallLibraryEntry {
   /** Dated timeline only: the teacher hid every date so students judge order first. */
   timelineDatesHidden?: boolean;
   mapCenter?: { lat: number; lng: number; zoom: number };
-  allowedTypes?: Record<
-    Exclude<ActivityWallSubmissionType, 'text' | 'word'>,
-    boolean
-  >;
+  allowedTypes?: ActivityWallAllowedTypes;
   appearance?: ActivityWallAppearance;
   allowGuests?: boolean;
   showNames?: boolean;
@@ -2825,10 +2828,7 @@ export interface ActivityWallSession extends SessionWorkKindFields {
   tableRows?: ActivityWallSection[];
   tableCols?: ActivityWallSection[];
   mapCenter?: { lat: number; lng: number; zoom: number };
-  allowedTypes?: Record<
-    Exclude<ActivityWallSubmissionType, 'text' | 'word'>,
-    boolean
-  >;
+  allowedTypes?: ActivityWallAllowedTypes;
   appearance?: ActivityWallAppearance;
   allowGuests?: boolean;
   showNames?: boolean;
@@ -4536,13 +4536,25 @@ export type QuizStimulusPlacement = 'panel' | 'inline';
 /** How students fill a FIB question's blanks; absent means typed (M6). */
 export type FibBlankType = 'typed' | 'dropdown' | 'drag';
 
+/** A teacher's recording of a question prompt, saved link-shared in their Drive. */
+export interface QuestionAudio {
+  driveFileId: string;
+  durationSec: number;
+  mimeType: string;
+  /** Plays a student may start per attempt (first listen plus replays); absent = unlimited. */
+  playLimit?: number;
+}
+
 export interface QuizQuestion {
   id: string;
   /** Time limit in seconds. 0 = no time limit. */
   timeLimit: number;
+  /** May be empty when `promptAudio` is set. */
   text: string;
   /** Modified wording of the prompt for students in a group with modified questions; same answer key. */
   modifiedText?: string;
+  /** The teacher's recorded prompt, played to students with or instead of `text`. */
+  promptAudio?: QuestionAudio;
   type: QuizQuestionType;
   /**
    * MC/FIB: the correct answer text. Multi-blank FIB: one answer per blank joined by `FIB_BLANK_SEP`.
@@ -5370,6 +5382,8 @@ export interface QuizPublicQuestion {
   id: string;
   type: QuizQuestion['type'];
   text: string;
+  /** Projected verbatim from {@link QuizQuestion.promptAudio}. */
+  promptAudio?: QuestionAudio;
   /** The teacher's modified prompt, shown only to students whose override asks for it. */
   modifiedText?: string;
   timeLimit: number;
@@ -5727,6 +5741,8 @@ export interface QuizSession
   allowStimulusQuotes?: boolean;
   /** Stamped only with the quiz-cross-out flag; absent = no cross-out buttons. */
   allowCrossOut?: boolean;
+  /** Stamped only with the quiz-recap-all-options flag; the published recap lists every choice. */
+  recapAllOptions?: boolean;
   /** Stamped only with the input-signals flag; with Focus mode on the student page records input counters. */
   inputSignals?: boolean;
   /** Stamped on every new assignment; Ordering shows one list to drag into order (absent on older sessions = slots and word bank). */
@@ -11705,6 +11721,8 @@ export type GlobalFeature =
   | 'quiz-whiteboard-response'
   | 'quiz-read-aloud'
   | 'speech-to-text'
+  | 'speech-to-text-ai-transcription'
+  | 'speech-to-text-tidy-up'
   /** Teacher-authored AI quiz translations for multilingual learners. */
   | 'quiz-translation'
   /** "Draft with AI" inside the question-bank editor; AND-ed with `gemini-functions`. */
@@ -11772,6 +11790,8 @@ export type GlobalFeature =
   | 'drive-only-uploads'
   /** Quiz setting that shows students their score as soon as they submit. */
   | 'quiz-score-on-submit'
+  /** Published quiz results list every answer option, with the student's pick marked. */
+  | 'quiz-recap-all-options'
   | 'modification-groups'
   /** Rubric grading redesign: one-tap level buttons, expandable criteria, level order switch, full-rubric table. */
   | 'rubric-grading-v2'
@@ -11882,22 +11902,16 @@ export type GlobalFeature =
   /** Library and Assigned tabs with a status per class (docs/plans/ASSIGNED_TAB.md D19). */
   | 'assigned-tab'
   /** The sidebar Assignments hub; on for everyone until an admin narrows it. */
-  | 'assignments-hub';
+  | 'assignments-hub'
+  /** Teachers record their voice for a quiz question prompt. */
+  | 'quiz-question-audio';
 
-/** `admin_settings/speech_to_text`: paid dictation extras, all off by default (docs/plans/shipped/SPEECH_TO_TEXT.md D8-D10). */
+/** Which paid dictation extras a student's page may use, from `getSpeechToTextAccessV1`. */
 export interface SpeechToTextSettings {
   /** `hybrid` sends each spoken phrase to the AI transcriber; `browser` is the free engine alone. */
   engine: 'browser' | 'hybrid';
-  /** Gemini 3.5 Transcribe only: `smart` punctuates but also tidies grammar and drops repeats. */
-  transcribeMode: 'verbatim' | 'smart';
-  /** Offers students the Tidy up button. */
+  /** Offers the student the Tidy up button. */
   tidyUp: boolean;
-  /** Seconds of speech the paid engine may transcribe each month, across the org. */
-  monthlyCapSeconds: number;
-  /** Tidy-up calls allowed each month, across the org. */
-  monthlyCapTidyCalls: number;
-  updatedAt: number;
-  updatedBy: string;
 }
 
 /** `ai_usage/global_speech_to_text_{YYYY-MM}`: this month's paid dictation use. */

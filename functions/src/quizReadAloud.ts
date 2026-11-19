@@ -509,7 +509,9 @@ export function localizedSessionQuestion(
   if (typeof raw !== 'object' || raw === null) return null;
   const entry = raw as Record<string, unknown>;
   const text = typeof entry.text === 'string' ? entry.text : '';
-  if (!text) return null;
+  // An audio-only prompt has an empty stem in every language; mirrors serveLocalizedQuestion.
+  const english = typeof question.text === 'string' ? question.text : '';
+  if (!text.trim() && english.trim()) return null;
   if (question.placeholder && !entry.placeholder) return null;
   if (question.rubricSnapshot && !entry.rubricSnapshot) return null;
   const out: SessionQuestion = {

@@ -69,8 +69,8 @@ A scheduled trigger runs this weekly (Sunday night, so the page is ready Monday 
 
     Stop if `sentAt` is null (a republish without Paul's picks). Otherwise:
     - **Approve:** open a PR from the candidate's branch into `dev-paul`, titled `Widget loop: <Widget name> <dimension> <before> → <after>`, with one sentence on what changed, one line confirming every control is still present at the smallest size, the before/after screenshots, the compare score table, and "Approved by Paul on the weekly page". Subscribe to it, mark it ready, and merge it as soon as CI is green, fixing CI failures as on any PR you own. While a release PR into `main` is open, wait until it merges before merging.
-    - **Skip:** record it in `supervision.json` as `{ pr: "<branch>", widgetType, dimension, openedAt, outcome: "rejected", note }`, with his note when he left one. Add the branch to AB-112 in `AGENT_BACKLOG.md` for deletion.
-    - Each approved fix adds `{ pr, widgetType, dimension, openedAt, outcome: "accepted", changes }` to `supervision.json`. Put the supervision edits, the AB-112 lines and the journal row in the first approved PR; when Paul skipped everything, open one small docs PR with them and merge it on green.
+    - **Skip:** record it in `supervision.json` as `{ pr: "<branch>", widgetType, dimension, openedAt, outcome: "rejected", note }`, with his note when he left one. Add the branch as a file in `docs/branch-cleanup/` (AB-112) for deletion.
+    - Each approved fix adds `{ pr, widgetType, dimension, openedAt, outcome: "accepted", changes }` to `supervision.json`. Put the supervision edits, the `docs/branch-cleanup/` files and the journal row in the first approved PR; when Paul skipped everything, open one small docs PR with them and merge it on green.
 
 ## Never
 

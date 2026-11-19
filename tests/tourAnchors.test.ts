@@ -92,6 +92,10 @@ describe('tour anchor registry', () => {
     const OPENS_ONLY = new Set([
       'library-shell.assigned-classes',
       'library-shell.assigned-done-section',
+      'library-shell.assigned-select',
+      'library-shell.assigned-select-row',
+      'library-shell.assigned-select-all',
+      'library-shell.assigned-select-cancel',
       'quiz-library.assign-paper',
       'sidebar.assignments',
       'boards.share-board',

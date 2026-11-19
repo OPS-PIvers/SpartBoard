@@ -102,6 +102,19 @@ beforeEach(() => {
 });
 
 describe('chooseModels', () => {
+  it('skips a transcription-only model on an integration that needs JSON', () => {
+    const cfg = config({
+      'plc-meeting-transcribe': 'gemini-3.5-transcribe',
+      'speech-to-text-transcribe': 'gemini-3.5-transcribe',
+    });
+    expect(
+      chooseModels({ integration: 'plc-meeting-transcribe' }, cfg)
+    ).toMatchObject({ fromTier: true });
+    expect(
+      chooseModels({ integration: 'speech-to-text-transcribe' }, cfg).model
+    ).toBe('gemini-3.5-transcribe');
+  });
+
   it('uses the tier model when nothing is chosen for the integration', () => {
     expect(chooseModels({ integration: 'quiz' }, config())).toEqual({
       model: 'gemini-3.5-flash-lite',

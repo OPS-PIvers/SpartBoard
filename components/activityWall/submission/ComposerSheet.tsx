@@ -95,11 +95,11 @@ export const ComposerSheet: React.FC<ComposerSheetProps> = ({
   error,
 }) => {
   const seedPlacement = editing ? placementFromPost(editing) : prefill;
-  const [draft, setDraft] = useState<PostDraft>(() =>
+  const [rawDraft, setDraft] = useState<PostDraft>(() =>
     editing ? draftFromPost(editing) : EMPTY_DRAFT
   );
   const [structure, setStructure] = useState<StructureValue>(() =>
-    structureFromPlacement(session, seedPlacement, draft.label, !!editing)
+    structureFromPlacement(session, seedPlacement, rawDraft.label, !!editing)
   );
   const [pin, setPin] = useState<MapPin | null>(() =>
     typeof seedPlacement.lat === 'number' &&
@@ -110,9 +110,16 @@ export const ComposerSheet: React.FC<ComposerSheetProps> = ({
   const panelRef = useRef<HTMLDivElement>(null);
 
   const isWordCloud = session.layout === 'wordcloud';
-  const type = effectiveType(session, draft.type);
   const types = availableTypes(session);
   const isEditing = editing !== undefined;
+  // A new post starts on the first type the wall allows (text can be off).
+  const draftType =
+    isEditing || isWordCloud || types.some((t) => t === rawDraft.type)
+      ? rawDraft.type
+      : (types[0] ?? rawDraft.type);
+  const draft =
+    draftType === rawDraft.type ? rawDraft : { ...rawDraft, type: draftType };
+  const type = effectiveType(session, draft.type);
 
   // Only a hover-plus prefill hides its picker; an edit keeps them so the post can move.
   const sectionPrefilled = !isEditing && !!prefill.sectionId;

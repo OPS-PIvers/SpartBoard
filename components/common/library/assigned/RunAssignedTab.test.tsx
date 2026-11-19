@@ -64,7 +64,8 @@ const onCopy = vi.fn<(id: string) => void>();
 
 function renderTab(
   assignments: MiniAppAssignment[],
-  responses: Record<string, AssignedResponse[]> = {}
+  responses: Record<string, AssignedResponse[]> = {},
+  onBulkDelete?: (list: MiniAppAssignment[]) => Promise<number>
 ) {
   return render(
     <RunAssignedResponsesFixture.Provider value={responses}>
@@ -96,6 +97,7 @@ function renderTab(
           { id: 'copy-url', label: 'Copy link', onClick: vi.fn() },
         ]}
         replacedMenuIds={['end', 'reactivate']}
+        onBulkDelete={onBulkDelete}
       />
     </RunAssignedResponsesFixture.Provider>
   );
@@ -161,6 +163,78 @@ describe('RunAssignedTab', () => {
   it('an ended row from before the Assigned tab is Done', () => {
     renderTab([ma({ status: 'inactive' })]);
     expect(screen.getByText('Nothing active')).toBeTruthy();
+  });
+});
+
+describe('RunAssignedTab bulk select', () => {
+  const two = () => [
+    ma({ id: 'a1', periodAccess: { p2: row('P2', { state: 'open' }) } }),
+    ma({ id: 'a2', assignmentName: 'Maps app', status: 'active' }),
+  ];
+
+  it('shows no Select without a bulk delete', () => {
+    renderTab(two());
+    expect(screen.queryByRole('button', { name: 'Select' })).toBeNull();
+  });
+
+  it('closes every picked row and offers one Undo', async () => {
+    renderTab(
+      two(),
+      {},
+      vi.fn(() => Promise.resolve(0))
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Select' }));
+    // Row buttons hide while picking.
+    expect(screen.queryByRole('button', { name: 'Monitor' })).toBeNull();
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Select all' }));
+    expect(screen.getByText('2 selected')).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(actions.closeAll).toHaveBeenCalledTimes(2);
+    expect(addToast).toHaveBeenCalledWith(
+      '2 assignments closed.',
+      'success',
+      expect.objectContaining({ label: 'Undo' })
+    );
+    expect(screen.getByText('0 selected')).toBeTruthy();
+  });
+
+  it('deletes only the picked rows and reports failures', async () => {
+    const remove = vi.fn((list: MiniAppAssignment[]) =>
+      Promise.resolve(list.length - 1)
+    );
+    renderTab(two(), {}, remove);
+    await userEvent.click(screen.getByRole('button', { name: 'Select' }));
+    await userEvent.click(
+      screen.getByRole('checkbox', { name: 'Select Maps app' })
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    expect(remove).toHaveBeenCalledWith([
+      expect.objectContaining({ id: 'a2' }),
+    ]);
+    expect(addToast).toHaveBeenCalledWith('1 assignment deleted.', 'success');
+  });
+
+  it('offers no Move to Done for a view-only share', async () => {
+    renderTab(
+      [ma({ id: 'v1', mode: 'view-only' })],
+      {},
+      vi.fn(() => Promise.resolve(0))
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Select' }));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Select all' }));
+    expect(screen.queryByRole('button', { name: 'Move to Done' })).toBeNull();
+  });
+
+  it('Cancel clears the picks and brings the row buttons back', async () => {
+    renderTab(
+      two(),
+      {},
+      vi.fn(() => Promise.resolve(0))
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Select' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.getAllByRole('button', { name: 'Monitor' })).toHaveLength(2);
+    expect(screen.queryByRole('checkbox')).toBeNull();
   });
 });
 

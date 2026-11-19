@@ -201,6 +201,20 @@ const baseRequest = (extra: Record<string, unknown> = {}) => ({
 });
 
 describe('validateQuizTranslation', () => {
+  it('accepts empty text only where the source prompt is a recording', () => {
+    const silent = { ...mcQuestion(), text: '' };
+    expect(
+      validateQuizTranslation([silent], ['q1'], {
+        q1: { ...goodMc(), text: '' },
+      })
+    ).toBeNull();
+    expect(
+      validateQuizTranslation([mcQuestion()], ['q1'], {
+        q1: { ...goodMc(), text: '' },
+      })
+    ).toMatch(/Empty translated text/);
+  });
+
   it('accepts a translation aligned with the FILTERED source arrays', () => {
     expect(
       validateQuizTranslation([mcQuestion()], ['q1'], { q1: goodMc() })

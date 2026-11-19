@@ -8,15 +8,7 @@ import React, {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  ChevronDown,
-  Eye,
-  Plus,
-  Search,
-  Trash2,
-  User,
-  Users,
-} from 'lucide-react';
+import { ChevronDown, Plus, Search, Trash2, User, Users } from 'lucide-react';
 import { AuthContext } from '@/context/AuthContextValue';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { Toggle } from '@/components/common/Toggle';
@@ -45,6 +37,7 @@ import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import {
   groupRuleLabels,
   hiddenOptionIdsForRule,
+  isBlankGroup,
   newModificationGroup,
   withGroupStudents,
   type AnswerChoicesRule,
@@ -72,8 +65,10 @@ export interface ModificationGroupsStepProps {
   onSharingChange?: (sharing: boolean) => void;
   /** Shows the Printed version row (`paper-printed-versions`). */
   printedAvailable?: boolean;
-  /** Opens Student view on this group's version; absent hides Preview. */
-  onPreview?: (groupId: string) => void;
+  /** Drive files of class presets: shared with the class, so never deleted here. */
+  keepFileIds?: ReadonlySet<string>;
+  /** Editing a launched quiz: the languages it serves, since nothing translates after assign. */
+  servedLocales?: readonly string[];
 }
 
 export const ModificationRow: React.FC<{
@@ -92,6 +87,23 @@ const TIME_RULES: Record<string, TimeRule> = {
   '2': 2,
   unlimited: 'unlimited',
 };
+
+// A launched quiz covers exactly the languages its session serves.
+const servedCoverage = (locales: readonly string[]) => ({
+  index: Object.fromEntries(
+    locales.map((locale) => [
+      locale,
+      {
+        driveFileId: '',
+        reviewedCount: 1,
+        staleCount: 0,
+        questionCount: 1,
+        sourceHashes: {},
+        updatedAt: 0,
+      },
+    ])
+  ),
+});
 
 const studentsLabel = (n: number) => (n === 1 ? '1 student' : `${n} students`);
 
@@ -344,13 +356,14 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
   overridesByKey,
   onSharingChange,
   printedAvailable = false,
-  onPreview,
+  keepFileIds,
+  servedLocales,
 }) => {
   const { t } = useTranslation();
   const { driveService } = useGoogleDrive();
   const deleteDriveCopies = (supports: QuizSupport[] | undefined) => {
     for (const s of supports ?? [])
-      if (s.kind === 'drive')
+      if (s.kind === 'drive' && !keepFileIds?.has(s.fileId))
         void driveService?.deleteFile(s.fileId).catch(() => undefined);
   };
   const auth = useContext(AuthContext);
@@ -363,7 +376,7 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
   const [openId, setOpenId] = useState<string | null>(null);
 
   const list = groups;
-  const openGroup = list.find((g) => g.id === openId) ?? list.at(-1);
+  const openGroup = list.find((g) => g.id === openId) ?? list[0];
   const rowByKey = useMemo(
     () => new Map(rows.map((r) => [r.key, r] as const)),
     [rows]
@@ -410,16 +423,17 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
               name: row.name,
               language: effectiveClassOverride(row, overridesByKey)?.language,
             })),
-            translation
+            servedLocales ? servedCoverage(servedLocales) : translation
           )
         : [],
-    [rows, overridesByKey, translation]
+    [rows, overridesByKey, translation, servedLocales]
   );
-  const generateDisabled =
+  // Assign translates on its own, so the notice shows only when it can't.
+  const autoTranslateBlocked =
+    !!servedLocales ||
     isNonEnglishQuizSource(translation?.sourceLanguage) ||
     translation?.hasBankSlots === true ||
-    (translation?.cap?.remaining ?? 1) <= 0 ||
-    !!translation?.generating;
+    (translation?.cap?.remaining ?? 1) <= 0;
 
   if (rows.length === 0) {
     return (
@@ -439,7 +453,7 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
 
   return (
     <div className="space-y-3">
-      {advisory.map((entry) => (
+      {(autoTranslateBlocked ? advisory : []).map((entry) => (
         <div
           key={entry.locale}
           role="status"
@@ -453,21 +467,6 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
               language: languageDisplayLabel(entry.locale),
             })}
           </span>
-          {translation?.onGenerate && (
-            <button
-              type="button"
-              disabled={generateDisabled}
-              onClick={() => translation.onGenerate?.([entry.locale])}
-              {...tourFieldAttr(
-                'assign-mods.group-generate-translation',
-                'assign',
-                entry.locale
-              )}
-              className="touch-target-expand shrink-0 rounded-md border border-amber-300 bg-white px-2.5 py-1 font-bold text-amber-800 hover:bg-amber-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
-            >
-              {t('quizTranslation.assign.generate')}
-            </button>
-          )}
         </div>
       ))}
       {list.map((group, index) => {
@@ -490,8 +489,12 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
                   {names.length > 0 ? names.join('; ') : 'No students'}
                 </span>
                 <span className="block truncate text-xs text-slate-500">
-                  {groupRuleLabels(group, languageDisplayLabel).join(', ') ||
-                    'No changes'}
+                  {[
+                    ...groupRuleLabels(group, languageDisplayLabel),
+                    ...summarizeOverride(group.carried ?? {}, t).map(
+                      (chip) => chip.charAt(0).toLowerCase() + chip.slice(1)
+                    ),
+                  ].join(', ') || 'No changes'}
                 </span>
               </span>
               <span className="shrink-0 text-xs font-bold text-brand-blue-primary">
@@ -651,37 +654,29 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
               supports={group.supports ?? []}
               onChange={(update) => updateSupports(group.id, update)}
               onSharingChange={onSharingChange}
+              keepFileIds={keepFileIds}
             />
-            {(!!onPreview || list.length > 1) && (
-              <div className="flex items-center justify-between gap-3 pt-2">
-                {onPreview ? (
-                  <button
-                    type="button"
-                    onClick={() => onPreview(group.id)}
-                    {...tourAttr('assign-mods.preview-group')}
-                    className="touch-target-expand inline-flex items-center gap-1 text-xs font-bold text-brand-blue-primary hover:underline"
-                  >
-                    <Eye className="h-3.5 w-3.5" aria-hidden />
-                    Preview
-                  </button>
-                ) : (
-                  <span />
-                )}
-                {list.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      deleteDriveCopies(group.supports);
-                      onChange(list.filter((g) => g.id !== group.id));
-                      setOpenId(null);
-                    }}
-                    {...tourAttr('assign-mods.remove-group')}
-                    className="touch-target-expand inline-flex items-center gap-1 text-xs font-bold text-brand-red-primary hover:underline"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                    Remove group
-                  </button>
-                )}
+            {group.carried && (
+              <p className="py-1.5 text-xs text-slate-500">
+                {summarizeOverride(group.carried, t).join(', ')}
+              </p>
+            )}
+            {(list.length > 1 || !isBlankGroup(group)) && (
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    deleteDriveCopies(group.supports);
+                    const rest = list.filter((g) => g.id !== group.id);
+                    onChange(rest.length > 0 ? rest : [newModificationGroup()]);
+                    setOpenId(null);
+                  }}
+                  {...tourAttr('assign-mods.remove-group')}
+                  className="touch-target-expand inline-flex items-center gap-1 text-xs font-bold text-brand-red-primary hover:underline"
+                >
+                  <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                  Remove group
+                </button>
               </div>
             )}
           </div>

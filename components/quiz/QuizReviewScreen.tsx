@@ -185,7 +185,14 @@ export const QuizReviewScreen: React.FC<{
                     {row.index + 1}
                   </span>
                   <span className="flex-1 min-w-0 text-sm text-slate-800 line-clamp-2">
-                    <MathText text={row.text} format />
+                    <MathText
+                      text={
+                        row.text.trim()
+                          ? row.text
+                          : t('quizQuestionAudio.label', 'Audio question')
+                      }
+                      format
+                    />
                   </span>
                   {row.marked && (
                     <Bookmark
