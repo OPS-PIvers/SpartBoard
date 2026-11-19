@@ -139,7 +139,7 @@ export async function takeLookupSlot(
 }
 
 /** A hit gives back both reservations so only misses spend budget; a failed refund is logged, not fatal. */
-async function refundSlot(
+export async function refundSlot(
   db: Firestore,
   slot: LookupSlot,
   code: string
@@ -148,12 +148,14 @@ async function refundSlot(
     await db.runTransaction(async (tx) => {
       const codes = codesOf((await tx.get(slot.callerRef)).data());
       const shard = slot.shardRef ? await tx.get(slot.shardRef) : null;
-      if (!codes.includes(code)) return;
-      tx.set(
-        slot.callerRef,
-        { codes: codes.filter((c) => c !== code) },
-        { merge: true }
-      );
+      // The shard refund doesn't depend on the caller doc, so a racing repeat can't strand it.
+      if (codes.includes(code)) {
+        tx.set(
+          slot.callerRef,
+          { codes: codes.filter((c) => c !== code) },
+          { merge: true }
+        );
+      }
       if (slot.shardRef && shard) {
         tx.set(
           slot.shardRef,

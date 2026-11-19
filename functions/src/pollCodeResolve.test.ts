@@ -34,7 +34,9 @@ import {
   mintPollCodeV1,
   normalizePollCodeInput,
   pollJoinId,
+  refundSlot,
   resolvePollCode,
+  takeLookupSlot,
   CALLER_WINDOW_MS,
   GLOBAL_WINDOW_MS,
   POLL_CODE_CALLER_MAX_MISSES,
@@ -447,6 +449,15 @@ describe('resolvePollCode', () => {
     for (let i = 0; i < 40; i += 1) {
       expect(await resolve(`s${i}`, 'K3F9Q')).toBe('t1_K3F9Q');
     }
+    expect(stub.get(SHARD_DOC(0))?.misses).toBe(0);
+  });
+
+  it('returns the shard reservation even after a twin request already cleared the caller code', async () => {
+    const { stub, db } = setup();
+    const slot = await takeLookupSlot(db, 'twice', 'K3F9Q', NOW, () => 0);
+    expect(stub.get(SHARD_DOC(0))?.misses).toBe(1);
+    await slot.callerRef.set({ codes: [] }, { merge: true });
+    await refundSlot(db, slot, 'K3F9Q');
     expect(stub.get(SHARD_DOC(0))?.misses).toBe(0);
   });
 
