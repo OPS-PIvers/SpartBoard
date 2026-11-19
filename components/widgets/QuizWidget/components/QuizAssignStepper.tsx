@@ -39,7 +39,7 @@ import { formatWrittenAnswersValue } from '@/components/common/library/assignSte
 import { Printer } from 'lucide-react';
 import { AuthContext } from '@/context/AuthContextValue';
 import { clampQuizTimeLimitMinutes } from '@/utils/quizTimeLimit';
-import { languageNativeLabel } from '@/utils/languageNativeLabel';
+import { languageDisplayLabel } from '@/utils/languageDisplayLabel';
 import {
   previewOverride,
   STANDARD_VERSION,
@@ -211,7 +211,7 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
         overrideForGroup(group, undefined, modifications.quizContext.questions)
       );
       if (!override) return;
-      const rules = groupRuleLabels(group, languageNativeLabel).filter(
+      const rules = groupRuleLabels(group, languageDisplayLabel).filter(
         (rule) => rule !== 'printed version'
       );
       versions.push({
@@ -372,7 +372,7 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
       value: formatModificationGroupsValue(
         withTime(groups),
         new Set(groupRows.map((row) => row.key)),
-        languageNativeLabel
+        languageDisplayLabel
       ),
       body: (
         <ModificationGroupsStep

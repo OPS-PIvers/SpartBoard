@@ -2,7 +2,7 @@
 
 import type { TFunction } from 'i18next';
 import type { StudentOverride } from '@/types';
-import { languageNativeLabel } from './languageNativeLabel';
+import { languageDisplayLabel } from './languageDisplayLabel';
 
 export const summarizeOverride = (
   override: StudentOverride,
@@ -117,7 +117,7 @@ export const summarizeOverride = (
   if (override.language)
     chips.push(
       t('studentOverride.chip.language', {
-        language: languageNativeLabel(override.language),
+        language: languageDisplayLabel(override.language),
         defaultValue: '{{language}}',
       })
     );
