@@ -73,16 +73,21 @@ export function guidedLearningLifecycle(
     window: { openAt?: number | null; closeAt?: number | null }
   ) => {
     if (!row || !hasStudentPointers(row)) return;
-    await actions.setAssignmentTargets({
-      assignmentId: id,
-      kind: 'guided-learning',
-      sessionId: id,
-      targetMode: row.targetMode,
-      add: [],
-      remove: [],
-      overridesBySourcedId: {},
-      window,
-    });
+    try {
+      await actions.setAssignmentTargets({
+        assignmentId: id,
+        kind: 'guided-learning',
+        sessionId: id,
+        targetMode: row.targetMode,
+        add: [],
+        remove: [],
+        overridesBySourcedId: {},
+        window,
+      });
+    } catch (err) {
+      // A failed pointer sync must not stop Open.
+      console.error('[guidedLearningLifecycle] Pointer sync failed:', err);
+    }
   };
 
   return {

@@ -245,7 +245,8 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
   const { rows, loading, quizPlcActions, sources } = useUnifiedAssignments(
     user?.uid,
     rosters,
-    writingEnabled
+    writingEnabled,
+    assignedOn
   );
 
   const [search, setSearch] = useState('');

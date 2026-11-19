@@ -114,7 +114,7 @@ const assignment = (
 // Board-level GL widget: every subscription the widget and its manager open.
 const useGlWidget = () => ({
   gl: useGuidedLearning('t1'),
-  assignments: useGuidedLearningAssignments('t1'),
+  assignments: useGuidedLearningAssignments('t1', true),
   folders: useFolders('t1', 'guided_learning'),
 });
 
@@ -193,8 +193,15 @@ describe('GL assignments listener limit', () => {
     expect(result.current.hasOlder).toBe(true);
   });
 
+  it('opens no closed-rows listener with the Assigned tab off', () => {
+    renderHook(() => useGuidedLearningAssignments('t1'));
+    expect(markedListener()).toBeUndefined();
+  });
+
   it('keeps a row closed through the Assigned tab past the recent page', () => {
-    const { result } = renderHook(() => useGuidedLearningAssignments('t1'));
+    const { result } = renderHook(() =>
+      useGuidedLearningAssignments('t1', true)
+    );
     const recent = Array.from({ length: 50 }, (_, i) =>
       assignment(1000 - i, 'archived')
     );

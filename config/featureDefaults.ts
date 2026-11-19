@@ -1730,8 +1730,7 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
   'assigned-tab': {
     label: 'Assigned tab',
     icon: ClipboardList,
-    description:
-      'Library and Assigned tabs. Each class has its own status. Quiz only for now.',
+    description: 'Library and Assigned tabs. Each class has its own status.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

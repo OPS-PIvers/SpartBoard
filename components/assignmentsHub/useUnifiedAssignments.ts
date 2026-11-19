@@ -110,7 +110,8 @@ function resolveClassName(
 export const useUnifiedAssignments = (
   userId: string | undefined,
   rosters: ClassRoster[],
-  writingEnabled = true
+  writingEnabled = true,
+  assignedTabOn = false
 ): {
   rows: UnifiedAssignmentRow[];
   loading: boolean;
@@ -121,7 +122,7 @@ export const useUnifiedAssignments = (
   const uid = fixture ? undefined : userId;
   const liveQuiz = useQuizAssignments(uid);
   const liveVa = useVideoActivityAssignments(uid);
-  const liveGl = useGuidedLearningAssignments(uid);
+  const liveGl = useGuidedLearningAssignments(uid, assignedTabOn);
   const liveMiniApp = useMiniAppAssignments(uid);
   const liveFlashcards = useFlashcardAssignments(uid);
   const liveWriting = useWritingAssignmentSessions(
