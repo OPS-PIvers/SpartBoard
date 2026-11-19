@@ -36,7 +36,10 @@ function fakeDb(seed: Record<string, Data> = {}) {
   };
   for (const path of docs.keys()) touch(path);
   let seq = 0;
-  const failNext = { commits: 0 };
+  const failNext: { commits: number; code: unknown } = {
+    commits: 0,
+    code: 9,
+  };
   const commits: { path: string; kind: string; data: Data }[][] = [];
 
   const snap = (path: string) => ({
@@ -118,7 +121,9 @@ function fakeDb(seed: Record<string, Data> = {}) {
       commit: () => {
         if (failNext.commits > 0) {
           failNext.commits -= 1;
-          return Promise.reject(Object.assign(new Error('stale'), { code: 9 }));
+          return Promise.reject(
+            Object.assign(new Error('stale'), { code: failNext.code })
+          );
         }
         for (const op of ops) {
           if (op.kind === 'create' && docs.has(op.path))
@@ -593,24 +598,57 @@ describe('edit_board', () => {
     expect(docs.get(BOARD)?.name).toBe('Again');
   });
 
-  it('gives the daily board allowance back when the save never lands', async () => {
-    const { db, docs, failNext } = fakeDb(seed());
-    failNext.commits = 3;
-    const call = await connect(db);
-    const out = await call('edit_board', {
+  const usageOf = (docs: Map<string, Data>) =>
+    docs.get(`users/u1/claude_usage/${new Date().toISOString().slice(0, 10)}`);
+  const rename = (call: Awaited<ReturnType<typeof connect>>) =>
+    call('edit_board', {
       board_id: 'b1',
       changes: [{ op: 'rename', name: 'Never' }],
     });
+
+  it('gives the allowance back once when the save never lands', async () => {
+    const { db, docs, failNext } = fakeDb(seed());
+    failNext.commits = 3;
+    const out = await rename(await connect(db));
     expect(out.error).toMatch(/Nothing was changed/);
-    const usage = docs.get(
-      `users/u1/claude_usage/${new Date().toISOString().slice(0, 10)}`
-    );
-    expect(usage?.boardOps ?? 0).toBe(0);
+    expect(usageOf(docs)).toMatchObject({ boardOps: 0 });
+  });
+
+  it('refunds after a retry that ends in a write-refusing error', async () => {
+    const { db, docs, failNext } = fakeDb(seed());
+    failNext.commits = 2;
+    const call = await connect(db);
+    failNext.code = 9;
+    // The second attempt fails with a refusal instead of a conflict.
+    const original = db.batch;
+    let n = 0;
+    db.batch = () => {
+      const b = original();
+      const commit = b.commit;
+      b.commit = () => {
+        if (++n === 2) failNext.code = 7;
+        return commit();
+      };
+      return b;
+    };
+    const out = await rename(call);
+    expect(out.error).toBeDefined();
+    expect(usageOf(docs)).toMatchObject({ boardOps: 0 });
+  });
+
+  it('keeps the allowance spent when the save may have landed', async () => {
+    const { db, docs, failNext } = fakeDb(seed());
+    failNext.commits = 1;
+    failNext.code = 4;
+    const out = await rename(await connect(db));
+    expect(out.error).toBeDefined();
+    expect(usageOf(docs)).toMatchObject({ boardOps: 1 });
   });
 
   it('gives the allowance back when create_board cannot save', async () => {
     const { db, docs, failNext } = fakeDb(seed());
     failNext.commits = 1;
+    failNext.code = 7;
     const call = await connect(db);
     const out = await call('create_board', {
       boards: [
@@ -622,10 +660,7 @@ describe('edit_board', () => {
       ],
     });
     expect(out.error).toBeDefined();
-    const usage = docs.get(
-      `users/u1/claude_usage/${new Date().toISOString().slice(0, 10)}`
-    );
-    expect(usage?.boardOps ?? 0).toBe(0);
+    expect(usageOf(docs)).toMatchObject({ boardOps: 0 });
   });
 
   it("refuses boards another teacher shares into this teacher's list", async () => {
