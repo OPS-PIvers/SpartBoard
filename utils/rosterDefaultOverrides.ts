@@ -71,6 +71,7 @@ export const setRosterDefaultOverride = (
 
 /** A list field a group edits item by item. */
 const LIST_KEY = 'supports';
+const MAX_LIST_ITEMS = 5;
 
 const sameValue = (a: unknown, b: unknown) =>
   JSON.stringify(a) === JSON.stringify(b);
@@ -134,10 +135,11 @@ export const applyGroupOverride = (
       const mine = ((own[key] as unknown[] | undefined) ?? []).filter(
         (x) => !removed.some((y) => sameValue(x, y))
       );
+      // Same cap as the editor and the server, so no one silently loses a group support.
       own[key] = [
         ...mine,
         ...added.filter((x) => !mine.some((y) => sameValue(x, y))),
-      ];
+      ].slice(0, MAX_LIST_ITEMS);
     }
     result = setRosterDefaultOverride(result, id, own);
   }

@@ -171,7 +171,8 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
 
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [supportSharing, setSupportSharing] = useState(false);
+  // Count of Drive shares in flight, so Save waits for every one of them.
+  const [sharesInFlight, setSharesInFlight] = useState(0);
   const viewAs = useViewAs();
 
   const handleSave = async () => {
@@ -287,7 +288,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
           )}
           <button
             onClick={handleSave}
-            disabled={!name.trim() || saving || supportSharing}
+            disabled={!name.trim() || saving || sharesInFlight > 0}
             {...tourAttr('roster-editor.save')}
             className="bg-brand-blue-primary text-white px-5 py-2 rounded-xl flex gap-1.5 items-center text-sm font-bold uppercase tracking-wider hover:bg-brand-blue-dark shadow-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -396,7 +397,9 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
             speechToTextAvailable={speechToTextAvailable}
             onChange={setDefaultOverrides}
             onAddStudents={() => setActiveTab('students')}
-            onSharingChange={setSupportSharing}
+            onSharingChange={(sharing) =>
+              setSharesInFlight((n) => Math.max(0, n + (sharing ? 1 : -1)))
+            }
           />
         ) : activeTab === 'accommodations' && roster ? (
           <RosterAccommodationsPanel

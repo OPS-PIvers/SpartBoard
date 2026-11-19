@@ -98,7 +98,7 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
   PlcAssignmentsInProgressSubTabProps
 > = ({ plc, kindFilter }) => {
   const { t } = useTranslation();
-  const { user, getAssignmentMode } = useAuth();
+  const { user, getAssignmentMode, canAccessFeature } = useAuth();
   const { addToast, rosters } = useDashboard();
   const { entries, loading } = usePlcAssignmentIndex(plc.id);
   // Subscribe to the PLC assignment templates so non-owner rows can match
@@ -288,10 +288,14 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
           savedMeta.driveFileId,
           { loadBankContentsForQuiz, saveDriveSnapshot }
         );
-        const quizPlan: PlcQuizStepperPlan = {
-          ...plan,
-          mixed: withPlanAnswerChoices(plan.mixed, fresh.questions),
-        };
+        const quizPlan: PlcQuizStepperPlan = canAccessFeature(
+          'modification-groups'
+        )
+          ? {
+              ...plan,
+              mixed: withPlanAnswerChoices(plan.mixed, content.questions),
+            }
+          : plan;
         const fields = plcStepperCreateFields(quizPlan, rosters);
         const created = await createAssignment(
           {
@@ -412,6 +416,7 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
       }
     },
     [
+      canAccessFeature,
       addToast,
       attachSyncLinkage,
       busyRowId,

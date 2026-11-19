@@ -192,7 +192,8 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   // already-created attachment (no addOnToken in that iframe).
   const existingAttachmentId = params.get('attachmentId') ?? '';
 
-  const { user, signInWithGoogle, googleAccessToken } = useAuth();
+  const { user, signInWithGoogle, googleAccessToken, canAccessFeature } =
+    useAuth();
   // VA rules are edited here, prefilled from last-used else the activity (V3).
   const lastVaRules = useLastVideoAssignSettings(user?.uid, true);
   const [editedVaRules, setEditedVaRules] = useState<{
@@ -625,13 +626,6 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
       },
       addonClassContext
     );
-    const resolvedTargeting: AssignTargetingValue = {
-      ...expanded,
-      overridesByKey: withQuizAnswerChoices(
-        expanded.overridesByKey,
-        Array.isArray(quizData?.questions) ? quizData.questions : []
-      ),
-    };
     for (const warning of hiddenOptions.warnings) {
       append(`Note: ${warning}`);
     }
@@ -659,6 +653,12 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
       selectedQuiz.driveFileId,
       { loadBankContentsForQuiz, saveDriveSnapshot }
     );
+    const resolvedTargeting: AssignTargetingValue = {
+      ...expanded,
+      overridesByKey: canAccessFeature('modification-groups')
+        ? withQuizAnswerChoices(expanded.overridesByKey, content.questions)
+        : expanded.overridesByKey,
+    };
 
     // Classroom grade scale = the points a student can earn (e.g. 17/20), not a percentage.
     const maxPoints = quizMaxPoints(
@@ -824,6 +824,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
       }
     }
   }, [
+    canAccessFeature,
     addonClassContext,
     append,
     selectedQuiz,

@@ -299,6 +299,18 @@ describe('standing answer choices', () => {
     expect(out.hiddenOptionIdsByQuestion?.q2).toBeUndefined();
   });
 
+  it('a group never loosens a class rule, and joins supports', () => {
+    const own = { kind: 'text' as const, title: 'Own', text: 'a' };
+    const shared = { kind: 'text' as const, title: 'Group', text: 'b' };
+    const out = overrideForGroup(
+      group({ answerChoices: 'drop-one', supports: [shared] }),
+      { answerChoices: 2, supports: [own] },
+      QUESTIONS
+    );
+    expect(out.hiddenOptionIdsByQuestion?.q1).toHaveLength(2);
+    expect(out.supports).toEqual([own, shared]);
+  });
+
   it('turns answer choices into hidden option text for the quiz', () => {
     const questions = [
       {

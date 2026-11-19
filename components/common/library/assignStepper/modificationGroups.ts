@@ -130,6 +130,12 @@ export function withQuizAnswerChoices(
   };
 }
 
+const CHOICE_RANK: Record<AnswerChoicesRule, number> = {
+  all: 0,
+  'drop-one': 1,
+  two: 2,
+};
+
 const TIME_RANK = { 1.5: 1, 2: 2, unlimited: 3 } as const;
 
 // A group never shortens a standing accommodation's extra time.
@@ -148,16 +154,25 @@ export function overrideForGroup(
   const next: StudentOverride = { ...(standing ?? {}) };
   if (group.time !== 'standard')
     next.timeMultiplier = moreTime(standing?.timeMultiplier, group.time);
+  // A group never loosens a standing answer-choice rule.
+  const standingRule = standingAnswerChoicesRule(standing);
   const rule =
-    group.answerChoices !== 'all'
+    CHOICE_RANK[group.answerChoices] >= CHOICE_RANK[standingRule]
       ? group.answerChoices
-      : standingAnswerChoicesRule(standing);
+      : standingRule;
   const hidden = hiddenOptionIdsForRule(questions, rule);
   if (hidden) next.hiddenOptionIdsByQuestion = hidden;
   if (group.readAloud) next.readAloud = true;
   if (group.speechToText) next.speechToText = true;
   if (group.language) next.language = group.language;
-  if (group.supports?.length) next.supports = group.supports;
+  if (group.supports?.length) {
+    // Group supports join the student's own, never replace them.
+    const merged = [...(standing?.supports ?? [])];
+    for (const s of group.supports)
+      if (!merged.some((m) => JSON.stringify(m) === JSON.stringify(s)))
+        merged.push(s);
+    next.supports = merged.slice(0, MAX_SUPPORTS);
+  }
   if (group.modifiedQuestions) next.modifiedQuestions = true;
   if (group.printed) next.onPaper = true;
   return next;

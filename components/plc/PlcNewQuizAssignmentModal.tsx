@@ -98,7 +98,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
   PlcNewQuizAssignmentModalProps
 > = ({ plc, assignmentMode = 'submissions', onClose, onCreated }) => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
   // D21: the stepper uses the Quiz steps, prefilled from and saving to last-used rules.
   const { lastUsed: lastAssignSettings, save: saveLastAssignSettings } =
     useLastQuizAssignSettings(user?.uid, true);
@@ -231,7 +231,9 @@ export const PlcNewQuizAssignmentModal: React.FC<
           when: stepperWhen,
           rosters,
           bellWindow: periodAccess?.bellWindow,
-          questions: data.questions,
+          ...(canAccessFeature('modification-groups')
+            ? { questions: content.questions }
+            : {}),
         });
         const fields = plcStepperCreateFields(stepperPlan, rosters);
 
@@ -418,6 +420,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
       }
     },
     [
+      canAccessFeature,
       addToast,
       outward,
       assignmentMode,

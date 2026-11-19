@@ -3951,10 +3951,9 @@ const TeacherQuizWidget: React.FC<{
             value: AssignTargetingValue
           ): AssignTargetingValue => ({
             ...value,
-            overridesByKey: withQuizAnswerChoices(
-              value.overridesByKey,
-              data.questions
-            ),
+            overridesByKey: canAccessFeature('modification-groups')
+              ? withQuizAnswerChoices(value.overridesByKey, assignQuestions)
+              : value.overridesByKey,
           });
           const rawMixed = stepper
             ? expandMixedTargeting(

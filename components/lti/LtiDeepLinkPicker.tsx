@@ -293,7 +293,8 @@ const LtiDeepLinkFlow: React.FC = () => {
     >
   >(new Map());
 
-  const { user, signInWithGoogle, googleAccessToken } = useAuth();
+  const { user, signInWithGoogle, googleAccessToken, canAccessFeature } =
+    useAuth();
   // VA rules are edited here, prefilled from last-used else the activity (V3).
   const lastVaRules = useLastVideoAssignSettings(user?.uid, true);
   const [editedVaRules, setEditedVaRules] = useState<{
@@ -647,13 +648,6 @@ const LtiDeepLinkFlow: React.FC = () => {
           },
           ltiClassContext
         );
-        const resolvedTargeting: AssignTargetingValue = {
-          ...expanded,
-          overridesByKey: withQuizAnswerChoices(
-            expanded.overridesByKey,
-            quizData.questions
-          ),
-        };
         if (hiddenOptions.warnings.length > 0) {
           setErrorMsg(`Note: ${hiddenOptions.warnings.join(' ')}`);
         }
@@ -686,6 +680,12 @@ const LtiDeepLinkFlow: React.FC = () => {
           selectedQuiz.driveFileId,
           { loadBankContentsForQuiz, saveDriveSnapshot }
         );
+        const resolvedTargeting: AssignTargetingValue = {
+          ...expanded,
+          overridesByKey: canAccessFeature('modification-groups')
+            ? withQuizAnswerChoices(expanded.overridesByKey, content.questions)
+            : expanded.overridesByKey,
+        };
 
         // Gradebook scale = the points a student can earn, so a 17/20 quiz reads 17/20 in Schoology.
         const maxPoints = quizMaxPoints(
@@ -799,6 +799,7 @@ const LtiDeepLinkFlow: React.FC = () => {
       await signAndReturn(created, selectedQuiz.title, returnUrl);
     },
     [
+      canAccessFeature,
       ltiClassContext,
       selectedQuiz,
       saveLastAssignSettings,
