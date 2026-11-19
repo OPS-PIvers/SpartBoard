@@ -1,6 +1,6 @@
 # 020 — Measure whether `transition-all` makes widget contents lag on resize, and fix Scoreboard if so
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: 3dcc1cd
 - **Severity**: MEDIUM (unconfirmed until step 1)
 - **Category**: Performance
