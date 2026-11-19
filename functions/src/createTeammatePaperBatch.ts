@@ -35,9 +35,7 @@ import {
   type PaperQuestion,
   type PaperSheetPlan,
 } from './paperBatchPlan';
-import {
-  PAPER_HANDWRITTEN_FEATURE,
-} from './paperWrittenTypes';
+import { PAPER_HANDWRITTEN_FEATURE } from './paperWrittenTypes';
 import {
   GOOGLE_OAUTH_CLIENT_ID,
   GOOGLE_OAUTH_CLIENT_SECRET,

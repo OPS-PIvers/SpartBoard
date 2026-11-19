@@ -20,9 +20,7 @@ import {
   promptPagesFor,
   promptQuestionIds,
 } from '@/utils/paperSheetVersions';
-import {
-  PAPER_HANDWRITTEN_FEATURE,
-} from '@/utils/paperWritten';
+import { PAPER_HANDWRITTEN_FEATURE } from '@/utils/paperWritten';
 import type { PrintedTranslation } from '@/utils/paperPrintedVersions';
 import { writtenOnlyAnalysis } from '@/utils/paperWrittenHybrid';
 import {

@@ -57,7 +57,6 @@ import {
   Utensils,
   CloudSun,
   SquareChevronDown,
-  Split,
   CalendarClock,
   MessageSquare,
   SlidersHorizontal,

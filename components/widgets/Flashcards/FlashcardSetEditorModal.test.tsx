@@ -60,8 +60,7 @@ const auth = (speak: boolean) =>
   ({
     googleAccessToken: 'token',
     refreshGoogleToken: () => Promise.resolve('token'),
-    canAccessFeature: (id: string) =>
-      speak && id === 'flashcards-speak',
+    canAccessFeature: (id: string) => speak && id === 'flashcards-speak',
   }) as unknown as AuthContextType;
 
 const lookup = vi.fn<SpeakLookupCall>((input) =>
@@ -83,9 +82,7 @@ const renderModal = (opts: {
   >(() => Promise.resolve());
   const onClose = vi.fn();
   render(
-    <AuthContext.Provider
-      value={auth(opts.speak ?? false)}
-    >
+    <AuthContext.Provider value={auth(opts.speak ?? false)}>
       <FlashcardSetEditorModal
         set={opts.set ?? baseSet()}
         isNew={opts.isNew ?? false}
