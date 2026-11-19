@@ -61,6 +61,12 @@ const LEVEL_GRID: Record<number, string> = {
   6: '@3xl:grid @3xl:grid-cols-6 @3xl:divide-x @3xl:divide-y-0',
 };
 
+// 5 and 6 levels put points above the label so each column keeps ~110px of text.
+const LEVEL_CELL: Record<number, string> = {
+  5: '@2xl:flex-col @2xl:gap-0.5',
+  6: '@3xl:flex-col @3xl:gap-0.5',
+};
+
 const ptsLabel = (points: number) => `${points} pt${points === 1 ? '' : 's'}`;
 
 // Which criteria a teacher left open, per rubric, so the next student opens the same way.
@@ -330,6 +336,7 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
           const noteOpen = expandedNotes.has(criterion.id);
           const levels = orderRubricLevels(criterion.levels, order);
           const levelGrid = LEVEL_GRID[levels.length] ?? '';
+          const levelCell = LEVEL_CELL[levels.length] ?? '';
           const nameId = `rubric-${rubric.id}-${criterion.id}-name`;
           const tagCount = tagCounts?.[criterion.id] ?? 0;
           const countLabel = t(
@@ -453,7 +460,7 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
                           'quiz',
                           `${criterion.id}-${level.id}`
                         )}
-                        className={`flex w-full gap-2 px-2 py-2 text-left transition-colors [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-blue-primary ${
+                        className={`flex w-full gap-2 px-2 py-2 text-left transition-colors ${levelCell} [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-blue-primary ${
                           isSelected
                             ? 'bg-brand-blue-primary text-white'
                             : 'text-slate-800 hover:bg-slate-50'
