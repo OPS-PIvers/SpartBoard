@@ -73,7 +73,7 @@ function createdSinceRoot(plc: LinkSnap, snap: LinkSnap): boolean {
   return rootAt !== undefined && at !== undefined && at >= rootAt;
 }
 
-/** True when this PLC's header names a participant, or the group was made for this PLC with an active keyed member in it; both must postdate the root. */
+/** True when this PLC's header names a participant, or the group was made for this PLC with an active keyed member in it; the header (and a stamped group) must postdate the root. */
 export function isGroupLinkedToPlc(
   plcId: string,
   plc: LinkSnap,
@@ -92,7 +92,11 @@ export function isGroupLinkedToPlc(
   ) {
     return true;
   }
-  if (groupData?.plcId !== plcId || !createdSinceRoot(plc, group)) {
+  // A group made outside this PLC is still linked while an active PLC member participates, via a header newer than the root.
+  const stamped = groupData?.plcId === plcId;
+  if (
+    stamped ? !createdSinceRoot(plc, group) : !createdSinceRoot(plc, header)
+  ) {
     return false;
   }
   // Leads can rewrite memberUids freely; only `members` entries count.

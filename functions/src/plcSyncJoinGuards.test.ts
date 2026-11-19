@@ -67,6 +67,40 @@ describe('isGroupLinkedToPlc', () => {
     ).toBe(false);
   });
 
+  it('accepts an outside-made group after Stop syncing while another active member participates', () => {
+    const outside = snap({ participants: { b: { joinedAt: 1 } } }, 50);
+    const twoMembers = snap(
+      { members: { a: { status: 'active' }, b: { status: 'active' } } },
+      100
+    );
+    expect(
+      isGroupLinkedToPlc('p', twoMembers, snap({ sharedBy: 'a' }, 200), outside)
+    ).toBe(true);
+  });
+
+  it('refuses an outside-made group whose participants are not active PLC members', () => {
+    const outside = snap({ participants: { x: { joinedAt: 1 } } }, 50);
+    const removed = snap(
+      { members: { a: { status: 'active' }, x: { status: 'removed' } } },
+      100
+    );
+    expect(
+      isGroupLinkedToPlc('p', removed, snap({ sharedBy: 'a' }, 200), outside)
+    ).toBe(false);
+  });
+
+  it('refuses an outside-made group when the header predates the root', () => {
+    const outside = snap({ participants: { a: { joinedAt: 1 } } }, 50);
+    expect(
+      isGroupLinkedToPlc(
+        'p',
+        snap({ members: { a: { status: 'active' } } }, 300),
+        snap({ sharedBy: 'gone' }, 200),
+        outside
+      )
+    ).toBe(false);
+  });
+
   it('refuses when a create time is missing', () => {
     expect(
       isGroupLinkedToPlc(
