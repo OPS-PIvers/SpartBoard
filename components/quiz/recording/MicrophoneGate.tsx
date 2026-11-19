@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, Mic, MicOff, RotateCcw } from 'lucide-react';
 import { RecordingConsentNotice } from './RecordingConsentNotice';
+import { withMicPermissionPrompt } from '@/utils/permissionPrompt';
 
 type MicStep = 'checking' | 'ask' | 'asking' | 'blocked' | 'no-mic';
 
@@ -42,7 +43,10 @@ const defaultDeps: MicrophoneGateDeps = {
       status?.removeEventListener('change', onChange);
     };
   },
-  getStream: () => navigator.mediaDevices.getUserMedia({ audio: true }),
+  getStream: () =>
+    withMicPermissionPrompt(() =>
+      navigator.mediaDevices.getUserMedia({ audio: true })
+    ),
 };
 
 const errorName = (err: unknown): string =>

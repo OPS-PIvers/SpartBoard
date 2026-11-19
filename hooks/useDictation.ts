@@ -18,6 +18,7 @@ import { createHybridEngine } from '@/utils/speechToText/hybridEngine';
 import { isPaidTranscribeOff } from '@/utils/speechToText/paidCalls';
 import { dictationLocaleFor } from '@/utils/speechToText/languages';
 import { applyTextRules } from '@/utils/speechToText/textRules';
+import { beginMicPermissionPrompt } from '@/utils/permissionPrompt';
 import type {
   DictationController,
   DictationErrorCode,
@@ -95,135 +96,150 @@ export function useDictation(
   const sessionCounter = useRef(0);
   /** Id of the listening session in progress; 0 when idle. */
   const activeSession = useRef(0);
-
-  const begin = useCallback((first: string) => {
-    const run = (lang: string, keepError: boolean): void => {
-      const assignmentId = isPaidTranscribeOff() ? null : hybridRef.current;
-      const key =
-        assignmentId === null ? BROWSER_ENGINE : `hybrid:${assignmentId}`;
-      if (engineRef.current && engineRef.current.key !== key) {
-        activeSession.current = 0;
-        engineRef.current.engine.abort();
-        engineRef.current = null;
-      }
-      if (!engineRef.current) {
-        const base = createBrowserEngine();
-        if (!base) return;
-        engineRef.current = {
-          key,
-          engine:
-            assignmentId === null
-              ? base
-              : createHybridEngine(base, { assignmentId }),
-        };
-      }
-      const engine = engineRef.current.engine;
-      const id = ++sessionCounter.current;
-      activeSession.current = id;
-      const live = () => activeSession.current === id;
-      const committed: CommittedPhrase[] = [];
-      // One slot per phrase the engine finished, in order, so a revision finds its phrase.
-      const finals: (CommittedPhrase | null)[] = [];
-      let finished = false;
-
-      setStatus('starting');
-      setInterim('');
-      if (!keepError) setError(null);
-
-      engine.start(
-        { locale: dictationLocaleFor(lang) ?? 'en-US', language: lang },
-        {
-          onStart: () => {
-            if (live()) setStatus('listening');
-          },
-          onInterim: (text) => {
-            if (live() && !finished) setInterim(text);
-          },
-          onFinal: (raw) => {
-            const slot = finals.push(null) - 1;
-            if (!live() || finished) return;
-            const current = latest.current;
-            const before = current.textBefore
-              ? current.textBefore()
-              : committed.map((c) => c.text).join('');
-            const phrase = applyTextRules(raw, {
-              textBefore: before,
-              language: lang,
-              punctuates: engine.punctuates,
-            });
-            setInterim('');
-            if (phrase.kind === 'undo') {
-              const last = committed.pop();
-              if (last === undefined) return;
-              last.undone = true;
-              current.onUndo?.(last.text);
-              return;
-            }
-            if (phrase.kind !== 'text') return;
-            const entry = { text: phrase.text, before, undone: false };
-            committed.push(entry);
-            finals[slot] = entry;
-            current.onCommit(phrase.text);
-            if (current.singlePhrase) {
-              finished = true;
-              engine.stop();
-            }
-          },
-          // May arrive after listening stopped; the phrase is still worth fixing.
-          onRevise: (slot, raw) => {
-            const entry = finals[slot];
-            if (!entry || entry.undone || !mounted.current) return;
-            // The model punctuates, so spoken punctuation rules stay off.
-            const phrase = applyTextRules(raw, {
-              textBefore: entry.before,
-              language: lang,
-              punctuates: true,
-            });
-            if (phrase.kind !== 'text') return;
-            // An exact-words transcript has no punctuation; keep what the free engine placed.
-            if (lacksPunctuation(raw))
-              phrase.text = carryPunctuation(entry.text, phrase.text);
-            if (phrase.text === entry.text) return;
-            const previous = entry.text;
-            entry.text = phrase.text;
-            latest.current.onRevise?.(previous, phrase.text);
-          },
-          onError: (code) => {
-            if (!live()) return;
-            setError(code);
-            if (code !== 'language-unsupported' || lang === FALLBACK_LANGUAGE)
-              return;
-            // D12: carry on in English and stop offering this language.
-            setDropped((list) =>
-              list.includes(lang) ? list : [...list, lang]
-            );
-            setChosen(FALLBACK_LANGUAGE);
-            run(FALLBACK_LANGUAGE, true);
-          },
-          onEnd: () => {
-            if (!live()) return;
-            activeSession.current = 0;
-            setStatus('idle');
-            setInterim('');
-          },
-        }
-      );
-    };
-    run(first, false);
+  /** Settles the mic prompt window the student's click opened. */
+  const endPrompt = useRef<(() => void) | null>(null);
+  const settlePrompt = useCallback(() => {
+    endPrompt.current?.();
+    endPrompt.current = null;
   }, []);
 
+  const begin = useCallback(
+    (first: string) => {
+      const run = (lang: string, keepError: boolean): void => {
+        const assignmentId = isPaidTranscribeOff() ? null : hybridRef.current;
+        const key =
+          assignmentId === null ? BROWSER_ENGINE : `hybrid:${assignmentId}`;
+        if (engineRef.current && engineRef.current.key !== key) {
+          activeSession.current = 0;
+          engineRef.current.engine.abort();
+          engineRef.current = null;
+        }
+        if (!engineRef.current) {
+          const base = createBrowserEngine();
+          if (!base) return;
+          engineRef.current = {
+            key,
+            engine:
+              assignmentId === null
+                ? base
+                : createHybridEngine(base, { assignmentId }),
+          };
+        }
+        const engine = engineRef.current.engine;
+        const id = ++sessionCounter.current;
+        activeSession.current = id;
+        const live = () => activeSession.current === id;
+        const committed: CommittedPhrase[] = [];
+        // One slot per phrase the engine finished, in order, so a revision finds its phrase.
+        const finals: (CommittedPhrase | null)[] = [];
+        let finished = false;
+
+        setStatus('starting');
+        setInterim('');
+        if (!keepError) setError(null);
+
+        engine.start(
+          { locale: dictationLocaleFor(lang) ?? 'en-US', language: lang },
+          {
+            onStart: () => {
+              if (live()) setStatus('listening');
+            },
+            onInterim: (text) => {
+              if (live() && !finished) setInterim(text);
+            },
+            onFinal: (raw) => {
+              const slot = finals.push(null) - 1;
+              if (!live() || finished) return;
+              const current = latest.current;
+              const before = current.textBefore
+                ? current.textBefore()
+                : committed.map((c) => c.text).join('');
+              const phrase = applyTextRules(raw, {
+                textBefore: before,
+                language: lang,
+                punctuates: engine.punctuates,
+              });
+              setInterim('');
+              if (phrase.kind === 'undo') {
+                const last = committed.pop();
+                if (last === undefined) return;
+                last.undone = true;
+                current.onUndo?.(last.text);
+                return;
+              }
+              if (phrase.kind !== 'text') return;
+              const entry = { text: phrase.text, before, undone: false };
+              committed.push(entry);
+              finals[slot] = entry;
+              current.onCommit(phrase.text);
+              if (current.singlePhrase) {
+                finished = true;
+                engine.stop();
+              }
+            },
+            // May arrive after listening stopped; the phrase is still worth fixing.
+            onRevise: (slot, raw) => {
+              const entry = finals[slot];
+              if (!entry || entry.undone || !mounted.current) return;
+              // The model punctuates, so spoken punctuation rules stay off.
+              const phrase = applyTextRules(raw, {
+                textBefore: entry.before,
+                language: lang,
+                punctuates: true,
+              });
+              if (phrase.kind !== 'text') return;
+              // An exact-words transcript has no punctuation; keep what the free engine placed.
+              if (lacksPunctuation(raw))
+                phrase.text = carryPunctuation(entry.text, phrase.text);
+              if (phrase.text === entry.text) return;
+              const previous = entry.text;
+              entry.text = phrase.text;
+              latest.current.onRevise?.(previous, phrase.text);
+            },
+            onError: (code) => {
+              if (!live()) return;
+              settlePrompt();
+              setError(code);
+              if (code !== 'language-unsupported' || lang === FALLBACK_LANGUAGE)
+                return;
+              // D12: carry on in English and stop offering this language.
+              setDropped((list) =>
+                list.includes(lang) ? list : [...list, lang]
+              );
+              setChosen(FALLBACK_LANGUAGE);
+              run(FALLBACK_LANGUAGE, true);
+            },
+            onEnd: () => {
+              if (!live()) return;
+              settlePrompt();
+              activeSession.current = 0;
+              setStatus('idle');
+              setInterim('');
+            },
+          }
+        );
+      };
+      run(first, false);
+    },
+    [settlePrompt]
+  );
+
   const halt = useCallback(() => {
+    settlePrompt();
     if (activeSession.current === 0) return;
     activeSession.current = 0;
     engineRef.current?.engine.abort();
     setStatus('idle');
     setInterim('');
-  }, []);
+  }, [settlePrompt]);
 
   const start = useCallback(() => {
     if (!supported || activeSession.current !== 0) return;
+    settlePrompt();
+    // The first listen can show the browser's mic prompt, which must not count as leaving the tab.
+    endPrompt.current = beginMicPermissionPrompt();
     begin(language);
-  }, [supported, language, begin]);
+  }, [supported, language, begin, settlePrompt]);
 
   const stop = useCallback(() => {
     if (activeSession.current === 0) return;
