@@ -23,6 +23,10 @@ import {
   QuizWidgetKind,
   Plc,
 } from '@/types';
+import {
+  previousRosterIdsFor,
+  uncheckedRosterClassIds,
+} from '@/utils/assignmentClassEdit';
 import { getAssignmentWidgetKind } from '@/utils/quizWidgetKind';
 import { isGameSession } from '@/utils/reviewResults';
 import { useReviewLaunch } from './useReviewLaunch';
@@ -3307,18 +3311,17 @@ const TeacherQuizWidget: React.FC<{
               rosters.filter((r) => selectedRosterIds.has(r.id))
             );
             // Per-period rows ride the targeting batch so a class and its row move together.
-            const removedRosterNames = rosters
-              .filter(
-                (r) =>
-                  (target.rosterIds ?? []).includes(r.id) &&
-                  !selectedRosterIds.has(r.id)
-              )
-              .map((r) => r.name);
+            const previousIds = previousRosterIdsFor(target, rosters);
+            const uncheckedRosters = rosters.filter(
+              (r) => previousIds.includes(r.id) && !selectedRosterIds.has(r.id)
+            );
+            const removedRosterNames = uncheckedRosters.map((r) => r.name);
             await setAssignmentRosters(
               target.id,
               targets,
               periodAccessRows,
-              removedRosterNames
+              removedRosterNames,
+              uncheckedRosterClassIds(uncheckedRosters)
             );
           }
           addToast('Assignment settings saved.', 'success');

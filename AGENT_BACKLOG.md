@@ -152,7 +152,6 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
   - S4: the page fetch has no port restriction; the rate limit is per instance.
   - S5: flashcard and Activity Wall text skip the link filter.
   - S6: notebook SVGs carry a double href (memory use).
-- **AB-66 Quiz settings stale class removal** (S, _re-verify_). From #4734: adding or removing a class while another class's roster was deleted or re-imported still marks that stale class removed and hides its work. Record only classes the teacher unchecked (`nextRemovedClasses`, `hooks/useQuizAssignments.ts`). Also: GL Results can show a removed class's work for a moment before the session loads.
 - **AB-67 Video import review minors** (M). From release 2026.10.31 (#4959); short answer, notes and clips are now on for every teacher, so these reach them.
   - Re-marking a short answer after Publish leaves the stored score until the teacher republishes (`functions/src/gradebook/gradeRowMath.ts` uses `stored ?? live`). A blank mark box can't clear a mark back to unmarked (`utils/videoActivityShortAnswerMark.ts`).
   - Note stops are silent in teacher-paced live runs (`VideoActivityLivePlayer.tsx` passes only `clip`); whether they should pause is PT-102.

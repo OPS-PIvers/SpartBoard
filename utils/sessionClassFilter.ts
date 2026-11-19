@@ -177,7 +177,7 @@ export interface RemovedClasses {
   periodNames: string[];
 }
 
-/** The session's removed-class record after a class change: newly dropped classes join it, re-added ones leave it. */
+/** The session's removed-class record after a class change: classes the teacher unchecked join it, re-added ones leave it. */
 export function nextRemovedClasses(
   current: SessionClassTargets | null | undefined,
   next: {
@@ -185,7 +185,8 @@ export function nextRemovedClasses(
     periodNames: string[];
     periodAccessKeys: string[];
   },
-  removedRosterNames: readonly string[]
+  removedRosterNames: readonly string[],
+  uncheckedClassIds: readonly string[]
 ): RemovedClasses {
   const prior = record(current?.removedClasses);
   const currentMap = record(current?.classPeriodByClassId);
@@ -195,7 +196,10 @@ export function nextRemovedClasses(
   const droppedIds = [
     ...strings(current?.classIds),
     ...Object.keys(currentRows),
-  ].filter((id) => !nextIds.has(id) && !isLinkedSection(id));
+  ].filter(
+    (id) =>
+      !nextIds.has(id) && !isLinkedSection(id) && uncheckedClassIds.includes(id)
+  );
   const droppedPeriods = [
     ...removedRosterNames,
     ...droppedIds.map((id) => nonEmpty(currentMap[id])),
