@@ -158,12 +158,9 @@ export function useMonitorData(
     () => [...new Set(session.periodNames ?? [])],
     [session.periodNames]
   );
+  // One class starts unfiltered, so a class added later in Quiz settings shows up too.
   const [selectedPeriods, setSelectedPeriods] = useState<string[]>(() =>
-    periodNames.length > 1
-      ? openOnAllClasses
-        ? []
-        : [periodNames[0]]
-      : periodNames
+    periodNames.length > 1 && !openOnAllClasses ? [periodNames[0]] : []
   );
 
   // 30s ticker drives the stuck heuristic and hand-raise ages.
