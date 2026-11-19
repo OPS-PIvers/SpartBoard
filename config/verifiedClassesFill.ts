@@ -18,3 +18,11 @@ export function normalizeVerifiedClassesFillSettings(
   }
   return { enabled: (raw as { enabled?: unknown }).enabled === true };
 }
+
+/** The same doc's `enforce` field, read by firestore.rules and verifiedClassList.ts; only a literal `true` is on. */
+export function normalizeClassTargetsEnforceSettings(raw: unknown): {
+  enabled: boolean;
+} {
+  if (!raw || typeof raw !== 'object') return { enabled: false };
+  return { enabled: (raw as { enforce?: unknown }).enforce === true };
+}

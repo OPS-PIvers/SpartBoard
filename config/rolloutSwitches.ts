@@ -73,6 +73,7 @@ import {
 } from '@/config/gettingStarted';
 import {
   VERIFIED_CLASSES_FILL_SETTINGS_DOC,
+  normalizeClassTargetsEnforceSettings,
   normalizeVerifiedClassesFillSettings,
 } from '@/config/verifiedClassesFill';
 
@@ -236,5 +237,14 @@ export const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
       'Each night, records the classes ClassLink says each teacher teaches. Substitute launches and shared wall edits then check that list.',
     superAdminOnly: true,
     normalize: normalizeVerifiedClassesFillSettings,
+  },
+  {
+    docId: VERIFIED_CLASSES_FILL_SETTINGS_DOC,
+    field: 'enforce',
+    title: 'Assign only to verified classes',
+    description:
+      'Teachers whose class list ClassLink has never confirmed can no longer assign to a class. Turn on once the fill has given every teacher a list.',
+    superAdminOnly: true,
+    normalize: normalizeClassTargetsEnforceSettings,
   },
 ];
