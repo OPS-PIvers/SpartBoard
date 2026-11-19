@@ -1185,15 +1185,15 @@ export const Dock: React.FC = () => {
       <div className="relative group/dock flex items-center justify-center">
         {/* Expanded View */}
         <div
-          className={`transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+          className={`transition-[opacity,scale,translate] duration-200 ease-out-strong motion-reduce:transition-opacity ${
             isExpanded
               ? 'scale-100 opacity-100'
-              : `scale-50 opacity-0 pointer-events-none absolute ${
+              : `scale-95 opacity-0 pointer-events-none absolute motion-reduce:scale-100 motion-reduce:translate-x-0 motion-reduce:translate-y-0 ${
                   dockPosition === 'left'
-                    ? '-translate-x-12'
+                    ? '-translate-x-2'
                     : dockPosition === 'right'
-                      ? 'translate-x-12'
-                      : 'translate-y-12'
+                      ? 'translate-x-2'
+                      : 'translate-y-2'
                 }`
           }`}
         >
@@ -1804,10 +1804,10 @@ export const Dock: React.FC = () => {
 
         {/* Collapsed View (Floating Icon) */}
         <div
-          className={`transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+          className={`transition-[opacity,scale,translate] duration-200 ease-out-strong motion-reduce:transition-opacity ${
             !isExpanded
               ? 'scale-100 opacity-100'
-              : 'scale-150 opacity-0 pointer-events-none absolute'
+              : 'scale-105 opacity-0 pointer-events-none absolute motion-reduce:scale-100'
           }`}
         >
           {/* Compressed down to a single icon (plus quick access) */}
