@@ -9,7 +9,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
 - **Release review findings.** Fix small (S) findings inside the release as `release fix:` PRs. File an item here only for work that is M or larger, needs a flag or rules design, or can't ship in that release.
 - **Agent-only means agent-only.** An item in Ready needs nothing from Paul. When an item needs new wording, the agent builds it and asks Paul with a screenshot and a decision card in its thread; when it needs a real decision, it goes to PAUL_TODO.md and the item moves to Blocked.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-302**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-303**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -21,6 +21,7 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
 ### Security and correctness
 
+- **AB-302 Group reminder emails ignore the Group schedules flag** (S, from #6279 review). With `group-schedules` narrowed, the Schedule step and board reminders are hidden, but `users/{uid}/group_email_alerts` docs written earlier keep sending from `functions/src/groupReminderEmails.ts`, and the teacher has no switch left to stop them. Skip or delete those docs when the teacher lacks the flag (server check via `functions/src/featureGrant.ts`, or a client sync that clears them), with a test.
 - **AB-289 Video Activity: turn in let-in and reopened students after their pass ends** (S, from #6238 review). A closed VA class's turn-in (teacher tab and `functions/src/videoClassTurnIn.ts`) skips students with a live `studentAccess` pass or on `reopenedFor`, then never looks again, so their attempt stays open for good. Quiz covers this through `classClosedOver` in the idle sweep. Re-queue the marker for the latest pass expiry (or re-check closed classes on a slow sweep), with functions tests.
 
 - **AB-283 Follow-ups from release 2026.11.18** (S, #6138 review; nothing blocking). (1) `.github/scripts/affected-functions.mjs` `RUNTIME_FEATURE_ID_CALLERS` still names `quizMediaArchive.ts` and `aiGeneration.ts`, but the variable-id flag lookup now lives in `functions/src/featureGrant.ts` (`isGlobalFeatureGranted`); add it so a release that only adds a flag id to `ADMIN_PREVIEW_FEATURES` redeploys its callers. (2) The prod deploy starts the Firestore rules release before the function delete check, so a failed check leaves new rules live with old functions; run the delete check first.

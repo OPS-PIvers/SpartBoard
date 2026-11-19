@@ -204,10 +204,12 @@ describe('GroupRemindersPanel', () => {
       screen.queryByRole('button', { name: /additional settings/i })
     ).toBeNull();
     fireEvent.click(screen.getByLabelText('Ben Carlson'));
+    await user.type(screen.getByLabelText(/name \(optional\)/i), 'Reading');
     await user.click(screen.getByRole('button', { name: /save group/i }));
     await user.click(screen.getByRole('button', { name: /^save$/i }));
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     const [group] = onSave.mock.calls[0][2] as RosterGroup[];
+    expect(group.name).toBe('Reading');
     expect(group.reminder).toBeUndefined();
     expect(group.inGroupMaker).toBeUndefined();
   });

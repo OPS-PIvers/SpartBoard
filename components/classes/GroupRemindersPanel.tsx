@@ -356,11 +356,20 @@ const GroupWizard: React.FC<GroupWizardProps> = ({
         : t('groupReminders.noneSelected', { defaultValue: 'None selected' }),
       continueAnchor: nextAnchor,
       body: (
-        <StudentsStep
-          students={students}
-          selected={group.studentIds}
-          onChange={(studentIds) => setGroup((g) => ({ ...g, studentIds }))}
-        />
+        <div className="flex flex-col gap-4">
+          {/* With no Symbol step, the name lives here so the group still gets one. */}
+          {!visible.symbol && (
+            <GroupNameField
+              name={group.name}
+              onName={(name) => setGroup((g) => ({ ...g, name }))}
+            />
+          )}
+          <StudentsStep
+            students={students}
+            selected={group.studentIds}
+            onChange={(studentIds) => setGroup((g) => ({ ...g, studentIds }))}
+          />
+        </div>
       ),
     },
   ];
@@ -457,6 +466,7 @@ const GroupWizard: React.FC<GroupWizardProps> = ({
             defaultValue: 'Select at least one student.',
           })}
           onCancel={onCancel}
+          cancelLabel={t('common.cancel', { defaultValue: 'Cancel' })}
           cancelAnchor={tourAttr('group-wizard.cancel')}
           submitAnchor={tourAttr('group-wizard.finish')}
           viewAsGuard={false}
@@ -502,6 +512,29 @@ const FIELD_LABEL = 'text-xs font-bold text-slate-600';
 const SELECT =
   'px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-hidden';
 
+const GroupNameField: React.FC<{
+  name: string;
+  onName: (name: string) => void;
+}> = ({ name, onName }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="flex flex-col gap-2 max-w-sm">
+      <label htmlFor="group-wizard-name" className={FIELD_LABEL}>
+        {t('groupReminders.nameOptional', {
+          defaultValue: 'Name (optional)',
+        })}
+      </label>
+      <input
+        id="group-wizard-name"
+        {...tourAttr('group-wizard.name')}
+        value={name}
+        onChange={(e) => onName(e.target.value)}
+        className="px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-hidden"
+      />
+    </div>
+  );
+};
+
 const SymbolStep: React.FC<{
   symbol: RosterGroupSymbol;
   name: string;
@@ -517,20 +550,7 @@ const SymbolStep: React.FC<{
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-col gap-2 max-w-sm">
-        <label htmlFor="group-wizard-name" className={FIELD_LABEL}>
-          {t('groupReminders.nameOptional', {
-            defaultValue: 'Name (optional)',
-          })}
-        </label>
-        <input
-          id="group-wizard-name"
-          {...tourAttr('group-wizard.name')}
-          value={name}
-          onChange={(e) => onName(e.target.value)}
-          className="px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-hidden"
-        />
-      </div>
+      <GroupNameField name={name} onName={onName} />
       <div className="flex flex-col gap-2">
         <div className="relative max-w-sm">
           <Search

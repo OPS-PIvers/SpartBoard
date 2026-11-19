@@ -35,6 +35,7 @@ export interface AssignStepperProps {
   };
   /** Inline only: a Cancel button left of submit. */
   onCancel?: () => void;
+  cancelLabel?: string;
   cancelAnchor?: TourAnchorAttrs;
   submitAnchor?: TourAnchorAttrs;
   /** Inline only: pins Cancel and submit to the bottom of the scrolling parent. */
@@ -60,6 +61,7 @@ export const AssignStepper: React.FC<AssignStepperProps> = ({
   inline = false,
   altAction,
   onCancel,
+  cancelLabel = 'Cancel',
   cancelAnchor,
   submitAnchor = tourAttr('assign-stepper.submit'),
   viewAsGuard = true,
@@ -246,7 +248,7 @@ export const AssignStepper: React.FC<AssignStepperProps> = ({
         {topSwitch && <div className="mb-4">{topSwitch}</div>}
         {stepList}
         <div
-          className={`flex items-center pt-3 ${onCancel ? 'justify-between' : 'justify-end'} ${stickyFooter ? 'sticky bottom-0 bg-white pb-1' : ''}`}
+          className={`flex items-center pt-3 ${onCancel ? 'justify-between' : 'justify-end'} ${stickyFooter ? 'sticky bottom-0 bg-white pb-1 mt-2 border-t border-slate-100' : ''}`}
         >
           {onCancel && (
             <button
@@ -256,7 +258,7 @@ export const AssignStepper: React.FC<AssignStepperProps> = ({
               disabled={submitting}
               className="px-4 py-2 text-sm font-bold text-slate-600 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50"
             >
-              Cancel
+              {cancelLabel}
             </button>
           )}
           {submitButton}
