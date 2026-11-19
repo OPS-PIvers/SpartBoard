@@ -436,6 +436,30 @@ describe('useQuizAssignments - reopenAssignment', () => {
     expect(sessionState.pauseSpans).toHaveLength(2);
   });
 
+  it('resumes right after a reopen even when a plain read still returns the ended session', async () => {
+    const fresh = {
+      status: 'paused',
+      startedAt: 1,
+      currentQuestionIndex: 0,
+    };
+    // getDoc is the stale copy; only the transaction sees the reopen.
+    mockGetDoc.mockResolvedValue({
+      data: () => ({ ...fresh, status: 'ended' }),
+    });
+    (runTransaction as Mock).mockImplementation(
+      async (_db: unknown, fn: (tx: unknown) => Promise<unknown>) =>
+        fn({
+          get: () => Promise.resolve({ data: () => fresh }),
+          update: batchUpdate,
+        })
+    );
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.resumeAssignment(ASSIGNMENT_ID);
+    });
+    expect(findSessionPatch().status).toBe('active');
+  });
+
   it('leaves the session usable: after reopen+resume, student-side polling at index 0 returns a real question', async () => {
     // End-to-end coverage for the bug: a teacher-paced session that
     // auto-ended used to leave currentQuestionIndex = totalQuestions, so
