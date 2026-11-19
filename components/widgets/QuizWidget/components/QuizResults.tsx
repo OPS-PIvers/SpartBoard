@@ -1442,6 +1442,21 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       ).rubric,
     [overridesBySourcedId, targetRefKeyByStudentUid]
   );
+  // The session's own classes first, so a period name matches the class it was assigned to.
+  const printRosters = useMemo(() => {
+    const ids = session?.rosterIds ?? [];
+    return [
+      ...rosters.filter((r) => ids.includes(r.id)),
+      ...rosters.filter((r) => !ids.includes(r.id)),
+    ];
+  }, [rosters, session?.rosterIds]);
+  const printListName = useCallback(
+    (response: QuizResponse) =>
+      hideNames
+        ? resolveShownName(response)
+        : resolveTargetExportName(response),
+    [hideNames, resolveShownName, resolveTargetExportName]
+  );
   const printPeriodOrder = useMemo(
     () => [
       ...resolvedPeriods,
@@ -3057,6 +3072,8 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           rubricFor={printRubric}
           drawOrder={!!session?.bankSlots?.length}
           periodOrder={printPeriodOrder}
+          rosters={printRosters}
+          listNameFor={printListName}
           sessionLive={!!session && session.status !== 'ended'}
           sheetsAvailable={paperSheetsEnabled}
           reportChoice

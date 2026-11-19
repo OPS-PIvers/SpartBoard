@@ -19,10 +19,12 @@ export interface UseCoursesResult {
   saveCourse: (request: SaveCourseRequest) => Promise<SaveCourseReply>;
 }
 
-const callSaveCourse = httpsCallable<SaveCourseRequest, SaveCourseReply>(
-  functions,
-  'saveCourseV1'
-);
+// Built on first save, so importing this hook doesn't touch Functions.
+const callSaveCourse = (request: SaveCourseRequest) =>
+  httpsCallable<SaveCourseRequest, SaveCourseReply>(
+    functions,
+    'saveCourseV1'
+  )(request);
 
 /** Listens only while `enabled` (the `course-agenda` flag), so teachers without it open no listener. */
 export function useCourses(enabled = true): UseCoursesResult {

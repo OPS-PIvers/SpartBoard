@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { AlertTriangle, Printer, X } from 'lucide-react';
 import type {
+  ClassRoster,
   PaperBatch,
   QuizData,
   QuizQuestion,
@@ -12,6 +13,11 @@ import type {
 } from '@/types';
 import { Modal } from '@/components/common/Modal';
 import { Toggle } from '@/components/common/Toggle';
+import { useCourses } from '@/hooks/useCourses';
+import { useResultsPrintChoice } from '@/hooks/useResultsPrintChoice';
+import type { Course } from '@/utils/course/contract';
+import { buildPrintStudentTree } from '@/utils/quizResultsPrintTree';
+import { PrintStudentTree, type PrintTreeStudent } from './PrintStudentTree';
 import { getResponseDocKey } from '@/hooks/useQuizSession';
 import { useAuth } from '@/context/useAuth';
 import { getPaperBatch } from '@/utils/paperBatchStore';
@@ -45,10 +51,8 @@ import {
 import type { QuestionGradeFn } from '@/utils/quizQuestionStats';
 import {
   applyPreset,
-  loadResultsPrintChoice,
   REPORT_CHOICE_PRESETS,
   RESULTS_PRINT_PRESETS,
-  saveResultsPrintChoice,
   type ResultsPrintPresetId,
   type SavedResultsPrintChoice,
 } from '@/utils/quizResultsPrintPresets';
@@ -105,6 +109,12 @@ export interface ResultsPrintModalProps {
   earlierAttempts?: ReadonlyMap<string, readonly QuizResponse[]>;
   /** Switches that don't apply here, hidden and printed off (Flashcards has no targets or written answers). */
   hiddenOptions?: readonly ResultsPrintToggle[];
+  /** The session's rosters; a student's class period is matched to one by name. */
+  rosters?: readonly Pick<ClassRoster, 'id' | 'name'>[];
+  /** Courses to group classes by; the teacher's own when absent and Courses are on. */
+  courses?: readonly Course[];
+  /** Student list label, "Last, First"; the shown name when absent. */
+  listNameFor?: (response: QuizResponse) => string;
   /** Loads a kept scan page; the teacher's Drive and `getPaperPageV1` when absent. */
   loadKeptPage?: KeptPageLoader;
   /** Reads a paper stack; the teacher's own store when absent. */
@@ -141,6 +151,7 @@ const TOGGLES: { key: BooleanOption; label: string }[] = [
 ];
 
 const NO_HIDDEN_OPTIONS: readonly ResultsPrintToggle[] = [];
+const NO_ROSTERS: readonly Pick<ClassRoster, 'id' | 'name'>[] = [];
 
 const REPORT_CHOICES: {
   id: ResultsPrintPresetId;
@@ -245,27 +256,36 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
   hiddenOptions = NO_HIDDEN_OPTIONS,
   loadKeptPage,
   loadPaperBatch = getPaperBatch,
+  rosters = NO_ROSTERS,
+  courses: givenCourses,
+  listNameFor,
   onClose,
   onError,
 }) => {
   const { canAccessFeature, googleAccessToken, refreshGoogleToken } = useAuth();
   const imageMarkup = canAccessFeature('paper-image-markup');
+  const v2 = canAccessFeature('results-print-v2');
   const keptPagesOn = canAccessFeature('paper-kept-pages') && !!sessionId;
   const [everyAttempt, setEveryAttempt] = useState(false);
   const hasEarlier = !!earlierAttempts && earlierAttempts.size > 0;
-  const [choice, setChoice] = useState<SavedResultsPrintChoice>(() => {
-    const saved = loadResultsPrintChoice(
-      reportChoice ? 'full-report' : undefined
-    );
-    // Without the report choice, a saved missed-only scope would have no visible control.
-    if (!reportChoice && saved.options.questionScope === 'missed') {
-      return { preset: 'student-copy', options: applyPreset('student-copy') };
+  const [choice, update] = useResultsPrintChoice(
+    teacherUid,
+    reportChoice ? 'full-report' : undefined,
+    (saved: SavedResultsPrintChoice): SavedResultsPrintChoice => {
+      // Without the report choice, a saved missed-only scope would have no visible control.
+      if (!reportChoice && saved.options.questionScope === 'missed') {
+        return { preset: 'student-copy', options: applyPreset('student-copy') };
+      }
+      // Without paper sheets the picker offers Report only (D26).
+      return !sheetsAvailable && saved.options.layout !== 'report'
+        ? { preset: 'student-copy', options: applyPreset('student-copy') }
+        : saved;
     }
-    // Without paper sheets the picker offers Report only (D26).
-    return !sheetsAvailable && saved.options.layout !== 'report'
-      ? { preset: 'student-copy', options: applyPreset('student-copy') }
-      : saved;
-  });
+  );
+  const ownCourses = useCourses(
+    !givenCourses && canAccessFeature('course-agenda')
+  ).courses;
+  const courses = givenCourses ?? ownCourses;
   const chosenOptions: QuizResultsPrintOptions = sheetsAvailable
     ? choice.options
     : { ...choice.options, layout: 'report' };
@@ -276,10 +296,6 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
           ...chosenOptions,
           ...Object.fromEntries(hiddenOptions.map((key) => [key, false])),
         };
-  const update = (next: SavedResultsPrintChoice) => {
-    setChoice(next);
-    saveResultsPrintChoice(next);
-  };
   const pickPreset = (id: ResultsPrintPresetId) =>
     update({ preset: id, options: applyPreset(id) });
   const setOption = <K extends keyof QuizResultsPrintOptions>(
@@ -739,15 +755,37 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
     );
   }
 
-  const allTicked =
-    students.length > 0 && students.every((s) => selected.has(s.student.key));
-  const toggleStudent = (key: string) =>
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
+  const tree = useMemo(
+    () =>
+      buildPrintStudentTree(
+        students.map(({ student }) => ({
+          key: student.key,
+          period: student.period,
+        })),
+        rosters,
+        courses
+      ),
+    [students, rosters, courses]
+  );
+  const treeStudents = useMemo(
+    () =>
+      new Map<string, PrintTreeStudent>(
+        students.map(({ student, response }) => [
+          student.key,
+          {
+            key: student.key,
+            name: listNameFor?.(response) ?? resolveShownName(response),
+            detail:
+              student.status === 'completed'
+                ? undefined
+                : student.status === 'joined'
+                  ? 'Not started'
+                  : 'In progress',
+          },
+        ])
+      ),
+    [students, listNameFor, resolveShownName]
+  );
 
   const handlePrint = () => {
     try {
@@ -762,8 +800,308 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
       (sheetsAvailable || p.id !== 'bubble-sheet') &&
       !REPORT_CHOICE_PRESETS.includes(p.id)
   );
+  const reportRows: {
+    id: ResultsPrintPresetId;
+    label: string;
+    detail?: string;
+    anchor: ReturnType<typeof tourFieldAttr>;
+  }[] = [
+    ...(reportChoice
+      ? REPORT_CHOICES.map((c) => ({
+          id: c.id,
+          label: c.label,
+          detail: c.detail,
+          anchor: tourFieldAttr(
+            'quiz-print.results-report-choice',
+            'quiz',
+            c.id
+          ),
+        }))
+      : []),
+    ...presets.map((p) => ({
+      id: p.id,
+      label: p.label,
+      anchor: tourFieldAttr('quiz-print.results-preset', 'quiz', p.id),
+    })),
+  ];
 
-  const presetChips = (
+  const radioDot = (on: boolean) => (
+    <span
+      aria-hidden
+      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
+        on ? 'border-brand-blue-primary' : 'border-slate-400'
+      }`}
+    >
+      {on && <span className="h-2 w-2 rounded-full bg-brand-blue-primary" />}
+    </span>
+  );
+
+  const reportList = (
+    <div
+      role="radiogroup"
+      aria-label="Report"
+      className="divide-y divide-slate-100 overflow-hidden rounded-lg border border-slate-200"
+    >
+      {reportRows.map((r) => {
+        const on = choice.preset === r.id;
+        return (
+          <button
+            key={r.id}
+            type="button"
+            role="radio"
+            aria-checked={on}
+            onClick={() => pickPreset(r.id)}
+            {...r.anchor}
+            className={`flex w-full items-start gap-2.5 px-3 py-2 text-left text-sm [-webkit-tap-highlight-color:transparent] focus:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary/40 ${
+              on
+                ? 'bg-brand-blue-lighter/60 font-semibold text-brand-blue-dark'
+                : 'text-slate-800 hover:bg-slate-50'
+            }`}
+          >
+            <span className="mt-0.5">{radioDot(on)}</span>
+            <span className="min-w-0 flex-1">
+              <span className="block">{r.label}</span>
+              {r.detail && (
+                <span className="block text-xs font-normal text-slate-600">
+                  {r.detail}
+                </span>
+              )}
+            </span>
+          </button>
+        );
+      })}
+      {choice.preset === null && (
+        <div
+          role="radio"
+          aria-checked
+          aria-disabled
+          className="flex items-center gap-2.5 bg-brand-blue-lighter/60 px-3 py-2 text-sm font-semibold text-brand-blue-dark"
+        >
+          {radioDot(true)}
+          Custom
+        </div>
+      )}
+    </div>
+  );
+
+  const segmented = <T extends string>(
+    label: string,
+    items: readonly { id: T; label: string }[],
+    value: T,
+    onPick: (id: T) => void,
+    anchor: (id: T) => ReturnType<typeof tourFieldAttr>
+  ) => (
+    <div className="flex items-center justify-between gap-3 py-2">
+      <span className="text-sm text-slate-700">{label}</span>
+      <div
+        className="flex shrink-0 overflow-hidden rounded-lg border border-slate-200"
+        role="radiogroup"
+        aria-label={label}
+      >
+        {items.map((m) => (
+          <button
+            key={m.id}
+            type="button"
+            role="radio"
+            aria-checked={value === m.id}
+            onClick={() => onPick(m.id)}
+            {...anchor(m.id)}
+            className={`px-2.5 py-1 text-xs font-semibold transition-colors ${
+              value === m.id
+                ? 'bg-brand-blue-primary text-white'
+                : 'bg-white text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  const toggleRow = (t: { key: BooleanOption; label: string }) => (
+    <div key={t.key} className="flex items-center justify-between gap-3 py-2">
+      <span className="text-sm text-slate-700">{t.label}</span>
+      <Toggle
+        checked={options[t.key]}
+        onChange={(v) => setOption(t.key, v)}
+        anchor={tourFieldAttr(
+          'quiz-print.results-option-toggle',
+          'quiz',
+          t.key
+        )}
+        label={t.label}
+        size="sm"
+      />
+    </div>
+  );
+
+  const shownToggles = TOGGLES.filter((t) => !hiddenOptions.includes(t.key));
+  const pageToggles = shownToggles.filter((t) => t.key !== 'duplexPadding');
+  const duplexToggle = shownToggles.find((t) => t.key === 'duplexPadding');
+
+  const sectionHead = (text: string) => (
+    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+      {text}
+    </h3>
+  );
+
+  const writtenControl =
+    hasPaperWritten &&
+    cropsOn &&
+    segmented(
+      'Written answers',
+      WRITTEN_MODES,
+      writtenMode,
+      setWrittenMode,
+      (id) => tourFieldAttr('quiz-print.results-written-mode', 'quiz', id)
+    );
+  const ready = batchesReady && cropsLoading === 0 && pagesLoading === 0;
+
+  const warnings = (ungraded > 0 ||
+    cropsFailed > 0 ||
+    warnKey ||
+    noName > 0 ||
+    online > 0 ||
+    lostSheets > 0) && (
+    <div className="space-y-2">
+      {online > 0 && (
+        <Banner>
+          {`${plural(online)} took this online and will get the report.`}
+        </Banner>
+      )}
+      {lostSheets > 0 && (
+        <Banner>
+          {`Sheet record missing for ${plural(lostSheets)}. ${lostSheets === 1 ? 'That student gets' : 'They get'} the report.`}
+        </Banner>
+      )}
+      {cropsFailed > 0 && (
+        <Banner>
+          {`Handwriting for ${plural(cropsFailed, 'answer')} could not load and prints as unavailable.`}
+        </Banner>
+      )}
+      {warnKey && (
+        <Banner>
+          {unfinished > 0
+            ? `${plural(unfinished)} ${unfinished === 1 ? "hasn't" : "haven't"} finished, so printed keys may circulate.`
+            : 'This quiz is still open, so printed keys may circulate.'}
+        </Banner>
+      )}
+      {ungraded > 0 && (
+        <Banner>
+          {`${plural(ungraded)} ${ungraded === 1 ? 'has' : 'have'} ungraded written answers.`}
+        </Banner>
+      )}
+      {noName > 0 && (
+        <Banner>
+          {`${plural(noName)} ${noName === 1 ? 'has' : 'have'} no roster name. Their copies print a blank name line with the PIN under it.`}
+        </Banner>
+      )}
+    </div>
+  );
+
+  const settings = (
+    <div className="space-y-5">
+      <section className="space-y-2">
+        {sectionHead('Report')}
+        {reportList}
+      </section>
+      <section>
+        {sectionHead('On the page')}
+        <div className="mt-1 divide-y divide-slate-100">
+          {pageToggles.map(toggleRow)}
+          {segmented(
+            'Show the key',
+            KEY_MODES,
+            options.keyMode,
+            (m) => setOption('keyMode', m),
+            (id) => tourFieldAttr('quiz-print.results-key-mode', 'quiz', id)
+          )}
+        </div>
+      </section>
+      <section>
+        {sectionHead('Printing')}
+        <div className="mt-1 divide-y divide-slate-100">
+          {sheetsAvailable &&
+            segmented(
+              'Layout',
+              LAYOUTS,
+              options.layout,
+              (m) => setOption('layout', m),
+              (id) => tourFieldAttr('quiz-print.results-layout', 'quiz', id)
+            )}
+          {sheetsAvailable && scanStatus && (
+            <p className="py-2 text-xs text-slate-600" role="status">
+              {scanStatus}
+            </p>
+          )}
+          {writtenControl}
+          {hasEarlier && (
+            <div className="flex items-center justify-between gap-3 py-2">
+              <span className="text-sm text-slate-700">Every attempt</span>
+              <Toggle
+                checked={everyAttempt}
+                onChange={setEveryAttempt}
+                anchor={tourTypeAttr(
+                  'quiz-print.results-every-attempt',
+                  'quiz'
+                )}
+                label="Every attempt"
+                size="sm"
+              />
+            </div>
+          )}
+          {duplexToggle && toggleRow(duplexToggle)}
+        </div>
+      </section>
+      {warnings}
+    </div>
+  );
+
+  const studentTree = (fill: boolean) => (
+    <PrintStudentTree
+      nodes={tree}
+      students={treeStudents}
+      selected={selected}
+      onChange={setSelected}
+      fill={fill}
+    />
+  );
+
+  const preview = (
+    <div className="flex min-h-96 flex-1 flex-col md:min-h-0">
+      <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+        Preview
+      </span>
+      {previewDoc ? (
+        <iframe
+          title="Print preview"
+          srcDoc={previewDoc}
+          sandbox=""
+          className="mt-2 w-full flex-1 rounded-lg border border-slate-200 bg-white"
+        />
+      ) : (
+        <p className="mt-2 text-sm text-slate-500">
+          Pick a student to see their copy.
+        </p>
+      )}
+    </div>
+  );
+
+  const [tab, setTab] = useState<'settings' | 'students'>('settings');
+  const columnHeight = 'md:h-[min(44rem,calc(100dvh-16rem))]';
+  const scrollCol = 'min-h-0 overflow-y-auto pb-4 pr-1 scroll-inset';
+  // The layout before results-print-v2, for teachers without the preview.
+  const allTicked =
+    students.length > 0 && students.every((s) => selected.has(s.student.key));
+  const toggleStudent = (key: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  const legacyPresetChips = (
     <div
       className="mt-2 flex flex-wrap gap-1.5"
       role="radiogroup"
@@ -789,7 +1127,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
     </div>
   );
 
-  const toggleControls = (
+  const legacyToggleControls = (
     <div className="space-y-2">
       {TOGGLES.filter((t) => !hiddenOptions.includes(t.key)).map((t) => (
         <div key={t.key} className="flex items-center justify-between gap-3">
@@ -869,35 +1207,234 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
     </div>
   );
 
-  const writtenControl = hasPaperWritten && cropsOn && (
-    <div className="flex items-center justify-between gap-3">
-      <span className="text-sm text-slate-700">Written answers</span>
-      <div
-        className="flex overflow-hidden rounded-lg border border-slate-200"
-        role="radiogroup"
-        aria-label="Written answers"
-      >
-        {WRITTEN_MODES.map((m) => (
-          <button
-            key={m.id}
-            type="button"
-            role="radio"
-            aria-checked={writtenMode === m.id}
-            onClick={() => setWrittenMode(m.id)}
-            {...tourFieldAttr('quiz-print.results-written-mode', 'quiz', m.id)}
-            className={`px-2.5 py-1 text-xs font-semibold transition-colors ${
-              writtenMode === m.id
-                ? 'bg-brand-blue-primary text-white'
-                : 'bg-white text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            {m.label}
-          </button>
-        ))}
+  const legacyBody = (
+    <div className="grid gap-4 px-5 pb-5 pt-4 md:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
+      <div className="space-y-4">
+        {reportChoice ? (
+          <>
+            <fieldset>
+              <legend className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                Report
+              </legend>
+              <div
+                className="mt-2 grid grid-cols-2 gap-2"
+                role="radiogroup"
+                aria-label="Report"
+              >
+                {REPORT_CHOICES.map((c) => {
+                  const on = choice.preset === c.id;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={on}
+                      onClick={() => pickPreset(c.id)}
+                      {...tourFieldAttr(
+                        'quiz-print.results-report-choice',
+                        'quiz',
+                        c.id
+                      )}
+                      className={`rounded-lg border p-2.5 text-left transition-colors focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-brand-blue-primary ${
+                        on
+                          ? 'border-brand-blue-primary bg-brand-blue-lighter/60'
+                          : 'border-slate-200 bg-white hover:border-brand-blue-light'
+                      }`}
+                    >
+                      <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">
+                        <span
+                          aria-hidden
+                          className={`h-3 w-3 shrink-0 rounded-full border ${
+                            on
+                              ? 'border-brand-blue-primary bg-brand-blue-primary'
+                              : 'border-slate-400'
+                          }`}
+                        />
+                        {c.label}
+                      </span>
+                      <span className="mt-1 block text-xs text-slate-600">
+                        {c.detail}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
+            <details className="group">
+              <summary
+                {...tourTypeAttr('quiz-print.results-more-options', 'quiz')}
+                className="cursor-pointer text-xs font-semibold text-brand-blue-primary hover:underline"
+              >
+                More print options
+              </summary>
+              <div className="mt-2 space-y-4">
+                {legacyPresetChips}
+                {legacyToggleControls}
+              </div>
+            </details>
+          </>
+        ) : (
+          <>
+            <fieldset>
+              <legend className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                What to print
+              </legend>
+              {legacyPresetChips}
+            </fieldset>
+            {legacyToggleControls}
+          </>
+        )}
+
+        {writtenControl}
+
+        {warnings}
+
+        {hasEarlier && (
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm text-slate-700">Every attempt</span>
+            <Toggle
+              checked={everyAttempt}
+              onChange={setEveryAttempt}
+              anchor={tourTypeAttr('quiz-print.results-every-attempt', 'quiz')}
+              label="Every attempt"
+              size="sm"
+            />
+          </div>
+        )}
+        <div>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+              Students
+            </span>
+            <button
+              type="button"
+              {...tourTypeAttr('quiz-print.results-select-all', 'quiz')}
+              onClick={() =>
+                setSelected(
+                  allTicked
+                    ? new Set()
+                    : new Set(students.map((s) => s.student.key))
+                )
+              }
+              className="text-xs font-semibold text-brand-blue-primary hover:underline"
+            >
+              {allTicked ? 'Select none' : 'Select all'}
+            </button>
+          </div>
+          <ul className="mt-2 max-h-56 space-y-0.5 overflow-y-auto rounded-lg border border-slate-200 p-2">
+            {students.map(({ student, response }, rowIndex) => {
+              const shown = resolveShownName(response);
+              return (
+                <li key={student.key}>
+                  <label className="flex cursor-pointer items-center gap-2 rounded-sm px-1 py-0.5 text-sm text-slate-700 hover:bg-slate-50">
+                    <input
+                      type="checkbox"
+                      checked={selected.has(student.key)}
+                      onChange={() => toggleStudent(student.key)}
+                      {...tourFieldAttr(
+                        'quiz-print.results-student-select',
+                        'quiz',
+                        `row-${rowIndex + 1}`
+                      )}
+                      className="accent-brand-blue-primary"
+                    />
+                    <span
+                      className={
+                        student.period
+                          ? 'max-w-[60%] shrink-0 truncate'
+                          : 'min-w-0 flex-1 truncate'
+                      }
+                      title={shown}
+                    >
+                      {shown}
+                    </span>
+                    {student.period && (
+                      <span
+                        className="min-w-0 flex-1 truncate text-right text-xs text-slate-500"
+                        title={student.period}
+                      >
+                        {student.period}
+                      </span>
+                    )}
+                    {student.status !== 'completed' && (
+                      <span className="shrink-0 text-xs text-slate-500">
+                        {student.status === 'joined'
+                          ? 'Not started'
+                          : 'In progress'}
+                      </span>
+                    )}
+                  </label>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      </div>
+
+      <div className="flex min-h-96 flex-col">
+        <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+          Preview
+        </span>
+        {previewDoc ? (
+          <iframe
+            title="Print preview"
+            srcDoc={previewDoc}
+            sandbox=""
+            className="mt-2 w-full flex-1 rounded-lg border border-slate-200 bg-white"
+          />
+        ) : (
+          <p className="mt-2 text-sm text-slate-500">
+            Pick a student to see their copy.
+          </p>
+        )}
       </div>
     </div>
   );
-  const ready = batchesReady && cropsLoading === 0 && pagesLoading === 0;
+
+  const body = (
+    <div
+      className={`grid gap-5 px-5 pt-4 md:grid-cols-[minmax(0,21rem)_minmax(0,1fr)] ${columnHeight}`}
+    >
+      <div className="flex min-h-0 flex-col">
+        <div
+          role="tablist"
+          aria-label="Print results"
+          className="flex shrink-0 overflow-hidden rounded-lg border border-slate-200"
+        >
+          {(
+            [
+              ['settings', 'Settings'],
+              ['students', `Students (${chosen.length})`],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={tab === id}
+              onClick={() => setTab(id)}
+              {...tourFieldAttr('quiz-print.results-tab', 'quiz', id)}
+              className={`flex-1 px-3 py-1.5 text-sm font-semibold transition-colors ${
+                tab === id
+                  ? 'bg-brand-blue-primary text-white'
+                  : 'bg-white text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {tab === 'settings' ? (
+          <div className={`mt-4 flex-1 ${scrollCol}`}>{settings}</div>
+        ) : (
+          <div className="mt-4 flex min-h-0 flex-1 flex-col pb-4">
+            {studentTree(true)}
+          </div>
+        )}
+      </div>
+      <div className="flex min-h-0 flex-col pb-4">{preview}</div>
+    </div>
+  );
 
   return (
     <Modal
@@ -968,230 +1505,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
         </div>
       }
     >
-      <div className="grid gap-4 px-5 pb-5 pt-4 md:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
-        <div className="space-y-4">
-          {reportChoice ? (
-            <>
-              <fieldset>
-                <legend className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Report
-                </legend>
-                <div
-                  className="mt-2 grid grid-cols-2 gap-2"
-                  role="radiogroup"
-                  aria-label="Report"
-                >
-                  {REPORT_CHOICES.map((c) => {
-                    const on = choice.preset === c.id;
-                    return (
-                      <button
-                        key={c.id}
-                        type="button"
-                        role="radio"
-                        aria-checked={on}
-                        onClick={() => pickPreset(c.id)}
-                        {...tourFieldAttr(
-                          'quiz-print.results-report-choice',
-                          'quiz',
-                          c.id
-                        )}
-                        className={`rounded-lg border p-2.5 text-left transition-colors focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-brand-blue-primary ${
-                          on
-                            ? 'border-brand-blue-primary bg-brand-blue-lighter/60'
-                            : 'border-slate-200 bg-white hover:border-brand-blue-light'
-                        }`}
-                      >
-                        <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">
-                          <span
-                            aria-hidden
-                            className={`h-3 w-3 shrink-0 rounded-full border ${
-                              on
-                                ? 'border-brand-blue-primary bg-brand-blue-primary'
-                                : 'border-slate-400'
-                            }`}
-                          />
-                          {c.label}
-                        </span>
-                        <span className="mt-1 block text-xs text-slate-600">
-                          {c.detail}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </fieldset>
-              <details className="group">
-                <summary
-                  {...tourTypeAttr('quiz-print.results-more-options', 'quiz')}
-                  className="cursor-pointer text-xs font-semibold text-brand-blue-primary hover:underline"
-                >
-                  More print options
-                </summary>
-                <div className="mt-2 space-y-4">
-                  {presetChips}
-                  {toggleControls}
-                </div>
-              </details>
-            </>
-          ) : (
-            <>
-              <fieldset>
-                <legend className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  What to print
-                </legend>
-                {presetChips}
-              </fieldset>
-              {toggleControls}
-            </>
-          )}
-
-          {writtenControl}
-
-          {(ungraded > 0 ||
-            cropsFailed > 0 ||
-            warnKey ||
-            noName > 0 ||
-            online > 0 ||
-            lostSheets > 0) && (
-            <div className="space-y-2">
-              {online > 0 && (
-                <Banner>
-                  {`${plural(online)} took this online and will get the report.`}
-                </Banner>
-              )}
-              {lostSheets > 0 && (
-                <Banner>
-                  {`Sheet record missing for ${plural(lostSheets)}. ${lostSheets === 1 ? 'That student gets' : 'They get'} the report.`}
-                </Banner>
-              )}
-              {cropsFailed > 0 && (
-                <Banner>
-                  {`Handwriting for ${plural(cropsFailed, 'answer')} could not load and prints as unavailable.`}
-                </Banner>
-              )}
-              {warnKey && (
-                <Banner>
-                  {unfinished > 0
-                    ? `${plural(unfinished)} ${unfinished === 1 ? "hasn't" : "haven't"} finished, so printed keys may circulate.`
-                    : 'This quiz is still open, so printed keys may circulate.'}
-                </Banner>
-              )}
-              {ungraded > 0 && (
-                <Banner>
-                  {`${plural(ungraded)} ${ungraded === 1 ? 'has' : 'have'} ungraded written answers.`}
-                </Banner>
-              )}
-              {noName > 0 && (
-                <Banner>
-                  {`${plural(noName)} ${noName === 1 ? 'has' : 'have'} no roster name. Their copies print a blank name line with the PIN under it.`}
-                </Banner>
-              )}
-            </div>
-          )}
-
-          {hasEarlier && (
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm text-slate-700">Every attempt</span>
-              <Toggle
-                checked={everyAttempt}
-                onChange={setEveryAttempt}
-                anchor={tourTypeAttr(
-                  'quiz-print.results-every-attempt',
-                  'quiz'
-                )}
-                label="Every attempt"
-                size="sm"
-              />
-            </div>
-          )}
-          <div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Students
-              </span>
-              <button
-                type="button"
-                {...tourTypeAttr('quiz-print.results-select-all', 'quiz')}
-                onClick={() =>
-                  setSelected(
-                    allTicked
-                      ? new Set()
-                      : new Set(students.map((s) => s.student.key))
-                  )
-                }
-                className="text-xs font-semibold text-brand-blue-primary hover:underline"
-              >
-                {allTicked ? 'Select none' : 'Select all'}
-              </button>
-            </div>
-            <ul className="mt-2 max-h-56 space-y-0.5 overflow-y-auto rounded-lg border border-slate-200 p-2">
-              {students.map(({ student, response }, rowIndex) => {
-                const shown = resolveShownName(response);
-                return (
-                  <li key={student.key}>
-                    <label className="flex cursor-pointer items-center gap-2 rounded-sm px-1 py-0.5 text-sm text-slate-700 hover:bg-slate-50">
-                      <input
-                        type="checkbox"
-                        checked={selected.has(student.key)}
-                        onChange={() => toggleStudent(student.key)}
-                        {...tourFieldAttr(
-                          'quiz-print.results-student-select',
-                          'quiz',
-                          `row-${rowIndex + 1}`
-                        )}
-                        className="accent-brand-blue-primary"
-                      />
-                      <span
-                        className={
-                          student.period
-                            ? 'max-w-[60%] shrink-0 truncate'
-                            : 'min-w-0 flex-1 truncate'
-                        }
-                        title={shown}
-                      >
-                        {shown}
-                      </span>
-                      {student.period && (
-                        <span
-                          className="min-w-0 flex-1 truncate text-right text-xs text-slate-500"
-                          title={student.period}
-                        >
-                          {student.period}
-                        </span>
-                      )}
-                      {student.status !== 'completed' && (
-                        <span className="shrink-0 text-xs text-slate-500">
-                          {student.status === 'joined'
-                            ? 'Not started'
-                            : 'In progress'}
-                        </span>
-                      )}
-                    </label>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        </div>
-
-        <div className="flex min-h-96 flex-col">
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-            Preview
-          </span>
-          {previewDoc ? (
-            <iframe
-              title="Print preview"
-              srcDoc={previewDoc}
-              sandbox=""
-              className="mt-2 w-full flex-1 rounded-lg border border-slate-200 bg-white"
-            />
-          ) : (
-            <p className="mt-2 text-sm text-slate-500">
-              Pick a student to see their copy.
-            </p>
-          )}
-        </div>
-      </div>
+      {v2 ? body : legacyBody}
     </Modal>
   );
 };

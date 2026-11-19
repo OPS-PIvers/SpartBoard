@@ -4,6 +4,7 @@ import React, { useMemo, useState } from 'react';
 import { AuthProvider } from '@/context/AuthContext';
 import { ResultsPrintModal } from '@/components/widgets/QuizWidget/components/ResultsPrintModal';
 import type { PaperBatch, QuizData, QuizResponse } from '@/types';
+import type { Course } from '@/utils/course/contract';
 import type { KeptPageLoader } from '@/utils/paperPageFetch';
 import type { PaperCropResolver } from '@/utils/paperCropFetch';
 import { gradeQuestionForResponse } from '@/utils/quizQuestionStats';
@@ -16,6 +17,35 @@ import {
   scanMarkup,
   scanResponse,
 } from '@/tests/utils/fixtures/scanSheetFixture';
+
+const PERIODS = [
+  'Math 7 Period 1',
+  'Math 7 Period 2',
+  'Math 7 Period 4',
+  'Math 7 Period 6',
+  'WIN Time Intervention',
+];
+
+const HARNESS_ROSTERS = PERIODS.map((name, i) => ({ id: `r${i + 1}`, name }));
+
+const HARNESS_COURSES = [
+  {
+    id: 'k1',
+    name: 'Math 7',
+    teacherName: 'Paul Ivers',
+    rosterIds: ['r1', 'r2', 'r3', 'r4'],
+    agenda: null,
+    pinnedLinks: [],
+    familyLink: null,
+    linkId: 'k1',
+    formerLinkIds: [],
+    formerShareIds: [],
+    rosterClassIds: {},
+    deckCheck: null,
+    createdAt: 0,
+    updatedAt: 0,
+  },
+] as unknown as Course[];
 
 const FIRST = [
   'Maya',
@@ -59,6 +89,7 @@ function readParams() {
     delay: num('delay', 0),
     fixture: q.get('fixture') ?? '/scan-fixture',
     reportChoice: q.get('reportChoice') === '1',
+    courses: q.get('courses') === '1',
   };
 }
 
@@ -74,8 +105,11 @@ function buildFixture(p: ReturnType<typeof readParams>): Fixture {
   const responses: QuizResponse[] = [];
   for (let i = 0; i < p.students; i += 1) {
     const key = `paper-${String(i + 1).padStart(2, '0')}`;
-    const period = i < Math.ceil(p.students / 2) ? 'Period 2' : 'Period 4';
-    names.set(key, `${FIRST[i % FIRST.length]} ${LAST[(i * 3) % LAST.length]}`);
+    const period = PERIODS[Math.floor((i * PERIODS.length) / p.students)];
+    names.set(
+      key,
+      `${FIRST[i % FIRST.length]} ${LAST[(i * 3 + Math.floor(i / 10)) % LAST.length]}`
+    );
     // The last `missing` students were imported with the switch off.
     const keeps =
       i >= p.students - p.missing ? [] : p.onePage && i === 0 ? [1] : [1, 2];
@@ -145,6 +179,10 @@ export const ScanSheetPrintDevHarness: React.FC = () => {
     const [first, ...rest] = nameOf(r).split(' ');
     return `${rest.join(' ')} ${first}`;
   };
+  const listName = (r: QuizResponse) => {
+    const [first, ...rest] = nameOf(r).split(' ');
+    return `${rest.join(' ')}, ${first}`;
+  };
   return (
     <AuthProvider>
       <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-200 p-6 pb-12">
@@ -158,7 +196,10 @@ export const ScanSheetPrintDevHarness: React.FC = () => {
           targetsFor={() => []}
           gradeFn={gradeQuestionForResponse}
           rubricFor={() => undefined}
-          periodOrder={['Period 2', 'Period 4']}
+          periodOrder={PERIODS}
+          rosters={HARNESS_ROSTERS}
+          courses={params.courses ? HARNESS_COURSES : []}
+          listNameFor={listName}
           sessionLive={false}
           sheetsAvailable
           reportChoice={params.reportChoice}

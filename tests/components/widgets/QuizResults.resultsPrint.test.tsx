@@ -43,6 +43,7 @@ vi.mock('@/hooks/useQuizResponseAttempts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/hooks/useQuizResponseAttempts')>()),
   useQuizResponseAttempts: () => null,
 }));
+let printV2 = true;
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     canAccessQuizMediaResponse: () => false,
@@ -52,7 +53,7 @@ vi.mock('@/context/useAuth', () => ({
     user: { uid: 'teacher-1' },
     orgId: null,
     isExternalUser: false,
-    canAccessFeature: () => false,
+    canAccessFeature: (id: string) => id === 'results-print-v2' && printV2,
     updateAccountPreferences: vi.fn().mockResolvedValue(undefined),
   }),
 }));
@@ -187,11 +188,15 @@ const renderResults = (
   );
 
 const dialog = () => screen.getByRole('dialog', { name: 'Print results' });
-const ticked = () =>
-  within(dialog())
-    .getAllByRole('checkbox')
-    .filter((c) => (c as HTMLInputElement).checked)
-    .map((c) => c.closest('label')?.textContent);
+const ticked = () => {
+  const tab = within(dialog()).queryByRole('tab', { name: /^Students/ });
+  if (tab) fireEvent.click(tab);
+  return Array.from(
+    dialog().querySelectorAll(
+      '[data-tour="quiz-print.results-student-select"][aria-checked="true"]'
+    )
+  ).map((c) => c.textContent);
+};
 
 describe('QuizResults — results print', () => {
   beforeEach(() => {
@@ -199,15 +204,28 @@ describe('QuizResults — results print', () => {
     printQuizResults.mockReset();
     printStudentReport.mockReset();
     localStorage.clear();
+    printV2 = true;
+  });
+
+  it('keeps the old layout while the redesign preview is off', () => {
+    printV2 = false;
+    renderResults();
+    fireEvent.click(screen.getByRole('button', { name: 'Print results' }));
+    const d = within(dialog());
+    expect(d.queryByRole('tab', { name: 'Settings' })).toBeNull();
+    expect(d.getByRole('button', { name: 'Select none' })).toBeInTheDocument();
+    expect(
+      d.getAllByRole('checkbox').filter((c) => (c as HTMLInputElement).checked)
+    ).toHaveLength(3);
   });
 
   it('opens from the header with every listed student ticked, joined ones included', () => {
     renderResults();
     fireEvent.click(screen.getByRole('button', { name: 'Print results' }));
     expect(ticked()).toEqual([
-      'Ada LovelacePeriod 1',
-      'PIN 2222Period 1',
-      'PIN 3333Period 1Not started',
+      'Lovelace, Ada',
+      'PIN 2222',
+      'PIN 3333Not started',
     ]);
     fireEvent.click(within(dialog()).getByRole('button', { name: 'Print' }));
     const [job, options] = printQuizResults.mock.calls[0];
@@ -242,7 +260,7 @@ describe('QuizResults — results print', () => {
     fireEvent.click(screen.getByRole('button', { name: /^students/i }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select PIN 2222' }));
     fireEvent.click(screen.getByRole('button', { name: 'Print selected' }));
-    expect(ticked()).toEqual(['PIN 2222Period 1']);
+    expect(ticked()).toEqual(['PIN 2222']);
   });
 
   it('opens from a student panel with just that student, and drops the old checkbox', () => {
@@ -253,7 +271,7 @@ describe('QuizResults — results print', () => {
       screen.queryByRole('checkbox', { name: 'Include correct answers' })
     ).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Print report' }));
-    expect(ticked()).toEqual(['Ada LovelacePeriod 1']);
+    expect(ticked()).toEqual(['Lovelace, Ada']);
     expect(printStudentReport).not.toHaveBeenCalled();
   });
 
@@ -353,7 +371,7 @@ describe('QuizResults — results print', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Print results' }));
     const d = within(dialog());
     fireEvent.click(
-      within(d.getByRole('radiogroup', { name: 'Preset' })).getByRole('radio', {
+      within(d.getByRole('radiogroup', { name: 'Report' })).getByRole('radio', {
         name: 'Bubble sheet',
       })
     );

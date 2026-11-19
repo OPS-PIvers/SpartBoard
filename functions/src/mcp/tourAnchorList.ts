@@ -14618,6 +14618,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ],
     "routes": [
       {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      },
+      {
         "surface": "quiz.results.print",
         "kind": "modal",
         "path": [
@@ -14642,6 +14651,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "row_list": "quiz-print-results-student-select",
     "routes": [
       {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      },
+      {
         "surface": "quiz.results.print",
         "kind": "modal",
         "path": [
@@ -14658,8 +14676,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "quiz-print.results-written-mode",
-    "label": "Written answers mode radios in the Quiz widget",
+    "id": "quiz-print.results-tab",
+    "label": "Settings and Students tabs in the Quiz print results",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -14678,6 +14696,108 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         ]
       }
     ]
+  },
+  {
+    "id": "quiz-print.results-clear",
+    "label": "Clear the student picks in the Quiz print results",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-print.results-course",
+    "label": "Course checkbox in the Quiz print results student list",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-print-results-groups",
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-print.results-course-expand",
+    "label": "Show the sections in a Course in the Quiz print results",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-print-results-groups",
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-print.results-section",
+    "label": "Class checkbox in the Quiz print results student list",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-print-results-groups",
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-print.results-section-expand",
+    "label": "Show the students in a class in the Quiz print results",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-print-results-groups",
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-print.results-written-mode",
+    "label": "Written answers mode radios in the Quiz widget",
+    "scope": "field",
+    "panel": true
   },
   {
     "id": "quiz-print.roster-expand",
