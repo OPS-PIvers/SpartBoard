@@ -74,8 +74,10 @@ describe('useMiniAppSessionTeacher.createSession — per-period', () => {
       string,
       Record<string, unknown>,
     ];
-    expect(sessionRef).toBe(`mini_app_sessions/${ID}`);
+    // The session id is the archive id, which the create rule requires.
+    expect(sessionRef).toBe('mini_app_sessions/asg-1');
     expect(session).toMatchObject({
+      id: 'asg-1',
       appHtml: '',
       appInContent: true,
       accessMode: 'assessment',
@@ -83,7 +85,7 @@ describe('useMiniAppSessionTeacher.createSession — per-period', () => {
       assignmentId: 'asg-1',
     });
     expect(batchSet.mock.calls[1]).toEqual([
-      `mini_app_sessions/${ID}/content/app`,
+      `mini_app_sessions/asg-1/content/app`,
       { appHtml: APP.html },
     ]);
     expect(batchCommit).toHaveBeenCalledOnce();
