@@ -70,7 +70,9 @@ export const SupportsEditor: React.FC<{
   onChange: (update: (prev: QuizSupport[]) => QuizSupport[]) => void;
   /** True while a Drive file is being copied and shared. */
   onSharingChange?: (sharing: boolean) => void;
-}> = ({ supports, onChange, onSharingChange }) => {
+  /** Files that belong to someone else's list (class presets): removing one keeps the file. */
+  keepFileIds?: ReadonlySet<string>;
+}> = ({ supports, onChange, onSharingChange, keepFileIds }) => {
   const { open, setOpen, rootRef, onKeyDown } = usePickMenu();
   const menuId = useId();
   const titleId = useId();
@@ -348,7 +350,7 @@ export const SupportsEditor: React.FC<{
                   onClick={() => {
                     onChange((prev) => prev.filter((p) => p !== s));
                     // The Drive file is our own shared copy, so it goes too.
-                    if (s.kind === 'drive')
+                    if (s.kind === 'drive' && !keepFileIds?.has(s.fileId))
                       void driveService
                         ?.deleteFile(s.fileId)
                         .catch(() => undefined);

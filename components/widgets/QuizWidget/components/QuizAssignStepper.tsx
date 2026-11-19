@@ -42,12 +42,6 @@ import { SPEECH_TO_TEXT_FEATURE } from '@/utils/speechToText/types';
 import { clampQuizTimeLimitMinutes } from '@/utils/quizTimeLimit';
 import { languageDisplayLabel } from '@/utils/languageDisplayLabel';
 import {
-  previewOverride,
-  STANDARD_VERSION,
-  STANDARD_VERSION_ID,
-  type StudentViewVersion,
-} from '@/utils/quizStudentViewVersions';
-import {
   countUnresolvableStudents,
   modificationClassGroups,
   modificationRows,
@@ -55,12 +49,12 @@ import {
 import { ModificationGroupsStep } from '@/components/common/library/assignStepper/ModificationGroupsStep';
 import {
   formatModificationGroupsValue,
-  groupRuleLabels,
   newModificationGroup,
-  overrideForGroup,
   overridesFromGroups,
   printedGroupPicks,
   rowsInClasses,
+  standingDriveFileIds,
+  withStandingGroups,
   type ModificationGroup,
   type PrintedGroupPick,
 } from '@/components/common/library/assignStepper/modificationGroups';
@@ -96,11 +90,6 @@ export interface QuizAssignStepperProps {
     hasQuestionTimeLimits?: boolean;
     /** Some question has a modified version, so groups can opt into it. */
     hasModifiedQuestions?: boolean;
-    /** Opens Student view with Standard plus each group's version. */
-    onPreviewVersions?: (
-      versions: StudentViewVersion[],
-      initialVersionId: string
-    ) => void;
   };
   /** Omit when sharing is fixed (PLC quiz assign, D21): no Sharing step. */
   sharing?: {
@@ -123,6 +112,8 @@ export interface QuizAssignStepperProps {
   onClose: () => void;
   onSubmit: (extra: {
     printedGroups: PrintedGroupPick[];
+    /** What the Modifications step shows, so assign serves exactly that. */
+    overridesByKey?: AssignTargetingValue['overridesByKey'];
   }) => void | Promise<void>;
 }
 
@@ -157,11 +148,39 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   const auth = useContext(AuthContext);
   const groupsOn =
     !!modifications && auth?.canAccessFeature?.('modification-groups') === true;
-  const [groups, setGroups] = useState<ModificationGroup[]>(() => [
-    newModificationGroup(),
-  ]);
   const usable = rosters.filter((r) => !r.loadError);
   const staff = audience?.audience === 'staff';
+  // Every roster, not just the checked ones, so a student on two rosters carries both presets.
+  const allRows = modificationRows({ rosters: usable });
+  const presetByKey = new Map(
+    allRows.map((row) => [row.key, row.defaultOverride] as const)
+  );
+  // Students the step reaches for these classes; their class presets arrive as groups.
+  const reachedRows = (next: AssignClassesValue) =>
+    groupsOn && !staff
+      ? rowsInClasses(
+          modificationRows({
+            rosters: usable,
+            selectedRosterIds: next.classIds,
+          }),
+          next,
+          usable
+        ).map((row) => {
+          const { defaultOverride: _own, ...rest } = row;
+          const merged = presetByKey.get(row.key);
+          return merged ? { ...rest, defaultOverride: merged } : rest;
+        })
+      : [];
+  const [seeded, setSeeded] = useState<ReadonlySet<string>>(
+    () => new Set(reachedRows(classes).map((row) => row.key))
+  );
+  const [groups, setGroups] = useState<ModificationGroup[]>(() =>
+    withStandingGroups(
+      [newModificationGroup()],
+      reachedRows(classes),
+      new Set()
+    )
+  );
   const picked = staff
     ? []
     : usable.filter((r) => classes.classIds.includes(r.id));
@@ -181,17 +200,8 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
     periodAccess?.bellWindow
   );
 
-  const groupRows =
-    groupsOn && !staff
-      ? rowsInClasses(
-          modificationRows({
-            rosters: usable,
-            selectedRosterIds: classes.classIds,
-          }),
-          classes,
-          usable
-        )
-      : [];
+  const groupRows = reachedRows(classes);
+  const keepFileIds = standingDriveFileIds(allRows);
   const sessionMinutes = gates.timeLimitOn
     ? clampQuizTimeLimitMinutes(behavior.sessionOptions.timeLimitMinutes)
     : null;
@@ -204,43 +214,38 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
     timeLimitLabel
       ? list
       : list.map((g) => ({ ...g, time: 'standard' as const }));
-  const previewGroup = (groupId: string) => {
-    if (!modifications?.onPreviewVersions) return;
-    const versions: StudentViewVersion[] = [STANDARD_VERSION];
-    withTime(groups).forEach((group, i) => {
-      const override = previewOverride(
-        overrideForGroup(group, undefined, modifications.quizContext.questions)
-      );
-      if (!override) return;
-      const rules = groupRuleLabels(group, languageDisplayLabel).filter(
-        (rule) => rule !== 'printed version'
-      );
-      versions.push({
-        id: group.id,
-        label: `Group ${i + 1} · ${rules.join(', ')}`,
-        override,
-      });
-    });
-    modifications.onPreviewVersions(
-      versions,
-      versions.some((v) => v.id === groupId) ? groupId : STANDARD_VERSION_ID
+  // Every roster, not just the checked ones, so re-checking a class keeps its students' rules.
+  const groupOverrides = (
+    list: ModificationGroup[],
+    shown: ReadonlySet<string>
+  ) =>
+    overridesFromGroups(
+      printedVersionsAvailable
+        ? list
+        : list.map((g) => ({ ...g, printed: false })),
+      allRows,
+      shown
     );
-  };
-  const applyGroups = (next: ModificationGroup[]) => {
+  const applyGroups = (
+    next: ModificationGroup[],
+    shown: ReadonlySet<string> = seeded
+  ) => {
     setGroups(next);
     if (!modifications) return;
-    // Every roster, not just the checked ones, so re-checking a class keeps its students' rules.
-    const allRows = modificationRows({ rosters: usable });
     modifications.onTargetingChange({
       ...modifications.targeting,
-      overridesByKey: overridesFromGroups(
-        printedVersionsAvailable
-          ? next
-          : next.map((g) => ({ ...g, printed: false })),
-        allRows,
-        modifications.quizContext.questions
-      ),
+      overridesByKey: groupOverrides(next, shown),
     });
+  };
+
+  // A newly reached student brings their class presets in as a group, once.
+  const changeClasses = (next: AssignClassesValue) => {
+    onClassesChange(next);
+    const rows = reachedRows(next);
+    if (rows.every((row) => seeded.has(row.key))) return;
+    const shown = new Set([...seeded, ...rows.map((row) => row.key)]);
+    applyGroups(withStandingGroups(groups, rows, seeded), shown);
+    setSeeded(shown);
   };
 
   const bodies: Record<string, Omit<AssignStepDef, 'id' | 'title'>> = {
@@ -251,12 +256,12 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
           <ClassChecklist
             rosters={rosters}
             value={classes}
-            onChange={onClassesChange}
+            onChange={changeClasses}
           />
           <StudentPickMenu
             rosters={usable}
             value={classes}
-            onChange={onClassesChange}
+            onChange={changeClasses}
           />
           {modifications && !groupsOn && picked.length > 0 && (
             <ModificationsLink
@@ -397,7 +402,7 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
             setSharingCount((n) => Math.max(0, n + (sharing ? 1 : -1)))
           }
           printedAvailable={printedVersionsAvailable}
-          onPreview={modifications.onPreviewVersions ? previewGroup : undefined}
+          keepFileIds={keepFileIds}
         />
       ),
     };
@@ -429,7 +434,7 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
           : null;
         for (const g of groups)
           for (const sup of g.supports ?? [])
-            if (sup.kind === 'drive')
+            if (sup.kind === 'drive' && !keepFileIds.has(sup.fileId))
               void drive?.deleteFile(sup.fileId).catch(() => undefined);
         onClose();
       }}
@@ -447,7 +452,14 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
             }
           : undefined
       }
-      onSubmit={() => onSubmit({ printedGroups })}
+      onSubmit={() =>
+        onSubmit({
+          printedGroups,
+          ...(groupsOn && !staff
+            ? { overridesByKey: groupOverrides(groups, seeded) }
+            : {}),
+        })
+      }
       disabled={needsPlc || backwards || sharingCount > 0}
       disabledReason={
         needsPlc
