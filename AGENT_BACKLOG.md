@@ -9,7 +9,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
 - **Release review findings.** Fix small (S) findings inside the release as `release fix:` PRs. File an item here only for work that is M or larger, needs a flag or rules design, or can't ship in that release.
 - **Agent-only means agent-only.** An item in Ready needs nothing from Paul. When an item needs new wording, the agent builds it and asks Paul with a screenshot and a decision card in its thread; when it needs a real decision, it goes to PAUL_TODO.md and the item moves to Blocked.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-302**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-304**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -746,6 +746,8 @@ The plan holds the slices; build the **Next** one and update this line in the sa
 - **AB-42 Annotation overlay PR3**: `docs/plans/ANNOTATION_OVERLAY_PR3.md`. Next: item 2 (`hitTestInk` with unit tests), then pointer pass-through, the Dock guard narrowing, and the stroke redraw fast path.
 - **AB-43 Unit Overview widget**: `docs/plans/UNIT_OVERVIEW_WIDGET.md`. Next: Phase 1 step 1. Ships behind a flag (`new-widget` skill).
 - **AB-44 AI Responsible Use widget**: `docs/plans/AI_RESPONSIBLE_USE_WIDGET.md`. Next: PR1 (registration, flag, `config/aiResponsibleUseContent.ts` with the verbatim district content).
+- **AB-302 Speech to text, PR 1: the free accommodation**: `docs/plans/SPEECH_TO_TEXT.md`, approved 2026-11-19. Next: the contract commit, then Agents A-D in parallel on the files the plan gives each, as one PR into `dev-paul` behind the `speech-to-text` flag. Add the flag's row to the PAUL_TODO.md flags table in that PR.
+- **AB-303 Speech to text, PR 2: paid engine and tidy-up**: `docs/plans/SPEECH_TO_TEXT.md`. Start once AB-302's contract commit is on `dev-paul`. Next: the contract commit, then Agents E-G in parallel. Both admin settings ship off in both projects.
 - **AB-45 Chrome extension quiz and video hand-off**: `docs/plans/CHROME_EXTENSION.md`. Next: slice 15 / F13.
 - **AB-46 Drawing page space**: `docs/plans/shipped/QUIZ_WHITEBOARD_RESPONSE.md` D29, the decoupled Drawing widget page-space migration.
 - **AB-80 Clearer message when a long PIN can't join a ClassLink quiz** (S, needs Paul's wording OK). Since security batch 1A (#4986), an anonymous join with a 6+ character PIN on a session with both rosters and class ids is refused when the PIN sign-in doesn't match (stale PIN index, rate limit, outage, or a local roster linked only to a Schoology section). The student sees the "already in this quiz on another tab" message from `hooks/useQuizSession.ts`; it should tell them to sign in with their school account. Also consider counting only non-`schoology:` class ids in that rule.
@@ -797,23 +799,24 @@ Each names what unblocks it. When the blocker clears, move the item to Ready.
 
 Each stays in `docs/plans/` until built, then moves to `docs/plans/shipped/` and its human leftovers go to PAUL_TODO.md.
 
-| Plan                                                           | State (2026-11-01)                                                                                                | Here         |
-| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ------------ |
-| `docs/plans/IMPORT.md`                                         | Wave 1 and the Edpuzzle, YouTube, Quizlet and Google Forms readers built behind `universal-import` and `import-*` | AB-53, AB-54 |
-| `docs/plans/CHROME_EXTENSION.md`                               | Web tours and Focus FS1-9, FS12 built                                                                             | AB-45        |
-| `docs/plans/GRADEBOOK.md`                                      | Phases 1-6 built behind admin flags                                                                               | AB-4, AB-21  |
-| `docs/plans/QUIZ_ROSTER_GRADING_AND_REOPEN.md`                 | Approved, unbuilt                                                                                                 | AB-39        |
-| `docs/plans/QUIZ_STRUCTURED_ASSESSMENTS.md`                    | Unbuilt                                                                                                           | AB-40        |
-| `docs/plans/SCHOOLOGY_GRADE_IMPORT.md`                         | Unbuilt                                                                                                           | AB-55        |
-| `docs/plans/STARRED_CLASS_AUDIT.md`                            | Unbuilt                                                                                                           | AB-41, AB-57 |
-| `docs/plans/UNIT_OVERVIEW_WIDGET.md`                           | Unbuilt                                                                                                           | AB-43        |
-| `docs/plans/AI_RESPONSIBLE_USE_WIDGET.md`                      | Unbuilt                                                                                                           | AB-44        |
-| `docs/plans/ANNOTATION_OVERLAY_PR3.md`                         | Unbuilt                                                                                                           | AB-42        |
-| `docs/plans/PLC_RENAME_QUIZZES_TO_ASSESSMENTS.md`              | Waiting on scope                                                                                                  | AB-50        |
-| `docs/plans/copy-audit/guided-learning.md`                     | Most verdicts unapplied                                                                                           | AB-20        |
-| `docs/specs/M16-plc-phases-7-8-spec.md`, `docs/PLC_ROADMAP.md` | Unbuilt                                                                                                           | AB-51, AB-25 |
-| `docs/specs/LO12-nexus-widget-connections-spec.md`             | Dropped 2026-11-15: superseded by Widget Connections v2 (`config/widgetConnections.ts`)                           |              |
-| `docs/plans/WIDGET_RUBRIC.md`                                  | Living reference for the widget grader; not backlog                                                               |              |
+| Plan                                                           | State (2026-11-01)                                                                                                | Here           |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | -------------- |
+| `docs/plans/IMPORT.md`                                         | Wave 1 and the Edpuzzle, YouTube, Quizlet and Google Forms readers built behind `universal-import` and `import-*` | AB-53, AB-54   |
+| `docs/plans/CHROME_EXTENSION.md`                               | Web tours and Focus FS1-9, FS12 built                                                                             | AB-45          |
+| `docs/plans/GRADEBOOK.md`                                      | Phases 1-6 built behind admin flags                                                                               | AB-4, AB-21    |
+| `docs/plans/QUIZ_ROSTER_GRADING_AND_REOPEN.md`                 | Approved, unbuilt                                                                                                 | AB-39          |
+| `docs/plans/QUIZ_STRUCTURED_ASSESSMENTS.md`                    | Unbuilt                                                                                                           | AB-40          |
+| `docs/plans/SCHOOLOGY_GRADE_IMPORT.md`                         | Unbuilt                                                                                                           | AB-55          |
+| `docs/plans/STARRED_CLASS_AUDIT.md`                            | Unbuilt                                                                                                           | AB-41, AB-57   |
+| `docs/plans/UNIT_OVERVIEW_WIDGET.md`                           | Unbuilt                                                                                                           | AB-43          |
+| `docs/plans/AI_RESPONSIBLE_USE_WIDGET.md`                      | Unbuilt                                                                                                           | AB-44          |
+| `docs/plans/ANNOTATION_OVERLAY_PR3.md`                         | Unbuilt                                                                                                           | AB-42          |
+| `docs/plans/SPEECH_TO_TEXT.md`                                 | Approved 2026-11-19, unbuilt                                                                                      | AB-302, AB-303 |
+| `docs/plans/PLC_RENAME_QUIZZES_TO_ASSESSMENTS.md`              | Waiting on scope                                                                                                  | AB-50          |
+| `docs/plans/copy-audit/guided-learning.md`                     | Most verdicts unapplied                                                                                           | AB-20          |
+| `docs/specs/M16-plc-phases-7-8-spec.md`, `docs/PLC_ROADMAP.md` | Unbuilt                                                                                                           | AB-51, AB-25   |
+| `docs/specs/LO12-nexus-widget-connections-spec.md`             | Dropped 2026-11-15: superseded by Widget Connections v2 (`config/widgetConnections.ts`)                           |                |
+| `docs/plans/WIDGET_RUBRIC.md`                                  | Living reference for the widget grader; not backlog                                                               |                |
 
 Other references: roadmaps and design docs (`docs/nexus.md`, `docs/wide-distro-plan.md`), runbooks (`docs/admin_settings_widget_configs.md`, `docs/external-availability-*.md`, `docs/assign-from-spartboard-to-lms-feasibility.md`, `docs/ADMIN_SETUP.md`, `docs/DEV_WORKFLOW.md`, `docs/LINTING_SETUP.md`, `docs/DEPLOY_CHECK.md`), and the decision record in `docs/plans/shipped/`.
 
