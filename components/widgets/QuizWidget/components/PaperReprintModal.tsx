@@ -21,7 +21,6 @@ import {
   promptQuestionIds,
 } from '@/utils/paperSheetVersions';
 import {
-  PAPER_FIB_FEATURE,
   PAPER_HANDWRITTEN_FEATURE,
 } from '@/utils/paperWritten';
 import type { PrintedTranslation } from '@/utils/paperPrintedVersions';
@@ -140,7 +139,6 @@ export const PaperStacksReprintDialog: React.FC<ReprintDialogProps> = ({
 }) => {
   const { canAccessFeature } = useAuth();
   const writtenOn = canAccessFeature(PAPER_HANDWRITTEN_FEATURE);
-  const fibOn = writtenOn && canAccessFeature(PAPER_FIB_FEATURE);
   const analyses = useMemo(
     () =>
       stacks.map(({ quiz }) =>
@@ -148,10 +146,10 @@ export const PaperStacksReprintDialog: React.FC<ReprintDialogProps> = ({
           ? writtenOnlyAnalysis(quiz)
           : promptAnalysis(
               quiz,
-              analyzePaperQuiz(quiz, { written: writtenOn, fib: fibOn })
+              analyzePaperQuiz(quiz, { written: writtenOn, fib: true })
             )
       ),
-    [stacks, writtenOn, fibOn, writtenOnly]
+    [stacks, writtenOn, writtenOnly]
   );
   const blockers = stacks.map((s, i) => reprintBlocker(s.batch, analyses[i]));
   const open = blockers.flatMap((b, i) => (b ? [] : [i]));

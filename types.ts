@@ -6672,7 +6672,7 @@ export type PaperPageItem =
       lines: number;
       /** Absent = lines, as every map printed before box styles. */
       style?: PaperBoxStyle;
-      /** Fill in the blank: one write-in line per blank (`paper-fill-in-blank`). */
+      /** Fill in the blank: one write-in line per blank. */
       blanks?: number;
     };
 
@@ -11770,8 +11770,6 @@ export type GlobalFeature =
   | 'rubric-grading-v2'
   /** Quiz assign: a modification group can get a printed version, scanned back into the same results. */
   | 'paper-printed-versions'
-  /** Paper sheets: fill-in-the-blank prints a write-in line per blank, read back on import. */
-  | 'paper-fill-in-blank'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */
   | 'gradebook'
   /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */

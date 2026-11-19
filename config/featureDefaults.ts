@@ -990,22 +990,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Fill in the blank on paper sheets as write-in lines; needs handwritten answers too.
-  'paper-fill-in-blank': {
-    label: 'Fill-in-the-blank on paper',
-    icon: TextCursorInput,
-    description:
-      'Fill-in-the-blank questions print a write-in line for each blank and are scored on import.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'quiz',
-    modalLabel: 'Fill-in-the-blank on paper',
-    group: 'questions',
-    requires: 'paper-handwritten-responses',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Gradebook route and its data layer (docs/plans/GRADEBOOK.md D5).
   gradebook: {
     label: 'Gradebook',

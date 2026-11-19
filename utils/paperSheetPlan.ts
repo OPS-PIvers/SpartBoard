@@ -149,7 +149,7 @@ export interface PaperWrittenPlan {
 export interface AnalyzePaperQuizOptions {
   /** Print free-response questions as handwritten boxes (`paper-handwritten-responses`). */
   written?: boolean;
-  /** With `written`: fill in the blank prints a write-in line per blank (`paper-fill-in-blank`). */
+  /** With `written`: fill in the blank prints a write-in line per blank. */
   fib?: boolean;
 }
 

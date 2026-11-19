@@ -119,7 +119,6 @@ import { browserStemMeasure, stemLinesById } from '@/utils/paperStemLines';
 import { MAX_PAGE } from '@/utils/paperSheetMarker';
 import {
   PAPER_HANDWRITTEN_FEATURE,
-  PAPER_FIB_FEATURE,
   letteredBlanks,
   changedPaperBoxSetup,
   paperBoxImageChoices,
@@ -330,7 +329,6 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   const { canAccessFeature } = useAuth();
   // The caller already checked the paper sheets rollout and gate; this adds the written-box flag.
   const writtenOn = canAccessFeature(PAPER_HANDWRITTEN_FEATURE);
-  const fibOn = writtenOn && canAccessFeature(PAPER_FIB_FEATURE);
   // Handwritten box sizes are a print choice, so they are picked here rather than in the editor.
   const [boxSizes, setBoxSizes] = useState<Record<string, PaperBoxSize>>({});
   const [boxStyles, setBoxStyles] = useState<Record<string, PaperBoxStylePick>>(
@@ -349,19 +347,19 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
           withPaperBoxSizes(resolveQuizAssignment(quiz, banks), boxSizes),
           boxStyles
         ),
-        { written: writtenOn, fib: fibOn }
+        { written: writtenOn, fib: true }
       );
     } catch {
       return null;
     }
-  }, [banks, quiz, writtenOn, fibOn, boxSizes, boxStyles]);
+  }, [banks, quiz, writtenOn, boxSizes, boxStyles]);
   const analysis = useMemo(() => {
     if (versionPlan) return versionPlan.template;
     return promptAnalysis(
       quiz,
-      analyzePaperQuiz(quiz, { written: writtenOn, fib: fibOn })
+      analyzePaperQuiz(quiz, { written: writtenOn, fib: true })
     );
-  }, [versionPlan, quiz, writtenOn, fibOn]);
+  }, [versionPlan, quiz, writtenOn]);
   const isStub = isPaperStubAnalysis(analysis);
   const [stubTitle, setStubTitle] = useState(quiz.title);
 
@@ -1515,7 +1513,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
               </p>
               <p className="mt-1 text-xs text-amber-800">
                 Only multiple-choice and true/false questions can be bubbled.
-                {fibOn && ' Fill in the blank prints as a write-in line.'}
+                {writtenOn && ' Fill in the blank prints as a write-in line.'}
               </p>
               <ul className="mt-2 space-y-0.5 text-xs text-amber-800">
                 {analysis.exclusions.slice(0, 5).map((ex, i) => (

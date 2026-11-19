@@ -34,7 +34,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'modification-groups',
   'rubric-grading-v2',
   'paper-printed-versions',
-  'paper-fill-in-blank',
   'gradebook',
   'student-gradebook',
   'quiz-time-limit',
