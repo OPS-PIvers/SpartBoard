@@ -142,8 +142,10 @@ import { recordTourFinished } from '@/utils/gettingStartedProgress';
 import { usePrefersReducedMotion } from './usePrefersReducedMotion';
 import {
   isInPopup,
+  isTypingField,
   openPopupBoxes,
   shieldTourUi,
+  typingFieldOf,
   withLabel,
   withNearbyPopups,
 } from './popups';
@@ -2619,16 +2621,21 @@ export const LiveTourRunner: React.FC = () => {
     if (hintOn) playCursor();
   };
 
-  // Every step moves focus to its heading so keyboard and screen reader users land on it.
+  // Each step moves focus to its heading, or to the box a type step fills, so keyboard users land on it.
   const headingRef = useRef<HTMLDivElement | null>(null);
   // A paced tip mounts after the ring settles, so focus waits for it.
   const showingStep = running && !!step && rhythm.tipShown;
-  useEffect(() => {
-    if (!showingStep) return;
+  const focusStep = useEffectEvent(() => {
     // A dropdown the teacher just opened keeps focus, or the browser closes its list.
     const open = openPopup.current;
     if (open && open === document.activeElement) return;
-    headingRef.current?.focus({ preventScroll: true });
+    // A text box keeps focus too, since many save or close on blur; the live region reads the step.
+    if (isTypingField(document.activeElement)) return;
+    const field = action === 'type' ? typingFieldOf(anchor.element) : null;
+    (field ?? headingRef.current)?.focus({ preventScroll: true });
+  });
+  useEffect(() => {
+    if (showingStep) focusStep();
   }, [showingStep, stepIndex]);
 
   const canRead = !!step && (!!step.narration?.url || speechAvailable());

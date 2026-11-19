@@ -106,7 +106,53 @@ export function withLabel(target: Box, el: Element): Box {
 
 const SHIELDED = ['pointerdown', 'mousedown', 'touchstart'] as const;
 
-/** Keeps clicks on the tour's own UI from reaching the app's outside-click handlers, so open menus stay open. */
+// Input types a teacher picks or presses rather than types into.
+const NOT_TYPED = new Set([
+  'checkbox',
+  'radio',
+  'button',
+  'submit',
+  'reset',
+  'range',
+  'image',
+  'file',
+  'color',
+  'hidden',
+]);
+
+/** A box the teacher types into, which many app fields save or close when it loses focus. */
+export function isTypingField(el: Element | null): el is HTMLElement {
+  if (el instanceof HTMLTextAreaElement) return true;
+  if (el instanceof HTMLInputElement) return !NOT_TYPED.has(el.type);
+  return el instanceof HTMLElement && el.isContentEditable === true;
+}
+
+/** The text box a type step points at: the target itself or the one inside it. */
+export function typingFieldOf(el: Element | null): HTMLElement | null {
+  if (!el) return null;
+  if (isTypingField(el)) return el;
+  const inner = el.querySelectorAll('input, textarea, [contenteditable]');
+  return Array.from(inner).find(isTypingField) ?? null;
+}
+
+const isBlank = (el: HTMLElement) =>
+  el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement
+    ? el.value === ''
+    : !el.textContent?.trim();
+
+// Pressing these in the tour UI should still focus them.
+const FOCUS_TARGET = 'input, textarea, select, label, [contenteditable]';
+
+/** Stops a press on the tour UI from taking focus out of an empty app text box, which would close it. */
+function keepBlankField(e: Event) {
+  const hit = e.target instanceof Element ? e.target : null;
+  if (!hit?.closest('[data-tour-ignore]') || hit.closest(FOCUS_TARGET)) return;
+  const active = document.activeElement;
+  if (!isTypingField(active) || active.closest('[data-tour-ignore]')) return;
+  if (isBlank(active)) e.preventDefault();
+}
+
+/** Keeps clicks on the tour's own UI from reaching the app's outside-click handlers or emptying an app text box's focus. */
 export function shieldTourUi(): () => void {
   const stop = (e: Event) => {
     if (e.target instanceof Element && e.target.closest('[data-tour-ignore]'))
@@ -114,6 +160,9 @@ export function shieldTourUi(): () => void {
   };
   // On body, after React's own listener there, so the tour UI still handles its clicks.
   SHIELDED.forEach((type) => document.body.addEventListener(type, stop));
-  return () =>
+  document.body.addEventListener('mousedown', keepBlankField);
+  return () => {
     SHIELDED.forEach((type) => document.body.removeEventListener(type, stop));
+    document.body.removeEventListener('mousedown', keepBlankField);
+  };
 }
