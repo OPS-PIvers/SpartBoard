@@ -115,7 +115,7 @@ describe('changelog fragments', () => {
     const merged = mergeChangelog(
       { entries: [entry('2026.11.19')] },
       [{ name: 'a.json', data: { entries: [entry('2026.11.19')] } }],
-      () => {}
+      () => undefined
     );
     expect(merged.entries.map((e) => e.version)).toEqual([
       '2026.11.19.2',
