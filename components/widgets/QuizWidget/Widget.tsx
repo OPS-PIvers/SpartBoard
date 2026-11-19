@@ -90,6 +90,7 @@ import {
   type QuizSessionOptions,
 } from '@/hooks/useQuizSession';
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
+import { useQuizReorder } from '@/hooks/useQuizReorder';
 import { useBusyIdSet } from '@/hooks/useBusyIdSet';
 import { useFolders } from '@/hooks/useFolders';
 import { useGooglePicker } from '@/hooks/useGooglePicker';
@@ -170,7 +171,7 @@ import type { ResultsProtection, Toast, WrittenReturnMode } from '@/types';
 import { PublishInProgressDialog } from '@/components/common/library/PublishInProgressDialog';
 import { AssignToClassroomModal } from '@/components/classroomAddon/AssignToClassroomModal';
 import { requestClassroomFinalGradeToken } from '@/components/classroomAddon/gisOAuth';
-import { doc, getDoc, setDoc, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import {
   autoTranslateForAssign,
   type AutoTranslateResult,
@@ -350,7 +351,7 @@ import { DEFAULT_TAB_AWAY_LIMIT_SECONDS } from '@/utils/tabAwayLimit';
 import { revealValueFor } from '@/utils/quizFibAlternates';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { syncedQuizContentFields } from '@/utils/syncedQuizContent';
-import { isSandboxed, isTourSandboxActive } from '@/utils/tourSandbox';
+import { isSandboxed } from '@/utils/tourSandbox';
 import { useTourMaterialEditor } from '@/components/tours/tourMaterials';
 import { isDistrictLinkedCopy } from '@/utils/districtLibraryOrigin';
 import {
@@ -2514,32 +2515,8 @@ const TeacherQuizWidget: React.FC<{
 
   useReopenedForAutoEnd(assignments, deactivateAssignment);
 
-  // Persist a new ordering of quizzes. We write `order` onto each metadata
-  // doc in a single batch — the Drive blob is untouched. Declared before the
-  // early returns below so the hook runs on every render (rules-of-hooks).
-  const handleReorderQuizzes = useCallback(
-    // eslint-disable-next-line react-hooks/preserve-manual-memoization -- deps narrowed to user?.uid on purpose
-    async (orderedIds: string[]) => {
-      if (!user?.uid || isTourSandboxActive()) return;
-      const batch = writeBatch(db);
-      orderedIds.forEach((id, index) => {
-        batch.update(doc(db, 'users', user.uid, QUIZZES_COLLECTION, id), {
-          order: index,
-        });
-      });
-      try {
-        await batch.commit();
-      } catch (err) {
-        console.error('[QuizWidget] Failed to persist reorder:', err);
-        // A concurrently-deleted quiz makes batch.update() throw NOT_FOUND.
-        // useSortableReorder catches the re-throw and reverts the visual order;
-        // surface a toast so the teacher knows why their drag snapped back.
-        addToast('Could not save the new order. Please try again.', 'error');
-        throw err;
-      }
-    },
-    [user?.uid, addToast]
-  );
+  // Declared before the early returns below so the hook runs on every render (rules-of-hooks).
+  const handleReorderQuizzes = useQuizReorder(user, addToast);
 
   const openArchiveMonitor = async (a: QuizAssignment): Promise<boolean> => {
     // Look up the library quiz metadata so the monitor can load the full
