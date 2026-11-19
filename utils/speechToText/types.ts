@@ -116,3 +116,13 @@ export type PaidDictationResponse =
 export interface PaidDictation {
   assignmentId: string;
 }
+
+/** `getSpeechToTextAccessV1`: which paid extras this student may use on this assignment. */
+export interface SpeechToTextAccessRequest {
+  assignmentId: string;
+}
+
+export interface SpeechToTextAccessResponse {
+  transcription: boolean;
+  tidyUp: boolean;
+}

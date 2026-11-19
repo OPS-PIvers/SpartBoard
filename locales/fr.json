@@ -2420,6 +2420,8 @@
       "yourAnswers": "Tes réponses",
       "otherQuestions": "Autres questions",
       "yourAnswer": "Ta réponse :",
+      "yourAnswerTag": "Ta réponse",
+      "correctAnswerTag": "Bonne réponse",
       "scoreOnly": "Ton enseignant a publié ton score. Les réponses détaillées ne sont pas partagées pour ce devoir."
     },
     "rubric": {
@@ -3721,8 +3723,7 @@
     "close": "Fermer",
     "tabs": {
       "behavior": "Comportement",
-      "languages": "Langues",
-      "speechToText": "Dictée vocale"
+      "languages": "Langues"
     },
     "selectBuilding": "Sélectionner l’établissement à configurer",
     "building": "Établissement",
@@ -5142,5 +5143,12 @@
     "tidyUndo": "Annuler",
     "tidyDone": "Mis en forme.",
     "tidyNoChange": "Rien à mettre en forme."
+  },
+  "quizQuestionAudio": {
+    "play": "Écouter l'audio",
+    "stop": "Arrêter",
+    "retry": "Réessayer",
+    "label": "Question audio",
+    "playCount": "Écouter l'audio ({{used}}/{{total}})"
   }
 }

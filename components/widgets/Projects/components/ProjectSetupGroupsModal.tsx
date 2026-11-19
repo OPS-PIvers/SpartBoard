@@ -24,6 +24,7 @@ import {
   projectClassIdFor,
   rosterHasStudentSignIn,
 } from '../projectSteps';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 
 /** Matches `commitProjectGroupsV1`'s MAX_GROUPS. */
 const MAX_GROUPS = 32;
@@ -167,6 +168,7 @@ export const ProjectSetupGroupsModal: React.FC<
 
   return (
     <Modal
+      accent={LIBRARY_HEADER_ACCENTS.projects}
       isOpen={isOpen}
       onClose={onClose}
       title={`Set up groups — ${project.title}`}

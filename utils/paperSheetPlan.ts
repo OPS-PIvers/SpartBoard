@@ -6,6 +6,7 @@ import { plainPromptText } from './promptMath';
  * Pure — no Firestore, no DOM. See docs/plans/shipped/QUIZ_PAPER_ANSWER_SHEETS.md §5.
  */
 
+import { promptLabel } from '@/utils/quizPromptText';
 import type {
   ClassRoster,
   PaperBatch,
@@ -201,7 +202,7 @@ export function analyzePaperQuiz(
   );
   const describe = (question: QuizQuestion): string =>
     `${TYPE_LABELS[question.type] ?? question.type}: ${
-      plainPromptText(question.text) || 'Untitled question'
+      plainPromptText(promptLabel(question)) || 'Untitled question'
     }`;
 
   questions.forEach((question, index) => {

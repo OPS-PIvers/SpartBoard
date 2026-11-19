@@ -1,4 +1,5 @@
 import { imageOnlyPictures, type AnswerPicture } from './quizAnswerImages';
+import { promptLabel } from '@/utils/quizPromptText';
 import {
   isFreeResponseType,
   type QuizQuestion,
@@ -267,7 +268,7 @@ export function computeStudentDrilldown(
     > = {
       questionId: q.id,
       number,
-      text: q.text,
+      text: promptLabel(q),
       type: q.type,
       manual,
       correctAnswerText: hasKey

@@ -96,7 +96,7 @@ const TileEditor: React.FC<{
           {translate(ctx, 'restore')}
         </button>
       </div>
-      <div className="max-h-64 space-y-2 overflow-y-auto pr-1 custom-scrollbar pb-1">
+      <div className="scroll-inset max-h-64 space-y-2 overflow-y-auto pb-1">
         {items.map((item, index) => {
           const textColor = getContrastingTextColor(item.color);
           const checked = item.checked !== false;

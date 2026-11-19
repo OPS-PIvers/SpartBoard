@@ -1,5 +1,6 @@
 import React, { useId } from 'react';
 import type { tourAttr } from '@/config/tourAnchors';
+import { Toggle } from '@/components/common/Toggle';
 
 interface ToggleRowProps {
   label: string;
@@ -11,7 +12,7 @@ interface ToggleRowProps {
   anchor?: ReturnType<typeof tourAttr>;
 }
 
-/** Shared checkbox row for the wall editor's grouped settings sections. */
+/** Shared on/off switch row for the wall editor; parents stack rows with `divide-y` hairlines. */
 export const ToggleRow: React.FC<ToggleRowProps> = ({
   label,
   hint,
@@ -20,28 +21,32 @@ export const ToggleRow: React.FC<ToggleRowProps> = ({
   onChange,
   anchor,
 }) => {
+  const switchId = useId();
   const hintId = useId();
   return (
-    <label className="flex items-start justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+    <div className="flex items-center justify-between gap-3 py-2.5">
       <span className="min-w-0">
-        <span className="block text-sm font-semibold text-slate-700">
+        <label
+          htmlFor={switchId}
+          className="block cursor-pointer text-sm font-semibold text-slate-700"
+        >
           {label}
-        </span>
+        </label>
         {hint && (
           <span id={hintId} className="block text-xs text-slate-600">
             {hint}
           </span>
         )}
       </span>
-      <input
-        {...anchor}
-        type="checkbox"
+      <Toggle
+        id={switchId}
+        anchor={anchor}
+        size="sm"
         checked={checked}
         disabled={disabled}
-        aria-describedby={hint ? hintId : undefined}
-        onChange={(event) => onChange(event.target.checked)}
-        className="mt-0.5 h-4 w-4 shrink-0 accent-brand-blue-primary"
+        describedBy={hint ? hintId : undefined}
+        onChange={onChange}
       />
-    </label>
+    </div>
   );
 };

@@ -27,6 +27,7 @@ import {
   type FolderMap,
 } from '@/utils/districtLibraryFolders';
 import type { DistrictLibraryItem } from '@/types/districtLibrary';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 
 /** Each distinct source credited in an item's question notes, with how many questions it covers. */
 function itemSources(
@@ -232,6 +233,7 @@ export const DistrictLibraryModal: React.FC<DistrictLibraryModalProps> = ({
   if (!folders) {
     return (
       <Modal
+        accent={LIBRARY_HEADER_ACCENTS.quiz}
         isOpen={isOpen}
         onClose={onClose}
         title="District library"
@@ -521,6 +523,7 @@ export const DistrictLibraryModal: React.FC<DistrictLibraryModalProps> = ({
 
   return (
     <Modal
+      accent={LIBRARY_HEADER_ACCENTS.quiz}
       isOpen={isOpen}
       onClose={onClose}
       title="District library"

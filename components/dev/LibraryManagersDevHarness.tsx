@@ -89,6 +89,7 @@ const COUNT = 24;
 const NOW = Date.UTC(2026, 8, 29);
 const noop = (): void => undefined;
 const asyncNoop = (): Promise<void> => Promise.resolve();
+const bulkNoop = (): Promise<number> => Promise.resolve(0);
 const range = <T,>(make: (i: number) => T): T[] =>
   Array.from({ length: COUNT }, (_, i) => make(i));
 
@@ -565,6 +566,7 @@ const QuizView: React.FC<{
               rosters: ASSIGNED_ROSTERS,
               assignments: ASSIGNED_FIXTURES,
               onLoadQuizData: loadAssignedQuiz,
+              onArchiveDeleteMany: bulkNoop,
               config: { ...QUIZ_CONFIG, activeAssignmentId: 'eco' },
               classLifecycle: {
                 pauseAssignment: asyncNoop,
@@ -651,6 +653,7 @@ const VideoActivityAssignedView: React.FC = () => (
       onArchivePauseResume={asyncNoop}
       onArchiveReactivate={asyncNoop}
       onArchiveDelete={asyncNoop}
+      onArchiveDeleteMany={bulkNoop}
       classLifecycle={VA_LIFECYCLE}
     />
   </VaAssignedFixture.Provider>
@@ -700,6 +703,7 @@ const GuidedLearningManagerView: React.FC<{
           classLifecycle: NOOP_RUN_LIFECYCLE,
           rosters: ASSIGNED_ROSTERS,
           assignedFocusCounter: 1,
+          onAssignmentDeleteMany: bulkNoop,
         }
       : {})}
     userId="mock-user-id"
@@ -827,7 +831,11 @@ const MiniAppView: React.FC<{ assigned?: boolean }> = ({
         globalLibrary={[]}
         assignments={assigned ? MA_ASSIGNED : MINI_APP_ASSIGNMENTS}
         {...(assigned
-          ? { classLifecycle: NOOP_RUN_LIFECYCLE, rosters: ASSIGNED_ROSTERS }
+          ? {
+              classLifecycle: NOOP_RUN_LIFECYCLE,
+              rosters: ASSIGNED_ROSTERS,
+              onArchiveDeleteMany: bulkNoop,
+            }
           : {})}
         onCreate={noop}
         onEdit={noop}
@@ -1010,6 +1018,7 @@ const FlashcardsView: React.FC<{ assigned?: boolean }> = ({
           ? {
               rosters: ASSIGNED_ROSTERS,
               pinnedAssignmentId: 'new',
+              onAssignmentDeleteMany: bulkNoop,
               classLifecycle: {
                 end: asyncNoop,
                 reopen: asyncNoop,
@@ -1117,6 +1126,7 @@ const WritingAssignedView: React.FC = () => {
           onMonitor={noop}
           onResults={noop}
           onDelete={noop}
+          onBulkDelete={bulkNoop}
         />
       </LibraryShell>
     </WritingAssignedFixture.Provider>

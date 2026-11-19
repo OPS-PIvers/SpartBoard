@@ -22,6 +22,7 @@ import {
   QuizBehaviorSettings,
   QuizWidgetKind,
   Plc,
+  StudentOverride,
 } from '@/types';
 import {
   previousRosterIdsFor,
@@ -144,6 +145,13 @@ import { QuizEditorModal } from './components/QuizEditorModal';
 import { QuizPreview } from './components/QuizPreview';
 import { QuizResults } from './components/QuizResults';
 import { QuizAssignmentSettingsModal } from './components/QuizAssignmentSettingsModal';
+import { useTranslation } from 'react-i18next';
+import {
+  assignmentRowToTargetingValue,
+  useAssignmentDetailActions,
+} from '@/hooks/useAssignmentDetailActions';
+import { quizAssignmentRow } from '@/components/assignmentsHub/useUnifiedAssignments';
+import { loadServedLocales, servedLocalesOf } from '@/utils/quizServedLocales';
 import { dueAtByClassIdFromRosters } from '@/utils/perClassDueDates';
 import { SharePlcResultsModal } from './components/SharePlcResultsModal';
 import { QuizAssignmentImportSetupModal } from '@/components/quiz/QuizAssignmentImportSetupModal';
@@ -154,7 +162,20 @@ import { PublishScoresModal } from '@/components/common/library/PublishScoresMod
 import { PublishInProgressDialog } from '@/components/common/library/PublishInProgressDialog';
 import { AssignToClassroomModal } from '@/components/classroomAddon/AssignToClassroomModal';
 import { requestClassroomFinalGradeToken } from '@/components/classroomAddon/gisOAuth';
-import { doc, getDoc, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, setDoc, writeBatch } from 'firebase/firestore';
+import {
+  autoTranslateForAssign,
+  type AutoTranslateResult,
+} from '@/utils/quizAutoTranslate';
+import { targetedLocaleCounts } from '@/utils/quizTranslationPublish';
+import {
+  isLocaleCovered,
+  isNonEnglishQuizSource,
+} from '@/utils/quizTranslationAdvisory';
+import {
+  QUIZ_TRANSLATION_FEATURE,
+  isTranslatableQuestionType,
+} from '@/config/quizTranslation';
 import { loadAssignedStudentView } from '@/utils/quizAssignedStudentViewLoad';
 import { languageDisplayLabel } from '@/utils/languageDisplayLabel';
 import { QUIZ_TIME_LIMIT_FEATURE } from '@/utils/quizTimeLimit';
@@ -193,6 +214,7 @@ import {
 import { runPublishGradePush } from '@/utils/publishGradePush';
 import {
   offerToolColumnRemoval,
+  offerToolColumnsRemoval,
   sessionHasToolColumn,
 } from '@/utils/schoologyToolColumns';
 import {
@@ -378,6 +400,10 @@ const VIEW_ONLY_SESSION_OPTIONS: Required<
 };
 
 const QUIZZES_COLLECTION = 'quizzes';
+/** Matches `translateQuizV1`'s 300s ceiling. */
+const AUTO_TRANSLATE_TIMEOUT_MS = 300_000;
+/** How long assign holds for a translation before it goes out in English. */
+const AUTO_TRANSLATE_WAIT_MS = 45_000;
 
 /** Staff assignments have no classes; ones made before the assignment doc carried `audience` keep it on their session. */
 async function isStaffQuizAssignment(a: QuizAssignment): Promise<boolean> {
@@ -410,6 +436,8 @@ const TeacherQuizWidget: React.FC<{
     pendingQuizReveal,
     clearPendingQuizReveal,
   } = useDashboard();
+  const { t } = useTranslation();
+  const { saveEdit: saveTargetingEdit } = useAssignmentDetailActions();
   const {
     user,
     isAdmin,
@@ -1105,6 +1133,91 @@ const TeacherQuizWidget: React.FC<{
       : googleAccessToken
         ? new QuizDriveService(googleAccessToken)
         : null;
+  const autoTranslateTargetedLocales = async (
+    meta: QuizMetadata,
+    data: QuizData,
+    overridesByKey: Record<string, StudentOverride>
+  ): Promise<QuizMetadata['translations']> => {
+    const drive = translationLoader();
+    const uid = user?.uid;
+    const locales = Object.keys(targetedLocaleCounts(overridesByKey));
+    // The Modifications step already warns for these; anything else that misses gets a toast.
+    if (
+      locales.length === 0 ||
+      !canAccessFeature(QUIZ_TRANSLATION_FEATURE) ||
+      !canAccessFeature('modification-groups') ||
+      isNonEnglishQuizSource(data.language) ||
+      quizHasBankSlots(data)
+    )
+      return meta.translations;
+    const warnMissing = (index: QuizMetadata['translations']) => {
+      for (const locale of locales)
+        if (!isLocaleCovered(locale, { index }))
+          addToast(
+            `${languageDisplayLabel(locale)} wasn't ready in time. Those students will see English.`,
+            'warning'
+          );
+      return index;
+    };
+    if (!drive || !uid || isDistrictCopy(meta))
+      return warnMissing(meta.translations);
+    const translate = httpsCallable<
+      Record<string, unknown>,
+      AutoTranslateResult
+    >(functions, 'translateQuizV1', { timeout: AUTO_TRANSLATE_TIMEOUT_MS });
+    const work = autoTranslateForAssign(
+      data,
+      meta.translations,
+      locales,
+      {
+        loadTranslation: (fileId) => drive.loadTranslation(fileId),
+        deleteTranslation: (fileId) => drive.deleteTranslation(fileId),
+        saveTranslation: (locale, payload, existingFileId) =>
+          drive.saveTranslation(
+            data.id,
+            data.title,
+            locale,
+            payload,
+            existingFileId
+          ),
+        translate: async (locale, questionIds) =>
+          (
+            await translate({
+              quizId: data.id,
+              locale,
+              title: data.title,
+              questions: data.questions.filter((q) =>
+                isTranslatableQuestionType(q.type)
+              ),
+              ...(questionIds ? { questionIds } : {}),
+            })
+          ).data,
+        writeIndex: (locale, entry) =>
+          setDoc(
+            doc(db, 'users', uid, QUIZZES_COLLECTION, meta.id),
+            { translations: { [locale]: entry } },
+            { merge: true }
+          ),
+      },
+      (locale, err) =>
+        logError('QuizWidget.assignment.autoTranslate', err, {
+          quizId: meta.id,
+          locale,
+        })
+    );
+    // A slow translation finishes in the library for next time; this assign goes out without it.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timedOut = new Promise<undefined>((resolve) => {
+      timer = setTimeout(() => resolve(undefined), AUTO_TRANSLATE_WAIT_MS);
+    });
+    try {
+      return warnMissing(
+        (await Promise.race([work, timedOut])) ?? meta.translations
+      );
+    } finally {
+      clearTimeout(timer);
+    }
+  };
   // Printed stacks in group order, each with its group's language for the sheets.
   const reprintGroupsFor = async (
     quiz: QuizData,
@@ -3256,12 +3369,37 @@ const TeacherQuizWidget: React.FC<{
       onShareResults={() => setSharePlcResultsTarget(target)}
       onStopSharing={() => handleStopSharingPlc(target)}
       inline={inline}
+      translation={{
+        sourceLanguage: quizzes.find((q) => q.id === target.quizId)?.language,
+      }}
+      // The monitor already holds the live quiz and session; a dialog reads them.
+      editContext={
+        inline &&
+        loadedQuizData &&
+        liveSession?.id === target.id &&
+        // A per-period session's questions arrive from a second listener.
+        (!liveSession.questionsInContent ||
+          liveSession.publicQuestions.length > 0)
+          ? {
+              quizData: loadedQuizData,
+              servedLocales: servedLocalesOf(liveSession.publicQuestions),
+            }
+          : undefined
+      }
+      loadEditContext={async () => {
+        const meta = quizzes.find((q) => q.id === target.quizId);
+        const [quizData, servedLocales] = await Promise.all([
+          meta ? loadAnswerKeyQuizQuietly(meta, target) : null,
+          loadServedLocales(target.id).catch(() => []),
+        ]);
+        return { quizData, servedLocales };
+      }}
       onClose={() => {
         // Inline, onClose runs only after a save; reload the steps from the saved assignment.
         if (inline) setInlineSettingsRev((n) => n + 1);
         else setEditingAssignment(null);
       }}
-      onSave={async (patch) => {
+      onSave={async (patch, extra) => {
         try {
           // Class targeting must be dual-written to BOTH the assignment
           // doc AND the live session doc (rosterIds/classIds/classId/
@@ -3324,6 +3462,36 @@ const TeacherQuizWidget: React.FC<{
               removedRosterNames,
               uncheckedRosterClassIds(uncheckedRosters)
             );
+          }
+          // Modifications save the way the Assignments hub edits them: the assignment and each student's copy.
+          if (extra?.overridesByKey && user?.uid) {
+            const saved = assignments.find((a) => a.id === target.id) ?? target;
+            const row = quizAssignmentRow(
+              saved,
+              new Map(rosters.map((r) => [r.id, r.name]))
+            );
+            const classIds = rosterIds ?? previousRosterIdsFor(saved, rosters);
+            const result = await saveTargetingEdit(
+              row,
+              user.uid,
+              {
+                ...assignmentRowToTargetingValue(row),
+                overridesByKey: extra.overridesByKey,
+              },
+              {
+                rosters: rosters.filter((r) => classIds.includes(r.id)),
+                selectedRosterIds: classIds,
+              }
+            );
+            if (result.skipped.length > 0)
+              addToast(
+                t('assignmentsHub.detail.editSkipped', {
+                  defaultValue:
+                    '{{count}} student(s) could not be saved to this assignment.',
+                  count: result.skipped.length,
+                }),
+                'warning'
+              );
           }
           addToast('Assignment settings saved.', 'success');
           if (!inline) setEditingAssignment(null);
@@ -3978,6 +4146,16 @@ const TeacherQuizWidget: React.FC<{
             addToast(warning, 'warning');
           }
 
+          // Languages the targeted students need are translated before publish, so nobody waits on a teacher step.
+          const translationIndex =
+            stepper?.audience === 'staff'
+              ? meta.translations
+              : await autoTranslateTargetedLocales(
+                  meta,
+                  data,
+                  resolvedTargeting.overridesByKey
+                );
+
           // Derive session targets from selected rosters — `classIds` feeds
           // the student SSO gate via Firestore rules; `rosterIds` is mirrored
           // onto both assignment and session for reverse lookup.
@@ -4305,9 +4483,7 @@ const TeacherQuizWidget: React.FC<{
                 ...(resolvedTargeting.workKind
                   ? { workKind: resolvedTargeting.workKind }
                   : {}),
-                ...(meta.translations
-                  ? { translationIndex: meta.translations }
-                  : {}),
+                ...(translationIndex ? { translationIndex } : {}),
               }
             );
             assignmentSaved = true;
@@ -4333,7 +4509,7 @@ const TeacherQuizWidget: React.FC<{
                 assignmentId,
                 { ...data, questions: assignQuestions },
                 stepper.printedGroups,
-                meta.translations
+                translationIndex
               ).catch((err: unknown) =>
                 console.warn('[QuizWidget] printed groups not queued:', err)
               );
@@ -5102,6 +5278,28 @@ const TeacherQuizWidget: React.FC<{
               'error'
             );
           }
+        }}
+        onArchiveDeleteMany={async (list) => {
+          const columns: string[] = [];
+          const results = await Promise.allSettled(
+            list.map(async (a) => {
+              const hadColumn = await sessionHasToolColumn('quiz', a.id);
+              await deleteAssignment(a.id);
+              if (hadColumn) columns.push(a.id);
+            })
+          );
+          // The deletes already happened, so a failed column offer never counts against them.
+          try {
+            await offerToolColumnsRemoval({
+              functions,
+              sessionIds: columns,
+              showConfirm,
+              addToast,
+            });
+          } catch (err) {
+            logError('bulkDelete.toolColumns', err);
+          }
+          return results.filter((r) => r.status === 'rejected').length;
         }}
         onArchiveDelete={async (a) => {
           try {

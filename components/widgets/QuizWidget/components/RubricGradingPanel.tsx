@@ -52,6 +52,21 @@ export interface RubricScoringPanelProps {
   hideTotal?: boolean;
 }
 
+// Open levels sit side by side once the panel gives each one about 130px.
+const LEVEL_GRID: Record<number, string> = {
+  2: '@md:grid @md:grid-cols-2 @md:divide-x @md:divide-y-0',
+  3: '@xl:grid @xl:grid-cols-3 @xl:divide-x @xl:divide-y-0',
+  4: '@2xl:grid @2xl:grid-cols-4 @2xl:divide-x @2xl:divide-y-0',
+  5: '@2xl:grid @2xl:grid-cols-5 @2xl:divide-x @2xl:divide-y-0',
+  6: '@3xl:grid @3xl:grid-cols-6 @3xl:divide-x @3xl:divide-y-0',
+};
+
+// 5 and 6 levels put points above the label so each column keeps ~110px of text.
+const LEVEL_CELL: Record<number, string> = {
+  5: '@2xl:flex-col @2xl:gap-0.5',
+  6: '@3xl:flex-col @3xl:gap-0.5',
+};
+
 const ptsLabel = (points: number) => `${points} pt${points === 1 ? '' : 's'}`;
 
 // Which criteria a teacher left open, per rubric, so the next student opens the same way.
@@ -262,7 +277,10 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
   };
 
   return (
-    <section aria-label="Rubric scoring" className="flex flex-col">
+    <section
+      aria-label="Rubric scoring"
+      className="flex flex-col [container-type:inline-size]"
+    >
       <header className="pb-2">
         <div className="flex items-center gap-1">
           <button
@@ -320,6 +338,8 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
           const isOpen = openCriteria.has(criterion.id);
           const noteOpen = expandedNotes.has(criterion.id);
           const levels = orderRubricLevels(criterion.levels, order);
+          const levelGrid = LEVEL_GRID[levels.length] ?? '';
+          const levelCell = LEVEL_CELL[levels.length] ?? '';
           const nameId = `rubric-${rubric.id}-${criterion.id}-name`;
           const tagCount = tagCounts?.[criterion.id] ?? 0;
           const countLabel = t(
@@ -427,7 +447,9 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
               )}
 
               {isOpen ? (
-                <div className="ml-5 mt-2 flex flex-col divide-y divide-slate-200 border-y border-slate-200">
+                <div
+                  className={`ml-5 mt-2 flex flex-col divide-y divide-slate-200 border-y border-slate-200 ${levelGrid}`}
+                >
                   {levels.map((level) => {
                     const isSelected = selected?.levelId === level.id;
                     return (
@@ -441,7 +463,7 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
                           'quiz',
                           `${criterion.id}-${level.id}`
                         )}
-                        className={`flex w-full gap-2 px-2 py-2 text-left transition-colors [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-blue-primary ${
+                        className={`flex w-full gap-2 px-2 py-2 text-left transition-colors ${levelCell} [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-blue-primary ${
                           isSelected
                             ? 'bg-brand-blue-primary text-white'
                             : 'text-slate-800 hover:bg-slate-50'
@@ -451,12 +473,12 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
                           {level.points}
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="block text-sm font-semibold">
+                          <span className="block break-words text-sm font-semibold">
                             {level.label}
                           </span>
                           {level.description && (
                             <span
-                              className={`mt-0.5 block whitespace-pre-line text-xs leading-relaxed ${
+                              className={`mt-0.5 block whitespace-pre-line break-words text-xs leading-relaxed ${
                                 isSelected ? 'text-white/85' : 'text-slate-600'
                               }`}
                             >

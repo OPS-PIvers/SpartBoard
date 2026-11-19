@@ -24,8 +24,8 @@ export const ShareImportConfirmModal: React.FC<Props> = ({
     maxWidth="max-w-md"
     contentClassName=""
     customHeader={
-      <div className="px-5 pt-5 pb-3 border-b border-slate-100">
-        <h2 className="text-base font-bold text-slate-900">
+      <div className="px-5 py-3.5 bg-brand-blue-primary text-white rounded-t-2xl">
+        <h2 className="text-base font-bold text-white">
           Import shared {kindLabel}?
         </h2>
       </div>

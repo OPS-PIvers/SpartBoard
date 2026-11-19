@@ -2004,6 +2004,12 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               onArchiveEnd={(a) => void handleArchiveEnd(a)}
               onArchiveReactivate={(a) => void handleArchiveReactivate(a)}
               onArchiveDelete={(a) => void handleArchiveDelete(a)}
+              onArchiveDeleteMany={async (list) => {
+                const results = await Promise.allSettled(
+                  list.map((a) => deleteAssignment(a.id))
+                );
+                return results.filter((r) => r.status === 'rejected').length;
+              }}
               onArchiveEditClasses={setEditingClasses}
               onArchivePublishScores={
                 canAccessFeature('mini-app-results')

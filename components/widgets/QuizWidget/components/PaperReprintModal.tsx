@@ -1,5 +1,6 @@
 // Print response sheets again for a Paper assignment: the same seats, so a lost sheet still imports as its student.
 
+import { promptLabel } from '@/utils/quizPromptText';
 import React, { useMemo, useState } from 'react';
 import { AlertTriangle, Check, Printer } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
@@ -28,6 +29,7 @@ import {
   reprintClasses,
   reprintSheets,
 } from '@/utils/paperReprint';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 
 /** One saved stack and the quiz version it printed from. */
 export interface ReprintStack {
@@ -276,7 +278,7 @@ export const PaperStacksReprintDialog: React.FC<ReprintDialogProps> = ({
               questionTexts: sheetQuestions.map((q) => {
                 const tr = translation?.questions[q.id];
                 return {
-                  text: tr?.text ?? q.text,
+                  text: tr?.text?.trim() ? tr.text : promptLabel(q),
                   choices: (batch.choiceOrder?.[q.id] ?? []).map(
                     (c) => tr?.choices?.[c] ?? c
                   ),
@@ -315,6 +317,7 @@ export const PaperStacksReprintDialog: React.FC<ReprintDialogProps> = ({
 
   return (
     <Modal
+      accent={LIBRARY_HEADER_ACCENTS.quiz}
       isOpen
       onClose={onClose}
       title={
