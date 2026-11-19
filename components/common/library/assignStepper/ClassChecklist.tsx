@@ -88,12 +88,13 @@ export const ClassChecklist: React.FC<ClassChecklistProps> = ({
   );
   const [openById, setOpenById] = useState<Record<string, boolean>>({});
 
+  // Picks outside this list (a class gone from an edited assignment) are kept.
   const setPicked = (ids: Set<string>) =>
     onChange(
-      withClassIds(
-        value,
-        rosters.map((r) => r.id).filter((id) => ids.has(id))
-      )
+      withClassIds(value, [
+        ...rosters.map((r) => r.id).filter((id) => ids.has(id)),
+        ...value.classIds.filter((id) => !indexOf.has(id) && ids.has(id)),
+      ])
     );
 
   const toggle = (id: string) => {
@@ -126,7 +127,8 @@ export const ClassChecklist: React.FC<ClassChecklistProps> = ({
       )
     );
 
-  const renderRow = (r: ClassRoster, inCourse: boolean) => {
+  const renderRow = (r: ClassRoster, courseId: string | null) => {
+    const inCourse = courseId !== null;
     const rowIndex = indexOf.get(r.id) ?? 0;
     const unavailable = Boolean(r.loadError);
     const off = unavailable || disabled;
@@ -149,7 +151,11 @@ export const ClassChecklist: React.FC<ClassChecklistProps> = ({
           name={singleSelect ? groupName : undefined}
           checked={value.classIds.includes(r.id)}
           disabled={off}
-          onChange={() => toggle(r.id)}
+          onChange={() => {
+            if (courseId !== null)
+              setOpenById((prev) => ({ ...prev, [courseId]: true }));
+            toggle(r.id);
+          }}
           {...(rowAnchor?.(r.id, rowIndex) ??
             tourFieldAttr(
               'assign-classes.option',
@@ -185,7 +191,7 @@ export const ClassChecklist: React.FC<ClassChecklistProps> = ({
         type="button"
         onClick={() => setOpenById((prev) => ({ ...prev, [course.id]: !open }))}
         aria-expanded={open}
-        aria-controls={listId}
+        aria-controls={open ? listId : undefined}
         aria-label={`${open ? 'Hide' : 'Show'} sections in ${course.name}`}
         {...tourFieldAttr('assign-classes.course-expand', 'assign', rowKey)}
         className="touch-target-expand shrink-0 rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-brand-blue-primary"
@@ -228,7 +234,7 @@ export const ClassChecklist: React.FC<ClassChecklistProps> = ({
             aria-label={course.name}
             className="divide-y divide-slate-100 border-t border-slate-100"
           >
-            {members.map((r) => renderRow(r, true))}
+            {members.map((r) => renderRow(r, course.id))}
           </div>
         )}
       </div>
@@ -252,7 +258,7 @@ export const ClassChecklist: React.FC<ClassChecklistProps> = ({
           {groups.map((g) =>
             g.course && g.rosters.length > 1
               ? renderCourse(g.course, g.rosters)
-              : renderRow(g.rosters[0], false)
+              : renderRow(g.rosters[0], null)
           )}
         </div>
       )}

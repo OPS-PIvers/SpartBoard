@@ -230,6 +230,32 @@ describe('ClassChecklist with Courses', () => {
     ).toHaveAttribute('aria-expanded', 'true');
   });
 
+  it('stays open after picking the last section', () => {
+    render(
+      <CourseHarness initial={{ classIds: ['s1'], studentsByClass: {} }} />
+    );
+    fireEvent.click(screen.getByLabelText(/Mock Period 1\s*1 student$/));
+    expect(
+      screen.getByRole('checkbox', { name: /Sample Course/ })
+    ).toBeChecked();
+    expect(screen.getByLabelText(/Mock Period 1\s*1 student$/)).toBeVisible();
+  });
+
+  it('keeps a picked class that is not in the list', () => {
+    const onChange = vi.fn();
+    render(
+      <CourseHarness
+        onChange={onChange}
+        initial={{ classIds: ['solo', 'gone'], studentsByClass: {} }}
+      />
+    );
+    fireEvent.click(screen.getByRole('checkbox', { name: /Sample Course/ }));
+    expect(onChange).toHaveBeenLastCalledWith({
+      classIds: ['s1', 'solo', 's2', 'gone'],
+      studentsByClass: {},
+    });
+  });
+
   it('single select keeps every class flat', () => {
     render(<CourseHarness singleSelect />);
     expect(
