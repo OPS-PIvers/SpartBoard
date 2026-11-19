@@ -23,15 +23,19 @@ vi.mock('firebase-functions/logger', () => ({
 import * as admin from '../firebaseAdmin';
 import { __resetGradeIndexEnabledCache } from './gradeIndex';
 import {
+  __setClassEnrollmentCheck,
   configPathFor,
   parseMark,
   parseSettings,
   projectRow,
   removeFlagsOnScore,
   writeProjectionEntry,
+  type ClassEnrollmentCheck,
 } from './gradeProjection';
+import { RosterUnavailableError } from './rosterUnavailable';
 import {
   gradeIndexMark,
+  handleRowWrite,
   handlePointerWrite,
   handleSharedConfigWrite,
   handleSideDocWrite,
@@ -83,7 +87,139 @@ const row = (over: Partial<IndexRow> = {}): IndexRow => ({
 const entryOf = (stub: ReturnType<typeof makeStubFirestore>, id = 'qs1') =>
   (stub.get(PATH)?.entries as Record<string, StubData> | undefined)?.[id];
 
-beforeEach(() => __resetGradeIndexEnabledCache());
+const allEnrolled: ClassEnrollmentCheck = () => Promise.resolve(true);
+
+beforeEach(() => {
+  __resetGradeIndexEnabledCache();
+  __setClassEnrollmentCheck(allEnrolled);
+});
+
+/** Only these `owner/class/student` triples are on a roster. */
+const rosterOf =
+  (...allowed: string[]): ClassEnrollmentCheck =>
+  (owner, classId, student) =>
+    Promise.resolve(allowed.includes(`${owner}/${classId}/${student}`));
+
+describe('projectRow roster check', () => {
+  it('projects nothing for a class the owner does not teach', async () => {
+    const stub = makeStubFirestore();
+    const enrolled = vi.fn(rosterOf('t1/c9/u1'));
+    await projectRow(stub.db as unknown as Db, row(), null, NOW, enrolled);
+    expect(enrolled).toHaveBeenCalledWith('t1', 'c1', 'u1');
+    expect(stub.has(PATH)).toBe(false);
+  });
+
+  it('projects nothing for a student outside the class roster', async () => {
+    const stub = makeStubFirestore();
+    await projectRow(
+      stub.db as unknown as Db,
+      row({ studentUid: 'victim' }),
+      null,
+      NOW,
+      rosterOf('t1/c1/u1')
+    );
+    expect(stub.has('student_grades/victim/classes/c1')).toBe(false);
+  });
+
+  it('projects a vouched row', async () => {
+    const stub = makeStubFirestore();
+    await projectRow(
+      stub.db as unknown as Db,
+      row(),
+      null,
+      NOW,
+      rosterOf('t1/c1/u1')
+    );
+    expect(entryOf(stub)).toMatchObject({ ownerUid: 't1' });
+  });
+
+  it("removes an unvouched owner's entry without touching the class fields", async () => {
+    const stub = makeStubFirestore();
+    const db = stub.db as unknown as Db;
+    await projectRow(db, row(), null, NOW);
+    await projectRow(db, row({ ownerUid: 't2', sessionId: 'x1' }), null, NOW);
+    const before = stub.get(PATH);
+    expect(entryOf(stub, 'x1')).toBeTruthy();
+    await projectRow(
+      db,
+      row({ ownerUid: 't2', sessionId: 'x1' }),
+      null,
+      NOW + 1,
+      rosterOf('t1/c1/u1')
+    );
+    expect(entryOf(stub, 'x1')).toBeUndefined();
+    expect(stub.get(PATH)).toMatchObject({
+      ownerUid: 't1',
+      standards: before?.standards,
+      cutoffs: before?.cutoffs,
+    });
+  });
+
+  it("drops a planted owner's entries and class fields when a teacher of the class projects", async () => {
+    const stub = makeStubFirestore({
+      [PATH]: {
+        studentUid: 'u1',
+        classId: 'c1',
+        ownerUid: 'evil',
+        standards: [{ targetId: 'fake', pct: 100, level: 4, evidence: [] }],
+        levelNames: ['Fake'],
+        levels: 1,
+        cutoffs: { proficient: 1, approaching: 0 },
+        entries: {
+          planted: { ownerUid: 'evil', status: 'scored', comment: 'Fake' },
+        },
+        updatedAt: 1,
+      },
+    });
+    await projectRow(
+      stub.db as unknown as Db,
+      row(),
+      null,
+      NOW,
+      rosterOf('t1/c1/u1')
+    );
+    const doc = stub.get(PATH);
+    expect(Object.keys(doc?.entries as object)).toEqual(['qs1']);
+    expect(doc).toMatchObject({ ownerUid: 't1', standards: null });
+  });
+
+  it('never lets an unvouched owner claim the class fields when an entry leaves', async () => {
+    const stub = makeStubFirestore();
+    const db = stub.db as unknown as Db;
+    await projectRow(db, row(), null, NOW);
+    await projectRow(
+      db,
+      null,
+      row({ ownerUid: 't2', sessionId: 'x1' }),
+      NOW + 1,
+      rosterOf('t1/c1/u1')
+    );
+    expect(stub.get(PATH)).toMatchObject({ ownerUid: 't1' });
+    expect(entryOf(stub)).toBeTruthy();
+  });
+
+  it('retries the projection event when the roster service is down', async () => {
+    const stub = makeStubFirestore({
+      'admin_settings/gradebook_index': { enabled: true },
+    });
+    vi.mocked(admin.firestore).mockReturnValue(stub.db as never);
+    __setClassEnrollmentCheck(() =>
+      Promise.reject(new RosterUnavailableError(new Error('down')))
+    );
+    const event = {
+      params: { rowId: 'quiz__qs1__u1' },
+      time: new Date().toISOString(),
+      data: {
+        before: { exists: false, data: () => undefined },
+        after: { exists: true, data: () => row() as unknown as StubData },
+      },
+    };
+    await expect(handleRowWrite(event)).rejects.toBeInstanceOf(
+      RosterUnavailableError
+    );
+    expect(stub.has(PATH)).toBe(false);
+  });
+});
 
 describe('projectRow', () => {
   it('shows a published final score with the override applied', async () => {
