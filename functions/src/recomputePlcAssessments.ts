@@ -175,6 +175,13 @@ export function syncedGroupEntitled(
   return false;
 }
 
+/** Assignment-doc `lenientFibLocales`; strings only. */
+export function parseLenientFibLocales(raw: unknown): string[] {
+  return Array.isArray(raw)
+    ? raw.filter((l): l is string => typeof l === 'string' && l !== '')
+    : [];
+}
+
 /** `{ [questionId]: { [locale]: string[] } }` from the teacher-owned assignment doc. */
 export function parseLocalizedFibAnswers(
   raw: unknown
@@ -447,6 +454,9 @@ export async function recomputeOnePlcAssessment(
         typeof s.scorePublishedAt === 'number' ? s.scorePublishedAt : null,
       localizedFibAnswers: parseLocalizedFibAnswers(
         assignmentData?.localizedFibAnswers
+      ),
+      lenientFibLocales: parseLenientFibLocales(
+        assignmentData?.lenientFibLocales
       ),
       overridesByStudentUid: parseServedLanguages(
         assignmentData?.overridesByStudentUid

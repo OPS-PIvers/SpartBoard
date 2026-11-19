@@ -62,6 +62,7 @@ export type StateKey =
   | 'choose-n'
   | 'paper-copies'
   | 'bank-draw'
+  | 'translated-fib'
   | AudioCaptureStateKey
   | RecordingControlStateKey
   | QuizEditorStateKey
@@ -128,6 +129,7 @@ const SESSION_STATE_LABELS: Record<string, string> = {
   'choose-n': 'Answer any 2 of 3, answered extra (results)',
   'paper-copies': 'Printed group copies (monitor, results)',
   'bank-draw': 'Bank draw, 3 of 5 questions (results)',
+  'translated-fib': 'Spanish fill-in-the-blank answers (results)',
 };
 
 export const STATES: StateOption[] = [

@@ -1172,6 +1172,77 @@ export function makeOrderingResponses(): QuizResponse[] {
   });
 }
 
+/* ─── Translated fill-in-the-blank results ───────────────────────────────── */
+
+/** Two FIB questions with a Spanish key, as the assign step snapshots it. */
+export function makeTranslatedFibQuizData(): QuizData {
+  return {
+    id: QUIZ_ID,
+    title: 'Gr. 7 Circumference',
+    createdAt: NOW - 86_400_000,
+    updatedAt: NOW - 3_600_000,
+    questions: [
+      {
+        id: 'q-fib-1',
+        type: 'FIB',
+        text: 'The distance around a circle is called the _________.',
+        timeLimit: 0,
+        correctAnswer: 'circumference',
+        incorrectAnswers: [],
+        points: 1,
+      },
+      {
+        id: 'q-fib-2',
+        type: 'FIB',
+        text: 'A circle has a diameter of 10 meters. Its circumference is about _________.',
+        timeLimit: 0,
+        correctAnswer: '31.4 meters',
+        incorrectAnswers: [],
+        points: 1,
+      },
+    ],
+  };
+}
+
+export const TRANSLATED_FIB_ANSWERS = {
+  'q-fib-1': { es: ['circunferencia'] },
+  'q-fib-2': { es: ['31.4 metros'] },
+};
+
+/** Spanish-served students at 201-203; 204 took it in English. */
+export function makeTranslatedFibResponses(): QuizResponse[] {
+  const rows: [string, string][] = [
+    ['la circunferencia', '31.4 metros'],
+    ['circunferensia', '31.4 m'],
+    ['el radio', '31,4 metros'],
+    ['circumferance', '31.4 meters'],
+  ];
+  return rows.map(([a1, a2], i) => {
+    const key = `pin-Period 3-20${i + 1}`;
+    return {
+      _responseKey: key,
+      studentUid: key,
+      pin: `20${i + 1}`,
+      joinedAt: NOW - 540_000,
+      status: 'completed',
+      answers: [
+        { questionId: 'q-fib-1', answer: a1, answeredAt: NOW - 420_000 },
+        { questionId: 'q-fib-2', answer: a2, answeredAt: NOW - 410_000 },
+      ],
+      score: null,
+      submittedAt: NOW - 400_000,
+      classPeriod: 'Period 3',
+      completedAttempts: 1,
+    };
+  });
+}
+
+export const TRANSLATED_FIB_OVERRIDES = {
+  'pin-Period 3-201': { language: 'es' },
+  'pin-Period 3-202': { language: 'es' },
+  'pin-Period 3-203': { language: 'es' },
+};
+
 /* ─── Quiz results: Free Response answers across two classes ─────────────── */
 
 const QUIZ_FR_ID = 'q-fr';
