@@ -7845,18 +7845,20 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               // A panned or zoomed view gets the zone laid over what the teacher sees.
               const atRest =
                 camera.zoom === 1 && camera.pan.x === 0 && camera.pan.y === 0;
-              const tl = viewportToWrapper(
-                { x: flat.x, y: flat.y },
+              // Zones scale about the view centre by one factor, so they still tile when zoomed out.
+              const scale = Math.max(1, camera.zoom);
+              const centre = viewportToWrapper(
+                { x: vpW / 2, y: vpH / 2 },
                 camera.zoom,
                 camera.pan,
                 vpW,
                 vpH
               );
               const seen = {
-                x: tl.x,
-                y: tl.y,
-                w: flat.w / Math.max(1, camera.zoom),
-                h: flat.h / Math.max(1, camera.zoom),
+                x: centre.x + (flat.x - vpW / 2) / scale,
+                y: centre.y + (flat.y - vpH / 2) / scale,
+                w: flat.w / scale,
+                h: flat.h / scale,
               };
               const zoneWidget: WidgetData = atRest
                 ? flat

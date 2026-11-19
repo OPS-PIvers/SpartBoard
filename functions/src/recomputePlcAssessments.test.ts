@@ -694,6 +694,15 @@ describe('runRecomputePlcAssessments failure cap', () => {
     expect(again.failed).toBe(0);
   });
 
+  it('gives a parked assessment fresh retries once a new trigger marks it dirty', async () => {
+    const stub = failing(RECOMPUTE_MAX_FAILURES);
+    await runRecomputePlcAssessments(stub.db as unknown as Db);
+    expect(stub.get(FAIL)?.count).toBe(1);
+    expect(typeof stub.get('plcs/plc-2/assessments/older')?.dirtyAt).toBe(
+      'number'
+    );
+  });
+
   it('clears the failure count after a successful recompute', async () => {
     const stub = failing(3);
     stub.hooks.beforeWrite = undefined;

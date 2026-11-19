@@ -99,6 +99,8 @@ describe('toSeconds', () => {
   it('keeps existing formats and rejects bare or invalid values', () => {
     expect(toSeconds('14:30')).toBe(at(14, 30));
     expect(toSeconds('2:30 PM')).toBe(at(14, 30));
+    expect(toSeconds('14:30:00')).toBe(at(14, 30));
+    expect(toSeconds('9:15:30 AM')).toBe(at(9, 15));
     expect(toSeconds('3')).toBe(-1);
     expect(toSeconds('25:00')).toBe(-1);
     expect(toSeconds('')).toBe(-1);

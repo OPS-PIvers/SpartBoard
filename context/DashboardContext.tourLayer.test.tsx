@@ -533,6 +533,38 @@ describe('DashboardContext addWidgets template placements', () => {
     expect(out.y + out.h).toBeLessThanOrEqual(maxY);
   });
 
+  it('keeps adjacent template zones touching when zoomed out', async () => {
+    const stateRef = setup();
+    await settle(stateRef, [makeDashboard([])]);
+    const left = {
+      xProp: 0,
+      yProp: 0.1,
+      wProp: 0.3,
+      hProp: 0.5,
+      aspectRatio: 1,
+    };
+    const right = { ...left, xProp: 0.3 };
+    act(() =>
+      stateRef.current?.addWidgets([
+        { type: 'clock', placement: left },
+        { type: 'clock', placement: right },
+      ])
+    );
+    const [flatL, flatR] = stateRef.current?.activeDashboard?.widgets ?? [];
+    act(() => stateRef.current?.setZoom(0.5));
+    act(() =>
+      stateRef.current?.addWidgets([
+        { type: 'clock', placement: left },
+        { type: 'clock', placement: right },
+      ])
+    );
+    const [outL, outR] = (
+      stateRef.current?.activeDashboard?.widgets ?? []
+    ).slice(-2);
+    expect(outR.x - outL.x).toBeCloseTo(flatR.x - flatL.x);
+    expect(outL.w).toBeCloseTo(flatL.w);
+  });
+
   it('never builds a giant widget from an extreme aspect ratio', async () => {
     const stateRef = setup();
     await settle(stateRef, [makeDashboard([])]);

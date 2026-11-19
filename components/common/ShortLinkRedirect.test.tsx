@@ -21,7 +21,19 @@ describe('ShortLinkRedirect', () => {
   it('resolves a mixed-case code by its lowercase stored slug', async () => {
     window.history.pushState({}, '', '/r/Math-Help');
     render(<ShortLinkRedirect />);
+    await waitFor(() => expect(resolveShortLink).toHaveBeenCalledTimes(2));
+    expect(resolveShortLink).toHaveBeenNthCalledWith(1, 'Math-Help');
+    expect(resolveShortLink).toHaveBeenNthCalledWith(2, 'math-help');
+  });
+
+  it('resolves an older mixed-case link by its exact id first', async () => {
+    resolveShortLink.mockResolvedValueOnce({
+      destination: 'https://example.com',
+    });
+    window.history.pushState({}, '', '/r/OldLink');
+    render(<ShortLinkRedirect />);
     await waitFor(() => expect(resolveShortLink).toHaveBeenCalled());
-    expect(resolveShortLink).toHaveBeenCalledWith('math-help');
+    expect(resolveShortLink).toHaveBeenCalledTimes(1);
+    expect(resolveShortLink).toHaveBeenCalledWith('OldLink');
   });
 });
