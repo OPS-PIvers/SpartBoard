@@ -164,7 +164,7 @@ describe('submitPost helpers', () => {
     it('columns: writes sectionId with an uncapped id when there is no cap', async () => {
       const id = await createPost({
         ...base,
-        session: session({ layout: 'columns' }),
+        session: session({ layout: 'columns', showNames: true }),
         draft: { ...EMPTY_DRAFT, body: ' hello ', title: 'Hi' },
         placement: { sectionId: 'sec-1' },
       });
@@ -182,6 +182,28 @@ describe('submitPost helpers', () => {
         title: 'Hi',
         sectionId: 'sec-1',
       });
+    });
+
+    it('writes the anonymous placeholder, never the real name, when the wall hides names', async () => {
+      await createPost({
+        ...base,
+        session: session({ showNames: false }),
+        draft: { ...EMPTY_DRAFT, body: 'hello' },
+        placement: {},
+      });
+      expect(written().participantLabel).toBe('Anonymous');
+    });
+
+    it('teacher posts keep their own label on a name-hidden wall', async () => {
+      await createPost({
+        ...base,
+        participantLabel: 'Ms. Lee',
+        session: session({ showNames: false }),
+        draft: { ...EMPTY_DRAFT, body: 'hello' },
+        placement: {},
+        author: 'teacher',
+      });
+      expect(written().participantLabel).toBe('Ms. Lee');
     });
 
     it('table: writes cellKey and uses the capped slot id, pending under moderation', async () => {
