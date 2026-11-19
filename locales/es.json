@@ -3721,7 +3721,8 @@
     "close": "Cerrar",
     "tabs": {
       "behavior": "Comportamiento",
-      "languages": "Idiomas"
+      "languages": "Idiomas",
+      "speechToText": "Voz a texto"
     },
     "selectBuilding": "Selecciona la escuela que quieres configurar",
     "building": "Escuela",
@@ -5130,6 +5131,16 @@
       "network": "Dictar necesita internet. Revisa tu conexión y toca Dictar otra vez.",
       "languageUnsupported": "Dictar no puede escuchar ese idioma en este dispositivo, así que está escuchando en inglés.",
       "unknown": "Dictar se detuvo. Toca Dictar para empezar otra vez."
-    }
+    },
+    "tidyUp": "Ordenar",
+    "tidyingUp": "Ordenando…",
+    "tidyUpHint": "Añade puntuación y mayúsculas a lo que acabas de dictar. Tus palabras no cambian.",
+    "tidyBefore": "El tuyo",
+    "tidyAfter": "Ordenado",
+    "tidyUse": "Usar este",
+    "tidyKeep": "Dejar el mío",
+    "tidyUndo": "Deshacer",
+    "tidyDone": "Ordenado.",
+    "tidyNoChange": "No hay nada que ordenar."
   }
 }

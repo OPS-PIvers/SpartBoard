@@ -20,6 +20,7 @@ export const SPEECH_TO_TEXT_DEFAULT_CAPS = {
 /** Everything off: dictation runs on the free browser engine only. */
 export const DEFAULT_SPEECH_TO_TEXT_SETTINGS: SpeechToTextSettings = {
   engine: 'browser',
+  transcribeMode: 'verbatim',
   tidyUp: false,
   monthlyCapSeconds: SPEECH_TO_TEXT_DEFAULT_CAPS.monthlyCapSeconds,
   monthlyCapTidyCalls: SPEECH_TO_TEXT_DEFAULT_CAPS.monthlyCapTidyCalls,
@@ -42,6 +43,7 @@ export function normalizeSpeechToTextSettings(
   >;
   return {
     engine: src.engine === 'hybrid' ? 'hybrid' : 'browser',
+    transcribeMode: src.transcribeMode === 'smart' ? 'smart' : 'verbatim',
     tidyUp: src.tidyUp === true,
     monthlyCapSeconds: nonNegativeInt(
       src.monthlyCapSeconds,

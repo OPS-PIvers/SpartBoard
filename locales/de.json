@@ -3721,7 +3721,8 @@
     "close": "Schließen",
     "tabs": {
       "behavior": "Verhalten",
-      "languages": "Sprachen"
+      "languages": "Sprachen",
+      "speechToText": "Sprache zu Text"
     },
     "selectBuilding": "Schule zur Konfiguration auswählen",
     "building": "Schule",
@@ -5130,6 +5131,16 @@
       "network": "Diktieren braucht Internet. Prüfe deine Verbindung und tippe dann erneut auf Diktieren.",
       "languageUnsupported": "Diktieren versteht diese Sprache auf diesem Gerät nicht und hört deshalb auf Englisch zu.",
       "unknown": "Diktieren wurde beendet. Tippe auf Diktieren, um neu zu starten."
-    }
+    },
+    "tidyUp": "Aufräumen",
+    "tidyingUp": "Wird aufgeräumt…",
+    "tidyUpHint": "Fügt Satzzeichen und Großbuchstaben zu deinem Diktat hinzu. Deine Wörter bleiben gleich.",
+    "tidyBefore": "Deins",
+    "tidyAfter": "Aufgeräumt",
+    "tidyUse": "Das verwenden",
+    "tidyKeep": "Meins behalten",
+    "tidyUndo": "Rückgängig",
+    "tidyDone": "Aufgeräumt.",
+    "tidyNoChange": "Nichts aufzuräumen."
   }
 }

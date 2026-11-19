@@ -17,7 +17,7 @@ Most of the parts exist already for quiz written answers: the editor, the edit l
 Non-goals for this plan:
 
 - AI of any kind: no AI grading, drafted feedback or coaching (D17).
-- A spell checker of our own. Dictation is the Speech to text accommodation, planned in `docs/plans/SPEECH_TO_TEXT.md`.
+- A spell checker of our own. Dictation is the Speech to text accommodation, planned in `docs/plans/shipped/SPEECH_TO_TEXT.md`.
 - Pictures, tables, fonts or page layout in the editor.
 - Peer review, group writing and named draft stages (Outline, Draft 1, Final).
 - A saved comment bank.

@@ -1,4 +1,4 @@
-/** Feature flag gating the Speech to text accommodation (docs/plans/SPEECH_TO_TEXT.md D16). */
+/** Feature flag gating the Speech to text accommodation (docs/plans/shipped/SPEECH_TO_TEXT.md D16). */
 export const SPEECH_TO_TEXT_FEATURE = 'speech-to-text' as const;
 
 export type DictationStatus = 'idle' | 'starting' | 'listening';
@@ -13,6 +13,8 @@ export interface SpeechEngineCallbacks {
   onFinal: (text: string) => void;
   /** The microphone is live. */
   onStart?: () => void;
+  /** Paid engine: a better transcript for the phrase sent by the `phrase`-th `onFinal` (zero-based). */
+  onRevise?: (phrase: number, text: string) => void;
   onError: (code: DictationErrorCode) => void;
   /** The engine stopped listening, by request or on its own. */
   onEnd: () => void;
@@ -21,6 +23,8 @@ export interface SpeechEngineCallbacks {
 export interface SpeechEngineStartOptions {
   /** Recognition locale, such as `en-US`. */
   locale: string;
+  /** App language code, such as `en`; the paid engine sends it with each clip. */
+  language?: string;
 }
 
 /** One way of turning speech into text (D7). */
@@ -48,6 +52,8 @@ export interface UseDictationOptions {
   onCommit: (text: string) => void;
   /** The student said "undo that": remove the last committed text. */
   onUndo?: (text: string) => void;
+  /** The paid engine heard a committed phrase better: swap `previous` for `next` if it is still there. */
+  onRevise?: (previous: string, next: string) => void;
   /** Text before the caret, so capitalisation and spacing fit what is already written. */
   textBefore?: () => string;
   /** Signed-in students only: lets the paid engine run when an admin has it on. */

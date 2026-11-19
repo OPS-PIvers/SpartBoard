@@ -47,19 +47,29 @@ export const FibDictateMic: React.FC<{
   light: boolean;
 }> = ({ dictation, onPhrase, disabled, light }) => {
   const wrapRef = useRef<HTMLSpanElement | null>(null);
+  const blankField = () =>
+    wrapRef.current?.closest(`[${FIB_ROW_ATTR}]`)?.querySelector('input');
   const controller = useDictation({
     enabled: !disabled,
     languages: dictation.languages,
     singlePhrase: true,
+    paid: dictation.paid,
     onCommit: (text) => {
       const phrase = blankPhrase(text);
       if (!phrase) return;
       dictation.onInsert?.(phrase);
       onPhrase(phrase);
-      const field = wrapRef.current
-        ?.closest(`[${FIB_ROW_ATTR}]`)
-        ?.querySelector('input');
+      const field = blankField();
       if (field) dispatchDictation(field, 'after', [...phrase].length);
+    },
+    // The paid engine heard it better: fix the blank only if it still holds the dictated phrase.
+    onRevise: (previous, next) => {
+      const phrase = blankPhrase(next);
+      const field = blankField();
+      if (!phrase || !field || field.value !== blankPhrase(previous)) return;
+      dictation.onInsert?.(phrase);
+      onPhrase(phrase);
+      dispatchDictation(field, 'after', 0);
     },
   });
   if (!controller.supported) return null;

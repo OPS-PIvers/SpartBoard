@@ -3721,7 +3721,8 @@
     "close": "Fermer",
     "tabs": {
       "behavior": "Comportement",
-      "languages": "Langues"
+      "languages": "Langues",
+      "speechToText": "Dictée vocale"
     },
     "selectBuilding": "Sélectionner l’établissement à configurer",
     "building": "Établissement",
@@ -5130,6 +5131,16 @@
       "network": "Dicter a besoin d'internet. Vérifie ta connexion, puis touche Dicter à nouveau.",
       "languageUnsupported": "Dicter ne peut pas entendre cette langue sur cet appareil, alors il écoute en anglais.",
       "unknown": "Dicter s'est arrêté. Touche Dicter pour recommencer."
-    }
+    },
+    "tidyUp": "Mettre en forme",
+    "tidyingUp": "Mise en forme…",
+    "tidyUpHint": "Ajoute la ponctuation et les majuscules à ce que tu viens de dicter. Tes mots ne changent pas.",
+    "tidyBefore": "Le tien",
+    "tidyAfter": "Mis en forme",
+    "tidyUse": "Utiliser celui-ci",
+    "tidyKeep": "Garder le mien",
+    "tidyUndo": "Annuler",
+    "tidyDone": "Mis en forme.",
+    "tidyNoChange": "Rien à mettre en forme."
   }
 }

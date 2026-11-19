@@ -426,6 +426,8 @@ export const QuizStudentApp: React.FC<QuizStudentAppProps> = ({
   // minted by `studentLoginV1`. Resolved at mount; used to drive the
   // auto-join branch in `QuizJoinFlow`. Anonymous joiners stay `false`.
   const [isStudentRole, setIsStudentRole] = useState(false);
+  // A PIN-proven token: signed in for one session only, so no paid Speech to text (D15).
+  const [isPinLogin, setIsPinLogin] = useState(false);
 
   // Sign in anonymously on mount only when nobody is signed in yet — SSO
   // students arriving from `/my-assignments` already have a custom-token
@@ -455,6 +457,7 @@ export const QuizStudentApp: React.FC<QuizStudentAppProps> = ({
           // identity. The Firestore rules re-validate on every write.
           const tokenResult = await user.getIdTokenResult();
           setIsStudentRole(tokenResult.claims?.studentRole === true);
+          setIsPinLogin(tokenResult.claims?.pinLogin === true);
         }
       } catch (err) {
         console.warn('[QuizStudentApp] Auth init failed:', err);
@@ -489,6 +492,7 @@ export const QuizStudentApp: React.FC<QuizStudentAppProps> = ({
   return (
     <QuizJoinFlow
       isStudentRole={isStudentRole}
+      paidDictationAllowed={isStudentRole && !isPinLogin}
       embedded={embedded}
       watermarkNameOverride={watermarkNameOverride}
     />
@@ -562,9 +566,16 @@ const QuizPreviewLobby: React.FC = () => {
 
 const QuizJoinFlow: React.FC<{
   isStudentRole: boolean;
+  /** Signed in with a school account, not a PIN (D15). */
+  paidDictationAllowed: boolean;
   embedded: boolean;
   watermarkNameOverride?: string;
-}> = ({ isStudentRole, embedded, watermarkNameOverride }) => {
+}> = ({
+  isStudentRole,
+  paidDictationAllowed,
+  embedded,
+  watermarkNameOverride,
+}) => {
   const { t } = useTranslation();
   const params = new URLSearchParams(window.location.search);
   const urlCode = params.get('code') ?? '';
@@ -1894,6 +1905,11 @@ const QuizJoinFlow: React.FC<{
                 (myOverride?.readAloud === true ||
                   session.readAloudAll === true)
               }
+              paidDictationAssignmentId={
+                paidDictationAllowed && myPointer && session.assignmentId
+                  ? session.assignmentId
+                  : undefined
+              }
             />
           </RecordingNoticeDrawingContext.Provider>
         );
@@ -2064,6 +2080,8 @@ export const ActiveQuiz: React.FC<{
   onDictated?: (questionId: string) => void;
   /** SSO student flagged for read-aloud (override or `readAloudAll`); the light shell decides the rest. */
   readAloudRequested?: boolean;
+  /** Signed-in student's pointer id (D15): lets the paid Speech to text extras run. */
+  paidDictationAssignmentId?: string;
   /** The page requires fullscreen, so leaving fullscreen counts as a tab exit. */
   fullscreenRequired?: boolean;
   /** Teacher's Live view: follow this question and mirror saved answers; null until one is known. */
@@ -2103,6 +2121,7 @@ export const ActiveQuiz: React.FC<{
   drawIds,
   effectiveCloseAt,
   readAloudRequested,
+  paidDictationAssignmentId,
   fullscreenRequired = false,
   watchQuestionId,
   watchTabWarning,
@@ -4209,6 +4228,9 @@ export const ActiveQuiz: React.FC<{
     ? {
         languages: dictationLangs,
         onInsert: () => onDictated?.(currentQuestion.id),
+        ...(paidDictationAssignmentId
+          ? { paid: { assignmentId: paidDictationAssignmentId } }
+          : {}),
       }
     : undefined;
   const fibInputCls = light

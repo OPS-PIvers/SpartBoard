@@ -2157,6 +2157,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
       'admin.widgets.config.qr',
       'admin.widgets.config.quiz',
       'admin.widgets.config.quiz.languages',
+      'admin.widgets.config.quiz.speech',
       'admin.widgets.config.random',
       'admin.widgets.config.recessGear',
       'admin.widgets.config.reveal-grid',

@@ -15,6 +15,11 @@ export const CLAUDE_MODEL_IDS = [
 
 export const CLAUDE_INPUTS: readonly AiInputKind[] = ['text', 'image', 'pdf'];
 
+// Transcription only. Mirrors AUDIO_ONLY_GEMINI_MODELS in config/geminiModels.ts.
+export const AUDIO_ONLY_MODEL_IDS: readonly string[] = [
+  'gemini-3.5-transcribe',
+];
+
 export const providerOf = (model: string): AiProvider =>
   model.startsWith('claude-') ? 'claude' : 'gemini';
 
@@ -34,5 +39,7 @@ export const modelSupportsInputs = (
   model: string,
   inputs: readonly AiInputKind[]
 ): boolean =>
-  providerOf(model) === 'gemini' ||
-  inputs.every((kind) => kind === 'docx' || CLAUDE_INPUTS.includes(kind));
+  AUDIO_ONLY_MODEL_IDS.includes(model)
+    ? inputs.length > 0 && inputs.every((kind) => kind === 'audio')
+    : providerOf(model) === 'gemini' ||
+      inputs.every((kind) => kind === 'docx' || CLAUDE_INPUTS.includes(kind));
