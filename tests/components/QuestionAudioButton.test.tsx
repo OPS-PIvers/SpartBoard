@@ -6,31 +6,28 @@ const audio = {
   driveFileId: 'f1',
   durationSec: 12,
   mimeType: 'audio/mp4',
-  playLimit: 2,
+  playLimit: 3,
 };
 
-describe('QuestionAudioButton replay limit', () => {
-  it('counts replays after the first listen', () => {
-    const { unmount } = render(
-      <QuestionAudioButton audio={audio} viewsUsed={0} />
-    );
-    expect(screen.getByText('1 replay left')).toBeTruthy();
-    unmount();
+describe('QuestionAudioButton play limit', () => {
+  it('shows plays used out of plays allowed', () => {
     render(<QuestionAudioButton audio={audio} viewsUsed={1} />);
-    expect(screen.getByText('1 replay left')).toBeTruthy();
-    expect(screen.getByRole('button').hasAttribute('disabled')).toBe(false);
+    const button = screen.getByRole('button');
+    expect(button.textContent).toBe('Play audio (1/3)');
+    expect(button.hasAttribute('disabled')).toBe(false);
   });
 
-  it('locks the button once the views are used', () => {
-    render(<QuestionAudioButton audio={audio} viewsUsed={2} />);
+  it('locks the button once every play is used', () => {
+    render(<QuestionAudioButton audio={audio} viewsUsed={3} />);
     const button = screen.getByRole('button');
-    expect(button.textContent).toContain('No replays left');
+    expect(button.textContent).toBe('Play audio (3/3)');
     expect(button.hasAttribute('disabled')).toBe(true);
   });
 
   it('never limits a teacher view', () => {
     render(<QuestionAudioButton audio={audio} />);
-    expect(screen.getByRole('button').hasAttribute('disabled')).toBe(false);
-    expect(screen.queryByText(/replays? left/)).toBeNull();
+    const button = screen.getByRole('button');
+    expect(button.textContent).toBe('Play audio');
+    expect(button.hasAttribute('disabled')).toBe(false);
   });
 });

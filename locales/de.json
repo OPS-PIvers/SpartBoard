@@ -5133,12 +5133,10 @@
     }
   },
   "quizQuestionAudio": {
-    "play": "Frage abspielen",
+    "play": "Audio abspielen",
     "stop": "Stopp",
     "retry": "Erneut versuchen",
     "label": "Audiofrage",
-    "replaysLeft_one": "Noch {{count}} Wiederholung",
-    "replaysLeft_other": "Noch {{count}} Wiederholungen",
-    "noReplaysLeft": "Keine Wiederholungen mehr"
+    "playCount": "Audio abspielen ({{used}}/{{total}})"
   }
 }

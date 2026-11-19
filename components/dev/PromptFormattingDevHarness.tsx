@@ -59,13 +59,6 @@ const AudioSection: React.FC = () => {
           audioViewsUsed={views}
           onAudioView={() => setViews((n) => n + 1)}
         />
-        <QuestionPrompt
-          text=""
-          light
-          className="text-slate-900"
-          audio={q.promptAudio}
-          audioViewsUsed={q.promptAudio?.playLimit ?? 0}
-        />
       </section>
     </>
   );

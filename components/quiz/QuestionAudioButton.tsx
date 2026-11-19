@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, Play, RotateCcw, Square } from 'lucide-react';
 import type { QuestionAudio } from '@/types';
-import { formatAudioDuration, questionAudioUrl } from '@/utils/questionAudio';
+import { questionAudioUrl } from '@/utils/questionAudio';
 
 type Status = 'idle' | 'loading' | 'playing' | 'failed';
 
@@ -39,9 +39,6 @@ export const QuestionAudioButton: React.FC<{
   const used = Math.max(viewsUsed ?? 0, localViews);
   const remaining = limited ? Math.max(0, (audio.playLimit ?? 0) - used) : null;
   const usedUp = remaining === 0;
-  // The first listen is free; the limit's other plays are replays.
-  const replaysLeft =
-    remaining === null ? null : used === 0 ? remaining - 1 : remaining;
 
   useEffect(() => {
     const el = ref.current;
@@ -65,14 +62,21 @@ export const QuestionAudioButton: React.FC<{
   };
 
   const active = status === 'loading' || status === 'playing';
+  const playLabel = limited
+    ? t('quizQuestionAudio.playCount', {
+        used: Math.min(used, audio.playLimit ?? 0),
+        total: audio.playLimit,
+        defaultValue: 'Play audio ({{used}}/{{total}})',
+      })
+    : t('quizQuestionAudio.play', 'Play audio');
   const label =
     usedUp && !active
-      ? t('quizQuestionAudio.noReplaysLeft', 'No replays left')
+      ? playLabel
       : status === 'failed'
         ? t('quizQuestionAudio.retry', 'Try again')
         : active
           ? t('quizQuestionAudio.stop', 'Stop')
-          : t('quizQuestionAudio.play', 'Play question');
+          : playLabel;
   const Icon =
     status === 'loading'
       ? Loader2
@@ -112,22 +116,7 @@ export const QuestionAudioButton: React.FC<{
           aria-hidden
         />
         <span>{label}</span>
-        {status !== 'failed' && !usedUp && audio.durationSec > 0 && (
-          <span className="font-semibold tabular-nums opacity-70">
-            {formatAudioDuration(audio.durationSec)}
-          </span>
-        )}
       </button>
-      {replaysLeft !== null && replaysLeft > 0 && (
-        <span
-          className={`text-sm font-semibold ${light ? 'text-slate-500' : 'text-slate-300'}`}
-        >
-          {t('quizQuestionAudio.replaysLeft', {
-            count: replaysLeft,
-            defaultValue: '{{count}} replays left',
-          })}
-        </span>
-      )}
       <audio
         ref={ref}
         src={url}

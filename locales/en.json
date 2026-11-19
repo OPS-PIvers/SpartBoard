@@ -6575,12 +6575,10 @@
     }
   },
   "quizQuestionAudio": {
-    "play": "Play question",
+    "play": "Play audio",
     "stop": "Stop",
     "retry": "Try again",
     "label": "Audio question",
-    "replaysLeft_one": "{{count}} replay left",
-    "replaysLeft_other": "{{count}} replays left",
-    "noReplaysLeft": "No replays left"
+    "playCount": "Play audio ({{used}}/{{total}})"
   }
 }
