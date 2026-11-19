@@ -11,7 +11,7 @@ import { resetPaidDictationState } from '@/utils/speechToText/paidCalls';
 
 const hook = vi.hoisted(() => ({
   options: null as UseDictationOptions | null,
-  status: 'idle' as DictationStatus,
+  status: 'idle',
   tidyUp: true,
   settingsEnabled: false,
   callable: vi.fn<(request: unknown) => Promise<{ data: unknown }>>(),
