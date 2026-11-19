@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  classLabel,
   EMPTY_ASSIGN_CLASSES_VALUE,
   formatClassesValue,
   withClassIds,
@@ -85,5 +86,34 @@ describe('value helpers', () => {
       []
     );
     expect(v.studentsByClass).toEqual({});
+  });
+});
+
+describe('classes that share a name', () => {
+  const twins = [
+    { id: 'a', name: 'Period 1', studentCount: 24 },
+    { id: 'b', name: 'Period 1', studentCount: 1 },
+    { id: 'c', name: 'Period 2', studentCount: 20 },
+  ];
+
+  it('classLabel adds the student count only to a shared name', () => {
+    expect(classLabel(twins[0], twins)).toBe('Period 1 (24 students)');
+    expect(classLabel(twins[1], twins)).toBe('Period 1 (1 student)');
+    expect(classLabel(twins[2], twins)).toBe('Period 2');
+  });
+
+  it('the step summary tells them apart', () => {
+    expect(
+      formatClassesValue({ classIds: ['a', 'c'], studentsByClass: {} }, twins)
+    ).toBe('Period 1 (24 students), Period 2');
+    expect(
+      formatClassesValue(
+        {
+          classIds: ['a'],
+          studentsByClass: { a: [{ kind: 'classlink', sourcedId: 'x' }] },
+        },
+        twins
+      )
+    ).toBe('Period 1 (1 of 24 students)');
   });
 });
