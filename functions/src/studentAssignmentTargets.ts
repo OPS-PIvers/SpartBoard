@@ -895,11 +895,10 @@ export async function assertPointerKeyUnclaimed(
     ...miniAppSnap.docs,
   ];
   // The first session to carry a key owns it, so a later copy can't lock its owner out.
+  const created = (snap: admin.firestore.DocumentSnapshot): number =>
+    snap.createTime?.toMillis() ?? Number.POSITIVE_INFINITY;
   const first = claimants.reduce<(typeof claimants)[number] | undefined>(
-    (min, snap) =>
-      !min || snap.createTime.toMillis() < min.createTime.toMillis()
-        ? snap
-        : min,
+    (min, snap) => (!min || created(snap) < created(min) ? snap : min),
     undefined
   );
   if (
