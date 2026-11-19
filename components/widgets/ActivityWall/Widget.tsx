@@ -83,6 +83,7 @@ import {
   sharedWallClassLock,
 } from './sharedWallEdit';
 import { normalizeActivityWallLibraryEntry } from '@/utils/activityWallNormalize';
+import { teacherPostTypes } from '@/utils/activityWallTypes';
 import { useSubShareActivityWall } from './useSubShareActivityWall';
 import { useLegacyActivityWallMigration } from './hooks/useLegacyActivityWallMigration';
 import { tourAttr } from '@/config/tourAnchors';
@@ -414,18 +415,12 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     });
   }, [activeEntry, addToast, isVisibleWall, setStudentsCanSeePosts]);
 
-  // Storage takes uploads only from the owner, students and guests, so a co-teacher posts text and links.
   const composerSession = useMemo(
     () =>
-      session && linked.moderating && composer?.kind === 'create'
+      session && composer?.kind === 'create'
         ? {
             ...session,
-            allowedTypes: {
-              photo: false,
-              file: false,
-              video: false,
-              link: session.allowedTypes?.link === true,
-            },
+            allowedTypes: teacherPostTypes(session, linked.moderating),
           }
         : session,
     [session, linked.moderating, composer?.kind]

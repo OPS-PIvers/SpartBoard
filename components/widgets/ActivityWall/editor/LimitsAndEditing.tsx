@@ -114,26 +114,28 @@ export const LimitsAndEditing: React.FC<LimitsAndEditingProps> = ({
         )}
       </fieldset>
 
-      <ToggleRow
-        label="Students may edit their posts"
-        checked={allowStudentEdit}
-        onChange={(next) => onChange({ allowStudentEdit: next })}
-        anchor={tourAttr(
-          'activity-wall-editor.allow-edit',
-          widgetId,
-          widgetType
-        )}
-      />
-      <ToggleRow
-        label="Students may delete their posts"
-        checked={allowStudentDelete}
-        onChange={(next) => onChange({ allowStudentDelete: next })}
-        anchor={tourAttr(
-          'activity-wall-editor.allow-delete',
-          widgetId,
-          widgetType
-        )}
-      />
+      <div className="divide-y divide-slate-200/70">
+        <ToggleRow
+          label="Students may edit their posts"
+          checked={allowStudentEdit}
+          onChange={(next) => onChange({ allowStudentEdit: next })}
+          anchor={tourAttr(
+            'activity-wall-editor.allow-edit',
+            widgetId,
+            widgetType
+          )}
+        />
+        <ToggleRow
+          label="Students may delete their posts"
+          checked={allowStudentDelete}
+          onChange={(next) => onChange({ allowStudentDelete: next })}
+          anchor={tourAttr(
+            'activity-wall-editor.allow-delete',
+            widgetId,
+            widgetType
+          )}
+        />
+      </div>
       <p className="text-xs text-slate-600">Only while the wall is open.</p>
     </div>
   );
