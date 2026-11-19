@@ -415,7 +415,6 @@ export function registerPictureTools(server: McpServer, ctx: ToolContext) {
 
 /** Mirrors MAX_FLASHCARD_IMAGE_BYTES in utils/flashcardImages.ts. */
 export const MAX_CARD_PICTURE_BYTES = 5 * 1024 * 1024;
-const CARD_IMAGES_FEATURE_ID = 'flashcard-card-images';
 
 export interface CardPictureInput {
   term_picture?: string | null;
@@ -440,17 +439,8 @@ export async function applyCardPictures(
   });
   if (wanted.length === 0 && clears.length === 0)
     return () => Promise.resolve();
-  const { isGlobalFeatureGranted } = await import('../featureGrant');
-  const allowed =
-    (await picturesOn(ctx)) &&
-    (await isGlobalFeatureGranted(
-      ctx.db,
-      CARD_IMAGES_FEATURE_ID,
-      ctx.email,
-      ctx.uid
-    ));
-  if (!allowed) {
-    // With the flags off, Claude never edits pictures, so a clear is ignored.
+  if (!(await picturesOn(ctx))) {
+    // With pictures off, Claude never edits pictures, so a clear is ignored.
     if (wanted.length === 0) return () => Promise.resolve();
     throw new ToolError(
       'Card pictures are not turned on for this account yet.'

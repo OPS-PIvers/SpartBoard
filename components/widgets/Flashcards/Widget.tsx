@@ -792,7 +792,6 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   const presentPlayer = presentSet ? (
     <FlashcardPlayer
       key={presentSet.id}
-      answerLines={canAccessFeature('flashcard-answer-rows')}
       cards={presentSet.cards}
       termLanguage={presentSet.termLanguage}
       definitionLanguage={presentSet.definitionLanguage}

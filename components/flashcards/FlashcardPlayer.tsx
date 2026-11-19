@@ -147,8 +147,6 @@ export interface FlashcardPlayerProps {
   testQuestionBar?: boolean;
   /** Students can study just the cards they missed (stamped on study assignments). */
   missedCards?: boolean;
-  /** Study cards show extra accepted answers small, one per line (answer rows flag). */
-  answerLines?: boolean;
   onSettingsChange?: (settings: FlashcardModeSettings) => void;
   onBack?: () => void;
 }
@@ -186,7 +184,6 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
   seed = 'flashcards',
   testQuestionBar,
   missedCards = false,
-  answerLines = false,
   onSettingsChange,
   onBack,
 }) => {
@@ -1117,7 +1114,6 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
             starred={session.study.starred}
             showMarks={adapter.showsMarks}
             dark={dark}
-            answerLines={answerLines}
             onRecord={record}
             onStar={star}
             onNextRound={nextRound}

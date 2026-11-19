@@ -57,8 +57,6 @@ import {
   Utensils,
   CloudSun,
   SquareChevronDown,
-  Split,
-  ImagePlus,
   CalendarClock,
   MessageSquare,
   SlidersHorizontal,
@@ -630,29 +628,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Flashcards accepted answers as rows. Admin-only until Paul has tested it in prod.
-  'flashcard-answer-rows': {
-    label: 'Flashcards answer rows',
-    icon: Split,
-    description:
-      'Each accepted answer gets its own row, and slash shorthand spells out into rows.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Flashcards card images. Admin-only until Paul has tested it in prod.
-  'flashcard-card-images': {
-    label: 'Flashcards card images',
-    icon: ImagePlus,
-    description: 'Teachers can paste or pick an image for each side of a card.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Live tour editing v2 and tour materials. Admin-only until Paul has edited tours with it in prod.
   'live-tour-editing-v2': {
     label: 'Live tour editing v2',
@@ -986,22 +961,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     modalLabel: 'Printed versions for groups',
     group: 'assigning',
     requires: 'modification-groups',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Fill in the blank on paper sheets as write-in lines; needs handwritten answers too.
-  'paper-fill-in-blank': {
-    label: 'Fill-in-the-blank on paper',
-    icon: TextCursorInput,
-    description:
-      'Fill-in-the-blank questions print a write-in line for each blank and are scored on import.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'quiz',
-    modalLabel: 'Fill-in-the-blank on paper',
-    group: 'questions',
-    requires: 'paper-handwritten-responses',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
