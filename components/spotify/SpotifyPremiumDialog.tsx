@@ -53,14 +53,11 @@ export const SpotifyPremiumDialog: React.FC<Props> = ({
   };
 
   const customHeader = (
-    <div className="flex items-center gap-2.5 px-6 pt-5 pb-2">
+    <div className="flex items-center gap-2.5 px-6 py-3.5 mb-4 bg-brand-blue-primary text-white rounded-t-2xl">
       <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
         <Music2 className="w-5 h-5 text-green-700" />
       </div>
-      <h3
-        id="spotify-premium-title"
-        className="text-lg font-bold text-slate-900"
-      >
+      <h3 id="spotify-premium-title" className="text-lg font-bold text-white">
         Spotify Premium required
       </h3>
     </div>
@@ -97,7 +94,7 @@ export const SpotifyPremiumDialog: React.FC<Props> = ({
       customHeader={customHeader}
       contentClassName="px-0 pb-0"
       footer={footer}
-      footerClassName="p-6 pt-3 border-t border-slate-100"
+      footerClassName="px-6 py-4"
     >
       <div className="px-6 py-4 space-y-3 text-sm text-slate-700">
         <p>

@@ -29,6 +29,7 @@ import {
   reprintClasses,
   reprintSheets,
 } from '@/utils/paperReprint';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 
 /** One saved stack and the quiz version it printed from. */
 export interface ReprintStack {
@@ -316,6 +317,7 @@ export const PaperStacksReprintDialog: React.FC<ReprintDialogProps> = ({
 
   return (
     <Modal
+      accent={LIBRARY_HEADER_ACCENTS.quiz}
       isOpen
       onClose={onClose}
       title={

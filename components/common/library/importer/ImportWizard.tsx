@@ -610,11 +610,11 @@ export function ImportWizard<TData>({
   );
 
   const customHeader = (
-    <div className="flex items-center justify-between gap-4 px-6 py-4 border-b border-slate-200 shrink-0 bg-white rounded-t-2xl">
+    <div className="flex items-center justify-between gap-4 px-6 py-3.5 shrink-0 bg-brand-blue-primary text-white rounded-t-2xl">
       <div className="flex flex-col min-w-0">
         <h3
           id="import-wizard-title"
-          className="font-black text-lg text-slate-800 truncate"
+          className="font-black text-lg text-white truncate"
         >
           Import {adapter.widgetLabel}
         </h3>
@@ -624,7 +624,7 @@ export function ImportWizard<TData>({
         type="button"
         onClick={handleClose}
         disabled={busy}
-        className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+        className="p-1.5 hover:bg-white/15 rounded-full text-white/80 transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
         aria-label="Close import wizard"
         {...tourAttr('import-wizard.close')}
       >
@@ -1109,7 +1109,7 @@ export function ImportWizard<TData>({
       onClose={handleClose}
       customHeader={customHeader}
       footer={footer}
-      footerClassName="shrink-0 border-t border-slate-200 rounded-b-2xl"
+      footerClassName=""
       maxWidth={pairedSources ? 'max-w-3xl' : 'max-w-2xl'}
       className="font-sans"
       contentClassName="px-6 py-5 bg-slate-50"

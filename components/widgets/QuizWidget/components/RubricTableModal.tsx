@@ -397,7 +397,9 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
     );
 
   const header = (
-    <div className="flex shrink-0 items-start gap-3 px-6 pb-4 pt-6">
+    <div
+      className={`mb-4 flex shrink-0 items-start gap-3 bg-brand-blue-primary px-6 py-3.5 text-white ${fullscreen ? '' : 'rounded-t-2xl'}`}
+    >
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           {editing ? (
@@ -416,7 +418,7 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
               className={`${fieldBase} max-w-xl text-lg font-bold`}
             />
           ) : (
-            <h3 className="break-words text-lg font-bold text-slate-900">
+            <h3 className="break-words text-lg font-bold text-white">
               {shown.title}
             </h3>
           )}
@@ -425,17 +427,17 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
               type="button"
               onClick={startEditing}
               {...tourTypeAttr('quiz-grading.rubric-table-edit', 'quiz')}
-              className="flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-sm font-semibold text-brand-blue-primary transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
+              className="flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-sm font-semibold text-white transition-colors hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-white"
             >
               <Pencil className="h-4 w-4" aria-hidden />
               Edit
             </button>
           )}
         </div>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-sm text-white/80">
           {shown.criteria.length} criteria · {pts(rubricMaxPoints(shown))}
           {scored.length > 0 && !editing && (
-            <span className="font-semibold text-brand-blue-primary">
+            <span className="font-semibold text-white">
               {' '}
               · This student {earned} / {rubricMaxPoints(rubric)}
             </span>
@@ -455,7 +457,7 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
           onClick={onOrderChange}
           {...tourTypeAttr('quiz-grading.rubric-table-order', 'quiz')}
           aria-label={`Level order: ${order === 'high-first' ? 'Highest' : 'Lowest'} first. Switch to ${order === 'high-first' ? 'lowest' : 'highest'} first`}
-          className="flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-semibold text-brand-blue-primary transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
+          className="flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-white"
         >
           <ArrowLeftRight className="h-4 w-4" aria-hidden />
           {order === 'high-first' ? 'Highest first' : 'Lowest first'}
@@ -464,13 +466,14 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
       <FullscreenToggleButton
         fullscreen={fullscreen}
         onToggle={() => setFullscreen(!fullscreen)}
+        onAccent
       />
       <button
         type="button"
         onClick={onClose}
         {...tourTypeAttr('quiz-grading.rubric-table-x', 'quiz')}
         aria-label="Close"
-        className="rounded-full p-1 text-slate-400 transition-colors hover:bg-slate-100"
+        className="rounded-full p-1 text-white/80 transition-colors hover:bg-white/15 hover:text-white"
       >
         <X size={20} />
       </button>

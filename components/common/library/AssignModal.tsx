@@ -83,14 +83,14 @@ export function AssignModal<TOptions>({
   const confirmButtonDisabled = confirmDisabled || submitting || outward.locked;
 
   const customHeader = (
-    <div className="flex items-center justify-between gap-4 px-6 py-4 border-b border-slate-200 shrink-0">
+    <div className="flex items-center justify-between gap-4 px-6 py-3.5 shrink-0 bg-brand-blue-primary text-white rounded-t-2xl">
       <div className="min-w-0">
-        <p className="text-xxs font-bold text-brand-blue-primary/60 uppercase tracking-widest">
+        <p className="text-xxs font-bold text-white/80 uppercase tracking-widest">
           {eyebrow}
         </p>
         <h3
           id={MODAL_LABEL_ID}
-          className="font-black text-lg text-slate-800 truncate"
+          className="font-black text-lg text-white truncate"
         >
           {itemTitle}
         </h3>
@@ -100,7 +100,7 @@ export function AssignModal<TOptions>({
         onClick={onClose}
         disabled={submitting}
         {...tourAttr('assign-modal.cancel-header')}
-        className="text-sm font-bold text-slate-500 hover:text-slate-700 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="text-sm font-bold text-white/80 hover:text-white px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         aria-label="Close"
       >
         Cancel
@@ -152,7 +152,7 @@ export function AssignModal<TOptions>({
       onClose={submitting ? () => undefined : onClose}
       customHeader={customHeader}
       footer={footer}
-      footerClassName="shrink-0 border-t border-slate-200 bg-white"
+      footerClassName=""
       maxWidth="max-w-lg"
       className="bg-white rounded-2xl shadow-2xl"
       contentClassName="px-6 py-5 space-y-5"

@@ -27,8 +27,8 @@ export const DocEmbedModal: React.FC<{
       maxWidth="max-w-5xl"
       contentClassName="px-0 pb-0"
       customHeader={
-        <div className="flex items-center gap-3 border-b border-slate-200 px-6 py-3">
-          <h2 className="min-w-0 flex-1 truncate text-base font-bold text-slate-800">
+        <div className="flex items-center gap-3 px-6 py-3.5 bg-brand-blue-primary text-white rounded-t-2xl">
+          <h2 className="min-w-0 flex-1 truncate text-base font-bold text-white">
             {title}
           </h2>
           <a
@@ -36,7 +36,7 @@ export const DocEmbedModal: React.FC<{
             target="_blank"
             rel="noopener noreferrer"
             {...tourAttr('teams.doc-embed.open-docs')}
-            className="inline-flex items-center gap-1 rounded-sm text-xs font-semibold text-brand-blue-primary hover:text-brand-blue-dark focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+            className="inline-flex items-center gap-1 rounded-sm text-xs font-semibold text-white/80 hover:text-white focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/60"
           >
             Open in Docs
             <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />

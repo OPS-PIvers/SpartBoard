@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { tourAttr } from '@/config/tourAnchors';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 
 export type ReopenStudentStatus =
   'not-started' | 'absent' | 'in-progress' | 'turned-in' | 'on-paper';
@@ -95,6 +96,7 @@ export const ReopenStudentsDialog: React.FC<ReopenStudentsDialogProps> = ({
 
   return (
     <Modal
+      accent={LIBRARY_HEADER_ACCENTS.quiz}
       isOpen={isOpen}
       onClose={busy ? () => undefined : onClose}
       title={title}

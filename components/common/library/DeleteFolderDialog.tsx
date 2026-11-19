@@ -112,24 +112,24 @@ export const DeleteFolderDialog: React.FC<DeleteFolderDialogProps> = ({
   };
 
   const header = (
-    <div className="flex items-center gap-2.5 px-5 pt-5">
+    <div className="flex items-center gap-2.5 px-5 py-3.5 bg-brand-blue-primary text-white rounded-t-2xl mb-4">
       <span
         className={`shrink-0 flex items-center justify-center w-9 h-9 rounded-xl bg-amber-100 ${swatch?.icon ?? 'text-amber-700'}`}
       >
         <Folder className="w-5 h-5" aria-hidden="true" />
       </span>
       <div className="flex-1 min-w-0">
-        <h2 id={titleId} className="font-bold text-brand-blue-dark text-base">
+        <h2 id={titleId} className="font-bold text-white text-base">
           Delete “{folder.name}”?
         </h2>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-white/80">
           {joinCounts([subfolders, items], ' · ')} inside
         </p>
       </div>
       <button
         type="button"
         onClick={onCancel}
-        className="self-start p-1 rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+        className="self-start p-1 rounded-full text-white/80 hover:bg-white/15 hover:text-white"
         aria-label="Close"
       >
         <X className="w-4 h-4" />

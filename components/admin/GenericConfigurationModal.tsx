@@ -42,23 +42,23 @@ export const GenericConfigurationModal: React.FC<
   features,
 }) => {
   const header = (
-    <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+    <div className="px-6 py-3.5 flex items-center justify-between gap-3 bg-brand-blue-primary text-white rounded-t-2xl shrink-0">
       <div className="flex items-center gap-3">
-        <div className={`${tool.color} p-2 rounded-xl text-white`}>
+        <div className={`bg-white/15 p-2 rounded-xl text-white`}>
           <tool.icon className="w-6 h-6" />
         </div>
         <div>
-          <h2 className="text-lg font-black text-slate-800 tracking-tight">
+          <h2 className="text-lg font-black text-white tracking-tight">
             {tool.label} Administration
           </h2>
-          <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">
+          <p className="text-xs text-white/80 font-medium uppercase tracking-wider">
             Global Settings & Building Defaults
           </p>
         </div>
       </div>
       <button
         onClick={onClose}
-        className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
+        className="p-2 hover:bg-white/15 rounded-full text-white/80 transition-colors"
         aria-label="Close"
         {...tourTypeAttr('admin.widget-config.close', tool.type)}
       >
@@ -111,7 +111,7 @@ export const GenericConfigurationModal: React.FC<
       footer={footer}
       className="p-0!"
       contentClassName="bg-slate-50"
-      footerClassName="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between w-full shrink-0"
+      footerClassName="px-6 py-4 flex items-center justify-between w-full"
     >
       <div className="p-6 space-y-8">
         <FeatureConfigurationPanel

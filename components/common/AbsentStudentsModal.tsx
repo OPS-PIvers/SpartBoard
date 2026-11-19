@@ -118,14 +118,14 @@ export const AbsentStudentsModal: React.FC<AbsentStudentsModalProps> = ({
       className="h-[80vh]"
       contentClassName="px-6 pb-4 flex flex-col"
       customHeader={
-        <div className="px-6 pt-5 pb-3 flex items-center justify-between gap-4 border-b border-slate-100">
+        <div className="px-6 py-3.5 flex items-center justify-between gap-4 bg-brand-blue-primary text-white rounded-t-2xl">
           {title}
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={clearAll}
               {...tourAttr('absent-students.clear-all')}
               disabled={absentIds.size === 0}
-              className="text-xs font-black uppercase tracking-wider text-slate-400 hover:text-brand-blue-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              className="text-xs font-black uppercase tracking-wider text-white/80 hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             >
               {t('widgets.random.absent.clearAll', {
                 defaultValue: 'Clear all (everyone present)',
@@ -134,7 +134,7 @@ export const AbsentStudentsModal: React.FC<AbsentStudentsModalProps> = ({
             <button
               onClick={onClose}
               {...tourAttr('absent-students.close')}
-              className="p-1.5 hover:bg-slate-100 rounded-full text-slate-500 hover:text-slate-800 transition-colors"
+              className="p-1.5 hover:bg-white/15 rounded-full text-white/80 hover:text-white transition-colors"
               aria-label={t('common.close', { defaultValue: 'Close' })}
             >
               <X size={20} />
