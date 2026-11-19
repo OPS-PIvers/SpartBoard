@@ -15,6 +15,7 @@
     "dev:verify": "node scripts/serve-verify.mjs",
     "build": "node scripts/generate-version.js && vite build && vite build --config vite.mcp-app.config.ts && vite build --config vite.prerender.config.ts && node dist-ssr/prerender-legal.js",
     "changelog:draft": "node scripts/draft-changelog-entry.js",
+    "changelog:collect": "node scripts/changelogFragments.ts collect",
     "preview": "vite preview",
     "lint": "pnpm run lint:app && pnpm run lint:functions && pnpm run lint:extension",
     "lint:app": "node scripts/lintApp.mjs",

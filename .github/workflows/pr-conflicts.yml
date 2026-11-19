@@ -1,0 +1,95 @@
+name: PR Conflicts
+
+# GitHub runs no pull_request checks while a PR conflicts with its base, so a conflicted PR just sits with no checks.
+# This labels and comments on any open PR into dev-paul or main that can't merge, and clears the label once it can.
+# pull_request_target runs from the base branch even when the PR conflicts. It never checks out or runs PR code.
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, edited, ready_for_review]
+    branches: [dev-paul, main]
+  push:
+    branches: [dev-paul, main]
+  schedule:
+    - cron: '23 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: pr-conflicts-${{ github.event.pull_request.number || 'all' }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  label:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const LABEL = 'merge-conflict';
+            const MARKER = '<!-- pr-conflicts -->';
+            const BASES = new Set(['dev-paul', 'main']);
+            const only = context.payload.pull_request?.number ?? null;
+            const { owner, repo } = context.repo;
+
+            try {
+              await github.rest.issues.getLabel({ owner, repo, name: LABEL });
+            } catch {
+              await github.rest.issues.createLabel({
+                owner, repo, name: LABEL, color: 'b60205',
+                description: 'Conflicts with its base branch, so CI will not run',
+              });
+            }
+
+            const query = `query($owner: String!, $repo: String!, $cursor: String) {
+              repository(owner: $owner, name: $repo) {
+                pullRequests(states: OPEN, first: 100, after: $cursor) {
+                  pageInfo { hasNextPage endCursor }
+                  nodes { number baseRefName mergeable labels(first: 30) { nodes { name } } }
+                }
+              }
+            }`;
+            const fetchOpen = async () => {
+              const out = [];
+              let cursor = null;
+              do {
+                const res = await github.graphql(query, { owner, repo, cursor });
+                const page = res.repository.pullRequests;
+                out.push(...page.nodes);
+                cursor = page.pageInfo.hasNextPage ? page.pageInfo.endCursor : null;
+              } while (cursor);
+              return out.filter((p) => BASES.has(p.baseRefName) && (only === null || p.number === only));
+            };
+
+            // GitHub computes mergeability lazily after a push; UNKNOWN means ask again shortly.
+            let prs = await fetchOpen();
+            for (let round = 0; round < 8 && prs.some((p) => p.mergeable === 'UNKNOWN'); round++) {
+              await new Promise((r) => setTimeout(r, 10000));
+              prs = await fetchOpen();
+            }
+
+            for (const pr of prs) {
+              const labelled = pr.labels.nodes.some((l) => l.name === LABEL);
+              if (pr.mergeable === 'CONFLICTING' && !labelled) {
+                await github.rest.issues.addLabels({ owner, repo, issue_number: pr.number, labels: [LABEL] });
+                await github.rest.issues.createComment({
+                  owner, repo, issue_number: pr.number,
+                  body: [
+                    MARKER,
+                    `This branch has a merge conflict with \`${pr.baseRefName}\`. GitHub runs no checks on this PR until it is fixed.`,
+                    '',
+                    `To fix it, merge \`origin/${pr.baseRefName}\` into the branch, resolve the conflicts, and push. Checks start again on that push. The \`${LABEL}\` label comes off by itself.`,
+                  ].join('\n'),
+                });
+                core.info(`#${pr.number}: conflicting, labelled`);
+              } else if (pr.mergeable === 'MERGEABLE' && labelled) {
+                await github.rest.issues.removeLabel({ owner, repo, issue_number: pr.number, name: LABEL });
+                core.info(`#${pr.number}: resolved, label removed`);
+              } else {
+                core.info(`#${pr.number}: ${pr.mergeable}`);
+              }
+            }
