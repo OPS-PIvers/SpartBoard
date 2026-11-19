@@ -13,7 +13,7 @@ import {
   CLASSLINK_TENANT_URL,
 } from '../secrets';
 import { loadTeacherClassIds } from '../studentIdentity';
-import { isTestClassAuthority } from '../studentAssignmentTargets';
+import { isTestClassAuthority } from '../studentTargetDirectory';
 import { staffEmailFromToken } from '../verifiedClassList';
 import { assertViewAsAllowed } from '../viewAsGuard';
 import {

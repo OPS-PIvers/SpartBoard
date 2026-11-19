@@ -194,7 +194,7 @@ export const FolderItem = React.memo(
                           window.innerHeight - 12
                         )
                       ),
-                      transform: 'translateY(-50%)',
+                      translate: '0 -50%',
                       zIndex: Z_INDEX.popover,
                     }
                   : dockPosition === 'right'
@@ -208,18 +208,18 @@ export const FolderItem = React.memo(
                             window.innerHeight - 12
                           )
                         ),
-                        transform: 'translateY(-50%)',
+                        translate: '0 -50%',
                         zIndex: Z_INDEX.popover,
                       }
                     : {
                         position: 'fixed',
                         left: anchorRect.left + anchorRect.width / 2,
                         bottom: window.innerHeight - anchorRect.top + 12,
-                        transform: 'translateX(-50%)',
+                        translate: '-50% 0',
                         zIndex: Z_INDEX.popover,
                       }
               }
-              className={`w-64 p-4 animate-in duration-200 ${
+              className={`w-64 p-4 animate-in fade-in duration-200 ${
                 dockPosition === 'left'
                   ? 'slide-in-from-left-2'
                   : dockPosition === 'right'

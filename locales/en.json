@@ -3675,6 +3675,8 @@
       "yourAnswers": "Your Answers",
       "otherQuestions": "Other questions",
       "yourAnswer": "Your answer:",
+      "yourAnswerTag": "Your answer",
+      "correctAnswerTag": "Correct answer",
       "scoreOnly": "Your teacher published your score. Detailed responses aren't shared for this assignment."
     },
     "rubric": {
