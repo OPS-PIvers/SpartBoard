@@ -16,8 +16,8 @@ describe('Publish results dialog loads without the loading pane', () => {
   it('Quiz', () => {
     const block = publishBlock(
       'components/widgets/QuizWidget/Widget.tsx',
-      'const publishScoresModal = publishingAssignment ? (',
-      ') : null;'
+      'const publishQuizScoresFor = async (',
+      'const saveLastProtection'
     );
     expect(block).toContain('loadAnswerKeyQuizQuietly(');
     expect(block).not.toMatch(/\bloadAnswerKeyQuiz\(/);

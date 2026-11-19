@@ -27397,7 +27397,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "destructive": true,
     "persists": true,
-    "key_pattern": "[a-z-]+#(close|move-to-done|delete)",
+    "key_pattern": "[a-z-]+#(close|move-to-done|publish|delete)",
     "key_hint": "quiz#delete is Delete for the picked quizzes",
     "routes": [
       {
