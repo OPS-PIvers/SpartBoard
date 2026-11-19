@@ -37,7 +37,15 @@ import {
   VideoActivitySessionMode,
   RESULTS_PROTECTION_DEFAULTS,
 } from '@/types';
-import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
+import type { ResultsProtection } from '@/types';
+import {
+  PublishScoresModal,
+  type PublishScoresVisibility,
+} from '@/components/common/library/PublishScoresModal';
+import {
+  runBulkPublish,
+  sharedVisibility,
+} from '@/components/common/library/assigned/bulkPublish';
 import { AssignmentClassesModal } from '@/components/common/library/AssignmentClassesModal';
 import { VideoAssignmentSettingsModal } from './components/VideoAssignmentSettingsModal';
 import { AssignToClassroomModal } from '@/components/classroomAddon/AssignToClassroomModal';
@@ -287,6 +295,17 @@ const TeacherVideoActivityWidget: React.FC<{
     useState<VideoActivityAssignment | null>(null);
   const [publishingAssignment, setPublishingAssignment] =
     useState<VideoActivityAssignment | null>(null);
+  // Closed assignments picked on the Assigned tab for one shared publish.
+  const [bulkPublishing, setBulkPublishing] = useState<
+    VideoActivityAssignment[] | null
+  >(null);
+  const publishTargets: VideoActivityAssignment[] = publishingAssignment
+    ? [publishingAssignment]
+    : (bulkPublishing ?? []);
+  const closePublish = () => {
+    setPublishingAssignment(null);
+    setBulkPublishing(null);
+  };
   // Ephemeral modal state for the "Assign to Google Classroom" flow (flag-gated).
   const [assigningToClassroom, setAssigningToClassroom] =
     useState<VideoActivityAssignment | null>(null);
@@ -828,6 +847,129 @@ const TeacherVideoActivityWidget: React.FC<{
       </>
     );
   }
+
+  // Publishes one assignment; throws on failure.
+  const publishVaScoresFor = async (
+    target: VideoActivityAssignment,
+    visibility: PublishScoresVisibility,
+    protection: ResultsProtection | undefined,
+    { quiet, token }: { quiet: boolean; token?: string | null }
+  ): Promise<boolean> => {
+    if (visibility === 'none') {
+      await unpublishAssignmentScores(target.id);
+      if (!quiet) addToast('Scores unpublished.', 'success');
+      return true;
+    }
+    // Publish = Push: pre-mint the Classroom final-grade token from
+    // THIS click (a user gesture) so the GIS popup isn't blocked after
+    // publish's awaits. A dismissed popup leaves it null → publish still
+    // proceeds, GC push is skipped. (Schoology pushes server-side.)
+    // Only partner-first attachments (SpartBoard owns the courseWork)
+    // with the feature enabled are eligible for the FINAL push — also
+    // keeps the restricted classroom.coursework.students scope request
+    // behind the flag.
+    const classroomFinalAttachments = canAssignToClassroom
+      ? getClassroomAttachments(target).filter(
+          (a) => a.ownsCourseWork && hasValidMaxPoints(a.maxPoints)
+        )
+      : [];
+    let classroomToken: string | null = token ?? null;
+    if (token === undefined && classroomFinalAttachments.length > 0) {
+      try {
+        classroomToken = await requestClassroomFinalGradeToken(
+          user?.email ?? undefined
+        );
+      } catch {
+        classroomToken = null;
+      }
+    }
+    const data = await loadActivityData(target.activityDriveFileId);
+    if (!data)
+      throw new Error('Activity content unavailable — cannot publish scores.');
+    const result = await publishAssignmentScores(
+      target.id,
+      data,
+      visibility,
+      protection,
+      canAccessFeature('va-score-only-verdicts')
+    );
+    if (!quiet)
+      addToast(
+        result.responsesUpdated > 0
+          ? `Scores published to ${result.responsesUpdated} student${result.responsesUpdated === 1 ? '' : 's'}.`
+          : 'Scores published. Students will see results once they submit.',
+        'success'
+      );
+    const finalOverlay = await loadFinalScoreOverlay(
+      {
+        kind: 'video-activity',
+        sessionId: target.id,
+        teacherUid: user?.uid,
+        uid: user?.uid,
+      },
+      canAccessFeature('gradebook')
+    );
+    const withFinal = (
+      entries: { pseudonymUid: string; pointsEarned: number }[],
+      responses: VideoActivityResponse[],
+      maxPoints: number
+    ) => {
+      if (!finalOverlay) return entries;
+      const byUid = new Map(responses.map((r) => [r.studentUid, r]));
+      return applyFinalScoresToEntries(
+        entries,
+        maxPoints,
+        finalOverlay,
+        (uid) => {
+          const r = byUid.get(uid);
+          return r
+            ? videoActivityLiveRaw(r, result.scoredQuestions, result.live)
+            : null;
+        },
+        Date.now()
+      );
+    };
+    // Chain the LMS grade push(es) — never throws (publish already
+    // committed; a push failure is its own toast).
+    await runPublishGradePush<VideoActivityResponse>({
+      functions,
+      addToast,
+      kind: 'va',
+      sessionId: target.id,
+      classroomFinalAttachments,
+      classroomToken,
+      schoologyMaxPoints: videoActivityMaxPoints(data.questions),
+      buildClassroomGrades: (responses) => {
+        const mp = classroomFinalAttachments[0]?.maxPoints;
+        return mp != null
+          ? withFinal(
+              buildVideoActivityGradeEntries(
+                responses,
+                result.scoredQuestions,
+                mp,
+                result.live
+              ),
+              responses,
+              mp
+            )
+          : [];
+      },
+      buildSchoologyGrades: (responses) => {
+        const mp = videoActivityMaxPoints(data.questions);
+        return withFinal(
+          buildVideoActivityGradeEntries(
+            responses,
+            result.scoredQuestions,
+            mp,
+            result.live
+          ),
+          responses,
+          mp
+        );
+      },
+    });
+    return true;
+  };
 
   // Default: manager view (with editor modal rendered as sibling)
   return (
@@ -1439,6 +1581,7 @@ const TeacherVideoActivityWidget: React.FC<{
         onArchivePublishScores={(assignment) =>
           setPublishingAssignment(assignment)
         }
+        onArchivePublishMany={setBulkPublishing}
         onArchiveAssignToClassroom={
           canAssignToClassroom
             ? (assignment) => setAssigningToClassroom(assignment)
@@ -1491,149 +1634,62 @@ const TeacherVideoActivityWidget: React.FC<{
         />
       )}
       {settingsModal}
-      {publishingAssignment && (
+      {publishTargets.length > 0 && (
         <PublishScoresModal
           assignmentTitle={
-            publishingAssignment.className ?? publishingAssignment.activityTitle
+            publishTargets.length === 1
+              ? (publishTargets[0].className ?? publishTargets[0].activityTitle)
+              : `${publishTargets.length} assignments`
           }
-          currentVisibility={publishingAssignment.scoreVisibility}
+          currentVisibility={sharedVisibility(publishTargets)}
           showProtection={gradebookOn}
           initialProtection={
             appSettings?.lastResultsProtection ?? RESULTS_PROTECTION_DEFAULTS
           }
-          onClose={() => setPublishingAssignment(null)}
+          onClose={closePublish}
           onConfirm={async (visibility, protection) => {
-            const target = publishingAssignment;
-            try {
-              if (visibility === 'none') {
-                await unpublishAssignmentScores(target.id);
-                addToast('Scores unpublished.', 'success');
+            if (publishingAssignment) {
+              try {
+                await publishVaScoresFor(
+                  publishingAssignment,
+                  visibility,
+                  protection,
+                  { quiet: false }
+                );
                 setPublishingAssignment(null);
-                return;
-              }
-              // Publish = Push: pre-mint the Classroom final-grade token from
-              // THIS click (a user gesture) so the GIS popup isn't blocked after
-              // publish's awaits. A dismissed popup leaves it null → publish still
-              // proceeds, GC push is skipped. (Schoology pushes server-side.)
-              // Only partner-first attachments (SpartBoard owns the courseWork)
-              // with the feature enabled are eligible for the FINAL push — also
-              // keeps the restricted classroom.coursework.students scope request
-              // behind the flag.
-              const classroomFinalAttachments = canAssignToClassroom
-                ? getClassroomAttachments(target).filter(
-                    (a) => a.ownsCourseWork && hasValidMaxPoints(a.maxPoints)
-                  )
-                : [];
-              let classroomToken: string | null = null;
-              if (classroomFinalAttachments.length > 0) {
-                try {
-                  classroomToken = await requestClassroomFinalGradeToken(
-                    user?.email ?? undefined
-                  );
-                } catch {
-                  classroomToken = null;
-                }
-              }
-              const data = await loadActivityData(target.activityDriveFileId);
-              if (!data) {
+              } catch (err) {
                 addToast(
-                  'Activity content unavailable — cannot publish scores.',
+                  err instanceof Error
+                    ? err.message
+                    : 'Failed to publish scores',
                   'error'
                 );
-                return;
               }
-              const result = await publishAssignmentScores(
-                target.id,
-                data,
-                visibility,
-                protection,
-                canAccessFeature('va-score-only-verdicts')
-              );
-              addToast(
-                result.responsesUpdated > 0
-                  ? `Scores published to ${result.responsesUpdated} student${result.responsesUpdated === 1 ? '' : 's'}.`
-                  : 'Scores published. Students will see results once they submit.',
-                'success'
-              );
-              const finalOverlay = await loadFinalScoreOverlay(
-                {
-                  kind: 'video-activity',
-                  sessionId: target.id,
-                  teacherUid: user?.uid,
-                  uid: user?.uid,
-                },
-                canAccessFeature('gradebook')
-              );
-              const withFinal = (
-                entries: { pseudonymUid: string; pointsEarned: number }[],
-                responses: VideoActivityResponse[],
-                maxPoints: number
-              ) => {
-                if (!finalOverlay) return entries;
-                const byUid = new Map(responses.map((r) => [r.studentUid, r]));
-                return applyFinalScoresToEntries(
-                  entries,
-                  maxPoints,
-                  finalOverlay,
-                  (uid) => {
-                    const r = byUid.get(uid);
-                    return r
-                      ? videoActivityLiveRaw(
-                          r,
-                          result.scoredQuestions,
-                          result.live
-                        )
-                      : null;
-                  },
-                  Date.now()
-                );
-              };
-              // Chain the LMS grade push(es) — never throws (publish already
-              // committed; a push failure is its own toast).
-              await runPublishGradePush<VideoActivityResponse>({
-                functions,
-                addToast,
-                kind: 'va',
-                sessionId: target.id,
-                classroomFinalAttachments,
-                classroomToken,
-                schoologyMaxPoints: videoActivityMaxPoints(data.questions),
-                buildClassroomGrades: (responses) => {
-                  const mp = classroomFinalAttachments[0]?.maxPoints;
-                  return mp != null
-                    ? withFinal(
-                        buildVideoActivityGradeEntries(
-                          responses,
-                          result.scoredQuestions,
-                          mp,
-                          result.live
-                        ),
-                        responses,
-                        mp
-                      )
-                    : [];
-                },
-                buildSchoologyGrades: (responses) => {
-                  const mp = videoActivityMaxPoints(data.questions);
-                  return withFinal(
-                    buildVideoActivityGradeEntries(
-                      responses,
-                      result.scoredQuestions,
-                      mp,
-                      result.live
-                    ),
-                    responses,
-                    mp
-                  );
-                },
-              });
-              setPublishingAssignment(null);
-            } catch (err) {
-              addToast(
-                err instanceof Error ? err.message : 'Failed to publish scores',
-                'error'
-              );
+              return;
             }
+            const targets = publishTargets;
+            await runBulkPublish({
+              targets,
+              unpublish: visibility === 'none',
+              mintToken:
+                canAssignToClassroom &&
+                targets.some((t) =>
+                  getClassroomAttachments(t).some(
+                    (a) => a.ownsCourseWork && hasValidMaxPoints(a.maxPoints)
+                  )
+                )
+                  ? () =>
+                      requestClassroomFinalGradeToken(user?.email ?? undefined)
+                  : undefined,
+              publishOne: (t, token) =>
+                publishVaScoresFor(t, visibility, protection, {
+                  quiet: true,
+                  token,
+                }),
+              addToast,
+              logKey: 'VideoActivityWidget.bulkPublishScores',
+            });
+            closePublish();
           }}
         />
       )}

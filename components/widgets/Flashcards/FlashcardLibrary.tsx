@@ -82,6 +82,8 @@ interface FlashcardLibraryProps {
   onAssignmentReopen: (assignment: FlashcardAssignment) => void;
   onAssignmentDelete: (assignment: FlashcardAssignment) => void;
   /** Assigned tab bulk delete, already confirmed; resolves to how many failed. */
+  /** Opens the publish dialog once for several closed assignments. */
+  onAssignmentPublishMany?: (assignments: FlashcardAssignment[]) => void;
   onAssignmentDeleteMany?: (
     assignments: FlashcardAssignment[]
   ) => Promise<number>;
@@ -148,6 +150,7 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
   onAssignmentReopen,
   onAssignmentDelete,
   onAssignmentDeleteMany,
+  onAssignmentPublishMany,
   onError,
   onShareWithPlc,
   onAssignmentStopSharingWithPlc,
@@ -351,6 +354,7 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
         onPublish={onAssignmentPublishScores}
         menu={assignedMenu}
         onBulkDelete={onAssignmentDeleteMany}
+        onBulkPublish={onAssignmentPublishMany}
       />
     ) : assignmentsLoading ? (
       <div

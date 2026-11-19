@@ -291,6 +291,8 @@ export interface GuidedLearningManagerProps {
   onAssignmentUnarchive: (assignment: GuidedLearningAssignment) => void;
   onAssignmentDelete: (assignment: GuidedLearningAssignment) => void;
   /** Assigned tab bulk delete, already confirmed; resolves to how many failed. */
+  /** Opens the publish dialog once for several closed assignments. */
+  onAssignmentPublishMany?: (assignments: GuidedLearningAssignment[]) => void;
   onAssignmentDeleteMany?: (
     assignments: GuidedLearningAssignment[]
   ) => Promise<number>;
@@ -530,6 +532,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   onAssignmentUnarchive,
   onAssignmentDelete,
   onAssignmentDeleteMany,
+  onAssignmentPublishMany,
   onAssignmentPublishScores,
   onAssignmentUnpublishScores,
   assignmentMode = 'submissions',
@@ -1521,6 +1524,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       collections={GL_CLASS_COLLECTIONS}
       lifecycle={classLifecycle ?? null}
       onBulkDelete={onAssignmentDeleteMany}
+      onBulkPublish={onAssignmentPublishMany}
       tourWidgetType="guided-learning"
       emptyTitle="Nothing active"
       emptySub={

@@ -65,7 +65,8 @@ const onCopy = vi.fn<(id: string) => void>();
 function renderTab(
   assignments: MiniAppAssignment[],
   responses: Record<string, AssignedResponse[]> = {},
-  onBulkDelete?: (list: MiniAppAssignment[]) => Promise<number>
+  onBulkDelete?: (list: MiniAppAssignment[]) => Promise<number>,
+  onBulkPublish?: (list: MiniAppAssignment[]) => void
 ) {
   return render(
     <RunAssignedResponsesFixture.Provider value={responses}>
@@ -98,6 +99,7 @@ function renderTab(
         ]}
         replacedMenuIds={['end', 'reactivate']}
         onBulkDelete={onBulkDelete}
+        onBulkPublish={onBulkPublish}
       />
     </RunAssignedResponsesFixture.Provider>
   );
@@ -212,6 +214,48 @@ describe('RunAssignedTab bulk select', () => {
       expect.objectContaining({ id: 'a2' }),
     ]);
     expect(addToast).toHaveBeenCalledWith('1 assignment deleted.', 'success');
+  });
+
+  it('publishes only the closed rows and counts the rest as skipped', async () => {
+    const publish = vi.fn();
+    renderTab(
+      [
+        ma({
+          id: 'c1',
+          assignmentName: 'Closed app',
+          status: 'inactive',
+        }),
+        ...two(),
+      ],
+      {},
+      vi.fn(() => Promise.resolve(0)),
+      publish
+    );
+    await userEvent.click(screen.getByRole('button', { name: /^Done/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Select' }));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Select all' }));
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Publish scores' })
+    );
+    expect(publish).toHaveBeenCalledWith([
+      expect.objectContaining({ id: 'c1' }),
+    ]);
+    expect(addToast).toHaveBeenCalledWith(
+      '2 assignments were skipped. They are not closed yet.',
+      'info'
+    );
+  });
+
+  it('offers no Publish scores when every pick is open', async () => {
+    renderTab(
+      two(),
+      {},
+      vi.fn(() => Promise.resolve(0)),
+      vi.fn()
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Select' }));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Select all' }));
+    expect(screen.queryByRole('button', { name: 'Publish scores' })).toBeNull();
   });
 
   it('offers no Move to Done for a view-only share', async () => {

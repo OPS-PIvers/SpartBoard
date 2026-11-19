@@ -92,6 +92,8 @@ export interface RunAssignedTabProps<A extends RunAssignment> {
   footerLead?: (a: A) => string | null;
   /** Deletes without asking; resolves to how many failed. Turns on bulk select. */
   onBulkDelete?: (assignments: A[]) => Promise<number>;
+  /** Opens the publish dialog once for the picked closed rows. */
+  onBulkPublish?: (assignments: A[]) => void;
 }
 
 const TICK_MS = 30_000;
@@ -192,7 +194,7 @@ interface RowModel<A> {
   status: AssignedStatus;
   assignment: A;
   bells: Record<string, EpochWindow | null>;
-  noMoveToDone: boolean;
+  viewOnly: boolean;
 }
 
 /** The Assigned tab for a kind driven by `useAssignmentClassActions` (ASSIGNED_TAB.md slice 5). */
@@ -214,6 +216,7 @@ export function RunAssignedTab<A extends RunAssignment>(
     publishes,
     normalize,
     onBulkDelete,
+    onBulkPublish,
   } = props;
   const { featurePermissions } = useAuth();
   const now = useNow();
@@ -251,7 +254,7 @@ export function RunAssignedTab<A extends RunAssignment>(
       status,
       assignment: a,
       bells,
-      noMoveToDone: viewOnly(a),
+      viewOnly: viewOnly(a),
     };
   });
 
@@ -278,7 +281,13 @@ export function RunAssignedTab<A extends RunAssignment>(
         tourWidgetType={tourWidgetType}
         bulk={
           onBulkDelete
-            ? { remove: (rs) => onBulkDelete(rs.map((r) => r.assignment)) }
+            ? {
+                remove: (rs) => onBulkDelete(rs.map((r) => r.assignment)),
+                publish: onBulkPublish
+                  ? (rs) => onBulkPublish(rs.map((r) => r.assignment))
+                  : undefined,
+                canPublish: (r) => publishes?.(r.assignment) ?? true,
+              }
             : undefined
         }
         renderLeftOpen={(row, cls, index, leaveOpen) => (

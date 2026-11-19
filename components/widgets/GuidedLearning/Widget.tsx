@@ -74,6 +74,10 @@ import {
   type AssignTargetingValue,
 } from '@/components/common/library';
 import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
+import {
+  runBulkPublish,
+  sharedVisibility,
+} from '@/components/common/library/assigned/bulkPublish';
 import { AssignmentClassesModal } from '@/components/common/library/AssignmentClassesModal';
 import { logError } from '@/utils/logError';
 import {
@@ -420,6 +424,9 @@ const TeacherGuidedLearningWidget: React.FC<{
   // Mirrors the QuizWidget / VideoActivityWidget pattern.
   const [publishingAssignment, setPublishingAssignment] =
     useState<GuidedLearningAssignment | null>(null);
+  const [bulkPublishing, setBulkPublishing] = useState<
+    GuidedLearningAssignment[] | null
+  >(null);
   const [editingClasses, setEditingClasses] =
     useState<GuidedLearningAssignment | null>(null);
   const [pickerValue, setPickerValue] = useState<AssignClassPickerValue>(() =>
@@ -1862,6 +1869,7 @@ const TeacherGuidedLearningWidget: React.FC<{
                   onAssignmentPublishScores={(a) => {
                     setPublishingAssignment(a);
                   }}
+                  onAssignmentPublishMany={setBulkPublishing}
                   onAssignmentUnpublishScores={async (a) => {
                     // One-click unpublish — `unpublishAssignmentScores`
                     // is a cheap two-write batch (no set lookup, no
@@ -2126,6 +2134,46 @@ const TeacherGuidedLearningWidget: React.FC<{
               addToast("Couldn't save classes.", 'error');
               throw err;
             }
+          }}
+        />
+      )}
+
+      {bulkPublishing && (
+        <PublishScoresModal
+          assignmentTitle={`${bulkPublishing.length} assignments`}
+          currentVisibility={sharedVisibility(bulkPublishing)}
+          showProtection={gradebookOn}
+          initialProtection={
+            appSettings?.lastResultsProtection ?? RESULTS_PROTECTION_DEFAULTS
+          }
+          onClose={() => setBulkPublishing(null)}
+          onConfirm={async (visibility, protection) => {
+            await runBulkPublish({
+              targets: bulkPublishing,
+              unpublish: visibility === 'none',
+              publishOne: async (t) => {
+                if (visibility === 'none') {
+                  await unpublishAssignmentScores(t.id);
+                  return true;
+                }
+                const data = await loadSetQuietly(
+                  t.setId,
+                  sets.find((x) => x.id === t.setId)?.driveFileId,
+                  buildingSets.find((x) => x.id === t.setId)
+                );
+                if (!data) return false;
+                await publishAssignmentScores(
+                  t.id,
+                  withFrozenAnswerKeys(data, t.answerKeys),
+                  visibility,
+                  protection
+                );
+                return true;
+              },
+              addToast,
+              logKey: 'GuidedLearningWidget.bulkPublishScores',
+            });
+            setBulkPublishing(null);
           }}
         />
       )}

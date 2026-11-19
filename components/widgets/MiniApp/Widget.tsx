@@ -100,6 +100,10 @@ import { MiniAppAssignmentMonitor } from './components/MiniAppAssignmentMonitor'
 import { MiniAppManager } from './components/MiniAppManager';
 import { AssignmentClassesModal } from '@/components/common/library/AssignmentClassesModal';
 import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
+import {
+  runBulkPublish,
+  sharedVisibility,
+} from '@/components/common/library/assigned/bulkPublish';
 import { SaveAsWidgetModal } from './components/SaveAsWidgetModal';
 import { useMiniAppSync } from './hooks/useMiniAppSync';
 import { useDialog } from '@/context/useDialog';
@@ -550,6 +554,9 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   } | null>(null);
   const [publishingScores, setPublishingScores] =
     useState<MiniAppAssignment | null>(null);
+  const [bulkPublishing, setBulkPublishing] = useState<
+    MiniAppAssignment[] | null
+  >(null);
 
   // Assign flow state
   const [assigningApp, setAssigningApp] = useState<MiniAppItem | null>(null);
@@ -2020,6 +2027,11 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                   ? setPublishingScores
                   : undefined
               }
+              onArchivePublishMany={
+                canAccessFeature('mini-app-results')
+                  ? setBulkPublishing
+                  : undefined
+              }
               onArchiveMonitor={
                 canAccessFeature('mini-app-results')
                   ? (assignment) =>
@@ -2086,6 +2098,26 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                       'error'
                     );
                   }
+                }}
+              />
+            )}
+            {bulkPublishing && (
+              <PublishScoresModal
+                assignmentTitle={`${bulkPublishing.length} assignments`}
+                currentVisibility={sharedVisibility(bulkPublishing)}
+                onClose={() => setBulkPublishing(null)}
+                onConfirm={async (visibility) => {
+                  await runBulkPublish({
+                    targets: bulkPublishing,
+                    unpublish: visibility === 'none',
+                    publishOne: async (t) => {
+                      await publishMiniAppScores(t.sessionId, visibility);
+                      return true;
+                    },
+                    addToast,
+                    logKey: 'MiniAppWidget.bulkPublishScores',
+                  });
+                  setBulkPublishing(null);
                 }}
               />
             )}
