@@ -36,6 +36,7 @@ import {
   WIDGET_STRETCH_BEHAVIOR,
 } from '@/config/widgetDefaults';
 import { isTourSandboxActive } from '@/utils/tourSandbox';
+import { prefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
 
 const LIVE_SESSION_UPDATE_DEBOUNCE_MS = 800; // Balance between real-time updates and reducing Firestore write costs
 
@@ -89,9 +90,6 @@ interface WidgetRendererProps {
 
 const TOUR_GLIDE =
   'left 450ms ease-in-out, top 450ms ease-in-out, width 450ms ease-in-out, height 450ms ease-in-out';
-const prefersReducedMotion = () =>
-  typeof window !== 'undefined' &&
-  !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
 // A live tour's temporary layout, drawn over the saved one.
 const withTourLayout = (
