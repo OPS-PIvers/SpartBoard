@@ -9,7 +9,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
 - **Release review findings.** Fix small (S) findings inside the release as `release fix:` PRs. File an item here only for work that is M or larger, needs a flag or rules design, or can't ship in that release.
 - **Agent-only means agent-only.** An item in Ready needs nothing from Paul. When an item needs new wording, the agent builds it and asks Paul with a screenshot and a decision card in its thread; when it needs a real decision, it goes to PAUL_TODO.md and the item moves to Blocked.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-305**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-307**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -102,6 +102,7 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
 ### Performance and cost
 
+- **AB-306 Cache Intl.DisplayNames in language labels** (S; release 2026.11.19c review of #6278). `utils/languageDisplayLabel.ts` builds a new `Intl.DisplayNames` on every call, and it runs per row in language lists and override summaries. Keep one instance per locale in a module Map. Done when `utils/languageDisplayLabel.test.ts` still passes and a test shows a second call reuses the instance.
 - **AB-56 Web tour list cost** (M). Unblocked: rules headroom is about 25 KB since #5637; measure `check:rules-size` before and after. Store each tour's start host and step count at publish so `webToursListV1` stops reading every step.
 - **AB-99 Activity Wall cleanup retries starve behind repeat failures** (S, LOW). Since #5060 `retryStorageCleanup` (`functions/src/sweepActivityWallArchives.ts`) pages through flagged submissions but starts from the first doc every hourly run and stops at `MAX_CLEANUP_RETRIES_PER_RUN` (200), so 200+ docs that keep failing still hide later ones until the 7-day orphan sweep. Stamp a last-attempt time on failure and order by it (needs a collection-group index), or save the cursor between runs. Done when: a test with more failing docs than the cap shows a later doc retried within two runs. Same PR: check the cap per doc read (not only between pages, it can reach ~299 today) and stop the retry phase on a wall-clock budget so a slow Storage can't starve the orphan sweep in the 540 s run (release #5072 review).
 - **AB-13 Session `classIds` migration** (M, MED). F2: `useStudentAssignments` runs two queries because some session docs only carry the legacy `classId`. Write the migration that adds `classIds`, run it on dev, and stop the legacy write paths. Done when: the script and dev run are merged, and a `PT-` item asks Paul to run it on prod. The single-query collapse is AB-58.
@@ -194,6 +195,7 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
 ### Widgets and UI
 
+- **AB-305 Lunch Count redesign: translate, settle the fit, keep the date fresh** (S; release 2026.11.19c review of #6282; admin-only behind `lunch-count-redesign`). Do before that flag opens. (1) `components/widgets/LunchCount/redesign/RedesignedLunchCount.tsx` and `LunchZone.tsx` hardcode English ("Daily Lunch Count", "Submit Report", "Assign N More Students", zone names, "Unassigned", "Show photo of"); move them to `locales/*.json` (#6282 deleted the old `short*` keys). (2) `useBoardFit.ts` `fitsAt` runs up to 9 reflows per `fit()` on every board resize frame; run the board-resize path through one rAF so a drag on a Chromebook with 30+ students stays smooth. (3) The header date is `new Date()` per render and goes stale past midnight; tick it at midnight. Done when the face renders translated in es and a test covers the rAF-batched fit.
 - **AB-281 Small widget polish** (S, from AB-65 triage). (1) The Countdown grid's 12px bottom padding can add a scrollbar at the smallest sizes. (2) Number Line has a visible jump at the 500px width threshold. (3) A very long Activity Wall composer prompt grows without limit; cap it with `max-h` and scroll. Screenshot each before and after.
 - **AB-266 QR stuck on an old Text sync with no Text widget** (S). Since Connections went Public, `hiddenWithConnections` hides the old per-widget link toggles. A QR with `syncWithTextWidget: true` and no Text widget never converts (`utils/legacyConnections.ts`), so `QRDestinationField` keeps the URL box disabled and the teacher can't turn the sync off. Treat a sync with no Text widget as unsynced (or show the toggle while unconverted), and check the other unconverted toggles (Music `syncWithTimeTool`, Random `autoStartTimer` with no Timer) for the same trap.
 - **AB-211 Lunch Count middle/high refresh button on touch panels** (S, minor; release 2026.11.13d review). `components/widgets/LunchCount/MiddleHighLunchCount.tsx` refresh button is `opacity-0 group-hover:opacity-100`, so a middle or high school board on a touch-only panel never shows it. Pre-existing (moved unchanged). Use the repo's touch-panel pattern from `components/CLAUDE.md` (there is no `touch:` variant). Done when the button shows on a touch device and a test or screenshot proves it.
@@ -254,6 +256,9 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 
   <details><summary>Branches to delete (190, checked 2026-11-01)</summary>
 
+claude/release-fix-2026-11-19c (#6298)
+claude/release-2026-11-19c-followups (this docs PR, delete after it merges)
+claude/project-thread-w12g03 (release #6292 branch, delete after it merges)
 claude/project-thread-tcgprd (#6282)
 claude/project-thread-tcgprd-ab112 (this docs PR, delete after it merges)
 claude/project-thread-xutx1d (#6281)
