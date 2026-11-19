@@ -24,7 +24,7 @@ import { useTargetRect } from './targetRect';
 import { benchMark } from '../bench';
 import { useStepRhythm } from '@/components/tours/useStepRhythm';
 import { rhythmOf } from '@/components/tours/playbackEngine';
-import { usePrefersReducedMotion } from '@/components/tours/usePrefersReducedMotion';
+import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
 import { secondaryBtn } from '@/components/tours/tourButtons';
 import { TourWherePicture } from '@/components/tours/TourWherePicture';
 import { renderStepText } from '@/components/widgets/GuidedLearning/utils/richText';
