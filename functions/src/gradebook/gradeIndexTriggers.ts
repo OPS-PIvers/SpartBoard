@@ -39,6 +39,7 @@ import {
   applyAttemptWrite,
 } from '../quizAttemptHistory';
 import { stampTurnIn } from '../quizTurnIn';
+import { RosterUnavailableError } from './rosterUnavailable';
 import { migrateLegacyProjectOverrides } from '../projectGradeOverrides';
 import {
   TRIGGER_OPTS,
@@ -47,15 +48,16 @@ import {
   type WriteEvent,
 } from './gradeSessionTriggers';
 
-// Config edits re-project whole classes, so they get the long timeout.
-const FANOUT_OPTS = { ...TRIGGER_OPTS, timeoutSeconds: 540 };
-// Project rows are checked against the owner's live class roster.
+// Project rows and every Grades-tab projection are checked against the owner's live class roster.
 const ROSTER_SECRETS = [
   CLASSLINK_CLIENT_ID,
   CLASSLINK_CLIENT_SECRET,
   CLASSLINK_TENANT_URL,
   STUDENT_PSEUDONYM_HMAC_SECRET,
 ];
+const PROJECTION_OPTS = { ...TRIGGER_OPTS, secrets: ROSTER_SECRETS };
+// Config edits re-project whole classes, so they get the long timeout.
+const FANOUT_OPTS = { ...PROJECTION_OPTS, timeoutSeconds: 540 };
 
 /** Per-student doc handler body, exported for tests. */
 export async function handleStudentDocWrite(
@@ -381,37 +383,54 @@ export const gradeIndexStudentPointer = onDocumentWritten(
 export async function handleRowWrite(event: WriteEvent): Promise<void> {
   const before = dataOf(event.data?.before) as IndexRow | undefined;
   const after = dataOf(event.data?.after) as IndexRow | undefined;
+  let unavailable = null as RosterUnavailableError | null;
   await guarded('projection', { rowId: event.params.rowId }, async () => {
-    const db = admin.firestore();
-    // Deleting a pre-kind row that a kind-keyed row replaced clears only an entry the replacement moved.
-    const replacementId = before
-      ? rowId(before.kind || 'quiz', before.sessionId, before.studentUid)
-      : '';
-    if (!after && before && event.params.rowId !== replacementId) {
-      const replacement = await db
-        .collection(GRADE_INDEX)
-        .doc(replacementId)
-        .get();
-      if (replacement.exists) {
-        await projectRow(db, replacement.data() as IndexRow, before);
-        return;
-      }
+    try {
+      await projectRowWrite(event.params.rowId, after, before);
+    } catch (err) {
+      if (!(err instanceof RosterUnavailableError)) throw err;
+      unavailable = err;
     }
-    await projectRow(db, after ?? null, before ?? null);
-    const row = after ?? before;
-    if (!row) return;
-    await removeFlagsOnScore(
-      db,
-      // Marks keep the pre-kind id.
-      legacyRowId(row.sessionId, row.studentUid),
-      after ?? null,
-      before ?? null
-    );
   });
+  // The roster service being down retries the event instead of dropping the update.
+  const failure = unavailable;
+  if (failure) await failUnlessStale(event.time, () => Promise.reject(failure));
+}
+
+async function projectRowWrite(
+  rowIdParam: string,
+  after: IndexRow | undefined,
+  before: IndexRow | undefined
+): Promise<void> {
+  const db = admin.firestore();
+  // Deleting a pre-kind row that a kind-keyed row replaced clears only an entry the replacement moved.
+  const replacementId = before
+    ? rowId(before.kind || 'quiz', before.sessionId, before.studentUid)
+    : '';
+  if (!after && before && rowIdParam !== replacementId) {
+    const replacement = await db
+      .collection(GRADE_INDEX)
+      .doc(replacementId)
+      .get();
+    if (replacement.exists) {
+      await projectRow(db, replacement.data() as IndexRow, before);
+      return;
+    }
+  }
+  await projectRow(db, after ?? null, before ?? null);
+  const row = after ?? before;
+  if (!row) return;
+  await removeFlagsOnScore(
+    db,
+    // Marks keep the pre-kind id.
+    legacyRowId(row.sessionId, row.studentUid),
+    after ?? null,
+    before ?? null
+  );
 }
 
 export const gradeIndexProjection = onDocumentWritten(
-  { ...TRIGGER_OPTS, document: `${GRADE_INDEX}/{rowId}` },
+  { ...PROJECTION_OPTS, retry: true, document: `${GRADE_INDEX}/{rowId}` },
   (event) => handleRowWrite(event as unknown as WriteEvent)
 );
 
@@ -436,7 +455,7 @@ export async function handleMarkWrite(event: WriteEvent): Promise<void> {
 }
 
 export const gradeIndexMark = onDocumentWritten(
-  { ...TRIGGER_OPTS, document: `${GRADEBOOK_MARKS}/{markId}` },
+  { ...PROJECTION_OPTS, document: `${GRADEBOOK_MARKS}/{markId}` },
   (event) => handleMarkWrite(event as unknown as WriteEvent)
 );
 
