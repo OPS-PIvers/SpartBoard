@@ -1964,7 +1964,9 @@ export const useQuizAssignments = (
         stimulusTabs: true,
         ...(mode === 'student' ? { reviewStep: true } : {}),
         showResultToStudent: opts.showResultToStudent ?? false,
-        showCorrectAnswerToStudent: opts.showCorrectAnswerToStudent ?? false,
+        showCorrectAnswerToStudent:
+          (opts.showResultToStudent ?? false) &&
+          (opts.showCorrectAnswerToStudent ?? false),
         showCorrectOnBoard: opts.showCorrectOnBoard ?? false,
         showLearningTargets: opts.showLearningTargets ?? false,
         ...(opts.showExplanations ? { showExplanations: true } : {}),

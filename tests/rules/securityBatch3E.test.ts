@@ -302,3 +302,243 @@ describe('shared activity wall gallery — student name on comments', () => {
     );
   });
 });
+
+// A wall that hides names stores only a placeholder label from students and guests.
+describe('activity wall — name-hidden wall stores no student name', () => {
+  const asTeacher = () =>
+    testEnv
+      .authenticatedContext(TEACHER_UID, {
+        email: 'teacher@example.com',
+        firebase: { sign_in_provider: 'google.com' },
+      })
+      .firestore();
+
+  const hide = (overrides: Record<string, unknown> = {}) =>
+    seed(
+      `activity_wall_sessions/${SESSION_ID}`,
+      session({ showNames: false, ...overrides })
+    );
+
+  describe('posts', () => {
+    it('denies the first name on the token, any other name and a guest name', async () => {
+      await hide();
+      await assertFails(
+        setDoc(
+          doc(asStudent({ firstName: 'Sam' }), submissionPath('sub-1')),
+          post(STUDENT_UID, { participantLabel: 'Sam' })
+        )
+      );
+      await assertFails(
+        setDoc(
+          doc(asStudent({ firstName: 'Sam' }), submissionPath('sub-1')),
+          post(STUDENT_UID, { participantLabel: 'Riley' })
+        )
+      );
+      await assertFails(
+        setDoc(
+          doc(asStudent(), submissionPath('sub-2')),
+          post(STUDENT_UID, { id: 'sub-2', participantLabel: 'Riley' })
+        )
+      );
+      await assertFails(
+        setDoc(
+          doc(asGuest(), submissionPath('sub-3')),
+          post('guest-uid', {
+            id: 'sub-3',
+            isGuest: true,
+            participantLabel: 'Visitor',
+          })
+        )
+      );
+    });
+
+    it('denies a PIN-style label on a name-hidden wall', async () => {
+      await hide({ identificationMode: 'pin' });
+      await assertFails(
+        setDoc(
+          doc(asStudent(), submissionPath('sub-1')),
+          post(STUDENT_UID, { participantLabel: 'PIN: 1234' })
+        )
+      );
+    });
+
+    it('allows the anonymous placeholder, the generic labels and no label', async () => {
+      await hide();
+      const db = asStudent({ firstName: 'Sam' });
+      await assertSucceeds(
+        setDoc(
+          doc(db, submissionPath('sub-1')),
+          post(STUDENT_UID, { participantLabel: 'Anonymous' })
+        )
+      );
+      await assertSucceeds(
+        setDoc(
+          doc(db, submissionPath('sub-2')),
+          post(STUDENT_UID, { id: 'sub-2', participantLabel: 'Student' })
+        )
+      );
+      await assertSucceeds(
+        setDoc(
+          doc(asGuest(), submissionPath('sub-3')),
+          post('guest-uid', {
+            id: 'sub-3',
+            isGuest: true,
+            participantLabel: 'Guest',
+          })
+        )
+      );
+      const { participantLabel: _omit, ...noLabel } = post(STUDENT_UID, {
+        id: 'sub-4',
+      });
+      await assertSucceeds(setDoc(doc(db, submissionPath('sub-4')), noLabel));
+    });
+
+    it('treats a session with no showNames and a non-name mode as hidden', async () => {
+      const { showNames: _drop, ...legacy } = session();
+      await seed(`activity_wall_sessions/${SESSION_ID}`, legacy);
+      await assertFails(
+        setDoc(
+          doc(asStudent({ firstName: 'Sam' }), submissionPath('sub-1')),
+          post(STUDENT_UID)
+        )
+      );
+    });
+
+    it('treats a session with no showNames and a name mode as shown', async () => {
+      const { showNames: _drop, ...legacy } = session({
+        identificationMode: 'name',
+      });
+      await seed(`activity_wall_sessions/${SESSION_ID}`, legacy);
+      await assertSucceeds(
+        setDoc(
+          doc(asStudent({ firstName: 'Sam' }), submissionPath('sub-1')),
+          post(STUDENT_UID)
+        )
+      );
+    });
+
+    it('lets the teacher post under a name on a name-hidden wall', async () => {
+      await hide();
+      await assertSucceeds(
+        setDoc(
+          doc(asTeacher(), submissionPath('sub-1')),
+          post(TEACHER_UID, {
+            authorRole: 'teacher',
+            participantLabel: 'Ms. Lee',
+          })
+        )
+      );
+    });
+
+    it('still lets a student show the first name once the wall shows names', async () => {
+      await hide({ showNames: true });
+      await assertSucceeds(
+        setDoc(
+          doc(asStudent({ firstName: 'Sam' }), submissionPath('sub-1')),
+          post(STUDENT_UID)
+        )
+      );
+    });
+  });
+
+  describe('comments', () => {
+    beforeEach(async () => {
+      await hide();
+      await seed(submissionPath('sub-1'), post('other-uid'));
+    });
+
+    it('denies the first name on the token and any other name', async () => {
+      await assertFails(
+        setDoc(
+          doc(asStudent({ firstName: 'Sam' }), commentPath('c-1')),
+          comment(STUDENT_UID, { participantLabel: 'Sam' })
+        )
+      );
+      await assertFails(
+        setDoc(
+          doc(asStudent(), commentPath('c-2')),
+          comment(STUDENT_UID, { id: 'c-2', participantLabel: 'Riley' })
+        )
+      );
+      await assertFails(
+        setDoc(
+          doc(asGuest(), commentPath('c-3')),
+          comment('guest-uid', { id: 'c-3', participantLabel: 'Visitor' })
+        )
+      );
+    });
+
+    it('allows the anonymous placeholder and the generic labels', async () => {
+      const db = asStudent({ firstName: 'Sam' });
+      await assertSucceeds(
+        setDoc(
+          doc(db, commentPath('c-1')),
+          comment(STUDENT_UID, { participantLabel: 'Anonymous' })
+        )
+      );
+      await assertSucceeds(
+        setDoc(
+          doc(db, commentPath('c-2')),
+          comment(STUDENT_UID, { id: 'c-2', participantLabel: 'Student' })
+        )
+      );
+    });
+
+    it('lets the owning teacher comment under a name', async () => {
+      await assertSucceeds(
+        setDoc(
+          doc(asTeacher(), commentPath('c-1')),
+          comment(TEACHER_UID, { participantLabel: 'Ms. Lee' })
+        )
+      );
+    });
+  });
+
+  describe('shared gallery comments', () => {
+    const SHARE_ID = 'share-hidden';
+    const sharePath = `shared_activity_walls/${SHARE_ID}`;
+    const galleryComment = (overrides: Record<string, unknown> = {}) => ({
+      id: 'g-1',
+      submissionId: 'sub-1',
+      parentCommentId: null,
+      content: 'Nice work',
+      participantLabel: 'Anonymous',
+      authorUid: STUDENT_UID,
+      createdAt: 1_700_000,
+      ...overrides,
+    });
+
+    beforeEach(async () => {
+      await hide();
+      await seed(sharePath, {
+        id: SHARE_ID,
+        sessionId: SESSION_ID,
+        originalAuthor: TEACHER_UID,
+        title: 'Wall',
+        prompt: 'p',
+        mode: 'text',
+        identificationMode: 'name',
+        allowComments: true,
+        allowCommentResponses: false,
+        allowLikes: true,
+        expiresAt: null,
+        createdAt: 1_000_000,
+      });
+    });
+
+    it('denies a real name and allows the placeholder', async () => {
+      await assertFails(
+        setDoc(
+          doc(asStudent({ firstName: 'Sam' }), `${sharePath}/comments/g-1`),
+          galleryComment({ participantLabel: 'Sam' })
+        )
+      );
+      await assertSucceeds(
+        setDoc(
+          doc(asStudent({ firstName: 'Sam' }), `${sharePath}/comments/g-2`),
+          galleryComment({ id: 'g-2' })
+        )
+      );
+    });
+  });
+});

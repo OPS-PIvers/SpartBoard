@@ -3,6 +3,7 @@ import { signInAnonymously } from 'firebase/auth';
 import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import { dropPinLogin } from '@/utils/pinLoginScope';
+import { ANONYMOUS_PARTICIPANT_LABEL } from './engagement/participantLabel';
 import { STUDENT_FIRST_NAME_KEY } from '@/context/StudentAuthContextValue';
 import { useResolvedFirebaseUser } from '@/hooks/useResolvedFirebaseUser';
 import { studentPreviewBlocksWrite } from '@/utils/viewAsTab';
@@ -70,12 +71,14 @@ const readSsoFirstName = (): string => {
   return 'Student';
 };
 
-const participantLabelFor = (
+export const participantLabelFor = (
+  showNames: boolean | undefined,
   isStudent: boolean,
   isAnonymous: boolean,
   displayName: string | null,
   tokenFirstName: string
 ): string => {
+  if (showNames !== true) return ANONYMOUS_PARTICIPANT_LABEL;
   if (isStudent) return tokenFirstName || readSsoFirstName();
   const firstWord = displayName?.trim().split(/\s+/)[0];
   if (!isAnonymous && firstWord) return firstWord;
@@ -254,6 +257,7 @@ export function useActivityWallStudentSession(
     isGuest: user.isAnonymous,
     isStudent,
     participantLabel: participantLabelFor(
+      session.showNames,
       isStudent,
       user.isAnonymous,
       user.displayName,
