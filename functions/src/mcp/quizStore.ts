@@ -272,7 +272,9 @@ export function toStoredQuestion(
 ): StoredQuestion {
   const type = TO_STORED[input.type];
   const text = input.text.trim();
-  if (!text) throw new ToolError(`Question ${n}: text is required.`);
+  // A teacher's recorded prompt stands in for text; it is kept from `existing`.
+  if (!text && !existing?.promptAudio)
+    throw new ToolError(`Question ${n}: text is required.`);
   const base: StoredQuestion = {
     id: existing?.id ?? newId(),
     timeLimit: input.time_limit_seconds ?? existing?.timeLimit ?? 0,
@@ -426,17 +428,22 @@ export function toStoredQuestion(
 }
 
 /** Stored question → tool output (inverse of toStoredQuestion). */
-export function toFriendlyQuestion(
-  q: StoredQuestion
-): FriendlyQuestion & { needs_answer_key?: boolean; attached_media?: number } {
+export function toFriendlyQuestion(q: StoredQuestion): FriendlyQuestion & {
+  needs_answer_key?: boolean;
+  attached_media?: number;
+  recorded_prompt?: boolean;
+} {
   const out: FriendlyQuestion & {
     needs_answer_key?: boolean;
     attached_media?: number;
+    recorded_prompt?: boolean;
   } = {
     id: q.id,
     type: TO_FRIENDLY[q.type] ?? 'free_response',
     text: q.text,
   };
+  // The teacher recorded this prompt; empty text is on purpose and stays empty.
+  if (q.promptAudio) out.recorded_prompt = true;
   if (Array.isArray(q.stimulusIds) && q.stimulusIds.length > 0)
     out.attached_media = q.stimulusIds.length;
   if (q.points !== undefined) out.points = q.points;

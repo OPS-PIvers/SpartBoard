@@ -79,6 +79,8 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
   promptAudio = false,
 }) => {
   const canRecord = promptAudio && promptFormat;
+  // Stays mounted once audio existed, so Remove never remounts the prompt box.
+  const [hadAudio] = React.useState(!!q.promptAudio);
   const richRef = React.useRef<PromptRichEditorHandle>(null);
   const [accents, setAccents] = React.useState<AccentSetId | null>(null);
   const [equation, setEquation] = React.useState<PromptEquationDraft | null>(
@@ -257,7 +259,7 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
       </div>
     );
   };
-  return canRecord || q.promptAudio ? (
+  return canRecord || hadAudio || q.promptAudio ? (
     <PromptAudioHost
       audio={q.promptAudio}
       onChange={(next) => onChange({ promptAudio: next })}

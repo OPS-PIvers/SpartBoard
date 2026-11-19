@@ -61,7 +61,8 @@ export const quizIncompleteReason = (
 const questionKeyProblem = (questions: QuizQuestion[]): string | null => {
   for (let i = 0; i < questions.length; i += 1) {
     const q = questions[i];
-    if (!q.text.trim()) return `question ${i + 1} has no text`;
+    if (!q.text.trim() && !q.promptAudio)
+      return `question ${i + 1} has no text`;
     if (!isFreeResponseType(q.type) && !q.needsKey && !q.correctAnswer.trim())
       return `question ${i + 1} has no correct answer`;
     const maProblem = multiAnswerProblem(q);

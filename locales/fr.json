@@ -5135,6 +5135,7 @@
   "quizQuestionAudio": {
     "play": "Écouter la question",
     "stop": "Arrêter",
-    "retry": "Réessayer"
+    "retry": "Réessayer",
+    "label": "Question audio"
   }
 }

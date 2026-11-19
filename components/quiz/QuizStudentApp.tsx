@@ -4772,7 +4772,9 @@ export const ActiveQuiz: React.FC<{
           )}
 
           {/* Question; the recorded audio is the original wording, so a modified prompt has none yet. */}
-          {readAloudOn && !modifiedServed && !promptAudio ? (
+          {readAloudOn &&
+          !modifiedServed &&
+          (!promptAudio || displayQuestion.text.trim() !== '') ? (
             <div
               ref={promptWrapRef}
               tabIndex={-1}
@@ -4783,6 +4785,7 @@ export const ActiveQuiz: React.FC<{
                 blankCount={currentQuestion.blankCount}
                 light={light}
                 className={`flex-1 ${headingText}`}
+                audio={promptAudio}
               />
               <ReadAloudButton
                 variant="prominent"

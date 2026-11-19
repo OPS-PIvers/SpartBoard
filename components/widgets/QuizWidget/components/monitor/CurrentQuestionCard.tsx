@@ -193,7 +193,11 @@ export const CurrentQuestionCard: React.FC<CurrentQuestionCardProps> = ({
         {promptLabel(currentQ)}
       </p>
       {currentQ.promptAudio && (
-        <QuestionAudioButton audio={currentQ.promptAudio} size="small" />
+        <QuestionAudioButton
+          key={currentQ.id}
+          audio={currentQ.promptAudio}
+          size="small"
+        />
       )}
       {/* Collapsed by default; expandable so the teacher can project the
           stimulus alongside the question. */}

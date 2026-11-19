@@ -40,6 +40,8 @@ export function usePromptAudioRecorder(opts: {
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<number | null>(null);
   const startedAtRef = useRef(0);
+  const mountedRef = useRef(true);
+  const cancelStartRef = useRef(false);
   const optsRef = useRef(opts);
   useLayoutEffect(() => {
     optsRef.current = opts;
@@ -54,7 +56,13 @@ export function usePromptAudioRecorder(opts: {
 
   const stop = useCallback(() => {
     const rec = recorderRef.current;
-    if (rec && rec.state !== 'inactive') rec.stop();
+    if (rec) {
+      if (rec.state !== 'inactive') rec.stop();
+      return;
+    }
+    // Still waiting on the mic permission: drop the start when it resolves.
+    cancelStartRef.current = true;
+    setPhase('idle');
   }, []);
 
   const start = useCallback(async () => {
@@ -67,6 +75,7 @@ export function usePromptAudioRecorder(opts: {
       optsRef.current.onMicBlocked();
       return;
     }
+    cancelStartRef.current = false;
     setPhase('starting');
     let stream: MediaStream;
     try {
@@ -78,16 +87,29 @@ export function usePromptAudioRecorder(opts: {
       optsRef.current.onMicBlocked();
       return;
     }
+    if (!mountedRef.current || cancelStartRef.current) {
+      stream.getTracks().forEach((t) => t.stop());
+      cancelStartRef.current = false;
+      return;
+    }
     streamRef.current = stream;
     const mimeType = pickPromptAudioMime((m) =>
       MediaRecorder.isTypeSupported(m)
     );
-    const rec = new MediaRecorder(
-      stream,
-      mimeType
-        ? { mimeType, audioBitsPerSecond: 64000 }
-        : { audioBitsPerSecond: 64000 }
-    );
+    let rec: MediaRecorder;
+    try {
+      rec = new MediaRecorder(
+        stream,
+        mimeType
+          ? { mimeType, audioBitsPerSecond: 64000 }
+          : { audioBitsPerSecond: 64000 }
+      );
+    } catch {
+      release();
+      setPhase('idle');
+      optsRef.current.onMicBlocked();
+      return;
+    }
     const chunks: Blob[] = [];
     rec.ondataavailable = (e) => {
       if (e.data.size > 0) chunks.push(e.data);
@@ -103,7 +125,7 @@ export function usePromptAudioRecorder(opts: {
       setElapsed(0);
       const type = (rec.mimeType || mimeType || 'audio/webm').split(';')[0];
       const blob = new Blob(chunks, { type });
-      if (blob.size > 0 && durationSec >= 0.5)
+      if (mountedRef.current && blob.size > 0 && durationSec >= 0.5)
         optsRef.current.onTake({ blob, mimeType: type, durationSec });
     };
     recorderRef.current = rec;
@@ -118,17 +140,18 @@ export function usePromptAudioRecorder(opts: {
     }, 250);
   }, [phase, release, stop]);
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
       const rec = recorderRef.current;
       if (rec) {
         rec.onstop = null;
         if (rec.state !== 'inactive') rec.stop();
       }
       release();
-    },
-    [release]
-  );
+    };
+  }, [release]);
 
   return { phase, elapsed, start, stop };
 }

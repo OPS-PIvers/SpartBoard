@@ -1,4 +1,6 @@
 import React from 'react';
+import { promptLabel } from '@/utils/quizPromptText';
+import { QuestionAudioButton } from '@/components/quiz/QuestionAudioButton';
 import { MathText } from '@/components/common/MathText';
 import { PromptText } from '@/components/common/PromptText';
 import { Check } from 'lucide-react';
@@ -48,8 +50,14 @@ export const PresentPacedReview: React.FC<PresentPacedReviewProps> = ({
         className={`font-sans font-semibold max-w-[80vw] leading-snug ${t.strong}`}
         style={{ fontSize: 'clamp(1.2rem, 3.2vw, 3rem)', textWrap: 'balance' }}
       >
-        <PromptText text={question.text} />
+        <PromptText text={promptLabel(question)} />
       </p>
+      {question.promptAudio && (
+        <QuestionAudioButton
+          audio={question.promptAudio}
+          light={t.strong !== 'text-white'}
+        />
+      )}
       <div
         className="w-full max-w-[70vw] flex flex-col"
         style={{ gap: '1.4vh' }}

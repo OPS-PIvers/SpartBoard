@@ -49,6 +49,18 @@ describe('quizIncompleteReason', () => {
     ).toBe('Question 1: text is required');
   });
 
+  it('lets a recorded prompt pass the assign gate', () => {
+    const audio = { driveFileId: 'f1', durationSec: 4, mimeType: 'audio/mp4' };
+    expect(
+      quizAssignBlocker({
+        questions: [question({ text: '', promptAudio: audio })],
+      })
+    ).toBeNull();
+    expect(quizAssignBlocker({ questions: [question({ text: '' })] })).toBe(
+      'question 1 has no text'
+    );
+  });
+
   it('passes a finished quiz', () => {
     expect(
       quizIncompleteReason({ title: 'Unit 3', questions: [question()] })

@@ -6577,6 +6577,7 @@
   "quizQuestionAudio": {
     "play": "Play question",
     "stop": "Stop",
-    "retry": "Try again"
+    "retry": "Try again",
+    "label": "Audio question"
   }
 }

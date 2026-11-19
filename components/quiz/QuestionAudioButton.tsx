@@ -97,6 +97,7 @@ export const QuestionAudioButton: React.FC<{
         className="hidden"
         onPlaying={() => setStatus('playing')}
         onEnded={() => setStatus('idle')}
+        onPause={() => setStatus((s) => (s === 'failed' ? s : 'idle'))}
         onError={() => setStatus((s) => (s === 'idle' ? s : 'failed'))}
       />
     </>

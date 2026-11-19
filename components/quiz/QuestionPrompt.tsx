@@ -34,7 +34,11 @@ export const QuestionPrompt: React.FC<{
   if (!audio) return heading(className);
   return (
     <div className={`flex flex-col items-start gap-3 ${className}`}>
-      <QuestionAudioButton audio={audio} light={light} />
+      <QuestionAudioButton
+        key={audio.driveFileId}
+        audio={audio}
+        light={light}
+      />
       {text.trim() !== '' && heading('')}
     </div>
   );

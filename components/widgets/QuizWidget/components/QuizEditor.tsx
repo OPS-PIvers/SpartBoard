@@ -1015,6 +1015,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
       <div className="flex-1 overflow-y-auto custom-scrollbar px-5 py-4 space-y-4">
         {/* Question prompt */}
         <QuestionPromptField
+          key={q.id}
           question={q}
           onChange={(updates) => updateQuestion(q.id, updates)}
           onBlur={() =>
