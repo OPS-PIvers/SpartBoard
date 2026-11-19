@@ -251,8 +251,19 @@ Last audited 2026-11-15 (drift and blocker check; see the backlog drain routine)
 - **AB-272 Quiz assign Supports file sources: minors** (S, release 2026.11.17c review; `modification-groups` only). (1) `Assets/QuizSupports` is not in `DRIVE_UPLOAD_FOLDERS` (`hooks/useStorage.ts`), as `.claude/rules/storage-uploads.md` asks. (2) `SupportsEditor.tsx` `uploadFiles` silently drops files past `MAX_SUPPORTS`, and a partial failure closes the form and loses the error. (3) `FileAddSources.tsx` `UrlAddRow` clears the pasted link even when the add failed. Done with a test per fix.
 - **AB-112 Delete merged branches (local agent)** (S, recurring). Branch deletes are a local agent job, not Paul's; cloud sessions can't delete branches. From a local checkout, list remote branches with no open PR whose work is merged or abandoned (never `main`, `dev-*` or `scheduled-tasks`), then `git push origin --delete` them. Threads that merge a PR add their branch to the list below by PR instead of to PAUL_TODO.md. Done when the list is empty; keep the item for future adds.
 
-  <details><summary>Branches to delete (179, checked 2026-11-01)</summary>
+  <details><summary>Branches to delete (190, checked 2026-11-01)</summary>
 
+nightly/build-2026-11-19 (#6264)
+nightly/dashboard-2026-11-19 (#6263)
+nightly/widgets-2026-11-19 (#6262)
+nightly/debugger-log-2026-11-19 (#6265)
+claude/kind-johnson-64jqqf (#6258)
+claude/elegant-hypatia-siakst (#6266)
+claude/project-thread-avawwc (this docs PR, delete after it merges)
+claude/project-thread-ygx718 (#6174)
+claude/ab112-ygx718 (#6175, closed; folded into this PR)
+claude/project-thread-ucv837 (#6165)
+claude/ab112-quick-sign-in (#6170, closed; folded into this PR)
 claude/project-thread-6v7ytk (#6243)
 claude/project-thread-vyicgs (#6267; this docs PR reuses it, delete after it merges)
 claude/project-thread-6v7ytk-kinds (class left open flag for every kind; delete after it merges)
