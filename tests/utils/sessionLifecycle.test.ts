@@ -350,12 +350,11 @@ describe('the sub control function writes the same patches', () => {
       const server = controlPatches(kind, 'end', NOW);
       const client = assignmentLifecyclePatches(kind, { type: 'end' }, NOW);
       expect(server.session).toEqual(client.session);
-      // A sub End stamps the quiz's close mark; a teacher's old-tab End does not (ASSIGNED_TAB D20).
-      expect(server.assignment).toEqual(
-        kind === 'quiz'
-          ? { ...client.assignment, closedAt: NOW }
-          : client.assignment
-      );
+      // A sub End stamps the close mark; a teacher's old-tab End does not (ASSIGNED_TAB D20).
+      expect(server.assignment).toEqual({
+        ...client.assignment,
+        closedAt: NOW,
+      });
     }
   });
 
