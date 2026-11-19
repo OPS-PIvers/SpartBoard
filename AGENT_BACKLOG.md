@@ -9,7 +9,7 @@ Work an agent can pick up without asking. Paul points at an ID ("do AB-12"); the
 - **Finishing.** Delete the item in the PR that finishes it; no checked-off lines, git keeps history. For a plan entry, update its **Next** line instead, and delete the entry when the plan moves to `docs/plans/shipped/`.
 - **Release review findings.** Fix small (S) findings inside the release as `release fix:` PRs. File an item here only for work that is M or larger, needs a flag or rules design, or can't ship in that release.
 - **Agent-only means agent-only.** An item in Ready needs nothing from Paul. When an item needs new wording, the agent builds it and asks Paul with a screenshot and a decision card in its thread; when it needs a real decision, it goes to PAUL_TODO.md and the item moves to Blocked.
-- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-311**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
+- **New work.** Add a brief in the right area with the next free ID (IDs are never reused). **Next free ID: AB-312**; bump it in the same PR, so parallel adds conflict here. If it needs Paul first, add a `PT-` item to PAUL_TODO.md and put the agent half under Blocked here, naming that `PT-` ID.
 - **Flags.** Never open a flag on prod. Retiring or graduating a gate happens after Paul opens it, from the prompt on his PAUL_TODO row.
 - Effort: S (under a day), M (a few PRs), L (a plan's worth). Risk shown only when it isn't low.
 
@@ -799,6 +799,7 @@ The plan holds the slices; build the **Next** one and update this line in the sa
 
 Each names what unblocks it. When the blocker clears, move the item to Ready.
 
+- **AB-311 Quiz widget structure**: `docs/plans/QUIZ_WIDGET_STRUCTURE.md`, planned 2026-11-19; Paul has not confirmed its decisions (PT-271), so nothing is built until he does. Next: S1 (tests that pin `Widget.tsx` and `QuizManager.tsx` as they behave today). Every slice is a move with no change a teacher can see.
 - **AB-8 Pseudonym call errors** (S). Blocked on PT-259 (prod log count). `getPseudonymsForAssignmentV1` returned 79 × 404 and 34 × 403 out of 876 calls in the 30 days to 2026-10-01. #3733 likely fixed part of it. If Paul's count since 2026-10-01 is still above zero, find the callers from the log entries and fix them; if zero, delete this item.
 - **AB-17 Excluded-student count on assignment cards** (S). Blocked on PT-260. Cards don't show how many students were excluded at assign. It is teacher-visible, so it needs a preview flag; PT-260 picks yes or no, and a yes names the flag, label and card placement.
 - **AB-296 Drop the Focus old-stamp fallback** (S, security, rules). Blocked until one release after #6252 is live on prod. Remove the `sh == null` stamp-only branch in `focusSubShareLive` (`firestore.rules`), so a sub reads a focus session only through a live share named in `subMonitorShares`. Add a rules test that an old-stamped sub with no map entry is denied while another sub's entry exists. Note in the PR: `subMonitorUntil` is one max shared by all subs, and opening with a second share replaces the sub's entry.
@@ -841,6 +842,7 @@ Each stays in `docs/plans/` until built, then moves to `docs/plans/shipped/` and
 | `docs/plans/GRADEBOOK.md`                                      | Phases 1-6 built behind admin flags                                                                               | AB-4, AB-21  |
 | `docs/plans/QUIZ_ROSTER_GRADING_AND_REOPEN.md`                 | Approved, unbuilt                                                                                                 | AB-39        |
 | `docs/plans/QUIZ_STRUCTURED_ASSESSMENTS.md`                    | Unbuilt                                                                                                           | AB-40        |
+| `docs/plans/QUIZ_WIDGET_STRUCTURE.md`                          | Planned 2026-11-19, waiting on PT-271                                                                             | AB-311       |
 | `docs/plans/SCHOOLOGY_GRADE_IMPORT.md`                         | Unbuilt                                                                                                           | AB-55        |
 | `docs/plans/STARRED_CLASS_AUDIT.md`                            | Unbuilt                                                                                                           | AB-41, AB-57 |
 | `docs/plans/UNIT_OVERVIEW_WIDGET.md`                           | Unbuilt                                                                                                           | AB-43        |
