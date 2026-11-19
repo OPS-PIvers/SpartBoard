@@ -61,7 +61,7 @@ export const ScoreboardRowItem = React.memo(
     const shownScore = useCountUp(team.score);
     const fieldKey = `team-${position ?? rank}`;
     const multi = pointValues.length > 1;
-    const amountButtonClass = `bg-white ${getText(normalizeScoreboardColor(team.color))} rounded-lg shadow-xs hover:bg-slate-50 active:scale-95 transition-all font-black tabular-nums leading-none`;
+    const amountButtonClass = `bg-white ${getText(normalizeScoreboardColor(team.color))} rounded-lg shadow-xs hover:bg-slate-50 active:scale-95 transition font-black tabular-nums leading-none`;
     const amountButtonStyle: React.CSSProperties = {
       fontSize: 'min(11px, 3.5cqmin)',
       padding: 'min(4px, 1cqmin) min(6px, 1.5cqmin)',
@@ -77,7 +77,7 @@ export const ScoreboardRowItem = React.memo(
 
     return (
       <div
-        className={`flex items-center ${colorClass} text-white rounded-xl border border-white/20 shadow-xs transition-all`}
+        className={`flex items-center ${colorClass} text-white rounded-xl border border-white/20 shadow-xs transition`}
         style={{
           padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
           gap: 'min(8px, 2cqmin)',
@@ -196,7 +196,7 @@ export const ScoreboardRowItem = React.memo(
                 fieldKey
               )}
               data-tour-widget={widgetId}
-              className={`bg-white ${buttonIconColor} rounded-lg shadow-xs hover:bg-slate-50 active:scale-95 transition-all`}
+              className={`bg-white ${buttonIconColor} rounded-lg shadow-xs hover:bg-slate-50 active:scale-95 transition`}
               style={{
                 padding: 'min(4px, 1cqmin)',
               }}
@@ -213,7 +213,7 @@ export const ScoreboardRowItem = React.memo(
               aria-label="Increase score"
               {...tourFieldAttr('scoreboard.add-point', 'scoreboard', fieldKey)}
               data-tour-widget={widgetId}
-              className={`bg-white ${buttonIconColor} rounded-lg shadow-xs hover:bg-slate-50 active:scale-95 transition-all`}
+              className={`bg-white ${buttonIconColor} rounded-lg shadow-xs hover:bg-slate-50 active:scale-95 transition`}
               style={{
                 padding: 'min(4px, 1cqmin)',
               }}

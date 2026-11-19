@@ -1,6 +1,6 @@
 # 021 — Progress bars: animate `width` only, and stop the video timeline marker trailing the pointer
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: 3dcc1cd
 - **Severity**: MEDIUM
 - **Category**: Performance (also Interruptibility)

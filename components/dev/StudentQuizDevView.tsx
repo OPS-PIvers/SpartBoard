@@ -258,7 +258,12 @@ export const StudentQuizDevView: React.FC<{ state: StudentQuizStateKey }> = ({
                                     }
                                   : state === 'sq-modified'
                                     ? modifiedSession()
-                                    : makeTimedQuizSession('active'),
+                                    : state === 'sq-review-blank'
+                                      ? {
+                                          ...makeTimedQuizSession('active'),
+                                          reviewStep: true,
+                                        }
+                                      : makeTimedQuizSession('active'),
     [state]
   );
   if (state === 'sq-recap-responses' || state === 'sq-recap-answers') {
@@ -338,7 +343,12 @@ export const StudentQuizDevView: React.FC<{ state: StudentQuizStateKey }> = ({
       ? { ...timedResponse, unlocked: true, unlockKind: 'reopen' as const }
       : state === 'sq-unlocked'
         ? { ...timedResponse, unlocked: true }
-        : timedResponse;
+        : state === 'sq-review-blank'
+          ? {
+              ...timedResponse,
+              answers: [{ questionId: 'q2', answer: '1/2', answeredAt: 0 }],
+            }
+          : timedResponse;
   return (
     <div className="h-full overflow-y-auto">
       {state === 'sq-fullscreen' && (

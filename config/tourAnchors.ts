@@ -3631,11 +3631,13 @@ export const TOUR_ANCHORS = {
     label: 'Show the key radios in the Quiz widget',
     perField: true,
     panel: true,
+    persists: true,
   },
   'quiz-print.results-layout': {
     label: 'Layout radios in the Quiz widget',
     perField: true,
     panel: true,
+    persists: true,
   },
   'quiz-print.results-more-options': {
     label: 'More print options disclosure in the Quiz widget',
@@ -3646,11 +3648,13 @@ export const TOUR_ANCHORS = {
     label: 'Option toggles from TOGGLES map in the Quiz widget',
     perField: true,
     panel: true,
+    persists: true,
   },
   'quiz-print.results-preset': {
     label: 'Preset chips (radio group) in the Quiz widget',
     perField: true,
     panel: true,
+    persists: true,
   },
   'quiz-print.results-print': {
     label: 'Print results Print in the Quiz widget',
@@ -3662,6 +3666,7 @@ export const TOUR_ANCHORS = {
     label: 'Report choice cards (radio group) in the Quiz widget',
     perField: true,
     panel: true,
+    persists: true,
   },
   'quiz-print.results-every-attempt': {
     label: 'Every attempt switch in the results print in the Quiz widget',
@@ -3679,6 +3684,44 @@ export const TOUR_ANCHORS = {
     panel: true,
     rows: true,
     rowList: 'quiz-print-results-student-select',
+  },
+  'quiz-print.results-tab': {
+    label: 'Settings and Students tabs in the Quiz print results',
+    perField: true,
+    panel: true,
+  },
+  'quiz-print.results-clear': {
+    label: 'Clear the student picks in the Quiz print results',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-print.results-course': {
+    label: 'Course checkbox in the Quiz print results student list',
+    perField: true,
+    panel: true,
+    rows: true,
+    rowList: 'quiz-print-results-groups',
+  },
+  'quiz-print.results-course-expand': {
+    label: 'Show the sections in a Course in the Quiz print results',
+    perField: true,
+    panel: true,
+    rows: true,
+    rowList: 'quiz-print-results-groups',
+  },
+  'quiz-print.results-section': {
+    label: 'Class checkbox in the Quiz print results student list',
+    perField: true,
+    panel: true,
+    rows: true,
+    rowList: 'quiz-print-results-groups',
+  },
+  'quiz-print.results-section-expand': {
+    label: 'Show the students in a class in the Quiz print results',
+    perField: true,
+    panel: true,
+    rows: true,
+    rowList: 'quiz-print-results-groups',
   },
   'quiz-print.results-written-mode': {
     label: 'Written answers mode radios in the Quiz widget',
@@ -6776,7 +6819,7 @@ export const TOUR_ANCHORS = {
     destructive: true,
     perField: true,
     panel: true,
-    keyPattern: '[a-z-]+#(close|move-to-done|delete)',
+    keyPattern: '[a-z-]+#(close|move-to-done|publish|delete)',
     keyHint: 'quiz#delete is Delete for the picked quizzes',
   },
   'library-shell.assigned-select-cancel': {

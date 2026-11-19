@@ -450,11 +450,13 @@ describe('FlashcardAssignStepper', () => {
       fireEvent.click(screen.getByText('What students see'));
       expect(screen.queryByText('Group results by learning target')).toBeNull();
       fireEvent.click(
-        screen.getByRole('switch', { name: 'Show right and wrong to students' })
+        screen.getByRole('switch', {
+          name: 'Show right or wrong after each answer',
+        })
       );
       fireEvent.click(
         screen.getByRole('switch', {
-          name: 'Reveal correct answer to students',
+          name: 'Show the correct answer when wrong',
         })
       );
       assign();

@@ -128,50 +128,56 @@ const BOOLEAN_KEYS = [
   'duplexPadding',
 ] as const;
 
-/** The last preset and toggles on this browser, or the default preset (D11). */
-export function loadResultsPrintChoice(
+/** A stored choice read back field by field; anything unknown falls back to `defaultPreset`. */
+export function parseResultsPrintChoice(
+  parsed: unknown,
   defaultPreset: ResultsPrintPresetId = DEFAULT_RESULTS_PRINT_PRESET
 ): SavedResultsPrintChoice {
   const fallback: SavedResultsPrintChoice = {
     preset: defaultPreset,
     options: applyPreset(defaultPreset),
   };
+  const record = parsed as Partial<SavedResultsPrintChoice> | null;
+  const saved = record?.options as Partial<QuizResultsPrintOptions> | undefined;
+  if (!saved || typeof saved !== 'object') return fallback;
+  const options = { ...fallback.options };
+  for (const key of BOOLEAN_KEYS) {
+    if (typeof saved[key] === 'boolean') options[key] = saved[key];
+  }
+  if (
+    saved.keyMode === 'off' ||
+    saved.keyMode === 'missed' ||
+    saved.keyMode === 'all'
+  ) {
+    options.keyMode = saved.keyMode;
+  }
+  if (
+    saved.layout === 'report' ||
+    saved.layout === 'sheet' ||
+    saved.layout === 'both'
+  ) {
+    options.layout = saved.layout;
+  }
+  if (saved.questionScope === 'all' || saved.questionScope === 'missed') {
+    options.questionScope = saved.questionScope;
+  } else {
+    delete options.questionScope;
+  }
+  const preset = RESULTS_PRINT_PRESETS.some((p) => p.id === record?.preset)
+    ? (record?.preset as ResultsPrintPresetId)
+    : null;
+  return { preset, options };
+}
+
+/** The last preset and toggles on this browser, or the default preset (D11). */
+export function loadResultsPrintChoice(
+  defaultPreset: ResultsPrintPresetId = DEFAULT_RESULTS_PRINT_PRESET
+): SavedResultsPrintChoice {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return fallback;
-    const parsed = JSON.parse(raw) as Partial<SavedResultsPrintChoice> | null;
-    const saved = parsed?.options as
-      Partial<QuizResultsPrintOptions> | undefined;
-    if (!saved || typeof saved !== 'object') return fallback;
-    const options = { ...fallback.options };
-    for (const key of BOOLEAN_KEYS) {
-      if (typeof saved[key] === 'boolean') options[key] = saved[key];
-    }
-    if (
-      saved.keyMode === 'off' ||
-      saved.keyMode === 'missed' ||
-      saved.keyMode === 'all'
-    ) {
-      options.keyMode = saved.keyMode;
-    }
-    if (
-      saved.layout === 'report' ||
-      saved.layout === 'sheet' ||
-      saved.layout === 'both'
-    ) {
-      options.layout = saved.layout;
-    }
-    if (saved.questionScope === 'all' || saved.questionScope === 'missed') {
-      options.questionScope = saved.questionScope;
-    } else {
-      delete options.questionScope;
-    }
-    const preset = RESULTS_PRINT_PRESETS.some((p) => p.id === parsed?.preset)
-      ? (parsed?.preset as ResultsPrintPresetId)
-      : null;
-    return { preset, options };
+    return parseResultsPrintChoice(raw ? JSON.parse(raw) : null, defaultPreset);
   } catch {
-    return fallback;
+    return parseResultsPrintChoice(null, defaultPreset);
   }
 }
 

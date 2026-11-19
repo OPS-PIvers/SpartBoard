@@ -73,7 +73,11 @@ export const ToastContainer: React.FC = () => {
             role={isError ? 'alert' : 'status'}
             aria-live={isError ? undefined : 'polite'}
             onClick={() => removeToast(toast.id)}
-            className={`flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl backdrop-blur-xl border pointer-events-auto cursor-pointer animate-in slide-in-from-right duration-300 ${getStyles()}`}
+            className={`flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl backdrop-blur-xl border cursor-pointer transition-[opacity,translate] duration-200 ease-out-strong starting:opacity-0 starting:translate-x-4 motion-reduce:transition-opacity motion-reduce:starting:translate-x-0 ${
+              toast.leaving
+                ? 'pointer-events-none opacity-0 translate-x-4 motion-reduce:translate-x-0'
+                : 'pointer-events-auto opacity-100 translate-x-0'
+            } ${getStyles()}`}
           >
             {getIcon()}
             <div className="flex flex-col gap-1">

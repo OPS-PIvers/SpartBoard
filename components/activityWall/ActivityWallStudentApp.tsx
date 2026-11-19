@@ -24,6 +24,7 @@ import {
   useActivityWallStudentSession,
 } from './useActivityWallStudentSession';
 import { makeEngagementFooter, useWallEngagement } from './engagement';
+import { labelForWall } from './engagement/participantLabel';
 import { WallCard, WallShell } from './submission/WallShell';
 import { ComposerSheet } from './submission/ComposerSheet';
 import {
@@ -270,10 +271,12 @@ export const ActivityWallStudentApp: React.FC = () => {
     );
   }
 
-  const participantLabel =
+  const participantLabel = labelForWall(
+    wall.showNames,
     asksIdentity && identity
       ? buildParticipantLabel(mode, identity.name, identity.pin)
-      : state.participantLabel;
+      : state.participantLabel
+  );
   const open = wall.acceptingResponses !== false;
   const isWordCloud = wall.layout === 'wordcloud';
   const canAdd = open && !capExhausted(wall, uid, myPosts);

@@ -105,7 +105,7 @@ const post = (id: string, overrides: Record<string, unknown> = {}) => ({
   content: 'My answer',
   authorUid: STUDENT_UID,
   isGuest: false,
-  participantLabel: 'Sam',
+  participantLabel: 'Anonymous',
   submittedAt: 1_700_000,
   status: 'pending',
   ...overrides,

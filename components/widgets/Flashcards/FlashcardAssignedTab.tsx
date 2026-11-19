@@ -29,6 +29,8 @@ interface FlashcardAssignedTabProps extends FlashcardAssignedHandlers {
   lifecycle: FlashcardLifecycle;
   /** Deletes without asking; resolves to how many failed. */
   onBulkDelete?: (assignments: FlashcardAssignment[]) => Promise<number>;
+  /** Opens the publish dialog once for the picked closed rows. */
+  onBulkPublish?: (assignments: FlashcardAssignment[]) => void;
 }
 
 const isCheck = (a: FlashcardAssignment) => a.kind === 'check';
@@ -52,6 +54,7 @@ export const FlashcardAssignedTab: React.FC<FlashcardAssignedTabProps> = ({
   onPublish,
   menu,
   onBulkDelete,
+  onBulkPublish,
 }) => (
   <RunAssignedTab<FlashcardAssignment>
     assignments={assignments}
@@ -86,5 +89,6 @@ export const FlashcardAssignedTab: React.FC<FlashcardAssignedTabProps> = ({
     submits={isCheck}
     footerLead={flashcardAssignmentSubtitle}
     onBulkDelete={onBulkDelete}
+    onBulkPublish={onBulkPublish}
   />
 );
