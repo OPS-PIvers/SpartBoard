@@ -105,11 +105,17 @@ const isLive = (a: VideoActivityAssignment) => a.sessionMode === 'teacher';
 const gradingKey = (a: VideoActivityAssignment) =>
   isLive(a) ? `${a.id}:${a.status}` : a.id;
 
-/** Work the teacher may owe a grade on: turned in, or any answer in a live run, which never turns in. */
+/** A closed single line whose open attempts its own turn-in still owes (D6). */
+const closedSingleLine = (a: MarkedAssignment) =>
+  a.closedAt != null && Object.keys(a.periodAccess ?? {}).length === 0;
+
+/** Work the teacher may owe a grade on: turned in, any answer in a live run, or answered work a Close is still turning in. */
 const toGrade = (
-  a: VideoActivityAssignment,
+  a: MarkedAssignment,
   r: Pick<VideoActivityResponse, 'completedAt' | 'answers'>
-) => r.completedAt != null || (isLive(a) && (r.answers ?? []).length > 0);
+) =>
+  r.completedAt != null ||
+  ((isLive(a) || closedSingleLine(a)) && (r.answers ?? []).length > 0);
 
 /** A row still being worked: anything not ended before the Assigned tab handled it (D20). */
 const wantsLiveData = (a: MarkedAssignment) =>
@@ -258,6 +264,8 @@ interface RowModel {
   assignment: MarkedAssignment;
   needsGrading: number | null;
   bells: Record<string, EpochWindow | null>;
+  /** A closed self-paced single line still holds answered, unfinished attempts. */
+  owesTurnIn: boolean;
 }
 
 /** The Video Activity Assigned tab: one row per assignment, one status per class (ASSIGNED_TAB.md slice 5). */
@@ -338,7 +346,20 @@ export const VideoActivityAssignedTab: React.FC<
           }),
           now
         );
-        return { id: a.id, status, assignment: a, needsGrading, bells };
+        const owesTurnIn =
+          !isLive(a) &&
+          closedSingleLine(a) &&
+          (responses ?? []).some(
+            (r) => r.completedAt == null && (r.answers ?? []).length > 0
+          );
+        return {
+          id: a.id,
+          status,
+          assignment: a,
+          needsGrading,
+          bells,
+          owesTurnIn,
+        };
       }),
     [
       assignments,
@@ -391,15 +412,13 @@ interface RowHostProps extends VideoActivityAssignedHandlers {
   lifecycle: VideoActivityLifecycle;
 }
 
-/** Turns a closed single line's open attempts in once the save grace after its close mark passes (D6). */
-async function scheduleRunTurnIn(assignmentId: string, uid: string) {
-  const { assignmentCollection } = VIDEO_ACTIVITY_RUN_COLLECTIONS;
-  const stored = (
-    await getDoc(doc(db, 'users', uid, assignmentCollection, assignmentId))
-  ).data() as MarkedAssignment | undefined;
-  const closedAt = stored?.closedAt;
-  if (closedAt == null) return;
-  setTimeout(
+/** Turns a closed single line's open attempts in once the save grace after its close mark passes (D6); returns a cancel. */
+function scheduleRunTurnIn(
+  assignmentId: string,
+  uid: string,
+  closedAt: number
+): () => void {
+  const timer = setTimeout(
     () => {
       finalizeRunVideoResponses(assignmentId, uid, closedAt).catch(
         (err: unknown) =>
@@ -408,6 +427,7 @@ async function scheduleRunTurnIn(assignmentId: string, uid: string) {
     },
     Math.max(0, closedAt + END_TURN_IN_DELAY_MS - Date.now())
   );
+  return () => clearTimeout(timer);
 }
 
 /** Puts back what Close for all classes or Move to Done changed (D10 Undo). */
@@ -481,7 +501,13 @@ const VideoActivityAssignedRowHost: React.FC<RowHostProps> = ({
   const viewOnly = a.mode === 'view-only';
   const live = isLive(a);
   // D6: a self-paced single line has no class turn-in, so its Close turns open attempts in itself.
-  const singleLineRun = status.singleLine && !viewOnly && !live;
+  // Re-armed whenever the tab shows the row, so a reload or a monitor End never strands the turn-in.
+  const uid = user?.uid;
+  const turnInAt = row.owesTurnIn && !viewOnly ? a.closedAt : null;
+  useEffect(() => {
+    if (!uid || turnInAt == null) return undefined;
+    return scheduleRunTurnIn(a.id, uid, turnInAt);
+  }, [a.id, uid, turnInAt]);
   const onClassAction = (kind: ClassActionKind, key: string | null) => {
     switch (kind) {
       case 'open':
@@ -503,7 +529,6 @@ const VideoActivityAssignedRowHost: React.FC<RowHostProps> = ({
     const prev = a;
     void exec(async () => {
       await act();
-      if (singleLineRun && user?.uid) await scheduleRunTurnIn(a.id, user.uid);
       addToast(
         message,
         'success',

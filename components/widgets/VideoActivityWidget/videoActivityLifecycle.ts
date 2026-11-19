@@ -1,4 +1,4 @@
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, runTransaction } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type { UseVideoActivityAssignmentsResult } from '@/hooks/useVideoActivityAssignments';
 import { END_TURN_IN_DELAY_MS } from '@/utils/quizFinalizeOpenResponses';
@@ -77,20 +77,20 @@ export function videoActivityLifecycle(
     ...(pointers
       ? {
           async onWindowCleared(assignmentId, patch) {
-            const row = (
-              await getDoc(
-                doc(
-                  db,
-                  'users',
-                  pointers.uid,
-                  VIDEO_ACTIVITY_RUN_COLLECTIONS.assignmentCollection,
-                  assignmentId
-                )
-              )
-            ).data() as VideoActivityAssignment | undefined;
-            if (!row || !hasStudentPointers(row)) return;
             // A failed pointer sync must not stop Open from letting the class in.
             try {
+              const row = (
+                await getDoc(
+                  doc(
+                    db,
+                    'users',
+                    pointers.uid,
+                    VIDEO_ACTIVITY_RUN_COLLECTIONS.assignmentCollection,
+                    assignmentId
+                  )
+                )
+              ).data() as VideoActivityAssignment | undefined;
+              if (!row || !hasStudentPointers(row)) return;
               await pointers.setAssignmentTargets({
                 assignmentId,
                 kind: 'video-activity',
@@ -124,4 +124,23 @@ export function videoActivityLifecycle(
     turnInDelayMs: END_TURN_IN_DELAY_MS,
     endTurnsIn: false,
   };
+}
+
+/** D24: an End from the monitor, the PLC dashboard or a sub is a Close; an existing mark stays so its pending turn-in still runs. */
+export async function markVideoRunClosed(
+  uid: string,
+  assignmentId: string
+): Promise<void> {
+  const ref = doc(
+    db,
+    'users',
+    uid,
+    VIDEO_ACTIVITY_RUN_COLLECTIONS.assignmentCollection,
+    assignmentId
+  );
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists() || snap.data().closedAt != null) return;
+    tx.update(ref, { closedAt: Date.now() });
+  });
 }

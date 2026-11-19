@@ -87,7 +87,10 @@ import { useAuth } from '@/context/useAuth';
 import { useVideoActivity } from '@/hooks/useVideoActivity';
 import { useVideoActivitySessionTeacher } from '@/hooks/useVideoActivitySession';
 import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments';
-import { videoActivityLifecycle } from './videoActivityLifecycle';
+import {
+  markVideoRunClosed,
+  videoActivityLifecycle,
+} from './videoActivityLifecycle';
 import { useSetAssignmentTargets } from '@/hooks/useSetAssignmentTargets';
 import { useBusyIdSet } from '@/hooks/useBusyIdSet';
 import { useFolders } from '@/hooks/useFolders';
@@ -266,15 +269,12 @@ const TeacherVideoActivityWidget: React.FC<{
       setAssignmentTargets,
     ]
   );
-  // ASSIGNED_TAB.md D24: an End here is a Close, so the row keeps its grading hold (D5) instead of reading as legacy.
+  // ASSIGNED_TAB.md D24: an End here is a Close, so the row keeps its grading hold (D5).
   const endFromMonitor = async (assignmentId: string) => {
     await deactivateAssignment(assignmentId);
-    if (!uid || !canAccessFeature('assigned-tab')) return;
+    if (!uid) return;
     try {
-      await updateDoc(
-        doc(db, 'users', uid, 'video_activity_assignments', assignmentId),
-        { closedAt: Date.now() }
-      );
+      await markVideoRunClosed(uid, assignmentId);
     } catch (err) {
       console.error('Close mark failed', err);
     }

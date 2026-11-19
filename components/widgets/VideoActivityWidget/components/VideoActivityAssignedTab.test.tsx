@@ -224,12 +224,14 @@ describe('VideoActivityAssignedTab', () => {
     );
   });
 
-  it('turns in a closed single line once the save grace passes', async () => {
+  it('turns in a closed single line with answered work once the save grace passes', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    store.sessions.a1 = { closedAt: NOW };
-    renderTab([base({ id: 'a1' })]);
-    fireEvent.click(screen.getByText('menu:Close'));
-    await waitFor(() => expect(actions.closeAll).toHaveBeenCalled());
+    store.responses.a1 = [
+      { completedAt: null, answers: [{ questionId: 'q1', answer: 'x' }] },
+    ];
+    renderTab([base({ id: 'a1', status: 'inactive', closedAt: NOW })]);
+    // The answered work keeps the row Active while it is owed.
+    expect(screen.getByText('menu:Reopen')).toBeTruthy();
     await vi.advanceTimersByTimeAsync(200_000);
     expect(turnIn).toHaveBeenCalledWith('a1', 't1', NOW);
   });
