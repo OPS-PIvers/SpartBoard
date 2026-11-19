@@ -27146,6 +27146,76 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "library-shell.assigned-select",
+    "label": "Select on the Assigned tab; starts picking several assignments",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-select-row",
+    "label": "Checkbox on an Assigned row while picking several assignments",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "row_list": "assignment-rows",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-select-all",
+    "label": "Select all box in the Assigned tab selection bar",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-bulk-action",
+    "label": "Close, Move to Done or Delete in the Assigned tab selection bar",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "persists": true,
+    "key_pattern": "[a-z-]+#(close|move-to-done|delete)",
+    "key_hint": "quiz#delete is Delete for the picked quizzes",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-select-cancel",
+    "label": "Cancel in the Assigned tab selection bar",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "widget-settings.calendar.remove-calendar",
     "label": "Remove a personal calendar in Calendar settings",
     "scope": "field",

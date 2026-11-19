@@ -22,6 +22,7 @@ import {
   AssignedLeftOpenFlag,
   AssignedList,
   AssignedRow,
+  useAssignedBulkOps,
   type ClassActionKind,
   type LineSegment,
   mainActionLabel,
@@ -77,6 +78,8 @@ interface QuizAssignedTabProps extends QuizAssignedHandlers {
   pinnedId?: string | null;
   emptyTitle: string;
   emptySub: string;
+  /** Deletes without asking; resolves to how many failed. Turns on bulk select. */
+  onBulkDelete?: (assignments: QuizAssignment[]) => Promise<number>;
 }
 
 const TICK_MS = 30_000;
@@ -301,6 +304,7 @@ export const QuizAssignedTab: React.FC<QuizAssignedTabProps> = ({
   pinnedId,
   emptyTitle,
   emptySub,
+  onBulkDelete,
   ...handlers
 }) => {
   const { rows, now } = useQuizAssignedRows(
@@ -329,6 +333,11 @@ export const QuizAssignedTab: React.FC<QuizAssignedTabProps> = ({
       emptyTitle={emptyTitle}
       emptySub={emptySub}
       tourWidgetType="quiz"
+      bulk={
+        onBulkDelete
+          ? { remove: (rows) => onBulkDelete(rows.map((r) => r.assignment)) }
+          : undefined
+      }
       renderLeftOpen={(row, cls, index, leaveOpen) =>
         row.assignment.paper ? null : (
           <QuizLeftOpenHost
@@ -567,6 +576,29 @@ export const QuizAssignedRowHost: React.FC<QuizAssignedRowHostProps> = ({
       onClick: () =>
         withUndo(() => actions.moveToDone(), `${a.quizTitle} moved to Done.`),
     });
+  useAssignedBulkOps({
+    close: allClosed
+      ? undefined
+      : async () => {
+          const prev = a;
+          const uid = user?.uid;
+          await actions.closeAll();
+          return async () => {
+            if (uid) await undoClose(prev, uid, lifecycle);
+          };
+        },
+    moveToDone:
+      status.bucket === 'active' && !viewOnly
+        ? async () => {
+            const prev = a;
+            const uid = user?.uid;
+            await actions.moveToDone();
+            return async () => {
+              if (uid) await undoClose(prev, uid, lifecycle);
+            };
+          }
+        : undefined,
+  });
   const built = menu(a);
   const today = built.filter((m) => !REPLACED_MENU_IDS.has(m.id));
   // Reopen for chosen students outlives the whole-assignment Reopen it sat under.

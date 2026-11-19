@@ -207,6 +207,7 @@ import {
 import { runPublishGradePush } from '@/utils/publishGradePush';
 import {
   offerToolColumnRemoval,
+  offerToolColumnsRemoval,
   sessionHasToolColumn,
 } from '@/utils/schoologyToolColumns';
 import {
@@ -5213,6 +5214,23 @@ const TeacherQuizWidget: React.FC<{
               'error'
             );
           }
+        }}
+        onArchiveDeleteMany={async (list) => {
+          const columns: string[] = [];
+          const results = await Promise.allSettled(
+            list.map(async (a) => {
+              const hadColumn = await sessionHasToolColumn('quiz', a.id);
+              await deleteAssignment(a.id);
+              if (hadColumn) columns.push(a.id);
+            })
+          );
+          await offerToolColumnsRemoval({
+            functions,
+            sessionIds: columns,
+            showConfirm,
+            addToast,
+          });
+          return results.filter((r) => r.status === 'rejected').length;
         }}
         onArchiveDelete={async (a) => {
           try {
