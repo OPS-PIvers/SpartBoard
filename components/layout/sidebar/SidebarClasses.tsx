@@ -516,7 +516,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
   return (
     <>
       <div
-        className={`absolute inset-0 flex flex-col transition-all duration-300 ease-in-out ${
+        className={`absolute inset-0 flex flex-col transition-[translate,opacity,visibility] duration-200 ease-out-strong motion-reduce:transition-[opacity,visibility] motion-reduce:translate-x-0 ${
           isVisible
             ? 'translate-x-0 opacity-100 visible'
             : 'translate-x-full opacity-0 invisible'
