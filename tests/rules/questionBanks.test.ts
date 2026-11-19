@@ -29,7 +29,6 @@ import {
   collection,
   serverTimestamp,
   writeBatch,
-  type Firestore,
 } from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-question-banks';
@@ -50,6 +49,7 @@ const RULES_PATH = fileURLToPath(
 );
 
 let testEnv: RulesTestEnvironment;
+type RulesDb = ReturnType<typeof as>;
 
 const as = (uid: string) =>
   testEnv
@@ -106,7 +106,7 @@ const entryDoc = (
 
 /** Creates a synced bank with its id reservation in one batch, as the client does. */
 const createReserved = (
-  db: Firestore,
+  db: RulesDb,
   id: string,
   ownerUid: string,
   bank: Record<string, unknown>,
@@ -119,7 +119,7 @@ const createReserved = (
 };
 
 /** Deletes the synced bank and keeps its reservation in one batch. */
-const deleteReserved = (db: Firestore, ownerUid: string) => {
+const deleteReserved = (db: RulesDb, ownerUid: string) => {
   const batch = writeBatch(db);
   batch.set(doc(db, ownersPath(GROUP_ID)), { ownerUid, at: 2 });
   batch.delete(doc(db, syncedPath));
