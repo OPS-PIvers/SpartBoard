@@ -333,6 +333,22 @@ interface KeyQuestion {
   blankChoices?: unknown;
   wordBank?: unknown;
   wordBankReuse?: unknown;
+  promptAudio?: unknown;
+}
+
+// Mirrors the QuestionAudio shape; anything malformed is dropped.
+function publicPromptAudio(raw: unknown): Record<string, unknown> | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const a = raw as Record<string, unknown>;
+  if (typeof a.driveFileId !== 'string' || !a.driveFileId) return null;
+  return {
+    driveFileId: a.driveFileId,
+    durationSec: typeof a.durationSec === 'number' ? a.durationSec : 0,
+    mimeType: typeof a.mimeType === 'string' ? a.mimeType : '',
+    ...(typeof a.playLimit === 'number' && a.playLimit > 0
+      ? { playLimit: a.playLimit }
+      : {}),
+  };
 }
 
 // Mirrors FIB_BLANK_SEP in utils/quizFibBlanks.ts.
@@ -470,6 +486,8 @@ export function publicQuestionFromKey(q: KeyQuestion): Record<string, unknown> {
     text: q.text,
     timeLimit: typeof q.timeLimit === 'number' ? q.timeLimit : 30,
   };
+  const promptAudio = publicPromptAudio(q.promptAudio);
+  if (promptAudio) base.promptAudio = promptAudio;
   if (q.type === 'MC') {
     const english = [q.correctAnswer ?? '', ...(q.incorrectAnswers ?? [])];
     const choices = shuffled(english.filter(Boolean));

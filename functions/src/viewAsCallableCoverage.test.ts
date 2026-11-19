@@ -157,6 +157,7 @@ const CALLABLE_MODES: Record<string, Mode> = {
   translateResponseV1: 'outward',
   transcribeSpeechV1: 'outward',
   tidyDictationV1: 'outward',
+  getSpeechToTextAccessV1: 'outward',
   withdrawTeammatePaperBatchV1: 'outward',
   writeWebTourTextV1: 'outward',
   assignWritingV1: 'outward',

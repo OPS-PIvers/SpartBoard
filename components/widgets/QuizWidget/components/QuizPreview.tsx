@@ -3,6 +3,7 @@
  * Teachers navigate through questions and see correct/incorrect highlighting.
  */
 
+import { QuestionAudioButton } from '@/components/quiz/QuestionAudioButton';
 import { MathText } from '@/components/common/MathText';
 import { PromptText } from '@/components/common/PromptText';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
@@ -252,6 +253,12 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
                 <PromptText text={question.text} />
               )}
             </p>
+            {question.promptAudio && (
+              <QuestionAudioButton
+                audio={question.promptAudio}
+                className="mt-2"
+              />
+            )}
           </div>
 
           {(question.stimulusIds?.length ?? 0) > 0 && (
