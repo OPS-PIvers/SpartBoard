@@ -38,6 +38,7 @@ import type { LibraryMenuAction } from '../types';
 import { AssignedList } from './AssignedList';
 import { AssignedLeftOpenFlag } from './AssignedLeftOpenFlag';
 import { AssignedRow } from './AssignedRow';
+import { useAssignedBulkOps } from './assignedBulkContext';
 import { RunAssignedResponsesFixture } from './runAssignedFixture';
 import {
   mainActionLabel,
@@ -89,6 +90,8 @@ export interface RunAssignedTabProps<A extends RunAssignment> {
   submits?: (a: A) => boolean;
   /** A first footer line naming the row's kind, e.g. "Check · Test". */
   footerLead?: (a: A) => string | null;
+  /** Deletes without asking; resolves to how many failed. Turns on bulk select. */
+  onBulkDelete?: (assignments: A[]) => Promise<number>;
 }
 
 const TICK_MS = 30_000;
@@ -189,6 +192,7 @@ interface RowModel<A> {
   status: AssignedStatus;
   assignment: A;
   bells: Record<string, EpochWindow | null>;
+  noMoveToDone: boolean;
 }
 
 /** The Assigned tab for a kind driven by `useAssignmentClassActions` (ASSIGNED_TAB.md slice 5). */
@@ -209,6 +213,7 @@ export function RunAssignedTab<A extends RunAssignment>(
     footer,
     publishes,
     normalize,
+    onBulkDelete,
   } = props;
   const { featurePermissions } = useAuth();
   const now = useNow();
@@ -241,7 +246,13 @@ export function RunAssignedTab<A extends RunAssignment>(
       toInput(a, { responses, needsGrading: 0, classSizes, bellFor }),
       now
     );
-    return { id: a.id, status, assignment: a, bells };
+    return {
+      id: a.id,
+      status,
+      assignment: a,
+      bells,
+      noMoveToDone: viewOnly(a),
+    };
   });
 
   // D17: a just-assigned row that nothing has opened yet sits on top.
@@ -265,6 +276,11 @@ export function RunAssignedTab<A extends RunAssignment>(
         emptyTitle={emptyTitle}
         emptySub={emptySub}
         tourWidgetType={tourWidgetType}
+        bulk={
+          onBulkDelete
+            ? { remove: (rs) => onBulkDelete(rs.map((r) => r.assignment)) }
+            : undefined
+        }
         renderLeftOpen={(row, cls, index, leaveOpen) => (
           <RunLeftOpenHost<A>
             row={row}
@@ -522,6 +538,27 @@ function RunAssignedRowHost<A extends RunAssignment>({
         withUndo(() => actions.moveToDone(), `${title} moved to Done.`),
     });
   for (const item of [...singleItems, ...lifecycleItems]) item.disabled = busy;
+  const undoFor = (prev: A, wasEnded: boolean) => async () => {
+    if (user?.uid)
+      await undoClose(prev, user.uid, collections, lifecycle, wasEnded);
+  };
+  useAssignedBulkOps({
+    close: allClosed
+      ? undefined
+      : async () => {
+          const undo = undoFor(a, isEnded(a));
+          await actions.closeAll();
+          return undo;
+        },
+    moveToDone:
+      status.bucket === 'active' && !viewOnly
+        ? async () => {
+            const undo = undoFor(a, isEnded(a));
+            await actions.moveToDone();
+            return undo;
+          }
+        : undefined,
+  });
   const replaced = new Set(replacedMenuIds);
   const today = menu(a).filter((m) => !replaced.has(m.id));
   const firstDestructive = today.findIndex((m) => m.destructive);

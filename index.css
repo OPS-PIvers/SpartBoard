@@ -14,11 +14,24 @@
   --default-ring-color: rgb(59 130 246 / 0.5);
 }
 
+/* Motion curves. `static` keeps them in the build even when no utility uses them. */
+@theme static {
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
 @layer base {
   /* A vertical scroller never grows a sideways bar from stray overflow. Utilities win, so overflow-x-auto still opts in. */
   .overflow-y-auto,
   .overflow-y-scroll {
     overflow-x: hidden;
+  }
+
+  /* tailwindcss-animate sets no timing function, so entrances and exits would run on bare `ease`. */
+  .animate-in,
+  .animate-out {
+    animation-timing-function: var(--ease-out-strong);
   }
 
   *,
@@ -257,7 +270,7 @@ body.is-dragging-widget video {
 /* Dashboard Transitions */
 @keyframes slideLeftIn {
   from {
-    transform: translateX(100%);
+    transform: translateX(2%);
     opacity: 0;
   }
   to {
@@ -268,7 +281,7 @@ body.is-dragging-widget video {
 
 @keyframes slideRightIn {
   from {
-    transform: translateX(-100%);
+    transform: translateX(-2%);
     opacity: 0;
   }
   to {
@@ -307,11 +320,11 @@ body.is-dragging-widget video {
 }
 
 .animate-slide-left-in {
-  animation: slideLeftIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation: slideLeftIn 200ms var(--ease-out-strong) forwards;
 }
 
 .animate-slide-right-in {
-  animation: slideRightIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation: slideRightIn 200ms var(--ease-out-strong) forwards;
 }
 
 .animate-slide-left-out {
@@ -319,7 +332,14 @@ body.is-dragging-widget video {
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.5s ease-out forwards;
+  animation: fadeIn 200ms ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-slide-left-in,
+  .animate-slide-right-in {
+    animation-name: fadeIn;
+  }
 }
 
 .animate-disclosure-expand {

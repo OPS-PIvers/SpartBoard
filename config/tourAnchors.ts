@@ -1358,6 +1358,24 @@ export const TOUR_ANCHORS = {
     rows: true,
     rowList: 'assign-classes',
   },
+  'assign-classes.course': {
+    label: 'Course checkbox in the Assign dialog class list',
+    perField: true,
+    keyPattern: 'assign#row-[1-9]\\d*',
+    keyHint: 'assign#row-1 for the first row',
+    panel: true,
+    rows: true,
+    rowList: 'assign-classes',
+  },
+  'assign-classes.course-expand': {
+    label: 'Show the sections in a Course in the Assign dialog class list',
+    perField: true,
+    keyPattern: 'assign#row-[1-9]\\d*',
+    keyHint: 'assign#row-1 for the first row',
+    panel: true,
+    rows: true,
+    rowList: 'assign-classes',
+  },
   'assign-classes.select-all': {
     label: 'Select all button in the Assign dialog class list',
     panel: true,
@@ -6773,6 +6791,33 @@ export const TOUR_ANCHORS = {
   'library-shell.assigned-move-to-done': {
     label: 'Move to Done, in an Assigned row menu',
     persists: true,
+    panel: true,
+  },
+  'library-shell.assigned-select': {
+    label: 'Select on the Assigned tab; starts picking several assignments',
+  },
+  'library-shell.assigned-select-row': {
+    label: 'Checkbox on an Assigned row while picking several assignments',
+    perField: true,
+    panel: true,
+    rows: true,
+    rowList: 'assignment-rows',
+  },
+  'library-shell.assigned-select-all': {
+    label: 'Select all box in the Assigned tab selection bar',
+    panel: true,
+  },
+  'library-shell.assigned-bulk-action': {
+    label: 'Close, Move to Done or Delete in the Assigned tab selection bar',
+    persists: true,
+    destructive: true,
+    perField: true,
+    panel: true,
+    keyPattern: '[a-z-]+#(close|move-to-done|delete)',
+    keyHint: 'quiz#delete is Delete for the picked quizzes',
+  },
+  'library-shell.assigned-select-cancel': {
+    label: 'Cancel in the Assigned tab selection bar',
     panel: true,
   },
   'widget-settings.calendar.remove-calendar': {

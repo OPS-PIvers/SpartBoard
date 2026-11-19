@@ -1,9 +1,9 @@
 // The teacher's Courses (docs/plans/COURSE_AND_AGENDA.md §4.1): a live listener plus the saveCourseV1 call, the only writer.
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useContext, useEffect, useState } from 'react';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions, isAuthBypass } from '@/config/firebase';
-import { useAuth } from '@/context/useAuth';
+import { AuthContext } from '@/context/AuthContextValue';
 import { logError } from '@/utils/logError';
 import {
   COURSES_SUBCOLLECTION,
@@ -28,8 +28,8 @@ const callSaveCourse = (request: SaveCourseRequest) =>
 
 /** Listens only while `enabled` (the `course-agenda` flag), so teachers without it open no listener. */
 export function useCourses(enabled = true): UseCoursesResult {
-  const { user } = useAuth();
-  const uid = user?.uid ?? null;
+  // Optional so shared pickers can mount outside AuthProvider (tests, harness pages).
+  const uid = useContext(AuthContext)?.user?.uid ?? null;
   const live = enabled && !!uid && !isAuthBypass;
   const [state, setState] = useState<{
     key: string | null;

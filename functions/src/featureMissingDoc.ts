@@ -34,6 +34,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'drive-only-uploads',
   'quick-sign-in',
   'quiz-score-on-submit',
+  'quiz-recap-all-options',
   'modification-groups',
   'rubric-grading-v2',
   'paper-printed-versions',
