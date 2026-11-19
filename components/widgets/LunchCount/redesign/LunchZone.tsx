@@ -15,7 +15,7 @@ export const ZONE_TEXT =
   'calc(clamp(12px, calc(3.4cqmin - 0.5px), 30px) * var(--lc-base, 1))';
 // Every name chip and the Unassigned label; useBoardFit lowers `--lc-fit` until every chip is on screen.
 export const CHIP_TEXT =
-  'calc(clamp(12px, calc(3.4cqmin - 0.5px), 30px) * var(--lc-base, 1) * var(--lc-fit, 1))';
+  'max(7px, calc(clamp(12px, calc(3.4cqmin - 0.5px), 30px) * var(--lc-base, 1) * var(--lc-fit, 1)))';
 export const CHIP_GAP = 'calc(clamp(6px, 1.6cqmin, 14px) * var(--lc-fit, 1))';
 
 export const CHIP_CLASS =

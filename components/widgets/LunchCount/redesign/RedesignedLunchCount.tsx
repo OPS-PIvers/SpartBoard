@@ -195,7 +195,7 @@ export const LunchCountRedesign: React.FC<{ widget: WidgetData }> = ({
                 onClick={model.handleOpenReport}
                 disabled={!ready}
                 variant={ready ? 'primary' : 'secondary'}
-                className="flex-[1_1_240px] min-w-0 rounded-lg uppercase font-semibold tracking-[0.1em] leading-tight text-center active:brightness-95"
+                className="relative touch-target-expand flex-[1_1_240px] min-w-0 rounded-lg uppercase font-semibold tracking-[0.1em] leading-tight text-center active:brightness-95"
                 style={{
                   opacity: 1,
                   padding: '0.6em 1.4em',
