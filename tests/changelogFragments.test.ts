@@ -111,6 +111,18 @@ describe('changelog fragments', () => {
     expect(warnings).toHaveLength(3);
   });
 
+  it('renumbers a plain-date clash with a same-day counter, never the date', () => {
+    const merged = mergeChangelog(
+      { entries: [entry('2026.11.19')] },
+      [{ name: 'a.json', data: { entries: [entry('2026.11.19')] } }],
+      () => {}
+    );
+    expect(merged.entries.map((e) => e.version)).toEqual([
+      '2026.11.19.2',
+      '2026.11.19',
+    ]);
+  });
+
   it('warns when a new entry is older than the newest one', () => {
     const warnings: string[] = [];
     mergeChangelog(

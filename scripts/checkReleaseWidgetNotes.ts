@@ -2,7 +2,7 @@
 // node scripts/checkReleaseWidgetNotes.ts --base origin/main   (PR body in $PR_BODY)
 
 import { execFileSync } from 'node:child_process';
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, realpathSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -81,7 +81,8 @@ export function missingNotes(
 
 const isMain =
   !!process.argv[1] &&
-  resolve(fileURLToPath(import.meta.url)) === resolve(process.argv[1]);
+  realpathSync(fileURLToPath(import.meta.url)) ===
+    realpathSync(resolve(process.argv[1]));
 
 if (isMain) {
   const root = join(dirname(fileURLToPath(import.meta.url)), '..');

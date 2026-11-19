@@ -13,9 +13,9 @@ on:
     - cron: '23 * * * *'
   workflow_dispatch:
 
-# One run at a time, each over every open PR, so two runs never label or comment on the same PR twice.
+# A PR event checks that PR; a base push or the schedule sweeps every PR.
 concurrency:
-  group: pr-conflicts
+  group: pr-conflicts-${{ github.event.pull_request.number || 'sweep' }}
   cancel-in-progress: false
 
 permissions:
@@ -36,6 +36,7 @@ jobs:
             const MARKER = '<!-- pr-conflicts -->';
             const BASES = new Set(['dev-paul', 'main']);
             const { owner, repo } = context.repo;
+            const only = context.payload.pull_request?.number ?? null;
 
             try {
               await github.rest.issues.getLabel({ owner, repo, name: LABEL });
@@ -67,7 +68,7 @@ jobs:
                 out.push(...page.nodes);
                 cursor = page.pageInfo.hasNextPage ? page.pageInfo.endCursor : null;
               } while (cursor);
-              return out.filter((p) => BASES.has(p.baseRefName));
+              return out.filter((p) => BASES.has(p.baseRefName) && (only === null || p.number === only));
             };
 
             // GitHub computes mergeability lazily after a push; UNKNOWN means ask again shortly.
@@ -80,6 +81,9 @@ jobs:
             for (const pr of prs) {
               const labelled = pr.labels.nodes.some((l) => l.name === LABEL);
               if (pr.mergeable === 'CONFLICTING' && !labelled) {
+                // Re-read just before labelling; a PR run and a sweep can overlap.
+                const { data: fresh } = await github.rest.issues.listLabelsOnIssue({ owner, repo, issue_number: pr.number });
+                if (fresh.some((l) => l.name === LABEL)) continue;
                 await github.rest.issues.addLabels({ owner, repo, issue_number: pr.number, labels: [LABEL] });
                 await github.rest.issues.createComment({
                   owner, repo, issue_number: pr.number,

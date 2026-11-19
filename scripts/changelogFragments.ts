@@ -7,6 +7,7 @@ import {
   existsSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
@@ -40,8 +41,11 @@ export function compareVersions(a: string, b: string): number {
   return 0;
 }
 
+// Only the same-day .N counter moves; the date parts never do.
 const bumpVersion = (v: string) =>
-  /\.\d+$/.test(v) ? v.replace(/\d+$/, (n) => String(Number(n) + 1)) : `${v}.1`;
+  v.split('.').length > 3
+    ? v.replace(/\d+$/, (n) => String(Number(n) + 1))
+    : `${v}.2`;
 
 /** Base file plus fragments; new entries slot in newest-first, new widget notes go on top. A clash renumbers instead of failing, so two PRs that merge cleanly can't break the build. */
 export function mergeChangelog(
@@ -211,7 +215,8 @@ export function loadChangelogAtRef(
 
 const isMain =
   !!process.argv[1] &&
-  resolve(fileURLToPath(import.meta.url)) === resolve(process.argv[1]);
+  realpathSync(fileURLToPath(import.meta.url)) ===
+    realpathSync(resolve(process.argv[1]));
 
 if (isMain) {
   const root = join(dirname(fileURLToPath(import.meta.url)), '..');
