@@ -5354,7 +5354,7 @@ const TeacherQuizWidget: React.FC<{
             addToast(
               isViewOnlyAssignment
                 ? 'Share reactivated.'
-                : 'Reopened — click Resume to accept submissions.',
+                : `Reopened — click ${!isReview && canAccessFeature('assigned-tab') ? 'Resume' : 'Start'} to accept submissions.`,
               'success'
             );
           } catch (err) {
