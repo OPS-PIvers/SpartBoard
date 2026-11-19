@@ -11662,6 +11662,8 @@ export interface Toast {
     /** Keeps the toast until the teacher dismisses it or takes the action. */
     persist?: boolean;
   };
+  /** Set while the toast eases out, just before it is removed. */
+  leaving?: boolean;
 }
 
 export type WidgetCategory =
