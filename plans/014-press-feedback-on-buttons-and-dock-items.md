@@ -1,6 +1,6 @@
 # 014 — Give shared buttons press feedback and soften the Dock's press
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: 9ac6534
 - **Severity**: HIGH
 - **Category**: Physicality & origin

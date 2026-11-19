@@ -6750,6 +6750,33 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'library-shell.assigned-select': {
+    label: 'Select on the Assigned tab; starts picking several assignments',
+  },
+  'library-shell.assigned-select-row': {
+    label: 'Checkbox on an Assigned row while picking several assignments',
+    perField: true,
+    panel: true,
+    rows: true,
+    rowList: 'assignment-rows',
+  },
+  'library-shell.assigned-select-all': {
+    label: 'Select all box in the Assigned tab selection bar',
+    panel: true,
+  },
+  'library-shell.assigned-bulk-action': {
+    label: 'Close, Move to Done or Delete in the Assigned tab selection bar',
+    persists: true,
+    destructive: true,
+    perField: true,
+    panel: true,
+    keyPattern: '[a-z-]+#(close|move-to-done|delete)',
+    keyHint: 'quiz#delete is Delete for the picked quizzes',
+  },
+  'library-shell.assigned-select-cancel': {
+    label: 'Cancel in the Assigned tab selection bar',
+    panel: true,
+  },
   'widget-settings.calendar.remove-calendar': {
     label: 'Remove a personal calendar in Calendar settings',
     perField: true,

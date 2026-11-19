@@ -1,7 +1,17 @@
-import React, { useId, useMemo, useState } from 'react';
-import { ChevronRight, Inbox, Loader2 } from 'lucide-react';
+import React, { useId, useMemo, useRef, useState } from 'react';
+import {
+  CheckCircle2,
+  ChevronRight,
+  Inbox,
+  Loader2,
+  PowerOff,
+  Trash2,
+} from 'lucide-react';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
-import { tourFieldAttr } from '@/config/tourAnchors';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
+import { useDialog } from '@/context/useDialog';
+import { useDashboard } from '@/context/useDashboard';
+import { logError } from '@/utils/logError';
 import {
   compareAssigned,
   type AssignedClass,
@@ -12,10 +22,21 @@ import {
   readLeftOpenDismissals,
   writeLeftOpenDismissals,
 } from './leftOpenDismissals';
+import { AssignedBulkBar } from './AssignedBulk';
+import {
+  AssignedBulkRegisterContext,
+  AssignedRowSelectContext,
+  type AssignedBulkAction,
+  type AssignedBulkOps,
+  type AssignedBulkUndo,
+} from './assignedBulkContext';
+import { LibrarySelectToggle } from '../LibrarySelectToggle';
 
 export interface AssignedListItem {
   id: string;
   status: AssignedStatus;
+  /** True when the row cannot be moved to Done by hand (view-only shares). */
+  noMoveToDone?: boolean;
 }
 
 interface AssignedListProps<T extends AssignedListItem> {
@@ -34,7 +55,11 @@ interface AssignedListProps<T extends AssignedListItem> {
     index: number,
     leaveOpen: () => void
   ) => React.ReactNode;
+  /** Turns on selecting several rows. `remove` deletes them and resolves to how many failed. */
+  bulk?: { remove: (items: T[]) => Promise<number> };
 }
+
+const plural = (n: number) => `${n} assignment${n === 1 ? '' : 's'}`;
 
 const SectionLabel: React.FC<{ label: string; count: number }> = ({
   label,
@@ -69,8 +94,21 @@ export function AssignedList<T extends AssignedListItem>({
   emptySub,
   tourWidgetType,
   renderLeftOpen,
+  bulk,
 }: AssignedListProps<T>): React.ReactElement {
   const [doneOpen, setDoneOpen] = useState(false);
+  const [selectingOn, setSelecting] = useState(false);
+  const selecting = !!bulk && selectingOn;
+  const [picked, setPicked] = useState<ReadonlySet<string>>(() => new Set());
+  const [busy, setBusy] = useState(false);
+  const { showConfirm } = useDialog();
+  const { addToast } = useDashboard();
+  // Each row's latest close and move-to-done writes, read only when an action runs.
+  const ops = useRef(new Map<string, AssignedBulkOps>());
+  const registerFor = (id: string) => (o: AssignedBulkOps | null) => {
+    if (o) ops.current.set(id, o);
+    else ops.current.delete(id);
+  };
   const [dismissed, setDismissed] = useState(readLeftOpenDismissals);
   const leftOpen = useMemo(() => {
     if (!renderLeftOpen) return [];
@@ -105,6 +143,200 @@ export function AssignedList<T extends AssignedListItem>({
     };
   }, [items, pinnedId]);
 
+  const shown = doneOpen ? [...active, ...done] : active;
+  // Only rows on screen count, so a closed Done section is never acted on.
+  const selected = shown.filter((i) => picked.has(i.id));
+  const stateOf = (rows: readonly T[]): 'on' | 'off' | 'some' => {
+    const n = rows.filter((i) => picked.has(i.id)).length;
+    return n === 0 ? 'off' : n === rows.length ? 'on' : 'some';
+  };
+  const setMany = (rows: readonly T[], on: boolean) =>
+    setPicked((prev) => {
+      const next = new Set(prev);
+      for (const r of rows) {
+        if (on) next.add(r.id);
+        else next.delete(r.id);
+      }
+      return next;
+    });
+  const toggleOne = (id: string) =>
+    setPicked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const stopSelecting = () => {
+    setPicked(new Set());
+    setSelecting(false);
+  };
+  const runBulk = async (action: AssignedBulkAction) => {
+    if (action.confirm) {
+      const { title, message, confirmLabel } = action.confirm;
+      const ok = await showConfirm(message, {
+        title,
+        confirmLabel,
+        variant: action.destructive ? 'danger' : undefined,
+      });
+      if (!ok) return;
+    }
+    setBusy(true);
+    try {
+      await action.run();
+      setPicked(new Set());
+    } finally {
+      setBusy(false);
+    }
+  };
+  /** Runs one op on every picked row that has it, then offers one Undo for all. */
+  const runOps = async (
+    pick: (o: AssignedBulkOps) => (() => Promise<AssignedBulkUndo>) | undefined,
+    done: (n: number) => string,
+    failed: (n: number) => string
+  ) => {
+    const fns = selected.flatMap((i) => {
+      const o = ops.current.get(i.id);
+      const fn = o && pick(o);
+      return fn ? [fn] : [];
+    });
+    if (fns.length === 0) return;
+    const results = await Promise.allSettled(fns.map((fn) => fn()));
+    const undos = results.flatMap((r) =>
+      r.status === 'fulfilled' ? [r.value] : []
+    );
+    const bad = results.length - undos.length;
+    for (const r of results)
+      if (r.status === 'rejected') logError('AssignedList.bulk', r.reason);
+    // Undo puts back every row whose write can be undone.
+    const back = undos.filter((u) => u != null);
+    if (undos.length > 0)
+      addToast(
+        done(undos.length),
+        'success',
+        back.length > 0
+          ? {
+              label: 'Undo',
+              onClick: () => {
+                void Promise.allSettled(back.map((u) => u())).then((rs) => {
+                  const k = rs.filter((r) => r.status === 'rejected').length;
+                  if (k > 0)
+                    addToast(`${plural(k)} could not be undone.`, 'error');
+                });
+              },
+            }
+          : undefined
+      );
+    if (bad > 0) addToast(failed(bad), 'error');
+  };
+  // Shown from each row's status; rows whose host has no such write are skipped.
+  const canClose = selected.some((i) =>
+    i.status.classes.some((c) => c.status !== 'closed')
+  );
+  const canMove = selected.some(
+    (i) => i.status.bucket === 'active' && !i.noMoveToDone
+  );
+  const n = selected.length;
+  const actions: AssignedBulkAction[] = !bulk
+    ? []
+    : [
+        ...(canClose
+          ? [
+              {
+                id: 'close',
+                label: 'Close',
+                icon: PowerOff,
+                run: () =>
+                  runOps(
+                    (o) => o.close,
+                    (k) => `${plural(k)} closed.`,
+                    (k) => `${plural(k)} could not be closed.`
+                  ),
+              },
+            ]
+          : []),
+        ...(canMove
+          ? [
+              {
+                id: 'move-to-done',
+                label: 'Move to Done',
+                icon: CheckCircle2,
+                run: () =>
+                  runOps(
+                    (o) => o.moveToDone,
+                    (k) => `${k} moved to Done.`,
+                    (k) => `${plural(k)} could not be moved.`
+                  ),
+              },
+            ]
+          : []),
+        {
+          id: 'delete',
+          label: 'Delete',
+          icon: Trash2,
+          destructive: true,
+          confirm: {
+            title: `Delete ${plural(n)}?`,
+            message:
+              'Their student responses are deleted too. You cannot undo this.',
+            confirmLabel: 'Delete',
+          },
+          run: async () => {
+            const items = selected;
+            let bad = items.length;
+            try {
+              bad = await bulk.remove(items);
+            } catch (err) {
+              logError('AssignedList.bulkDelete', err);
+            }
+            const ok = items.length - bad;
+            if (ok > 0) addToast(`${plural(ok)} deleted.`, 'success');
+            if (bad > 0)
+              addToast(`${plural(bad)} could not be deleted.`, 'error');
+          },
+        },
+      ];
+  const allState = stateOf(shown);
+  const bar = selecting && (
+    <AssignedBulkBar
+      count={selected.length}
+      allState={allState}
+      onAll={() => setMany(shown, allState !== 'on')}
+      actions={actions}
+      busy={busy}
+      onRun={(a) => void runBulk(a)}
+      onCancel={stopSelecting}
+      tourWidgetType={tourWidgetType}
+    />
+  );
+  const wrap = (item: T, node: React.ReactNode) =>
+    !bulk ? (
+      node
+    ) : (
+      <AssignedBulkRegisterContext.Provider value={registerFor(item.id)}>
+        <AssignedRowSelectContext.Provider
+          value={
+            selecting
+              ? {
+                  selected: picked.has(item.id),
+                  toggle: () => toggleOne(item.id),
+                }
+              : null
+          }
+        >
+          {node}
+        </AssignedRowSelectContext.Provider>
+      </AssignedBulkRegisterContext.Provider>
+    );
+  const selectToggle = bulk && !selecting && (
+    <span className="ml-auto normal-case tracking-normal">
+      <LibrarySelectToggle
+        selectionMode={false}
+        onChange={() => setSelecting(true)}
+        anchor={tourTypeAttr('library-shell.assigned-select', tourWidgetType)}
+      />
+    </span>
+  );
+
   if (loading && items.length === 0) {
     return (
       <div
@@ -124,6 +356,7 @@ export function AssignedList<T extends AssignedListItem>({
 
   return (
     <div className="flex flex-col">
+      {bar}
       {renderLeftOpen &&
         leftOpen.map(({ item, cls, since }, i) => {
           const key = leftOpenKey(item.id, cls.key, since);
@@ -135,12 +368,15 @@ export function AssignedList<T extends AssignedListItem>({
         })}
       <div className={SECTION_CLASS} style={SECTION_STYLE}>
         <SectionLabel label="Active" count={active.length} />
+        {selectToggle}
       </div>
       {active.length === 0 ? (
         <ScaledEmptyState icon={Inbox} title={emptyTitle} subtitle={emptySub} />
       ) : (
         active.map((item, i) => (
-          <React.Fragment key={item.id}>{renderRow(item, i)}</React.Fragment>
+          <React.Fragment key={item.id}>
+            {wrap(item, renderRow(item, i))}
+          </React.Fragment>
         ))
       )}
       {done.length > 0 && (
@@ -172,7 +408,7 @@ export function AssignedList<T extends AssignedListItem>({
             <div id={doneId}>
               {done.map((item, i) => (
                 <React.Fragment key={item.id}>
-                  {renderRow(item, active.length + i)}
+                  {wrap(item, renderRow(item, active.length + i))}
                 </React.Fragment>
               ))}
             </div>

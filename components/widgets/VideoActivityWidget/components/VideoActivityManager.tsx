@@ -243,6 +243,10 @@ export interface VideoActivityManagerProps {
    */
   onArchiveReactivate?: (assignment: VideoActivityAssignment) => Promise<void>;
   onArchiveDelete?: (assignment: VideoActivityAssignment) => Promise<void>;
+  /** Assigned tab bulk delete, already confirmed; resolves to how many failed. */
+  onArchiveDeleteMany?: (
+    assignments: VideoActivityAssignment[]
+  ) => Promise<number>;
   onArchiveResults?: (assignment: VideoActivityAssignment) => void;
   /**
    * PR3 PLC sharing — invoked when the teacher picks "Share with PLC" on an
@@ -535,6 +539,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   onArchiveDeactivate,
   onArchiveReactivate,
   onArchiveDelete,
+  onArchiveDeleteMany,
   onArchiveResults,
   onArchiveShare,
   onArchiveAssignToClassroom,
@@ -1574,6 +1579,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
           rosters={rosters}
           lifecycle={classLifecycle}
           pinnedId={lastAssignedId}
+          onBulkDelete={onArchiveDeleteMany}
           emptyTitle="Nothing active"
           emptySub={
             isViewOnly

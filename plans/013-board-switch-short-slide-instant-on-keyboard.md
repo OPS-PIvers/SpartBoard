@@ -1,6 +1,6 @@
 # 013 — Board switch: no animation from the keyboard, a short slide otherwise
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: 9ac6534
 - **Severity**: HIGH
 - **Category**: Purpose & frequency (also Easing & duration, Interruptibility, Accessibility)
