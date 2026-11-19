@@ -354,10 +354,14 @@ function mcAnswer(
         student.lettered && CHOICE_LETTERS[i]
           ? `<span class="letter">${CHOICE_LETTERS[i]}.</span> `
           : '';
+      // One choice: the row's Correct/Incorrect already marks the pick, so only several choices tick each one.
       const mark =
-        opt.picked && options.markAnswers ? ` ${tick(opt.correct)}` : '';
+        multi && opt.picked && options.markAnswers
+          ? ` ${tick(opt.correct)}`
+          : '';
+      // A marked pick already says it was right, so the tag only points at the ones missed.
       const key =
-        showKey && opt.correct
+        showKey && opt.correct && !(opt.picked && options.markAnswers)
           ? ' <span class="keytag">Correct answer</span>'
           : '';
       const bullet = multi ? (opt.picked ? '☑' : '☐') : opt.picked ? '●' : '○';
