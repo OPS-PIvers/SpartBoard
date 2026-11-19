@@ -25,6 +25,16 @@ export interface AssignmentClassEdit extends SessionTargets {
   removedClassIds?: string[];
 }
 
+/** The rosters an assignment targeted: `rosterIds` when present (even empty), else those matching its legacy period names. */
+export function previousRosterIdsFor(
+  a: { rosterIds?: string[]; periodNames?: string[]; periodName?: string },
+  rosters: readonly ClassRoster[]
+): string[] {
+  if (a.rosterIds !== undefined) return a.rosterIds;
+  const names = new Set(a.periodNames ?? (a.periodName ? [a.periodName] : []));
+  return rosters.filter((r) => names.has(r.name)).map((r) => r.id);
+}
+
 /** The class ids and period keys a set of unchecked rosters carries. */
 export function uncheckedRosterClassIds(
   rosters: readonly ClassRoster[]
