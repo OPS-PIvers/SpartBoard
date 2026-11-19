@@ -2420,6 +2420,8 @@
       "yourAnswers": "Tus respuestas",
       "otherQuestions": "Otras preguntas",
       "yourAnswer": "Tu respuesta:",
+      "yourAnswerTag": "Tu respuesta",
+      "correctAnswerTag": "Respuesta correcta",
       "scoreOnly": "Tu maestro publicó tu puntuación. Las respuestas detalladas no se comparten en esta tarea."
     },
     "rubric": {

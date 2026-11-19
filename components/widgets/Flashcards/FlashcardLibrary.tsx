@@ -81,6 +81,10 @@ interface FlashcardLibraryProps {
   onAssignmentEnd: (assignment: FlashcardAssignment) => void;
   onAssignmentReopen: (assignment: FlashcardAssignment) => void;
   onAssignmentDelete: (assignment: FlashcardAssignment) => void;
+  /** Assigned tab bulk delete, already confirmed; resolves to how many failed. */
+  onAssignmentDeleteMany?: (
+    assignments: FlashcardAssignment[]
+  ) => Promise<number>;
   /** Surfaces a failed folder move as a toast. */
   onError?: (message: string) => void;
   onShareWithPlc?: (set: FlashcardSet) => void;
@@ -143,6 +147,7 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
   onAssignmentEnd,
   onAssignmentReopen,
   onAssignmentDelete,
+  onAssignmentDeleteMany,
   onError,
   onShareWithPlc,
   onAssignmentStopSharingWithPlc,
@@ -345,6 +350,7 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
         onResults={onAssignmentResults}
         onPublish={onAssignmentPublishScores}
         menu={assignedMenu}
+        onBulkDelete={onAssignmentDeleteMany}
       />
     ) : assignmentsLoading ? (
       <div
