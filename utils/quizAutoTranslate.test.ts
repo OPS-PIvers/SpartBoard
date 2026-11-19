@@ -25,21 +25,27 @@ const deps = (saved: QuizTranslation[] = []) => ({
     saved.push(p);
     return Promise.resolve('file-1');
   }),
-  translate: vi.fn(async (_locale: string, ids: string[]) => ({
-    questions: Object.fromEntries(ids.map((id) => [id, { text: `es ${id}` }])),
-    sourceHashes: Object.fromEntries(
-      await Promise.all(
-        ids.map(async (id): Promise<[string, string]> => [
-          id,
-          await hashQuestionForTranslation(
-            QUIZ.questions.find((x) => x.id === id) as QuizQuestion
-          ),
-        ])
-      )
-    ),
-    model: 'm',
-  })),
+  translate: vi.fn(async (_locale: string, asked?: string[]) => {
+    const ids = asked ?? QUIZ.questions.map((x) => x.id);
+    return {
+      questions: Object.fromEntries(
+        ids.map((id) => [id, { text: `es ${id}` }])
+      ),
+      sourceHashes: Object.fromEntries(
+        await Promise.all(
+          ids.map(async (id): Promise<[string, string]> => [
+            id,
+            await hashQuestionForTranslation(
+              QUIZ.questions.find((x) => x.id === id) as QuizQuestion
+            ),
+          ])
+        )
+      ),
+      model: 'm',
+    };
+  }),
   writeIndex: vi.fn(() => Promise.resolve()),
+  deleteTranslation: vi.fn(() => Promise.resolve()),
 });
 
 describe('autoTranslateForAssign', () => {
@@ -47,7 +53,7 @@ describe('autoTranslateForAssign', () => {
     const saved: QuizTranslation[] = [];
     const d = deps(saved);
     const index = await autoTranslateForAssign(QUIZ, undefined, ['es'], d);
-    expect(d.translate).toHaveBeenCalledWith('es', ['q1', 'q2']);
+    expect(d.translate).toHaveBeenCalledWith('es', undefined);
     expect(saved[0].reviewedQuestionIds).toEqual(['q1', 'q2']);
     expect(index?.es).toMatchObject({
       driveFileId: 'file-1',
@@ -72,6 +78,13 @@ describe('autoTranslateForAssign', () => {
     };
     expect(await autoTranslateForAssign(QUIZ, index, ['es'], d)).toBe(index);
     expect(d.translate).not.toHaveBeenCalled();
+  });
+
+  it('deletes a new file when the index write fails', async () => {
+    const d = deps();
+    d.writeIndex.mockRejectedValueOnce(new Error('offline'));
+    await autoTranslateForAssign(QUIZ, undefined, ['es'], d, vi.fn());
+    expect(d.deleteTranslation).toHaveBeenCalledWith('file-1');
   });
 
   it('keeps English when translation fails', async () => {

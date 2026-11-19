@@ -112,6 +112,8 @@ export interface QuizAssignStepperProps {
   onClose: () => void;
   onSubmit: (extra: {
     printedGroups: PrintedGroupPick[];
+    /** What the Modifications step shows, so assign serves exactly that. */
+    overridesByKey?: AssignTargetingValue['overridesByKey'];
   }) => void | Promise<void>;
 }
 
@@ -212,22 +214,27 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
     timeLimitLabel
       ? list
       : list.map((g) => ({ ...g, time: 'standard' as const }));
+  // Every roster, not just the checked ones, so re-checking a class keeps its students' rules.
+  const groupOverrides = (
+    list: ModificationGroup[],
+    shown: ReadonlySet<string>
+  ) =>
+    overridesFromGroups(
+      printedVersionsAvailable
+        ? list
+        : list.map((g) => ({ ...g, printed: false })),
+      allRows,
+      shown
+    );
   const applyGroups = (
     next: ModificationGroup[],
     shown: ReadonlySet<string> = seeded
   ) => {
     setGroups(next);
     if (!modifications) return;
-    // Every roster, not just the checked ones, so re-checking a class keeps its students' rules.
     modifications.onTargetingChange({
       ...modifications.targeting,
-      overridesByKey: overridesFromGroups(
-        printedVersionsAvailable
-          ? next
-          : next.map((g) => ({ ...g, printed: false })),
-        allRows,
-        shown
-      ),
+      overridesByKey: groupOverrides(next, shown),
     });
   };
 
@@ -445,7 +452,14 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
             }
           : undefined
       }
-      onSubmit={() => onSubmit({ printedGroups })}
+      onSubmit={() =>
+        onSubmit({
+          printedGroups,
+          ...(groupsOn && !staff
+            ? { overridesByKey: groupOverrides(groups, seeded) }
+            : {}),
+        })
+      }
       disabled={needsPlc || backwards || sharingCount > 0}
       disabledReason={
         needsPlc

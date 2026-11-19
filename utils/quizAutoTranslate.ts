@@ -30,11 +30,12 @@ export interface AutoTranslateDeps {
     payload: QuizTranslation,
     existingFileId?: string
   ): Promise<string>;
-  /** Calls `translateQuizV1` for these question ids. */
+  /** Calls `translateQuizV1`; no ids means the whole quiz, with its full budget and title. */
   translate(
     locale: string,
-    questionIds: string[]
+    questionIds?: string[]
   ): Promise<AutoTranslateResult>;
+  deleteTranslation(fileId: string): Promise<void>;
   writeIndex(locale: string, entry: QuizTranslationIndexEntry): Promise<void>;
   now?: () => number;
 }
@@ -61,7 +62,12 @@ export async function autoTranslateLocale(
     .filter((q) => !isFresh(previous, q.id))
     .map((q) => q.id);
   const result =
-    needed.length > 0 ? await deps.translate(locale, needed) : undefined;
+    needed.length === 0
+      ? undefined
+      : await deps.translate(
+          locale,
+          needed.length === translatable.length ? undefined : needed
+        );
   const now = deps.now?.() ?? Date.now();
   const merged: QuizTranslation = {
     locale,
@@ -90,7 +96,14 @@ export async function autoTranslateLocale(
     merged,
     quiz.questions
   );
-  await deps.writeIndex(locale, entry);
+  try {
+    await deps.writeIndex(locale, entry);
+  } catch (err) {
+    // A new file the index never recorded would sit in Drive unused.
+    if (!existing?.driveFileId)
+      await deps.deleteTranslation(fileId).catch(() => undefined);
+    throw err;
+  }
   return entry;
 }
 

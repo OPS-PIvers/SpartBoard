@@ -1135,6 +1135,7 @@ const TeacherQuizWidget: React.FC<{
     if (
       locales.length === 0 ||
       !canAccessFeature(QUIZ_TRANSLATION_FEATURE) ||
+      !canAccessFeature('modification-groups') ||
       isNonEnglishQuizSource(data.language) ||
       quizHasBankSlots(data)
     )
@@ -1160,6 +1161,7 @@ const TeacherQuizWidget: React.FC<{
       locales,
       {
         loadTranslation: (fileId) => drive.loadTranslation(fileId),
+        deleteTranslation: (fileId) => drive.deleteTranslation(fileId),
         saveTranslation: (locale, payload, existingFileId) =>
           drive.saveTranslation(
             data.id,
@@ -1177,7 +1179,7 @@ const TeacherQuizWidget: React.FC<{
               questions: data.questions.filter((q) =>
                 isTranslatableQuestionType(q.type)
               ),
-              questionIds,
+              ...(questionIds ? { questionIds } : {}),
             })
           ).data,
         writeIndex: (locale, entry) =>

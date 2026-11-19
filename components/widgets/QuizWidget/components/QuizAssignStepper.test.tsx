@@ -239,7 +239,8 @@ const PRESET_ROSTERS: ClassRoster[] = SAMPLE_ROSTERS.map((r) =>
 
 const PresetHarness: React.FC<{
   onTargeting: (next: AssignTargetingValue) => void;
-}> = ({ onTargeting }) => {
+  onSubmit?: (extra: unknown) => void;
+}> = ({ onTargeting, onSubmit = vi.fn() }) => {
   const [targeting, setTargeting] = useState<AssignTargetingValue>(
     EMPTY_ASSIGN_TARGETING_VALUE
   );
@@ -274,7 +275,7 @@ const PresetHarness: React.FC<{
         handRaiseMode="teacher-choice"
         submitLabel="Assign"
         onClose={vi.fn()}
-        onSubmit={vi.fn()}
+        onSubmit={onSubmit}
       />
     </AuthContext.Provider>
   );
@@ -299,5 +300,18 @@ describe('QuizAssignStepper class presets', () => {
       readAloud: true,
       timeMultiplier: 1.5,
     });
+  });
+
+  it('assign serves what the step shows, even with no edits', () => {
+    const onSubmit = vi.fn();
+    render(<PresetHarness onTargeting={vi.fn()} onSubmit={onSubmit} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Assign' }));
+    const extra = onSubmit.mock.calls[0]?.[0] as {
+      overridesByKey: AssignTargetingValue['overridesByKey'];
+    };
+    expect(Object.values(extra.overridesByKey)).toEqual([
+      { readAloud: true, timeMultiplier: 1.5 },
+      { readAloud: true, timeMultiplier: 1.5 },
+    ]);
   });
 });
