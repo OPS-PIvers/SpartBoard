@@ -4505,7 +4505,7 @@ export const ActiveQuiz: React.FC<{
       {/* Progress bar */}
       <div className={`h-1 ${progressTrack}`}>
         <div
-          className={`h-full transition-all ${progressFill}`}
+          className={`h-full transition-[width] ${progressFill}`}
           style={{ width: `${progress}%` }}
         />
       </div>
