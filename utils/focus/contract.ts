@@ -97,6 +97,8 @@ export interface FocusSessionDoc {
   /** Subs whose share for this class was checked by the server; rules let them read until `subMonitorUntil` (F8). */
   subMonitorUids?: string[];
   subMonitorUntil?: number;
+  /** The share each stamped sub opened with; rules read only while it is live and names them (AB-97). */
+  subMonitorShares?: Record<string, string>;
   [FOCUS_TTL_FIELD]?: unknown;
 }
 
