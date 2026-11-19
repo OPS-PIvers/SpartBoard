@@ -6573,5 +6573,10 @@
       "languageUnsupported": "Dictate can't hear that language on this device, so it is listening in English.",
       "unknown": "Dictate stopped. Tap Dictate to start again."
     }
+  },
+  "quizQuestionAudio": {
+    "play": "Play question",
+    "stop": "Stop",
+    "retry": "Try again"
   }
 }

@@ -5131,5 +5131,10 @@
       "languageUnsupported": "Diktieren versteht diese Sprache auf diesem Gerät nicht und hört deshalb auf Englisch zu.",
       "unknown": "Diktieren wurde beendet. Tippe auf Diktieren, um neu zu starten."
     }
+  },
+  "quizQuestionAudio": {
+    "play": "Frage abspielen",
+    "stop": "Stopp",
+    "retry": "Erneut versuchen"
   }
 }

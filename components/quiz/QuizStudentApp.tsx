@@ -4059,6 +4059,8 @@ export const ActiveQuiz: React.FC<{
     currentQuestion,
     localizedStrings
   );
+  // The recording is the original wording, so a modified prompt drops it.
+  const promptAudio = modifiedServed ? undefined : currentQuestion.promptAudio;
   const isMultiAnswer = currentQuestion.type === 'MA';
   const options =
     displayQuestion.type === 'MC' || displayQuestion.type === 'MA'
@@ -4770,7 +4772,7 @@ export const ActiveQuiz: React.FC<{
           )}
 
           {/* Question; the recorded audio is the original wording, so a modified prompt has none yet. */}
-          {readAloudOn && !modifiedServed ? (
+          {readAloudOn && !modifiedServed && !promptAudio ? (
             <div
               ref={promptWrapRef}
               tabIndex={-1}
@@ -4801,6 +4803,7 @@ export const ActiveQuiz: React.FC<{
                 blankCount={currentQuestion.blankCount}
                 light={light}
                 className={headingText}
+                audio={promptAudio}
               />
             </div>
           )}

@@ -5131,5 +5131,10 @@
       "languageUnsupported": "Dictar no puede escuchar ese idioma en este dispositivo, así que está escuchando en inglés.",
       "unknown": "Dictar se detuvo. Toca Dictar para empezar otra vez."
     }
+  },
+  "quizQuestionAudio": {
+    "play": "Reproducir la pregunta",
+    "stop": "Detener",
+    "retry": "Intentar de nuevo"
   }
 }

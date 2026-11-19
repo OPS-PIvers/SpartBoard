@@ -42,7 +42,8 @@ export const quizIncompleteReason = (
     return `"${emptySlot.bankTitle}" draws 0 questions. Set how many to draw or remove the slot.`;
   for (let i = 0; i < questions.length; i += 1) {
     const q = questions[i];
-    if (!q.text.trim()) return `Question ${i + 1}: text is required`;
+    if (!q.text.trim() && !q.promptAudio)
+      return `Question ${i + 1}: text is required`;
     // Free-response questions have no correct answer — they are manually
     // graded after the quiz closes. A `needsKey` question saves without one
     // on purpose (D7).

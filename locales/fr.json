@@ -5131,5 +5131,10 @@
       "languageUnsupported": "Dicter ne peut pas entendre cette langue sur cet appareil, alors il écoute en anglais.",
       "unknown": "Dicter s'est arrêté. Touche Dicter pour recommencer."
     }
+  },
+  "quizQuestionAudio": {
+    "play": "Écouter la question",
+    "stop": "Arrêter",
+    "retry": "Réessayer"
   }
 }

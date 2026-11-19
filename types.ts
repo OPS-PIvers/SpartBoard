@@ -4536,13 +4536,23 @@ export type QuizStimulusPlacement = 'panel' | 'inline';
 /** How students fill a FIB question's blanks; absent means typed (M6). */
 export type FibBlankType = 'typed' | 'dropdown' | 'drag';
 
+/** A teacher's recording of a question prompt, saved link-shared in their Drive. */
+export interface QuestionAudio {
+  driveFileId: string;
+  durationSec: number;
+  mimeType: string;
+}
+
 export interface QuizQuestion {
   id: string;
   /** Time limit in seconds. 0 = no time limit. */
   timeLimit: number;
+  /** May be empty when `promptAudio` is set. */
   text: string;
   /** Modified wording of the prompt for students in a group with modified questions; same answer key. */
   modifiedText?: string;
+  /** The teacher's recorded prompt, played to students with or instead of `text`. */
+  promptAudio?: QuestionAudio;
   type: QuizQuestionType;
   /**
    * MC/FIB: the correct answer text. Multi-blank FIB: one answer per blank joined by `FIB_BLANK_SEP`.
@@ -5370,6 +5380,8 @@ export interface QuizPublicQuestion {
   id: string;
   type: QuizQuestion['type'];
   text: string;
+  /** Projected verbatim from {@link QuizQuestion.promptAudio}. */
+  promptAudio?: QuestionAudio;
   /** The teacher's modified prompt, shown only to students whose override asks for it. */
   modifiedText?: string;
   timeLimit: number;
@@ -11882,7 +11894,9 @@ export type GlobalFeature =
   /** Library and Assigned tabs with a status per class (docs/plans/ASSIGNED_TAB.md D19). */
   | 'assigned-tab'
   /** The sidebar Assignments hub; on for everyone until an admin narrows it. */
-  | 'assignments-hub';
+  | 'assignments-hub'
+  /** Teachers record their voice for a quiz question prompt. */
+  | 'quiz-question-audio';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

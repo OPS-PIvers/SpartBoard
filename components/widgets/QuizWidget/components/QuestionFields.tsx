@@ -37,6 +37,12 @@ import {
   PromptRichEditor,
   type PromptRichEditorHandle,
 } from './PromptRichEditor';
+import {
+  PromptAudioHost,
+  PromptAudioMicButton,
+  PromptAudioRow,
+  type PromptAudioState,
+} from './PromptAudioField';
 
 const MathAnswerField = React.lazy(
   () => import('@/components/student/keyboards/MathAnswerField')
@@ -56,6 +62,8 @@ interface QuestionPromptFieldProps {
   promptMath?: boolean;
   /** A formatted prompt box with bold, italic, underline and lists. */
   promptFormat?: boolean;
+  /** Shows the record audio mic in the prompt toolbar. */
+  promptAudio?: boolean;
 }
 
 export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
@@ -68,7 +76,9 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
   promptAccents,
   promptMath = false,
   promptFormat = false,
+  promptAudio = false,
 }) => {
+  const canRecord = promptAudio && promptFormat;
   const richRef = React.useRef<PromptRichEditorHandle>(null);
   const [accents, setAccents] = React.useState<AccentSetId | null>(null);
   const [equation, setEquation] = React.useState<PromptEquationDraft | null>(
@@ -112,122 +122,150 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
     setText(`${before}${pad}${math ? wrapPromptMath(math) : ''}${after}`);
     setEquation(null);
   };
-  const textarea = promptFormat ? (
-    <PromptRichEditor
-      ref={richRef}
-      value={q.text}
-      onChange={setText}
-      onBlur={onBlur}
-      readOnly={equation !== null && equation.start >= 0}
-      placeholder="e.g. What is the capital of France?"
-      anchor={anchor}
-    />
-  ) : (
-    <textarea
-      ref={textareaRef}
-      value={q.text}
-      onChange={(e) =>
-        onChange(
-          allowBlanks
-            ? fibPromptUpdate(q, e.target.value)
-            : { text: e.target.value }
-        )
-      }
-      onBlur={onBlur}
-      readOnly={equation !== null}
-      rows={3}
-      placeholder="e.g. What is the capital of France?"
-      className={`${inputClass} resize-y min-h-[4.75rem] max-h-[60vh]`}
-      {...anchor}
-    />
-  );
-  return (
-    <div>
-      <div className="flex items-center justify-between">
-        <label className={labelClass}>Question prompt</label>
-        <span className="flex items-center gap-3">
-          {promptMath && (
-            <KeyboardLink
-              on={equation !== null}
-              onClick={() => (equation ? setEquation(null) : openNewEquation())}
-              anchor={tourTypeAttr('quiz-editor.prompt-equation', 'quiz')}
-            >
-              <Sigma className="w-3.5 h-3.5" aria-hidden />
-              Equation
-            </KeyboardLink>
-          )}
-          {promptAccents && (
-            <KeyboardLink
-              on={accents !== null}
-              onClick={() => setAccents(accents ? null : promptAccents)}
-              anchor={tourTypeAttr('quiz-editor.prompt-accents', 'quiz')}
-            >
-              <span aria-hidden>á</span>
-              Accents
-            </KeyboardLink>
-          )}
-          {allowBlanks && q.type === 'FIB' && (
-            <button
-              type="button"
-              onClick={() => {
-                if (promptFormat) {
-                  richRef.current?.insertText('___', true);
-                  return;
+  const render = (audioState: PromptAudioState | null) => {
+    const textarea = promptFormat ? (
+      <PromptRichEditor
+        ref={richRef}
+        value={q.text}
+        onChange={setText}
+        onBlur={onBlur}
+        readOnly={equation !== null && equation.start >= 0}
+        placeholder={
+          q.promptAudio
+            ? 'Optional text under the audio'
+            : 'e.g. What is the capital of France?'
+        }
+        anchor={anchor}
+        toolbarEnd={
+          canRecord && audioState ? (
+            <PromptAudioMicButton state={audioState} />
+          ) : undefined
+        }
+      />
+    ) : (
+      <textarea
+        ref={textareaRef}
+        value={q.text}
+        onChange={(e) =>
+          onChange(
+            allowBlanks
+              ? fibPromptUpdate(q, e.target.value)
+              : { text: e.target.value }
+          )
+        }
+        onBlur={onBlur}
+        readOnly={equation !== null}
+        rows={3}
+        placeholder="e.g. What is the capital of France?"
+        className={`${inputClass} resize-y min-h-[4.75rem] max-h-[60vh]`}
+        {...anchor}
+      />
+    );
+    return (
+      <div>
+        <div className="flex items-center justify-between">
+          <label className={labelClass}>Question prompt</label>
+          <span className="flex items-center gap-3">
+            {promptMath && (
+              <KeyboardLink
+                on={equation !== null}
+                onClick={() =>
+                  equation ? setEquation(null) : openNewEquation()
                 }
-                const el = textareaRef.current;
-                const at = el?.selectionStart ?? q.text.length;
-                const end = el?.selectionEnd ?? at;
-                const before = q.text.slice(0, at);
-                const pad = before && !/\s$/.test(before) ? ' ' : '';
-                const text = `${before}${pad}___${q.text.slice(end)}`;
-                onChange(fibPromptUpdate(q, text));
-                requestAnimationFrame(() => {
-                  const caret = at + pad.length + 3;
-                  el?.focus();
-                  el?.setSelectionRange(caret, caret);
-                });
-              }}
-              className="flex items-center gap-1 text-xs font-semibold text-brand-blue-primary hover:underline"
-              {...tourTypeAttr('quiz-editor.prompt-blank', 'quiz')}
-            >
-              <Plus className="w-3.5 h-3.5" />
-              Blank
-            </button>
-          )}
-        </span>
+                anchor={tourTypeAttr('quiz-editor.prompt-equation', 'quiz')}
+              >
+                <Sigma className="w-3.5 h-3.5" aria-hidden />
+                Equation
+              </KeyboardLink>
+            )}
+            {promptAccents && (
+              <KeyboardLink
+                on={accents !== null}
+                onClick={() => setAccents(accents ? null : promptAccents)}
+                anchor={tourTypeAttr('quiz-editor.prompt-accents', 'quiz')}
+              >
+                <span aria-hidden>á</span>
+                Accents
+              </KeyboardLink>
+            )}
+            {allowBlanks && q.type === 'FIB' && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (promptFormat) {
+                    richRef.current?.insertText('___', true);
+                    return;
+                  }
+                  const el = textareaRef.current;
+                  const at = el?.selectionStart ?? q.text.length;
+                  const end = el?.selectionEnd ?? at;
+                  const before = q.text.slice(0, at);
+                  const pad = before && !/\s$/.test(before) ? ' ' : '';
+                  const text = `${before}${pad}___${q.text.slice(end)}`;
+                  onChange(fibPromptUpdate(q, text));
+                  requestAnimationFrame(() => {
+                    const caret = at + pad.length + 3;
+                    el?.focus();
+                    el?.setSelectionRange(caret, caret);
+                  });
+                }}
+                className="flex items-center gap-1 text-xs font-semibold text-brand-blue-primary hover:underline"
+                {...tourTypeAttr('quiz-editor.prompt-blank', 'quiz')}
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Blank
+              </button>
+            )}
+          </span>
+        </div>
+        {accents ? (
+          <AccentKeysArea
+            accents={accents}
+            beforeKeys={
+              <AccentLanguageRow
+                value={accents}
+                onChange={setAccents}
+                anchor={tourTypeAttr(
+                  'quiz-editor.prompt-accent-language',
+                  'quiz'
+                )}
+              />
+            }
+          >
+            {textarea}
+          </AccentKeysArea>
+        ) : (
+          textarea
+        )}
+        {equation && (
+          <PromptEquationPanel
+            key={`${equation.start}:${equation.editing}`}
+            draft={equation}
+            onDraftChange={(math) =>
+              setEquation((d) => (d ? { ...d, math } : d))
+            }
+            onCancel={() => setEquation(null)}
+            onSave={saveEquation}
+          />
+        )}
+        {hasPromptMath(q.text) && (
+          <PromptMathPreview text={q.text} onEdit={openEquation} />
+        )}
+        {audioState && (
+          <PromptAudioRow state={audioState} canRecord={canRecord} />
+        )}
       </div>
-      {accents ? (
-        <AccentKeysArea
-          accents={accents}
-          beforeKeys={
-            <AccentLanguageRow
-              value={accents}
-              onChange={setAccents}
-              anchor={tourTypeAttr(
-                'quiz-editor.prompt-accent-language',
-                'quiz'
-              )}
-            />
-          }
-        >
-          {textarea}
-        </AccentKeysArea>
-      ) : (
-        textarea
-      )}
-      {equation && (
-        <PromptEquationPanel
-          key={`${equation.start}:${equation.editing}`}
-          draft={equation}
-          onDraftChange={(math) => setEquation((d) => (d ? { ...d, math } : d))}
-          onCancel={() => setEquation(null)}
-          onSave={saveEquation}
-        />
-      )}
-      {hasPromptMath(q.text) && (
-        <PromptMathPreview text={q.text} onEdit={openEquation} />
-      )}
-    </div>
+    );
+  };
+  return canRecord || q.promptAudio ? (
+    <PromptAudioHost
+      audio={q.promptAudio}
+      onChange={(next) => onChange({ promptAudio: next })}
+    >
+      {render}
+    </PromptAudioHost>
+  ) : (
+    render(null)
   );
 };
 

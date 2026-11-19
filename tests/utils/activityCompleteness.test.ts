@@ -33,6 +33,22 @@ const vaQuestion = (
   }) as VideoActivityQuestion;
 
 describe('quizIncompleteReason', () => {
+  it('lets a recorded prompt stand in for text', () => {
+    const audio = { driveFileId: 'f1', durationSec: 4, mimeType: 'audio/mp4' };
+    expect(
+      quizIncompleteReason({
+        title: 'Unit 3',
+        questions: [question({ text: '', promptAudio: audio })],
+      })
+    ).toBeNull();
+    expect(
+      quizIncompleteReason({
+        title: 'Unit 3',
+        questions: [question({ text: '  ' })],
+      })
+    ).toBe('Question 1: text is required');
+  });
+
   it('passes a finished quiz', () => {
     expect(
       quizIncompleteReason({ title: 'Unit 3', questions: [question()] })

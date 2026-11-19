@@ -1,4 +1,5 @@
 import { choicePictureFields } from '@/utils/quizAnswerImages';
+import { promptLabelOf } from '@/utils/quizPromptText';
 import type { PaperBatch, PaperPageMap, QuizData, QuizResponse } from '@/types';
 import { normalizeAnswer } from '@/hooks/useQuizSession';
 import { selectRepresentativeAnswers } from './answerTakeOrdering';
@@ -135,7 +136,7 @@ export function planSheetReprint(
     ...(columnsPerPage === 'questions'
       ? {
           questionTexts: rows.map((row) => ({
-            text: questions.get(row.questionId)?.text ?? '',
+            text: promptLabelOf(questions.get(row.questionId)),
             choices: choiceOrder?.[row.questionId] ?? [],
             ...choicePictureFields(
               questions.get(row.questionId),

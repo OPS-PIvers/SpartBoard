@@ -6,6 +6,7 @@
  * the paper exists. See docs/plans/shipped/QUIZ_PAPER_ANSWER_SHEETS.md §6.
  */
 
+import { promptLabel } from '@/utils/quizPromptText';
 import { choicePictureFields } from '@/utils/quizAnswerImages';
 import { plainPromptText } from '@/utils/promptMath';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
@@ -1098,7 +1099,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                 const english = batch.choiceOrder?.[q.id] ?? [];
                 const tr = group?.translation?.questions[q.id];
                 return {
-                  text: plainPromptText(tr?.text ?? q.text),
+                  text: plainPromptText(tr?.text ?? promptLabel(q)),
                   choices: english.map((c) => tr?.choices?.[c] ?? c),
                   ...choicePictureFields(q, english),
                 };

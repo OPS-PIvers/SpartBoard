@@ -6,6 +6,7 @@
  * through the controller object the modal hands them.
  */
 
+import { AUDIO_QUESTION_LABEL } from '@/utils/quizPromptText';
 import { MathText } from '@/components/common/MathText';
 import { accentSetForLanguage, answerAccents } from '@/config/studentKeyboards';
 import {
@@ -715,6 +716,10 @@ const QuestionRow = React.memo(function QuestionRow({
         <span className="text-sm text-slate-700 truncate">
           {question.text ? (
             <MathText text={question.text} format />
+          ) : question.promptAudio ? (
+            <span className="italic text-slate-500">
+              {AUDIO_QUESTION_LABEL}
+            </span>
           ) : (
             <span className="italic text-slate-400">Untitled question</span>
           )}
@@ -1019,6 +1024,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           promptAccents={defaultAccents}
           promptMath
           promptFormat
+          promptAudio={canAccessFeature('quiz-question-audio')}
         />
 
         <div

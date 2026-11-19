@@ -327,3 +327,13 @@ describe('toPublicQuestion', () => {
     });
   });
 });
+
+describe('toPublicQuestion promptAudio', () => {
+  it('projects the teacher recording and omits it when absent', () => {
+    const audio = { driveFileId: 'f1', durationSec: 6, mimeType: 'audio/mp4' };
+    expect(toPublicQuestion({ ...mc, promptAudio: audio }).promptAudio).toEqual(
+      audio
+    );
+    expect('promptAudio' in toPublicQuestion(mc)).toBe(false);
+  });
+});

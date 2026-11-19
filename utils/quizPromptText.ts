@@ -32,3 +32,16 @@ export function spacedPrompt(text: string): string {
   }
   return out.join('\n');
 }
+
+export const AUDIO_QUESTION_LABEL = 'Audio question';
+
+/** The prompt text, or "Audio question" when a recorded prompt has no text. */
+export const promptLabel = (q: {
+  text: string;
+  promptAudio?: unknown;
+}): string => (!q.text.trim() && q.promptAudio ? AUDIO_QUESTION_LABEL : q.text);
+
+/** {@link promptLabel} for a lookup that may miss; a missing question is ''. */
+export const promptLabelOf = (
+  q: { text: string; promptAudio?: unknown } | undefined
+): string => (q ? promptLabel(q) : '');
