@@ -1299,6 +1299,8 @@ service cloud.firestore {
     // and the extension's `delivery` subfield exposes SMTP response details.
     // /mail/{mailId}: no client access (default deny).
 
+    // /assignment_key_claims/{key}: verified pointer-key owner, Cloud Functions only (default deny).
+
     // Guided Learning
     match /users/{userId}/guided_learning/{setId} {
       allow read, write: if ownsUser(userId);

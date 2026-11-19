@@ -139,9 +139,8 @@ test('a teacher runs a quiz class by class from the Assigned tab', async ({
     await reads('Nothing active');
     await expect(panel.getByRole('button', { name: 'Done 1' })).toBeVisible();
     await page.getByRole('button', { name: 'Undo' }).click();
-    // AB-321: Undo brings the quiz back but leaves it Paused where the class was Open, so only the bucket is pinned.
     await reads('Active 1');
-    await reads('1 class to go');
+    await reads('Open for Period 1 0 turned in · 1 class to go');
   });
 
   await test.step('move to Done and open results', async () => {
