@@ -200,7 +200,10 @@ import { loadFinalScoreOverlay } from '@/hooks/gradebook/useFinalScoreOverlay';
 import { saveAttemptPolicy } from '@/hooks/gradebook/useGradebookColumnWrites';
 import { applyFinalScoresToEntries } from '@/utils/gradebook/finalScoreOverlay';
 import { quizLiveRaw } from '@/utils/gradebook/liveRawScores';
-import type { FibGradingContext } from '@/utils/quizFibAnswers';
+import {
+  fibGradingFromAssignment,
+  type FibGradingContext,
+} from '@/utils/quizFibAnswers';
 import { getClassroomAttachments } from '@/utils/classroomAttachments';
 import { hasValidMaxPoints } from '@/utils/runClassroomGradePush';
 import { quizMaxPoints } from '@/utils/quizMaxPoints';
@@ -2146,13 +2149,7 @@ const TeacherQuizWidget: React.FC<{
     : undefined;
   const fibGradingRef = useRef<FibGradingContext>({});
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
-  fibGradingRef.current = {
-    answers: liveAssignment?.localizedFibAnswers ?? null,
-    overridesByStudentUid: liveAssignment?.overridesByStudentUid ?? null,
-    overridesBySourcedId: liveAssignment?.overridesBySourcedId ?? null,
-    servedLanguageByStudentUid:
-      liveAssignment?.servedLanguageByStudentUid ?? null,
-  };
+  fibGradingRef.current = fibGradingFromAssignment(liveAssignment);
 
   // ─── Callback for child components to update quiz config ────────────────────
   const handleUpdateQuizConfig = useCallback(
@@ -2922,12 +2919,8 @@ const TeacherQuizWidget: React.FC<{
         // access to every question's `correctAnswer` — the session's
         // `publicQuestions` strips them for student safety.
         const target = publishingAssignment;
-        const publishFibGrading: FibGradingContext = {
-          answers: target.localizedFibAnswers ?? null,
-          overridesByStudentUid: target.overridesByStudentUid ?? null,
-          overridesBySourcedId: target.overridesBySourcedId ?? null,
-          servedLanguageByStudentUid: target.servedLanguageByStudentUid ?? null,
-        };
+        const publishFibGrading: FibGradingContext =
+          fibGradingFromAssignment(target);
         try {
           if (visibility === 'none') {
             await unpublishAssignmentScores(target.id);
@@ -3282,6 +3275,7 @@ const TeacherQuizWidget: React.FC<{
           }}
           overridesBySourcedId={activeAssignment?.overridesBySourcedId ?? null}
           localizedFibAnswers={activeAssignment?.localizedFibAnswers ?? null}
+          lenientFibLocales={activeAssignment?.lenientFibLocales ?? null}
           overridesByStudentUid={
             activeAssignment?.overridesByStudentUid ?? null
           }
@@ -3714,6 +3708,7 @@ const TeacherQuizWidget: React.FC<{
           localizedFibAnswers={
             monitorActiveAssignment?.localizedFibAnswers ?? null
           }
+          lenientFibLocales={monitorActiveAssignment?.lenientFibLocales ?? null}
           rosterTargets={monitorActiveAssignment ?? null}
           responsesLoaded={liveResponsesLoaded}
           assignedTab={
@@ -4484,6 +4479,9 @@ const TeacherQuizWidget: React.FC<{
                   ? { workKind: resolvedTargeting.workKind }
                   : {}),
                 ...(translationIndex ? { translationIndex } : {}),
+                ...(canAccessFeature('modification-groups')
+                  ? { lenientTranslatedFib: true }
+                  : {}),
               }
             );
             assignmentSaved = true;
