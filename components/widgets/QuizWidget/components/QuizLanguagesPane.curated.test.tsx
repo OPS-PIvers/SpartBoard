@@ -103,34 +103,30 @@ describe('QuizLanguagesContextPane curated languages', () => {
   it('offers every curated language when the admin enabled all of them', () => {
     enabledCodes.current = ['es', 'so', 'hmn'];
     renderPane();
-    expect(screen.getByRole('button', { name: /Español/ })).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: /Soomaali/ })
-    ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Hmoob/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Spanish/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Somali/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Hmong/ })).toBeInTheDocument();
   });
 
   it('hides a language the admin disabled', () => {
     enabledCodes.current = ['es'];
     renderPane();
-    expect(screen.getByRole('button', { name: /Español/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Spanish/ })).toBeInTheDocument();
     expect(
-      screen.queryByRole('button', { name: /Soomaali/ })
+      screen.queryByRole('button', { name: /Somali/ })
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole('button', { name: /Hmoob/ })
+      screen.queryByRole('button', { name: /Hmong/ })
     ).not.toBeInTheDocument();
   });
 
   it('keeps a disabled language whose sidecar already exists so it stays reviewable', () => {
     enabledCodes.current = ['so'];
     renderPane();
-    expect(screen.getByRole('button', { name: /Español/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Spanish/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Somali/ })).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /Soomaali/ })
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: /Hmoob/ })
+      screen.queryByRole('button', { name: /Hmong/ })
     ).not.toBeInTheDocument();
   });
 

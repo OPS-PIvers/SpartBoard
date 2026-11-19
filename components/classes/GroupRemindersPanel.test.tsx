@@ -10,6 +10,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { RosterEditorModal } from './RosterEditorModal';
 import type { ClassRoster, RosterGroup } from '@/types';
 import type { GroupScheduleJob } from '@/utils/groupSchedulePrint';
+import type { GroupEditorSteps } from '@/utils/groupReminders';
 
 vi.mock('@/utils/reminderSounds', () => ({ playReminderSound: vi.fn() }));
 const printGroupSchedule = vi.hoisted(() =>
@@ -31,7 +32,12 @@ const roster = (groups: RosterGroup[] = []): ClassRoster => ({
   groups,
 });
 
-const renderModal = (r: ClassRoster, enabled = true, emails = false) => {
+const renderModal = (
+  r: ClassRoster,
+  enabled = true,
+  emails = false,
+  groupSteps?: GroupEditorSteps
+) => {
   const onSave = vi.fn().mockResolvedValue(undefined);
   render(
     <RosterEditorModal
@@ -41,13 +47,14 @@ const renderModal = (r: ClassRoster, enabled = true, emails = false) => {
       onSave={onSave}
       groupRemindersEnabled={enabled}
       groupReminderEmailsEnabled={emails}
+      groupSteps={groupSteps}
     />
   );
   return onSave;
 };
 
 describe('GroupRemindersPanel', () => {
-  it('creates a private, Group Maker-off group through the wizard', async () => {
+  it('creates a private, Group Maker-off group through the stepper', async () => {
     const user = userEvent.setup();
     const onSave = renderModal(roster());
 
@@ -55,43 +62,41 @@ describe('GroupRemindersPanel', () => {
     await user.click(screen.getByRole('button', { name: /new group/i }));
 
     // Step 1: students
-    const next = screen.getByRole('button', { name: /^next$/i });
-    expect(next).toBeDisabled();
+    expect(screen.getByRole('button', { name: /save group/i })).toBeDisabled();
     // user-event's click does not toggle a label-wrapped checkbox under jsdom here.
     fireEvent.click(screen.getByLabelText('Ben Carlson'));
-    await user.click(next);
+    await user.click(screen.getByRole('button', { name: /continue/i }));
 
     // Step 2: symbol
     await user.type(screen.getByRole('searchbox'), 'turt');
     expect(screen.queryByRole('button', { name: 'heart' })).toBeNull();
     await user.click(screen.getByRole('button', { name: 'turtle' }));
     await user.type(screen.getByLabelText(/name \(optional\)/i), 'Speech');
-    await user.click(screen.getByRole('button', { name: /^next$/i }));
+    await user.click(screen.getByRole('button', { name: /continue/i }));
 
-    // Step 3: schedule
+    // Step 3: schedule, with the board reminder and its card settings in one place
+    expect(
+      screen.getByRole('switch', { name: /reminder on the board/i })
+    ).toHaveAttribute('aria-checked', 'true');
     await user.click(screen.getByRole('button', { name: /monday/i }));
     await user.click(screen.getByRole('button', { name: /wednesday/i }));
     fireEvent.change(screen.getByLabelText(/^time$/i), {
       target: { value: '10:15' },
     });
-    await user.click(
-      screen.getByRole('button', { name: /add another alert/i })
-    );
+    await user.click(screen.getByRole('button', { name: /add another time/i }));
     fireEvent.change(screen.getAllByLabelText(/^time$/i)[1], {
       target: { value: '13:40' },
     });
-    await user.click(screen.getByRole('button', { name: /^next$/i }));
-
-    // Step 4: alerts, defaults left alone
-    expect(
-      screen.getByRole('switch', { name: /enable in group maker/i })
-    ).toHaveAttribute('aria-checked', 'false');
-    expect(
-      screen.getByRole('switch', { name: /reminder on the board/i })
-    ).toHaveAttribute('aria-checked', 'true');
     expect(screen.queryByRole('switch', { name: /email alert/i })).toBeNull();
     await user.click(screen.getByRole('switch', { name: /show a message/i }));
     await user.type(screen.getByLabelText(/^message$/i), 'Speech now');
+    await user.click(screen.getByRole('button', { name: /continue/i }));
+
+    // Step 4: additional settings, default left alone
+    expect(
+      screen.getByRole('switch', { name: /enable in group maker/i })
+    ).toHaveAttribute('aria-checked', 'false');
+    expect(screen.queryByRole('button', { name: /continue/i })).toBeNull();
     await user.click(screen.getByRole('button', { name: /save group/i }));
 
     expect(screen.getByText('Speech')).toBeInTheDocument();
@@ -121,6 +126,21 @@ describe('GroupRemindersPanel', () => {
     });
   });
 
+  it('hides the schedule fields while the board reminder is off', async () => {
+    const user = userEvent.setup();
+    renderModal(roster([{ id: 'g1', name: 'Speech', studentIds: ['s1'] }]));
+    await user.click(screen.getByRole('tab', { name: /groups/i }));
+    await user.click(screen.getByRole('button', { name: /^edit$/i }));
+    await user.click(screen.getByRole('button', { name: /schedule/i }));
+    await user.click(
+      screen.getByRole('switch', { name: /reminder on the board/i })
+    );
+    expect(screen.queryByRole('button', { name: /monday/i })).toBeNull();
+    expect(
+      screen.queryByRole('switch', { name: /show a message/i })
+    ).toBeNull();
+  });
+
   it('keeps existing groups in Group Maker when edited', async () => {
     const user = userEvent.setup();
     const onSave = renderModal(
@@ -129,7 +149,9 @@ describe('GroupRemindersPanel', () => {
 
     await user.click(screen.getByRole('tab', { name: /groups/i }));
     await user.click(screen.getByRole('button', { name: /^edit$/i }));
-    await user.click(screen.getByRole('button', { name: /alerts/i }));
+    await user.click(
+      screen.getByRole('button', { name: /additional settings/i })
+    );
     expect(
       screen.getByRole('switch', { name: /enable in group maker/i })
     ).toHaveAttribute('aria-checked', 'true');
@@ -149,7 +171,7 @@ describe('GroupRemindersPanel', () => {
     );
     await user.click(screen.getByRole('tab', { name: /groups/i }));
     await user.click(screen.getByRole('button', { name: /^edit$/i }));
-    await user.click(screen.getByRole('button', { name: /alerts/i }));
+    await user.click(screen.getByRole('button', { name: /schedule/i }));
     const email = screen.getByRole('switch', { name: /email alert/i });
     expect(email).toHaveAttribute('aria-checked', 'false');
     await user.click(email);
@@ -167,13 +189,38 @@ describe('GroupRemindersPanel', () => {
     });
   });
 
+  it('hides the steps an admin turned off', async () => {
+    const user = userEvent.setup();
+    const onSave = renderModal(roster(), true, false, {
+      symbol: false,
+      schedule: false,
+      settings: false,
+    });
+    await user.click(screen.getByRole('tab', { name: /groups/i }));
+    await user.click(screen.getByRole('button', { name: /new group/i }));
+    expect(screen.queryByRole('button', { name: /symbol/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /schedule/i })).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: /additional settings/i })
+    ).toBeNull();
+    fireEvent.click(screen.getByLabelText('Ben Carlson'));
+    await user.type(screen.getByLabelText(/name \(optional\)/i), 'Reading');
+    await user.click(screen.getByRole('button', { name: /save group/i }));
+    await user.click(screen.getByRole('button', { name: /^save$/i }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const [group] = onSave.mock.calls[0][2] as RosterGroup[];
+    expect(group.name).toBe('Reading');
+    expect(group.reminder).toBeUndefined();
+    expect(group.inGroupMaker).toBeUndefined();
+  });
+
   it('keeps the plain groups editor while the feature is off', async () => {
     const user = userEvent.setup();
     renderModal(roster(), false);
     await user.click(screen.getByRole('tab', { name: /groups/i }));
     expect(screen.getByText(/no groups yet/i)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /new group/i }));
-    expect(screen.queryByRole('button', { name: /^next$/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /continue/i })).toBeNull();
     expect(screen.getByDisplayValue('New Group')).toBeInTheDocument();
   });
 

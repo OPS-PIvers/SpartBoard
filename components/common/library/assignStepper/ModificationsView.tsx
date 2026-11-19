@@ -12,7 +12,7 @@ import {
   isNonEnglishQuizSource,
   uncoveredLocalesForTargets,
 } from '@/utils/quizTranslationAdvisory';
-import { languageNativeLabel } from '@/utils/languageNativeLabel';
+import { languageDisplayLabel } from '@/utils/languageDisplayLabel';
 import { scaledFont } from '../assignWindowUtils';
 import { Toggle } from '@/components/common/Toggle';
 import {
@@ -341,7 +341,7 @@ export const ModificationsList: React.FC<ModificationsListProps> = ({
                   count: entry.names.length,
                   others: entry.names.length - 1,
                   name: entry.names[0],
-                  language: languageNativeLabel(entry.locale),
+                  language: languageDisplayLabel(entry.locale),
                 })}
               </span>
               {quizContext?.translation?.onGenerate && (

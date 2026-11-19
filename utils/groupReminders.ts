@@ -257,3 +257,16 @@ export function formatReminderSummary(
   if (reminder.repeat === 'biweekly') parts.push(everyTwoWeeksLabel);
   return parts.join(' · ');
 }
+
+/** Which optional group editor steps the teacher's admin allows. */
+export interface GroupEditorSteps {
+  symbol: boolean;
+  schedule: boolean;
+  settings: boolean;
+}
+
+export const ALL_GROUP_STEPS: GroupEditorSteps = {
+  symbol: true,
+  schedule: true,
+  settings: true,
+};

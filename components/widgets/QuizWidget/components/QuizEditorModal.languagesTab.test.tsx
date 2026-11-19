@@ -297,7 +297,7 @@ describe('QuizEditorModal Languages tab — saved sidecars', () => {
       />
     );
     openTab('Languages');
-    fireEvent.click(screen.getByRole('button', { name: /Español/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Spanish/ }));
     expect(translationsApi.load).toHaveBeenCalledWith('es');
   });
 
@@ -349,7 +349,7 @@ describe('QuizEditorModal Languages tab — saved sidecars', () => {
       />
     );
     openTab('Languages');
-    fireEvent.click(screen.getByRole('button', { name: /Español/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Spanish/ }));
     const generate = screen.getByRole('button', {
       name: 'Generate translation',
     });
@@ -371,7 +371,7 @@ describe('QuizEditorModal Languages tab — saved sidecars', () => {
       />
     );
     openTab('Languages');
-    const chip = screen.getByRole('button', { name: /Español/ });
+    const chip = screen.getByRole('button', { name: /Spanish/ });
     fireEvent.click(chip);
     fireEvent.click(chip);
     expect(translationsApi.load.mock.calls.length).toBeGreaterThanOrEqual(2);
@@ -389,7 +389,7 @@ describe('QuizEditorModal Languages tab — saved sidecars', () => {
       />
     );
     openTab('Languages');
-    fireEvent.click(screen.getByRole('button', { name: /Español/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Spanish/ }));
     expect(screen.getByTestId('context-pane').textContent).toContain(
       'Drive is unavailable'
     );

@@ -15,6 +15,8 @@ import { Z_INDEX } from '@/config/zIndex';
 import { ToolMetadata, WidgetData, GlobalStyle, DockPosition } from '@/types';
 import { tourTypeAttr } from '@/config/tourAnchors';
 
+const noop = () => undefined;
+
 interface ToolDockItemProps {
   tool: ToolMetadata;
   minimizedWidgets: WidgetData[];
@@ -24,7 +26,7 @@ interface ToolDockItemProps {
   onDeleteAll: () => void;
   onRemoveFromDock: () => void;
   isEditMode: boolean;
-  onLongPress: () => void;
+  onLongPress?: () => void;
   globalStyle: GlobalStyle;
   customIcon?: React.ComponentType<{ className?: string }>;
   customLabel?: string;
@@ -83,8 +85,8 @@ export const ToolDockItem = React.memo(
       bottom: number;
     } | null>(null);
 
-    const longPress = useLongPress(onLongPress, {
-      disabled: isEditMode,
+    const longPress = useLongPress(onLongPress ?? noop, {
+      disabled: isEditMode || !onLongPress,
       onPointerDown: listeners?.onPointerDown,
     });
 

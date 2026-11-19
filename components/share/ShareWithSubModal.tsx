@@ -283,7 +283,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
     const sharedRosters = shareRosterEntries(
       rosters,
       rosterIds,
-      canAccessFeature('group-reminders')
+      canAccessFeature('group-reminders') && canAccessFeature('group-schedules')
     );
 
     const collection: Collection =

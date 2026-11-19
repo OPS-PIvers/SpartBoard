@@ -23,7 +23,7 @@ import { Toggle } from '@/components/common/Toggle';
 import { useQuizTranslationSettings } from '@/hooks/useQuizTranslationSettings';
 import { QUIZ_TRANSLATION_LANGUAGES } from '@/config/quizTranslation';
 import { QUIZ_READ_ALOUD_FEATURE } from '@/config/quizReadAloud';
-import { languageNativeLabel } from '@/utils/languageNativeLabel';
+import { languageDisplayLabel } from '@/utils/languageDisplayLabel';
 import { summarizeOverride } from '@/utils/studentOverrideSummary';
 import {
   effectiveClassOverride,
@@ -446,7 +446,7 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
               count: entry.names.length,
               others: entry.names.length - 1,
               name: entry.names[0],
-              language: languageNativeLabel(entry.locale),
+              language: languageDisplayLabel(entry.locale),
             })}
           </span>
           {translation?.onGenerate && (
@@ -486,7 +486,7 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
                   {names.length > 0 ? names.join('; ') : 'No students'}
                 </span>
                 <span className="block truncate text-xs text-slate-500">
-                  {groupRuleLabels(group, languageNativeLabel).join(', ') ||
+                  {groupRuleLabels(group, languageDisplayLabel).join(', ') ||
                     'No changes'}
                 </span>
               </span>
@@ -606,7 +606,7 @@ export const ModificationGroupsStep: React.FC<ModificationGroupsStepProps> = ({
                   <option value="">Each student’s own</option>
                   {languageOptions.map((l) => (
                     <option key={l.code} value={l.code}>
-                      {l.nativeLabel}
+                      {languageDisplayLabel(l.code)}
                     </option>
                   ))}
                 </select>

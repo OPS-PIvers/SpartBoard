@@ -608,8 +608,6 @@ export const SURFACES: TourSurfaceMap = {
       'group-wizard.steps': GROUP_WIZARD,
       'group-wizard.step': GROUP_WIZARD,
       'group-wizard.cancel': GROUP_WIZARD,
-      'group-wizard.back': GROUP_WIZARD,
-      'group-wizard.save-now': GROUP_WIZARD,
       'group-wizard.finish': GROUP_WIZARD,
       'group-wizard.next': GROUP_WIZARD,
       'group-wizard.name': GROUP_WIZARD,

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Check, Play, Plus, Search, X } from 'lucide-react';
+import { Play, Plus, Save, Search, X } from 'lucide-react';
 import type {
   RosterGroup,
   RosterGroupAlert,
@@ -14,6 +14,8 @@ import { GroupSymbol } from '@/components/groupReminders/GroupSymbol';
 import { searchGroupIcons } from '@/components/groupReminders/groupIcons';
 import { GroupReminderCard } from '@/components/groupReminders/GroupReminderCard';
 import {
+  ALL_GROUP_STEPS,
+  type GroupEditorSteps,
   GROUP_COLORS,
   EMAIL_MESSAGE_MAX,
   LEAD_OPTIONS,
@@ -31,29 +33,32 @@ import { groupSymbolMarkup } from '@/components/groupReminders/groupSymbolMarkup
 import { logError } from '@/utils/logError';
 import { playReminderSound } from '@/utils/reminderSounds';
 import { SplitClassFooter } from './SplitClassFooter';
+import { AssignStepper } from '@/components/common/library/assignStepper/AssignStepper';
+import type { AssignStepDef } from '@/components/common/library/assignStepper/assignSteps';
 
 interface GroupRemindersPanelProps {
   rosterName?: string;
   groups: RosterGroup[];
   students: Student[];
   emailAlertsEnabled?: boolean;
+  steps?: GroupEditorSteps;
   onChange: (groups: RosterGroup[]) => void;
 }
 
 const GRID =
   '2.5rem minmax(0,1.2fr) minmax(0,0.6fr) minmax(0,1.6fr) minmax(0,0.8fr) 5rem';
-const STEPS = ['students', 'symbol', 'schedule', 'alerts'] as const;
 const WEEKDAYS = [1, 2, 3, 4, 5];
 
 const studentName = (s: Student) =>
   `${s.firstName} ${s.lastName}`.trim() || s.id;
 
-/** Groups tab with symbols, weekly reminders and a four-step group wizard. */
+/** Groups tab with symbols, weekly reminders and the group editor stepper. */
 export const GroupRemindersPanel: React.FC<GroupRemindersPanelProps> = ({
   rosterName = '',
   groups,
   students,
   emailAlertsEnabled = false,
+  steps = ALL_GROUP_STEPS,
   onChange,
 }) => {
   const { t } = useTranslation();
@@ -71,9 +76,10 @@ export const GroupRemindersPanel: React.FC<GroupRemindersPanelProps> = ({
       id: crypto.randomUUID(),
       name: '',
       studentIds: [],
-      inGroupMaker: false,
+      // With no settings step a teacher can't switch it on, so keep the old default (in Group Maker).
+      ...(steps.settings ? { inGroupMaker: false } : {}),
       symbol: defaultGroupSymbol(),
-      reminder: defaultGroupReminder(),
+      ...(steps.schedule ? { reminder: defaultGroupReminder() } : {}),
     });
   };
 
@@ -82,7 +88,9 @@ export const GroupRemindersPanel: React.FC<GroupRemindersPanelProps> = ({
     setDraft({
       ...group,
       symbol: group.symbol ?? defaultGroupSymbol(),
-      reminder: group.reminder ?? defaultGroupReminder(),
+      ...(steps.schedule
+        ? { reminder: group.reminder ?? defaultGroupReminder() }
+        : {}),
     });
   };
 
@@ -102,6 +110,7 @@ export const GroupRemindersPanel: React.FC<GroupRemindersPanelProps> = ({
         isNew={isNew}
         students={students}
         emailAlertsEnabled={emailAlertsEnabled}
+        steps={steps}
         onCancel={() => setDraft(null)}
         onSave={saveDraft}
       />
@@ -301,6 +310,7 @@ interface GroupWizardProps {
   isNew: boolean;
   students: Student[];
   emailAlertsEnabled: boolean;
+  steps: GroupEditorSteps;
   onCancel: () => void;
   onSave: (group: RosterGroup) => void;
 }
@@ -310,11 +320,11 @@ const GroupWizard: React.FC<GroupWizardProps> = ({
   isNew,
   students,
   emailAlertsEnabled,
+  steps: visible,
   onCancel,
   onSave,
 }) => {
   const { t } = useTranslation();
-  const [step, setStep] = useState(0);
   const [group, setGroup] = useState(initial);
   const symbol = group.symbol ?? defaultGroupSymbol();
   const reminder = group.reminder ?? defaultGroupReminder();
@@ -328,168 +338,172 @@ const GroupWizard: React.FC<GroupWizardProps> = ({
       ...g,
       reminder: { ...(g.reminder ?? defaultGroupReminder()), ...patch },
     }));
-
-  const stepLabels = [
-    t('groupReminders.stepStudents', { defaultValue: 'Students' }),
-    t('groupReminders.stepSymbol', { defaultValue: 'Symbol' }),
-    t('groupReminders.stepSchedule', { defaultValue: 'Schedule' }),
-    t('groupReminders.stepAlerts', { defaultValue: 'Alerts' }),
-  ];
-  const last = step === STEPS.length - 1;
   const canSave = group.studentIds.length > 0;
+  const inGroupMaker = group.inGroupMaker !== false;
+  const offLabel = t('groupReminders.off', { defaultValue: 'Off' });
+  const nextAnchor = tourAttr('group-wizard.next');
 
-  const preview = (
-    <div
-      className="hidden lg:flex w-[360px] shrink-0 border-l border-slate-200 bg-slate-100 rounded-r-xl items-end justify-end p-5"
-      {...tourAttr('group-wizard.preview')}
-    >
-      <GroupReminderCard
-        symbol={symbol}
-        message={
-          reminder.showMessage
-            ? reminder.message.trim() ||
-              t('groupReminders.defaultMessage', { defaultValue: 'Time to go' })
-            : undefined
-        }
-        name={
-          reminder.showName && group.name.trim() ? group.name.trim() : undefined
-        }
-        time={
-          reminder.showTime
-            ? formatReminderTime(reminder.alerts[0]?.time ?? '09:00')
-            : undefined
-        }
-        snoozeMinutes={reminder.snoozeMinutes}
-        onSnooze={() => undefined}
-        onDismiss={() => undefined}
-      />
-    </div>
-  );
-
-  return (
-    <div className="flex-1 min-h-0 flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 shrink-0">
-        <span className="text-sm font-bold text-slate-800">
-          {isNew
-            ? t('groupReminders.newGroup', { defaultValue: 'New group' })
-            : t('groupReminders.editGroup', { defaultValue: 'Edit group' })}
-        </span>
-        <ol
-          className="flex flex-wrap items-center gap-5 text-xs font-semibold"
-          {...tourAttr('group-wizard.steps')}
-        >
-          {stepLabels.map((label, i) => {
-            const done = i < step;
-            const current = i === step;
-            const reachable = !isNew || i <= step;
-            return (
-              <li key={label}>
-                <button
-                  type="button"
-                  disabled={!reachable}
-                  onClick={() => setStep(i)}
-                  aria-current={current ? 'step' : undefined}
-                  {...tourFieldAttr(
-                    'group-wizard.step',
-                    'group-wizard',
-                    STEPS[i]
-                  )}
-                  className={`flex items-center gap-1.5 ${current ? 'text-slate-900' : done ? 'text-slate-500' : 'text-slate-400'} disabled:cursor-default`}
-                >
-                  <span
-                    className={`w-5 h-5 rounded-full flex items-center justify-center text-xxs ${
-                      current
-                        ? 'bg-brand-blue-primary text-white'
-                        : done
-                          ? 'bg-slate-200 text-slate-600'
-                          : 'border border-slate-300'
-                    }`}
-                  >
-                    {done ? <Check size={12} aria-hidden /> : i + 1}
-                  </span>
-                  {label}
-                </button>
-              </li>
-            );
-          })}
-        </ol>
-      </div>
-
-      <div className="flex-1 min-h-0 border border-slate-200 rounded-xl flex bg-white">
-        <div className="flex-1 min-w-0 overflow-y-auto custom-scrollbar pb-6">
-          {STEPS[step] === 'students' && (
-            <StudentsStep
-              students={students}
-              selected={group.studentIds}
-              onChange={(studentIds) => setGroup((g) => ({ ...g, studentIds }))}
-            />
-          )}
-          {STEPS[step] === 'symbol' && (
-            <SymbolStep
-              symbol={symbol}
+  const stepDefs: AssignStepDef[] = [
+    {
+      id: 'group-students',
+      anchor: tourFieldAttr('group-wizard.step', 'group-wizard', 'students'),
+      title: t('groupReminders.stepStudents', { defaultValue: 'Students' }),
+      value: canSave
+        ? t('groupReminders.studentCount', {
+            defaultValue: '{{count}} students',
+            count: group.studentIds.length,
+          })
+        : t('groupReminders.noneSelected', { defaultValue: 'None selected' }),
+      continueAnchor: nextAnchor,
+      body: (
+        <div className="flex flex-col gap-4">
+          {/* With no Symbol step, the name lives here so the group still gets one. */}
+          {!visible.symbol && (
+            <GroupNameField
               name={group.name}
-              onSymbol={setSymbol}
               onName={(name) => setGroup((g) => ({ ...g, name }))}
             />
           )}
-          {STEPS[step] === 'schedule' && (
-            <ScheduleStep reminder={reminder} onChange={setReminder} />
-          )}
-          {STEPS[step] === 'alerts' && (
-            <AlertsStep
-              reminder={reminder}
-              inGroupMaker={group.inGroupMaker !== false}
-              emailAlertsEnabled={emailAlertsEnabled}
-              onChange={setReminder}
-              onGroupMaker={(inGroupMaker) =>
-                setGroup((g) => ({ ...g, inGroupMaker }))
-              }
-            />
-          )}
+          <StudentsStep
+            students={students}
+            selected={group.studentIds}
+            onChange={(studentIds) => setGroup((g) => ({ ...g, studentIds }))}
+          />
         </div>
-        {(STEPS[step] === 'symbol' || STEPS[step] === 'alerts') && preview}
-      </div>
+      ),
+    },
+  ];
+  if (visible.symbol) {
+    stepDefs.push({
+      id: 'group-symbol',
+      anchor: tourFieldAttr('group-wizard.step', 'group-wizard', 'symbol'),
+      title: t('groupReminders.stepSymbol', { defaultValue: 'Symbol' }),
+      value:
+        group.name.trim() ||
+        t('groupReminders.unnamed', { defaultValue: 'Unnamed' }),
+      continueAnchor: nextAnchor,
+      body: (
+        <SymbolStep
+          symbol={symbol}
+          name={group.name}
+          onSymbol={setSymbol}
+          onName={(name) => setGroup((g) => ({ ...g, name }))}
+        />
+      ),
+    });
+  }
+  if (visible.schedule) {
+    stepDefs.push({
+      id: 'group-schedule',
+      anchor: tourFieldAttr('group-wizard.step', 'group-wizard', 'schedule'),
+      title: t('groupReminders.stepSchedule', { defaultValue: 'Schedule' }),
+      value: !reminder.enabled
+        ? offLabel
+        : reminder.days.length === 0
+          ? t('groupReminders.noDays', { defaultValue: 'No days' })
+          : formatReminderSummary(
+              reminder,
+              t('groupReminders.everyTwoWeeks', {
+                defaultValue: 'every 2 weeks',
+              })
+            ),
+      continueAnchor: nextAnchor,
+      body: (
+        <ScheduleStep
+          reminder={reminder}
+          emailAlertsEnabled={emailAlertsEnabled}
+          onChange={setReminder}
+        />
+      ),
+    });
+  }
+  if (visible.settings) {
+    stepDefs.push({
+      id: 'group-settings',
+      anchor: tourFieldAttr('group-wizard.step', 'group-wizard', 'settings'),
+      title: t('groupReminders.stepSettings', {
+        defaultValue: 'Additional settings',
+      }),
+      value: inGroupMaker
+        ? t('groupReminders.groupMakerOn', { defaultValue: 'Group Maker on' })
+        : t('groupReminders.groupMakerOff', {
+            defaultValue: 'Group Maker off',
+          }),
+      continueAnchor: nextAnchor,
+      body: (
+        <SettingsStep
+          inGroupMaker={inGroupMaker}
+          onGroupMaker={(on) => setGroup((g) => ({ ...g, inGroupMaker: on }))}
+        />
+      ),
+    });
+  }
 
-      <div className="flex justify-between shrink-0">
-        <button
-          type="button"
-          onClick={() => (step === 0 ? onCancel() : setStep(step - 1))}
-          {...(step === 0
-            ? tourAttr('group-wizard.cancel')
-            : tourAttr('group-wizard.back'))}
-          className="px-4 py-2 text-sm font-bold text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
-        >
-          {step === 0
-            ? t('common.cancel', { defaultValue: 'Cancel' })
-            : t('common.back', { defaultValue: 'Back' })}
-        </button>
-        <div className="flex gap-2">
-          {!isNew && !last && (
-            <button
-              type="button"
-              disabled={!canSave}
-              onClick={() => onSave(group)}
-              {...tourAttr('group-wizard.save-now')}
-              className="px-4 py-2 text-sm font-bold text-brand-blue-primary bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
-            >
-              {t('groupReminders.saveGroup', { defaultValue: 'Save group' })}
-            </button>
-          )}
-          <button
-            type="button"
-            disabled={(step === 0 || last) && !canSave}
-            onClick={() => (last ? onSave(group) : setStep(step + 1))}
-            {...(last
-              ? tourAttr('group-wizard.finish')
-              : tourAttr('group-wizard.next'))}
-            className="px-5 py-2 text-sm font-bold text-white bg-brand-blue-primary rounded-lg hover:bg-brand-blue-dark transition-colors disabled:opacity-50"
-          >
-            {last
-              ? t('groupReminders.saveGroup', { defaultValue: 'Save group' })
-              : t('common.next', { defaultValue: 'Next' })}
-          </button>
-        </div>
+  const title = isNew
+    ? t('groupReminders.newGroup', { defaultValue: 'New group' })
+    : t('groupReminders.editGroup', { defaultValue: 'Edit group' });
+
+  return (
+    <div className="flex-1 min-h-0 flex gap-4">
+      <div
+        className="flex-1 min-w-0 overflow-y-auto custom-scrollbar"
+        {...tourAttr('group-wizard.steps')}
+      >
+        <h3 className="text-sm font-bold text-slate-800 mb-3">{title}</h3>
+        <AssignStepper
+          isOpen
+          inline
+          onClose={onCancel}
+          title={title}
+          steps={stepDefs}
+          submitLabel={t('groupReminders.saveGroup', {
+            defaultValue: 'Save group',
+          })}
+          submitIcon={Save}
+          onSubmit={() => onSave(group)}
+          disabled={!canSave}
+          disabledReason={t('groupReminders.pickStudents', {
+            defaultValue: 'Select at least one student.',
+          })}
+          onCancel={onCancel}
+          cancelLabel={t('common.cancel', { defaultValue: 'Cancel' })}
+          cancelAnchor={tourAttr('group-wizard.cancel')}
+          submitAnchor={tourAttr('group-wizard.finish')}
+          viewAsGuard={false}
+          stickyFooter
+        />
       </div>
+      {(visible.symbol || visible.schedule) && (
+        <div
+          className="hidden lg:flex w-[320px] shrink-0 border border-slate-200 bg-slate-100 rounded-xl items-end justify-end p-5"
+          {...tourAttr('group-wizard.preview')}
+        >
+          <GroupReminderCard
+            symbol={symbol}
+            message={
+              reminder.showMessage
+                ? reminder.message.trim() ||
+                  t('groupReminders.defaultMessage', {
+                    defaultValue: 'Time to go',
+                  })
+                : undefined
+            }
+            name={
+              reminder.showName && group.name.trim()
+                ? group.name.trim()
+                : undefined
+            }
+            time={
+              reminder.showTime
+                ? formatReminderTime(reminder.alerts[0]?.time ?? '09:00')
+                : undefined
+            }
+            snoozeMinutes={reminder.snoozeMinutes}
+            onSnooze={() => undefined}
+            onDismiss={() => undefined}
+          />
+        </div>
+      )}
     </div>
   );
 };
@@ -497,6 +511,29 @@ const GroupWizard: React.FC<GroupWizardProps> = ({
 const FIELD_LABEL = 'text-xs font-bold text-slate-600';
 const SELECT =
   'px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-hidden';
+
+const GroupNameField: React.FC<{
+  name: string;
+  onName: (name: string) => void;
+}> = ({ name, onName }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="flex flex-col gap-2 max-w-sm">
+      <label htmlFor="group-wizard-name" className={FIELD_LABEL}>
+        {t('groupReminders.nameOptional', {
+          defaultValue: 'Name (optional)',
+        })}
+      </label>
+      <input
+        id="group-wizard-name"
+        {...tourAttr('group-wizard.name')}
+        value={name}
+        onChange={(e) => onName(e.target.value)}
+        className="px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-hidden"
+      />
+    </div>
+  );
+};
 
 const SymbolStep: React.FC<{
   symbol: RosterGroupSymbol;
@@ -512,21 +549,8 @@ const SymbolStep: React.FC<{
   });
 
   return (
-    <div className="p-6 flex flex-col gap-6">
-      <div className="flex flex-col gap-2 max-w-sm">
-        <label htmlFor="group-wizard-name" className={FIELD_LABEL}>
-          {t('groupReminders.nameOptional', {
-            defaultValue: 'Name (optional)',
-          })}
-        </label>
-        <input
-          id="group-wizard-name"
-          {...tourAttr('group-wizard.name')}
-          value={name}
-          onChange={(e) => onName(e.target.value)}
-          className="px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-hidden"
-        />
-      </div>
+    <div className="flex flex-col gap-5">
+      <GroupNameField name={name} onName={onName} />
       <div className="flex flex-col gap-2">
         <div className="relative max-w-sm">
           <Search
@@ -614,19 +638,33 @@ const SettingRow: React.FC<{ label: string; children: React.ReactNode }> = ({
   </div>
 );
 
-const AlertsStep: React.FC<{
-  reminder: RosterGroupReminder;
+const SettingsStep: React.FC<{
   inGroupMaker: boolean;
+  onGroupMaker: (on: boolean) => void;
+}> = ({ inGroupMaker, onGroupMaker }) => {
+  const { t } = useTranslation();
+  const label = t('groupReminders.inGroupMaker', {
+    defaultValue: 'Enable in Group Maker',
+  });
+  return (
+    <div className="max-w-md">
+      <SettingRow label={label}>
+        <Toggle
+          checked={inGroupMaker}
+          onChange={onGroupMaker}
+          label={label}
+          anchor={tourAttr('group-wizard.group-maker')}
+        />
+      </SettingRow>
+    </div>
+  );
+};
+
+const ReminderCardSettings: React.FC<{
+  reminder: RosterGroupReminder;
   emailAlertsEnabled: boolean;
   onChange: (patch: Partial<RosterGroupReminder>) => void;
-  onGroupMaker: (on: boolean) => void;
-}> = ({
-  reminder,
-  inGroupMaker,
-  emailAlertsEnabled,
-  onChange,
-  onGroupMaker,
-}) => {
+}> = ({ reminder, emailAlertsEnabled, onChange }) => {
   const { t } = useTranslation();
   const soundLabels: Record<RosterGroupReminder['sound'], string> = {
     off: t('groupReminders.soundOff', { defaultValue: 'Off' }),
@@ -636,9 +674,6 @@ const AlertsStep: React.FC<{
     harp: t('groupReminders.soundHarp', { defaultValue: 'Harp' }),
   };
   const labels = {
-    onBoard: t('groupReminders.reminderOnBoard', {
-      defaultValue: 'Reminder on the board',
-    }),
     sound: t('groupReminders.sound', { defaultValue: 'Sound' }),
     play: t('groupReminders.playSound', { defaultValue: 'Play sound' }),
     snooze: t('groupReminders.snoozeLength', { defaultValue: 'Snooze' }),
@@ -650,9 +685,6 @@ const AlertsStep: React.FC<{
       defaultValue: 'Show a message',
     }),
     message: t('groupReminders.message', { defaultValue: 'Message' }),
-    groupMaker: t('groupReminders.inGroupMaker', {
-      defaultValue: 'Enable in Group Maker',
-    }),
     email: t('groupReminders.emailAlert', { defaultValue: 'Email alert' }),
     emailMessage: t('groupReminders.emailMessage', {
       defaultValue: 'Email message',
@@ -660,113 +692,97 @@ const AlertsStep: React.FC<{
   };
 
   return (
-    <div className="p-6 flex flex-col gap-3 max-w-md">
-      <SettingRow label={labels.onBoard}>
+    <div className="border-t border-slate-100 pt-4 flex flex-col gap-3 max-w-md">
+      <SettingRow label={labels.sound}>
+        <div className="flex items-center gap-1">
+          <select
+            aria-label={labels.sound}
+            {...tourAttr('group-wizard.sound')}
+            value={reminder.sound}
+            onChange={(e) => {
+              const sound =
+                REMINDER_SOUNDS.find((x) => x === e.target.value) ?? 'off';
+              onChange({ sound });
+              playReminderSound(sound);
+            }}
+            className={`${SELECT} w-36`}
+          >
+            {REMINDER_SOUNDS.map((sound) => (
+              <option key={sound} value={sound}>
+                {soundLabels[sound]}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            disabled={reminder.sound === 'off'}
+            onClick={() => playReminderSound(reminder.sound)}
+            aria-label={labels.play}
+            title={labels.play}
+            {...tourAttr('group-wizard.play-sound')}
+            className="p-2 rounded-lg text-slate-500 hover:text-brand-blue-primary hover:bg-slate-100 transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-500"
+          >
+            <Play size={16} />
+          </button>
+        </div>
+      </SettingRow>
+      <SettingRow label={labels.snooze}>
+        <select
+          aria-label={labels.snooze}
+          {...tourAttr('group-wizard.snooze')}
+          value={reminder.snoozeMinutes}
+          onChange={(e) => onChange({ snoozeMinutes: Number(e.target.value) })}
+          className={`${SELECT} w-36 mr-9`}
+        >
+          {SNOOZE_OPTIONS.map((m) => (
+            <option key={m} value={m}>
+              {t('groupReminders.minutes', {
+                defaultValue: '{{count}} min',
+                count: m,
+              })}
+            </option>
+          ))}
+        </select>
+      </SettingRow>
+      <SettingRow label={labels.showName}>
         <Toggle
-          checked={reminder.enabled}
-          onChange={(enabled) => onChange({ enabled })}
-          label={labels.onBoard}
-          anchor={tourAttr('group-wizard.on-board')}
+          checked={reminder.showName}
+          onChange={(showName) => onChange({ showName })}
+          label={labels.showName}
+          anchor={tourAttr('group-wizard.show-name')}
         />
       </SettingRow>
-      {reminder.enabled && (
-        <>
-          <SettingRow label={labels.sound}>
-            <div className="flex items-center gap-1">
-              <select
-                aria-label={labels.sound}
-                {...tourAttr('group-wizard.sound')}
-                value={reminder.sound}
-                onChange={(e) => {
-                  const sound =
-                    REMINDER_SOUNDS.find((x) => x === e.target.value) ?? 'off';
-                  onChange({ sound });
-                  playReminderSound(sound);
-                }}
-                className={`${SELECT} w-36`}
-              >
-                {REMINDER_SOUNDS.map((sound) => (
-                  <option key={sound} value={sound}>
-                    {soundLabels[sound]}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                disabled={reminder.sound === 'off'}
-                onClick={() => playReminderSound(reminder.sound)}
-                aria-label={labels.play}
-                title={labels.play}
-                {...tourAttr('group-wizard.play-sound')}
-                className="p-2 rounded-lg text-slate-500 hover:text-brand-blue-primary hover:bg-slate-100 transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-500"
-              >
-                <Play size={16} />
-              </button>
-            </div>
-          </SettingRow>
-          <SettingRow label={labels.snooze}>
-            <select
-              aria-label={labels.snooze}
-              {...tourAttr('group-wizard.snooze')}
-              value={reminder.snoozeMinutes}
-              onChange={(e) =>
-                onChange({ snoozeMinutes: Number(e.target.value) })
-              }
-              className={`${SELECT} w-36 mr-9`}
-            >
-              {SNOOZE_OPTIONS.map((m) => (
-                <option key={m} value={m}>
-                  {t('groupReminders.minutes', {
-                    defaultValue: '{{count}} min',
-                    count: m,
-                  })}
-                </option>
-              ))}
-            </select>
-          </SettingRow>
-          <div className="border-t border-slate-100 mt-2 pt-3 flex flex-col gap-3">
-            <SettingRow label={labels.showName}>
-              <Toggle
-                checked={reminder.showName}
-                onChange={(showName) => onChange({ showName })}
-                label={labels.showName}
-                anchor={tourAttr('group-wizard.show-name')}
-              />
-            </SettingRow>
-            <SettingRow label={labels.showTime}>
-              <Toggle
-                checked={reminder.showTime}
-                onChange={(showTime) => onChange({ showTime })}
-                label={labels.showTime}
-                anchor={tourAttr('group-wizard.show-time')}
-              />
-            </SettingRow>
-            <SettingRow label={labels.showMessage}>
-              <Toggle
-                checked={reminder.showMessage}
-                onChange={(showMessage) => onChange({ showMessage })}
-                label={labels.showMessage}
-                anchor={tourAttr('group-wizard.show-message')}
-              />
-            </SettingRow>
-            {reminder.showMessage && (
-              <input
-                aria-label={labels.message}
-                {...tourAttr('group-wizard.message')}
-                value={reminder.message}
-                maxLength={80}
-                onChange={(e) => onChange({ message: e.target.value })}
-                placeholder={t('groupReminders.defaultMessage', {
-                  defaultValue: 'Time to go',
-                })}
-                className="px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-hidden"
-              />
-            )}
-          </div>
-        </>
+      <SettingRow label={labels.showTime}>
+        <Toggle
+          checked={reminder.showTime}
+          onChange={(showTime) => onChange({ showTime })}
+          label={labels.showTime}
+          anchor={tourAttr('group-wizard.show-time')}
+        />
+      </SettingRow>
+      <SettingRow label={labels.showMessage}>
+        <Toggle
+          checked={reminder.showMessage}
+          onChange={(showMessage) => onChange({ showMessage })}
+          label={labels.showMessage}
+          anchor={tourAttr('group-wizard.show-message')}
+        />
+      </SettingRow>
+      {reminder.showMessage && (
+        <input
+          aria-label={labels.message}
+          {...tourAttr('group-wizard.message')}
+          value={reminder.message}
+          maxLength={80}
+          onChange={(e) => onChange({ message: e.target.value })}
+          placeholder={t('groupReminders.defaultMessage', {
+            defaultValue: 'Time to go',
+          })}
+          className="px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-hidden"
+        />
       )}
-      {reminder.enabled && emailAlertsEnabled && (
-        <div className="border-t border-slate-100 mt-2 pt-3 flex flex-col gap-3">
+      {emailAlertsEnabled && (
+        <>
           <SettingRow label={labels.email}>
             <Toggle
               checked={reminder.emailAlert}
@@ -787,18 +803,8 @@ const AlertsStep: React.FC<{
               className="px-3 py-2 text-sm rounded-lg border border-slate-200 resize-none focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-hidden"
             />
           )}
-        </div>
+        </>
       )}
-      <div className="border-t border-slate-100 mt-2 pt-3">
-        <SettingRow label={labels.groupMaker}>
-          <Toggle
-            checked={inGroupMaker}
-            onChange={onGroupMaker}
-            label={labels.groupMaker}
-            anchor={tourAttr('group-wizard.group-maker')}
-          />
-        </SettingRow>
-      </div>
     </div>
   );
 };
@@ -822,7 +828,7 @@ const StudentsStep: React.FC<{
 
   if (students.length === 0) {
     return (
-      <p className="p-6 text-sm text-slate-500">
+      <p className="text-sm text-slate-500">
         {t('sidebar.classes.noStudentsToGroup', {
           defaultValue: 'Add students first.',
         })}
@@ -832,7 +838,7 @@ const StudentsStep: React.FC<{
 
   return (
     <div className="flex flex-col">
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-200 sticky top-0 bg-white">
+      <div className="flex items-center gap-3 pb-3">
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -843,7 +849,7 @@ const StudentsStep: React.FC<{
             defaultValue: 'Search students',
           })}
           {...tourAttr('group-wizard.student-search')}
-          className="flex-1 px-3 py-1.5 text-sm rounded-md border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-hidden"
+          className="flex-1 min-w-0 px-3 py-1.5 text-sm rounded-md border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-hidden"
         />
         <span className="text-xs font-semibold text-slate-600 shrink-0">
           {t('groupReminders.selectedCount', {
@@ -852,7 +858,7 @@ const StudentsStep: React.FC<{
           })}
         </span>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-1 p-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-1">
         {shown.map((s, shownIndex) => (
           <label
             key={s.id}
@@ -879,15 +885,19 @@ const StudentsStep: React.FC<{
 
 const ScheduleStep: React.FC<{
   reminder: RosterGroupReminder;
+  emailAlertsEnabled: boolean;
   onChange: (patch: Partial<RosterGroupReminder>) => void;
-}> = ({ reminder, onChange }) => {
+}> = ({ reminder, emailAlertsEnabled, onChange }) => {
   const { t } = useTranslation();
-  const timeLabel = t('groupReminders.time', { defaultValue: 'Time' });
-  const leadLabel = t('groupReminders.showReminder', {
-    defaultValue: 'Show reminder',
+  const onBoardLabel = t('groupReminders.reminderOnBoard', {
+    defaultValue: 'Reminder on the board',
   });
-  const removeLabel = t('groupReminders.removeAlert', {
-    defaultValue: 'Remove alert',
+  const timeLabel = t('groupReminders.time', { defaultValue: 'Time' });
+  const leadLabel = t('groupReminders.popsUp', {
+    defaultValue: 'Pops up',
+  });
+  const removeLabel = t('groupReminders.removeTime', {
+    defaultValue: 'Remove time',
   });
   const setAlert = (i: number, patch: Partial<RosterGroupAlert>) =>
     onChange({
@@ -900,8 +910,23 @@ const ScheduleStep: React.FC<{
         : [...reminder.days, d].sort((a, b) => a - b),
     });
 
+  const toggle = (
+    <div className="max-w-md">
+      <SettingRow label={onBoardLabel}>
+        <Toggle
+          checked={reminder.enabled}
+          onChange={(enabled) => onChange({ enabled })}
+          label={onBoardLabel}
+          anchor={tourAttr('group-wizard.on-board')}
+        />
+      </SettingRow>
+    </div>
+  );
+  if (!reminder.enabled) return toggle;
+
   return (
-    <div className="p-6 flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
+      {toggle}
       <div className="flex flex-col gap-2">
         <span className="text-xs font-bold text-slate-600">
           {t('groupReminders.days', { defaultValue: 'Days' })}
@@ -1026,8 +1051,8 @@ const ScheduleStep: React.FC<{
             className="self-start flex items-center gap-1.5 px-2 py-1 -ml-2 text-sm font-semibold text-brand-blue-primary hover:bg-brand-blue-lighter rounded-md transition-colors"
           >
             <Plus size={16} />
-            {t('groupReminders.addAlert', {
-              defaultValue: 'Add another alert',
+            {t('groupReminders.addTime', {
+              defaultValue: 'Add another time',
             })}
           </button>
         )}
@@ -1092,6 +1117,11 @@ const ScheduleStep: React.FC<{
           )}
         </p>
       )}
+      <ReminderCardSettings
+        reminder={reminder}
+        emailAlertsEnabled={emailAlertsEnabled}
+        onChange={onChange}
+      />
     </div>
   );
 };
