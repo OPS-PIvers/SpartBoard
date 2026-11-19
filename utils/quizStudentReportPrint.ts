@@ -337,6 +337,12 @@ const markCell = (
   return `<div class="mark">${label}${pts}</div>`;
 };
 
+const VERDICT_MARKS: ReadonlySet<StudentOutcome> = new Set([
+  'correct',
+  'partial',
+  'incorrect',
+]);
+
 const tick = (correct: boolean) =>
   `<span class="tick">${correct ? '✓' : '✗'}</span>`;
 
@@ -348,6 +354,8 @@ function mcAnswer(
 ): string {
   const multi = line.type === 'MA';
   const opts = line.options ?? [];
+  // Only a Correct, Partial or Incorrect row label already speaks for the pick.
+  const verdict = VERDICT_MARKS.has(line.mark);
   const items = opts
     .map((opt, i) => {
       const letter =
@@ -356,12 +364,14 @@ function mcAnswer(
           : '';
       // One choice: the row's Correct/Incorrect already marks the pick, so only several choices tick each one.
       const mark =
-        multi && opt.picked && options.markAnswers
+        opt.picked && options.markAnswers && (multi || !verdict)
           ? ` ${tick(opt.correct)}`
           : '';
       // A marked pick already says it was right, so the tag only points at the ones missed.
       const key =
-        showKey && opt.correct && !(opt.picked && options.markAnswers)
+        showKey &&
+        opt.correct &&
+        !(opt.picked && options.markAnswers && verdict)
           ? ' <span class="keytag">Correct answer</span>'
           : '';
       const bullet = multi ? (opt.picked ? '☑' : '☐') : opt.picked ? '●' : '○';

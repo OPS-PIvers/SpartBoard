@@ -14427,6 +14427,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Show the key radios in the Quiz widget",
     "scope": "field",
     "panel": true,
+    "persists": true,
     "routes": [
       {
         "surface": "quiz.results.print",
@@ -14449,6 +14450,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Layout radios in the Quiz widget",
     "scope": "field",
     "panel": true,
+    "persists": true,
     "routes": [
       {
         "surface": "quiz.results.print",
@@ -14496,6 +14498,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Option toggles from TOGGLES map in the Quiz widget",
     "scope": "field",
     "panel": true,
+    "persists": true,
     "routes": [
       {
         "surface": "quiz.results.print",
@@ -14518,6 +14521,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Preset chips (radio group) in the Quiz widget",
     "scope": "field",
     "panel": true,
+    "persists": true,
     "routes": [
       {
         "surface": "quiz.results.print",
@@ -14566,6 +14570,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Report choice cards (radio group) in the Quiz widget",
     "scope": "field",
     "panel": true,
+    "persists": true,
     "routes": [
       {
         "surface": "quiz.results.print",
@@ -14623,10 +14628,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.tab:quiz#archive",
           "library-shell.archive-primary-action:quiz#row-1",
-          "quiz-results.print:quiz",
-          "quiz-print.results-tab:quiz#students"
+          "quiz-results.print:quiz"
         ],
-        "reveal": "quiz-print.results-tab:quiz#students",
         "needs": [
           "library-item",
           "student-data",
@@ -14649,10 +14652,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.tab:quiz#archive",
           "library-shell.archive-primary-action:quiz#row-1",
-          "quiz-results.print:quiz",
-          "quiz-print.results-section-expand:quiz#row-1"
+          "quiz-results.print:quiz"
         ],
-        "reveal": "quiz-print.results-section-expand:quiz#row-1",
         "needs": [
           "library-item",
           "student-data",

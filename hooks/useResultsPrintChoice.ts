@@ -1,5 +1,5 @@
 // The Print results settings, saved to the teacher's profile so they follow them to every device.
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { logError } from '@/utils/logError';
@@ -22,10 +22,11 @@ export function useResultsPrintChoice(
   defaultPreset: ResultsPrintPresetId | undefined,
   adjust: (choice: SavedResultsPrintChoice) => SavedResultsPrintChoice
 ): [SavedResultsPrintChoice, (next: SavedResultsPrintChoice) => void] {
-  const [state, setState] = useState(() => ({
-    choice: adjust(loadResultsPrintChoice(defaultPreset)),
-    touched: false,
-  }));
+  const [choice, setChoice] = useState(() =>
+    adjust(loadResultsPrintChoice(defaultPreset))
+  );
+  // Set by the teacher's first change; the account copy never replaces it.
+  const touched = useRef(false);
 
   useEffect(() => {
     if (!uid || isAuthBypass) return undefined;
@@ -34,13 +35,11 @@ export function useResultsPrintChoice(
       .then(() => getDoc(doc(db, 'users', uid, 'userProfile', 'profile')))
       .then((snap) => {
         const raw: unknown = snap.data()?.[RESULTS_PRINT_PROFILE_FIELD];
-        if (cancelled || !raw) return;
+        if (cancelled || !raw || touched.current) return;
         const saved = parseResultsPrintChoice(raw, defaultPreset);
         // A super admin viewing as a teacher keeps their own browser copy.
         if (!viewAsBlocksWrite()) saveResultsPrintChoice(saved);
-        setState((prev) =>
-          prev.touched ? prev : { choice: adjust(saved), touched: false }
-        );
+        setChoice(adjust(saved));
       })
       .catch((err: unknown) => logError('useResultsPrintChoice.load', err));
     return () => {
@@ -51,7 +50,8 @@ export function useResultsPrintChoice(
   }, [uid]);
 
   const update = (next: SavedResultsPrintChoice) => {
-    setState({ choice: next, touched: true });
+    touched.current = true;
+    setChoice(next);
     saveResultsPrintChoice(next);
     if (!uid || isAuthBypass || viewAsBlocksWrite()) return;
     void Promise.resolve()
@@ -68,5 +68,5 @@ export function useResultsPrintChoice(
       .catch((err: unknown) => logError('useResultsPrintChoice.save', err));
   };
 
-  return [state.choice, update];
+  return [choice, update];
 }

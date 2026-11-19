@@ -3613,11 +3613,13 @@ export const TOUR_ANCHORS = {
     label: 'Show the key radios in the Quiz widget',
     perField: true,
     panel: true,
+    persists: true,
   },
   'quiz-print.results-layout': {
     label: 'Layout radios in the Quiz widget',
     perField: true,
     panel: true,
+    persists: true,
   },
   'quiz-print.results-more-options': {
     label: 'More print options disclosure in the Quiz widget',
@@ -3628,11 +3630,13 @@ export const TOUR_ANCHORS = {
     label: 'Option toggles from TOGGLES map in the Quiz widget',
     perField: true,
     panel: true,
+    persists: true,
   },
   'quiz-print.results-preset': {
     label: 'Preset chips (radio group) in the Quiz widget',
     perField: true,
     panel: true,
+    persists: true,
   },
   'quiz-print.results-print': {
     label: 'Print results Print in the Quiz widget',
@@ -3644,6 +3648,7 @@ export const TOUR_ANCHORS = {
     label: 'Report choice cards (radio group) in the Quiz widget',
     perField: true,
     panel: true,
+    persists: true,
   },
   'quiz-print.results-every-attempt': {
     label: 'Every attempt switch in the results print in the Quiz widget',
