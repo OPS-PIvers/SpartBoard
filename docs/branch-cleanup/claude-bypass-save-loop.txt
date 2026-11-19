@@ -1,0 +1,1 @@
+claude/bypass-save-loop (stops the board autosave loop in auth-bypass mode)

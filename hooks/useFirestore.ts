@@ -100,14 +100,16 @@ class MockDashboardStore {
     );
   }
 
-  saveDashboard(dashboard: Dashboard): void {
+  // A baseline save echoes after it returns, like a Firestore transaction.
+  saveDashboard(dashboard: Dashboard, echoAfterReturn = false): void {
     const index = this.dashboards.findIndex((d) => d.id === dashboard.id);
     if (index >= 0) {
       this.dashboards[index] = { ...dashboard };
     } else {
       this.dashboards.push({ ...dashboard });
     }
-    this.notifyListeners();
+    if (echoAfterReturn) setTimeout(() => this.notifyListeners(), 0);
+    else this.notifyListeners();
   }
 
   saveDashboards(dashboards: Dashboard[]): void {
@@ -578,7 +580,7 @@ export const useFirestore = (
       // View as never autosaves boards (plan D11); the tab edits a local copy.
       if (isViewAsTab) return Date.now();
       if (isAuthBypass) {
-        mockStore.saveDashboard(dashboard);
+        mockStore.saveDashboard(dashboard, baseline !== undefined);
         return Date.now();
       }
 

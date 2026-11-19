@@ -420,24 +420,37 @@ export const AssignmentSettingsToggleGroup: React.FC<
           {feedbackLeadingSlot}
           <ToggleRow
             compact
-            label="Show right/wrong to students"
+            label="Show right or wrong after each answer"
             anchor={tourFieldAttr(
               'assign-settings.toggle',
               'assign',
               'show-right-wrong'
             )}
             checked={options.showResultToStudent ?? false}
-            onChange={(v) => update('showResultToStudent', v)}
+            onChange={(v) =>
+              onOptionsChange(
+                v
+                  ? { ...options, showResultToStudent: true }
+                  : {
+                      ...options,
+                      showResultToStudent: false,
+                      showCorrectAnswerToStudent: false,
+                    }
+              )
+            }
           />
           <ToggleRow
             compact
-            label="Reveal correct answer to students"
+            label="Show the correct answer when wrong"
             anchor={tourFieldAttr(
               'assign-settings.toggle',
               'assign',
               'reveal-correct'
             )}
-            checked={options.showCorrectAnswerToStudent ?? false}
+            checked={
+              (options.showResultToStudent ?? false) &&
+              (options.showCorrectAnswerToStudent ?? false)
+            }
             onChange={(v) => update('showCorrectAnswerToStudent', v)}
             disabled={!options.showResultToStudent}
           />

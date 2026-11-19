@@ -63,19 +63,25 @@ export const QuizFeedbackStep: React.FC<QuizFeedbackStepProps> = ({
         />
       )}
       <StepToggleRow
-        label="Show right and wrong to students"
+        label="Show right or wrong after each answer"
         anchor={tourFieldAttr(
           'assign-rule.toggle',
           'assign',
           'show-right-wrong'
         )}
         checked={rightWrong}
-        onChange={(showResultToStudent) => patch({ showResultToStudent })}
+        onChange={(showResultToStudent) =>
+          patch(
+            showResultToStudent
+              ? { showResultToStudent }
+              : { showResultToStudent, showCorrectAnswerToStudent: false }
+          )
+        }
       />
       <StepToggleRow
-        label="Reveal correct answer to students"
+        label="Show the correct answer when wrong"
         anchor={tourFieldAttr('assign-rule.toggle', 'assign', 'reveal-correct')}
-        checked={o.showCorrectAnswerToStudent ?? false}
+        checked={rightWrong && (o.showCorrectAnswerToStudent ?? false)}
         disabled={!rightWrong}
         onChange={(showCorrectAnswerToStudent) =>
           patch({ showCorrectAnswerToStudent })
