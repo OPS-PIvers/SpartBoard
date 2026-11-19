@@ -503,7 +503,9 @@ export interface UseQuizAssignmentsResult {
     /** Per-period rows for the class change, in the same batch; null removes a row. */
     periodAccessRows?: Record<string, PeriodAccess | null>,
     /** Names of the rosters this change takes off, so their PIN work is hidden. */
-    removedRosterNames?: string[]
+    removedRosterNames?: string[],
+    /** Class ids and period keys of those rosters; other dropped classes are not recorded as removed. */
+    removedClassIds?: string[]
   ) => Promise<void>;
   /**
    * Persist the Drive export URL onto the assignment doc so re-entering
@@ -2621,7 +2623,13 @@ export const useQuizAssignments = (
   const setAssignmentRosters = useCallback<
     UseQuizAssignmentsResult['setAssignmentRosters']
   >(
-    async (assignmentId, targets, periodAccessRows, removedRosterNames) => {
+    async (
+      assignmentId,
+      targets,
+      periodAccessRows,
+      removedRosterNames,
+      removedClassIds
+    ) => {
       if (!userId) throw new Error('Not authenticated');
       const now = Date.now();
       const rowWrites = periodAccessWrites(periodAccessRows);
@@ -2685,7 +2693,8 @@ export const useQuizAssignments = (
           periodNames: cleanedPeriodNames,
           periodAccessKeys: [...nextRowKeys],
         },
-        removedRosterNames ?? []
+        removedRosterNames ?? [],
+        removedClassIds ?? []
       );
       const sessionPatch: Record<string, unknown> = {
         removedClasses,

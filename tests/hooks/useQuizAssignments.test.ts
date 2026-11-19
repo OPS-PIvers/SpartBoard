@@ -1220,6 +1220,41 @@ describe('useQuizAssignments - setAssignmentRosters', () => {
     });
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
     await act(async () => {
+      await result.current.setAssignmentRosters(
+        ASSIGNMENT_ID,
+        {
+          rosterIds: ['r1'],
+          classIds: ['cl-A'],
+          periodNames: ['Period 1'],
+          classPeriodByClassId: { 'cl-A': 'Period 1' },
+        },
+        undefined,
+        ['Period 2'],
+        ['cl-B']
+      );
+    });
+    const sessionCall = batchUpdate.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
+    );
+    if (!sessionCall) throw new Error('expected batch.update on session doc');
+    expect(sessionCall[1]).toMatchObject({
+      classIds: ['cl-A', 'schoology:ctx-9'],
+      periodNames: ['Period 1', 'Bio 3'],
+      classPeriodByClassId: { 'cl-A': 'Period 1', 'schoology:ctx-9': 'Bio 3' },
+      removedClasses: { classIds: ['cl-B'], periodNames: ['Period 2'] },
+    });
+  });
+
+  it('does not record a class as removed when the teacher did not uncheck it', async () => {
+    mockGetDoc.mockResolvedValue({
+      data: () => ({
+        classIds: ['cl-A', 'cl-stale'],
+        periodNames: ['Period 1', 'Gone'],
+        classPeriodByClassId: { 'cl-A': 'Period 1', 'cl-stale': 'Gone' },
+      }),
+    });
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
       await result.current.setAssignmentRosters(ASSIGNMENT_ID, {
         rosterIds: ['r1'],
         classIds: ['cl-A'],
@@ -1232,10 +1267,7 @@ describe('useQuizAssignments - setAssignmentRosters', () => {
     );
     if (!sessionCall) throw new Error('expected batch.update on session doc');
     expect(sessionCall[1]).toMatchObject({
-      classIds: ['cl-A', 'schoology:ctx-9'],
-      periodNames: ['Period 1', 'Bio 3'],
-      classPeriodByClassId: { 'cl-A': 'Period 1', 'schoology:ctx-9': 'Bio 3' },
-      removedClasses: { classIds: ['cl-B'], periodNames: ['Period 2'] },
+      removedClasses: { classIds: [], periodNames: [] },
     });
   });
 

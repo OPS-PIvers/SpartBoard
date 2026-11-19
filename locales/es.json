@@ -5108,5 +5108,11 @@
     "title": "Apoyos",
     "close": "Cerrar",
     "resize": "Cambiar el tamaño de los apoyos"
+  },
+  "claudeBoards": {
+    "editingToast": "Claude está editando {{name}}",
+    "show": "Mostrar",
+    "madeBadge": "Hecho con Claude",
+    "editedBadge": "Editado por Claude"
   }
 }

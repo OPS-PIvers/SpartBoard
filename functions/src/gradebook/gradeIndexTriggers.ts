@@ -39,6 +39,7 @@ import {
   applyAttemptWrite,
 } from '../quizAttemptHistory';
 import { stampTurnIn } from '../quizTurnIn';
+import { migrateLegacyProjectOverrides } from '../projectGradeOverrides';
 import {
   TRIGGER_OPTS,
   dataOf,
@@ -69,24 +70,36 @@ export async function handleStudentDocWrite(
     before: dataOf(event.data?.before),
     after: dataOf(event.data?.after),
   };
-  if (!docWriteMatters(write)) return;
-  await guarded('student doc', { kind, sessionId, docId }, async () => {
-    const db = admin.firestore();
-    try {
-      await applyDocWrite(db, write);
-    } catch (err) {
-      // Let the recompute worker heal the row instead of dropping the update.
-      await markSessionDirty(db, kind, sessionId);
-      throw err;
-    }
-  });
+  if (docWriteMatters(write)) {
+    await guarded('student doc', { kind, sessionId, docId }, async () => {
+      const db = admin.firestore();
+      try {
+        await applyDocWrite(db, write);
+      } catch (err) {
+        // Let the recompute worker heal the row instead of dropping the update.
+        await markSessionDirty(db, kind, sessionId);
+        throw err;
+      }
+    });
+  }
+  // Runs whether or not the index is on: a legacy map keeps a released grade unreadable to members.
+  if (kind === 'projects')
+    await failUnlessStale(event.time, async () => {
+      await migrateLegacyProjectOverrides(
+        admin.firestore(),
+        sessionId,
+        docId,
+        write.after
+      );
+    });
 }
 
 const studentDocTrigger = (kind: GradeKind) =>
   onDocumentWritten(
     {
       ...TRIGGER_OPTS,
-      ...(kind === 'projects' ? { secrets: ROSTER_SECRETS } : {}),
+      // Projects retry so a failed legacy override migration runs again.
+      ...(kind === 'projects' ? { secrets: ROSTER_SECRETS, retry: true } : {}),
       document: `${SESSION_COLLECTION[kind]}/{sessionId}/${STUDENT_SUBCOLLECTION[kind]}/{docId}`,
     },
     (event) => handleStudentDocWrite(kind, event as unknown as WriteEvent)

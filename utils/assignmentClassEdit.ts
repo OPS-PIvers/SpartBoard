@@ -21,6 +21,33 @@ export interface AssignmentClassEdit extends SessionTargets {
   periodAccessRows?: Record<string, PeriodAccess | null>;
   /** Names of the rosters the edit takes off, so their PIN work is hidden. */
   removedRosterNames?: string[];
+  /** Class ids and period keys of those rosters; a class dropped any other way is not recorded as removed. */
+  removedClassIds?: string[];
+}
+
+/** The rosters an assignment targeted: `rosterIds` when present (even empty), else those matching its legacy period names. */
+export function previousRosterIdsFor(
+  a: { rosterIds?: string[]; periodNames?: string[]; periodName?: string },
+  rosters: readonly ClassRoster[]
+): string[] {
+  if (a.rosterIds !== undefined) return a.rosterIds;
+  const names = new Set(a.periodNames ?? (a.periodName ? [a.periodName] : []));
+  return rosters.filter((r) => names.has(r.name)).map((r) => r.id);
+}
+
+/** The class ids and period keys a set of unchecked rosters carries. */
+export function uncheckedRosterClassIds(
+  rosters: readonly ClassRoster[]
+): string[] {
+  return [
+    ...new Set(
+      rosters.flatMap((r) => [
+        r.classlinkClassId,
+        r.testClassId,
+        `roster:${r.id}`,
+      ])
+    ),
+  ].filter((id): id is string => typeof id === 'string' && id.length > 0);
 }
 
 /** Session targets for the checked classes, plus row writes when the session gates by period. */
@@ -38,11 +65,10 @@ export function planAssignmentClassEdit({
   accessMode?: AccessMode;
 }): AssignmentClassEdit {
   const selected = rosters.filter((r) => rosterIds.includes(r.id));
-  const removedRosterNames = rosters
-    .filter(
-      (r) => previousRosterIds.includes(r.id) && !rosterIds.includes(r.id)
-    )
-    .map((r) => r.name);
+  const unchecked = rosters.filter(
+    (r) => previousRosterIds.includes(r.id) && !rosterIds.includes(r.id)
+  );
+  const removedRosterNames = unchecked.map((r) => r.name);
   const {
     rosterIds: ids,
     classIds,
@@ -55,6 +81,7 @@ export function planAssignmentClassEdit({
     periodNames,
     classPeriodByClassId,
     removedRosterNames,
+    removedClassIds: uncheckedRosterClassIds(unchecked),
   };
   if (!accessMode || !periodAccess || Object.keys(periodAccess).length === 0)
     return targets;
@@ -161,7 +188,8 @@ export function stageAssignmentClassEdit(
       periodNames,
       periodAccessKeys: [...nextRowKeys],
     },
-    edit.removedRosterNames ?? []
+    edit.removedRosterNames ?? [],
+    edit.removedClassIds ?? []
   );
   const optional: Record<OptionalSessionField, unknown> = {
     classId: classIds[0] ?? '',
