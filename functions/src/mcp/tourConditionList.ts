@@ -149,6 +149,8 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'smart-paste',
   'smart-poll',
   'speech-to-text',
+  'speech-to-text-ai-transcription',
+  'speech-to-text-tidy-up',
   'staff-audience',
   'student-gradebook',
   'tab-away-timer',

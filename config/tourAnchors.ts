@@ -9656,6 +9656,16 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'admin.features.monthly-cap-number': {
+    label: 'Monthly limit box on a feature row',
+    perField: true,
+    panel: true,
+  },
+  'admin.features.transcribe-mode': {
+    label: 'Transcription mode select on the AI transcription row',
+    perField: true,
+    panel: true,
+  },
   'admin.access.expand': {
     label: 'Row expand button in Features, Widgets and Previews',
     perField: true,

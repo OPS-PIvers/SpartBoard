@@ -534,14 +534,6 @@ export const SURFACES: TourSurfaceMap = {
     parent: 'admin.widgets.config.quiz',
     needs: ['admin'],
   },
-  'admin.widgets.config.quiz.speech': {
-    label: 'Quiz admin configuration > Speech to text',
-    kind: 'panel',
-    files: ['components/admin/SpeechToTextConfigurationPanel.tsx'],
-    opensWith: 'admin.widget-config.field:quiz#tab-speech',
-    parent: 'admin.widgets.config.quiz',
-    needs: ['admin'],
-  },
 
   // Content tabs
   'admin.backgrounds': {

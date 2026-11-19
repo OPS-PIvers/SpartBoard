@@ -45,7 +45,10 @@ vi.mock('@/hooks/useDictation', () => ({
   },
 }));
 vi.mock('@/hooks/useSpeechToTextSettings', () => ({
-  useSpeechToTextSettings: (enabled: boolean): SpeechToTextSettings => {
+  useSpeechToTextSettings: (
+    assignmentId: string | undefined
+  ): SpeechToTextSettings => {
+    const enabled = assignmentId !== undefined;
     hook.settingsEnabled = enabled;
     return {
       ...DEFAULT_SPEECH_TO_TEXT_SETTINGS,

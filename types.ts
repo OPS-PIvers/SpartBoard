@@ -11719,6 +11719,8 @@ export type GlobalFeature =
   | 'quiz-whiteboard-response'
   | 'quiz-read-aloud'
   | 'speech-to-text'
+  | 'speech-to-text-ai-transcription'
+  | 'speech-to-text-tidy-up'
   /** Teacher-authored AI quiz translations for multilingual learners. */
   | 'quiz-translation'
   /** "Draft with AI" inside the question-bank editor; AND-ed with `gemini-functions`. */
@@ -11900,20 +11902,12 @@ export type GlobalFeature =
   /** Teachers record their voice for a quiz question prompt. */
   | 'quiz-question-audio';
 
-/** `admin_settings/speech_to_text`: paid dictation extras, all off by default (docs/plans/shipped/SPEECH_TO_TEXT.md D8-D10). */
+/** Which paid dictation extras a student's page may use, from `getSpeechToTextAccessV1`. */
 export interface SpeechToTextSettings {
   /** `hybrid` sends each spoken phrase to the AI transcriber; `browser` is the free engine alone. */
   engine: 'browser' | 'hybrid';
-  /** Gemini 3.5 Transcribe only: `smart` punctuates but also tidies grammar and drops repeats. */
-  transcribeMode: 'verbatim' | 'smart';
-  /** Offers students the Tidy up button. */
+  /** Offers the student the Tidy up button. */
   tidyUp: boolean;
-  /** Seconds of speech the paid engine may transcribe each month, across the org. */
-  monthlyCapSeconds: number;
-  /** Tidy-up calls allowed each month, across the org. */
-  monthlyCapTidyCalls: number;
-  updatedAt: number;
-  updatedBy: string;
 }
 
 /** `ai_usage/global_speech_to_text_{YYYY-MM}`: this month's paid dictation use. */

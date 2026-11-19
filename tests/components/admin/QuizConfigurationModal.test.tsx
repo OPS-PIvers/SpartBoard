@@ -47,10 +47,6 @@ vi.mock('@/components/admin/QuizReadAloudConfigurationPanel', () => ({
   },
 }));
 
-vi.mock('@/components/admin/SpeechToTextConfigurationPanel', () => ({
-  SpeechToTextConfigurationPanel: () => <span>Speech to text panel</span>,
-}));
-
 import { QuizConfigurationModal } from '@/components/admin/QuizConfigurationModal';
 
 const permission: FeaturePermission = {
@@ -192,23 +188,6 @@ describe('QuizConfigurationModal', () => {
     expect(screen.getByText('Languages panel')).not.toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: /Languages/ }));
     expect(screen.getByText('Languages panel')).toBeVisible();
-  });
-
-  it('shows the Speech to text panel on its tab', () => {
-    render(
-      <QuizConfigurationModal
-        isOpen
-        onClose={vi.fn()}
-        permission={permission}
-        onSave={vi.fn()}
-      />
-    );
-    expect(screen.getByText('Speech to text panel')).not.toBeVisible();
-    fireEvent.click(screen.getByRole('button', { name: /Speech to text/ }));
-    expect(screen.getByText('Speech to text panel')).toBeVisible();
-    expect(
-      screen.queryByRole('button', { name: /Save Configuration/ })
-    ).not.toBeInTheDocument();
   });
 
   it('hides the footer save on the languages tab so the panel keeps its own', () => {
