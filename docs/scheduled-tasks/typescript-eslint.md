@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-11-18_
+_Last audited: 2026-11-19_
 _Last action: never_
 
 _2026-11-18: Daily audit (Wednesday), against `origin/dev-paul` (`08960c378`). `pnpm type-check`: 48 errors, all in `functions/` and all from modules missing in this sandbox's stale `functions/node_modules` (zod, @modelcontextprotocol/sdk, @google-cloud/text-to-speech) plus implicit-any fallout; 0 errors in app code. `pnpm lint`: 4702 errors, all under `functions/src` (unresolved types, `no-unsafe-*`), same cause; the app-side lint pass was clean of other findings. Environmental, not a code defect, so none filed (CI installs deps). 0 new issues._
@@ -391,3 +391,5 @@ _No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-0
 - **Completed:** 2026-04-13
 - **File:** N/A (environment-level)
 - **Resolution:** Resolved outside journal workflow. As of 2026-04-13, `pnpm type-check` and `pnpm lint` both complete successfully in the audit environment. TypeScript: 0 errors. ESLint: 0 errors, 0 warnings (with `--max-warnings 0`). The codebase is in excellent health.
+
+_2026-11-19 audit: `pnpm type-check` and `pnpm lint` on dev-paul (ffdd6f777) report 55 TS errors and 4813 lint errors, all in functions/src, none in root code. They come from this sandbox lacking functions/node_modules (zod, @modelcontextprotocol/sdk, @google-cloud/text-to-speech and others unresolved), not from the code, so no journal items were added; CI with deps installed is the real gate._

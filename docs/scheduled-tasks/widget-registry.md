@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-11-18_
+_Last audited: 2026-11-19_
 _Last action: 2026-10-07 — LOW `projects` scaling base updated to 620×560 to match its spawn size. Prior: 2026-09-26 — LOW `WIDGET_DEFAULTS` `as XConfig` trio resolved for `specialist-schedule`/`graphic-organizer`/`reveal-grid`: changed all three from `as` to `satisfies` per the skill's Step 5 guidance, with no field changes needed since every required field was already present. Moved to Completed._
 
 _2026-11-18: Daily audit (Wednesday), against `origin/dev-paul` (`08960c378`). All WidgetTypes present in WIDGET_COMPONENTS, WIDGET_DEFAULTS and WIDGET_GRADE_LEVELS; `tools.ts` gaps are the documented exclusions; `lazyNamed` targets resolve (only known re-exports). 0 new issues._
@@ -578,3 +578,5 @@ _No open items._
 - **Resolution:** Chose option (b) — added a JSDoc block on the `WIDGET_COMPONENTS` export in `components/widgets/WidgetRegistry.ts` documenting that the map is intentionally not exhaustive over all `WidgetType`s. The note specifically calls out `sticker` (handled via the hard-coded branch in `WidgetRenderer.tsx:271-273`), warns against adding a `sticker` entry without also removing the special-case branch, and tells future developers to handle the `undefined` case at call sites. Documentation-only change — no behavioral impact, all 1476 tests still pass; `pnpm type-check`, `pnpm lint --max-warnings 0`, and `pnpm format:check` all clean.
 
 _2026-11-18 action: Wednesday daily run. Nothing In Progress in any journal. No Open items in widget-registry or typescript-eslint; css-scaling's two LOW items are portaled popover menus where scaling is a design call (RandomClassContextButton deferred 2026-11-04, and its file was last touched by 50062c379). Rebase onto `dev-paul` conflicts (unrelated histories, aborted). No code change._
+
+_2026-11-19 audit: Thursday run. All 71 `WidgetType`s are registered in WIDGET_COMPONENTS (sticker is the documented special case), widgetDefaults, widgetGradeLevels; tools.ts omits only the documented non-dock types; every lazyNamed export name resolves. The legacy settings/appearance maps are now empty by design (schema-driven drawer). No new issues. `scheduled-tasks` shares no history with `dev-paul` (rebase and merge both refuse), so audited a `dev-paul` worktree at ffdd6f777._

@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-11-17_
+_Last audited: 2026-11-19_
 _Last action: 2026-09-15 — HIGH `browserslist`/`baseline-browser-mapping` resolved: added `pnpm.overrides.browserslist: "^4.28.7"` to both `package.json` and `functions/package.json`, clearing two HIGH + one moderate advisory in the Babel/Jest build-toolchain chain. PR opened against dev-paul. Item moved to Completed._
 
 _2026-11-10: Tuesday Audit B2 (read-only). Root: 4 moderate (glob, minimatch); `functions/`: 2 moderate (same). The `zod` and `@hono/node-server` advisories no longer appear and moved to Completed; `qs` also no longer appears (open `qs` items left for a manual check). New: `glob`/`minimatch` item. `pnpm outdated`: patch/minor only for tailwindcss, typescript-eslint, vite 8.3.5→8.3.7, hono, axios; functions `@google/genai` 2.32→3.0.0, `typescript` 6→7, `@anthropic-ai/sdk` 1.3→1.7, vitest 5.0→5.1; `crypto-js`/`fluent-ffmpeg` deprecated. `firebase` and `react` not flagged. 1 new issue._
@@ -686,3 +686,5 @@ _2026-06-16: pnpm audit (root): 135 vulnerabilities (12 low | 59 moderate | 62 h
   - `pnpm run build` — production build succeeds
   - `pnpm -C functions run build` — functions TypeScript compile succeeds
   - Functions tests involving axios mocks pass (sanitize/embeddability/classlink). Five pre-existing adminAnalytics test failures are unrelated to axios (confirmed by stash/compare). Only functions/ uses axios directly (root axios is devDep not imported).
+
+_2026-11-19 audit: `pnpm audit --audit-level=moderate` is clean for root and functions. Root outdated: majors behind are eslint/@eslint/js 9→10, typescript 6→7, i18next 26→27, react-i18next 17→18, jsdom 30→31, @google/genai 2→3, @modelcontextprotocol/ext-apps 1→2, @testing-library/jest-dom 7→8 (all dev or minor-risk; none are firebase, react or vite). crypto-js is deprecated (still used in root and functions). functions outdated is unreliable here because its deps are not installed. No new items filed._
