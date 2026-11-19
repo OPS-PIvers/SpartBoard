@@ -3,7 +3,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import type { CallableRequest } from 'firebase-functions/v2/https';
 import { onDocumentDeleted } from 'firebase-functions/v2/firestore';
 import * as logger from 'firebase-functions/logger';
-import type { Firestore } from 'firebase-admin/firestore';
+import { FieldValue, type Firestore } from 'firebase-admin/firestore';
 import { randomUUID } from 'node:crypto';
 import * as admin from './firebaseAdmin';
 import './functionsInit';
@@ -352,13 +352,22 @@ function patchPeriods(stored: unknown, patch: unknown): Data | null {
   return changed ? next : null;
 }
 
+/** D24/D21: a class is finished once the teacher closed it or its close time passed; Ready is not. */
+function classFinished(row: unknown, now: number): boolean {
+  if (typeof row !== 'object' || row === null) return false;
+  const p = row as Data;
+  if (p.state === 'closed') return isNum(p.closedAt);
+  if (p.state === 'paused') return false;
+  return isNum(p.closeAt) && p.closeAt <= now;
+}
+
 /** Teacher edits from the hub and Start/Pause/Let in; no client writes a Writing session. */
 export async function handleUpdateWritingSession(
   db: Firestore,
   caller: AssignWritingCaller | null,
   data: unknown,
   now: number
-): Promise<{ updated: boolean }> {
+): Promise<{ updated: boolean; assignedTab?: true }> {
   if (!caller) throw new HttpsError('unauthenticated', 'Sign in required.');
   if (!caller.staff)
     throw new HttpsError('permission-denied', 'Teacher account required.');
@@ -437,18 +446,43 @@ export async function handleUpdateWritingSession(
         ...removed.filter((x) => !keys.has(refKey(x))),
       ].slice(-MAX_REFS);
     }
+    // Assigned tab (ASSIGNED_TAB.md D21, D24, D5): reopen, end and the record's closedAt/doneAt marks.
+    const ended = session.status === 'ended';
+    const rows = shared.periodAccess ?? session.periodAccess;
+    const allClosed =
+      typeof rows === 'object' &&
+      rows !== null &&
+      Object.keys(rows).length > 0 &&
+      Object.values(rows as Data).every((row) => classFinished(row, now));
+    if (d.reopen === true && ended) {
+      shared.status = 'active';
+      shared.endedAt = FieldValue.delete();
+      recordOnly.closedAt = null;
+      recordOnly.doneAt = null;
+    } else if (
+      !ended &&
+      (d.end === true || (d.endIfAllClosed === true && allClosed))
+    ) {
+      shared.status = 'ended';
+      shared.endedAt = now;
+    }
+    const marks =
+      typeof d.marks === 'object' && d.marks !== null ? (d.marks as Data) : {};
+    for (const k of ['closedAt', 'doneAt'] as const)
+      if (k in marks) recordOnly[k] = optTime(marks[k]);
     const sessionPatch = { ...shared, ...sessionOnly };
     const recordPatch = { ...shared, ...recordOnly };
     if (
       Object.keys(sessionPatch).length === 0 &&
       Object.keys(recordPatch).length === 0
     )
-      return { updated: false };
+      return { updated: false, assignedTab: true };
     if (Object.keys(sessionPatch).length > 0)
       tx.update(ref, { ...sessionPatch, updatedAt: now });
     if (recordSnap.exists)
       tx.update(recordRef, { ...recordPatch, updatedAt: now });
-    return { updated: true };
+    // Tells a newer client this server applied reopen, end and marks.
+    return { updated: true, assignedTab: true };
   });
 }
 

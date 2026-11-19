@@ -88,13 +88,19 @@ export function guidedLearningLifecycle(
   return {
     async end(id) {
       const sessionRef = doc(db, SESSIONS, id);
+      const rowRef = doc(db, 'users', uid, ASSIGNMENTS, id);
       const before: unknown = (await getDoc(sessionRef)).data()?.closeAt;
+      const marked: unknown = (await getDoc(rowRef)).data()?.closedAt;
       await actions.archiveAssignment(id);
-      // Archive replaces a future close with now; keep it so a Reopen can put it back.
-      if (typeof before === 'number' && before > Date.now())
-        await updateDoc(doc(db, 'users', uid, ASSIGNMENTS, id), {
-          closeAtBeforeEnd: before,
-        });
+      const now = Date.now();
+      // The close mark keeps a row closed here findable past the archive page (D24); a future close is kept for Reopen.
+      const patch = {
+        ...(typeof marked === 'number' ? {} : { closedAt: now }),
+        ...(typeof before === 'number' && before > now
+          ? { closeAtBeforeEnd: before }
+          : {}),
+      };
+      if (Object.keys(patch).length > 0) await updateDoc(rowRef, patch);
       // Archive keeps an earlier close, so turn in against whatever closeAt now stands.
       const closeAt: unknown = (await getDoc(sessionRef)).data()?.closeAt;
       if (typeof closeAt === 'number') scheduleTurnIn(id, closeAt);

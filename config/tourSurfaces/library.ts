@@ -14,6 +14,8 @@ export const SURFACES: TourSurfaceMap = {
       'library-shell.sort-option': 'library-shell.sort',
       'library-shell.card-menu-item': 'library-shell.card-menu',
       'library-shell.assigned-class-action': 'library-shell.assigned-classes',
+      'library-shell.assigned-close-all': 'library-shell.archive-menu',
+      'library-shell.assigned-move-to-done': 'library-shell.archive-menu',
       'library-shell.folder-menu-rename': 'library-shell.folder-menu',
       'library-shell.folder-menu-new-subfolder': 'library-shell.folder-menu',
       'library-shell.folder-menu-move-to-root': 'library-shell.folder-menu',
@@ -186,6 +188,10 @@ export const SURFACES: TourSurfaceMap = {
       'video-activity.preview-close':
         'library-shell.card-open:video-activity#row-1',
       'library-shell.archive-edit-classes':
+        'library-shell.archive-menu:video-activity#row-1',
+      'library-shell.assigned-close-all':
+        'library-shell.archive-menu:video-activity#row-1',
+      'library-shell.assigned-move-to-done':
         'library-shell.archive-menu:video-activity#row-1',
       'video-activity.preview-open-editor':
         'library-shell.card-open:video-activity#row-1',

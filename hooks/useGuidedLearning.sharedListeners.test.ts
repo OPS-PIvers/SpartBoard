@@ -73,18 +73,26 @@ const countByPath = () => {
     counts[l.target.path] = (counts[l.target.path] ?? 0) + 1;
   return counts;
 };
+const isMarked = (l: { target: Q }) =>
+  l.target.constraints.some(
+    (c) => 'where' in c && (c.where as unknown[])[0] === 'closedAt'
+  );
 const openListener = () =>
   active().find(
     (l) =>
       l.target.path === ASSIGNMENTS &&
+      !isMarked(l) &&
       l.target.constraints.some((c) => 'where' in c)
   );
 const recentListener = () =>
   active().find(
     (l) =>
       l.target.path === ASSIGNMENTS &&
+      !isMarked(l) &&
       l.target.constraints.some((c) => 'limit' in c)
   );
+const markedListener = () =>
+  active().find((l) => l.target.path === ASSIGNMENTS && isMarked(l));
 const snapOf = (docs: GuidedLearningAssignment[]) => ({
   docs: docs.map((a) => ({ id: a.id, data: () => a })),
 });
@@ -128,8 +136,8 @@ describe('GL listeners shared across widgets', () => {
       'users/t1/guided_learning': 1,
       'building_guided_learning_index/_meta': 1,
       building_guided_learning_index: 1,
-      // Open and recent: two queries, each shared.
-      [ASSIGNMENTS]: 2,
+      // Open, recent and closed-through-the-tab: three queries, each shared.
+      [ASSIGNMENTS]: 3,
       'users/t1/guided_learning_folders': 1,
     });
 
@@ -142,7 +150,7 @@ describe('GL listeners shared across widgets', () => {
     expect(b.result.current.gl.sets).toEqual([{ id: 'p1', title: 'Mine' }]);
 
     a.unmount();
-    expect(active()).toHaveLength(6);
+    expect(active()).toHaveLength(7);
     b.unmount();
     expect(active()).toHaveLength(0);
   });
@@ -183,6 +191,21 @@ describe('GL assignments listener limit', () => {
     expect(result.current.assignments).toHaveLength(51);
     expect(result.current.assignments.at(-1)).toEqual(oldOpen);
     expect(result.current.hasOlder).toBe(true);
+  });
+
+  it('keeps a row closed through the Assigned tab past the recent page', () => {
+    const { result } = renderHook(() => useGuidedLearningAssignments('t1'));
+    const recent = Array.from({ length: 50 }, (_, i) =>
+      assignment(1000 - i, 'archived')
+    );
+    const closedEarly = { ...assignment(2, 'archived'), closedAt: 2 };
+    act(() => {
+      openListener()?.next(snapOf([]));
+      recentListener()?.next(snapOf(recent));
+      markedListener()?.next(snapOf([closedEarly]));
+    });
+    expect(result.current.assignments).toHaveLength(51);
+    expect(result.current.assignments.at(-1)?.id).toBe('a-2');
   });
 
   it('"Show older" widens the recent query by a page', () => {

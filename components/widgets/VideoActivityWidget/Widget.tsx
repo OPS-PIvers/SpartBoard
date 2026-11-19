@@ -11,6 +11,7 @@ import React, {
   useEffect,
   useEffectEvent,
   useRef,
+  useMemo,
 } from 'react';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
@@ -86,6 +87,11 @@ import { useAuth } from '@/context/useAuth';
 import { useVideoActivity } from '@/hooks/useVideoActivity';
 import { useVideoActivitySessionTeacher } from '@/hooks/useVideoActivitySession';
 import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments';
+import {
+  markVideoRunClosed,
+  videoActivityLifecycle,
+} from './videoActivityLifecycle';
+import { useSetAssignmentTargets } from '@/hooks/useSetAssignmentTargets';
 import { useBusyIdSet } from '@/hooks/useBusyIdSet';
 import { useFolders } from '@/hooks/useFolders';
 import { usePlcs } from '@/hooks/usePlcs';
@@ -241,6 +247,38 @@ const TeacherVideoActivityWidget: React.FC<{
     setAssignmentClasses,
     updateAssignmentSettings,
   } = useVideoActivityAssignments(user?.uid);
+  const { setAssignmentTargets } = useSetAssignmentTargets();
+  const uid = user?.uid;
+  const assignedTabLifecycle = useMemo(
+    () =>
+      videoActivityLifecycle(
+        {
+          pauseAssignment,
+          resumeAssignment,
+          deactivateAssignment,
+          reactivateAssignment,
+        },
+        uid ? { uid, setAssignmentTargets } : undefined
+      ),
+    [
+      pauseAssignment,
+      resumeAssignment,
+      deactivateAssignment,
+      reactivateAssignment,
+      uid,
+      setAssignmentTargets,
+    ]
+  );
+  // ASSIGNED_TAB.md D24: an End here is a Close, so the row keeps its grading hold (D5).
+  const endFromMonitor = async (assignmentId: string) => {
+    await deactivateAssignment(assignmentId);
+    if (!uid) return;
+    try {
+      await markVideoRunClosed(uid, assignmentId);
+    } catch (err) {
+      console.error('Close mark failed', err);
+    }
+  };
 
   const [editingClasses, setEditingClasses] =
     useState<VideoActivityAssignment | null>(null);
@@ -706,7 +744,7 @@ const TeacherVideoActivityWidget: React.FC<{
           session={sessionForMonitor}
           responses={responses}
           onEnd={async () => {
-            await deactivateAssignment(selectedSession.id);
+            await endFromMonitor(selectedSession.id);
             addToast('Session ended.', 'success');
             exitToManager();
           }}
@@ -731,7 +769,7 @@ const TeacherVideoActivityWidget: React.FC<{
           responses={responses}
           onEnd={async () => {
             try {
-              await deactivateAssignment(selectedSession.id);
+              await endFromMonitor(selectedSession.id);
               addToast('Assignment ended.', 'success');
             } catch (err) {
               addToast(
@@ -1397,6 +1435,7 @@ const TeacherVideoActivityWidget: React.FC<{
           }
         }}
         onArchiveEditClasses={setEditingClasses}
+        classLifecycle={assignedTabLifecycle}
         onArchiveEditSettings={setEditingSettings}
         onShareWithPlc={(meta) => {
           if (plcs.length === 0) {

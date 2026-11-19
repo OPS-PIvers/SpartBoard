@@ -9,7 +9,11 @@ import {
 } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import type { PeriodAccess, QuizAssignment, StudentTargetRef } from '@/types';
-import { useQuizClassActions } from '@/hooks/useQuizClassActions';
+import {
+  staleWindowOverrides,
+  useQuizClassActions,
+} from '@/hooks/useQuizClassActions';
+import { updateDoc } from 'firebase/firestore';
 import {
   END_TURN_IN_DELAY_MS,
   finalizeClassQuizResponses,
@@ -82,6 +86,7 @@ vi.mock('firebase/firestore', () => {
   };
   return {
     FieldPath,
+    deleteField: () => 'DELETE',
     doc: (_db: unknown, ...segs: string[]) => segs.join('/'),
     getDoc: vi.fn(() =>
       Promise.resolve({
@@ -509,12 +514,228 @@ describe('window cleared pointers', () => {
     expect(store.calls).toContain('status:resume:a1');
   });
 
+  it('clears an expired extra-time close on Reopen so the student gets back in', async () => {
+    const now = Date.now();
+    const other: StudentTargetRef = { kind: 'test', email: 'a.b@x.org' };
+    const x = setup(
+      assignment({
+        status: 'inactive',
+        closeAt: now - 120_000,
+        targetMode: 'students',
+        targetStudents: [ref, other],
+        overridesBySourcedId: {
+          'classlink:s1': { closeAt: now - 60_000, timeMultiplier: 2 },
+          'test:a.b@x.org': { closeAt: now - 60_000 },
+        },
+      })
+    );
+    await act(() => x.current.reopenClass(null));
+    expect(setTargets).toHaveBeenCalledWith(
+      expect.objectContaining({
+        window: { closeAt: null },
+        overridesBySourcedId: {
+          'classlink:s1': { timeMultiplier: 2 },
+          'test:a.b@x.org': null,
+        },
+      })
+    );
+    const call = (updateDoc as unknown as Mock).mock.calls.find(
+      ([, field]) =>
+        (field as { segments?: string[] }).segments?.[0] ===
+        'overridesBySourcedId'
+    );
+    expect(call?.[0]).toBe(ASSIGNMENT);
+    expect(
+      ((call ?? []) as unknown[])
+        .slice(1)
+        .map((v: unknown) =>
+          (v as { segments?: string[] }).segments
+            ? (v as { segments: string[] }).segments.join('|')
+            : v
+        )
+    ).toEqual([
+      'overridesBySourcedId|classlink:s1',
+      { timeMultiplier: 2 },
+      'overridesBySourcedId|test:a.b@x.org',
+      'DELETE',
+    ]);
+  });
+
+  it('clears an override the server cannot keep, and mirrors nothing it refused', async () => {
+    const now = Date.now();
+    const other: StudentTargetRef = { kind: 'classlink', sourcedId: 's2' };
+    setTargets
+      .mockResolvedValueOnce({
+        skipped: [
+          { ref, reason: 'malformed-override' },
+          { ref: other, reason: 'malformed-override' },
+        ],
+      })
+      .mockResolvedValueOnce({
+        skipped: [{ ref: other, reason: 'malformed-override' }],
+      });
+    const x = setup(
+      assignment({
+        status: 'inactive',
+        closeAt: now - 120_000,
+        targetMode: 'students',
+        targetStudents: [ref, other],
+        overridesBySourcedId: {
+          'classlink:s1': { closeAt: now - 60_000, language: 'es' },
+          'classlink:s2': { closeAt: now - 60_000, language: 'fr' },
+        },
+      })
+    );
+    await act(() => x.current.reopenClass(null));
+    expect(setTargets).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        window: {},
+        overridesBySourcedId: { 'classlink:s1': null, 'classlink:s2': null },
+      })
+    );
+    const mirrored = (updateDoc as unknown as Mock).mock.calls
+      .flatMap((c: unknown[]) => c.slice(1))
+      .map((v: unknown) => (v as { segments?: string[] }).segments?.join('|'))
+      .filter(Boolean);
+    expect(mirrored).toEqual(['overridesBySourcedId|classlink:s1']);
+  });
+
+  it('keeps the assignment overrides when the pointer update fails', async () => {
+    setTargets.mockRejectedValueOnce(new Error('offline'));
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const now = Date.now();
+    const x = setup(
+      assignment({
+        status: 'inactive',
+        closeAt: now - 120_000,
+        targetMode: 'students',
+        targetStudents: [ref],
+        overridesBySourcedId: { 'classlink:s1': { closeAt: now - 60_000 } },
+      })
+    );
+    await act(() => x.current.reopenClass(null));
+    const touched = (updateDoc as unknown as Mock).mock.calls.some(
+      ([, field]) =>
+        (field as { segments?: string[] }).segments?.[0] ===
+        'overridesBySourcedId'
+    );
+    expect(touched).toBe(false);
+  });
+
+  it('clears an expired extra-time close when one class reopens', async () => {
+    const now = Date.now();
+    const x = setup(
+      assignment({
+        targetMode: 'students',
+        targetStudents: [ref],
+        periodAccess: { c1: row(), c2: row({ state: 'open' }) },
+        overridesBySourcedId: {
+          'classlink:s1': { closeAt: now - 60_000, readAloud: true },
+        },
+      })
+    );
+    await act(() => x.current.reopenClass('c1'));
+    expect(store.calls).toContain('reopen:c1');
+    expect(setTargets).toHaveBeenCalledWith(
+      expect.objectContaining({
+        window: {},
+        overridesBySourcedId: { 'classlink:s1': { readAloud: true } },
+      })
+    );
+  });
+
+  it('makes no pointer call when one class opens and no student window is stale', async () => {
+    const x = setup(
+      assignment({
+        targetMode: 'students',
+        targetStudents: [ref],
+        periodAccess: { c1: row(), c2: row({ state: 'open' }) },
+        overridesBySourcedId: {
+          'classlink:s1': { closeAt: Date.now() + 60_000 },
+        },
+      })
+    );
+    await act(() => x.current.openClass('c1'));
+    expect(setTargets).not.toHaveBeenCalled();
+  });
+
   it('skips the pointer update when there are no student pointers', async () => {
     const x = setup(
       assignment({ status: 'paused', openAt: Date.now() + 60_000 })
     );
     await act(() => x.current.openClass(null));
     expect(setTargets).not.toHaveBeenCalled();
+  });
+});
+
+describe('staleWindowOverrides', () => {
+  const now = 1_000_000;
+  const ref: StudentTargetRef = { kind: 'classlink', sourcedId: 's1' };
+  const of = (o: Record<string, unknown>) =>
+    ({
+      targetStudents: [ref],
+      overridesBySourcedId: { 'classlink:s1': o },
+    }) as unknown as QuizAssignment;
+  const all = { closeAt: 'all', futureOpenAt: false } as const;
+  const expired = { closeAt: 'expired', futureOpenAt: true } as const;
+
+  it('drops every close, run out or not, when the class close is gone', () => {
+    expect(staleWindowOverrides(of({ closeAt: now - 1 }), all, now)).toEqual({
+      'classlink:s1': null,
+    });
+    expect(
+      staleWindowOverrides(
+        of({ closeAt: now + 1, timeMultiplier: 2 }),
+        all,
+        now
+      )
+    ).toEqual({ 'classlink:s1': { timeMultiplier: 2 } });
+  });
+
+  it('keeps closes when only the class start was cleared', () => {
+    expect(
+      staleWindowOverrides(
+        of({ closeAt: now - 1 }),
+        { closeAt: 'keep', futureOpenAt: true },
+        now
+      )
+    ).toEqual({});
+  });
+
+  it('drops only an expired close when one class opens', () => {
+    expect(
+      staleWindowOverrides(of({ closeAt: now - 1 }), expired, now)
+    ).toEqual({ 'classlink:s1': null });
+    expect(
+      staleWindowOverrides(of({ closeAt: now + 1 }), expired, now)
+    ).toEqual({});
+  });
+
+  it('drops a later start, never one already passed', () => {
+    expect(
+      staleWindowOverrides(
+        of({ openAt: now + 5, language: 'es' }),
+        expired,
+        now
+      )
+    ).toEqual({ 'classlink:s1': { language: 'es' } });
+    expect(staleWindowOverrides(of({ openAt: now - 5 }), expired, now)).toEqual(
+      {}
+    );
+  });
+
+  it('leaves an override with no window shift alone', () => {
+    expect(staleWindowOverrides(of({ timeMultiplier: 2 }), all, now)).toEqual(
+      {}
+    );
+  });
+
+  it('ignores overrides for students no longer targeted', () => {
+    const a = {
+      targetStudents: [],
+      overridesBySourcedId: { 'classlink:s1': { closeAt: now - 1 } },
+    } as unknown as QuizAssignment;
+    expect(staleWindowOverrides(a, all, now)).toEqual({});
   });
 });
 

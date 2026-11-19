@@ -65,6 +65,8 @@ export interface AssignmentLifecycle {
     assignmentId: string,
     patch: { openAt?: null; closeAt?: null }
   ) => Promise<void>;
+  /** Runs after one class row opens or reopens, so per-student windows can follow it. */
+  onClassOpened?: (assignmentId: string, key: string) => Promise<void>;
   /** The kind's `reopen` already clears the assignment's closedAt and doneAt marks. */
   reopenClearsMarks?: boolean;
   /** Reads the stored doc as ended; defaults to `runStatus(status) === 'inactive'`. */
@@ -127,6 +129,7 @@ export function useAssignmentClassActions(
     endTurnsIn,
     reopenClearsMarks,
     onWindowCleared,
+    onClassOpened,
     isEnded,
   } = lifecycle;
   const ended = useCallback(
@@ -280,9 +283,19 @@ export function useAssignmentClassActions(
         ? await periods.reopenPeriod(k)
         : await periods.startPeriod(k);
       await ensureActive(k);
+      if (onClassOpened) await onClassOpened(id, k);
       return untimed;
     },
-    [id, classKey, owned, clearSingleGate, ensureActive, mark, periods]
+    [
+      id,
+      classKey,
+      owned,
+      clearSingleGate,
+      ensureActive,
+      mark,
+      periods,
+      onClassOpened,
+    ]
   );
 
   // Closes one class and reports, from the same transaction, whether it was the last one open (D21).

@@ -10309,6 +10309,9 @@ export interface FlashcardAssignment
   dueAt?: number | null;
   /** PLC this assignment's class-level results are shared with. */
   plcShare?: { plcId: string; sharedAt: number } | null;
+  /** Assigned tab: single-line Close mark (D24) and Move to Done mark (D5). */
+  closedAt?: number | null;
+  doneAt?: number | null;
 }
 
 /** `flashcard_sessions/{assignmentId}/progress/{studentUid}`. */
@@ -10780,6 +10783,9 @@ export interface WritingAssignmentRecord {
   overridesByStudentUid?: Record<string, StudentOverride>;
   targetSkippedCount?: number;
   removedStudentRefs?: StudentTargetRef[];
+  /** Assigned tab marks, written by `updateWritingSessionV1`: single-line Close (D24) and Move to Done (D5). */
+  closedAt?: number | null;
+  doneAt?: number | null;
 }
 
 /** The Writing record summary (D9), kept on the response and copied onto each frozen copy. */
