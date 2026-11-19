@@ -1,6 +1,6 @@
 # 016 — Fix transition lists that name `transform` but animate `translate` or `scale`
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: 3dcc1cd
 - **Severity**: MEDIUM
 - **Category**: Interruptibility (broken transitions)
