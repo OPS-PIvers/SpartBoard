@@ -2264,8 +2264,12 @@ export const useQuizAssignments = (
       // students should see the waiting room again, not the active-quiz UI
       // with no question loaded.
       const sessionRef = doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId);
-      const snap = await getDoc(sessionRef);
-      const session = snap.data() as QuizSession | undefined;
+      // Read in a transaction: getDoc can still return this tab's pre-reopen copy.
+      const session = await runTransaction(
+        db,
+        async (tx) =>
+          (await tx.get(sessionRef)).data() as QuizSession | undefined
+      );
       // A stale tab's Resume on an ended quiz does nothing.
       if (session && deriveRunState('quiz', session)?.phase === 'ended') {
         return;

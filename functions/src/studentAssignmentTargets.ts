@@ -733,47 +733,57 @@ export function pointerKeyForSession(
   return typeof own === 'string' && own ? own : sessionSnap.id;
 }
 
-/** Most sessions that may share one mini-app archive id before the claim check gives up. */
-const MAX_MINI_APP_SESSIONS_PER_KEY = 50;
+/** Page size for the scan of mini-app sessions that carry a pointer key. */
+const CLAIM_SCAN_PAGE = 500;
 
-/** Refuses a pointer key whose first session, of any kind or a mini-app archive, is another teacher's. */
+/** Server-only record of the teacher verified to own a pointer key, so later calls skip the scan. */
+export const POINTER_KEY_CLAIMS_COLLECTION = 'assignment_key_claims';
+
+/** Refuses a pointer key another teacher owns; returns the claim to record once the call succeeds, if new. */
 export async function assertPointerKeyUnclaimed(
   db: admin.firestore.Firestore,
   callerUid: string,
-  key: string
-): Promise<void> {
-  const [sessionSnaps, miniAppSnap] = await Promise.all([
-    db.getAll(
-      ...STUDENT_ASSIGNMENT_KINDS.map((k) =>
-        db.collection(SESSION_COLLECTION_BY_KIND[k]).doc(key)
-      )
-    ),
-    db
-      .collection(SESSION_COLLECTION_BY_KIND['mini-app'])
-      .where('assignmentId', '==', key)
-      .limit(MAX_MINI_APP_SESSIONS_PER_KEY + 1)
-      .get(),
-  ]);
-  const claimants = [
-    ...sessionSnaps.filter((snap) => snap.exists),
-    ...miniAppSnap.docs,
-  ];
-  // The first session to carry a key owns it, so a later copy can't lock its owner out.
+  key: string,
+  callerSession: admin.firestore.DocumentSnapshot
+): Promise<(() => Promise<unknown>) | null> {
+  // A key first exists on its owner's session, so every copy is created later and can't outrank it.
   const created = (snap: admin.firestore.DocumentSnapshot): number =>
     snap.createTime?.toMillis() ?? Number.POSITIVE_INFINITY;
-  const first = claimants.reduce<(typeof claimants)[number] | undefined>(
-    (min, snap) => (!min || created(snap) < created(min) ? snap : min),
-    undefined
-  );
-  if (
-    miniAppSnap.docs.length > MAX_MINI_APP_SESSIONS_PER_KEY ||
-    (first !== undefined && first.get('teacherUid') !== callerUid)
-  ) {
+  const anchor = created(callerSession);
+  const foreignEarlier = (snap: admin.firestore.DocumentSnapshot): boolean =>
+    snap.exists &&
+    snap.get('teacherUid') !== callerUid &&
+    created(snap) < anchor;
+  const refuse = (): never => {
     throw new HttpsError(
       'permission-denied',
       'Assignment id belongs to another teacher.'
     );
+  };
+  const claimRef = db.collection(POINTER_KEY_CLAIMS_COLLECTION).doc(key);
+  const claim = await claimRef.get();
+  if (claim.exists) {
+    if (claim.get('teacherUid') !== callerUid) refuse();
+    return null;
   }
+  const sessionSnaps = await db.getAll(
+    ...STUDENT_ASSIGNMENT_KINDS.map((k) =>
+      db.collection(SESSION_COLLECTION_BY_KIND[k]).doc(key)
+    )
+  );
+  if (sessionSnaps.some(foreignEarlier)) refuse();
+  let page = db
+    .collection(SESSION_COLLECTION_BY_KIND['mini-app'])
+    .where('assignmentId', '==', key)
+    .select('teacherUid')
+    .limit(CLAIM_SCAN_PAGE);
+  for (;;) {
+    const { docs } = await page.get();
+    if (docs.some(foreignEarlier)) refuse();
+    if (docs.length < CLAIM_SCAN_PAGE) break;
+    page = page.startAfter(docs[docs.length - 1]);
+  }
+  return () => claimRef.set({ teacherUid: callerUid, claimedAt: Date.now() });
 }
 
 /**
@@ -823,7 +833,12 @@ export async function handleSetAssignmentTargets(
       'Assignment does not belong to this session.'
     );
   }
-  await assertPointerKeyUnclaimed(db, callerUid, input.assignmentId);
+  const recordKeyClaim = await assertPointerKeyUnclaimed(
+    db,
+    callerUid,
+    input.assignmentId,
+    sessionSnap
+  );
 
   // D5b: only classes the session actually targets can be narrowed.
   const storedNarrowed = (() => {
@@ -1356,6 +1371,7 @@ export async function handleSetAssignmentTargets(
   if (readAloudGained && onReadAloudGained) {
     await onReadAloudGained(input.sessionId, [...readAloudLocales]);
   }
+  if (recordKeyClaim) await recordKeyClaim();
 
   return {
     written: landed.length,

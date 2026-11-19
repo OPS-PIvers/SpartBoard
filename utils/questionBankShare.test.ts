@@ -115,6 +115,18 @@ describe('reconcileBankSlotsForPlcShare', () => {
     expect(result.bankSlots[0]).toBe(pinned);
   });
 
+  it('re-pins an own synced slot pinned to someone else', () => {
+    const result = reconcileBankSlotsForPlcShare(
+      { bankSlots: [slot({ syncGroupId: 'g1', syncOwnerUid: 'other' })] },
+      [bank('bank-a', 'Bank A', { groupId: 'g1', plcIds: ['plc-1'] })],
+      'plc-1',
+      [],
+      'me'
+    );
+    expect(result.changed).toBe(true);
+    expect(result.bankSlots[0].syncOwnerUid).toBe('me');
+  });
+
   it('accepts a teammate bank shared into the same PLC', () => {
     const result = reconcileBankSlotsForPlcShare(
       { bankSlots: [slot({ bankId: 'their-bank', syncGroupId: 'g9' })] },

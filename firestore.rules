@@ -1318,6 +1318,8 @@ service cloud.firestore {
     // and the extension's `delivery` subfield exposes SMTP response details.
     // /mail/{mailId}: no client access (default deny).
 
+    // /assignment_key_claims/{key}: verified pointer-key owner, Cloud Functions only (default deny).
+
     // Guided Learning
     match /users/{userId}/guided_learning/{setId} {
       allow read, write: if ownsUser(userId);
@@ -2296,13 +2298,12 @@ service cloud.firestore {
         existing().get('ownerUid', '') == authUid() || isDistrictStaff() ||
         syncedBankPlcReader(existing().get('plcIds', [])) || isAdmin());
 
-      // synced_bank_owners (written by syncedBankOwnerRegistry) reserves a deleted id for its first owner.
+      // The id's synced_bank_owners reservation must name the caller after this write (same batch on first create).
       allow create: if staffSignedIn()
         && syncedBankKeysOk()
         && incoming().id == groupId
         && incoming().ownerUid == authUid()
-        && (!dbExists('synced_bank_owners', groupId)
-          || dbGet('synced_bank_owners', groupId).data.ownerUid == authUid())
+        && dbGetAfter('synced_bank_owners', groupId).data.ownerUid == authUid()
         && incoming().version == 1
         && isList('plcIds')
         && isList('questions')
@@ -2336,7 +2337,24 @@ service cloud.firestore {
       // fails assign-time resolution with a fix-it message. District banks are never deleted.
       allow delete: if signedIn()
         && myOldOwner()
-        && existing().get('districtItemId', '') == '';
+        && existing().get('districtItemId', '') == ''
+        && dbGetAfter('synced_bank_owners', groupId).data.ownerUid == authUid();
+    }
+
+    // Reserves a synced bank id for its first owner, written in the owner's create or delete batch.
+    // Also written by syncedBankOwnerRegistry; never readable, and the owner never moves.
+    match /synced_bank_owners/{groupId} {
+      allow create: if staffSignedIn()
+        && newKeys().hasOnly(['ownerUid', 'at'])
+        && incoming().ownerUid == authUid()
+        && isInt('at')
+        && (dbExists('synced_question_banks', groupId)
+          ? dbGet('synced_question_banks', groupId).data.ownerUid == authUid()
+          : dbGetAfter('synced_question_banks', groupId).data.ownerUid == authUid());
+      allow update: if staffSignedIn()
+        && myOldOwner()
+        && unchanged('ownerUid')
+        && newKeys().hasOnly(['ownerUid', 'at']);
     }
 
     // ---- District library (docs/plans/QUIZ_MCA_PRACTICE.md M26-M30) ----
