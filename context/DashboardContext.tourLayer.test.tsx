@@ -536,7 +536,13 @@ describe('DashboardContext addWidgets template placements', () => {
   it('keeps adjacent template zones touching when zoomed out', async () => {
     const stateRef = setup();
     await settle(stateRef, [makeDashboard([])]);
-    const left = { xProp: 0, yProp: 0.1, wProp: 0.3, hProp: 0.5 };
+    const left = {
+      xProp: 0,
+      yProp: 0.1,
+      wProp: 0.3,
+      hProp: 0.5,
+      aspectRatio: 1,
+    };
     const right = { ...left, xProp: 0.3 };
     act(() =>
       stateRef.current?.addWidgets([
