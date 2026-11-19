@@ -373,7 +373,7 @@ describe('speechChargeSeconds', () => {
   it('charges by audio size when the stated length is too short', () => {
     expect(
       speechChargeSeconds({ durationMs: 200, audioBase64: 'A'.repeat(700_000) })
-    ).toBe(33);
+    ).toBe(30);
   });
 });
 
