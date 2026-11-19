@@ -15,6 +15,7 @@ import type {
   ActivityWallSubmissionType,
 } from '@/types';
 import type { WallPlacement } from '@/components/activityWall/render';
+import { labelForWall } from '@/components/activityWall/engagement/participantLabel';
 import { isUploadType, safeFileName, validateUpload } from './uploadLimits';
 import { studentPreviewBlocksWrite } from '@/utils/viewAsTab';
 
@@ -292,7 +293,9 @@ export const createPost = async ({
     content,
     authorUid: uid,
     isGuest,
-    participantLabel,
+    participantLabel: isTeacher
+      ? participantLabel
+      : labelForWall(session.showNames, participantLabel),
     submittedAt: Date.now(),
     status: session.moderationEnabled && !isTeacher ? 'pending' : 'approved',
   };
