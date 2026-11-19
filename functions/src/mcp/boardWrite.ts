@@ -4,6 +4,7 @@ import * as admin from '../firebaseAdmin';
 import {
   ToolError,
   logActivity,
+  refundBoardOp,
   reserveBoardOp,
   snapshotRevision,
   type ToolContext,
@@ -926,6 +927,18 @@ interface Change {
   unchanged?: boolean;
 }
 
+const NO_WRITE_CODES = new Set<unknown>([
+  3,
+  7,
+  'invalid-argument',
+  'permission-denied',
+]);
+
+/** Errors that guarantee the batch did not land, so the reserved allowance can be given back. */
+const writeDidNotLand = (err: unknown): boolean =>
+  isPreconditionFailure(err) ||
+  NO_WRITE_CODES.has((err as { code?: unknown })?.code);
+
 /** One board write: the previous version, the board, its live share and the log, retried when SpartBoard saved meanwhile. */
 async function commitBoardChange(
   ctx: ToolContext,
@@ -935,7 +948,7 @@ async function commitBoardChange(
   change: (before: Doc) => Promise<Change>
 ): Promise<EditResult> {
   const ref = ctx.db.doc(`${boardsPath(ctx.uid)}/${boardId}`);
-  let reserved = false;
+  let reservedAt: number | null = null;
   for (let attempt = 1; ; attempt++) {
     const snap = await ref.get();
     const stored = snap.data();
@@ -955,9 +968,10 @@ async function commitBoardChange(
     const { board } = next;
     assertFits(board);
     const revision = revisionData(before);
-    if (!reserved) {
-      await reserveBoardOp(ctx);
-      reserved = true;
+    if (reservedAt === null) {
+      const at = Date.now();
+      await reserveBoardOp(ctx, at);
+      reservedAt = at;
     }
     const now = Date.now();
     const batch = ctx.db.batch();
@@ -1014,6 +1028,8 @@ async function commitBoardChange(
       await batch.commit();
     } catch (err) {
       if (attempt < COMMIT_ATTEMPTS && isPreconditionFailure(err)) continue;
+      if (writeDidNotLand(err))
+        await refundBoardOp(ctx, reservedAt).catch(() => undefined);
       if (isPreconditionFailure(err))
         throw new ToolError(
           'Nothing was changed: the board kept changing in SpartBoard. Try again in a moment.'
@@ -1245,7 +1261,8 @@ export async function createBoards(
   }
   if (problems.length > 0) throw problemError(problems);
 
-  await reserveBoardOp(ctx);
+  const reservedAt = Date.now();
+  await reserveBoardOp(ctx, reservedAt);
   const batch = ctx.db.batch();
   for (const board of boards) {
     batch.create(ctx.db.doc(`${boardsPath(ctx.uid)}/${board.id}`), board);
@@ -1256,7 +1273,13 @@ export async function createBoards(
       title: str(board.name),
     });
   }
-  await batch.commit();
+  try {
+    await batch.commit();
+  } catch (err) {
+    if (writeDidNotLand(err))
+      await refundBoardOp(ctx, reservedAt).catch(() => undefined);
+    throw err;
+  }
   return { boards, notes: [...session.notes] };
 }
 

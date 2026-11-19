@@ -20,7 +20,8 @@ export const ShortLinkRedirect: React.FC = () => {
   // `/` is robust against trailing slashes (`/r/code/`) and stray
   // sub-segments (`/r/code/extra`) — we always take the first segment
   // after `/r/`.
-  const code = window.location.pathname.split('/')[2] ?? '';
+  // Slugs are stored lowercase, so match case-insensitively.
+  const code = (window.location.pathname.split('/')[2] ?? '').toLowerCase();
   const [state, setState] = useState<ResolveState>(() =>
     code ? { status: 'resolving' } : { status: 'not-found' }
   );

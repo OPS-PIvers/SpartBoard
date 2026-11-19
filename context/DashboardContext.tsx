@@ -117,6 +117,7 @@ import {
   type BoardCamera,
 } from '@/utils/widgetPlacement';
 import { getPan } from '@/components/settings/panSetterRegistry';
+import { viewportToWrapper } from '@/utils/zoomPanMath';
 import {
   migrateDashboardWidgets,
   hydrateWidgetPixels,
@@ -130,6 +131,8 @@ import {
   lunchNotesBehindKey,
   lackingLunchNotesKey,
   keepDriveLunchNotes,
+  lunchNotesReadFresh,
+  type LunchNotesRead,
   PII_WIDGET_FIELDS,
   type DashboardPiiSupplement,
 } from '@/utils/dashboardPII';
@@ -1974,9 +1977,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // Lunch Count sends whose notes another device wrote; each is re-read from Drive once.
   const lunchNotesReadRef = useRef<Set<string>>(new Set());
   // Per board, the Drive copy a backup read to keep another device's lunch notes, by the sent list it was read for.
-  const lunchNotesKeptRef = useRef<
-    Map<string, { key: string; drivePii: Record<string, unknown> }>
-  >(new Map());
+  const lunchNotesKeptRef = useRef<Map<string, LunchNotesRead>>(new Map());
   // Boards whose names were cleared here but whose `{}` Drive write has not landed; restores skip them.
   const pendingPiiClearRef = useRef<Set<string>>(new Set());
   // Boards whose cached supplement holds quiz Scoreboard teams Drive hasn't got yet.
@@ -2012,21 +2013,24 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       const lackingKey = driveService ? lackingLunchNotesKey(board) : null;
       if (driveService && lackingKey) {
         try {
-          // Read once per sent list: Drive's answer, notes or none, stands until the list changes.
+          // Drive's notes stand until the sent list changes; a miss is re-read at most once a minute.
           const known = lunchNotesKeptRef.current.get(board.id);
-          const drivePii =
-            known?.key === lackingKey
-              ? known.drivePii
-              : await readPiiSupplement(
-                  driveService,
-                  board.id,
-                  piiDriveFileIdRef.current
-                );
+          const now = Date.now();
+          const fresh = lunchNotesReadFresh(known, lackingKey, now);
+          const drivePii = fresh
+            ? known.drivePii
+            : await readPiiSupplement(
+                driveService,
+                board.id,
+                piiDriveFileIdRef.current
+              );
+          dashboard = keepDriveLunchNotes(board, drivePii);
           lunchNotesKeptRef.current.set(board.id, {
             key: lackingKey,
             drivePii,
+            readAt: fresh ? known.readAt : now,
+            complete: lackingLunchNotesKey(dashboard) === null,
           });
-          dashboard = keepDriveLunchNotes(board, drivePii);
         } catch (e) {
           console.warn('[PII] Could not read the Drive copy to keep:', e);
           keepDriveFile = true;
@@ -7834,10 +7838,29 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               const { aspectRatio, ...prop } = validatedPlacement;
               const { vpW, vpH } = getCurrentViewport();
               const { safeW, safeH } = getSafeViewport(vpW, vpH);
-              const zoneWidget = buildFromProp(
+              const flat = buildFromProp(
                 prop,
                 aspectRatio ?? (prop.wProp * safeW) / (prop.hProp * safeH)
               );
+              // A panned or zoomed view gets the zone laid over what the teacher sees.
+              const atRest =
+                camera.zoom === 1 && camera.pan.x === 0 && camera.pan.y === 0;
+              const tl = viewportToWrapper(
+                { x: flat.x, y: flat.y },
+                camera.zoom,
+                camera.pan,
+                vpW,
+                vpH
+              );
+              const seen = {
+                x: tl.x,
+                y: tl.y,
+                w: flat.w / Math.max(1, camera.zoom),
+                h: flat.h / Math.max(1, camera.zoom),
+              };
+              const zoneWidget: WidgetData = atRest
+                ? flat
+                : { ...flat, ...seen, ...pixelToProp(seen, vpW, vpH) };
               added.push(zoneWidget);
               return zoneWidget;
             }

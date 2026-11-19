@@ -416,3 +416,38 @@ describe('makeHostLookup', () => {
     ).resolves.toMatchObject({ staff: false });
   });
 });
+
+describe('shareMembershipV1 View-as guard', () => {
+  const stop = new Error('guard stop');
+  const call = async (data: unknown) => {
+    const { shareMembershipV1 } = await import('./shareMembership');
+    const handler = shareMembershipV1 as unknown as (
+      request: unknown
+    ) => Promise<unknown>;
+    return handler({ auth: { uid: 'u1', token: {} }, data });
+  };
+
+  it('lets a read-only View-as tab confirm a share host', async () => {
+    viewAsGuard.assertViewAsAllowed.mockClear();
+    viewAsGuard.assertViewAsAllowed.mockRejectedValueOnce(stop);
+    await expect(call({ action: 'shareHost', shareId: 's' })).rejects.toBe(
+      stop
+    );
+    expect(viewAsGuard.assertViewAsAllowed).toHaveBeenCalledWith(
+      expect.anything(),
+      { read: true }
+    );
+  });
+
+  it('keeps joins behind the write guard', async () => {
+    viewAsGuard.assertViewAsAllowed.mockClear();
+    viewAsGuard.assertViewAsAllowed.mockRejectedValueOnce(stop);
+    await expect(call({ action: 'leaveBoard', shareId: 's' })).rejects.toBe(
+      stop
+    );
+    expect(viewAsGuard.assertViewAsAllowed).toHaveBeenCalledWith(
+      expect.anything()
+    );
+    expect(viewAsGuard.assertViewAsAllowed.mock.calls[0]).toHaveLength(1);
+  });
+});
