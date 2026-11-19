@@ -327,7 +327,7 @@ export const FolderItem = React.memo(
             onPointerMove={longPress.onPointerMove}
             onPointerCancel={longPress.onPointerCancel}
             onClick={() => setShowPopover(true)}
-            className={`group flex flex-col items-center gap-1 min-w-[50px] transition-transform active:scale-90 relative ${
+            className={`group flex flex-col items-center gap-1 min-w-[50px] transition-transform duration-160 ease-out active:scale-95 relative ${
               isEditMode
                 ? 'cursor-grab active:cursor-grabbing touch-none'
                 : dockPosition === 'left' || dockPosition === 'right'
