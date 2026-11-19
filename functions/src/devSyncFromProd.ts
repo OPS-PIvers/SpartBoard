@@ -409,6 +409,8 @@ const NO_PRUNE = new Set(['admins']);
 // Kill switches forced off in dev regardless of prod's value.
 export const DEV_OVERRIDES: Record<string, Record<string, unknown>> = {
   'admin_settings/classlink_sync': { enabled: false },
+  // Dev ClassLink never counts a list, so enforce would refuse every dev class.
+  'admin_settings/verified_classes_fill': { enforce: false },
 };
 
 const keepString = (s: string) => s;

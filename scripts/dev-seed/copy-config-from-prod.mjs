@@ -48,7 +48,10 @@ const ORG_SUBCOLLECTIONS = [
 ];
 
 // Kill switches forced off in dev regardless of prod's value.
-const DEV_OVERRIDES = { 'admin_settings/classlink_sync': { enabled: false } };
+const DEV_OVERRIDES = {
+  'admin_settings/classlink_sync': { enabled: false },
+  'admin_settings/verified_classes_fill': { enforce: false },
+};
 
 const dryRun = process.argv.includes('--dry-run');
 const here = dirname(fileURLToPath(import.meta.url));

@@ -253,6 +253,12 @@ describe('syncConfigFromProdV1', () => {
       enabled: false,
     });
   });
+
+  it('forces class targeting enforcement off', () => {
+    expect(DEV_OVERRIDES['admin_settings/verified_classes_fill']).toEqual({
+      enforce: false,
+    });
+  });
 });
 
 describe('SYNCED_USER_COLLECTIONS folders', () => {
