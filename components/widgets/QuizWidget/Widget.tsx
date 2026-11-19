@@ -161,7 +161,10 @@ import {
   type AutoTranslateResult,
 } from '@/utils/quizAutoTranslate';
 import { targetedLocaleCounts } from '@/utils/quizTranslationPublish';
-import { isNonEnglishQuizSource } from '@/utils/quizTranslationAdvisory';
+import {
+  isLocaleCovered,
+  isNonEnglishQuizSource,
+} from '@/utils/quizTranslationAdvisory';
 import {
   QUIZ_TRANSLATION_FEATURE,
   isTranslatableQuestionType,
@@ -1128,16 +1131,25 @@ const TeacherQuizWidget: React.FC<{
     const drive = translationLoader();
     const uid = user?.uid;
     const locales = Object.keys(targetedLocaleCounts(overridesByKey));
+    // The Modifications step already warns for these; anything else that misses gets a toast.
     if (
-      !drive ||
-      !uid ||
       locales.length === 0 ||
       !canAccessFeature(QUIZ_TRANSLATION_FEATURE) ||
       isNonEnglishQuizSource(data.language) ||
-      quizHasBankSlots(data) ||
-      isDistrictCopy(meta)
+      quizHasBankSlots(data)
     )
       return meta.translations;
+    const warnMissing = (index: QuizMetadata['translations']) => {
+      for (const locale of locales)
+        if (!isLocaleCovered(locale, { index }))
+          addToast(
+            `${languageDisplayLabel(locale)} wasn't ready in time. Those students will see English.`,
+            'warning'
+          );
+      return index;
+    };
+    if (!drive || !uid || isDistrictCopy(meta))
+      return warnMissing(meta.translations);
     const translate = httpsCallable<
       Record<string, unknown>,
       AutoTranslateResult
@@ -1187,7 +1199,9 @@ const TeacherQuizWidget: React.FC<{
       timer = setTimeout(() => resolve(undefined), AUTO_TRANSLATE_WAIT_MS);
     });
     try {
-      return (await Promise.race([work, timedOut])) ?? meta.translations;
+      return warnMissing(
+        (await Promise.race([work, timedOut])) ?? meta.translations
+      );
     } finally {
       clearTimeout(timer);
     }
