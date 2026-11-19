@@ -127,7 +127,7 @@ export const VideoFeedbackStep: React.FC<VideoRuleStepProps> = ({
   return (
     <div className="space-y-1.5">
       <StepToggleRow
-        label="Show right and wrong to students"
+        label="Show right or wrong after each answer"
         anchor={tourFieldAttr(
           'assign-rule.toggle',
           'assign',
@@ -143,7 +143,7 @@ export const VideoFeedbackStep: React.FC<VideoRuleStepProps> = ({
         }
       />
       <StepToggleRow
-        label="Reveal correct answer to students"
+        label="Show the correct answer when wrong"
         anchor={tourFieldAttr('assign-rule.toggle', 'assign', 'reveal-correct')}
         checked={rightWrong && (o.showCorrectAnswerToStudent ?? true)}
         disabled={!rightWrong}

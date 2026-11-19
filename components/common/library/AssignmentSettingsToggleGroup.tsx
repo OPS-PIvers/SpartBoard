@@ -420,7 +420,7 @@ export const AssignmentSettingsToggleGroup: React.FC<
           {feedbackLeadingSlot}
           <ToggleRow
             compact
-            label="Show right/wrong to students"
+            label="Show right or wrong after each answer"
             anchor={tourFieldAttr(
               'assign-settings.toggle',
               'assign',
@@ -441,7 +441,7 @@ export const AssignmentSettingsToggleGroup: React.FC<
           />
           <ToggleRow
             compact
-            label="Reveal correct answer to students"
+            label="Show the correct answer when wrong"
             anchor={tourFieldAttr(
               'assign-settings.toggle',
               'assign',
