@@ -33,6 +33,7 @@ import { isGameSession } from '@/utils/reviewResults';
 import { useReviewLaunch } from './useReviewLaunch';
 import { quizQuestionDedupeKey } from '@/utils/quizSearchText';
 import { quizAssignBlocker } from '@/utils/activityCompleteness';
+import { quizDeleteDetail } from '@/utils/quizDeleteDetail';
 import {
   PAPER_HANDWRITING_AI_FEATURE,
   PAPER_HANDWRITTEN_FEATURE,
@@ -95,6 +96,7 @@ import { useBusyIdSet } from '@/hooks/useBusyIdSet';
 import { useFolders } from '@/hooks/useFolders';
 import { useGooglePicker } from '@/hooks/useGooglePicker';
 import { useQuizDocumentImportGate } from '@/hooks/useQuizDocumentImportGate';
+import { useQuizCapabilities } from '@/hooks/useQuizCapabilities';
 import {
   attachDocumentImages as attachImagesToQuiz,
   driveStimulusUploader,
@@ -463,7 +465,8 @@ const TeacherQuizWidget: React.FC<{
     selectedBuildings,
     gradesTaught,
   } = useAuth();
-  const districtLibraryOn = canAccessFeature('district-library');
+  const { districtLibraryOn, canUseQuizAi, canImportFromSchoology } =
+    useQuizCapabilities();
   const viewAsDrive = useViewAsDriveStatus();
   const titleOf = useConnectionWidgetTitle();
   const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
@@ -473,8 +476,6 @@ const TeacherQuizWidget: React.FC<{
   const canImportDocuments = useQuizDocumentImportGate();
   const claudeReview = useClaudeReview('quizzes');
   // D1: the AI reader has its own admin-default permission, AND-ed with the AI one.
-  const canUseQuizAi =
-    canAccessFeature('gemini-functions') && canAccessFeature('quiz');
   const canUseAiReader =
     canImportDocuments &&
     canAccessFeature('quiz-document-ai-reader') &&
@@ -700,7 +701,6 @@ const TeacherQuizWidget: React.FC<{
   const [reopenPickFor, setReopenPickFor] = useState<string | null>(null);
   const [bankImportOpen, setBankImportOpen] = useState(false);
   const pendingHandoff = useImportHandoff(widget.id);
-  const canImportFromSchoology = canAccessFeature('schoology-quiz-import');
   const [bankCartridge, setBankCartridge] = useState<File | null>(null);
   const [quizCartridge, setQuizCartridge] = useState<File | null>(null);
   // Quizzes a Schoology import (.imscc or the extension) already saved, so a retry only re-runs the folder move.
@@ -4824,32 +4824,21 @@ const TeacherQuizWidget: React.FC<{
           );
           return `${window.location.origin}/quiz?code=${encodeURIComponent(code)}`;
         }}
+        deleteDetail={(meta) => quizDeleteDetail(assignments, meta.id)}
         onDelete={async (meta) => {
           // Block deletion when active/paused assignments reference the quiz,
           // since the monitor + results views need the answer key from the
-          // library record. Archived (inactive) assignments trigger only a
-          // warning — the teacher has already chosen to end those sessions.
-          const related = assignments.filter((a) => a.quizId === meta.id);
-          const live = related.filter((a) => a.status !== 'inactive');
+          // library record. Archived (inactive) assignments only add a warning
+          // to the shared delete confirm (deleteDetail).
+          const live = assignments.filter(
+            (a) => a.quizId === meta.id && a.status !== 'inactive'
+          );
           if (live.length > 0) {
             addToast(
               `Cannot delete: ${live.length} active or paused assignment(s) still reference this quiz. Deactivate them first.`,
               'error'
             );
             return;
-          }
-          if (related.length > 0) {
-            const ok = await showConfirm(
-              `This quiz has ${related.length} archived assignment(s). ` +
-                `Deleting the quiz will prevent viewing their monitor and results. ` +
-                `Continue anyway?`,
-              {
-                title: 'Delete Quiz',
-                variant: 'warning',
-                confirmLabel: 'Delete Anyway',
-              }
-            );
-            if (!ok) return;
           }
           try {
             await deleteQuiz(meta.id, meta.driveFileId);
@@ -5334,7 +5323,7 @@ const TeacherQuizWidget: React.FC<{
             addToast(
               isViewOnlyAssignment
                 ? 'Share reactivated.'
-                : 'Reopened — click Resume to accept submissions.',
+                : "Reopened and paused. Students can't submit until you start it.",
               'success'
             );
           } catch (err) {

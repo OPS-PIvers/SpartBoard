@@ -1,0 +1,7 @@
+security/grades-projection-authz (#6310 Grades projection roster check)
+security/activity-wall-anon-names (#6312 no student names on name-hidden walls)
+security/miniapp-pointer-lockout (#6308 mini-app pointer key lockout)
+security/synced-bank-unpinned-slots (#6311 synced bank id reservations)
+security/session-classids-authz (#6314 session class targeting rules)
+security/poll-code-lookup-budget (#6306 poll code lookup cap)
+claude/project-thread-5s1jsu (this sweep's follow-ups)

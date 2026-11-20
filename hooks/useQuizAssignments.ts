@@ -217,6 +217,14 @@ import {
   type ResponseGradingContext,
 } from './quizAssignments/publishGrading';
 
+import {
+  migrateLegacyAssignmentShape,
+  migrateSyncLinkageShape,
+  sanitizeClassPeriodByClassId,
+  type LegacyPlcShape,
+  type LegacySyncLinkageShape,
+} from './quizAssignments/legacyShape';
+
 export {
   buildResponseGradingContext,
   buildRevealedAnswers,
@@ -761,58 +769,6 @@ export interface UseQuizAssignmentsResult {
   stopSharingAssignmentWithPlc: (assignmentId: string) => Promise<void>;
 }
 
-/**
- * Read-side compatibility mapper for the pre-PlcLinkage flat shape. Existing
- * Firestore docs were written with `plcMode`/`plcSheetUrl`/`plcId`/
- * `plcName`/`plcMemberEmails` as flat fields on the assignment (or
- * SharedQuizAssignment.assignmentSettings). The refactor consolidates those
- * into a single `plc: PlcLinkage` sub-object.
- *
- * Behaviour:
- * - If `plc` is already set, the doc is post-refactor — pass through.
- * - If the legacy fields form a complete linkage (`plcMode === true` AND
- *   `plcSheetUrl` AND `plcId` AND `plcName` are all populated), build a
- *   `plc` sub-object and strip the legacy fields so downstream code only
- *   sees one shape.
- * - Partial-legacy docs (e.g. `plcMode: true` but missing one of `plcId`/
- *   `plcName`/`plcSheetUrl`, possible for assignments created before
- *   PR #1442 added `plcId`/`plcName`) pass through WITHOUT a `plc` field
- *   and with the legacy fields stripped — degraded state, treated as
- *   non-PLC mode rather than crashing. This matches the non-PLC path and
- *   is safe.
- *
- * Generic over the doc shape so it can be applied to both QuizAssignment
- * (returns `Omit<T, legacyKeys> & { plc?: PlcLinkage }`) and the inner
- * `assignmentSettings` shape on SharedQuizAssignment.
- */
-type LegacyPlcShape = {
-  plcMode?: boolean;
-  plcSheetUrl?: string;
-  plcId?: string;
-  plcName?: string;
-  plcMemberEmails?: string[];
-  plc?: PlcLinkage;
-};
-const LEGACY_PLC_KEYS = [
-  'plcMode',
-  'plcSheetUrl',
-  'plcId',
-  'plcName',
-  'plcMemberEmails',
-] as const;
-
-/**
- * Pre-sub-object shape for the assignment's sync linkage. Folded into
- * `sync: { groupId, syncedVersion }` by `migrateSyncLinkageShape`.
- * Both legacy fields are required-when-present (we never wrote one
- * without the other), so an only-one-set doc is treated as degraded
- * and the linkage is dropped on read.
- */
-type LegacySyncLinkageShape = {
-  syncGroupId?: string;
-  syncedVersion?: number;
-  sync?: QuizAssignmentSyncLinkage;
-};
 const HAND_RAISE_GATE_TIMEOUT_MS = 5000;
 
 /** True while a signed-in teacher's profile, org membership or permissions are still loading. */
@@ -912,122 +868,6 @@ function sessionOptionsToSessionPatch(
   // switch raise hand on inside a force-off building. Running sessions keep
   // the value they were created with.
   return patch;
-}
-
-const LEGACY_SYNC_KEYS = ['syncGroupId', 'syncedVersion'] as const;
-
-/**
- * Read-side mapper for `QuizAssignment.sync`. Mirrors
- * `migrateLegacyAssignmentShape` for the sync linkage: pre-sub-object
- * docs carried two flat optional fields; this folds them into the
- * canonical sub-object so consumers only ever see one shape.
- */
-function migrateSyncLinkageShape<T extends LegacySyncLinkageShape>(
-  data: T
-): Omit<T, (typeof LEGACY_SYNC_KEYS)[number]> & {
-  sync?: QuizAssignmentSyncLinkage;
-} {
-  const cleaned = { ...data };
-  for (const key of LEGACY_SYNC_KEYS) delete cleaned[key];
-  if (data.sync) {
-    if (
-      typeof data.sync.groupId === 'string' &&
-      data.sync.groupId.length > 0 &&
-      typeof data.sync.syncedVersion === 'number'
-    ) {
-      return cleaned;
-    }
-    // Malformed sub-object: drop and treat as unsynced.
-    delete (cleaned as { sync?: QuizAssignmentSyncLinkage }).sync;
-    return cleaned;
-  }
-  const { syncGroupId, syncedVersion } = data;
-  if (
-    typeof syncGroupId === 'string' &&
-    syncGroupId.length > 0 &&
-    typeof syncedVersion === 'number'
-  ) {
-    return { ...cleaned, sync: { groupId: syncGroupId, syncedVersion } };
-  }
-  return cleaned;
-}
-
-function isNonEmptyString(value: unknown): value is string {
-  return typeof value === 'string' && value.trim().length > 0;
-}
-
-/**
- * Sanitize the `classPeriodByClassId` map at the hook boundary: drop
- * empty/non-string keys or values, and (when an allowlist is provided)
- * drop entries whose key isn't in the session's `classIds` so the
- * session doc can't carry stale/mismatched targeting. Mirrors the
- * defensive filtering already applied to `rosterIds` / `classIds` /
- * `periodNames`.
- */
-function sanitizeClassPeriodByClassId(
-  input: Record<string, string> | undefined,
-  allowedClassIds?: readonly string[]
-): Record<string, string> {
-  if (!input) return {};
-  const allow = allowedClassIds ? new Set(allowedClassIds) : null;
-  return Object.fromEntries(
-    Object.entries(input).filter(
-      ([classId, classPeriod]) =>
-        isNonEmptyString(classId) &&
-        isNonEmptyString(classPeriod) &&
-        (allow === null || allow.has(classId))
-    )
-  );
-}
-
-// Validate an inbound `plc` sub-object before trusting it. The link needs
-// only `id` + `name`; `sheetUrl` is an optional export destination and
-// `memberEmails` defaults to `[]`. Returns a fresh object or `undefined`.
-function getValidPlcLinkage(
-  plc: PlcLinkage | undefined
-): PlcLinkage | undefined {
-  if (!plc) return undefined;
-  const { id, name, sheetUrl, memberEmails, autoGenerated } = plc;
-  if (!isNonEmptyString(id) || !isNonEmptyString(name)) return undefined;
-  const emails = Array.isArray(memberEmails)
-    ? memberEmails.filter((e): e is string => isNonEmptyString(e))
-    : [];
-  return {
-    id,
-    name,
-    memberEmails: emails,
-    ...(isNonEmptyString(sheetUrl) ? { sheetUrl } : {}),
-    ...(autoGenerated === true ? { autoGenerated: true } : {}),
-  };
-}
-
-function migrateLegacyAssignmentShape<T extends LegacyPlcShape>(
-  data: T
-): Omit<T, (typeof LEGACY_PLC_KEYS)[number]> & { plc?: PlcLinkage } {
-  const cleaned = { ...data };
-  for (const key of LEGACY_PLC_KEYS) delete cleaned[key];
-
-  // Already migrated: keep the nested object iff it passes validation.
-  if (data.plc) {
-    const valid = getValidPlcLinkage(data.plc);
-    return valid ? { ...cleaned, plc: valid } : cleaned;
-  }
-
-  // Legacy flat shape: `plcMode` + id + name suffice; a sheet URL is optional.
-  const { plcMode, plcSheetUrl, plcId, plcName, plcMemberEmails } = data;
-  if (plcMode === true && !!plcId && !!plcName) {
-    return {
-      ...cleaned,
-      plc: {
-        id: plcId,
-        name: plcName,
-        memberEmails: plcMemberEmails ?? [],
-        ...(plcSheetUrl ? { sheetUrl: plcSheetUrl } : {}),
-      },
-    };
-  }
-  // Degraded-state or non-PLC doc: pass through without `plc`.
-  return cleaned;
 }
 
 /** Unique 6-char join code: one nobody has claimed yet, since a code has one owner for good. */
