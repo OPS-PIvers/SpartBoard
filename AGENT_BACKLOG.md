@@ -598,6 +598,9 @@ retire/quiz-assigning
 retire/quiz-results
 retire/nov18-flags
 retire/nov19-flags
+retire/modgroups
+retire/nov20-flags
+claude/ab112-nov20 (this docs PR)
 claude/ab112-nov18
 claude/ab112-nov19 (this docs PR)
 claude/project-thread-mclg4c (also claude/ab112-nov18, this docs PR)
