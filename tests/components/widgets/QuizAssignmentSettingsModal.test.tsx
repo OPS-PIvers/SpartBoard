@@ -908,20 +908,3 @@ describe('QuizAssignmentSettingsModal — on the assign stepper', () => {
     expect(screen.queryByLabelText('Closes')).not.toBeInTheDocument();
   });
 });
-
-describe('QuizAssignmentSettingsModal — Modifications data', () => {
-  it('opens at once without loading the quiz when Modification groups is off', () => {
-    const load = vi.fn();
-    render(
-      <QuizAssignmentSettingsModal
-        assignment={makePlcAssignment({ sessionMode: 'student' })}
-        rosters={[makeRoster()]}
-        onSave={vi.fn()}
-        onClose={vi.fn()}
-        loadEditContext={load}
-      />
-    );
-    expect(load).not.toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: /^Save$/ })).toBeInTheDocument();
-  });
-});

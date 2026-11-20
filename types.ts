@@ -11798,7 +11798,6 @@ export type GlobalFeature =
   | 'quiz-recap-all-options'
   /** Quiz assign stays open with a spinner until the save finishes, and shows a failed save inline. */
   | 'quiz-assign-waits-for-save'
-  | 'modification-groups'
   /** Rubric grading redesign: one-tap level buttons, expandable criteria, level order switch, full-rubric table. */
   | 'rubric-grading-v2'
   /** Quiz assign: a modification group can get a printed version, scanned back into the same results. */

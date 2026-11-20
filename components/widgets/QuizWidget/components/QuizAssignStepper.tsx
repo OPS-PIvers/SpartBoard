@@ -178,8 +178,7 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   const [modsOpen, setModsOpen] = useState(false);
   const [sharingCount, setSharingCount] = useState(0);
   const auth = useContext(AuthContext);
-  const groupsOn =
-    !!modifications && auth?.canAccessFeature?.('modification-groups') === true;
+  const groupsOn = !!modifications;
   const usable = rosters.filter((r) => !r.loadError);
   const staff = audience?.audience === 'staff';
   // Every roster, not just the checked ones, so a student on two rosters carries both presets.

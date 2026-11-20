@@ -46,6 +46,7 @@ export const RETIRED_TOUR_FEATURES: readonly string[] = [
   'flashcards-term-only',
   'getting-started',
   'lunch-count-resend',
+  'modification-groups',
   'paper-fill-in-blank',
   'project-submit',
   'quiz-dok',

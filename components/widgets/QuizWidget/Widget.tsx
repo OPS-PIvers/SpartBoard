@@ -1067,9 +1067,7 @@ const TeacherQuizWidget: React.FC<{
     canAccessFeature(PAPER_WRITTEN_HYBRID_FEATURE);
   // A modification group's printed version, scanned back into the device assignment.
   const printedVersionsOn =
-    !!paperUid &&
-    canAccessFeature('modification-groups') &&
-    canAccessFeature(PAPER_PRINTED_VERSIONS_FEATURE);
+    !!paperUid && canAccessFeature(PAPER_PRINTED_VERSIONS_FEATURE);
   const [paperGroupReprint, setPaperGroupReprint] = useState<
     PaperReprintGroup[] | null
   >(null);
@@ -1113,7 +1111,6 @@ const TeacherQuizWidget: React.FC<{
     if (
       locales.length === 0 ||
       !canAccessFeature(QUIZ_TRANSLATION_FEATURE) ||
-      !canAccessFeature('modification-groups') ||
       isNonEnglishQuizSource(data.language) ||
       quizHasBankSlots(data)
     )
@@ -3384,9 +3381,7 @@ const TeacherQuizWidget: React.FC<{
                   quiz: studentView.quiz,
                   behavior: studentView.behavior,
                   crossOutOn: canAccessFeature('quiz-cross-out'),
-                  timeLimitOn:
-                    canAccessFeature(QUIZ_TIME_LIMIT_FEATURE) &&
-                    canAccessFeature('modification-groups'),
+                  timeLimitOn: canAccessFeature(QUIZ_TIME_LIMIT_FEATURE),
                 })}
             tabAwayTimerOn={canAccessFeature('tab-away-timer')}
             versions={studentView.versions}
@@ -3737,9 +3732,10 @@ const TeacherQuizWidget: React.FC<{
             value: AssignTargetingValue
           ): AssignTargetingValue => ({
             ...value,
-            overridesByKey: canAccessFeature('modification-groups')
-              ? withQuizAnswerChoices(value.overridesByKey, assignQuestions)
-              : value.overridesByKey,
+            overridesByKey: withQuizAnswerChoices(
+              value.overridesByKey,
+              assignQuestions
+            ),
           });
           const rawMixed = stepper
             ? expandMixedTargeting(
@@ -4096,9 +4092,7 @@ const TeacherQuizWidget: React.FC<{
                   ? { workKind: resolvedTargeting.workKind }
                   : {}),
                 ...(translationIndex ? { translationIndex } : {}),
-                ...(canAccessFeature('modification-groups')
-                  ? { lenientTranslatedFib: true }
-                  : {}),
+                lenientTranslatedFib: true,
               }
             );
             assignmentSaved = true;
@@ -4462,14 +4456,10 @@ const TeacherQuizWidget: React.FC<{
                   if (assigned)
                     setStudentView({
                       assigned,
-                      ...(canAccessFeature('modification-groups')
-                        ? {
-                            versions: versionsFromOverrides(
-                              a.overridesByStudentUid,
-                              languageDisplayLabel
-                            ),
-                          }
-                        : {}),
+                      versions: versionsFromOverrides(
+                        a.overridesByStudentUid,
+                        languageDisplayLabel
+                      ),
                     });
                   else addToast('This assignment could not be found.', 'error');
                 } catch (err) {
