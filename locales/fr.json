@@ -4881,27 +4881,6 @@
         "rebound": "Réassociée",
         "needsHuman": "Demande une personne"
       }
-    },
-    "web": {
-      "title": "Visites web",
-      "intro": "Vérifie les parcours réels des visites sur d'autres sites web.",
-      "empty": "Aucune visite web pour l'instant.",
-      "loadFailed": "Impossible de charger les visites web.",
-      "notPublished": "Non publiée",
-      "colPage": "Page",
-      "state": {
-        "ok": "OK",
-        "weak": "Correspondance faible",
-        "missed": "Introuvable"
-      },
-      "reason": {
-        "missed": "Image affichée dans {{misses}} parcours réels sur {{runs}}",
-        "weak": "Trouvé seulement par un indice plus faible dans {{weak}} parcours réels sur {{runs}}",
-        "weakScore": "Proche d'une autre commande dans {{weak}} parcours réels sur {{runs}}"
-      },
-      "copyLink": "Copier le lien",
-      "linkCopied": "Copié",
-      "copyLinkFor": "Copier le lien vers {{title}}"
     }
   },
   "tourPicker": {

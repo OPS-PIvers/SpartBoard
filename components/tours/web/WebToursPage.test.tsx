@@ -14,6 +14,8 @@ const h = vi.hoisted(() => ({
   copy: vi.fn<(id: string, title: string) => Promise<boolean>>(),
   published: new Map<string, Published>(),
   publicUrl: null as string | null,
+  save: vi.fn<(set: GuidedLearningSet) => Promise<void>>(),
+  requestOn: vi.fn<(after?: (url: string) => void) => void>(),
 }));
 
 vi.mock('@/components/tours/webTours', () => ({
@@ -27,23 +29,27 @@ vi.mock('@/components/tours/webTours', () => ({
   },
   createWebTourDraft: () => h.create(),
   loadWebTourDraft: (id: string) => h.load(id),
+  saveWebTourDraft: (set: GuidedLearningSet) => h.save(set),
+}));
+vi.mock('@/components/tours/tourRuns', () => ({
+  loadTourRuns: () => Promise.resolve([]),
 }));
 vi.mock('./WebTourEditor', () => ({
   WebTourEditor: ({
     initial,
     onClose,
+    initialStepId,
   }: {
     initial: GuidedLearningSet;
     onClose: () => void;
+    initialStepId?: string;
   }) => (
     <div data-testid="editor">
       {initial.id}
+      {initialStepId ? ` at ${initialStepId}` : ''}
       <button onClick={onClose}>close editor</button>
     </div>
   ),
-}));
-vi.mock('./WebTourHealthSection', () => ({
-  WebTourHealthSection: () => <div data-testid="health" />,
 }));
 vi.mock('./WebTourEditorRosters', () => ({
   WebTourEditorRosters: ({ children }: { children: React.ReactNode }) => (
@@ -71,6 +77,8 @@ vi.mock('@/components/tours/publicLink/usePublicLinkControls', () => ({
     statusNote: null,
     publicUrl: h.publicUrl,
     status: h.publicUrl ? { kind: 'on', url: h.publicUrl } : { kind: 'off' },
+    canTurnOn: true,
+    requestOn: h.requestOn,
   }),
 }));
 
@@ -104,10 +112,12 @@ describe('WebToursPage', () => {
     h.copy.mockReset();
     h.published = new Map();
     h.publicUrl = null;
+    h.save.mockReset();
+    h.requestOn.mockReset();
     window.history.replaceState(null, '', '/web-tours');
   });
 
-  it('lists the drafts newest first with their publish state, then the health section', () => {
+  it('lists the drafts newest first with their publish state', () => {
     h.published = new Map([
       ['b', { set: { surface: 'web', steps: [] }, publishedAt: 200 }],
     ]);
@@ -135,7 +145,7 @@ describe('WebToursPage', () => {
       'noopener,noreferrer'
     );
     open.mockRestore();
-    expect(screen.getByTestId('health')).toBeInTheDocument();
+    expect(screen.queryByRole('table')).toBeNull();
   });
 
   it('shows an empty state and a load failure', () => {
@@ -168,32 +178,135 @@ describe('WebToursPage', () => {
     expect(await screen.findByTestId('editor')).toHaveTextContent('a');
   });
 
-  it('copies the staff link, or the public link while it is on', async () => {
+  it('shares the tour URL with a toast', async () => {
     h.copy.mockResolvedValue(true);
-    const writeText = vi.fn().mockResolvedValue(undefined);
-    Object.assign(navigator, { clipboard: { writeText } });
-    const view = render(<WebToursPage />);
-    showDrafts([tour('a', 'Tour A')]);
-    act(() => {
-      fireEvent.click(
-        screen.getByRole('button', { name: 'Copy link for Tour A' })
-      );
-    });
-    expect(h.copy).toHaveBeenCalledWith('a', 'Tour A');
-    expect(await screen.findByText('Link copied')).toBeInTheDocument();
-
-    h.publicUrl = 'https://x.test/tour-steps/tok';
-    view.unmount();
+    h.published = new Map([
+      ['a', { set: { surface: 'web', steps: [] }, publishedAt: 200 }],
+    ]);
     render(<WebToursPage />);
     showDrafts([tour('a', 'Tour A')]);
-    expect(screen.getByText('Public link on')).toBeInTheDocument();
-    act(() => {
-      fireEvent.click(
-        screen.getByRole('button', { name: 'Copy link for Tour A' })
-      );
+    fireEvent.click(screen.getByRole('button', { name: 'Share Tour A' }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('menuitem', { name: /Tour URL/ }));
+      await Promise.resolve();
+    });
+    expect(h.copy).toHaveBeenCalledWith('a', 'Tour A');
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Tour URL copied. Share it with someone at Orono Schools.'
+    );
+  });
+
+  it('copies the steps URL while public, and asks to make it public first otherwise', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    h.published = new Map([
+      ['a', { set: { surface: 'web', steps: [] }, publishedAt: 200 }],
+    ]);
+    h.publicUrl = 'https://x.test/tour-steps/tok';
+    const view = render(<WebToursPage />);
+    showDrafts([tour('a', 'Tour A')]);
+    fireEvent.click(screen.getByRole('button', { name: 'Share Tour A' }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('menuitem', { name: /Steps URL/ }));
+      await Promise.resolve();
     });
     expect(writeText).toHaveBeenCalledWith('https://x.test/tour-steps/tok');
-    expect(h.copy).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('status')).toHaveTextContent('Steps URL copied.');
+    view.unmount();
+
+    h.publicUrl = null;
+    render(<WebToursPage />);
+    showDrafts([tour('a', 'Tour A')]);
+    fireEvent.click(screen.getByRole('button', { name: 'Share Tour A' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /Steps URL/ }));
+    expect(h.requestOn).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      h.requestOn.mock.calls[0][0]?.('https://x.test/tour-steps/new');
+      await Promise.resolve();
+    });
+    expect(writeText).toHaveBeenLastCalledWith('https://x.test/tour-steps/new');
+  });
+
+  it('turns off Steps URL until the tour is published', () => {
+    render(<WebToursPage />);
+    showDrafts([tour('a', 'Tour A')]);
+    fireEvent.click(screen.getByRole('button', { name: 'Share Tour A' }));
+    const steps = screen.getByRole('menuitem', { name: /Steps URL/ });
+    expect(steps).toBeDisabled();
+    expect(steps).toHaveTextContent('Publish the tour first.');
+  });
+
+  it('renames a tour in place; Escape cancels', async () => {
+    h.save.mockResolvedValue(undefined);
+    render(<WebToursPage />);
+    showDrafts([tour('a', 'Tour A')]);
+    fireEvent.click(screen.getByRole('button', { name: 'Rename Tour A' }));
+    const field = screen.getByRole('textbox', { name: 'Tour name' });
+    fireEvent.change(field, { target: { value: 'Kept name' } });
+    fireEvent.keyDown(field, { key: 'Escape' });
+    expect(h.save).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rename Tour A' }));
+    const again = screen.getByRole('textbox', { name: 'Tour name' });
+    fireEvent.change(again, { target: { value: '  New name ' } });
+    await act(async () => {
+      fireEvent.keyDown(again, { key: 'Enter' });
+      await Promise.resolve();
+    });
+    expect(h.save).toHaveBeenCalledTimes(1);
+    expect(h.save.mock.calls[0][0]).toMatchObject({
+      id: 'a',
+      title: 'New name',
+    });
+    expect(screen.queryByRole('textbox', { name: 'Tour name' })).toBeNull();
+  });
+
+  it('searches by name or website and filters by state', () => {
+    h.published = new Map([
+      ['b', { set: { surface: 'web', steps: [] }, publishedAt: 200 }],
+    ]);
+    render(<WebToursPage />);
+    showDrafts([
+      tour('a', 'Gmail filters'),
+      tour('b', 'Docs markdown', { updatedAt: 150 }),
+    ]);
+    const search = screen.getByRole('searchbox', { name: 'Search web tours' });
+    fireEvent.change(search, { target: { value: 'gmail' } });
+    const visible = () =>
+      screen
+        .getAllByTestId('web-tour-row')
+        .filter((r) => !r.hidden)
+        .map((r) => r.textContent ?? '');
+    expect(visible()).toHaveLength(1);
+    expect(visible()[0]).toContain('Gmail filters');
+    fireEvent.change(search, { target: { value: 'example.com' } });
+    expect(visible()).toHaveLength(2);
+    fireEvent.change(search, { target: { value: '' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Show' }), {
+      target: { value: 'published' },
+    });
+    expect(visible()).toHaveLength(1);
+    expect(visible()[0]).toContain('Docs markdown');
+    fireEvent.change(search, { target: { value: 'gmail' } });
+    expect(screen.getByText('No tours match.')).toBeInTheDocument();
+  });
+
+  it('shows Fix issues for a failed check and opens the editor on the first bad step', async () => {
+    const set = tour('a', 'Tour A');
+    const { targetsSignature } = await import('./webStepReview');
+    const checked = {
+      ...set,
+      webTourChecked: {
+        by: 'u',
+        at: 1,
+        sig: targetsSignature(set),
+        results: { 'a-s1': 'none' as const },
+      },
+    };
+    render(<WebToursPage />);
+    showDrafts([checked]);
+    fireEvent.click(screen.getByRole('button', { name: /Fix issues/ }));
+    expect(await screen.findByTestId('editor')).toHaveTextContent('a at a-s1');
   });
 
   it('opens the tour named in ?edit-web-tour and takes it off the address', async () => {

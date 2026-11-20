@@ -4881,27 +4881,6 @@
         "rebound": "Neu verknüpft",
         "needsHuman": "Braucht eine Person"
       }
-    },
-    "web": {
-      "title": "Web-Touren",
-      "intro": "Prüft echte Durchläufe von Touren auf anderen Websites.",
-      "empty": "Noch keine Web-Touren.",
-      "loadFailed": "Web-Touren konnten nicht geladen werden.",
-      "notPublished": "Nicht veröffentlicht",
-      "colPage": "Seite",
-      "state": {
-        "ok": "OK",
-        "weak": "Schwache Übereinstimmung",
-        "missed": "Nicht gefunden"
-      },
-      "reason": {
-        "missed": "Bild in {{misses}} von {{runs}} echten Durchläufen gezeigt",
-        "weak": "Nur über einen schwächeren Hinweis gefunden in {{weak}} von {{runs}} echten Durchläufen",
-        "weakScore": "Nah an einem anderen Steuerelement in {{weak}} von {{runs}} echten Durchläufen"
-      },
-      "copyLink": "Link kopieren",
-      "linkCopied": "Kopiert",
-      "copyLinkFor": "Link zu {{title}} kopieren"
     }
   },
   "tourPicker": {
