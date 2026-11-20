@@ -2941,10 +2941,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const pending = [...debouncedWritesRef.current.values()];
     debouncedWritesRef.current.clear();
     for (const p of pending) clearTimeout(p.timer);
+    let timer: ReturnType<typeof setTimeout> | undefined;
     await Promise.race([
-      Promise.all(pending.map(async (p) => p.run())),
-      new Promise((resolve) => setTimeout(resolve, 3000)),
+      Promise.allSettled(pending.map(async (p) => p.run())),
+      new Promise((resolve) => {
+        timer = setTimeout(resolve, 3000);
+      }),
     ]);
+    clearTimeout(timer);
   }, []);
 
   const saveWidgetConfig = useCallback(
