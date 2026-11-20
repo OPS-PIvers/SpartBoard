@@ -432,6 +432,8 @@ interface QuizManagerProps {
   onCreateViewOnlyShare?: (quiz: QuizMetadata) => Promise<string>;
   onResults: (quiz: QuizMetadata) => void;
   onDelete: (quiz: QuizMetadata) => void | Promise<void>;
+  /** Extra consequence line for a quiz's one delete confirm. */
+  deleteDetail?: (quiz: QuizMetadata) => string | undefined;
   /**
    * Phase 5 — duplicate kebab item. Owns the actual `duplicateQuiz` call
    * (the widget already has the hook). When omitted, the Duplicate entry
@@ -855,6 +857,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   skippedTargetsByAssignmentId,
   onResults,
   onDelete,
+  deleteDetail,
   onDuplicate,
   isDuplicating,
   onBulkDelete,
@@ -1627,6 +1630,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         const ok = await confirmDelete({
           titles: [quiz.title],
           noun: LIBRARY_ITEM_NOUNS.quiz,
+          detail: deleteDetail?.(quiz),
         });
         if (ok) await onDelete(quiz);
       },
