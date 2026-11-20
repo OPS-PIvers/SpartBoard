@@ -1,7 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import type { LibraryFolder } from '@/types';
 import { collectDescendantIds } from '@/utils/folderTree';
-import { buildFolderIndex, folderPath, subtreeFolderIds } from './folderView';
+import {
+  buildFolderIndex,
+  descendantFolderIds,
+  folderPath,
+  subtreeFolderIds,
+} from './folderView';
 
 const folder = (
   id: string,
@@ -43,5 +48,33 @@ describe('collectDescendantIds on parent cycles', () => {
     expect(
       collectDescendantIds('s', [folder('s', 's')], (x) => x.parentId)
     ).toEqual([]);
+  });
+});
+
+describe('hoisting only cycle members', () => {
+  it('keeps a low-order child under its cycle member', () => {
+    const index = buildFolderIndex([
+      folder('a', 'b', 1),
+      folder('b', 'a', 2),
+      folder('c', 'b', 0),
+    ]);
+    const top = index.childrenOf.get(null)?.map((f) => f.id);
+    expect(top).toHaveLength(1);
+    expect(top).not.toContain('c');
+    expect(folderPath('c', index).map((f) => f.id)).toContain('b');
+  });
+});
+
+describe('descendantFolderIds follows the displayed tree', () => {
+  const f = [folder('a', 'b', 0), folder('b', 'a', 1), folder('child', 'b', 2)];
+
+  it('does not count the displayed parent of a hoisted cycle member', () => {
+    expect(descendantFolderIds('b', f).sort()).toEqual(['child']);
+    expect(descendantFolderIds('a', f).sort()).toEqual(['b', 'child']);
+  });
+
+  it('matches the plain subtree when there is no cycle', () => {
+    const tree = [folder('p', null), folder('q', 'p'), folder('r', 'q')];
+    expect(descendantFolderIds('p', tree).sort()).toEqual(['q', 'r']);
   });
 });

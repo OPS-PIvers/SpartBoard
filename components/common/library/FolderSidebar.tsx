@@ -29,7 +29,6 @@ import type {
   LibraryFolderWidget,
 } from '@/types';
 import type { FolderDeleteUndo } from '@/hooks/useFolderTree';
-import { collectDescendantIds } from '@/utils/folderTree';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { FolderTree } from './FolderTree';
 import { tourAttr, type TourAnchorId } from '@/config/tourAnchors';
@@ -44,6 +43,7 @@ import type { LibraryFolderViewModel } from './LibraryFolderViewContext';
 import { LIBRARY_ROOT_LABEL } from './FolderViewHeader';
 import {
   buildFolderIndex,
+  descendantFolderIds,
   folderPath,
   sameLocation,
   type LibraryLocation,
@@ -223,10 +223,9 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
   // Count descendants + direct items for the delete modal.
   const deleteImpact = useMemo(() => {
     if (!confirmDelete) return { itemCount: 0, subfolderCount: 0 };
-    const subfolderCount = collectDescendantIds(
+    const subfolderCount = descendantFolderIds(
       confirmDelete.id,
-      folders,
-      (f) => f.parentId
+      folders
     ).length;
     const itemCount = itemCounts?.[confirmDelete.id] ?? 0;
     return { itemCount, subfolderCount };
@@ -280,11 +279,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
   // Folder-view dialog: everything below the folder, at any depth.
   const subtree = useMemo(() => {
     if (!confirmDelete || !folderDelete) return null;
-    const subfolderIds = collectDescendantIds(
-      confirmDelete.id,
-      folders,
-      (f) => f.parentId
-    );
+    const subfolderIds = descendantFolderIds(confirmDelete.id, folders);
     const inTree = new Set([confirmDelete.id, ...subfolderIds]);
     const itemIds = folderDelete.items
       .filter((i) => i.folderId != null && inTree.has(i.folderId))
