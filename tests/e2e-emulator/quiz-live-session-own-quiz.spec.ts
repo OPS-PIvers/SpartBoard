@@ -27,7 +27,8 @@ const createReviewQuiz = async (
   library: Locator,
   title: string,
   prompt: string,
-  correct: string
+  correct: string,
+  withFreeResponse = false
 ): Promise<void> => {
   const editor = page.getByRole('dialog');
   // The library can finish loading after the menu opens, which closes it; reopen until the editor is up.
@@ -53,6 +54,21 @@ const createReviewQuiz = async (
   await editor
     .getByRole('radio', { name: `Option ${correct} is correct` })
     .check();
+  if (withFreeResponse) {
+    // The second "Add" adds learning targets.
+    await editor
+      .getByRole('button', { name: 'Add', exact: true })
+      .first()
+      .click();
+    await editor
+      .getByRole('combobox', { name: 'Type' })
+      .last()
+      .selectOption({ label: 'Free Response' });
+    await editor
+      .getByRole('textbox', { name: 'Question prompt' })
+      .last()
+      .fill('Explain how you know.');
+  }
   await expect(editor.getByText('Saved', { exact: true })).toBeVisible();
   await expect(editor.getByText(/Not ready to use yet/)).toHaveCount(0);
   await editor.getByRole('button', { name: 'Close' }).last().click();
@@ -129,9 +145,11 @@ test.beforeEach(async ({ page }) => {
   await openBoard(page);
 });
 
-test('checking answers on another quiz leaves the live review on its own quiz', async ({
-  page,
-}) => {
+// A free-response question is left out of a Review, so the session runs on a trimmed frozen copy with its own quiz id.
+const runLiveReview = async (
+  page: Page,
+  withFreeResponse: boolean
+): Promise<void> => {
   const library = await addReviewWidget(page);
   const widget = page.locator('.widget').first();
   let code = '';
@@ -140,7 +158,18 @@ test('checking answers on another quiz leaves the live review on its own quiz', 
 
   await test.step('create two quizzes and start one with right-or-wrong feedback', async () => {
     await createReviewQuiz(page, library, OTHER, 'What is 0.5 + 0.5?', 'A');
-    await createReviewQuiz(page, library, LIVE, 'What is 2 + 2?', 'B');
+    await createReviewQuiz(
+      page,
+      library,
+      LIVE,
+      'What is 2 + 2?',
+      'B',
+      withFreeResponse
+    );
+    if (withFreeResponse)
+      await expect(
+        library.getByRole('tabpanel').getByText('2 Qs')
+      ).toBeVisible();
     await library
       .getByRole('heading', { name: LIVE })
       .locator('xpath=ancestor::*[.//button[normalize-space()="Start"]][1]')
@@ -164,6 +193,7 @@ test('checking answers on another quiz leaves the live review on its own quiz', 
     expect(liveQuestionId).not.toBe('');
     await widget.getByRole('button', { name: 'Start quiz session' }).click();
     await expect(widget.getByText('What is 2 + 2?')).toBeVisible();
+    await expect.poll(() => widget.ariaSnapshot()).toContain('Question 1 of 1');
     expect(await revealedIds(code)).toEqual([]);
   });
 
@@ -196,4 +226,16 @@ test('checking answers on another quiz leaves the live review on its own quiz', 
     await expect(widget.getByText('What is 2 + 2?')).toBeVisible();
     expect(await revealedIds(code)).toEqual([liveQuestionId]);
   });
+};
+
+test('checking answers on another quiz leaves the live review on its own quiz', async ({
+  page,
+}) => {
+  await runLiveReview(page, false);
+});
+
+test('a live review on a trimmed copy reveals its own question while another quiz is checked', async ({
+  page,
+}) => {
+  await runLiveReview(page, true);
 });

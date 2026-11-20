@@ -81,7 +81,8 @@ describe('useLiveSessionQuiz', () => {
       liveFileId: 'frozen-b',
     });
     expect(hook.result.current).toBeNull();
-    const frozen = quiz('quiz-b', 'b1-drawn');
+    // saveDriveSnapshot gives the frozen copy a fresh id; the session keeps the library quiz id.
+    const frozen = quiz('frozen-copy-id', 'b1-drawn');
     hook.rerender({
       loaded: frozen,
       fileId: 'frozen-b',

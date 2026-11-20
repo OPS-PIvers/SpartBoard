@@ -13,10 +13,10 @@ export function useLiveSessionQuiz(
   );
   if (!session) return null;
   const key = `${session.id}:${liveFileId ?? ''}`;
+  // A frozen copy has its own id, so a known file decides; the id only when the file is unknown.
   const loadedIsLive =
     !!loaded &&
-    loaded.id === session.quizId &&
-    (!liveFileId || loadedFileId === liveFileId);
+    (liveFileId ? loadedFileId === liveFileId : loaded.id === session.quizId);
   if (loadedIsLive) {
     if (held?.key !== key || held.data !== loaded)
       setHeld({ key, data: loaded });
