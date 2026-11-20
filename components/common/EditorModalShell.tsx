@@ -13,6 +13,7 @@ import { EditableHeaderTitle } from './EditableHeaderTitle';
 import { useDialog } from '@/context/useDialog';
 import { DashboardContext } from '@/context/DashboardContextValue';
 import { useAutosave, type AutosaveStatus } from '@/hooks/useAutosave';
+import { EditorAutosaveContext } from './editorAutosaveContext';
 import { tourTypeAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
 
 export interface EditorAutosaveConfig {
@@ -235,6 +236,11 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
   // stable callback, not on the controller object, which is new every render.
   const autosaveStatus = autosaveCtl.status;
   const autosaveFlush = autosaveCtl.flush;
+  const autosaveContext = useMemo(
+    () =>
+      autosaveOn ? { status: autosaveStatus, flush: autosaveFlush } : null,
+    [autosaveOn, autosaveStatus, autosaveFlush]
+  );
 
   // Read inside the stable `requestClose` below without re-creating it (and
   // the memoized footer) every time the save state ticks.
@@ -463,9 +469,11 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
       fullscreen={isFullscreen}
       onFullscreenChange={setFullscreen}
     >
-      <div style={{ colorScheme: 'light' }} className="contents">
-        {children}
-      </div>
+      <EditorAutosaveContext.Provider value={autosaveContext}>
+        <div style={{ colorScheme: 'light' }} className="contents">
+          {children}
+        </div>
+      </EditorAutosaveContext.Provider>
     </Modal>
   );
 };

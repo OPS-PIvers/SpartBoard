@@ -3954,8 +3954,8 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
-  'quiz-stimuli.picker-done': {
-    label: 'Done button in the Quiz widget stimulus picker',
+  'quiz-stimuli.picker-close': {
+    label: 'Close button in the Quiz widget stimulus picker',
     perWidgetType: true,
     panel: true,
   },

@@ -3,6 +3,9 @@ import { Check, Plus } from 'lucide-react';
 import { PICKER_ADD } from './stimulusPickerSelection';
 import type { QuizStimulus, QuizStimulusType } from '@/types';
 import { Modal } from '@/components/common/Modal';
+import { ModalHeader } from '@/components/common/ModalHeader';
+import { AutosaveIndicator } from '@/components/common/EditorModalShell';
+import { useEditorAutosave } from '@/components/common/editorAutosaveContext';
 import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 import { StimulusRenderer } from '@/components/quiz/QuizStimulusView';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
@@ -64,29 +67,36 @@ export const StimulusPickerModal: React.FC<{
     return on.length > 0 ? `On ${on.join(', ')}` : 'Not used';
   };
 
+  const title = `Stimuli for this ${ownerNoun}`;
+  const autosave = useEditorAutosave();
+
   return (
     <Modal
       isOpen
       onClose={onClose}
-      title={`Stimuli for this ${ownerNoun}`}
-      accent={LIBRARY_HEADER_ACCENTS.quiz}
+      ariaLabel={title}
+      customHeader={
+        <ModalHeader
+          title={title}
+          accent={LIBRARY_HEADER_ACCENTS.quiz}
+          actions={
+            autosave && (
+              <AutosaveIndicator
+                status={autosave.status}
+                onRetry={() => void autosave.flush()}
+                onAccent
+              />
+            )
+          }
+          onClose={onClose}
+          closeAttrs={tourTypeAttr('quiz-stimuli.picker-close', 'quiz')}
+        />
+      }
       zIndex="z-modal-deep"
       maxWidth="max-w-5xl"
       contentClassName="p-0"
-      footer={
-        <div className="flex justify-center">
-          <button
-            type="button"
-            onClick={onClose}
-            {...tourTypeAttr('quiz-stimuli.picker-done', 'quiz')}
-            className="rounded-lg bg-brand-blue-primary px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-blue-dark"
-          >
-            Done
-          </button>
-        </div>
-      }
     >
-      <div className="flex h-[min(calc(90vh-9rem),640px)] flex-col sm:flex-row">
+      <div className="flex h-[min(calc(90vh-4.5rem),680px)] flex-col sm:flex-row">
         <div className="flex max-h-[50%] shrink-0 flex-col border-b border-slate-200 bg-slate-100 sm:max-h-none sm:w-80 sm:border-b-0 sm:border-r">
           <div className="flex items-baseline justify-between gap-2 px-4 pb-2 pt-3">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-600">
