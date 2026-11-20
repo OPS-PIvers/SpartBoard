@@ -852,13 +852,36 @@ export async function drainDirtySessions(
     }
     // An entry still backing off is not due yet.
     if (typeof data.retryAt === 'number' && data.retryAt > Date.now()) continue;
+    // The attempt is recorded before the compute, so a run killed mid-compute still backs the entry off.
+    const priorFailures = Number(data.failures) || 0;
+    const attempt = priorFailures + 1;
+    const claimedAt =
+      Date.now() +
+      Math.min(
+        ROSTER_RETRY_BASE_MS * 2 ** Math.min(attempt - 1, 10),
+        ROSTER_RETRY_MAX_MS
+      );
+    const claimed = await db.runTransaction(async (tx) => {
+      const current = await tx.get(doc.ref);
+      if (!current.exists || current.data()?.dirtyAt !== data.dirtyAt)
+        return false;
+      tx.update(doc.ref, {
+        failures: attempt,
+        retryAt: claimedAt,
+        dirtyAt: claimedAt,
+      });
+      return true;
+    });
+    if (!claimed) continue;
     try {
       await recomputeSession(db, kind, asString(data.sessionId) || doc.id);
       recomputed++;
       await db.runTransaction(async (tx) => {
         const current = await tx.get(doc.ref);
-        if (current.exists && current.data()?.dirtyAt === data.dirtyAt)
-          tx.delete(doc.ref);
+        if (!current.exists) return;
+        if (current.data()?.dirtyAt === claimedAt) tx.delete(doc.ref);
+        // Re-dirtied mid-run: the compute succeeded, so drop the claim's failure backoff.
+        else tx.update(doc.ref, { failures: 0, retryAt: Date.now() });
       });
     } catch (err) {
       failed++;
@@ -882,14 +905,18 @@ export async function drainDirtySessions(
           );
         await db.runTransaction(async (tx) => {
           const current = await tx.get(doc.ref);
-          if (!current.exists || current.data()?.dirtyAt !== data.dirtyAt)
-            return;
-          // dirtyAt moves to retryAt so newer work sorts ahead of the backed-off entry.
-          tx.update(doc.ref, { unavailable, retryAt, dirtyAt: retryAt });
+          if (!current.exists || current.data()?.dirtyAt !== claimedAt) return;
+          // dirtyAt moves to retryAt so newer work sorts ahead of the backed-off entry; a roster outage is not the session's failure.
+          tx.update(doc.ref, {
+            unavailable,
+            retryAt,
+            dirtyAt: retryAt,
+            failures: priorFailures,
+          });
         });
         continue;
       }
-      const failures = (Number(data.failures) || 0) + 1;
+      const failures = attempt;
       logger.error('gradeIndex: session recompute failed', {
         sessionId: asString(data.sessionId) || doc.id,
         kind,
@@ -905,7 +932,7 @@ export async function drainDirtySessions(
         );
       await db.runTransaction(async (tx) => {
         const current = await tx.get(doc.ref);
-        if (!current.exists || current.data()?.dirtyAt !== data.dirtyAt) return;
+        if (!current.exists || current.data()?.dirtyAt !== claimedAt) return;
         // dirtyAt moves to retryAt so newer work sorts ahead of the backed-off entry.
         tx.update(doc.ref, { failures, retryAt, dirtyAt: retryAt });
       });
