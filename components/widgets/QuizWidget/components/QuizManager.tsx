@@ -401,7 +401,7 @@ interface QuizManagerProps {
     dueAtByRosterId?: Record<string, number>,
     /** Set only by the assign stepper: per-class student picks and Manual start. */
     stepper?: QuizStepperAssign
-  ) => void;
+  ) => void | Promise<void>;
   /**
    * Loads full quiz content (questions) for the assign modal's B2 override
    * editor (question subset / MC-option hider / rubric swap need question
@@ -432,6 +432,8 @@ interface QuizManagerProps {
   onCreateViewOnlyShare?: (quiz: QuizMetadata) => Promise<string>;
   onResults: (quiz: QuizMetadata) => void;
   onDelete: (quiz: QuizMetadata) => void | Promise<void>;
+  /** Extra consequence line for a quiz's one delete confirm. */
+  deleteDetail?: (quiz: QuizMetadata) => string | undefined;
   /**
    * Phase 5 — duplicate kebab item. Owns the actual `duplicateQuiz` call
    * (the widget already has the hook). When omitted, the Duplicate entry
@@ -855,6 +857,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   skippedTargetsByAssignmentId,
   onResults,
   onDelete,
+  deleteDetail,
   onDuplicate,
   isDuplicating,
   onBulkDelete,
@@ -1096,6 +1099,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const [assignWritten, setAssignWritten] = useState<WrittenAnswersValue>(
     DEFAULT_WRITTEN_ANSWERS
   );
+  const assignWaitsForSave = canAccessFeature('quiz-assign-waits-for-save');
+  const [assignError, setAssignError] = useState<string | null>(null);
   const assignAudience = useAssignAudience();
   const assignToStaff = assignAudience.audience === 'staff';
   // Tracks the quiz id whose full content has been loaded/in-flight for the
@@ -1627,6 +1632,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         const ok = await confirmDelete({
           titles: [quiz.title],
           noun: LIBRARY_ITEM_NOUNS.quiz,
+          detail: deleteDetail?.(quiz),
         });
         if (ok) await onDelete(quiz);
       },
@@ -2319,6 +2325,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
 
   const resetAssign = (): void => {
     setAssignTarget(null);
+    setAssignError(null);
     setAssignBehavior(null);
     setAssignTargeting(EMPTY_ASSIGN_TARGETING_VALUE);
     setAssignQuizData(null);
@@ -2351,7 +2358,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const handleStepperAssign = (extra?: {
     printedGroups: PrintedGroupPick[];
     overridesByKey?: AssignTargetingValue['overridesByKey'];
-  }): void => {
+  }): void | Promise<void> => {
     if (!assignTarget) return;
     if (plcs.length > 0 && sharingNeedsPlc(assignOptions, plcs)) return;
     const behavior: QuizBehaviorSettings = {
@@ -2404,7 +2411,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         validRosterIds.includes(id)
       )
     );
-    onAssign(
+    if (assignWaitsForSave) setAssignError(null);
+    const saved = onAssign(
       assignTarget,
       behavior,
       plcOptions,
@@ -2433,8 +2441,23 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           : {}),
       }
     );
-    if (!assignToStaff) assignWhenState.remember(assignWhen);
-    resetAssign();
+    if (!assignWaitsForSave) {
+      if (!assignToStaff) assignWhenState.remember(assignWhen);
+      resetAssign();
+      return;
+    }
+    // Flag on: the stepper keeps its spinner until the save settles and stays open on failure.
+    return Promise.resolve(saved).then(
+      () => {
+        if (!assignToStaff) assignWhenState.remember(assignWhen);
+        resetAssign();
+      },
+      (err: unknown) => {
+        setAssignError(
+          err instanceof Error ? err.message : 'Failed to create assignment'
+        );
+      }
+    );
   };
 
   // ─── Drop-to-folder handler ───────────────────────────────────────────────
@@ -3396,6 +3419,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           }
           onClose={resetAssign}
           onSubmit={handleStepperAssign}
+          error={assignError}
         />
       )}
 

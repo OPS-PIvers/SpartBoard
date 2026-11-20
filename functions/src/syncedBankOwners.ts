@@ -1,4 +1,4 @@
-// Records who first owned each synced_question_banks id, so rules refuse anyone else re-creating it after a delete.
+// Backstop for the synced_bank_owners reservation clients write with each bank create and delete; never moves an owner.
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import * as admin from './firebaseAdmin';
 import './functionsInit';

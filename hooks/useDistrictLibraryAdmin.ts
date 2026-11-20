@@ -52,6 +52,7 @@ import type {
 
 const SYNCED_QUIZZES = 'synced_quizzes';
 const SYNCED_BANKS = 'synced_question_banks';
+const SYNCED_BANK_OWNERS = 'synced_bank_owners';
 
 const itemRef = (id: string) => doc(db, DISTRICT_LIBRARY_COLLECTION, id);
 
@@ -168,6 +169,7 @@ async function writeBankCanonical(
   return runTransaction(db, async (tx) => {
     const snap = await tx.get(groupRef);
     if (!snap.exists()) {
+      tx.set(doc(db, SYNCED_BANK_OWNERS, groupId), { ownerUid: uid, at: now });
       tx.set(groupRef, {
         ...syncedBankPayload(bank, {
           groupId,
