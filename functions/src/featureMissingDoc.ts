@@ -90,7 +90,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'embed-mini-app',
   'assign-due-date',
   'course-agenda',
-  'va-score-only-verdicts',
   'widget-settings-defaults',
   'assigned-tab',
   'quiz-question-audio',

@@ -73,6 +73,7 @@ export const RETIRED_TOUR_FEATURES: readonly string[] = [
   'student-keyboards',
   'tour-pacing',
   'tour-steps-view',
+  'va-score-only-verdicts',
   'video-activity-editor-arrows',
   'video-activity-stops',
   'widget-connections',
