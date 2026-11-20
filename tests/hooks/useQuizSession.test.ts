@@ -2025,6 +2025,36 @@ describe('useQuizSessionStudent — joinQuizSession', () => {
       expect(result.current.error).toBeNull();
     });
 
+    it('runs the pinLoginV1 bridge once, not again on the rejoin after a claim', async () => {
+      const rostered = {
+        empty: false,
+        docs: [
+          buildSessionDoc('s1', {
+            status: 'active',
+            paperWrittenQuestionIds: ['q2'],
+            rosterIds: ['r1'],
+          }),
+        ],
+      };
+      getDocsMock()
+        .mockResolvedValueOnce(rostered)
+        .mockResolvedValueOnce(rostered);
+      getDocMock()
+        .mockResolvedValueOnce({ exists: () => false })
+        .mockResolvedValueOnce({ exists: () => false })
+        .mockResolvedValueOnce({ exists: () => true, data: () => scanned });
+      refuseCreates();
+      drawCallable
+        .mockResolvedValueOnce({ data: { matched: false } })
+        .mockResolvedValueOnce({ data: { claimed: true } });
+
+      const { outcome } = await join();
+
+      expect(outcome).toBe('s1');
+      expect(drawCallable).toHaveBeenCalledTimes(2);
+      expect(drawCallable.mock.calls[1][0]).toMatchObject({ sessionId: 's1' });
+    });
+
     it('creates normally, without a claim, when no row is at the PIN key', async () => {
       getDocsMock().mockResolvedValueOnce(hybridSession());
       const { outcome } = await join();

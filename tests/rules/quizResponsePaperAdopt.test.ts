@@ -143,4 +143,63 @@ describe('quiz response — a scan-first hybrid row the paper import left unowne
       })
     );
   });
+
+  it('on a per-period session, a claimed row with its period key lets the device seat itself, read content and answer', async () => {
+    const pa = { c1: { label: 'Period 1', state: 'open' } };
+    await seed(scanFirstRow({ studentUid: DEVICE_UID, classId: 'c1' }), {
+      periodAccess: pa,
+    });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), `quiz_sessions/${SESSION_ID}/content/questions`),
+        { questions: [] }
+      );
+    });
+    const db = asAnon(DEVICE_UID);
+    await assertSucceeds(
+      setDoc(doc(db, `quiz_sessions/${SESSION_ID}/seats/${DEVICE_UID}`), {
+        responseKey: PIN_KEY,
+      })
+    );
+    await assertSucceeds(
+      getDoc(doc(db, `quiz_sessions/${SESSION_ID}/content/questions`))
+    );
+    await assertSucceeds(
+      updateDoc(doc(db, RESPONSE_PATH), {
+        answers: [
+          PAPER_ANSWER,
+          { questionId: 'q1', answer: 'A', answeredAt: 2, status: 'submitted' },
+        ],
+      })
+    );
+  });
+
+  it('on a per-period session, a claimed row without a period key cannot read content or answer', async () => {
+    await seed(scanFirstRow({ studentUid: DEVICE_UID }), {
+      periodAccess: { c1: { label: 'Period 1', state: 'open' } },
+    });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), `quiz_sessions/${SESSION_ID}/content/questions`),
+        { questions: [] }
+      );
+    });
+    const db = asAnon(DEVICE_UID);
+    await assertSucceeds(
+      setDoc(doc(db, `quiz_sessions/${SESSION_ID}/seats/${DEVICE_UID}`), {
+        responseKey: PIN_KEY,
+      })
+    );
+    await assertFails(
+      getDoc(doc(db, `quiz_sessions/${SESSION_ID}/content/questions`))
+    );
+    await assertFails(
+      updateDoc(doc(db, RESPONSE_PATH), {
+        answers: [
+          PAPER_ANSWER,
+          { questionId: 'q1', answer: 'A', answeredAt: 2, status: 'submitted' },
+        ],
+      })
+    );
+  });
 });

@@ -146,14 +146,65 @@ describe('handleClaimPaperResponse', () => {
     await expect(claim()).resolves.toMatchObject({ claimed: false });
   });
 
-  it('refuses a retired PIN', async () => {
+  it('refuses a retired PIN as a counted miss, so retirement cannot be probed', async () => {
     session({ rosterIds: ['r1'] });
     store.set(`users/${TEACHER}/retired_pins/period_1__1234`, {
       rosterIds: ['r1'],
     });
     await expect(claim()).resolves.toEqual({
       claimed: false,
-      reason: 'retired-pin',
+      reason: 'not-found',
+    });
+    expect(store.get(`pin_login_attempts/session__${SESSION}`)?.failures).toBe(
+      1
+    );
+    expect(store.get(ROW_PATH)?.studentUid).toBe(KEY);
+  });
+
+  describe('per-period session', () => {
+    const periods = (extra: Record<string, unknown> = {}) =>
+      session({
+        periodAccess: {
+          c1: { label: 'Period 1', state: 'open' },
+          c2: { label: 'Period 2', state: 'open' },
+          ...extra,
+        },
+      });
+
+    it('writes the period key the row belongs to with the claim', async () => {
+      periods();
+      await expect(claim()).resolves.toEqual({ claimed: true });
+      expect(store.get(ROW_PATH)).toMatchObject({
+        studentUid: 'anon-1',
+        classId: 'c1',
+      });
+    });
+
+    it('takes the picked key when two periods share the label, and refuses a guess', async () => {
+      periods({ c3: { label: 'Period 1', state: 'open' } });
+      const pick = (classId: string) =>
+        handleClaimPaperResponse(
+          db,
+          ANON,
+          { sessionId: SESSION, pin: '1234', period: 'Period 1', classId },
+          NOW
+        );
+      await expect(pick('c2')).resolves.toEqual({
+        claimed: false,
+        reason: 'period',
+      });
+      expect(store.get(ROW_PATH)?.studentUid).toBe(KEY);
+      await expect(pick('c3')).resolves.toEqual({ claimed: true });
+      expect(store.get(ROW_PATH)?.classId).toBe('c3');
+    });
+
+    it('refuses before claiming when no period carries the row label', async () => {
+      session({ periodAccess: { c2: { label: 'Period 2', state: 'open' } } });
+      await expect(claim()).resolves.toEqual({
+        claimed: false,
+        reason: 'period',
+      });
+      expect(store.get(ROW_PATH)?.studentUid).toBe(KEY);
     });
   });
 

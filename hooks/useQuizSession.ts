@@ -2399,7 +2399,13 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         const sessionHasRosters =
           Array.isArray(sessionData.rosterIds) &&
           sessionData.rosterIds.length > 0;
-        if (isAnonymous && sanitizedPin && sessionHasRosters) {
+        // The rejoin after a paper-row claim already ran the bridge once.
+        if (
+          isAnonymous &&
+          sanitizedPin &&
+          sessionHasRosters &&
+          !claimRejoinRef.current
+        ) {
           try {
             const callable = httpsCallable<
               {
@@ -2938,7 +2944,8 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
                 (await claimScannedResponse(
                   sessionDoc.id,
                   sanitizedPin,
-                  classPeriod
+                  classPeriod,
+                  periodKey
                 ))
               ) {
                 claimed = true;

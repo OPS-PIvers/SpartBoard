@@ -142,16 +142,22 @@ export async function findExistingResponseDoc(
 export async function claimScannedResponse(
   sessionId: string,
   pin: string,
-  period: string | undefined
+  period: string | undefined,
+  classId: string | null
 ): Promise<boolean> {
   try {
     const res = await httpsCallable<
-      { sessionId: string; pin: string; period: string },
+      { sessionId: string; pin: string; period: string; classId?: string },
       { claimed: boolean; reason?: string }
     >(
       functions,
       'claimPaperResponseV1'
-    )({ sessionId, pin, period: period ?? '' });
+    )({
+      sessionId,
+      pin,
+      period: period ?? '',
+      ...(classId ? { classId } : {}),
+    });
     return res.data.claimed === true;
   } catch (err) {
     console.warn('[useQuizSession] paper row claim failed:', {

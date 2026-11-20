@@ -34,7 +34,6 @@ export type ClaimPaperResponseResult =
         | 'assessment'
         | 'period'
         | 'pin-login-required'
-        | 'retired-pin'
         | 'not-found'
         | 'rate-limited';
     };
@@ -48,6 +47,22 @@ const strList = (v: unknown): string[] =>
   Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
 
 const num = (v: unknown): number | null => (typeof v === 'number' ? v : null);
+
+/** The periodAccess key for the row's period: its own, the caller's pick when that period carries the row's label, or the only one that does. */
+function resolvePeriodClassId(
+  periodAccess: Record<string, { label?: unknown } | undefined>,
+  row: admin.firestore.DocumentData,
+  wanted: string
+): string | null {
+  if (typeof row.classId === 'string' && row.classId in periodAccess) {
+    return row.classId;
+  }
+  const matching = Object.keys(periodAccess).filter(
+    (k) => periodAccess[k]?.label === row.classPeriod
+  );
+  if (wanted && matching.includes(wanted)) return wanted;
+  return matching.length === 1 ? matching[0] : null;
+}
 
 /** A PIN device takes over a scan-first hybrid row the paper import left at its PIN key (studentUid still the key). */
 export async function handleClaimPaperResponse(
@@ -67,6 +82,7 @@ export async function handleClaimPaperResponse(
   const sessionId = typeof data.sessionId === 'string' ? data.sessionId : '';
   const pin = typeof data.pin === 'string' ? data.pin.trim() : '';
   const period = typeof data.period === 'string' ? data.period : '';
+  const wantedClassId = typeof data.classId === 'string' ? data.classId : '';
   if (!sessionId || sessionId.includes('/') || !pin || pin.length > 10) {
     throw new HttpsError('invalid-argument', 'sessionId and pin are required.');
   }
@@ -117,15 +133,17 @@ export async function handleClaimPaperResponse(
     .collection('retired_pins')
     .doc(retiredPinKey(period, pin))
     .get();
-  if (retired.exists) {
-    const r = retired.data() ?? {};
-    if (
-      strList(r.rosterIds).some((id) => rosterIds.includes(id)) ||
-      (typeof r.rosterId === 'string' && rosterIds.includes(r.rosterId))
-    ) {
-      return { claimed: false, reason: 'retired-pin' };
-    }
-  }
+  const retiredData = retired.exists ? (retired.data() ?? {}) : null;
+  // Counted as a miss below, so retired PINs can't be probed for free.
+  const isRetired =
+    retiredData !== null &&
+    (strList(retiredData.rosterIds).some((id) => rosterIds.includes(id)) ||
+      (typeof retiredData.rosterId === 'string' &&
+        rosterIds.includes(retiredData.rosterId)));
+  const periodAccess =
+    s.periodAccess && typeof s.periodAccess === 'object'
+      ? (s.periodAccess as Record<string, { label?: unknown } | undefined>)
+      : null;
 
   const responseKey = `pin-${encodeResponseKeySegment(period)}-${quizPinKeySegment(pin)}`;
   const responseRef = sessionSnap.ref.collection('responses').doc(responseKey);
@@ -153,6 +171,7 @@ export async function handleClaimPaperResponse(
       .map((snap) => readPinLoginSession(snap.data(), now));
     const limited = pinLoginLimited(a, shared, [], caller.uid, indexKey);
     const claimable =
+      !isRetired &&
       row !== null &&
       row.studentUid === responseKey &&
       typeof row.paperWrittenBatchId === 'string' &&
@@ -166,9 +185,18 @@ export async function handleClaimPaperResponse(
       } as const;
     }
     if (limited) return { claimed: false, reason: 'rate-limited' } as const;
+    // Per-period rules gate reads and writes on the row's classId, so a claim there must name its period's key.
+    let classId: string | null = null;
+    if (periodAccess) {
+      classId = resolvePeriodClassId(periodAccess, row, wantedClassId);
+      if (!classId) return { claimed: false, reason: 'period' } as const;
+    }
     if (!a.indexKeys.includes(indexKey)) a.indexKeys.push(indexKey);
     tx.set(refs.caller, { ...a, expireAt: pinLoginExpireAt(a.windowStart) });
-    tx.update(responseRef, { studentUid: caller.uid });
+    tx.update(responseRef, {
+      studentUid: caller.uid,
+      ...(classId && row.classId !== classId ? { classId } : {}),
+    });
     return { claimed: true } as const;
   });
 }
