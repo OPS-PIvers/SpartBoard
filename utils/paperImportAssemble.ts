@@ -45,6 +45,8 @@ export interface SheetWritten {
   state: WrittenBoxRead['state'];
   inkMm2: number;
   scanIndex: number;
+  /** A multi-page answer: every page it arrived on, first page first. */
+  pages?: number[];
 }
 
 export type SheetKind = 'student' | 'spare' | 'key';
@@ -205,7 +207,9 @@ export function assemblePaperScan(
     const answers = pagesSeen
       .flatMap((p) => entry.pages.get(p) ?? [])
       .sort((a, b) => a.question - b.question);
-    const written = pagesSeen.flatMap((p) => entry.written.get(p) ?? []);
+    const written = joinWrittenPages(
+      pagesSeen.flatMap((p) => entry.written.get(p) ?? [])
+    );
     const isBlank =
       answers.every((a) => a.choice === null && !a.doubt) &&
       written.every((w) => w.state === 'blank');
@@ -236,6 +240,28 @@ export function assemblePaperScan(
   };
 }
 
+/** One answer per question: a multi-page box keeps its first page that arrived, inked when any page is. */
+export function joinWrittenPages(
+  written: readonly SheetWritten[]
+): SheetWritten[] {
+  const byId = new Map<string, SheetWritten>();
+  for (const w of written) {
+    const first = byId.get(w.questionId);
+    byId.set(
+      w.questionId,
+      first
+        ? {
+            ...first,
+            state: first.state === 'ink' || w.state === 'ink' ? 'ink' : 'blank',
+            inkMm2: first.inkMm2 + w.inkMm2,
+            pages: [...(first.pages ?? [first.page]), w.page],
+          }
+        : w
+    );
+  }
+  return [...byId.values()];
+}
+
 /** Row indexes a page printed. */
 function rowsOnPage(batch: PaperBatch, page: number): number[] {
   if (batch.layoutVersion === 2 && batch.pageMaps) {
@@ -259,7 +285,10 @@ export function skipSheetPage(
   const onPage = new Set(skippedRows);
   return sheets.map((sheet) => {
     const answers = sheet.answers.filter((a) => !onPage.has(a.question));
-    const written = sheet.written?.filter((w) => w.page !== page);
+    // Skipping any page of a multi-page answer leaves the whole answer out.
+    const written = sheet.written?.filter(
+      (w) => !(w.pages ?? [w.page]).includes(page)
+    );
     const missingPages = sheet.missingPages.filter((p) => p !== page);
     const flags = sheet.flags.filter(
       (f) =>

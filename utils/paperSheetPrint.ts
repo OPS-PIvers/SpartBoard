@@ -58,6 +58,7 @@ import {
   isStimulusFreePage,
   mcItemsOf,
   writtenBoxBandsMm,
+  writtenItemsOf,
   writtenRuleYsMm,
 } from './paperPageMap';
 import { isPlaceholderLetterChoices } from './paperSheetPlan';
@@ -662,6 +663,41 @@ function markedCropHtml(
   return `<div class="wr-mk" style="position:absolute;left:${mm(b.x)};top:${mm(b.y)};width:${mm(w)};height:${mm(h)}"><img class="wr-crop" style="left:0;top:0;width:100%;height:100%" src="${escapeHtml(src)}" alt="${alt}">${svg}</div>`;
 }
 
+/** Where one page's box sits inside a multi-page answer's joined crop, in crop millimetres. */
+interface CropSlice {
+  topMm: number;
+  ownMm: number;
+  totalMm: number;
+}
+
+/** Each page's share of every multi-page answer's crop, by `page:questionId`; pieces carry the crop margin. */
+function cropSlices(
+  maps: readonly PaperPageMap[] | undefined
+): Map<string, CropSlice> {
+  const byId = new Map<string, { key: string; h: number }[]>();
+  for (const map of maps ?? []) {
+    for (const item of writtenItemsOf(map)) {
+      const list = byId.get(item.questionId) ?? [];
+      list.push({
+        key: `${map.page}:${item.questionId}`,
+        h: cropViewportMm(item.boxMm).h,
+      });
+      byId.set(item.questionId, list);
+    }
+  }
+  const out = new Map<string, CropSlice>();
+  for (const list of byId.values()) {
+    if (list.length < 2) continue;
+    const totalMm = list.reduce((t, p) => t + p.h, 0);
+    let topMm = 0;
+    for (const p of list) {
+      out.set(p.key, { topMm, ownMm: p.h, totalMm });
+      topMm += p.h;
+    }
+  }
+  return out;
+}
+
 /** A written question: number and stem in its header, then ruled lines to write on (D9, D12). */
 function writtenItemHtml(
   item: WrittenPageItem,
@@ -671,7 +707,8 @@ function writtenItemHtml(
   fill?: SheetWrittenFill,
   prompt?: WrittenPrompt,
   imageSrc?: string,
-  blankAnswers?: readonly string[]
+  blankAnswers?: readonly string[],
+  slice?: CropSlice
 ): string {
   const h = item.headerMm;
   const pointsW = fill?.points ? WRITTEN_POINTS_MM : 0;
@@ -682,7 +719,14 @@ function writtenItemHtml(
     )}">${escapeHtml(item.label)}</div>`,
   ];
   const lines = headerStemLines(h.h);
-  if (prompt) {
+  if (item.continued) {
+    const x = h.x + NUMBER_WIDTH_MM;
+    parts.push(
+      `<div class="qt-stem wr-stem" style="left:${mm(x)};top:${mm(h.y)};width:${mm(
+        h.x + h.w - x
+      )};height:${mm(STEM_LINE_MM)};-webkit-line-clamp:1">Continued</div>`
+    );
+  } else if (prompt) {
     parts.push(promptHeaderHtml(prompt, h, pointsW));
   } else if (stem?.trim() && lines >= 2) {
     // A reprint of a prompt-above-box page fills its taller header with the whole stem.
@@ -731,6 +775,31 @@ function writtenItemHtml(
   // The key never carries handwriting, so its boxes print as a band nobody writes in (D16).
   if (isKeySheet) {
     parts.push(`<div class="wr-key" style="${box}">Graded by teacher</div>`);
+    return parts.join('');
+  }
+  if (fill && slice) {
+    // One page of a multi-page answer: its share of the joined crop, with points on the first page only.
+    if (fill.points && !item.continued) {
+      parts.push(
+        `<div class="wr-pts" style="left:${mm(h.x + h.w - pointsW)};top:${mm(h.y)};width:${mm(
+          pointsW
+        )}">${escapeHtml(fill.points)}</div>`
+      );
+    }
+    const alt = escapeHtml(`Handwritten answer, question ${item.label}`);
+    parts.push(
+      fill.crop
+        ? `<div class="wr-slice" style="${box}"><img style="left:0;top:${
+            (-slice.topMm / slice.ownMm) * 100
+          }%;width:100%;height:${(slice.totalMm / slice.ownMm) * 100}%" src="${escapeHtml(
+            fill.crop
+          )}" alt="${alt}"></div>`
+        : `<div class="wr-missing" style="${box}">${
+            fill.crop === undefined
+              ? 'Loading handwriting'
+              : 'Handwriting unavailable'
+          }</div>`
+    );
     return parts.join('');
   }
   if (fill) {
@@ -897,6 +966,7 @@ function mapPageBodyHtml(
     );
   }
   const parts = [mapLegendsHtml(map, choiceCount)];
+  const slices = fill ? cropSlices(job.pageMaps) : undefined;
   for (const item of map.items) {
     if (item.kind === 'mc') {
       parts.push(
@@ -928,7 +998,8 @@ function mapPageBodyHtml(
             ? { page, label: versionLabel, imageSrc: job.stimulusImageSrc }
             : undefined,
           job.writtenImages?.[item.questionId],
-          job.blankAnswers?.[item.questionId]
+          job.blankAnswers?.[item.questionId],
+          slices?.get(`${map.page}:${item.questionId}`)
         )
       );
     }
@@ -1149,6 +1220,8 @@ export const SHEET_REPRINT_STYLES = `
   .bub.key { outline: 0.9mm double #000; outline-offset: 0.3mm; }
   .wr-crop, .wr-missing, .wr-pts, .wr-comment { position: absolute; }
   .wr-crop { object-fit: contain; object-position: left top; }
+  .wr-slice { position: absolute; overflow: hidden; }
+  .wr-slice img { position: absolute; }
   .wr-missing { border: 0.3mm dashed #666; display: flex; align-items: center; justify-content: center; font-size: 10pt; font-style: italic; color: #333; }
   .wr-pts { font-size: 10pt; font-weight: 700; text-align: right; line-height: 3.6mm; }
   .wr-comment { border-top: 0.3mm solid #000; font-size: 9.5pt; line-height: 3.6mm; padding-top: 0.4mm; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }

@@ -389,7 +389,7 @@ function seatMapIndex(
   return {
     mc: new Set([...index.mc].map(swap)),
     written: new Map(
-      [...index.written].map(([id, page]) => [swap(id), page] as const)
+      [...index.written].map(([id, pages]) => [swap(id), pages] as const)
     ),
     image: new Set([...index.image].map(swap)),
     blanks: new Map([...index.blanks].map(([id, n]) => [swap(id), n] as const)),
@@ -398,8 +398,8 @@ function seatMapIndex(
 
 interface BatchMapIndex {
   mc: Set<string>;
-  /** questionId -> the page its written box printed on. */
-  written: Map<string, number>;
+  /** questionId -> the pages its written box printed on. */
+  written: Map<string, number[]>;
   /** Written boxes that printed a custom image: graded from the scan, never transcribed. */
   image: Set<string>;
   /** Fill-in-the-blank boxes: questionId -> write-in lines. */
@@ -420,7 +420,11 @@ function indexPageMaps(pageMaps: unknown): BatchMapIndex {
       if (!isRecord(item) || typeof item.questionId !== 'string') continue;
       if (item.kind === 'mc') index.mc.add(item.questionId);
       else if (item.kind === 'written' && typeof map.page === 'number') {
-        index.written.set(item.questionId, map.page);
+        // A multi-page answer prints on several pages and imports under any of them.
+        index.written.set(item.questionId, [
+          ...(index.written.get(item.questionId) ?? []),
+          map.page,
+        ]);
         if (item.style === 'image') index.image.add(item.questionId);
         const blanks = cleanBlanks(item.blanks);
         if (blanks) index.blanks.set(item.questionId, blanks);
@@ -544,7 +548,7 @@ export async function handleImportPaperResponses(
     for (const box of sheet.written ?? []) {
       if (!questionIds.has(box.questionId))
         invalid('A sheet references a question not in this session.');
-      if (seatIndex?.written.get(box.questionId) !== box.page)
+      if (!seatIndex?.written.get(box.questionId)?.includes(box.page))
         invalid('A written answer is not a box on that page of this batch.');
       if (seatIndex?.image.has(box.questionId)) box.noTranscript = true;
       const blanks = seatIndex?.blanks.get(box.questionId);

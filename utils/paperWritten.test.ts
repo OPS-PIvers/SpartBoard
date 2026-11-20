@@ -14,6 +14,9 @@ import {
   paperBoxStyleOf,
   withPaperBoxStyles,
   paperBoxLines,
+  paperBoxPages,
+  paperBoxRoom,
+  paperBoxSizeForPages,
   paperCropStoragePath,
   paperTranscriptionJobId,
   paperWrittenView,
@@ -65,6 +68,21 @@ describe('defaultPaperBoxSize', () => {
     expect(paperBoxLines('L')).toBe(12);
     expect(paperBoxLines('full')).toBe(24);
     expect(paperBoxLines(15)).toBe(15);
+  });
+
+  it('counts whole pages and orders sizes by room', () => {
+    expect(paperBoxPages('M')).toBe(0);
+    expect(paperBoxPages(24)).toBe(1);
+    expect(paperBoxPages('full')).toBe(1);
+    expect(paperBoxPages('pages-3')).toBe(3);
+    expect(paperBoxLines('pages-3')).toBe(24);
+    expect(paperBoxSizeForPages(1)).toBe('full');
+    expect(paperBoxSizeForPages(4)).toBe('pages-4');
+    expect(paperBoxSizeForPages(9)).toBe('pages-4');
+    expect(paperBoxRoom('pages-2')).toBeGreaterThan(paperBoxRoom('full'));
+    expect(isPaperBoxSize('pages-4')).toBe(true);
+    expect(isPaperBoxSize('pages-5')).toBe(false);
+    expect(isPaperBoxSize('pages-1')).toBe(false);
   });
 
   it('accepts a whole custom line count up to a page', () => {

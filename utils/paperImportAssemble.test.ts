@@ -377,6 +377,32 @@ describe('assemblePaperScan on a page-map batch (layoutVersion 2)', () => {
     expect(skipSheetPage(v2, sheets, null)).toEqual(sheets);
   });
 
+  it('joins a multi-page answer into one, inked when any page is, and skipping any of its pages drops it', () => {
+    const { sheets } = assemblePaperScan(v2, [
+      v2Page(0, 1, 1, [mapRow(0, 0, null)], [box('q2', 'blank', 1)]),
+      v2Page(
+        1,
+        1,
+        2,
+        [mapRow(0, 1, null), mapRow(1, 2, null)],
+        [box('q2', 'ink', 2)]
+      ),
+    ]);
+    expect(sheets[0].written).toEqual([
+      {
+        questionId: 'q2',
+        label: '2',
+        page: 1,
+        state: 'ink',
+        inkMm2: 40,
+        scanIndex: 0,
+        pages: [1, 2],
+      },
+    ]);
+    expect(sheets[0].isBlank).toBe(false);
+    expect(skipSheetPage(v2, sheets, 2)[0].written).toEqual([]);
+  });
+
   it('a sheet whose only ink was on the skipped page is blank, and its missing page is no warning', () => {
     const { sheets } = assemblePaperScan(v2, [
       v2Page(0, 1, 1, [mapRow(0, 0, 3)], [box('q2', 'ink')]),

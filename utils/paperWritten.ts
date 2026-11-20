@@ -1,4 +1,5 @@
 import type {
+  PaperBoxPages,
   PaperBoxSize,
   PaperBoxStyle,
   PaperSheetStimulus,
@@ -20,7 +21,7 @@ export const PAPER_HANDWRITING_AI_FEATURE = 'paper-handwriting-ai';
 
 /** Written lines ruled in each named box size; a line is one 8 mm grid row. L is kept for quizzes saved before custom sizes. */
 export const PAPER_BOX_LINES: Readonly<
-  Record<Exclude<PaperBoxSize, 'full' | number>, number>
+  Record<Exclude<PaperBoxSize, 'full' | PaperBoxPages | number>, number>
 > = {
   S: 3,
   M: 8,
@@ -48,14 +49,48 @@ export const PAPER_PAGE_CALLABLE = 'getPaperPageV1';
 export const PAPER_KEPT_PAGE_DPI = 150;
 export const DEFAULT_WRITTEN_RETURN_MODE: WrittenReturnMode = 'handwriting';
 
+/** Lets a written answer run past one page. */
+export const PAPER_MULTI_PAGE_FEATURE = 'paper-multi-page-answers';
+/** Most whole pages one written answer can take. */
+export const PAPER_MAX_BOX_PAGES = 4;
+
+const BOX_PAGES: Readonly<Record<PaperBoxPages, number>> = {
+  'pages-2': 2,
+  'pages-3': 3,
+  'pages-4': 4,
+};
+
+const isBoxPages = (value: unknown): value is PaperBoxPages =>
+  typeof value === 'string' && value in BOX_PAGES;
+
+/** Lines in a box, or on each page of a page-sized one. */
 export function paperBoxLines(size: PaperBoxSize): number {
   if (typeof size === 'number') return size;
-  return size === 'full' ? PAPER_FULL_PAGE_LINES : PAPER_BOX_LINES[size];
+  if (size === 'full' || isBoxPages(size)) return PAPER_FULL_PAGE_LINES;
+  return PAPER_BOX_LINES[size];
+}
+
+/** Whole pages a box takes; 0 for a box that shares its page. */
+export function paperBoxPages(size: PaperBoxSize): number {
+  if (isBoxPages(size)) return BOX_PAGES[size];
+  return paperBoxLines(size) >= PAPER_FULL_PAGE_LINES ? 1 : 0;
+}
+
+/** The box size for `pages` whole pages, from 1 to `PAPER_MAX_BOX_PAGES`. */
+export function paperBoxSizeForPages(pages: number): PaperBoxSize {
+  const n = Math.max(1, Math.min(PAPER_MAX_BOX_PAGES, Math.round(pages)));
+  return n === 1 ? 'full' : (`pages-${n}` as PaperBoxPages);
+}
+
+/** Orders sizes by room to write: lines first, then whole pages. */
+export function paperBoxRoom(size: PaperBoxSize): number {
+  const pages = paperBoxPages(size);
+  return pages > 1 ? pages * PAPER_FULL_PAGE_LINES : paperBoxLines(size);
 }
 
 /** A Full box, or a custom one as tall as a page, takes a page of its own. */
 export function isFullPageBox(size: PaperBoxSize): boolean {
-  return size === 'full' || paperBoxLines(size) >= PAPER_FULL_PAGE_LINES;
+  return paperBoxPages(size) > 0;
 }
 
 /** Smallest box that fits `maxWords` at about ten words a line; M when no limit is set. */
@@ -213,7 +248,13 @@ export function isPaperBoxSize(value: unknown): value is PaperBoxSize {
       value <= PAPER_CUSTOM_MAX_LINES
     );
   }
-  return value === 'S' || value === 'M' || value === 'L' || value === 'full';
+  return (
+    value === 'S' ||
+    value === 'M' ||
+    value === 'L' ||
+    value === 'full' ||
+    isBoxPages(value)
+  );
 }
 
 /** `paper_written_crops/{uid}/{scanId}/{seat}/{questionId}.webp` */

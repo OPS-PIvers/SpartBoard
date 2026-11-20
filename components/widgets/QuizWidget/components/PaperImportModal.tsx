@@ -85,13 +85,19 @@ import {
 } from '@/utils/paperReviewState';
 import {
   cropWrittenBlob,
+  encodeWrittenCrop,
   keptPageBlob,
   rasterizeScan,
+  stackGrayCrops,
   type RasterizedPage,
 } from '@/utils/paperScanRaster';
 import { CHOICE_LETTERS, paperGridOf } from '@/utils/paperSheetLayout';
 import { paperBatchTag } from '@/utils/paperSheetMarker';
-import { readPaperPage } from '@/utils/paperSheetReader';
+import {
+  cropWrittenBox,
+  readPaperPage,
+  type GrayCrop,
+} from '@/utils/paperSheetReader';
 import {
   paperCropStoragePath,
   paperPageStoragePath,
@@ -638,6 +644,15 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
     const byMap = batch.layoutVersion === 2;
     const keep = canKeep && keepPages;
     const tag = paperBatchTag(batch.id);
+    // A multi-page answer is cut page by page, then joined into one crop.
+    const multiPage = new Set(
+      (batch.pageMaps ?? []).flatMap((m) =>
+        m.items.flatMap((i) =>
+          i.kind === 'written' && i.continued ? [i.questionId] : []
+        )
+      )
+    );
+    const pieces = new Map<string, Map<number, GrayCrop>>();
     const kept = new Map<string, Promise<KeptPage | null>>();
     const encoding: Promise<unknown>[] = [];
     setPageScan(null);
@@ -663,6 +678,20 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
           // Blank boxes are cropped too: they are archived as the record of an empty answer (D22).
           if (byMap && read.marker.seat !== batch.keySheetSeat) {
             for (const box of read.written) {
+              if (multiPage.has(box.questionId)) {
+                const k = writtenCropKey(read.marker.seat, box.questionId);
+                const byPage = pieces.get(k) ?? new Map<number, GrayCrop>();
+                try {
+                  byPage.set(
+                    read.marker.page,
+                    cropWrittenBox(page.page, read.mmToPx, box.boxMm)
+                  );
+                } catch {
+                  byPage.delete(read.marker.page);
+                }
+                pieces.set(k, byPage);
+                continue;
+              }
               const blob = await cropWritten(
                 page.page,
                 read.mmToPx,
@@ -700,6 +729,21 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
         pages.push({ scanIndex, read });
         scanIndex += 1;
       }
+      await Promise.all(
+        [...pieces].map(async ([k, byPage]) => {
+          const ordered = [...byPage]
+            .sort(([a], [b]) => a - b)
+            .map(([, crop]) => crop);
+          const blob =
+            ordered.length > 0
+              ? await encodeWrittenCrop(stackGrayCrops(ordered)).catch(
+                  () => null
+                )
+              : null;
+          if (blob) blobs.set(k, blob);
+          else blobs.delete(k);
+        })
+      );
       // A page that failed to encode drops out, even when an earlier scan of it worked, as a failed crop does.
       const keptPages = (await Promise.all(kept.values())).filter(
         (p): p is KeptPage => p !== null
