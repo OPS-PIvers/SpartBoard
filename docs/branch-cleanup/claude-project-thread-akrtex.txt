@@ -1,0 +1,1 @@
+claude/project-thread-akrtex (stimulus picker dialog)
