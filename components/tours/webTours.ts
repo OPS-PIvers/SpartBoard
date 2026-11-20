@@ -121,10 +121,26 @@ export function revisionPicturePaths(
   );
 }
 
+// Stamps this tab wrote, so the open editor's watch tells its own saves from Claude's.
+const ownStamps = new Map<string, Set<number>>();
+
+/** True when this tab saved the draft with this updatedAt. */
+export const isOwnWebTourStamp = (setId: string, updatedAt: number): boolean =>
+  ownStamps.get(setId)?.has(updatedAt) ?? false;
+
+const stampFor = (setId: string): number => {
+  const stamps = ownStamps.get(setId) ?? new Set<number>();
+  let now = Date.now();
+  while (stamps.has(now)) now++;
+  stamps.add(now);
+  ownStamps.set(setId, stamps);
+  return now;
+};
+
 /** Saves a web tour draft. Admins only (rules). */
 export async function saveWebTourDraft(set: GuidedLearningSet): Promise<void> {
   // A copy loaded before a Claude step edit lacks its revision pictures, so the stored list is merged in.
-  const now = Date.now();
+  const now = stampFor(set.id);
   // Offline the read fails; the write still has to queue, so it keeps the copy's own list.
   const savedList: unknown = await getDoc(draftRef(set.id)).then(
     (snap): unknown =>
@@ -168,6 +184,29 @@ export async function loadWebTourDraft(
     ...(snap.data() as GuidedLearningSet),
     id: setId,
   });
+}
+
+/** Watches one draft for saves made outside this tab (Claude, another tab); returns the unsubscribe. */
+export function watchWebTourDraft(
+  setId: string,
+  onSaved: (set: GuidedLearningSet) => void
+): () => void {
+  return onSnapshot(
+    draftRef(setId),
+    (snap) => {
+      if (!snap.exists() || snap.metadata.hasPendingWrites) return;
+      const updatedAt: unknown = snap.get('updatedAt');
+      if (typeof updatedAt !== 'number' || isOwnWebTourStamp(setId, updatedAt))
+        return;
+      onSaved(
+        normalizeGuidedLearningSet({
+          ...(snap.data() as GuidedLearningSet),
+          id: setId,
+        })
+      );
+    },
+    (err) => logError('watchWebTourDraft', err, { setId })
+  );
 }
 
 const fromDraftDoc = (

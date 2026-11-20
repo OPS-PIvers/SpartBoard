@@ -16,6 +16,10 @@ import type { WebTourCheckEvent } from './extensionClient';
 import type { TourRun } from '@/components/tours/tourRuns';
 import type { RecordedWebStep } from './recorderProtocol';
 
+const auth = vi.hoisted(() => ({
+  connector: true,
+  onSaved: null as ((set: GuidedLearningSet) => void) | null,
+}));
 const storage = vi.hoisted(() => ({
   WEB_TOUR_PICTURE_MAX_BYTES: 5 * 1024 * 1024,
   saveWebTourDraft: vi.fn((_set: GuidedLearningSet) => Promise.resolve()),
@@ -44,6 +48,12 @@ const storage = vi.hoisted(() => ({
   duplicateWebTourDraft: vi.fn((set: GuidedLearningSet) =>
     Promise.resolve({ ...set, id: 't2', title: `${set.title} (Copy)` })
   ),
+  watchWebTourDraft: vi.fn(
+    (_id: string, onSaved: (set: GuidedLearningSet) => void) => {
+      auth.onSaved = onSaved;
+      return () => undefined;
+    }
+  ),
 }));
 vi.mock('@/components/tours/webTours', () => storage);
 vi.mock(
@@ -57,7 +67,10 @@ vi.mock(
 );
 
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ user: { uid: 'admin-1' } }),
+  useAuth: () => ({
+    user: { uid: 'admin-1' },
+    canAccessFeature: () => auth.connector,
+  }),
 }));
 const ext = vi.hoisted(() => ({
   protocol: 2,
@@ -218,6 +231,8 @@ beforeEach(() => {
   live.runs = [];
   rec.link = 'off';
   rec.onStep = null;
+  auth.connector = true;
+  auth.onSaved = null;
 });
 
 describe('WebTourEditor', () => {
@@ -963,6 +978,62 @@ describe('WebTourEditor', () => {
     expect(
       await screen.findByRole('heading', { name: 'Schoology materials (Copy)' })
     ).toBeInTheDocument();
+  });
+
+  it('copies a prompt for the Claude connector, for the tour or one step', async () => {
+    const writeText = vi.fn((_text: string) => Promise.resolve());
+    Object.assign(navigator, { clipboard: { writeText } });
+    renderEditor(checked(tour('Biology 7')));
+    fireEvent.click(menuItem('Copy for Claude'));
+    expect(
+      await screen.findByText('Saved. Prompt copied for Claude.')
+    ).toBeInTheDocument();
+    const whole = writeText.mock.calls[0][0];
+    expect(whole).toContain(
+      'my SpartBoard web tour "Schoology materials" (set_id: t1)'
+    );
+    expect(whole).toContain('Fetch it first with get_web_tour.');
+    fireEvent.click(screen.getByTestId('web-tour-step-copy-for-claude'));
+    await waitFor(() => expect(writeText).toHaveBeenCalledTimes(2));
+    expect(writeText.mock.calls[1][0]).toContain('step 1 ("Open the course")');
+    expect(writeText.mock.calls[1][0]).toContain('its id, s1,');
+  });
+
+  it('hides Copy for Claude without the Claude connector', () => {
+    auth.connector = false;
+    renderEditor(checked(tour('Biology 7')));
+    fireEvent.click(screen.getByTestId('tour-shell-menu'));
+    expect(
+      screen.queryByRole('menuitem', { name: 'Copy for Claude' })
+    ).toBeNull();
+    expect(screen.queryByTestId('web-tour-step-copy-for-claude')).toBeNull();
+    // Write with Claude stays.
+    expect(
+      screen.getByRole('menuitem', { name: 'Rewrite all with Claude' })
+    ).toBeInTheDocument();
+  });
+
+  it("loads Claude's saved changes, and Undo puts the old words back", async () => {
+    const set = checked(tour('Biology 7'));
+    renderEditor(set);
+    expect(storage.watchWebTourDraft).toHaveBeenCalledWith(
+      't1',
+      expect.any(Function)
+    );
+    const fromClaude: GuidedLearningSet = {
+      ...set,
+      updatedAt: 5,
+      steps: [{ ...set.steps[0], label: 'Open your course' }],
+    };
+    act(() => auth.onSaved?.(fromClaude));
+    expect(
+      await screen.findByText('Loaded new changes to this tour.')
+    ).toBeInTheDocument();
+    expect(screen.getByText('Open your course')).toBeInTheDocument();
+    // The same save seen again changes nothing.
+    act(() => auth.onSaved?.(fromClaude));
+    fireEvent.click(screen.getByRole('button', { name: /^undo$/i }));
+    expect(await screen.findByText('Open the course')).toBeInTheDocument();
   });
 });
 

@@ -3101,6 +3101,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'web-tour-editor.goal': ['board.web-tour-editor'],
     'web-tour-editor.write-with-claude': ['board.web-tour-editor'],
     'web-tour-editor.rewrite-all': ['board.web-tour-editor'],
+    'web-tour-editor.copy-for-claude': ['board.web-tour-editor'],
     'web-tour-editor.write-asked': ['board.web-tour-editor'],
     'web-tour-editor.undo-writing': ['board.web-tour-editor'],
     'tour-editor.main': ['board.tour-editor'],

@@ -1,10 +1,17 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import {
+  useEffect,
+  useEffectEvent,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import type { GuidedLearningSet } from '@/types';
 import { logError } from '@/utils/logError';
 import {
   setWebTourCheckRun,
   setWebTourFixes,
   sweepWebTourPictures,
+  watchWebTourDraft,
 } from '@/components/tours/webTours';
 import { webTourEditorDevSeed } from './webEditorDevSeed';
 import { saveStepDraft } from './webPictures';
@@ -60,7 +67,11 @@ const sweep = (
       );
 
 /** A web tour draft being edited: undoable edits, debounced autosave, and the side saves that never count as edits. */
-export function useWebTourDraft(initial: GuidedLearningSet) {
+export function useWebTourDraft(
+  initial: GuidedLearningSet,
+  /** Runs after a save made outside this tab (Claude through the connector) replaces the steps. */
+  onLoadedElsewhere?: () => void
+) {
   const [set, setSet] = useState<GuidedLearningSet>(initial);
   const [saveState, setSaveState] = useState<TourShellSaveState>('saved');
   const [depth, setDepth] = useState({ past: 0, future: 0 });
@@ -127,6 +138,22 @@ export function useWebTourDraft(initial: GuidedLearningSet) {
     }, SAVE_DELAY_MS);
     return () => clearTimeout(timer);
   }, [set]);
+
+  // A save from outside this tab replaces what is shown, as one undoable edit, so the next save can't put old words back.
+  const seen = useRef(initial.updatedAt);
+  const loadElsewhere = useEffectEvent((saved: GuidedLearningSet) => {
+    if (deleted.current || saved.updatedAt === seen.current) return;
+    seen.current = saved.updatedAt;
+    const words = (s: GuidedLearningSet) =>
+      JSON.stringify([s.title, s.webGoal ?? '', s.steps]);
+    if (words(saved) === words(latest.current)) return;
+    change(() => saved);
+    onLoadedElsewhere?.();
+  });
+  useEffect(() => {
+    if (webTourEditorDevSeed()) return;
+    return watchWebTourDraft(initial.id, loadElsewhere);
+  }, [initial.id]);
 
   // Opening sweeps pictures an earlier session left behind (a tab closed without Close).
   useEffect(() => {
