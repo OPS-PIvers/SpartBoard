@@ -186,6 +186,7 @@ import {
   classPublishPatch,
   gradeResponseForPublish,
   hiddenResultsPatch,
+  limitKeyToServed,
   publishScoreFields,
   selectQuestionTranslations,
   servedModified,
@@ -228,6 +229,7 @@ export {
   gradeResponseForPublish,
   hiddenResultsPatch,
   publishScoreFields,
+  refreshedKeyFields,
   selectQuestionTranslations,
   withholdsPublishedResults,
 } from './quizAssignments/publishGrading';
@@ -3009,6 +3011,24 @@ export const useQuizAssignments = (
       );
       const buildStudentPatch = (data: QuizResponse, responseKey: string) => {
         const graded = gradeResponseForPublish(data, ctx, responseKey);
+        const answersForStudent = limitKeyToServed(
+          withCalcRevealed(
+            revealedAnswers ?? null,
+            ctx.questionsById.values(),
+            responseKey,
+            data,
+            servedModified(ctx, data.studentUid)
+          ),
+          graded.servedIds
+        );
+        const examplesForStudent = limitKeyToServed(
+          revealedRubricExamples,
+          graded.servedIds
+        );
+        const explanationsForStudent = limitKeyToServed(
+          revealedExplanations,
+          graded.servedIds
+        );
         return {
           ...publishScoreFields(graded),
           answers: keepVerdicts
@@ -3019,19 +3039,15 @@ export const useQuizAssignments = (
             visibility,
             publishedAt: now,
             expiresAt,
-            ...(revealedAnswers
-              ? {
-                  revealedAnswers: withCalcRevealed(
-                    revealedAnswers,
-                    ctx.questionsById.values(),
-                    responseKey,
-                    data,
-                    servedModified(ctx, data.studentUid)
-                  ),
-                }
+            ...(answersForStudent
+              ? { revealedAnswers: answersForStudent }
               : {}),
-            ...(revealedRubricExamples ? { revealedRubricExamples } : {}),
-            ...(revealedExplanations ? { revealedExplanations } : {}),
+            ...(examplesForStudent
+              ? { revealedRubricExamples: examplesForStudent }
+              : {}),
+            ...(explanationsForStudent
+              ? { revealedExplanations: explanationsForStudent }
+              : {}),
             ...(protection ? { protection } : {}),
           },
         };

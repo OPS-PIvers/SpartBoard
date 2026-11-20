@@ -18,6 +18,7 @@ import {
   buildResponseGradingContext,
   gradeResponseForPublish,
   publishScoreFields,
+  refreshedKeyFields,
 } from '@/hooks/useQuizAssignments';
 import {
   QUIZ_SESSIONS_COLLECTION,
@@ -80,7 +81,11 @@ export async function saveCountedChoices(opts: {
       const hadVerdicts = (data.answers ?? []).some(
         (a) => typeof a.isCorrect === 'boolean'
       );
-      Object.assign(update, publishScoreFields(graded));
+      Object.assign(
+        update,
+        publishScoreFields(graded),
+        refreshedKeyFields(next, graded, opts.quiz, opts.responseKey, ctx)
+      );
       update.answers = hadVerdicts
         ? graded.answers
         : answersWithoutVerdicts(graded.answers);
@@ -138,7 +143,10 @@ export async function applySectionCounts(opts: {
           if (!data || typeof data.score !== 'number') return;
           // Only the score moves; answers and grades are left as they are.
           const graded = gradeResponseForPublish(data, ctx, d.id);
-          tx.update(d.ref, publishScoreFields(graded));
+          tx.update(d.ref, {
+            ...publishScoreFields(graded),
+            ...refreshedKeyFields(data, graded, opts.quiz, d.id, ctx),
+          });
         })
       )
     );
