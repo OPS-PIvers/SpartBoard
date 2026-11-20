@@ -208,7 +208,7 @@ export function AssignedList<T extends AssignedListItem>({
       done: sorted.filter((i) => i.status.bucket === 'done'),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- matches reads only the listed filters
-  }, [items, pinnedId, query, focusClass, statusFilter, titleOf]);
+  }, [items, pinnedId, query, focusClass, statusFilter]);
 
   const shown = doneOpen ? [...active, ...done] : active;
   // Only rows on screen count, so a closed Finished section is never acted on.
