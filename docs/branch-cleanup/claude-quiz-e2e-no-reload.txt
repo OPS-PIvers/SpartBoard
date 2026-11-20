@@ -1,0 +1,1 @@
+claude/quiz-e2e-no-reload (Quiz emulator spec: switching views with no extra reload, AB-311)
