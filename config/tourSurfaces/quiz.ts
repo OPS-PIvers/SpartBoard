@@ -168,6 +168,12 @@ export const SURFACES: TourSurfaceMap = {
       'quiz-library.language-translated-text': 'quiz-editor.tab-languages:quiz',
     },
   },
+  'quiz.editor.stimulus-picker': {
+    label: 'Stimulus picker dialog',
+    kind: 'modal',
+    opensWith: 'quiz-stimuli.attach-toggle:quiz',
+    files: [`${C}StimulusPickerModal.tsx`],
+  },
   'quiz.editor.bank-picker': {
     label: 'Add from question bank dialog',
     kind: 'modal',

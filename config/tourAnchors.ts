@@ -3949,6 +3949,21 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'quiz-stimuli.picker-add': {
+    label: 'Add a stimulus row in the Quiz widget stimulus picker',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-stimuli.picker-attach': {
+    label: 'Attach or detach button in the Quiz widget stimulus picker',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-stimuli.picker-done': {
+    label: 'Done button in the Quiz widget stimulus picker',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-stimuli.attach-toggle': {
     label: 'Attach section Stimuli disclosure in the Quiz widget',
     perWidgetType: true,
