@@ -1,0 +1,1 @@
+claude/quiz-s2-assignment-helpers-3 (session-patch and paper-counter helpers moved out of useQuizAssignments, AB-311)
