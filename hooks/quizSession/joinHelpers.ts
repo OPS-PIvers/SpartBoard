@@ -1,5 +1,6 @@
 import { doc, getDoc, type DocumentSnapshot } from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from '@/config/firebase';
 import {
   QUIZ_SESSIONS_COLLECTION,
   RESPONSES_COLLECTION,
@@ -135,4 +136,33 @@ export async function findExistingResponseDoc(
     }
   }
   return { key: deterministicKey, snap: deterministicSnap };
+}
+
+/** Asks the server to hand this PIN device a scan-first hybrid row the paper import left unowned; false when there is none. */
+export async function claimScannedResponse(
+  sessionId: string,
+  pin: string,
+  period: string | undefined,
+  classId: string | null
+): Promise<boolean> {
+  try {
+    const res = await httpsCallable<
+      { sessionId: string; pin: string; period: string; classId?: string },
+      { claimed: boolean; reason?: string }
+    >(
+      functions,
+      'claimPaperResponseV1'
+    )({
+      sessionId,
+      pin,
+      period: period ?? '',
+      ...(classId ? { classId } : {}),
+    });
+    return res.data.claimed === true;
+  } catch (err) {
+    console.warn('[useQuizSession] paper row claim failed:', {
+      code: getErrorCode(err),
+    });
+    return false;
+  }
 }
