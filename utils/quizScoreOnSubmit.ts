@@ -55,7 +55,7 @@ export function buildScoreOnSubmitKey(
     ...(q.allowPartialCredit ? { allowPartialCredit: true } : {}),
     ...(questionHasRecordingSlot(q) ? { recording: true as const } : {}),
     ...(q.type === 'FIB' && q.calc
-      ? { calc: calcForKey(q.calc, q.modifiedText) }
+      ? { calc: calcForKey(q.calc, q.modifiedText, q.text) }
       : {}),
   }));
 }
@@ -78,9 +78,10 @@ export function mergeScoreOnSubmitKey(
 /** The key keeps the modified answer only while the modified prompt has typed numbers. */
 function calcForKey(
   calc: CalcSpec,
-  modifiedText: string | undefined
+  modifiedText: string | undefined,
+  text: string
 ): CalcSpec {
-  if (!calc.modifiedAnswer || calcModifiedNeedsAnswer(modifiedText, calc))
+  if (!calc.modifiedAnswer || calcModifiedNeedsAnswer(modifiedText, calc, text))
     return calc;
   const { modifiedAnswer: _unused, ...rest } = calc;
   return rest;

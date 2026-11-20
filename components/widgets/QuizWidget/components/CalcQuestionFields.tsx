@@ -174,8 +174,8 @@ export const CalcAnswerField: React.FC<{
     });
   const values = sampleValues(q, sample);
   const problem = calcFormulaProblem(calc);
-  const needsModified = calcModifiedNeedsAnswer(q.modifiedText, calc);
-  const modifiedProblem = calcModifiedProblem(calc, q.modifiedText);
+  const needsModified = calcModifiedNeedsAnswer(q.modifiedText, calc, q.text);
+  const modifiedProblem = calcModifiedProblem(calc, q.modifiedText, q.text);
   const shown =
     !problem && calc.formula.trim() ? formatCalcAnswer(calc, values) : '';
   const relative = calc.tolerance.kind === 'relative';

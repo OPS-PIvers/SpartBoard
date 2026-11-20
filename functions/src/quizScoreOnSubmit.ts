@@ -274,7 +274,9 @@ export async function handleScoreQuizOnSubmit(
         .questionIds
     ),
     fibAnswersByQuestion: servedFibAnswers(assignment, callerUid),
+    // Only a student-paced session shows the modified prompt.
     modified:
+      session.sessionMode === 'student' &&
       asRecord(asRecord(assignment.overridesByStudentUid)[callerUid])
         .modifiedQuestions === true,
   };

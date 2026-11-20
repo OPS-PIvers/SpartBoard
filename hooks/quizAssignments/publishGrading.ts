@@ -77,6 +77,22 @@ export interface ResponseGradingContext {
   sections?: QuizSessionSection[];
   /** Hybrid paper quiz: an unscanned written answer holds the score. */
   paperWrittenQuestionIds?: string[];
+  /** Student-paced, the only pace that shows the modified prompt. */
+  modifiedWording?: boolean;
+}
+
+/** True when this student was shown the modified prompt of each question. */
+export function servedModified(
+  ctx: Pick<
+    ResponseGradingContext,
+    'overridesByStudentUid' | 'modifiedWording'
+  >,
+  studentUid: string
+): boolean {
+  return (
+    ctx.modifiedWording === true &&
+    ctx.overridesByStudentUid[studentUid]?.modifiedQuestions === true
+  );
 }
 
 export function buildResponseGradingContext(
@@ -89,6 +105,7 @@ export function buildResponseGradingContext(
     questionsById.set(q.id, q);
   return {
     questionsById,
+    modifiedWording: assignmentData?.sessionMode === 'student',
     overridesByStudentUid: (assignmentData?.overridesByStudentUid ??
       {}) as Record<string, StudentOverride>,
     servedLanguageByStudentUid: (assignmentData?.servedLanguageByStudentUid ??
@@ -142,7 +159,7 @@ export function withCalcRevealed(
     const own = withCalcValues(
       q,
       key,
-      modified && calcModifiedNeedsAnswer(q.modifiedText, q.calc)
+      modified && calcModifiedNeedsAnswer(q.modifiedText, q.calc, q.text)
     );
     if (!own.calcValues || !own.calc) continue;
     if (out === answerKey) out = { ...answerKey };
@@ -279,8 +296,8 @@ export function gradeResponseForPublish(
           q,
           calcAttemptKey(responseKey, data),
           q.calc &&
-            calcModifiedNeedsAnswer(q.modifiedText, q.calc) &&
-            overridesByStudentUid[data.studentUid]?.modifiedQuestions === true
+            calcModifiedNeedsAnswer(q.modifiedText, q.calc, q.text) &&
+            servedModified(ctx, data.studentUid)
         ),
         a.answer,
         manualGrade,

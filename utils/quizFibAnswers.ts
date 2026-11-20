@@ -111,6 +111,8 @@ export interface ServedLocaleSource {
   > | null;
   /** Write-once served-language record the CF never clears; survives a de-target. */
   servedLanguageByStudentUid?: Record<string, string> | null;
+  /** Only a student-paced session shows the modified prompt. */
+  sessionMode?: string;
 }
 
 /**
@@ -159,6 +161,7 @@ export function fibGradingFromAssignment(
     overridesByStudentUid: assignment?.overridesByStudentUid ?? null,
     overridesBySourcedId: assignment?.overridesBySourcedId ?? null,
     servedLanguageByStudentUid: assignment?.servedLanguageByStudentUid ?? null,
+    sessionMode: assignment?.sessionMode,
   };
 }
 

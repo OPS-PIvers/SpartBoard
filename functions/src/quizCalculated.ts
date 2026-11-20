@@ -411,7 +411,7 @@ export function withCalcValues<
   if (fixed !== null)
     return {
       ...q,
-      calc: { ...q.calc, formula: fixedFormula(fixed) },
+      calc: { ...q.calc, formula: String(fixed) },
       calcValues: {},
     };
   return { ...q, calcValues: calcValuesFor(q, responseKey) };
@@ -420,9 +420,13 @@ export function withCalcValues<
 /** True when a modified prompt uses none of the question's numbers, so it needs its own answer. */
 export function calcModifiedNeedsAnswer(
   modifiedText: string | undefined,
-  spec: Pick<CalcSpec, 'variables'>
+  spec: Pick<CalcSpec, 'variables'>,
+  /** The original prompt; students only see a modified prompt with the same blanks. */
+  text?: string
 ): boolean {
   if (!modifiedText?.trim()) return false;
+  const blanks = (t: string) => t.match(/_{2,}/g)?.length ?? 0;
+  if (text !== undefined && blanks(text) !== blanks(modifiedText)) return false;
   const names = new Set(spec.variables.map((v) => v.name));
   for (const m of modifiedText.matchAll(/\{([a-zA-Z][0-9]?)\}/g))
     if (names.has(m[1])) return false;
@@ -437,9 +441,6 @@ export function calcModifiedValue(
     ? parseStudentNumber(spec.modifiedAnswer, spec.unit)
     : null;
 }
-
-const fixedFormula = (n: number): string =>
-  /e/i.test(String(n)) ? n.toFixed(CALC_MAX_DECIMALS * 2) : String(n);
 
 const asObj = (v: unknown): Record<string, unknown> | null =>
   typeof v === 'object' && v !== null ? (v as Record<string, unknown>) : null;

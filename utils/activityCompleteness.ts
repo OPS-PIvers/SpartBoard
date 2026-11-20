@@ -60,7 +60,7 @@ export const quizIncompleteReason = (
     const calcProblem =
       q.type === 'FIB' && q.calc
         ? (calcFormulaProblem(q.calc) ??
-          calcModifiedProblem(q.calc, q.modifiedText))
+          calcModifiedProblem(q.calc, q.modifiedText, q.text))
         : null;
     if (calcProblem) return `Question ${i + 1}: ${calcProblem}`;
   }
@@ -82,7 +82,7 @@ const questionKeyProblem = (questions: QuizQuestion[]): string | null => {
     const calcProblem =
       q.type === 'FIB' && q.calc
         ? (calcFormulaProblem(q.calc) ??
-          calcModifiedProblem(q.calc, q.modifiedText))
+          calcModifiedProblem(q.calc, q.modifiedText, q.text))
         : null;
     if (calcProblem) return `question ${i + 1}: ${calcProblem}`;
   }

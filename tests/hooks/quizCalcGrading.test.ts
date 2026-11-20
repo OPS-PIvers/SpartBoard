@@ -177,6 +177,7 @@ describe('random-number questions in the app', () => {
     } as unknown as QuizResponse;
     const overrides = {
       overridesByStudentUid: { 'mod-student': { modifiedQuestions: true } },
+      sessionMode: 'student',
     };
 
     it('grades a modified student on the typed-number answer', () => {
@@ -187,6 +188,33 @@ describe('random-number questions in the app', () => {
       expect(gradeAnswer(questionForResponse(modQ, r), '30').isCorrect).toBe(
         false
       );
+    });
+
+    it('keeps random numbers when the student never saw the modified prompt', () => {
+      const teacherPaced = { ...overrides, sessionMode: 'teacher' };
+      expect(questionForResponse(modQ, r, teacherPaced).calcValues).toEqual(
+        calcValuesFor(q, key)
+      );
+      const moreBlanks = { ...modQ, modifiedText: 'Goes 60 km in 2 h: ___' };
+      expect(questionForResponse(moreBlanks, r, overrides).calcValues).toEqual(
+        calcValuesFor(q, key)
+      );
+    });
+
+    it('keeps the exact typed answer when it is very small', () => {
+      const tiny = {
+        ...modQ,
+        calc: {
+          ...calc,
+          modifiedAnswer: '1.23456789e-7',
+          unit: undefined,
+          tolerance: { kind: 'absolute' as const, amount: 1e-15 },
+        },
+      };
+      expect(
+        gradeAnswer(questionForResponse(tiny, r, overrides), '1.23456789e-7')
+          .isCorrect
+      ).toBe(true);
     });
 
     it('keeps random numbers when the modified version uses the number links', () => {

@@ -185,6 +185,7 @@ import {
   hiddenResultsPatch,
   publishScoreFields,
   selectQuestionTranslations,
+  servedModified,
   withCalcRevealed,
   type QuizTranslationsByLocale,
   type ResponseGradingContext,
@@ -2789,8 +2790,7 @@ export const useQuizAssignments = (
               ctx.questionsById.values(),
               responseKey,
               data,
-              ctx.overridesByStudentUid[data.studentUid]?.modifiedQuestions ===
-                true
+              servedModified(ctx, data.studentUid)
             ),
             rubricExamples,
             explanations,
@@ -3020,8 +3020,7 @@ export const useQuizAssignments = (
                     ctx.questionsById.values(),
                     responseKey,
                     data,
-                    ctx.overridesByStudentUid[data.studentUid]
-                      ?.modifiedQuestions === true
+                    servedModified(ctx, data.studentUid)
                   ),
                 }
               : {}),
@@ -3218,8 +3217,7 @@ export const useQuizAssignments = (
                   ctx.questionsById.values(),
                   responseKey,
                   cleared,
-                  ctx.overridesByStudentUid[cleared.studentUid]
-                    ?.modifiedQuestions === true
+                  servedModified(ctx, cleared.studentUid)
                 ),
               }
             ),

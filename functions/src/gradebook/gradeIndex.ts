@@ -142,7 +142,9 @@ export async function loadSessionContext(
         asStrings(
           asRecord(asRecord(assignment.overridesByStudentUid)[uid]).questionIds
         ),
+      // Only a student-paced session shows the modified prompt.
       modifiedStudent: (uid) =>
+        session.sessionMode === 'student' &&
         asRecord(asRecord(assignment.overridesByStudentUid)[uid])
           .modifiedQuestions === true,
       paperCopyBatchIds: new Set(asStrings(assignment.paperCopyBatchIds)),

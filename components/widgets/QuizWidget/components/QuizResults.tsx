@@ -547,6 +547,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       overridesByStudentUid,
       overridesBySourcedId,
       servedLanguageByStudentUid,
+      sessionMode: session?.sessionMode,
     }),
     [
       localizedFibAnswers,
@@ -554,6 +555,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       overridesByStudentUid,
       overridesBySourcedId,
       servedLanguageByStudentUid,
+      session?.sessionMode,
     ]
   );
   const {

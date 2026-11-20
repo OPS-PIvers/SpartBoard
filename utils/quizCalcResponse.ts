@@ -20,6 +20,8 @@ export interface ModifiedSource {
     { modifiedQuestions?: boolean }
   > | null;
   overridesBySourcedId?: Record<string, { modifiedQuestions?: boolean }> | null;
+  /** Only a student-paced session shows the modified prompt. */
+  sessionMode?: string;
 }
 
 /** True when the teacher gave this student the modified version of each question. */
@@ -27,7 +29,7 @@ export function isModifiedStudent(
   response: Pick<QuizResponse, 'studentUid'> & { sourcedId?: string },
   source: ModifiedSource | null | undefined
 ): boolean {
-  if (!source) return false;
+  if (source?.sessionMode !== 'student') return false;
   if (source.overridesByStudentUid?.[response.studentUid]?.modifiedQuestions)
     return true;
   return response.sourcedId
@@ -42,6 +44,7 @@ export function questionForResponse<
     type: string;
     calc?: CalcSpec;
     modifiedText?: string;
+    text?: string;
   },
 >(
   q: Q,
@@ -51,7 +54,7 @@ export function questionForResponse<
   if (!response) return q;
   const fixed =
     !!q.calc &&
-    calcModifiedNeedsAnswer(q.modifiedText, q.calc) &&
+    calcModifiedNeedsAnswer(q.modifiedText, q.calc, q.text) &&
     isModifiedStudent(response, modified);
   return withCalcValues(
     q,
