@@ -323,7 +323,7 @@ import {
 import type { QuizStepperAssign } from './components/QuizManager';
 import { translateHiddenOptionIdsToText } from '@/utils/quizHiddenOptions';
 import type { StudentTargetRef } from '@/types';
-import { buildPeriodGate } from '@/utils/periodPlan';
+import { buildPeriodGate, initialAssignStatus } from '@/utils/periodPlan';
 import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
 import { revealValueFor } from '@/utils/quizFibAlternates';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
@@ -4048,8 +4048,15 @@ const TeacherQuizWidget: React.FC<{
               },
               {
                 ...kindTag,
-                // A per-period session is gated by its periods, not a global pause.
-                initialStatus: sessionPeriodAccess ? 'active' : 'paused',
+                // A per-period session is gated by its periods, a Scheduled one by its dates.
+                initialStatus: initialAssignStatus({
+                  gated: !!sessionPeriodAccess,
+                  scheduled:
+                    !!stepper &&
+                    !stepper.manualStart &&
+                    mode === 'student' &&
+                    rosterIds.length > 0,
+                }),
                 ...(sessionPeriodAccess
                   ? {
                       accessMode: periodGate?.accessMode,

@@ -7647,6 +7647,8 @@ export interface QuizAssignment
   targetMode?: 'class' | 'students';
   /** Only meaningful when `targetMode === 'students'`. */
   targetStudents?: StudentTargetRef[];
+  /** Classes narrowed to picked students, written by `setAssignmentTargetsV1`. */
+  studentTargetClassIds?: string[];
   /** Provenance of picked groups (display only); does not drive resolution. */
   targetGroupIds?: string[];
   /** Per-student accommodation overrides, keyed by `StudentTargetRef.sourcedId`/`email`. */

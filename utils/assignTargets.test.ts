@@ -3,6 +3,7 @@ import {
   buildMixedTargetsPayload,
   expandMixedTargeting,
   partialRosterIds,
+  savedStudentsByClass,
   type AssignClassesValue,
 } from '@/utils/assignTargets';
 import {
@@ -237,5 +238,32 @@ describe('buildMixedTargetsPayload', () => {
     // A re-edit keeps stored targets (as class mode does today); the class channel now reaches everyone.
     expect(payload.remove).toEqual([]);
     expect(payloadRequiresCall(payload)).toBe(true);
+  });
+});
+
+describe('savedStudentsByClass', () => {
+  const picked = ref('SID-1');
+
+  it('reads a narrowed class back as its picked students', () => {
+    const mixed = expandMixedTargeting(
+      EMPTY_ASSIGN_TARGETING_VALUE,
+      { classIds: ['r1'], studentsByClass: { r1: [picked] } },
+      ROSTERS
+    );
+    const saved = savedStudentsByClass(
+      {
+        targetStudents: mixed.targeting.targetStudents,
+        studentTargetClassIds: mixed.studentTargetClassIds,
+      },
+      ROSTERS
+    );
+    expect(Object.keys(saved)).toEqual(['r1']);
+    expect(saved.r1).toEqual([picked]);
+  });
+
+  it('leaves a whole class whole even when it has targeted students', () => {
+    expect(savedStudentsByClass({ targetStudents: [picked] }, ROSTERS)).toEqual(
+      {}
+    );
   });
 });
