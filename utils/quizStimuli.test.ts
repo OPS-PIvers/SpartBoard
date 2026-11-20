@@ -9,6 +9,7 @@ import {
   resolveStimuli,
   sanitizeStimulusPointers,
   stimulusMediaUrl,
+  stimulusPickerTitle,
   stimulusPlayKey,
 } from './quizStimuli';
 
@@ -212,5 +213,34 @@ describe('stimulusPlayKey / questionsUsingStimulus', () => {
     expect(questionsUsingStimulus(questions, 's1')).toEqual([0, 2]);
     expect(questionsUsingStimulus(questions, 's2')).toEqual([2]);
     expect(questionsUsingStimulus(questions, 'zz')).toEqual([]);
+  });
+});
+
+describe('stimulusPickerTitle', () => {
+  const list: QuizStimulus[] = [
+    stim('named', {
+      type: 'text',
+      url: '',
+      label: 'Gift of the Magi',
+      text: 'x',
+    }),
+    stim('p1', { type: 'text', url: '', label: 'Passage', text: '' }),
+    stim('p2', { type: 'text', url: '', label: '', text: '' }),
+    stim('w1', {
+      type: 'word-bank',
+      url: '',
+      label: 'Word bank',
+      text: 'affect\n\neffect\n',
+    }),
+    stim('w2', { type: 'word-bank', url: '', label: 'Word bank', text: '' }),
+  ];
+  it('numbers unnamed stimuli among their own type only', () => {
+    expect(stimulusPickerTitle(list[0], list)).toBe('Gift of the Magi');
+    expect(stimulusPickerTitle(list[1], list)).toBe('Passage 1');
+    expect(stimulusPickerTitle(list[2], list)).toBe('Passage 2');
+    expect(stimulusPickerTitle(list[4], list)).toBe('Word bank');
+  });
+  it('lists word bank choices', () => {
+    expect(stimulusPickerTitle(list[3], list)).toBe('affect, effect');
   });
 });
