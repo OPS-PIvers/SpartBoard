@@ -136,7 +136,9 @@ export function plainRange(
 /** Puts a partner's accepted edit into the editor; false when its quote is no longer there. */
 export function applyPeerEditToEditor(
   el: HTMLElement,
-  mark: Pick<WritingPeerMark, 'start' | 'quote' | 'insert'>
+  mark: Pick<WritingPeerMark, 'start' | 'quote' | 'insert'>,
+  /** Only checks that the edit would apply. */
+  dryRun = false
 ): boolean {
   const text = editorPlainText(el);
   const at = locateQuote(text, mark.quote, mark.start);
@@ -144,6 +146,7 @@ export function applyPeerEditToEditor(
   const range = plainRange(el, at, at + mark.quote.length);
   if (!range || range.toString() !== mark.quote.replace(/\n/g, ''))
     return false;
+  if (dryRun) return true;
   range.deleteContents();
   if (mark.insert) range.insertNode(document.createTextNode(mark.insert));
   el.normalize();

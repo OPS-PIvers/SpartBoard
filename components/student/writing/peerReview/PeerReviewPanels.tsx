@@ -261,7 +261,8 @@ export const PartnerFeedbackPanel: React.FC<{
   nameOf: (uid: string) => string;
   /** Accept needs the piece open for writing. */
   canAccept: boolean;
-  onAccept: (mark: WritingPeerMark) => boolean;
+  /** With `dryRun`, only checks that the edit still applies. */
+  onAccept: (mark: WritingPeerMark, dryRun?: boolean) => boolean;
   onClose: (
     id: string,
     status: 'accepted' | 'rejected' | 'resolved'
@@ -269,15 +270,22 @@ export const PartnerFeedbackPanel: React.FC<{
 }> = ({ html, notes, nameOf, canAccept, onAccept, onClose }) => {
   const [active, setActive] = useState<string | null>(null);
   const [gone, setGone] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
   const text = useMemo(() => peerPlainText(html), [html]);
   const marks = useMemo(() => placeMarks(text, notes), [text, notes]);
-  // The note closes first, so a failed save never leaves an applied edit open to accept twice.
+  // Checks the edit fits, closes the note, then applies it, so a failed save never leaves it open to accept twice.
   const accept = async (id: string) => {
     const m = marks.find((x) => x.id === id);
     if (!m) return;
-    if (!m.placed) return setGone(id);
+    setFailed(false);
+    if (!m.placed || !onAccept(m, true)) return setGone(id);
     setGone(null);
-    if (await onClose(id, 'accepted')) onAccept(m);
+    if (!(await onClose(id, 'accepted'))) return setFailed(true);
+    if (!onAccept(m)) setGone(id);
+  };
+  const close = async (id: string, status: 'rejected' | 'resolved') => {
+    setFailed(false);
+    if (!(await onClose(id, status))) setFailed(true);
   };
   return (
     <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
@@ -301,6 +309,11 @@ export const PartnerFeedbackPanel: React.FC<{
             {S.textChanged}
           </p>
         )}
+        {failed && (
+          <p role="alert" className="mt-1 text-sm font-semibold text-rose-700">
+            {S.saveFailed}
+          </p>
+        )}
         <PeerNotes
           marks={marks}
           nameOf={nameOf}
@@ -309,8 +322,8 @@ export const PartnerFeedbackPanel: React.FC<{
           activeId={active}
           onSelect={setActive}
           onAccept={(id) => void accept(id)}
-          onReject={(id) => void onClose(id, 'rejected')}
-          onDone={(id) => void onClose(id, 'resolved')}
+          onReject={(id) => void close(id, 'rejected')}
+          onDone={(id) => void close(id, 'resolved')}
         />
       </aside>
     </div>

@@ -98,6 +98,14 @@ describe('writing peer text', () => {
     );
   });
 
+  it('a dry run checks the edit without changing the text', () => {
+    const el = editor(HTML);
+    const text = editorPlainText(el);
+    const m = mark('Two cat', text.indexOf('Two cat'), 'Two dogs');
+    expect(applyPeerEditToEditor(el, m, true)).toBe(true);
+    expect(el.innerHTML).toBe(HTML);
+  });
+
   it('refuses an edit whose text has changed', () => {
     const el = editor(HTML);
     expect(applyPeerEditToEditor(el, mark('Three cat', 14, 'x'))).toBe(false);

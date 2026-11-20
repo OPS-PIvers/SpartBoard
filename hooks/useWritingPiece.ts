@@ -715,10 +715,14 @@ export function useWritingPiece(args: {
 
   /** Peer review: puts a partner's accepted edit into the piece, logged as theirs; false when its text is gone. */
   const applyPeerEdit = useCallback(
-    (mark: Pick<WritingPeerMark, 'start' | 'quote' | 'insert'>): boolean => {
+    (
+      mark: Pick<WritingPeerMark, 'start' | 'quote' | 'insert'>,
+      dryRun = false
+    ): boolean => {
       const el = editableIn(editorRootRef.current);
       const rec = recorderRef.current;
       if (!el || !rec || !holdingRef.current) return false;
+      if (dryRun) return applyPeerEditToEditor(el, mark, true);
       const prev = editorPlainText(el);
       if (!applyPeerEditToEditor(el, mark)) return false;
       primeRef.current = null;
