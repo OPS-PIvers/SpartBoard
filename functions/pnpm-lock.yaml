@@ -26,8 +26,8 @@ importers:
   .:
     dependencies:
       '@anthropic-ai/sdk':
-        specifier: ^1.10.0
-        version: 1.10.0(zod@4.6.7)
+        specifier: ^1.11.0
+        version: 1.11.0(zod@4.6.7)
       '@echogarden/espeak-ng-emscripten':
         specifier: 0.3.5
         version: 0.3.5
@@ -110,8 +110,8 @@ importers:
 
 packages:
 
-  '@anthropic-ai/sdk@1.10.0':
-    resolution: {integrity: sha512-j4uVct5p3aGIz/BU4K8VU5vt2A6AueHTvx2gfF3xr4mVpwH9IJMWEAUKNwSwdZSJOHQq1Za2tv5huYc5v02D0w==}
+  '@anthropic-ai/sdk@1.11.0':
+    resolution: {integrity: sha512-lW16YCGJ7ItUy92hehGjuMIxvhCeW8pYi4w4jzzfo8UtRbEamagUJAzAEh1VxS6wHfDh6yB+/KE/Rqp2i6elIw==}
     hasBin: true
     peerDependencies:
       zod: ^3.25.0 || ^4.0.0
@@ -1914,7 +1914,7 @@ packages:
 
 snapshots:
 
-  '@anthropic-ai/sdk@1.10.0(zod@4.6.7)':
+  '@anthropic-ai/sdk@1.11.0(zod@4.6.7)':
     dependencies:
       '@opentelemetry/api': 1.10.0
       json-schema-to-ts: 3.1.1

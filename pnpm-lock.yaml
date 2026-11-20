@@ -90,8 +90,8 @@ importers:
         specifier: ^0.2.120
         version: 0.2.120
       lucide-react:
-        specifier: ^1.76.0
-        version: 1.76.0(@types/react@19.3.0)(react@19.3.1)
+        specifier: ^1.77.0
+        version: 1.77.0(@types/react@19.3.0)(react@19.3.1)
       mathlive:
         specifier: 0.111.4
         version: 0.111.4
@@ -271,8 +271,8 @@ importers:
         specifier: ^1.0.7
         version: 1.0.7(tailwindcss@4.3.5)
       ts-json-schema-generator:
-        specifier: ^2.9.0
-        version: 2.9.0
+        specifier: ^2.10.0
+        version: 2.10.0
       typescript:
         specifier: ~6.0.3
         version: 6.0.3
@@ -3928,8 +3928,8 @@ packages:
     resolution: {integrity: sha512-XTFlOBHeuXnUGuUQI0kBb4O4oQW7qCV7MRGQja1xNpxgrI/jptlly+/5126RiRold1zgyxY520qOZUZ31V0I2A==}
     engines: {node: '>=20.0.0'}
 
-  lucide-react@1.76.0:
-    resolution: {integrity: sha512-wRVHt2Xf64GXndB4rQOY9+3Wy9oJ59HDMYv6vwhT0hpSwUxQhG/RM9YijnOmvmIQ+VI/n+1V/FKd6gP4XL2aBQ==}
+  lucide-react@1.77.0:
+    resolution: {integrity: sha512-VS6sOi8ZUH1qm6swBL/tpI4xAhB6pFTdHvw3pfCJD+DaTJwpyynVzfOS6mdyMZ+OCdY/GMSQbqinOMOPbNSrQA==}
     peerDependencies:
       '@types/react': '*'
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
@@ -5053,8 +5053,8 @@ packages:
     peerDependencies:
       typescript: '>=4.8.4'
 
-  ts-json-schema-generator@2.9.0:
-    resolution: {integrity: sha512-NR5ZE108uiPtBHBJNGnhwoUaUx5vWTDJzDFG9YlRoqxPU76n+5FClRh92dcGgysbe1smRmYalM9Saj97GW1J4Q==}
+  ts-json-schema-generator@2.10.0:
+    resolution: {integrity: sha512-cNa9NTcaY3HYsDGvW7jMs91XF+1UtZLvEx4MrxigXZ4wMBL0YazPWF4rpPnbs5qtCGUc0P5cS3xRW0Lq2l1u1A==}
     engines: {node: '>=22.0.0'}
     hasBin: true
 
@@ -5109,11 +5109,6 @@ packages:
     peerDependencies:
       eslint: ^8.57.0 || ^9.0.0 || ^10.0.0
       typescript: '>=4.8.4 <6.1.0'
-
-  typescript@5.9.3:
-    resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
-    engines: {node: '>=14.17'}
-    hasBin: true
 
   typescript@6.0.3:
     resolution: {integrity: sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==}
@@ -9651,7 +9646,7 @@ snapshots:
 
   lsofi@2.0.0: {}
 
-  lucide-react@1.76.0(@types/react@19.3.0)(react@19.3.1):
+  lucide-react@1.77.0(@types/react@19.3.0)(react@19.3.1):
     dependencies:
       react: 19.3.1
     optionalDependencies:
@@ -10926,7 +10921,7 @@ snapshots:
     dependencies:
       typescript: 6.0.3
 
-  ts-json-schema-generator@2.9.0:
+  ts-json-schema-generator@2.10.0:
     dependencies:
       '@types/json-schema': 7.0.15
       commander: 14.0.3
@@ -10934,8 +10929,8 @@ snapshots:
       json5: 2.2.3
       normalize-path: 3.0.0
       safe-stable-stringify: 2.5.0
-      tslib: 2.8.1
-      typescript: 5.9.3
+      tslib: 2.9.1
+      typescript: 6.0.3
 
   tslib@2.8.1: {}
 
@@ -11007,8 +11002,6 @@ snapshots:
     transitivePeerDependencies:
       - '@typescript/native'
       - supports-color
-
-  typescript@5.9.3: {}
 
   typescript@6.0.3: {}
 
