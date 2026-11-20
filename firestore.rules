@@ -4825,6 +4825,12 @@ service cloud.firestore {
             (open || p.replace('_', '').size() < 6) &&
             ((open && joinedAtOk(d.get('joinedAt', null))) || !pinRetired(s, per, c));
         }
+        // A device claims a scan-first hybrid row the import left unowned (studentUid is its own key), changing nothing else.
+        function adoptOk(s) {
+          return existing().studentUid == responseKey && 'paperWrittenBatchId' in existing() &&
+            changedOnly(['studentUid']) && incoming().studentUid == authUid() &&
+            runOpen(s) && joinKeyOk(s, responseKey) && pinKeyOk(s, existing());
+        }
 
         // A missing doc is readable only at the caller's own uid key, so a
         // `pin-{period}-{pin}` key reads as denied whether or not it exists
@@ -5089,7 +5095,8 @@ service cloud.firestore {
           (authUid() == existing().studentUid && changedOnly(['dictated']) && dictatedOk()) ||
           // The teacher can update any field but the student identity the gradebook keys on; another admin also can't touch the server-written archive, override and paper fields.
           (liveUid(sessionTeacherUid()) && !changed(['studentUid', 'classId'])) ||
-          (isSiteAdmin() && !changed(['studentUid', 'artifactArchive', 'hasStuckArchive', 'resultsOverride', 'paperSeat', 'paperBatchId', 'paperWrittenBatchId', 'paperWrittenSeat', 'backTranslations', 'liveView']))
+          (isSiteAdmin() && !changed(['studentUid', 'artifactArchive', 'hasStuckArchive', 'resultsOverride', 'paperSeat', 'paperBatchId', 'paperWrittenBatchId', 'paperWrittenSeat', 'backTranslations', 'liveView'])) ||
+          adoptOk(sessionData())
         );
         allow delete: if signedIn() &&
           (liveUid(sessionTeacherUid()) || isSiteAdmin());

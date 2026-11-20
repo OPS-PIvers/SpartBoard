@@ -1948,6 +1948,54 @@ describe('useQuizSessionStudent — joinQuizSession', () => {
     expect(writtenResponse).not.toHaveProperty('classId');
   });
 
+  it('claims a sheet scanned before the join instead of creating a new row', async () => {
+    (
+      auth as unknown as {
+        currentUser: { uid: string; isAnonymous: boolean } | null;
+      }
+    ).currentUser = { uid: 'anon-uid-pin', isAnonymous: true };
+    (
+      firestore.getDocs as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({
+      empty: false,
+      docs: [
+        buildSessionDoc('s1', {
+          status: 'active',
+          paperWrittenQuestionIds: ['q2'],
+        }),
+      ],
+    });
+    const scanned = {
+      studentUid: 'anon-uid-pin',
+      pin: '1234',
+      classPeriod: 'Period 1',
+      status: 'joined',
+      answers: [{ questionId: 'q2', answer: '', paperScanId: 'scan-1' }],
+      paperWrittenBatchId: 'batch-1',
+      completedAttempts: 0,
+    };
+    (firestore.getDoc as unknown as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({ exists: () => false })
+      .mockResolvedValueOnce({ exists: () => false })
+      .mockResolvedValueOnce({ exists: () => true, data: () => scanned });
+    const updateDocMock = firestore.updateDoc as unknown as ReturnType<
+      typeof vi.fn
+    >;
+    updateDocMock.mockResolvedValue(undefined);
+    const setDocMock = firestore.setDoc as unknown as ReturnType<typeof vi.fn>;
+
+    const { result } = renderHook(() => useQuizSessionStudent());
+    await act(async () => {
+      await result.current.joinQuizSession('ABC123', '1234', 'Period 1');
+    });
+
+    expect(updateDocMock).toHaveBeenCalledWith(expect.anything(), {
+      studentUid: 'anon-uid-pin',
+    });
+    expect(setDocMock).not.toHaveBeenCalled();
+    expect(result.current.error).toBeNull();
+  });
+
   it('snapshots classPeriod from session.classPeriodByClassId when the SSO claim resolves unambiguously', async () => {
     // The new fix: when the session carries a classId→periodName map and
     // the student's claim resolves to a single classId, write `classPeriod`

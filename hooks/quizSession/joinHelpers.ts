@@ -1,4 +1,9 @@
-import { doc, getDoc, type DocumentSnapshot } from 'firebase/firestore';
+import {
+  doc,
+  getDoc,
+  updateDoc,
+  type DocumentSnapshot,
+} from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import {
   QUIZ_SESSIONS_COLLECTION,
@@ -135,4 +140,28 @@ export async function findExistingResponseDoc(
     }
   }
   return { key: deterministicKey, snap: deterministicSnap };
+}
+
+/** Claims a scan-first hybrid row the paper import left unowned at this PIN key; null when there is none to claim. */
+export async function adoptScannedResponse(
+  sessionId: string,
+  responseKey: string,
+  authUid: string
+): Promise<DocumentSnapshot | null> {
+  const ref = doc(
+    db,
+    QUIZ_SESSIONS_COLLECTION,
+    sessionId,
+    RESPONSES_COLLECTION,
+    responseKey
+  );
+  try {
+    await updateDoc(ref, { studentUid: authUid });
+  } catch (err) {
+    const code = getErrorCode(err);
+    if (code === 'permission-denied' || code === 'not-found') return null;
+    throw err;
+  }
+  const snap = await getDoc(ref);
+  return snap.exists() ? snap : null;
 }

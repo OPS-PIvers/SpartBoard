@@ -900,6 +900,7 @@ export function gradeAnswer(
 }
 import {
   findExistingResponseDoc,
+  adoptScannedResponse,
   getErrorCode,
   logQuizJoinFirestoreError,
   seatRef,
@@ -2493,19 +2494,28 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           sanitizedPin,
           classPeriod
         );
-        const { key: responseKey, snap: existingSnap } =
-          await findExistingResponseDoc(
+        const found = await findExistingResponseDoc(
+          sessionDoc.id,
+          studentUid,
+          isAnonymous,
+          deterministicKey,
+          computeResponseKey(studentUid, isAnonymous, sanitizedPin, classPeriod)
+        );
+        const responseKey = found.key;
+        let existingSnap = found.snap;
+        // A sheet scanned before this join left a row at the PIN key that no device owns yet.
+        if (
+          !existingSnap?.exists() &&
+          isAnonymous &&
+          responseKey.startsWith('pin-') &&
+          (sessionData.paperWrittenQuestionIds?.length ?? 0) > 0
+        ) {
+          existingSnap = await adoptScannedResponse(
             sessionDoc.id,
-            studentUid,
-            isAnonymous,
-            deterministicKey,
-            computeResponseKey(
-              studentUid,
-              isAnonymous,
-              sanitizedPin,
-              classPeriod
-            )
+            responseKey,
+            studentUid
           );
+        }
 
         sessionIdRef.current = sessionDoc.id;
         responseKeyRef.current = responseKey;
