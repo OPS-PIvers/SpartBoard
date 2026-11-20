@@ -9,7 +9,11 @@ import type {
   StudentOverride,
 } from '@/types';
 import type { LucideIcon } from 'lucide-react';
-import type { AssignTargetingValue } from '@/utils/studentTargetRef';
+import {
+  classStudentRows,
+  studentTargetRefKey,
+  type AssignTargetingValue,
+} from '@/utils/studentTargetRef';
 import type { QuizHandRaiseMode } from '@/utils/quizHandRaise';
 import type { AssignPeriodAccessContext } from '@/components/common/library/AssignPeriodAccessSection';
 import { AssignStepper } from '@/components/common/library/assignStepper/AssignStepper';
@@ -148,6 +152,37 @@ export interface QuizAssignStepperEdit {
 }
 
 const SELECT_A_CLASS_FIRST = 'Select a class first';
+
+/** Editing, names the students a class was narrowed to, since the picks can't change here. */
+const PickedStudentsNote: React.FC<{
+  rosters: ClassRoster[];
+  classes: AssignClassesValue;
+}> = ({ rosters, classes }) => {
+  const narrowed = rosters.filter((r) => classes.studentsByClass[r.id]?.length);
+  if (narrowed.length === 0) return null;
+  return (
+    <ul className="space-y-1" data-testid="picked-students-note">
+      {narrowed.map((roster) => {
+        const keys = new Set(
+          classes.studentsByClass[roster.id].map(studentTargetRefKey)
+        );
+        const names = classStudentRows({
+          rosters: [roster],
+          selectedRosterIds: [roster.id],
+        })
+          .filter((row) => keys.has(row.key))
+          .map((row) => row.name);
+        return (
+          <li key={roster.id} className="text-sm text-slate-700 wrap-anywhere">
+            <span className="font-semibold text-brand-blue-dark">
+              {`${roster.name}: only ${names.join(', ')}`}
+            </span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+};
 
 export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   title,
@@ -318,6 +353,7 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
               onChange={changeClasses}
             />
           )}
+          {edit && <PickedStudentsNote rosters={picked} classes={classes} />}
           {modifications && !groupsOn && !edit && picked.length > 0 && (
             <ModificationsLink
               rosters={usable}

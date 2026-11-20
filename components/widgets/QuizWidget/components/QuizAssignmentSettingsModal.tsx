@@ -58,6 +58,8 @@ import {
   type AssignTargetingValue,
 } from '@/utils/studentTargetRef';
 import { useTranslation } from 'react-i18next';
+import { savedStudentsByClass } from '@/utils/assignTargets';
+import { withClassIds } from '@/components/common/library/assignStepper/assignClassesValue';
 import { getAssignmentWidgetKind } from '@/utils/quizWidgetKind';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 import { tourTypeAttr } from '@/config/tourAnchors';
@@ -486,7 +488,13 @@ export const QuizAssignmentSettingsModal: React.FC<
       <QuizAssignStepper
         title={assignment.quizTitle}
         rosters={rosters}
-        classes={{ classIds: options.picker.rosterIds, studentsByClass: {} }}
+        classes={withClassIds(
+          {
+            classIds: options.picker.rosterIds,
+            studentsByClass: savedStudentsByClass(assignment, rosters),
+          },
+          options.picker.rosterIds
+        )}
         onClassesChange={(next) =>
           setOptions((prev) => ({
             ...prev,
