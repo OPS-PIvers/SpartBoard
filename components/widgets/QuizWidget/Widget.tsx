@@ -4048,14 +4048,15 @@ const TeacherQuizWidget: React.FC<{
               },
               {
                 ...kindTag,
-                // A per-period session is gated by its periods, a Scheduled one by its dates.
+                // A per-period session is gated by its periods, a later Scheduled start by its open time.
                 initialStatus: initialAssignStatus({
                   gated: !!sessionPeriodAccess,
-                  scheduled:
+                  opensLater:
                     !!stepper &&
                     !stepper.manualStart &&
                     mode === 'student' &&
-                    rosterIds.length > 0,
+                    rosterIds.length > 0 &&
+                    (resolvedTargeting.openAt ?? 0) > Date.now(),
                 }),
                 ...(sessionPeriodAccess
                   ? {

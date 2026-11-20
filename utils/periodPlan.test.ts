@@ -315,17 +315,20 @@ describe('periodAccessClassEdits', () => {
 });
 
 describe('initialAssignStatus', () => {
-  it('opens a Scheduled one-class assignment by its dates, with no Start click', () => {
-    expect(initialAssignStatus({ gated: false, scheduled: true })).toBe(
+  it('opens a one-class assignment scheduled for later by its open time, with no Start click', () => {
+    expect(initialAssignStatus({ gated: false, opensLater: true })).toBe(
       'active'
     );
   });
 
-  it('keeps an ungated Manual or link-only assignment paused until Start', () => {
-    expect(initialAssignStatus({ gated: false, scheduled: false })).toBe(
+  it('keeps an ungated assignment that opens now paused until Start', () => {
+    expect(initialAssignStatus({ gated: false, opensLater: false })).toBe(
       'paused'
     );
-    expect(initialAssignStatus({ gated: true, scheduled: false })).toBe(
+  });
+
+  it('leaves a per-class gated assignment active', () => {
+    expect(initialAssignStatus({ gated: true, opensLater: false })).toBe(
       'active'
     );
   });
