@@ -1,0 +1,1 @@
+claude/quiz-e2e-plc-picker (emulator browser test reaches the PLC picker, Sharing step and Share results with PLC, AB-311)

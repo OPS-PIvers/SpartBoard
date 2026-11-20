@@ -52,7 +52,7 @@ export const isAuthBypass =
   import.meta.env.VITE_AUTH_BYPASS === 'true' && isLocalhostOrigin;
 
 // Browser tests only: point Auth and Firestore at the local emulators (tests/e2e-emulator).
-const useEmulators =
+export const isEmulatorBackend =
   import.meta.env.VITE_FIREBASE_EMULATORS === 'true' &&
   isAuthBypass &&
   !import.meta.env.PROD;
@@ -141,7 +141,7 @@ if (isConfigured) {
     ignoreUndefinedProperties: true,
     experimentalForceLongPolling: true,
   });
-  if (useEmulators) {
+  if (isEmulatorBackend) {
     connectAuthEmulator(auth, 'http://127.0.0.1:9099', {
       disableWarnings: true,
     });
