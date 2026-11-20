@@ -264,12 +264,15 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     }
   };
 
+  // Clothing and ranges go by feels-like; Manual mode with details on has no live one.
+  const effectiveTemp = detailsOn && !isAuto ? temp : (feelsLike ?? temp);
+
   const getClothing = () => {
-    if (temp < 40)
+    if (effectiveTemp < 40)
       return { label: t('widgets.weather.clothing.heavyCoat'), icon: '🧤' };
-    if (temp < 60)
+    if (effectiveTemp < 60)
       return { label: t('widgets.weather.clothing.lightJacket'), icon: '🧥' };
-    if (temp < 75)
+    if (effectiveTemp < 75)
       return { label: t('widgets.weather.clothing.longSleeves'), icon: '👕' };
     return { label: t('widgets.weather.clothing.shortSleeves'), icon: '🩳' };
   };
@@ -307,9 +310,9 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   if (globalConfig?.temperatureRanges) {
     const match = globalConfig.temperatureRanges.find((r) => {
-      if (r.type === 'above') return temp > r.min;
-      if (r.type === 'below') return temp < r.max;
-      return temp >= r.min && temp <= r.max;
+      if (r.type === 'above') return effectiveTemp > r.min;
+      if (r.type === 'below') return effectiveTemp < r.max;
+      return effectiveTemp >= r.min && effectiveTemp <= r.max;
     });
     if (match) {
       displayMessage = match.message;
