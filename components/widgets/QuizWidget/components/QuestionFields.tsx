@@ -1,7 +1,17 @@
 // Question fields shared by the Quiz and Video Activity editors (docs/plans/shipped/VA_QUIZ_ALIGNMENT.md slice 1).
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertCircle, ChevronDown, Hash, Plus, Sigma, Tag } from 'lucide-react';
+import {
+  AlertCircle,
+  ChevronDown,
+  Hash,
+  Layers,
+  Sigma,
+  Tag,
+  TextCursorInput,
+} from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { MetaCellsContext, PromptInlineContext } from './questionFieldContexts';
 import type {
   QuestionTargetTag,
   QuizQuestion,
@@ -63,9 +73,38 @@ interface QuestionPromptFieldProps {
   promptFormat?: boolean;
   /** Shows the record audio mic in the prompt toolbar. */
   promptAudio?: boolean;
+  /** Stimuli and Modified toggles drawn inside the prompt box. */
+  extras?: React.ReactNode;
+  extrasMode?: 'footer' | 'toolbar';
   /** Shows the Number link; adds a random number and returns its name, or null when full. */
   onAddNumber?: () => string | null;
 }
+
+/** A labeled button at the end of the prompt formatting toolbar. */
+const PromptToolButton: React.FC<{
+  on: boolean;
+  onClick: () => void;
+  anchor: TourAnchorAttrs;
+  title?: string;
+  children: React.ReactNode;
+}> = ({ on, onClick, anchor, title, children }) => (
+  <button
+    type="button"
+    aria-pressed={on}
+    // Keep the caret where the insert lands.
+    onMouseDown={(e) => e.preventDefault()}
+    onClick={onClick}
+    title={title}
+    className={`flex items-center gap-1 rounded p-1 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-brand-blue-primary ${
+      on
+        ? 'bg-slate-100 text-slate-900'
+        : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
+    }`}
+    {...anchor}
+  >
+    {children}
+  </button>
+);
 
 export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
   question: q,
@@ -79,11 +118,16 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
   promptFormat = false,
   promptAudio = false,
   onAddNumber,
+  extras,
+  extrasMode = 'footer',
 }) => {
   const canRecord = promptAudio && promptFormat;
   // Stays mounted once audio existed, so Remove never remounts the prompt box.
   const [hadAudio] = React.useState(!!q.promptAudio);
   const richRef = React.useRef<PromptRichEditorHandle>(null);
+  const [extrasSlot, setExtrasSlot] = React.useState<HTMLDivElement | null>(
+    null
+  );
   const [accents, setAccents] = React.useState<AccentSetId | null>(null);
   const [equation, setEquation] = React.useState<PromptEquationDraft | null>(
     null
@@ -141,6 +185,84 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
     setText(`${before}${pad}${math ? wrapPromptMath(math) : ''}${after}`);
     setEquation(null);
   };
+  const insertBlank = () => {
+    if (promptFormat) {
+      richRef.current?.insertText('___', true);
+      return;
+    }
+    const el = textareaRef.current;
+    const at = el?.selectionStart ?? q.text.length;
+    const end = el?.selectionEnd ?? at;
+    const before = q.text.slice(0, at);
+    const pad = before && !/\s$/.test(before) ? ' ' : '';
+    const text = `${before}${pad}___${q.text.slice(end)}`;
+    onChange(fibPromptUpdate(q, text));
+    requestAnimationFrame(() => {
+      const caret = at + pad.length + 3;
+      el?.focus();
+      el?.setSelectionRange(caret, caret);
+    });
+  };
+  // Equation, Accents and Blank: toolbar buttons in the formatted box, links over a plain one.
+  const promptTools = (style: 'toolbar' | 'link') => {
+    const Btn = style === 'toolbar' ? PromptToolButton : KeyboardLink;
+    // Icons in the toolbar, named by their tooltip.
+    const label = (text: string) =>
+      style === 'toolbar' ? <span className="sr-only">{text}</span> : text;
+    return (
+      <>
+        {promptMath && (
+          <Btn
+            on={equation !== null}
+            onClick={() => (equation ? setEquation(null) : openNewEquation())}
+            title="Equation"
+            anchor={tourTypeAttr('quiz-editor.prompt-equation', 'quiz')}
+          >
+            <Sigma className="w-3.5 h-3.5" aria-hidden />
+            {label('Equation')}
+          </Btn>
+        )}
+        {onAddNumber && (
+          <Btn
+            on={false}
+            onClick={insertNumber}
+            title="Number"
+            anchor={tourTypeAttr('quiz-editor.prompt-number', 'quiz')}
+          >
+            <Hash className="w-3.5 h-3.5" aria-hidden />
+            {label('Number')}
+          </Btn>
+        )}
+        {promptAccents && (
+          <Btn
+            on={accents !== null}
+            onClick={() => setAccents(accents ? null : promptAccents)}
+            title="Accents"
+            anchor={tourTypeAttr('quiz-editor.prompt-accents', 'quiz')}
+          >
+            <span
+              aria-hidden
+              className="flex h-3.5 w-3.5 items-center justify-center text-sm leading-none"
+            >
+              á
+            </span>
+            {label('Accents')}
+          </Btn>
+        )}
+        {allowBlanks && q.type === 'FIB' && !q.calc && (
+          <Btn
+            on={false}
+            onClick={insertBlank}
+            title="Blank"
+            anchor={tourTypeAttr('quiz-editor.prompt-blank', 'quiz')}
+          >
+            <TextCursorInput className="w-3.5 h-3.5" aria-hidden />
+            {label('Blank')}
+          </Btn>
+        )}
+      </>
+    );
+  };
   const render = (audioState: PromptAudioState | null) => {
     const textarea = promptFormat ? (
       <PromptRichEditor
@@ -156,10 +278,20 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
         }
         anchor={anchor}
         toolbarEnd={
-          audioState ? (
-            <PromptAudioMicButton state={audioState} canRecord={canRecord} />
-          ) : undefined
+          <>
+            {audioState && (
+              <PromptAudioMicButton state={audioState} canRecord={canRecord} />
+            )}
+            {promptTools('toolbar')}
+            {extras && extrasMode === 'toolbar' && (
+              <>
+                <span className="mx-1 h-4 w-px bg-slate-200" aria-hidden />
+                {extras}
+              </>
+            )}
+          </>
         }
+        footer={extras && extrasMode === 'footer' ? extras : undefined}
       />
     ) : (
       <textarea
@@ -184,68 +316,11 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
       <div>
         <div className="flex items-center justify-between">
           <label className={labelClass}>Question prompt</label>
-          <span className="flex items-center gap-3">
-            {promptMath && (
-              <KeyboardLink
-                on={equation !== null}
-                onClick={() =>
-                  equation ? setEquation(null) : openNewEquation()
-                }
-                anchor={tourTypeAttr('quiz-editor.prompt-equation', 'quiz')}
-              >
-                <Sigma className="w-3.5 h-3.5" aria-hidden />
-                Equation
-              </KeyboardLink>
-            )}
-            {onAddNumber && (
-              <KeyboardLink
-                on={false}
-                onClick={insertNumber}
-                anchor={tourTypeAttr('quiz-editor.prompt-number', 'quiz')}
-              >
-                <Hash className="w-3.5 h-3.5" aria-hidden />
-                Number
-              </KeyboardLink>
-            )}
-            {promptAccents && (
-              <KeyboardLink
-                on={accents !== null}
-                onClick={() => setAccents(accents ? null : promptAccents)}
-                anchor={tourTypeAttr('quiz-editor.prompt-accents', 'quiz')}
-              >
-                <span aria-hidden>á</span>
-                Accents
-              </KeyboardLink>
-            )}
-            {allowBlanks && q.type === 'FIB' && !q.calc && (
-              <button
-                type="button"
-                onClick={() => {
-                  if (promptFormat) {
-                    richRef.current?.insertText('___', true);
-                    return;
-                  }
-                  const el = textareaRef.current;
-                  const at = el?.selectionStart ?? q.text.length;
-                  const end = el?.selectionEnd ?? at;
-                  const before = q.text.slice(0, at);
-                  const pad = before && !/\s$/.test(before) ? ' ' : '';
-                  const text = `${before}${pad}___${q.text.slice(end)}`;
-                  onChange(fibPromptUpdate(q, text));
-                  requestAnimationFrame(() => {
-                    const caret = at + pad.length + 3;
-                    el?.focus();
-                    el?.setSelectionRange(caret, caret);
-                  });
-                }}
-                className="flex items-center gap-1 text-xs font-semibold text-brand-blue-primary hover:underline"
-                {...tourTypeAttr('quiz-editor.prompt-blank', 'quiz')}
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Blank
-              </button>
-            )}
-          </span>
+          {!promptFormat && (
+            <span className="flex items-center gap-3">
+              {promptTools('link')}
+            </span>
+          )}
         </div>
         {accents ? (
           <AccentKeysArea
@@ -266,6 +341,7 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
         ) : (
           textarea
         )}
+        {extras && <div ref={setExtrasSlot} />}
         {equation && (
           <PromptEquationPanel
             key={`${equation.start}:${equation.editing}`}
@@ -283,15 +359,23 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
       </div>
     );
   };
-  return canRecord || hadAudio || q.promptAudio ? (
-    <PromptAudioHost
-      audio={q.promptAudio}
-      onChange={(next) => onChange({ promptAudio: next })}
-    >
-      {render}
-    </PromptAudioHost>
-  ) : (
-    render(null)
+  const inlineValue = React.useMemo(
+    () => ({ mode: extrasMode, slot: extrasSlot }),
+    [extrasMode, extrasSlot]
+  );
+  return (
+    <PromptInlineContext.Provider value={inlineValue}>
+      {canRecord || hadAudio || q.promptAudio ? (
+        <PromptAudioHost
+          audio={q.promptAudio}
+          onChange={(next) => onChange({ promptAudio: next })}
+        >
+          {render}
+        </PromptAudioHost>
+      ) : (
+        render(null)
+      )}
+    </PromptInlineContext.Provider>
   );
 };
 
@@ -306,20 +390,68 @@ export const MetaItem: React.FC<{
   label: string;
   htmlFor: string;
   children: React.ReactNode;
-}> = ({ label, htmlFor, children }) => (
-  <div className="flex min-h-8 items-center gap-3">
-    <label htmlFor={htmlFor} className={`${metaLabelClass} w-36 max-w-[50%]`}>
-      {label}
-    </label>
-    <div className="flex min-w-0 flex-1">{children}</div>
-  </div>
-);
+}> = ({ label, htmlFor, children }) => {
+  const cells = React.useContext(MetaCellsContext);
+  if (cells === 'inline') {
+    return (
+      <div className="flex min-h-8 min-w-0 items-center gap-2">
+        <label htmlFor={htmlFor} className={metaLabelClass}>
+          {label}
+        </label>
+        <div className="flex min-w-0">{children}</div>
+      </div>
+    );
+  }
+  if (cells) {
+    return (
+      <div className="flex min-w-0 flex-col gap-0.5 py-1.5 pr-4 [&_.truncate]:overflow-visible [&_.truncate]:whitespace-normal [&_.truncate]:wrap-break-word">
+        <label htmlFor={htmlFor} className={`${metaLabelClass} text-xxs`}>
+          {label}
+        </label>
+        <div className="flex min-w-0">{children}</div>
+      </div>
+    );
+  }
+  return (
+    <div className="flex min-h-8 items-center gap-3">
+      <label htmlFor={htmlFor} className={`${metaLabelClass} w-36 max-w-[50%]`}>
+        {label}
+      </label>
+      <div className="flex min-w-0 flex-1">{children}</div>
+    </div>
+  );
+};
 
 export const MetaChevron: React.FC<{ open?: boolean }> = ({ open }) => (
   <ChevronDown
     className={`h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`}
     aria-hidden
   />
+);
+
+/** DOK as a form field beside Points. */
+export const DokFieldSelect: React.FC<{
+  value: QuizQuestion['dok'];
+  onChange: (dok: QuizQuestion['dok']) => void;
+  id: string;
+}> = ({ value, onChange, id }) => (
+  <select
+    id={id}
+    value={value ?? ''}
+    onChange={(e) => {
+      const n = Number(e.target.value);
+      onChange(n >= 1 && n <= 4 ? (n as 1 | 2 | 3 | 4) : undefined);
+    }}
+    className={`${inputClass} appearance-none`}
+    {...tourTypeAttr('quiz-editor.dok', 'quiz')}
+  >
+    <option value="">None</option>
+    {[1, 2, 3, 4].map((level) => (
+      <option key={level} value={level}>
+        {level}
+      </option>
+    ))}
+  </select>
 );
 
 const DokSelect: React.FC<{
@@ -483,7 +615,7 @@ export const QuestionTargetsField: React.FC<QuestionTargetsFieldProps> = ({
   editAnchor = tourTypeAttr('quiz-editor.targets-edit', 'quiz'),
   metaList = false,
 }) => (
-  <div>
+  <div className={React.useContext(MetaCellsContext) ? 'contents' : undefined}>
     {metaList ? (
       <TargetsMetaItems
         question={q}
@@ -502,7 +634,7 @@ export const QuestionTargetsField: React.FC<QuestionTargetsFieldProps> = ({
     )}
     {promptStandards.isCurrent(q.id, q.text, q.targets) && (
       <p
-        className={`text-xs text-slate-500 ${metaList ? 'py-1' : 'mt-1'}`}
+        className={`col-span-full text-xs text-slate-500 ${metaList ? 'py-1' : 'mt-1'}`}
         role="status"
       >
         {`Tagged ${promptStandards.taken?.codes.join(', ')} from the question.`}{' '}
@@ -530,6 +662,69 @@ export const QuestionTargetsField: React.FC<QuestionTargetsFieldProps> = ({
   </div>
 );
 
+/** Stimuli or Modified as a footer item or toolbar button of the prompt box. */
+export const PromptExtraToggle: React.FC<{
+  mode: 'footer' | 'toolbar';
+  icon: React.ElementType;
+  label: string;
+  value: string;
+  filled: boolean;
+  open: boolean;
+  controls?: string;
+  onClick: () => void;
+  anchor: TourAnchorAttrs;
+}> = ({
+  mode,
+  icon: Icon,
+  label,
+  value,
+  filled,
+  open,
+  controls,
+  onClick,
+  anchor,
+}) =>
+  mode === 'toolbar' ? (
+    <button
+      type="button"
+      aria-expanded={open}
+      aria-controls={controls}
+      title={`${label}: ${value}`}
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={onClick}
+      className={`flex items-center gap-1 rounded p-1 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-brand-blue-primary ${
+        open
+          ? 'bg-slate-100 text-slate-900'
+          : filled
+            ? 'text-brand-blue-primary hover:bg-slate-100'
+            : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
+      }`}
+      {...anchor}
+    >
+      <Icon className="h-3.5 w-3.5" aria-hidden />
+      <span className="sr-only">{label}</span>
+      {filled && <span className="sr-only">{`: ${value}`}</span>}
+    </button>
+  ) : (
+    <button
+      type="button"
+      aria-expanded={open}
+      aria-controls={controls}
+      onClick={onClick}
+      className="flex min-w-0 items-center gap-1.5 rounded-sm text-left text-xs focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+      {...anchor}
+    >
+      <Icon className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden />
+      <span className="shrink-0 font-semibold text-slate-500">{label}</span>
+      <span
+        className={`min-w-0 wrap-break-word ${filled ? 'text-slate-800' : 'text-slate-400'}`}
+      >
+        {value}
+      </span>
+      <MetaChevron open={open} />
+    </button>
+  );
+
 /** The question's modified wording, served to students in a modification group. */
 export const QuestionModifiedField: React.FC<{
   question: Pick<QuizQuestion, 'id' | 'modifiedText'>;
@@ -537,6 +732,8 @@ export const QuestionModifiedField: React.FC<{
   metaList?: boolean;
 }> = ({ question: q, onChange, metaList = false }) => {
   const value = q.modifiedText ?? '';
+  const cells = React.useContext(MetaCellsContext);
+  const inline = React.useContext(PromptInlineContext);
   const [open, setOpen] = React.useState(() => !metaList && value.length > 0);
   const baseId = React.useId();
   const toggleId = `${baseId}-modified`;
@@ -554,6 +751,34 @@ export const QuestionModifiedField: React.FC<{
       {...tourTypeAttr('quiz-editor.modified-text', 'quiz')}
     />
   );
+  if (inline) {
+    return (
+      <>
+        <PromptExtraToggle
+          mode={inline.mode}
+          icon={Layers}
+          label="Modified version"
+          value={value ? 'Added' : 'None'}
+          filled={!!value}
+          open={open}
+          controls={textId}
+          onClick={() => setOpen((o) => !o)}
+          anchor={tourTypeAttr('quiz-editor.modified', 'quiz')}
+        />
+        {open &&
+          inline.slot &&
+          createPortal(
+            <div className="pt-2">
+              <label htmlFor={textId} className={labelClass}>
+                Modified version
+              </label>
+              {textarea}
+            </div>,
+            inline.slot
+          )}
+      </>
+    );
+  }
   if (!metaList) {
     return (
       <div>
@@ -573,8 +798,11 @@ export const QuestionModifiedField: React.FC<{
     );
   }
   return (
-    <div>
-      <MetaItem label="Modified version" htmlFor={toggleId}>
+    <div className={cells ? 'contents' : undefined}>
+      <MetaItem
+        label={cells ? 'Modified' : 'Modified version'}
+        htmlFor={toggleId}
+      >
         <button
           id={toggleId}
           type="button"
@@ -585,12 +813,14 @@ export const QuestionModifiedField: React.FC<{
           {...tourTypeAttr('quiz-editor.modified', 'quiz')}
         >
           <span className={`min-w-0 truncate ${value ? '' : 'text-slate-400'}`}>
-            {value || 'None'}
+            {value ? (cells ? 'Added' : value) : 'None'}
           </span>
           <MetaChevron open={open} />
         </button>
       </MetaItem>
-      {open && <div className="pb-2">{textarea}</div>}
+      {open && (
+        <div className={cells ? 'col-span-full pb-2' : 'pb-2'}>{textarea}</div>
+      )}
     </div>
   );
 };

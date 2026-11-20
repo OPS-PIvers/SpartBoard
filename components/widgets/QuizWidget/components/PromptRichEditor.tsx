@@ -34,6 +34,8 @@ interface PromptRichEditorProps {
   ariaLabel?: string;
   /** Extra controls at the end of the toolbar, like the record audio mic. */
   toolbarEnd?: React.ReactNode;
+  /** A hairline row inside the box, under the text. */
+  footer?: React.ReactNode;
 }
 
 function selectionIn(editor: HTMLElement): Range | null {
@@ -124,6 +126,7 @@ export const PromptRichEditor: React.FC<PromptRichEditorProps> = ({
   tourWidgetType = 'quiz',
   ariaLabel = 'Question prompt',
   toolbarEnd,
+  footer,
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
   // The text the DOM shows now; a different value came from outside and is redrawn.
@@ -231,7 +234,7 @@ export const PromptRichEditor: React.FC<PromptRichEditorProps> = ({
       <div
         role="toolbar"
         aria-label="Prompt formatting"
-        className="flex items-center gap-0.5 border-b border-slate-200 px-1.5 py-0.5"
+        className="flex flex-wrap items-center gap-0.5 border-b border-slate-200 px-1.5 py-0.5"
       >
         {TOOLS.map((tool, i) => {
           const Icon = tool.icon;
@@ -298,6 +301,11 @@ export const PromptRichEditor: React.FC<PromptRichEditorProps> = ({
           </div>
         )}
       </div>
+      {footer && (
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-slate-200 px-3 py-1.5">
+          {footer}
+        </div>
+      )}
     </div>
   );
 };

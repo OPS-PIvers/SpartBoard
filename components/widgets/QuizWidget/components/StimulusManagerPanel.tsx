@@ -55,7 +55,14 @@ import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { extractStimulusReadAloudText } from '@/utils/quizReadAloudApi';
 import type { QuizEditorController } from './useQuizEditorState';
-import { MetaChevron, MetaItem, metaValueClass } from './QuestionFields';
+import {
+  MetaChevron,
+  MetaItem,
+  PromptExtraToggle,
+  metaValueClass,
+} from './QuestionFields';
+import { createPortal } from 'react-dom';
+import { PromptInlineContext } from './questionFieldContexts';
 import { StimulusTabFields } from './StimulusTabFields';
 import { StimulusPickerModal } from './StimulusPickerModal';
 import { PICKER_ADD, initialPickerSelection } from './stimulusPickerSelection';
@@ -1116,6 +1123,7 @@ const AttachStimulusSection: React.FC<{
   );
   const [open, setOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const inline = React.useContext(PromptInlineContext);
   const fieldId = useId();
   const onPasted = useCallback(
     (files: File[]) => {
@@ -1354,6 +1362,31 @@ const AttachStimulusSection: React.FC<{
       onClose={() => setPickerOpen(false)}
     />
   );
+
+  if (inline) {
+    return (
+      <span {...drop.dropProps} data-testid="question-stimulus-drop-zone">
+        <PromptExtraToggle
+          mode={inline.mode}
+          icon={FileText}
+          label="Stimuli"
+          value={attachedCount > 0 ? summary : 'None'}
+          filled={attachedCount > 0}
+          open={pickerModal ? pickerOpen : open}
+          onClick={() => (pickerModal ? openPicker() : setOpen((o) => !o))}
+          anchor={tourTypeAttr('quiz-stimuli.attach-toggle', 'quiz')}
+        />
+        {picker}
+        {!pickerModal &&
+          open &&
+          inline.slot &&
+          createPortal(
+            <div className="space-y-2 pt-2">{panel}</div>,
+            inline.slot
+          )}
+      </span>
+    );
+  }
 
   if (metaList && pickerModal) {
     return (

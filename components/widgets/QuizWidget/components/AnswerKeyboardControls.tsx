@@ -21,12 +21,14 @@ export const KeyboardLink: React.FC<{
   on: boolean;
   onClick: () => void;
   anchor: TourAnchorAttrs;
+  title?: string;
   children: React.ReactNode;
-}> = ({ on, onClick, anchor, children }) => (
+}> = ({ on, onClick, anchor, title, children }) => (
   <button
     type="button"
     aria-pressed={on}
     onClick={onClick}
+    title={title}
     className={linkCls(on)}
     {...anchor}
   >
