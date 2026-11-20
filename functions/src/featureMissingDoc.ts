@@ -89,7 +89,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'video-import-ai',
   'embed-mini-app',
   'assign-due-date',
-  'reopen-selected-students',
   'course-agenda',
   'va-score-only-verdicts',
   'widget-settings-defaults',

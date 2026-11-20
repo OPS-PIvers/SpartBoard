@@ -11897,8 +11897,6 @@ export type GlobalFeature =
   | 'video-import-ai'
   /** Manual assignments get a due date, and Assign remembers the When step. */
   | 'assign-due-date'
-  /** Reopen an ended quiz for selected students only. */
-  | 'reopen-selected-students'
   /** A score-only Video Activity publish keeps right/wrong off students' answers. */
   | 'va-score-only-verdicts'
   /** Every widget's Settings tab can save its settings as the teacher's default for new copies. */

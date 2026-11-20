@@ -4445,15 +4445,11 @@ const TeacherQuizWidget: React.FC<{
         onArchiveMonitor={async (a) => {
           await openArchiveMonitor(a);
         }}
-        onArchiveReopenStudents={
-          canAccessFeature('reopen-selected-students')
-            ? (a) => {
-                void openArchiveMonitor(a).then((ok) => {
-                  if (ok) setReopenPickFor(a.id);
-                });
-              }
-            : undefined
-        }
+        onArchiveReopenStudents={(a) => {
+          void openArchiveMonitor(a).then((ok) => {
+            if (ok) setReopenPickFor(a.id);
+          });
+        }}
         onArchiveStudentView={
           canAccessFeature('quiz-student-view')
             ? async (a) => {

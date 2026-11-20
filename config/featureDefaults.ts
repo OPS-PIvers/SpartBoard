@@ -1736,17 +1736,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'reopen-selected-students': {
-    label: 'Quiz: reopen for selected students',
-    icon: RefreshCw,
-    description:
-      'Reopen on a Completed quiz can reopen it for selected students, missing students listed first.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'video-import-ai': {
     label: 'Video import: AI questions',
     icon: Sparkles,
