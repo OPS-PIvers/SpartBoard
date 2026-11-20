@@ -108,6 +108,89 @@ export function isGroupLinkedToPlc(
   return memberUids.some((m) => hasKey(participants, m));
 }
 
+/** PLC header subcollections that point at a synced group, by group kind. */
+export const PLC_HEADER_COLLECTIONS = {
+  quiz: ['quizzes', 'assignments'],
+  'video-activity': ['video_activities'],
+} as const;
+
+export type PlcHeaderGroupKind = keyof typeof PLC_HEADER_COLLECTIONS;
+
+/** Doc id (under the group's `plcDetached`) of the marker left when a header's sharer leaves the group. */
+export function plcHeaderMarkerId(
+  plcId: string,
+  headerCollection: string,
+  headerId: string
+): string {
+  return `hdr:${plcId}:${headerCollection}:${headerId}`;
+}
+
+/** True when the header's own sharer left the group (server-written marker) after this header and PLC root were made. */
+export function isHeaderDetachMarkerValid(
+  plcId: string,
+  headerId: string,
+  plc: LinkSnap,
+  header: LinkSnap,
+  marker: LinkSnap | undefined
+): boolean {
+  const m = marker?.data();
+  const headerData = header.data();
+  const sharedBy = headerData?.sharedBy;
+  const headerAt = header.createTime?.toMillis();
+  return (
+    m !== undefined &&
+    m.plcId === plcId &&
+    m.plcContentId === headerId &&
+    typeof sharedBy === 'string' &&
+    sharedBy.length > 0 &&
+    m.sharedBy === sharedBy &&
+    !headerData?.deletedAt &&
+    typeof m.detachedAt === 'number' &&
+    headerAt !== undefined &&
+    m.detachedAt >= headerAt &&
+    createdSinceRoot(plc, header)
+  );
+}
+
+/** Minimal transaction read surface, so tests can stub it. */
+interface TxReader {
+  get(ref: unknown): Promise<LinkSnap & { exists: boolean }>;
+}
+
+interface GroupRefLike {
+  collection(name: string): { doc(id: string): unknown };
+}
+
+/** Throws unless the group is linked to the PLC, or the header's sharer left it and the server marked this header. */
+export async function assertGroupLinkedOrDetached(
+  tx: TxReader,
+  groupRef: GroupRefLike,
+  plcId: string,
+  headerCollection: string,
+  headerId: string,
+  plc: LinkSnap,
+  header: LinkSnap,
+  group: LinkSnap
+): Promise<void> {
+  if (isGroupLinkedToPlc(plcId, plc, header, group)) return;
+  // A group stamped with this id but older than the root belongs to an earlier PLC.
+  const groupData = group.data();
+  if (groupData?.plcId !== plcId || createdSinceRoot(plc, group)) {
+    const markerSnap = await tx.get(
+      groupRef
+        .collection(PLC_DETACHED_SUBCOLLECTION)
+        .doc(plcHeaderMarkerId(plcId, headerCollection, headerId))
+    );
+    if (
+      markerSnap.exists &&
+      isHeaderDetachMarkerValid(plcId, headerId, plc, header, markerSnap)
+    ) {
+      return;
+    }
+  }
+  assertGroupLinkedToPlc(plcId, plc, header, group);
+}
+
 /** Throws `permission-denied` unless {@link isGroupLinkedToPlc}. */
 export function assertGroupLinkedToPlc(
   plcId: string,

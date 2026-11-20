@@ -13,9 +13,7 @@
 
 import {
   QUIZ_TIME_LIMIT_FEATURE,
-  appendPauseSpan,
   clampQuizTimeLimitMinutes,
-  hasOpenPause,
 } from '@/utils/quizTimeLimit';
 import { useState, useEffect, useCallback, useContext, useRef } from 'react';
 import {
@@ -40,7 +38,6 @@ import {
 import { auth, db, isAuthBypass } from '@/config/firebase';
 import { QuizDriveService } from '@/utils/quizDriveService';
 import { MockQuizDriveService } from '@/utils/mockQuizDriveService';
-import type { AudienceSessionFields, QuizTranslationIndexEntry } from '@/types';
 import { audienceSessionFields } from '@/utils/staffAudience';
 import type { TranslationLoader } from '@/utils/quizTranslationPublish';
 import {
@@ -67,15 +64,11 @@ import {
   addJoinCodeOwnerToBatch,
   addJoinCodePointerToBatch,
   deleteJoinCodePointerFromBatch,
-  findQuizSessionsByCode,
-  readJoinCodeOwner,
 } from '@/utils/quizJoinCodes';
 import { invalidateSessionViewCount } from './useSessionViewCount';
 import { mirrorPlcAssignmentStatus } from './usePlcAssignmentIndex';
 import { writePlcAssignmentTemplate } from './usePlcAssignments';
 import type {
-  AccessMode,
-  AssignmentMode,
   PeriodAccess,
   Plc,
   PlcLinkage,
@@ -86,22 +79,16 @@ import type {
   QuizData,
   QuestionBankData,
   QuizMetadataSyncLinkage,
-  QuizOrderEntry,
   QuizPublicQuestion,
   QuizQuestion,
   QuizResponse,
   QuizScoreVisibility,
-  QuizSection,
   QuizSession,
-  QuizSessionSection,
   QuizSessionBankSlot,
   QuizSessionMode,
-  QuizWidgetKind,
   QuizSessionOptions,
-  QuizStimulus,
   ResultsProtection,
   SharedQuizAssignment,
-  StudentOverride,
   WrittenReturnMode,
 } from '@/types';
 import { buildRevealedExplanations } from '@/utils/quizExplanations';
@@ -166,8 +153,6 @@ import {
   visibilityShowsResponses,
 } from '@/utils/quizResultsVisibility';
 import { hasEveryCurrentAnswerKey } from '@/utils/quizAssignBankDraw';
-import type { WorkKind } from '@/utils/gradebook/gradebookCore';
-import type { PeriodAccessWindowEdits } from '@/utils/assignAvailability';
 import {
   nextRemovedClasses,
   withLinkedSections,
@@ -185,11 +170,8 @@ import { useSetAssignmentTargets } from './useSetAssignmentTargets';
 import { hasStudentPointers } from '@/utils/studentTargetRef';
 import { QUIZ_WHITEBOARD_FEATURE_ID } from '@/utils/quizMediaAccess';
 import {
-  acceptsStudents,
-  assignmentLifecyclePatches,
   deriveRunState,
   type AssignmentLifecycleEvent,
-  type AssignmentLifecyclePatches,
 } from '@/utils/sessionLifecycle';
 import { reopenSessionPatch } from '@/utils/quizSessionPhase';
 import { isReviewGame } from '@/utils/quizWidgetKind';
@@ -232,6 +214,16 @@ import {
   sessionOptionsToSessionPatch,
 } from './quizAssignments/sessionPatch';
 
+import {
+  allocateJoinCode,
+  commitPaperWrittenPatches,
+  commitQuizLifecycle,
+  commitResponsePatches,
+  QUIZ_ASSIGNMENTS_COLLECTION,
+  readSessionSections,
+  type ResponsePatch,
+} from './quizAssignments/writers';
+
 export {
   buildResponseGradingContext,
   buildRevealedAnswers,
@@ -247,6 +239,19 @@ export {
   countPendingPaperTranscripts,
   hasPaperWrittenAnswer,
 } from './quizAssignments/sessionPatch';
+import type {
+  AssignmentQuizRef,
+  CreateAssignmentOptions,
+  QuizAssignmentSettingsPatch,
+  SharedAssignmentImportMode,
+} from './quizAssignments/types';
+
+export type {
+  AssignmentQuizRef,
+  CreateAssignmentOptions,
+  QuizAssignmentSettingsPatch,
+  SharedAssignmentImportMode,
+} from './quizAssignments/types';
 export type {
   PublishGrade,
   QuizTranslationsByLocale,
@@ -256,214 +261,7 @@ export type {
 /** A pass for a student reopened after End runs until the teacher ends the quiz again. */
 const REOPEN_PASS_MS = 365 * 24 * 60 * 60 * 1000;
 
-/** Writes a Pause, Resume, End or Reopen in one transaction, refusing a stale Pause or Resume on a quiz that has ended. */
-async function commitQuizLifecycle(
-  userId: string,
-  assignmentId: string,
-  event: AssignmentLifecycleEvent,
-  extraSessionPatch?: (session: QuizSession) => Record<string, unknown>
-): Promise<AssignmentLifecyclePatches | null> {
-  const sessionRef = doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId);
-  return runTransaction(db, async (tx) => {
-    const snap = await tx.get(sessionRef);
-    const session = snap.data() as QuizSession | undefined;
-    // Only an ended run is protected: End and Reopen always write, and Pause or Resume still repair a drifted assignment.
-    const ended = session
-      ? deriveRunState('quiz', session)?.phase === 'ended'
-      : false;
-    if (ended && (event.type === 'pause' || event.type === 'resume')) {
-      return null;
-    }
-    const now = Date.now();
-    const patches = assignmentLifecyclePatches('quiz', event, now);
-    // The time limit skips this pause.
-    const pauseSpans =
-      session?.status === 'paused' && event.type === 'resume'
-        ? appendPauseSpan(session.pauseSpans, session.pausedAt, now)
-        : null;
-    // End and a whole-class Reopen drop a reopen for selected students; End also ends their passes.
-    const clearPicks =
-      event.type === 'end' || event.type === 'reopen'
-        ? { reopenedFor: deleteField() }
-        : {};
-    const clearPasses: Record<string, unknown> =
-      event.type === 'end'
-        ? Object.fromEntries(
-            (session?.reopenedFor ?? []).map((uid) => [
-              `studentAccess.${uid}`,
-              deleteField(),
-            ])
-          )
-        : {};
-    // A reopened or resumed quiz is no longer closed or moved to Done (ASSIGNED_TAB D24).
-    const clearMarks =
-      event.type === 'reopen' || event.type === 'resume'
-        ? { closedAt: deleteField(), doneAt: deleteField() }
-        : {};
-    // D11 measures a single line left open from its last Resume.
-    const opened = event.type === 'resume' ? { openedAt: now } : {};
-    tx.update(
-      doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
-      { ...patches.assignment, ...clearPicks, ...clearMarks, ...opened }
-    );
-    // A repeat Pause, or a Reopen after a paused End, keeps the open pause's start.
-    const sessionPatch = { ...patches.session };
-    if (
-      session &&
-      hasOpenPause(session.pauseSpans, session.pausedAt) &&
-      (event.type === 'reopen' ||
-        (event.type === 'pause' && session.status === 'paused'))
-    ) {
-      delete sessionPatch.pausedAt;
-    }
-    tx.update(sessionRef, {
-      ...sessionPatch,
-      ...(event.type === 'end' ? { revealedAnswers: deleteField() } : {}),
-      ...clearPicks,
-      ...clearPasses,
-      ...(pauseSpans ? { pauseSpans } : {}),
-      ...(session && extraSessionPatch ? extraSessionPatch(session) : {}),
-    });
-    return patches;
-  });
-}
-
-/** Import-mode picker result for shared-assignment paste flows. */
-export type SharedAssignmentImportMode = 'sync' | 'copy';
-
-/**
- * Options for `createAssignment`. Replaces the previous 8-positional
- * argument list; named fields make the read-site at every call clearer
- * and let new options land without churning every existing caller.
- */
-export interface CreateAssignmentOptions extends AudienceSessionFields {
-  /** Defaults to `'active'`. */
-  initialStatus?: QuizAssignmentStatus;
-  /** Assigned on paper: marks the assignment and links the printed stack it imports from. */
-  paperBatchId?: string;
-  /** Device assignment whose written questions print on this written-answers-only stack. */
-  paperWritten?: { batchId: string; questionIds: string[]; seats: number };
-  /** Owning widget, mirrored onto assignment + session; omitted while the split flag is off. */
-  widgetKind?: QuizWidgetKind;
-  /** Review game length (plan D22); only written for `sessionMode: 'game'`. */
-  gameDurationMs?: number;
-  /**
-   * ClassLink class `sourcedId`s this session targets. Empty/missing
-   * keeps the session open to the legacy code/PIN-only flow. When
-   * non-empty, both `classIds` (multi-class) and the legacy single-
-   * class `classId` mirror are written to the session doc so the
-   * student-side SSO gate on Firestore rules still resolves.
-   */
-  classIds?: string[];
-  /** Roster ids (unified targeting); mirrored onto assignment + session. */
-  rosterIds?: string[];
-  /**
-   * Map from each targeted classId to its corresponding roster name
-   * (= period name). Written onto the session doc so SSO joiners can
-   * snapshot `classPeriod` on their response without resolving the
-   * teacher's roster doc. Derived alongside `classIds` / `rosterIds`
-   * via `deriveSessionTargetsFromRosters`.
-   */
-  classPeriodByClassId?: Record<string, string>;
-  /** Per-class due dates by class id, mirrored to the session for students. */
-  dueAtByClassId?: Record<string, number>;
-  /**
-   * Synced-group linkage. When provided, both the assignment doc and
-   * the session doc carry `sync: { groupId, syncedVersion }`, so the
-   * per-assignment "Sync" button can detect divergence against the
-   * canonical `/synced_quizzes/{groupId}` doc. Set by
-   * `importSharedAssignment` when the importer chooses Sync mode.
-   */
-  syncedFrom?: QuizAssignmentSyncLinkage;
-  /**
-   * Org-wide assignment mode frozen onto the assignment + session.
-   * Defaults to `'submissions'` (preserves pre-feature behavior).
-   */
-  mode?: AssignmentMode;
-  /**
-   * Phase 3 reverse-bubble-up suppression. Set by the PLC Library "Add
-   * to my board" import flow so picking up an existing template doesn't
-   * recursively create another template. Default `false` — every PLC-
-   * mode personal assignment authored from scratch fires a template
-   * write so teammates see it on their PLC Assignments tab without an
-   * extra step.
-   */
-  skipPlcTemplateWrite?: boolean;
-  /**
-   * Optional override for the canonical synced-quiz group when bubbling
-   * up a template. Default behavior is "use whatever group the source
-   * quiz already participates in (via `quiz.sync` on the user's library
-   * card)". When the source quiz isn't yet synced, callers MUST mint a
-   * group up-front and pass its id here — this hook does NOT promote
-   * Drive-only quizzes to synced groups (that lives in the QuizWidget
-   * `handleShareWithPlc` path, which has Drive content already loaded).
-   */
-  plcTemplateSyncGroupId?: string;
-  /**
-   * Pooling key written to the session as `syncGroupId` when it should differ
-   * from the template group: the PLC library group whose title matches, so a
-   * teacher's own copy pools with the team instead of starting a new pool.
-   */
-  plcPoolSyncGroupId?: string;
-  /**
-   * M17 individual-assignment targeting (spec §5 B3). `targetMode: 'students'`
-   * marks the assignment doc so the CF's `individualTargeting` session flag
-   * makes sense downstream; `targetStudents` itself is NOT written here —
-   * `setAssignmentTargetsV1` is the sole writer of that field (division of
-   * labor, spec §2a). Caller invokes the CF separately after `createAssignment`
-   * resolves, passing the same `assignmentId` (== the returned `id`, == the
-   * session id) as `sessionId`.
-   */
-  targetMode?: 'class' | 'students';
-  targetGroupIds?: string[];
-  overridesBySourcedId?: Record<string, StudentOverride>;
-  /** Open/close window (epoch ms), mirrored onto both assignment + session docs. */
-  openAt?: number | null;
-  closeAt?: number | null;
-  /** Submissions Enabled or Study Resource; absent keeps the kind default. */
-  workKind?: WorkKind;
-  /** Frozen bank pools; the session's `totalQuestions` becomes fixed + Σ count. */
-  bankSlots?: QuizSessionBankSlot[];
-  /** `QuizMetadata.translations` — lets publish load sidecars with zero extra reads (§4.2). */
-  translationIndex?: Record<string, QuizTranslationIndexEntry>;
-  /** Grade translated fill-in-the-blank answers with typo leniency (Modification groups preview). */
-  lenientTranslatedFib?: boolean;
-  /** Per-period gate; its questions move to `content/questions` until each period opens. */
-  accessMode?: AccessMode;
-  periodAccess?: Record<string, PeriodAccess>;
-  /** A Manual due date that allows late work, so no period locks at it. */
-  manualLate?: boolean;
-}
-
-const QUIZ_ASSIGNMENTS_COLLECTION = 'quiz_assignments';
 const SHARED_ASSIGNMENTS_COLLECTION = 'shared_assignments';
-
-/**
- * Minimal quiz data needed to stand up an assignment. The driveFileId lets the
- * monitor/results views hydrate the full answer key later.
- */
-export interface AssignmentQuizRef {
-  id: string;
-  title: string;
-  driveFileId: string;
-  questions: QuizQuestion[];
-  /** Stimuli referenced by `questions[].stimulusIds`; projected onto the session doc. */
-  stimuli?: QuizStimulus[];
-  /** Read-aloud language snapshotted onto the session doc. */
-  language?: string;
-  /** The quiz's `order` and section records, frozen onto the session as `sections`. */
-  order?: QuizOrderEntry[];
-  sections?: QuizSection[];
-}
-
-/** Editable settings plus the open/close window the edit modal changes. */
-export type QuizAssignmentSettingsPatch = Partial<QuizAssignmentSettings> &
-  Pick<QuizAssignment, 'openAt' | 'closeAt'> & {
-    /** Window changes per `periodAccess` row key, written to both docs. */
-    periodAccessEdits?: PeriodAccessWindowEdits;
-    /** Whole per-period rows by key for a class change; null removes the row. */
-    periodAccessRows?: Record<string, PeriodAccess | null>;
-  };
 
 export interface UseQuizAssignmentsResult {
   assignments: QuizAssignment[];
@@ -791,87 +589,6 @@ const scoreKeyRef = (userId: string, assignmentId: string) =>
     'key',
     SCORE_ON_SUBMIT_KEY_DOC
   );
-
-/** Unique 6-char join code: one nobody has claimed yet, since a code has one owner for good. */
-async function allocateJoinCode(): Promise<string> {
-  const candidate = () =>
-    Math.random().toString(36).substring(2, 8).toUpperCase().padEnd(6, '0');
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const code = candidate();
-    if ((await readJoinCodeOwner(code)) !== null) continue;
-    // An unclaimed legacy code may still carry a live session; claiming it would take it over.
-    const matches = await findQuizSessionsByCode(code);
-    if (!matches.some((m) => acceptsStudents('quiz', m.data))) return code;
-  }
-  // Last resort: an owned code fails the assign batch, which the teacher can retry.
-  return candidate();
-}
-
-/** The session's frozen sections, for publishing; absent on a quiz without them. */
-async function readSessionSections(
-  assignmentId: string
-): Promise<QuizSessionSection[] | undefined> {
-  const snap = await getDoc(doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId));
-  const sections = (snap.data() as QuizSession | undefined)?.sections;
-  return sections?.length ? sections : undefined;
-}
-
-const RESPONSE_BATCH_WRITES = 400;
-
-interface ResponsePatch {
-  ref: ReturnType<typeof doc>;
-  patch: Record<string, unknown>;
-}
-
-/** Commits `firstBatch` (holding `reserved` writes) plus patches, split under the batch cap. */
-async function commitResponsePatches(
-  firstBatch: ReturnType<typeof writeBatch>,
-  reserved: number,
-  patches: ResponsePatch[]
-): Promise<void> {
-  const firstChunk = Math.min(patches.length, RESPONSE_BATCH_WRITES - reserved);
-  for (let i = 0; i < firstChunk; i++) {
-    firstBatch.update(patches[i].ref, patches[i].patch);
-  }
-  await firstBatch.commit();
-  for (
-    let cursor = firstChunk;
-    cursor < patches.length;
-    cursor += RESPONSE_BATCH_WRITES
-  ) {
-    const chunkBatch = writeBatch(db);
-    for (const u of patches.slice(cursor, cursor + RESPONSE_BATCH_WRITES)) {
-      chunkBatch.update(u.ref, u.patch);
-    }
-    await chunkBatch.commit();
-  }
-}
-
-const PAPER_TRANSACTION_CONCURRENCY = 10;
-
-/** D39: re-reads and re-grades each paper row in a transaction so a transcript landing mid-publish survives. */
-async function commitPaperWrittenPatches(
-  refs: ReturnType<typeof doc>[],
-  buildPatch: (data: QuizResponse) => Record<string, unknown> | null
-): Promise<number> {
-  let written = 0;
-  for (let i = 0; i < refs.length; i += PAPER_TRANSACTION_CONCURRENCY) {
-    const results = await Promise.all(
-      refs.slice(i, i + PAPER_TRANSACTION_CONCURRENCY).map((ref) =>
-        runTransaction(db, async (tx) => {
-          const snap = await tx.get(ref);
-          if (!snap.exists()) return false;
-          const patch = buildPatch(snap.data() as QuizResponse);
-          if (!patch) return false;
-          tx.update(ref, patch);
-          return true;
-        })
-      )
-    );
-    written += results.filter(Boolean).length;
-  }
-  return written;
-}
 
 export const useQuizAssignments = (
   userId: string | undefined

@@ -25,6 +25,7 @@ import { legacyRowId } from './gradeRowMath';
 import { GRADE_INDEX, stableStringify } from './gradeIndex';
 import type { IndexRow } from './types';
 import type { ClassStudents } from './projectMemberAuthority';
+import { RosterUnavailableError } from './rosterUnavailable';
 
 type Firestore = admin.firestore.Firestore;
 type Doc = Record<string, unknown>;
@@ -229,9 +230,12 @@ interface ProjectionTarget {
 interface ProjectionExtra {
   standards: StudentStandardEntry[] | null;
   scale: ProficiencyScale;
-  /** Owners a roster no longer vouches for in this class; their entries and class-level fields go. */
+  /** Owners a roster no longer vouches for in this class; their unstamped entries and class-level fields go. */
   untrusted?: ReadonlySet<string>;
 }
+
+// Set on entries written while a roster vouched for the owner, so a later roster change keeps them.
+const isVouched = (e: unknown): boolean => asRecord(e).vouched === true;
 
 const cutoffsOf = (s: ProficiencyScale) => {
   const { proficient, approaching } = storedScale(s);
@@ -258,7 +262,7 @@ export async function writeProjectionEntry(
     let changed = false;
     const untrusted = extra.untrusted ?? new Set<string>();
     for (const [id, e] of Object.entries(entries)) {
-      if (!untrusted.has(ownerOf(e))) continue;
+      if (!untrusted.has(ownerOf(e)) || isVouched(e)) continue;
       delete entries[id];
       changed = true;
     }
@@ -272,21 +276,26 @@ export async function writeProjectionEntry(
         changed = true;
       }
     } else {
-      const owned = { ...entry, ownerUid: target.ownerUid };
+      const owned = { ...entry, ownerUid: target.ownerUid, vouched: true };
       const { updatedAt: _u, ...prevRest } = prev ?? {};
       void _u;
       // An entry stored before per-entry owners existed is not a change.
       const prevBody = {
         ...prevRest,
         ownerUid: ownerOf(prev) || target.ownerUid,
+        vouched: true,
       };
       if (!prev || stableStringify(prevBody) !== stableStringify(owned)) {
         // `updatedAt` moves only when what the student sees changes, which drives the New badge (D36).
         entries[sessionId] = { ...owned, updatedAt: now };
         changed = true;
-      } else if (prev && !ownerOf(prev)) {
-        // Claim a legacy entry without moving what the student sees.
-        entries[sessionId] = { ...prev, ownerUid: target.ownerUid };
+      } else if (prev && (!ownerOf(prev) || !isVouched(prev))) {
+        // Claim and stamp a legacy entry without moving what the student sees.
+        entries[sessionId] = {
+          ...prev,
+          ownerUid: target.ownerUid,
+          vouched: true,
+        };
         changed = true;
       }
     }
@@ -350,15 +359,17 @@ export async function dropProjectionEntry(
   db: Firestore,
   target: ProjectionTarget,
   sessionId: string,
-  now: number
+  now: number,
+  keepVouched = false
 ): Promise<boolean> {
   const ref = db.doc(projectionPath(target.studentUid, target.classId));
   return db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
     if (!snap.exists) return false;
     const entries = { ...asRecord(snap.data()?.entries) };
-    if (asString(asRecord(entries[sessionId]).ownerUid) !== target.ownerUid)
-      return false;
+    const prev = entries[sessionId];
+    if (asString(asRecord(prev).ownerUid) !== target.ownerUid) return false;
+    if (keepVouched && isVouched(prev)) return false;
     delete entries[sessionId];
     return commitEntries(tx, ref, entries, now);
   });
@@ -389,7 +400,7 @@ export function __setClassEnrollmentCheck(
   enrollmentOverride = check;
 }
 
-/** Looks each owner and class up once per 90 s; a failed, degraded or empty lookup is not cached. */
+/** Looks each owner and class up once per 90 s; a failed or degraded lookup is not cached. */
 export function defaultClassEnrollment(db: Firestore): ClassEnrollmentCheck {
   if (enrollmentOverride) return enrollmentOverride;
   return async (ownerUid, classId, studentUid) => {
@@ -408,7 +419,7 @@ export function defaultClassEnrollment(db: Firestore): ClassEnrollmentCheck {
       });
     }
     const { uids, degraded } = await entry.students;
-    if ((uids.size === 0 || degraded) && enrollmentCache.get(key) === entry)
+    if (degraded && enrollmentCache.get(key) === entry)
       enrollmentCache.delete(key);
     if (uids.has(studentUid)) return true;
     // ClassLink could not answer, so retry rather than drop a real grade.
@@ -511,14 +522,22 @@ export async function removeFlagsOnScore(
   });
 }
 
+/** Any failed roster lookup retries the event rather than dropping the update. */
+const retryable = (err: unknown): RosterUnavailableError =>
+  err instanceof RosterUnavailableError ? err : new RosterUnavailableError(err);
+
 /** Re-projects one row (or clears it when the row is gone). */
 export async function projectRow(
   db: Firestore,
   after: IndexRow | null,
   before: IndexRow | null,
   now = Date.now(),
-  enrolled: ClassEnrollmentCheck = defaultClassEnrollment(db)
+  lookup: ClassEnrollmentCheck = defaultClassEnrollment(db)
 ): Promise<void> {
+  const enrolled: ClassEnrollmentCheck = (owner, classId, student) =>
+    lookup(owner, classId, student).catch((err: unknown) => {
+      throw retryable(err);
+    });
   const targetOf = (r: IndexRow & { classId: string }): ProjectionTarget => ({
     studentUid: r.studentUid,
     classId: r.classId,
@@ -541,7 +560,8 @@ export async function projectRow(
   const row = { ...after, classId: after.classId };
   // Session classIds and response fields are teacher-written, so only a roster vouches for the class and student.
   if (!(await enrolled(row.ownerUid, row.classId, row.studentUid))) {
-    await dropProjectionEntry(db, targetOf(row), row.sessionId, now);
+    // Refuse anything new but keep what was shown while the roster vouched (a sub swap or roster change).
+    await dropProjectionEntry(db, targetOf(row), row.sessionId, now, true);
     return;
   }
   const untrusted = await untrustedOwners(db, row, enrolled);

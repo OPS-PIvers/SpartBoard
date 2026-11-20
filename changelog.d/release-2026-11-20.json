@@ -1,0 +1,66 @@
+{
+  "widgetNotes": [
+    {
+      "id": "quiz-blank-submit-2026-11-20",
+      "widget": "quiz",
+      "date": "2026-11-20",
+      "text": "Students can turn in a quiz with blank answers. They see a warning first."
+    },
+    {
+      "id": "quiz-assigned-bulk-2026-11-20",
+      "widget": "quiz",
+      "date": "2026-11-20",
+      "text": "Select several assignments on the Assigned tab. Close them, publish scores or delete them together.",
+      "feature": "assigned-tab"
+    },
+    {
+      "id": "quiz-print-results-2026-11-20",
+      "widget": "quiz",
+      "date": "2026-11-20",
+      "text": "Print results has Settings and Students tabs. Pick students by course and class.",
+      "feature": "results-print-v2"
+    },
+    {
+      "id": "quiz-recap-all-options-2026-11-20",
+      "widget": "quiz",
+      "date": "2026-11-20",
+      "text": "Published results show every answer option. The student's pick is marked right or wrong.",
+      "feature": "quiz-recap-all-options"
+    },
+    {
+      "id": "video-activity-assigned-bulk-2026-11-20",
+      "widget": "video-activity",
+      "date": "2026-11-20",
+      "text": "Select several assignments on the Assigned tab. Close them or delete them together.",
+      "feature": "assigned-tab"
+    },
+    {
+      "id": "flashcards-assigned-bulk-2026-11-20",
+      "widget": "flashcards",
+      "date": "2026-11-20",
+      "text": "Select several assignments on the Assigned tab. Close them or delete them together.",
+      "feature": "assigned-tab"
+    },
+    {
+      "id": "guided-learning-assigned-bulk-2026-11-20",
+      "widget": "guided-learning",
+      "date": "2026-11-20",
+      "text": "Select several assignments on the Assigned tab. Close them or delete them together.",
+      "feature": "assigned-tab"
+    },
+    {
+      "id": "miniapp-assigned-bulk-2026-11-20",
+      "widget": "miniApp",
+      "date": "2026-11-20",
+      "text": "Select several assignments on the Assigned tab. Close them or delete them together.",
+      "feature": "assigned-tab"
+    },
+    {
+      "id": "writing-assigned-bulk-2026-11-20",
+      "widget": "writing",
+      "date": "2026-11-20",
+      "text": "Select several assignments on the Assigned tab. Close them or delete them together.",
+      "feature": "assigned-tab"
+    }
+  ]
+}

@@ -170,10 +170,18 @@ export async function loadTaughtClassStudentUids(
   for (const member of test.membership.keys())
     uids.add(computeStudentUid(`test:${member}`, hmacSecret));
   if (uids.size > 0) return none;
+  // A test class read that failed leaves an empty answer unsettled, so the caller retries.
+  const settled = (): ClassStudents => ({
+    uids,
+    degraded:
+      uids.size === 0 && test.readFailed !== undefined
+        ? new RosterUnavailableError(test.readFailed)
+        : null,
+  });
   const clientId = CLASSLINK_CLIENT_ID.value();
   const clientSecret = CLASSLINK_CLIENT_SECRET.value();
   const tenantUrl = CLASSLINK_TENANT_URL.value();
-  if (!clientId || !clientSecret || !tenantUrl) return none;
+  if (!clientId || !clientSecret || !tenantUrl) return settled();
   try {
     // Only students of `classId`, and nobody unless ClassLink lists the owner as its teacher.
     const membership = await loadClassLinkMembership(
@@ -185,7 +193,7 @@ export async function loadTaughtClassStudentUids(
     );
     for (const sourcedId of membership.keys())
       uids.add(computeStudentUid(sourcedId, hmacSecret));
-    return none;
+    return settled();
   } catch (err) {
     return { uids, degraded: new RosterUnavailableError(err) };
   }

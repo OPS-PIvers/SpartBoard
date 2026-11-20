@@ -114,6 +114,25 @@ describe('loadTaughtClassStudentUids', () => {
     expect(loadClassLinkMembership).not.toHaveBeenCalled();
   });
 
+  it('flags an empty answer as degraded when the test class read failed', async () => {
+    loadTestClassMembership.mockResolvedValue({
+      membership: new Map(),
+      authorized: true,
+      readFailed: new Error('deadline exceeded'),
+    });
+    const { uids, degraded } = await loadTaughtClassStudentUids(
+      db,
+      'owner',
+      'slug'
+    );
+    expect(uids.size).toBe(0);
+    expect(degraded?.message).toContain('deadline exceeded');
+    loadClassLinkMembership.mockResolvedValue(new Map([['s1', 'slug']]));
+    expect(
+      (await loadTaughtClassStudentUids(db, 'owner', 'slug')).degraded
+    ).toBeNull();
+  });
+
   it('never vouches for local, LMS or empty class ids', async () => {
     for (const id of ['', 'local:r1', 'classroom:123', 'schoology:9'])
       expect(
