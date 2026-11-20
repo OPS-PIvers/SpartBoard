@@ -4897,6 +4897,7 @@ const TeacherQuizWidget: React.FC<{
             // Adopt what was written. Without this a new quiz keeps saving
             // with no drive file id, so every retitled autosave orphans a file.
             setEditingMeta(saved);
+            setLoadedQuizFileId(saved.driveFileId ?? null);
             latestSavedQuiz.current = updated;
             // Keep every PLC library row for this quiz in step with what was published.
             if (saved.sync && plcs.length > 0) {
@@ -4949,7 +4950,6 @@ const TeacherQuizWidget: React.FC<{
             setSavingQuizId(null);
           }
           setLoadedQuizData(updated);
-          setLoadedQuizFileId(editingMeta?.driveFileId ?? null);
           // Autosaved writes are not news; a synced Save publishes, so it is.
           if (isNew) addToast('Quiz created!', 'success');
           else if (editingMeta?.sync)
