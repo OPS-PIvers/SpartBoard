@@ -4617,7 +4617,7 @@ const TeacherQuizWidget: React.FC<{
           }
         }}
         onResults={async (meta) => {
-          const a = latestArchivedAssignment(assignments, meta.id);
+          const a = latestArchivedAssignment(kindAssignments, meta.id);
           if (!a) {
             addToast('This quiz has no finished assignment yet.', 'info');
             return;

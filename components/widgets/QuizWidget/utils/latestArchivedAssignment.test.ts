@@ -25,4 +25,17 @@ describe('latestArchivedAssignment', () => {
       latestArchivedAssignment([a('x', 'q2', 'inactive', 1)], 'q1')
     ).toBeUndefined();
   });
+
+  it('ignores paused assignments', () => {
+    const list = [a('p', 'q1', 'paused', 9), a('e', 'q1', 'inactive', 1)];
+    expect(latestArchivedAssignment(list, 'q1')?.id).toBe('e');
+  });
+
+  it('keeps the first listed assignment on a createdAt tie', () => {
+    const list = [
+      a('first', 'q1', 'inactive', 5),
+      a('second', 'q1', 'inactive', 5),
+    ];
+    expect(latestArchivedAssignment(list, 'q1')?.id).toBe('first');
+  });
 });
