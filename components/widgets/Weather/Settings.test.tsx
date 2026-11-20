@@ -55,12 +55,13 @@ describe('Weather settings schema', () => {
     expect(secondary.fallback?.({ ...context, config: {} })).toBe('#334155');
   });
 
-  it('writes the manual location label atomically with temperature', () => {
+  it('writes the manual location label and feels-like atomically with temperature', () => {
     const temperature = schema.groups[0]?.fields.find(
       (field) => field.key === 'temp'
     );
     expect(temperature?.toPatch?.(68, context)).toEqual({
       temp: 68,
+      feelsLike: 68,
       locationName: 'Manual Mode',
     });
   });

@@ -192,8 +192,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   // already-created attachment (no addOnToken in that iframe).
   const existingAttachmentId = params.get('attachmentId') ?? '';
 
-  const { user, signInWithGoogle, googleAccessToken, canAccessFeature } =
-    useAuth();
+  const { user, signInWithGoogle, googleAccessToken } = useAuth();
   // VA rules are edited here, prefilled from last-used else the activity (V3).
   const lastVaRules = useLastVideoAssignSettings(user?.uid, true);
   const [editedVaRules, setEditedVaRules] = useState<{
@@ -655,9 +654,10 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     );
     const resolvedTargeting: AssignTargetingValue = {
       ...expanded,
-      overridesByKey: canAccessFeature('modification-groups')
-        ? withQuizAnswerChoices(expanded.overridesByKey, content.questions)
-        : expanded.overridesByKey,
+      overridesByKey: withQuizAnswerChoices(
+        expanded.overridesByKey,
+        content.questions
+      ),
     };
 
     // Classroom grade scale = the points a student can earn (e.g. 17/20), not a percentage.
@@ -824,7 +824,6 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
       }
     }
   }, [
-    canAccessFeature,
     addonClassContext,
     append,
     selectedQuiz,

@@ -97,7 +97,8 @@ const grade = (
       answers: answers.map((a) => ({ ...a, answeredAt: 1 })),
       ...extra,
     } as unknown as QuizResponse,
-    buildResponseGradingContext(quizData, { paperWrittenQuestionIds: ['q1'] })
+    buildResponseGradingContext(quizData, { paperWrittenQuestionIds: ['q1'] }),
+    's1'
   );
 
 describe('gradeResponseForPublish: written answers on paper', () => {
@@ -136,7 +137,8 @@ describe('gradeResponseForPublish: written answers on paper', () => {
           status: 'completed',
           answers: [{ questionId: 'q0', answer: 'a', answeredAt: 1 }],
         } as unknown as QuizResponse,
-        buildResponseGradingContext(quizData, {})
+        buildResponseGradingContext(quizData, {}),
+        's1'
       ).score
     ).toBe(33);
   });
@@ -185,7 +187,8 @@ describe('gradeResponseForPublish: choose-N section with an extra written answer
       response({
         grading: { w1: { pointsAwarded: 2, gradedBy: 't', gradedAt: 1 } },
       }),
-      ctx
+      ctx,
+      's1'
     );
     expect(graded.score).toBe(100);
     expect(graded.points).toEqual({ earned: 3, possible: 3, attempt: 1 });
@@ -197,7 +200,8 @@ describe('gradeResponseForPublish: choose-N section with an extra written answer
         countedChoices: { attempt: 1, bySection: { s1: ['w2'] } },
         grading: { w2: { pointsAwarded: 1, gradedBy: 't', gradedAt: 1 } },
       }),
-      ctx
+      ctx,
+      's1'
     );
     expect(graded.score).toBe(67);
     expect(graded.points).toEqual({ earned: 2, possible: 3, attempt: 1 });
@@ -209,7 +213,8 @@ describe('gradeResponseForPublish: choose-N section with an extra written answer
         countedChoices: { attempt: 1, bySection: { s1: ['w2'] } },
         grading: { w1: { pointsAwarded: 2, gradedBy: 't', gradedAt: 1 } },
       }),
-      ctx
+      ctx,
+      's1'
     );
     expect(graded.score).toBeNull();
     expect(graded.points).toBeNull();

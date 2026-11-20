@@ -293,8 +293,7 @@ const LtiDeepLinkFlow: React.FC = () => {
     >
   >(new Map());
 
-  const { user, signInWithGoogle, googleAccessToken, canAccessFeature } =
-    useAuth();
+  const { user, signInWithGoogle, googleAccessToken } = useAuth();
   // VA rules are edited here, prefilled from last-used else the activity (V3).
   const lastVaRules = useLastVideoAssignSettings(user?.uid, true);
   const [editedVaRules, setEditedVaRules] = useState<{
@@ -682,9 +681,10 @@ const LtiDeepLinkFlow: React.FC = () => {
         );
         const resolvedTargeting: AssignTargetingValue = {
           ...expanded,
-          overridesByKey: canAccessFeature('modification-groups')
-            ? withQuizAnswerChoices(expanded.overridesByKey, content.questions)
-            : expanded.overridesByKey,
+          overridesByKey: withQuizAnswerChoices(
+            expanded.overridesByKey,
+            content.questions
+          ),
         };
 
         // Gradebook scale = the points a student can earn, so a 17/20 quiz reads 17/20 in Schoology.
@@ -799,7 +799,6 @@ const LtiDeepLinkFlow: React.FC = () => {
       await signAndReturn(created, selectedQuiz.title, returnUrl);
     },
     [
-      canAccessFeature,
       ltiClassContext,
       selectedQuiz,
       saveLastAssignSettings,

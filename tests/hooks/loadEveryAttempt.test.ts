@@ -71,4 +71,13 @@ describe('attemptAsResponse', () => {
     expect(r.tabSwitchWarnings).toBe(0);
     expect(r.autoSubmitted).toBeUndefined();
   });
+
+  it("keeps the copy's attempt number so its random numbers match", () => {
+    const r = attemptAsResponse(live({ completedAttempts: 2 }), {
+      n: 1,
+      closed: true,
+      answers: [],
+    });
+    expect(r.completedAttempts).toBe(1);
+  });
 });

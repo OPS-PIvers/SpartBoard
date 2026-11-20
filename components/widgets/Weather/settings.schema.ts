@@ -79,8 +79,10 @@ export default defineSettings<WeatherSettingsKeys>({
           max: 110,
           step: 1,
           visibleWhen: isManual,
+          // A typed temperature is also what it feels like, so an old synced reading stops steering the messages.
           toPatch: (value, ctx) => ({
             temp: value,
+            feelsLike: value,
             locationName: ctx.t('widgets.weather.manualMode'),
           }),
         },

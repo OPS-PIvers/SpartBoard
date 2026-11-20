@@ -192,23 +192,17 @@ export function vaVerdictsWithheld(
   );
 }
 
-/** The response patch for a VA publish; `withholdVerdicts` is the `va-score-only-verdicts` flag. */
+/** The response patch for a VA publish: right/wrong stays off where results stay hidden. */
 export function vaPublishPatch(
   data: VideoActivityResponse,
   graded: { score: number | null; answers: VideoActivityAnswer[] },
   opts: {
-    withholdVerdicts: boolean;
     visibility: QuizScoreVisibility;
     now: number;
     sessionShowsResults: boolean;
     responseKey: string;
   }
 ): Record<string, unknown> {
-  if (!opts.withholdVerdicts) {
-    return data.verdictsWithheld === undefined
-      ? { ...graded }
-      : { ...graded, verdictsWithheld: deleteField() };
-  }
   const answers = vaPublishedAnswers(
     data,
     graded.answers,
@@ -322,8 +316,7 @@ export async function publishVideoActivityResultsForStudents(
   responseKeys: string[],
   visibility: ShownVisibility,
   expiresAt: number | null,
-  protection?: ResultsProtection,
-  withholdVerdicts = false
+  protection?: ResultsProtection
 ): Promise<PublishForStudentsResult> {
   const sessionSnap = await getDoc(doc(db, VA_SESSIONS_COLLECTION, sessionId));
   const deduped = dedupeQuestionsById(questions);
@@ -346,7 +339,6 @@ export async function publishVideoActivityResultsForStudents(
         { ...data, resultsOverride: undefined },
         gradeVideoActivityResponseForPublish(data, questionsById, live),
         {
-          withholdVerdicts,
           visibility,
           now,
           sessionShowsResults,

@@ -98,8 +98,8 @@ export function effectiveActiveRosterId(
 }
 
 /**
- * Roster ids the shared boards read: the active roster (every widget in
- * `rosterMode: 'class'` resolves to it) plus every roster remembered by a
+ * Roster ids the shared boards read: the active roster, each Group Maker's own
+ * class, plus every roster remembered by a
  * quiz / video activity / guided learning / mini-app picker.
  */
 export function collectShareRosterIds(
@@ -111,6 +111,10 @@ export function collectShareRosterIds(
   for (const board of boards) {
     for (const widget of board.widgets) {
       const config = widget.config as Record<string, unknown>;
+      // A Group Maker keeps its own class.
+      if (widget.type === 'random' && typeof config.rosterId === 'string') {
+        ids.add(config.rosterId);
+      }
       for (const key of Object.keys(config)) {
         if (!REMEMBERED_ROSTER_KEY.test(key)) continue;
         const remembered = config[key];

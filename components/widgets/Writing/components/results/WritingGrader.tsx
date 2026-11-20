@@ -3,6 +3,7 @@ import React, { useMemo, useState } from 'react';
 import type {
   WritingAssignmentSession,
   WritingDraft,
+  WritingPeerMark,
   WritingResponse,
   WrittenAnswerGrade,
 } from '@/types';
@@ -17,6 +18,7 @@ import {
   WritingRecordView,
 } from '@/components/common/WritingRecord';
 import type { WritingRecordChunk } from '@/utils/writingRecord';
+import { PeerCommentsForTeacher } from '../peerReview/PeerCommentsForTeacher';
 import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 import { writingEventAllowed } from '@/utils/writingResponseState';
 import {
@@ -38,8 +40,17 @@ import type {
 export interface WritingGraderProps {
   session: Pick<
     WritingAssignmentSession,
-    'id' | 'title' | 'prompt' | 'grading' | 'studentCanViewRecord'
+    | 'id'
+    | 'title'
+    | 'prompt'
+    | 'grading'
+    | 'studentCanViewRecord'
+    | 'peerReview'
   >;
+  /** "Last, First" for any student in the class, for partner comments. */
+  nameOf?: (uid: string) => string;
+  /** Dev harness only: partner comments built in memory. */
+  peerNotesFixture?: (uid: string) => WritingPeerMark[] | undefined;
   /** Students with at least one turned-in copy. */
   rows: WritingResultRow[];
   /** Opens on this student's latest copy. */
@@ -78,6 +89,8 @@ export const WritingGrader: React.FC<WritingGraderProps> = ({
   onReturn,
   onClose,
   recordFixture,
+  nameOf,
+  peerNotesFixture,
 }) => {
   const ungraded = session.grading.mode === 'ungraded';
   const quiz = useMemo(
@@ -283,6 +296,23 @@ export const WritingGrader: React.FC<WritingGraderProps> = ({
       headerAccent={LIBRARY_HEADER_ACCENTS.writing}
       renderFooterActions={renderFooterActions}
       writingRecord={writingRecord}
+      renderAnswerNotes={
+        session.peerReview
+          ? ({ responseKey }) => (
+              <PeerCommentsForTeacher
+                key={responseKey}
+                sessionId={session.id}
+                studentUid={responseKey}
+                fixture={peerNotesFixture?.(responseKey)}
+                nameOf={(uid) => {
+                  const name = nameOf?.(uid);
+                  if (name) return name;
+                  return names.get(uid) ?? 'A partner';
+                }}
+              />
+            )
+          : undefined
+      }
       onClose={onClose}
     />
   );

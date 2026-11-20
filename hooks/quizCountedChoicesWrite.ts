@@ -76,7 +76,7 @@ export async function saveCountedChoices(opts: {
     };
     // A score the student or gradebook already has must follow the new pick.
     if (typeof data.score === 'number') {
-      const graded = gradeResponseForPublish(next, ctx);
+      const graded = gradeResponseForPublish(next, ctx, opts.responseKey);
       const hadVerdicts = (data.answers ?? []).some(
         (a) => typeof a.isCorrect === 'boolean'
       );
@@ -137,7 +137,7 @@ export async function applySectionCounts(opts: {
           const data = fresh.data() as QuizResponse | undefined;
           if (!data || typeof data.score !== 'number') return;
           // Only the score moves; answers and grades are left as they are.
-          const graded = gradeResponseForPublish(data, ctx);
+          const graded = gradeResponseForPublish(data, ctx, d.id);
           tx.update(d.ref, publishScoreFields(graded));
         })
       )

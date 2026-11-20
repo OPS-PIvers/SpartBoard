@@ -1093,6 +1093,148 @@ describe('RandomWidget — class groups', () => {
   });
 });
 
+describe('RandomWidget — each widget keeps its own class', () => {
+  const student = (id: string) => ({
+    id,
+    firstName: id,
+    lastName: 'L',
+    pin: '00',
+  });
+  const classA = {
+    id: 'rA',
+    name: 'Class A',
+    driveFileId: null,
+    studentCount: 2,
+    createdAt: 0,
+    students: [student('a1'), student('a2')],
+  };
+  const classB = {
+    id: 'rB',
+    name: 'Class B',
+    driveFileId: null,
+    studentCount: 2,
+    createdAt: 0,
+    students: [student('b1'), student('b2')],
+  };
+  const widgetWith = (config: Partial<RandomConfig>): WidgetData => ({
+    id: 'w1',
+    type: 'random',
+    config: { mode: 'groups', rosterMode: 'class', ...config },
+    x: 0,
+    y: 0,
+    w: 100,
+    h: 100,
+    z: 1,
+    flipped: false,
+  });
+  const boardOn = (activeRosterId: string) =>
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      ...mockDashboardContext,
+      rosters: [classA, classB],
+      activeRosterId,
+      setActiveRoster: vi.fn(),
+    });
+  const configWrites = () =>
+    mockUpdateWidget.mock.calls.map(
+      (c) => (c[1] as { config: Partial<RandomConfig> }).config
+    );
+  const groupsOfA: RandomGroup[] = [
+    { id: 'g1', names: ['a1 L', 'a2 L'], studentIds: ['a1', 'a2'] },
+  ];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("shows its own class when the board's active class is another", () => {
+    boardOn('rB');
+    render(<RandomWidget widget={widgetWith({ rosterId: 'rA' })} />);
+    expect(
+      screen.getByRole('button', { name: /Active class: Class A/i })
+    ).toBeInTheDocument();
+  });
+
+  it("keeps its groups when the board's active class changes", () => {
+    boardOn('rA');
+    const widget = widgetWith({ rosterId: 'rA', lastResult: groupsOfA });
+    const { rerender } = render(<RandomWidget widget={widget} />);
+    boardOn('rB');
+    rerender(<RandomWidget widget={widget} />);
+    expect(configWrites().some((c) => c.lastResult === null)).toBe(false);
+    expect(
+      screen.getByRole('button', { name: /Active class: Class A/i })
+    ).toBeInTheDocument();
+  });
+
+  it('pins an older widget to the class its groups came from', () => {
+    boardOn('rB');
+    render(<RandomWidget widget={widgetWith({ lastResult: groupsOfA })} />);
+    expect(configWrites()).toContainEqual({ rosterId: 'rA' });
+    expect(configWrites().some((c) => c.lastResult === null)).toBe(false);
+  });
+
+  it('pins the widget to its class on the first draw', () => {
+    boardOn('rB');
+    render(<RandomWidget widget={widgetWith({})} />);
+    fireEvent.click(
+      screen.getByRole('button', { name: /^Randomize$|^Picking$/ })
+    );
+    expect(configWrites()).toContainEqual({ rosterId: 'rB' });
+  });
+
+  it("keeps the draw when its class isn't one of this user's classes", () => {
+    const set = (rosters: unknown[]) =>
+      (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        ...mockDashboardContext,
+        rosters,
+        activeRosterId: 'rB',
+        setActiveRoster: vi.fn(),
+      });
+    set([]);
+    const widget = widgetWith({
+      rosterId: 'owner-class',
+      lastResult: groupsOfA,
+    });
+    const { rerender } = render(<RandomWidget widget={widget} />);
+    set([classA, classB]);
+    rerender(<RandomWidget widget={widget} />);
+    expect(configWrites().some((c) => c.lastResult === null)).toBe(false);
+  });
+
+  it("switches the viewer's own class on a view-only board", () => {
+    const setActiveRoster = vi.fn();
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      ...mockDashboardContext,
+      rosters: [classA, classB],
+      activeRosterId: 'rA',
+      isActiveBoardReadOnly: true,
+      setActiveRoster,
+    });
+    render(<RandomWidget widget={widgetWith({})} />);
+    fireEvent.click(
+      screen.getByRole('button', { name: /Active class: Class A/i })
+    );
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /Class B/i }));
+    expect(setActiveRoster).toHaveBeenCalledWith('rB');
+    expect(configWrites().some((c) => c.rosterId === 'rB')).toBe(false);
+  });
+
+  it("picking a class sets this widget's class and clears its draw", () => {
+    boardOn('rA');
+    render(
+      <RandomWidget
+        widget={widgetWith({ rosterId: 'rA', lastResult: groupsOfA })}
+      />
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /Active class: Class A/i })
+    );
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /Class B/i }));
+    const write = configWrites().find((c) => c.rosterId === 'rB');
+    expect(write).toMatchObject({ rosterId: 'rB', lastResult: null });
+  });
+});
+
 describe('RandomWidget — groups mode by group count', () => {
   const names = Array.from({ length: 21 }, (_, i) => `Student${i + 1}`);
 

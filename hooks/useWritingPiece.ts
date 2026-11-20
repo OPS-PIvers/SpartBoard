@@ -17,7 +17,7 @@ import {
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
-import type { WritingResponse } from '@/types';
+import type { WritingPeerMark, WritingResponse } from '@/types';
 import { editorPlainText } from '@/hooks/useInputSignals';
 import { countWords } from '@/utils/wordCount';
 import { logError } from '@/utils/logError';
@@ -38,6 +38,7 @@ import {
   writeDeviceCopy,
 } from '@/utils/writingDeviceCopy';
 import { WritingRecorder, openChunkFromLogs } from '@/utils/writingRecorder';
+import { applyPeerEditToEditor } from '@/utils/writingPeerText';
 import {
   deriveWritingStatus,
   isWritingUnlocked,
@@ -173,6 +174,7 @@ export function useWritingPiece(args: {
   const clipboardRef = useRef(new InsideClipboard());
   const dictationRef = useRef(new DictationTracker());
   const editorRootRef = useRef<HTMLElement | null>(null);
+  const peerApplyingRef = useRef(false);
   const allowPasteRef = useRef(allowPaste);
   const closedRef = useRef(closed);
   useLayoutEffect(() => {
@@ -711,6 +713,37 @@ export function useWritingPiece(args: {
     });
   }, []);
 
+  /** Peer review: puts a partner's accepted edit into the piece, logged as theirs; false when its text is gone. */
+  const applyPeerEdit = useCallback(
+    (
+      mark: Pick<WritingPeerMark, 'start' | 'quote' | 'insert'>,
+      dryRun = false
+    ): boolean => {
+      const el = editableIn(editorRootRef.current);
+      const rec = recorderRef.current;
+      if (!el || !rec || !holdingRef.current) return false;
+      if (dryRun) return applyPeerEditToEditor(el, mark, true);
+      const prev = editorPlainText(el);
+      if (!applyPeerEditToEditor(el, mark)) return false;
+      primeRef.current = null;
+      rec.edit(
+        prev,
+        editorPlainText(el),
+        performance.now(),
+        'peer',
+        Date.now()
+      );
+      peerApplyingRef.current = true;
+      try {
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+      } finally {
+        peerApplyingRef.current = false;
+      }
+      return true;
+    },
+    []
+  );
+
   /** The editor's sanitized HTML after each change. */
   const onEditorChange = useCallback(
     (next: string) => {
@@ -763,6 +796,8 @@ export function useWritingPiece(args: {
       primeRef.current = editorPlainText(el);
     };
     const onInput = (e: Event) => {
+      // A partner's accepted edit is logged by applyPeerEdit itself.
+      if (peerApplyingRef.current) return;
       const el = host(e.target);
       const rec = recorderRef.current;
       if (!el || !rec || !holdingRef.current) return;
@@ -957,6 +992,7 @@ export function useWritingPiece(args: {
     clearNotice: () => setNotice(null),
     onEditorChange,
     onDictationInsert,
+    applyPeerEdit,
     bindEditor,
     allowInsert,
     onEditorCopy,

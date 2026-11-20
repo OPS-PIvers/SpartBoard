@@ -260,9 +260,7 @@ export interface UseVideoActivityAssignmentsResult {
     assignmentId: string,
     activityData: VideoActivityData,
     visibility: Exclude<VideoActivityScoreVisibility, 'none'>,
-    protection?: ResultsProtection,
-    /** The `va-score-only-verdicts` flag: keep right/wrong off where results stay hidden. */
-    withholdVerdicts?: boolean
+    protection?: ResultsProtection
   ) => Promise<{
     responsesUpdated: number;
     /** The questions scores were computed over (asked ones only in a live session). */
@@ -1177,13 +1175,7 @@ export const useVideoActivityAssignments = (
   const publishAssignmentScores = useCallback<
     UseVideoActivityAssignmentsResult['publishAssignmentScores']
   >(
-    async (
-      assignmentId,
-      activityData,
-      visibility,
-      protection,
-      withholdVerdicts = false
-    ) => {
+    async (assignmentId, activityData, visibility, protection) => {
       if (!userId) throw new Error('Not authenticated');
       // Belt-and-suspenders against a future caller that bypasses the
       // type-level `Exclude<…, 'none'>` (see Quiz hook for the same
@@ -1245,7 +1237,6 @@ export const useVideoActivityAssignments = (
             data,
             gradeVideoActivityResponseForPublish(data, questionsById, live),
             {
-              withholdVerdicts,
               visibility,
               now,
               sessionShowsResults,

@@ -7,6 +7,7 @@ import {
 import type { TurnInMap } from '@/hooks/useStudentTurnIns';
 import { getWindowState, isResourceAvailable } from '@/utils/assignmentWindow';
 import { isMissingStillOpen, type TurnInState } from '@/utils/studentTurnIn';
+import { effectivePeriodState, studentCanEnter } from '@/utils/periodAccess';
 import { readsTurnIn } from '@/utils/studentResponseDoc';
 import { listBellPeriods, normalizePeriodKey } from '@/utils/bellSchedule';
 import type { ScheduleLookup } from '@/utils/studentClassOrder';
@@ -32,7 +33,7 @@ export interface LandingRow {
 
 export interface LandingPartition {
   live: LandingRow[];
-  /** Assignments tab: Missing-still-open first, then by due date, then no due date (D15). */
+  /** Assignments tab: live, then open, then locked; within each, Missing-still-open, then by due date, then no due date (D15). */
   work: LandingRow[];
   resources: LandingRow[];
   /** Completed tab: turned in, plus printed copies waiting for their scan; newest first (D18). */
@@ -101,11 +102,36 @@ const dueKey = (a: AssignmentSummary): number => a.dueAt ?? Infinity;
 
 const closeKey = (a: AssignmentSummary): number => a.closeAt ?? Infinity;
 
+/** Whether a work row can be opened now: 'live' when its class has been started, 'locked' when paused, not open yet or upcoming. */
+export function workAvailability(
+  row: LandingRow,
+  nowMs: number,
+  uid: string | null
+): 'live' | 'open' | 'locked' {
+  const a = row.assignment;
+  if (row.state === 'upcoming' || a.held !== undefined) return 'locked';
+  const gate = a.periodGate;
+  if (!gate) return 'open';
+  if (!studentCanEnter(gate, gate.periodKeys, uid, nowMs)) return 'locked';
+  // A Manual start class the teacher has started (not a Let in now pass on a closed class).
+  const started =
+    gate.accessMode === 'assessment' &&
+    (row.state === 'open' || row.state === 'in-progress') &&
+    gate.periodKeys.some((k) => {
+      const access = gate.periodAccess?.[k];
+      return !!access && effectivePeriodState(access, nowMs) === 'open';
+    });
+  return started ? 'live' : 'open';
+}
+
+const AVAILABILITY_RANK = { live: 0, open: 1, locked: 2 } as const;
+
 /** Splits the student's assignments into the landing page's sections, sorted. */
 export function partitionLanding(
   assignments: readonly AssignmentSummary[],
   checks: TurnInMap,
-  nowMs: number
+  nowMs: number,
+  uid: string | null = null
 ): LandingPartition {
   const out: LandingPartition = {
     live: [],
@@ -124,8 +150,11 @@ export function partitionLanding(
     else if (state === 'turned-in' || state === 'closed') out.done.push(row);
     else out.work.push(row);
   }
+  const rank = (r: LandingRow) =>
+    AVAILABILITY_RANK[workAvailability(r, nowMs, uid)];
   out.work.sort(
     (x, y) =>
+      rank(x) - rank(y) ||
       Number(y.state === 'missing-open') - Number(x.state === 'missing-open') ||
       dueKey(x.assignment) - dueKey(y.assignment) ||
       (y.assignment.createdAt ?? 0) - (x.assignment.createdAt ?? 0) ||
@@ -246,9 +275,11 @@ export function upNextRows(
     r.state === 'missing-open' ||
     (r.assignment.dueAt !== undefined &&
       sameDay(new Date(r.assignment.dueAt), today));
-  const first = work.filter(priority);
-  const rest = work.filter((r) => !priority(r)).slice(0, extra);
-  return { shown: [...first, ...rest], total: work.length };
+  const rest = new Set(work.filter((r) => !priority(r)).slice(0, extra));
+  return {
+    shown: work.filter((r) => priority(r) || rest.has(r)),
+    total: work.length,
+  };
 }
 
 /** D21: the one plain line under a class in the class list. */

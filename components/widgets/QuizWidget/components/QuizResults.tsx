@@ -547,6 +547,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       overridesByStudentUid,
       overridesBySourcedId,
       servedLanguageByStudentUid,
+      sessionMode: session?.sessionMode,
     }),
     [
       localizedFibAnswers,
@@ -554,6 +555,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       overridesByStudentUid,
       overridesBySourcedId,
       servedLanguageByStudentUid,
+      session?.sessionMode,
     ]
   );
   const {
@@ -981,8 +983,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       plcView ||
       isReview ||
       !viewerUid ||
-      viewerUid !== session?.teacherUid ||
-      !canAccessFeature('modification-groups')
+      viewerUid !== session?.teacherUid
     )
       return undefined;
     return (
@@ -990,15 +991,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       ((questionId, answer) =>
         acceptFibAnswer({ sessionId, questionId, answer, quiz }))
     );
-  }, [
-    session,
-    plcView,
-    isReview,
-    viewerUid,
-    quiz,
-    canAccessFeature,
-    fibAnswerAccepter,
-  ]);
+  }, [session, plcView, isReview, viewerUid, quiz, fibAnswerAccepter]);
 
   // Same teacher-owner path as the grade write; a dotted path keeps the other hashes.
   const saveBackTranslation = useCallback(
@@ -3116,6 +3109,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           sortNameFor={printSortName}
           targetsFor={printTargets}
           gradeFn={printGradeFn}
+          modified={fibGrading}
           rubricFor={printRubric}
           drawOrder={!!session?.bankSlots?.length}
           periodOrder={printPeriodOrder}
@@ -4358,6 +4352,7 @@ const StudentDrilldownPanel: React.FC<{
           showExtraAnswers: true,
           rubricFor: (q) => rubricFor(response, q),
           drawOrder,
+          modified: fibGrading,
         }
       ),
     [questions, response, fibGrading, rubricFor, drawOrder]
@@ -4390,10 +4385,7 @@ const StudentDrilldownPanel: React.FC<{
     questions,
     drilldown,
   ]);
-  const { canAccessFeature } = useAuth();
-  const servedLocale = canAccessFeature('modification-groups')
-    ? servedLocaleForResponse(liveResponse, fibGrading)
-    : undefined;
+  const servedLocale = servedLocaleForResponse(liveResponse, fibGrading);
   const translatedKeyFor = (questionId: string) => {
     const key = servedLocale
       ? fibGrading?.answers?.[questionId]?.[servedLocale]?.[0]

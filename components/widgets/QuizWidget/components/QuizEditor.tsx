@@ -90,6 +90,8 @@ import {
 import { blankTypeOf } from '@/utils/quizBlankTypes';
 import { AnswerKeyKeyboard } from './AnswerKeyKeyboard';
 import { isMultiBlank } from '@/utils/quizFibBlanks';
+import { CalcAnswerField, CalcNumbersSection } from './CalcQuestionFields';
+import { addCalcVariableUpdate, nextCalcName } from '@/utils/quizCalcEditor';
 import { ChoiceOptionsEditor } from './ChoiceOptionsEditor';
 import { TargetChips } from '@/components/quiz/targets/TargetChips';
 import { TargetPicker } from '@/components/quiz/targets/TargetPicker';
@@ -104,6 +106,7 @@ import {
   QuestionTypeSelect,
 } from './QuestionFields';
 import { questionTypeChangeUpdates } from './questionFieldUpdates';
+import { MetaInlineContext } from './questionFieldContexts';
 import { rubricMaxPoints } from '@/utils/rubricPoints';
 import { withOwnCriterionIds } from '@/utils/rubricOverrideResolution';
 import {
@@ -876,6 +879,8 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
     readPrompt,
     readTargets
   );
+  const [calcSample, setCalcSample] = useState(0);
+  const randomNumbersOn = canAccessFeature('quiz-random-numbers');
   const [rubricBuilder, setRubricBuilder] = useState<
     'base' | 'modified' | null
   >(null);
@@ -975,7 +980,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             state={state}
             slotId={selectedSlot.id}
             calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
-            previewAvailable={canAccessFeature('quiz-stimulus-preview')}
+            pickerModal={canAccessFeature('quiz-stimulus-picker')}
           />
         }
       />
@@ -1003,6 +1008,37 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   // Spoken answers on: Type, Format, Time limit and Points share one compact line.
   const compactRow = mediaResponseAllowed;
   const metaList = canAccessFeature('question-editor-fields');
+  // Stimuli and Modified sit in the prompt box footer; targets and DOK share one line.
+  const inPrompt = metaList;
+  const stimulusField = (
+    <QuestionStimulusSection
+      state={state}
+      questionId={q.id}
+      calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
+      pasteScopeRef={paneRef}
+      metaList={metaList}
+      pickerModal={canAccessFeature('quiz-stimulus-picker')}
+    />
+  );
+  const targetsField = (
+    <QuestionTargetsField
+      question={q}
+      onChange={(targets) => updateQuestion(q.id, { targets })}
+      onDokChange={(dok) => updateQuestion(q.id, { dok })}
+      promptStandards={promptStandards}
+      pickerOpen={pickerOpen}
+      onPickerOpenChange={setPickerOpen}
+      metaList={metaList}
+    />
+  );
+  const modifiedField = (
+    <QuestionModifiedField
+      key={q.id}
+      question={q}
+      onChange={(modifiedText) => updateQuestion(q.id, { modifiedText })}
+      metaList={metaList}
+    />
+  );
 
   return (
     // Not `relative`: the rubric builder anchors to the modal body so it can span both panes.
@@ -1025,44 +1061,57 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           promptAccents={defaultAccents}
           promptMath
           promptFormat
+          toolbarTools={inPrompt}
           promptAudio={canAccessFeature('quiz-question-audio')}
+          extras={
+            inPrompt ? (
+              <>
+                {stimulusField}
+                {modifiedField}
+              </>
+            ) : undefined
+          }
+          onAddNumber={
+            randomNumbersOn &&
+            q.type === 'FIB' &&
+            blankTypeOf(q) === 'typed' &&
+            !isMultiBlank(q)
+              ? () => {
+                  const name = nextCalcName(q.calc);
+                  if (name)
+                    updateQuestion(q.id, addCalcVariableUpdate(q, name));
+                  return name;
+                }
+              : undefined
+          }
         />
-
-        <div
-          className={metaList ? 'border-y border-slate-200 py-1' : 'space-y-4'}
-        >
-          {/* Under the prompt, matching where students see it. */}
-          <QuestionStimulusSection
-            state={state}
-            questionId={q.id}
-            calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
-            pasteScopeRef={paneRef}
-            previewAvailable={canAccessFeature('quiz-stimulus-preview')}
-            metaList={metaList}
-          />
-
-          {/* Learning targets */}
-          <QuestionTargetsField
+        {q.type === 'FIB' && q.calc && (
+          <CalcNumbersSection
             question={q}
-            onChange={(targets) => updateQuestion(q.id, { targets })}
-            onDokChange={(dok) => updateQuestion(q.id, { dok })}
-            promptStandards={promptStandards}
-            pickerOpen={pickerOpen}
-            onPickerOpenChange={setPickerOpen}
-            metaList={metaList}
+            onChange={(updates) => updateQuestion(q.id, updates)}
+            sample={calcSample}
+            onNextSample={() => setCalcSample((n) => n + 1)}
           />
+        )}
 
-          {canAccessFeature('modification-groups') && (
-            <QuestionModifiedField
-              key={q.id}
-              question={q}
-              onChange={(modifiedText) =>
-                updateQuestion(q.id, { modifiedText })
-              }
-              metaList={metaList}
-            />
-          )}
-        </div>
+        {inPrompt ? (
+          <MetaInlineContext.Provider value>
+            <div className="flex flex-wrap items-center gap-x-8 border-y border-slate-200 py-1">
+              {targetsField}
+            </div>
+          </MetaInlineContext.Provider>
+        ) : (
+          <div
+            className={
+              metaList ? 'border-y border-slate-200 py-1' : 'space-y-4'
+            }
+          >
+            {/* Under the prompt, matching where students see it. */}
+            {stimulusField}
+            {targetsField}
+            {modifiedField}
+          </div>
+        )}
 
         {/* Type / format / time / points row */}
         <div
@@ -1212,13 +1261,15 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           </div>
         )}
 
-        {q.type === 'FIB' && (blankTypesOn || blankTypeOf(q) !== 'typed') && (
-          <FibBlankTypeSelect
-            question={q}
-            onChange={(updates) => updateQuestion(q.id, updates)}
-            disabled={!blankTypesOn}
-          />
-        )}
+        {q.type === 'FIB' &&
+          !q.calc &&
+          (blankTypesOn || blankTypeOf(q) !== 'typed') && (
+            <FibBlankTypeSelect
+              question={q}
+              onChange={(updates) => updateQuestion(q.id, updates)}
+              disabled={!blankTypesOn}
+            />
+          )}
 
         {/* Type-specific answer editor */}
         {q.type === 'MC' || q.type === 'MA' ? (
@@ -1373,7 +1424,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                   Attach Rubric
                 </button>
               )}
-              {q.rubricSnapshot && canAccessFeature('modification-groups') && (
+              {q.rubricSnapshot && (
                 <div className="mt-2 flex items-center gap-2 flex-wrap">
                   <span className="text-xs font-bold text-slate-500">
                     Modified rubric
@@ -1424,6 +1475,12 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           <FibDropdownEditor
             question={q}
             onChange={(updates) => updateQuestion(q.id, updates)}
+          />
+        ) : q.calc ? (
+          <CalcAnswerField
+            question={q}
+            onChange={(updates) => updateQuestion(q.id, updates)}
+            sample={calcSample}
           />
         ) : isMultiBlank(q) ? (
           <div>

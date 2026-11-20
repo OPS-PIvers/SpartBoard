@@ -133,7 +133,8 @@ const stimuliEqual = (a: QuizStimulus[], b: QuizStimulus[]): boolean => {
       (sa.readAloudSource ?? '') !== (sb.readAloudSource ?? '') ||
       (sa.calculator ?? '') !== (sb.calculator ?? '') ||
       (sa.tabLabel ?? '') !== (sb.tabLabel ?? '') ||
-      (sa.placement ?? '') !== (sb.placement ?? '')
+      (sa.placement ?? '') !== (sb.placement ?? '') ||
+      (sa.wordBankColumns ?? 1) !== (sb.wordBankColumns ?? 1)
     ) {
       return false;
     }
@@ -665,6 +666,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
               state={editorState}
               readAloudAvailable={readAloudAvailable}
               calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
+              wordBankAvailable={canAccessFeature('quiz-word-bank')}
             />
           ) : (
             <>

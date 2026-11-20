@@ -197,8 +197,7 @@ export const QuizAssignmentSettingsModal: React.FC<
   const needsContext =
     (!!givenContext || !!loadEditContext) &&
     getAssignmentWidgetKind(assignment) === 'quiz' &&
-    !isStaffAudience(assignment) &&
-    auth?.canAccessFeature?.('modification-groups') === true;
+    !isStaffAudience(assignment);
   const [loadedContext, setLoadedContext] =
     useState<SettingsEditContext | null>(null);
   const loadContext = useEffectEvent(() =>

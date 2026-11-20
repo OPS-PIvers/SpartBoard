@@ -1,4 +1,10 @@
 // Grades one self-paced Review game answer on the server (QUIZ_REVIEW_SPLIT.md D24, D25, D31).
+import {
+  calcAttemptKey,
+  calcValuesFor,
+  formatCalcAnswer,
+  withCalcValues,
+} from './quizCalculated';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from './firebaseAdmin';
 import './functionsInit';
@@ -245,9 +251,26 @@ export async function handleCheckQuizGameAnswer(
   ]);
   if (!keySnap.exists)
     throw new HttpsError('failed-precondition', 'This game has no answer key.');
-  const question = parseKeyQuestions(keySnap.data()?.questions).find(
+  const keyQuestion = parseKeyQuestions(keySnap.data()?.questions).find(
     (q) => q.id === input.questionId
   );
+  // Random numbers: this player's own numbers and answer.
+  const responseKey = responseSnap.empty
+    ? undefined
+    : calcAttemptKey(responseSnap.docs[0].id, responseSnap.docs[0].data());
+  const question = keyQuestion
+    ? {
+        ...withCalcValues(keyQuestion, responseKey),
+        ...(keyQuestion.calc && responseKey
+          ? {
+              correctAnswer: formatCalcAnswer(
+                keyQuestion.calc,
+                calcValuesFor(keyQuestion, responseKey) ?? {}
+              ),
+            }
+          : {}),
+      }
+    : undefined;
   // Following #3635: a question the key can't vouch for is never graded.
   if (!question || question.correctAnswer === null)
     throw new HttpsError('not-found', 'Question not found in this game.');

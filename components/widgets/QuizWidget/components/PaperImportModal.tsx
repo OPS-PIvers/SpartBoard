@@ -38,6 +38,7 @@ import type {
   PaperBatch,
   PaperPendingReview,
   PaperPendingWritten,
+  PaperRectMm,
   PaperSeatAssignment,
   QuestionTargetTag,
   QuizAssignment,
@@ -85,13 +86,20 @@ import {
 } from '@/utils/paperReviewState';
 import {
   cropWrittenBlob,
+  encodeWrittenCrop,
   keptPageBlob,
   rasterizeScan,
+  stackGrayCrops,
   type RasterizedPage,
 } from '@/utils/paperScanRaster';
 import { CHOICE_LETTERS, paperGridOf } from '@/utils/paperSheetLayout';
 import { paperBatchTag } from '@/utils/paperSheetMarker';
-import { readPaperPage } from '@/utils/paperSheetReader';
+import {
+  blankWrittenCrop,
+  cropWrittenBox,
+  readPaperPage,
+  type GrayCrop,
+} from '@/utils/paperSheetReader';
 import {
   paperCropStoragePath,
   paperPageStoragePath,
@@ -638,6 +646,30 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
     const byMap = batch.layoutVersion === 2;
     const keep = canKeep && keepPages;
     const tag = paperBatchTag(batch.id);
+    // A multi-page answer is cut page by page, then joined into one crop.
+    const multiPage = new Set(
+      (batch.pageMaps ?? []).flatMap((m) =>
+        m.items.flatMap((i) =>
+          i.kind === 'written' && i.continued ? [i.questionId] : []
+        )
+      )
+    );
+    // Every page each multi-page answer printed on, so a missing page joins as white and reprints line up.
+    const printedBoxes = new Map<
+      string,
+      { page: number; boxMm: PaperRectMm }[]
+    >();
+    for (const m of batch.pageMaps ?? []) {
+      for (const i of m.items) {
+        if (i.kind !== 'written' || !multiPage.has(i.questionId)) continue;
+        printedBoxes.set(i.questionId, [
+          ...(printedBoxes.get(i.questionId) ?? []),
+          { page: m.page, boxMm: i.boxMm },
+        ]);
+      }
+    }
+    const pieceIds = new Map<string, string>();
+    const pieces = new Map<string, Map<number, GrayCrop>>();
     const kept = new Map<string, Promise<KeptPage | null>>();
     const encoding: Promise<unknown>[] = [];
     setPageScan(null);
@@ -663,6 +695,22 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
           // Blank boxes are cropped too: they are archived as the record of an empty answer (D22).
           if (byMap && read.marker.seat !== batch.keySheetSeat) {
             for (const box of read.written) {
+              if (multiPage.has(box.questionId)) {
+                const k = writtenCropKey(read.marker.seat, box.questionId);
+                pieceIds.set(k, box.questionId);
+                const byPage = pieces.get(k) ?? new Map<number, GrayCrop>();
+                try {
+                  byPage.set(
+                    read.marker.page,
+                    cropWrittenBox(page.page, read.mmToPx, box.boxMm)
+                  );
+                } catch {
+                  // A failed cut joins as white, so the other pages keep their place.
+                  byPage.delete(read.marker.page);
+                }
+                pieces.set(k, byPage);
+                continue;
+              }
               const blob = await cropWritten(
                 page.page,
                 read.mmToPx,
@@ -700,6 +748,22 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
         pages.push({ scanIndex, read });
         scanIndex += 1;
       }
+      await Promise.all(
+        [...pieces].map(async ([k, byPage]) => {
+          const boxes = printedBoxes.get(pieceIds.get(k) ?? '') ?? [];
+          const ordered = boxes.map(
+            (b) => byPage.get(b.page) ?? blankWrittenCrop(b.boxMm)
+          );
+          const blob =
+            ordered.length > 0
+              ? await encodeWrittenCrop(stackGrayCrops(ordered)).catch(
+                  () => null
+                )
+              : null;
+          if (blob) blobs.set(k, blob);
+          else blobs.delete(k);
+        })
+      );
       // A page that failed to encode drops out, even when an earlier scan of it worked, as a failed crop does.
       const keptPages = (await Promise.all(kept.values())).filter(
         (p): p is KeptPage => p !== null

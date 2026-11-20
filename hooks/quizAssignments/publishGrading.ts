@@ -1,3 +1,10 @@
+import {
+  calcAttemptKey,
+  calcModifiedNeedsAnswer,
+  formatCalcAnswer,
+  isCalcQuestion,
+  withCalcValues,
+} from '@/utils/quizCalculated';
 import { deleteField } from 'firebase/firestore';
 import type {
   QuestionTranslation,
@@ -70,6 +77,22 @@ export interface ResponseGradingContext {
   sections?: QuizSessionSection[];
   /** Hybrid paper quiz: an unscanned written answer holds the score. */
   paperWrittenQuestionIds?: string[];
+  /** Student-paced, the only pace that shows the modified prompt. */
+  modifiedWording?: boolean;
+}
+
+/** True when this student was shown the modified prompt of each question. */
+export function servedModified(
+  ctx: Pick<
+    ResponseGradingContext,
+    'overridesByStudentUid' | 'modifiedWording'
+  >,
+  studentUid: string
+): boolean {
+  return (
+    ctx.modifiedWording === true &&
+    ctx.overridesByStudentUid[studentUid]?.modifiedQuestions === true
+  );
 }
 
 export function buildResponseGradingContext(
@@ -82,6 +105,7 @@ export function buildResponseGradingContext(
     questionsById.set(q.id, q);
   return {
     questionsById,
+    modifiedWording: assignmentData?.sessionMode === 'student',
     overridesByStudentUid: (assignmentData?.overridesByStudentUid ??
       {}) as Record<string, StudentOverride>,
     servedLanguageByStudentUid: (assignmentData?.servedLanguageByStudentUid ??
@@ -112,8 +136,36 @@ export function buildRevealedAnswers(
   const revealed: Record<string, string> = {};
   // First-wins, matching buildResponseGradingContext — the revealed answer must match what the student was graded against.
   for (const q of dedupeQuestionsById(quizData.questions))
-    revealed[q.id] = revealValueFor(q);
+    // A random-number answer is added per student by `withCalcRevealed`.
+    if (!isCalcQuestion(q)) revealed[q.id] = revealValueFor(q);
   return revealed;
+}
+
+/** The published key for one student: each random-number question's answer from their own numbers. */
+export function withCalcRevealed(
+  answerKey: Record<string, string> | null,
+  questions: Iterable<QuizQuestion>,
+  responseKey: string,
+  response: Pick<QuizResponse, 'status' | 'completedAttempts'> &
+    Partial<Pick<QuizResponse, 'joinedAt'>>,
+  /** The student gets the modified version of each question. */
+  modified = false
+): Record<string, string> | null {
+  if (!answerKey) return answerKey;
+  const key = calcAttemptKey(responseKey, response);
+  let out = answerKey;
+  for (const q of questions) {
+    if (!isCalcQuestion(q) || !q.calc) continue;
+    const own = withCalcValues(
+      q,
+      key,
+      modified && calcModifiedNeedsAnswer(q.modifiedText, q.calc, q.text)
+    );
+    if (!own.calcValues || !own.calc) continue;
+    if (out === answerKey) out = { ...answerKey };
+    out[q.id] = formatCalcAnswer(own.calc, own.calcValues);
+  }
+  return out;
 }
 
 /** Scoring-guide example responses by question, published with the answer key; null when there are none. */
@@ -145,7 +197,9 @@ export interface PublishGrade {
 /** Grades one response for publishing; `score` is null while a slot awaits a teacher grade. */
 export function gradeResponseForPublish(
   data: QuizResponse,
-  ctx: ResponseGradingContext
+  ctx: ResponseGradingContext,
+  /** The response doc id; fixes each student's random numbers. */
+  responseKey: string
 ): PublishGrade {
   const {
     questionsById,
@@ -238,7 +292,13 @@ export function gradeResponseForPublish(
       q,
       data,
       gradeAnswer(
-        q,
+        withCalcValues(
+          q,
+          calcAttemptKey(responseKey, data),
+          q.calc &&
+            calcModifiedNeedsAnswer(q.modifiedText, q.calc, q.text) &&
+            servedModified(ctx, data.studentUid)
+        ),
         a.answer,
         manualGrade,
         fibAcceptedAnswers(

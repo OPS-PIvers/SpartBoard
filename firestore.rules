@@ -7183,6 +7183,13 @@ service cloud.firestore {
         match /drafts/{d} {
           allow read: if wrTeacher() || (wrMine() && 'returnedAt' in existing());
         }
+        // Peer review notes on this piece, made only by writingPeerReviewV1; the writer only closes them.
+        match /peer/{m} {
+          allow read: if wrMine() || wrTeacher();
+          allow update: if wrMine() && existing().status == 'open'
+            && changedOnly(['status', 'resolvedAt']) && isInt('resolvedAt')
+            && incoming().status in ['accepted', 'rejected', 'resolved'];
+        }
       }
     }
 

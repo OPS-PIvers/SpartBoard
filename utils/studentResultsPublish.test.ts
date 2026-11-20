@@ -285,57 +285,13 @@ describe('VA score-only publish keeps right/wrong off responses', () => {
     ).toEqual(bare);
   });
 
-  it('writes graded answers unchanged with the flag off', () => {
-    const data = {
-      studentUid: 'u1',
-      answers: bare,
-      completedAt: 5,
-    } as unknown as VideoActivityResponse;
-    expect(
-      vaPublishPatch(
-        data,
-        { score: 100, answers: graded },
-        {
-          withholdVerdicts: false,
-          visibility: 'score-only',
-          now: 1,
-          sessionShowsResults: false,
-          responseKey: 'u1',
-        }
-      )
-    ).toEqual({ score: 100, answers: graded });
-  });
-
-  it('clears an old marker with the flag off', () => {
-    const data = {
-      studentUid: 'u1',
-      answers: bare,
-      completedAt: 5,
-      verdictsWithheld: true,
-    } as unknown as VideoActivityResponse;
-    expect(
-      vaPublishPatch(
-        data,
-        { score: 100, answers: graded },
-        {
-          withholdVerdicts: false,
-          visibility: 'score-and-responses',
-          now: 1,
-          sessionShowsResults: false,
-          responseKey: 'u1',
-        }
-      )
-    ).toEqual({ score: 100, answers: graded, verdictsWithheld: DELETE });
-  });
-
-  it('marks the response when the flag withholds verdicts, and clears it otherwise', () => {
+  it('marks the response when score-only withholds verdicts, and clears it otherwise', () => {
     const data = {
       studentUid: 'u1',
       answers: bare,
       completedAt: 5,
     } as unknown as VideoActivityResponse;
     const opts = {
-      withholdVerdicts: true,
       now: 1,
       sessionShowsResults: false,
       responseKey: 'u1',
@@ -356,7 +312,7 @@ describe('VA score-only publish keeps right/wrong off responses', () => {
     ).toEqual({ score: 100, answers: graded, verdictsWithheld: DELETE });
   });
 
-  it('writes no isCorrect in a flagged per-student score-only publish', async () => {
+  it('writes no isCorrect in a per-student score-only publish', async () => {
     docs.set('video_activity_sessions/s2', {
       sessionOptions: { answerRulesSet: true, showResultToStudent: false },
     });
@@ -370,37 +326,13 @@ describe('VA score-only publish keeps right/wrong off responses', () => {
       [vaQ('q1', 'a')],
       ['done'],
       'score-only',
-      null,
-      undefined,
-      true
+      null
     );
     expect(writes[0].patch.score).toBe(100);
     expect(writes[0].patch.answers).toEqual([
       { questionId: 'q1', answer: 'a' },
     ]);
     expect(writes[0].patch.verdictsWithheld).toBe(true);
-  });
-
-  it('keeps isCorrect in an unflagged per-student score-only publish', async () => {
-    docs.set('video_activity_sessions/s3', {
-      sessionOptions: { answerRulesSet: true, showResultToStudent: false },
-    });
-    docs.set('video_activity_sessions/s3/responses/done', {
-      studentUid: 'done',
-      completedAt: 5,
-      answers: [{ questionId: 'q1', answer: 'a' }],
-    });
-    await publishVideoActivityResultsForStudents(
-      's3',
-      [vaQ('q1', 'a')],
-      ['done'],
-      'score-only',
-      null
-    );
-    expect(writes[0].patch.answers).toEqual([
-      { questionId: 'q1', answer: 'a', isCorrect: true },
-    ]);
-    expect(writes[0].patch).not.toHaveProperty('verdictsWithheld');
   });
 
   it('writes no verdicts for an unrevealed live question at score-only', async () => {
@@ -418,9 +350,7 @@ describe('VA score-only publish keeps right/wrong off responses', () => {
       [vaQ('q1', 'a')],
       ['u1'],
       'score-only',
-      null,
-      undefined,
-      true
+      null
     );
     expect(writes[0].patch.answers).toEqual([
       { questionId: 'q1', answer: 'a' },

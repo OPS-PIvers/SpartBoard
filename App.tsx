@@ -463,6 +463,13 @@ const WritingDevHarness = import.meta.env.DEV
       }))
     )
   : null;
+const WritingPeerDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/WritingPeerDevHarness').then((module) => ({
+        default: module.WritingPeerDevHarness,
+      }))
+    )
+  : null;
 const WritingGraderDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/WritingGraderDevHarness').then((module) => ({
@@ -585,6 +592,13 @@ const TourStepsDevHarness = import.meta.env.DEV
     )
   : null;
 
+const WebToursDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/WebToursDevHarness').then((module) => ({
+        default: module.WebToursDevHarness,
+      }))
+    )
+  : null;
 const WebTourEditorDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/WebTourEditorDevHarness').then((module) => ({
@@ -1137,6 +1151,15 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <WritingDevHarness />
+      </Suspense>
+    );
+  }
+
+  // Writing peer review setup and student views on fixtures; dev builds only.
+  if (WritingPeerDevHarness && pathname === '/writing-peer-dev') {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <WritingPeerDevHarness />
       </Suspense>
     );
   }
@@ -1767,6 +1790,20 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <TourStepsDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: the Web tours page on seeded tours, for screenshots.
+  if (
+    import.meta.env.DEV &&
+    WebToursDevHarness &&
+    isAuthBypass &&
+    pathname === '/web-tours-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <WebToursDevHarness />
       </Suspense>
     );
   }
