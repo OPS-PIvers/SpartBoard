@@ -22,7 +22,7 @@ import { assertViewAsAllowed } from './viewAsGuard';
 import { assertNotDistrictGroup } from './districtLibraryGuard';
 import {
   PLC_DETACHED_SUBCOLLECTION,
-  assertGroupLinkedToPlc,
+  assertGroupLinkedOrDetached,
   assertPlcContentEditor,
   assertPlcMember,
   isDetachMarkerFor,
@@ -116,7 +116,16 @@ export async function handleJoinPlcQuizSyncGroup(
       if (isDetachMarkerFor(markerSnap.data(), plcId, plcQuizId)) {
         tx.delete(markerRef);
       } else {
-        assertGroupLinkedToPlc(plcId, plcSnap, plcQuizSnap, groupSnap);
+        await assertGroupLinkedOrDetached(
+          tx,
+          groupRef,
+          plcId,
+          'quizzes',
+          plcQuizId,
+          plcSnap,
+          plcQuizSnap,
+          groupSnap
+        );
       }
       const now = Date.now();
       participants[uid] = { joinedAt: now };

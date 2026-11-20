@@ -186,6 +186,28 @@ export async function unverifiedClassIds(
   return ids.filter((id) => !verified.has(id));
 }
 
+// Same pattern as the rule; `.` refuses a newline there too.
+const RULE_LMS_ID = /^(?:schoology|classroom):.+$/;
+
+/** The class targets firestore.rules `onVerifiedList` refuses: before enforce, one unlisted LMS id in first place (LTI launch) passes. */
+export async function refusedClassTargets(
+  db: admin.firestore.Firestore,
+  uid: string,
+  ids: readonly string[]
+): Promise<string[]> {
+  const missing = await unverifiedClassIds(db, uid, ids);
+  const first = ids[0];
+  if (
+    missing.length > 0 &&
+    first !== undefined &&
+    RULE_LMS_ID.test(first) &&
+    missing.every((id) => id === first) &&
+    (await missingListAllowed(db))
+  )
+    return [];
+  return missing;
+}
+
 /** A verified, non-student, non-PIN address from a callable token, or null. */
 export function staffEmailFromToken(token: unknown): string | null {
   if (!token || typeof token !== 'object') return null;

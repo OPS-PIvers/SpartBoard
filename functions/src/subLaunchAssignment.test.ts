@@ -1370,6 +1370,28 @@ describe('resolveTargeting', () => {
       resolveTargeting(stub(docs), 'h', SHARED, ['r1'])
     ).rejects.toThrow('no class a student can sign in to');
   });
+
+  it('keeps one unlisted LMS class in first place before enforce, as the rule does', async () => {
+    const docs = {
+      ...DOCS,
+      'users/h/rosters/r4': { name: 'LTI', classlinkClassId: 'schoology:7' },
+      'verified_classes/h': { ids: ['test-2'], classlinkAt: 1 },
+    };
+    const shared = [...SHARED, { id: 'r4' }];
+    const first = await resolveTargeting(stub(docs), 'h', shared, ['r4', 'r2']);
+    expect(first.classIds).toEqual(['schoology:7', 'test-2']);
+    const later = await resolveTargeting(stub(docs), 'h', shared, ['r2', 'r4']);
+    expect(later.classIds).toEqual(['test-2']);
+    const enforced = {
+      ...docs,
+      'admin_settings/verified_classes_fill': { enforce: true },
+    };
+    const off = await resolveTargeting(stub(enforced), 'h', shared, [
+      'r4',
+      'r2',
+    ]);
+    expect(off.classIds).toEqual(['test-2']);
+  });
 });
 
 describe('allocateJoinCode', () => {
