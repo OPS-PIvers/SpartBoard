@@ -11753,8 +11753,6 @@ export type GlobalFeature =
   | 'quiz-cross-out'
   /** Desmos calculator stimulus on quiz questions. */
   | 'quiz-calculator-stimulus'
-  /** Quiz editor: preview a stimulus from the question's attach list. */
-  | 'quiz-stimulus-preview'
   /** Question editor metadata (stimuli, targets, DOK) as labeled fields like Type and Points. */
   | 'question-editor-fields'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
@@ -11898,12 +11896,6 @@ export type GlobalFeature =
   | 'video-import-ai'
   /** Manual assignments get a due date, and Assign remembers the When step. */
   | 'assign-due-date'
-  /** Reopen an ended quiz for selected students only. */
-  | 'reopen-selected-students'
-  /** A score-only Video Activity publish keeps right/wrong off students' answers. */
-  | 'va-score-only-verdicts'
-  /** Every widget's Settings tab can save its settings as the teacher's default for new copies. */
-  | 'widget-settings-defaults'
   /** Library and Assigned tabs with a status per class (docs/plans/ASSIGNED_TAB.md D19). */
   | 'assigned-tab'
   /** The sidebar Assignments hub; on for everyone until an admin narrows it. */

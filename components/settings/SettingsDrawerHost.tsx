@@ -470,13 +470,12 @@ export const SettingsDrawerHost: React.FC = () => {
     ]
   );
 
-  const settingsDefaultsOn = !!canAccessFeature?.('widget-settings-defaults');
   const savedSettingsDefault = openType
     ? readSavedSettingsDefault(savedWidgetPresets, openType)
     : undefined;
   const settingsDefaults = useMemo(
     () =>
-      openType && settingsDefaultsOn
+      openType
         ? {
             widgetDefaults: WIDGET_DEFAULTS[openType]?.config as
               Record<string, unknown> | undefined,
@@ -495,7 +494,6 @@ export const SettingsDrawerHost: React.FC = () => {
         : undefined,
     [
       openType,
-      settingsDefaultsOn,
       featurePermissions,
       selectedBuildings,
       savedSettingsDefault,

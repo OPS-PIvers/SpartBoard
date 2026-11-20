@@ -925,8 +925,6 @@ export const QuestionStimulusSection: React.FC<{
   calculatorAvailable?: boolean;
   /** Attaches an image pasted inside this element to the question; absent turns pasting off. */
   pasteScopeRef?: React.RefObject<HTMLElement | null>;
-  /** `quiz-stimulus-preview` gate. */
-  previewAvailable?: boolean;
   /** `question-editor-fields`: a row of the light metadata list. */
   metaList?: boolean;
 }> = ({
@@ -934,7 +932,6 @@ export const QuestionStimulusSection: React.FC<{
   questionId,
   calculatorAvailable = false,
   pasteScopeRef,
-  previewAvailable = false,
   metaList = false,
 }) => {
   const question = state.questions.find((q) => q.id === questionId);
@@ -944,7 +941,6 @@ export const QuestionStimulusSection: React.FC<{
       attachedIds={question?.stimulusIds}
       calculatorAvailable={calculatorAvailable}
       pasteScopeRef={pasteScopeRef}
-      previewAvailable={previewAvailable}
       metaList={metaList}
       ownerId={questionId}
       onToggle={(stimulusId) =>
@@ -959,22 +955,14 @@ export const SlotStimulusSection: React.FC<{
   state: QuizEditorController;
   slotId: string;
   calculatorAvailable?: boolean;
-  previewAvailable?: boolean;
   metaList?: boolean;
-}> = ({
-  state,
-  slotId,
-  calculatorAvailable = false,
-  previewAvailable = false,
-  metaList = false,
-}) => {
+}> = ({ state, slotId, calculatorAvailable = false, metaList = false }) => {
   const slot = state.bankSlots.find((s) => s.id === slotId);
   return (
     <AttachStimulusSection
       state={state}
       attachedIds={slot?.stimulusIds}
       calculatorAvailable={calculatorAvailable}
-      previewAvailable={previewAvailable}
       metaList={metaList}
       ownerId={slotId}
       onToggle={(stimulusId) => state.toggleStimulusOnSlot(stimulusId, slotId)}
@@ -987,7 +975,6 @@ const AttachStimulusSection: React.FC<{
   attachedIds: string[] | undefined;
   calculatorAvailable: boolean;
   pasteScopeRef?: React.RefObject<HTMLElement | null>;
-  previewAvailable?: boolean;
   /** The question or slot shown; a change closes the open preview. */
   ownerId?: string;
   metaList?: boolean;
@@ -997,7 +984,6 @@ const AttachStimulusSection: React.FC<{
   attachedIds,
   calculatorAvailable,
   pasteScopeRef,
-  previewAvailable = false,
   ownerId,
   metaList = false,
   onToggle,
@@ -1042,12 +1028,10 @@ const AttachStimulusSection: React.FC<{
     setPreviewId(null);
   }
   // Collapsed, the header names what is attached instead of only counting it.
-  const attachedNames = previewAvailable
-    ? stimuli
-        .filter((s) => attachedIds?.includes(s.id))
-        .map(stimulusDisplayName)
-        .join(', ')
-    : '';
+  const attachedNames = stimuli
+    .filter((s) => attachedIds?.includes(s.id))
+    .map(stimulusDisplayName)
+    .join(', ');
   const summary =
     drop.dragging && !open
       ? 'Drop it here'
@@ -1072,10 +1056,8 @@ const AttachStimulusSection: React.FC<{
                 .filter((slot) => slot.stimulusIds?.includes(s.id))
                 .map((slot) => slot.bankTitle),
             ];
-            const previewing = previewAvailable && previewId === s.id;
-            const name = previewAvailable
-              ? stimulusDisplayName(s)
-              : s.label || s.url;
+            const previewing = previewId === s.id;
+            const name = stimulusDisplayName(s);
             const checkboxId = `${rowIdPrefix}-attach-${s.id}`;
             const checkbox = (
               <input
@@ -1100,20 +1082,6 @@ const AttachStimulusSection: React.FC<{
             );
             const usedOnText =
               usedOn.length > 0 ? `on ${usedOn.join(', ')}` : 'unused';
-            if (!previewAvailable) {
-              return (
-                <li key={s.id}>
-                  <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none rounded-sm px-1.5 py-1 hover:bg-slate-50">
-                    {checkbox}
-                    {badge}
-                    <span className="flex-1 truncate">{name}</span>
-                    <span className="shrink-0 max-w-[40%] truncate text-xxs text-slate-400 tabular-nums">
-                      {usedOnText}
-                    </span>
-                  </label>
-                </li>
-              );
-            }
             const previewDomId = `attach-preview-${s.id}`;
             return (
               <li key={s.id}>
@@ -1282,9 +1250,7 @@ const AttachStimulusSection: React.FC<{
         <span className="text-xs font-bold uppercase tracking-wider text-slate-600">
           Stimuli
         </span>
-        <span
-          className={`${previewAvailable ? 'min-w-0 truncate ' : ''}text-xs text-slate-400 tabular-nums`}
-        >
+        <span className="min-w-0 truncate text-xs text-slate-400 tabular-nums">
           {summary}
         </span>
       </button>

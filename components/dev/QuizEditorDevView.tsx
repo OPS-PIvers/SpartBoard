@@ -333,9 +333,7 @@ const MediaGateGranted: React.FC<{ children: React.ReactNode }> = ({
         ...auth,
         canAccessQuizMediaResponse: () => true,
         canAccessFeature: (id) =>
-          id === 'quiz-whiteboard-response' ||
-          id === 'quiz-stimulus-preview' ||
-          auth.canAccessFeature(id),
+          id === 'quiz-whiteboard-response' || auth.canAccessFeature(id),
       }}
     >
       {children}
