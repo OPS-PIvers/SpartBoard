@@ -143,7 +143,10 @@ import {
   answersWithoutVerdicts,
   visibilityShowsResponses,
 } from '@/utils/quizResultsVisibility';
-import { hasEveryCurrentAnswerKey } from '@/utils/quizAssignBankDraw';
+import {
+  assignmentFrozenFileId,
+  hasEveryCurrentAnswerKey,
+} from '@/utils/quizAssignBankDraw';
 import {
   nextRemovedClasses,
   withLinkedSections,
@@ -606,6 +609,9 @@ export const useQuizAssignments = (
         ...dueLockField,
         ...(settings.resolvedDriveFileId
           ? { resolvedDriveFileId: settings.resolvedDriveFileId }
+          : {}),
+        ...(settings.frozenDriveFileId
+          ? { frozenDriveFileId: settings.frozenDriveFileId }
           : {}),
         ...(perPeriod ? { accessMode, periodAccess } : {}),
         ...(paperBatchId ? { paper: true as const, paperBatchId } : {}),
@@ -2738,9 +2744,9 @@ export const useQuizAssignments = (
         ...buildResponseGradingContext(quizData, assignmentSnap.data()),
         sections,
       };
-      // A bank-draw key is frozen at assign; refresh the server's copy so it grades like this publish.
+      // A frozen key is fixed at assign; refresh the server's copy so it grades like this publish.
       const serverKey =
-        typeof assignmentSnap.data()?.resolvedDriveFileId === 'string' &&
+        typeof assignmentFrozenFileId(assignmentSnap.data()) === 'string' &&
         hasEveryCurrentAnswerKey(quizData)
           ? await getDoc(scoreKeyRef(userId, assignmentId))
           : null;

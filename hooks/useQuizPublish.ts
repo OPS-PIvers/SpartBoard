@@ -46,7 +46,10 @@ interface UseQuizPublishArgs {
   updateAppSettings: AuthContextType['updateAppSettings'];
   loadAnswerKeyQuizQuietly: (
     meta: QuizMetadata,
-    assignment: Pick<QuizAssignment, 'resolvedDriveFileId'>
+    assignment: Pick<
+      QuizAssignment,
+      'resolvedDriveFileId' | 'frozenDriveFileId'
+    >
   ) => Promise<QuizData | null>;
   deactivateAssignment: UseQuizAssignmentsResult['deactivateAssignment'];
   publishAssignmentScores: UseQuizAssignmentsResult['publishAssignmentScores'];
