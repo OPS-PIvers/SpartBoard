@@ -40,6 +40,36 @@ export function buildFolderIndex(folders: LibraryFolder[]): FolderIndex {
     if (bucket) bucket.push(f);
     else childrenOf.set(parent, [f]);
   }
+  // Parent cycles (two-tab moves) are unreachable from the top; hoist one member per cycle.
+  const reached = new Set<string>();
+  const markFrom = (parent: string | null) => {
+    for (const k of childrenOf.get(parent) ?? []) {
+      if (reached.has(k.id)) continue;
+      reached.add(k.id);
+      markFrom(k.id);
+    }
+  };
+  markFrom(null);
+  for (const start of [...folders].sort((a, b) => a.order - b.order)) {
+    if (reached.has(start.id)) continue;
+    // Walk up to the folder the chain loops back on, so only a cycle member is hoisted.
+    const seen = new Set<string>();
+    let f = start;
+    while (!seen.has(f.id)) {
+      seen.add(f.id);
+      const up = f.parentId != null ? byId.get(f.parentId) : undefined;
+      if (!up) break;
+      f = up;
+    }
+    const bucket = childrenOf.get(f.parentId);
+    const at = bucket ? bucket.indexOf(f) : -1;
+    if (at !== -1) bucket?.splice(at, 1);
+    const top = childrenOf.get(null);
+    if (top) top.push(f);
+    else childrenOf.set(null, [f]);
+    reached.add(f.id);
+    markFrom(f.id);
+  }
   return { byId, childrenOf };
 }
 
@@ -50,12 +80,15 @@ export function folderPath(
 ): LibraryFolder[] {
   const path: LibraryFolder[] = [];
   const seen = new Set<string>();
+  const top = new Set(index.childrenOf.get(null) ?? []);
   let cursor = folderId;
   while (cursor != null && !seen.has(cursor)) {
     seen.add(cursor);
     const folder = index.byId.get(cursor);
     if (!folder) break;
     path.unshift(folder);
+    // Hoisted cycle members sit at the top level, so stop there.
+    if (top.has(folder)) break;
     cursor = folder.parentId;
   }
   return path;
@@ -77,6 +110,16 @@ export function subtreeFolderIds(
     }
   }
   return ids;
+}
+
+/** Every folder beneath `rootId` as the tree draws it (cycle-safe), excluding `rootId`. */
+export function descendantFolderIds(
+  rootId: string,
+  folders: LibraryFolder[]
+): string[] {
+  const ids = subtreeFolderIds(rootId, buildFolderIndex(folders));
+  ids.delete(rootId);
+  return [...ids].filter((id): id is string => id !== null);
 }
 
 /** Resolves an item's folder, treating ids of deleted folders as top level. */
