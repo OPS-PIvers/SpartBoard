@@ -5,6 +5,7 @@ import type { RosterGroup, StudentOverride } from '@/types';
 import { RosterGroupsPanel } from './RosterGroupsPanel';
 import { RosterAccommodationsByStudent } from './RosterAccommodationsByStudent';
 import {
+  applyGroupMembershipChange,
   studentAccommodationSources,
   groupAccommodations,
 } from '@/utils/rosterAccommodationSources';
@@ -45,10 +46,13 @@ const GroupsHost = ({
         setGroups(next);
       }}
       overrides={overrides}
-      onOverridesChange={(next) => {
-        latestOverrides = next;
-        setOverrides(next);
-      }}
+      onOverridesChange={(update) =>
+        setOverrides((prev) => {
+          latestOverrides =
+            typeof update === 'function' ? update(prev) : update;
+          return latestOverrides;
+        })
+      }
       readAloudAvailable={false}
       speechToTextAvailable={false}
     />
@@ -110,6 +114,46 @@ describe('RosterGroupsPanel (redesign)', () => {
     });
   });
 
+  it('a student who joins gets the group settings, and one who leaves loses them', () => {
+    render(
+      <GroupsHost
+        initialGroups={[
+          { id: 'g', name: 'Extra time', studentIds: ['b', 'c'] },
+        ]}
+        initialOverrides={{
+          b: { timeMultiplier: 2 },
+          c: { timeMultiplier: 2, readAloud: true },
+        }}
+      />
+    );
+    fireEvent.click(screen.getAllByRole('button', { name: 'Edit' })[0]);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Abdi, Hamza' }));
+    expect(latestOverrides.a).toEqual({ timeMultiplier: 2 });
+    fireEvent.click(
+      screen.getByRole('checkbox', { name: 'Anderson, Margaret' })
+    );
+    expect(latestOverrides.b).toBeUndefined();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Bui, Linh' }));
+    // Her read aloud was her own, so it stays.
+    expect(latestOverrides.c).toEqual({ readAloud: true });
+  });
+
+  it('deleting a group takes its settings off its members', () => {
+    render(
+      <GroupsHost
+        initialGroups={[
+          { id: 'g', name: 'Extra time', studentIds: ['b', 'c'] },
+        ]}
+        initialOverrides={{
+          b: { timeMultiplier: 2 },
+          c: { timeMultiplier: 2, readAloud: true },
+        }}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    expect(latestOverrides).toEqual({ c: { readAloud: true } });
+  });
+
   it('Delete group removes it and returns to the list', () => {
     render(
       <GroupsHost
@@ -134,10 +178,13 @@ describe('RosterAccommodationsByStudent', () => {
         overrides={overrides}
         readAloudAvailable
         speechToTextAvailable={false}
-        onChange={(next) => {
-          latestOverrides = next;
-          setOverrides(next);
-        }}
+        onChange={(update) =>
+          setOverrides((prev) => {
+            latestOverrides =
+              typeof update === 'function' ? update(prev) : update;
+            return latestOverrides;
+          })
+        }
         onAddStudents={() => undefined}
       />
     );
@@ -193,5 +240,17 @@ describe('studentAccommodationSources', () => {
     const c = studentAccommodationSources('c', infos, overrides);
     expect(c.fromGroups[0].override).toEqual({ readAloud: true });
     expect(c.own).toEqual({ timeMultiplier: 1.5 });
+  });
+});
+
+describe('applyGroupMembershipChange', () => {
+  it('keeps a setting another group gives', () => {
+    const next = applyGroupMembershipChange(
+      { c: { timeMultiplier: 2, readAloud: true } },
+      { timeMultiplier: 2, readAloud: true },
+      [],
+      [{ id: 'c', keptByOtherGroups: { readAloud: true } }]
+    );
+    expect(next).toEqual({ c: { readAloud: true } });
   });
 });

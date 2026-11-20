@@ -1,5 +1,5 @@
 // Groups tab of Edit Class (class-groups-redesign): a group list, then one page per group with its students and accommodations.
-import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronLeft, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import type { RosterGroup, Student, StudentOverride } from '@/types';
@@ -9,6 +9,10 @@ import {
   applyGroupOverride,
   sharedStudentOverride,
 } from '@/utils/rosterDefaultOverrides';
+import {
+  applyGroupMembershipChange,
+  groupAccommodations,
+} from '@/utils/rosterAccommodationSources';
 import { SplitClassFooter } from './SplitClassFooter';
 import { StandingAccommodationRules } from './StandingAccommodationRules';
 import { Toggle } from '@/components/common/Toggle';
@@ -19,14 +23,50 @@ export interface RosterGroupsPanelProps {
   students: Student[];
   onChange: (groups: RosterGroup[]) => void;
   overrides: Record<string, StudentOverride>;
-  onOverridesChange: (overrides: Record<string, StudentOverride>) => void;
+  onOverridesChange: React.Dispatch<
+    React.SetStateAction<Record<string, StudentOverride>>
+  >;
   readAloudAvailable: boolean;
   speechToTextAvailable: boolean;
   onSharingChange?: (sharing: boolean) => void;
 }
 
+/** Joiners get the group's settings; leavers lose them unless another of their groups gives the same. */
+const withMembership = (
+  cur: Record<string, StudentOverride>,
+  groups: RosterGroup[],
+  sorted: Student[],
+  group: RosterGroup,
+  studentIds: string[]
+): Record<string, StudentOverride> => {
+  const onRoster = new Set(sorted.map((s) => s.id));
+  const before = group.studentIds.filter((id) => onRoster.has(id));
+  const added = studentIds.filter(
+    (id) => onRoster.has(id) && !before.includes(id)
+  );
+  const others = groupAccommodations(
+    groups.filter((g) => g.id !== group.id),
+    sorted,
+    cur
+  );
+  const removed = before
+    .filter((id) => !studentIds.includes(id))
+    .map((id) => ({
+      id,
+      keptByOtherGroups: others
+        .filter((g) => g.memberIds.includes(id))
+        .reduce<StudentOverride>((acc, g) => ({ ...acc, ...g.shared }), {}),
+    }));
+  return applyGroupMembershipChange(
+    cur,
+    sharedStudentOverride(cur, before),
+    added,
+    removed
+  );
+};
+
 export const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = (props) => {
-  const { groups, students, onChange, overrides } = props;
+  const { groups, students, onChange, overrides, onOverridesChange } = props;
   const { t } = useTranslation();
   const [openId, setOpenId] = useState<string | null>(null);
   const [freshId, setFreshId] = useState<string | null>(null);
@@ -52,6 +92,9 @@ export const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = (props) => {
   const patch = (id: string, change: Partial<RosterGroup>) =>
     onChange(groups.map((g) => (g.id === id ? { ...g, ...change } : g)));
   const remove = (id: string) => {
+    const gone = groups.find((g) => g.id === id);
+    if (gone)
+      onOverridesChange((cur) => withMembership(cur, groups, sorted, gone, []));
     onChange(groups.filter((g) => g.id !== id));
     if (openId === id) setOpenId(null);
   };
@@ -253,6 +296,7 @@ const GroupPage: React.FC<
   }
 > = ({
   group,
+  groups,
   sorted,
   autoFocusName,
   onPatch,
@@ -265,10 +309,6 @@ const GroupPage: React.FC<
   onSharingChange,
 }) => {
   const { t } = useTranslation();
-  const latest = useRef(overrides);
-  useLayoutEffect(() => {
-    latest.current = overrides;
-  });
   const memberIds = sorted
     .filter((s) => group.studentIds.includes(s.id))
     .map((s) => s.id);
@@ -276,16 +316,20 @@ const GroupPage: React.FC<
     defaultValue: 'Show in widgets',
   });
   const shared = sharedStudentOverride(overrides, memberIds);
-  const updateShared = (fn: (prev: StudentOverride) => StudentOverride) => {
-    const cur = latest.current;
-    const next = applyGroupOverride(
-      cur,
-      memberIds,
-      fn(sharedStudentOverride(cur, memberIds))
+  const changeMembers = (studentIds: string[]) => {
+    onOverridesChange((cur) =>
+      withMembership(cur, groups, sorted, group, studentIds)
     );
-    latest.current = next;
-    onOverridesChange(next);
+    onPatch({ studentIds });
   };
+  const updateShared = (fn: (prev: StudentOverride) => StudentOverride) =>
+    onOverridesChange((cur) =>
+      applyGroupOverride(
+        cur,
+        memberIds,
+        fn(sharedStudentOverride(cur, memberIds))
+      )
+    );
 
   return (
     <div className="flex-1 min-h-0 flex flex-col border border-slate-200 rounded-xl bg-white">
@@ -342,7 +386,7 @@ const GroupPage: React.FC<
           <MemberChecklist
             sorted={sorted}
             selected={group.studentIds}
-            onChange={(studentIds) => onPatch({ studentIds })}
+            onChange={changeMembers}
           />
         </Section>
         <Section

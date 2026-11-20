@@ -1,6 +1,7 @@
 import type { RosterGroup, Student, StudentOverride } from '@/types';
 import {
   isEmptyStudentOverride,
+  setRosterDefaultOverride,
   sharedStudentOverride,
 } from './rosterDefaultOverrides';
 
@@ -76,4 +77,51 @@ export const studentAccommodationSources = (
     fromGroups: mine.map((g) => ({ group: g.group, override: g.shared })),
     own: own,
   };
+};
+
+const MAX_SUPPORTS = 5;
+
+/** Gives students who join a group its shared settings, and takes them back from students who leave. */
+export const applyGroupMembershipChange = (
+  overrides: Record<string, StudentOverride>,
+  groupShared: StudentOverride,
+  added: string[],
+  removed: Array<{ id: string; keptByOtherGroups: StudentOverride }>
+): Record<string, StudentOverride> => {
+  const shared: Record<string, unknown> = { ...groupShared };
+  if (Object.keys(shared).length === 0) return overrides;
+  let result = overrides;
+  for (const id of added) {
+    const own: Record<string, unknown> = { ...(result[id] ?? {}) };
+    for (const [key, value] of Object.entries(shared)) {
+      if (key === 'supports') {
+        const mine = (own.supports as unknown[] | undefined) ?? [];
+        own.supports = [
+          ...mine,
+          ...(value as unknown[]).filter((x) => !mine.some((y) => same(x, y))),
+        ].slice(0, MAX_SUPPORTS);
+      } else own[key] = value;
+    }
+    result = setRosterDefaultOverride(result, id, own);
+  }
+  for (const { id, keptByOtherGroups } of removed) {
+    const own: Record<string, unknown> = { ...(result[id] ?? {}) };
+    const kept: Record<string, unknown> = { ...keptByOtherGroups };
+    for (const [key, value] of Object.entries(shared)) {
+      if (key === 'supports') {
+        const keep = (kept.supports as unknown[] | undefined) ?? [];
+        const next = ((own.supports as unknown[] | undefined) ?? []).filter(
+          (x) =>
+            keep.some((y) => same(x, y)) ||
+            !(value as unknown[]).some((y) => same(x, y))
+        );
+        if (next.length > 0) own.supports = next;
+        else delete own.supports;
+      } else if (same(own[key], value) && !same(kept[key], value)) {
+        delete own[key];
+      }
+    }
+    result = setRosterDefaultOverride(result, id, own);
+  }
+  return result;
 };

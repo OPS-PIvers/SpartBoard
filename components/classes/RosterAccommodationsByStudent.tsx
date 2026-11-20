@@ -1,5 +1,5 @@
 // Accommodations tab of Edit Class (class-groups-redesign): every student, with what their groups give and what is their own.
-import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronLeft, Pencil } from 'lucide-react';
 import type { RosterGroup, Student, StudentOverride } from '@/types';
@@ -20,7 +20,9 @@ export interface RosterAccommodationsByStudentProps {
   overrides: Record<string, StudentOverride>;
   readAloudAvailable: boolean;
   speechToTextAvailable: boolean;
-  onChange: (overrides: Record<string, StudentOverride>) => void;
+  onChange: React.Dispatch<
+    React.SetStateAction<Record<string, StudentOverride>>
+  >;
   onAddStudents: () => void;
   onSharingChange?: (sharing: boolean) => void;
 }
@@ -88,10 +90,6 @@ export const RosterAccommodationsByStudent: React.FC<
 }) => {
   const { t } = useTranslation();
   const [openId, setOpenId] = useState<string | null>(null);
-  const latest = useRef(overrides);
-  useLayoutEffect(() => {
-    latest.current = overrides;
-  });
   const sorted = useMemo(() => sortByLastName(students), [students]);
   const groupInfos = groupAccommodations(groups, sorted, overrides);
   const sourcesFor = (id: string) =>
@@ -119,16 +117,9 @@ export const RosterAccommodationsByStudent: React.FC<
   }
 
   if (open) {
-    const update = (fn: (prev: StudentOverride) => StudentOverride) => {
-      const cur = latest.current;
-      const next = setRosterDefaultOverride(
-        cur,
-        open.id,
-        fn(cur[open.id] ?? {})
-      );
-      latest.current = next;
-      onChange(next);
-    };
+    const id = open.id;
+    const update = (fn: (prev: StudentOverride) => StudentOverride) =>
+      onChange((cur) => setRosterDefaultOverride(cur, id, fn(cur[id] ?? {})));
     return (
       <div className="flex-1 min-h-0 flex flex-col border border-slate-200 rounded-xl bg-white">
         <div className="flex items-center px-3 py-2 border-b border-slate-200 bg-slate-50 rounded-t-xl">
