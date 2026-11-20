@@ -10812,6 +10812,8 @@ export interface WritingAssignmentSession
   dueAtByClassId?: Record<string, number>;
   /** D16: grades published to students; the grade shows once returned or published, whichever is first. */
   scorePublishedAt?: number;
+  /** Peer review, while it runs or after it ended. */
+  peerReview?: WritingPeerReview | null;
   createdAt: number;
   updatedAt: number;
   endedAt?: number;
@@ -10853,6 +10855,8 @@ export interface WritingAssignmentRecord {
   /** Assigned tab marks, written by `updateWritingSessionV1`: single-line Close (D24) and Move to Finished (D5). */
   closedAt?: number | null;
   doneAt?: number | null;
+  /** Peer review groups, written by `setWritingPeerReviewV1`; each student reads the next one's writing. */
+  peerGroups?: { members: string[] }[];
 }
 
 /** The Writing record summary (D9), kept on the response and copied onto each frozen copy. */
@@ -10973,6 +10977,35 @@ export interface WritingDraft {
   grade?: WritingGrade;
   returnedAt?: number;
   returnKind?: 'return' | 'revision';
+}
+
+/** Peer review access: read the partner's writing, also comment on it, or also suggest edits. */
+export type WritingPeerAccess = 'view' | 'comment' | 'edit';
+
+/** On the session while peer review runs; who reads whom stays on each student's own pointer. */
+export interface WritingPeerReview {
+  access: WritingPeerAccess;
+  startedAt: number;
+  endedAt?: number | null;
+}
+
+/** `.../responses/{authorUid}/peer/{id}`: a partner's comment or suggested edit, offsets into the plain text. */
+export interface WritingPeerMark {
+  id: string;
+  /** The partner's student uid; names come from the reader's own roster or pointer, never this doc. */
+  by: string;
+  kind: 'comment' | 'edit';
+  start: number;
+  end: number;
+  /** The text the mark covered when made, to find it again after the writer keeps writing. */
+  quote: string;
+  /** Edit: the text to put in place of the quote; empty deletes it. */
+  insert?: string;
+  /** Comment: what the partner wrote. */
+  body?: string;
+  status: 'open' | 'accepted' | 'rejected' | 'resolved';
+  createdAt: number;
+  resolvedAt?: number;
 }
 
 // Union of all widget configs
@@ -11941,6 +11974,8 @@ export type GlobalFeature =
   | 'assign-due-date'
   /** Library and Assigned tabs with a status per class (docs/plans/ASSIGNED_TAB.md D19). */
   | 'assigned-tab'
+  /** Writing peer review: teachers pair students to read, comment on or suggest edits to each other's writing. */
+  | 'writing-peer-review'
   /** The sidebar Assignments hub; on for everyone until an admin narrows it. */
   | 'assignments-hub'
   /** Teachers record their voice for a quiz question prompt. */

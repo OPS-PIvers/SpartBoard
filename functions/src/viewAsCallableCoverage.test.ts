@@ -47,6 +47,7 @@ const CALLABLE_MODES: Record<string, Mode> = {
   takeBackWritingV1: 'write',
   turnInTimedWritingV1: 'write',
   turnInWritingV1: 'write',
+  writingPeerReviewV1: 'write',
   checkQuizGameAnswerV1: 'write',
   checkVideoActivityAnswerV1: 'write',
   claimOrganizationInvite: 'write',
@@ -169,6 +170,7 @@ const CALLABLE_MODES: Record<string, Mode> = {
   returnWritingV1: 'outward',
   returnWritingForRevisionV1: 'outward',
   saveWritingFeedbackV1: 'outward',
+  setWritingPeerReviewV1: 'outward',
   // One read guard for shareHost, one write guard for joins and leaves.
   shareMembershipV1: 'mixed',
   // The session callables read the claim themselves.

@@ -93,6 +93,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'assign-due-date',
   'course-agenda',
   'assigned-tab',
+  'writing-peer-review',
   'quiz-question-audio',
   'quiz-random-numbers',
   'results-print-v2',
