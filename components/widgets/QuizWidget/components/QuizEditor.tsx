@@ -106,6 +106,7 @@ import {
   QuestionTypeSelect,
 } from './QuestionFields';
 import { questionTypeChangeUpdates } from './questionFieldUpdates';
+import { MetaInlineContext } from './questionFieldContexts';
 import { rubricMaxPoints } from '@/utils/rubricPoints';
 import { withOwnCriterionIds } from '@/utils/rubricOverrideResolution';
 import {
@@ -1007,6 +1008,37 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   // Spoken answers on: Type, Format, Time limit and Points share one compact line.
   const compactRow = mediaResponseAllowed;
   const metaList = canAccessFeature('question-editor-fields');
+  // Stimuli and Modified sit in the prompt box footer; targets and DOK share one line.
+  const inPrompt = metaList;
+  const stimulusField = (
+    <QuestionStimulusSection
+      state={state}
+      questionId={q.id}
+      calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
+      pasteScopeRef={paneRef}
+      metaList={metaList}
+      pickerModal={canAccessFeature('quiz-stimulus-picker')}
+    />
+  );
+  const targetsField = (
+    <QuestionTargetsField
+      question={q}
+      onChange={(targets) => updateQuestion(q.id, { targets })}
+      onDokChange={(dok) => updateQuestion(q.id, { dok })}
+      promptStandards={promptStandards}
+      pickerOpen={pickerOpen}
+      onPickerOpenChange={setPickerOpen}
+      metaList={metaList}
+    />
+  );
+  const modifiedField = (
+    <QuestionModifiedField
+      key={q.id}
+      question={q}
+      onChange={(modifiedText) => updateQuestion(q.id, { modifiedText })}
+      metaList={metaList}
+    />
+  );
 
   return (
     // Not `relative`: the rubric builder anchors to the modal body so it can span both panes.
@@ -1030,6 +1062,14 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           promptMath
           promptFormat
           promptAudio={canAccessFeature('quiz-question-audio')}
+          extras={
+            inPrompt ? (
+              <>
+                {stimulusField}
+                {modifiedField}
+              </>
+            ) : undefined
+          }
           onAddNumber={
             randomNumbersOn &&
             q.type === 'FIB' &&
@@ -1053,37 +1093,24 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           />
         )}
 
-        <div
-          className={metaList ? 'border-y border-slate-200 py-1' : 'space-y-4'}
-        >
-          {/* Under the prompt, matching where students see it. */}
-          <QuestionStimulusSection
-            state={state}
-            questionId={q.id}
-            calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
-            pasteScopeRef={paneRef}
-            metaList={metaList}
-            pickerModal={canAccessFeature('quiz-stimulus-picker')}
-          />
-
-          {/* Learning targets */}
-          <QuestionTargetsField
-            question={q}
-            onChange={(targets) => updateQuestion(q.id, { targets })}
-            onDokChange={(dok) => updateQuestion(q.id, { dok })}
-            promptStandards={promptStandards}
-            pickerOpen={pickerOpen}
-            onPickerOpenChange={setPickerOpen}
-            metaList={metaList}
-          />
-
-          <QuestionModifiedField
-            key={q.id}
-            question={q}
-            onChange={(modifiedText) => updateQuestion(q.id, { modifiedText })}
-            metaList={metaList}
-          />
-        </div>
+        {inPrompt ? (
+          <MetaInlineContext.Provider value>
+            <div className="flex flex-wrap items-center gap-x-8 border-y border-slate-200 py-1">
+              {targetsField}
+            </div>
+          </MetaInlineContext.Provider>
+        ) : (
+          <div
+            className={
+              metaList ? 'border-y border-slate-200 py-1' : 'space-y-4'
+            }
+          >
+            {/* Under the prompt, matching where students see it. */}
+            {stimulusField}
+            {targetsField}
+            {modifiedField}
+          </div>
+        )}
 
         {/* Type / format / time / points row */}
         <div
