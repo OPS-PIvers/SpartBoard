@@ -2,6 +2,7 @@
 import type { QuizResponse } from '@/types';
 import { getResponseDocKey } from '@/hooks/quizSession/responseKeys';
 import {
+  calcAttemptKey,
   calcSeed,
   drawCalcValues,
   fillCalcPrompt,
@@ -16,7 +17,9 @@ export function questionForResponse<
   q: Q,
   response: QuizResponse | undefined
 ): Q & { calcValues?: Record<string, number> } {
-  return response ? withCalcValues(q, getResponseDocKey(response)) : q;
+  return response
+    ? withCalcValues(q, calcAttemptKey(getResponseDocKey(response), response))
+    : q;
 }
 
 /** A student's public question with their own numbers written into its prompt; other questions unchanged. */
@@ -36,6 +39,7 @@ export function fillCalcPublicQuestion<
   const fill = (text: string) => fillCalcPrompt(text, spec, values);
   return {
     ...q,
+    calcUnfilled: q,
     text: fill(q.text),
     ...(q.modifiedText ? { modifiedText: fill(q.modifiedText) } : {}),
     ...(q.localized
@@ -49,4 +53,20 @@ export function fillCalcPublicQuestion<
         }
       : {}),
   };
+}
+
+/** A published key with each random-number answer swapped for an earlier attempt's own, or dropped. */
+export function withAttemptCalcAnswers(
+  revealed: Record<string, string> | undefined,
+  questions: { id: string; calcVariables?: CalcVariable[] }[] | undefined,
+  calcAnswers: Record<string, string> | undefined
+): Record<string, string> | undefined {
+  if (!revealed) return revealed;
+  const out = { ...revealed };
+  for (const q of questions ?? []) {
+    if (!q.calcVariables?.length) continue;
+    if (calcAnswers?.[q.id]) out[q.id] = calcAnswers[q.id];
+    else delete out[q.id];
+  }
+  return out;
 }

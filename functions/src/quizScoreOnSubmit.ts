@@ -16,7 +16,7 @@ import {
   parseCountedChoices,
 } from './quizSectionsChosen';
 import { assertViewAsAllowed } from './viewAsGuard';
-import { withCalcValues } from './quizCalculated';
+import { calcAttemptKey, withCalcValues } from './quizCalculated';
 import {
   resolveServerResultsVisibility,
   visibilityIncludesResponses,
@@ -156,7 +156,10 @@ export function scoreAttempt(
       return rest;
     }
     const result = gradeGroupAnswer(
-      withCalcValues(q, responseKey),
+      withCalcValues(
+        q,
+        responseKey ? calcAttemptKey(responseKey, response) : undefined
+      ),
       typeof a.answer === 'string' ? a.answer : '',
       undefined,
       q.type === 'FIB' ? ctx.fibAnswersByQuestion[q.id] : undefined

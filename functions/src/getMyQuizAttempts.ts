@@ -4,7 +4,12 @@ import * as admin from './firebaseAdmin';
 import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import { loadSessionContext } from './gradebook/gradeIndex';
-import { withCalcValues } from './quizCalculated';
+import {
+  calcAttemptKey,
+  calcValuesFor,
+  formatCalcAnswer,
+  withCalcValues,
+} from './quizCalculated';
 import { gradeGroupAnswer, trustedPaperTranscript } from './plcAssessmentMath';
 import { parseCompletedResponse } from './recomputePlcAssessments';
 import { representativeAnswers } from './quizScoreOnSubmit';
@@ -41,6 +46,8 @@ export interface MyAttempt {
   answers?: MyAttemptAnswer[];
   grading?: Doc;
   servedQuestionIds?: string[];
+  /** Random-number answers from this attempt's own numbers, when answers are shown. */
+  calcAnswers?: Record<string, string>;
 }
 
 /** Auth token claims that limit which classes a student caller proved. */
@@ -200,6 +207,17 @@ export async function handleGetMyQuizAttempts(
     };
     if (!withResponses) return base;
     const parsed = parseCompletedResponse(c);
+    const attemptKey = calcAttemptKey(responseKey, {
+      status: 'completed',
+      completedAttempts: n,
+    });
+    const calcAnswers: Record<string, string> = {};
+    if (visibility === 'score-responses-and-answers')
+      for (const q of byId.values()) {
+        const values = q.calc ? calcValuesFor(q, attemptKey) : undefined;
+        if (q.calc && values)
+          calcAnswers[q.id] = formatCalcAnswer(q.calc, values);
+      }
     const representative = representativeAnswers(parsed.answers);
     const served = parsed.servedQuestionIds?.length
       ? new Set(parsed.servedQuestionIds)
@@ -213,7 +231,7 @@ export async function handleGetMyQuizAttempts(
       const g =
         q && judged
           ? gradeGroupAnswer(
-              withCalcValues(q, responseKey),
+              withCalcValues(q, attemptKey),
               a.answer,
               parsed.manualGrades?.[q.id],
               q.type === 'FIB' ? fib[q.id] : undefined,
@@ -239,6 +257,7 @@ export async function handleGetMyQuizAttempts(
       ...(parsed.servedQuestionIds
         ? { servedQuestionIds: parsed.servedQuestionIds }
         : {}),
+      ...(Object.keys(calcAnswers).length > 0 ? { calcAnswers } : {}),
     };
   });
   return { attempts };

@@ -2787,7 +2787,8 @@ export const useQuizAssignments = (
             answerKey: withCalcRevealed(
               answerKey,
               ctx.questionsById.values(),
-              responseKey
+              responseKey,
+              data
             ),
             rubricExamples,
             explanations,
@@ -3015,7 +3016,8 @@ export const useQuizAssignments = (
                   revealedAnswers: withCalcRevealed(
                     revealedAnswers,
                     ctx.questionsById.values(),
-                    responseKey
+                    responseKey,
+                    data
                   ),
                 }
               : {}),
@@ -3210,7 +3212,8 @@ export const useQuizAssignments = (
                 answerKey: withCalcRevealed(
                   opts.answerKey,
                   ctx.questionsById.values(),
-                  responseKey
+                  responseKey,
+                  cleared
                 ),
               }
             ),

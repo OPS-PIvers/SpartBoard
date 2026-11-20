@@ -7,6 +7,7 @@ import { driveTokenFor, readDriveJson } from './drive';
 import { READ_ONLY, iso, run } from './toolKit';
 import { bucketScores } from '../plcAssessmentMath';
 import { readManifest, type ManifestQuestion } from '../miniAppGrading';
+import { calcAttemptKey } from '../quizCalculated';
 import type {
   AggregatePayload,
   CompletedResponse,
@@ -169,7 +170,7 @@ async function quizSessionSummary(
         questionSnapshot: asArray(assignment.questionSnapshot),
         responses: responses.map((d): CompletedResponse => ({
           ...recompute.parseCompletedResponse(d.data()),
-          responseKey: d.id,
+          responseKey: calcAttemptKey(d.id, d.data()),
         })),
         scorePublishedAt:
           typeof s.scorePublishedAt === 'number' ? s.scorePublishedAt : null,

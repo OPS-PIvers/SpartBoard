@@ -5466,6 +5466,8 @@ export interface QuizPublicQuestion {
   calcVariables?: CalcVariable[];
   /** Random-number FIB only: the question's seed, so each student works out their own numbers. */
   calcSeed?: string;
+  /** Client only: the question before this student's numbers were written in. */
+  calcUnfilled?: QuizPublicQuestion;
   /** Free Response only: max points the teacher can award. */
   points?: number;
   /**

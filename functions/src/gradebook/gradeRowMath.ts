@@ -1,5 +1,5 @@
 // Pure builders for grade index rows, one per activity kind (docs/plans/GRADEBOOK.md D10, D11, D15, D25).
-import { withCalcValues } from '../quizCalculated';
+import { calcAttemptKey, withCalcValues } from '../quizCalculated';
 import {
   gradeGroupAnswer,
   parsePublicQuestion,
@@ -471,7 +471,9 @@ export function scoreQuizResponse(
     paperAttested:
       asString(response.paperBatchId) !== '' ||
       asString(response.paperWrittenBatchId) !== '',
-    responseKey,
+    responseKey: responseKey
+      ? calcAttemptKey(responseKey, response)
+      : undefined,
   });
   const paperBatchId = asString(response.paperBatchId);
   const base = {

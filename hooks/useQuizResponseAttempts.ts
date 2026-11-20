@@ -172,6 +172,8 @@ export interface MyQuizAttempt {
   answers?: { questionId: string; answer: string; isCorrect?: boolean }[];
   grading?: QuizResponse['grading'];
   servedQuestionIds?: string[];
+  /** Random-number answers from this attempt's own numbers, when answers are shown. */
+  calcAnswers?: Record<string, string>;
 }
 
 export type MyQuizAttemptsLoader = (req: {

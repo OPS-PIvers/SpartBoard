@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { parseKeyQuestions, scoreAttempt } from './quizScoreOnSubmit';
-import { calcValuesFor, formatCalcAnswer } from './quizCalculated';
+import {
+  calcAttemptKey,
+  calcValuesFor,
+  formatCalcAnswer,
+} from './quizCalculated';
 import { gradeGroupAnswer } from './plcAssessmentMath';
 
 const calc = {
@@ -64,5 +68,22 @@ describe('random-number questions on the server', () => {
 
   it('never accepts the formula itself', () => {
     expect(gradeGroupAnswer(question, 'd / t', undefined).state).toBe('no-key');
+  });
+
+  it('scores a second attempt against its own new numbers', () => {
+    const key = 'uid-abc';
+    const values = calcValuesFor(
+      question,
+      calcAttemptKey(key, { status: 'completed', completedAttempts: 2 })
+    );
+    if (!question.calc || !values) throw new Error('no values');
+    const right = formatCalcAnswer(question.calc, values).replace(' km/h', '');
+    const attempt = (n: number) => ({
+      status: 'completed',
+      completedAttempts: n,
+      answers: [{ questionId: 'q1', answer: right }],
+    });
+    expect(scoreAttempt(attempt(2), ctx, key)?.score).toBe(100);
+    expect(scoreAttempt(attempt(1), ctx, key)?.score).toBe(0);
   });
 });

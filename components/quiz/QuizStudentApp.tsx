@@ -370,6 +370,11 @@ import { effectivePageProtections } from '@/utils/pageProtections';
 import { isForeignPointer } from '@/utils/pointerOwnership';
 import { PageProtectionGuards } from '@/components/common/PageProtectionGuards';
 import {
+  fillCalcPublicQuestion,
+  withAttemptCalcAnswers,
+} from '@/utils/quizCalcResponse';
+import { calcAttemptKey } from '@/utils/quizCalculated';
+import {
   getScoreSuffix,
   isGamificationActive,
 } from '@/components/widgets/QuizWidget/utils/quizScoreboard';
@@ -6574,7 +6579,7 @@ export const PublishedScoreReview: React.FC<{
   session,
   myResponse: liveResponse,
   visibility,
-  revealedAnswers,
+  revealedAnswers: liveRevealedAnswers,
   revealedRubricExamples,
   revealedExplanations,
   publishedAt: publishedAtProp,
@@ -6601,6 +6606,21 @@ export const PublishedScoreReview: React.FC<{
     ? myAttemptAsResponse(liveResponse, picked)
     : liveResponse;
   const drawIds = picked ? picked.servedQuestionIds : liveDrawIds;
+  // An earlier attempt had its own random numbers and answers.
+  const pickedCalcKey =
+    picked && liveResponse._responseKey
+      ? calcAttemptKey(liveResponse._responseKey, {
+          status: 'completed',
+          completedAttempts: picked.n,
+        })
+      : null;
+  const revealedAnswers = pickedCalcKey
+    ? withAttemptCalcAnswers(
+        liveRevealedAnswers ?? session.revealedAnswers,
+        session.publicQuestions,
+        picked?.calcAnswers
+      )
+    : liveRevealedAnswers;
   // Points lead, as on the score card; percent only when an attempt has no point total.
   const attemptLabel = (
     n: number,
@@ -6703,7 +6723,12 @@ export const PublishedScoreReview: React.FC<{
         )
   ).map((q) =>
     applyModifiedRubric(
-      applyModifiedWording(q, modifiedOn),
+      applyModifiedWording(
+        pickedCalcKey && q.calcUnfilled
+          ? fillCalcPublicQuestion(q.calcUnfilled, pickedCalcKey)
+          : q,
+        modifiedOn
+      ),
       override?.modifiedQuestions
     )
   );

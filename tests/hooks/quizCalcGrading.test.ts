@@ -5,8 +5,10 @@ import { withCalcRevealed } from '@/hooks/quizAssignments/publishGrading';
 import {
   fillCalcPublicQuestion,
   questionForResponse,
+  withAttemptCalcAnswers,
 } from '@/utils/quizCalcResponse';
 import {
+  calcAttemptKey,
   calcValuesFor as rawValuesFor,
   formatCalcAnswer,
 } from '@/utils/quizCalculated';
@@ -77,7 +79,10 @@ describe('random-number questions in the app', () => {
 
   it("publishes each student's own answer", () => {
     const key = 'uid-xyz';
-    const revealed = withCalcRevealed({ other: 'x' }, [q], key);
+    const revealed = withCalcRevealed({ other: 'x' }, [q], key, {
+      status: 'completed',
+      completedAttempts: 1,
+    });
     expect(revealed).toEqual({
       other: 'x',
       q1: formatCalcAnswer(calc, calcValuesFor(q, key)),
@@ -96,5 +101,41 @@ describe('random-number questions in the app', () => {
     expect(line.correctAnswerText).toBe(right);
     expect(line.text).toContain(values.d.toFixed(1));
     expect(line.mark).toBe('correct');
+  });
+
+  it('gives each attempt new numbers and grades each attempt on its own', () => {
+    const key = 'pin-Period 1-1001';
+    const first = { ...response(key), completedAttempts: 1 } as QuizResponse;
+    const secondInProgress = {
+      ...response(key),
+      status: 'in-progress',
+      completedAttempts: 1,
+    } as QuizResponse;
+    const second = { ...response(key), completedAttempts: 2 } as QuizResponse;
+    expect(calcAttemptKey(key, first)).toBe(key);
+    expect(calcAttemptKey(key, secondInProgress)).toBe(`${key}#2`);
+    expect(calcAttemptKey(key, second)).toBe(`${key}#2`);
+    const one = questionForResponse(q, first).calcValues;
+    const two = questionForResponse(q, second).calcValues;
+    expect(two).not.toEqual(one);
+    expect(questionForResponse(q, secondInProgress).calcValues).toEqual(two);
+    if (!one || !two) throw new Error('no values');
+    const firstAnswer = formatCalcAnswer(calc, one);
+    expect(
+      gradeAnswer(questionForResponse(q, first), firstAnswer).isCorrect
+    ).toBe(true);
+    expect(
+      gradeAnswer(questionForResponse(q, second), firstAnswer).isCorrect
+    ).toBe(false);
+  });
+
+  it("swaps in an earlier attempt's answers and drops the rest", () => {
+    const pub = toPublicQuestion(q);
+    expect(
+      withAttemptCalcAnswers({ q1: 'live', q2: 'x' }, [pub], { q1: 'old' })
+    ).toEqual({ q1: 'old', q2: 'x' });
+    expect(withAttemptCalcAnswers({ q1: 'live' }, [pub], undefined)).toEqual(
+      {}
+    );
   });
 });

@@ -9,6 +9,7 @@
 
 import { calcAnswerAccepted } from '@/utils/quizCalculated';
 import { fillCalcPublicQuestion } from '@/utils/quizCalcResponse';
+import { calcAttemptKey } from '@/utils/quizCalculated';
 import { isAnswerKeyboard } from '@/config/studentKeyboards';
 import { alignedOrderingImages } from '@/utils/quizOrderingImages';
 import {
@@ -2231,18 +2232,21 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     boardNames && boardNames.sessionId === sessionIdState
       ? boardNames.names
       : null;
-  const myResponseKey = myResponse?._responseKey;
+  // Random numbers change with each attempt.
+  const myCalcKey = myResponse?._responseKey
+    ? calcAttemptKey(myResponse._responseKey, myResponse)
+    : undefined;
   const mergedSession = useMemo(() => {
     const content_ = mergeQuizSessionContent(session, content, readAloudPaths);
     // Random numbers: this student's own numbers written into each prompt.
     const merged =
       content_ &&
-      myResponseKey &&
+      myCalcKey &&
       content_.publicQuestions?.some((q) => q.calcVariables?.length)
         ? {
             ...content_,
             publicQuestions: content_.publicQuestions.map((q) =>
-              fillCalcPublicQuestion(q, myResponseKey)
+              fillCalcPublicQuestion(q, myCalcKey)
             ),
           }
         : content_;
@@ -2252,7 +2256,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           liveLeaderboard: withLeaderboardNames(merged.liveLeaderboard, names),
         }
       : merged;
-  }, [session, content, readAloudPaths, names, myResponseKey]);
+  }, [session, content, readAloudPaths, names, myCalcKey]);
 
   const lookupSession = useCallback(
     async (

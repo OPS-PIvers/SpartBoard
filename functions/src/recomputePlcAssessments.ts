@@ -26,6 +26,7 @@ import {
 } from './plcFlashcardAggregate';
 import { activePlcMemberUids } from './plcActiveMembers';
 import { sessionClassPredicate } from './sessionClassFilter';
+import { calcAttemptKey } from './quizCalculated';
 
 type Firestore = admin.firestore.Firestore;
 
@@ -451,7 +452,7 @@ export async function recomputeOnePlcAssessment(
         .filter((d) => keepClass(d.data()))
         .map((d) => ({
           ...parseCompletedResponse(d.data()),
-          responseKey: d.id,
+          responseKey: calcAttemptKey(d.id, d.data()),
         })),
       scorePublishedAt:
         typeof s.scorePublishedAt === 'number' ? s.scorePublishedAt : null,

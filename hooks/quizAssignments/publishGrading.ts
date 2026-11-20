@@ -1,4 +1,5 @@
 import {
+  calcAttemptKey,
   calcValuesFor,
   formatCalcAnswer,
   isCalcQuestion,
@@ -127,13 +128,15 @@ export function buildRevealedAnswers(
 export function withCalcRevealed(
   answerKey: Record<string, string> | null,
   questions: Iterable<QuizQuestion>,
-  responseKey: string
+  responseKey: string,
+  response: Pick<QuizResponse, 'status' | 'completedAttempts'>
 ): Record<string, string> | null {
   if (!answerKey) return answerKey;
+  const key = calcAttemptKey(responseKey, response);
   let out = answerKey;
   for (const q of questions) {
     if (!isCalcQuestion(q) || !q.calc) continue;
-    const values = calcValuesFor(q, responseKey);
+    const values = calcValuesFor(q, key);
     if (!values) continue;
     if (out === answerKey) out = { ...answerKey };
     out[q.id] = formatCalcAnswer(q.calc, values);
@@ -265,7 +268,7 @@ export function gradeResponseForPublish(
       q,
       data,
       gradeAnswer(
-        withCalcValues(q, responseKey),
+        withCalcValues(q, calcAttemptKey(responseKey, data)),
         a.answer,
         manualGrade,
         fibAcceptedAnswers(
