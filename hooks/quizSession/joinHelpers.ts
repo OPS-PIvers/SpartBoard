@@ -1,10 +1,6 @@
-import {
-  doc,
-  getDoc,
-  updateDoc,
-  type DocumentSnapshot,
-} from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import { doc, getDoc, type DocumentSnapshot } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from '@/config/firebase';
 import {
   QUIZ_SESSIONS_COLLECTION,
   RESPONSES_COLLECTION,
@@ -142,26 +138,25 @@ export async function findExistingResponseDoc(
   return { key: deterministicKey, snap: deterministicSnap };
 }
 
-/** Claims a scan-first hybrid row the paper import left unowned at this PIN key; null when there is none to claim. */
-export async function adoptScannedResponse(
+/** Asks the server to hand this PIN device a scan-first hybrid row the paper import left unowned; false when there is none. */
+export async function claimScannedResponse(
   sessionId: string,
-  responseKey: string,
-  authUid: string
-): Promise<DocumentSnapshot | null> {
-  const ref = doc(
-    db,
-    QUIZ_SESSIONS_COLLECTION,
-    sessionId,
-    RESPONSES_COLLECTION,
-    responseKey
-  );
+  pin: string,
+  period: string | undefined
+): Promise<boolean> {
   try {
-    await updateDoc(ref, { studentUid: authUid });
+    const res = await httpsCallable<
+      { sessionId: string; pin: string; period: string },
+      { claimed: boolean; reason?: string }
+    >(
+      functions,
+      'claimPaperResponseV1'
+    )({ sessionId, pin, period: period ?? '' });
+    return res.data.claimed === true;
   } catch (err) {
-    const code = getErrorCode(err);
-    if (code === 'permission-denied' || code === 'not-found') return null;
-    throw err;
+    console.warn('[useQuizSession] paper row claim failed:', {
+      code: getErrorCode(err),
+    });
+    return false;
   }
-  const snap = await getDoc(ref);
-  return snap.exists() ? snap : null;
 }

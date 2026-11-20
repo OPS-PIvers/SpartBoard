@@ -26,6 +26,7 @@ import {
   useRef,
   useMemo,
   useReducer,
+  useLayoutEffect,
   MutableRefObject,
 } from 'react';
 import {
@@ -900,7 +901,7 @@ export function gradeAnswer(
 }
 import {
   findExistingResponseDoc,
-  adoptScannedResponse,
+  claimScannedResponse,
   getErrorCode,
   logQuizJoinFirestoreError,
   seatRef,
@@ -2277,6 +2278,17 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     []
   );
 
+  // Set after a paper-row claim so the second join can't claim again.
+  const claimRejoinRef = useRef(false);
+  const joinAgainRef = useRef<
+    | ((
+        code: string,
+        pin?: string,
+        classPeriod?: string,
+        teacherUid?: string
+      ) => Promise<string>)
+    | null
+  >(null);
   const joinQuizSession = useCallback(
     async (
       code: string,
@@ -2494,28 +2506,19 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           sanitizedPin,
           classPeriod
         );
-        const found = await findExistingResponseDoc(
-          sessionDoc.id,
-          studentUid,
-          isAnonymous,
-          deterministicKey,
-          computeResponseKey(studentUid, isAnonymous, sanitizedPin, classPeriod)
-        );
-        const responseKey = found.key;
-        let existingSnap = found.snap;
-        // A sheet scanned before this join left a row at the PIN key that no device owns yet.
-        if (
-          !existingSnap?.exists() &&
-          isAnonymous &&
-          responseKey.startsWith('pin-') &&
-          (sessionData.paperWrittenQuestionIds?.length ?? 0) > 0
-        ) {
-          existingSnap = await adoptScannedResponse(
+        const { key: responseKey, snap: existingSnap } =
+          await findExistingResponseDoc(
             sessionDoc.id,
-            responseKey,
-            studentUid
+            studentUid,
+            isAnonymous,
+            deterministicKey,
+            computeResponseKey(
+              studentUid,
+              isAnonymous,
+              sanitizedPin,
+              classPeriod
+            )
           );
-        }
 
         sessionIdRef.current = sessionDoc.id;
         responseKeyRef.current = responseKey;
@@ -2920,23 +2923,58 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
                   .commit()
               : setDoc(responseRef, row);
           };
-          await retryWithFreshClock(studentUid, create).catch((err: unknown) =>
-            logQuizJoinFirestoreError('create-response', err, {
-              sessionId: sessionDoc.id,
-              responseKey,
-              studentUid,
-              isAnonymous,
-              hasPin: !!sanitizedPin,
-              hasClassPeriod: !!finalClassPeriod,
-              hasResolvedClassId: !!resolvedClassId,
-              sessionClassIds: Array.isArray(sessionData.classIds)
-                ? sessionData.classIds
-                : undefined,
-              sessionClassId: sessionData.classId,
-              sessionTeacherUid: sessionData.teacherUid,
-              sessionStatus: sessionData.status,
-            })
+          // A refused create on a hybrid session may be a sheet scanned before this join, at this PIN key.
+          const canClaim =
+            isAnonymous &&
+            !claimRejoinRef.current &&
+            responseKey.startsWith('pin-') &&
+            (sessionData.paperWrittenQuestionIds?.length ?? 0) > 0;
+          let claimed = false;
+          await retryWithFreshClock(studentUid, create).catch(
+            async (err: unknown) => {
+              if (
+                canClaim &&
+                getErrorCode(err) === 'permission-denied' &&
+                (await claimScannedResponse(
+                  sessionDoc.id,
+                  sanitizedPin,
+                  classPeriod
+                ))
+              ) {
+                claimed = true;
+                return;
+              }
+              logQuizJoinFirestoreError('create-response', err, {
+                sessionId: sessionDoc.id,
+                responseKey,
+                studentUid,
+                isAnonymous,
+                hasPin: !!sanitizedPin,
+                hasClassPeriod: !!finalClassPeriod,
+                hasResolvedClassId: !!resolvedClassId,
+                sessionClassIds: Array.isArray(sessionData.classIds)
+                  ? sessionData.classIds
+                  : undefined,
+                sessionClassId: sessionData.classId,
+                sessionTeacherUid: sessionData.teacherUid,
+                sessionStatus: sessionData.status,
+              });
+            }
           );
+          // The row is ours now: join again so the existing-row path picks it up.
+          if (claimed && joinAgainRef.current) {
+            claimRejoinRef.current = true;
+            try {
+              return await joinAgainRef.current(
+                code,
+                pin,
+                classPeriod,
+                teacherUid
+              );
+            } finally {
+              claimRejoinRef.current = false;
+            }
+          }
         } else if (resolvedPeriodName) {
           // Backfill classPeriod on an existing SSO response that joined
           // before this code shipped (or before the teacher retargeted),
@@ -3050,6 +3088,9 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     },
     []
   );
+  useLayoutEffect(() => {
+    joinAgainRef.current = joinQuizSession;
+  }, [joinQuizSession]);
 
   const submitAnswer = useCallback(
     async (

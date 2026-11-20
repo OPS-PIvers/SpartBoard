@@ -49,6 +49,7 @@ const CALLABLE_MODES: Record<string, Mode> = {
   checkQuizGameAnswerV1: 'write',
   checkVideoActivityAnswerV1: 'write',
   claimOrganizationInvite: 'write',
+  claimPaperResponseV1: 'write',
   claimPollCodeV1: 'write',
   classroomAddonLoginV1: 'write',
   commitProjectGroupsV1: 'write',

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import * as firestore from 'firebase/firestore';
 import { findQuizSessionsByCode } from '@/utils/quizJoinCodes';
@@ -1948,23 +1948,7 @@ describe('useQuizSessionStudent — joinQuizSession', () => {
     expect(writtenResponse).not.toHaveProperty('classId');
   });
 
-  it('claims a sheet scanned before the join instead of creating a new row', async () => {
-    (
-      auth as unknown as {
-        currentUser: { uid: string; isAnonymous: boolean } | null;
-      }
-    ).currentUser = { uid: 'anon-uid-pin', isAnonymous: true };
-    (
-      firestore.getDocs as unknown as ReturnType<typeof vi.fn>
-    ).mockResolvedValueOnce({
-      empty: false,
-      docs: [
-        buildSessionDoc('s1', {
-          status: 'active',
-          paperWrittenQuestionIds: ['q2'],
-        }),
-      ],
-    });
+  describe('a sheet scanned before a PIN join (hybrid session)', () => {
     const scanned = {
       studentUid: 'anon-uid-pin',
       pin: '1234',
@@ -1974,26 +1958,106 @@ describe('useQuizSessionStudent — joinQuizSession', () => {
       paperWrittenBatchId: 'batch-1',
       completedAttempts: 0,
     };
-    (firestore.getDoc as unknown as ReturnType<typeof vi.fn>)
-      .mockResolvedValueOnce({ exists: () => false })
-      .mockResolvedValueOnce({ exists: () => false })
-      .mockResolvedValueOnce({ exists: () => true, data: () => scanned });
-    const updateDocMock = firestore.updateDoc as unknown as ReturnType<
-      typeof vi.fn
-    >;
-    updateDocMock.mockResolvedValue(undefined);
-    const setDocMock = firestore.setDoc as unknown as ReturnType<typeof vi.fn>;
+    const hybridSession = (paperWrittenQuestionIds: string[] = ['q2']) => ({
+      empty: false,
+      docs: [
+        buildSessionDoc('s1', { status: 'active', paperWrittenQuestionIds }),
+      ],
+    });
+    const denied = Object.assign(new Error('denied'), {
+      code: 'permission-denied',
+    });
+    const getDocsMock = () =>
+      firestore.getDocs as unknown as ReturnType<typeof vi.fn>;
+    const getDocMock = () =>
+      firestore.getDoc as unknown as ReturnType<typeof vi.fn>;
+    const setDocMock = () =>
+      firestore.setDoc as unknown as ReturnType<typeof vi.fn>;
+    // Response creates only; a refused create also writes the clock-probe doc.
+    const creates = () =>
+      setDocMock().mock.calls.filter(
+        ([, d]) => !!d && typeof d === 'object' && 'studentUid' in d
+      ).length;
+    // Refusing every write also ends the clock resync at once instead of after its timeout.
+    const refuseCreates = () => setDocMock().mockRejectedValue(denied);
+    const join = async () => {
+      const { result } = renderHook(() => useQuizSessionStudent());
+      let outcome: unknown;
+      await act(async () => {
+        outcome = await result.current
+          .joinQuizSession('ABC123', '1234', 'Period 1')
+          .catch((err: unknown) => err);
+      });
+      return { result, outcome };
+    };
 
-    const { result } = renderHook(() => useQuizSessionStudent());
-    await act(async () => {
-      await result.current.joinQuizSession('ABC123', '1234', 'Period 1');
+    beforeEach(() => {
+      (
+        auth as unknown as {
+          currentUser: { uid: string; isAnonymous: boolean } | null;
+        }
+      ).currentUser = { uid: 'anon-uid-pin', isAnonymous: true };
+    });
+    afterEach(() => {
+      setDocMock().mockReset();
     });
 
-    expect(updateDocMock).toHaveBeenCalledWith(expect.anything(), {
-      studentUid: 'anon-uid-pin',
+    it('claims the row through the server when the create is refused, then joins it', async () => {
+      getDocsMock()
+        .mockResolvedValueOnce(hybridSession())
+        .mockResolvedValueOnce(hybridSession());
+      getDocMock()
+        .mockResolvedValueOnce({ exists: () => false })
+        .mockResolvedValueOnce({ exists: () => false })
+        .mockResolvedValueOnce({ exists: () => true, data: () => scanned });
+      refuseCreates();
+      drawCallable.mockResolvedValueOnce({ data: { claimed: true } });
+
+      const { result, outcome } = await join();
+
+      expect(drawCallable).toHaveBeenCalledWith({
+        sessionId: 's1',
+        pin: '1234',
+        period: 'Period 1',
+      });
+      expect(creates()).toBe(2);
+      expect(outcome).toBe('s1');
+      expect(result.current.error).toBeNull();
     });
-    expect(setDocMock).not.toHaveBeenCalled();
-    expect(result.current.error).toBeNull();
+
+    it('creates normally, without a claim, when no row is at the PIN key', async () => {
+      getDocsMock().mockResolvedValueOnce(hybridSession());
+      const { outcome } = await join();
+
+      expect(creates()).toBe(1);
+      expect(drawCallable).not.toHaveBeenCalled();
+      expect(outcome).toBe('s1');
+    });
+
+    it('surfaces the refused create when the server refuses the claim', async () => {
+      getDocsMock().mockResolvedValueOnce(hybridSession());
+      refuseCreates();
+      drawCallable.mockResolvedValueOnce({
+        data: { claimed: false, reason: 'rate-limited' },
+      });
+
+      const { result, outcome } = await join();
+
+      expect(drawCallable).toHaveBeenCalledTimes(1);
+      expect(outcome).toBe(denied);
+      expect(creates()).toBe(2);
+      expect(result.current.error).toMatch(/already in this quiz/);
+    });
+
+    it('never asks for a claim on a session without paper-written questions', async () => {
+      getDocsMock().mockResolvedValueOnce(hybridSession([]));
+      refuseCreates();
+
+      const { outcome } = await join();
+
+      expect(drawCallable).not.toHaveBeenCalled();
+      expect(outcome).toBe(denied);
+    });
   });
 
   it('snapshots classPeriod from session.classPeriodByClassId when the SSO claim resolves unambiguously', async () => {

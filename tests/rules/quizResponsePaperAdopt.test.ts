@@ -1,4 +1,4 @@
-// Rules tests: a PIN device claims a scan-first hybrid row the paper import left unowned (AB-127).
+// Rules tests: a scan-first hybrid row stays closed to devices until claimPaperResponseV1 hands it over (AB-127).
 // Requires a running Firestore emulator (pnpm run test:rules).
 
 import { readFileSync } from 'fs';
@@ -96,84 +96,50 @@ beforeEach(async () => {
   await testEnv.clearFirestore();
 });
 
-describe('quiz response — adopting a scan-first hybrid row', () => {
-  it('the unowned row is unreadable before the claim', async () => {
+describe('quiz response — a scan-first hybrid row the paper import left unowned', () => {
+  it('is unreadable to a device before claimPaperResponseV1 claims it', async () => {
     await seed(scanFirstRow());
     await assertFails(getDoc(doc(asAnon(DEVICE_UID), RESPONSE_PATH)));
   });
 
-  it('a device claims it, keeps the paper answers and can then read it', async () => {
+  it('a device cannot claim it with a direct write (the claim is server-side and rate-limited)', async () => {
     await seed(scanFirstRow());
-    const db = asAnon(DEVICE_UID);
-    await assertSucceeds(
-      updateDoc(doc(db, RESPONSE_PATH), { studentUid: DEVICE_UID })
-    );
-    const snap = await assertSucceeds(getDoc(doc(db, RESPONSE_PATH)));
-    expect(snap.data()?.answers).toEqual([PAPER_ANSWER]);
-    expect(snap.data()?.paperWrittenBatchId).toBe('batch-1');
-  });
-
-  it('a second device is refused once the row is claimed', async () => {
-    await seed(scanFirstRow());
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(asAnon(DEVICE_UID), RESPONSE_PATH), {
         studentUid: DEVICE_UID,
       })
     );
+  });
+
+  it('once claimed, the device reads it with the paper answers and a second device cannot', async () => {
+    await seed(scanFirstRow({ studentUid: DEVICE_UID }));
+    const snap = await assertSucceeds(
+      getDoc(doc(asAnon(DEVICE_UID), RESPONSE_PATH))
+    );
+    expect(snap.data()?.answers).toEqual([PAPER_ANSWER]);
     const other = asAnon(OTHER_DEVICE_UID);
+    await assertFails(getDoc(doc(other, RESPONSE_PATH)));
     await assertFails(
       updateDoc(doc(other, RESPONSE_PATH), { studentUid: OTHER_DEVICE_UID })
     );
-    await assertFails(getDoc(doc(other, RESPONSE_PATH)));
   });
 
-  it('the claim cannot write anything but its own uid', async () => {
-    await seed(scanFirstRow());
+  it('the claiming device can answer a non-paper question but not touch the paper one', async () => {
+    await seed(scanFirstRow({ studentUid: DEVICE_UID }));
     const db = asAnon(DEVICE_UID);
+    await assertSucceeds(
+      updateDoc(doc(db, RESPONSE_PATH), {
+        answers: [
+          PAPER_ANSWER,
+          { questionId: 'q1', answer: 'A', answeredAt: 2, status: 'submitted' },
+        ],
+      })
+    );
     await assertFails(
       updateDoc(doc(db, RESPONSE_PATH), {
-        studentUid: DEVICE_UID,
-        answers: [],
-      })
-    );
-    await assertFails(
-      updateDoc(doc(db, RESPONSE_PATH), { studentUid: OTHER_DEVICE_UID })
-    );
-  });
-
-  it('a row with no scanned written answers cannot be claimed', async () => {
-    const { paperWrittenBatchId: _b, ...plain } = scanFirstRow();
-    await seed(plain);
-    await assertFails(
-      updateDoc(doc(asAnon(DEVICE_UID), RESPONSE_PATH), {
-        studentUid: DEVICE_UID,
-      })
-    );
-  });
-
-  it('a row already owned by a device cannot be claimed', async () => {
-    await seed(scanFirstRow({ studentUid: OTHER_DEVICE_UID }));
-    await assertFails(
-      updateDoc(doc(asAnon(DEVICE_UID), RESPONSE_PATH), {
-        studentUid: DEVICE_UID,
-      })
-    );
-  });
-
-  it('no claim once the session has ended', async () => {
-    await seed(scanFirstRow(), { status: 'ended', endedAt: 1 });
-    await assertFails(
-      updateDoc(doc(asAnon(DEVICE_UID), RESPONSE_PATH), {
-        studentUid: DEVICE_UID,
-      })
-    );
-  });
-
-  it('no claim when the session takes no anonymous joins', async () => {
-    await seed(scanFirstRow(), { allowAnonymousJoin: false });
-    await assertFails(
-      updateDoc(doc(asAnon(DEVICE_UID), RESPONSE_PATH), {
-        studentUid: DEVICE_UID,
+        answers: [
+          { questionId: 'q1', answer: 'A', answeredAt: 2, status: 'submitted' },
+        ],
       })
     );
   });

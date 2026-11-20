@@ -3877,6 +3877,7 @@ describe('index barrel — deployed export set', () => {
     'commitProjectGroupsV1',
     'submitProjectGroupV1',
     'pinLoginV1',
+    'claimPaperResponseV1',
     // Individual assignment targeting (M17 A2 / A2b)
     'setAssignmentTargetsV1',
     // Paper answer sheets (Increment 2 + Q34 pointers)
