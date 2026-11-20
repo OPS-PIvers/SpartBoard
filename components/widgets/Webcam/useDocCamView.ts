@@ -81,7 +81,14 @@ export function useDocCamView({
   }, [save]);
   useEffect(
     () => () => {
-      if (commitTimer.current) clearTimeout(commitTimer.current);
+      if (!commitTimer.current) return;
+      clearTimeout(commitTimer.current);
+      commitTimer.current = null;
+      // Flush the debounced zoom so closing within the delay doesn't drop it.
+      onSaveRef.current({
+        zoomLevel: viewRef.current.zoom,
+        rotation: viewRef.current.rotation,
+      });
     },
     []
   );
