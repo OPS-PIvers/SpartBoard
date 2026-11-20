@@ -29,7 +29,8 @@ import {
   type TourStatus,
 } from './webTourStatus';
 
-const rowBtn = `inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-sm font-semibold text-brand-blue-primary hover:bg-brand-blue-lighter disabled:opacity-50 ${focusRing}`;
+const rowBtnBase = `inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-sm font-semibold disabled:opacity-50 ${focusRing}`;
+const rowBtn = `${rowBtnBase} text-brand-blue-primary hover:bg-brand-blue-lighter`;
 
 type Tone = 'neutral' | 'success' | 'warn' | 'info';
 const TONE: Record<Tone, string> = {
@@ -51,6 +52,9 @@ const Badge: React.FC<{ tone: Tone; children: React.ReactNode }> = ({
 );
 
 export type PublishState = 'draft' | 'changed' | 'published';
+
+const GRID_COLS =
+  'sm:grid sm:grid-cols-[minmax(0,1fr)_7rem_6rem_7.5rem_23.5rem] sm:gap-x-4';
 
 /** What the page's search and filter read about each row. */
 export interface RowFacts {
@@ -352,6 +356,12 @@ const WebTourRow: React.FC<{
   const site = webTourSite(set);
   const stepCount = set.steps.length;
 
+  const publishMark = publish && (
+    <Badge tone={publish === 'draft' ? 'neutral' : 'success'}>
+      {publish === 'draft' ? 'Draft' : 'Published'}
+    </Badge>
+  );
+  const publicMark = publicOn ? <Badge tone="info">Public</Badge> : null;
   const statusControl =
     status === 'passed' ? (
       <Badge tone="success">Check passed</Badge>
@@ -368,11 +378,35 @@ const WebTourRow: React.FC<{
       </button>
     ) : null;
 
+  const meta = (
+    <p className={`mt-0.5 text-xs ${chromeMuted}`}>
+      {stepCount} step{stepCount === 1 ? '' : 's'}
+      {site ? ` · ${site}` : ''}
+      {counts && (
+        <span
+          data-testid="web-tour-counts"
+          title="Views count each time someone starts the tour in the Chrome extension. Link-only views count opens of the public link page."
+        >
+          {` · ${countsText(counts, publicOn)}`}
+        </span>
+      )}
+    </p>
+  );
+  const name = (
+    <div className="-ml-1 min-w-0">
+      <TitleField
+        setId={set.id}
+        title={title}
+        onRename={(next) => onRename(set, next)}
+      />
+    </div>
+  );
+
   return (
     <li
       data-testid="web-tour-row"
       hidden={hidden}
-      className="flex flex-col gap-3 border-b border-slate-200 px-4 py-3 last:border-b-0 sm:flex-row sm:items-center"
+      className={`flex flex-col gap-3 border-b border-slate-200 px-4 py-3 last:border-b-0 sm:items-center ${GRID_COLS}`}
     >
       <div className="flex min-w-0 flex-1 items-start gap-3">
         <Globe
@@ -380,39 +414,16 @@ const WebTourRow: React.FC<{
           aria-hidden="true"
         />
         <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 sm:flex-nowrap">
-            <div className="-ml-1 min-w-0 shrink">
-              <TitleField
-                setId={set.id}
-                title={title}
-                onRename={(next) => onRename(set, next)}
-              />
-            </div>
-            <div className="flex shrink-0 items-center gap-1.5">
-              {publish && (
-                <Badge tone={publish === 'draft' ? 'neutral' : 'success'}>
-                  {publish === 'draft' ? 'Draft' : 'Published'}
-                </Badge>
-              )}
-              {publicOn && <Badge tone="info">Public link on</Badge>}
-              {statusControl}
-            </div>
-          </div>
-          <p className={`mt-0.5 text-xs ${chromeMuted}`}>
-            {stepCount} step{stepCount === 1 ? '' : 's'}
-            {site ? ` · ${site}` : ''}
-            {counts && (
-              <span
-                data-testid="web-tour-counts"
-                title="Views count each time someone starts the tour in the Chrome extension. Link-only views count opens of the public link page."
-              >
-                {` · ${countsText(counts, publicOn)}`}
-              </span>
-            )}
-          </p>
+          {name}
+          {meta}
         </div>
       </div>
-      <div className="flex flex-wrap items-center gap-1 pl-8 sm:pl-0">
+      <div className="flex flex-wrap items-center gap-1.5 pl-8 sm:contents">
+        <div>{publishMark}</div>
+        <div>{publicMark}</div>
+        <div>{statusControl}</div>
+      </div>
+      <div className="flex flex-wrap items-center gap-1 pl-8 sm:justify-end sm:pl-0">
         <button
           type="button"
           onClick={() => onEdit(set)}
@@ -439,7 +450,7 @@ const WebTourRow: React.FC<{
           data-changed={publish === 'changed' || undefined}
           className={
             publish === 'changed'
-              ? `${rowBtn} bg-amber-50 text-amber-900 ring-1 ring-inset ring-amber-300 hover:bg-amber-100`
+              ? `${rowBtnBase} bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-300 hover:bg-amber-100`
               : rowBtn
           }
           {...tourFieldAttr('web-tours.check', 'web-tours', set.id)}
@@ -508,6 +519,16 @@ export const WebTourList: React.FC<{
     );
   return (
     <ul className="rounded-xl border border-slate-200 bg-white">
+      <li
+        aria-hidden="true"
+        className={`hidden border-b border-slate-200 px-4 py-2 text-xs font-semibold text-slate-500 ${GRID_COLS}`}
+      >
+        <span className="pl-8">Tour</span>
+        <span>Status</span>
+        <span>Public link</span>
+        <span>Check</span>
+        <span />
+      </li>
       {[...tours].sort(byNewest).map((set) => (
         <WebTourRow
           key={set.id}
