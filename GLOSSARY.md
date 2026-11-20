@@ -147,7 +147,7 @@ _Avoid_: voice typing, dictation (as the accommodation's name), voice input, STT
 ## Assigned work
 
 **Assignment**:
-A Library item given to one or more Classes for students to do. It is one thing however many Classes get it, and it has no status of its own: it is Active until it is Done.
+A Library item given to one or more Classes for students to do. It is one thing however many Classes get it, and it has no status of its own: it is Active until it is Finished.
 _Avoid_: session (that is a student activity), instance, run
 
 **Ready**:
@@ -170,9 +170,9 @@ _Avoid_: ended, archived, completed, inactive
 Letting a Closed Class, or chosen students in it, back into an assignment at once. Students who have used every attempt stay out.
 _Avoid_: reactivate, restart, return (that is giving writing back)
 
-**Done**:
+**Finished**:
 An assignment with every Class Closed, nothing waiting for a grade and its scores published. It leaves the Active list by itself.
-_Avoid_: completed (that is a student's finished attempt), archive, ended
+_Avoid_: done, completed (that is a student's finished attempt), archive, ended
 
 ## Getting Started
 
