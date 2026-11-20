@@ -112,6 +112,10 @@ describe('EditorModalShell autosave', () => {
     expect(screen.getByText('Unsaved changes')).toBeInTheDocument();
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(screen.getByText('Saved')).toBeInTheDocument());
+    expect(
+      screen.getByText('Saved').closest('[data-modal-header]')
+    ).not.toBeNull();
+    expect(document.querySelector('[data-modal-footer]')).toBeNull();
   });
 
   // Nothing is waiting to be discarded once the editor saves as you go, so
@@ -146,7 +150,7 @@ describe('EditorModalShell autosave', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('retries a failed write from the footer', async () => {
+  it('retries a failed write from the header', async () => {
     const onSave = vi
       .fn<() => Promise<void>>()
       .mockRejectedValueOnce(new Error('offline'))
