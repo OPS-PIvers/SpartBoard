@@ -1394,6 +1394,7 @@
         "ariaLabel": "Abrir asistencia — {{count}} marcados ausentes hoy"
       },
       "classContext": {
+        "label": "Clases",
         "triggerAria": "Clase activa: {{name}}",
         "triggerAriaWithAbsent_one": "Clase activa: {{name}}. {{count}} estudiante marcado ausente hoy.",
         "triggerAriaWithAbsent_other": "Clase activa: {{name}}. {{count}} estudiantes marcados ausentes hoy.",
@@ -4881,27 +4882,6 @@
         "rebound": "Reasignado",
         "needsHuman": "Necesita una persona"
       }
-    },
-    "web": {
-      "title": "Recorridos web",
-      "intro": "Revisa los usos reales de recorridos en otros sitios web.",
-      "empty": "Aún no hay recorridos web.",
-      "loadFailed": "No se pudieron cargar los recorridos web.",
-      "notPublished": "Sin publicar",
-      "colPage": "Página",
-      "state": {
-        "ok": "Correcto",
-        "weak": "Coincidencia débil",
-        "missed": "No encontrado"
-      },
-      "reason": {
-        "missed": "Mostró la imagen en {{misses}} de {{runs}} usos reales",
-        "weak": "Se encontró solo con una pista más débil en {{weak}} de {{runs}} usos reales",
-        "weakScore": "Parecido a otro control en {{weak}} de {{runs}} usos reales"
-      },
-      "copyLink": "Copiar enlace",
-      "linkCopied": "Copiado",
-      "copyLinkFor": "Copiar enlace a {{title}}"
     }
   },
   "tourPicker": {

@@ -3945,6 +3945,11 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'quiz-print.written-box-pages': {
+    label: 'Written box page count in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
   'quiz-print.written-box-lines': {
     label: 'Written box custom line count in the Quiz widget',
     perField: true,
@@ -9856,11 +9861,6 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
-  'admin.help-center.web-tour-copy-link': {
-    label: 'Copy link button for a web tour in tour health',
-    perField: true,
-    panel: true,
-  },
   'admin.help-center.unmapped-copy': {
     label: 'Copy all button for unmapped anchors',
     panel: true,
@@ -13707,9 +13707,29 @@ export const TOUR_ANCHORS = {
     perField: true,
   },
   'web-tours.copy-link': {
-    label: 'Copy link button for a web tour on the Web tours page',
+    label: 'Share button for a web tour on the Web tours page',
     perField: true,
   },
+  'web-tours.share-tour-url': {
+    label: 'Tour URL item in a web tour Share menu on the Web tours page',
+    perField: true,
+    persists: true,
+  },
+  'web-tours.share-steps-url': {
+    label: 'Steps URL item in a web tour Share menu on the Web tours page',
+    perField: true,
+    persists: true,
+  },
+  'web-tours.title': {
+    label: 'Tour name you can rename on the Web tours page',
+    perField: true,
+  },
+  'web-tours.status': {
+    label: 'Fix issues button for a web tour on the Web tours page',
+    perField: true,
+  },
+  'web-tours.search': { label: 'Search box on the Web tours page' },
+  'web-tours.filter': { label: 'Show filter on the Web tours page' },
   'web-tour-editor.title': { label: 'Title field in the web tour editor' },
   'web-tour-editor.play': {
     label: 'Play button in the web tour editor header',

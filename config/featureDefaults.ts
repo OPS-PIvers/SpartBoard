@@ -67,6 +67,7 @@ import {
   Settings2,
   Users,
   PanelLeft,
+  History,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -722,6 +723,21 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Written answer boxes up to four pages long; a page count over 1 needs this.
+  'paper-multi-page-answers': {
+    label: 'Multi-page written answers',
+    icon: TextCursorInput,
+    description: 'Written answers on paper sheets can take up to four pages.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    modalLabel: 'Multi-page written answers',
+    group: 'questions',
+    requires: 'paper-handwritten-responses',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Handwritten answer boxes on paper sheets; AND-ed with the paper-answer-sheets gate.
   'paper-handwritten-responses': {
     label: 'Handwritten answers on paper sheets',
@@ -1007,6 +1023,21 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     afterLaunch: 'retire',
     widget: 'quiz',
     modalLabel: 'Assign waits for the save',
+    group: 'assigning',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Assignments grade against the questions students were given. Admin-only until Paul has used it.
+  'quiz-frozen-assignments': {
+    label: 'Quiz assignments keep their questions',
+    icon: History,
+    description:
+      'Editing a quiz after assigning it no longer changes earlier scores. Answer key fixes still apply when the question and its choices are unchanged.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    modalLabel: 'Assignments keep their questions',
     group: 'assigning',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,

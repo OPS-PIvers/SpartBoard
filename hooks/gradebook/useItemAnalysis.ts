@@ -20,6 +20,7 @@ import type {
   VideoActivitySession,
 } from '@/types';
 import type { GradebookKind } from '@/utils/gradebook/gradebookCore';
+import { assignmentFrozenFileId } from '@/utils/quizAssignBankDraw';
 
 export interface ItemAnalysisRow {
   id: string;
@@ -131,8 +132,9 @@ export function useItemAnalysis(
         const a = await getDoc(
           doc(db, 'users', teacherUid, 'quiz_assignments', sessionId)
         );
-        const fileId = (a.data() as QuizAssignment | undefined)
-          ?.quizDriveFileId;
+        const assignment = a.data() as QuizAssignment | undefined;
+        const fileId =
+          assignmentFrozenFileId(assignment) ?? assignment?.quizDriveFileId;
         if (!fileId || !googleAccessToken || isAuthBypass) return done('none');
         const [quiz, snap] = await Promise.all([
           new QuizDriveService(googleAccessToken).loadQuiz(fileId),

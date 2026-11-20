@@ -25,10 +25,20 @@ import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { openConnectionEditor } from '@/context/connectionsUiStore';
 import { getTitle } from '@/utils/widgetHelpers';
 import { safeSize } from './groupMaker';
+import { randomRosterId } from './widgetRoster';
+
+/** The class this Group Maker draws from, which can differ from the board's active class. */
+function useWidgetRoster(config: RandomConfig) {
+  const { rosters, activeRosterId } = useDashboard();
+  const rosterId = randomRosterId(config, rosters, activeRosterId);
+  return {
+    rosterId,
+    roster: rosters.find((roster) => roster.id === rosterId),
+  };
+}
 
 function useStudentCount(config: RandomConfig): number {
-  const { rosters, activeRosterId } = useDashboard();
-  const activeRoster = rosters.find((roster) => roster.id === activeRosterId);
+  const { roster: activeRoster } = useWidgetRoster(config);
   if ((config.rosterMode ?? 'class') === 'class' && activeRoster) {
     const absent =
       activeRoster.absent?.date === getLocalIsoDate()
@@ -98,9 +108,10 @@ export const RandomGroupCountField: React.FC<{
 export const RandomRosterActionsField: React.FC<{
   ctx: CustomRenderCtx;
 }> = ({ ctx }) => {
-  const { activeRosterId, rosters } = useDashboard();
   const { showConfirm } = useDialog();
-  const activeRoster = rosters.find((roster) => roster.id === activeRosterId);
+  const { roster: activeRoster } = useWidgetRoster(
+    ctx.config as unknown as RandomConfig
+  );
 
   const importRoster = () => {
     if (!activeRoster) return;
@@ -190,9 +201,17 @@ function resultGroups(result: RandomConfig['lastResult']): RandomGroup[] {
 export const RandomSendToStationsField: React.FC<{
   ctx: CustomRenderCtx;
 }> = ({ ctx }) => {
-  const { activeDashboard, activeRosterId, addToast, rosters, updateWidget } =
-    useDashboard();
+  const {
+    activeDashboard,
+    activeRosterId,
+    addToast,
+    setActiveRoster,
+    updateWidget,
+  } = useDashboard();
   const { showConfirm } = useDialog();
+  const { roster: widgetRoster } = useWidgetRoster(
+    ctx.config as unknown as RandomConfig
+  );
   const stationsWidget = activeDashboard?.widgets.find(
     (widget) => widget.type === 'stations'
   );
@@ -230,10 +249,10 @@ export const RandomSendToStationsField: React.FC<{
     if (
       shouldResolveRosterNames(config.rosterMode, stationsConfig.rosterMode)
     ) {
-      const roster = rosters.find(
-        (candidate) => candidate.id === activeRosterId
-      );
+      const roster = widgetRoster;
       if (roster) {
+        // Stations shows the board's class, so bring it to this Group Maker's class.
+        if (roster.id !== activeRosterId) setActiveRoster(roster.id);
         rosterNameToId = new Map(
           roster.students.map((student) => [
             `${student.firstName} ${student.lastName}`.trim(),
@@ -285,9 +304,11 @@ export const RandomSendToStationsField: React.FC<{
 export const RandomSendToProjectsField: React.FC<{
   ctx: CustomRenderCtx;
 }> = ({ ctx }) => {
-  const { activeDashboard, activeRosterId, addToast, updateWidget } =
-    useDashboard();
+  const { activeDashboard, addToast, updateWidget } = useDashboard();
   const { showConfirm } = useDialog();
+  const { rosterId: activeRosterId } = useWidgetRoster(
+    ctx.config as unknown as RandomConfig
+  );
   const projectsWidget = activeDashboard?.widgets.find(
     (widget) => widget.type === 'projects'
   );
@@ -400,9 +421,8 @@ export const RandomLockedGroupsField: React.FC<{ ctx: CustomRenderCtx }> = ({
   ctx,
 }) => {
   const config = ctx.config as unknown as RandomConfig;
-  const { rosters, activeRosterId } = useDashboard();
   const rollout = useRosterGroupsIntegrationSettings();
-  const activeRoster = rosters.find((roster) => roster.id === activeRosterId);
+  const { roster: activeRoster } = useWidgetRoster(config);
   const groups = groupMakerGroups(activeRoster);
   const locked = Array.isArray(config.lockedRosterGroupIds)
     ? config.lockedRosterGroupIds
@@ -485,12 +505,11 @@ export const RandomLockedGroupsField: React.FC<{ ctx: CustomRenderCtx }> = ({
 export const RandomSaveAsClassGroupsField: React.FC<{
   ctx: CustomRenderCtx;
 }> = ({ ctx }) => {
-  const { activeRosterId, addToast, appendRosterGroups, rosters } =
-    useDashboard();
+  const { addToast, appendRosterGroups } = useDashboard();
   const { showPrompt } = useDialog();
   const rollout = useRosterGroupsIntegrationSettings();
   const config = ctx.config as unknown as RandomConfig;
-  const activeRoster = rosters.find((roster) => roster.id === activeRosterId);
+  const { roster: activeRoster } = useWidgetRoster(config);
 
   const save = async () => {
     const groups = resultGroups(config.lastResult).filter(

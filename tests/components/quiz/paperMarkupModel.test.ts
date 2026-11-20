@@ -191,6 +191,19 @@ describe('answer box lookup', () => {
     expect(findAnswerBox(batch, 3, 'bankQ')).toBeNull();
   });
 
+  it('offers no box for a multi-page answer', () => {
+    const maps = batch.pageMaps ?? [];
+    const item = maps[1].items[0];
+    const twoPages = {
+      ...batch,
+      pageMaps: [
+        ...maps,
+        { page: 3, grid: 1, items: [{ ...item, continued: true }] },
+      ],
+    } as PaperBatch;
+    expect(findAnswerBox(twoPages, 3, 'slotQ')).toBeNull();
+  });
+
   it('prefers the written-answers stack on a hybrid response', () => {
     expect(
       paperSeatOf({

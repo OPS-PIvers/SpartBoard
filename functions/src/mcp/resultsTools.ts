@@ -201,10 +201,13 @@ async function quizKey(
 ): Promise<unknown[]> {
   const syncGroupId =
     typeof session.syncGroupId === 'string' ? session.syncGroupId : '';
+  // A frozen copy holds the questions the class was given.
   const fileId =
-    typeof assignment.quizDriveFileId === 'string'
-      ? assignment.quizDriveFileId
-      : '';
+    typeof assignment.frozenDriveFileId === 'string'
+      ? assignment.frozenDriveFileId
+      : typeof assignment.quizDriveFileId === 'string'
+        ? assignment.quizDriveFileId
+        : '';
   const cacheKey = syncGroupId ? `sync:${syncGroupId}` : `drive:${fileId}`;
   const hit = cache.get(cacheKey);
   if (hit) return hit;

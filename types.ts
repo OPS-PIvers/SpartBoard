@@ -2202,6 +2202,8 @@ export interface RandomConfig {
    *  so they survive re-randomize (a fresh order doesn't erase what's
    *  already been completed). */
   doneNames?: string[];
+  /** This widget's own class; unset follows the board's active class (older widgets). */
+  rosterId?: string;
   /** Pool: the saved class group to draw from. Unset or null = whole class. */
   rosterPoolGroupId?: string | null;
   /** Lock: saved class groups kept together when building groups. */
@@ -6127,8 +6129,11 @@ export interface QuizResponseAnswer {
   paperTranscript?: PaperTranscriptState;
 }
 
-/** Size of a handwritten answer box on a paper sheet; S/M/L and a number are line counts, full is a page. */
-export type PaperBoxSize = 'S' | 'M' | 'L' | 'full' | number;
+/** Size of a handwritten answer box on a paper sheet; S/M/L and a number are line counts, full is a page, pages-N is N pages. */
+export type PaperBoxSize = 'S' | 'M' | 'L' | 'full' | PaperBoxPages | number;
+
+/** A written answer that runs over several whole pages. */
+export type PaperBoxPages = 'pages-2' | 'pages-3' | 'pages-4';
 
 /** What prints inside a handwritten answer box: rule lines, nothing, a 5 mm grid, or a grid with x and y axes. */
 export type PaperBoxStyle =
@@ -6732,6 +6737,8 @@ export type PaperPageItem =
       style?: PaperBoxStyle;
       /** Fill in the blank: one write-in line per blank. */
       blanks?: number;
+      /** A later page of a multi-page answer; its crop joins the first page's. */
+      continued?: true;
     };
 
 /** Positions of everything on one physical page; `page` is 1-based and absolute. */
@@ -7532,6 +7539,8 @@ export interface QuizAssignmentSettings {
    * special case. Absent on quizzes without banks.
    */
   resolvedDriveFileId?: string;
+  /** Drive copy of a quiz without bank slots, saved at assign so later edits don't re-score it. */
+  frozenDriveFileId?: string;
 }
 
 /**
@@ -11835,6 +11844,8 @@ export type GlobalFeature =
   | 'live-tour-editing-v2'
   /** Handwritten free-response boxes on paper answer sheets, transcribed for grading. */
   | 'paper-handwritten-responses'
+  /** Written answers that run over two to four whole pages. */
+  | 'paper-multi-page-answers'
   /** Device quiz whose written questions students answer on a printed sheet that is scanned back in. */
   | 'paper-written-hybrid'
   | 'paper-reword-sync'
@@ -11872,6 +11883,8 @@ export type GlobalFeature =
   | 'quiz-recap-all-options'
   /** Quiz assign stays open with a spinner until the save finishes, and shows a failed save inline. */
   | 'quiz-assign-waits-for-save'
+  /** Each quiz assignment keeps a copy of the questions it was given, so later edits never change its scores. */
+  | 'quiz-frozen-assignments'
   /** Rubric grading redesign: one-tap level buttons, expandable criteria, level order switch, full-rubric table. */
   | 'rubric-grading-v2'
   /** Quiz assign: a modification group can get a printed version, scanned back into the same results. */

@@ -592,6 +592,13 @@ const TourStepsDevHarness = import.meta.env.DEV
     )
   : null;
 
+const WebToursDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/WebToursDevHarness').then((module) => ({
+        default: module.WebToursDevHarness,
+      }))
+    )
+  : null;
 const WebTourEditorDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/WebTourEditorDevHarness').then((module) => ({
@@ -1783,6 +1790,20 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <TourStepsDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: the Web tours page on seeded tours, for screenshots.
+  if (
+    import.meta.env.DEV &&
+    WebToursDevHarness &&
+    isAuthBypass &&
+    pathname === '/web-tours-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <WebToursDevHarness />
       </Suspense>
     );
   }
