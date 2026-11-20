@@ -961,3 +961,32 @@ describe('applyProfileBuildingsChange', () => {
     expect(mid.memberUids).toEqual(['lead', 't1', 'hand']);
   });
 });
+
+describe('rosterBuildingGroup latency', () => {
+  it('vets staff accounts concurrently and keeps their order', async () => {
+    const seed = rosterSeed();
+    for (let i = 0; i < 30; i += 1) {
+      seed[`organizations/orono/members/s${i}@orono.k12.mn.us`] = orgMember(
+        `s${i}`
+      );
+      seed[`users/s${i}/userProfile/profile`] = {
+        selectedBuildings: ['middle'],
+      };
+    }
+    seed['plcs/g1'] = group({ lead: member('lead', 'lead') });
+    const { stub, deps } = makeDeps(seed);
+    const lookup = deps.getUser;
+    let inFlight = 0;
+    let peak = 0;
+    deps.getUser = async (uid) => {
+      inFlight += 1;
+      peak = Math.max(peak, inFlight);
+      await new Promise((r) => setTimeout(r, 5));
+      inFlight -= 1;
+      return lookup(uid);
+    };
+    expect(await rosterBuildingGroup(deps, 'g1')).toBe(32);
+    expect(peak).toBeGreaterThan(1);
+    expect(stub.get('plcs/g1')!.memberUids as string[]).toHaveLength(33);
+  });
+});
