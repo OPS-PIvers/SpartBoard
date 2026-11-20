@@ -144,6 +144,7 @@ import { applyRubricEdit, sameRubricContent } from '@/utils/rubricPoints';
 import { QuizEditorModal } from './components/QuizEditorModal';
 import { QuizPreview } from './components/QuizPreview';
 import { QuizResults } from './components/QuizResults';
+import { latestArchivedAssignment } from './utils/latestArchivedAssignment';
 import { QuizAssignmentSettingsModal } from './components/QuizAssignmentSettingsModal';
 import { useTranslation } from 'react-i18next';
 import {
@@ -4616,8 +4617,29 @@ const TeacherQuizWidget: React.FC<{
           }
         }}
         onResults={async (meta) => {
-          const data = await loadQuiz(meta);
-          if (data) setView('results');
+          const a = latestArchivedAssignment(kindAssignments, meta.id);
+          if (!a) {
+            addToast('This quiz has no finished assignment yet.', 'info');
+            return;
+          }
+          const data = await loadAnswerKeyQuiz(meta, a);
+          if (!data) return;
+          updateWidget(
+            widget.id,
+            {
+              config: {
+                ...config,
+                view: 'results',
+                selectedQuizId: a.quizId,
+                selectedQuizTitle: a.quizTitle,
+                activeAssignmentId: a.id,
+                periodName: a.periodName ?? '',
+                periodNames: a.periodNames ?? [],
+                teacherName: a.teacherName ?? '',
+              },
+            },
+            { pickItem: true }
+          );
         }}
         onShare={async (meta) => {
           let url: string;

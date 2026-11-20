@@ -20,7 +20,7 @@ import type { SyncedParticipant } from './syncedQuizGroups';
 import { assertViewAsAllowed } from './viewAsGuard';
 import { assertNotDistrictGroup } from './districtLibraryGuard';
 import {
-  assertGroupLinkedToPlc,
+  assertGroupLinkedOrDetached,
   assertPlcContentEditor,
   assertPlcMember,
 } from './plcSyncJoinGuards';
@@ -107,7 +107,16 @@ export async function handleJoinPlcAssignmentSyncGroup(
     );
     if (!alreadyJoined) {
       assertPlcContentEditor(plcSnap.data(), uid);
-      assertGroupLinkedToPlc(plcId, plcSnap, templateSnap, groupSnap);
+      await assertGroupLinkedOrDetached(
+        tx,
+        groupRef,
+        plcId,
+        'assignments',
+        plcAssignmentId,
+        plcSnap,
+        templateSnap,
+        groupSnap
+      );
       assertNotDistrictGroup(groupSnap.data());
       const now = Date.now();
       participants[uid] = { joinedAt: now };
