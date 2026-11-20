@@ -90,7 +90,7 @@
     "@dnd-kit/modifiers": "^9.0.0",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
-    "@imgly/background-removal": "^1.7.0",
+    "@imgly/background-removal": "1.7.0",
     "@tesseract.js-data/eng": "1.0.0",
     "@use-gesture/react": "^10.3.1",
     "canvas-confetti": "^1.9.4",

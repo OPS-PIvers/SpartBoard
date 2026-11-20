@@ -3,7 +3,7 @@ import { readFileSync, readdirSync, statSync } from 'fs';
 import { join, resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
-// Fails when OCR or background removal could fetch runtime code from a public CDN, or Hosting stops restricting script and worker sources.
+// Fails when OCR or background removal could fetch runtime code from a public CDN, or Hosting stops reporting script and worker sources.
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SKIP_ROOTS = new Set([
   'node_modules',
@@ -68,7 +68,7 @@ describe('self-hosted OCR and background removal', () => {
     expect(bad).toEqual([]);
   });
 
-  it('serves a script and worker policy from Hosting that names no CDN for these libraries', () => {
+  it('reports a script and worker policy from Hosting that names no CDN for these libraries', () => {
     const config = JSON.parse(
       readFileSync(join(repoRoot, 'firebase.json'), 'utf-8')
     ) as {
@@ -79,10 +79,26 @@ describe('self-hosted OCR and background removal', () => {
         }[];
       };
     };
-    const all = config.hosting.headers.find((h) => h.source === '**');
-    const csp = all?.headers.find((h) => h.key === 'Content-Security-Policy');
-    expect(csp?.value).toMatch(/script-src [^;]*'self'/);
-    expect(csp?.value).toMatch(/worker-src [^;]*'self'/);
-    expect(csp?.value).not.toMatch(/jsdelivr|staticimgly|unpkg/);
+    for (const source of [
+      '**',
+      '/activity/**',
+      '/classroom-addon/**',
+      '/lti/**',
+    ]) {
+      const route = config.hosting.headers.find((h) => h.source === source);
+      const report = route?.headers.find(
+        (h) => h.key === 'Content-Security-Policy-Report-Only'
+      );
+      expect(report?.value, source).toMatch(/script-src [^;]*'self'/);
+      expect(report?.value, source).toMatch(/worker-src [^;]*'self'/);
+      expect(report?.value, source).not.toMatch(/jsdelivr|staticimgly|unpkg/);
+      // Enforcing script-src would blank mini apps and code embeds that load CDN scripts in srcdoc frames.
+      const enforced = route?.headers.find(
+        (h) => h.key === 'Content-Security-Policy'
+      );
+      expect(enforced?.value ?? '', source).not.toMatch(
+        /script-src|worker-src/
+      );
+    }
   });
 });
