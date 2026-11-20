@@ -282,7 +282,6 @@ import { printedGroupTranslations } from '@/utils/paperPrintedTranslations';
 import { QuizDriveService } from '@/utils/quizDriveService';
 import { MockQuizDriveService } from '@/utils/mockQuizDriveService';
 import type { PrintedGroupPick } from '@/components/common/library/assignStepper/modificationGroups';
-import { withQuizAnswerChoices } from '@/components/common/library/assignStepper/modificationGroups';
 import {
   browserStimulusImageDeps,
   resolveStimulusImages,
@@ -312,20 +311,18 @@ import {
   type SkipReason,
 } from '@/hooks/useSetAssignmentTargets';
 import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
+import type { AssignTargetingValue } from '@/utils/studentTargetRef';
 import {
-  buildSetAssignmentTargetsPayload,
-  expandClassTargeting,
-  payloadRequiresCall,
-  type AssignTargetingValue,
-} from '@/utils/studentTargetRef';
-import {
-  buildMixedTargetsPayload,
-  expandMixedTargeting,
-} from '@/utils/assignTargets';
+  buildAssignCreateOptions,
+  buildAssignedWidgetConfig,
+  buildAssignQuizRef,
+  buildAssignSessionTargets,
+  buildAssignSettings,
+  buildAssignTargetsCall,
+  resolveAssignTargeting,
+} from '@/hooks/quizAssign/builders';
 import type { QuizStepperAssign } from './components/QuizManager';
-import { translateHiddenOptionIdsToText } from '@/utils/quizHiddenOptions';
 import type { StudentTargetRef } from '@/types';
-import { buildPeriodGate, initialAssignStatus } from '@/utils/periodPlan';
 import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
 import { revealValueFor } from '@/utils/quizFibAlternates';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
@@ -3743,53 +3740,20 @@ const TeacherQuizWidget: React.FC<{
             ? undefined
             : await freezeForAssign(data);
 
-          // M17 C3 F1 — the B2 editor's structured option ids
-          // (`{questionId}-correct` / `-incorrect-N`) must never reach a
-          // student-readable pointer doc. Resolve them to option TEXT here,
-          // where the full quiz body is in hand; the student side matches on
-          // text. F2: an option whose text duplicates the correct answer is
-          // refused rather than silently taking the key down with it.
-          const hiddenOptions = translateHiddenOptionIdsToText(
-            data.questions,
-            targeting.overridesByKey
-          );
-          // Snapshot the checked classes now: the hub must render what was
-          // assigned, not whatever the roster defaults say later.
-          const targetingWithOptions: AssignTargetingValue = {
-            ...targeting,
-            overridesByKey: hiddenOptions.overridesByKey,
-          };
-          // Stepper: whole classes as today, narrowed classes to their picked students (D5b).
-          // Class answer choices become this quiz's hidden options for each student.
-          const withAnswerChoices = (
-            value: AssignTargetingValue
-          ): AssignTargetingValue => ({
-            ...value,
-            overridesByKey: withQuizAnswerChoices(
-              value.overridesByKey,
-              assignQuestions
-            ),
+          // Hidden option ids resolve to option text here so they never reach a student-readable pointer doc.
+          const {
+            warnings: hiddenOptionWarnings,
+            mixedTargeting,
+            resolvedTargeting,
+          } = resolveAssignTargeting({
+            questions: data.questions,
+            assignQuestions,
+            targeting,
+            stepperClasses: stepper?.classes,
+            rosters,
+            rosterIds,
           });
-          const rawMixed = stepper
-            ? expandMixedTargeting(
-                targetingWithOptions,
-                stepper.classes,
-                rosters
-              )
-            : undefined;
-          const mixedTargeting = rawMixed && {
-            ...rawMixed,
-            targeting: withAnswerChoices(rawMixed.targeting),
-          };
-          const resolvedTargeting: AssignTargetingValue =
-            mixedTargeting?.targeting ??
-            withAnswerChoices(
-              expandClassTargeting(targetingWithOptions, {
-                rosters,
-                selectedRosterIds: rosterIds,
-              })
-            );
-          for (const warning of hiddenOptions.warnings) {
+          for (const warning of hiddenOptionWarnings) {
             addToast(warning, 'warning');
           }
 
@@ -3803,24 +3767,17 @@ const TeacherQuizWidget: React.FC<{
                   resolvedTargeting.overridesByKey
                 );
 
-          // Derive session targets from selected rosters — `classIds` feeds
-          // the student SSO gate via Firestore rules; `rosterIds` is mirrored
-          // onto both assignment and session for reverse lookup.
-          const selectedRosters = rosters.filter((r) =>
-            rosterIds.includes(r.id)
-          );
-          const derived = deriveSessionTargetsFromRosters(selectedRosters);
-          const periodGate =
-            mode === 'student'
-              ? buildPeriodGate({
-                  plan: targeting.periodPlan,
-                  rosters: selectedRosters,
-                  sharedWindow: resolvedTargeting,
-                  bellWindow: assignPeriodCtx?.bellWindow,
-                  manualStart: stepper?.manualStart,
-                })
-              : undefined;
-          const sessionPeriodAccess = periodGate?.periodAccess ?? null;
+          // `classIds` feeds the student SSO gate via Firestore rules.
+          const { derived, periodGate, sessionPeriodAccess } =
+            buildAssignSessionTargets({
+              mode,
+              rosters,
+              rosterIds,
+              periodPlan: targeting.periodPlan,
+              sharedWindow: resolvedTargeting,
+              bellWindow: assignPeriodCtx?.bellWindow,
+              manualStart: stepper?.manualStart,
+            });
 
           // PLC link only (D2): results pool server-side, no sheet is
           // created here. Sheet export stays opt-in on the Results screen.
@@ -4050,92 +4007,46 @@ const TeacherQuizWidget: React.FC<{
           let assignmentSaved = false;
           try {
             const { id: assignmentId, code } = await createAssignment(
-              {
-                id: meta.id,
-                title: meta.title,
+              buildAssignQuizRef({
+                meta,
+                data,
                 driveFileId: assignDriveFileId,
                 questions: assignQuestions,
-                ...(assignStimuli ? { stimuli: assignStimuli } : {}),
-                ...(data.language ? { language: data.language } : {}),
-                ...(data.sections?.length
-                  ? { order: data.order, sections: data.sections }
-                  : {}),
-              },
-              {
-                sessionMode: mode,
+                stimuli: assignStimuli,
+              }),
+              buildAssignSettings({
+                mode,
                 sessionOptions,
                 attemptLimit,
-                dueAt: dueAt ?? undefined,
-                dueAtHasTime: dueAt != null ? true : undefined,
-                ...(dueAtByRosterId ? { dueAtByRosterId } : {}),
-                teacherName: plcOptions.teacherName,
-                periodName:
-                  plcOptions.periodNames?.[0] ?? plcOptions.periodName,
-                periodNames: plcOptions.periodNames,
-                plc: plcLinkage,
-                ...(resolvedDriveFileId ? { resolvedDriveFileId } : {}),
-                ...(frozenDriveFileId ? { frozenDriveFileId } : {}),
-              },
-              {
-                ...kindTag,
-                // A per-period session is gated by its periods, a later Scheduled start by its open time.
-                initialStatus: initialAssignStatus({
-                  gated: !!sessionPeriodAccess,
-                  opensLater:
-                    !!stepper &&
-                    !stepper.manualStart &&
-                    mode === 'student' &&
-                    rosterIds.length > 0 &&
-                    (resolvedTargeting.openAt ?? 0) > Date.now(),
-                }),
-                ...(sessionPeriodAccess
-                  ? {
-                      accessMode: periodGate?.accessMode,
-                      periodAccess: sessionPeriodAccess,
-                    }
-                  : {}),
-                ...(sessionBankSlots ? { bankSlots: sessionBankSlots } : {}),
-                ...(paperWritten ? { paperWritten } : {}),
-                ...(stepper?.audience === 'staff'
-                  ? { audience: 'staff' as const }
-                  : {}),
-                classIds: derived.classIds,
-                rosterIds: derived.rosterIds,
-                classPeriodByClassId: derived.classPeriodByClassId,
-                ...(dueAtByRosterId
-                  ? {
-                      dueAtByClassId: dueAtByClassIdFromRosters(
-                        dueAtByRosterId,
-                        rosters
-                      ),
-                    }
-                  : {}),
-                mode: quizAssignmentMode,
-                ...(plcTemplateSyncGroupId ? { plcTemplateSyncGroupId } : {}),
-                // Teammates can't join a District canonical, so no PLC template.
-                ...(isDistrictCopy(meta) ? { skipPlcTemplateWrite: true } : {}),
-                ...(plcLinkage && plcOptions.plcPoolSyncGroupId
-                  ? { plcPoolSyncGroupId: plcOptions.plcPoolSyncGroupId }
-                  : {}),
-                // M17 individual-assignment targeting (spec §5 B3). Only the
-                // fields the client owns — `targetMode` and `targetStudents`
-                // are written by `setAssignmentTargetsV1` below, never here
-                // (canonical rule — absent `targetMode` means class default).
-                targetGroupIds: resolvedTargeting.targetGroupIds,
-                overridesBySourcedId: resolvedTargeting.overridesByKey,
-                openAt: resolvedTargeting.openAt ?? null,
-                closeAt: resolvedTargeting.closeAt ?? null,
-                ...(stepper?.manualStart &&
-                resolvedTargeting.closeAt == null &&
-                dueAt != null
-                  ? { manualLate: true }
-                  : {}),
-                ...(resolvedTargeting.workKind
-                  ? { workKind: resolvedTargeting.workKind }
-                  : {}),
-                ...(translationIndex ? { translationIndex } : {}),
-                lenientTranslatedFib: true,
-              }
+                dueAt,
+                dueAtByRosterId,
+                plcOptions,
+                plcLinkage,
+                resolvedDriveFileId,
+                frozenDriveFileId,
+              }),
+              buildAssignCreateOptions({
+                widgetKind: kindTag.widgetKind,
+                assignmentMode: quizAssignmentMode,
+                mode,
+                now: Date.now(),
+                stepper,
+                rosters,
+                rosterIds,
+                derived,
+                periodGate,
+                sessionPeriodAccess,
+                resolvedTargeting,
+                dueAt,
+                dueAtByRosterId,
+                sessionBankSlots,
+                paperWritten,
+                plcLinkage,
+                plcPoolSyncGroupId: plcOptions.plcPoolSyncGroupId,
+                plcTemplateSyncGroupId,
+                districtCopy: isDistrictCopy(meta),
+                translationIndex,
+              })
             );
             assignmentSaved = true;
             printWritten?.();
@@ -4191,27 +4102,14 @@ const TeacherQuizWidget: React.FC<{
             // today. Individual targeting fans the pick-list out to
             // `/student_assignments` pointer docs; skipped refs are surfaced,
             // never silently dropped.
-            const payload = mixedTargeting
-              ? buildMixedTargetsPayload(undefined, mixedTargeting)
-              : buildSetAssignmentTargetsPayload(undefined, resolvedTargeting);
-            if (payloadRequiresCall(payload)) {
+            const targetsCall = buildAssignTargetsCall({
+              assignmentId,
+              mixedTargeting,
+              resolvedTargeting,
+            });
+            if (targetsCall) {
               try {
-                const result = await setAssignmentTargets({
-                  assignmentId,
-                  kind: 'quiz',
-                  sessionId: assignmentId,
-                  targetMode: payload.targetMode,
-                  add: payload.add,
-                  remove: payload.remove,
-                  overridesBySourcedId: payload.overridesBySourcedId,
-                  ...(payload.excludedTargets
-                    ? { excludedTargets: payload.excludedTargets }
-                    : {}),
-                  ...(payload.studentTargetClassIds
-                    ? { studentTargetClassIds: payload.studentTargetClassIds }
-                    : {}),
-                  window: payload.window,
-                });
+                const result = await setAssignmentTargets(targetsCall);
                 if (result.skipped.length > 0) {
                   setAssignSkippedByAssignmentId((prev) => ({
                     ...prev,
@@ -4258,30 +4156,16 @@ const TeacherQuizWidget: React.FC<{
 
             // Persist the teacher's last-used rosters per quiz so
             // re-launching the same quiz pre-selects the same classes.
-            const prevMap = config.lastRosterIdsByQuizId ?? {};
-            const nextMap: Record<string, string[]> = { ...prevMap };
-            if (rosterIds.length > 0) {
-              nextMap[meta.id] = rosterIds;
-            } else {
-              delete nextMap[meta.id];
-            }
             updateWidget(
               widget.id,
               {
-                config: {
-                  ...config,
-                  view: 'manager',
-                  managerTab: 'active',
-                  selectedQuizId: meta.id,
-                  selectedQuizTitle: meta.title,
-                  activeAssignmentId: assignmentId,
-                  plcMode: plcOptions.plcMode,
-                  teacherName: plcOptions.teacherName ?? '',
-                  periodName:
-                    plcOptions.periodNames?.[0] ?? plcOptions.periodName ?? '',
-                  periodNames: plcOptions.periodNames ?? [],
-                  lastRosterIdsByQuizId: nextMap,
-                },
+                config: buildAssignedWidgetConfig({
+                  config,
+                  meta,
+                  assignmentId,
+                  plcOptions,
+                  rosterIds,
+                }),
               },
               { pickItem: true }
             );
