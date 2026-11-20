@@ -73,7 +73,6 @@ import {
   BankSlotResolutionError,
   type BankContent,
   quizHasBankSlots,
-  quizServedQuestionCount,
   resolveQuizAssignment,
   sampleQuizDraw,
 } from '@/utils/questionBanks';
@@ -81,10 +80,6 @@ import {
   loadAssignmentAnswerKeyQuiz,
   withCurrentAnswerKeys,
 } from '@/utils/quizAssignBankDraw';
-import {
-  reconcileBankSlotsForPlcShare,
-  unsharedBanksMessage,
-} from '@/utils/questionBankShare';
 import { BankEditorModal } from './components/BankEditorModal';
 import type { QuestionBankData, QuestionBankMetadata } from '@/types';
 import { logError } from '@/utils/logError';
@@ -96,6 +91,7 @@ import {
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
 import { useQuizReorder } from '@/hooks/useQuizReorder';
 import { useQuizDelete } from '@/hooks/useQuizDelete';
+import { useQuizPlcShare } from '@/hooks/useQuizPlcShare';
 import { useBusyIdSet } from '@/hooks/useBusyIdSet';
 import { useFolders } from '@/hooks/useFolders';
 import { useGooglePicker } from '@/hooks/useGooglePicker';
@@ -127,10 +123,7 @@ import {
   syncedTranslationsInput,
   useSyncedQuizGroupsByIds,
 } from '@/hooks/useSyncedQuizGroups';
-import {
-  mirrorPlcQuizHeadersBySyncGroup,
-  writePlcQuizEntry,
-} from '@/hooks/usePlcQuizzes';
+import { mirrorPlcQuizHeadersBySyncGroup } from '@/hooks/usePlcQuizzes';
 import { usePlcAutoPullSync } from '@/hooks/usePlcAutoPullSync';
 import { PlcSyncConflictPrompt } from '@/components/plc/sync/PlcSyncConflictPrompt';
 import { PlcShareTargetModal } from '@/components/plc/PlcShareTargetModal';
@@ -330,7 +323,6 @@ import { SCOREBOARD_COLORS } from '@/config/scoreboard';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 import { usePlcs } from '@/hooks/usePlcs';
 import { buildPlcLinkage } from '@/utils/plcLinkage';
-import { getPlcMemberEmail } from '@/utils/plc';
 import { getQuizBehavior, toAssessmentBehavior } from '@/utils/quizBehavior';
 import { useLastQuizAssignSettings } from '@/hooks/useLastQuizAssignSettings';
 import {
@@ -1426,11 +1418,29 @@ const TeacherQuizWidget: React.FC<{
         ),
     });
 
-  // "Share with PLC" targets — when non-empty, the PlcShareTargetModal is
-  // open for these quizzes (one entry for the kebab action, many for bulk).
-  const [shareWithPlcTargets, setShareWithPlcTargets] = useState<
-    QuizMetadata[]
-  >([]);
+  const {
+    shareWithPlcTargets,
+    setShareWithPlcTargets,
+    handleStopSharingPlc,
+    onShareWithPlc,
+    onBulkShareWithPlc,
+    onConfirmShareWithPlc,
+    onConfirmSharePlcResults,
+  } = useQuizPlcShare({
+    user,
+    plcs,
+    banks,
+    sharedBankSources,
+    loadQuizData,
+    saveQuiz,
+    attachSyncLinkage,
+    loadSyncedTranslations,
+    addToast,
+    showConfirm,
+    shareAssignmentWithPlc,
+    stopSharingAssignmentWithPlc,
+    setSharePlcResultsTarget,
+  });
 
   const setView = useCallback(
     (view: QuizConfig['view']) => {
@@ -1620,134 +1630,6 @@ const TeacherQuizWidget: React.FC<{
     },
   });
 
-  /**
-   * Phase 2 — share an existing personal quiz with a chosen PLC.
-   *
-   * Order of operations:
-   *   1. Load the quiz content from Drive (needed to seed the canonical
-   *      synced group on first share).
-   *   2. If the quiz isn't yet part of a synced group, mint a fresh group
-   *      with `plcId` set, then attach the linkage to the local
-   *      `quiz_metadata` so subsequent edits publish (LWW) for every
-   *      member who imports. If `attachSyncLinkage` fails, leave the
-   *      freshly-minted group via `callLeaveSyncedQuizGroup` so we don't
-   *      leave a phantom participant entry — the empty group itself
-   *      stays (synced_quizzes rules intentionally don't delete empty
-   *      groups; future paste of the same id should still resolve).
-   *   3. Write the `plcs/{plcId}/quizzes/{plcQuizId}` header. Doc id is a
-   *      fresh uuid so the same quiz can be shared with multiple PLCs
-   *      without doc-id collisions.
-   *
-   * If step 3 fails after step 2 succeeded, the synced group + sync
-   * linkage stay in place — the canonical doc is reachable from the
-   * user's library card as the "Synced" pill (self-only group), and a
-   * retry of "Share with PLC" reuses the existing groupId rather than
-   * minting a new one. Idempotent on retry.
-   */
-  const handleShareWithPlc = useCallback(
-    async (quizMeta: QuizMetadata, plcId: string): Promise<void> => {
-      if (!user) throw new Error('Not authenticated.');
-      const plc = plcs.find((p) => p.id === plcId);
-      if (!plc) {
-        throw new Error('That PLC is no longer available.');
-      }
-      // A tour's sandbox shares nothing.
-      if (isSandboxed(quizMeta.id)) return;
-      let data = await loadQuizData(quizMeta.driveFileId);
-      // Decision 24: every bank slot must draw from a bank shared with this PLC.
-      if (quizHasBankSlots(data)) {
-        const check = reconcileBankSlotsForPlcShare(
-          data,
-          banks,
-          plcId,
-          sharedBankSources,
-          user.uid
-        );
-        if (check.unsharedBankTitles.length > 0) {
-          throw new Error(unsharedBanksMessage(check.unsharedBankTitles));
-        }
-        if (check.changed) {
-          data = { ...data, bankSlots: check.bankSlots };
-          await saveQuiz(data, quizMeta.driveFileId);
-        }
-      }
-
-      let syncGroupId: string;
-      if (quizMeta.sync) {
-        syncGroupId = quizMeta.sync.groupId;
-      } else {
-        syncGroupId = crypto.randomUUID();
-        await createSyncedQuizGroup({
-          groupId: syncGroupId,
-          uid: user.uid,
-          title: data.title,
-          questions: data.questions,
-          ...syncedQuizContentFields(data),
-          plcId,
-          behavior: quizMeta.behavior,
-          // Peers cannot read the owner's drive.file sidecars, so seed the
-          // group doc with them at share time (plan §11 PR5).
-          ...syncedTranslationsInput(
-            await loadSyncedTranslations(quizMeta, {
-              title: data.title,
-              questions: data.questions,
-              stimuli: data.stimuli,
-              behavior: quizMeta.behavior,
-            })
-          ),
-        });
-        try {
-          await attachSyncLinkage(quizMeta.id, {
-            groupId: syncGroupId,
-            lastSyncedVersion: 1,
-          });
-        } catch (linkageErr) {
-          // Best-effort: drop our self-participant entry on the
-          // freshly-minted group so we don't leave a phantom participant
-          // pointing at a sync group the local library never knew about.
-          try {
-            await callLeaveSyncedQuizGroup(syncGroupId);
-          } catch (leaveErr) {
-            logError('QuizWidget.shareWithPlc.rollbackLeave', leaveErr, {
-              plcId,
-              syncGroupId,
-            });
-          }
-          throw linkageErr;
-        }
-      }
-
-      const ownerEmailLower =
-        getPlcMemberEmail(plc, user.uid) ??
-        (user.email ? user.email.toLowerCase() : '');
-      // Run-settings ride along so a teammate's pickup starts from the same config.
-      const { sessionMode, sessionOptions, attemptLimit } =
-        getQuizBehavior(quizMeta);
-      await writePlcQuizEntry(plcId, user.uid, {
-        plcQuizId: crypto.randomUUID(),
-        syncGroupId,
-        title: data.title,
-        questionCount: quizServedQuestionCount(data),
-        sharedByName: user.displayName ?? '',
-        sharedByEmail: ownerEmailLower,
-        sessionMode,
-        sessionOptions,
-        attemptLimit,
-        quizId: quizMeta.id,
-      });
-    },
-    [
-      attachSyncLinkage,
-      loadQuizData,
-      loadSyncedTranslations,
-      plcs,
-      user,
-      banks,
-      sharedBankSources,
-      saveQuiz,
-    ]
-  );
-
   // A changed "answer any N" count can reach the quiz's existing assignments.
   const applyChooseCounts = useCallback(
     async (
@@ -1816,32 +1698,6 @@ const TeacherQuizWidget: React.FC<{
       await applyChooseCounts(changes, after, meta);
     },
     [applyChooseCounts]
-  );
-
-  // D12: clear the PLC results link on an assignment (confirm first).
-  const handleStopSharingPlc = useCallback(
-    async (a: QuizAssignment): Promise<void> => {
-      const plcName = a.plc?.name ?? 'your PLC';
-      const ok = await showConfirm(
-        `Stop sharing "${a.quizTitle}" results with ${plcName}? Its responses leave the team's pooled view.`,
-        {
-          title: 'Stop sharing results',
-          variant: 'warning',
-          confirmLabel: 'Stop sharing',
-        }
-      );
-      if (!ok) return;
-      try {
-        await stopSharingAssignmentWithPlc(a.id);
-        addToast(`No longer sharing results with ${plcName}.`, 'success');
-      } catch (err) {
-        addToast(
-          err instanceof Error ? err.message : 'Could not stop sharing.',
-          'error'
-        );
-      }
-    },
-    [addToast, showConfirm, stopSharingAssignmentWithPlc]
   );
 
   /**
@@ -3593,14 +3449,9 @@ const TeacherQuizWidget: React.FC<{
         syncGroupId: sharePlcResultsTarget.sync?.groupId,
       }}
       onClose={() => setSharePlcResultsTarget(null)}
-      onConfirm={async (plc, poolSyncGroupId) => {
-        await shareAssignmentWithPlc(sharePlcResultsTarget.id, {
-          plc,
-          poolSyncGroupId,
-        });
-        addToast(`Results now pool with ${plc.name}.`, 'success');
-        setSharePlcResultsTarget(null);
-      }}
+      onConfirm={(plc, poolSyncGroupId) =>
+        onConfirmSharePlcResults(sharePlcResultsTarget, plc, poolSyncGroupId)
+      }
     />
   ) : null;
   const assignmentSettingsModal = editingAssignment
@@ -4780,26 +4631,8 @@ const TeacherQuizWidget: React.FC<{
             addToast(`Share link: ${url}`, 'info');
           }
         }}
-        onShareWithPlc={(meta) => {
-          if (plcs.length === 0) {
-            addToast(
-              'Join a team under My Teams in the sidebar to share quizzes with teammates.',
-              'info'
-            );
-            return;
-          }
-          setShareWithPlcTargets([meta]);
-        }}
-        onBulkShareWithPlc={(metas) => {
-          if (plcs.length === 0) {
-            addToast(
-              'Join a team under My Teams in the sidebar to share quizzes with teammates.',
-              'info'
-            );
-            return;
-          }
-          setShareWithPlcTargets(metas);
-        }}
+        onShareWithPlc={onShareWithPlc}
+        onBulkShareWithPlc={onBulkShareWithPlc}
         onMergeQuizzes={handleMergeQuizzes}
         onCreateViewOnlyShare={async (meta) => {
           // View-only Quiz share — bypasses the AssignModal/picker/PLC flow
@@ -5583,43 +5416,7 @@ const TeacherQuizWidget: React.FC<{
               ? shareWithPlcTargets[0].title
               : `${shareWithPlcTargets.length} quizzes`
           }
-          onConfirm={async (plcId) => {
-            const plcName =
-              plcs.find((p) => p.id === plcId)?.name ?? 'your PLC';
-            // Sequential so a mid-list failure reports exactly what landed.
-            const failedTitles: string[] = [];
-            for (const target of shareWithPlcTargets) {
-              try {
-                await handleShareWithPlc(target, plcId);
-              } catch (err) {
-                failedTitles.push(target.title || 'Untitled');
-                logError('QuizWidget.shareWithPlc', err, {
-                  plcId,
-                  quizId: target.id,
-                });
-              }
-            }
-            const shared = shareWithPlcTargets.length - failedTitles.length;
-            if (failedTitles.length === 0) {
-              addToast(
-                shared === 1
-                  ? `Shared with ${plcName}.`
-                  : `Shared ${shared} quizzes with ${plcName}.`,
-                'success'
-              );
-              setShareWithPlcTargets([]);
-              return;
-            }
-            if (shared > 0) {
-              addToast(
-                `Shared ${shared} of ${shareWithPlcTargets.length} quizzes with ${plcName}.`,
-                'warning'
-              );
-            }
-            throw new Error(
-              `Failed to share: ${failedTitles.join(', ')}. Try again.`
-            );
-          }}
+          onConfirm={onConfirmShareWithPlc}
           onClose={() => setShareWithPlcTargets([])}
         />
       )}
