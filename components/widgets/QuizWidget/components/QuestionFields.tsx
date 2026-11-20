@@ -11,7 +11,10 @@ import {
   TextCursorInput,
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
-import { MetaCellsContext, PromptInlineContext } from './questionFieldContexts';
+import {
+  MetaInlineContext,
+  PromptFooterContext,
+} from './questionFieldContexts';
 import type {
   QuestionTargetTag,
   QuizQuestion,
@@ -73,9 +76,8 @@ interface QuestionPromptFieldProps {
   promptFormat?: boolean;
   /** Shows the record audio mic in the prompt toolbar. */
   promptAudio?: boolean;
-  /** Stimuli and Modified toggles drawn inside the prompt box. */
+  /** Stimuli and Modified toggles in the prompt box footer. */
   extras?: React.ReactNode;
-  extrasMode?: 'footer' | 'toolbar';
   /** Shows the Number link; adds a random number and returns its name, or null when full. */
   onAddNumber?: () => string | null;
 }
@@ -119,7 +121,6 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
   promptAudio = false,
   onAddNumber,
   extras,
-  extrasMode = 'footer',
 }) => {
   const canRecord = promptAudio && promptFormat;
   // Stays mounted once audio existed, so Remove never remounts the prompt box.
@@ -203,65 +204,70 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
       el?.setSelectionRange(caret, caret);
     });
   };
-  // Equation, Accents and Blank: toolbar buttons in the formatted box, links over a plain one.
-  const promptTools = (style: 'toolbar' | 'link') => {
+  // Equation, Number, Accents and Blank: icon buttons in the formatted box, links over a plain one.
+  const promptTools = (style: 'toolbar' | 'link'): React.ReactElement[] => {
     const Btn = style === 'toolbar' ? PromptToolButton : KeyboardLink;
-    // Icons in the toolbar, named by their tooltip.
     const label = (text: string) =>
       style === 'toolbar' ? <span className="sr-only">{text}</span> : text;
-    return (
-      <>
-        {promptMath && (
-          <Btn
-            on={equation !== null}
-            onClick={() => (equation ? setEquation(null) : openNewEquation())}
-            title="Equation"
-            anchor={tourTypeAttr('quiz-editor.prompt-equation', 'quiz')}
+    const tools: React.ReactElement[] = [];
+    if (promptMath)
+      tools.push(
+        <Btn
+          key="equation"
+          on={equation !== null}
+          onClick={() => (equation ? setEquation(null) : openNewEquation())}
+          title="Equation"
+          anchor={tourTypeAttr('quiz-editor.prompt-equation', 'quiz')}
+        >
+          <Sigma className="w-3.5 h-3.5" aria-hidden />
+          {label('Equation')}
+        </Btn>
+      );
+    if (onAddNumber)
+      tools.push(
+        <Btn
+          key="number"
+          on={false}
+          onClick={insertNumber}
+          title="Number"
+          anchor={tourTypeAttr('quiz-editor.prompt-number', 'quiz')}
+        >
+          <Hash className="w-3.5 h-3.5" aria-hidden />
+          {label('Number')}
+        </Btn>
+      );
+    if (promptAccents)
+      tools.push(
+        <Btn
+          key="accents"
+          on={accents !== null}
+          onClick={() => setAccents(accents ? null : promptAccents)}
+          title="Accents"
+          anchor={tourTypeAttr('quiz-editor.prompt-accents', 'quiz')}
+        >
+          <span
+            aria-hidden
+            className="flex h-3.5 w-3.5 items-center justify-center text-sm leading-none"
           >
-            <Sigma className="w-3.5 h-3.5" aria-hidden />
-            {label('Equation')}
-          </Btn>
-        )}
-        {onAddNumber && (
-          <Btn
-            on={false}
-            onClick={insertNumber}
-            title="Number"
-            anchor={tourTypeAttr('quiz-editor.prompt-number', 'quiz')}
-          >
-            <Hash className="w-3.5 h-3.5" aria-hidden />
-            {label('Number')}
-          </Btn>
-        )}
-        {promptAccents && (
-          <Btn
-            on={accents !== null}
-            onClick={() => setAccents(accents ? null : promptAccents)}
-            title="Accents"
-            anchor={tourTypeAttr('quiz-editor.prompt-accents', 'quiz')}
-          >
-            <span
-              aria-hidden
-              className="flex h-3.5 w-3.5 items-center justify-center text-sm leading-none"
-            >
-              á
-            </span>
-            {label('Accents')}
-          </Btn>
-        )}
-        {allowBlanks && q.type === 'FIB' && !q.calc && (
-          <Btn
-            on={false}
-            onClick={insertBlank}
-            title="Blank"
-            anchor={tourTypeAttr('quiz-editor.prompt-blank', 'quiz')}
-          >
-            <TextCursorInput className="w-3.5 h-3.5" aria-hidden />
-            {label('Blank')}
-          </Btn>
-        )}
-      </>
-    );
+            á
+          </span>
+          {label('Accents')}
+        </Btn>
+      );
+    if (allowBlanks && q.type === 'FIB' && !q.calc)
+      tools.push(
+        <Btn
+          key="blank"
+          on={false}
+          onClick={insertBlank}
+          title="Blank"
+          anchor={tourTypeAttr('quiz-editor.prompt-blank', 'quiz')}
+        >
+          <TextCursorInput className="w-3.5 h-3.5" aria-hidden />
+          {label('Blank')}
+        </Btn>
+      );
+    return tools;
   };
   const render = (audioState: PromptAudioState | null) => {
     const textarea = promptFormat ? (
@@ -277,21 +283,19 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
             : 'e.g. What is the capital of France?'
         }
         anchor={anchor}
-        toolbarEnd={
-          <>
-            {audioState && (
-              <PromptAudioMicButton state={audioState} canRecord={canRecord} />
-            )}
-            {promptTools('toolbar')}
-            {extras && extrasMode === 'toolbar' && (
-              <>
-                <span className="mx-1 h-4 w-px bg-slate-200" aria-hidden />
-                {extras}
-              </>
-            )}
-          </>
-        }
-        footer={extras && extrasMode === 'footer' ? extras : undefined}
+        toolbarEnd={[
+          ...(audioState
+            ? [
+                <PromptAudioMicButton
+                  key="mic"
+                  state={audioState}
+                  canRecord={canRecord}
+                />,
+              ]
+            : []),
+          ...promptTools('toolbar'),
+        ]}
+        footer={extras}
       />
     ) : (
       <textarea
@@ -359,12 +363,9 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
       </div>
     );
   };
-  const inlineValue = React.useMemo(
-    () => ({ mode: extrasMode, slot: extrasSlot }),
-    [extrasMode, extrasSlot]
-  );
+  const inlineValue = React.useMemo(() => ({ slot: extrasSlot }), [extrasSlot]);
   return (
-    <PromptInlineContext.Provider value={inlineValue}>
+    <PromptFooterContext.Provider value={inlineValue}>
       {canRecord || hadAudio || q.promptAudio ? (
         <PromptAudioHost
           audio={q.promptAudio}
@@ -375,7 +376,7 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
       ) : (
         render(null)
       )}
-    </PromptInlineContext.Provider>
+    </PromptFooterContext.Provider>
   );
 };
 
@@ -391,21 +392,10 @@ export const MetaItem: React.FC<{
   htmlFor: string;
   children: React.ReactNode;
 }> = ({ label, htmlFor, children }) => {
-  const cells = React.useContext(MetaCellsContext);
-  if (cells === 'inline') {
+  if (React.useContext(MetaInlineContext)) {
     return (
-      <div className="flex min-h-8 min-w-0 items-center gap-2">
+      <div className="flex min-h-8 min-w-0 items-center gap-2 [&_.truncate]:overflow-visible [&_.truncate]:whitespace-normal [&_.truncate]:wrap-break-word">
         <label htmlFor={htmlFor} className={metaLabelClass}>
-          {label}
-        </label>
-        <div className="flex min-w-0">{children}</div>
-      </div>
-    );
-  }
-  if (cells) {
-    return (
-      <div className="flex min-w-0 flex-col gap-0.5 py-1.5 pr-4 [&_.truncate]:overflow-visible [&_.truncate]:whitespace-normal [&_.truncate]:wrap-break-word">
-        <label htmlFor={htmlFor} className={`${metaLabelClass} text-xxs`}>
           {label}
         </label>
         <div className="flex min-w-0">{children}</div>
@@ -427,31 +417,6 @@ export const MetaChevron: React.FC<{ open?: boolean }> = ({ open }) => (
     className={`h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`}
     aria-hidden
   />
-);
-
-/** DOK as a form field beside Points. */
-export const DokFieldSelect: React.FC<{
-  value: QuizQuestion['dok'];
-  onChange: (dok: QuizQuestion['dok']) => void;
-  id: string;
-}> = ({ value, onChange, id }) => (
-  <select
-    id={id}
-    value={value ?? ''}
-    onChange={(e) => {
-      const n = Number(e.target.value);
-      onChange(n >= 1 && n <= 4 ? (n as 1 | 2 | 3 | 4) : undefined);
-    }}
-    className={`${inputClass} appearance-none`}
-    {...tourTypeAttr('quiz-editor.dok', 'quiz')}
-  >
-    <option value="">None</option>
-    {[1, 2, 3, 4].map((level) => (
-      <option key={level} value={level}>
-        {level}
-      </option>
-    ))}
-  </select>
 );
 
 const DokSelect: React.FC<{
@@ -615,7 +580,7 @@ export const QuestionTargetsField: React.FC<QuestionTargetsFieldProps> = ({
   editAnchor = tourTypeAttr('quiz-editor.targets-edit', 'quiz'),
   metaList = false,
 }) => (
-  <div className={React.useContext(MetaCellsContext) ? 'contents' : undefined}>
+  <div className={React.useContext(MetaInlineContext) ? 'contents' : undefined}>
     {metaList ? (
       <TargetsMetaItems
         question={q}
@@ -634,7 +599,7 @@ export const QuestionTargetsField: React.FC<QuestionTargetsFieldProps> = ({
     )}
     {promptStandards.isCurrent(q.id, q.text, q.targets) && (
       <p
-        className={`col-span-full text-xs text-slate-500 ${metaList ? 'py-1' : 'mt-1'}`}
+        className={`basis-full text-xs text-slate-500 ${metaList ? 'py-1' : 'mt-1'}`}
         role="status"
       >
         {`Tagged ${promptStandards.taken?.codes.join(', ')} from the question.`}{' '}
@@ -662,68 +627,47 @@ export const QuestionTargetsField: React.FC<QuestionTargetsFieldProps> = ({
   </div>
 );
 
-/** Stimuli or Modified as a footer item or toolbar button of the prompt box. */
-export const PromptExtraToggle: React.FC<{
-  mode: 'footer' | 'toolbar';
+/** Stimuli or Modified in the prompt box footer: icon, label and current value. */
+export const PromptFooterToggle: React.FC<{
   icon: React.ElementType;
   label: string;
   value: string;
   filled: boolean;
   open: boolean;
   controls?: string;
+  hasPopup?: boolean;
   onClick: () => void;
   anchor: TourAnchorAttrs;
 }> = ({
-  mode,
   icon: Icon,
   label,
   value,
   filled,
   open,
   controls,
+  hasPopup,
   onClick,
   anchor,
-}) =>
-  mode === 'toolbar' ? (
-    <button
-      type="button"
-      aria-expanded={open}
-      aria-controls={controls}
-      title={`${label}: ${value}`}
-      onMouseDown={(e) => e.preventDefault()}
-      onClick={onClick}
-      className={`flex items-center gap-1 rounded p-1 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-brand-blue-primary ${
-        open
-          ? 'bg-slate-100 text-slate-900'
-          : filled
-            ? 'text-brand-blue-primary hover:bg-slate-100'
-            : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
-      }`}
-      {...anchor}
+}) => (
+  <button
+    type="button"
+    aria-expanded={hasPopup ? undefined : open}
+    aria-haspopup={hasPopup ? 'dialog' : undefined}
+    aria-controls={controls}
+    onClick={onClick}
+    className="flex min-w-0 items-center gap-1.5 rounded-sm py-0.5 text-left text-xs focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+    {...anchor}
+  >
+    <Icon className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden />
+    <span className="shrink-0 font-semibold text-slate-500">{label}</span>
+    <span
+      className={`min-w-0 wrap-break-word ${filled ? 'text-slate-800' : 'text-slate-400'}`}
     >
-      <Icon className="h-3.5 w-3.5" aria-hidden />
-      <span className="sr-only">{label}</span>
-      {filled && <span className="sr-only">{`: ${value}`}</span>}
-    </button>
-  ) : (
-    <button
-      type="button"
-      aria-expanded={open}
-      aria-controls={controls}
-      onClick={onClick}
-      className="flex min-w-0 items-center gap-1.5 rounded-sm text-left text-xs focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
-      {...anchor}
-    >
-      <Icon className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden />
-      <span className="shrink-0 font-semibold text-slate-500">{label}</span>
-      <span
-        className={`min-w-0 wrap-break-word ${filled ? 'text-slate-800' : 'text-slate-400'}`}
-      >
-        {value}
-      </span>
-      <MetaChevron open={open} />
-    </button>
-  );
+      {value}
+    </span>
+    <MetaChevron open={open} />
+  </button>
+);
 
 /** The question's modified wording, served to students in a modification group. */
 export const QuestionModifiedField: React.FC<{
@@ -732,8 +676,7 @@ export const QuestionModifiedField: React.FC<{
   metaList?: boolean;
 }> = ({ question: q, onChange, metaList = false }) => {
   const value = q.modifiedText ?? '';
-  const cells = React.useContext(MetaCellsContext);
-  const inline = React.useContext(PromptInlineContext);
+  const footer = React.useContext(PromptFooterContext);
   const [open, setOpen] = React.useState(() => !metaList && value.length > 0);
   const baseId = React.useId();
   const toggleId = `${baseId}-modified`;
@@ -751,11 +694,10 @@ export const QuestionModifiedField: React.FC<{
       {...tourTypeAttr('quiz-editor.modified-text', 'quiz')}
     />
   );
-  if (inline) {
+  if (footer) {
     return (
       <>
-        <PromptExtraToggle
-          mode={inline.mode}
+        <PromptFooterToggle
           icon={Layers}
           label="Modified version"
           value={value ? 'Added' : 'None'}
@@ -766,16 +708,8 @@ export const QuestionModifiedField: React.FC<{
           anchor={tourTypeAttr('quiz-editor.modified', 'quiz')}
         />
         {open &&
-          inline.slot &&
-          createPortal(
-            <div className="pt-2">
-              <label htmlFor={textId} className={labelClass}>
-                Modified version
-              </label>
-              {textarea}
-            </div>,
-            inline.slot
-          )}
+          footer.slot &&
+          createPortal(<div className="pt-2">{textarea}</div>, footer.slot)}
       </>
     );
   }
@@ -798,11 +732,8 @@ export const QuestionModifiedField: React.FC<{
     );
   }
   return (
-    <div className={cells ? 'contents' : undefined}>
-      <MetaItem
-        label={cells ? 'Modified' : 'Modified version'}
-        htmlFor={toggleId}
-      >
+    <div>
+      <MetaItem label="Modified version" htmlFor={toggleId}>
         <button
           id={toggleId}
           type="button"
@@ -813,14 +744,12 @@ export const QuestionModifiedField: React.FC<{
           {...tourTypeAttr('quiz-editor.modified', 'quiz')}
         >
           <span className={`min-w-0 truncate ${value ? '' : 'text-slate-400'}`}>
-            {value ? (cells ? 'Added' : value) : 'None'}
+            {value || 'None'}
           </span>
           <MetaChevron open={open} />
         </button>
       </MetaItem>
-      {open && (
-        <div className={cells ? 'col-span-full pb-2' : 'pb-2'}>{textarea}</div>
-      )}
+      {open && <div className="pb-2">{textarea}</div>}
     </div>
   );
 };

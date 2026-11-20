@@ -106,7 +106,7 @@ import {
   QuestionTypeSelect,
 } from './QuestionFields';
 import { questionTypeChangeUpdates } from './questionFieldUpdates';
-import { MetaCellsContext } from './questionFieldContexts';
+import { MetaInlineContext } from './questionFieldContexts';
 import { rubricMaxPoints } from '@/utils/rubricPoints';
 import { withOwnCriterionIds } from '@/utils/rubricOverrideResolution';
 import {
@@ -1008,10 +1008,8 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   // Spoken answers on: Type, Format, Time limit and Points share one compact line.
   const compactRow = mediaResponseAllowed;
   const metaList = canAccessFeature('question-editor-fields');
-  const metaLayout =
-    new URLSearchParams(window.location.search).get('metaLayout') ?? 'rows';
-  const inPrompt =
-    metaList && (metaLayout === 'footer' || metaLayout === 'toolbar');
+  // Stimuli and Modified sit in the prompt box footer; targets and DOK share one line.
+  const inPrompt = metaList;
   const stimulusField = (
     <QuestionStimulusSection
       state={state}
@@ -1050,7 +1048,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
       tabIndex={-1}
       className="flex flex-col h-full outline-hidden"
     >
-      <div className="@container flex-1 overflow-y-auto custom-scrollbar px-5 py-4 space-y-4">
+      <div className="flex-1 overflow-y-auto custom-scrollbar px-5 py-4 space-y-4">
         {/* Question prompt */}
         <QuestionPromptField
           key={q.id}
@@ -1072,7 +1070,6 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
               </>
             ) : undefined
           }
-          extrasMode={metaLayout === 'toolbar' ? 'toolbar' : 'footer'}
           onAddNumber={
             randomNumbersOn &&
             q.type === 'FIB' &&
@@ -1097,11 +1094,11 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
         )}
 
         {inPrompt ? (
-          <MetaCellsContext.Provider value="inline">
+          <MetaInlineContext.Provider value>
             <div className="flex flex-wrap items-center gap-x-8 border-y border-slate-200 py-1">
               {targetsField}
             </div>
-          </MetaCellsContext.Provider>
+          </MetaInlineContext.Provider>
         ) : (
           <div
             className={

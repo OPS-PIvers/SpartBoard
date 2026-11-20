@@ -32,8 +32,8 @@ interface PromptRichEditorProps {
   /** Widget type the toolbar's tour anchors are scoped to. */
   tourWidgetType?: SharedEditorTourType;
   ariaLabel?: string;
-  /** Extra controls at the end of the toolbar, like the record audio mic. */
-  toolbarEnd?: React.ReactNode;
+  /** Extra controls at the end of the toolbar, each set off by a divider. */
+  toolbarEnd?: React.ReactElement[];
   /** A hairline row inside the box, under the text. */
   footer?: React.ReactNode;
 }
@@ -265,12 +265,12 @@ export const PromptRichEditor: React.FC<PromptRichEditorProps> = ({
             </React.Fragment>
           );
         })}
-        {toolbarEnd && (
-          <>
+        {toolbarEnd?.map((control) => (
+          <React.Fragment key={control.key}>
             <span className="mx-1 h-4 w-px bg-slate-200" aria-hidden />
-            {toolbarEnd}
-          </>
-        )}
+            {control}
+          </React.Fragment>
+        ))}
       </div>
       <div className="relative">
         <div
