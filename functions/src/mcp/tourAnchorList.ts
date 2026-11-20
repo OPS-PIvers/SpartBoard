@@ -7958,7 +7958,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "editor.close",
-    "label": "Close or Cancel button in an editor dialog footer",
+    "label": "Close button or footer Cancel button in an editor dialog",
     "scope": "widget type",
     "panel": true,
     "closes": "own",
