@@ -32,7 +32,7 @@ import {
   type GlKeyStep,
 } from './guidedLearningPublicStep';
 import { assertViewAsAllowed } from './viewAsGuard';
-import { unverifiedClassIds } from './verifiedClassList';
+import { refusedClassTargets } from './verifiedClassList';
 import { quizJoinCodeOwner } from './quizJoinCodeOwner';
 
 /** Only the kinds D8 puts in v1; Poll and Activity Wall stay unlaunchable. */
@@ -817,7 +817,7 @@ export async function resolveTargeting(
     }
   }
   // Roster docs are host-written, so only classes on the host's verified list are kept.
-  const unverified = new Set(await unverifiedClassIds(db, hostUid, classIds));
+  const unverified = new Set(await refusedClassTargets(db, hostUid, classIds));
   const kept = classIds.filter((id) => !unverified.has(id));
   for (const id of unverified) delete classPeriodByClassId[id];
   if (kept.length === 0) {
