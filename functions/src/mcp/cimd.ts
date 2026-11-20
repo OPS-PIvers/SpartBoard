@@ -11,6 +11,11 @@ export interface CimdClient {
 }
 
 const CIMD_HOSTS = new Set(['claude.ai', 'claude.com']);
+// The metadata documents Claude publishes; any other path on a Claude host is never fetched.
+const CIMD_PATHS = new Set([
+  '/oauth/claude-code-client-metadata',
+  '/oauth/mcp-oauth-client-metadata',
+]);
 const DOC_CACHE_MS = 5 * 60 * 1000;
 const MAX_DOC_BYTES = 16 * 1024;
 const FETCH_TIMEOUT_MS = 3000;
@@ -39,7 +44,7 @@ export function isCimdClientId(clientId: string): boolean {
   return (
     url.protocol === 'https:' &&
     CIMD_HOSTS.has(url.host) &&
-    url.pathname.length > 1 &&
+    CIMD_PATHS.has(url.pathname) &&
     !url.search &&
     !url.hash &&
     !url.username &&

@@ -590,3 +590,107 @@ describe('handleJoinPlcQuizSyncGroup - re-join and undo', () => {
     expect(state.updates).toHaveLength(0);
   });
 });
+
+describe('handleJoinPlcQuizSyncGroup - header detach markers (AB-61)', () => {
+  const db = () =>
+    makeDb(state) as unknown as Parameters<
+      typeof handleJoinPlcQuizSyncGroup
+    >[0];
+  const HDR_MARKER = `hdr:${PLC_ID}:quizzes:${PLC_QUIZ_ID}`;
+
+  beforeEach(() => {
+    // Sharer stopped syncing a group made outside this PLC; a teammate remains.
+    state.plcQuiz = { syncGroupId: SYNC_GROUP_ID, sharedBy: 'member-b' };
+    state.group = { version: 3, participants: { outsider: { joinedAt: 1 } } };
+  });
+
+  it('refuses the stopped-syncing group without a marker', async () => {
+    await expect(
+      handleJoinPlcQuizSyncGroup(db(), MEMBER_UID, PLC_ID, PLC_QUIZ_ID)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(state.updates).toHaveLength(0);
+  });
+
+  it('accepts a real detached group whose sharer left through this header', async () => {
+    state.markers = {
+      [HDR_MARKER]: {
+        plcId: PLC_ID,
+        plcContentId: PLC_QUIZ_ID,
+        sharedBy: 'member-b',
+        detachedAt: 500,
+      },
+    };
+    await expect(
+      handleJoinPlcQuizSyncGroup(db(), MEMBER_UID, PLC_ID, PLC_QUIZ_ID)
+    ).resolves.toMatchObject({ alreadyJoined: false });
+    expect(state.updates).toHaveLength(1);
+  });
+
+  it('refuses a forged header pointing at a teammate group', async () => {
+    // Attacker's own header (sharedBy is pinned to the creator) at the victim's group.
+    state.plcQuiz = { syncGroupId: SYNC_GROUP_ID, sharedBy: MEMBER_UID };
+    state.group = { version: 3, participants: {} };
+    state.markers = {
+      // The victim's real marker, left through their own header.
+      [`hdr:${PLC_ID}:quizzes:victim-header`]: {
+        plcId: PLC_ID,
+        plcContentId: 'victim-header',
+        sharedBy: 'member-b',
+        detachedAt: 500,
+      },
+    };
+    await expect(
+      handleJoinPlcQuizSyncGroup(db(), MEMBER_UID, PLC_ID, PLC_QUIZ_ID)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(state.updates).toHaveLength(0);
+  });
+
+  it('refuses a header recreated by someone else after the sharer left', async () => {
+    state.plcQuiz = { syncGroupId: SYNC_GROUP_ID, sharedBy: 'attacker' };
+    state.markers = {
+      [HDR_MARKER]: {
+        plcId: PLC_ID,
+        plcContentId: PLC_QUIZ_ID,
+        sharedBy: 'member-b',
+        detachedAt: 500,
+      },
+    };
+    await expect(
+      handleJoinPlcQuizSyncGroup(db(), MEMBER_UID, PLC_ID, PLC_QUIZ_ID)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+
+  it('refuses a marker older than the header', async () => {
+    state.createTimes = { header: 600 };
+    state.markers = {
+      [HDR_MARKER]: {
+        plcId: PLC_ID,
+        plcContentId: PLC_QUIZ_ID,
+        sharedBy: 'member-b',
+        detachedAt: 500,
+      },
+    };
+    await expect(
+      handleJoinPlcQuizSyncGroup(db(), MEMBER_UID, PLC_ID, PLC_QUIZ_ID)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+
+  it('refuses a marker on a tombstoned header', async () => {
+    state.plcQuiz = {
+      syncGroupId: SYNC_GROUP_ID,
+      sharedBy: 'member-b',
+      deletedAt: 700,
+    };
+    state.markers = {
+      [HDR_MARKER]: {
+        plcId: PLC_ID,
+        plcContentId: PLC_QUIZ_ID,
+        sharedBy: 'member-b',
+        detachedAt: 500,
+      },
+    };
+    await expect(
+      handleJoinPlcQuizSyncGroup(db(), MEMBER_UID, PLC_ID, PLC_QUIZ_ID)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+});
