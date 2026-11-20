@@ -129,7 +129,8 @@ export function withCalcRevealed(
   answerKey: Record<string, string> | null,
   questions: Iterable<QuizQuestion>,
   responseKey: string,
-  response: Pick<QuizResponse, 'status' | 'completedAttempts'>
+  response: Pick<QuizResponse, 'status' | 'completedAttempts'> &
+    Partial<Pick<QuizResponse, 'joinedAt'>>
 ): Record<string, string> | null {
   if (!answerKey) return answerKey;
   const key = calcAttemptKey(responseKey, response);

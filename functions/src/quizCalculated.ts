@@ -72,7 +72,7 @@ function tokenize(src: string): Token[] {
       // Functions and pi stay whole; other letters are one-letter names multiplied (mv = m v).
       if (
         word === 'π' ||
-        word.toLowerCase() in FUNCTIONS ||
+        Object.hasOwn(FUNCTIONS, word.toLowerCase()) ||
         word.toLowerCase() === 'pi'
       ) {
         out.push({ k: 'id', v: word });
@@ -156,7 +156,7 @@ export function parseFormula(src: string): Node {
     }
     if (t.k === 'id') {
       const lower = t.v.toLowerCase();
-      if (lower in FUNCTIONS) {
+      if (Object.hasOwn(FUNCTIONS, lower)) {
         if (!isOp('(')) throw new Error('function needs (');
         return { t: 'fn', name: lower as FnName, a: atom() };
       }
@@ -320,14 +320,17 @@ export function calcAnswerAccepted(
   const diff = Math.abs(given - expected);
   // A hair of slack so an answer typed at the shown rounding is never refused by float noise.
   const eps = 1e-9 * Math.max(1, Math.abs(expected));
-  const shownSlack =
-    spec.roundTo !== undefined ? 0.5 * 10 ** -spec.roundTo + eps : eps;
+  const shownSlack = 0.5 * 10 ** -calcRoundTo(spec) + eps;
   const allowed =
     spec.tolerance.kind === 'relative'
       ? (Math.abs(expected) * Math.max(0, spec.tolerance.percent)) / 100
       : Math.max(0, spec.tolerance.amount);
   return diff <= Math.max(allowed, shownSlack) + eps;
 }
+
+/** Decimals the answer is rounded to; 2 when the teacher never set it, as the editor shows. */
+export const calcRoundTo = (spec: Pick<CalcSpec, 'roundTo'>): number =>
+  spec.roundTo ?? 2;
 
 /** The answer as shown to teachers and in reveals, rounded to the question's decimals. */
 export function formatCalcAnswer(
@@ -336,10 +339,7 @@ export function formatCalcAnswer(
 ): string {
   const v = evaluateFormula(spec.formula, values);
   if (v === null) return '';
-  const text =
-    spec.roundTo !== undefined
-      ? v.toFixed(spec.roundTo)
-      : String(Number(v.toPrecision(12)));
+  const text = v.toFixed(calcRoundTo(spec));
   return spec.unit ? `${text} ${spec.unit}` : text;
 }
 
@@ -362,10 +362,14 @@ export function isCalcQuestion(q: { type: string; calc?: CalcSpec }): boolean {
   return q.type === 'FIB' && !!q.calc && q.calc.variables.length > 0;
 }
 
-/** The key one attempt's numbers come from: the response key, plus the attempt number after the first. */
+/** The key one attempt's numbers come from: the response key, when it joined, and the attempt number after the first. */
 export function calcAttemptKey(
   responseKey: string,
-  response?: { status?: unknown; completedAttempts?: unknown } | null
+  response?: {
+    status?: unknown;
+    completedAttempts?: unknown;
+    joinedAt?: unknown;
+  } | null
 ): string {
   const done =
     typeof response?.completedAttempts === 'number'
@@ -373,7 +377,14 @@ export function calcAttemptKey(
       : 0;
   const attempt =
     response?.status === 'completed' ? Math.max(1, done) : done + 1;
-  return attempt > 1 ? `${responseKey}#${attempt}` : responseKey;
+  // A new assignment is a new join, so the same student gets new numbers.
+  const joined =
+    typeof response?.joinedAt === 'number' && Number.isFinite(response.joinedAt)
+      ? `@${response.joinedAt}`
+      : '';
+  return attempt > 1
+    ? `${responseKey}${joined}#${attempt}`
+    : `${responseKey}${joined}`;
 }
 
 /** One student's numbers for a question, from the question's seed and their response key. */

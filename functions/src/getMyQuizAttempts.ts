@@ -208,6 +208,7 @@ export async function handleGetMyQuizAttempts(
     if (!withResponses) return base;
     const parsed = parseCompletedResponse(c);
     const attemptKey = calcAttemptKey(responseKey, {
+      joinedAt: response.joinedAt,
       status: 'completed',
       completedAttempts: n,
     });

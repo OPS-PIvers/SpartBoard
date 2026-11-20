@@ -48,6 +48,8 @@ describe('evaluateFormula', () => {
     expect(evaluateFormula('alert(1)', {})).toBeNull();
     expect(evaluateFormula('a; b', { a: 1, b: 2 })).toBeNull();
     expect(evaluateFormula('constructor', {})).toBeNull();
+    expect(evaluateFormula('constructor(5) + 1', {})).toBeNull();
+    expect(evaluateFormula('toString(1)', {})).toBeNull();
     expect(evaluateFormula('(1 + 2', {})).toBeNull();
   });
 
@@ -158,5 +160,18 @@ describe('fillCalcPrompt', () => {
         t: 2.5,
       })
     ).toBe('Travels 80.0 km in 2.5 hours, {z} left.');
+  });
+});
+
+describe('rounding', () => {
+  it('rounds to 2 decimals when the teacher never set it', () => {
+    const spec: CalcSpec = {
+      seed: 's',
+      variables: [],
+      formula: 'a / b',
+      tolerance: { kind: 'absolute', amount: 0 },
+    };
+    expect(formatCalcAnswer(spec, { a: 10, b: 3 })).toBe('3.33');
+    expect(calcAnswerAccepted(spec, { a: 10, b: 3 }, '3.33')).toBe(true);
   });
 });

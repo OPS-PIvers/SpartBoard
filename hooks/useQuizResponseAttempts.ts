@@ -36,6 +36,8 @@ export function attemptAsResponse(
     ...live,
     ...asCompleted,
     status: 'completed',
+    // Its random numbers belong to this attempt, not the live one.
+    completedAttempts: copy.n,
     grading: copy.grading,
     score: copy.score ?? null,
     submittedAt: copy.submittedAt ?? null,
