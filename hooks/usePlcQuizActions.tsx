@@ -101,7 +101,7 @@ async function pinnedSyncedFields(
 
 export function usePlcQuizActions(plc: Plc): PlcQuizActionsApi {
   const { t } = useTranslation();
-  const { user, getAssignmentMode, canAccessFeature } = useAuth();
+  const { user, getAssignmentMode } = useAuth();
   // D11: an assign uses this teacher's last-used settings, not the author's.
   const { lastUsed: lastAssignSettings } = useLastQuizAssignSettings(
     user?.uid,
@@ -467,14 +467,10 @@ export function usePlcQuizActions(plc: Plc): PlcQuizActionsApi {
           { loadBankContentsForQuiz, saveDriveSnapshot }
         );
         const plcLinkage = buildPlcLinkage(plc);
-        const quizPlan: PlcQuizStepperPlan = canAccessFeature(
-          'modification-groups'
-        )
-          ? {
-              ...plan,
-              mixed: withPlanAnswerChoices(plan.mixed, content.questions),
-            }
-          : plan;
+        const quizPlan: PlcQuizStepperPlan = {
+          ...plan,
+          mixed: withPlanAnswerChoices(plan.mixed, content.questions),
+        };
         const fields = plcStepperCreateFields(quizPlan, rosters);
         const created = await createAssignment(
           {
@@ -604,7 +600,6 @@ export function usePlcQuizActions(plc: Plc): PlcQuizActionsApi {
       user,
       loadBankContentsForQuiz,
       saveDriveSnapshot,
-      canAccessFeature,
     ]
   );
 

@@ -1050,16 +1050,12 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             metaList={metaList}
           />
 
-          {canAccessFeature('modification-groups') && (
-            <QuestionModifiedField
-              key={q.id}
-              question={q}
-              onChange={(modifiedText) =>
-                updateQuestion(q.id, { modifiedText })
-              }
-              metaList={metaList}
-            />
-          )}
+          <QuestionModifiedField
+            key={q.id}
+            question={q}
+            onChange={(modifiedText) => updateQuestion(q.id, { modifiedText })}
+            metaList={metaList}
+          />
         </div>
 
         {/* Type / format / time / points row */}
@@ -1371,7 +1367,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                   Attach Rubric
                 </button>
               )}
-              {q.rubricSnapshot && canAccessFeature('modification-groups') && (
+              {q.rubricSnapshot && (
                 <div className="mt-2 flex items-center gap-2 flex-wrap">
                   <span className="text-xs font-bold text-slate-500">
                     Modified rubric

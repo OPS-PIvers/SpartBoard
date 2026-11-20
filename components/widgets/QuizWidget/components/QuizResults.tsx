@@ -981,8 +981,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       plcView ||
       isReview ||
       !viewerUid ||
-      viewerUid !== session?.teacherUid ||
-      !canAccessFeature('modification-groups')
+      viewerUid !== session?.teacherUid
     )
       return undefined;
     return (
@@ -990,15 +989,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       ((questionId, answer) =>
         acceptFibAnswer({ sessionId, questionId, answer, quiz }))
     );
-  }, [
-    session,
-    plcView,
-    isReview,
-    viewerUid,
-    quiz,
-    canAccessFeature,
-    fibAnswerAccepter,
-  ]);
+  }, [session, plcView, isReview, viewerUid, quiz, fibAnswerAccepter]);
 
   // Same teacher-owner path as the grade write; a dotted path keeps the other hashes.
   const saveBackTranslation = useCallback(
@@ -4390,10 +4381,7 @@ const StudentDrilldownPanel: React.FC<{
     questions,
     drilldown,
   ]);
-  const { canAccessFeature } = useAuth();
-  const servedLocale = canAccessFeature('modification-groups')
-    ? servedLocaleForResponse(liveResponse, fibGrading)
-    : undefined;
+  const servedLocale = servedLocaleForResponse(liveResponse, fibGrading);
   const translatedKeyFor = (questionId: string) => {
     const key = servedLocale
       ? fibGrading?.answers?.[questionId]?.[servedLocale]?.[0]

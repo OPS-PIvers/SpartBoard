@@ -5,7 +5,6 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { AuthContext } from '@/context/AuthContextValue';
 import { RosterAccommodationsList } from './RosterAccommodationsList';
 import { useTranslation } from 'react-i18next';
 import {
@@ -42,11 +41,6 @@ import {
   RestrictionsPicker,
   RestrictionsPickerCandidate,
 } from './RestrictionsPicker';
-import { OverrideEditorRow } from '@/components/common/library/OverrideEditorRow';
-import {
-  isEmptyStudentOverride,
-  setRosterDefaultOverride,
-} from '@/utils/rosterDefaultOverrides';
 
 interface RosterEditorModalProps {
   isOpen: boolean;
@@ -161,9 +155,6 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
     else if (id === 'restrictions') setShowRestrictions(on);
   };
 
-  const auth = useContext(AuthContext);
-  const accommodationsListOn =
-    auth?.canAccessFeature?.('modification-groups') === true;
   const [activeTab, setActiveTab] = useState<
     'students' | 'groups' | 'accommodations'
   >('students');
@@ -537,7 +528,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
             students={validStudents}
             onChange={setGroups}
           />
-        ) : activeTab === 'accommodations' && roster && accommodationsListOn ? (
+        ) : activeTab === 'accommodations' && roster ? (
           <RosterAccommodationsList
             students={validStudents}
             groups={groups}
@@ -549,15 +540,6 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
             onSharingChange={(sharing) =>
               setSharesInFlight((n) => Math.max(0, n + (sharing ? 1 : -1)))
             }
-          />
-        ) : activeTab === 'accommodations' && roster ? (
-          <RosterAccommodationsPanel
-            students={validStudents}
-            overrides={defaultOverrides}
-            readAloudAvailable={readAloudAvailable}
-            speechToTextAvailable={speechToTextAvailable}
-            onChange={setDefaultOverrides}
-            onAddStudents={() => setActiveTab('students')}
           />
         ) : (
           <>
@@ -1079,94 +1061,6 @@ const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = ({
         onAddGroups={(made) => onChange([...groups, ...made])}
         onNewGroup={groups.length > 0 ? addGroup : undefined}
       />
-    </div>
-  );
-};
-
-interface RosterAccommodationsPanelProps {
-  students: Student[];
-  overrides: Record<string, StudentOverride>;
-  readAloudAvailable: boolean;
-  speechToTextAvailable: boolean;
-  onChange: (overrides: Record<string, StudentOverride>) => void;
-  onAddStudents: () => void;
-}
-
-/**
- * Standing accommodations editor. Writes `defaultOverridesByStudentId`, which
- * the assign flow pre-fills onto every newly selected student
- * (`AssignStudentPicker.applyDefaultOverride`). Reuses the assign flow's
- * `OverrideEditorRow` so the two surfaces cannot drift; question-scoped
- * controls (subset, option hider, rubric swap) render nothing here because a
- * roster default has no quiz to reference.
- */
-const RosterAccommodationsPanel: React.FC<RosterAccommodationsPanelProps> = ({
-  students,
-  overrides,
-  readAloudAvailable,
-  speechToTextAvailable,
-  onChange,
-  onAddStudents,
-}) => {
-  const { t } = useTranslation();
-  const studentName = (s: Student) =>
-    `${s.firstName} ${s.lastName}`.trim() || s.id;
-
-  return (
-    <div className="flex-1 min-h-0 border border-slate-200 rounded-xl bg-slate-50/30 overflow-y-auto scroll-inset">
-      {students.length === 0 ? (
-        <RosterEmptyState
-          title={t('sidebar.classes.emptyAccommodationsTitle', {
-            defaultValue: 'No students yet',
-          })}
-          subtitle={t('sidebar.classes.emptyAccommodationsSubtitle', {
-            defaultValue:
-              'Add students first, then set their standing accommodations.',
-          })}
-          addLabel={t('sidebar.classes.addStudent', {
-            defaultValue: 'Add Student',
-          })}
-          onAdd={onAddStudents}
-          anchorProps={tourAttr('roster-editor.accommodations-add-student')}
-        />
-      ) : (
-        <div className="p-3 flex flex-col gap-2">
-          <p className="text-xs text-slate-500">
-            {t('sidebar.classes.accommodationsHelp', {
-              defaultValue: 'These apply to every new assignment.',
-            })}
-          </p>
-          {students.map((s) => {
-            const peers = students
-              .filter(
-                (other) =>
-                  other.id !== s.id &&
-                  !isEmptyStudentOverride(overrides[other.id])
-              )
-              .map((other) => ({
-                id: other.id,
-                name: studentName(other),
-                override: overrides[other.id],
-              }));
-            return (
-              <OverrideEditorRow
-                key={s.id}
-                studentName={studentName(s)}
-                override={overrides[s.id] ?? {}}
-                quizMode
-                allowWindowShift={false}
-                readAloudAvailable={readAloudAvailable}
-                speechToTextAvailable={speechToTextAvailable}
-                pageProtectionsAvailable
-                peers={peers}
-                onChange={(next) =>
-                  onChange(setRosterDefaultOverride(overrides, s.id, next))
-                }
-              />
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 };
