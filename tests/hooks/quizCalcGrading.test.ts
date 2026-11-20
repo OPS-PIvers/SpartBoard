@@ -5,6 +5,7 @@ import { withCalcRevealed } from '@/hooks/quizAssignments/publishGrading';
 import {
   fillCalcPublicQuestion,
   questionForResponse,
+  sampleCalcQuestion,
   withAttemptCalcAnswers,
 } from '@/utils/quizCalcResponse';
 import {
@@ -137,5 +138,11 @@ describe('random-number questions in the app', () => {
     expect(withAttemptCalcAnswers({ q1: 'live' }, [pub], undefined)).toEqual(
       {}
     );
+  });
+
+  it('previews with sample numbers and their own answer', () => {
+    const preview = sampleCalcQuestion(q);
+    expect(preview.text).not.toContain('{d}');
+    expect(gradeAnswer(preview, preview.correctAnswer).isCorrect).toBe(true);
   });
 });

@@ -6,6 +6,7 @@ import {
   calcSeed,
   drawCalcValues,
   fillCalcPrompt,
+  formatCalcAnswer,
   withCalcValues,
   type CalcSpec,
   type CalcVariable,
@@ -69,4 +70,25 @@ export function withAttemptCalcAnswers(
     else delete out[q.id];
   }
   return out;
+}
+
+/** A random-number question as one sample student sees it: numbers in the prompt, its own answer as the key. */
+export function sampleCalcQuestion<
+  Q extends {
+    id: string;
+    type: string;
+    text: string;
+    correctAnswer: string;
+    calc?: CalcSpec;
+  },
+>(q: Q, sampleKey = 'preview'): Q & { calcValues?: Record<string, number> } {
+  if (!q.calc) return q;
+  const withValues = withCalcValues(q, sampleKey);
+  const values = withValues.calcValues;
+  if (!values) return q;
+  return {
+    ...withValues,
+    text: fillCalcPrompt(q.text, q.calc, values),
+    correctAnswer: formatCalcAnswer(q.calc, values),
+  };
 }

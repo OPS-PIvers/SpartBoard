@@ -7,9 +7,8 @@
  * useQuizSessionStudent — Student joins and submits answers.
  */
 
-import { calcAnswerAccepted } from '@/utils/quizCalculated';
+import { calcAnswerAccepted, calcAttemptKey } from '@/utils/quizCalculated';
 import { fillCalcPublicQuestion } from '@/utils/quizCalcResponse';
-import { calcAttemptKey } from '@/utils/quizCalculated';
 import { isAnswerKeyboard } from '@/config/studentKeyboards';
 import { alignedOrderingImages } from '@/utils/quizOrderingImages';
 import {
