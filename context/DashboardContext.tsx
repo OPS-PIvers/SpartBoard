@@ -4460,6 +4460,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const lastMirroredRef = useRef<Map<string, string>>(new Map());
   // Payload the share refused per shareId: not resent, and never used as the merge baseline.
   const refusedMirrorRef = useRef<Map<string, string>>(new Map());
+  // Payload in flight per shareId: dedupe only; it becomes the merge baseline once accepted.
+  const pendingMirrorRef = useRef<Map<string, string>>(new Map());
   // Per-share ink present when we first subscribed — the fallback merge
   // baseline before this device has mirrored or received anything.
   const mountInkBaselineRef = useRef<Map<string, DrawableObject[]>>(new Map());
@@ -4528,6 +4530,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       const existing = mirrorTimersRef.current.get(shareId);
       if (
         lastMirroredRef.current.get(shareId) === payload ||
+        pendingMirrorRef.current.get(shareId) === payload ||
         refusedMirrorRef.current.get(shareId) === payload
       ) {
         // A queued write now holds stale content (e.g. ink a snapshot just
@@ -4544,11 +4547,18 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       const baseline = sharedBaselineRef.current.get(shareId);
       const timer = setTimeout(() => {
         mirrorTimersRef.current.delete(shareId);
-        lastMirroredRef.current.set(shareId, payload);
+        pendingMirrorRef.current.set(shareId, payload);
         const gen = sharedSnapshotGenRef.current.get(shareId);
         void mirrorSharedBoard(shareId, scrubbed, baseline)
           .then((written) => {
+            if (pendingMirrorRef.current.get(shareId) === payload) {
+              pendingMirrorRef.current.delete(shareId);
+            }
             refusedMirrorRef.current.delete(shareId);
+            // Only an accepted write is the baseline, and not over a snapshot that landed meanwhile.
+            if (sharedSnapshotGenRef.current.get(shareId) === gen) {
+              lastMirroredRef.current.set(shareId, payload);
+            }
             // What we sent is the newest base until a snapshot says otherwise, so an undo before the echo stays.
             if (written && sharedSnapshotGenRef.current.get(shareId) === gen) {
               sharedBaselineRef.current.set(
@@ -4559,8 +4569,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           })
           .catch((err) => {
             console.warn('Mirror to shared board failed:', err);
-            // Drop the cached payload so it isn't the merge baseline and we retry on the next change.
-            lastMirroredRef.current.delete(shareId);
+            if (pendingMirrorRef.current.get(shareId) === payload) {
+              pendingMirrorRef.current.delete(shareId);
+            }
             // A refusal won't change until this board does, so don't resend the same payload.
             if ((err as { code?: string }).code === 'permission-denied') {
               refusedMirrorRef.current.set(shareId, payload);
@@ -4577,6 +4588,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         clearTimeout(timer);
         mirrorTimersRef.current.delete(shareId);
         lastMirroredRef.current.delete(shareId);
+        pendingMirrorRef.current.delete(shareId);
         refusedMirrorRef.current.delete(shareId);
       }
     }
