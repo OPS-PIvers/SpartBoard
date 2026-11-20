@@ -52,6 +52,7 @@ interface StubState {
   group: Record<string, unknown> | null;
   /** Captured tx.update() calls — `[ref, patch]` per call. */
   updates: Array<{ path: string; patch: Record<string, unknown> }>;
+  markers?: Record<string, Record<string, unknown>>;
 }
 
 function makeDb(state: StubState) {
@@ -64,6 +65,10 @@ function makeDb(state: StubState) {
   });
 
   const get = (ref: { __path: string }): Promise<DocSnap> => {
+    if (ref.__path.includes('/plcDetached/')) {
+      const marker = state.markers?.[ref.__path.split('/').pop() ?? ''];
+      return Promise.resolve({ exists: !!marker, data: () => marker });
+    }
     if (
       ref.__path.startsWith('plcs/') &&
       !ref.__path.includes('/assignments/')
@@ -478,5 +483,41 @@ describe('handleJoinPlcAssignmentSyncGroup - re-join and undo', () => {
         TEMPLATE_ID
       )
     ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+});
+
+describe('handleJoinPlcAssignmentSyncGroup - header detach markers (AB-61)', () => {
+  const db = () =>
+    makeDb(state) as unknown as Parameters<
+      typeof handleJoinPlcAssignmentSyncGroup
+    >[0];
+  const marker = (plcContentId: string, sharedBy = 'member-b') => ({
+    [`hdr:${PLC_ID}:assignments:${plcContentId}`]: {
+      plcId: PLC_ID,
+      plcContentId,
+      sharedBy,
+      detachedAt: 500,
+    },
+  });
+
+  beforeEach(() => {
+    state.group = { version: 3, participants: {} };
+  });
+
+  it('accepts a template whose sharer stopped syncing', async () => {
+    state.markers = marker(TEMPLATE_ID);
+    await expect(
+      handleJoinPlcAssignmentSyncGroup(db(), MEMBER_UID, PLC_ID, TEMPLATE_ID)
+    ).resolves.toMatchObject({ alreadyJoined: false });
+    expect(state.updates).toHaveLength(1);
+  });
+
+  it('refuses a forged template at a group whose marker names another header', async () => {
+    state.template = { syncGroupId: SYNC_GROUP_ID, sharedBy: MEMBER_UID };
+    state.markers = marker('victim-template');
+    await expect(
+      handleJoinPlcAssignmentSyncGroup(db(), MEMBER_UID, PLC_ID, TEMPLATE_ID)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(state.updates).toHaveLength(0);
   });
 });

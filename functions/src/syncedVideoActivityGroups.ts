@@ -30,6 +30,10 @@ import * as admin from './firebaseAdmin';
 import { isAiTeacherCaller } from './aiCallerGate';
 import { assertViewAsAllowed } from './viewAsGuard';
 import { assertShareAuthorInGroup } from './plcSyncJoinGuards';
+import {
+  findLeaverPlcHeaders,
+  writeLeaverHeaderMarkers,
+} from './plcHeaderDetachMarkers';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -127,6 +131,13 @@ export async function handleLeaveSyncedVideoActivityGroup(
   groupId: string
 ): Promise<LeaveSyncedVideoActivityGroupResponse> {
   const groupRef = db.collection(SYNCED_COLLECTION).doc(groupId);
+  // Read before the transaction; markers are written below only if uid is a participant.
+  const headers = await findLeaverPlcHeaders(
+    db,
+    'video-activity',
+    uid,
+    groupId
+  );
   return db.runTransaction(async (tx) => {
     const groupSnap = await tx.get(groupRef);
     if (!groupSnap.exists) {
@@ -140,11 +151,13 @@ export async function handleLeaveSyncedVideoActivityGroup(
       | undefined;
     const participants = { ...(groupData?.participants ?? {}) };
     if (Object.prototype.hasOwnProperty.call(participants, uid)) {
+      const now = Date.now();
       delete participants[uid];
       tx.update(groupRef, {
         participants,
-        updatedAt: Date.now(),
+        updatedAt: now,
       });
+      writeLeaverHeaderMarkers(tx, groupRef, uid, headers, now);
     }
     return { remainingParticipants: Object.keys(participants).length };
   });

@@ -33,6 +33,10 @@ import * as admin from './firebaseAdmin';
 import './functionsInit';
 import { assertViewAsAllowed } from './viewAsGuard';
 import { PLC_DETACHED_SUBCOLLECTION } from './plcSyncJoinGuards';
+import {
+  findLeaverPlcHeaders,
+  writeLeaverHeaderMarkers,
+} from './plcHeaderDetachMarkers';
 
 export type PlcSyncLinkageKind = 'quiz' | 'video-activity';
 
@@ -89,6 +93,13 @@ export async function handleDetachPlcSyncLinkage(
   const plcRef = db.collection('plcs').doc(plcId);
   const headerRef = plcRef.collection(headerCollection).doc(plcContentId);
 
+  // Header query runs outside the transaction; syncGroupId is immutable, re-checked below.
+  const preGroupId: unknown = (await headerRef.get()).data()?.syncGroupId;
+  const headers =
+    typeof preGroupId === 'string' && preGroupId.length > 0
+      ? await findLeaverPlcHeaders(db, kind, uid, preGroupId)
+      : [];
+
   return db.runTransaction(async (tx) => {
     // Read membership + header inside the transaction so a member who is
     // removed from `memberUids` mid-flow can't keep mutating the group's
@@ -143,6 +154,13 @@ export async function handleDetachPlcSyncLinkage(
     );
     if (wasParticipant) {
       delete participants[uid];
+      writeLeaverHeaderMarkers(
+        tx,
+        groupRef,
+        uid,
+        groupId === preGroupId ? headers : [],
+        Date.now()
+      );
       tx.update(groupRef, {
         participants,
         // updatedAt tracks any server-side touch; updatedBy is intentionally
