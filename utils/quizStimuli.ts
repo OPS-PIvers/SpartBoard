@@ -275,8 +275,39 @@ export function stimulusDisplayName(
   }
 }
 
-const clip = (text: string) =>
-  text.length > 60 ? `${text.slice(0, 60)}…` : text;
+/** Picker row title: the display name, word-bank choices as a list, or the type plus its number among same-type stimuli. */
+export function stimulusPickerTitle(
+  s: QuizStimulus,
+  all: readonly QuizStimulus[]
+): string {
+  const typeLabel = STIMULUS_TYPE_LABELS[s.type];
+  const label = s.label.trim();
+  if (s.type === 'word-bank' && (!label || label === typeLabel)) {
+    const words = (s.text ?? '')
+      .split('\n')
+      .map((w) => w.trim())
+      .filter(Boolean);
+    if (words.length > 0) return clip(words.join(', '));
+  }
+  const name = stimulusDisplayName(s);
+  if (name !== typeLabel) return name;
+  const unnamed = all.filter(
+    (o) => o.type === s.type && stimulusDisplayName(o) === typeLabel
+  );
+  if (unnamed.length < 2) return typeLabel;
+  return `${typeLabel} ${unnamed.findIndex((o) => o.id === s.id) + 1}`;
+}
+
+/** True for a passage or word bank with no text yet. */
+export const isEmptyTextStimulus = (s: QuizStimulus): boolean =>
+  (s.type === 'text' || s.type === 'word-bank') && !s.text?.trim();
+
+const clip = (text: string) => {
+  if (text.length <= 60) return text;
+  const cut = text.slice(0, 60);
+  const space = cut.lastIndexOf(' ');
+  return `${space > 40 ? cut.slice(0, space) : cut}…`;
+};
 
 function hostOf(url: string): string {
   try {

@@ -11792,6 +11792,8 @@ export type GlobalFeature =
   /** Desmos calculator stimulus on quiz questions. */
   | 'quiz-calculator-stimulus'
   | 'quiz-word-bank'
+  /** Quiz editor attaches stimuli in a list-and-preview dialog instead of an inline checklist. */
+  | 'quiz-stimulus-picker'
   /** Question editor metadata (stimuli, targets, DOK) as labeled fields like Type and Points. */
   | 'question-editor-fields'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
