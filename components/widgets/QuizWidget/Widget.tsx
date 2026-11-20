@@ -2311,7 +2311,8 @@ const TeacherQuizWidget: React.FC<{
     const upTo = autoRevealCount(liveSession, questions.length);
     for (let i = 0; i < upTo; i++) {
       const q = questions[i];
-      if (!liveSession.revealedAnswers?.[q.id]) {
+      // A random-number answer differs per student, so the class reveal skips it.
+      if (!liveSession.revealedAnswers?.[q.id] && !q.calc) {
         void revealAnswer(q.id, revealValueFor(q));
       }
     }

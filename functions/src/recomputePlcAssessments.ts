@@ -26,6 +26,7 @@ import {
 } from './plcFlashcardAggregate';
 import { activePlcMemberUids } from './plcActiveMembers';
 import { sessionClassPredicate } from './sessionClassFilter';
+import { calcAttemptKey } from './quizCalculated';
 
 type Firestore = admin.firestore.Firestore;
 
@@ -449,7 +450,10 @@ export async function recomputeOnePlcAssessment(
       // A class the teacher removed from the quiz leaves the team totals; its responses stay.
       responses: responsesSnap.docs
         .filter((d) => keepClass(d.data()))
-        .map((d) => parseCompletedResponse(d.data())),
+        .map((d) => ({
+          ...parseCompletedResponse(d.data()),
+          responseKey: calcAttemptKey(d.id, d.data()),
+        })),
       scorePublishedAt:
         typeof s.scorePublishedAt === 'number' ? s.scorePublishedAt : null,
       localizedFibAnswers: parseLocalizedFibAnswers(

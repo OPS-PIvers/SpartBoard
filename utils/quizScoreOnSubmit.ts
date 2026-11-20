@@ -17,6 +17,8 @@ export interface ScoreOnSubmitKeyQuestion {
   allowPartialCredit?: boolean;
   /** A recording slot needs a teacher grade, so the server never scores it. */
   recording?: true;
+  /** Random-number FIB: the formula the server grades each student's numbers with. */
+  calc?: QuizQuestion['calc'];
 }
 
 /** True when this question needs a teacher grade; Review skips these (plan D19). */
@@ -51,6 +53,7 @@ export function buildScoreOnSubmitKey(
       : {}),
     ...(q.allowPartialCredit ? { allowPartialCredit: true } : {}),
     ...(questionHasRecordingSlot(q) ? { recording: true as const } : {}),
+    ...(q.type === 'FIB' && q.calc ? { calc: q.calc } : {}),
   }));
 }
 

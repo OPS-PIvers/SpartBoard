@@ -1,3 +1,5 @@
+import { questionForResponse } from '@/utils/quizCalcResponse';
+import { isCalcQuestion } from '@/utils/quizCalculated';
 import React from 'react';
 import { promptLabel } from '@/utils/quizPromptText';
 import { MathText } from '@/components/common/MathText';
@@ -226,7 +228,10 @@ export const QuestionDetail: React.FC<QuestionDetailProps> = ({
           )
       );
       return grades.find((g) => g.isCorrect) ?? grades[0];
-    }
+    },
+    isCalcQuestion(question)
+      ? (r, a) => gradeAnswer(questionForResponse(question, r), a).isCorrect
+      : undefined
   );
   const pictures = imageOnlyPictures(question);
   const hasDistribution =

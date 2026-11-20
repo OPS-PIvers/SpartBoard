@@ -4548,6 +4548,29 @@ export interface QuestionAudio {
   playLimit?: number;
 }
 
+/** One random number in a random-number question; students each get their own value. */
+export interface CalcVariable {
+  name: string;
+  min: number;
+  max: number;
+  decimals: number;
+}
+
+export type CalcTolerance =
+  { kind: 'relative'; percent: number } | { kind: 'absolute'; amount: number };
+
+/** FIB only: random numbers in the prompt as `{name}` and the formula that grades each student's answer. */
+export interface CalcSpec {
+  /** Random text set when the question is made; with each response key it fixes that student's numbers. */
+  seed: string;
+  variables: CalcVariable[];
+  formula: string;
+  tolerance: CalcTolerance;
+  /** Decimals the shown answer is rounded to; grading uses the unrounded value. */
+  roundTo?: number;
+  unit?: string;
+}
+
 export interface QuizQuestion {
   id: string;
   /** Time limit in seconds. 0 = no time limit. */
@@ -4637,6 +4660,10 @@ export interface QuizQuestion {
   noSpellCheck?: boolean;
   /** FIB and Free Response: the student keyboard. Absent = plain typing. */
   answerKeyboard?: AnswerKeyboard;
+  /** FIB only: random numbers; the formula replaces `correctAnswer` for grading. Never sent to students. */
+  calc?: CalcSpec;
+  /** Set only on a copy graded for one student: that student's numbers. Never saved. */
+  calcValues?: Record<string, number>;
   /** Free Response only. Size of the lined box on paper answer sheets. */
   paperBoxSize?: PaperBoxSize;
   /** Free Response only. What prints inside the paper answer box; absent = lines. */
@@ -5435,6 +5462,12 @@ export interface QuizPublicQuestion {
   noSpellCheck?: boolean;
   /** FIB and Free Response: the student keyboard. */
   answerKeyboard?: AnswerKeyboard;
+  /** Random-number FIB only: the numbers' ranges, so each student's values can be worked out. No formula. */
+  calcVariables?: CalcVariable[];
+  /** Random-number FIB only: the question's seed, so each student works out their own numbers. */
+  calcSeed?: string;
+  /** Client only: the question before this student's numbers were written in. */
+  calcUnfilled?: QuizPublicQuestion;
   /** Free Response only: max points the teacher can award. */
   points?: number;
   /**
@@ -11912,6 +11945,7 @@ export type GlobalFeature =
   | 'assignments-hub'
   /** Teachers record their voice for a quiz question prompt. */
   | 'quiz-question-audio'
+  | 'quiz-random-numbers'
   /** Print results with Settings and Students tabs and a Course > class > student picker. */
   | 'results-print-v2';
 

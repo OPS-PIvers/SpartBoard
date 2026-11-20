@@ -94,6 +94,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'course-agenda',
   'assigned-tab',
   'quiz-question-audio',
+  'quiz-random-numbers',
   'results-print-v2',
 ];
 

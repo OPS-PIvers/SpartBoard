@@ -129,6 +129,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'quiz-live-view-screenshot',
   'quiz-media-response',
   'quiz-question-audio',
+  'quiz-random-numbers',
   'quiz-read-aloud',
   'quiz-recap-all-options',
   'quiz-score-on-submit',
