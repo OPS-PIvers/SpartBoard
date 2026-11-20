@@ -6,6 +6,7 @@ import type { UseQuizAssignmentsResult } from '@/hooks/useQuizAssignments';
 import { deletePaperBatchesForQuiz } from '@/utils/paperBatchStore';
 
 interface UseQuizDeleteArgs {
+  quizzes: QuizMetadata[];
   user: { uid: string } | null | undefined;
   assignments: QuizAssignment[];
   assignmentsLoading: UseQuizAssignmentsResult['loading'];
@@ -17,6 +18,7 @@ interface UseQuizDeleteArgs {
 
 // Fresh handlers every render, as the inline JSX props they replace were.
 export const useQuizDelete = ({
+  quizzes,
   user,
   assignments,
   assignmentsLoading,
@@ -174,5 +176,25 @@ export const useQuizDelete = ({
     return true;
   };
 
-  return { onDelete, onBulkDelete };
+  const folderDeleteItems = async (ids: string[]) => {
+    // The live-assignment check above is only trustworthy once assignments have loaded.
+    if (assignmentsLoading || assignmentsError) {
+      throw new Error("Couldn't check assignments. Try again in a moment.");
+    }
+    const byId = new Map(quizzes.map((q) => [q.id, q]));
+    for (const id of ids) {
+      const meta = byId.get(id);
+      if (!meta) continue;
+      await deleteQuiz(meta.id, meta.driveFileId);
+      if (user?.uid) {
+        await deletePaperBatchesForQuiz(user.uid, meta.id).catch(
+          (batchErr: unknown) => {
+            console.warn('[QuizWidget] paper batch cleanup:', batchErr);
+          }
+        );
+      }
+    }
+  };
+
+  return { onDelete, onBulkDelete, folderDeleteItems };
 };

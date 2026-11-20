@@ -309,7 +309,6 @@ import { printPaperSheets } from '@/utils/paperSheetPrint';
 import { MAX_PAGE } from '@/utils/paperSheetMarker';
 import {
   deletePaperBatch,
-  deletePaperBatchesForQuiz,
   subscribePaperBatchIndex,
   savePaperBatch,
   savePrintedCopyBatch,
@@ -2378,6 +2377,7 @@ const TeacherQuizWidget: React.FC<{
   // Declared before the early returns below so the hook runs on every render (rules-of-hooks).
   const handleReorderQuizzes = useQuizReorder(user, addToast);
   const quizDelete = useQuizDelete({
+    quizzes,
     user,
     assignments,
     assignmentsLoading,
@@ -3719,27 +3719,7 @@ const TeacherQuizWidget: React.FC<{
             n === 1
               ? '1 quiz has a live assignment'
               : `${n} quizzes have live assignments`,
-          deleteItems: async (ids) => {
-            // The live-assignment check above is only trustworthy once assignments have loaded.
-            if (assignmentsLoading || assignmentsError) {
-              throw new Error(
-                "Couldn't check assignments. Try again in a moment."
-              );
-            }
-            const byId = new Map(quizzes.map((q) => [q.id, q]));
-            for (const id of ids) {
-              const meta = byId.get(id);
-              if (!meta) continue;
-              await deleteQuiz(meta.id, meta.driveFileId);
-              if (user?.uid) {
-                await deletePaperBatchesForQuiz(user.uid, meta.id).catch(
-                  (batchErr: unknown) => {
-                    console.warn('[QuizWidget] paper batch cleanup:', batchErr);
-                  }
-                );
-              }
-            }
-          },
+          deleteItems: quizDelete.folderDeleteItems,
         }}
         bankFolderDeleteActions={{
           deleteItems: async (ids) => {
