@@ -1394,6 +1394,7 @@
         "ariaLabel": "Anwesenheit öffnen – {{count}} heute als abwesend markiert"
       },
       "classContext": {
+        "label": "Klassen",
         "triggerAria": "Aktive Klasse: {{name}}",
         "triggerAriaWithAbsent_one": "Aktive Klasse: {{name}}. {{count}} Schüler/in heute als abwesend markiert.",
         "triggerAriaWithAbsent_other": "Aktive Klasse: {{name}}. {{count}} Schüler/innen heute als abwesend markiert.",
