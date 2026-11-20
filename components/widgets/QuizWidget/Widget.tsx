@@ -50,7 +50,10 @@ import { openConnectionEditor } from '@/context/connectionsUiStore';
 import { useConnectionWidgetTitle } from '@/hooks/useConnectionWidgetTitle';
 import { useInSubShare } from '@/hooks/useShareContent';
 import { SubShareQuizWidget } from './SubShareWidget';
-import { SharedBoardQuizView } from './SharedBoardQuizView';
+import {
+  SharedBoardQuizUnavailable,
+  SharedBoardQuizView,
+} from './SharedBoardQuizView';
 import {
   SharedBoardItemGate,
   type SharedBoardLocal,
@@ -6127,6 +6130,13 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) =>
       )}
       renderOwn={(own, local) => (
         <TeacherQuizWidget widget={own} local={local} />
+      )}
+      renderUnavailable={(loading) => (
+        <SharedBoardQuizUnavailable
+          loading={loading}
+          title={(widget.config as QuizConfig).selectedQuizTitle}
+          ownerUid={(widget.config as QuizConfig).selectedQuizOwnerUid}
+        />
       )}
     />
   );

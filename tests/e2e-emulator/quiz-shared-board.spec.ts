@@ -189,6 +189,112 @@ const expectColleagueQuiz = async (widget: Locator): Promise<void> => {
   await expect(widget.getByText('Live', { exact: true })).toHaveCount(0);
 };
 
+// Every doc under a path, with its update time, read as the emulator's owner.
+const dumpTree = async (
+  request: APIRequestContext,
+  docPath: string
+): Promise<Record<string, unknown>> => {
+  const out: Record<string, unknown> = {};
+  const ids = await request.post(`${FIRESTORE}/${docPath}:listCollectionIds`, {
+    headers: { Authorization: 'Bearer owner' },
+    data: {},
+  });
+  expect(ids.ok()).toBe(true);
+  const { collectionIds = [] } = (await ids.json()) as {
+    collectionIds?: string[];
+  };
+  for (const id of collectionIds) {
+    const list = await request.get(
+      `${FIRESTORE}/${docPath}/${id}?showMissing=true&pageSize=300`,
+      { headers: { Authorization: 'Bearer owner' } }
+    );
+    expect(list.ok()).toBe(true);
+    const { documents = [] } = (await list.json()) as {
+      documents?: { name: string; updateTime?: string; fields?: unknown }[];
+    };
+    for (const d of documents) {
+      const path = d.name.split('/documents/')[1];
+      out[path] = {
+        updateTime: d.updateTime ?? null,
+        fields: d.fields ?? null,
+      };
+      Object.assign(out, await dumpTree(request, path));
+    }
+  }
+  return out;
+};
+
+// The share doc the board syncs through (a session-storage mock here) and both emulator subtrees.
+const boardAndOwnerState = async (
+  page: Page,
+  request: APIRequestContext,
+  shareId: string
+) => ({
+  share: await page.evaluate(
+    (key) => sessionStorage.getItem(key),
+    `mock_shared_${shareId}`
+  ),
+  board: await dumpTree(request, `shared_boards/${shareId}`),
+  owner: await dumpTree(request, `users/${HOST_UID}`),
+});
+
+// Where the viewer's copy of the colleague's quiz landed.
+const copyPaths = async (request: APIRequestContext): Promise<string[]> => {
+  const res = await request.post(`${FIRESTORE}:runQuery`, {
+    headers: { Authorization: 'Bearer owner' },
+    data: {
+      structuredQuery: {
+        from: [{ collectionId: 'quizzes', allDescendants: true }],
+      },
+    },
+  });
+  expect(res.ok()).toBe(true);
+  const rows = (await res.json()) as { document?: { name: string } }[];
+  return rows
+    .map((r) => r.document?.name.split('/documents/')[1])
+    .filter((p): p is string => !!p && p.endsWith(`/quizzes/${QUIZ_ID}-copy`));
+};
+
+// Assign, cancel and Back: the copy lands in the viewer's library and nothing on the board or the colleague's side changes.
+const assignWritesOnlyToViewer = async (
+  page: Page,
+  request: APIRequestContext,
+  widget: Locator,
+  shareId: string
+): Promise<void> => {
+  const errors: string[] = [];
+  page.on('console', (msg) => {
+    if (msg.type() === 'error' && /permission/i.test(msg.text()))
+      errors.push(msg.text());
+  });
+  // A copy left by an earlier test lives in another page's Drive mock, so start without one.
+  for (const path of await copyPaths(request)) {
+    const res = await request.delete(`${FIRESTORE}/${path}`, {
+      headers: { Authorization: 'Bearer owner' },
+    });
+    expect(res.ok()).toBe(true);
+  }
+  const before = await boardAndOwnerState(page, request, shareId);
+  expect(before.share).not.toBeNull();
+  expect(Object.keys(before.board)).toContain(
+    `shared_boards/${shareId}/items/quiz_${HOST_UID}_${QUIZ_ID}`
+  );
+  await widget.getByRole('button', { name: 'Assign', exact: true }).click();
+  const stepper = page.getByRole('dialog', { name: QUIZ });
+  await expect(stepper).toBeVisible();
+  await stepper.getByRole('button', { name: 'Cancel' }).click();
+  await expect(stepper).toBeHidden();
+  const copies = await copyPaths(request);
+  expect(copies).toHaveLength(1);
+  expect(copies[0]).toMatch(/^users\/[^/]+\/quizzes\//);
+  expect(copies[0].startsWith(`users/${HOST_UID}/`)).toBe(false);
+  await widget.getByRole('button', { name: 'Back to the shared quiz' }).click();
+  await expectColleagueQuiz(widget);
+  expect(await boardAndOwnerState(page, request, shareId)).toEqual(before);
+  expect(errors).toEqual([]);
+  await expect(page.getByRole('alert')).toHaveCount(0);
+};
+
 test.beforeEach(async ({ page }) => {
   await setFeatureOverrides(page, teacherFeatureOverrides());
 });
@@ -322,7 +428,7 @@ test('a shared Quiz widget with no quiz selected shows the viewer’s own librar
   await expect(widget.getByText(QUIZ)).toHaveCount(0);
 });
 
-test('a colleague’s quiz on a View-Only board offers the same read-only view and Assign', async ({
+test('a colleague’s quiz on a View-Only board offers the same read-only view, and Assign writes nothing to the board or the colleague', async ({
   page,
   request,
 }) => {
@@ -335,9 +441,25 @@ test('a colleague’s quiz on a View-Only board offers the same read-only view a
     'view-only'
   );
   await expectColleagueQuiz(widget);
+  await assignWritesOnlyToViewer(page, request, widget, shareId);
 });
 
-test('a colleague’s quiz that was never published to the board shows the viewer’s own library', async ({
+test('Assign on a synced board writes nothing to the board or the colleague', async ({
+  page,
+  request,
+}) => {
+  const shareId = 'e2e-share-quiz-synced-writes';
+  await publishColleagueQuiz(request, shareId);
+  const widget = await openSharedBoard(page, shareId, quizWidget('preview'));
+  await expectColleagueQuiz(widget);
+  await assignWritesOnlyToViewer(page, request, widget, shareId);
+});
+
+const UNAVAILABLE = `"${QUIZ}" isn't available on this board yet`;
+const UNAVAILABLE_HINT =
+  'It shows up here after the teacher who owns it next opens this board.';
+
+test('a colleague’s quiz that was never published to the board says so instead of showing the viewer’s library', async ({
   page,
 }) => {
   const widget = await openSharedBoard(
@@ -345,11 +467,26 @@ test('a colleague’s quiz that was never published to the board shows the viewe
     'e2e-share-quiz-unpublished',
     quizWidget('preview')
   );
-  const library = widget.getByRole('region', { name: 'Quiz library' });
-  await expect(library).toBeVisible({ timeout: 30000 });
+  await expect(widget.getByText(UNAVAILABLE)).toBeVisible({ timeout: 30000 });
+  await expect(widget.getByText(UNAVAILABLE_HINT)).toBeVisible();
   await expect(
-    library.getByRole('tabpanel').getByText('No Quizzes Yet')
-  ).toBeVisible();
+    widget.getByRole('region', { name: 'Quiz library' })
+  ).toHaveCount(0);
+  await expect(widget.getByText('No Quizzes Yet')).toHaveCount(0);
   await expect(widget.getByText(VIEW_ONLY_NOTE)).toHaveCount(0);
-  await expect(widget.getByText(QUIZ)).toHaveCount(0);
+  await expect(
+    widget.getByRole('button', { name: 'Assign', exact: true })
+  ).toHaveCount(0);
+});
+
+test('a colleague’s quiz published while the board is open replaces the notice with the preview', async ({
+  page,
+  request,
+}) => {
+  const shareId = 'e2e-share-quiz-late-publish';
+  const widget = await openSharedBoard(page, shareId, quizWidget('preview'));
+  await expect(widget.getByText(UNAVAILABLE)).toBeVisible({ timeout: 30000 });
+  await publishColleagueQuiz(request, shareId);
+  await expectColleagueQuiz(widget);
+  await expect(widget.getByText(UNAVAILABLE)).toHaveCount(0);
 });
