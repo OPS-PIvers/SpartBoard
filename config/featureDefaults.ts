@@ -65,6 +65,7 @@ import {
   LogIn,
   Shapes,
   Settings2,
+  PanelLeft,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -657,6 +658,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     category: 'students',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Stimulus attach dialog in the quiz question editor. Admin-only until Paul has tested it in prod.
+  'quiz-stimulus-picker': {
+    label: 'Stimulus picker dialog',
+    icon: PanelLeft,
+    description:
+      'Teachers attach stimuli in a dialog. The list is on the left and a preview is on the right.',
+    stage: 'preview',
+    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,

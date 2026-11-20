@@ -268,6 +268,38 @@ const stimuliQuiz = (): QuizData => {
   };
 };
 
+/** Many stimuli, several empty, like an imported quiz. */
+const manyStimuliQuiz = (): QuizData => {
+  const base = stimuliQuiz();
+  const empty = (type: 'text' | 'word-bank', n: number): QuizStimulus => ({
+    id: `stim-empty-${type}-${n}`,
+    type,
+    url: '',
+    label: type === 'text' ? 'Passage' : 'Word bank',
+    text: '',
+  });
+  return {
+    ...base,
+    stimuli: [
+      ...(base.stimuli ?? []),
+      {
+        id: 'stim-wb-short',
+        type: 'word-bank',
+        url: '',
+        label: 'Word bank',
+        text: 'mitosis\nmeiosis\nnucleus\nribosome',
+      },
+      empty('text', 1),
+      empty('word-bank', 1),
+      empty('word-bank', 2),
+      empty('text', 2),
+      empty('text', 3),
+      empty('word-bank', 3),
+      empty('text', 4),
+    ],
+  };
+};
+
 const bank = (): QuestionBankData => ({
   id: 'dev-bank',
   title: 'Short story bank',
@@ -443,13 +475,17 @@ export const QuizEditorDevView: React.FC<{ state: QuizEditorStateKey }> = ({
             ? pictureOnlyQuiz()
             : state === 'qe-stimuli'
               ? stimuliQuiz()
-              : quiz()
+              : state === 'qe-stimuli-many'
+                ? manyStimuliQuiz()
+                : quiz()
       }
       onClose={() => undefined}
       onSave={() => Promise.resolve()}
     />
   );
-  return state === 'qe-gated' || state === 'qe-stimuli' ? (
+  return state === 'qe-gated' ||
+    state === 'qe-stimuli' ||
+    state === 'qe-stimuli-many' ? (
     <MediaGateGranted>{modal}</MediaGateGranted>
   ) : (
     modal
