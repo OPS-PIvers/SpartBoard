@@ -6,6 +6,7 @@ import { defaultWhenValue } from '@/components/common/library/assignStepper/assi
 import { SAMPLE_ROSTERS } from '@/components/common/library/assignStepper/assignStepperTestRosters';
 import { QuizAssignStepper } from './QuizAssignStepper';
 import type { ClassRoster, StudentOverride } from '@/types';
+import type { AssignClassesValue } from '@/components/common/library/assignStepper/assignClassesValue';
 import { AuthContext } from '@/context/AuthContextValue';
 import {
   EMPTY_ASSIGN_TARGETING_VALUE,
@@ -330,14 +331,15 @@ const EditHarness: React.FC<{
   saved: Record<string, StudentOverride>;
   savedClassIds?: string[];
   onSubmit: (extra: unknown) => void;
-}> = ({ saved, savedClassIds = ['c1'], onSubmit }) => {
+  studentsByClass?: AssignClassesValue['studentsByClass'];
+}> = ({ saved, savedClassIds = ['c1'], onSubmit, studentsByClass = {} }) => {
   const [targeting, setTargeting] = useState<AssignTargetingValue>(
     EMPTY_ASSIGN_TARGETING_VALUE
   );
-  const [classes, setClasses] = useState<{
-    classIds: string[];
-    studentsByClass: Record<string, never>;
-  }>({ classIds: savedClassIds, studentsByClass: {} });
+  const [classes, setClasses] = useState<AssignClassesValue>({
+    classIds: savedClassIds,
+    studentsByClass,
+  });
   const auth = {
     canAccessFeature: (id: string) =>
       id === 'modification-groups' || id === 'quiz-read-aloud',
@@ -396,6 +398,24 @@ describe('QuizAssignStepper editing a launched quiz', () => {
         overridesByKey: Record<string, StudentOverride>;
       }
     ).overridesByKey;
+
+  it('names the students a class was narrowed to', () => {
+    const row = classStudentRows({
+      rosters: PRESET_ROSTERS,
+      selectedRosterIds: ['c1'],
+    }).find((r) => r.key === avery);
+    if (!row) throw new Error('no row');
+    render(
+      <EditHarness
+        saved={{}}
+        onSubmit={vi.fn()}
+        studentsByClass={{ c1: [row.ref] }}
+      />
+    );
+    expect(screen.getByTestId('picked-students-note')).toHaveTextContent(
+      `only ${row.name}`
+    );
+  });
 
   it('lists Modifications before Results, as assign does, with no student picker', () => {
     render(<EditHarness saved={saved} onSubmit={vi.fn()} />);
