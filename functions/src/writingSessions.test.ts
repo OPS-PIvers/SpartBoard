@@ -116,6 +116,16 @@ describe('assignWritingV1', () => {
       sessionId: 'S1',
     });
   });
+
+  it('allows one unlisted LMS class in first place before enforce, as the rule does', async () => {
+    store.set('verified_classes/t1', { ids: ['c1'], classlinkAt: 1 });
+    await expect(
+      assign({ classIds: ['c1', 'schoology:5'] })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    await expect(assign({ classIds: ['schoology:5', 'c1'] })).resolves.toEqual({
+      sessionId: 'S1',
+    });
+  });
 });
 
 describe('sessionSettings', () => {

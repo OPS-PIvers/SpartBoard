@@ -74,7 +74,7 @@ describe('useMiniAppSessionTeacher.createSession — per-period', () => {
       string,
       Record<string, unknown>,
     ];
-    // The session id is the archive id, which the create rule requires.
+    // The session id is the archive id; the matching create rule waits on AB-324.
     expect(sessionRef).toBe('mini_app_sessions/asg-1');
     expect(session).toMatchObject({
       id: 'asg-1',

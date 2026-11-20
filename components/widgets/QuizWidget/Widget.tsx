@@ -144,6 +144,7 @@ import { applyRubricEdit, sameRubricContent } from '@/utils/rubricPoints';
 import { QuizEditorModal } from './components/QuizEditorModal';
 import { QuizPreview } from './components/QuizPreview';
 import { QuizResults } from './components/QuizResults';
+import { latestArchivedAssignment } from './utils/latestArchivedAssignment';
 import { QuizAssignmentSettingsModal } from './components/QuizAssignmentSettingsModal';
 import { useTranslation } from 'react-i18next';
 import {
@@ -309,7 +310,6 @@ import { printPaperSheets } from '@/utils/paperSheetPrint';
 import { MAX_PAGE } from '@/utils/paperSheetMarker';
 import {
   deletePaperBatch,
-  deletePaperBatchesForQuiz,
   subscribePaperBatchIndex,
   savePaperBatch,
   savePrintedCopyBatch,
@@ -2378,6 +2378,7 @@ const TeacherQuizWidget: React.FC<{
   // Declared before the early returns below so the hook runs on every render (rules-of-hooks).
   const handleReorderQuizzes = useQuizReorder(user, addToast);
   const quizDelete = useQuizDelete({
+    quizzes,
     user,
     assignments,
     assignmentsLoading,
@@ -3719,27 +3720,7 @@ const TeacherQuizWidget: React.FC<{
             n === 1
               ? '1 quiz has a live assignment'
               : `${n} quizzes have live assignments`,
-          deleteItems: async (ids) => {
-            // The live-assignment check above is only trustworthy once assignments have loaded.
-            if (assignmentsLoading || assignmentsError) {
-              throw new Error(
-                "Couldn't check assignments. Try again in a moment."
-              );
-            }
-            const byId = new Map(quizzes.map((q) => [q.id, q]));
-            for (const id of ids) {
-              const meta = byId.get(id);
-              if (!meta) continue;
-              await deleteQuiz(meta.id, meta.driveFileId);
-              if (user?.uid) {
-                await deletePaperBatchesForQuiz(user.uid, meta.id).catch(
-                  (batchErr: unknown) => {
-                    console.warn('[QuizWidget] paper batch cleanup:', batchErr);
-                  }
-                );
-              }
-            }
-          },
+          deleteItems: quizDelete.folderDeleteItems,
         }}
         bankFolderDeleteActions={{
           deleteItems: async (ids) => {
@@ -4616,8 +4597,29 @@ const TeacherQuizWidget: React.FC<{
           }
         }}
         onResults={async (meta) => {
-          const data = await loadQuiz(meta);
-          if (data) setView('results');
+          const a = latestArchivedAssignment(kindAssignments, meta.id);
+          if (!a) {
+            addToast('This quiz has no finished assignment yet.', 'info');
+            return;
+          }
+          const data = await loadAnswerKeyQuiz(meta, a);
+          if (!data) return;
+          updateWidget(
+            widget.id,
+            {
+              config: {
+                ...config,
+                view: 'results',
+                selectedQuizId: a.quizId,
+                selectedQuizTitle: a.quizTitle,
+                activeAssignmentId: a.id,
+                periodName: a.periodName ?? '',
+                periodNames: a.periodNames ?? [],
+                teacherName: a.teacherName ?? '',
+              },
+            },
+            { pickItem: true }
+          );
         }}
         onShare={async (meta) => {
           let url: string;

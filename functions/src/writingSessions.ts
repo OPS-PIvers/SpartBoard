@@ -19,7 +19,7 @@ import {
 import { WRITING_RESPONSES, WRITING_SESSIONS } from './writingResponses';
 import {
   CLASS_NOT_TAUGHT_MESSAGE,
-  unverifiedClassIds,
+  refusedClassTargets,
 } from './verifiedClassList';
 
 export const WRITING_RECORDS = 'writing_assignment_records';
@@ -192,7 +192,7 @@ export async function handleAssignWriting(
   const settings = sessionSettings(d);
   const classIds = strings(d.classIds);
   // Same class targeting check firestore.rules applies to client-written sessions.
-  if ((await unverifiedClassIds(db, caller.uid, classIds)).length > 0)
+  if ((await refusedClassTargets(db, caller.uid, classIds)).length > 0)
     throw new HttpsError('permission-denied', CLASS_NOT_TAUGHT_MESSAGE);
   const periodNames = strings(d.periodNames);
   const rosterIds = strings(d.rosterIds);
