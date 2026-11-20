@@ -172,6 +172,26 @@ describe('unverifiedClassIds', () => {
     const db = stubDb({ 'verified_classes/u': { ids: ['schoology:1'] } });
     expect(await unverifiedClassIds(db, 'u', ['a'])).toEqual([]);
   });
+
+  it('narrows those teachers too once super admins turn on enforce', async () => {
+    const enforce = { enabled: true, enforce: true };
+    const none = stubDb({ 'admin_settings/verified_classes_fill': enforce });
+    expect(await unverifiedClassIds(none, 'u', ['a'])).toEqual(['a']);
+    const uncounted = stubDb({
+      'admin_settings/verified_classes_fill': enforce,
+      'verified_classes/u': { ids: ['schoology:1'] },
+    });
+    expect(
+      await unverifiedClassIds(uncounted, 'u', ['a', 'schoology:1'])
+    ).toEqual(['a']);
+  });
+
+  it('keeps the allowance when the fill switch is on without enforce', async () => {
+    const db = stubDb({
+      'admin_settings/verified_classes_fill': { enabled: true },
+    });
+    expect(await unverifiedClassIds(db, 'u', ['a'])).toEqual([]);
+  });
 });
 
 describe('writeVerifiedClasses', () => {

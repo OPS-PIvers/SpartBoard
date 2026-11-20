@@ -91,6 +91,7 @@ import {
   type QuizSessionOptions,
 } from '@/hooks/useQuizSession';
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
+import { useQuizReorder } from '@/hooks/useQuizReorder';
 import { useBusyIdSet } from '@/hooks/useBusyIdSet';
 import { useFolders } from '@/hooks/useFolders';
 import { useGooglePicker } from '@/hooks/useGooglePicker';
@@ -171,7 +172,7 @@ import type { ResultsProtection, Toast, WrittenReturnMode } from '@/types';
 import { PublishInProgressDialog } from '@/components/common/library/PublishInProgressDialog';
 import { AssignToClassroomModal } from '@/components/classroomAddon/AssignToClassroomModal';
 import { requestClassroomFinalGradeToken } from '@/components/classroomAddon/gisOAuth';
-import { doc, getDoc, setDoc, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import {
   autoTranslateForAssign,
   type AutoTranslateResult,
@@ -351,7 +352,7 @@ import { DEFAULT_TAB_AWAY_LIMIT_SECONDS } from '@/utils/tabAwayLimit';
 import { revealValueFor } from '@/utils/quizFibAlternates';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { syncedQuizContentFields } from '@/utils/syncedQuizContent';
-import { isSandboxed, isTourSandboxActive } from '@/utils/tourSandbox';
+import { isSandboxed } from '@/utils/tourSandbox';
 import { useTourMaterialEditor } from '@/components/tours/tourMaterials';
 import { isDistrictLinkedCopy } from '@/utils/districtLibraryOrigin';
 import {
@@ -2515,32 +2516,8 @@ const TeacherQuizWidget: React.FC<{
 
   useReopenedForAutoEnd(assignments, deactivateAssignment);
 
-  // Persist a new ordering of quizzes. We write `order` onto each metadata
-  // doc in a single batch — the Drive blob is untouched. Declared before the
-  // early returns below so the hook runs on every render (rules-of-hooks).
-  const handleReorderQuizzes = useCallback(
-    // eslint-disable-next-line react-hooks/preserve-manual-memoization -- deps narrowed to user?.uid on purpose
-    async (orderedIds: string[]) => {
-      if (!user?.uid || isTourSandboxActive()) return;
-      const batch = writeBatch(db);
-      orderedIds.forEach((id, index) => {
-        batch.update(doc(db, 'users', user.uid, QUIZZES_COLLECTION, id), {
-          order: index,
-        });
-      });
-      try {
-        await batch.commit();
-      } catch (err) {
-        console.error('[QuizWidget] Failed to persist reorder:', err);
-        // A concurrently-deleted quiz makes batch.update() throw NOT_FOUND.
-        // useSortableReorder catches the re-throw and reverts the visual order;
-        // surface a toast so the teacher knows why their drag snapped back.
-        addToast('Could not save the new order. Please try again.', 'error');
-        throw err;
-      }
-    },
-    [user?.uid, addToast]
-  );
+  // Declared before the early returns below so the hook runs on every render (rules-of-hooks).
+  const handleReorderQuizzes = useQuizReorder(user, addToast);
 
   const openArchiveMonitor = async (a: QuizAssignment): Promise<boolean> => {
     // Look up the library quiz metadata so the monitor can load the full
@@ -4101,18 +4078,27 @@ const TeacherQuizWidget: React.FC<{
           dueAtByRosterId?: Record<string, number>,
           stepper?: QuizStepperAssign
         ) => {
+          // Flag on, a failure rejects so the stepper stays open and shows it inline.
+          const waitsForSave = canAccessFeature('quiz-assign-waits-for-save');
+          const fail = (message: string): void => {
+            if (waitsForSave) throw new Error(message);
+            addToast(message, 'error');
+          };
           // F1 fix — reuse the content QuizManager already fetched for the
           // B2 override editor (when the teacher expanded individual
           // targeting) instead of hitting Drive a second time. Class-wide
           // assigns never populate `preloadedQuizData`, so they still fetch
           // exactly once, here.
           const data = preloadedQuizData ?? (await loadQuiz(meta));
-          if (!data) return;
+          if (!data) {
+            if (waitsForSave) throw new Error('Could not load the quiz.');
+            return;
+          }
           // Autosave persists unfinished work, so assign can no longer assume
           // a saved quiz is a finished one.
           const blocker = quizAssignBlocker(data);
           if (blocker) {
-            addToast(`This quiz can't be assigned yet: ${blocker}.`, 'error');
+            fail(`This quiz can't be assigned yet: ${blocker}.`);
             return;
           }
           // Behavior comes from the assign modal — the quiz's saved settings
@@ -4131,9 +4117,8 @@ const TeacherQuizWidget: React.FC<{
           let sessionBankSlots: QuizSessionBankSlot[] | undefined;
           if (quizHasBankSlots(data)) {
             if (mode !== 'student') {
-              addToast(
-                'Random bank draws need Assessment Mode. Switch to Assessment Mode and try again.',
-                'error'
+              fail(
+                'Random bank draws need Assessment Mode. Switch to Assessment Mode and try again.'
               );
               return;
             }
@@ -4143,6 +4128,8 @@ const TeacherQuizWidget: React.FC<{
               resolved = resolveQuizAssignment(data, contents);
             } catch (err) {
               if (err instanceof BankSlotResolutionError) {
+                if (waitsForSave)
+                  throw new Error(err.problems.map((p) => p.message).join(' '));
                 for (const problem of err.problems) {
                   addToast(problem.message, 'error');
                 }
@@ -4150,11 +4137,10 @@ const TeacherQuizWidget: React.FC<{
                 logError('QuizWidget.assignment.resolveBanks', err, {
                   quizId: meta.id,
                 });
-                addToast(
+                fail(
                   err instanceof Error
                     ? err.message
-                    : 'Could not load the question banks for this quiz.',
-                  'error'
+                    : 'Could not load the question banks for this quiz.'
                 );
               }
               return;
@@ -4171,9 +4157,8 @@ const TeacherQuizWidget: React.FC<{
               logError('QuizWidget.assignment.saveDriveSnapshot', err, {
                 quizId: meta.id,
               });
-              addToast(
-                'Could not save the assignment copy to Google Drive. Check your Drive connection and try again.',
-                'error'
+              fail(
+                'Could not save the assignment copy to Google Drive. Check your Drive connection and try again.'
               );
               return;
             }
@@ -4405,9 +4390,8 @@ const TeacherQuizWidget: React.FC<{
                     logError('QuizWidget.assignment.writtenBoxSetup', err, {
                       quizId: meta.id,
                     });
-                    addToast(
-                      'Could not save the written answer sheets. Try again.',
-                      'error'
+                    fail(
+                      'Could not save the written answer sheets. Try again.'
                     );
                     return;
                   }
@@ -4423,16 +4407,14 @@ const TeacherQuizWidget: React.FC<{
               now: Date.now(),
             });
             if (!plan.ok && plan.reason === 'too-many-pages') {
-              addToast(
-                `This sheet needs ${plan.pageCount} pages. The most one sheet can print is ${MAX_PAGE}.`,
-                'error'
+              fail(
+                `This sheet needs ${plan.pageCount} pages. The most one sheet can print is ${MAX_PAGE}.`
               );
               return;
             }
             if (!plan.ok) {
-              addToast(
-                'None of the assigned questions are written. Choose On the device for written answers.',
-                'error'
+              fail(
+                'None of the assigned questions are written. Choose On the device for written answers.'
               );
               return;
             }
@@ -4452,7 +4434,7 @@ const TeacherQuizWidget: React.FC<{
               );
               if (images.failed.length > 0) {
                 images.release();
-                addToast(stimulusLoadErrorMessage(images.failed), 'error');
+                fail(stimulusLoadErrorMessage(images.failed));
                 return;
               }
               releaseImages = images.release;
@@ -4468,10 +4450,7 @@ const TeacherQuizWidget: React.FC<{
               logError('QuizWidget.assignment.writtenOnPaper', err, {
                 quizId: meta.id,
               });
-              addToast(
-                'Could not save the written answer sheets. Try again.',
-                'error'
-              );
+              fail('Could not save the written answer sheets. Try again.');
               return;
             }
             paperWritten = {
@@ -4760,10 +4739,11 @@ const TeacherQuizWidget: React.FC<{
                 () => undefined
               );
             }
-            addToast(
-              err instanceof Error ? err.message : 'Failed to start session',
-              'error'
-            );
+            const message =
+              err instanceof Error ? err.message : 'Failed to start session';
+            // Once saved, the assignment exists, so the stepper closes as before.
+            if (assignmentSaved) addToast(message, 'error');
+            else fail(message);
           }
         }}
         onResults={async (meta) => {
