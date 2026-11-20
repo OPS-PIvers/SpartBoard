@@ -4,9 +4,8 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { EditorModalShell } from '@/components/common/EditorModalShell';
 
-/** The footer's Close; the header X carries the same accessible name. */
-const footerClose = () =>
-  screen.getAllByRole('button', { name: 'Close' }).slice(-1)[0];
+/** The header X, the only Close under autosave. */
+const closeButton = () => screen.getByRole('button', { name: 'Close' });
 
 const showConfirm = vi.fn().mockResolvedValue(true);
 
@@ -92,7 +91,7 @@ describe('EditorModalShell autosave', () => {
     const onSave = vi.fn((): Promise<void> => Promise.resolve());
     const { edit } = renderShell({ onSave });
     expect(screen.queryByRole('button', { name: 'Save' })).toBeNull();
-    expect(footerClose()).toBeInTheDocument();
+    expect(closeButton()).toBeInTheDocument();
 
     edit();
     expect(screen.getByText('Unsaved changes')).toBeInTheDocument();
@@ -108,7 +107,7 @@ describe('EditorModalShell autosave', () => {
     const { edit } = renderShell({ onSave, onClose, delayMs: 5000 });
 
     edit();
-    await userEvent.click(footerClose());
+    await userEvent.click(closeButton());
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
     expect(showConfirm).not.toHaveBeenCalled();
     // Closing flushes the write the quiet period had not reached yet.
@@ -127,7 +126,7 @@ describe('EditorModalShell autosave', () => {
     await waitFor(() =>
       expect(screen.getByText('Couldn\u2019t save')).toBeInTheDocument()
     );
-    await userEvent.click(footerClose());
+    await userEvent.click(closeButton());
     await waitFor(() => expect(showConfirm).toHaveBeenCalledTimes(1));
     expect(onClose).toHaveBeenCalledTimes(1);
   });

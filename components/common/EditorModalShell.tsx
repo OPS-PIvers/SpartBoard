@@ -99,9 +99,9 @@ interface EditorModalShellProps {
   saveLabel?: string;
   saveDisabled?: boolean;
   footerExtras?: React.ReactNode;
-  /** Editors that persist on their own drop the Save button; Cancel becomes Close. */
+  /** Editors that persist on their own drop the Save button and the footer Close; the header X closes. */
   hideSaveButton?: boolean;
-  /** Right-aligned footer slot; when set, Close moves to the footer's left edge. */
+  /** Right-aligned footer slot; when set, a footer Close moves to the footer's left edge. */
   footerEnd?: React.ReactNode;
   /** Drops the header X so the footer Close is the only way out. */
   hideHeaderClose?: boolean;
@@ -286,6 +286,9 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
     }
   }, [saveDisabled, isSaving, saveErrorMessage, addToast, showAlert]);
 
+  // One way out: a footer Close only when there is no header X; Cancel stays beside Save.
+  const footerCloseShown = hideHeaderClose || (!hideSaveButton && !autosaveOn);
+
   // Memoized chrome: a body-content render (e.g. a question keystroke)
   // reuses these elements so React bails out of the header/footer subtrees;
   // only chrome inputs (title, isSaving, isDirty via requestClose, …)
@@ -324,10 +327,16 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
           allowFullscreen ? () => setFullscreen((v) => !v) : undefined
         }
         onClose={hideHeaderClose ? undefined : () => void requestClose()}
+        closeAttrs={
+          tourScope && !footerCloseShown
+            ? tourTypeAttr('editor.close', tourScope)
+            : undefined
+        }
       />
     ),
     [
       hideHeaderClose,
+      footerCloseShown,
       onTitleChange,
       title,
       titlePlaceholder,
@@ -342,7 +351,7 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
   );
 
   const footer = useMemo(() => {
-    const closeButton = (
+    const closeButton = footerCloseShown && (
       <button
         onClick={() => void requestClose()}
         className="px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
@@ -391,6 +400,7 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
       </div>
     );
   }, [
+    footerCloseShown,
     footerExtras,
     footerEnd,
     hideSaveButton,
