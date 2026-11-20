@@ -22,13 +22,14 @@ import type {
 import {
   AssignedLeftOpenFlag,
   AssignedList,
+  AssignedReopenDialog,
   AssignedRow,
+  assignedMenu,
   useAssignedBulkOps,
   type ClassActionKind,
   mainActionLabel,
 } from '@/components/common/library/assigned';
 import type { LibraryMenuAction } from '@/components/common/library/types';
-import { tourTypeAttr } from '@/config/tourAnchors';
 import { todaysBell } from '@/hooks/usePeriodAccess';
 import { usePeriodRunner } from '@/hooks/usePeriodRunner';
 import { useAssignmentClassActions } from '@/hooks/useAssignmentClassActions';
@@ -61,14 +62,6 @@ import {
 import { VaAssignedFixture } from './vaAssignedFixture';
 import { finalizeRunVideoResponses } from '../videoClassTurnIn';
 import { END_TURN_IN_DELAY_MS } from '@/utils/quizFinalizeOpenResponses';
-import {
-  CheckCircle2,
-  Monitor,
-  Pause,
-  Play,
-  PowerOff,
-  RotateCcw,
-} from 'lucide-react';
 
 /** The D24 and D5 marks the Assigned tab writes on a VA assignment doc. */
 type MarkedAssignment = VideoActivityAssignment & {
@@ -83,7 +76,7 @@ export interface VideoActivityAssignedHandlers {
   onPublish?: (a: VideoActivityAssignment) => void;
   /** A view-only share keeps Copy link as its main button while it runs. */
   onCopyLink?: (a: VideoActivityAssignment) => void;
-  /** Today's overflow items for the row; class lifecycle items are dropped here. */
+  /** Today's flat overflow items; `assignedMenu` keeps what fits the row (R6). */
   menu: (a: VideoActivityAssignment) => LibraryMenuAction[];
 }
 
@@ -104,8 +97,6 @@ interface VideoActivityAssignedTabProps extends VideoActivityAssignedHandlers {
 const TICK_MS = 30_000;
 const PIN_MS = 15 * 60_000;
 const COLLECTIONS = { ...VIDEO_ACTIVITY_RUN_COLLECTIONS, refreshIdle: false };
-/** Today's overflow items the Assigned row replaces with per-class actions (D6, D16). */
-const REPLACED_MENU_IDS = new Set(['deactivate', 'pause-resume', 'reactivate']);
 const LIVE_REASONS = new Set([LIVE_PAUSE_REASON, LIVE_REOPEN_REASON]);
 
 const isLive = (a: VideoActivityAssignment) => a.sessionMode === 'teacher';
@@ -585,6 +576,12 @@ const VideoActivityAssignedRowHost: React.FC<RowHostProps> = ({
       case 'pause':
         return void exec(() => actions.pauseClass(key));
       case 'close':
+        // A single-line Close is the whole assignment, so it offers Undo.
+        if (key == null)
+          return withUndo(
+            () => actions.closeAll(),
+            viewOnly ? 'Share closed.' : `${a.activityTitle} is closed.`
+          );
         return void exec(() => actions.closeClass(key));
       case 'reopen':
         return void exec(() => actions.reopenClass(key));
@@ -615,77 +612,8 @@ const VideoActivityAssignedRowHost: React.FC<RowHostProps> = ({
     });
   };
 
-  const singleLine = status.singleLine;
-  const singleLineItems: LibraryMenuAction[] = [];
-  if (singleLine && !viewOnly && !live) {
-    const only = status.classes[0];
-    if (only?.status === 'open')
-      singleLineItems.push({
-        id: 'assigned-pause',
-        label: 'Pause',
-        icon: Pause,
-        onClick: () => onClassAction('pause', null),
-      });
-    if (only?.status === 'paused' && status.action.kind !== 'resume')
-      singleLineItems.push({
-        id: 'assigned-resume',
-        label: 'Resume',
-        icon: Play,
-        onClick: () => onClassAction('resume', null),
-      });
-  }
   const allClosed = status.classes.every((c) => c.status === 'closed');
-  if (singleLine) {
-    if (!allClosed)
-      singleLineItems.push({
-        id: 'assigned-close',
-        label: 'Close',
-        icon: PowerOff,
-        onClick: () =>
-          withUndo(
-            () => actions.closeAll(),
-            viewOnly ? 'Share closed.' : `${a.activityTitle} is closed.`
-          ),
-      });
-    else if ((status.bucket === 'active' || viewOnly) && !live)
-      singleLineItems.push({
-        id: 'assigned-reopen',
-        label: 'Reopen',
-        icon: RotateCcw,
-        onClick: () => onClassAction('reopen', null),
-      });
-  }
-  const lifecycleItems: LibraryMenuAction[] = [];
-  if (!singleLine && !allClosed)
-    lifecycleItems.push({
-      id: 'assigned-close-all',
-      label: 'Close for all classes',
-      icon: PowerOff,
-      anchor: tourTypeAttr(
-        'library-shell.assigned-close-all',
-        'video-activity'
-      ),
-      onClick: () =>
-        withUndo(
-          () => actions.closeAll(),
-          `${a.activityTitle} is closed for all classes.`
-        ),
-    });
-  if (status.bucket === 'active' && !viewOnly)
-    lifecycleItems.push({
-      id: 'assigned-move-to-done',
-      label: 'Move to Finished',
-      icon: CheckCircle2,
-      anchor: tourTypeAttr(
-        'library-shell.assigned-move-to-done',
-        'video-activity'
-      ),
-      onClick: () =>
-        withUndo(
-          () => actions.moveToDone(),
-          `${a.activityTitle} moved to Finished.`
-        ),
-    });
+  const [reopening, setReopening] = useState(false);
   const bulkUndo = (prev: VideoActivityAssignment) =>
     live && prev.status !== 'inactive'
       ? null
@@ -709,27 +637,30 @@ const VideoActivityAssignedRowHost: React.FC<RowHostProps> = ({
           }
         : undefined,
   });
-  const today = menu(a).filter((m) => !REPLACED_MENU_IDS.has(m.id));
-  // D7: Monitor is always one menu row away, and opening it changes nothing.
-  if (!viewOnly)
-    today.unshift({
-      id: 'monitor',
-      label: 'Monitor',
-      icon: Monitor,
-      onClick: () => onMonitor(a),
-    });
-  for (const item of [...singleLineItems, ...lifecycleItems])
-    item.disabled = busy;
-  const firstDestructive = today.findIndex((m) => m.destructive);
-  const menuActions =
-    firstDestructive < 0
-      ? [...singleLineItems, ...today, ...lifecycleItems]
-      : [
-          ...singleLineItems,
-          ...today.slice(0, firstDestructive),
-          ...lifecycleItems,
-          ...today.slice(firstDestructive),
-        ];
+  const menuActions = assignedMenu({
+    status,
+    viewOnly,
+    items: menu(a),
+    published: row.published,
+    onCloseAll: () =>
+      withUndo(
+        () => actions.closeAll(),
+        `${a.activityTitle} is closed for all classes.`
+      ),
+    onMoveToDone: () =>
+      withUndo(
+        () => actions.moveToDone(),
+        `${a.activityTitle} moved to Finished.`
+      ),
+    // A live run that ended stays ended (no per-class reopen).
+    onReopen: live
+      ? undefined
+      : viewOnly
+        ? () => onClassAction('reopen', null)
+        : () => setReopening(true),
+    tourWidgetType: 'video-activity',
+    busy,
+  });
 
   // D16: the link is still the thing to do while a share runs.
   const copyMain = viewOnly && !allClosed && onCopyLink;
@@ -770,28 +701,38 @@ const VideoActivityAssignedRowHost: React.FC<RowHostProps> = ({
   ];
 
   return (
-    <AssignedRow
-      title={a.activityTitle}
-      status={status}
-      nowMs={now}
-      mainLabel={mainLabel}
-      onMain={onMain}
-      detail={detail}
-      onResults={viewOnly ? undefined : () => onResults(a)}
-      canPause={!viewOnly}
-      onClassAction={onClassAction}
-      mainTone={copyMain ? 'monitor' : undefined}
-      bellLabel={(c) => {
-        const w = bells[c.key];
-        return w
-          ? `${fmtTime(w.openAt)} to ${fmtTime(w.closeAt - BELL_CLOSE_CUSHION_MS)}`
-          : null;
-      }}
-      footer={footer}
-      menuActions={menuActions}
-      busy={busy}
-      tourIndex={index}
-      tourWidgetType="video-activity"
-    />
+    <>
+      {reopening && (
+        <AssignedReopenDialog
+          title={a.activityTitle}
+          status={status}
+          onReopen={(key) => exec(() => actions.reopenClass(key))}
+          onClose={() => setReopening(false)}
+        />
+      )}
+      <AssignedRow
+        title={a.activityTitle}
+        status={status}
+        nowMs={now}
+        mainLabel={mainLabel}
+        onMain={onMain}
+        detail={detail}
+        onResults={viewOnly ? undefined : () => onResults(a)}
+        canPause={!viewOnly}
+        onClassAction={onClassAction}
+        mainTone={copyMain ? 'monitor' : undefined}
+        bellLabel={(c) => {
+          const w = bells[c.key];
+          return w
+            ? `${fmtTime(w.openAt)} to ${fmtTime(w.closeAt - BELL_CLOSE_CUSHION_MS)}`
+            : null;
+        }}
+        footer={footer}
+        menuActions={menuActions}
+        busy={busy}
+        tourIndex={index}
+        tourWidgetType="video-activity"
+      />
+    </>
   );
 };

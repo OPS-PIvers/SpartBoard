@@ -8,12 +8,10 @@ import {
   writeBatch,
   type DocumentData,
 } from 'firebase/firestore';
-import { CheckCircle2, Pause, Play, PowerOff, RotateCcw } from 'lucide-react';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import type { ClassRoster } from '@/types';
-import { tourTypeAttr } from '@/config/tourAnchors';
 import { todaysBell } from '@/hooks/usePeriodAccess';
 import { usePeriodRunner } from '@/hooks/usePeriodRunner';
 import {
@@ -38,6 +36,8 @@ import type { LibraryMenuAction } from '../types';
 import { AssignedList } from './AssignedList';
 import { AssignedLeftOpenFlag } from './AssignedLeftOpenFlag';
 import { AssignedRow } from './AssignedRow';
+import { AssignedReopenDialog } from './AssignedReopenDialog';
+import { assignedMenu } from './assignedMenu';
 import { useAssignedBulkOps } from './assignedBulkContext';
 import { RunAssignedResponsesFixture } from './runAssignedFixture';
 import {
@@ -76,7 +76,7 @@ export interface RunAssignedTabProps<A extends RunAssignment> {
   onPublish?: (a: A) => void;
   /** The main button where the kind has nothing better: Copy link for a share. */
   fallbackPrimary: (a: A) => { label: string; onClick: () => void } | null;
-  /** Today's overflow items; `replacedMenuIds` are dropped for the class actions. */
+  /** Today's flat overflow items; `assignedMenu` keeps what fits the row (R6). */
   menu: (a: A) => LibraryMenuAction[];
   replacedMenuIds: readonly string[];
   /** Shown under the Active and Finished sections, e.g. a Show older button. */
@@ -488,73 +488,7 @@ function RunAssignedRowHost<A extends RunAssignment>({
   };
 
   const allClosed = status.classes.every((c) => c.status === 'closed');
-  const singleItems: LibraryMenuAction[] = [];
-  if (status.singleLine) {
-    const only = status.classes[0];
-    // A whole-run pause exists only where the kind has one.
-    if (!viewOnly && only?.status === 'open' && lifecycle.pause)
-      singleItems.push({
-        id: 'assigned-pause',
-        label: 'Pause',
-        icon: Pause,
-        onClick: () => onClassAction('pause', null),
-      });
-    if (
-      !viewOnly &&
-      only?.status === 'paused' &&
-      status.action.kind !== 'resume'
-    )
-      singleItems.push({
-        id: 'assigned-resume',
-        label: 'Resume',
-        icon: Play,
-        onClick: () => onClassAction('resume', null),
-      });
-    if (!allClosed)
-      singleItems.push({
-        id: 'assigned-close',
-        label: 'Close',
-        icon: PowerOff,
-        onClick: () =>
-          withUndo(
-            () => actions.closeAll(),
-            viewOnly ? 'Share closed.' : `${title} is closed.`
-          ),
-      });
-    else if (status.bucket === 'active' || viewOnly)
-      singleItems.push({
-        id: 'assigned-reopen',
-        label: 'Reopen',
-        icon: RotateCcw,
-        onClick: () => onClassAction('reopen', null),
-      });
-  }
-  const lifecycleItems: LibraryMenuAction[] = [];
-  if (!status.singleLine && !allClosed)
-    lifecycleItems.push({
-      id: 'assigned-close-all',
-      label: 'Close for all classes',
-      icon: PowerOff,
-      anchor: tourTypeAttr('library-shell.assigned-close-all', tourWidgetType),
-      onClick: () =>
-        withUndo(
-          () => actions.closeAll(),
-          `${title} is closed for all classes.`
-        ),
-    });
-  if (status.bucket === 'active' && !viewOnly)
-    lifecycleItems.push({
-      id: 'assigned-move-to-done',
-      label: 'Move to Finished',
-      icon: CheckCircle2,
-      anchor: tourTypeAttr(
-        'library-shell.assigned-move-to-done',
-        tourWidgetType
-      ),
-      onClick: () =>
-        withUndo(() => actions.moveToDone(), `${title} moved to Finished.`),
-    });
-  for (const item of [...singleItems, ...lifecycleItems]) item.disabled = busy;
+  const [reopening, setReopening] = useState(false);
   const undoFor = (prev: A, wasEnded: boolean) => async () => {
     if (user?.uid)
       await undoClose(prev, user.uid, collections, lifecycle, wasEnded);
@@ -577,17 +511,21 @@ function RunAssignedRowHost<A extends RunAssignment>({
         : undefined,
   });
   const replaced = new Set(replacedMenuIds);
-  const today = menu(a).filter((m) => !replaced.has(m.id));
-  const firstDestructive = today.findIndex((m) => m.destructive);
-  const menuActions =
-    firstDestructive < 0
-      ? [...singleItems, ...today, ...lifecycleItems]
-      : [
-          ...singleItems,
-          ...today.slice(0, firstDestructive),
-          ...lifecycleItems,
-          ...today.slice(firstDestructive),
-        ];
+  const menuActions = assignedMenu({
+    status,
+    viewOnly,
+    items: menu(a).filter((m) => !replaced.has(m.id)),
+    published: row.published,
+    onCloseAll: () =>
+      withUndo(() => actions.closeAll(), `${title} is closed for all classes.`),
+    onMoveToDone: () =>
+      withUndo(() => actions.moveToDone(), `${title} moved to Finished.`),
+    onReopen: viewOnly
+      ? () => onClassAction('reopen', null)
+      : () => setReopening(true),
+    tourWidgetType,
+    busy,
+  });
 
   // D16: the link is still the thing to do while a share runs.
   const fallback = fallbackPrimary(a);
@@ -650,29 +588,39 @@ function RunAssignedRowHost<A extends RunAssignment>({
   ];
 
   return (
-    <AssignedRow
-      title={title}
-      status={status}
-      nowMs={now}
-      mainLabel={mainLabel}
-      onMain={onMain}
-      detail={detail}
-      onResults={onResults && !viewOnly ? () => onResults(a) : undefined}
-      canPause={!viewOnly && !!lifecycle.pause}
-      onClassAction={onClassAction}
-      classCounts={counts}
-      mainTone={derived ? undefined : 'monitor'}
-      bellLabel={(c) => {
-        const w = bells[c.key];
-        return w
-          ? `${fmtTime(w.openAt)} to ${fmtTime(w.closeAt - BELL_CLOSE_CUSHION_MS)}`
-          : null;
-      }}
-      footer={footer}
-      menuActions={menuActions}
-      busy={busy}
-      tourIndex={index}
-      tourWidgetType={tourWidgetType}
-    />
+    <>
+      {reopening && (
+        <AssignedReopenDialog
+          title={title}
+          status={status}
+          onReopen={(key) => exec(() => actions.reopenClass(key))}
+          onClose={() => setReopening(false)}
+        />
+      )}
+      <AssignedRow
+        title={title}
+        status={status}
+        nowMs={now}
+        mainLabel={mainLabel}
+        onMain={onMain}
+        detail={detail}
+        onResults={onResults && !viewOnly ? () => onResults(a) : undefined}
+        canPause={!viewOnly && !!lifecycle.pause}
+        onClassAction={onClassAction}
+        classCounts={counts}
+        mainTone={derived ? undefined : 'monitor'}
+        bellLabel={(c) => {
+          const w = bells[c.key];
+          return w
+            ? `${fmtTime(w.openAt)} to ${fmtTime(w.closeAt - BELL_CLOSE_CUSHION_MS)}`
+            : null;
+        }}
+        footer={footer}
+        menuActions={menuActions}
+        busy={busy}
+        tourIndex={index}
+        tourWidgetType={tourWidgetType}
+      />
+    </>
   );
 }

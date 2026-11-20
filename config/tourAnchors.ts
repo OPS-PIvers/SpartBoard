@@ -6864,6 +6864,28 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'library-shell.assigned-reopen': {
+    label: 'Reopen…, in an Assigned row menu',
+    persists: true,
+    panel: true,
+  },
+  'assigned-reopen.class': {
+    label: 'Class picker in the Reopen dialog of an Assigned row',
+    panel: true,
+  },
+  'assigned-reopen.who': {
+    label: 'Everyone or only chosen students, in the Reopen dialog',
+    panel: true,
+  },
+  'assigned-reopen.cancel': {
+    label: 'Cancel button in the Reopen dialog of an Assigned row',
+    panel: true,
+  },
+  'assigned-reopen.confirm': {
+    label: 'Reopen button in the Reopen dialog of an Assigned row',
+    panel: true,
+    persists: true,
+  },
   'library-shell.assigned-results': {
     label: 'Results in an expanded Assigned row',
     perField: true,
@@ -15292,6 +15314,16 @@ export const TOUR_ANCHORS = {
   },
   'publish-scores.cancel': {
     label: 'Cancel button in the publish scores dialog',
+    panel: true,
+  },
+  'publish-scores.unpublish-confirm': {
+    label: 'Unpublish button that confirms, in the publish scores dialog',
+    panel: true,
+    persists: true,
+    sandboxed: true,
+  },
+  'publish-scores.unpublish-cancel': {
+    label: 'Cancel beside the Unpublish confirm in the publish scores dialog',
     panel: true,
   },
   'publish-scores.confirm': {
