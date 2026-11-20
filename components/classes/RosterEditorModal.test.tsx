@@ -1033,6 +1033,38 @@ describe('RosterEditorModal', () => {
       expect(onSave).not.toHaveBeenCalled();
     });
 
+    it('never autosaves a class that opened unloaded, even after it loads', async () => {
+      const user = userEvent.setup();
+      const onSave = vi.fn().mockResolvedValue(undefined);
+      const onClose = vi.fn();
+      const { rerender } = render(
+        <RosterEditorModal
+          isOpen
+          roster={{ ...existing, students: [], loadError: 'Drive 429' }}
+          onClose={onClose}
+          onSave={onSave}
+        />
+      );
+      rerender(
+        <RosterEditorModal
+          isOpen
+          roster={{
+            ...existing,
+            students: [
+              { id: 's1', firstName: 'Ada', lastName: 'L', pin: '01' },
+            ],
+          }}
+          onClose={onClose}
+          onSave={onSave}
+        />
+      );
+      expect(screen.getByRole('alert')).toHaveTextContent('Failed to load');
+      await user.type(screen.getByDisplayValue('Period 2'), 'x');
+      await user.click(screen.getByRole('button', { name: /^close$/i }));
+      expect(onClose).toHaveBeenCalled();
+      expect(onSave).not.toHaveBeenCalled();
+    });
+
     it('does not resend groups after a grouped student is deleted', async () => {
       const user = userEvent.setup();
       const onSave = vi.fn().mockResolvedValue(undefined);
