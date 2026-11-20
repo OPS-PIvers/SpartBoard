@@ -35,6 +35,7 @@ import {
   isPlayLimitedType,
   questionsUsingStimulus,
   stimulusDisplayName,
+  stimulusPickerTitle,
 } from '@/utils/quizStimuli';
 import { StimulusRenderer } from '@/components/quiz/QuizStimulusView';
 import { extractGoogleFileId } from '@/utils/urlHelpers';
@@ -56,6 +57,8 @@ import { extractStimulusReadAloudText } from '@/utils/quizReadAloudApi';
 import type { QuizEditorController } from './useQuizEditorState';
 import { MetaChevron, MetaItem, metaValueClass } from './QuestionFields';
 import { StimulusTabFields } from './StimulusTabFields';
+import { StimulusPickerModal } from './StimulusPickerModal';
+import { PICKER_ADD, initialPickerSelection } from './stimulusPickerSelection';
 import {
   StimulusTourTypeContext,
   type SharedEditorTourType,
@@ -1012,12 +1015,15 @@ export const QuestionStimulusSection: React.FC<{
   pasteScopeRef?: React.RefObject<HTMLElement | null>;
   /** `question-editor-fields`: a row of the light metadata list. */
   metaList?: boolean;
+  /** `quiz-stimulus-picker`: attach in a list-and-preview dialog. */
+  pickerModal?: boolean;
 }> = ({
   state,
   questionId,
   calculatorAvailable = false,
   pasteScopeRef,
   metaList = false,
+  pickerModal = false,
 }) => {
   const question = state.questions.find((q) => q.id === questionId);
   return (
@@ -1027,6 +1033,9 @@ export const QuestionStimulusSection: React.FC<{
       calculatorAvailable={calculatorAvailable}
       pasteScopeRef={pasteScopeRef}
       metaList={metaList}
+      pickerModal={pickerModal}
+      ownerNoun="question"
+      ownerLabel={`Q${state.questions.findIndex((q) => q.id === questionId) + 1}`}
       ownerId={questionId}
       onToggle={(stimulusId) =>
         state.toggleStimulusOnQuestion(stimulusId, questionId)
@@ -1041,7 +1050,14 @@ export const SlotStimulusSection: React.FC<{
   slotId: string;
   calculatorAvailable?: boolean;
   metaList?: boolean;
-}> = ({ state, slotId, calculatorAvailable = false, metaList = false }) => {
+  pickerModal?: boolean;
+}> = ({
+  state,
+  slotId,
+  calculatorAvailable = false,
+  metaList = false,
+  pickerModal = false,
+}) => {
   const slot = state.bankSlots.find((s) => s.id === slotId);
   return (
     <AttachStimulusSection
@@ -1049,6 +1065,9 @@ export const SlotStimulusSection: React.FC<{
       attachedIds={slot?.stimulusIds}
       calculatorAvailable={calculatorAvailable}
       metaList={metaList}
+      pickerModal={pickerModal}
+      ownerNoun="bank"
+      ownerLabel={slot?.bankTitle ?? 'bank'}
       ownerId={slotId}
       onToggle={(stimulusId) => state.toggleStimulusOnSlot(stimulusId, slotId)}
     />
@@ -1063,6 +1082,9 @@ const AttachStimulusSection: React.FC<{
   /** The question or slot shown; a change closes the open preview. */
   ownerId?: string;
   metaList?: boolean;
+  pickerModal?: boolean;
+  ownerNoun: 'question' | 'bank';
+  ownerLabel: string;
   onToggle: (stimulusId: string) => void;
 }> = ({
   state,
@@ -1071,28 +1093,36 @@ const AttachStimulusSection: React.FC<{
   pasteScopeRef,
   ownerId,
   metaList = false,
+  pickerModal = false,
+  ownerNoun,
+  ownerLabel,
   onToggle,
 }) => {
   const { stimuli, questions, bankSlots } = state;
   const intake = useStimulusIntake(state);
   const { addFromFile } = intake;
+  const [pickerSelectedId, setPickerSelectedId] = useState(PICKER_ADD);
   const onPastedFiles = useCallback(
     (files: File[]) =>
       void addFiles(
         addFromFile,
         files.filter((f) => f.type.startsWith('image/')),
-        (s) => onToggle(s.id)
+        (s) => {
+          onToggle(s.id);
+          setPickerSelectedId(s.id);
+        }
       ),
     [addFromFile, onToggle]
   );
   const [open, setOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const fieldId = useId();
   const onPasted = useCallback(
     (files: File[]) => {
-      setOpen(true);
+      if (!pickerModal) setOpen(true);
       onPastedFiles(files);
     },
-    [onPastedFiles]
+    [onPastedFiles, pickerModal]
   );
   usePasteFiles(
     onPasted,
@@ -1101,8 +1131,11 @@ const AttachStimulusSection: React.FC<{
     isImageFile
   );
   const drop = useFilesDrop((files) => {
-    setOpen(true);
-    void addFiles(addFromFile, files, (s) => onToggle(s.id));
+    if (!pickerModal) setOpen(true);
+    void addFiles(addFromFile, files, (s) => {
+      onToggle(s.id);
+      setPickerSelectedId(s.id);
+    });
   }, intake.busy);
   const attachedCount = attachedIds?.length ?? 0;
   const [previewId, setPreviewId] = useState<string | null>(null);
@@ -1115,18 +1148,80 @@ const AttachStimulusSection: React.FC<{
   // Collapsed, the header names what is attached instead of only counting it.
   const attachedNames = stimuli
     .filter((s) => attachedIds?.includes(s.id))
-    .map(stimulusDisplayName)
-    .join(', ');
+    .map((s) =>
+      pickerModal ? stimulusPickerTitle(s, stimuli) : stimulusDisplayName(s)
+    )
+    .join(pickerModal ? '; ' : ', ');
   const summary =
     drop.dragging && !open
       ? 'Drop it here'
       : attachedCount > 0
-        ? attachedNames && !open
+        ? attachedNames && (!open || pickerModal)
           ? attachedNames
           : `${attachedCount} attached`
         : stimuli.length === 0
           ? 'No stimuli yet'
           : 'None attached';
+
+  const onAdded = setPickerSelectedId;
+  const addArea = (inPicker: boolean) => (
+    <>
+      <div
+        className={`flex flex-col items-center gap-2 rounded-lg border border-dashed px-2.5 py-2.5 ${
+          drop.dragging ? 'border-brand-blue-primary' : 'border-slate-300'
+        }`}
+      >
+        <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+          {intake.busy ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+          ) : (
+            <Upload className="h-3.5 w-3.5" aria-hidden />
+          )}
+          {drop.dragging
+            ? 'Drop it here'
+            : pasteScopeRef && !inPicker
+              ? 'Drag a file or paste an image'
+              : 'Drag a file'}
+        </span>
+        <div className="flex flex-wrap justify-center gap-2">
+          <FileSourceButtons
+            compact
+            intake={intake}
+            onAdded={(added) => {
+              onToggle(added.id);
+              onAdded(added.id);
+            }}
+          />
+          {calculatorAvailable && (
+            <button
+              type="button"
+              onClick={() => {
+                const added = intake.addCalculator();
+                onToggle(added.id);
+                onAdded(added.id);
+              }}
+              disabled={intake.busy}
+              {...tourTypeAttr('quiz-stimuli.attach-calculator', 'quiz')}
+              className={fileButtonClass}
+            >
+              <Calculator className="h-3.5 w-3.5" aria-hidden />
+              Calculator
+            </button>
+          )}
+        </div>
+      </div>
+      <UrlAddRow
+        busy={intake.busy}
+        onAdd={async (url) => {
+          const added = await intake.addFromUrl(url);
+          if (added) {
+            onToggle(added.id);
+            onAdded(added.id);
+          }
+        }}
+      />
+    </>
+  );
 
   const panel = (
     <>
@@ -1231,52 +1326,68 @@ const AttachStimulusSection: React.FC<{
           })}
         </ul>
       )}
-      <div
-        className={`flex flex-col items-center gap-2 rounded-lg border border-dashed px-2.5 py-2.5 ${
-          drop.dragging ? 'border-brand-blue-primary' : 'border-slate-300'
-        }`}
-      >
-        <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
-          {intake.busy ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-          ) : (
-            <Upload className="h-3.5 w-3.5" aria-hidden />
-          )}
-          {drop.dragging
-            ? 'Drop it here'
-            : pasteScopeRef
-              ? 'Drag a file or paste an image'
-              : 'Drag a file'}
-        </span>
-        <div className="flex flex-wrap justify-center gap-2">
-          <FileSourceButtons
-            compact
-            intake={intake}
-            onAdded={(added) => onToggle(added.id)}
-          />
-          {calculatorAvailable && (
-            <button
-              type="button"
-              onClick={() => onToggle(intake.addCalculator().id)}
-              disabled={intake.busy}
-              {...tourTypeAttr('quiz-stimuli.attach-calculator', 'quiz')}
-              className={fileButtonClass}
-            >
-              <Calculator className="h-3.5 w-3.5" aria-hidden />
-              Calculator
-            </button>
-          )}
-        </div>
-      </div>
-      <UrlAddRow
-        busy={intake.busy}
-        onAdd={async (url) => {
-          const added = await intake.addFromUrl(url);
-          if (added) onToggle(added.id);
-        }}
-      />
+      {addArea(false)}
     </>
   );
+
+  const openPicker = () => {
+    setPickerSelectedId(initialPickerSelection(stimuli, attachedIds));
+    setPickerOpen(true);
+  };
+  const usedOn = (stimulusId: string) => [
+    ...questionsUsingStimulus(questions, stimulusId).map((i) => `Q${i + 1}`),
+    ...bankSlots
+      .filter((slot) => slot.stimulusIds?.includes(stimulusId))
+      .map((slot) => slot.bankTitle),
+  ];
+  const picker = pickerOpen && (
+    <StimulusPickerModal
+      stimuli={stimuli}
+      attachedIds={attachedIds}
+      ownerNoun={ownerNoun}
+      ownerLabel={ownerLabel}
+      usedOn={usedOn}
+      onToggle={onToggle}
+      selectedId={pickerSelectedId}
+      onSelect={setPickerSelectedId}
+      addArea={addArea(true)}
+      onClose={() => setPickerOpen(false)}
+    />
+  );
+
+  if (metaList && pickerModal) {
+    return (
+      <div
+        {...drop.dropProps}
+        data-testid="question-stimulus-drop-zone"
+        className={`rounded-sm ${drop.dragging ? 'bg-brand-blue-lighter' : ''}`}
+      >
+        <MetaItem label="Stimuli" htmlFor={fieldId}>
+          <button
+            id={fieldId}
+            type="button"
+            onClick={openPicker}
+            aria-haspopup="dialog"
+            aria-describedby={`${fieldId}-value`}
+            {...tourTypeAttr('quiz-stimuli.attach-toggle', 'quiz')}
+            className={`${metaValueClass} max-w-full py-1`}
+          >
+            <span
+              id={`${fieldId}-value`}
+              className={`min-w-0 break-words ${attachedCount > 0 ? '' : 'text-slate-400'}`}
+            >
+              {summary}
+            </span>
+            <ChevronRight
+              className="h-3.5 w-3.5 shrink-0 text-slate-400"
+              aria-hidden
+            />
+          </button>
+        </MetaItem>
+        {picker}
+      </div>
+    );
+  }
 
   if (metaList) {
     return (
@@ -1321,12 +1432,13 @@ const AttachStimulusSection: React.FC<{
     >
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
+        onClick={pickerModal ? openPicker : () => setOpen((o) => !o)}
+        aria-expanded={pickerModal ? undefined : open}
+        aria-haspopup={pickerModal ? 'dialog' : undefined}
         {...tourTypeAttr('quiz-stimuli.attach-toggle', 'quiz')}
         className="w-full flex items-center gap-2 px-3 py-2 text-left"
       >
-        {open ? (
+        {open && !pickerModal ? (
           <ChevronDown className="w-4 h-4 text-slate-400" />
         ) : (
           <ChevronRight className="w-4 h-4 text-slate-400" />
@@ -1335,11 +1447,14 @@ const AttachStimulusSection: React.FC<{
         <span className="text-xs font-bold uppercase tracking-wider text-slate-600">
           Stimuli
         </span>
-        <span className="min-w-0 truncate text-xs text-slate-400 tabular-nums">
+        <span
+          className={`min-w-0 text-xs text-slate-400 tabular-nums ${pickerModal ? 'break-words' : 'truncate'}`}
+        >
           {summary}
         </span>
       </button>
-      {open && (
+      {picker}
+      {open && !pickerModal && (
         <div className="px-3 pb-3 space-y-2 border-t border-slate-100 pt-2">
           {panel}
         </div>
