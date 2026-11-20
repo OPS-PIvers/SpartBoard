@@ -4,6 +4,8 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ActivityWallLibraryEntry } from '@/types';
+import { updateDoc } from 'firebase/firestore';
+import { clearWallSubmissions } from './hooks/useActivityWallSession';
 
 let postCount = 2;
 const mockGetCountFromServer = vi.fn(() =>
@@ -16,6 +18,7 @@ vi.mock('firebase/firestore', () => ({
   deleteDoc: vi.fn(() => Promise.resolve()),
   doc: vi.fn(() => ({})),
   getCountFromServer: () => mockGetCountFromServer(),
+  updateDoc: vi.fn(() => Promise.resolve()),
 }));
 vi.mock('./hooks/useActivityWallSession', () => ({
   clearWallSubmissions: vi.fn(() => Promise.resolve()),
@@ -120,5 +123,47 @@ describe('WallLibraryModal empty state', () => {
     // Only the toolbar's persistent primary action remains — the empty
     // state itself renders no action button for a filtered-no-match result.
     expect(screen.getAllByRole('button', { name: 'New wall' })).toHaveLength(1);
+  });
+});
+
+describe('WallLibraryModal delete order', () => {
+  it('closes the session, clears posts, then deletes the entry', async () => {
+    const user = userEvent.setup();
+    const calls: string[] = [];
+    vi.mocked(updateDoc).mockImplementationOnce(() => {
+      calls.push('close');
+      return Promise.resolve();
+    });
+    vi.mocked(clearWallSubmissions).mockImplementationOnce(() => {
+      calls.push('clear');
+      return Promise.resolve();
+    });
+    const onDelete = vi.fn(() => {
+      calls.push('delete');
+      return Promise.resolve();
+    });
+    render(
+      <WallLibraryModal
+        open
+        onClose={vi.fn()}
+        uid="teacher-1"
+        entries={[entry]}
+        activeEntryId={null}
+        readOnly={false}
+        onOpenOnBoard={vi.fn()}
+        onCreate={vi.fn()}
+        onEdit={vi.fn()}
+        onDuplicate={vi.fn(() => Promise.resolve())}
+        onDelete={onDelete}
+        addToast={vi.fn()}
+        confirm={() => Promise.resolve(true)}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'More actions' }));
+    await user.click(screen.getByRole('menuitem', { name: /Delete/ }));
+
+    await waitFor(() => expect(onDelete).toHaveBeenCalled());
+    expect(calls).toEqual(['close', 'clear', 'delete']);
   });
 });
