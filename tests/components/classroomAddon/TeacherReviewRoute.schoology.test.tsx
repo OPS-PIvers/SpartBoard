@@ -90,6 +90,9 @@ let bankFiles: Record<string, unknown> = {};
 const loadBankData = vi.fn(
   (id: string) => bankFiles[id] ?? Promise.reject(new Error(id))
 );
+vi.mock('@/hooks/usePlcs', () => ({
+  usePlcs: () => ({ plcs: [], loading: false }),
+}));
 vi.mock('@/hooks/useQuestionBanks', () => ({
   useQuestionBanks: () => ({
     banks: [{ id: 'bank-1', driveFileId: 'bank-drive-1' }],
