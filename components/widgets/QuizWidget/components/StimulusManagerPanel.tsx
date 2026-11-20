@@ -1373,7 +1373,7 @@ const AttachStimulusSection: React.FC<{
         <PromptFooterToggle
           icon={FileText}
           label="Stimuli"
-          value={attachedCount > 0 ? summary : 'None'}
+          value={drop.dragging || attachedCount > 0 ? summary : 'None'}
           filled={attachedCount > 0}
           open={pickerModal ? pickerOpen : open}
           hasPopup={pickerModal}
@@ -1383,10 +1383,10 @@ const AttachStimulusSection: React.FC<{
         {picker}
         {!pickerModal &&
           open &&
-          footer.slot &&
+          footer.stimuliSlot &&
           createPortal(
             <div className="space-y-2 pt-2">{panel}</div>,
-            footer.slot
+            footer.stimuliSlot
           )}
       </span>
     );

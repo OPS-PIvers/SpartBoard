@@ -84,7 +84,8 @@ interface QuestionPromptFieldProps {
 
 /** A labeled button at the end of the prompt formatting toolbar. */
 const PromptToolButton: React.FC<{
-  on: boolean;
+  /** Omitted for one-shot inserts, which aren't toggles. */
+  on?: boolean;
   onClick: () => void;
   anchor: TourAnchorAttrs;
   title?: string;
@@ -126,7 +127,10 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
   // Stays mounted once audio existed, so Remove never remounts the prompt box.
   const [hadAudio] = React.useState(!!q.promptAudio);
   const richRef = React.useRef<PromptRichEditorHandle>(null);
-  const [extrasSlot, setExtrasSlot] = React.useState<HTMLDivElement | null>(
+  const [stimuliSlot, setStimuliSlot] = React.useState<HTMLDivElement | null>(
+    null
+  );
+  const [modifiedSlot, setModifiedSlot] = React.useState<HTMLDivElement | null>(
     null
   );
   const [accents, setAccents] = React.useState<AccentSetId | null>(null);
@@ -227,7 +231,6 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
       tools.push(
         <Btn
           key="number"
-          on={false}
           onClick={insertNumber}
           title="Number"
           anchor={tourTypeAttr('quiz-editor.prompt-number', 'quiz')}
@@ -258,7 +261,6 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
       tools.push(
         <Btn
           key="blank"
-          on={false}
           onClick={insertBlank}
           title="Blank"
           anchor={tourTypeAttr('quiz-editor.prompt-blank', 'quiz')}
@@ -326,10 +328,12 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
             </span>
           )}
         </div>
-        {accents ? (
-          <AccentKeysArea
-            accents={accents}
-            beforeKeys={
+        {/* Always wrapped, so toggling Accents never remounts the prompt box. */}
+        <AccentKeysArea
+          accents={accents ?? promptAccents}
+          disabled={!accents}
+          beforeKeys={
+            accents && (
               <AccentLanguageRow
                 value={accents}
                 onChange={setAccents}
@@ -338,14 +342,17 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
                   'quiz'
                 )}
               />
-            }
-          >
-            {textarea}
-          </AccentKeysArea>
-        ) : (
-          textarea
+            )
+          }
+        >
+          {textarea}
+        </AccentKeysArea>
+        {extras && (
+          <>
+            <div ref={setStimuliSlot} />
+            <div ref={setModifiedSlot} />
+          </>
         )}
-        {extras && <div ref={setExtrasSlot} />}
         {equation && (
           <PromptEquationPanel
             key={`${equation.start}:${equation.editing}`}
@@ -363,7 +370,11 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
       </div>
     );
   };
-  const inlineValue = React.useMemo(() => ({ slot: extrasSlot }), [extrasSlot]);
+  const hasExtras = !!extras;
+  const inlineValue = React.useMemo(
+    () => (hasExtras ? { stimuliSlot, modifiedSlot } : null),
+    [hasExtras, stimuliSlot, modifiedSlot]
+  );
   return (
     <PromptFooterContext.Provider value={inlineValue}>
       {canRecord || hadAudio || q.promptAudio ? (
@@ -708,8 +719,11 @@ export const QuestionModifiedField: React.FC<{
           anchor={tourTypeAttr('quiz-editor.modified', 'quiz')}
         />
         {open &&
-          footer.slot &&
-          createPortal(<div className="pt-2">{textarea}</div>, footer.slot)}
+          footer.modifiedSlot &&
+          createPortal(
+            <div className="pt-2">{textarea}</div>,
+            footer.modifiedSlot
+          )}
       </>
     );
   }
