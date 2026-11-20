@@ -90,6 +90,8 @@ import {
 import { blankTypeOf } from '@/utils/quizBlankTypes';
 import { AnswerKeyKeyboard } from './AnswerKeyKeyboard';
 import { isMultiBlank } from '@/utils/quizFibBlanks';
+import { CalcAnswerField, CalcNumbersSection } from './CalcQuestionFields';
+import { addCalcVariableUpdate, nextCalcName } from '@/utils/quizCalcEditor';
 import { ChoiceOptionsEditor } from './ChoiceOptionsEditor';
 import { TargetChips } from '@/components/quiz/targets/TargetChips';
 import { TargetPicker } from '@/components/quiz/targets/TargetPicker';
@@ -876,6 +878,8 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
     readPrompt,
     readTargets
   );
+  const [calcSample, setCalcSample] = useState(0);
+  const randomNumbersOn = canAccessFeature('quiz-random-numbers');
   const [rubricBuilder, setRubricBuilder] = useState<
     'base' | 'modified' | null
   >(null);
@@ -1025,7 +1029,28 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           promptMath
           promptFormat
           promptAudio={canAccessFeature('quiz-question-audio')}
+          onAddNumber={
+            randomNumbersOn &&
+            q.type === 'FIB' &&
+            blankTypeOf(q) === 'typed' &&
+            !isMultiBlank(q)
+              ? () => {
+                  const name = nextCalcName(q.calc);
+                  if (name)
+                    updateQuestion(q.id, addCalcVariableUpdate(q, name));
+                  return name;
+                }
+              : undefined
+          }
         />
+        {q.type === 'FIB' && q.calc && (
+          <CalcNumbersSection
+            question={q}
+            onChange={(updates) => updateQuestion(q.id, updates)}
+            sample={calcSample}
+            onNextSample={() => setCalcSample((n) => n + 1)}
+          />
+        )}
 
         <div
           className={metaList ? 'border-y border-slate-200 py-1' : 'space-y-4'}
@@ -1206,13 +1231,15 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           </div>
         )}
 
-        {q.type === 'FIB' && (blankTypesOn || blankTypeOf(q) !== 'typed') && (
-          <FibBlankTypeSelect
-            question={q}
-            onChange={(updates) => updateQuestion(q.id, updates)}
-            disabled={!blankTypesOn}
-          />
-        )}
+        {q.type === 'FIB' &&
+          !q.calc &&
+          (blankTypesOn || blankTypeOf(q) !== 'typed') && (
+            <FibBlankTypeSelect
+              question={q}
+              onChange={(updates) => updateQuestion(q.id, updates)}
+              disabled={!blankTypesOn}
+            />
+          )}
 
         {/* Type-specific answer editor */}
         {q.type === 'MC' || q.type === 'MA' ? (
@@ -1418,6 +1445,12 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           <FibDropdownEditor
             question={q}
             onChange={(updates) => updateQuestion(q.id, updates)}
+          />
+        ) : q.calc ? (
+          <CalcAnswerField
+            question={q}
+            onChange={(updates) => updateQuestion(q.id, updates)}
+            sample={calcSample}
           />
         ) : isMultiBlank(q) ? (
           <div>

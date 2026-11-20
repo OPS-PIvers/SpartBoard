@@ -167,9 +167,10 @@ async function quizSessionSummary(
         teacherUid: ctx.uid,
         publicQuestions: asArray(s.publicQuestions),
         questionSnapshot: asArray(assignment.questionSnapshot),
-        responses: responses.map((d): CompletedResponse =>
-          recompute.parseCompletedResponse(d.data())
-        ),
+        responses: responses.map((d): CompletedResponse => ({
+          ...recompute.parseCompletedResponse(d.data()),
+          responseKey: d.id,
+        })),
         scorePublishedAt:
           typeof s.scorePublishedAt === 'number' ? s.scorePublishedAt : null,
         localizedFibAnswers: recompute.parseLocalizedFibAnswers(

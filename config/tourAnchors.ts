@@ -2698,6 +2698,62 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-editor.prompt-number': {
+    label: 'Number link on the question prompt in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.calc-new-numbers': {
+    label: 'New numbers button on a random-number question in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.calc-from': {
+    label: 'From field of a random number in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.calc-to': {
+    label: 'To field of a random number in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.calc-decimals': {
+    label: 'Decimals field of a random number in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.calc-remove': {
+    label: 'Remove button of a random number in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.calc-formula': {
+    label: 'Formula answer of a random-number question in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.calc-tolerance': {
+    label: 'Accept within field of a random-number question in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.calc-tolerance-kind': {
+    label:
+      'Percent or plus-or-minus switch of a random-number question in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.calc-round': {
+    label: 'Round to field of a random-number question in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.calc-unit': {
+    label: 'Unit field of a random-number question in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-editor.prompt-equation': {
     label: 'Equation link on the question prompt in the Quiz editor',
     perWidgetType: true,

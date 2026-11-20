@@ -349,6 +349,52 @@ const MediaGateGranted: React.FC<{ children: React.ReactNode }> = ({
   );
 };
 
+const calcQuiz = (): QuizData => ({
+  id: 'dev-calc-quiz',
+  title: 'Speed practice',
+  createdAt: 1,
+  updatedAt: 1,
+  questions: [
+    {
+      id: 'q-calc',
+      type: 'FIB',
+      text: 'A car travels {d} km in {t} hours. What is its average speed?',
+      correctAnswer: 'd / t',
+      incorrectAnswers: [],
+      timeLimit: 0,
+      points: 2,
+      calc: {
+        seed: 'dev-seed',
+        variables: [
+          { name: 'd', min: 40, max: 120, decimals: 1 },
+          { name: 't', min: 1.5, max: 4, decimals: 1 },
+        ],
+        formula: 'd / t',
+        tolerance: { kind: 'relative', percent: 1 },
+        roundTo: 2,
+        unit: 'km/h',
+      },
+    },
+  ],
+});
+
+const RandomNumbersGranted: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  const auth = useAuth();
+  return (
+    <AuthContext.Provider
+      value={{
+        ...auth,
+        canAccessFeature: (id) =>
+          id === 'quiz-random-numbers' || auth.canAccessFeature(id),
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
 export const QuizEditorDevView: React.FC<{ state: QuizEditorStateKey }> = ({
   state,
 }) => {
@@ -372,6 +418,18 @@ export const QuizEditorDevView: React.FC<{ state: QuizEditorStateKey }> = ({
         onClose={() => undefined}
         onSave={() => Promise.resolve()}
       />
+    );
+  }
+  if (state === 'qe-random-numbers') {
+    return (
+      <RandomNumbersGranted>
+        <QuizEditorModal
+          isOpen
+          quiz={calcQuiz()}
+          onClose={() => undefined}
+          onSave={() => Promise.resolve()}
+        />
+      </RandomNumbersGranted>
     );
   }
   const modal = (

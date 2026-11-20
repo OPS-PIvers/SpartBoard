@@ -9,6 +9,7 @@
  * - Exporting quiz results to a new Google Sheet
  */
 
+import { questionForResponse } from '@/utils/quizCalcResponse';
 import { plainMathText, plainPromptText } from '@/utils/promptMath';
 import {
   QuizData,
@@ -61,7 +62,7 @@ export function makeQuizGradeFn(fibGrading?: FibGradingContext | null) {
         ? readSlotGrade(response.grading, question.id)
         : undefined;
     const base = gradeAnswer(
-      question,
+      questionForResponse(question, response),
       studentAnswer,
       manualGrade,
       response ? fibAnswersForResponse(fibGrading, response, question.id) : [],

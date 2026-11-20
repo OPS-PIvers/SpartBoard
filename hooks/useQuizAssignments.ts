@@ -185,6 +185,7 @@ import {
   hiddenResultsPatch,
   publishScoreFields,
   selectQuestionTranslations,
+  withCalcRevealed,
   type QuizTranslationsByLocale,
   type ResponseGradingContext,
 } from './quizAssignments/publishGrading';
@@ -2776,14 +2777,22 @@ export const useQuizAssignments = (
         )
       );
 
-      const buildPublishPatch = (data: QuizResponse) =>
-        classPublishPatch(data, gradeResponseForPublish(data, ctx), {
-          visibility,
-          now,
-          answerKey,
-          rubricExamples,
-          explanations,
-        });
+      const buildPublishPatch = (data: QuizResponse, responseKey: string) =>
+        classPublishPatch(
+          data,
+          gradeResponseForPublish(data, ctx, responseKey),
+          {
+            visibility,
+            now,
+            answerKey: withCalcRevealed(
+              answerKey,
+              ctx.questionsById.values(),
+              responseKey
+            ),
+            rubricExamples,
+            explanations,
+          }
+        );
       const updates: ResponsePatch[] = [];
       const paperWrittenRefs: ReturnType<typeof doc>[] = [];
       let paperResponses = 0;
@@ -2794,7 +2803,7 @@ export const useQuizAssignments = (
           paperWrittenRefs.push(d.ref);
           continue;
         }
-        updates.push({ ref: d.ref, patch: buildPublishPatch(data) });
+        updates.push({ ref: d.ref, patch: buildPublishPatch(data, d.id) });
       }
       // Paper rows go first so the visibility flip never exposes a stale transcript.
       if (paperWrittenRefs.length > 0) {
@@ -2989,8 +2998,8 @@ export const useQuizAssignments = (
           )
         )
       );
-      const buildStudentPatch = (data: QuizResponse) => {
-        const graded = gradeResponseForPublish(data, ctx);
+      const buildStudentPatch = (data: QuizResponse, responseKey: string) => {
+        const graded = gradeResponseForPublish(data, ctx, responseKey);
         return {
           ...publishScoreFields(graded),
           answers: keepVerdicts
@@ -3001,7 +3010,15 @@ export const useQuizAssignments = (
             visibility,
             publishedAt: now,
             expiresAt,
-            ...(revealedAnswers ? { revealedAnswers } : {}),
+            ...(revealedAnswers
+              ? {
+                  revealedAnswers: withCalcRevealed(
+                    revealedAnswers,
+                    ctx.questionsById.values(),
+                    responseKey
+                  ),
+                }
+              : {}),
             ...(revealedRubricExamples ? { revealedRubricExamples } : {}),
             ...(revealedExplanations ? { revealedExplanations } : {}),
             ...(protection ? { protection } : {}),
@@ -3022,7 +3039,10 @@ export const useQuizAssignments = (
           paperWrittenRefs.push(snap.ref);
           continue;
         }
-        patches.push({ ref: snap.ref, patch: buildStudentPatch(data) });
+        patches.push({
+          ref: snap.ref,
+          patch: buildStudentPatch(data, snap.id),
+        });
       }
       if (patches.length === 0 && paperWrittenRefs.length === 0) {
         return { responsesUpdated: 0, skipped };
@@ -3032,8 +3052,10 @@ export const useQuizAssignments = (
         if (paperWrittenRefs.length > 0) {
           paperWritten = await commitPaperWrittenPatches(
             paperWrittenRefs,
-            (data) =>
-              data.status === 'completed' ? buildStudentPatch(data) : null
+            (data, responseKey) =>
+              data.status === 'completed'
+                ? buildStudentPatch(data, responseKey)
+                : null
           );
           skipped += paperWrittenRefs.length - paperWritten;
         }
@@ -3092,7 +3114,10 @@ export const useQuizAssignments = (
     async (
       assignmentId: string,
       responseKeys: string[],
-      buildPatch: (data: QuizResponse) => Record<string, unknown>,
+      buildPatch: (
+        data: QuizResponse,
+        responseKey: string
+      ) => Record<string, unknown>,
       context: string
     ) => {
       if (!userId) throw new Error('Not authenticated');
@@ -3174,13 +3199,20 @@ export const useQuizAssignments = (
       return patchChosenResponses(
         assignmentId,
         responseKeys,
-        (data) => {
+        (data, responseKey) => {
           const cleared = { ...data, resultsOverride: undefined };
           return {
             ...classPublishPatch(
               cleared,
-              gradeResponseForPublish(cleared, ctx),
-              opts
+              gradeResponseForPublish(cleared, ctx, responseKey),
+              {
+                ...opts,
+                answerKey: withCalcRevealed(
+                  opts.answerKey,
+                  ctx.questionsById.values(),
+                  responseKey
+                ),
+              }
             ),
             resultsOverride: deleteField(),
           };

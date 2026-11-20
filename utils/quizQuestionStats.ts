@@ -1,3 +1,4 @@
+import { questionForResponse } from '@/utils/quizCalcResponse';
 import {
   isFreeResponseType,
   type GradeResult,
@@ -54,7 +55,7 @@ export function gradeQuestionForResponse(
     question,
     response,
     gradeAnswer(
-      question,
+      questionForResponse(question, response),
       studentAnswer,
       manualGrade,
       fibAnswersForResponse(fibGrading, response, question.id),

@@ -4,6 +4,7 @@ import * as admin from './firebaseAdmin';
 import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import { loadSessionContext } from './gradebook/gradeIndex';
+import { withCalcValues } from './quizCalculated';
 import { gradeGroupAnswer, trustedPaperTranscript } from './plcAssessmentMath';
 import { parseCompletedResponse } from './recomputePlcAssessments';
 import { representativeAnswers } from './quizScoreOnSubmit';
@@ -125,6 +126,7 @@ export async function handleGetMyQuizAttempts(
   const data = asRecord(raw);
   if (!isId(data.sessionId) || !isId(data.responseKey))
     throw new HttpsError('invalid-argument', 'Missing quiz or response.');
+  const responseKey: string = data.responseKey;
   const sessionRef = deps.db.collection('quiz_sessions').doc(data.sessionId);
   const responseRef = sessionRef.collection('responses').doc(data.responseKey);
   const [sessionSnap, responseSnap] = await Promise.all([
@@ -211,7 +213,7 @@ export async function handleGetMyQuizAttempts(
       const g =
         q && judged
           ? gradeGroupAnswer(
-              q,
+              withCalcValues(q, responseKey),
               a.answer,
               parsed.manualGrades?.[q.id],
               q.type === 'FIB' ? fib[q.id] : undefined,
