@@ -923,10 +923,8 @@ const TeacherQuizWidget: React.FC<{
 
   // Local state for views that need loaded data
   const [loadedQuizData, setLoadedQuizData] = useState<QuizData | null>(null);
-  const [loadedQuizSource, setLoadedQuizSource] = useState<{
-    data: QuizData;
-    fileId: string;
-  } | null>(null);
+  // Drive file the loaded quiz came from (kept through in-place edits); null for previews, samples and banks.
+  const [loadedQuizFileId, setLoadedQuizFileId] = useState<string | null>(null);
   const [studentView, setStudentView] = useState<
     | ((
         | { quiz: QuizData; behavior: QuizBehaviorSettings }
@@ -1395,6 +1393,7 @@ const TeacherQuizWidget: React.FC<{
     setLoadingQuizData(true);
     try {
       const content = await loadBankContent(source);
+      setLoadedQuizFileId(null);
       setLoadedQuizData({
         id: content.id,
         title: content.title || source.title,
@@ -1425,7 +1424,7 @@ const TeacherQuizWidget: React.FC<{
         const loaded = await loadQuizData(meta.driveFileId);
         const data = refine ? await refine(loaded) : loaded;
         setLoadedQuizData(data);
-        setLoadedQuizSource({ data, fileId: meta.driveFileId });
+        setLoadedQuizFileId(meta.driveFileId);
         return data;
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Failed to load quiz';
@@ -1877,7 +1876,7 @@ const TeacherQuizWidget: React.FC<{
   // Reveal and scoreboard sync use the session's own quiz (or frozen copy), never one being previewed or edited.
   const liveQuizData = useLiveSessionQuiz(
     loadedQuizData,
-    loadedQuizSource?.data === loadedQuizData ? loadedQuizSource.fileId : null,
+    loadedQuizFileId,
     liveSession,
     liveSession
       ? (assignments.find((a) => a.id === liveSession.assignmentId)
@@ -2747,7 +2746,10 @@ const TeacherQuizWidget: React.FC<{
       !!liveMeta &&
       loadedQuizData?.id === liveMeta.id &&
       (!frozenId || frozenId === liveMeta.driveFileId);
-    if (!sameAsLive) setLoadedQuizData(null);
+    if (!sameAsLive) {
+      setLoadedQuizData(null);
+      setLoadedQuizFileId(null);
+    }
     setView('manager');
   };
 
@@ -3575,6 +3577,7 @@ const TeacherQuizWidget: React.FC<{
           const data = await loadQuiz(meta);
           if (data && isDistrictCopy(meta)) {
             // Read-only copy: open the answer check instead of the editor.
+            setLoadedQuizFileId(null);
             setLoadedQuizData(await withSampleBankDraw(data));
             setView('preview');
             return;
@@ -3588,6 +3591,7 @@ const TeacherQuizWidget: React.FC<{
         onPreview={async (meta) => {
           const data = await loadQuiz(meta);
           if (!data) return;
+          setLoadedQuizFileId(null);
           setLoadedQuizData(await withSampleBankDraw(data));
           setView('preview');
         }}
@@ -4893,6 +4897,7 @@ const TeacherQuizWidget: React.FC<{
             // Adopt what was written. Without this a new quiz keeps saving
             // with no drive file id, so every retitled autosave orphans a file.
             setEditingMeta(saved);
+            setLoadedQuizFileId(saved.driveFileId ?? null);
             latestSavedQuiz.current = updated;
             // Keep every PLC library row for this quiz in step with what was published.
             if (saved.sync && plcs.length > 0) {
