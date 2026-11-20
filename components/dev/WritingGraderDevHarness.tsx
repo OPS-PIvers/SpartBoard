@@ -4,6 +4,7 @@ import type {
   Rubric,
   RubricLevelOrder,
   WritingGrading,
+  WritingPeerMark,
   WritingResponse,
   WritingResponseStatus,
 } from '@/types';
@@ -248,6 +249,39 @@ const NAMES: Array<[string, string, string, WritingResponseStatus | null]> = [
   ['u6', 'Eli', 'Nguyen', null],
 ];
 
+const peerNote = (
+  id: string,
+  kind: 'comment' | 'edit',
+  quote: string,
+  status: WritingPeerMark['status'],
+  extra: Partial<WritingPeerMark>
+): WritingPeerMark => ({
+  id,
+  by: id === 'p3' ? 'u5' : 'u2',
+  kind,
+  start: 0,
+  end: quote.length,
+  quote,
+  status,
+  createdAt: 1,
+  ...extra,
+});
+
+const PEER_NOTES: WritingPeerMark[] = [
+  peerNote('p1', 'comment', 'the science fair', 'resolved', {
+    body: 'I can picture this. What did it smell like?',
+  }),
+  peerNote('p2', 'edit', 'without a word', 'accepted', {
+    insert: 'without saying a word',
+  }),
+  peerNote('p3', 'edit', 'in twenty minutes', 'rejected', {
+    insert: 'in just twenty minutes',
+  }),
+  peerNote('p4', 'comment', 'being calm', 'open', {
+    body: 'Great ending. Maybe say what you did to stay calm.',
+  }),
+];
+
 const response = (
   uid: string,
   status: WritingResponseStatus,
@@ -428,6 +462,7 @@ export const WritingGraderDevHarness: React.FC = () => {
       'Write about a moment that changed you. Show how you felt, not just what happened.',
     grading,
     studentCanViewRecord: false,
+    peerReview: { access: 'edit' as const, startedAt: 1, endedAt: 2 },
   };
 
   return (
@@ -474,6 +509,11 @@ export const WritingGraderDevHarness: React.FC = () => {
               onReturn={() => Promise.resolve()}
               onClose={noop}
               recordFixture={() => RECORD}
+              nameOf={(uid) => {
+                const n = NAMES.find(([u]) => u === uid);
+                return n ? `${n[2]}, ${n[1]}` : '';
+              }}
+              peerNotesFixture={(uid) => (uid === 'u1' ? PEER_NOTES : [])}
             />
           )}
           {view === 'builder' && (

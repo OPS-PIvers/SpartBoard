@@ -1,7 +1,7 @@
 // Question fields shared by the Quiz and Video Activity editors (docs/plans/shipped/VA_QUIZ_ALIGNMENT.md slice 1).
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertCircle, ChevronDown, Plus, Sigma, Tag } from 'lucide-react';
+import { AlertCircle, ChevronDown, Hash, Plus, Sigma, Tag } from 'lucide-react';
 import type {
   QuestionTargetTag,
   QuizQuestion,
@@ -63,6 +63,8 @@ interface QuestionPromptFieldProps {
   promptFormat?: boolean;
   /** Shows the record audio mic in the prompt toolbar. */
   promptAudio?: boolean;
+  /** Shows the Number link; adds a random number and returns its name, or null when full. */
+  onAddNumber?: () => string | null;
 }
 
 export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
@@ -76,6 +78,7 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
   promptMath = false,
   promptFormat = false,
   promptAudio = false,
+  onAddNumber,
 }) => {
   const canRecord = promptAudio && promptFormat;
   // Stays mounted once audio existed, so Remove never remounts the prompt box.
@@ -87,6 +90,21 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
   );
   const setText = (text: string) =>
     onChange(allowBlanks ? fibPromptUpdate(q, text) : { text });
+  const insertNumber = () => {
+    const name = onAddNumber?.();
+    if (!name) return;
+    const token = `{${name}}`;
+    if (promptFormat) {
+      richRef.current?.insertText(token, true);
+      return;
+    }
+    const el = textareaRef.current;
+    const at = el?.selectionStart ?? q.text.length;
+    const end = el?.selectionEnd ?? at;
+    const before = q.text.slice(0, at);
+    const pad = before && !/\s$/.test(before) ? ' ' : '';
+    setText(`${before}${pad}${token}${q.text.slice(end)}`);
+  };
   const openNewEquation = () => {
     if (promptFormat) {
       setEquation({ start: -1, end: -1, math: '', editing: false });
@@ -179,6 +197,16 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
                 Equation
               </KeyboardLink>
             )}
+            {onAddNumber && (
+              <KeyboardLink
+                on={false}
+                onClick={insertNumber}
+                anchor={tourTypeAttr('quiz-editor.prompt-number', 'quiz')}
+              >
+                <Hash className="w-3.5 h-3.5" aria-hidden />
+                Number
+              </KeyboardLink>
+            )}
             {promptAccents && (
               <KeyboardLink
                 on={accents !== null}
@@ -189,7 +217,7 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
                 Accents
               </KeyboardLink>
             )}
-            {allowBlanks && q.type === 'FIB' && (
+            {allowBlanks && q.type === 'FIB' && !q.calc && (
               <button
                 type="button"
                 onClick={() => {

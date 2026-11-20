@@ -2228,7 +2228,8 @@
     "allPlaced": "Tous les mots sont placés.",
     "picked": "{{word}} sélectionné. Choisis un blanc.",
     "placed": "{{word}} placé dans {{blank}}.",
-    "returned": "{{word}} remis dans la banque de mots."
+    "returned": "{{word}} remis dans la banque de mots.",
+    "tapToFill": "Touche un choix pour l’ajouter à ta réponse."
   },
   "quizLiveView": {
     "banner": "Ton enseignant regarde ton quiz",

@@ -11,10 +11,6 @@ export const SURFACES: TourSurfaceMap = {
     needs: ['widget-on-stage'],
     files: [Q, `${C}QuizManager.tsx`, `${C}QuizAssignedTab.tsx`],
     inner: {
-      'library-shell.assigned-close-all':
-        'library-shell.archive-menu:quiz#row-1',
-      'library-shell.assigned-move-to-done':
-        'library-shell.archive-menu:quiz#row-1',
       'quiz-library.bulk-merge': 'quiz.select-mode',
       'quiz-library.bulk-share-plc': 'quiz.select-mode',
       'quiz-library.preview-close': 'library-shell.card-open:quiz#row-1',
@@ -103,6 +99,7 @@ export const SURFACES: TourSurfaceMap = {
       `${C}AnswerKeyboardControls.tsx`,
       `${C}AnswerKeyKeyboard.tsx`,
       `${C}PromptEquations.tsx`,
+      `${C}CalcQuestionFields.tsx`,
       `${C}PromptRichEditor.tsx`,
       `${C}PromptAudioField.tsx`,
       `${C}ChoiceOptionsEditor.tsx`,
@@ -148,6 +145,9 @@ export const SURFACES: TourSurfaceMap = {
       'quiz-stimuli.card-label': 'quiz-editor.tab-stimuli:quiz',
       'quiz-stimuli.card-delete': 'quiz-editor.tab-stimuli:quiz',
       'quiz-stimuli.passage-text': 'quiz-editor.tab-stimuli:quiz',
+      'quiz-stimuli.add-word-bank': 'quiz-editor.tab-stimuli:quiz',
+      'quiz-stimuli.word-bank-text': 'quiz-editor.tab-stimuli:quiz',
+      'quiz-stimuli.word-bank-columns': 'quiz-editor.tab-stimuli:quiz',
       'quiz-stimuli.play-limit': 'quiz-editor.tab-stimuli:quiz',
       'quiz-stimuli.tab-label': 'quiz-editor.tab-stimuli:quiz',
       'quiz-stimuli.placement': 'quiz-editor.tab-stimuli:quiz',
@@ -164,6 +164,12 @@ export const SURFACES: TourSurfaceMap = {
       'quiz-library.language-reviewed': 'quiz-editor.tab-languages:quiz',
       'quiz-library.language-translated-text': 'quiz-editor.tab-languages:quiz',
     },
+  },
+  'quiz.editor.stimulus-picker': {
+    label: 'Stimulus picker dialog',
+    kind: 'modal',
+    opensWith: 'quiz-stimuli.attach-toggle:quiz',
+    files: [`${C}StimulusPickerModal.tsx`],
   },
   'quiz.editor.bank-picker': {
     label: 'Add from question bank dialog',

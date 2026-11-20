@@ -30,7 +30,7 @@ What the code is really like, which shapes the slices:
 - **Some action hooks already exist**: `hooks/useQuizClassActions.ts` (per-class open, pause, close; tested), `hooks/usePlcQuizActions.tsx` (the PLC page's assign and lifecycle), and `components/widgets/QuizWidget/useReviewLaunch.tsx`.
 - **Tests today.** Nothing mounts `Widget.tsx`, and `tests/components/widgets/QuizWidget.assign.composition.test.ts` records why: a harness for its 10+ Firebase-backed hooks was judged disproportionate. `QuizManager` is well covered: seven suites in `tests/components/widgets/QuizManager.*.test.tsx` mount it with props, as do `components/dev/LibraryManagersDevHarness.tsx` and `PaperTestDevHarness.tsx`. There is no Quiz spec in `tests/e2e/`, and `scripts/smoke-test.mjs` only checks that the student `/quiz` route has content.
 - **Churn.** On `dev-paul`, `Widget.tsx` took 97 commits in the 30 days to 2026-11-19 (38 in the last seven), `QuizManager.tsx` 43, `useQuizAssignments.ts` 51 and `useQuizSession.ts` 44. The widget grew about 240 lines on the day this plan was written.
-- **Two-path regions.** Four preview flags with `afterLaunch: 'retire'` leave an old and a new path in these files: `assigned-tab`, `gradebook`, `quiz-import-versions-plain`, `reopen-selected-students`.
+- **Two-path regions.** Three preview flags with `afterLaunch: 'retire'` leave an old and a new path in these files: `assigned-tab`, `gradebook`, `quiz-import-versions-plain`.
 
 Non-goals:
 

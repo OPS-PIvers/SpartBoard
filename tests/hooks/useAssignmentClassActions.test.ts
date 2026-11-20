@@ -285,7 +285,7 @@ describe('useAssignmentClassActions', () => {
     expect(lifecycle.turnInClass).toHaveBeenCalledWith('s9', 'c2', 9);
   });
 
-  it('Move to Done leaves the turn-in to End when End turns work in', async () => {
+  it('Move to Finished leaves the turn-in to End when End turns work in', async () => {
     vi.useFakeTimers();
     const lifecycle = lifecycleOf({ endTurnsIn: true });
     const x = setup(

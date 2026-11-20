@@ -19,7 +19,11 @@ import {
   nextScheduledOpen,
   studentCanEnter,
 } from '@/utils/periodAccess';
-import type { DoneItem, LandingRow } from '@/utils/studentLanding';
+import {
+  workAvailability,
+  type DoneItem,
+  type LandingRow,
+} from '@/utils/studentLanding';
 import {
   formatPoints,
   type StudentGradeRow,
@@ -245,15 +249,7 @@ export const WorkRow: React.FC<WorkRowProps> = ({
     : periodLocked
       ? periodLockLine(gate, nowMs)
       : null;
-  // A Manual start class the teacher has started (not a Let in now pass on a closed class).
-  const started =
-    !!gate &&
-    gate.accessMode === 'assessment' &&
-    (row.state === 'open' || row.state === 'in-progress') &&
-    gate.periodKeys.some((k) => {
-      const access = gate.periodAccess?.[k];
-      return !!access && effectivePeriodState(access, nowMs) === 'open';
-    });
+  const live = workAvailability(row, nowMs, pseudonymUid) === 'live';
   const body = (
     <>
       <KindIcon kind={a.kind} />
@@ -294,7 +290,7 @@ export const WorkRow: React.FC<WorkRowProps> = ({
   }
   // A class not started yet still opens, to the waiting screen where the teacher sees the student.
   return (
-    <OpenRow href={a.openHref} available={!locked} live={started && !locked}>
+    <OpenRow href={a.openHref} available={!locked} live={live}>
       {body}
     </OpenRow>
   );
@@ -399,11 +395,16 @@ const FLAG_INK: Record<string, string> = {
 const extraFlags = (grade: StudentGradeRow | undefined) =>
   (grade?.flags ?? []).filter((f) => f.id !== 'missing' && f.id !== 'excused');
 
+/** Closed and never turned in: it can no longer be done, so it is not "Missing". */
+const NotSubmitted: React.FC = () => (
+  <span className="text-xs font-semibold text-slate-500">Not submitted</span>
+);
+
 function gradebookRight(item: DoneItem, isNew: boolean): React.ReactNode {
   if (item.missing) {
     return (
       <>
-        <span className="text-xs font-semibold text-rose-700">Missing</span>
+        <NotSubmitted />
         {item.grade?.status === 'scored' && (
           <span className="w-14 text-right text-sm font-semibold tabular-nums text-slate-400">
             {formatPoints(item.grade.points ?? 0)}
@@ -447,8 +448,7 @@ function completedRight(
   check: TurnInCheck | undefined,
   nowMs: number
 ): React.ReactNode {
-  if (item.missing)
-    return <span className="text-xs font-semibold text-rose-700">Missing</span>;
+  if (item.missing) return <NotSubmitted />;
   if (item.row?.state === 'closed')
     return <span className="text-xs text-slate-500">Not graded yet</span>;
   if (check?.lockedOut)
@@ -483,7 +483,7 @@ const missingMessage = (item: DoneItem, teachers: string): string => {
   return `${closed} before you turned it in. Talk to ${teachers || 'your teacher'} if you need it reopened.`;
 };
 
-/** D17, D18: a Completed or Gradebook row; every one opens the student's own work, or says why it is Missing. */
+/** D17, D18: a Completed or Gradebook row; every one opens the student's own work, or says why it was not submitted. */
 export const DoneRow: React.FC<DoneRowProps> = ({
   item,
   check,

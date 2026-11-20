@@ -3756,7 +3756,8 @@
     "allPlaced": "All words placed.",
     "picked": "{{word}} selected. Choose a blank.",
     "placed": "{{word}} placed in {{blank}}.",
-    "returned": "{{word}} returned to the word bank."
+    "returned": "{{word}} returned to the word bank.",
+    "tapToFill": "Tap a choice to add it to your answer."
   },
   "quizLiveView": {
     "banner": "Your teacher is viewing your quiz",

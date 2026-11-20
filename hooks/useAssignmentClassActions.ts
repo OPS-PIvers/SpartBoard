@@ -24,7 +24,7 @@ export interface AssignmentRun extends PeriodAccessSessionFields {
   sessionId?: string;
   openAt?: number | null;
   closeAt?: number | null;
-  /** D24 single-line close mark and D5 Move to Done mark. */
+  /** D24 single-line close mark and D5 Move to Finished mark. */
   closedAt?: number | null;
   doneAt?: number | null;
   /** D11: when a single line was last opened from the Assigned tab. */

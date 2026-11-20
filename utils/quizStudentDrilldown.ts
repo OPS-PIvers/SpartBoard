@@ -32,6 +32,8 @@ import {
   formatRevealedAnswer,
   revealValueFor,
 } from '@/utils/quizFibAlternates';
+import { questionForResponse } from '@/utils/quizCalcResponse';
+import { fillCalcPrompt, formatCalcAnswer } from '@/utils/quizCalculated';
 
 /** One question as one student saw it, graded live. */
 export interface StudentQuestionLine {
@@ -247,6 +249,10 @@ export function computeStudentDrilldown(
     const manual = isFreeResponseType(q.type);
     const hasKey = !manual && q.correctAnswer.trim() !== '';
     const answer = entry && !entry.unresponded ? (entry.answer ?? '') : '';
+    // Random-number questions show this student's own numbers and answer.
+    const own = q.calc
+      ? questionForResponse(q, response).calcValues
+      : undefined;
     const base: Pick<
       StudentQuestionLine,
       | 'questionId'
@@ -268,13 +274,20 @@ export function computeStudentDrilldown(
     > = {
       questionId: q.id,
       number,
-      text: promptLabel(q),
+      text:
+        q.calc && own
+          ? fillCalcPrompt(promptLabel(q), q.calc, own)
+          : promptLabel(q),
       type: q.type,
       manual,
       correctAnswerText: hasKey
-        ? q.type === 'FIB'
-          ? formatRevealedAnswer(revealValueFor(q))
-          : formatQuizAnswerText(q, { answer: q.correctAnswer })
+        ? q.calc
+          ? own
+            ? formatCalcAnswer(q.calc, own)
+            : null
+          : q.type === 'FIB'
+            ? formatRevealedAnswer(revealValueFor(q))
+            : formatQuizAnswerText(q, { answer: q.correctAnswer })
         : null,
     };
     if (q.stimulusIds?.length) base.stimulusIds = [...q.stimulusIds];

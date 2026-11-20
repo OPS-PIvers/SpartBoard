@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import type { VideoActivityAssignment } from '@/types';
 import type { AssignedRowProps } from '@/components/common/library/assigned';
 import { VideoActivityAssignedTab } from './VideoActivityAssignedTab';
@@ -66,6 +72,9 @@ vi.mock('@/components/common/library/assigned', async (orig) => {
     AssignedRow: (p: AssignedRowProps) => (
       <div data-testid={`row-${p.title}`}>
         {p.mainLabel && <button onClick={p.onMain}>{p.mainLabel}</button>}
+        <button onClick={() => p.onClassAction('close', null)}>
+          panel:Close
+        </button>
         {p.menuActions.map((m) => (
           <button key={m.id} onClick={() => void m.onClick()}>
             menu:{m.label}
@@ -99,10 +108,16 @@ const handlers = () => ({
   onPublish: vi.fn(),
   onCopyLink: vi.fn(),
   menu: vi.fn(() => [
+    { id: 'copy-url', label: 'Copy link', onClick: vi.fn() },
     { id: 'pause-resume', label: 'Pause', onClick: vi.fn() },
     { id: 'deactivate', label: 'End assignment', onClick: vi.fn() },
+    { id: 'share-with-peers', label: 'Share with peers', onClick: vi.fn() },
     { id: 'reactivate', label: 'Reactivate', onClick: vi.fn() },
+    { id: 'settings', label: 'Settings', onClick: vi.fn() },
     { id: 'results', label: 'Results', onClick: vi.fn() },
+    { id: 'publish-scores', label: 'Publish scores', onClick: vi.fn() },
+    { id: 'unpublish-scores', label: 'Unpublish scores', onClick: vi.fn() },
+    { id: 'delete', label: 'Delete', destructive: true, onClick: vi.fn() },
   ]),
 });
 
@@ -135,15 +150,39 @@ describe('VideoActivityAssignedTab', () => {
     expect(screen.getByText('Nothing active')).toBeTruthy();
   });
 
-  it('replaces the old lifecycle items with Assigned actions', () => {
+  const menuOf = (title: string) =>
+    [...screen.getByTestId(`row-${title}`).querySelectorAll('button')]
+      .map((b) => b.textContent ?? '')
+      .filter((t) => t.startsWith('menu:'))
+      .map((t) => t.slice(5));
+
+  it('an open row menu holds whole-assignment items only', () => {
     renderTab([base({ id: 'a1' })]);
-    expect(screen.queryByText('menu:End assignment')).toBeNull();
-    expect(screen.queryByText('menu:Reactivate')).toBeNull();
-    expect(screen.getByText('menu:Monitor')).toBeTruthy();
-    expect(screen.getByText('menu:Pause')).toBeTruthy();
-    expect(screen.getByText('menu:Results')).toBeTruthy();
-    fireEvent.click(screen.getByText('menu:Close'));
+    expect(menuOf('Cells')).toEqual([
+      'Copy link',
+      'Settings',
+      'Move to Finished',
+      'Delete',
+    ]);
+    fireEvent.click(screen.getByText('panel:Close'));
     expect(actions.closeAll).toHaveBeenCalled();
+  });
+
+  it('an all-closed row drops links and settings and offers one publish item', () => {
+    store.responses.a1 = [{ completedAt: NOW - 5000 }];
+    renderTab([
+      base({
+        id: 'a1',
+        status: 'inactive',
+        closedAt: NOW - 1000,
+      }),
+    ]);
+    expect(menuOf('Cells')).toEqual([
+      'Publish scores…',
+      'Reopen…',
+      'Move to Finished',
+      'Delete',
+    ]);
   });
 
   it('never offers Pause or Reopen on a live run', async () => {
@@ -164,21 +203,27 @@ describe('VideoActivityAssignedTab', () => {
     ]);
     const open = screen.getByTestId('row-Open live');
     expect(open.textContent).not.toContain('menu:Pause');
-    expect(open.textContent).toContain('menu:Close');
     const closed = screen.getByTestId('row-Closed live');
     expect(closed.textContent).not.toContain('menu:Reopen');
     // Closing a live run can't be undone, so its toast has no Undo.
-    fireEvent.click(screen.getByText('menu:Close'));
+    fireEvent.click(screen.getAllByText('panel:Close')[0]);
     await waitFor(() =>
       expect(store.toasts).toContainEqual(['Open live is closed.', 'success'])
     );
   });
 
-  it('offers Reopen on a closed self-paced single line', () => {
+  it('offers Reopen… on a closed self-paced single line, for everyone', async () => {
     store.responses.a1 = [{ completedAt: NOW - 5000 }];
     renderTab([base({ id: 'a1', status: 'inactive', closedAt: NOW - 1000 })]);
-    fireEvent.click(screen.getByText('menu:Reopen'));
-    expect(actions.reopenClass).toHaveBeenCalledWith(null);
+    fireEvent.click(screen.getByText('menu:Reopen…'));
+    expect(
+      screen.getByRole('radio', { name: 'Everyone in the class' })
+    ).toBeTruthy();
+    expect(
+      within(screen.getByRole('dialog')).queryByRole('combobox')
+    ).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Reopen' }));
+    await waitFor(() => expect(actions.reopenClass).toHaveBeenCalledWith(null));
   });
 
   it('counts short answers awaiting a grade from the answer key', async () => {
@@ -207,6 +252,7 @@ describe('VideoActivityAssignedTab', () => {
     fireEvent.click(screen.getByText('Copy link'));
     expect(h.onCopyLink).toHaveBeenCalled();
     expect(screen.queryByText('menu:Monitor')).toBeNull();
+    expect(menuOf('Cells')).toEqual(['Delete']);
   });
 
   it('shows a live run limit as its own message', async () => {
@@ -215,7 +261,8 @@ describe('VideoActivityAssignedTab', () => {
     );
     store.responses.a1 = [{ completedAt: NOW - 5000 }];
     renderTab([base({ id: 'a1', status: 'inactive', closedAt: NOW - 1000 })]);
-    fireEvent.click(screen.getByText('menu:Reopen'));
+    fireEvent.click(screen.getByText('menu:Reopen…'));
+    fireEvent.click(screen.getByRole('button', { name: 'Reopen' }));
     await waitFor(() =>
       expect(store.toasts).toContainEqual([
         'A live video run cannot be reopened. Assign it again.',
@@ -231,7 +278,7 @@ describe('VideoActivityAssignedTab', () => {
     ];
     renderTab([base({ id: 'a1', status: 'inactive', closedAt: NOW })]);
     // The answered work keeps the row Active while it is owed.
-    expect(screen.getByText('menu:Reopen')).toBeTruthy();
+    expect(screen.getByText('menu:Reopen…')).toBeTruthy();
     await vi.advanceTimersByTimeAsync(200_000);
     expect(turnIn).toHaveBeenCalledWith('a1', 't1', NOW);
   });

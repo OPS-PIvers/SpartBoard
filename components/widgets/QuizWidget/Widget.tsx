@@ -323,7 +323,7 @@ import {
 import type { QuizStepperAssign } from './components/QuizManager';
 import { translateHiddenOptionIdsToText } from '@/utils/quizHiddenOptions';
 import type { StudentTargetRef } from '@/types';
-import { buildPeriodGate } from '@/utils/periodPlan';
+import { buildPeriodGate, initialAssignStatus } from '@/utils/periodPlan';
 import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
 import { revealValueFor } from '@/utils/quizFibAlternates';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
@@ -2311,7 +2311,8 @@ const TeacherQuizWidget: React.FC<{
     const upTo = autoRevealCount(liveSession, questions.length);
     for (let i = 0; i < upTo; i++) {
       const q = questions[i];
-      if (!liveSession.revealedAnswers?.[q.id]) {
+      // A random-number answer differs per student, so the class reveal skips it.
+      if (!liveSession.revealedAnswers?.[q.id] && !q.calc) {
         void revealAnswer(q.id, revealValueFor(q));
       }
     }
@@ -4048,8 +4049,16 @@ const TeacherQuizWidget: React.FC<{
               },
               {
                 ...kindTag,
-                // A per-period session is gated by its periods, not a global pause.
-                initialStatus: sessionPeriodAccess ? 'active' : 'paused',
+                // A per-period session is gated by its periods, a later Scheduled start by its open time.
+                initialStatus: initialAssignStatus({
+                  gated: !!sessionPeriodAccess,
+                  opensLater:
+                    !!stepper &&
+                    !stepper.manualStart &&
+                    mode === 'student' &&
+                    rosterIds.length > 0 &&
+                    (resolvedTargeting.openAt ?? 0) > Date.now(),
+                }),
                 ...(sessionPeriodAccess
                   ? {
                       accessMode: periodGate?.accessMode,
@@ -4443,15 +4452,11 @@ const TeacherQuizWidget: React.FC<{
         onArchiveMonitor={async (a) => {
           await openArchiveMonitor(a);
         }}
-        onArchiveReopenStudents={
-          canAccessFeature('reopen-selected-students')
-            ? (a) => {
-                void openArchiveMonitor(a).then((ok) => {
-                  if (ok) setReopenPickFor(a.id);
-                });
-              }
-            : undefined
-        }
+        onArchiveReopenStudents={(a) => {
+          void openArchiveMonitor(a).then((ok) => {
+            if (ok) setReopenPickFor(a.id);
+          });
+        }}
         onArchiveStudentView={
           canAccessFeature('quiz-student-view')
             ? async (a) => {

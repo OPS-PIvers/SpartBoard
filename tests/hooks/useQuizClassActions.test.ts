@@ -405,7 +405,7 @@ describe('useQuizClassActions (D21)', () => {
     expect(store.calls).toEqual(['closeAll', 'status:end:a1']);
   });
 
-  it('Move to Done closes every class, stamps doneAt, then ends the run', async () => {
+  it('Move to Finished closes every class, stamps doneAt, then ends the run', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(777);
     const x = setup(
       assignment({ periodAccess: { c1: row({ state: 'open' }), c2: row() } })

@@ -2228,7 +2228,8 @@
     "allPlaced": "Alle Wörter eingesetzt.",
     "picked": "{{word}} ausgewählt. Wähle eine Lücke.",
     "placed": "{{word}} in {{blank}} eingesetzt.",
-    "returned": "{{word}} zurück in die Wortliste gelegt."
+    "returned": "{{word}} zurück in die Wortliste gelegt.",
+    "tapToFill": "Tippe auf eine Auswahl, um sie zu deiner Antwort hinzuzufügen."
   },
   "quizLiveView": {
     "banner": "Deine Lehrkraft sieht sich dein Quiz an",

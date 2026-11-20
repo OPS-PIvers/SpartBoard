@@ -63,8 +63,10 @@ export const RETIRED_TOUR_FEATURES: readonly string[] = [
   'quiz-reopen-submission',
   'quiz-results-tools',
   'quiz-review-step',
+  'quiz-stimulus-preview',
   'quiz-stimulus-tabs',
   'quiz-submit-for-student',
+  'reopen-selected-students',
   'schoology-push-due-date',
   'share-import-confirm',
   'sparty',
@@ -72,9 +74,11 @@ export const RETIRED_TOUR_FEATURES: readonly string[] = [
   'student-keyboards',
   'tour-pacing',
   'tour-steps-view',
+  'va-score-only-verdicts',
   'video-activity-editor-arrows',
   'video-activity-stops',
   'widget-connections',
+  'widget-settings-defaults',
   'youtube-paste-picker',
 ];
 

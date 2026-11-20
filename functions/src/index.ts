@@ -132,6 +132,7 @@ export {
 } from './studentIdentity';
 export { claimPaperResponseV1 } from './claimPaperResponse';
 export { reportStudentLoadIssueV1 } from './studentLoadIssue';
+export { reportTransactionFailureV1 } from './transactionFailureReport';
 // Student landing v2: whether a student's teacher has the new page.
 // Gradebook D8: roster student → stable uid for the gradebook grid.
 export { getGradebookRosterV1 } from './gradebook/getGradebookRosterV1';
@@ -186,6 +187,10 @@ export {
   saveWritingFeedbackV1,
 } from './writingResponses';
 export { purgeWritingLogs } from './writingLogPurge';
+export {
+  setWritingPeerReviewV1,
+  writingPeerReviewV1,
+} from './writingPeerReview';
 
 // ── Flashcards Check submission (server-graded; docs/plans/shipped/FLASHCARDS.md §7) ─
 export {

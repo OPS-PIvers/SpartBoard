@@ -3,6 +3,7 @@
  * Used by QuizResults (one-time send) and live scoreboard sync.
  */
 
+import { questionForResponse } from '@/utils/quizCalcResponse';
 import {
   QuizResponse,
   QuizQuestion,
@@ -104,7 +105,7 @@ export function getEarnedPoints(
       q,
       r,
       gradeAnswer(
-        q,
+        questionForResponse(q, r),
         ans.answer,
         manualGrade,
         fibAnswersForResponse(fibGrading, r, q.id),
@@ -327,7 +328,7 @@ export function isResponseAwaitingGrade(
       q,
       r,
       gradeAnswer(
-        q,
+        questionForResponse(q, r),
         ans.answer,
         manualGrade,
         undefined,

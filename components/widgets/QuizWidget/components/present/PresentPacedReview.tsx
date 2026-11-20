@@ -7,6 +7,8 @@ import { Check } from 'lucide-react';
 import { QuizLeaderboardEntry, QuizQuestion, QuizResponse } from '@/types';
 import { gradeAnswer } from '@/hooks/useQuizSession';
 import { buildDistribution } from '@/utils/answerDistribution';
+import { isCalcQuestion } from '@/utils/quizCalculated';
+import { questionForResponse } from '@/utils/quizCalcResponse';
 import { PresentStandings } from './PresentStandings';
 import { PresentPodium } from './PresentPodium';
 import { usePresentTheme } from './presentTheme';
@@ -41,7 +43,10 @@ export const PresentPacedReview: React.FC<PresentPacedReviewProps> = ({
   const { totalAnswered, rows } = buildDistribution(
     question,
     responses,
-    gradeAnswer
+    gradeAnswer,
+    isCalcQuestion(question)
+      ? (r, a) => gradeAnswer(questionForResponse(question, r), a).isCorrect
+      : undefined
   );
 
   const questionAndBars = (
