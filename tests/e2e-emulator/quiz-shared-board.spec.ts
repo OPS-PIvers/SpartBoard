@@ -457,7 +457,7 @@ test('Assign on a synced board writes nothing to the board or the colleague', as
 
 const UNAVAILABLE = `"${QUIZ}" isn't available on this board yet`;
 const UNAVAILABLE_HINT =
-  'It shows up here after the teacher who owns it next opens this board.';
+  'It should appear here after the teacher who owns it next opens this board.';
 
 test('a colleague’s quiz that was never published to the board says so instead of showing the viewer’s library', async ({
   page,

@@ -77,7 +77,7 @@ export const SharedBoardQuizUnavailable: React.FC<{
     <ScaledEmptyState
       icon={Hourglass}
       title={`${title ? `"${title}"` : 'This quiz'} isn't available on this board yet`}
-      subtitle={`It shows up here after ${ownerName ?? 'the teacher who owns it'} next opens this board.`}
+      subtitle={`It should appear here after ${ownerName ?? 'the teacher who owns it'} next opens this board.`}
       iconClassName="text-brand-blue-primary"
       titleClassName="text-brand-blue-primary"
       subtitleClassName="text-slate-600"

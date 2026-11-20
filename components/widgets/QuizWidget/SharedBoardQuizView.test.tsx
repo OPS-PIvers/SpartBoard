@@ -36,7 +36,7 @@ describe('SharedBoardQuizUnavailable', () => {
     ).toBeTruthy();
     expect(
       screen.getByText(
-        'It shows up here after Ms. Rivera next opens this board.'
+        'It should appear here after Ms. Rivera next opens this board.'
       )
     ).toBeTruthy();
   });
@@ -56,7 +56,7 @@ describe('SharedBoardQuizUnavailable', () => {
     ).toBeTruthy();
     expect(
       screen.getByText(
-        'It shows up here after the teacher who owns it next opens this board.'
+        'It should appear here after the teacher who owns it next opens this board.'
       )
     ).toBeTruthy();
   });
