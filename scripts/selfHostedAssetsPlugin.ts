@@ -44,6 +44,7 @@ interface ImglyManifest {
   resources: Record<string, { chunks: ImglyChunk[]; [k: string]: unknown }>;
 }
 
+// The manifest is copied verbatim from upstream, including its 'application/octet-steam' mime typo.
 function loadImglyManifest(): ImglyManifest {
   const manifest = JSON.parse(
     fs.readFileSync(
