@@ -787,6 +787,11 @@
 | 2026-11-19 | State & Data | Clean. Read poll/mini-app/live session hooks, autosave, idle timeout, date utils; every backlog lead was stale, intentional or unreachable. Did not read `DashboardContext`, `AuthContext`, `PlcContext` in depth. |
 | 2026-11-19 | Admin & Config | Clean. Read config pure logic (buildings, tours, AI models/limits), admin analytics/access hooks and panels; en vs de/es/fr placeholder diff found no drift. |
 | 2026-11-19 | Build & Tooling | `decodeHtmlEntities` (page import, link previews) left `&nbsp;`, `&rsquo;`, `&mdash;` etc. literal and let `&#0;`/surrogate refs through. Added named-entity table and code-point validation. Test fails before, passes after. PR: [#6264](https://github.com/ops-pivers/spartboard/pull/6264) |
+| 2026-11-20 | Widgets | Webcam `useDocCamView` unmount cleanup cleared the 400 ms debounced wheel/pinch zoom save without sending it, so closing the widget just after a zoom lost it. Cleanup now flushes the pending save from `viewRef`. Test fails before, passes after. PR: [#6429](https://github.com/ops-pivers/spartboard/pull/6429) |
+| 2026-11-20 | Dashboard & Layout | `buildFolderIndex` never reached folders in a parent cycle (or self-parent), so they and their items vanished from every library folder view. Now hoists one member per cycle to the top level. Test fails before, passes after. PR: [#6430](https://github.com/ops-pivers/spartboard/pull/6430) |
+| 2026-11-20 | State & Data | `AuthContext` four 1 s debounced profile saves (pen colors, materials prefs, widget defaults, presets) were dropped when sign-out landed inside the window. One `scheduleDebouncedWrite` map; `signOut` flushes it (3 s cap) first. Test fails before, passes after. PR: [#6431](https://github.com/ops-pivers/spartboard/pull/6431) |
+| 2026-11-20 | Admin & Config | `FeaturePermissionsManager.savePermission(widget, updates)` merged state without marking the widget unsaved, so a failed Quiz modal save looked saved with Save disabled. Now marks it unsaved. Test fails before, passes after. PR: [#6432](https://github.com/ops-pivers/spartboard/pull/6432) |
+| 2026-11-20 | Build & Tooling | Perf: `rosterBuildingGroup` vetted candidate staff serially (Auth + 1-2 Firestore reads each). Now chunks of 10 via `Promise.all`, order kept. Test asserts peak concurrency; fails before, passes after. PR: [#6433](https://github.com/ops-pivers/spartboard/pull/6433) |
 
 ## Backlog
 
@@ -1289,6 +1294,11 @@
 | State & Data | `useSeatedPeriodContent` `setTimeout(delay + 1000)` has no clamp to 2^31-1 ms (hardening); `dueReminders`, `importMissing`, `useFolderTree`, `rubricCsv` leads are stale (already fixed) | 2026-11-19 | open |
 | Admin & Config | ~~`aiModels.ts` Gemini 4 Carbon/Argon prices lack a post-2026-11-30 `priceChange`~~ (fixed: both retired, $4/$20 from 2026-12-01 kept for past usage); `previewStatus` "Live for: everyone" ignores `minTier` (cosmetic) | 2026-11-19 | open (needs Paul) |
 | Build & Tooling | `extension/src/schoology/fetchRead.ts` `readItemBankFromSchoology` `breadcrumbs.map` throws on non-array/null entries (low); `scripts/checkRulesSize.mjs` reads `sourceCompiled` before its `const` (harmless) | 2026-11-19 | open |
+| Widgets | `random/groupMaker.ts` `makeRestrictedGroupsByCount` fallback `pool.sort` reorders the output groups (cosmetic); `LunchCount` `formatTeacherName` `first[0]` splits an astral char (rare) | 2026-11-20 | open |
+| Dashboard & Layout | `folderPath` follows raw `parentId`, so a hoisted cycle member's breadcrumb shows its partner; `useBoardsModalDnd.handleDragEnd` reorders orphan collections via the dangling `parentOf` (read-only finding) | 2026-11-20 | open |
+| State & Data | Debounced profile writes are still unflushed on tab close/`pagehide` (sign-out is fixed) | 2026-11-20 | open |
+| Admin & Config | `FeaturePermissionsManager.savePermission` lacks an in-flight counter (overlapping saves clear `saving` early; see `useGlobalPermissionsEditor.inFlightRef`); `useSpeechToTextMonthlyUsage` computes the month id once at mount; `withoutProtectedMembers` is O(N*M) | 2026-11-20 | open |
+| Build & Tooling | `groupReminderEmails.dueEmailAlerts` alert with time minus lead below 0 fires at 00:00 and uses the current weekday; `sanitize.sanitizePrompt` only collapses `\r\n` (tabs, U+2028/2029/0085 pass); `applyProfileBuildingsChange` awaits `addToGroup`/`removeFromGroup` serially per group | 2026-11-20 | open |
 
 ## Notes & Gotchas
 
@@ -1771,3 +1781,6 @@
 - 2026-11-19: three fixes (#6262-#6264), State & Data and Admin clean. Subagents ran scoped checks only; I swapped each source file back to `origin/dev-paul` to confirm every new test fails before and passes after, then ran one merged-tree `validate` + `build` (green). `dev-paul` did not move. Baseline about 1 h, gate about 1 h. The Stop hook keeps asking to push the session branch; it holds only `dev-paul` history, so ignore it.
 
 - Run count: **128** | Last run: **2026-11-19**
+- 2026-11-20: five fixes (#6429-#6433), no area clean. Subagents ran scoped checks only; I swapped each source file back to `origin/dev-paul` to confirm every new test fails before and passes after, then ran one merged-tree `validate` + `build` (green) in a detached worktree with five merged branches. `dev-paul` gained two disjoint Quiz commits mid-run, so no rebase was needed. Baseline about 1 h, gate about 1 h. The Stop hook keeps asking to push the session branch; it holds only `dev-paul` history, so ignore it.
+
+- Run count: **129** | Last run: **2026-11-20**
