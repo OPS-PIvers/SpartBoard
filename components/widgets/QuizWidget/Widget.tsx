@@ -5026,6 +5026,8 @@ const TeacherQuizWidget: React.FC<{
             );
             return;
           }
+          // Only a paused assignment that was opened before is a resume; a first start stays silent.
+          if (a.openedAt != null) addToast('Assignment resumed.', 'success');
           updateWidget(
             widget.id,
             {

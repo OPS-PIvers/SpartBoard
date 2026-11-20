@@ -62,7 +62,7 @@ const toastTexts = async (page: Page): Promise<string[]> =>
     .map((text) => text.trim())
     .filter(Boolean);
 
-// Start and End add no toast today; any toast showing after them must already have been there.
+// End adds no toast today; any toast showing after them must already have been there.
 const expectNoNewToast = async (
   page: Page,
   before: string[]
@@ -242,10 +242,9 @@ test('a teacher starts a teacher-paced review, runs it and closes it', async ({
   });
 
   await test.step('start it from the row and run the first question', async () => {
-    const before = await toastTexts(page);
     await panel.getByRole('button', { name: 'Start', exact: true }).click();
+    await expectToast(page, 'Assignment resumed.');
     await expect(widget.getByText('Live', { exact: true })).toBeVisible();
-    await expectNoNewToast(page, before);
     await expect(widget.getByText('Ready to start')).toBeVisible();
     await expect(widget.getByText('0 students have joined.')).toBeVisible();
     await widget.getByRole('button', { name: 'Start quiz session' }).click();
