@@ -27,6 +27,10 @@ import { isAiTeacherCaller } from './aiCallerGate';
 import { assertViewAsAllowed } from './viewAsGuard';
 import { assertNotDistrictGroup } from './districtLibraryGuard';
 import { assertShareAuthorInGroup } from './plcSyncJoinGuards';
+import {
+  findLeaverPlcHeaders,
+  writeLeaverHeaderMarkers,
+} from './plcHeaderDetachMarkers';
 
 // Guard so this module can be loaded standalone in tests/tooling without
 // double-initializing when index.ts already ran initializeApp().
@@ -160,11 +164,15 @@ export async function handleLeaveSyncedQuizGroup(
       { participants?: Record<string, SyncedParticipant> } | undefined;
     const participants = { ...(groupData?.participants ?? {}) };
     if (Object.prototype.hasOwnProperty.call(participants, uid)) {
+      // Participant checked above in this transaction, so a non-member leave can't mint markers.
+      const headers = await findLeaverPlcHeaders(db, tx, 'quiz', uid, groupId);
+      const now = Date.now();
       delete participants[uid];
       tx.update(groupRef, {
         participants,
-        updatedAt: Date.now(),
+        updatedAt: now,
       });
+      writeLeaverHeaderMarkers(tx, groupRef, uid, headers, now);
     }
     return { remainingParticipants: Object.keys(participants).length };
   });

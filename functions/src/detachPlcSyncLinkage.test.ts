@@ -82,6 +82,9 @@ function makeDb(state: StubState, kind: PlcSyncLinkageKind) {
   });
 
   const get = (ref: { __path: string }): Promise<DocSnap> => {
+    if (ref.__path === '__query') {
+      return Promise.resolve({ docs: [] } as unknown as DocSnap);
+    }
     if (
       ref.__path.startsWith('plcs/') &&
       !ref.__path.includes(`/${headerColl}/`)
@@ -108,6 +111,10 @@ function makeDb(state: StubState, kind: PlcSyncLinkageKind) {
 
   return {
     collection: (name: string) => collectionRef(name),
+    collectionGroup: () => {
+      const q = { __path: '__query', where: () => q };
+      return q;
+    },
     runTransaction: async <T>(
       fn: (tx: {
         get: (ref: { __path: string }) => Promise<DocSnap>;

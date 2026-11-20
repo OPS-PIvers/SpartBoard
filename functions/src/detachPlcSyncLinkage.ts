@@ -33,6 +33,10 @@ import * as admin from './firebaseAdmin';
 import './functionsInit';
 import { assertViewAsAllowed } from './viewAsGuard';
 import { PLC_DETACHED_SUBCOLLECTION } from './plcSyncJoinGuards';
+import {
+  findLeaverPlcHeaders,
+  writeLeaverHeaderMarkers,
+} from './plcHeaderDetachMarkers';
 
 export type PlcSyncLinkageKind = 'quiz' | 'video-activity';
 
@@ -142,7 +146,9 @@ export async function handleDetachPlcSyncLinkage(
       uid
     );
     if (wasParticipant) {
+      const headers = await findLeaverPlcHeaders(db, tx, kind, uid, groupId);
       delete participants[uid];
+      writeLeaverHeaderMarkers(tx, groupRef, uid, headers, Date.now());
       tx.update(groupRef, {
         participants,
         // updatedAt tracks any server-side touch; updatedBy is intentionally
