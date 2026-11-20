@@ -31,6 +31,7 @@ import {
   type TaskPayload,
   type TaskSource,
 } from './googleTasksCore';
+import { safeErr } from './safeLog';
 
 const TASKS_API = 'https://tasks.googleapis.com/tasks/v1';
 const API_TIMEOUT_MS = 10_000;
@@ -451,7 +452,12 @@ export async function syncParentWrite(args: {
         await disconnect(uid, 'missing-scope');
         continue;
       }
-      logger.error('[googleTasks] push failed', { uid, plcId, parentId, err });
+      logger.error('[googleTasks] push failed', {
+        uid,
+        plcId,
+        parentId,
+        err: safeErr(err),
+      });
     }
   }
 }
@@ -595,7 +601,10 @@ export const setGoogleTasksSyncV1 = onCall(
       await ensureList(session);
       await backfill(session);
     } catch (err) {
-      logger.error('[googleTasks] connect backfill failed', { uid, err });
+      logger.error('[googleTasks] connect backfill failed', {
+        uid,
+        err: safeErr(err),
+      });
       if (err instanceof TasksAuthError) {
         await disconnect(uid, 'missing-scope');
         throw new HttpsError(
@@ -680,7 +689,7 @@ export const pullGoogleTasksStatusV1 = onCall(
         await disconnect(uid, 'missing-scope');
         return { changes: [] };
       }
-      logger.error('[googleTasks] pull failed', { uid, err });
+      logger.error('[googleTasks] pull failed', { uid, err: safeErr(err) });
       throw new HttpsError('internal', 'Could not reach Google Tasks.');
     }
 

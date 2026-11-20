@@ -6,6 +6,7 @@
 
 import { signToolJwt } from './toolKey';
 import { OPAQUE_REDIRECT_TYPE } from './config';
+import { safeErr } from '../safeLog';
 
 const ASSERTION_TYPE = 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer';
 const NET_TIMEOUT_MS = 15000;
@@ -195,7 +196,7 @@ export async function postScore(opts: {
     // Network failure / timeout / abort — log so a burst of status:0 results
     // in Cloud Functions logs has a traceable cause. Mirrors nrps.ts's
     // fetchMembershipPage catch block.
-    console.warn('[ags] postScore failed (network/timeout):', err);
+    console.warn('[ags] postScore failed (network/timeout):', safeErr(err));
     return { ok: false, status: 0, isRedirect: false };
   }
 }

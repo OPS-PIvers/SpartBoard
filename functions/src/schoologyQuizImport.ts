@@ -15,6 +15,7 @@ import {
   type TokenInfo,
 } from './extensionAuth';
 import { trustedUidForEmail } from './trustedSignIn';
+import { safeErr } from './safeLog';
 
 type Firestore = admin.firestore.Firestore;
 
@@ -508,7 +509,7 @@ const importerEndpoint = (handler: Handler, memory: '256MiB' | '1GiB') =>
           res.status(error.status).json({ error: error.message });
           return;
         }
-        console.error('[schoologyQuizImport] failed:', error);
+        console.error('[schoologyQuizImport] failed:', safeErr(error));
         res.status(500).json({ error: 'Something went wrong.' });
       }
     }

@@ -65,6 +65,7 @@ import {
   type ImportVideoLesson,
   type ImportVideoStop,
 } from './import/shared.gen';
+import { safeErr } from './safeLog';
 
 type Firestore = admin.firestore.Firestore;
 
@@ -622,7 +623,7 @@ export async function receiveSend(
         now + IMPORT_READER_FAILURE_TTL_MS
       )
       .catch((error: unknown) =>
-        console.error('[importInbox] failure log write failed', error)
+        console.error('[importInbox] failure log write failed', safeErr(error))
       );
   return { id, blocks: send.blocks.length, images: images.length };
 }
@@ -726,7 +727,7 @@ const importerEndpoint = (handler: Handler) =>
           res.status(error.status).json({ error: error.message });
           return;
         }
-        console.error('[importInbox] failed:', error);
+        console.error('[importInbox] failed:', safeErr(error));
         res.status(500).json({ error: 'Something went wrong.' });
       }
     }

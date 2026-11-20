@@ -64,6 +64,7 @@ import './functionsInit';
 import { withQuizSessionContent } from './quizSessionContent';
 import { assertViewAsAllowed } from './viewAsGuard';
 import { canonicalizeBuildingIdsServer } from './buildingIds';
+import { safeErr } from './safeLog';
 
 const GOOGLE_OAUTH_CLIENT_SECRET = defineSecret('GOOGLE_OAUTH_CLIENT_SECRET');
 const GOOGLE_OAUTH_REFRESH_TOKEN_KEY = defineSecret(
@@ -1543,7 +1544,7 @@ async function discardArchivedCopy(
     console.error(
       '[quizMediaArchive] orphaned Drive copy after delete race',
       artifactId,
-      error
+      safeErr(error)
     );
   }
   let storagePending = false;
@@ -1555,7 +1556,7 @@ async function discardArchivedCopy(
       console.error(
         '[quizMediaArchive] orphaned transit object after delete race',
         artifactId,
-        error
+        safeErr(error)
       );
     }
   }

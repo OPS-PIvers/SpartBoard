@@ -6,6 +6,7 @@ import * as admin from './firebaseAdmin';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import './functionsInit';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { safeErr } from './safeLog';
 
 export const GL_BUILDING_COLLECTION = 'building_guided_learning';
 export const GL_BUILDING_INDEX_COLLECTION = 'building_guided_learning_index';
@@ -183,7 +184,10 @@ export async function rebuildGlBuildingIndex(
   const ops: Promise<void>[] = [];
   const onFail = (id: string) => (err: unknown) => {
     failed++;
-    logger.warn('[glBuildingIndex] backfill write failed', { id, err });
+    logger.warn('[glBuildingIndex] backfill write failed', {
+      id,
+      err: safeErr(err),
+    });
   };
   let cursor: admin.firestore.QueryDocumentSnapshot | undefined;
   for (;;) {

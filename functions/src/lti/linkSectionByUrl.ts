@@ -35,6 +35,7 @@ import { classroomAddonNet } from '../classroomAddonAuth';
 import { loadTestClassMembership } from '../studentAssignmentTargets';
 import { assertViewAsAllowed } from '../viewAsGuard';
 import { isDistrictTeacher } from './teacherAuth';
+import { safeErr } from '../safeLog';
 
 export { isActiveInstructor };
 
@@ -176,7 +177,7 @@ async function overlapByClass(
         } catch (err) {
           console.warn(
             `[ltiLinkByUrl] OneRoster fetch failed for class ${classId}:`,
-            err
+            safeErr(err)
           );
         }
       })
@@ -330,7 +331,7 @@ export const ltiLinkSectionByUrlV1 = onCall(
         token
       ));
     } catch (err) {
-      console.warn('[ltiLinkByUrl] NRPS read failed:', err);
+      console.warn('[ltiLinkByUrl] NRPS read failed:', safeErr(err));
       throw new HttpsError(
         'failed-precondition',
         'Couldn’t read that Schoology course. Check the link and try again.'

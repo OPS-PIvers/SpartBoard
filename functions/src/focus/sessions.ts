@@ -44,6 +44,7 @@ import {
   focusWindowEndsAt,
   parseFocusWindow,
 } from './window';
+import { safeErr } from '../safeLog';
 
 type Firestore = admin.firestore.Firestore;
 type DocRef = admin.firestore.DocumentReference;
@@ -833,7 +834,7 @@ export async function sweepFocusSessions(
       ended += 1;
     } catch (err) {
       failed += 1;
-      console.error('[focusSweep] end failed', doc.id, err);
+      console.error('[focusSweep] end failed', doc.id, safeErr(err));
     }
   }
   const recent = await sessionsCol(db)
@@ -853,7 +854,7 @@ export async function sweepFocusSessions(
       );
     } catch (err) {
       failed += 1;
-      console.error('[focusSweep] finishing end failed', doc.id, err);
+      console.error('[focusSweep] finishing end failed', doc.id, safeErr(err));
     }
   }
   if (wake && toWake.size > 0) await wake([...toWake]);

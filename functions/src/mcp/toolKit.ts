@@ -4,6 +4,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { PAGE_SIZE } from './config';
 import { ToolError, type ToolContext } from './activity';
+import { safeErr } from '../safeLog';
 
 export const json = (value: unknown): CallToolResult => ({
   content: [{ type: 'text', text: JSON.stringify(value, null, 2) }],
@@ -165,7 +166,10 @@ export async function run(
     if (err instanceof ToolError) {
       return { isError: true, content: [{ type: 'text', text: err.message }] };
     }
-    console.error(`[mcpServer] ${name} failed`, { uid: ctx.uid, err });
+    console.error(`[mcpServer] ${name} failed`, {
+      uid: ctx.uid,
+      err: safeErr(err),
+    });
     return {
       isError: true,
       content: [

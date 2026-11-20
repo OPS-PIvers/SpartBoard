@@ -22,6 +22,7 @@ import {
   resolveAndValidateHost,
   type ResolvedAddress,
 } from './ssrfGuard';
+import { safeErr } from './safeLog';
 
 // Nutrislice answers 403 to axios's default User-Agent from Cloud Functions IPs.
 const BROWSER_USER_AGENT =
@@ -85,7 +86,7 @@ export const fetchExternalProxy = onCall(
       });
       return response.data;
     } catch (error: unknown) {
-      console.error('External Proxy Error:', error);
+      console.error('External Proxy Error:', safeErr(error));
       // Translate axios's size-limit message into an explicit
       // resource-exhausted HttpsError so the client can distinguish "the
       // upstream is too chatty" from a generic network blip. Gating on
@@ -199,7 +200,7 @@ export const checkUrlCompatibility = onCall(
         );
       }
       // A DNS miss is an unreachable site, not an SSRF attempt.
-      console.error('Compatibility Check DNS Error:', error);
+      console.error('Compatibility Check DNS Error:', safeErr(error));
       return {
         isEmbeddable: false,
         error: message || 'Failed to check site',
@@ -252,7 +253,7 @@ export const checkUrlCompatibility = onCall(
         },
       };
     } catch (error: unknown) {
-      console.error('Compatibility Check Error:', error);
+      console.error('Compatibility Check Error:', safeErr(error));
       // Fail closed: a HEAD the site refused tells us nothing, so never report it as verified.
       return {
         isEmbeddable: false,

@@ -12,6 +12,7 @@ import {
 } from './quizStore';
 import { rubricMaxPoints, type Rubric } from './rubricShape';
 import { run } from './toolKit';
+import { safeErr } from '../safeLog';
 
 /** Bump the suffix when the page changes shape, so Claude never pairs new data with a cached old page. */
 export const PREVIEW_URI = 'ui://spartboard/preview-v2';
@@ -57,7 +58,9 @@ export async function cardHtml(
     cardCache = { origin, html, at: now };
     return html;
   } catch (err) {
-    console.error('[mcpServer] preview card page failed to load', { err });
+    console.error('[mcpServer] preview card page failed to load', {
+      err: safeErr(err),
+    });
     return FALLBACK_HTML;
   }
 }

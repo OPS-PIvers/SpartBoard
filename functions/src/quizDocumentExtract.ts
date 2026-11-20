@@ -21,6 +21,7 @@ import './functionsInit';
 import { ANTHROPIC_API_KEY } from './secrets';
 import { assertViewAsAllowed } from './viewAsGuard';
 import { assertAiTeacherCaller } from './aiCallerGate';
+import { safeErr } from './safeLog';
 
 export const QUIZ_DOCUMENT_IMPORT_FEATURE_ID = 'quiz-document-import';
 export const GEMINI_FEATURE_ID = 'gemini-functions';
@@ -1050,14 +1051,17 @@ async function runCall(
   try {
     outcome = await withDeadline(work(), ms);
   } catch (err) {
-    console.error(`[quizDocumentExtract] ${what} failed`, err);
+    console.error(`[quizDocumentExtract] ${what} failed`, safeErr(err));
     throw new HttpsError('unavailable', 'Reading the document failed.');
   }
   if (outcome.timedOut) throw new HttpsError('deadline-exceeded', TOO_LONG);
   try {
     return parseGeminiJson<Record<string, unknown>>(outcome.value);
   } catch (err) {
-    console.error(`[quizDocumentExtract] ${what}: unparseable response`, err);
+    console.error(
+      `[quizDocumentExtract] ${what}: unparseable response`,
+      safeErr(err)
+    );
     throw new HttpsError('unavailable', 'Reading the document failed.');
   }
 }
@@ -1257,7 +1261,7 @@ export async function extractQuizFromDocument(
     try {
       pageCount = await deps.pdfPageCount(request.bytes);
     } catch (err) {
-      console.warn('[quizDocumentExtract] page count failed', err);
+      console.warn('[quizDocumentExtract] page count failed', safeErr(err));
       throw new HttpsError(
         'invalid-argument',
         'That PDF could not be opened. It may be password protected.'
