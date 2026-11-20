@@ -77,6 +77,7 @@ export const RETIRED_TOUR_FEATURES: readonly string[] = [
   'video-activity-editor-arrows',
   'video-activity-stops',
   'widget-connections',
+  'widget-settings-defaults',
   'youtube-paste-picker',
 ];
 

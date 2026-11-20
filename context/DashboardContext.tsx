@@ -7284,31 +7284,24 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // The building layer for a new widget, with the teacher's timer length and, for a plain add, their saved settings over it.
   const timerStartSeconds = timeToolStartSeconds ?? 0;
-  const settingsDefaultsOn = !!canAccessFeature?.('widget-settings-defaults');
   const getNewWidgetBaseConfig = useCallback(
     (
       type: WidgetType,
       withMyDefault = false
     ): Record<string, unknown> | undefined => {
       const building = getAdminBuildingConfig(type);
-      const mine =
-        withMyDefault && settingsDefaultsOn
-          ? cleanSavedSettingsDefault(
-              type,
-              readSavedSettingsDefault(savedWidgetPresets, type)
-            )
-          : undefined;
+      const mine = withMyDefault
+        ? cleanSavedSettingsDefault(
+            type,
+            readSavedSettingsDefault(savedWidgetPresets, type)
+          )
+        : undefined;
       const layer = mine ? { ...building, ...mine } : building;
       return type === 'time-tool'
         ? fitTimeToolClock(withTimerStartSeconds(layer, timerStartSeconds))
         : layer;
     },
-    [
-      getAdminBuildingConfig,
-      timerStartSeconds,
-      settingsDefaultsOn,
-      savedWidgetPresets,
-    ]
+    [getAdminBuildingConfig, timerStartSeconds, savedWidgetPresets]
   );
 
   // Board-level undo/redo of widget mutations, keyed by dashboard id.
