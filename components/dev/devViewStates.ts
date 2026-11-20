@@ -80,6 +80,8 @@ export const STUDENT_QUIZ_STATES = [
   'sq-timed',
   'sq-last-minute',
   'sq-stimuli',
+  'sq-vocab',
+  'sq-vocab-drag',
   'sq-calculator',
   'sq-picture',
   'sq-pictures',

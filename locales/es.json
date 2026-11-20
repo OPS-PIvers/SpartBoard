@@ -2228,7 +2228,8 @@
     "allPlaced": "Todas las palabras colocadas.",
     "picked": "{{word}} seleccionada. Elige un espacio.",
     "placed": "{{word}} colocada en {{blank}}.",
-    "returned": "{{word}} devuelta al banco de palabras."
+    "returned": "{{word}} devuelta al banco de palabras.",
+    "tapToFill": "Toca una opción para añadirla a tu respuesta."
   },
   "quizLiveView": {
     "banner": "Tu maestro está viendo tu prueba",

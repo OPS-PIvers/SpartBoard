@@ -3909,6 +3909,11 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-stimuli.add-word-bank': {
+    label: 'Add a word bank in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-stimuli.add-passage': {
     label: 'Add a passage in the Quiz widget',
     perWidgetType: true,
@@ -3977,6 +3982,16 @@ export const TOUR_ANCHORS = {
   },
   'quiz-stimuli.passage-text': {
     label: 'Passage textarea in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-stimuli.word-bank-columns': {
+    label: 'Word bank Columns in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-stimuli.word-bank-text': {
+    label: 'Word bank textarea in the Quiz widget',
     perField: true,
     panel: true,
   },

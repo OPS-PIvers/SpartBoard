@@ -25,6 +25,7 @@ import {
   Trash2,
   Upload,
   Volume2,
+  ListPlus,
 } from 'lucide-react';
 import type { QuizStimulus, QuizStimulusType } from '@/types';
 import {
@@ -105,6 +106,7 @@ const TYPE_BADGE: Record<QuizStimulusType, string> = {
   youtube: 'bg-rose-100 text-rose-700',
   'gdoc-embed': 'bg-indigo-100 text-indigo-700',
   text: 'bg-slate-200 text-slate-700',
+  'word-bank': 'bg-sky-100 text-sky-800',
   calculator: 'bg-teal-100 text-teal-700',
 };
 
@@ -318,6 +320,18 @@ function useStimulusIntake(state: StimulusListState) {
     return stimulus;
   }, [state]);
 
+  const addWordBank = useCallback((): QuizStimulus => {
+    const stimulus: QuizStimulus = {
+      id: crypto.randomUUID(),
+      type: 'word-bank',
+      url: '',
+      text: '',
+      label: 'Word bank',
+    };
+    state.addStimulus(stimulus);
+    return stimulus;
+  }, [state]);
+
   const addCalculator = useCallback((): QuizStimulus => {
     const stimulus: QuizStimulus = {
       id: crypto.randomUUID(),
@@ -335,6 +349,7 @@ function useStimulusIntake(state: StimulusListState) {
     addFromUrl,
     addFromDrive,
     addPassage,
+    addWordBank,
     addCalculator,
     busy,
   };
@@ -408,12 +423,15 @@ export const StimulusManagerPanel: React.FC<{
   readAloudAvailable?: boolean;
   /** `quiz-calculator-stimulus` gate. */
   calculatorAvailable?: boolean;
+  /** `quiz-word-bank` gate. */
+  wordBankAvailable?: boolean;
   /** Widget type the panel's tour anchors are scoped to. */
   tourWidgetType?: SharedEditorTourType;
 }> = ({
   state,
   readAloudAvailable = false,
   calculatorAvailable = false,
+  wordBankAvailable = false,
   tourWidgetType = 'quiz',
 }) => {
   const { stimuli } = state;
@@ -452,7 +470,7 @@ export const StimulusManagerPanel: React.FC<{
               <FileSourceButtons intake={intake} />
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               type="button"
               onClick={() => intake.addPassage()}
@@ -463,6 +481,18 @@ export const StimulusManagerPanel: React.FC<{
               <FileText className="w-4 h-4" />
               Add a passage
             </button>
+            {wordBankAvailable && (
+              <button
+                type="button"
+                onClick={() => intake.addWordBank()}
+                {...tourTypeAttr('quiz-stimuli.add-word-bank', 'quiz')}
+                disabled={intake.busy}
+                className="shrink-0 flex items-center gap-2 px-3 py-2 bg-white border-2 border-slate-300 hover:border-brand-blue-primary/50 disabled:opacity-40 rounded-lg text-sm font-bold text-slate-700"
+              >
+                <ListPlus className="w-4 h-4" />
+                Add a word bank
+              </button>
+            )}
             {calculatorAvailable && (
               <button
                 type="button"
@@ -475,7 +505,7 @@ export const StimulusManagerPanel: React.FC<{
                 Add a calculator
               </button>
             )}
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-[18rem]">
               <UrlAddRow
                 onAdd={intake.addFromUrl}
                 busy={intake.busy}
@@ -772,6 +802,61 @@ const StimulusCard: React.FC<{
                 placeholder="Paste or type the passage students will read."
                 className="w-full px-2.5 py-2 border-2 border-slate-200 rounded-lg text-sm text-slate-800 focus:outline-hidden focus:border-brand-blue-primary/50"
               />
+            </div>
+          ) : s.type === 'word-bank' ? (
+            <div>
+              <label className={labelClass} htmlFor={`wordbank-${s.id}`}>
+                Word bank
+              </label>
+              <textarea
+                id={`wordbank-${s.id}`}
+                {...tourFieldAttr(
+                  'quiz-stimuli.word-bank-text',
+                  tourType,
+                  String(index)
+                )}
+                value={s.text ?? ''}
+                onChange={(e) => updateStimulus(s.id, { text: e.target.value })}
+                rows={10}
+                placeholder="Put each word or phrase on its own line."
+                className="w-full px-2.5 py-2 border-2 border-slate-200 rounded-lg text-sm text-slate-800 focus:outline-hidden focus:border-brand-blue-primary/50"
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                Each line is one choice. Students tap a choice to add it to
+                their answer.
+              </p>
+              <div className="mt-3 flex items-center gap-3">
+                <span className={`${labelClass} mb-0`}>Columns</span>
+                <div
+                  role="radiogroup"
+                  aria-label="Columns"
+                  {...tourFieldAttr(
+                    'quiz-stimuli.word-bank-columns',
+                    tourType,
+                    String(index)
+                  )}
+                  className="inline-flex rounded-lg border border-slate-300 overflow-hidden"
+                >
+                  {([1, 2, 3] as const).map((n) => {
+                    const on = (s.wordBankColumns ?? 1) === n;
+                    return (
+                      <button
+                        // no-tour-anchor: the group carries quiz-stimuli.word-bank-columns
+                        key={n}
+                        type="button"
+                        role="radio"
+                        aria-checked={on}
+                        onClick={() =>
+                          updateStimulus(s.id, { wordBankColumns: n })
+                        }
+                        className={`min-w-[44px] px-3 py-1.5 text-sm font-bold border-l border-slate-300 first:border-l-0 ${on ? 'bg-brand-blue-primary text-white' : 'bg-white text-slate-700 hover:bg-slate-50'}`}
+                      >
+                        {n}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           ) : s.type === 'calculator' ? null : (
             <p className="text-xs text-slate-500 break-all">
