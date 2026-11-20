@@ -268,7 +268,9 @@ describe('projectRow roster check', () => {
       'admin_settings/gradebook_index': { enabled: true },
     });
     vi.mocked(admin.firestore).mockReturnValue(stub.db as never);
-    __setClassEnrollmentCheck(() => Promise.reject(new Error('internal')));
+    __setClassEnrollmentCheck(() =>
+      Promise.reject(new Error('Server configuration missing.'))
+    );
     const event = {
       params: { rowId: 'quiz__qs1__u1' },
       time: new Date().toISOString(),
@@ -277,9 +279,9 @@ describe('projectRow roster check', () => {
         after: { exists: true, data: () => row() as unknown as StubData },
       },
     };
-    await expect(handleRowWrite(event)).rejects.toBeInstanceOf(
-      RosterUnavailableError
-    );
+    const err = await handleRowWrite(event).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(RosterUnavailableError);
+    expect((err as Error).message).toContain('Server configuration missing.');
     expect(stub.has(PATH)).toBe(false);
   });
 });
