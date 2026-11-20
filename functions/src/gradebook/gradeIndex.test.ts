@@ -600,6 +600,32 @@ describe('recomputeSession and the dirty queue', () => {
     expect(midRun?.retryAt).toBeGreaterThan(Date.now());
   });
 
+  it('keeps a session re-dirtied mid-run queued without a failure backoff', async () => {
+    const stub = seed({ 'quiz_sessions/qs1/responses/u1': completed() });
+    const db = stub.db as unknown as { collection: (n: string) => unknown };
+    const collection = db.collection.bind(db);
+    let bumped = false;
+    db.collection = (name: string) => {
+      if (name === 'quiz_sessions' && !bumped) {
+        bumped = true;
+        stub.store.set('grade_index_sessions/quiz__qs1', {
+          ...stub.get('grade_index_sessions/quiz__qs1'),
+          dirtyAt: Date.now() + 1,
+        });
+      }
+      return collection(name);
+    };
+    const typed = stub.db as unknown as Db;
+    await markSessionDirty(typed, 'quiz', 'qs1', 1);
+    expect(await drainDirtySessions(typed)).toEqual({
+      recomputed: 1,
+      failed: 0,
+    });
+    const queued = stub.get('grade_index_sessions/quiz__qs1');
+    expect(queued?.failures).toBe(0);
+    expect(queued?.retryAt).toBeLessThanOrEqual(Date.now());
+  });
+
   it('keeps an existing backoff when the session is marked dirty again', async () => {
     const stub = seed();
     const db = stub.db as unknown as Db;

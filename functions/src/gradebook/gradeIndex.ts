@@ -867,8 +867,10 @@ export async function drainDirtySessions(
       recomputed++;
       await db.runTransaction(async (tx) => {
         const current = await tx.get(doc.ref);
-        if (current.exists && current.data()?.dirtyAt === claimedAt)
-          tx.delete(doc.ref);
+        if (!current.exists) return;
+        if (current.data()?.dirtyAt === claimedAt) tx.delete(doc.ref);
+        // Re-dirtied mid-run: the compute succeeded, so drop the claim's failure backoff.
+        else tx.update(doc.ref, { failures: 0, retryAt: Date.now() });
       });
     } catch (err) {
       failed++;
