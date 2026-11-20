@@ -55,7 +55,14 @@ import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { extractStimulusReadAloudText } from '@/utils/quizReadAloudApi';
 import type { QuizEditorController } from './useQuizEditorState';
-import { MetaChevron, MetaItem, metaValueClass } from './QuestionFields';
+import {
+  MetaChevron,
+  MetaItem,
+  PromptFooterToggle,
+  metaValueClass,
+} from './QuestionFields';
+import { createPortal } from 'react-dom';
+import { PromptFooterContext } from './questionFieldContexts';
 import { StimulusTabFields } from './StimulusTabFields';
 import { StimulusPickerModal } from './StimulusPickerModal';
 import { PICKER_ADD, initialPickerSelection } from './stimulusPickerSelection';
@@ -1116,6 +1123,7 @@ const AttachStimulusSection: React.FC<{
   );
   const [open, setOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const footer = React.useContext(PromptFooterContext);
   const fieldId = useId();
   const onPasted = useCallback(
     (files: File[]) => {
@@ -1354,6 +1362,35 @@ const AttachStimulusSection: React.FC<{
       onClose={() => setPickerOpen(false)}
     />
   );
+
+  if (footer) {
+    return (
+      <span
+        {...drop.dropProps}
+        data-testid="question-stimulus-drop-zone"
+        className={`rounded-sm ${drop.dragging ? 'bg-brand-blue-lighter' : ''}`}
+      >
+        <PromptFooterToggle
+          icon={FileText}
+          label="Stimuli"
+          value={drop.dragging || attachedCount > 0 ? summary : 'None'}
+          filled={attachedCount > 0}
+          open={pickerModal ? pickerOpen : open}
+          hasPopup={pickerModal}
+          onClick={() => (pickerModal ? openPicker() : setOpen((o) => !o))}
+          anchor={tourTypeAttr('quiz-stimuli.attach-toggle', 'quiz')}
+        />
+        {picker}
+        {!pickerModal &&
+          open &&
+          footer.stimuliSlot &&
+          createPortal(
+            <div className="space-y-2 pt-2">{panel}</div>,
+            footer.stimuliSlot
+          )}
+      </span>
+    );
+  }
 
   if (metaList && pickerModal) {
     return (
