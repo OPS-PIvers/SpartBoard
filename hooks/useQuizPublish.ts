@@ -105,18 +105,7 @@ export const useQuizPublish = ({
       if (!quiet) toast('Scores unpublished.', 'success');
       return true;
     }
-    // Publish = Push: if this assignment is linked to Google Classroom,
-    // pre-mint the final-grade token NOW (this click is a user gesture)
-    // so the GIS popup isn't blocked after publish's awaits. A dismissed
-    // popup leaves the token null → publish still proceeds, GC push is
-    // skipped. (Schoology pushes server-side and needs no token.)
-    // Only partner-first attachments (SpartBoard owns the courseWork)
-    // with the feature enabled are eligible for the FINAL push — this
-    // also keeps the restricted classroom.coursework.students scope
-    // request behind the flag.
-    // Eligible = partner-first attachments (SpartBoard owns the
-    // courseWork) with a valid scale, when the feature is on. One per
-    // linked course (multi-course fan-out).
+    // Mint the Classroom token now, in the click, so the popup is not blocked; a null token skips the push.
     const classroomFinalAttachments = canAssignToClassroom
       ? getClassroomAttachments(target).filter(
           (a) => a.ownsCourseWork && hasValidMaxPoints(a.maxPoints)
@@ -156,10 +145,7 @@ export const useQuizPublish = ({
           : 'Scores published. Students will see results once they submit.',
         'success'
       );
-    // Paper administrations have no class channel; pointers make
-    // the published result reachable from My Assignments (Q34).
-    // The grading pass counts paper rows too, covering imports
-    // that predate the assignment flag.
+    // Paper has no class channel, so pointers put the result in My Assignments.
     if (
       paperSheets.enabled &&
       (target.hasPaperResponses || result.paperResponses > 0)
@@ -239,8 +225,7 @@ export const useQuizPublish = ({
       pushSession?.sections ?? sessionSectionsFor(data),
       pushSession?.bankSlots
     );
-    // Chain the LMS grade push(es) — never throws (publish already
-    // committed; a push failure is its own toast).
+    // Never throws: publish already committed, a push failure gets its own toast.
     await runPublishGradePush<QuizResponse>({
       functions,
       addToast: toast,
@@ -284,14 +269,7 @@ export const useQuizPublish = ({
     return true;
   };
   const saveLastProtection = async (protection?: ResultsProtection) => {
-    // Persist the teacher's last protection choice so the next
-    // publish dialog opens pre-filled. Best-effort — this is a UI
-    // preference, not part of the publish contract. Kept out of the
-    // publish try/catch so a preference-save failure does NOT
-    // surface as "Failed to publish scores" (the publish already
-    // succeeded, and re-publishing on perceived failure would
-    // double the Firestore write cost on PLC-shared assignments
-    // with hundreds of responses).
+    // Best-effort and outside the publish try/catch, so a failed save never reads as a failed publish.
     if (protection) {
       try {
         await updateAppSettings({
@@ -374,8 +352,7 @@ export const useQuizPublish = ({
     if (ok > 0) await saveLastProtection(protection);
   };
   const onUnpublishScores = async (a: QuizAssignment) => {
-    // One-click unpublish — `unpublishAssignmentScores` is a
-    // cheap two-write batch (no Drive lookup, no grading).
+    // One click: a two-write batch, no Drive lookup or grading.
     try {
       await unpublishAssignmentScores(a.id);
       addToast('Scores unpublished.', 'success');
