@@ -87,7 +87,7 @@ export const StimulusPickerModal: React.FC<{
       }
     >
       <div className="flex h-[min(calc(90vh-9rem),640px)] flex-col sm:flex-row">
-        <div className="flex max-h-[50%] shrink-0 flex-col border-b border-slate-200 sm:max-h-none sm:w-80 sm:border-b-0 sm:border-r">
+        <div className="flex max-h-[50%] shrink-0 flex-col border-b border-slate-200 bg-slate-100 sm:max-h-none sm:w-80 sm:border-b-0 sm:border-r">
           <div className="flex items-baseline justify-between gap-2 px-4 pb-2 pt-3">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-600">
               In this quiz
@@ -96,7 +96,7 @@ export const StimulusPickerModal: React.FC<{
               {attachedCount} attached
             </span>
           </div>
-          <ul className="flex-1 overflow-y-auto custom-scrollbar divide-y divide-slate-100 border-t border-slate-100 pb-2">
+          <ul className="flex-1 overflow-y-auto custom-scrollbar divide-y divide-slate-200 border-t border-slate-200 pb-2">
             {stimuli.map((s, index) => {
               const attached = isAttached(s.id);
               const active = s.id === selectedId;
@@ -107,8 +107,8 @@ export const StimulusPickerModal: React.FC<{
                   key={s.id}
                   className={`flex items-stretch ${
                     active
-                      ? 'bg-brand-blue-lighter ring-2 ring-inset ring-brand-blue-primary'
-                      : 'hover:bg-slate-50'
+                      ? 'bg-white ring-2 ring-inset ring-brand-blue-primary'
+                      : 'hover:bg-slate-200/60'
                   }`}
                 >
                   <button
@@ -182,8 +182,8 @@ export const StimulusPickerModal: React.FC<{
             {...tourTypeAttr('quiz-stimuli.picker-add', 'quiz')}
             className={`flex w-full shrink-0 items-center gap-2 border-t border-slate-200 px-4 py-3 text-left text-sm font-semibold text-brand-blue-primary [-webkit-tap-highlight-color:transparent] ${
               selectedId === ADD
-                ? 'bg-brand-blue-lighter ring-2 ring-inset ring-brand-blue-primary'
-                : 'hover:bg-slate-50'
+                ? 'bg-white ring-2 ring-inset ring-brand-blue-primary'
+                : 'hover:bg-slate-200/60'
             }`}
           >
             <Plus className="h-4 w-4" aria-hidden />
@@ -204,25 +204,6 @@ export const StimulusPickerModal: React.FC<{
                     {usageText(selected.id)}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => onToggle(selected.id)}
-                  {...tourTypeAttr('quiz-stimuli.picker-attach', 'quiz')}
-                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
-                    isAttached(selected.id)
-                      ? 'border border-slate-300 text-slate-700 hover:bg-slate-50'
-                      : 'bg-brand-blue-primary text-white hover:bg-brand-blue-dark'
-                  }`}
-                >
-                  {isAttached(selected.id) ? (
-                    'Remove'
-                  ) : (
-                    <>
-                      <Plus className="h-4 w-4" aria-hidden />
-                      Add to {ownerLabel}
-                    </>
-                  )}
-                </button>
               </div>
               <div
                 data-testid="attach-stimulus-preview"

@@ -108,10 +108,6 @@ describe('stimulus picker dialog', () => {
     expect(
       within(dialog).getByTestId('attach-stimulus-preview')
     ).toHaveTextContent('plates meet');
-    await userEvent.click(
-      within(dialog).getByRole('button', { name: 'Add to Q1' })
-    );
-    expect(state.toggleStimulusOnQuestion).toHaveBeenLastCalledWith('p1', 'q1');
   });
 
   it('shows an empty passage without a preview', async () => {
