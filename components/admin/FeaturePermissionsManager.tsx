@@ -266,6 +266,8 @@ export const FeaturePermissionsManager: React.FC = () => {
       const permission = { ...getPermission(widgetType), ...(updates ?? {}) };
       if (updates) {
         setPermissions((prev) => new Map(prev).set(widgetType, permission));
+        // Stay unsaved until the write lands, so a failed save keeps its Save button.
+        setUnsavedChanges((prev) => new Set(prev).add(widgetType));
       }
 
       // Firestore rejects explicit `undefined` values; "no minimum tier"
