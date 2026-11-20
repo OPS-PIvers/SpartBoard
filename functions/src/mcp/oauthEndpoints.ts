@@ -141,6 +141,10 @@ export async function handleToken(
           'code, code_verifier and client_id are required'
         );
       }
+      // Verify first: a slow or failed CIMD fetch must not burn the code.
+      if (!(await verifyClientId(db, clientId))) {
+        throw new OAuthError('invalid_grant', 'Unknown client');
+      }
       const stored = await consumeAuthCode(db, code);
       if (!stored)
         throw new OAuthError('invalid_grant', 'Unknown or expired code');
@@ -155,9 +159,6 @@ export async function handleToken(
       }
       if (!pkceMatches(verifier, stored.codeChallenge)) {
         throw new OAuthError('invalid_grant', 'PKCE verification failed');
-      }
-      if (!(await verifyClientId(db, clientId))) {
-        throw new OAuthError('invalid_grant', 'Unknown client');
       }
       const tokens = await createGrant(db, {
         uid: stored.uid,
