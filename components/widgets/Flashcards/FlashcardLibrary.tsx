@@ -3,9 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { useVoiceFillProgress } from './speak/speakVoiceFill';
 import {
-  BarChart3,
   BookOpen,
-  EyeOff,
   FileUp,
   Layers,
   Loader2,
@@ -284,16 +282,9 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
     />
   );
 
-  // Today's row menu minus the class lifecycle items the Assigned row replaces (D6, D10).
+  // Whole-assignment items for an Assigned row; Results and sharing live elsewhere (R6, R8).
   const assignedMenu = (a: FlashcardAssignment): LibraryMenuAction[] => {
-    const items: LibraryMenuAction[] = [
-      {
-        id: 'results',
-        label: 'Results',
-        icon: BarChart3,
-        onClick: () => onAssignmentResults(a),
-      },
-    ];
+    const items: LibraryMenuAction[] = [];
     if (onAssignmentSettings)
       items.push({
         id: 'settings',
@@ -301,30 +292,14 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
         icon: SettingsIcon,
         onClick: () => onAssignmentSettings(a),
       });
-    const set = setsById.get(a.setId);
-    if (set)
-      items.push({
-        id: 'share',
-        label: 'Share',
-        icon: Share2,
-        onClick: () => onShare(set),
-      });
-    if (a.kind === 'check') {
-      const published = !!a.scoreVisibility && a.scoreVisibility !== 'none';
+    // The dialog's Unpublish replaces the separate item (R9).
+    if (a.kind === 'check')
       items.push({
         id: 'publish-scores',
-        label: published ? 'Update published scores' : 'Publish scores',
+        label: 'Publish scores',
         icon: Send,
         onClick: () => onAssignmentPublishScores(a),
       });
-      if (published)
-        items.push({
-          id: 'unpublish-scores',
-          label: 'Unpublish scores',
-          icon: EyeOff,
-          onClick: () => onAssignmentUnpublishScores(a),
-        });
-    }
     items.push({
       id: 'delete',
       label: 'Delete',

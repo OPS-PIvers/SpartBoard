@@ -1,4 +1,5 @@
 import React, { useId, useMemo, useRef, useState } from 'react';
+import { AssignedFocusClassContext } from './assignedFilterContext';
 import {
   CheckCircle2,
   ChevronRight,
@@ -17,6 +18,7 @@ import {
   compareAssigned,
   type AssignedClass,
   type AssignedStatus,
+  type ClassStatus,
 } from '@/utils/assignedStatus';
 import {
   leftOpenKey,
@@ -36,7 +38,7 @@ import { LibrarySelectToggle } from '../LibrarySelectToggle';
 export interface AssignedListItem {
   id: string;
   status: AssignedStatus;
-  /** A view-only share: no Move to Done or Publish scores. */
+  /** A view-only share: no Move to Finished or Publish scores. */
   viewOnly?: boolean;
   /** Scores already published; bulk publish leaves the row out. */
   published?: boolean;
@@ -48,6 +50,8 @@ interface AssignedListProps<T extends AssignedListItem> {
   /** D17: a just-assigned row sits on top of Active. */
   pinnedId?: string | null;
   renderRow: (item: T, index: number) => React.ReactNode;
+  /** Turns on the search box. */
+  titleOf?: (item: T) => string;
   emptyTitle: string;
   emptySub: string;
   tourWidgetType: string;
@@ -67,6 +71,28 @@ interface AssignedListProps<T extends AssignedListItem> {
     canPublish?: (item: T) => boolean;
   };
 }
+
+type StatusFilter = '' | ClassStatus | 'grade' | 'publish';
+const STATUS_OPTIONS: [StatusFilter, string][] = [
+  ['', 'Any status'],
+  ['open', 'Open'],
+  ['paused', 'Paused'],
+  ['ready', 'Ready'],
+  ['closed', 'Closed'],
+  ['grade', 'To grade'],
+  ['publish', 'To publish'],
+];
+const FIELD_CLASS =
+  'min-w-0 rounded-lg border bg-white text-slate-700 focus-visible:border-brand-blue-primary focus-visible:outline-hidden';
+const FIELD_STYLE: React.CSSProperties = {
+  height: 'min(32px, 8.5cqmin)',
+  padding: '0 min(10px, 2.2cqmin)',
+  fontSize: 'min(12.5px, 3.6cqmin)',
+};
+const fieldTone = (on: boolean) =>
+  on
+    ? 'border-brand-blue-primary bg-brand-blue-lighter font-bold text-brand-blue-primary'
+    : 'border-slate-300';
 
 const plural = (n: number) => `${n} assignment${n === 1 ? '' : 's'}`;
 
@@ -93,12 +119,13 @@ const SECTION_STYLE: React.CSSProperties = {
   padding: 'min(10px, 2.4cqmin) min(6px, 1.4cqmin) min(4px, 1cqmin)',
 };
 
-/** The Assigned tab body: an Active section and a collapsed Done section (ASSIGNED_TAB.md D12, D13). */
+/** The Assigned tab body: an Active section and a collapsed Finished section (ASSIGNED_TAB.md D12, D13). */
 export function AssignedList<T extends AssignedListItem>({
   items,
   loading,
   pinnedId,
   renderRow,
+  titleOf,
   emptyTitle,
   emptySub,
   tourWidgetType,
@@ -138,22 +165,53 @@ export function AssignedList<T extends AssignedListItem>({
     writeLeftOpenDismissals(next);
     setDismissed(next);
   };
+  const [query, setQuery] = useState('');
+  const [classFilter, setClassFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('');
+  const classLabels = useMemo(
+    () =>
+      [...new Set(items.flatMap((i) => i.status.classes.map((c) => c.label)))]
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
+    [items]
+  );
+  // A class that no longer exists stops filtering.
+  const focusClass = classLabels.includes(classFilter) ? classFilter : '';
+  const filtering = !!query.trim() || !!focusClass || !!statusFilter;
+  const matches = (item: T) => {
+    const q = query.trim().toLowerCase();
+    if (q && titleOf && !titleOf(item).toLowerCase().includes(q)) return false;
+    const pool = focusClass
+      ? item.status.classes.filter((c) => c.label === focusClass)
+      : item.status.classes;
+    if (focusClass && pool.length === 0) return false;
+    if (statusFilter === 'grade')
+      return item.status.grading === 'needs-grading';
+    if (statusFilter === 'publish')
+      return item.status.grading === 'scores-unpublished';
+    if (statusFilter === 'ready')
+      return pool.some((c) => c.status === 'ready' || c.status === 'scheduled');
+    return !statusFilter || pool.some((c) => c.status === statusFilter);
+  };
   const doneId = useId();
   const { active, done } = useMemo(() => {
-    const sorted = [...items].sort(
-      (a, b) =>
-        Number(b.id === pinnedId && b.status.bucket === 'active') -
-          Number(a.id === pinnedId && a.status.bucket === 'active') ||
-        compareAssigned(a.status, b.status)
-    );
+    const sorted = items
+      .filter(matches)
+      .sort(
+        (a, b) =>
+          Number(b.id === pinnedId && b.status.bucket === 'active') -
+            Number(a.id === pinnedId && a.status.bucket === 'active') ||
+          compareAssigned(a.status, b.status)
+      );
     return {
       active: sorted.filter((i) => i.status.bucket === 'active'),
       done: sorted.filter((i) => i.status.bucket === 'done'),
     };
-  }, [items, pinnedId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- matches reads only the listed filters
+  }, [items, pinnedId, query, focusClass, statusFilter]);
 
   const shown = doneOpen ? [...active, ...done] : active;
-  // Only rows on screen count, so a closed Done section is never acted on.
+  // Only rows on screen count, so a closed Finished section is never acted on.
   const selected = shown.filter((i) => picked.has(i.id));
   const stateOf = (rows: readonly T[]): 'on' | 'off' | 'some' => {
     const n = rows.filter((i) => picked.has(i.id)).length;
@@ -275,12 +333,12 @@ export function AssignedList<T extends AssignedListItem>({
           ? [
               {
                 id: 'move-to-done',
-                label: 'Move to Done',
+                label: 'Move to Finished',
                 icon: CheckCircle2,
                 run: () =>
                   runOps(
                     (o) => o.moveToDone,
-                    (k) => `${k} moved to Done.`,
+                    (k) => `${k} moved to Finished.`,
                     (k) => `${plural(k)} could not be moved.`
                   ),
               },
@@ -388,67 +446,166 @@ export function AssignedList<T extends AssignedListItem>({
     );
   }
 
-  return (
-    <div className="flex flex-col">
-      {bar}
-      {renderLeftOpen &&
-        leftOpen.map(({ item, cls, since }, i) => {
-          const key = leftOpenKey(item.id, cls.key, since);
-          return (
-            <React.Fragment key={key}>
-              {renderLeftOpen(item, cls, i, () => leaveOpen(key))}
-            </React.Fragment>
-          );
-        })}
-      <div className={SECTION_CLASS} style={SECTION_STYLE}>
-        <SectionLabel label="Active" count={active.length} />
-        {selectToggle}
-      </div>
-      {active.length === 0 ? (
-        <ScaledEmptyState icon={Inbox} title={emptyTitle} subtitle={emptySub} />
-      ) : (
-        active.map((item, i) => (
-          <React.Fragment key={item.id}>
-            {wrap(item, renderRow(item, i))}
-          </React.Fragment>
-        ))
+  const clearFilters = () => {
+    setQuery('');
+    setClassFilter('');
+    setStatusFilter('');
+  };
+  const toolbar = !selecting && items.length > 0 && (
+    <div
+      className="flex flex-wrap items-center"
+      style={{
+        gap: 'min(8px, 2cqmin)',
+        padding: 'min(6px, 1.4cqmin)',
+      }}
+    >
+      {titleOf && (
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search assignments"
+          aria-label="Search assignments"
+          {...tourTypeAttr('library-shell.assigned-search', tourWidgetType)}
+          className={`flex-1 ${FIELD_CLASS} ${fieldTone(false)}`}
+          style={{ ...FIELD_STYLE, minWidth: 'min(140px, 40cqmin)' }}
+        />
       )}
-      {done.length > 0 && (
-        <>
-          <button
-            type="button"
-            onClick={() => setDoneOpen((v) => !v)}
-            aria-expanded={doneOpen}
-            aria-controls={doneId}
-            {...tourFieldAttr(
-              'library-shell.assigned-done-section',
-              tourWidgetType,
-              'done'
-            )}
-            className={`${SECTION_CLASS} rounded-md text-left transition-colors hover:text-brand-blue-primary`}
-            style={{ ...SECTION_STYLE, marginTop: 'min(8px, 2cqmin)' }}
-          >
-            <ChevronRight
-              aria-hidden="true"
-              className={`transition-transform ${doneOpen ? 'rotate-90' : ''}`}
-              style={{
-                width: 'min(14px, 4cqmin)',
-                height: 'min(14px, 4cqmin)',
-              }}
-            />
-            <SectionLabel label="Done" count={done.length} />
-          </button>
-          {doneOpen && (
-            <div id={doneId}>
-              {done.map((item, i) => (
-                <React.Fragment key={item.id}>
-                  {wrap(item, renderRow(item, active.length + i))}
-                </React.Fragment>
-              ))}
-            </div>
+      {classLabels.length > 1 && (
+        <select
+          value={focusClass}
+          onChange={(e) => setClassFilter(e.target.value)}
+          aria-label="Class"
+          {...tourTypeAttr(
+            'library-shell.assigned-filter-class',
+            tourWidgetType
           )}
-        </>
+          className={`${FIELD_CLASS} ${fieldTone(!!focusClass)}`}
+          style={{ ...FIELD_STYLE, maxWidth: 'min(180px, 44cqmin)' }}
+        >
+          <option value="">All classes</option>
+          {classLabels.map((l) => (
+            <option key={l} value={l}>
+              {l}
+            </option>
+          ))}
+        </select>
+      )}
+      <select
+        value={statusFilter}
+        onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+        aria-label="Status"
+        {...tourTypeAttr(
+          'library-shell.assigned-filter-status',
+          tourWidgetType
+        )}
+        className={`${FIELD_CLASS} ${fieldTone(!!statusFilter)}`}
+        style={FIELD_STYLE}
+      >
+        {STATUS_OPTIONS.map(([value, label]) => (
+          <option key={value} value={value}>
+            {label}
+          </option>
+        ))}
+      </select>
+      {filtering && (
+        <button
+          type="button"
+          onClick={clearFilters}
+          {...tourTypeAttr(
+            'library-shell.assigned-filter-clear',
+            tourWidgetType
+          )}
+          className="rounded-lg font-bold text-brand-blue-primary hover:bg-brand-blue-lighter"
+          style={{
+            fontSize: 'min(12px, 3.5cqmin)',
+            padding: 'min(6px, 1.4cqmin) min(8px, 2cqmin)',
+          }}
+        >
+          Clear
+        </button>
       )}
     </div>
+  );
+
+  return (
+    <AssignedFocusClassContext.Provider value={focusClass || null}>
+      <div className="flex flex-col">
+        {bar}
+        {renderLeftOpen &&
+          leftOpen.map(({ item, cls, since }, i) => {
+            const key = leftOpenKey(item.id, cls.key, since);
+            return (
+              <React.Fragment key={key}>
+                {renderLeftOpen(item, cls, i, () => leaveOpen(key))}
+              </React.Fragment>
+            );
+          })}
+        {toolbar}
+        <div className={SECTION_CLASS} style={SECTION_STYLE}>
+          <SectionLabel label="Active" count={active.length} />
+          {selectToggle}
+        </div>
+        {active.length === 0 && filtering ? (
+          <p
+            className="text-center text-slate-500"
+            style={{
+              fontSize: 'min(13px, 3.8cqmin)',
+              padding: 'min(20px, 5cqmin) 0',
+            }}
+          >
+            Nothing active matches these filters.
+          </p>
+        ) : active.length === 0 ? (
+          <ScaledEmptyState
+            icon={Inbox}
+            title={emptyTitle}
+            subtitle={emptySub}
+          />
+        ) : (
+          active.map((item, i) => (
+            <React.Fragment key={item.id}>
+              {wrap(item, renderRow(item, i))}
+            </React.Fragment>
+          ))
+        )}
+        {done.length > 0 && (
+          <>
+            <button
+              type="button"
+              onClick={() => setDoneOpen((v) => !v)}
+              aria-expanded={doneOpen}
+              aria-controls={doneId}
+              {...tourFieldAttr(
+                'library-shell.assigned-done-section',
+                tourWidgetType,
+                'done'
+              )}
+              className={`${SECTION_CLASS} rounded-md text-left transition-colors hover:text-brand-blue-primary`}
+              style={{ ...SECTION_STYLE, marginTop: 'min(8px, 2cqmin)' }}
+            >
+              <ChevronRight
+                aria-hidden="true"
+                className={`transition-transform ${doneOpen ? 'rotate-90' : ''}`}
+                style={{
+                  width: 'min(14px, 4cqmin)',
+                  height: 'min(14px, 4cqmin)',
+                }}
+              />
+              <SectionLabel label="Finished" count={done.length} />
+            </button>
+            {doneOpen && (
+              <div id={doneId}>
+                {done.map((item, i) => (
+                  <React.Fragment key={item.id}>
+                    {wrap(item, renderRow(item, active.length + i))}
+                  </React.Fragment>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </AssignedFocusClassContext.Provider>
   );
 }

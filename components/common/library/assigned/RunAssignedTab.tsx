@@ -8,12 +8,10 @@ import {
   writeBatch,
   type DocumentData,
 } from 'firebase/firestore';
-import { CheckCircle2, Pause, Play, PowerOff, RotateCcw } from 'lucide-react';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import type { ClassRoster } from '@/types';
-import { tourTypeAttr } from '@/config/tourAnchors';
 import { todaysBell } from '@/hooks/usePeriodAccess';
 import { usePeriodRunner } from '@/hooks/usePeriodRunner';
 import {
@@ -38,13 +36,14 @@ import type { LibraryMenuAction } from '../types';
 import { AssignedList } from './AssignedList';
 import { AssignedLeftOpenFlag } from './AssignedLeftOpenFlag';
 import { AssignedRow } from './AssignedRow';
+import { AssignedReopenDialog } from './AssignedReopenDialog';
+import { assignedMenu } from './assignedMenu';
 import { useAssignedBulkOps } from './assignedBulkContext';
 import { RunAssignedResponsesFixture } from './runAssignedFixture';
 import {
+  detailText,
   mainActionLabel,
-  statusLineSegments,
   type ClassActionKind,
-  type LineSegment,
 } from './assignedWording';
 
 /** An assignment of a kind whose teacher writes its session directly (Mini Apps, Guided Learning). */
@@ -77,10 +76,10 @@ export interface RunAssignedTabProps<A extends RunAssignment> {
   onPublish?: (a: A) => void;
   /** The main button where the kind has nothing better: Copy link for a share. */
   fallbackPrimary: (a: A) => { label: string; onClick: () => void } | null;
-  /** Today's overflow items; `replacedMenuIds` are dropped for the class actions. */
+  /** Today's flat overflow items; `assignedMenu` keeps what fits the row (R6). */
   menu: (a: A) => LibraryMenuAction[];
   replacedMenuIds: readonly string[];
-  /** Shown under the Active and Done sections, e.g. a Show older button. */
+  /** Shown under the Active and Finished sections, e.g. a Show older button. */
   footer?: React.ReactNode;
   /** False where the row never publishes scores; defaults to true. */
   publishes?: (a: A) => boolean;
@@ -276,6 +275,7 @@ export function RunAssignedTab<A extends RunAssignment>(
     <div className="flex flex-col">
       <AssignedList<RowModel<A>>
         items={rows}
+        titleOf={(r) => props.title(r.assignment)}
         loading={loading}
         pinnedId={fresh?.id ?? null}
         emptyTitle={emptyTitle}
@@ -310,7 +310,7 @@ export function RunAssignedTab<A extends RunAssignment>(
   );
 }
 
-/** Puts back what Close for all classes or Move to Done changed (D10 Undo). */
+/** Puts back what Close for all classes or Move to Finished changed (D10 Undo). */
 async function undoClose(
   prev: RunAssignment,
   uid: string,
@@ -455,6 +455,12 @@ function RunAssignedRowHost<A extends RunAssignment>({
       case 'pause':
         return void exec(() => actions.pauseClass(key));
       case 'close':
+        // A single-line Close is the whole assignment, so it offers Undo.
+        if (key == null)
+          return withUndo(
+            () => actions.closeAll(),
+            viewOnly ? 'Share closed.' : `${title} is closed.`
+          );
         return void exec(() => actions.closeClass(key));
       case 'reopen':
         return void exec(() => actions.reopenClass(key));
@@ -482,73 +488,7 @@ function RunAssignedRowHost<A extends RunAssignment>({
   };
 
   const allClosed = status.classes.every((c) => c.status === 'closed');
-  const singleItems: LibraryMenuAction[] = [];
-  if (status.singleLine) {
-    const only = status.classes[0];
-    // A whole-run pause exists only where the kind has one.
-    if (!viewOnly && only?.status === 'open' && lifecycle.pause)
-      singleItems.push({
-        id: 'assigned-pause',
-        label: 'Pause',
-        icon: Pause,
-        onClick: () => onClassAction('pause', null),
-      });
-    if (
-      !viewOnly &&
-      only?.status === 'paused' &&
-      status.action.kind !== 'resume'
-    )
-      singleItems.push({
-        id: 'assigned-resume',
-        label: 'Resume',
-        icon: Play,
-        onClick: () => onClassAction('resume', null),
-      });
-    if (!allClosed)
-      singleItems.push({
-        id: 'assigned-close',
-        label: 'Close',
-        icon: PowerOff,
-        onClick: () =>
-          withUndo(
-            () => actions.closeAll(),
-            viewOnly ? 'Share closed.' : `${title} is closed.`
-          ),
-      });
-    else if (status.bucket === 'active' || viewOnly)
-      singleItems.push({
-        id: 'assigned-reopen',
-        label: 'Reopen',
-        icon: RotateCcw,
-        onClick: () => onClassAction('reopen', null),
-      });
-  }
-  const lifecycleItems: LibraryMenuAction[] = [];
-  if (!status.singleLine && !allClosed)
-    lifecycleItems.push({
-      id: 'assigned-close-all',
-      label: 'Close for all classes',
-      icon: PowerOff,
-      anchor: tourTypeAttr('library-shell.assigned-close-all', tourWidgetType),
-      onClick: () =>
-        withUndo(
-          () => actions.closeAll(),
-          `${title} is closed for all classes.`
-        ),
-    });
-  if (status.bucket === 'active' && !viewOnly)
-    lifecycleItems.push({
-      id: 'assigned-move-to-done',
-      label: 'Move to Done',
-      icon: CheckCircle2,
-      anchor: tourTypeAttr(
-        'library-shell.assigned-move-to-done',
-        tourWidgetType
-      ),
-      onClick: () =>
-        withUndo(() => actions.moveToDone(), `${title} moved to Done.`),
-    });
-  for (const item of [...singleItems, ...lifecycleItems]) item.disabled = busy;
+  const [reopening, setReopening] = useState(false);
   const undoFor = (prev: A, wasEnded: boolean) => async () => {
     if (user?.uid)
       await undoClose(prev, user.uid, collections, lifecycle, wasEnded);
@@ -571,17 +511,21 @@ function RunAssignedRowHost<A extends RunAssignment>({
         : undefined,
   });
   const replaced = new Set(replacedMenuIds);
-  const today = menu(a).filter((m) => !replaced.has(m.id));
-  const firstDestructive = today.findIndex((m) => m.destructive);
-  const menuActions =
-    firstDestructive < 0
-      ? [...singleItems, ...today, ...lifecycleItems]
-      : [
-          ...singleItems,
-          ...today.slice(0, firstDestructive),
-          ...lifecycleItems,
-          ...today.slice(firstDestructive),
-        ];
+  const menuActions = assignedMenu({
+    status,
+    viewOnly,
+    items: menu(a).filter((m) => !replaced.has(m.id)),
+    published: row.published,
+    onCloseAll: () =>
+      withUndo(() => actions.closeAll(), `${title} is closed for all classes.`),
+    onMoveToDone: () =>
+      withUndo(() => actions.moveToDone(), `${title} moved to Finished.`),
+    onReopen: viewOnly
+      ? () => onClassAction('reopen', null)
+      : () => setReopening(true),
+    tourWidgetType,
+    busy,
+  });
 
   // D16: the link is still the thing to do while a share runs.
   const fallback = fallbackPrimary(a);
@@ -616,21 +560,21 @@ function RunAssignedRowHost<A extends RunAssignment>({
   const turnsIn = submits ? submits(a) : true;
   const counts = turnsIn && (classCounts ? classCounts(a) : true);
   const submitted = status.classes.reduce((n, c) => n + c.submitted, 0);
-  // Published rows skip the responses listener, so the line reads the doc.
-  const lineOverride: LineSegment[] | undefined =
+  // Published rows skip the responses listener, so the text reads the doc.
+  const detail: string | undefined =
     status.bucket === 'done' && scoresShown(a.scoreVisibility) && !viewOnly
-      ? [{ text: 'Scores published', tone: 'plain' }]
+      ? 'Scores published'
       : !counts && (!status.singleLine || !turnsIn) && !viewOnly
-        ? (() => {
-            const segs = statusLineSegments(status, now).filter(
-              (s) => !s.glued
-            );
-            return turnsIn &&
-              submitted > 0 &&
-              status.classes.some((c) => c.status !== 'ready')
-              ? [...segs, { text: `${submitted} turned in`, tone: 'plain' }]
-              : segs;
-          })()
+        ? [
+            ...(turnsIn &&
+            submitted > 0 &&
+            status.classes.some((c) => c.status !== 'ready')
+              ? [`${submitted} turned in`]
+              : []),
+            detailText(status, now, false),
+          ]
+            .filter(Boolean)
+            .join(' · ')
         : undefined;
 
   const endsAtBell = Object.values(a.periodAccess ?? {}).some(
@@ -639,34 +583,44 @@ function RunAssignedRowHost<A extends RunAssignment>({
   const lead = footerLead?.(a);
   const footer = [
     ...(lead ? [lead] : []),
-    endsAtBell
-      ? 'Closes at the end of each class'
-      : 'Stays open until you close it',
+    endsAtBell ? 'Closes at the end of each class' : 'Closes manually',
     `Assigned ${new Date(a.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`,
   ];
 
   return (
-    <AssignedRow
-      title={title}
-      status={status}
-      nowMs={now}
-      mainLabel={mainLabel}
-      onMain={onMain}
-      lineOverride={lineOverride}
-      onClassAction={onClassAction}
-      classCounts={counts}
-      mainTone={derived ? undefined : 'monitor'}
-      bellLabel={(c) => {
-        const w = bells[c.key];
-        return w
-          ? `${fmtTime(w.openAt)} to ${fmtTime(w.closeAt - BELL_CLOSE_CUSHION_MS)}`
-          : null;
-      }}
-      footer={footer}
-      menuActions={menuActions}
-      busy={busy}
-      tourIndex={index}
-      tourWidgetType={tourWidgetType}
-    />
+    <>
+      {reopening && (
+        <AssignedReopenDialog
+          title={title}
+          status={status}
+          onReopen={(key) => exec(() => actions.reopenClass(key))}
+          onClose={() => setReopening(false)}
+        />
+      )}
+      <AssignedRow
+        title={title}
+        status={status}
+        nowMs={now}
+        mainLabel={mainLabel}
+        onMain={onMain}
+        detail={detail}
+        onResults={onResults && !viewOnly ? () => onResults(a) : undefined}
+        canPause={!viewOnly && !!lifecycle.pause}
+        onClassAction={onClassAction}
+        classCounts={counts}
+        mainTone={derived ? undefined : 'monitor'}
+        bellLabel={(c) => {
+          const w = bells[c.key];
+          return w
+            ? `${fmtTime(w.openAt)} to ${fmtTime(w.closeAt - BELL_CLOSE_CUSHION_MS)}`
+            : null;
+        }}
+        footer={footer}
+        menuActions={menuActions}
+        busy={busy}
+        tourIndex={index}
+        tourWidgetType={tourWidgetType}
+      />
+    </>
   );
 }

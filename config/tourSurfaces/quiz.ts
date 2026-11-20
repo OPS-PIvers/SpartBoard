@@ -11,10 +11,6 @@ export const SURFACES: TourSurfaceMap = {
     needs: ['widget-on-stage'],
     files: [Q, `${C}QuizManager.tsx`, `${C}QuizAssignedTab.tsx`],
     inner: {
-      'library-shell.assigned-close-all':
-        'library-shell.archive-menu:quiz#row-1',
-      'library-shell.assigned-move-to-done':
-        'library-shell.archive-menu:quiz#row-1',
       'quiz-library.bulk-merge': 'quiz.select-mode',
       'quiz-library.bulk-share-plc': 'quiz.select-mode',
       'quiz-library.preview-close': 'library-shell.card-open:quiz#row-1',

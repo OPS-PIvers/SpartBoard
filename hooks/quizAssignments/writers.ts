@@ -62,7 +62,7 @@ export async function commitQuizLifecycle(
             ])
           )
         : {};
-    // A reopened or resumed quiz is no longer closed or moved to Done (ASSIGNED_TAB D24).
+    // A reopened or resumed quiz is no longer closed or moved to Finished (ASSIGNED_TAB D24).
     const clearMarks =
       event.type === 'reopen' || event.type === 'resume'
         ? { closedAt: deleteField(), doneAt: deleteField() }
