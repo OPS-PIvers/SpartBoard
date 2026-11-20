@@ -38,6 +38,7 @@ import type {
   PaperBatch,
   PaperPendingReview,
   PaperPendingWritten,
+  PaperRectMm,
   PaperSeatAssignment,
   QuestionTargetTag,
   QuizAssignment,
@@ -94,6 +95,7 @@ import {
 import { CHOICE_LETTERS, paperGridOf } from '@/utils/paperSheetLayout';
 import { paperBatchTag } from '@/utils/paperSheetMarker';
 import {
+  blankWrittenCrop,
   cropWrittenBox,
   readPaperPage,
   type GrayCrop,
@@ -652,6 +654,21 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
         )
       )
     );
+    // Every page each multi-page answer printed on, so a missing page joins as white and reprints line up.
+    const printedBoxes = new Map<
+      string,
+      { page: number; boxMm: PaperRectMm }[]
+    >();
+    for (const m of batch.pageMaps ?? []) {
+      for (const i of m.items) {
+        if (i.kind !== 'written' || !multiPage.has(i.questionId)) continue;
+        printedBoxes.set(i.questionId, [
+          ...(printedBoxes.get(i.questionId) ?? []),
+          { page: m.page, boxMm: i.boxMm },
+        ]);
+      }
+    }
+    const pieceIds = new Map<string, string>();
     const pieces = new Map<string, Map<number, GrayCrop>>();
     const kept = new Map<string, Promise<KeptPage | null>>();
     const encoding: Promise<unknown>[] = [];
@@ -680,6 +697,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
             for (const box of read.written) {
               if (multiPage.has(box.questionId)) {
                 const k = writtenCropKey(read.marker.seat, box.questionId);
+                pieceIds.set(k, box.questionId);
                 const byPage = pieces.get(k) ?? new Map<number, GrayCrop>();
                 try {
                   byPage.set(
@@ -687,6 +705,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
                     cropWrittenBox(page.page, read.mmToPx, box.boxMm)
                   );
                 } catch {
+                  // A failed cut joins as white, so the other pages keep their place.
                   byPage.delete(read.marker.page);
                 }
                 pieces.set(k, byPage);
@@ -731,9 +750,10 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
       }
       await Promise.all(
         [...pieces].map(async ([k, byPage]) => {
-          const ordered = [...byPage]
-            .sort(([a], [b]) => a - b)
-            .map(([, crop]) => crop);
+          const boxes = printedBoxes.get(pieceIds.get(k) ?? '') ?? [];
+          const ordered = boxes.map(
+            (b) => byPage.get(b.page) ?? blankWrittenCrop(b.boxMm)
+          );
           const blob =
             ordered.length > 0
               ? await encodeWrittenCrop(stackGrayCrops(ordered)).catch(

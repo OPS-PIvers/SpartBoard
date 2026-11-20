@@ -205,7 +205,7 @@ export function changedPaperBoxSetup(
     boxSizes: Object.fromEntries(
       Object.entries(sizes).filter(([id, size]) => {
         const q = byId.get(id);
-        return !!q && paperBoxLines(paperBoxSizeOf(q)) !== paperBoxLines(size);
+        return !!q && paperBoxRoom(paperBoxSizeOf(q)) !== paperBoxRoom(size);
       })
     ),
     boxStyles: Object.fromEntries(

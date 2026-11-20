@@ -800,6 +800,14 @@ function writtenItemHtml(
               : 'Handwriting unavailable'
           }</div>`
     );
+    const comment = fill.comment?.trim();
+    if (comment && !item.continued) {
+      parts.push(
+        `<div class="wr-comment" style="left:${mm(b.x)};top:${mm(
+          b.y + b.h - WRITTEN_LINE_PITCH_MM
+        )};width:${mm(b.w)};height:${mm(WRITTEN_LINE_PITCH_MM)}">${escapeHtml(comment)}</div>`
+      );
+    }
     return parts.join('');
   }
   if (fill) {

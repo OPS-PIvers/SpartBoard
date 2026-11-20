@@ -401,6 +401,27 @@ describe('assemblePaperScan on a page-map batch (layoutVersion 2)', () => {
     ]);
     expect(sheets[0].isBlank).toBe(false);
     expect(skipSheetPage(v2, sheets, 2)[0].written).toEqual([]);
+    // A resumed review keeps only the first page; the batch maps still know the rest.
+    const [map1, map2] = v2.pageMaps ?? [];
+    const twoPageMaps: PaperBatch = {
+      ...v2,
+      pageMaps: [
+        map1,
+        {
+          ...map2,
+          items: [
+            ...map2.items,
+            { ...map1.items[1], continued: true } as never,
+          ],
+        },
+      ],
+    };
+    const resumed = sheets.map((sh) => ({
+      ...sh,
+      written: sh.written?.map(({ pages: _pages, ...w }) => w),
+    }));
+    expect(skipSheetPage(twoPageMaps, resumed, 2)[0].written).toEqual([]);
+    expect(skipSheetPage(v2, resumed, 2)[0].written).toHaveLength(1);
   });
 
   it('a sheet whose only ink was on the skipped page is blank, and its missing page is no warning', () => {

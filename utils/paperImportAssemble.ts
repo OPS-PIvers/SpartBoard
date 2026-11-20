@@ -262,6 +262,24 @@ export function joinWrittenPages(
   return [...byId.values()];
 }
 
+/** Every page a written answer printed on or arrived on. */
+function writtenPagesOf(
+  batch: PaperBatch,
+  seat: number,
+  w: SheetWritten
+): number[] {
+  const pages = (batch.pageMaps ?? []).flatMap((m) =>
+    m.items.some(
+      (i) =>
+        i.kind === 'written' &&
+        seatQuestionId(batch, seat, i.questionId) === w.questionId
+    )
+      ? [m.page]
+      : []
+  );
+  return [...pages, ...(w.pages ?? [w.page])];
+}
+
 /** Row indexes a page printed. */
 function rowsOnPage(batch: PaperBatch, page: number): number[] {
   if (batch.layoutVersion === 2 && batch.pageMaps) {
@@ -287,7 +305,7 @@ export function skipSheetPage(
     const answers = sheet.answers.filter((a) => !onPage.has(a.question));
     // Skipping any page of a multi-page answer leaves the whole answer out.
     const written = sheet.written?.filter(
-      (w) => !(w.pages ?? [w.page]).includes(page)
+      (w) => !writtenPagesOf(batch, sheet.seat, w).includes(page)
     );
     const missingPages = sheet.missingPages.filter((p) => p !== page);
     const flags = sheet.flags.filter(

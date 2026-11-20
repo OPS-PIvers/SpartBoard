@@ -14,6 +14,7 @@ import {
   paperBoxStyleOf,
   withPaperBoxStyles,
   paperBoxLines,
+  changedPaperBoxSetup,
   paperBoxPages,
   paperBoxRoom,
   paperBoxSizeForPages,
@@ -83,6 +84,22 @@ describe('defaultPaperBoxSize', () => {
     expect(isPaperBoxSize('pages-4')).toBe(true);
     expect(isPaperBoxSize('pages-5')).toBe(false);
     expect(isPaperBoxSize('pages-1')).toBe(false);
+  });
+
+  it('saves a page count change even though every page has the same lines', () => {
+    const q = {
+      id: 'q1',
+      timeLimit: 0,
+      text: 'Essay',
+      type: 'free-response' as const,
+      correctAnswer: '',
+      incorrectAnswers: [],
+      paperBoxSize: 'full' as const,
+    };
+    expect(changedPaperBoxSetup([q], { q1: 'pages-2' }, {}).boxSizes).toEqual({
+      q1: 'pages-2',
+    });
+    expect(changedPaperBoxSetup([q], { q1: 'full' }, {}).boxSizes).toEqual({});
   });
 
   it('accepts a whole custom line count up to a page', () => {
