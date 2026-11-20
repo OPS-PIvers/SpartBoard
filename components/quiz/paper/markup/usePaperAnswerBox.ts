@@ -40,11 +40,13 @@ export function findAnswerBox(
   seat: number,
   questionId: string
 ): PaperAnswerBox | null {
-  for (const map of pageMapsForSeat(batch, seat) ?? []) {
-    const item = writtenItemsOf(map).find((w) => w.questionId === questionId);
-    if (item) return { page: map.page, boxMm: item.boxMm };
-  }
-  return null;
+  const found = (pageMapsForSeat(batch, seat) ?? []).flatMap((map) =>
+    writtenItemsOf(map)
+      .filter((w) => w.questionId === questionId)
+      .map((w) => ({ page: map.page, boxMm: w.boxMm }))
+  );
+  // A multi-page answer's joined crop has no single box to draw on.
+  return found.length === 1 ? found[0] : null;
 }
 
 type Loaded = PaperBatch | 'missing';

@@ -15,6 +15,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'tab-away-timer',
   'live-tour-editing-v2',
   'paper-handwritten-responses',
+  'paper-multi-page-answers',
   'paper-written-hybrid',
   'paper-reword-sync',
   'paper-kept-pages',

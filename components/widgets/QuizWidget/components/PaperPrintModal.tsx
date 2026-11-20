@@ -120,6 +120,8 @@ import { browserStemMeasure, stemLinesById } from '@/utils/paperStemLines';
 import { MAX_PAGE } from '@/utils/paperSheetMarker';
 import {
   PAPER_HANDWRITTEN_FEATURE,
+  PAPER_MAX_BOX_PAGES,
+  PAPER_MULTI_PAGE_FEATURE,
   letteredBlanks,
   changedPaperBoxSetup,
   paperBoxImageChoices,
@@ -330,6 +332,9 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   const { canAccessFeature } = useAuth();
   // The caller already checked the paper sheets rollout and gate; this adds the written-box flag.
   const writtenOn = canAccessFeature(PAPER_HANDWRITTEN_FEATURE);
+  const maxPages = canAccessFeature(PAPER_MULTI_PAGE_FEATURE)
+    ? PAPER_MAX_BOX_PAGES
+    : 1;
   // Handwritten box sizes are a print choice, so they are picked here rather than in the editor.
   const [boxSizes, setBoxSizes] = useState<Record<string, PaperBoxSize>>({});
   const [boxStyles, setBoxStyles] = useState<Record<string, PaperBoxStylePick>>(
@@ -1763,6 +1768,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                         {n}.
                       </span>
                       <BoxSizeSelect
+                        maxPages={maxPages}
                         size={w.size}
                         onChange={(size) => update({ size })}
                         ariaLabel={`Question ${n} box size`}
@@ -1830,6 +1836,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                 text={row.text || 'Untitled question'}
               >
                 <BoxSizeSelect
+                  maxPages={maxPages}
                   size={row.size}
                   onChange={(size) =>
                     setBoxSizes((prev) => ({

@@ -1202,6 +1202,45 @@ describe('PaperPrintModal with handwritten answers', () => {
     expect(lines).toEqual([15]);
   });
 
+  it('prints a page count without asking for lines, behind its flag', async () => {
+    features.add('paper-multi-page-answers');
+    const onSavePrintSetup = vi.fn().mockResolvedValue(undefined);
+    const { onSaveBatch, print } = setup({
+      quiz: quiz({ questions: [fr('w1')] }),
+      onSavePrintSetup,
+    });
+    fireEvent.change(screen.getByLabelText('Question 1 box size'), {
+      target: { value: 'full' },
+    });
+    expect(screen.queryByLabelText('Question 1 box size, lines')).toBeNull();
+    fireEvent.change(screen.getByLabelText('Question 1 box size, pages'), {
+      target: { value: '3' },
+    });
+    await printIt(print);
+    expect(onSavePrintSetup).toHaveBeenCalledWith({
+      stimuli: [],
+      boxSizes: { w1: 'pages-3' },
+      boxStyles: {},
+    });
+    const boxes = onSaveBatch.mock.calls[0][0].pageMaps?.flatMap((m) =>
+      m.items.flatMap((i) =>
+        i.kind === 'written'
+          ? [`${m.page}:${i.questionId}:${!!i.continued}`]
+          : []
+      )
+    );
+    expect(boxes).toEqual(['1:w1:false', '2:w1:true', '3:w1:true']);
+  });
+
+  it('offers one full page without a page count when the flag is off', () => {
+    setup({ quiz: quiz({ questions: [fr('w1')] }) });
+    fireEvent.change(screen.getByLabelText('Question 1 box size'), {
+      target: { value: 'full' },
+    });
+    expect(screen.queryByLabelText('Question 1 box size, pages')).toBeNull();
+    expect(screen.queryByLabelText('Question 1 box size, lines')).toBeNull();
+  });
+
   it('prints the picked box size and saves only the sizes that changed', async () => {
     const onSavePrintSetup = vi.fn().mockResolvedValue(undefined);
     const { onSaveBatch, print } = setup({
