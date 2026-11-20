@@ -155,6 +155,7 @@ test('a teacher runs a quiz class by class from the Assigned tab', async ({
       'Settings',
       'Share',
       'Publish scores',
+      'Reopen for selected students',
       'Delete',
     ]);
     await page.getByRole('menuitem', { name: 'Publish scores' }).click();
