@@ -50,6 +50,7 @@ import {
   loadExclusiveOrgDomains,
 } from './orgDomainOwnership';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { safeErr } from './safeLog';
 
 type Firestore = admin.firestore.Firestore;
 
@@ -995,7 +996,7 @@ export async function deleteOrgQuizMediaSets(
         .catch((err: unknown) =>
           console.error(
             '[deleteQuizMediaForOrgAdmin] norming cleanup failed',
-            err
+            safeErr(err)
           )
         );
     }

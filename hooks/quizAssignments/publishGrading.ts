@@ -24,6 +24,7 @@ import { isFreeResponseType } from '@/types';
 import { rubricExamplesByCriterion } from '@/utils/rubricGuide';
 import { notChosenQuestionIds } from '@/utils/quizSections';
 import { dedupeQuestionsById } from '@/utils/quizMaxPoints';
+import { buildRevealedExplanations } from '@/utils/quizExplanations';
 import { fibAcceptedAnswers } from '@/utils/quizFibAnswers';
 import { fibTranslationIssue } from '@/utils/quizFibTranslation';
 import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
@@ -77,6 +78,8 @@ export interface ResponseGradingContext {
   sections?: QuizSessionSection[];
   /** Hybrid paper quiz: an unscanned written answer holds the score. */
   paperWrittenQuestionIds?: string[];
+  /** Bank-draw assignment: a response with no served-question snapshot gets no answer key. */
+  bankDraw?: boolean;
   /** Student-paced, the only pace that shows the modified prompt. */
   modifiedWording?: boolean;
 }
@@ -119,6 +122,10 @@ export function buildResponseGradingContext(
           (l): l is string => typeof l === 'string'
         )
       : undefined,
+    // The assignment doc never stores bankSlots; resolvedDriveFileId is written iff the session draws from banks.
+    bankDraw:
+      typeof assignmentData?.resolvedDriveFileId === 'string' &&
+      assignmentData.resolvedDriveFileId.length > 0,
     paperWrittenQuestionIds: Array.isArray(
       assignmentData?.paperWrittenQuestionIds
     )
@@ -187,11 +194,69 @@ export function buildRevealedRubricExamples(
   return Object.keys(out).length > 0 ? out : null;
 }
 
+/** Question ids this student was served: their snapshot or override subset, else null (the full quiz). */
+function baseServedQuestionIds(
+  data: QuizResponse,
+  ctx: ResponseGradingContext
+): Set<string> | null {
+  // Prefer the response doc's own snapshot; the live override map reflects current targeting, not what they were dealt.
+  const snapshotIds =
+    Array.isArray(data.servedQuestionIds) && data.servedQuestionIds.length > 0
+      ? data.servedQuestionIds
+      : undefined;
+  const subsetIds =
+    snapshotIds ?? ctx.overridesByStudentUid[data.studentUid]?.questionIds;
+  return Array.isArray(subsetIds) && subsetIds.length > 0
+    ? new Set(subsetIds)
+    : null;
+}
+
+/** Question ids that count for this student (served, minus unchosen choose-N questions); null means the full quiz. */
+export function servedQuestionIdSet(
+  data: QuizResponse,
+  ctx: ResponseGradingContext
+): Set<string> | null {
+  const baseServed = baseServedQuestionIds(data, ctx);
+  const notChosen = new Set(
+    notChosenQuestionIds(
+      {
+        answers: Array.isArray(data.answers) ? data.answers : [],
+        servedQuestionIds: baseServed ? [...baseServed] : undefined,
+        status: data.status,
+        countedChoices: data.countedChoices,
+        completedAttempts: data.completedAttempts,
+      },
+      ctx.sections
+    )
+  );
+  return notChosen.size > 0
+    ? new Set(
+        [...(baseServed ?? ctx.questionsById.keys())].filter(
+          (id) => !notChosen.has(id)
+        )
+      )
+    : baseServed;
+}
+
+/** Keeps only the entries for questions this student was served; null servedIds keeps all. */
+export function limitKeyToServed<T>(
+  key: Record<string, T> | null,
+  servedIds: ReadonlySet<string> | null | undefined
+): Record<string, T> | null {
+  if (!key || !servedIds) return key;
+  const out: Record<string, T> = {};
+  for (const [id, value] of Object.entries(key))
+    if (servedIds.has(id)) out[id] = value;
+  return Object.keys(out).length > 0 ? out : null;
+}
+
 /** One response graded for publishing; `score` and `points` are null while a slot awaits a teacher grade. */
 export interface PublishGrade {
   score: number | null;
   answers: QuizResponseAnswer[];
   points?: QuizScorePoints | null;
+  /** Questions whose key this student may see; null means the full quiz. */
+  servedIds?: ReadonlySet<string> | null;
 }
 
 /** Grades one response for publishing; `score` is null while a slot awaits a teacher grade. */
@@ -208,43 +273,11 @@ export function gradeResponseForPublish(
     localizedFibAnswers,
   } = ctx;
   const answers = Array.isArray(data.answers) ? data.answers : [];
-  // Prefer the response doc's own served-subset snapshot (written by
-  // the student app at answer time) over the live override map — the
-  // live map reflects CURRENT targeting, so removing a student's
-  // override after they submit would otherwise re-score their subset
-  // answers against the full question set. Absent snapshot AND absent
-  // override (or no subset on it) = the full quiz, unchanged.
-  const snapshotIds =
-    Array.isArray(data.servedQuestionIds) && data.servedQuestionIds.length > 0
-      ? data.servedQuestionIds
-      : undefined;
-  const subsetIds =
-    snapshotIds ?? overridesByStudentUid[data.studentUid]?.questionIds;
-  const baseServed =
-    Array.isArray(subsetIds) && subsetIds.length > 0
-      ? new Set(subsetIds)
-      : null;
-  // A question left out of a choose-N section is off this student's total (E14).
-  const notChosen = new Set(
-    notChosenQuestionIds(
-      {
-        answers,
-        servedQuestionIds: baseServed ? [...baseServed] : undefined,
-        status: data.status,
-        countedChoices: data.countedChoices,
-        completedAttempts: data.completedAttempts,
-      },
-      ctx.sections
-    )
-  );
-  const servedIds =
-    notChosen.size > 0
-      ? new Set(
-          [...(baseServed ?? questionsById.keys())].filter(
-            (id) => !notChosen.has(id)
-          )
-        )
-      : baseServed;
+  const baseServed = baseServedQuestionIds(data, ctx);
+  const servedIds = servedQuestionIdSet(data, ctx);
+  // The key covers every served question, unchosen choose-N ones included; a bank draw with no snapshot gets none.
+  const keyServedIds =
+    ctx.bankDraw && !baseServed ? new Set<string>() : baseServed;
   // Teacher-side truth only: never the client-asserted `response.locale`.
   const servedLocale =
     overridesByStudentUid[data.studentUid]?.language ??
@@ -360,7 +393,12 @@ export function gradeResponseForPublish(
   const score =
     pointsMax === 0 ? 0 : Math.round((pointsEarned / pointsMax) * 100);
   if (awaitingGrade)
-    return { score: null, answers: gradedAnswers, points: null };
+    return {
+      score: null,
+      answers: gradedAnswers,
+      points: null,
+      servedIds: keyServedIds,
+    };
   return {
     score,
     answers: gradedAnswers,
@@ -369,7 +407,58 @@ export function gradeResponseForPublish(
       possible: pointsMax,
       attempt: data.completedAttempts ?? 0,
     },
+    servedIds: keyServedIds,
   };
+}
+
+/** Rewrites a key already on a response after its counted set changed; keeps each key limited to what was served. */
+export function refreshedKeyFields(
+  data: QuizResponse,
+  graded: PublishGrade,
+  quiz: QuizData,
+  responseKey: string,
+  ctx: Pick<ResponseGradingContext, 'overridesByStudentUid' | 'modifiedWording'>
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  const override =
+    data.resultsOverride?.mode === 'shown' ? data.resultsOverride : undefined;
+  const refresh = <T>(
+    field: string,
+    held: boolean,
+    heldByOverride: boolean,
+    build: () => Record<string, T> | null
+  ): void => {
+    if (!held && !heldByOverride) return;
+    const next = limitKeyToServed(build(), graded.servedIds) ?? deleteField();
+    if (held) out[field] = next;
+    if (heldByOverride) out[`resultsOverride.${field}`] = next;
+  };
+  refresh(
+    'revealedAnswers',
+    data.revealedAnswers != null,
+    override?.revealedAnswers != null,
+    () =>
+      withCalcRevealed(
+        buildRevealedAnswers(quiz),
+        dedupeQuestionsById(quiz.questions),
+        responseKey,
+        data,
+        servedModified(ctx, data.studentUid)
+      )
+  );
+  refresh(
+    'revealedRubricExamples',
+    data.revealedRubricExamples != null,
+    override?.revealedRubricExamples != null,
+    () => buildRevealedRubricExamples(quiz)
+  );
+  refresh(
+    'revealedExplanations',
+    data.revealedExplanations != null,
+    override?.revealedExplanations != null,
+    () => buildRevealedExplanations(quiz)
+  );
+  return out;
 }
 
 /** The score fields a publish writes; both clear while a slot awaits a grade. */
@@ -420,11 +509,19 @@ export function classPublishPatch(
     answers: keepVerdicts
       ? graded.answers
       : answersWithoutVerdicts(graded.answers),
-    revealedAnswers: (withhold ? null : opts.answerKey) ?? deleteField(),
+    revealedAnswers:
+      (withhold ? null : limitKeyToServed(opts.answerKey, graded.servedIds)) ??
+      deleteField(),
     revealedRubricExamples:
-      (withhold ? null : opts.rubricExamples) ?? deleteField(),
+      (withhold
+        ? null
+        : limitKeyToServed(opts.rubricExamples, graded.servedIds)) ??
+      deleteField(),
     revealedExplanations:
-      (withhold ? null : opts.explanations) ?? deleteField(),
+      (withhold
+        ? null
+        : limitKeyToServed(opts.explanations, graded.servedIds)) ??
+      deleteField(),
   };
 }
 

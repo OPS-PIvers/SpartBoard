@@ -26,6 +26,7 @@ import { isPeriodFrozen, withQuizSessionContent } from './quizSessionContent';
 import { assertViewAsAllowed } from './viewAsGuard';
 import { assertAiTeacherCaller } from './aiCallerGate';
 import { isForeignPointer } from './pointerOwnership';
+import { safeErr } from './safeLog';
 
 export { ttsLanguageForTranslationLocale };
 
@@ -900,7 +901,11 @@ export async function synthesizePart(
       languageCode,
     }));
   } catch (error) {
-    console.error('[quizReadAloud] Cloud TTS failed', { voice, chars, error });
+    console.error('[quizReadAloud] Cloud TTS failed', {
+      voice,
+      chars,
+      error: safeErr(error),
+    });
     throw new HttpsError('unavailable', 'Read-aloud is unavailable right now.');
   }
   const timings =
@@ -1091,7 +1096,10 @@ export async function prepareQuizReadAloud(
         chars += result.chars;
       }
     } catch (error) {
-      console.error('[quizReadAloud] part failed', { key: part.key, error });
+      console.error('[quizReadAloud] part failed', {
+        key: part.key,
+        error: safeErr(error),
+      });
       failedKeys.push(part.key);
     }
   });
@@ -1149,7 +1157,7 @@ export async function prepareQuizReadAloud(
         console.error('[quizReadAloud] localized part failed', {
           key: part.key,
           locale,
-          error,
+          error: safeErr(error),
         });
         entry.failedKeys.push(part.key);
       }
@@ -1201,7 +1209,7 @@ export async function prepareQuizReadAloud(
     // An oversize manifest must not leave the session stuck on `preparing`.
     console.error('[quizReadAloud] manifest write failed', {
       sessionId: input.sessionId,
-      error,
+      error: safeErr(error),
     });
     await sessionRef.set(
       {
@@ -1242,7 +1250,7 @@ export async function prepareReadAloudAfterTargets(
   } catch (error) {
     console.error('[quizReadAloud] prepare after targets failed', {
       sessionId,
-      error,
+      error: safeErr(error),
     });
   }
 }
@@ -1457,7 +1465,7 @@ export async function synthesizeQuizAudio(
     } catch (error) {
       console.warn('[quizReadAloud] manifest patch failed', {
         sessionId: request.sessionId,
-        error,
+        error: safeErr(error),
       });
     }
   };

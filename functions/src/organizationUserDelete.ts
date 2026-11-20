@@ -45,6 +45,7 @@ import {
 } from './authz';
 import { assertViewAsAllowed } from './viewAsGuard';
 import { deleteAllCourseCopies } from './course/saveCourse';
+import { safeErr } from './safeLog';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -240,7 +241,7 @@ async function countStorageObjects(uid: string): Promise<number> {
       .getFiles({ prefix: `users/${uid}/` });
     return files.length;
   } catch (err) {
-    console.error('[deleteOrganizationUser] Storage scan failed', err);
+    console.error('[deleteOrganizationUser] Storage scan failed', safeErr(err));
     return 0;
   }
 }
@@ -254,7 +255,10 @@ async function countQuizSessions(db: Firestore, uid: string): Promise<number> {
       .get();
     return agg.data().count;
   } catch (err) {
-    console.error('[deleteOrganizationUser] quiz_sessions scan failed', err);
+    console.error(
+      '[deleteOrganizationUser] quiz_sessions scan failed',
+      safeErr(err)
+    );
     return 0;
   }
 }
@@ -315,7 +319,10 @@ export const deleteOrganizationUser = onCall(
     } catch (err) {
       const code = (err as { code?: string }).code;
       if (code !== 'auth/user-not-found') {
-        console.error('[deleteOrganizationUser] Auth lookup failed', err);
+        console.error(
+          '[deleteOrganizationUser] Auth lookup failed',
+          safeErr(err)
+        );
         throw new HttpsError('internal', 'Failed to look up the Auth account.');
       }
     }
@@ -358,7 +365,10 @@ export const deleteOrganizationUser = onCall(
           .deleteFiles({ prefix: `users/${uid}/` });
       } catch (err) {
         // Firestore is already gone; report honestly rather than fail the call.
-        console.error('[deleteOrganizationUser] Storage delete failed', err);
+        console.error(
+          '[deleteOrganizationUser] Storage delete failed',
+          safeErr(err)
+        );
       }
     }
 
@@ -381,7 +391,10 @@ export const deleteOrganizationUser = onCall(
           // member doc — it is the retry anchor — and fail loudly. Swallowing
           // this would report a deleted account that can still sign in, which
           // is the bug this function exists to fix.
-          console.error('[deleteOrganizationUser] Auth delete failed', err);
+          console.error(
+            '[deleteOrganizationUser] Auth delete failed',
+            safeErr(err)
+          );
           throw new HttpsError(
             'internal',
             `Removed ${email}'s data, but their sign-in account could not be deleted. They are still on the roster — run Delete again.`
@@ -410,7 +423,10 @@ export const deleteOrganizationUser = onCall(
         timestamp: admin.firestore.FieldValue.serverTimestamp(),
       })
       .catch((err) => {
-        console.error('[deleteOrganizationUser] Audit write failed', err);
+        console.error(
+          '[deleteOrganizationUser] Audit write failed',
+          safeErr(err)
+        );
       });
 
     return { deleted: true, email, blockers: [], summary };

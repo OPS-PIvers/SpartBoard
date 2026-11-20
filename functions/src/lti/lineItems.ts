@@ -9,6 +9,7 @@ import {
   SCHOOLOGY_LTI_SERVICE_HOST,
   SCHOOLOGY_TOOL_ID,
 } from './config';
+import { safeErr } from '../safeLog';
 
 const NET_TIMEOUT_MS = 15000;
 const LINEITEM_TYPE = 'application/vnd.ims.lis.v2.lineitem+json';
@@ -133,7 +134,10 @@ async function agsFetch(
       redirect: 'manual',
     });
   } catch (err) {
-    console.warn(`[agsLineItems] ${method} failed (network/timeout):`, err);
+    console.warn(
+      `[agsLineItems] ${method} failed (network/timeout):`,
+      safeErr(err)
+    );
     throw new AgsRequestError(`AGS ${method} failed (network)`, 0, false);
   }
   const text = await res.text().catch(() => '');

@@ -67,6 +67,7 @@ import {
 import { isActiveInstructor } from './linkSectionByUrl';
 import { assertViewAsAllowed } from '../viewAsGuard';
 import { isDistrictTeacher } from './teacherAuth';
+import { safeErr } from '../safeLog';
 
 const LTI_TOOL_PRIVATE_KEY = defineSecret('LTI_TOOL_PRIVATE_KEY');
 const STUDENT_PSEUDONYM_HMAC_SECRET = defineSecret(
@@ -388,7 +389,7 @@ async function buildDeps(
         privatePem: LTI_TOOL_PRIVATE_KEY.value(),
         scopes: [AGS_SCOPE_LINEITEM, AGS_SCOPE_SCORE, NRPS_SCOPE],
       }).catch((err: unknown) => {
-        console.error('[ltiToolColumn] AGS token mint failed:', err);
+        console.error('[ltiToolColumn] AGS token mint failed:', safeErr(err));
         throw new HttpsError(
           'internal',
           'Could not authorize the Schoology gradebook service.'
@@ -505,7 +506,10 @@ export const ltiToolColumnCategoriesV1 = onCall(
               columnGone = columnCategoryId === null;
             }
           } catch (err) {
-            console.warn('[ltiToolColumnCategories] REST read failed:', err);
+            console.warn(
+              '[ltiToolColumnCategories] REST read failed:',
+              safeErr(err)
+            );
             categories = null;
           }
         }
@@ -580,7 +584,10 @@ export const ltiCreateToolColumnCategoriesV1 = onCall(
         scopes: [NRPS_SCOPE],
       });
     } catch (err) {
-      console.error('[ltiCreateToolColumnCategories] token mint failed:', err);
+      console.error(
+        '[ltiCreateToolColumnCategories] token mint failed:',
+        safeErr(err)
+      );
       throw new HttpsError(
         'internal',
         'Could not authorize the Schoology gradebook service.'
@@ -609,7 +616,10 @@ export const ltiCreateToolColumnCategoriesV1 = onCall(
       };
     } catch (err) {
       if (err instanceof HttpsError) throw err;
-      console.warn('[ltiCreateToolColumnCategories] REST failed:', err);
+      console.warn(
+        '[ltiCreateToolColumnCategories] REST failed:',
+        safeErr(err)
+      );
       throw new HttpsError(
         'unavailable',
         'Schoology didn’t create the categories. Try again.'
@@ -741,7 +751,7 @@ export const ltiPushToolColumnV1 = onCall(
         if (err instanceof HttpsError) throw err;
         console.warn(
           `[ltiPushToolColumn] section ${section.contextId} failed:`,
-          err
+          safeErr(err)
         );
         outcomes.push({
           contextId: section.contextId,
@@ -764,7 +774,10 @@ export const ltiPushToolColumnV1 = onCall(
         .doc(session.sessionId)
         .update({ ltiToolColumn: true })
         .catch((err: unknown) =>
-          console.warn('[ltiPushToolColumn] session flag write failed:', err)
+          console.warn(
+            '[ltiPushToolColumn] session flag write failed:',
+            safeErr(err)
+          )
         );
     }
 
@@ -825,7 +838,10 @@ export const ltiDeleteToolColumnsV1 = onCall(
         scopes: [AGS_SCOPE_LINEITEM, NRPS_SCOPE],
       });
     } catch (err) {
-      console.error('[ltiDeleteToolColumns] AGS token mint failed:', err);
+      console.error(
+        '[ltiDeleteToolColumns] AGS token mint failed:',
+        safeErr(err)
+      );
       throw new HttpsError(
         'internal',
         'Could not authorize the Schoology gradebook service.'
@@ -852,7 +868,7 @@ export const ltiDeleteToolColumnsV1 = onCall(
         await doc.ref.delete();
       } catch (err) {
         failed += 1;
-        console.warn(`[ltiDeleteToolColumns] ${doc.id} failed:`, err);
+        console.warn(`[ltiDeleteToolColumns] ${doc.id} failed:`, safeErr(err));
       }
     }
     if (failed === 0) await parent.delete();

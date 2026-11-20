@@ -1,6 +1,7 @@
 // Server reads of the connector's `admin_settings` kill switches; only an explicit true turns one on.
 import type * as admin from '../firebaseAdmin';
 import { STATUS_CACHE_MS } from './config';
+import { safeErr } from '../safeLog';
 
 type Firestore = admin.firestore.Firestore;
 
@@ -26,7 +27,7 @@ export async function isSwitchOn(
     const snap = await db.doc(path).get();
     enabled = snap.exists && snap.get('enabled') === true;
   } catch (err) {
-    console.error('[switches] read failed', { path, err });
+    console.error('[switches] read failed', { path, err: safeErr(err) });
   }
   cache.set(path, { enabled, at: now });
   return enabled;

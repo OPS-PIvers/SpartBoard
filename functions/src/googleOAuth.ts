@@ -36,6 +36,7 @@ import * as admin from './firebaseAdmin';
 import * as CryptoJS from 'crypto-js';
 import axios from 'axios';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { safeErr } from './safeLog';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -124,7 +125,7 @@ function decryptRefreshToken(ciphertext: Ciphertext, key: string): string {
     // throw message) is debuggable. The HttpsError swallows the cause
     // from the client by design — we don't expose internal exception
     // detail across the API boundary.
-    console.error('[decryptRefreshToken] CryptoJS decrypt threw', err);
+    console.error('[decryptRefreshToken] CryptoJS decrypt threw', safeErr(err));
     throw new HttpsError(
       'internal',
       'Failed to decrypt stored refresh token. The encryption key may have rotated.'
@@ -206,7 +207,7 @@ function transientError(message: string): HttpsError {
 }
 
 function logWarn(scope: string, err: unknown, extra?: Record<string, unknown>) {
-  console.warn(`[googleOAuth.${scope}]`, err, extra ?? {});
+  console.warn(`[googleOAuth.${scope}]`, safeErr(err), extra ?? {});
 }
 
 // Info-level log for security-relevant successful events (e.g. a successful

@@ -46,6 +46,7 @@ import {
 import { assertViewAsAllowed } from './viewAsGuard';
 import { BoundedLruMap } from './utils/boundedLruMap';
 import { studentFirstName } from './studentFirstName';
+import { safeErr } from './safeLog';
 
 // Student identity (ClassLink-via-Google) — PII-free auth flow
 // ---------------------------------------------------------------------------
@@ -489,7 +490,7 @@ export const studentLoginV1 = onCall(
       } catch (err) {
         console.error(
           '[studentLoginV1] createCustomToken failed (test bypass):',
-          err
+          safeErr(err)
         );
         throw new HttpsError('internal', 'Failed to mint auth token.');
       }
@@ -548,7 +549,7 @@ export const studentLoginV1 = onCall(
           readPreviousClaim(db, uid, orgId),
         ]);
     } catch (err) {
-      console.error('[studentLoginV1] roster lookup failed:', err);
+      console.error('[studentLoginV1] roster lookup failed:', safeErr(err));
       throw new HttpsError('internal', 'Roster service unavailable.');
     }
     // A section ClassLink couldn't confirm just now keeps its place from the last sign-in (or any, before one was recorded), so a blip never narrows the claim.
@@ -570,7 +571,10 @@ export const studentLoginV1 = onCall(
         updatedAt: Date.now(),
       });
     } catch (err) {
-      console.error('[studentLoginV1] student_sections write failed:', err);
+      console.error(
+        '[studentLoginV1] student_sections write failed:',
+        safeErr(err)
+      );
     }
 
     let customToken: string;
@@ -583,7 +587,7 @@ export const studentLoginV1 = onCall(
         firstName,
       });
     } catch (err) {
-      console.error('[studentLoginV1] createCustomToken failed:', err);
+      console.error('[studentLoginV1] createCustomToken failed:', safeErr(err));
       throw new HttpsError('internal', 'Failed to mint auth token.');
     }
 
@@ -859,7 +863,7 @@ export const getStudentClassDirectoryV1 = onCall(
           // The current claim still works; the new class shows on next sign-in.
           console.error(
             '[getStudentClassDirectoryV1] createCustomToken failed:',
-            err
+            safeErr(err)
           );
         }
       }
@@ -1903,7 +1907,10 @@ async function stampRetiredPinTimes(
       ...rest.flatMap(([seg, value]) => [path(seg), value])
     );
   } catch (err) {
-    console.warn('[recordRetiredPins] retiredPinsAt stamp failed', err);
+    console.warn(
+      '[recordRetiredPins] retiredPinsAt stamp failed',
+      safeErr(err)
+    );
   }
 }
 
@@ -2373,7 +2380,7 @@ export const pinLoginV1 = onCall(
         r.get()
       )
     ).catch((err: unknown) => {
-      console.error('[pinLoginV1] attempt check failed:', err);
+      console.error('[pinLoginV1] attempt check failed:', safeErr(err));
       return null;
     });
     if (
@@ -2426,7 +2433,7 @@ export const pinLoginV1 = onCall(
       indexKey,
       rejoinOnly
     ).catch((err: unknown): PinLoginDecision => {
-      console.error('[pinLoginV1] attempt record failed:', err);
+      console.error('[pinLoginV1] attempt record failed:', safeErr(err));
       return { outcome: 'rate-limited' };
     });
     if (decision.outcome === 'rate-limited') {
@@ -2469,7 +2476,7 @@ export const pinLoginV1 = onCall(
         pinSessionId: sessionRef.id,
       });
     } catch (err) {
-      console.error('[pinLoginV1] createCustomToken failed:', err);
+      console.error('[pinLoginV1] createCustomToken failed:', safeErr(err));
       throw new HttpsError('internal', 'Failed to mint auth token.');
     }
 

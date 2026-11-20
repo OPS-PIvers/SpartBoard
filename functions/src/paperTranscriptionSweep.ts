@@ -32,6 +32,7 @@ import {
   paperPageArtifactId,
   type PaperTranscriptionJobStatus,
 } from './paperWrittenTypes';
+import { safeErr } from './safeLog';
 
 const MINUTE = 60 * 1000;
 const DAY = 24 * 60 * MINUTE;
@@ -823,7 +824,11 @@ export async function runPaperCropSweep(
         }
         await sweepOneCrop(crop.path, parsed);
       } catch (error) {
-        console.error('[paperTranscriptionSweep] crop', crop.path, error);
+        console.error(
+          '[paperTranscriptionSweep] crop',
+          crop.path,
+          safeErr(error)
+        );
       }
     }
   );
@@ -841,7 +846,11 @@ export async function runPaperCropSweep(
             object.createdMs
           );
         } catch (error) {
-          console.error('[paperTranscriptionSweep] page', object.path, error);
+          console.error(
+            '[paperTranscriptionSweep] page',
+            object.path,
+            safeErr(error)
+          );
         }
       }
     );
