@@ -106,8 +106,8 @@ Test on your real prod account, then set the row to Public (Previews, or Widgets
 
 ## 3. Prod steps that need your OK
 
-- [ ] **PT-277 🤖 Stamp older Gradebook entries before opening Gradebook** (#6407, AB-334). Entries written between #6310 and #6407 aren't marked as roster-checked, so a substitute swap can drop them. Once AB-334's script has merged:
-  > Run the AB-334 vouched-stamp script on prod as a dry run and show me the counts, then add `--apply` after I say go.
+- [ ] **PT-277 🤖 Stamp older Gradebook entries before opening Gradebook, after the release that ships #6407 is live** (#6407, AB-334). Entries written between #6310 and #6407 aren't marked as roster-checked, so a substitute swap can drop them. Wait until AB-334's script has merged and the release that ships #6407 is live on prod, since older prod functions overwrite the stamp:
+  > After the release that ships #6407 is live, run the AB-334 vouched-stamp script on prod as a dry run and show me the counts, then add `--apply` after I say go.
 - [ ] **PT-262 🤖 Move old Projects grade overrides** (AB-284, #6256, dev then prod after the release). Projects grades written before #6256 keep overrides in an old field until someone grades them again. In a cloud SpartBoard thread:
   > Run `scripts/cloud-run.sh scripts/backfill-project-grade-overrides.mjs --project dev` as a dry run, then again with `--apply`. After the release, run `CLOUD_RUN_PROJECT=prod scripts/cloud-run.sh scripts/backfill-project-grade-overrides.mjs --project prod` as a dry run and show me the count, then re-run with `--apply` after I say go.
 - [ ] **PT-250 🤖 Clear revealed answers on ended quiz runs** (security #1, #6186, prod write). Ending a run now clears `revealedAnswers`; runs that ended earlier still hold them.
