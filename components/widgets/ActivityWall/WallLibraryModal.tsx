@@ -14,7 +14,6 @@ import {
   deleteDoc,
   doc,
   getCountFromServer,
-  updateDoc,
 } from 'firebase/firestore';
 import { Modal } from '@/components/common/Modal';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
@@ -178,13 +177,6 @@ export const WallLibraryModal: React.FC<WallLibraryModalProps> = ({
       }
       try {
         const sessionId = activityWallSessionId(uid, entry.id);
-        // Close first so no post lands between clearing and deleting.
-        await updateDoc(doc(db, 'activity_wall_sessions', sessionId), {
-          acceptingResponses: false,
-        }).catch(() => {
-          // Session doc may not exist yet; nothing to close.
-        });
-        await clearWallSubmissions(sessionId);
         await onDelete(entry.id);
         await deleteDoc(doc(db, 'activity_wall_sessions', sessionId)).catch(
           () => {
