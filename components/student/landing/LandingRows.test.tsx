@@ -90,7 +90,24 @@ describe('DoneRow', () => {
     expect(screen.getByText('Awaiting grade')).toBeInTheDocument();
   });
 
-  it('explains a Missing row instead of opening it', () => {
+  it('says Not submitted on an expired row, never Missing', () => {
+    renderRow({
+      item: item({ missing: true, row: { assignment, state: 'missing' } }),
+    });
+    expect(screen.getByText('Not submitted')).toBeInTheDocument();
+    expect(screen.queryByText('Missing')).not.toBeInTheDocument();
+  });
+
+  it('says Not submitted on an expired Gradebook row', () => {
+    renderRow({
+      item: item({ missing: true, row: { assignment, state: 'missing' } }),
+      gradebook: true,
+    });
+    expect(screen.getByText('Not submitted')).toBeInTheDocument();
+    expect(screen.queryByText('Missing')).not.toBeInTheDocument();
+  });
+
+  it('explains an expired row instead of opening it', () => {
     renderRow({
       item: item({ missing: true, row: { assignment, state: 'missing' } }),
     });
