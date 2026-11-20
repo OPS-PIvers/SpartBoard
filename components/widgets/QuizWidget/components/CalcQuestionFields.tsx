@@ -6,12 +6,16 @@ import { tourTypeAttr } from '@/config/tourAnchors';
 import { PromptText } from '@/components/common/PromptText';
 import {
   CALC_MAX_DECIMALS,
+  calcModifiedNeedsAnswer,
   calcSeed,
   drawCalcValues,
   fillCalcPrompt,
   formatCalcAnswer,
 } from '@/utils/quizCalculated';
-import { calcFormulaProblem } from '@/utils/quizCalcProblem';
+import {
+  calcFormulaProblem,
+  calcModifiedProblem,
+} from '@/utils/quizCalcProblem';
 import { inputClass, labelClass } from './quizEditorFieldStyles';
 import { DraftNumberInput } from './DraftNumberInput';
 
@@ -170,6 +174,8 @@ export const CalcAnswerField: React.FC<{
     });
   const values = sampleValues(q, sample);
   const problem = calcFormulaProblem(calc);
+  const needsModified = calcModifiedNeedsAnswer(q.modifiedText, calc, q.text);
+  const modifiedProblem = calcModifiedProblem(calc, q.modifiedText, q.text);
   const shown =
     !problem && calc.formula.trim() ? formatCalcAnswer(calc, values) : '';
   const relative = calc.tolerance.kind === 'relative';
@@ -208,6 +214,38 @@ export const CalcAnswerField: React.FC<{
         <p role="status" className="mt-1 text-xxs font-bold text-amber-700">
           {problem.charAt(0).toUpperCase()}
           {problem.slice(1)}.
+        </p>
+      )}
+      {needsModified && (
+        <div className="flex items-center gap-2 mt-2">
+          <label
+            htmlFor="calc-modified-answer"
+            className="shrink-0 text-xs font-bold text-slate-500"
+          >
+            Modified answer
+          </label>
+          <input
+            id="calc-modified-answer"
+            type="text"
+            inputMode="decimal"
+            value={calc.modifiedAnswer ?? ''}
+            maxLength={40}
+            autoComplete="off"
+            onChange={(e) =>
+              set({ modifiedAnswer: e.target.value || undefined })
+            }
+            className={`${smallInput} max-w-32`}
+            {...tourTypeAttr('quiz-editor.calc-modified-answer', 'quiz')}
+          />
+          {calc.unit && (
+            <span className="text-sm text-slate-500">{calc.unit}</span>
+          )}
+        </div>
+      )}
+      {needsModified && modifiedProblem && calc.modifiedAnswer?.trim() && (
+        <p role="status" className="mt-1 text-xxs font-bold text-amber-700">
+          {modifiedProblem.charAt(0).toUpperCase()}
+          {modifiedProblem.slice(1)}.
         </p>
       )}
       <div className="grid grid-cols-1 sm:grid-cols-[1.3fr_1fr_1fr] gap-3 mt-3">

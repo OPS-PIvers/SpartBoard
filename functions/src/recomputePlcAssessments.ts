@@ -218,17 +218,28 @@ export function parsePaperWrittenQuestionIds(
 
 /** Only the served `language` off each student override; the rest is irrelevant here. */
 export function parseServedLanguages(
-  raw: unknown
-): Record<string, { language?: string }> | undefined {
+  raw: unknown,
+  /** Student-paced, the only pace that shows the modified prompt. */
+  modifiedWording = false
+):
+  | Record<string, { language?: string; modifiedQuestions?: boolean }>
+  | undefined {
   if (typeof raw !== 'object' || raw === null) return undefined;
-  const out: Record<string, { language?: string }> = {};
+  const out: Record<
+    string,
+    { language?: string; modifiedQuestions?: boolean }
+  > = {};
   for (const [uid, override] of Object.entries(
     raw as Record<string, unknown>
   )) {
     if (typeof override !== 'object' || override === null) continue;
-    const language = (override as Record<string, unknown>).language;
+    const { language, modifiedQuestions } = override as Record<string, unknown>;
+    const entry: { language?: string; modifiedQuestions?: boolean } = {};
     if (typeof language === 'string' && language.length > 0)
-      out[uid] = { language };
+      entry.language = language;
+    if (modifiedWording && modifiedQuestions === true)
+      entry.modifiedQuestions = true;
+    if (Object.keys(entry).length > 0) out[uid] = entry;
   }
   return Object.keys(out).length > 0 ? out : undefined;
 }
@@ -463,7 +474,8 @@ export async function recomputeOnePlcAssessment(
         assignmentData?.lenientFibLocales
       ),
       overridesByStudentUid: parseServedLanguages(
-        assignmentData?.overridesByStudentUid
+        assignmentData?.overridesByStudentUid,
+        s.sessionMode === 'student'
       ),
       sections: parseChooseSections(s.sections),
       paperWrittenQuestionIds: parsePaperWrittenQuestionIds(
