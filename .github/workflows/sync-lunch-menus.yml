@@ -37,10 +37,12 @@ concurrency:
 
 jobs:
   sync:
+    # Prod credentials are used from main only; any other ref may write dev alone.
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/dev-')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
-      PROJECT_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.project || (github.event_name == 'push' && 'spartboard-dev' || 'spartboard') }}
+      PROJECT_ID: ${{ github.ref != 'refs/heads/main' && 'spartboard-dev' || (github.event_name == 'workflow_dispatch' && inputs.project || (github.event_name == 'push' && 'spartboard-dev' || 'spartboard')) }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -54,7 +56,7 @@ jobs:
           node-version: 24
 
       - name: Authenticate to prod
-        if: env.PROJECT_ID == 'spartboard'
+        if: env.PROJECT_ID == 'spartboard' && github.ref == 'refs/heads/main'
         id: prod-auth
         uses: google-github-actions/auth@v2
         with:

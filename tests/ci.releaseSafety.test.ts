@@ -62,9 +62,34 @@ describe('production deploy', () => {
     expect(yaml).toContain('exit "$(cat "$RUNNER_TEMP/carry-forward.exit")"');
   });
 
+  it('runs every job from main only, so no other ref can reach the prod credential', () => {
+    const jobs = yaml.slice(yaml.indexOf('\njobs:'));
+    const ids = [...jobs.matchAll(/^ {2}([a-z-]+):\n/gm)].map((m) => m[1]);
+    expect(ids.length).toBeGreaterThan(0);
+    for (const id of ids) {
+      const start = jobs.indexOf(`\n  ${id}:\n`);
+      const block = jobs.slice(start, start + 400);
+      expect(block, id).toContain("github.ref == 'refs/heads/main'");
+    }
+    expect(yaml).not.toContain("github.ref != 'refs/heads/main'");
+  });
+
   it('never deploys after a failed or cancelled check', () => {
     expect(yaml).toContain(
-      "if: ${{ !failure() && !cancelled() && needs.build.result == 'success' }}"
+      "if: ${{ github.ref == 'refs/heads/main' && !failure() && !cancelled() && needs.build.result == 'success' }}"
+    );
+  });
+});
+
+describe('lunch menu sync', () => {
+  const yaml = read('sync-lunch-menus.yml');
+
+  it('authenticates to prod only from main', () => {
+    expect(yaml).toContain(
+      "if: env.PROJECT_ID == 'spartboard' && github.ref == 'refs/heads/main'"
+    );
+    expect(yaml).toContain(
+      "github.ref != 'refs/heads/main' && 'spartboard-dev'"
     );
   });
 });
