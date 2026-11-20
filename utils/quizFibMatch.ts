@@ -63,6 +63,13 @@ const dropArticle = (value: string, locale: string): string => {
   return value;
 };
 
+// A backwards scan, not /[.,;:!?]+$/ (quadratic on a long run of punctuation).
+const trimEndPunctuation = (value: string): string => {
+  let end = value.length;
+  while (end > 0 && '.,;:!?'.includes(value[end - 1])) end--;
+  return value.slice(0, end);
+};
+
 /** Case, spacing, accents, end punctuation and one leading article never count. */
 export function relaxFibAnswer(value: string, locale: string): string {
   const base = value
@@ -72,10 +79,8 @@ export function relaxFibAnswer(value: string, locale: string): string {
     .toLowerCase()
     .replace(/[¿¡"“”]/gu, '')
     .replace(/\s+/gu, ' ')
-    .trim()
-    .replace(/[.,;:!?]+$/u, '')
     .trim();
-  return dropArticle(base, locale);
+  return dropArticle(trimEndPunctuation(base).trim(), locale);
 }
 
 const NUMBER = /[-−+]?\d+(?:[.,/]\d+)?/gu;
@@ -112,7 +117,11 @@ export function fibLenientMatch(
   const gn = g.match(NUMBER) ?? [];
   if (kn.length !== gn.length || kn.some((n, i) => n !== gn[i])) return false;
   const letters = Array.from(k.replace(NUMBER, '')).length;
-  return flashcardEditDistance(g, k) <= typoAllowance(letters);
+  const allowance = typoAllowance(letters);
+  // The edit distance is never below the length gap, so skip the full matrix for a far-off length.
+  if (Math.abs(Array.from(g).length - Array.from(k).length) > allowance)
+    return false;
+  return flashcardEditDistance(g, k) <= allowance;
 }
 
 /** Lenient grading for one blank: relaxed on the quiz key, typo-tolerant on the translation, exact on accepted answers. */
