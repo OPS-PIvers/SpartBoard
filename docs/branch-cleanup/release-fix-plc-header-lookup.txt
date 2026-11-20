@@ -1,0 +1,1 @@
+release-fix/plc-header-lookup (release 2026.11.20b fix: per-collection PLC header lookup)
