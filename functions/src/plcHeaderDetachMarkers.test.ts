@@ -34,6 +34,7 @@ interface State {
   updates: Array<{ path: string; patch: Record<string, unknown> }>;
   sets: Array<{ path: string; data: Record<string, unknown> }>;
   queries: string[];
+  queryFails?: boolean;
 }
 
 function makeDb(state: State) {
@@ -48,12 +49,24 @@ function makeDb(state: State) {
     __group: string;
     __filters: Array<[string, unknown]>;
     where: (f: string, op: string, v: unknown) => Query;
+    get: () => Promise<unknown>;
   };
-  const query = (group: string, filters: Array<[string, unknown]>): Query => ({
-    __group: group,
-    __filters: filters,
-    where: (f, _op, v) => query(group, [...filters, [f, v]]),
-  });
+  const query = (group: string, filters: Array<[string, unknown]>): Query => {
+    const q: Query = {
+      __group: group,
+      __filters: filters,
+      where: (f, _op, v) => query(group, [...filters, [f, v]]),
+      get: () => {
+        if (state.queryFails) {
+          return Promise.reject(
+            new Error('FAILED_PRECONDITION: index building')
+          );
+        }
+        return get(q);
+      },
+    };
+    return q;
+  };
   const refFor = (path: string) => {
     const seg = path.split('/');
     let ref: Record<string, unknown> | null = null;
@@ -120,6 +133,11 @@ beforeEach(() => {
         path: 'users/u/quizzes/x',
         data: { sharedBy: LEAVER, syncGroupId: GROUP },
       },
+      // Nested path whose parent collection is also named plcs.
+      {
+        path: 'x/y/plcs/p9/quizzes/n1',
+        data: { sharedBy: LEAVER, syncGroupId: GROUP },
+      },
       // Another member's header for the same group.
       {
         path: 'plcs/p1/quizzes/h2',
@@ -156,7 +174,15 @@ describe('leave writes PLC header markers', () => {
     expect(typeof state.sets[0].data.detachedAt).toBe('number');
   });
 
-  it("a non-participant's leave writes no marker and runs no query", async () => {
+  it('a failing header query still lets the leave succeed, with no marker', async () => {
+    state.queryFails = true;
+    const res = await handleLeaveSyncedQuizGroup(quizDb(), LEAVER, GROUP);
+    expect(res.remainingParticipants).toBe(0);
+    expect(state.updates).toHaveLength(1);
+    expect(state.sets).toHaveLength(0);
+  });
+
+  it("a non-participant's leave writes no marker", async () => {
     state.headers.push({
       path: 'plcs/p1/quizzes/forged',
       data: { sharedBy: ATTACKER, syncGroupId: GROUP },
@@ -165,7 +191,6 @@ describe('leave writes PLC header markers', () => {
     expect(res.remainingParticipants).toBe(1);
     expect(state.updates).toHaveLength(0);
     expect(state.sets).toHaveLength(0);
-    expect(state.queries).toHaveLength(0);
   });
 
   it('video leave marks the video_activities headers', async () => {
@@ -197,6 +222,5 @@ describe('leave writes PLC header markers', () => {
       GROUP
     );
     expect(state.sets).toHaveLength(0);
-    expect(state.queries).toHaveLength(0);
   });
 });

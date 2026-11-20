@@ -131,6 +131,13 @@ export async function handleLeaveSyncedVideoActivityGroup(
   groupId: string
 ): Promise<LeaveSyncedVideoActivityGroupResponse> {
   const groupRef = db.collection(SYNCED_COLLECTION).doc(groupId);
+  // Read before the transaction; markers are written below only if uid is a participant.
+  const headers = await findLeaverPlcHeaders(
+    db,
+    'video-activity',
+    uid,
+    groupId
+  );
   return db.runTransaction(async (tx) => {
     const groupSnap = await tx.get(groupRef);
     if (!groupSnap.exists) {
@@ -144,14 +151,6 @@ export async function handleLeaveSyncedVideoActivityGroup(
       | undefined;
     const participants = { ...(groupData?.participants ?? {}) };
     if (Object.prototype.hasOwnProperty.call(participants, uid)) {
-      // Participant checked above in this transaction, so a non-member leave can't mint markers.
-      const headers = await findLeaverPlcHeaders(
-        db,
-        tx,
-        'video-activity',
-        uid,
-        groupId
-      );
       const now = Date.now();
       delete participants[uid];
       tx.update(groupRef, {

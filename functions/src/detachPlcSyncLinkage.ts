@@ -93,6 +93,13 @@ export async function handleDetachPlcSyncLinkage(
   const plcRef = db.collection('plcs').doc(plcId);
   const headerRef = plcRef.collection(headerCollection).doc(plcContentId);
 
+  // Header query runs outside the transaction; syncGroupId is immutable, re-checked below.
+  const preGroupId: unknown = (await headerRef.get()).data()?.syncGroupId;
+  const headers =
+    typeof preGroupId === 'string' && preGroupId.length > 0
+      ? await findLeaverPlcHeaders(db, kind, uid, preGroupId)
+      : [];
+
   return db.runTransaction(async (tx) => {
     // Read membership + header inside the transaction so a member who is
     // removed from `memberUids` mid-flow can't keep mutating the group's
@@ -146,9 +153,14 @@ export async function handleDetachPlcSyncLinkage(
       uid
     );
     if (wasParticipant) {
-      const headers = await findLeaverPlcHeaders(db, tx, kind, uid, groupId);
       delete participants[uid];
-      writeLeaverHeaderMarkers(tx, groupRef, uid, headers, Date.now());
+      writeLeaverHeaderMarkers(
+        tx,
+        groupRef,
+        uid,
+        groupId === preGroupId ? headers : [],
+        Date.now()
+      );
       tx.update(groupRef, {
         participants,
         // updatedAt tracks any server-side touch; updatedBy is intentionally

@@ -1,5 +1,6 @@
 // Server-side markers that keep a leaver's PLC headers joinable after they stop syncing.
 
+import * as logger from 'firebase-functions/logger';
 import type * as admin from './firebaseAdmin';
 import {
   PLC_DETACHED_SUBCOLLECTION,
@@ -14,27 +15,40 @@ export interface LeaverPlcHeader {
   headerId: string;
 }
 
-/** Reads the leaver's own PLC headers pointing at the group; call before any transaction write. */
+/** Finds the leaver's own PLC headers for the group outside the transaction; a failed query (e.g. index building) yields none. */
 export async function findLeaverPlcHeaders(
   db: admin.firestore.Firestore,
-  tx: admin.firestore.Transaction,
   kind: PlcHeaderGroupKind,
   uid: string,
   groupId: string
 ): Promise<LeaverPlcHeader[]> {
   const found: LeaverPlcHeader[] = [];
-  for (const headerCollection of PLC_HEADER_COLLECTIONS[kind]) {
-    const snap = await tx.get(
-      db
+  try {
+    for (const headerCollection of PLC_HEADER_COLLECTIONS[kind]) {
+      const snap = await db
         .collectionGroup(headerCollection)
         .where('sharedBy', '==', uid)
         .where('syncGroupId', '==', groupId)
-    );
-    for (const doc of snap.docs) {
-      const plcRef = doc.ref.parent.parent;
-      if (!plcRef || plcRef.parent.id !== 'plcs') continue;
-      found.push({ plcId: plcRef.id, headerCollection, headerId: doc.id });
+        .get();
+      for (const doc of snap.docs) {
+        const plcRef = doc.ref.parent.parent;
+        if (
+          !plcRef ||
+          plcRef.parent.id !== 'plcs' ||
+          plcRef.parent.parent !== null
+        ) {
+          continue;
+        }
+        found.push({ plcId: plcRef.id, headerCollection, headerId: doc.id });
+      }
     }
+  } catch (err) {
+    logger.warn('PLC header lookup failed; leaving without detach markers', {
+      kind,
+      groupId,
+      err: err instanceof Error ? err.message : String(err),
+    });
+    return [];
   }
   return found;
 }

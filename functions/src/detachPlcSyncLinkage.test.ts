@@ -76,6 +76,7 @@ function makeDb(state: StubState, kind: PlcSyncLinkageKind) {
   const docRef = (path: string) => ({
     __path: path,
     collection: (sub: string) => collectionRef(`${path}/${sub}`),
+    get: () => get({ __path: path }),
   });
   const collectionRef = (path: string) => ({
     doc: (id: string) => docRef(`${path}/${id}`),
@@ -112,7 +113,11 @@ function makeDb(state: StubState, kind: PlcSyncLinkageKind) {
   return {
     collection: (name: string) => collectionRef(name),
     collectionGroup: () => {
-      const q = { __path: '__query', where: () => q };
+      const q = {
+        __path: '__query',
+        where: () => q,
+        get: () => Promise.resolve({ docs: [] }),
+      };
       return q;
     },
     runTransaction: async <T>(
