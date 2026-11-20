@@ -3779,9 +3779,7 @@ export const ActiveQuiz: React.FC<{
     }
   };
 
-  // RR-A2 sub-decision 1 — an open recording slot blocks the submit. A slot
-  // prep expiry closed, or one a dead microphone marked capture-unavailable,
-  // is resolved rather than open and never blocks (RR-07).
+  // An open recording slot counts as blank in the submit warning; one prep expiry closed or a dead mic marked is resolved (RR-07).
   // A recording question locked out of a choose-N section can't be answered, so it never blocks.
   const recordingServedIds =
     drawIds || override?.questionIds

@@ -123,6 +123,9 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
     validStudents,
     duplicatePins,
   } = useRosterRowsState(roster);
+  // Rows are seeded once, so a class that opened unloaded stays unsaveable even after it loads.
+  const [openedUnloaded] = useState(() => !!roster?.loadError);
+  const loadFailed = !!roster?.loadError || openedUnloaded;
 
   const columnOptions = [
     {
@@ -298,14 +301,14 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
     draftToken,
     resetKey: roster?.id,
     // A class whose file failed to load opens empty, so saving it would wipe the real one.
-    enabled: roster !== null && !roster.loadError,
+    enabled: roster !== null && !loadFailed,
     delayMs: 1500,
     onSave: () => persistRef.current(),
   });
 
   // Waits for the last autosave before closing, and asks only if it failed.
   const requestClose = async () => {
-    if (roster === null || roster.loadError) {
+    if (roster === null || loadFailed) {
       onClose();
       return;
     }
@@ -398,10 +401,10 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
               </select>
             </label>
           )}
-          {roster?.loadError ? (
+          {loadFailed ? (
             <div
               role="alert"
-              title={roster.loadError}
+              title={roster?.loadError}
               className="min-h-[38px] flex items-center gap-1.5 px-2 text-sm font-bold text-red-600"
             >
               <AlertTriangle size={16} aria-hidden="true" />
