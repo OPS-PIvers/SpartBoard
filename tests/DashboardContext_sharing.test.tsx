@@ -1787,6 +1787,74 @@ describe('DashboardContext Sharing Logic', () => {
       });
     });
 
+    it('a viewer drops a stroke the host erased', async () => {
+      let subscribeCb: ((remote: Dashboard | null) => void) | null = null;
+      mockSubscribeToSharedBoard.mockImplementation(
+        (_id: string, cb: (remote: Dashboard | null) => void) => {
+          subscribeCb = cb;
+          return () => undefined;
+        }
+      );
+      const linked: Dashboard = {
+        id: 'view-board',
+        name: 'View Only Board',
+        background: 'bg-slate-800',
+        widgets: [],
+        createdAt: 1,
+        linkedShareId: 'share-vo',
+        linkedShareRole: 'viewer',
+        linkedShareHostUid: 'host-a',
+      };
+      initialDashboardsSeed = [linked];
+      let captured: Dashboard | undefined;
+      const Probe: React.FC = () => {
+        const { dashboards } = useDashboard();
+        useEffect(() => {
+          captured = dashboards.find((d) => d.id === 'view-board');
+        }, [dashboards]);
+        return <div />;
+      };
+      render(
+        <DashboardProvider>
+          <Probe />
+        </DashboardProvider>
+      );
+      await waitFor(() => expect(subscribeCb).not.toBeNull());
+
+      const overlay = (ids: string[]) => ({
+        objects: ids.map((id) => ({
+          id,
+          kind: 'path' as const,
+          z: 1,
+          points: [{ x: 5, y: 5 }],
+          color: '#f00',
+          width: 4,
+          authorUid: 'other-user',
+        })),
+        updatedAt: 99,
+      });
+      act(() => {
+        subscribeCb?.({
+          ...linked,
+          annotationOverlay: overlay(['host-stroke']),
+          updatedBy: 'other-user',
+        } as unknown as Dashboard);
+      });
+      await waitFor(() =>
+        expect(captured?.annotationOverlay?.objects).toHaveLength(1)
+      );
+      act(() => {
+        subscribeCb?.({
+          ...linked,
+          annotationOverlay: overlay([]),
+          updatedBy: 'other-user',
+        } as unknown as Dashboard);
+      });
+      await waitFor(() =>
+        expect(captured?.annotationOverlay?.objects ?? []).toHaveLength(0)
+      );
+    });
+
     it.each(['viewer', 'collaborator'] as const)(
       "a %s receives the host's Connections from the share",
       async (role) => {
@@ -2045,6 +2113,121 @@ describe('DashboardContext Sharing Logic', () => {
           .sort();
         expect(ids).toEqual(['mine', 'theirs']);
       });
+    });
+
+    it('keeps local ink when a snapshot lands before the share refuses the write', async () => {
+      let rejectMirror: (e: unknown) => void = () => undefined;
+      mockMirrorSharedBoard.mockImplementationOnce(
+        () =>
+          new Promise((_resolve, reject) => {
+            rejectMirror = reject;
+          })
+      );
+      let subscribeCb: ((remote: Dashboard | null) => void) | null = null;
+      mockSubscribeToSharedBoard.mockImplementation(
+        (_id: string, cb: (remote: Dashboard | null) => void) => {
+          subscribeCb = cb;
+          return () => undefined;
+        }
+      );
+
+      const stroke = (id: string, authorUid: string) => ({
+        id,
+        kind: 'path' as const,
+        z: 1,
+        points: [{ x: 1, y: 1 }],
+        color: '#000',
+        width: 2,
+        authorUid,
+      });
+
+      const linked: Dashboard = {
+        id: 'co-board',
+        name: 'Co-annotated Board',
+        background: 'bg-slate-800',
+        widgets: [],
+        createdAt: 1,
+        linkedShareId: 'share-co',
+        linkedShareRole: 'collaborator',
+        linkedShareHostUid: 'host-a',
+        annotationOverlay: { objects: [], updatedAt: 1 },
+      };
+      initialDashboardsSeed = [linked];
+
+      type Add = ReturnType<typeof useDashboard>['addAnnotationObject'];
+      type Load = ReturnType<typeof useDashboard>['loadDashboard'];
+      let add: Add | null = null;
+      let load: Load | null = null;
+      let captured: Dashboard | undefined;
+
+      const Probe: React.FC = () => {
+        const { addAnnotationObject, loadDashboard, dashboards } =
+          useDashboard();
+        useEffect(() => {
+          add = addAnnotationObject;
+          load = loadDashboard;
+          captured = dashboards.find((d) => d.id === 'co-board');
+        }, [addAnnotationObject, loadDashboard, dashboards]);
+        return <div />;
+      };
+
+      render(
+        <DashboardProvider>
+          <Probe />
+        </DashboardProvider>
+      );
+
+      await waitFor(() => {
+        expect(add).not.toBeNull();
+        expect(subscribeCb).not.toBeNull();
+      });
+
+      act(() => {
+        if (load) load('co-board');
+      });
+      // Teacher A (this client) draws.
+      act(() => {
+        if (add) add(stroke('mine', 'test-user'));
+      });
+      await waitFor(() => {
+        const ids = (captured?.annotationOverlay?.objects ?? []).map(
+          (o) => o.id
+        );
+        expect(ids).toContain('mine');
+      });
+
+      // The write is still in flight when the peer's snapshot lands.
+      await waitFor(() => expect(mockMirrorSharedBoard).toHaveBeenCalled(), {
+        timeout: 2000,
+      });
+      act(() => {
+        if (subscribeCb)
+          subscribeCb({
+            ...linked,
+            annotationOverlay: {
+              objects: [stroke('theirs', 'other-user')],
+              updatedAt: 99,
+            },
+            updatedBy: 'other-user',
+          } as unknown as Dashboard);
+      });
+
+      await waitFor(() => {
+        const ids = (captured?.annotationOverlay?.objects ?? [])
+          .map((o) => o.id)
+          .sort();
+        expect(ids).toEqual(['mine', 'theirs']);
+      });
+
+      await act(async () => {
+        rejectMirror(
+          Object.assign(new Error('denied'), { code: 'permission-denied' })
+        );
+        await Promise.resolve();
+      });
+      expect(
+        (captured?.annotationOverlay?.objects ?? []).map((o) => o.id).sort()
+      ).toEqual(['mine', 'theirs']);
     });
 
     it('drops ink a peer erased after a refused write', async () => {

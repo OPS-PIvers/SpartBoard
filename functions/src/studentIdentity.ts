@@ -1924,20 +1924,20 @@ const PIN_LOGIN_SESSION_DAY_MS = 24 * 60 * 60 * 1000;
 export const PIN_LOGIN_MAX_CALLERS_PER_STUDENT = 3;
 const PIN_LOGIN_CLAIM_TTL_MS = 24 * 60 * 60 * 1000;
 
-interface PinLoginAttempts {
+export interface PinLoginAttempts {
   windowStart: number;
   failures: number;
   indexKeys: string[];
 }
 
-interface PinLoginSessionBudget {
+export interface PinLoginSessionBudget {
   windowStart: number;
   failures: number;
   dayStart: number;
   dayFailures: number;
 }
 
-function readPinLoginAttempts(
+export function readPinLoginAttempts(
   data: admin.firestore.DocumentData | undefined,
   now: number
 ): PinLoginAttempts {
@@ -1957,7 +1957,7 @@ function readPinLoginAttempts(
   };
 }
 
-function readPinLoginSession(
+export function readPinLoginSession(
   data: admin.firestore.DocumentData | undefined,
   now: number
 ): PinLoginSessionBudget {
@@ -1997,7 +1997,9 @@ function pinLoginSessionBlocked(s: PinLoginSessionBudget): boolean {
   );
 }
 
-function pinLoginExpireAt(windowStart: number): admin.firestore.Timestamp {
+export function pinLoginExpireAt(
+  windowStart: number
+): admin.firestore.Timestamp {
   // TTL field (firestore.indexes.json) so stale counters delete themselves.
   return admin.firestore.Timestamp.fromMillis(
     windowStart + 2 * PIN_LOGIN_WINDOW_MS
@@ -2033,7 +2035,7 @@ export function pinLoginRefs(
 }
 
 /** Blocked by a caller limit, or by a shared budget unless this caller is rejoining as a student it already holds. */
-function pinLoginLimited(
+export function pinLoginLimited(
   a: PinLoginAttempts,
   shared: readonly PinLoginSessionBudget[],
   callers: readonly string[],
@@ -2043,6 +2045,30 @@ function pinLoginLimited(
   if (pinLoginBlocked(a, indexKey)) return true;
   if (callers.includes(callerUid)) return false;
   return shared.some(pinLoginSessionBlocked);
+}
+
+/** Counts one miss on the caller and every shared budget; every miss is counted, even once blocked, so the stored total matches the probes made. */
+export function recordPinLoginMiss(
+  tx: admin.firestore.Transaction,
+  refs: Pick<PinLoginRefs, 'caller' | 'shared'>,
+  a: PinLoginAttempts,
+  shared: PinLoginSessionBudget[]
+): void {
+  a.failures += 1;
+  shared.forEach((s, i) => {
+    s.failures += 1;
+    s.dayFailures += 1;
+    tx.set(refs.shared[i], {
+      ...s,
+      expireAt: admin.firestore.Timestamp.fromMillis(
+        Math.max(
+          s.windowStart + 2 * PIN_LOGIN_WINDOW_MS,
+          s.dayStart + PIN_LOGIN_SESSION_DAY_MS
+        )
+      ),
+    });
+  });
+  tx.set(refs.caller, { ...a, expireAt: pinLoginExpireAt(a.windowStart) });
 }
 
 export interface PinLoginMatch {
@@ -2104,22 +2130,7 @@ export async function decidePinLogin(
     }
 
     if (!match) {
-      // Every miss is counted, even once blocked, so the stored total matches the probes made.
-      a.failures += 1;
-      shared.forEach((s, i) => {
-        s.failures += 1;
-        s.dayFailures += 1;
-        tx.set(refs.shared[i], {
-          ...s,
-          expireAt: admin.firestore.Timestamp.fromMillis(
-            Math.max(
-              s.windowStart + 2 * PIN_LOGIN_WINDOW_MS,
-              s.dayStart + PIN_LOGIN_SESSION_DAY_MS
-            )
-          ),
-        });
-      });
-      tx.set(refs.caller, { ...a, expireAt: pinLoginExpireAt(a.windowStart) });
+      recordPinLoginMiss(tx, refs, a, shared);
       return { outcome: blocked ? 'rate-limited' : 'miss' };
     }
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import * as firestore from 'firebase/firestore';
 import { findQuizSessionsByCode } from '@/utils/quizJoinCodes';
@@ -1946,6 +1946,148 @@ describe('useQuizSessionStudent — joinQuizSession', () => {
     >;
     expect(writtenResponse.classPeriod).toBe('Period 1');
     expect(writtenResponse).not.toHaveProperty('classId');
+  });
+
+  describe('a sheet scanned before a PIN join (hybrid session)', () => {
+    const scanned = {
+      studentUid: 'anon-uid-pin',
+      pin: '1234',
+      classPeriod: 'Period 1',
+      status: 'joined',
+      answers: [{ questionId: 'q2', answer: '', paperScanId: 'scan-1' }],
+      paperWrittenBatchId: 'batch-1',
+      completedAttempts: 0,
+    };
+    const hybridSession = (paperWrittenQuestionIds: string[] = ['q2']) => ({
+      empty: false,
+      docs: [
+        buildSessionDoc('s1', { status: 'active', paperWrittenQuestionIds }),
+      ],
+    });
+    const denied = Object.assign(new Error('denied'), {
+      code: 'permission-denied',
+    });
+    const getDocsMock = () =>
+      firestore.getDocs as unknown as ReturnType<typeof vi.fn>;
+    const getDocMock = () =>
+      firestore.getDoc as unknown as ReturnType<typeof vi.fn>;
+    const setDocMock = () =>
+      firestore.setDoc as unknown as ReturnType<typeof vi.fn>;
+    // Response creates only; a refused create also writes the clock-probe doc.
+    const creates = () =>
+      setDocMock().mock.calls.filter(
+        ([, d]) => !!d && typeof d === 'object' && 'studentUid' in d
+      ).length;
+    // Refusing every write also ends the clock resync at once instead of after its timeout.
+    const refuseCreates = () => setDocMock().mockRejectedValue(denied);
+    const join = async () => {
+      const { result } = renderHook(() => useQuizSessionStudent());
+      let outcome: unknown;
+      await act(async () => {
+        outcome = await result.current
+          .joinQuizSession('ABC123', '1234', 'Period 1')
+          .catch((err: unknown) => err);
+      });
+      return { result, outcome };
+    };
+
+    beforeEach(() => {
+      (
+        auth as unknown as {
+          currentUser: { uid: string; isAnonymous: boolean } | null;
+        }
+      ).currentUser = { uid: 'anon-uid-pin', isAnonymous: true };
+    });
+    afterEach(() => {
+      setDocMock().mockReset();
+    });
+
+    it('claims the row through the server when the create is refused, then joins it', async () => {
+      getDocsMock()
+        .mockResolvedValueOnce(hybridSession())
+        .mockResolvedValueOnce(hybridSession());
+      getDocMock()
+        .mockResolvedValueOnce({ exists: () => false })
+        .mockResolvedValueOnce({ exists: () => false })
+        .mockResolvedValueOnce({ exists: () => true, data: () => scanned });
+      refuseCreates();
+      drawCallable.mockResolvedValueOnce({ data: { claimed: true } });
+
+      const { result, outcome } = await join();
+
+      expect(drawCallable).toHaveBeenCalledWith({
+        sessionId: 's1',
+        pin: '1234',
+        period: 'Period 1',
+      });
+      expect(creates()).toBe(2);
+      expect(outcome).toBe('s1');
+      expect(result.current.error).toBeNull();
+    });
+
+    it('runs the pinLoginV1 bridge once, not again on the rejoin after a claim', async () => {
+      const rostered = {
+        empty: false,
+        docs: [
+          buildSessionDoc('s1', {
+            status: 'active',
+            paperWrittenQuestionIds: ['q2'],
+            rosterIds: ['r1'],
+          }),
+        ],
+      };
+      getDocsMock()
+        .mockResolvedValueOnce(rostered)
+        .mockResolvedValueOnce(rostered);
+      getDocMock()
+        .mockResolvedValueOnce({ exists: () => false })
+        .mockResolvedValueOnce({ exists: () => false })
+        .mockResolvedValueOnce({ exists: () => true, data: () => scanned });
+      refuseCreates();
+      drawCallable
+        .mockResolvedValueOnce({ data: { matched: false } })
+        .mockResolvedValueOnce({ data: { claimed: true } });
+
+      const { outcome } = await join();
+
+      expect(outcome).toBe('s1');
+      expect(drawCallable).toHaveBeenCalledTimes(2);
+      expect(drawCallable.mock.calls[1][0]).toMatchObject({ sessionId: 's1' });
+    });
+
+    it('creates normally, without a claim, when no row is at the PIN key', async () => {
+      getDocsMock().mockResolvedValueOnce(hybridSession());
+      const { outcome } = await join();
+
+      expect(creates()).toBe(1);
+      expect(drawCallable).not.toHaveBeenCalled();
+      expect(outcome).toBe('s1');
+    });
+
+    it('surfaces the refused create when the server refuses the claim', async () => {
+      getDocsMock().mockResolvedValueOnce(hybridSession());
+      refuseCreates();
+      drawCallable.mockResolvedValueOnce({
+        data: { claimed: false, reason: 'rate-limited' },
+      });
+
+      const { result, outcome } = await join();
+
+      expect(drawCallable).toHaveBeenCalledTimes(1);
+      expect(outcome).toBe(denied);
+      expect(creates()).toBe(2);
+      expect(result.current.error).toMatch(/already in this quiz/);
+    });
+
+    it('never asks for a claim on a session without paper-written questions', async () => {
+      getDocsMock().mockResolvedValueOnce(hybridSession([]));
+      refuseCreates();
+
+      const { outcome } = await join();
+
+      expect(drawCallable).not.toHaveBeenCalled();
+      expect(outcome).toBe(denied);
+    });
   });
 
   it('snapshots classPeriod from session.classPeriodByClassId when the SSO claim resolves unambiguously', async () => {

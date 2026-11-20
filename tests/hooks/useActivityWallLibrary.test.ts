@@ -4,11 +4,14 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   onSnapshot,
   orderBy,
   setDoc,
   updateDoc,
 } from 'firebase/firestore';
+import { clearWallSubmissions } from '@/components/widgets/ActivityWall/hooks/useActivityWallSession';
+import { endTourSandbox, startTourSandbox } from '@/utils/tourSandbox';
 import { useActivityWallLibrary } from '@/hooks/useActivityWallLibrary';
 import type { ActivityWallLibraryEntry } from '@/types';
 
@@ -16,6 +19,7 @@ vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   deleteDoc: vi.fn(),
   doc: vi.fn(),
+  getDoc: vi.fn(),
   onSnapshot: vi.fn(),
   orderBy: vi.fn((field: string, dir: 'asc' | 'desc') => ({
     __orderBy: { field, dir },
@@ -24,6 +28,13 @@ vi.mock('firebase/firestore', () => ({
   setDoc: vi.fn(),
   updateDoc: vi.fn(() => Promise.resolve()),
 }));
+
+vi.mock(
+  '@/components/widgets/ActivityWall/hooks/useActivityWallSession',
+  () => ({
+    clearWallSubmissions: vi.fn(() => Promise.resolve()),
+  })
+);
 
 vi.mock('@/config/firebase', () => ({
   db: { __mock: 'db' },
@@ -36,6 +47,8 @@ const mockOnSnapshot = onSnapshot as Mock;
 const mockSetDoc = setDoc as Mock;
 const mockDeleteDoc = deleteDoc as Mock;
 const mockUpdateDoc = updateDoc as Mock;
+const mockGetDoc = getDoc as Mock;
+const mockClear = clearWallSubmissions as Mock;
 const mockOrderBy = orderBy as Mock;
 
 const USER_UID = 'user-1';
@@ -72,6 +85,7 @@ beforeEach(() => {
   );
   mockSetDoc.mockResolvedValue(undefined);
   mockDeleteDoc.mockResolvedValue(undefined);
+  mockGetDoc.mockResolvedValue({ data: () => ({ acceptingResponses: true }) });
 });
 
 describe('useActivityWallLibrary — listener wiring', () => {
@@ -365,11 +379,8 @@ describe('useActivityWallLibrary — deleteActivity', () => {
     );
   });
 
-  it('closes the live session before deleting the wall', async () => {
+  it('closes the session, clears posts, then deletes the wall', async () => {
     mockOnSnapshot.mockReturnValue(() => undefined);
-    mockDoc.mockImplementation((_db: unknown, ...seg: string[]) =>
-      seg.join('/')
-    );
     const { result } = renderHook(() => useActivityWallLibrary(USER_UID));
 
     await act(async () => {
@@ -380,22 +391,77 @@ describe('useActivityWallLibrary — deleteActivity', () => {
       `activity_wall_sessions/${USER_UID}_act-7`,
       { acceptingResponses: false }
     );
-    expect(mockUpdateDoc.mock.invocationCallOrder[0]).toBeLessThan(
-      mockDeleteDoc.mock.invocationCallOrder[0]
-    );
+    expect(mockClear).toHaveBeenCalledWith(`${USER_UID}_act-7`);
+    const order = [
+      mockUpdateDoc.mock.invocationCallOrder[0],
+      mockClear.mock.invocationCallOrder[0],
+      mockDeleteDoc.mock.invocationCallOrder[0],
+    ];
+    expect(order).toEqual([...order].sort((x, y) => x - y));
   });
 
-  it('still deletes the wall when the session close fails', async () => {
+  it('carries on when the session doc does not exist', async () => {
     mockOnSnapshot.mockReturnValue(() => undefined);
-    mockUpdateDoc.mockRejectedValueOnce(new Error('not-found'));
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    mockUpdateDoc.mockRejectedValueOnce({ code: 'not-found' });
     const { result } = renderHook(() => useActivityWallLibrary(USER_UID));
 
     await act(async () => {
       await result.current.deleteActivity('act-7');
     });
 
+    expect(mockClear).toHaveBeenCalledTimes(1);
     expect(mockDeleteDoc).toHaveBeenCalledTimes(1);
+  });
+
+  it('aborts without clearing or deleting when the close fails', async () => {
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    const denied = Object.assign(new Error('denied'), {
+      code: 'permission-denied',
+    });
+    mockUpdateDoc.mockRejectedValueOnce(denied);
+    const { result } = renderHook(() => useActivityWallLibrary(USER_UID));
+
+    await act(async () => {
+      await expect(result.current.deleteActivity('act-7')).rejects.toBe(denied);
+    });
+
+    expect(mockClear).not.toHaveBeenCalled();
+    expect(mockDeleteDoc).not.toHaveBeenCalled();
+  });
+
+  it('reopens the session when clearing fails after the close', async () => {
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    mockClear.mockRejectedValueOnce(new Error('boom'));
+    const { result } = renderHook(() => useActivityWallLibrary(USER_UID));
+
+    await act(async () => {
+      await expect(result.current.deleteActivity('act-7')).rejects.toThrow(
+        'boom'
+      );
+    });
+
+    expect(mockDeleteDoc).not.toHaveBeenCalled();
+    expect(mockUpdateDoc).toHaveBeenLastCalledWith(
+      `activity_wall_sessions/${USER_UID}_act-7`,
+      { acceptingResponses: true }
+    );
+  });
+
+  it('does not touch the real session during a tour sandbox', async () => {
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    startTourSandbox();
+    try {
+      const { result } = renderHook(() => useActivityWallLibrary(USER_UID));
+      await act(async () => {
+        await result.current.deleteActivity('act-7');
+      });
+    } finally {
+      endTourSandbox();
+    }
+
+    expect(mockUpdateDoc).not.toHaveBeenCalled();
+    expect(mockClear).not.toHaveBeenCalled();
+    expect(mockDeleteDoc).not.toHaveBeenCalled();
   });
 
   it('throws and does not delete when there is no signed-in user', async () => {
