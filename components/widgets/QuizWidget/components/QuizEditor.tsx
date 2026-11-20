@@ -129,6 +129,8 @@ interface PaneProps {
   onAddAnswerKey?: () => void;
   /** Off in the bank editor, which doesn't save sections. */
   allowSections?: boolean;
+  /** Assignments that grade against this quiz as it is now, so an edit changes their scores. */
+  rescoredAssignmentCount?: number;
 }
 
 /** Stable empty array reused as the matchingDistractors fallback. */
@@ -171,6 +173,7 @@ const quizContextPanePropsEqual = (prev: PaneProps, next: PaneProps): boolean =>
   prev.inheritedTargets === next.inheritedTargets &&
   prev.onAddAnswerKey === next.onAddAnswerKey &&
   prev.allowSections === next.allowSections &&
+  prev.rescoredAssignmentCount === next.rescoredAssignmentCount &&
   prev.state.error === next.state.error;
 
 export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
@@ -181,6 +184,7 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
   inheritedTargets,
   onAddAnswerKey,
   allowSections = true,
+  rescoredAssignmentCount = 0,
 }: PaneProps) {
   const { canAccessQuizMediaResponse } = useAuth();
   const mediaResponseAllowed = canAccessQuizMediaResponse();
@@ -275,6 +279,19 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
           <div className="p-2.5 bg-brand-red-lighter/40 border border-brand-red-primary/20 rounded-lg flex items-center gap-2 text-xs text-brand-red-dark font-bold">
             <AlertCircle className="w-4 h-4 shrink-0" />
             {error}
+          </div>
+        )}
+        {rescoredAssignmentCount > 0 && (
+          <div
+            role="status"
+            className="p-2.5 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2 text-xs text-amber-900 font-semibold"
+          >
+            <AlertCircle className="w-4 h-4 shrink-0" aria-hidden />
+            <span className="flex-1">
+              {rescoredAssignmentCount === 1
+                ? 'This quiz has been assigned. Editing it changes those scores. Duplicate it to make a retake.'
+                : `This quiz has ${rescoredAssignmentCount} assignments. Editing it changes their scores. Duplicate it to make a retake.`}
+            </span>
           </div>
         )}
         {onAddAnswerKey && needsKeyCount > 0 && (
