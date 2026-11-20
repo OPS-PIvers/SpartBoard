@@ -1,4 +1,10 @@
-import { test, expect, type Locator, type Page } from '@playwright/test';
+import {
+  test,
+  expect,
+  type APIRequestContext,
+  type Locator,
+  type Page,
+} from '@playwright/test';
 import {
   addQuizWidget,
   createClass,
@@ -11,7 +17,7 @@ import {
 } from './helpers/quiz';
 
 // Pins the PLC-shared assignment variant (docs/plans/QUIZ_WIDGET_STRUCTURE.md S1, D5) with default teacher flags.
-// usePlcs lists no PLCs under auth bypass, so the PLC picker and the stepper's Sharing step stay out of reach here.
+// A seeded team reaches the PLC picker, the Sharing step and Share results; exporting the team's Google Sheet stays out of reach.
 const QUIZ = 'Team fractions check';
 const PLC = { id: 'plc-e2e', name: 'Grade 5 Math Team' };
 const FIRESTORE =
@@ -67,6 +73,123 @@ const linkAssignmentToPlc = async (page: Page): Promise<void> => {
   );
   expect(patched.ok()).toBe(true);
 };
+
+const ADMIN = 'http://127.0.0.1:8080/v1';
+const TEAMMATE = { uid: 'teammate-e2e', email: 'teammate@example.com' };
+const seededPlcs: string[] = [];
+
+const member = (uid: string, email: string, role: 'lead' | 'member') => ({
+  mapValue: {
+    fields: {
+      uid: { stringValue: uid },
+      email: { stringValue: email },
+      displayName: { stringValue: email.split('@')[0] },
+      role: { stringValue: role },
+      status: { stringValue: 'active' },
+      joinedAt: { timestampValue: new Date().toISOString() },
+    },
+  },
+});
+
+// Under the emulators the mock teacher is an anonymous Auth user; read its uid from the page's Auth store.
+const signedInUid = (page: Page): Promise<string> =>
+  page.evaluate(
+    () =>
+      new Promise<string>((resolve, reject) => {
+        const open = indexedDB.open('firebaseLocalStorageDb');
+        open.onerror = () => reject(new Error(String(open.error)));
+        open.onsuccess = () => {
+          const rows = open.result
+            .transaction('firebaseLocalStorage')
+            .objectStore('firebaseLocalStorage')
+            .getAll();
+          rows.onsuccess = () => {
+            const row = (
+              rows.result as { fbase_key: string; value: { uid: string } }[]
+            ).find((r) => r.fbase_key.startsWith('firebase:authUser:'));
+            if (row) resolve(row.value.uid);
+            else reject(new Error('No signed-in Auth user yet'));
+          };
+        };
+      })
+  );
+
+// Seeds a team the teacher leads, shaped like createPlc's write plus one teammate.
+const seedPlc = async (
+  page: Page,
+  request: APIRequestContext
+): Promise<void> => {
+  let uid = '';
+  await expect
+    .poll(async () => (uid = await signedInUid(page).catch(() => '')))
+    .not.toBe('');
+  const id = `plc-e2e-${crypto.randomUUID()}`;
+  const now = { timestampValue: new Date().toISOString() };
+  const res = await request.post(`${FIRESTORE}/plcs?documentId=${id}`, {
+    headers: OWNER,
+    data: {
+      fields: {
+        name: { stringValue: PLC.name },
+        leadUid: { stringValue: uid },
+        memberUids: {
+          arrayValue: {
+            values: [{ stringValue: uid }, { stringValue: TEAMMATE.uid }],
+          },
+        },
+        memberEmails: {
+          mapValue: {
+            fields: {
+              [uid]: { stringValue: 'mock@example.com' },
+              [TEAMMATE.uid]: { stringValue: TEAMMATE.email },
+            },
+          },
+        },
+        members: {
+          mapValue: {
+            fields: {
+              [uid]: member(uid, 'mock@example.com', 'lead'),
+              [TEAMMATE.uid]: member(TEAMMATE.uid, TEAMMATE.email, 'member'),
+            },
+          },
+        },
+        createdAt: now,
+        updatedAt: now,
+      },
+    },
+  });
+  expect(res.ok()).toBe(true);
+  seededPlcs.push(`${FIRESTORE.slice(ADMIN.length + 1)}/plcs/${id}`);
+};
+
+// Deletes a document and everything under it, so the seeded team never reaches another test.
+const deleteTree = async (
+  request: APIRequestContext,
+  name: string
+): Promise<void> => {
+  const listed = await request.post(`${ADMIN}/${name}:listCollectionIds`, {
+    headers: OWNER,
+    data: {},
+  });
+  const { collectionIds = [] } = (await listed.json()) as {
+    collectionIds?: string[];
+  };
+  for (const collectionId of collectionIds) {
+    const docs = await request.get(
+      `${ADMIN}/${name}/${collectionId}?pageSize=300&showMissing=true`,
+      { headers: OWNER }
+    );
+    const { documents = [] } = (await docs.json()) as {
+      documents?: { name: string }[];
+    };
+    for (const d of documents) await deleteTree(request, d.name);
+  }
+  const deleted = await request.delete(`${ADMIN}/${name}`, { headers: OWNER });
+  expect(deleted.ok()).toBe(true);
+};
+
+test.afterEach(async ({ request }) => {
+  for (const name of seededPlcs.splice(0)) await deleteTree(request, name);
+});
 
 // Closes an open row menu with its own toggle (Escape would leave a board overlay behind).
 const closeRowMenu = async (page: Page, library: Locator): Promise<void> => {
@@ -125,7 +248,7 @@ test('a teacher stops sharing a PLC-linked assignment', async ({ page }) => {
     await expect(
       stepper.getByRole('button', { name: /^1 Classes/ })
     ).toBeVisible();
-    await expect(stepper.getByRole('button', { name: /Sharing/ })).toHaveCount(
+    await expect(stepper.getByRole('button', { name: /sharing/i })).toHaveCount(
       0
     );
     await stepper.getByRole('checkbox', { name: /Period 1/ }).check();
@@ -202,4 +325,151 @@ test('a teacher stops sharing a PLC-linked assignment', async ({ page }) => {
     ).not.toHaveAttribute('aria-haspopup');
     await closeRowMenu(page, library);
   });
+});
+
+test('a teacher in a PLC shares a quiz with the team', async ({
+  page,
+  request,
+}) => {
+  await seedPlc(page, request);
+  // Reload so the team is there from the board's first PLC read.
+  await openBoard(page);
+  const library = await addQuizWidget(page);
+  await expect(
+    library.getByRole('tabpanel').getByText('No Quizzes Yet')
+  ).toBeVisible();
+  const title = 'Team decimals check';
+  await createQuiz(page, title);
+  await rowMenuItems(page, library);
+  await page.getByRole('menuitem', { name: 'Share', exact: true }).click();
+  await page
+    .getByRole('menu', { name: 'Share' })
+    .getByRole('menuitem', { name: 'Share with PLC' })
+    .click();
+  const picker = page.getByRole('dialog', {
+    name: 'Pick a team to share with',
+  });
+  await expect(
+    picker.getByRole('heading', { name: 'Share with team' })
+  ).toBeVisible();
+  await expect(picker.getByText(title)).toBeVisible();
+  await expect(picker.getByRole('radio', { name: PLC.name })).toBeChecked();
+  await expect(picker.getByText(/^2 members$/i)).toBeVisible();
+  await picker.getByRole('button', { name: 'Share', exact: true }).click();
+  await expect(picker).toBeHidden();
+  await expectToast(page, `Shared with ${PLC.name}.`);
+  await expect(
+    library.getByRole('tabpanel').getByText('Synced', { exact: true })
+  ).toBeVisible();
+});
+
+const assignTo = async (
+  page: Page,
+  library: Locator,
+  title: string,
+  share: boolean
+): Promise<void> => {
+  await createQuiz(page, title);
+  await library.getByRole('button', { name: 'Assign', exact: true }).click();
+  const stepper = page.getByRole('dialog', { name: title });
+  // A sole PLC is picked by default; the last step holds it beside raise a hand.
+  const sharing = stepper.getByRole('button', {
+    name: /^6 Additional settings and sharing/,
+  });
+  await expect(sharing).toHaveText(
+    new RegExp(`sharing\\s*Shared with ${PLC.name}$`)
+  );
+  await sharing.click();
+  const toggle = stepper.getByRole('switch', {
+    name: `Share results with ${PLC.name}`,
+  });
+  await expect(toggle).toBeChecked();
+  if (!share) {
+    await toggle.click();
+    await expect(toggle).not.toBeChecked();
+  }
+  await stepper.getByRole('button', { name: /^1 Classes/ }).click();
+  await expect(sharing).toHaveText(
+    share
+      ? new RegExp(`sharing\\s*Shared with ${PLC.name}$`)
+      : /sharing\s*Not shared$/
+  );
+  await stepper.getByRole('checkbox', { name: /Period 1/ }).check();
+  await stepper.getByRole('button', { name: 'Assign', exact: true }).click();
+  await expect(stepper).toBeHidden();
+  await expectToast(
+    page,
+    'Student link copied — press Play when you’re ready to start.'
+  );
+  await expect(
+    library.getByRole('tabpanel').getByText('Paused', { exact: true })
+  ).toBeVisible();
+};
+
+// Opens the row's Share submenu and checks its items.
+const expectShareItems = async (
+  page: Page,
+  library: Locator,
+  items: string[]
+): Promise<void> => {
+  expect(await rowMenuItems(page, library)).toEqual(ROW_MENU);
+  const shareItem = page.getByRole('menuitem', { name: 'Share', exact: true });
+  await expect(shareItem).toHaveAttribute('aria-haspopup', 'menu');
+  await shareItem.click();
+  await expect(
+    page.getByRole('menu', { name: 'Share' }).getByRole('menuitem')
+  ).toHaveText(items);
+};
+
+test('the assign flow shares a new assignment with a sole PLC by default', async ({
+  page,
+  request,
+}) => {
+  await seedPlc(page, request);
+  // Reload so the team is there from the board's first PLC read.
+  await openBoard(page);
+  await createClass(page, 'Period 1');
+  const library = await addQuizWidget(page);
+  await assignTo(page, library, 'Team area check', true);
+  await expectShareItems(page, library, [
+    'Get link',
+    `Stop sharing with ${PLC.name}`,
+  ]);
+  await closeRowMenu(page, library);
+});
+
+test('a teacher pools an unshared assignment’s results with their PLC', async ({
+  page,
+  request,
+}) => {
+  await seedPlc(page, request);
+  // Reload so the team is there from the board's first PLC read.
+  await openBoard(page);
+  await createClass(page, 'Period 1');
+  const library = await addQuizWidget(page);
+  const title = 'Team volume check';
+  await assignTo(page, library, title, false);
+  await expectShareItems(page, library, [
+    'Get link',
+    'Share results with PLC…',
+  ]);
+  await page
+    .getByRole('menu', { name: 'Share' })
+    .getByRole('menuitem', { name: 'Share results with PLC…' })
+    .click();
+  const dialog = page.getByRole('dialog', { name: 'Share results with PLC' });
+  await expect(dialog.getByText(title, { exact: true })).toBeVisible();
+  const submit = dialog.getByRole('button', { name: 'Share results' });
+  await expect(submit).toBeDisabled();
+  await dialog
+    .getByRole('radio', { name: `Create new pool: ${title}` })
+    .check();
+  await submit.click();
+  await expect(dialog).toBeHidden();
+  await expectToast(page, `Results now pool with ${PLC.name}.`);
+  await expectShareItems(page, library, [
+    'Get link',
+    `Stop sharing with ${PLC.name}`,
+  ]);
+  await closeRowMenu(page, library);
 });

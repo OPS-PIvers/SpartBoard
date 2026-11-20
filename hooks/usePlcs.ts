@@ -15,7 +15,7 @@ import {
   updateDoc,
   deleteField,
 } from 'firebase/firestore';
-import { db, isAuthBypass } from '@/config/firebase';
+import { db, isAuthBypass, isEmulatorBackend } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import {
   DEFAULT_PLC_FEATURE_SETTINGS,
@@ -422,7 +422,8 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
     if (
       !enabled ||
       !user ||
-      isAuthBypass ||
+      // Bypass has no backend, except the browser-test emulators.
+      (isAuthBypass && !isEmulatorBackend) ||
       (asAdmin && !isSuperAdmin && !orgId)
     ) {
       // Defer so we don't trip react-hooks/set-state-in-effect. Same pattern as
