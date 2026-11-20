@@ -40,6 +40,27 @@ export function buildFolderIndex(folders: LibraryFolder[]): FolderIndex {
     if (bucket) bucket.push(f);
     else childrenOf.set(parent, [f]);
   }
+  // Parent cycles (two-tab moves) are unreachable from the top; hoist one member per cycle.
+  const reached = new Set<string>();
+  const markFrom = (parent: string | null) => {
+    for (const k of childrenOf.get(parent) ?? []) {
+      if (reached.has(k.id)) continue;
+      reached.add(k.id);
+      markFrom(k.id);
+    }
+  };
+  markFrom(null);
+  for (const f of [...folders].sort((a, b) => a.order - b.order)) {
+    if (reached.has(f.id)) continue;
+    const bucket = childrenOf.get(f.parentId);
+    const at = bucket ? bucket.indexOf(f) : -1;
+    if (at !== -1) bucket?.splice(at, 1);
+    const top = childrenOf.get(null);
+    if (top) top.push(f);
+    else childrenOf.set(null, [f]);
+    reached.add(f.id);
+    markFrom(f.id);
+  }
   return { byId, childrenOf };
 }
 

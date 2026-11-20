@@ -1,0 +1,27 @@
+import { describe, it, expect } from 'vitest';
+import type { LibraryFolder } from '@/types';
+import { buildFolderIndex, subtreeFolderIds } from './folderView';
+
+const folder = (
+  id: string,
+  parentId: string | null,
+  order = 0
+): LibraryFolder => ({ id, name: id, parentId, order, createdAt: 0 });
+
+describe('buildFolderIndex parent cycles', () => {
+  it('hoists one member of a cross-device move cycle to the top level', () => {
+    const index = buildFolderIndex([
+      folder('keep', null),
+      folder('a', 'b', 0),
+      folder('b', 'a', 1),
+      folder('child', 'b', 2),
+    ]);
+    expect(index.childrenOf.get(null)?.map((f) => f.id)).toEqual(['keep', 'a']);
+    expect(subtreeFolderIds('a', index)).toEqual(new Set(['a', 'b', 'child']));
+  });
+
+  it('keeps a self-parented folder reachable', () => {
+    const index = buildFolderIndex([folder('s', 's')]);
+    expect(index.childrenOf.get(null)?.map((f) => f.id)).toEqual(['s']);
+  });
+});
