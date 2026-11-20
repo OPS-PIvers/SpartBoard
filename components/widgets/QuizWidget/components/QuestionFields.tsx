@@ -80,6 +80,8 @@ interface QuestionPromptFieldProps {
   extras?: React.ReactNode;
   /** Shows the Number link; adds a random number and returns its name, or null when full. */
   onAddNumber?: () => string | null;
+  /** Equation, Number, Accents and Blank as icons in the formatting toolbar, not links above it. */
+  toolbarTools?: boolean;
 }
 
 /** A labeled button at the end of the prompt formatting toolbar. */
@@ -122,6 +124,7 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
   promptAudio = false,
   onAddNumber,
   extras,
+  toolbarTools = false,
 }) => {
   const canRecord = promptAudio && promptFormat;
   // Stays mounted once audio existed, so Remove never remounts the prompt box.
@@ -295,7 +298,7 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
                 />,
               ]
             : []),
-          ...promptTools('toolbar'),
+          ...(toolbarTools ? promptTools('toolbar') : []),
         ]}
         footer={extras}
       />
@@ -322,7 +325,7 @@ export const QuestionPromptField: React.FC<QuestionPromptFieldProps> = ({
       <div>
         <div className="flex items-center justify-between">
           <label className={labelClass}>Question prompt</label>
-          {!promptFormat && (
+          {!(promptFormat && toolbarTools) && (
             <span className="flex items-center gap-3">
               {promptTools('link')}
             </span>
