@@ -18,7 +18,7 @@ import {
   type AssignedResponse,
 } from '@/utils/assignedStatus';
 
-/** Assigned tab marks a kind's doc may carry once its Close and Move to Done write them (D24, D5). */
+/** Assigned tab marks a kind's doc may carry once its Close and Move to Finished write them (D24, D5). */
 interface Marks {
   closedAt?: number | null;
   doneAt?: number | null;

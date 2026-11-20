@@ -25,7 +25,6 @@ import {
   AssignedRow,
   useAssignedBulkOps,
   type ClassActionKind,
-  type LineSegment,
   mainActionLabel,
 } from '@/components/common/library/assigned';
 import type { LibraryMenuAction } from '@/components/common/library/types';
@@ -399,6 +398,7 @@ export const VideoActivityAssignedTab: React.FC<
   return (
     <AssignedList<RowModel>
       items={rows}
+      titleOf={(r) => r.assignment.activityTitle}
       loading={loading}
       pinnedId={freshPin}
       emptyTitle={emptyTitle}
@@ -499,7 +499,7 @@ function scheduleRunTurnIn(
   return () => clearTimeout(timer);
 }
 
-/** Puts back what Close for all classes or Move to Done changed (D10 Undo). */
+/** Puts back what Close for all classes or Move to Finished changed (D10 Undo). */
 async function undoClose(
   prev: MarkedAssignment,
   uid: string,
@@ -674,7 +674,7 @@ const VideoActivityAssignedRowHost: React.FC<RowHostProps> = ({
   if (status.bucket === 'active' && !viewOnly)
     lifecycleItems.push({
       id: 'assigned-move-to-done',
-      label: 'Move to Done',
+      label: 'Move to Finished',
       icon: CheckCircle2,
       anchor: tourTypeAttr(
         'library-shell.assigned-move-to-done',
@@ -683,7 +683,7 @@ const VideoActivityAssignedRowHost: React.FC<RowHostProps> = ({
       onClick: () =>
         withUndo(
           () => actions.moveToDone(),
-          `${a.activityTitle} moved to Done.`
+          `${a.activityTitle} moved to Finished.`
         ),
     });
   const bulkUndo = (prev: VideoActivityAssignment) =>
@@ -756,18 +756,16 @@ const VideoActivityAssignedRowHost: React.FC<RowHostProps> = ({
 
   // Published rows skip the responses listener, so the line reads the doc.
   const published = !!a.scoreVisibility && a.scoreVisibility !== 'none';
-  const lineOverride: LineSegment[] | undefined =
+  const detail =
     status.bucket === 'done' && published && !viewOnly
-      ? [{ text: 'Scores published', tone: 'plain' }]
+      ? 'Scores published'
       : undefined;
 
   const endsAtBell = Object.values(a.periodAccess ?? {}).some(
     (r) => r.bellPeriodId != null
   );
   const footer = [
-    endsAtBell
-      ? 'Closes at the end of each class'
-      : 'Stays open until you close it',
+    endsAtBell ? 'Closes at the end of each class' : 'Closes manually',
     `Assigned ${new Date(a.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`,
   ];
 
@@ -778,7 +776,9 @@ const VideoActivityAssignedRowHost: React.FC<RowHostProps> = ({
       nowMs={now}
       mainLabel={mainLabel}
       onMain={onMain}
-      lineOverride={lineOverride}
+      detail={detail}
+      onResults={viewOnly ? undefined : () => onResults(a)}
+      canPause={!viewOnly}
       onClassAction={onClassAction}
       mainTone={copyMain ? 'monitor' : undefined}
       bellLabel={(c) => {

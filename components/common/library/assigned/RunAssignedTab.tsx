@@ -41,10 +41,9 @@ import { AssignedRow } from './AssignedRow';
 import { useAssignedBulkOps } from './assignedBulkContext';
 import { RunAssignedResponsesFixture } from './runAssignedFixture';
 import {
+  detailText,
   mainActionLabel,
-  statusLineSegments,
   type ClassActionKind,
-  type LineSegment,
 } from './assignedWording';
 
 /** An assignment of a kind whose teacher writes its session directly (Mini Apps, Guided Learning). */
@@ -80,7 +79,7 @@ export interface RunAssignedTabProps<A extends RunAssignment> {
   /** Today's overflow items; `replacedMenuIds` are dropped for the class actions. */
   menu: (a: A) => LibraryMenuAction[];
   replacedMenuIds: readonly string[];
-  /** Shown under the Active and Done sections, e.g. a Show older button. */
+  /** Shown under the Active and Finished sections, e.g. a Show older button. */
   footer?: React.ReactNode;
   /** False where the row never publishes scores; defaults to true. */
   publishes?: (a: A) => boolean;
@@ -276,6 +275,7 @@ export function RunAssignedTab<A extends RunAssignment>(
     <div className="flex flex-col">
       <AssignedList<RowModel<A>>
         items={rows}
+        titleOf={(r) => props.title(r.assignment)}
         loading={loading}
         pinnedId={fresh?.id ?? null}
         emptyTitle={emptyTitle}
@@ -310,7 +310,7 @@ export function RunAssignedTab<A extends RunAssignment>(
   );
 }
 
-/** Puts back what Close for all classes or Move to Done changed (D10 Undo). */
+/** Puts back what Close for all classes or Move to Finished changed (D10 Undo). */
 async function undoClose(
   prev: RunAssignment,
   uid: string,
@@ -455,6 +455,12 @@ function RunAssignedRowHost<A extends RunAssignment>({
       case 'pause':
         return void exec(() => actions.pauseClass(key));
       case 'close':
+        // A single-line Close is the whole assignment, so it offers Undo.
+        if (key == null)
+          return withUndo(
+            () => actions.closeAll(),
+            viewOnly ? 'Share closed.' : `${title} is closed.`
+          );
         return void exec(() => actions.closeClass(key));
       case 'reopen':
         return void exec(() => actions.reopenClass(key));
@@ -539,14 +545,14 @@ function RunAssignedRowHost<A extends RunAssignment>({
   if (status.bucket === 'active' && !viewOnly)
     lifecycleItems.push({
       id: 'assigned-move-to-done',
-      label: 'Move to Done',
+      label: 'Move to Finished',
       icon: CheckCircle2,
       anchor: tourTypeAttr(
         'library-shell.assigned-move-to-done',
         tourWidgetType
       ),
       onClick: () =>
-        withUndo(() => actions.moveToDone(), `${title} moved to Done.`),
+        withUndo(() => actions.moveToDone(), `${title} moved to Finished.`),
     });
   for (const item of [...singleItems, ...lifecycleItems]) item.disabled = busy;
   const undoFor = (prev: A, wasEnded: boolean) => async () => {
@@ -616,21 +622,21 @@ function RunAssignedRowHost<A extends RunAssignment>({
   const turnsIn = submits ? submits(a) : true;
   const counts = turnsIn && (classCounts ? classCounts(a) : true);
   const submitted = status.classes.reduce((n, c) => n + c.submitted, 0);
-  // Published rows skip the responses listener, so the line reads the doc.
-  const lineOverride: LineSegment[] | undefined =
+  // Published rows skip the responses listener, so the text reads the doc.
+  const detail: string | undefined =
     status.bucket === 'done' && scoresShown(a.scoreVisibility) && !viewOnly
-      ? [{ text: 'Scores published', tone: 'plain' }]
+      ? 'Scores published'
       : !counts && (!status.singleLine || !turnsIn) && !viewOnly
-        ? (() => {
-            const segs = statusLineSegments(status, now).filter(
-              (s) => !s.glued
-            );
-            return turnsIn &&
-              submitted > 0 &&
-              status.classes.some((c) => c.status !== 'ready')
-              ? [...segs, { text: `${submitted} turned in`, tone: 'plain' }]
-              : segs;
-          })()
+        ? [
+            ...(turnsIn &&
+            submitted > 0 &&
+            status.classes.some((c) => c.status !== 'ready')
+              ? [`${submitted} turned in`]
+              : []),
+            detailText(status, now, false),
+          ]
+            .filter(Boolean)
+            .join(' · ')
         : undefined;
 
   const endsAtBell = Object.values(a.periodAccess ?? {}).some(
@@ -639,9 +645,7 @@ function RunAssignedRowHost<A extends RunAssignment>({
   const lead = footerLead?.(a);
   const footer = [
     ...(lead ? [lead] : []),
-    endsAtBell
-      ? 'Closes at the end of each class'
-      : 'Stays open until you close it',
+    endsAtBell ? 'Closes at the end of each class' : 'Closes manually',
     `Assigned ${new Date(a.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`,
   ];
 
@@ -652,7 +656,9 @@ function RunAssignedRowHost<A extends RunAssignment>({
       nowMs={now}
       mainLabel={mainLabel}
       onMain={onMain}
-      lineOverride={lineOverride}
+      detail={detail}
+      onResults={onResults && !viewOnly ? () => onResults(a) : undefined}
+      canPause={!viewOnly && !!lifecycle.pause}
       onClassAction={onClassAction}
       classCounts={counts}
       mainTone={derived ? undefined : 'monitor'}

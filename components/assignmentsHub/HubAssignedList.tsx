@@ -503,6 +503,9 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
   return (
     <AssignedList<HubItem>
       items={items}
+      titleOf={(i) =>
+        'quiz' in i ? i.quiz.assignment.quizTitle : i.other.title
+      }
       loading={loading}
       emptyTitle="Nothing active"
       emptySub=""
@@ -545,7 +548,7 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
   );
 };
 
-/** Puts back what Move to Done changed, as the Quiz tab's Undo does (D10). */
+/** Puts back what Move to Finished changed, as the Quiz tab's Undo does (D10). */
 async function undoMoveToDone(
   prev: OtherRun,
   uid: string,
@@ -640,7 +643,7 @@ const OtherRowHost: React.FC<OtherRowHostProps> = ({
   const writingActions = useWritingClassActions(writing ?? null, rosters);
   const classActions = writing ? writingActions : sharedActions;
   const hasActions = !!writing || actions != null;
-  // Puts the row back as it was before a Close or Move to Done.
+  // Puts the row back as it was before a Close or Move to Finished.
   const undo = (prev: OtherRun, closeOnly: boolean): Promise<void> | void => {
     if (writing) return undoWritingClose(writing);
     if (closeOnly) return classActions.reopenClass(null).then(() => undefined);
@@ -722,14 +725,14 @@ const OtherRowHost: React.FC<OtherRowHostProps> = ({
   )
     menuActions.push({
       id: 'assigned-move-to-done',
-      label: 'Move to Done',
+      label: 'Move to Finished',
       icon: CheckCircle2,
       anchor: tourTypeAttr('library-shell.assigned-move-to-done', HUB),
       onClick: () => {
         const prev = run;
         void runBusy(async () => {
           await classActions.moveToDone();
-          addToast(`${title} moved to Done.`, 'success', {
+          addToast(`${title} moved to Finished.`, 'success', {
             label: 'Undo',
             onClick: () => void exec(async () => undo(prev, false)),
           });
@@ -756,6 +759,7 @@ const OtherRowHost: React.FC<OtherRowHostProps> = ({
       onMain={onMain}
       onClassAction={onClassAction}
       classControls={hasActions}
+      canPause={!!actions?.lifecycle.pause}
       meta={meta}
       menuActions={menuActions}
       busy={busy}

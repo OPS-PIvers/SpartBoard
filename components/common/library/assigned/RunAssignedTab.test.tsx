@@ -115,14 +115,14 @@ describe('RunAssignedTab', () => {
     expect(actions.openClass).toHaveBeenCalledWith('p2');
   });
 
-  it('an open row offers Monitor, and the menu swaps End for Close and Move to Done', async () => {
+  it('an open row offers Monitor, and the menu swaps End for Close and Move to Finished', async () => {
     renderTab([ma({ periodAccess: { p2: row('P2', { state: 'open' }) } })]);
     await userEvent.click(screen.getByRole('button', { name: 'Monitor' }));
     expect(onMonitor).toHaveBeenCalled();
     await userEvent.click(screen.getByRole('button', { name: /more/i }));
     expect(screen.queryByText('End assignment')).toBeNull();
     expect(screen.getByText('Close')).toBeTruthy();
-    expect(screen.getByText('Move to Done')).toBeTruthy();
+    expect(screen.getByText('Move to Finished')).toBeTruthy();
   });
 
   it('several classes with classless submissions show the total, not per-class counts', async () => {
@@ -135,18 +135,19 @@ describe('RunAssignedTab', () => {
     renderTab([a], {
       a1: miniAppRowResponses(a, [{}, {}, {}]),
     });
-    expect(screen.getByText('3 turned in')).toBeTruthy();
-    await userEvent.click(screen.getByRole('button', { name: /Classes for/ }));
-    const p1 = screen.getByText('P1').parentElement as HTMLElement;
+    expect(screen.getByText('3 turned in · 1 class to go')).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', { name: /Details for/ }));
+    const p1 = screen.getAllByText('P1').find((el) => el.tagName !== 'OPTION')
+      ?.parentElement as HTMLElement;
     expect(within(p1).getByText('Open')).toBeTruthy();
     expect(screen.queryByText(/of \d+ turned in|0 turned in/)).toBeNull();
   });
 
-  it('a view-only share keeps Copy link and lands in Done once closed', async () => {
+  it('a view-only share keeps Copy link and lands in Finished once closed', async () => {
     renderTab([ma({ mode: 'view-only' })]);
     await userEvent.click(screen.getByRole('button', { name: 'Copy link' }));
     expect(onCopy).toHaveBeenCalledWith('a1');
-    expect(screen.getByText('Shared, view only')).toBeTruthy();
+    expect(screen.getByText('View only')).toBeTruthy();
   });
 
   it('a closed version-2 run with unpublished submissions stays Active', () => {
@@ -159,10 +160,11 @@ describe('RunAssignedTab', () => {
       },
     });
     renderTab([a], { a1: miniAppRowResponses(a, [{}]) });
-    expect(screen.getByText('Scores not published')).toBeTruthy();
+    expect(screen.getByText('1 turned in')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^Finished/ })).toBeNull();
   });
 
-  it('an ended row from before the Assigned tab is Done', () => {
+  it('an ended row from before the Assigned tab is Finished', () => {
     renderTab([ma({ status: 'inactive' })]);
     expect(screen.getByText('Nothing active')).toBeTruthy();
   });
@@ -231,7 +233,7 @@ describe('RunAssignedTab bulk select', () => {
       vi.fn(() => Promise.resolve(0)),
       publish
     );
-    await userEvent.click(screen.getByRole('button', { name: /^Done/ }));
+    await userEvent.click(screen.getByRole('button', { name: /^Finished/ }));
     await userEvent.click(screen.getByRole('button', { name: 'Select' }));
     await userEvent.click(screen.getByRole('checkbox', { name: 'Select all' }));
     await userEvent.click(
@@ -253,7 +255,7 @@ describe('RunAssignedTab bulk select', () => {
       vi.fn(() => Promise.resolve(0)),
       vi.fn()
     );
-    await userEvent.click(screen.getByRole('button', { name: /^Done/ }));
+    await userEvent.click(screen.getByRole('button', { name: /^Finished/ }));
     await userEvent.click(screen.getByRole('button', { name: 'Select' }));
     await userEvent.click(screen.getByRole('checkbox', { name: 'Select all' }));
     expect(screen.queryByRole('button', { name: 'Publish scores' })).toBeNull();
@@ -271,7 +273,7 @@ describe('RunAssignedTab bulk select', () => {
     expect(screen.queryByRole('button', { name: 'Publish scores' })).toBeNull();
   });
 
-  it('offers no Move to Done for a view-only share', async () => {
+  it('offers no Move to Finished for a view-only share', async () => {
     renderTab(
       [ma({ id: 'v1', mode: 'view-only' })],
       {},
@@ -279,7 +281,9 @@ describe('RunAssignedTab bulk select', () => {
     );
     await userEvent.click(screen.getByRole('button', { name: 'Select' }));
     await userEvent.click(screen.getByRole('checkbox', { name: 'Select all' }));
-    expect(screen.queryByRole('button', { name: 'Move to Done' })).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'Move to Finished' })
+    ).toBeNull();
   });
 
   it('Cancel clears the picks and brings the row buttons back', async () => {

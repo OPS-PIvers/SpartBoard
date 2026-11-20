@@ -313,6 +313,7 @@ export const WritingAssignedTab: React.FC<WritingAssignedTabProps> = ({
   return (
     <AssignedList<RowModel>
       items={rows}
+      titleOf={(r) => r.record.title || 'Untitled writing assignment'}
       loading={loading}
       pinnedId={freshPin}
       emptyTitle="Nothing assigned yet"
@@ -470,11 +471,11 @@ const WritingAssignedRowHost: React.FC<RowHostProps> = ({
   if (status.bucket === 'active')
     lifecycleItems.push({
       id: 'assigned-move-to-done',
-      label: 'Move to Done',
+      label: 'Move to Finished',
       icon: CheckCircle2,
       anchor: tourTypeAttr('library-shell.assigned-move-to-done', 'writing'),
       onClick: () =>
-        withUndo(() => actions.moveToDone(), `${title} moved to Done.`),
+        withUndo(() => actions.moveToDone(), `${title} moved to Finished.`),
     });
   useAssignedBulkOps({
     close: allClosed
@@ -537,9 +538,7 @@ const WritingAssignedRowHost: React.FC<RowHostProps> = ({
     (p) => p.bellPeriodId != null
   );
   const footer = [
-    endsAtBell
-      ? 'Closes at the end of each class'
-      : 'Stays open until you close it',
+    endsAtBell ? 'Closes at the end of each class' : 'Closes manually',
     `Assigned ${new Date(r.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`,
   ];
 
@@ -551,6 +550,7 @@ const WritingAssignedRowHost: React.FC<RowHostProps> = ({
       mainLabel={mainActionLabel(status.action, needsGrading)}
       onMain={onMain}
       onClassAction={onClassAction}
+      onResults={() => onResults(r)}
       bellLabel={(c) => {
         const w = bells[c.key];
         return w

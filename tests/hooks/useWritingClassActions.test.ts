@@ -147,7 +147,7 @@ describe('useWritingClassActions', () => {
     await expect(a.pauseClass(null)).rejects.toThrow('cannot be paused');
   });
 
-  it('Move to Done closes every class, marks it and ends', async () => {
+  it('Move to Finished closes every class, marks it and ends', async () => {
     const a = render(
       record({
         periodAccess: { c1: row({ state: 'open' }), c2: row({ closedAt: 3 }) },

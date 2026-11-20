@@ -171,7 +171,7 @@ function renderList(
 describe('HubAssignedList', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('shows every kind on the shared rows, Active first and ended work in Done', () => {
+  it('shows every kind on the shared rows, Active first and ended work in Finished', () => {
     renderList([
       row('q1', 'quiz'),
       row('v1', 'video-activity'),
@@ -180,9 +180,9 @@ describe('HubAssignedList', () => {
     expect(screen.getByText('Volcano Video')).toBeInTheDocument();
     expect(screen.getByText('Spanish Verbs')).toBeInTheDocument();
     expect(screen.getByText('· kind:video-activity')).toBeInTheDocument();
-    // The ended legacy quiz sits in the collapsed Done section.
+    // The ended legacy quiz sits in the collapsed Finished section.
     expect(screen.queryByText('Fractions Quiz')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /Done/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Finished/ }));
     expect(screen.getByText('Fractions Quiz')).toBeInTheDocument();
     expect(screen.getByText('· kind:quiz')).toBeInTheDocument();
   });
@@ -192,7 +192,7 @@ describe('HubAssignedList', () => {
     expect(screen.getByText('Volcano Video')).toBeInTheDocument();
     expect(screen.queryByText('Spanish Verbs')).not.toBeInTheDocument();
     expect(
-      screen.queryByRole('button', { name: /Done/ })
+      screen.queryByRole('button', { name: /Finished/ })
     ).not.toBeInTheDocument();
   });
 
@@ -237,11 +237,11 @@ describe('HubAssignedList', () => {
     expect(within(rowEl as HTMLElement).getByText('Volcano Video')).toBe(title);
   });
 
-  it('offers Move to Done on a kind with class actions, through the shared hook', async () => {
+  it('offers Move to Finished on a kind with class actions, through the shared hook', async () => {
     renderList([row('v1', 'video-activity')]);
     fireEvent.click(screen.getByRole('button', { name: /more|actions|menu/i }));
     await act(async () => {
-      fireEvent.click(screen.getByText('Move to Done'));
+      fireEvent.click(screen.getByText('Move to Finished'));
       await Promise.resolve();
     });
     expect(classActions.moveToDone).toHaveBeenCalled();
