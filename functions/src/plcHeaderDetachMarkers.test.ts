@@ -35,6 +35,7 @@ interface State {
   sets: Array<{ path: string; data: Record<string, unknown> }>;
   queries: string[];
   queryFails?: boolean;
+  failGroups?: string[];
 }
 
 function makeDb(state: State) {
@@ -57,7 +58,7 @@ function makeDb(state: State) {
       __filters: filters,
       where: (f, _op, v) => query(group, [...filters, [f, v]]),
       get: () => {
-        if (state.queryFails) {
+        if (state.queryFails || state.failGroups?.includes(group)) {
           return Promise.reject(
             new Error('FAILED_PRECONDITION: index building')
           );
@@ -180,6 +181,14 @@ describe('leave writes PLC header markers', () => {
     expect(res.remainingParticipants).toBe(0);
     expect(state.updates).toHaveLength(1);
     expect(state.sets).toHaveLength(0);
+  });
+
+  it('one failing header collection still marks the other', async () => {
+    state.failGroups = ['assignments'];
+    await handleLeaveSyncedQuizGroup(quizDb(), LEAVER, GROUP);
+    expect(state.sets.map((s) => s.path)).toEqual([
+      `synced_quizzes/${GROUP}/plcDetached/hdr:p1:quizzes:h1`,
+    ]);
   });
 
   it("a non-participant's leave writes no marker", async () => {

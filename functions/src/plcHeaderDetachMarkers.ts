@@ -15,7 +15,7 @@ export interface LeaverPlcHeader {
   headerId: string;
 }
 
-/** Finds the leaver's own PLC headers for the group outside the transaction; a failed query (e.g. index building) yields none. */
+/** Finds the leaver's own PLC headers for the group outside the transaction; a failed query (e.g. index building) skips only that collection. */
 export async function findLeaverPlcHeaders(
   db: admin.firestore.Firestore,
   kind: PlcHeaderGroupKind,
@@ -23,8 +23,8 @@ export async function findLeaverPlcHeaders(
   groupId: string
 ): Promise<LeaverPlcHeader[]> {
   const found: LeaverPlcHeader[] = [];
-  try {
-    for (const headerCollection of PLC_HEADER_COLLECTIONS[kind]) {
+  for (const headerCollection of PLC_HEADER_COLLECTIONS[kind]) {
+    try {
       const snap = await db
         .collectionGroup(headerCollection)
         .where('sharedBy', '==', uid)
@@ -41,14 +41,14 @@ export async function findLeaverPlcHeaders(
         }
         found.push({ plcId: plcRef.id, headerCollection, headerId: doc.id });
       }
+    } catch (err) {
+      logger.warn('PLC header lookup failed; leaving without detach markers', {
+        kind,
+        groupId,
+        headerCollection,
+        err: err instanceof Error ? err.message : String(err),
+      });
     }
-  } catch (err) {
-    logger.warn('PLC header lookup failed; leaving without detach markers', {
-      kind,
-      groupId,
-      err: err instanceof Error ? err.message : String(err),
-    });
-    return [];
   }
   return found;
 }
