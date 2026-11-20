@@ -140,6 +140,7 @@ const loadBankContentsForQuiz = vi.fn().mockResolvedValue(new Map());
 const saveDriveSnapshot = vi.fn().mockResolvedValue('snapshot-file');
 vi.mock('@/hooks/useBankSources', () => ({
   useBankSources: () => ({ loadBankContentsForQuiz }),
+  pinPlcBankSlots: (slots: unknown[]) => Promise.resolve(slots),
 }));
 
 vi.mock('@/hooks/useQuiz', () => ({

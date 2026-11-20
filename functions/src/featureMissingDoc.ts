@@ -35,6 +35,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quick-sign-in',
   'quiz-score-on-submit',
   'quiz-recap-all-options',
+  'quiz-assign-waits-for-save',
   'modification-groups',
   'rubric-grading-v2',
   'paper-printed-versions',

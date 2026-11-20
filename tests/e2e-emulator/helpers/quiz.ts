@@ -52,9 +52,17 @@ export const addQuizWidget = async (page: Page): Promise<Locator> => {
 };
 
 export const createQuiz = async (page: Page, title: string): Promise<void> => {
-  await page.getByRole('button', { name: 'New', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'Create quiz' }).click();
   const editor = page.getByRole('dialog');
+  // The library can finish loading after the menu opens, which closes it; reopen until the editor is up.
+  await expect(async () => {
+    if (await editor.isVisible()) return;
+    const item = page.getByRole('menuitem', { name: 'Create quiz' });
+    if (!(await item.isVisible())) {
+      await page.getByRole('button', { name: 'New', exact: true }).click();
+    }
+    await item.click({ timeout: 2000 });
+    await expect(editor).toBeVisible({ timeout: 2000 });
+  }).toPass();
   await editor.getByRole('textbox', { name: 'Title' }).fill(title);
   await editor.getByRole('button', { name: 'Add', exact: true }).click();
   await editor

@@ -12,7 +12,14 @@ import {
   assertFails,
   RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { collection, doc, getDoc, getDocs, setDoc } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  writeBatch,
+} from 'firebase/firestore';
 import {
   NOT_STAFF_DISTRICT_EMAILS,
   seedDistrictStaff,
@@ -319,12 +326,17 @@ describe('writes are unchanged by the read gate', () => {
   });
 
   it('synced_question_banks: a teacher creates their own bank copy', async () => {
-    await assertSucceeds(
-      setDoc(
-        doc(asOutsider(), 'synced_question_banks/fresh'),
-        bankDoc({ id: 'fresh', ownerUid: OUTSIDER_UID })
-      )
+    const db = asOutsider();
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'synced_bank_owners/fresh'), {
+      ownerUid: OUTSIDER_UID,
+      at: 1,
+    });
+    batch.set(
+      doc(db, 'synced_question_banks/fresh'),
+      bankDoc({ id: 'fresh', ownerUid: OUTSIDER_UID })
     );
+    await assertSucceeds(batch.commit());
   });
 
   it('synced_video_activities: participant publishes; staff and studentRole cannot', async () => {
