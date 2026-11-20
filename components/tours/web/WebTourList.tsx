@@ -128,7 +128,7 @@ const TitleField: React.FC<{
       }}
       title="Rename"
       aria-label={`Rename ${title}`}
-      className={`group -mx-1 flex max-w-full items-center gap-1.5 rounded-md px-1 text-left text-sm font-semibold text-slate-900 hover:bg-slate-100 ${focusRing}`}
+      className={`group inline-flex max-w-full items-center gap-1.5 rounded-md px-1 text-left text-sm font-semibold text-slate-900 hover:bg-slate-100 ${focusRing}`}
       {...tourFieldAttr('web-tours.title', 'web-tours', setId)}
     >
       <span className="min-w-0 break-words">{title}</span>
@@ -380,44 +380,36 @@ const WebTourRow: React.FC<{
           aria-hidden="true"
         />
         <div className="min-w-0 flex-1">
-          <TitleField
-            setId={set.id}
-            title={title}
-            onRename={(next) => onRename(set, next)}
-          />
-          <div className="mt-1 flex flex-wrap items-center gap-1.5">
-            <span className={`text-xs ${chromeMuted}`}>
-              {stepCount} step{stepCount === 1 ? '' : 's'}
-              {site ? ` · ${site}` : ''}
-              {counts && (
-                <span
-                  data-testid="web-tour-counts"
-                  title="Views count each time someone starts the tour in the Chrome extension. Link-only views count opens of the public link page."
-                >
-                  {` · ${countsText(counts, publicOn)}`}
-                </span>
+          <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 sm:flex-nowrap">
+            <div className="-ml-1 min-w-0 shrink">
+              <TitleField
+                setId={set.id}
+                title={title}
+                onRename={(next) => onRename(set, next)}
+              />
+            </div>
+            <div className="flex shrink-0 items-center gap-1.5">
+              {publish && (
+                <Badge tone={publish === 'draft' ? 'neutral' : 'success'}>
+                  {publish === 'draft' ? 'Draft' : 'Published'}
+                </Badge>
               )}
-            </span>
-            {publish && (
-              <Badge
-                tone={
-                  publish === 'draft'
-                    ? 'neutral'
-                    : publish === 'changed'
-                      ? 'warn'
-                      : 'success'
-                }
-              >
-                {publish === 'draft'
-                  ? 'Draft'
-                  : publish === 'changed'
-                    ? 'Changed since publish'
-                    : 'Published'}
-              </Badge>
-            )}
-            {publicOn && <Badge tone="info">Public link on</Badge>}
-            {statusControl}
+              {publicOn && <Badge tone="info">Public link on</Badge>}
+              {statusControl}
+            </div>
           </div>
+          <p className={`mt-0.5 text-xs ${chromeMuted}`}>
+            {stepCount} step{stepCount === 1 ? '' : 's'}
+            {site ? ` · ${site}` : ''}
+            {counts && (
+              <span
+                data-testid="web-tour-counts"
+                title="Views count each time someone starts the tour in the Chrome extension. Link-only views count opens of the public link page."
+              >
+                {` · ${countsText(counts, publicOn)}`}
+              </span>
+            )}
+          </p>
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-1 pl-8 sm:pl-0">
@@ -434,9 +426,22 @@ const WebTourRow: React.FC<{
         <button
           type="button"
           onClick={() => onCheck(set)}
-          aria-label={`Check ${title}`}
-          title="Opens the editor to play the tour on its website and check every step"
-          className={rowBtn}
+          aria-label={
+            publish === 'changed'
+              ? `Check ${title}, changed since publish`
+              : `Check ${title}`
+          }
+          title={
+            publish === 'changed'
+              ? 'You changed this tour after publishing. Check it, then publish again.'
+              : 'Opens the editor to play the tour on its website and check every step'
+          }
+          data-changed={publish === 'changed' || undefined}
+          className={
+            publish === 'changed'
+              ? `${rowBtn} bg-amber-50 text-amber-900 ring-1 ring-inset ring-amber-300 hover:bg-amber-100`
+              : rowBtn
+          }
           {...tourFieldAttr('web-tours.check', 'web-tours', set.id)}
         >
           <Radar className="h-4 w-4" aria-hidden="true" />

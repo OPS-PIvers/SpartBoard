@@ -173,7 +173,7 @@ export const WebToursPage: React.FC = () => {
   return (
     <main className="h-screen [height:100dvh] overflow-y-auto bg-slate-50 pb-16">
       <header className={headerBar}>
-        <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-4">
+        <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-3 px-4 py-4 sm:px-6">
           <h1 className="text-lg font-bold">Web tours</h1>
           <button
             type="button"
@@ -191,7 +191,7 @@ export const WebToursPage: React.FC = () => {
           </button>
         </div>
       </header>
-      <div className="mx-auto flex max-w-4xl flex-col gap-6 px-4 pt-6">
+      <div className="mx-auto flex max-w-[1600px] flex-col gap-6 px-4 pt-6 sm:px-6">
         {message && (
           <p
             role="alert"
