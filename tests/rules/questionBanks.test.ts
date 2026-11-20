@@ -28,6 +28,7 @@ import {
   doc,
   collection,
   serverTimestamp,
+  writeBatch,
 } from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-question-banks';
@@ -48,6 +49,7 @@ const RULES_PATH = fileURLToPath(
 );
 
 let testEnv: RulesTestEnvironment;
+type RulesDb = ReturnType<typeof as>;
 
 const as = (uid: string) =>
   testEnv
@@ -65,6 +67,7 @@ const asStudent = () =>
     .firestore();
 
 const syncedPath = `synced_question_banks/${GROUP_ID}`;
+const ownersPath = (id: string) => `synced_bank_owners/${id}`;
 const entryPath = (id: string) => `plcs/${PLC_ID}/question_banks/${id}`;
 const responsePath = `quiz_sessions/${SESSION_ID}/responses/${STUDENT_UID}`;
 
@@ -100,6 +103,28 @@ const entryDoc = (
   updatedAt: 1,
   ...over,
 });
+
+/** Creates a synced bank with its id reservation in one batch, as the client does. */
+const createReserved = (
+  db: RulesDb,
+  id: string,
+  ownerUid: string,
+  bank: Record<string, unknown>,
+  ownerExtra: Record<string, unknown> = {}
+) => {
+  const batch = writeBatch(db);
+  batch.set(doc(db, ownersPath(id)), { ownerUid, at: 1, ...ownerExtra });
+  batch.set(doc(db, `synced_question_banks/${id}`), bank);
+  return batch.commit();
+};
+
+/** Deletes the synced bank and keeps its reservation in one batch. */
+const deleteReserved = (db: RulesDb, ownerUid: string) => {
+  const batch = writeBatch(db);
+  batch.set(doc(db, ownersPath(GROUP_ID)), { ownerUid, at: 2 });
+  batch.delete(doc(db, syncedPath));
+  return batch.commit();
+};
 
 beforeAll(async () => {
   testEnv = await initializeTestEnvironment({
@@ -154,22 +179,30 @@ describe('users/{uid}/question_banks and folders', () => {
 
 describe('synced_question_banks/{groupId}', () => {
   it('owner creates; ownerUid must be the caller; extra keys rejected', async () => {
-    await assertSucceeds(setDoc(doc(as(OWNER_UID), syncedPath), syncedDoc()));
+    await assertSucceeds(
+      createReserved(as(OWNER_UID), GROUP_ID, OWNER_UID, syncedDoc())
+    );
     await assertFails(
-      setDoc(
-        doc(as(MEMBER_UID), `synced_question_banks/other`),
+      createReserved(
+        as(MEMBER_UID),
+        'other',
+        MEMBER_UID,
         syncedDoc({ id: 'other' })
       )
     );
     await assertFails(
-      setDoc(
-        doc(as(OWNER_UID), `synced_question_banks/extra`),
+      createReserved(
+        as(OWNER_UID),
+        'extra',
+        OWNER_UID,
         syncedDoc({ id: 'extra', participants: {} })
       )
     );
     await assertFails(
-      setDoc(
-        doc(as(OWNER_UID), `synced_question_banks/v2`),
+      createReserved(
+        as(OWNER_UID),
+        'v2',
+        OWNER_UID,
         syncedDoc({ id: 'v2', version: 2 })
       )
     );
@@ -225,28 +258,117 @@ describe('synced_question_banks/{groupId}', () => {
       setDoc(doc(as(MEMBER_UID), syncedPath), syncedDoc({ version: 3 }))
     );
     await assertFails(deleteDoc(doc(as(MEMBER_UID), syncedPath)));
-    await assertSucceeds(deleteDoc(doc(as(OWNER_UID), syncedPath)));
+    await assertFails(deleteReserved(as(MEMBER_UID), MEMBER_UID));
+    await assertSucceeds(deleteReserved(as(OWNER_UID), OWNER_UID));
   });
 
   it('a deleted bank id stays reserved for its first owner (security #18)', async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(doc(ctx.firestore(), `synced_bank_owners/${GROUP_ID}`), {
+      await setDoc(doc(ctx.firestore(), ownersPath(GROUP_ID)), {
         ownerUid: OWNER_UID,
         at: 1,
       });
     });
     const forged = syncedDoc({ ownerUid: MEMBER_UID });
     await assertFails(setDoc(doc(as(MEMBER_UID), syncedPath), forged));
+    await assertFails(
+      createReserved(as(MEMBER_UID), GROUP_ID, MEMBER_UID, forged)
+    );
     await assertSucceeds(
-      setDoc(
-        doc(as(MEMBER_UID), 'synced_question_banks/fresh'),
+      createReserved(
+        as(MEMBER_UID),
+        'fresh',
+        MEMBER_UID,
         syncedDoc({ id: 'fresh', ownerUid: MEMBER_UID })
       )
     );
     await assertSucceeds(setDoc(doc(as(OWNER_UID), syncedPath), syncedDoc()));
+    await assertFails(getDoc(doc(as(OWNER_UID), ownersPath(GROUP_ID))));
+  });
+});
+
+describe('synced_bank_owners/{groupId} (atomic id reservation)', () => {
+  it('a first create without the reservation in the same batch is refused', async () => {
+    await assertFails(setDoc(doc(as(OWNER_UID), syncedPath), syncedDoc()));
+  });
+
+  it('an id with no reservation cannot be claimed without creating the bank', async () => {
     await assertFails(
-      getDoc(doc(as(OWNER_UID), `synced_bank_owners/${GROUP_ID}`))
+      setDoc(doc(as(MEMBER_UID), ownersPath(GROUP_ID)), {
+        ownerUid: MEMBER_UID,
+        at: 1,
+      })
     );
+    await assertFails(
+      createReserved(as(MEMBER_UID), GROUP_ID, OWNER_UID, syncedDoc())
+    );
+    await assertFails(
+      createReserved(as(OWNER_UID), GROUP_ID, OWNER_UID, syncedDoc(), {
+        extra: true,
+      })
+    );
+  });
+
+  it('the owner delete keeps the id reserved in the same batch, so no one else re-creates it', async () => {
+    await assertSucceeds(
+      createReserved(as(OWNER_UID), GROUP_ID, OWNER_UID, syncedDoc())
+    );
+    await assertSucceeds(deleteReserved(as(OWNER_UID), OWNER_UID));
+    const forged = syncedDoc({ ownerUid: MEMBER_UID });
+    await assertFails(setDoc(doc(as(MEMBER_UID), syncedPath), forged));
+    await assertFails(
+      createReserved(as(MEMBER_UID), GROUP_ID, MEMBER_UID, forged)
+    );
+    await assertSucceeds(
+      createReserved(as(OWNER_UID), GROUP_ID, OWNER_UID, syncedDoc())
+    );
+  });
+
+  it('a legacy bank with no reservation: only its owner can reserve it, and delete requires it', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), syncedPath), syncedDoc());
+    });
+    await assertFails(deleteDoc(doc(as(OWNER_UID), syncedPath)));
+    await assertFails(
+      setDoc(doc(as(MEMBER_UID), ownersPath(GROUP_ID)), {
+        ownerUid: MEMBER_UID,
+        at: 1,
+      })
+    );
+    await assertSucceeds(deleteReserved(as(OWNER_UID), OWNER_UID));
+    await assertFails(
+      createReserved(
+        as(MEMBER_UID),
+        GROUP_ID,
+        MEMBER_UID,
+        syncedDoc({ ownerUid: MEMBER_UID })
+      )
+    );
+  });
+
+  it('the owner never moves and nobody else rewrites the reservation', async () => {
+    await assertSucceeds(
+      createReserved(as(OWNER_UID), GROUP_ID, OWNER_UID, syncedDoc())
+    );
+    await assertSucceeds(
+      setDoc(doc(as(OWNER_UID), ownersPath(GROUP_ID)), {
+        ownerUid: OWNER_UID,
+        at: 2,
+      })
+    );
+    await assertFails(
+      setDoc(doc(as(OWNER_UID), ownersPath(GROUP_ID)), {
+        ownerUid: MEMBER_UID,
+        at: 3,
+      })
+    );
+    await assertFails(
+      setDoc(doc(as(MEMBER_UID), ownersPath(GROUP_ID)), {
+        ownerUid: MEMBER_UID,
+        at: 3,
+      })
+    );
+    await assertFails(deleteDoc(doc(as(OWNER_UID), ownersPath(GROUP_ID))));
   });
 });
 

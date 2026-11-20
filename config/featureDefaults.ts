@@ -980,6 +980,21 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Quiz assign waits for the save, so a failed save keeps the teacher's choices. Admin-only until Paul has used it.
+  'quiz-assign-waits-for-save': {
+    label: 'Quiz assign waits for the save',
+    icon: Send,
+    description:
+      'Assign stays open until the assignment is saved. If the save fails, the error shows in the dialog and the choices are kept.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    modalLabel: 'Assign waits for the save',
+    group: 'assigning',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Assign "Modifications" step: student groups with shared rules instead of per-question edits.
   'modification-groups': {
     label: 'Modification groups',
