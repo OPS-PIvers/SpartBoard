@@ -79,6 +79,7 @@ describe('useQuizDelete', () => {
 
   const baseArgs = (over: Partial<Args> = {}): Args => ({
     user: { uid: 'teacher-1' },
+    quizzes: [meta('q1'), meta('q2'), meta('q3')],
     assignments: [],
     assignmentsLoading: false,
     assignmentsError: null,
@@ -566,11 +567,112 @@ describe('useQuizDelete', () => {
     });
   });
 
+  describe('folderDeleteItems', () => {
+    it('deletes each quiz in order, clearing its paper batches after each, with no toast', async () => {
+      paperBatches(['b1']);
+      const { result } = renderHook(() => useQuizDelete(baseArgs()));
+
+      await result.current.folderDeleteItems(['q1', 'q2']);
+
+      expect(calls).toEqual([
+        'deleteQuiz:q1:drive-q1',
+        'getDocs',
+        'batch.delete:b1',
+        'batch.commit',
+        'deleteQuiz:q2:drive-q2',
+        'getDocs',
+        'batch.delete:b1',
+        'batch.commit',
+      ]);
+      expect(mockWhere).toHaveBeenCalledWith('quizId', '==', 'q1');
+      expect(mockWhere).toHaveBeenCalledWith('quizId', '==', 'q2');
+    });
+
+    it('skips ids that are not in the library', async () => {
+      const { result } = renderHook(() => useQuizDelete(baseArgs()));
+
+      await result.current.folderDeleteItems(['missing', 'q2']);
+
+      expect(calls).toEqual(['deleteQuiz:q2:drive-q2', 'getDocs']);
+    });
+
+    it('skips paper batch cleanup with no signed-in user', async () => {
+      const { result } = renderHook(() =>
+        useQuizDelete(baseArgs({ user: null }))
+      );
+
+      await result.current.folderDeleteItems(['q1']);
+
+      expect(calls).toEqual(['deleteQuiz:q1:drive-q1']);
+    });
+
+    it('stops at the first failed quiz delete and rethrows, leaving later quizzes alone', async () => {
+      deleteQuiz.mockImplementation((id: string, driveFileId: string) => {
+        calls.push(`deleteQuiz:${id}:${driveFileId}`);
+        return id === 'q2'
+          ? Promise.reject(new Error('drive down'))
+          : Promise.resolve();
+      });
+      const { result } = renderHook(() => useQuizDelete(baseArgs()));
+
+      await expect(
+        result.current.folderDeleteItems(['q1', 'q2', 'q3'])
+      ).rejects.toThrow('drive down');
+
+      expect(calls).toEqual([
+        'deleteQuiz:q1:drive-q1',
+        'getDocs',
+        'deleteQuiz:q2:drive-q2',
+      ]);
+      expect(addToast).not.toHaveBeenCalled();
+    });
+
+    it('swallows a paper batch failure with a warning and keeps deleting', async () => {
+      const boom = new Error('batch lookup failed');
+      mockGetDocs.mockRejectedValue(boom);
+      const { result } = renderHook(() => useQuizDelete(baseArgs()));
+
+      await expect(
+        result.current.folderDeleteItems(['q1', 'q2'])
+      ).resolves.toBeUndefined();
+
+      expect(calls).toEqual([
+        'deleteQuiz:q1:drive-q1',
+        'deleteQuiz:q2:drive-q2',
+      ]);
+      expect(consoleWarn).toHaveBeenCalledWith(
+        '[QuizWidget] paper batch cleanup:',
+        boom
+      );
+      expect(addToast).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['loading', { assignmentsLoading: true }],
+      ['errored', { assignmentsError: 'boom' }],
+    ])(
+      'throws before deleting anything while assignments are %s',
+      async (_n, over) => {
+        const { result } = renderHook(() =>
+          useQuizDelete(baseArgs(over as Partial<Args>))
+        );
+
+        await expect(result.current.folderDeleteItems(['q1'])).rejects.toThrow(
+          "Couldn't check assignments. Try again in a moment."
+        );
+
+        expect(deleteQuiz).not.toHaveBeenCalled();
+        expect(mockGetDocs).not.toHaveBeenCalled();
+      }
+    );
+  });
+
   it('returns fresh handlers every render, like the inline props it replaces', () => {
     const { result, rerender } = renderHook(() => useQuizDelete(baseArgs()));
     const first = result.current;
     rerender();
     expect(result.current.onDelete).not.toBe(first.onDelete);
     expect(result.current.onBulkDelete).not.toBe(first.onBulkDelete);
+    expect(result.current.folderDeleteItems).not.toBe(first.folderDeleteItems);
   });
 });

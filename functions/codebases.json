@@ -220,6 +220,7 @@
       "syncedBankOwnerRegistry"
     ],
     "student": [
+      "claimPaperResponseV1",
       "claimPollCodeV1",
       "commitRosterPinIndexV1",
       "focusReportV1",

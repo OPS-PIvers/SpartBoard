@@ -522,3 +522,39 @@ describe('handleJoinPlcVideoActivitySyncGroup - re-join and undo', () => {
     expect(state.updates).toHaveLength(0);
   });
 });
+
+describe('handleJoinPlcVideoActivitySyncGroup - header detach markers (AB-61)', () => {
+  const db = () =>
+    makeDb(state) as unknown as Parameters<
+      typeof handleJoinPlcVideoActivitySyncGroup
+    >[0];
+  const marker = (plcContentId: string) => ({
+    [`hdr:${PLC_ID}:video_activities:${plcContentId}`]: {
+      plcId: PLC_ID,
+      plcContentId,
+      sharedBy: 'member-b',
+      detachedAt: 500,
+    },
+  });
+
+  beforeEach(() => {
+    state.group = { version: 3, participants: {} };
+  });
+
+  it('accepts an entry whose sharer stopped syncing', async () => {
+    state.markers = marker(ENTRY_ID);
+    await expect(
+      handleJoinPlcVideoActivitySyncGroup(db(), MEMBER_UID, PLC_ID, ENTRY_ID)
+    ).resolves.toMatchObject({ alreadyJoined: false });
+    expect(state.updates).toHaveLength(1);
+  });
+
+  it('refuses a forged entry at a group whose marker names another header', async () => {
+    state.entry = { syncGroupId: SYNC_GROUP_ID, sharedBy: MEMBER_UID };
+    state.markers = marker('victim-entry');
+    await expect(
+      handleJoinPlcVideoActivitySyncGroup(db(), MEMBER_UID, PLC_ID, ENTRY_ID)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(state.updates).toHaveLength(0);
+  });
+});
