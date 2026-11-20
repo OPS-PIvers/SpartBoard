@@ -26,10 +26,18 @@ const createReviewQuiz = async (
   library: Locator,
   title: string
 ): Promise<void> => {
-  await library.getByRole('button', { name: 'New Quiz' }).click();
-  await expect(page.getByRole('menuitem')).toHaveText(['Create', 'Import']);
-  await page.getByRole('menuitem', { name: 'Create', exact: true }).click();
   const editor = page.getByRole('dialog');
+  // The library can finish loading after the menu opens, which closes it; reopen until the editor is up.
+  await expect(async () => {
+    if (await editor.isVisible()) return;
+    const items = page.getByRole('menuitem');
+    if (!(await items.first().isVisible())) {
+      await library.getByRole('button', { name: 'New Quiz' }).click();
+    }
+    await expect(items).toHaveText(['Create', 'Import'], { timeout: 2000 });
+    await items.filter({ hasText: /^Create$/ }).click({ timeout: 2000 });
+    await expect(editor).toBeVisible({ timeout: 2000 });
+  }).toPass();
   await editor.getByRole('textbox', { name: 'Title' }).fill(title);
   await editor.getByRole('button', { name: 'Add', exact: true }).click();
   await editor
