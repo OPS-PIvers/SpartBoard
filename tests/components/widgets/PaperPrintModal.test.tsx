@@ -1150,6 +1150,17 @@ describe('PaperPrintModal with handwritten answers', () => {
     expect(labels).toEqual(['mc:1', 'written:2', 'mc:3']);
   });
 
+  it('hides the choice count when the quiz has only written questions', () => {
+    setup({ quiz: quiz({ questions: [fr('w1')] }) });
+    expect(screen.getByText('1 from this quiz')).toBeInTheDocument();
+    expect(screen.queryByText(/Choices per question/i)).not.toBeInTheDocument();
+  });
+
+  it('shows the choice count when the quiz has bubble questions', () => {
+    setup({ quiz: quiz({ questions: [mc('q1'), fr('w1')] }) });
+    expect(screen.getByText(/Choices per question/i)).toBeInTheDocument();
+  });
+
   it('sizes written boxes here, starting from the saved size or the word limit', () => {
     setup({
       quiz: quiz({
