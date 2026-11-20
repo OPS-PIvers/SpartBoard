@@ -30,6 +30,7 @@ import * as admin from './firebaseAdmin';
 import * as crypto from 'crypto';
 import { assertViewAsAllowed } from './viewAsGuard';
 import { isRevokedMemberStatus, isStrictSuperAdmin } from './authz';
+import { safeErr } from './safeLog';
 
 // Guard against double-initialization. The main index.ts module calls
 // initializeApp() at load time; if that module is loaded first (normal
@@ -905,7 +906,7 @@ export const createOrganizationInvites = onCall(
         const message = err instanceof Error ? err.message : 'Unknown error.';
         console.error(
           `[organizationInvites] Failed to create invite for ${invite.email}:`,
-          err
+          safeErr(err)
         );
         errors.push({ email: invite.email, reason: message });
       }

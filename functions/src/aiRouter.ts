@@ -29,6 +29,7 @@ import {
 } from './aiModels';
 import { CLAUDE_OUTPUT_TOKENS_DEFAULTS } from './aiLimits';
 import { normalizeModelName } from './shared';
+import { safeErr } from './safeLog';
 
 /** One of text, inline bytes or a file URI, in Gemini's part shape. */
 export interface AiPart {
@@ -386,7 +387,7 @@ async function logAiCall(
         { merge: true }
       );
   } catch (error) {
-    console.warn('[aiRouter] call log write failed', error);
+    console.warn('[aiRouter] call log write failed', safeErr(error));
   }
 }
 
@@ -428,7 +429,7 @@ export async function generateAi(
       } catch (error) {
         console.warn(
           `[aiRouter] ${req.integration} on ${model} failed; ${noFallback ? 'not retrying' : `retrying on ${geminiFallback}`}`,
-          error
+          safeErr(error)
         );
         await logAiCall(db, {
           integration: req.integration,

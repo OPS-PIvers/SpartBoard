@@ -56,6 +56,7 @@ import {
   linkContextId,
   writeTeacherLink,
 } from './courseLinkStore';
+import { safeErr } from '../safeLog';
 
 export { LTI_COURSE_LINKS_COLLECTION } from './courseLinkStore';
 
@@ -117,7 +118,7 @@ export async function dropOtherLinksForClass(
       replacedIds: stale.map((d) => linkContextId(d.id, d.data())),
     };
   } catch (err) {
-    console.warn('[lti] dropping replaced course links failed', err);
+    console.warn('[lti] dropping replaced course links failed', safeErr(err));
     return { replaced: [], replacedIds: [] };
   }
 }
@@ -333,7 +334,7 @@ async function callerTeachesSection(
     });
     return isActiveInstructor(await fetchNrpsMembers(url, token), email);
   } catch (err) {
-    console.warn('[linkLtiCourse] co-teacher NRPS check failed:', err);
+    console.warn('[linkLtiCourse] co-teacher NRPS check failed:', safeErr(err));
     return false;
   }
 }
@@ -454,7 +455,10 @@ export const linkLtiCourseV1 = onCall(
         rosterId,
       });
     } catch (err) {
-      console.warn('[linkLtiCourse] period dedupe failed (non-fatal)', err);
+      console.warn(
+        '[linkLtiCourse] period dedupe failed (non-fatal)',
+        safeErr(err)
+      );
     }
 
     return { ok: true, contextId, ...replaced };
@@ -584,7 +588,7 @@ export const ltiSuggestClassLinkMatchV1 = onCall(
       // Consistent with the function's contract that a null suggestion is a
       // normal outcome (the UI falls back to a manual pick) — a Schoology token
       // blip degrades gracefully rather than surfacing a red error toast.
-      console.error('[ltiSuggestMatch] NRPS token mint failed:', err);
+      console.error('[ltiSuggestMatch] NRPS token mint failed:', safeErr(err));
       return { suggestion: null, reason: 'nrps-token-failed' as const };
     }
     let sectionEmails: Set<string>;
@@ -592,7 +596,10 @@ export const ltiSuggestClassLinkMatchV1 = onCall(
       const members = await fetchNrpsMembers(membershipUrl, nrpsToken);
       sectionEmails = new Set(members.map((m) => m.email).filter((e) => !!e));
     } catch (err) {
-      console.warn('[ltiSuggestMatch] NRPS membership fetch failed:', err);
+      console.warn(
+        '[ltiSuggestMatch] NRPS membership fetch failed:',
+        safeErr(err)
+      );
       return { suggestion: null, reason: 'nrps-failed' as const };
     }
     if (sectionEmails.size === 0) {
@@ -630,7 +637,7 @@ export const ltiSuggestClassLinkMatchV1 = onCall(
       } catch (err) {
         console.warn(
           `[ltiSuggestMatch] OneRoster fetch failed for class ${classlinkClassId}:`,
-          err
+          safeErr(err)
         );
         continue;
       }

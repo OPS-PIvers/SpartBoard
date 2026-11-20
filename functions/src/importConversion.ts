@@ -32,6 +32,7 @@ import {
   type ConversionResult,
 } from './importConversionAi';
 import type { AiIntegrationId } from './aiIntegrations';
+import { safeErr } from './safeLog';
 
 type Firestore = admin.firestore.Firestore;
 type Token = {
@@ -168,7 +169,7 @@ export async function runConversion(
       await deps.refund(charge).catch(() => undefined);
     }
     if (error instanceof HttpsError) throw error;
-    console.error('[importConvertV1] failed:', error);
+    console.error('[importConvertV1] failed:', safeErr(error));
     throw new HttpsError(
       'internal',
       'The AI could not convert this. Try again.'

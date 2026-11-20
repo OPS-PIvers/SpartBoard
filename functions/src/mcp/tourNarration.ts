@@ -3,6 +3,7 @@ import * as admin from '../firebaseAdmin';
 import { createHash, randomUUID } from 'node:crypto';
 import type { ToolContext } from './activity';
 import type { GlSet } from './glTools';
+import { safeErr } from '../safeLog';
 
 type Step = GlSet['steps'][number] & {
   label?: string;
@@ -84,7 +85,7 @@ export async function narrateTourSteps(
             },
           } as Step;
         } catch (err) {
-          console.warn('[live tour] narration failed', step.id, err);
+          console.warn('[live tour] narration failed', step.id, safeErr(err));
           failed.push(step.id);
         }
       })

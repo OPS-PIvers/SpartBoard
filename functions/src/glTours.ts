@@ -7,6 +7,7 @@ import {
   GL_BUILDING_COLLECTION,
 } from './glBuildingIndex';
 import './functionsInit';
+import { safeErr } from './safeLog';
 
 export const GL_TOURS_COLLECTION = 'building_guided_learning_tours';
 export const GL_TOURS_META_ID = '_meta';
@@ -167,11 +168,14 @@ export async function seedGlTours(
           skipped++;
           logger.error('[glTours] seed publish skipped for good', {
             id: doc.id,
-            err,
+            err: safeErr(err),
           });
         } else {
           failed++;
-          logger.warn('[glTours] seed publish failed', { id: doc.id, err });
+          logger.warn('[glTours] seed publish failed', {
+            id: doc.id,
+            err: safeErr(err),
+          });
         }
       }
     }

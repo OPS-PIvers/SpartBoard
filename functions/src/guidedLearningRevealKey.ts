@@ -2,6 +2,7 @@
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import * as admin from './firebaseAdmin';
 import './functionsInit';
+import { safeErr } from './safeLog';
 
 type Doc = Record<string, unknown>;
 
@@ -80,7 +81,7 @@ export const guidedLearningLateRevealKey = onDocumentWritten(
     } catch (error) {
       console.error('[guidedLearningLateRevealKey] failed', {
         sessionId: event.params.sessionId,
-        error,
+        error: safeErr(error),
       });
     }
   }

@@ -10,6 +10,7 @@ import {
   ownerHasUnrecordedSet,
 } from './glMediaReferences';
 import './functionsInit';
+import { safeErr } from './safeLog';
 
 export const SWEEP_MIN_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 export const SWEEP_MAX_DELETES = 200;
@@ -81,7 +82,7 @@ export async function runGlMediaSweep(
       deleted.push(path);
       logger.info('[glMediaSweep] deleted unreferenced GL file', { path });
     } catch (err) {
-      logger.warn('[glMediaSweep] delete failed', { path, err });
+      logger.warn('[glMediaSweep] delete failed', { path, err: safeErr(err) });
     }
   }
   return { candidates: candidates.length, deleted };

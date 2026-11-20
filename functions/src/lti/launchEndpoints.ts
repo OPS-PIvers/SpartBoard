@@ -59,6 +59,7 @@ import {
   restartPageHtml,
 } from './browserBinding';
 import type { LoginRestartParams } from './browserBinding';
+import { safeErr } from '../safeLog';
 
 const STUDENT_PSEUDONYM_HMAC_SECRET = defineSecret(
   'STUDENT_PSEUDONYM_HMAC_SECRET'
@@ -152,7 +153,7 @@ export const ltiLogin = onRequest(
       res.append('Set-Cookie', bindingCookieHeader(bindingId));
       res.redirect(302, authUrl.toString());
     } catch (err) {
-      console.error('[ltiLogin] error', err);
+      console.error('[ltiLogin] error', safeErr(err));
       res.status(500).send('LTI login initiation failed.');
     }
   }
@@ -196,7 +197,7 @@ export const ltiLaunch = onRequest(
           issuer: cfg.issuer,
         });
       } catch (e) {
-        console.error('[ltiLaunch] id_token validation failed', e);
+        console.error('[ltiLaunch] id_token validation failed', safeErr(e));
         res.status(401).send('Launch validation failed.');
         return;
       }
@@ -334,7 +335,7 @@ export const ltiLaunch = onRequest(
 
       res.redirect(302, url.toString());
     } catch (err) {
-      console.error('[ltiLaunch] error', err);
+      console.error('[ltiLaunch] error', safeErr(err));
       res.status(500).send('LTI launch failed.');
     }
   }
@@ -573,7 +574,7 @@ export const ltiExchange = onCall(
         firstName: studentFirstName(undefined, launch.name),
       });
     } catch (err) {
-      console.error('[ltiExchange] createCustomToken failed', err);
+      console.error('[ltiExchange] createCustomToken failed', safeErr(err));
       throw new HttpsError('internal', 'Failed to mint auth token.');
     }
 
@@ -619,7 +620,7 @@ export const ltiExchange = onCall(
       } catch (err) {
         console.warn(
           '[ltiExchange] grade-link persist failed (non-fatal)',
-          err
+          safeErr(err)
         );
       }
     }
@@ -670,7 +671,7 @@ export const ltiExchange = onCall(
       } catch (err) {
         console.warn(
           '[ltiExchange] LTI launch-context persist failed (non-fatal)',
-          err
+          safeErr(err)
         );
       }
     }

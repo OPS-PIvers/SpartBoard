@@ -82,6 +82,7 @@ import { registerStandardsTools } from './standardsTools';
 import { editResultOf, registerBoardTools } from './boardTools';
 import { restoreBoard } from './boardWrite';
 import { resolveBoardScreen } from './boardStore';
+import { safeErr } from '../safeLog';
 
 export const SERVER_INSTRUCTIONS = [
   "SpartBoard is a classroom dashboard. These tools read and write the signed-in teacher's own library.",
@@ -252,7 +253,7 @@ async function saveFlashcardEdit(
   } catch (err) {
     console.error('[mcpServer] study session rewrite failed', {
       uid: ctx.uid,
-      err,
+      err: safeErr(err),
     });
     warning =
       'Saved, but open Study assignments still show the old cards until the teacher re-saves the set in SpartBoard.';
@@ -269,14 +270,14 @@ async function saveFlashcardEdit(
       ).catch((err: unknown) =>
         console.error('[mcpServer] check rescore failed', {
           assignmentId,
-          err,
+          err: safeErr(err),
         })
       );
     }
   } catch (err) {
     console.error('[mcpServer] check session rewrite failed', {
       uid: ctx.uid,
-      err,
+      err: safeErr(err),
     });
     warning =
       'Saved, but open assignments still show the old cards until the teacher re-saves the set in SpartBoard.';
