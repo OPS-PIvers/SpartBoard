@@ -6,7 +6,7 @@ import { isDefiniteNonAdmin } from './recordTab';
 import { isRecorderInternal, type RecorderStatus } from '../recorder/messages';
 import { SidePanel } from './SidePanel';
 import { ManageToursButton, ToursTab } from './ToursTab';
-import { SendSection } from './SendSection';
+import { SendBar, useSendPanel } from './SendSection';
 import { FocusTab, sendFocus } from './FocusTab';
 import {
   parseFocusPanelList,
@@ -33,6 +33,7 @@ export const PanelShell: React.FC = () => {
   // The tour whose steps are open stays open while the teacher uses the page.
   const [viewing, setViewing] = useState<string | null>(null);
   const [focus, setFocus] = useState<FocusState>({ kind: 'loading' });
+  const sendPanel = useSendPanel();
 
   // A refusal hides the tab; a network or sign-in blip keeps what was showing.
   const applyFocus = useCallback((reply: FocusPanelReply) => {
@@ -129,7 +130,6 @@ export const PanelShell: React.FC = () => {
           {showRecord && tabButton('record', 'Record')}
         </div>
       )}
-      {current === 'tours' && <SendSection />}
       {current === 'tours' && (
         <div className="flex flex-1 flex-col gap-3 p-4">
           <div className="flex items-center justify-between gap-2">
@@ -147,6 +147,7 @@ export const PanelShell: React.FC = () => {
           />
         </div>
       )}
+      {current === 'tours' && <SendBar panel={sendPanel} />}
       {current === 'focus' && (
         <div className="flex flex-1 flex-col gap-3 p-4">
           <h1 className="text-base font-semibold">Focus</h1>

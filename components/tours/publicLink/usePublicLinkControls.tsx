@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useId, useState } from 'react';
+import React, { useContext, useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Globe, Link2 } from 'lucide-react';
 import type { GuidedLearningSet } from '@/types';
@@ -9,6 +9,7 @@ import { tourAttr } from '@/config/tourAnchors';
 import { logError } from '@/utils/logError';
 import {
   publicLinkStatus,
+  publicTourUrl,
   type PublicLinkRecord,
   type PublicLinkStatus,
 } from './publicLinkModel';
@@ -33,6 +34,10 @@ export interface PublicLinkControls {
   /** The public address while the link is on, for Copy link. */
   publicUrl: string | null;
   status: PublicLinkStatus;
+  /** Whether this viewer can turn the link on now. */
+  canTurnOn: boolean;
+  /** Opens the second confirm; `after` gets the public address once the link is on. */
+  requestOn: (after?: (url: string) => void) => void;
 }
 
 const linkBtn = `inline-flex min-h-8 items-center gap-1.5 self-start rounded-md px-1.5 text-sm font-semibold text-brand-blue-primary hover:bg-brand-blue-lighter ${focusRing}`;
@@ -63,6 +68,7 @@ export function usePublicLinkControls({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const reasonId = useId();
+  const afterOn = useRef<((url: string) => void) | null>(null);
 
   useEffect(() => {
     if (!admin || !enabled) return;
@@ -102,13 +108,16 @@ export function usePublicLinkControls({
   const turnOn = async (confirmed: PublicLinkConfirmation) => {
     setConfirming(false);
     setBusy(true);
+    const after = afterOn.current;
+    afterOn.current = null;
     try {
-      await turnOnPublicLink(setId, {
+      const saved = await turnOnPublicLink(setId, {
         ...confirmed,
         email: auth?.user?.email ?? '',
         previous: record,
       });
       setMessage(t('tourPublicLink.turnedOn'));
+      after?.(publicTourUrl(saved.token, window.location.origin));
     } catch (err) {
       logError('publicLink.on', err, { setId });
       setMessage(t('tourPublicLink.failed'));
@@ -134,6 +143,8 @@ export function usePublicLinkControls({
       statusNote: null,
       publicUrl: null,
       status,
+      canTurnOn: false,
+      requestOn: () => undefined,
     };
 
   const reason = !admin
@@ -225,7 +236,10 @@ export function usePublicLinkControls({
     dialog: confirming ? (
       <PublicLinkConfirm
         setId={setId}
-        onCancel={() => setConfirming(false)}
+        onCancel={() => {
+          afterOn.current = null;
+          setConfirming(false);
+        }}
         onConfirm={(c) => void turnOn(c)}
       />
     ) : null,
@@ -237,5 +251,11 @@ export function usePublicLinkControls({
           : null,
     publicUrl: on ? status.url : null,
     status,
+    canTurnOn: canSwitch,
+    requestOn: (after) => {
+      if (!canSwitch) return;
+      afterOn.current = after ?? null;
+      setConfirming(true);
+    },
   };
 }

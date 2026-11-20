@@ -1,10 +1,10 @@
 // The side panel's help center (docs/plans/shipped/WEB_TOURS_HELP_PANEL.md H5, H9).
 import React, { useEffect, useState } from 'react';
-import { ListOrdered, Play, RefreshCw, Search, Settings2 } from 'lucide-react';
+import { Play, RefreshCw, Search, Settings2, X } from 'lucide-react';
 import {
   chromeMuted,
   focusRing,
-  inputLight,
+  iconBtn,
   primaryBtn,
   secondaryBtn,
 } from '@/components/common/lightChrome';
@@ -21,7 +21,6 @@ import { TourStepsPane } from './TourStepsPane';
 
 const send = <T,>(msg: object): Promise<T> => chrome.runtime.sendMessage(msg);
 
-const card = 'rounded-2xl border border-slate-200 bg-white shadow-xs';
 const disabledLook = 'disabled:cursor-not-allowed disabled:opacity-50';
 
 /** The active tab in this panel's window, kept current as the person moves between tabs and pages. */
@@ -58,40 +57,36 @@ const TourRow: React.FC<{
   disabled: boolean;
   onStart: () => void;
   onView: () => void;
-}> = ({ tour, showHost, busy, disabled, onStart, onView }) => (
-  <li className={`flex flex-col gap-3 p-3 ${card}`}>
-    <span className="min-w-0">
-      <span className="block font-semibold wrap-anywhere">
-        {tour.title || 'Untitled tour'}
-      </span>
-      <span className={`block truncate text-xs ${chromeMuted}`}>
-        {showHost ? `${tour.host} · ` : ''}
-        {tour.steps === 1 ? '1 step' : `${tour.steps} steps`}
-      </span>
-    </span>
-    <span className="flex flex-wrap gap-2">
+}> = ({ tour, showHost, busy, disabled, onStart, onView }) => {
+  const title = tour.title || 'Untitled tour';
+  return (
+    <li className="flex items-center gap-3 py-2">
       <button
         type="button"
-        className={`${primaryBtn} inline-flex items-center gap-1.5 ${disabledLook}`}
+        className={`-mx-2 min-w-0 flex-1 rounded-lg px-2 py-1.5 text-left hover:bg-slate-100 ${focusRing}`}
+        aria-label={`View steps of ${title}`}
+        title="View steps"
+        onClick={onView}
+      >
+        <span className="block font-semibold wrap-anywhere">{title}</span>
+        <span className={`block truncate text-xs ${chromeMuted}`}>
+          {showHost ? `${tour.host} · ` : ''}
+          {tour.steps === 1 ? '1 step' : `${tour.steps} steps`}
+        </span>
+      </button>
+      <button
+        type="button"
+        className={`${primaryBtn} inline-flex shrink-0 items-center gap-1.5 ${disabledLook}`}
         disabled={disabled}
-        aria-label={`Start ${tour.title || 'Untitled tour'}`}
+        aria-label={`Start ${title}`}
         onClick={onStart}
       >
         <Play className="h-4 w-4 fill-current" aria-hidden="true" />
         {busy ? 'Starting...' : 'Start'}
       </button>
-      <button
-        type="button"
-        className={`${secondaryBtn} inline-flex items-center gap-1.5 border border-slate-200`}
-        aria-label={`View steps of ${tour.title || 'Untitled tour'}`}
-        onClick={onView}
-      >
-        <ListOrdered className="h-4 w-4" aria-hidden="true" />
-        View steps
-      </button>
-    </span>
-  </li>
-);
+    </li>
+  );
+};
 
 /** Opens SpartBoard's Web tours page; shown only once the server says this account is an admin (H10). */
 export const ManageToursButton: React.FC<{ reply: TourListReply | null }> = ({
@@ -189,7 +184,7 @@ export const ToursTab: React.FC<{
   }
 
   const rows = (list: ListedTour[], showHost: boolean) => (
-    <ul className="flex flex-col gap-2">
+    <ul className="flex flex-col divide-y divide-slate-200 border-y border-slate-200">
       {list.map((t) => (
         <TourRow
           key={t.id}
@@ -206,21 +201,31 @@ export const ToursTab: React.FC<{
 
   return (
     <div className="flex flex-col gap-4">
-      <label className="relative block">
-        <span className="sr-only">Search tours</span>
+      <div className="relative">
         <Search
-          className={`pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 ${chromeMuted}`}
+          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
           aria-hidden="true"
         />
         <input
           type="search"
-          className={`${inputLight} w-full pl-8 ${focusRing}`}
+          aria-label="Search tours"
+          className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-9 font-medium text-slate-700 shadow-xs placeholder:text-slate-400 focus:border-brand-blue-primary/40 focus:outline-hidden focus:ring-2 focus:ring-brand-blue-primary/30 [&::-webkit-search-cancel-button]:appearance-none"
           placeholder="Search all tours"
           value={query}
           maxLength={100}
           onChange={(e) => setQuery(e.target.value)}
         />
-      </label>
+        {query && (
+          <button
+            type="button"
+            className={`absolute right-1.5 top-1/2 -translate-y-1/2 ${iconBtn} p-1`}
+            aria-label="Clear search"
+            onClick={() => setQuery('')}
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
+        )}
+      </div>
       {error && (
         <p role="alert" className="text-brand-red-primary">
           {error}

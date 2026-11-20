@@ -391,12 +391,15 @@ const calcQuiz = (): QuizData => ({
       id: 'q-calc',
       type: 'FIB',
       text: 'A car travels {d} km in {t} hours. What is its average speed?',
+      modifiedText:
+        'A car travels 60 km in 2 hours. What is its average speed?',
       correctAnswer: 'd / t',
       incorrectAnswers: [],
       timeLimit: 0,
       points: 2,
       calc: {
         seed: 'dev-seed',
+        modifiedAnswer: '30',
         variables: [
           { name: 'd', min: 40, max: 120, decimals: 1 },
           { name: 't', min: 1.5, max: 4, decimals: 1 },

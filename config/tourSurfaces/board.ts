@@ -257,7 +257,7 @@ export const SURFACES: TourSurfaceMap = {
   },
   'board.web-tours-page': {
     label:
-      'Web tours page (list, health and public links; opened from Manage tours in the extension)',
+      'Web tours page (list, search, fix issues and sharing; opened from Manage tours in the extension)',
     kind: 'page',
     url: '/web-tours',
     needs: ['admin'],
@@ -265,8 +265,11 @@ export const SURFACES: TourSurfaceMap = {
       'components/tours/web/WebToursPage.tsx',
       'components/tours/web/WebToursGate.tsx',
       'components/tours/web/WebTourList.tsx',
-      'components/tours/web/WebTourHealthSection.tsx',
     ],
+    inner: {
+      'web-tours.share-tour-url': 'web-tours.copy-link:web-tours',
+      'web-tours.share-steps-url': 'web-tours.copy-link:web-tours',
+    },
   },
   'board.web-tour-editor': {
     label:

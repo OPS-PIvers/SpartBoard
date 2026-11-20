@@ -55,7 +55,7 @@ export function gradeQuestionForResponse(
     question,
     response,
     gradeAnswer(
-      questionForResponse(question, response),
+      questionForResponse(question, response, fibGrading),
       studentAnswer,
       manualGrade,
       fibAnswersForResponse(fibGrading, response, question.id),

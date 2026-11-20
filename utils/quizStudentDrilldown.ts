@@ -32,7 +32,10 @@ import {
   formatRevealedAnswer,
   revealValueFor,
 } from '@/utils/quizFibAlternates';
-import { questionForResponse } from '@/utils/quizCalcResponse';
+import {
+  questionForResponse,
+  type ModifiedSource,
+} from '@/utils/quizCalcResponse';
 import { fillCalcPrompt, formatCalcAnswer } from '@/utils/quizCalculated';
 
 /** One question as one student saw it, graded live. */
@@ -106,6 +109,8 @@ export interface StudentDrilldownOptions {
   showExtraAnswers?: boolean;
   /** Bank session: list served questions in the order they were drawn, as the student saw them. */
   drawOrder?: boolean;
+  /** Assignment overrides, so a modified student's random-number answer is their typed-number one. */
+  modified?: ModifiedSource | null;
 }
 
 export interface StudentDrilldown {
@@ -250,9 +255,11 @@ export function computeStudentDrilldown(
     const hasKey = !manual && q.correctAnswer.trim() !== '';
     const answer = entry && !entry.unresponded ? (entry.answer ?? '') : '';
     // Random-number questions show this student's own numbers and answer.
-    const own = q.calc
-      ? questionForResponse(q, response).calcValues
+    const personal = q.calc
+      ? questionForResponse(q, response, options.modified)
       : undefined;
+    const own = personal?.calcValues;
+    const typedNumbers = !!own && Object.keys(own).length === 0;
     const base: Pick<
       StudentQuestionLine,
       | 'questionId'
@@ -275,15 +282,17 @@ export function computeStudentDrilldown(
       questionId: q.id,
       number,
       text:
-        q.calc && own
-          ? fillCalcPrompt(promptLabel(q), q.calc, own)
-          : promptLabel(q),
+        typedNumbers && q.modifiedText
+          ? q.modifiedText
+          : q.calc && own
+            ? fillCalcPrompt(promptLabel(q), q.calc, own)
+            : promptLabel(q),
       type: q.type,
       manual,
       correctAnswerText: hasKey
         ? q.calc
-          ? own
-            ? formatCalcAnswer(q.calc, own)
+          ? own && personal?.calc
+            ? formatCalcAnswer(personal.calc, own)
             : null
           : q.type === 'FIB'
             ? formatRevealedAnswer(revealValueFor(q))

@@ -86,4 +86,23 @@ describe('random-number questions on the server', () => {
     expect(scoreAttempt(attempt(2), ctx, key)?.score).toBe(100);
     expect(scoreAttempt(attempt(1), ctx, key)?.score).toBe(0);
   });
+
+  it('scores a modified student on the typed-number answer', () => {
+    const [modified] = parseKeyQuestions([
+      {
+        id: 'q1',
+        type: 'FIB',
+        points: 2,
+        correctAnswer: 'd / t',
+        incorrectAnswers: [],
+        calc: { ...calc, modifiedAnswer: '30' },
+      },
+    ]);
+    const modCtx = { ...ctx, questions: [modified], modified: true };
+    const attempt = { answers: [{ questionId: 'q1', answer: '30' }] };
+    expect(scoreAttempt(attempt, modCtx, 'uid-abc')?.score).toBe(100);
+    expect(
+      scoreAttempt(attempt, { ...modCtx, modified: false }, 'uid-abc')?.score
+    ).toBe(0);
+  });
 });

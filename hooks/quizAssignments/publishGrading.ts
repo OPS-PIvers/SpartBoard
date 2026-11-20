@@ -1,6 +1,6 @@
 import {
   calcAttemptKey,
-  calcValuesFor,
+  calcModifiedNeedsAnswer,
   formatCalcAnswer,
   isCalcQuestion,
   withCalcValues,
@@ -77,6 +77,22 @@ export interface ResponseGradingContext {
   sections?: QuizSessionSection[];
   /** Hybrid paper quiz: an unscanned written answer holds the score. */
   paperWrittenQuestionIds?: string[];
+  /** Student-paced, the only pace that shows the modified prompt. */
+  modifiedWording?: boolean;
+}
+
+/** True when this student was shown the modified prompt of each question. */
+export function servedModified(
+  ctx: Pick<
+    ResponseGradingContext,
+    'overridesByStudentUid' | 'modifiedWording'
+  >,
+  studentUid: string
+): boolean {
+  return (
+    ctx.modifiedWording === true &&
+    ctx.overridesByStudentUid[studentUid]?.modifiedQuestions === true
+  );
 }
 
 export function buildResponseGradingContext(
@@ -89,6 +105,7 @@ export function buildResponseGradingContext(
     questionsById.set(q.id, q);
   return {
     questionsById,
+    modifiedWording: assignmentData?.sessionMode === 'student',
     overridesByStudentUid: (assignmentData?.overridesByStudentUid ??
       {}) as Record<string, StudentOverride>,
     servedLanguageByStudentUid: (assignmentData?.servedLanguageByStudentUid ??
@@ -130,17 +147,23 @@ export function withCalcRevealed(
   questions: Iterable<QuizQuestion>,
   responseKey: string,
   response: Pick<QuizResponse, 'status' | 'completedAttempts'> &
-    Partial<Pick<QuizResponse, 'joinedAt'>>
+    Partial<Pick<QuizResponse, 'joinedAt'>>,
+  /** The student gets the modified version of each question. */
+  modified = false
 ): Record<string, string> | null {
   if (!answerKey) return answerKey;
   const key = calcAttemptKey(responseKey, response);
   let out = answerKey;
   for (const q of questions) {
     if (!isCalcQuestion(q) || !q.calc) continue;
-    const values = calcValuesFor(q, key);
-    if (!values) continue;
+    const own = withCalcValues(
+      q,
+      key,
+      modified && calcModifiedNeedsAnswer(q.modifiedText, q.calc, q.text)
+    );
+    if (!own.calcValues || !own.calc) continue;
     if (out === answerKey) out = { ...answerKey };
-    out[q.id] = formatCalcAnswer(q.calc, values);
+    out[q.id] = formatCalcAnswer(own.calc, own.calcValues);
   }
   return out;
 }
@@ -269,7 +292,13 @@ export function gradeResponseForPublish(
       q,
       data,
       gradeAnswer(
-        withCalcValues(q, calcAttemptKey(responseKey, data)),
+        withCalcValues(
+          q,
+          calcAttemptKey(responseKey, data),
+          q.calc &&
+            calcModifiedNeedsAnswer(q.modifiedText, q.calc, q.text) &&
+            servedModified(ctx, data.studentUid)
+        ),
         a.answer,
         manualGrade,
         fibAcceptedAnswers(

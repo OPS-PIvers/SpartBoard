@@ -304,6 +304,25 @@ const VIEWS = {
       onError={noop}
     />
   ),
+  // One essay question in a group print: no choice count, a sized box.
+  'printed-group-essay': () => (
+    <PaperPrintModal
+      quiz={{
+        ...QUIZ,
+        title: 'Hamlet Essay',
+        questions: [{ ...WRITTEN_QUIZ.questions[4], paperBoxSize: 8 }],
+      }}
+      group={{
+        label: 'Group 1',
+        students: { r1: ['r1-s0', 'r1-s3'] },
+        supports: [],
+      }}
+      rosters={ROSTERS}
+      onSaveBatch={() => Promise.resolve()}
+      onClose={noop}
+      onError={noop}
+    />
+  ),
   'printed-translated': () => (
     <PaperPrintModal
       quiz={ASSIGN_QUIZ}

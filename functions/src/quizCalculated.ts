@@ -18,6 +18,7 @@ export interface CalcSpec {
   tolerance: CalcTolerance;
   roundTo?: number;
   unit?: string;
+  modifiedAnswer?: string;
 }
 
 export const CALC_MAX_VARIABLES = 8;
@@ -401,10 +402,44 @@ export function withCalcValues<
   Q extends { id: string; type: string; calc?: CalcSpec },
 >(
   q: Q,
-  responseKey: string | undefined
+  responseKey: string | undefined,
+  /** The student gets the modified version; its typed-number answer grades them when set. */
+  modified = false
 ): Q & { calcValues?: Record<string, number> } {
-  if (!isCalcQuestion(q) || !responseKey) return q;
+  if (!isCalcQuestion(q) || !responseKey || !q.calc) return q;
+  const fixed = modified ? calcModifiedValue(q.calc) : null;
+  if (fixed !== null)
+    return {
+      ...q,
+      calc: { ...q.calc, formula: String(fixed) },
+      calcValues: {},
+    };
   return { ...q, calcValues: calcValuesFor(q, responseKey) };
+}
+
+/** True when a modified prompt uses none of the question's numbers, so it needs its own answer. */
+export function calcModifiedNeedsAnswer(
+  modifiedText: string | undefined,
+  spec: Pick<CalcSpec, 'variables'>,
+  /** The original prompt; students only see a modified prompt with the same blanks. */
+  text?: string
+): boolean {
+  if (!modifiedText?.trim()) return false;
+  const blanks = (t: string) => t.match(/_{2,}/g)?.length ?? 0;
+  if (text !== undefined && blanks(text) !== blanks(modifiedText)) return false;
+  const names = new Set(spec.variables.map((v) => v.name));
+  for (const m of modifiedText.matchAll(/\{([a-zA-Z][0-9]?)\}/g))
+    if (names.has(m[1])) return false;
+  return true;
+}
+
+/** The modified version's typed answer as a number, or null when it has none. */
+export function calcModifiedValue(
+  spec: Pick<CalcSpec, 'modifiedAnswer' | 'unit'>
+): number | null {
+  return spec.modifiedAnswer
+    ? parseStudentNumber(spec.modifiedAnswer, spec.unit)
+    : null;
 }
 
 const asObj = (v: unknown): Record<string, unknown> | null =>
@@ -454,6 +489,9 @@ export function parseCalcSpec(raw: unknown): CalcSpec | undefined {
       : {}),
     ...(typeof r.unit === 'string' && r.unit.trim()
       ? { unit: r.unit.trim() }
+      : {}),
+    ...(typeof r.modifiedAnswer === 'string' && r.modifiedAnswer.trim()
+      ? { modifiedAnswer: r.modifiedAnswer.trim().slice(0, 40) }
       : {}),
   };
 }

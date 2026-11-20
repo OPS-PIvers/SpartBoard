@@ -10922,6 +10922,28 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-editor.calc-modified-answer",
+    "label": "Modified answer field of a random-number question whose modified version has typed numbers",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-editor.prompt-equation",
     "label": "Equation link on the question prompt in the Quiz editor",
     "scope": "widget type",
@@ -15731,6 +15753,26 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-print.written-box-image",
     "label": "Written answer custom image select in the Quiz widget",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.paper-print",
+        "kind": "modal",
+        "path": [
+          "library-shell.card-primary-action:quiz#row-1",
+          "quiz-library.assign-paper:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-print.written-box-pages",
+    "label": "Written box page count in the Quiz widget",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -40551,23 +40593,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "admin.help-center.web-tour-copy-link",
-    "label": "Copy link button for a web tour in tour health",
-    "scope": "field",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.web-tours-page",
-        "kind": "page",
-        "url": "/web-tours",
-        "path": [],
-        "needs": [
-          "admin"
-        ]
-      }
-    ]
-  },
-  {
     "id": "admin.help-center.unmapped-copy",
     "label": "Copy all button for unmapped anchors",
     "scope": "board",
@@ -58646,8 +58671,112 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "web-tours.copy-link",
-    "label": "Copy link button for a web tour on the Web tours page",
+    "label": "Share button for a web tour on the Web tours page",
     "scope": "field",
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tours.share-tour-url",
+    "label": "Tour URL item in a web tour Share menu on the Web tours page",
+    "scope": "field",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [
+          "web-tours.copy-link:web-tours"
+        ],
+        "reveal": "web-tours.copy-link:web-tours",
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tours.share-steps-url",
+    "label": "Steps URL item in a web tour Share menu on the Web tours page",
+    "scope": "field",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [
+          "web-tours.copy-link:web-tours"
+        ],
+        "reveal": "web-tours.copy-link:web-tours",
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tours.title",
+    "label": "Tour name you can rename on the Web tours page",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tours.status",
+    "label": "Fix issues button for a web tour on the Web tours page",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tours.search",
+    "label": "Search box on the Web tours page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tours-page",
+        "kind": "page",
+        "url": "/web-tours",
+        "path": [],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tours.filter",
+    "label": "Show filter on the Web tours page",
+    "scope": "board",
     "routes": [
       {
         "surface": "board.web-tours-page",

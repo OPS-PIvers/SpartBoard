@@ -2642,6 +2642,7 @@
       "modeChipAriaWithCount_other": "Operation mode: {{mode}}. {{count}} students left.",
       "modeChipTitle": "Mode: {{mode}} — click to cycle",
       "classContext": {
+        "label": "Classes",
         "triggerAria": "Active class: {{name}}",
         "triggerAriaWithAbsent_one": "Active class: {{name}}. {{count}} student marked absent today.",
         "triggerAriaWithAbsent_other": "Active class: {{name}}. {{count}} students marked absent today.",
@@ -6098,27 +6099,6 @@
         "rebound": "Rebound",
         "needsHuman": "Needs a person"
       }
-    },
-    "web": {
-      "title": "Web tours",
-      "intro": "Checks real runs of tours on other websites.",
-      "empty": "No web tours yet.",
-      "loadFailed": "Couldn't load web tours.",
-      "notPublished": "Not published",
-      "colPage": "Page",
-      "state": {
-        "ok": "OK",
-        "weak": "Weak match",
-        "missed": "Not found"
-      },
-      "reason": {
-        "missed": "Showed the picture in {{misses}} of {{runs}} real runs",
-        "weak": "Found only by a weaker clue in {{weak}} of {{runs}} real runs",
-        "weakScore": "Close to another control in {{weak}} of {{runs}} real runs"
-      },
-      "copyLink": "Copy link",
-      "linkCopied": "Copied",
-      "copyLinkFor": "Copy link to {{title}}"
     }
   },
   "tourPicker": {

@@ -105,7 +105,7 @@ export function getEarnedPoints(
       q,
       r,
       gradeAnswer(
-        questionForResponse(q, r),
+        questionForResponse(q, r, fibGrading),
         ans.answer,
         manualGrade,
         fibAnswersForResponse(fibGrading, r, q.id),

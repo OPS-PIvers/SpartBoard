@@ -144,7 +144,9 @@ const insertAfter = (
 export const WebTourEditor: React.FC<{
   initial: GuidedLearningSet;
   onClose: () => void;
-}> = ({ initial, onClose }) => {
+  /** The step selected when the editor opens; the first step when unset. */
+  initialStepId?: string;
+}> = ({ initial, onClose, initialStepId }) => {
   // Duplicate swaps the editor onto the copy.
   const [current, setCurrent] = useState(initial);
   return (
@@ -153,6 +155,7 @@ export const WebTourEditor: React.FC<{
       initial={current}
       onClose={onClose}
       onOpen={setCurrent}
+      initialStepId={current.id === initial.id ? initialStepId : undefined}
     />
   );
 };
@@ -161,7 +164,8 @@ const WebTourEditorBody: React.FC<{
   initial: GuidedLearningSet;
   onClose: () => void;
   onOpen: (set: GuidedLearningSet) => void;
-}> = ({ initial, onClose, onOpen }) => {
+  initialStepId?: string;
+}> = ({ initial, onClose, onOpen, initialStepId }) => {
   const { user } = useAuth();
   const uid = user?.uid ?? '';
   const { showConfirm } = useDialog();
@@ -176,8 +180,10 @@ const WebTourEditorBody: React.FC<{
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<'steps' | 'settings'>('steps');
-  const [selectedId, setSelectedId] = useState<string | null>(
-    initial.steps[0]?.id ?? null
+  const [selectedId, setSelectedId] = useState<string | null>(() =>
+    initialStepId && initial.steps.some((s) => s.id === initialStepId)
+      ? initialStepId
+      : (initial.steps[0]?.id ?? null)
   );
   const [pictureSelected, setPictureSelected] = useState(false);
   const [check, setCheck] = useState<{

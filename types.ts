@@ -2202,6 +2202,8 @@ export interface RandomConfig {
    *  so they survive re-randomize (a fresh order doesn't erase what's
    *  already been completed). */
   doneNames?: string[];
+  /** This widget's own class; unset follows the board's active class (older widgets). */
+  rosterId?: string;
   /** Pool: the saved class group to draw from. Unset or null = whole class. */
   rosterPoolGroupId?: string | null;
   /** Lock: saved class groups kept together when building groups. */
@@ -4569,6 +4571,8 @@ export interface CalcSpec {
   /** Decimals the shown answer is rounded to; grading uses the unrounded value. */
   roundTo?: number;
   unit?: string;
+  /** Answer for students given a modified prompt with typed numbers instead of {name} links. */
+  modifiedAnswer?: string;
 }
 
 export interface QuizQuestion {
@@ -6125,8 +6129,11 @@ export interface QuizResponseAnswer {
   paperTranscript?: PaperTranscriptState;
 }
 
-/** Size of a handwritten answer box on a paper sheet; S/M/L and a number are line counts, full is a page. */
-export type PaperBoxSize = 'S' | 'M' | 'L' | 'full' | number;
+/** Size of a handwritten answer box on a paper sheet; S/M/L and a number are line counts, full is a page, pages-N is N pages. */
+export type PaperBoxSize = 'S' | 'M' | 'L' | 'full' | PaperBoxPages | number;
+
+/** A written answer that runs over several whole pages. */
+export type PaperBoxPages = 'pages-2' | 'pages-3' | 'pages-4';
 
 /** What prints inside a handwritten answer box: rule lines, nothing, a 5 mm grid, or a grid with x and y axes. */
 export type PaperBoxStyle =
@@ -6730,6 +6737,8 @@ export type PaperPageItem =
       style?: PaperBoxStyle;
       /** Fill in the blank: one write-in line per blank. */
       blanks?: number;
+      /** A later page of a multi-page answer; its crop joins the first page's. */
+      continued?: true;
     };
 
 /** Positions of everything on one physical page; `page` is 1-based and absolute. */
@@ -11833,6 +11842,8 @@ export type GlobalFeature =
   | 'live-tour-editing-v2'
   /** Handwritten free-response boxes on paper answer sheets, transcribed for grading. */
   | 'paper-handwritten-responses'
+  /** Written answers that run over two to four whole pages. */
+  | 'paper-multi-page-answers'
   /** Device quiz whose written questions students answer on a printed sheet that is scanned back in. */
   | 'paper-written-hybrid'
   | 'paper-reword-sync'

@@ -164,7 +164,10 @@ export interface SessionInput {
   /** Assignment-doc served locales graded with typo leniency. */
   lenientFibLocales?: string[];
   /** Assignment-doc per-student overrides; only the served `language` is used here. */
-  overridesByStudentUid?: Record<string, { language?: string }>;
+  overridesByStudentUid?: Record<
+    string,
+    { language?: string; modifiedQuestions?: boolean }
+  >;
   /** The session's sections; a choose-N section leaves unchosen questions out. */
   sections?: ChooseSection[];
   /** Hybrid paper quiz: written questions answered on a printed sheet. */
@@ -1215,14 +1218,16 @@ export function computeAssessmentAggregate(
         }
         const a = representative.get(sessionQid);
         // Numbers come from the question id the student was served.
-        const graded = question.calc
-          ? {
-              ...question,
-              calcValues: withCalcValues(
-                { ...question, id: sessionQid },
-                r.responseKey
-              ).calcValues,
-            }
+        const own = question.calc
+          ? withCalcValues(
+              { ...question, id: sessionQid },
+              r.responseKey,
+              session.overridesByStudentUid?.[r.studentUid]
+                ?.modifiedQuestions === true
+            )
+          : undefined;
+        const graded = own
+          ? { ...question, calc: own.calc, calcValues: own.calcValues }
           : question;
         const grade = gradeGroupAnswer(
           graded,

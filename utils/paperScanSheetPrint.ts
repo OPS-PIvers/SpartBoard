@@ -368,9 +368,9 @@ export function buildScanSheetPageHtml(
   }
 
   const written = input.geometry.pageMap
-    ? writtenItemsOf(input.geometry.pageMap).sort(
-        (a, b) => a.headerMm.y - b.headerMm.y
-      )
+    ? writtenItemsOf(input.geometry.pageMap)
+        .filter((item) => !item.continued)
+        .sort((a, b) => a.headerMm.y - b.headerMm.y)
     : [];
   const markupAnswers: (readonly PaperMarkupItem[])[] = [];
   written.forEach((item, idx) => {
