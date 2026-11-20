@@ -136,6 +136,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'quiz-time-limit',
   'quiz-translation',
   'quiz-whiteboard-response',
+  'quiz-word-bank',
   'remote-control',
   'results-print-v2',
   'roster-groups',

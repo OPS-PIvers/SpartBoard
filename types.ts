@@ -4487,6 +4487,7 @@ export type QuizStimulusType =
   | 'youtube'
   | 'gdoc-embed'
   | 'text'
+  | 'word-bank'
   | 'calculator';
 
 /** Which Desmos calculator a `calculator` stimulus shows. */
@@ -4526,6 +4527,8 @@ export interface QuizStimulus {
   calculator?: QuizCalculatorKind;
   /** Student-visible tab name in the stimulus panel; unnamed tabs are numbered (M12). */
   tabLabel?: string;
+  /** word-bank only: how many columns students see; absent = 1. */
+  wordBankColumns?: 1 | 2 | 3;
   /** image only: beside the question or in it; absent = beside (M13). */
   placement?: QuizStimulusPlacement;
 }
@@ -11753,6 +11756,7 @@ export type GlobalFeature =
   | 'quiz-cross-out'
   /** Desmos calculator stimulus on quiz questions. */
   | 'quiz-calculator-stimulus'
+  | 'quiz-word-bank'
   /** Question editor metadata (stimuli, targets, DOK) as labeled fields like Type and Points. */
   | 'question-editor-fields'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */

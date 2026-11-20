@@ -240,6 +240,14 @@ const stimuliQuiz = (): QuizData => {
     { id: 'stim-map', type: 'image', url: mapSvg, label: 'Cascade Range map' },
     passage,
     {
+      id: 'stim-wordbank',
+      type: 'word-bank',
+      url: '',
+      label: 'Unit 4 vocab',
+      wordBankColumns: 2,
+      text: 'Actor-Observer Bias\nBelief Perseverance\nCognitive Dissonance\nDiscrimination\nDispositional Attribution\nDownward Social Comparison\n\nEthnocentrism\nExternal Locus of Control\nFundamental Attribution Error\nImplicit Attitudes\nIn-Group Bias\nInternal Locus of Control\n\nJust-World Phenomenon\nMere Exposure Effect\nOptimistic Explanatory Style\nOut-Group Homogeneity\nPessimistic Explanatory Style\nPrejudice\n\nRelative Deprivation\nSelf-Fulfilling Prophecy\nSelf-Serving Bias\nSituational Attribution\nStereotype\nUpward Social Comparison',
+    },
+    {
       id: 'stim-untitled',
       type: 'text',
       url: '',

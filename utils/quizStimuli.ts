@@ -20,6 +20,7 @@ export function isDocShapedStimulus(type: QuizStimulusType): boolean {
     type === 'pdf' ||
     type === 'gdoc-embed' ||
     type === 'text' ||
+    type === 'word-bank' ||
     type === 'calculator'
   );
 }
@@ -38,6 +39,7 @@ export const STIMULUS_TYPE_LABELS: Record<QuizStimulusType, string> = {
   youtube: 'YouTube',
   'gdoc-embed': 'Doc/Slides embed',
   text: 'Passage',
+  'word-bank': 'Word bank',
   calculator: 'Calculator',
 };
 
@@ -90,7 +92,8 @@ export function driveMediaUrl(fileId: string): string | null {
 /** Best `<img>`/`<video>`/`<audio>` source for a stimulus. */
 export function stimulusMediaUrl(s: QuizStimulus): string {
   // A passage has no file to fetch; its content travels on the stimulus.
-  if (s.type === 'text' || s.type === 'calculator') return '';
+  if (s.type === 'text' || s.type === 'word-bank' || s.type === 'calculator')
+    return '';
   if (s.driveFileId) {
     if (s.type === 'image') return driveImageUrl(s.driveFileId);
     return driveMediaUrl(s.driveFileId) ?? s.url;

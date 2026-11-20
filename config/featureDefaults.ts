@@ -55,6 +55,7 @@ import {
   Quote,
   Strikethrough,
   Calculator,
+  ListPlus,
   Utensils,
   CloudSun,
   SquareChevronDown,
@@ -639,6 +640,19 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Calculator stimulus',
     icon: Calculator,
     description: 'Teachers attach a Desmos calculator to quiz questions.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'students',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Tap-to-fill word bank stimulus on quiz questions. Admin-only until Paul has tested it in prod.
+  'quiz-word-bank': {
+    label: 'Word bank stimulus',
+    icon: ListPlus,
+    description:
+      'Teachers add a word bank. Students tap a choice to fill a blank.',
     stage: 'preview',
     afterLaunch: 'keep',
     category: 'students',

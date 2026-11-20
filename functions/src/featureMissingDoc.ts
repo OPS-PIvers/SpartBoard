@@ -56,6 +56,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-cross-out',
   'quiz-blank-types',
   'quiz-calculator-stimulus',
+  'quiz-word-bank',
   'question-editor-fields',
   'lunch-count-redesign',
   'weather-details',
