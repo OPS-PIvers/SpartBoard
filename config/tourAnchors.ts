@@ -2023,7 +2023,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'editor.close': {
-    label: 'Close or Cancel button in an editor dialog footer',
+    label: 'Close button or footer Cancel button in an editor dialog',
     perWidgetType: true,
     panel: true,
     closes: 'own',
