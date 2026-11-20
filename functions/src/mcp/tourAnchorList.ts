@@ -25115,6 +25115,29 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "roster-groups.show-in-widgets",
+    "label": "Show in widgets switch on a group page",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-groups",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
     "id": "roster-groups.done",
     "label": "Done button at the bottom of a group page",
     "scope": "board",

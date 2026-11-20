@@ -616,6 +616,7 @@ export const SURFACES: TourSurfaceMap = {
       'roster-groups.select-all': 'roster-groups.edit:roster-groups',
       'roster-groups.clear': 'roster-groups.edit:roster-groups',
       'roster-groups.done': 'roster-groups.edit:roster-groups',
+      'roster-groups.show-in-widgets': 'roster-groups.edit:roster-groups',
       'group-wizard.preview': GROUP_WIZARD,
       'group-wizard.steps': GROUP_WIZARD,
       'group-wizard.step': GROUP_WIZARD,

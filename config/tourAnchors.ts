@@ -6221,6 +6221,10 @@ export const TOUR_ANCHORS = {
     label: 'Clear students button on a group page',
     panel: true,
   },
+  'roster-groups.show-in-widgets': {
+    label: 'Show in widgets switch on a group page',
+    panel: true,
+  },
   'roster-groups.done': {
     label: 'Done button at the bottom of a group page',
     panel: true,

@@ -11,6 +11,7 @@ import {
 } from '@/utils/rosterDefaultOverrides';
 import { SplitClassFooter } from './SplitClassFooter';
 import { StandingAccommodationRules } from './StandingAccommodationRules';
+import { Toggle } from '@/components/common/Toggle';
 import { ROW_BUTTON, lastFirst, sortByLastName } from './rosterGroupsShared';
 
 export interface RosterGroupsPanelProps {
@@ -33,7 +34,7 @@ export const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = (props) => {
   const open = groups.find((g) => g.id === openId);
   const intro = t('sidebar.classes.groupsIntro', {
     defaultValue:
-      'Groups show up in every widget that picks students. A group can also share accommodations.',
+      'A group can show up in widgets that pick students. It can also share accommodations.',
   });
 
   const addGroup = () => {
@@ -41,6 +42,8 @@ export const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = (props) => {
       id: crypto.randomUUID(),
       name: '',
       studentIds: [],
+      // Hidden from board widgets until the teacher turns it on, so a support group's name stays private.
+      inGroupMaker: false,
     };
     onChange([...groups, group]);
     setOpenId(group.id);
@@ -68,48 +71,50 @@ export const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = (props) => {
   }
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col border border-slate-200 rounded-xl bg-white overflow-y-auto scroll-inset">
-      {groups.length === 0 ? (
-        <div className="flex flex-col items-center justify-center flex-1 text-center px-6 py-10 gap-3">
-          <p className="font-bold text-slate-700">
-            {t('sidebar.classes.emptyGroupsTitle', {
-              defaultValue: 'No groups yet',
-            })}
-          </p>
-          <p className="text-sm text-slate-500 max-w-sm">{intro}</p>
-          <button
-            onClick={addGroup}
-            {...tourAttr('roster-groups.new')}
-            className="mt-1 flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-white bg-brand-blue-primary rounded-lg hover:bg-brand-blue-dark transition-colors"
-          >
-            <Plus size={16} aria-hidden="true" />
-            {t('sidebar.classes.addGroup', { defaultValue: 'New Group' })}
-          </button>
-        </div>
-      ) : (
-        <>
-          <p className="px-4 py-3 border-b border-slate-200 text-sm text-slate-600">
-            {intro}
-          </p>
-          <ul
-            className="divide-y divide-slate-100"
-            {...tourAttr('roster-groups.list')}
-          >
-            {groups.map((group, index) => (
-              <GroupRow
-                key={group.id}
-                group={group}
-                rowKey={`group-${index + 1}`}
-                sorted={sorted}
-                overrides={overrides}
-                onEdit={() => setOpenId(group.id)}
-                onDelete={() => remove(group.id)}
-              />
-            ))}
-          </ul>
-        </>
-      )}
-      <div className="mt-auto">
+    <div className="flex-1 min-h-0 flex flex-col border border-slate-200 rounded-xl bg-white overflow-hidden">
+      <div className="flex-1 min-h-0 flex flex-col overflow-y-auto scroll-inset pb-4">
+        {groups.length === 0 ? (
+          <div className="flex flex-col items-center justify-center flex-1 text-center px-6 py-10 gap-3">
+            <p className="font-bold text-slate-700">
+              {t('sidebar.classes.emptyGroupsTitle', {
+                defaultValue: 'No groups yet',
+              })}
+            </p>
+            <p className="text-sm text-slate-500 max-w-sm">{intro}</p>
+            <button
+              onClick={addGroup}
+              {...tourAttr('roster-groups.new')}
+              className="mt-1 flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-white bg-brand-blue-primary rounded-lg hover:bg-brand-blue-dark transition-colors"
+            >
+              <Plus size={16} aria-hidden="true" />
+              {t('sidebar.classes.addGroup', { defaultValue: 'New Group' })}
+            </button>
+          </div>
+        ) : (
+          <>
+            <p className="px-4 py-3 bg-slate-50 border-b border-slate-200 rounded-t-xl text-sm text-slate-600">
+              {intro}
+            </p>
+            <ul
+              className="divide-y divide-slate-200"
+              {...tourAttr('roster-groups.list')}
+            >
+              {groups.map((group, index) => (
+                <GroupRow
+                  key={group.id}
+                  group={group}
+                  rowKey={`group-${index + 1}`}
+                  sorted={sorted}
+                  overrides={overrides}
+                  onEdit={() => setOpenId(group.id)}
+                  onDelete={() => remove(group.id)}
+                />
+              ))}
+            </ul>
+          </>
+        )}
+      </div>
+      <div className="shrink-0">
         <SplitClassFooter
           students={students}
           onAddGroups={(made) => onChange([...groups, ...made])}
@@ -123,9 +128,9 @@ export const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = (props) => {
 const GroupName: React.FC<{ name: string }> = ({ name }) => {
   const { t } = useTranslation();
   return name.trim() ? (
-    <span className="font-bold text-slate-800">{name}</span>
+    <span className="text-base font-bold text-slate-900">{name}</span>
   ) : (
-    <span className="font-bold italic text-slate-400">
+    <span className="text-base font-bold italic text-slate-400">
       {t('sidebar.classes.unnamedGroup', { defaultValue: 'Unnamed group' })}
     </span>
   );
@@ -178,6 +183,14 @@ const GroupRow: React.FC<{
         </span>
         <span className="text-slate-500">
           <span className="font-semibold text-slate-700">
+            {t('sidebar.classes.widgetsLabel', { defaultValue: 'Widgets:' })}
+          </span>{' '}
+          {group.inGroupMaker === false
+            ? t('sidebar.classes.widgetsHidden', { defaultValue: 'Hidden' })
+            : t('sidebar.classes.widgetsShown', { defaultValue: 'Shown' })}
+        </span>
+        <span className="text-slate-500">
+          <span className="font-semibold text-slate-700">
             {t('sidebar.classes.accommodationsLabel', {
               defaultValue: 'Accommodations:',
             })}
@@ -211,7 +224,23 @@ const GroupRow: React.FC<{
   );
 };
 
-const SECTION_LABEL = 'text-xs font-bold text-slate-600';
+/** A titled band over a block of the group page, so each part reads apart from the next. */
+const Section: React.FC<{
+  title: string;
+  detail?: string;
+  first?: boolean;
+  children: React.ReactNode;
+}> = ({ title, detail, first, children }) => (
+  <section>
+    <div
+      className={`flex flex-wrap items-baseline gap-x-2 px-4 py-2 bg-slate-100 border-b border-slate-200 ${first ? '' : 'border-t'}`}
+    >
+      <h4 className="text-sm font-bold text-slate-800">{title}</h4>
+      {detail && <span className="text-sm text-slate-500">{detail}</span>}
+    </div>
+    <div className="px-4 py-3">{children}</div>
+  </section>
+);
 
 const GroupPage: React.FC<
   RosterGroupsPanelProps & {
@@ -243,6 +272,9 @@ const GroupPage: React.FC<
   const memberIds = sorted
     .filter((s) => group.studentIds.includes(s.id))
     .map((s) => s.id);
+  const showLabel = t('sidebar.classes.showInWidgets', {
+    defaultValue: 'Show in widgets',
+  });
   const shared = sharedStudentOverride(overrides, memberIds);
   const updateShared = (fn: (prev: StudentOverride) => StudentOverride) => {
     const cur = latest.current;
@@ -257,7 +289,7 @@ const GroupPage: React.FC<
 
   return (
     <div className="flex-1 min-h-0 flex flex-col border border-slate-200 rounded-xl bg-white">
-      <div className="flex items-center px-3 py-2 border-b border-slate-200">
+      <div className="flex items-center px-3 py-2 border-b border-slate-200 bg-slate-50 rounded-t-xl">
         <button
           onClick={onClose}
           {...tourAttr('roster-groups.back')}
@@ -267,59 +299,96 @@ const GroupPage: React.FC<
           {t('sidebar.classes.allGroups', { defaultValue: 'All groups' })}
         </button>
       </div>
-      <div className="flex-1 min-h-0 overflow-y-auto scroll-inset p-4 pb-6 flex flex-col gap-5">
-        <div className="flex flex-wrap items-end gap-2">
-          <label className="flex-1 min-w-48 flex flex-col gap-1.5">
-            <span className={SECTION_LABEL}>
-              {t('sidebar.classes.groupNameLabel', {
-                defaultValue: 'Group name',
-              })}
-            </span>
+      <div className="flex-1 min-h-0 overflow-y-auto scroll-inset pb-6">
+        <Section
+          title={t('sidebar.classes.groupNameLabel', {
+            defaultValue: 'Group name',
+          })}
+          first
+        >
+          <div className="flex flex-wrap items-center gap-2">
             <input
               value={group.name}
               autoFocus={autoFocusName}
+              aria-label={t('sidebar.classes.groupNameLabel', {
+                defaultValue: 'Group name',
+              })}
               onChange={(e) => onPatch({ name: e.target.value })}
               {...tourAttr('roster-groups.name')}
-              className="px-3 py-2 text-sm font-bold rounded-lg border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-hidden"
+              className="flex-1 min-w-48 px-3 py-2 text-sm font-bold rounded-lg border border-slate-300 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-hidden"
             />
-          </label>
-          <button
-            onClick={onDelete}
-            {...tourAttr('roster-groups.delete')}
-            className={`${ROW_BUTTON} min-h-[38px] hover:border-red-300 hover:text-red-600`}
-          >
-            <Trash2 size={15} aria-hidden="true" />
-            {t('sidebar.classes.deleteGroup', {
-              defaultValue: 'Delete group',
-            })}
-          </button>
-        </div>
-        <MemberChecklist
-          sorted={sorted}
-          selected={group.studentIds}
-          onChange={(studentIds) => onPatch({ studentIds })}
-        />
-        <div className="flex flex-col gap-2 border-t border-slate-200 pt-4">
-          <span className={SECTION_LABEL}>
-            {t('sidebar.classes.accommodationsHeading', {
-              defaultValue: 'Accommodations',
-            })}
-          </span>
-          {memberIds.length > 0 ? (
-            <>
-              <p className="text-sm text-slate-600">
-                {t('sidebar.classes.groupAccommodationsHelp', {
-                  defaultValue: 'These apply to every student in this group.',
+            <button
+              onClick={onDelete}
+              {...tourAttr('roster-groups.delete')}
+              className={`${ROW_BUTTON} min-h-[38px] hover:border-red-300 hover:text-red-600`}
+            >
+              <Trash2 size={15} aria-hidden="true" />
+              {t('sidebar.classes.deleteGroup', {
+                defaultValue: 'Delete group',
+              })}
+            </button>
+          </div>
+        </Section>
+        <Section
+          title={t('sidebar.classes.groupStudents', {
+            defaultValue: 'Students',
+          })}
+          detail={t('sidebar.classes.groupSelectedCount', {
+            defaultValue: '{{count}} of {{total}} selected',
+            count: memberIds.length,
+            total: sorted.length,
+          })}
+        >
+          <MemberChecklist
+            sorted={sorted}
+            selected={group.studentIds}
+            onChange={(studentIds) => onPatch({ studentIds })}
+          />
+        </Section>
+        <Section
+          title={t('sidebar.classes.widgetsHeading', {
+            defaultValue: 'Widgets',
+          })}
+        >
+          <div className="flex items-center justify-between gap-4 min-h-9">
+            <span className="flex flex-col">
+              <span className="text-sm font-semibold text-slate-800">
+                {showLabel}
+              </span>
+              <span className="text-sm text-slate-500">
+                {t('sidebar.classes.showInWidgetsHint', {
+                  defaultValue: 'Students can see the group name on the board.',
                 })}
-              </p>
-              <StandingAccommodationRules
-                override={shared}
-                onUpdate={updateShared}
-                readAloudAvailable={readAloudAvailable}
-                speechToTextAvailable={speechToTextAvailable}
-                onSharingChange={onSharingChange}
-              />
-            </>
+              </span>
+            </span>
+            <Toggle
+              checked={group.inGroupMaker !== false}
+              onChange={(on) => onPatch({ inGroupMaker: on })}
+              label={showLabel}
+              anchor={tourAttr('roster-groups.show-in-widgets')}
+            />
+          </div>
+        </Section>
+        <Section
+          title={t('sidebar.classes.accommodationsHeading', {
+            defaultValue: 'Accommodations',
+          })}
+          detail={
+            memberIds.length > 0
+              ? t('sidebar.classes.groupAccommodationsHelp', {
+                  defaultValue: 'These apply to every student in this group.',
+                })
+              : undefined
+          }
+        >
+          {memberIds.length > 0 ? (
+            <StandingAccommodationRules
+              override={shared}
+              onUpdate={updateShared}
+              readAloudAvailable={readAloudAvailable}
+              speechToTextAvailable={speechToTextAvailable}
+              onSharingChange={onSharingChange}
+            />
           ) : (
             <p className="text-sm text-slate-500">
               {t('sidebar.classes.groupAccommodationsEmpty', {
@@ -327,7 +396,7 @@ const GroupPage: React.FC<
               })}
             </p>
           )}
-        </div>
+        </Section>
       </div>
       <div className="flex justify-center px-3 py-3 border-t border-slate-200">
         <button
@@ -354,7 +423,6 @@ const MemberChecklist: React.FC<{
   const shown = q
     ? sorted.filter((s) => lastFirst(s).toLowerCase().includes(q))
     : sorted;
-  const count = sorted.filter((s) => chosen.has(s.id)).length;
   const toggle = (id: string) =>
     onChange(
       chosen.has(id) ? selected.filter((x) => x !== id) : [...selected, id]
@@ -366,18 +434,8 @@ const MemberChecklist: React.FC<{
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2">
-        <span className={SECTION_LABEL}>
-          {t('sidebar.classes.groupStudents', { defaultValue: 'Students' })}
-        </span>
-        <span className="text-xs text-slate-500">
-          {t('sidebar.classes.groupSelectedCount', {
-            defaultValue: '{{count}} of {{total}} selected',
-            count,
-            total: sorted.length,
-          })}
-        </span>
         {sorted.length > 0 && (
-          <div className="ml-auto flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <div className="relative">
               <Search
                 size={14}
@@ -425,16 +483,18 @@ const MemberChecklist: React.FC<{
           })}
         </p>
       ) : (
-        <ul className="grid grid-cols-[repeat(auto-fill,minmax(13rem,1fr))] gap-x-4 border-t border-slate-200">
+        <ul className="grid grid-cols-[repeat(auto-fill,minmax(13rem,1fr))] gap-x-3 gap-y-px">
           {shown.map((s) => (
-            <li key={s.id} className="border-b border-slate-100">
-              <label className="flex items-center gap-2.5 min-h-10 px-1 text-sm text-slate-700 cursor-pointer">
+            <li key={s.id} className="border-b border-slate-200">
+              <label
+                className={`flex items-center gap-2.5 min-h-10 px-2 text-sm cursor-pointer hover:bg-slate-50 ${chosen.has(s.id) ? 'bg-brand-blue-lighter/60 font-semibold text-brand-blue-dark' : 'text-slate-700'}`}
+              >
                 {/* no-tour-anchor: one checkbox per student, generated */}
                 <input
                   type="checkbox"
                   checked={chosen.has(s.id)}
                   onChange={() => toggle(s.id)}
-                  className="w-4 h-4 rounded-sm border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
+                  className="h-4 w-4 shrink-0 rounded-sm accent-brand-blue-primary"
                 />
                 <span className="min-w-0 break-words">{lastFirst(s)}</span>
               </label>

@@ -119,7 +119,6 @@ export const RosterAccommodationsByStudent: React.FC<
   }
 
   if (open) {
-    const sources = sourcesFor(open.id);
     const update = (fn: (prev: StudentOverride) => StudentOverride) => {
       const cur = latest.current;
       const next = setRosterDefaultOverride(
@@ -132,7 +131,7 @@ export const RosterAccommodationsByStudent: React.FC<
     };
     return (
       <div className="flex-1 min-h-0 flex flex-col border border-slate-200 rounded-xl bg-white">
-        <div className="flex items-center px-3 py-2 border-b border-slate-200">
+        <div className="flex items-center px-3 py-2 border-b border-slate-200 bg-slate-50 rounded-t-xl">
           <button
             onClick={() => setOpenId(null)}
             {...tourAttr('roster-accommodations.back')}
@@ -144,28 +143,21 @@ export const RosterAccommodationsByStudent: React.FC<
             })}
           </button>
         </div>
-        <div className="flex-1 min-h-0 overflow-y-auto scroll-inset p-4 pb-6 flex flex-col gap-3">
-          <h3 className="text-base font-bold text-slate-800">
-            {lastFirst(open)}
-          </h3>
-          {sources.fromGroups.length > 0 && (
-            <div className="flex flex-col gap-0.5 border-y border-slate-200 py-2">
-              <Sources sources={{ ...sources, own: {} }} />
-              <span className="text-sm text-slate-500">
-                {t('sidebar.classes.changeGroupAccommodations', {
-                  defaultValue:
-                    'Change group accommodations on the Groups tab.',
-                })}
-              </span>
-            </div>
-          )}
-          <StandingAccommodationRules
-            override={overrides[open.id] ?? {}}
-            onUpdate={update}
-            readAloudAvailable={readAloudAvailable}
-            speechToTextAvailable={speechToTextAvailable}
-            onSharingChange={onSharingChange}
-          />
+        <div className="flex-1 min-h-0 overflow-y-auto scroll-inset pb-6">
+          <div className="px-4 py-2 bg-slate-100 border-b border-slate-200">
+            <h3 className="text-sm font-bold text-slate-800">
+              {lastFirst(open)}
+            </h3>
+          </div>
+          <div className="px-4 py-3">
+            <StandingAccommodationRules
+              override={overrides[open.id] ?? {}}
+              onUpdate={update}
+              readAloudAvailable={readAloudAvailable}
+              speechToTextAvailable={speechToTextAvailable}
+              onSharingChange={onSharingChange}
+            />
+          </div>
         </div>
         <div className="flex justify-center px-3 py-3 border-t border-slate-200">
           <button
@@ -182,14 +174,14 @@ export const RosterAccommodationsByStudent: React.FC<
 
   return (
     <div className="flex-1 min-h-0 flex flex-col border border-slate-200 rounded-xl bg-white">
-      <p className="px-4 py-3 border-b border-slate-200 text-sm text-slate-600">
+      <p className="px-4 py-3 bg-slate-50 border-b border-slate-200 rounded-t-xl text-sm text-slate-600">
         {t('sidebar.classes.accommodationsStacking', {
           defaultValue:
             "A group's accommodations apply to every student in it. A student's own accommodations add to them.",
         })}
       </p>
       <div
-        className={`hidden sm:grid ${COLUMNS} gap-x-4 px-4 py-2 border-b border-slate-200 text-xs font-bold text-slate-500`}
+        className={`hidden sm:grid ${COLUMNS} gap-x-4 px-4 py-2 bg-slate-100 border-b border-slate-200 text-xs font-bold text-slate-600`}
       >
         <span>
           {t('sidebar.classes.colStudent', { defaultValue: 'Student' })}
@@ -202,7 +194,7 @@ export const RosterAccommodationsByStudent: React.FC<
         <span />
       </div>
       <ul
-        className="flex-1 min-h-0 overflow-y-auto scroll-inset pb-6 divide-y divide-slate-100"
+        className="flex-1 min-h-0 overflow-y-auto scroll-inset pb-6 divide-y divide-slate-200"
         {...tourAttr('roster-accommodations.list')}
       >
         {sorted.map((s, index) => (

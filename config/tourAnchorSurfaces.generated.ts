@@ -1334,6 +1334,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'roster-groups.search': ['board.roster-groups'],
     'roster-groups.select-all': ['board.roster-groups'],
     'roster-groups.clear': ['board.roster-groups'],
+    'roster-groups.show-in-widgets': ['board.roster-groups'],
     'roster-groups.done': ['board.roster-groups'],
     'roster-accommodations.list': ['board.roster-editor'],
     'roster-accommodations.edit': ['board.roster-editor'],

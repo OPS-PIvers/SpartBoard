@@ -82,8 +82,14 @@ describe('RosterGroupsPanel (redesign)', () => {
     });
     fireEvent.click(screen.getByRole('checkbox', { name: 'Abdi, Hamza' }));
     expect(latestGroups).toEqual([
-      expect.objectContaining({ name: 'Readers', studentIds: ['a'] }),
+      expect.objectContaining({
+        name: 'Readers',
+        studentIds: ['a'],
+        inGroupMaker: false,
+      }),
     ]);
+    fireEvent.click(screen.getByRole('switch', { name: 'Show in widgets' }));
+    expect(latestGroups[0].inGroupMaker).toBe(true);
     expect(screen.getByText('1 of 3 selected')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Done' }));
     expect(screen.getByText('Readers')).toBeInTheDocument();
