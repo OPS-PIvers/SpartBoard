@@ -622,7 +622,16 @@ export async function runRecomputePlcAssessments(
       }
       await recomputeOnePlcAssessment(db, plcId, doc.id);
       counts.recomputed++;
-      await clearFailures(db, plcId, doc.id).catch(() => undefined);
+      // A stuck clear would let unfinished-attempt counts park a healthy assessment, so retry once and log.
+      await clearFailures(db, plcId, doc.id)
+        .catch(() => clearFailures(db, plcId, doc.id))
+        .catch((err: unknown) =>
+          logger.warn('recomputePlcAssessments: could not clear attempts', {
+            plcId,
+            assessmentId: doc.id,
+            error: err instanceof Error ? err.message : String(err),
+          })
+        );
     } catch (err) {
       counts.failed++;
       logger.error('recomputePlcAssessments: recompute failed', {
