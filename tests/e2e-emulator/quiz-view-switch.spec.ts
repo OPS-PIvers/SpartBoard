@@ -11,6 +11,7 @@ import {
 
 // Pins how often a view switch reloads the quiz, so a screen split cannot add a Drive read or a spinner (docs/plans/QUIZ_WIDGET_STRUCTURE.md S1, D5).
 const QUIZ = 'Fractions check';
+const EDITED = 'Fractions check, revised';
 
 type Leg = { reads: number; spinners: number };
 type Probe = { leg: string; legs: Record<string, Leg> };
@@ -52,12 +53,12 @@ const legCounts = (page: Page, leg: string) =>
     leg
   );
 
-// Today's counts: every entry to preview, results or the monitor reads the file once behind the spinner, and leaving preview or results while a session is live reloads it once more.
+// Today's counts: every entry to preview, results or the monitor reads the file once behind the spinner; going back to the library reads nothing.
 const EXPECTED: Record<string, Leg> = {
   'library → preview': { reads: 1, spinners: 1 },
-  'preview → library': { reads: 1, spinners: 1 },
+  'preview → library': { reads: 0, spinners: 0 },
   'library → results': { reads: 1, spinners: 1 },
-  'results → library': { reads: 1, spinners: 1 },
+  'results → library': { reads: 0, spinners: 0 },
   'library → monitor': { reads: 1, spinners: 1 },
   'monitor → library': { reads: 0, spinners: 0 },
   'library tabs': { reads: 0, spinners: 0 },
@@ -158,5 +159,38 @@ test('switching views reloads the quiz no more than it does today', async ({
     for (const name of Object.keys(EXPECTED))
       seen[name] = await legCounts(page, name);
     expect(seen).toEqual(EXPECTED);
+  });
+
+  await test.step('an edit shows in the library, preview and results after going back', async () => {
+    await startLeg(page, 'edit');
+    await libraryTab.click();
+    await rowMenuItems(page, library);
+    await page.getByRole('menuitem', { name: 'Check answers' }).click();
+    await expect(widget.getByText('What is 2 + 2?')).toBeVisible();
+    await widget.getByRole('button').first().click();
+    await expect(library.getByRole('heading', { name: QUIZ })).toBeVisible();
+    await rowMenuItems(page, library);
+    await page.getByRole('menuitem', { name: 'Edit', exact: true }).click();
+    const editor = page.getByRole('dialog');
+    await expect(editor).toBeVisible();
+    await editor.getByRole('textbox', { name: 'Title' }).fill(EDITED);
+    await editor
+      .getByRole('textbox', { name: 'Question prompt' })
+      .fill('What is 3 + 3?');
+    await expect(editor.getByText('Saved', { exact: true })).toBeVisible();
+    await editor.getByRole('button', { name: 'Close' }).last().click();
+    await expect(editor).toBeHidden();
+    await expect(library.getByRole('heading', { name: EDITED })).toBeVisible();
+    await inProgressTab.click();
+    await rowMenuItems(page, library);
+    await page.getByRole('menuitem', { name: 'Results' }).click();
+    await expect(widget.getByText(EDITED)).toBeVisible();
+    await widget.getByRole('button', { name: 'Back' }).click();
+    await libraryTab.click();
+    await expect(library.getByRole('heading', { name: EDITED })).toBeVisible();
+    await rowMenuItems(page, library);
+    await page.getByRole('menuitem', { name: 'Check answers' }).click();
+    await expect(widget.getByText('What is 3 + 3?')).toBeVisible();
+    await expect(widget.getByText(`1 of 1 · ${EDITED}`)).toBeVisible();
   });
 });
