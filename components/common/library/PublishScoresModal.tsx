@@ -100,6 +100,7 @@ export const PublishScoresModal: React.FC<PublishScoresModalProps> = ({
       : 'score-only';
   const [selected, setSelected] = useState<PublishScoresVisibility>(initial);
   const [submitting, setSubmitting] = useState(false);
+  const [confirmingUnpublish, setConfirmingUnpublish] = useState(false);
   const [protection, setProtection] = useState<ResultsProtection>(
     () => initialProtection ?? RESULTS_PROTECTION_DEFAULTS
   );
@@ -301,43 +302,73 @@ export const PublishScoresModal: React.FC<PublishScoresModalProps> = ({
           />
         )}
 
-        <div className="pt-2 flex flex-col-reverse sm:flex-row gap-2 sm:justify-between">
-          {isPublished ? (
-            <button
-              type="button"
-              onClick={() => void handleConfirm('none')}
-              disabled={submitting}
-              {...tourAttr('publish-scores.unpublish')}
-              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
-            >
-              <EyeOff className="w-4 h-4" />
-              Unpublish
-            </button>
-          ) : (
-            <span />
-          )}
-          <div className="flex gap-2 sm:justify-end">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={submitting}
-              {...tourAttr('publish-scores.cancel')}
-              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={() => void handleConfirm(selected)}
-              disabled={submitting}
-              {...tourAttr('publish-scores.confirm')}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white shadow-xs hover:bg-brand-blue-dark transition-colors disabled:opacity-60"
-            >
-              {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-              {isPublished ? 'Update' : 'Publish'}
-            </button>
+        {confirmingUnpublish ? (
+          <div className="pt-2 space-y-2" role="alert">
+            <p className="text-sm text-slate-700">
+              Students will no longer be able to see their scores or responses.
+              You can republish anytime.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => setConfirmingUnpublish(false)}
+                disabled={submitting}
+                {...tourAttr('publish-scores.unpublish-cancel')}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleConfirm('none')}
+                disabled={submitting}
+                {...tourAttr('publish-scores.unpublish-confirm')}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-brand-red-primary px-4 py-2 text-sm font-semibold text-white shadow-xs hover:bg-brand-red-dark transition-colors disabled:opacity-60"
+              >
+                {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                Unpublish
+              </button>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="pt-2 flex flex-col-reverse sm:flex-row gap-2 sm:justify-between">
+            {isPublished ? (
+              <button
+                type="button"
+                onClick={() => setConfirmingUnpublish(true)}
+                disabled={submitting}
+                {...tourAttr('publish-scores.unpublish')}
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
+              >
+                <EyeOff className="w-4 h-4" />
+                Unpublish
+              </button>
+            ) : (
+              <span />
+            )}
+            <div className="flex gap-2 sm:justify-end">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={submitting}
+                {...tourAttr('publish-scores.cancel')}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleConfirm(selected)}
+                disabled={submitting}
+                {...tourAttr('publish-scores.confirm')}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white shadow-xs hover:bg-brand-blue-dark transition-colors disabled:opacity-60"
+              >
+                {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                {isPublished ? 'Update' : 'Publish'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </Modal>
   );

@@ -240,7 +240,7 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
   const { user, canAccessWidget, canAccessFeature } = useAuth();
   const { rosters } = useDashboard();
   const writingEnabled = canAccessWidget('writing');
-  // D18: the Assigned list's Active and Done sections replace the status filter.
+  // D18: the Assigned list's Active and Finished sections replace the status filter.
   const assignedOn = canAccessFeature('assigned-tab');
   const { rows, loading, quizPlcActions, sources } = useUnifiedAssignments(
     user?.uid,

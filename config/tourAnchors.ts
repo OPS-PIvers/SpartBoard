@@ -6879,14 +6879,14 @@ export const TOUR_ANCHORS = {
     rowList: 'assignment-rows',
   },
   'library-shell.assigned-classes': {
-    label: 'Classes button on an Assigned tab row; shows each class',
+    label: 'Details arrow on an Assigned tab row; shows each class',
     perField: true,
     rows: true,
     rowList: 'assignment-rows',
   },
   'library-shell.assigned-class-action': {
     label:
-      'Open, Pause, Resume, Close, Reopen or Monitor for one class in an expanded Assigned row',
+      'Open, Pause, Resume, Close or Reopen for one class in an expanded Assigned row',
     persists: true,
     perField: true,
     panel: true,
@@ -6894,7 +6894,7 @@ export const TOUR_ANCHORS = {
     keyHint: 'quiz#open-2 is Open for the second class in the open row',
   },
   'library-shell.assigned-done-section': {
-    label: 'Done section header on the Assigned tab',
+    label: 'Finished section header on the Assigned tab',
     perField: true,
   },
   'library-shell.assigned-left-open-close': {
@@ -6916,9 +6916,50 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'library-shell.assigned-move-to-done': {
-    label: 'Move to Done, in an Assigned row menu',
+    label: 'Move to Finished, in an Assigned row menu',
     persists: true,
     panel: true,
+  },
+  'library-shell.assigned-reopen': {
+    label: 'Reopen…, in an Assigned row menu',
+    persists: true,
+    panel: true,
+  },
+  'assigned-reopen.class': {
+    label: 'Class picker in the Reopen dialog of an Assigned row',
+    panel: true,
+  },
+  'assigned-reopen.who': {
+    label: 'Everyone or only chosen students, in the Reopen dialog',
+    panel: true,
+  },
+  'assigned-reopen.cancel': {
+    label: 'Cancel button in the Reopen dialog of an Assigned row',
+    panel: true,
+  },
+  'assigned-reopen.confirm': {
+    label: 'Reopen button in the Reopen dialog of an Assigned row',
+    panel: true,
+    persists: true,
+  },
+  'library-shell.assigned-results': {
+    label: 'Results in an expanded Assigned row',
+    perField: true,
+    panel: true,
+    rows: true,
+    rowList: 'assignment-rows',
+  },
+  'library-shell.assigned-search': {
+    label: 'Search box above the Assigned tab list',
+  },
+  'library-shell.assigned-filter-class': {
+    label: 'Class filter above the Assigned tab list',
+  },
+  'library-shell.assigned-filter-status': {
+    label: 'Status filter above the Assigned tab list',
+  },
+  'library-shell.assigned-filter-clear': {
+    label: 'Clear, beside the Assigned tab filters',
   },
   'library-shell.assigned-select': {
     label: 'Select on the Assigned tab; starts picking several assignments',
@@ -6935,7 +6976,8 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'library-shell.assigned-bulk-action': {
-    label: 'Close, Move to Done or Delete in the Assigned tab selection bar',
+    label:
+      'Close, Move to Finished or Delete in the Assigned tab selection bar',
     persists: true,
     destructive: true,
     perField: true,
@@ -15328,6 +15370,16 @@ export const TOUR_ANCHORS = {
   },
   'publish-scores.cancel': {
     label: 'Cancel button in the publish scores dialog',
+    panel: true,
+  },
+  'publish-scores.unpublish-confirm': {
+    label: 'Unpublish button that confirms, in the publish scores dialog',
+    panel: true,
+    persists: true,
+    sandboxed: true,
+  },
+  'publish-scores.unpublish-cancel': {
+    label: 'Cancel beside the Unpublish confirm in the publish scores dialog',
     panel: true,
   },
   'publish-scores.confirm': {

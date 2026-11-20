@@ -44,7 +44,7 @@ export function controlPatches(
   if (action === 'resume') {
     // A sub-launched quiz is always self-paced, so active is where it resumes
     // to; there is no teacher-paced question index to restore.
-    // A resumed quiz is no longer closed or moved to Done (ASSIGNED_TAB D24).
+    // A resumed quiz is no longer closed or moved to Finished (ASSIGNED_TAB D24).
     const marks =
       kind === 'quiz' || kind === 'videoActivity'
         ? { closedAt: null, doneAt: null }
