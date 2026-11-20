@@ -25,11 +25,7 @@ import {
   formatClassesValue,
   type AssignClassesValue,
 } from '@/components/common/library/assignStepper/assignClassesValue';
-import {
-  ModificationsLink,
-  ModificationsView,
-  type ModificationsQuizContext,
-} from '@/components/common/library/assignStepper/ModificationsView';
+import { type ModificationsQuizContext } from '@/components/common/library/assignStepper/ModificationsView';
 import { AssignWhenStep } from '@/components/common/library/assignStepper/AssignWhenStep';
 import {
   formatWhenValue,
@@ -44,7 +40,6 @@ import { HandRaiseRow } from '@/components/common/library/assignStepper/QuizFeed
 import { formatWrittenAnswersValue } from '@/components/common/library/assignStepper/WrittenAnswersStep.format';
 import { AlertCircle, Printer } from 'lucide-react';
 import { AuthContext } from '@/context/AuthContextValue';
-import { SPEECH_TO_TEXT_FEATURE } from '@/utils/speechToText/types';
 import { clampQuizTimeLimitMinutes } from '@/utils/quizTimeLimit';
 import { languageDisplayLabel } from '@/utils/languageDisplayLabel';
 import {
@@ -175,11 +170,9 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
 }) => {
   const { t } = useTranslation();
   const gates = useQuizRuleGates();
-  const [modsOpen, setModsOpen] = useState(false);
   const [sharingCount, setSharingCount] = useState(0);
   const auth = useContext(AuthContext);
-  const groupsOn =
-    !!modifications && auth?.canAccessFeature?.('modification-groups') === true;
+  const groupsOn = !!modifications;
   const usable = rosters.filter((r) => !r.loadError);
   const staff = audience?.audience === 'staff';
   // Every roster, not just the checked ones, so a student on two rosters carries both presets.
@@ -316,14 +309,6 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
               rosters={usable}
               value={classes}
               onChange={changeClasses}
-            />
-          )}
-          {modifications && !groupsOn && !edit && picked.length > 0 && (
-            <ModificationsLink
-              rosters={usable}
-              selectedRosterIds={classes.classIds}
-              value={modifications.targeting}
-              onOpen={() => setModsOpen(true)}
             />
           )}
         </div>
@@ -559,24 +544,6 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
                   'Closes before it opens.'
                 )
               : undefined
-      }
-      overlayView={
-        modifications && modsOpen ? (
-          <ModificationsView
-            activityTitle={title}
-            rosters={usable}
-            selectedRosterIds={classes.classIds}
-            value={modifications.targeting}
-            onChange={modifications.onTargetingChange}
-            onBack={() => setModsOpen(false)}
-            quizMode
-            quizContext={modifications.quizContext}
-            pageProtectionsAvailable
-            speechToTextAvailable={
-              auth?.canAccessFeature?.(SPEECH_TO_TEXT_FEATURE) === true
-            }
-          />
-        ) : undefined
       }
     />
   );

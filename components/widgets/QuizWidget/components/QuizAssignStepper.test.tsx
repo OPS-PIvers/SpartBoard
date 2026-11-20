@@ -246,8 +246,7 @@ const PresetHarness: React.FC<{
     EMPTY_ASSIGN_TARGETING_VALUE
   );
   const auth = {
-    canAccessFeature: (id: string) =>
-      id === 'modification-groups' || id === 'quiz-read-aloud',
+    canAccessFeature: (id: string) => id === 'quiz-read-aloud',
   } as unknown as React.ContextType<typeof AuthContext>;
   return (
     <AuthContext.Provider value={auth}>
@@ -339,8 +338,7 @@ const EditHarness: React.FC<{
     studentsByClass: Record<string, never>;
   }>({ classIds: savedClassIds, studentsByClass: {} });
   const auth = {
-    canAccessFeature: (id: string) =>
-      id === 'modification-groups' || id === 'quiz-read-aloud',
+    canAccessFeature: (id: string) => id === 'quiz-read-aloud',
   } as unknown as React.ContextType<typeof AuthContext>;
   return (
     <AuthContext.Provider value={auth}>

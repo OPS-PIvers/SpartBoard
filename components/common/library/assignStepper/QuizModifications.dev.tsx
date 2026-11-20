@@ -1,4 +1,4 @@
-// DEV-only: the Quiz assign stepper with the Modifications step (modification-groups flag), for /assign-stepper-dev.
+// DEV-only: the Quiz assign stepper with the Modifications step, for /assign-stepper-dev.
 /* eslint-disable react-refresh/only-export-components -- default export is a harness preview record */
 import React, { useState } from 'react';
 import type { ClassRoster, QuizBehaviorSettings } from '@/types';

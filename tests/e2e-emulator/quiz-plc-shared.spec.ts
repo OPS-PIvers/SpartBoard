@@ -374,7 +374,7 @@ const assignTo = async (
   const stepper = page.getByRole('dialog', { name: title });
   // A sole PLC is picked by default; the last step holds it beside raise a hand.
   const sharing = stepper.getByRole('button', {
-    name: /^6 Additional settings and sharing/,
+    name: /^\d+ Additional settings and sharing/,
   });
   await expect(sharing).toHaveText(
     new RegExp(`sharing\\s*Shared with ${PLC.name}$`)
