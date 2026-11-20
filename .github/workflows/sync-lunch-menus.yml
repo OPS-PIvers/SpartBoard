@@ -3,7 +3,7 @@ name: Sync Lunch Menus
 # Nutrislice refuses requests from Google Cloud IPs, so the Lunch Count menu is
 # fetched here and written to Firestore `lunch_menus/{schoolSite}`.
 # Schedules run from main only and write prod; pushes to dev-* that touch the
-# sync write spartboard-dev; workflow_dispatch writes whichever project is chosen.
+# sync write spartboard-dev; workflow_dispatch writes the chosen project (prod from main only).
 on:
   schedule:
     # 4:17 and 6:47 AM Central (CDT; an hour earlier in CST), plus Sunday evening for Monday.
@@ -36,13 +36,12 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  sync:
-    # Prod credentials are used from main only; any other ref may write dev alone.
-    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/dev-')
+  # The prod secret lives in the `production` environment, whose deployment branch rule admits only main.
+  sync-prod:
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.project == 'spartboard'))
+    environment: production
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-    env:
-      PROJECT_ID: ${{ github.ref != 'refs/heads/main' && 'spartboard-dev' || (github.event_name == 'workflow_dispatch' && inputs.project || (github.event_name == 'push' && 'spartboard-dev' || 'spartboard')) }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -56,16 +55,36 @@ jobs:
           node-version: 24
 
       - name: Authenticate to prod
-        if: env.PROJECT_ID == 'spartboard' && github.ref == 'refs/heads/main'
         id: prod-auth
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           token_format: access_token
 
-      # Keyless WIF only trusts dev-* refs, so a dev write must run from a dev-* branch.
+      - name: Copy Nutrislice menus into Firestore
+        run: node scripts/sync-lunch-menus.mjs
+        env:
+          PROJECT_ID: spartboard
+          ACCESS_TOKEN: ${{ steps.prod-auth.outputs.access_token }}
+
+  # Keyless WIF only trusts dev-* refs, so a dev write must run from a dev-* branch.
+  sync-dev:
+    if: startsWith(github.ref, 'refs/heads/dev-') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.project == 'spartboard-dev'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts/sync-lunch-menus.mjs
+            scripts/nutrisliceFetch.mjs
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
       - name: Authenticate to dev
-        if: env.PROJECT_ID == 'spartboard-dev'
         id: dev-auth
         uses: google-github-actions/auth@v2
         with:
@@ -76,4 +95,5 @@ jobs:
       - name: Copy Nutrislice menus into Firestore
         run: node scripts/sync-lunch-menus.mjs
         env:
-          ACCESS_TOKEN: ${{ steps.prod-auth.outputs.access_token || steps.dev-auth.outputs.access_token }}
+          PROJECT_ID: spartboard-dev
+          ACCESS_TOKEN: ${{ steps.dev-auth.outputs.access_token }}

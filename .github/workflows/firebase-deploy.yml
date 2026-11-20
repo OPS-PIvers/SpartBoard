@@ -230,6 +230,8 @@ jobs:
     needs: [preflight, plan, lint, type-check, test, test-counts, rules, build]
     # Skipped checks (reuse) are fine; a failed or cancelled one is not.
     if: ${{ github.ref == 'refs/heads/main' && !failure() && !cancelled() && needs.build.result == 'success' }}
+    # GitHub enforces the main-only deployment branch rule on this environment, which holds FIREBASE_SERVICE_ACCOUNT; the ref guards above can be edited out on a branch, this cannot.
+    environment: production
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6.0.3
