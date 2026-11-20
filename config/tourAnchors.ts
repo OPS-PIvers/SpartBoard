@@ -13720,6 +13720,11 @@ export const TOUR_ANCHORS = {
     perField: true,
     persists: true,
   },
+  'web-tours.share-html-file': {
+    label: 'HTML file item in a web tour Share menu on the Web tours page',
+    perField: true,
+    persists: true,
+  },
   'web-tours.title': {
     label: 'Tour name you can rename on the Web tours page',
     perField: true,
