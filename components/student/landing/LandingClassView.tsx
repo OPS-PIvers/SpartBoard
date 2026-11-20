@@ -67,7 +67,11 @@ export const LandingClassView: React.FC<LandingClassViewProps> = ({
     </div>
   );
   const empty =
-    !p.live.length && !p.work.length && !p.resources.length && !p.done.length;
+    !p.live.length &&
+    !p.work.length &&
+    !p.resources.length &&
+    !p.done.length &&
+    !p.expired.length;
   if (empty && !gradesEnabled) {
     return (
       <>
@@ -137,9 +141,9 @@ export const LandingClassView: React.FC<LandingClassViewProps> = ({
       />
     );
   } else {
-    body = p.done.length ? (
+    const rows = (items: DoneItem[]) => (
       <ListBox>
-        {completedItems(p.done).map((item) => (
+        {items.map((item) => (
           <DoneRow
             key={item.key}
             item={item}
@@ -151,8 +155,29 @@ export const LandingClassView: React.FC<LandingClassViewProps> = ({
           />
         ))}
       </ListBox>
-    ) : (
-      <EmptyBox text="Nothing completed yet." />
+    );
+    body = (
+      <>
+        {p.done.length ? (
+          rows(completedItems(p.done))
+        ) : (
+          <EmptyBox text="Nothing completed yet." />
+        )}
+        {p.expired.length > 0 && (
+          <section className="mt-6" aria-labelledby={`expired-${cls.classId}`}>
+            <h2
+              id={`expired-${cls.classId}`}
+              className="mb-2 px-1 text-sm font-semibold text-slate-600"
+            >
+              Expired{' '}
+              <span className="font-normal tabular-nums text-slate-400">
+                {p.expired.length}
+              </span>
+            </h2>
+            {rows(completedItems(p.expired))}
+          </section>
+        )}
+      </>
     );
   }
 

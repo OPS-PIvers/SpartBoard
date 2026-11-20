@@ -17,6 +17,10 @@ import {
   type StudentTargetRef,
 } from './studentAssignmentTargets';
 import { WRITING_RESPONSES, WRITING_SESSIONS } from './writingResponses';
+import {
+  CLASS_NOT_TAUGHT_MESSAGE,
+  unverifiedClassIds,
+} from './verifiedClassList';
 
 export const WRITING_RECORDS = 'writing_assignment_records';
 const WRITING_LIBRARY = 'writing_assignments';
@@ -187,6 +191,9 @@ export async function handleAssignWriting(
   const snapshot = snapshotLibraryItem(itemSnap.data() ?? {});
   const settings = sessionSettings(d);
   const classIds = strings(d.classIds);
+  // Same class targeting check firestore.rules applies to client-written sessions.
+  if ((await unverifiedClassIds(db, caller.uid, classIds)).length > 0)
+    throw new HttpsError('permission-denied', CLASS_NOT_TAUGHT_MESSAGE);
   const periodNames = strings(d.periodNames);
   const rosterIds = strings(d.rosterIds);
   const dueAtByClassId = numberMap(d.dueAtByClassId);

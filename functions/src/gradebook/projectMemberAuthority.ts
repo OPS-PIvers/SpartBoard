@@ -13,6 +13,7 @@ import {
   loadOwnedRosterClasses,
   loadTestClassMembership,
 } from '../studentAssignmentTargets';
+import { isLmsClassId } from '../verifiedClassList';
 import { RosterUnavailableError } from './rosterUnavailable';
 
 export interface ClassStudents {
@@ -37,10 +38,8 @@ export function __resetClassLinkSweepCache(): void {
   sweepCache.clear();
 }
 
-async function sweepOwnerClasses(
-  ownerUid: string,
-  hmacSecret: string
-): Promise<OwnerSweep> {
+/** The owner's verified email, or null for a missing or unverified account. */
+async function verifiedOwnerEmail(ownerUid: string): Promise<string | null> {
   let owner;
   try {
     owner = await admin
@@ -54,9 +53,16 @@ async function sweepOwnerClasses(
   } catch (err) {
     throw new RosterUnavailableError(err);
   }
+  return owner?.email && owner.emailVerified ? owner.email : null;
+}
+
+async function sweepOwnerClasses(
+  ownerUid: string,
+  hmacSecret: string
+): Promise<OwnerSweep> {
+  const email = await verifiedOwnerEmail(ownerUid);
   const classlinkUids = new Set<string>();
-  if (!owner?.email || !owner.emailVerified)
-    return { email: null, classlinkUids, degraded: null };
+  if (!email) return { email: null, classlinkUids, degraded: null };
 
   const classlinkClientId = CLASSLINK_CLIENT_ID.value();
   const classlinkClientSecret = CLASSLINK_CLIENT_SECRET.value();
@@ -65,7 +71,7 @@ async function sweepOwnerClasses(
   if (classlinkClientId && classlinkClientSecret && tenantUrl) {
     try {
       const membership = await loadClassLinkMembership(
-        owner.email,
+        email,
         null,
         classlinkClientId,
         classlinkClientSecret,
@@ -77,7 +83,7 @@ async function sweepOwnerClasses(
       degraded = new RosterUnavailableError(err);
     }
   }
-  return { email: owner.email, classlinkUids, degraded };
+  return { email, classlinkUids, degraded };
 }
 
 /** One ClassLink sweep per owner for 90 s, shared by every group class id; failures and empty results are not kept. */
@@ -142,4 +148,45 @@ export async function loadClassStudentUids(
   // ClassLink down and no test class matched: nothing to go on, so let the caller retry.
   if (degraded && uids.size === 0) throw degraded;
   return { uids, degraded };
+}
+
+/** Pseudonym uids enrolled in `classId`, only when `ownerUid` teaches it in ClassLink or may run it as a test class. */
+export async function loadTaughtClassStudentUids(
+  db: admin.firestore.Firestore,
+  ownerUid: string,
+  classId: string
+): Promise<ClassStudents> {
+  const uids = new Set<string>();
+  const none = { uids, degraded: null };
+  if (!ownerUid || !classId || classId.startsWith('local:')) return none;
+  if (isLmsClassId(classId)) return none;
+  const hmacSecret = STUDENT_PSEUDONYM_HMAC_SECRET.value();
+  if (!hmacSecret) {
+    throw new HttpsError('internal', 'Server configuration missing.');
+  }
+  const email = await verifiedOwnerEmail(ownerUid);
+  if (!email) return none;
+  const test = await loadTestClassMembership(db, email, [classId]);
+  for (const member of test.membership.keys())
+    uids.add(computeStudentUid(`test:${member}`, hmacSecret));
+  if (uids.size > 0) return none;
+  const clientId = CLASSLINK_CLIENT_ID.value();
+  const clientSecret = CLASSLINK_CLIENT_SECRET.value();
+  const tenantUrl = CLASSLINK_TENANT_URL.value();
+  if (!clientId || !clientSecret || !tenantUrl) return none;
+  try {
+    // Only students of `classId`, and nobody unless ClassLink lists the owner as its teacher.
+    const membership = await loadClassLinkMembership(
+      email,
+      [classId],
+      clientId,
+      clientSecret,
+      tenantUrl
+    );
+    for (const sourcedId of membership.keys())
+      uids.add(computeStudentUid(sourcedId, hmacSecret));
+    return none;
+  } catch (err) {
+    return { uids, degraded: new RosterUnavailableError(err) };
+  }
 }

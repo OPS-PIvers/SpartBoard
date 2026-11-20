@@ -55,13 +55,10 @@ import {
   collectLocalizedFibAnswers,
   keepTeacherAccepted,
   lenientLocalesFor,
-  fibAcceptedAnswers,
 } from '@/utils/quizFibAnswers';
-import { fibTranslationIssue } from '@/utils/quizFibTranslation';
 import { tabAwaySessionFields } from '@/utils/tabAwayLimit';
 import {
   PAGE_PROTECTIONS_FEATURE,
-  isFocusLevel,
   pageProtectionSessionFields,
 } from '@/utils/pageProtections';
 import { readAllDocsPaged } from '@/utils/firestorePaging';
@@ -93,14 +90,10 @@ import type {
   QuizPublicQuestion,
   QuizQuestion,
   QuizResponse,
-  QuizResponseAnswer,
-  QuizScorePoints,
   QuizScoreVisibility,
   QuizSection,
   QuizSession,
   QuizSessionSection,
-  QuestionTranslation,
-  QuizTranslation,
   QuizSessionBankSlot,
   QuizSessionMode,
   QuizWidgetKind,
@@ -110,13 +103,10 @@ import type {
   SharedQuizAssignment,
   StudentOverride,
   WrittenReturnMode,
-  RevealedRubricExamples,
-  RevealedExplanations,
 } from '@/types';
-import { rubricExamplesByCriterion } from '@/utils/rubricGuide';
 import { buildRevealedExplanations } from '@/utils/quizExplanations';
 import { sessionTotalQuestions } from '@/utils/quizBankDraw';
-import { notChosenQuestionIds, sessionSectionsFor } from '@/utils/quizSections';
+import { sessionSectionsFor } from '@/utils/quizSections';
 import { deleteLiveLog } from '@/utils/quizLiveViewStore';
 import {
   QUIZ_CONTENT_COLLECTION,
@@ -124,7 +114,6 @@ import {
   QUIZ_READ_ALOUD_DOC,
   type QuizSessionContent,
 } from '@/utils/quizSessionContent';
-import { isFreeResponseType } from '@/types';
 import { normalizeQuizQuestions } from '@/utils/quizQuestionNormalize';
 import { quizHasBankSlots, resolveQuizAssignment } from '@/utils/questionBanks';
 import {
@@ -141,8 +130,6 @@ import type { SessionTargets } from '@/utils/resolveAssignmentTargets';
 import {
   QUIZ_SESSIONS_COLLECTION,
   RESPONSES_COLLECTION,
-  gradeAnswer,
-  isPaperWrittenSlotAwaiting,
   toPublicQuestion,
   type ResponseDocKey,
 } from './useQuizSession';
@@ -155,9 +142,6 @@ import {
 } from './useSyncedQuizGroups';
 import { logError } from '@/utils/logError';
 import { migrateQuizMetadataShape } from '@/utils/quizSyncMigration';
-import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
-import { applyMediaSlots, readSlotGrade } from '@/utils/mediaGrading';
-import { gradingPaperTranscript } from '@/utils/paperWritten';
 import { responseHasArtifacts } from '@/utils/responseArtifacts';
 import { AuthContext } from '@/context/AuthContextValue';
 import {
@@ -170,7 +154,6 @@ import { prepareQuizReadAloudInBackground } from '@/utils/quizReadAloudApi';
 import { readAloudTranslationLocales } from '@/config/quizReadAloud';
 import { alignToPreviousOrder } from '@/utils/quizLocalizedArrays';
 import { freshQuestionIdsByLocale } from '@/utils/quizTranslationIndex';
-import { revealValueFor } from '@/utils/quizFibAlternates';
 import {
   buildScoreOnSubmitKey,
   mergeScoreOnSubmitKey,
@@ -179,7 +162,6 @@ import {
 } from '@/utils/quizScoreOnSubmit';
 import { viewAsDirectSave } from '@/utils/viewAsAudit';
 import {
-  activeResultsOverride,
   answersWithoutVerdicts,
   visibilityShowsResponses,
 } from '@/utils/quizResultsVisibility';
@@ -219,6 +201,57 @@ import {
   responsesAnsweringRemoved,
   shouldCheckSyncRemovals,
 } from '@/utils/districtLibraryOrigin';
+import { withVerifiedClassesRetry } from '@/utils/verifiedClassesRefresh';
+
+import {
+  buildResponseGradingContext,
+  buildRevealedAnswers,
+  buildRevealedRubricExamples,
+  classPublishPatch,
+  gradeResponseForPublish,
+  hiddenResultsPatch,
+  publishScoreFields,
+  selectQuestionTranslations,
+  type QuizTranslationsByLocale,
+  type ResponseGradingContext,
+} from './quizAssignments/publishGrading';
+
+import {
+  migrateLegacyAssignmentShape,
+  migrateSyncLinkageShape,
+  sanitizeClassPeriodByClassId,
+  type LegacyPlcShape,
+  type LegacySyncLinkageShape,
+} from './quizAssignments/legacyShape';
+
+import {
+  countPendingPaperTranscripts,
+  HAND_RAISE_GATE_TIMEOUT_MS,
+  hasPaperWrittenAnswer,
+  isHandRaiseGatePending,
+  sessionOptionsToSessionPatch,
+} from './quizAssignments/sessionPatch';
+
+export {
+  buildResponseGradingContext,
+  buildRevealedAnswers,
+  buildRevealedRubricExamples,
+  classPublishPatch,
+  gradeResponseForPublish,
+  hiddenResultsPatch,
+  publishScoreFields,
+  selectQuestionTranslations,
+  withholdsPublishedResults,
+} from './quizAssignments/publishGrading';
+export {
+  countPendingPaperTranscripts,
+  hasPaperWrittenAnswer,
+} from './quizAssignments/sessionPatch';
+export type {
+  PublishGrade,
+  QuizTranslationsByLocale,
+  ResponseGradingContext,
+} from './quizAssignments/publishGrading';
 
 /** A pass for a student reopened after End runs until the teacher ends the quiz again. */
 const REOPEN_PASS_MS = 365 * 24 * 60 * 60 * 1000;
@@ -747,80 +780,6 @@ export interface UseQuizAssignmentsResult {
   stopSharingAssignmentWithPlc: (assignmentId: string) => Promise<void>;
 }
 
-/**
- * Read-side compatibility mapper for the pre-PlcLinkage flat shape. Existing
- * Firestore docs were written with `plcMode`/`plcSheetUrl`/`plcId`/
- * `plcName`/`plcMemberEmails` as flat fields on the assignment (or
- * SharedQuizAssignment.assignmentSettings). The refactor consolidates those
- * into a single `plc: PlcLinkage` sub-object.
- *
- * Behaviour:
- * - If `plc` is already set, the doc is post-refactor — pass through.
- * - If the legacy fields form a complete linkage (`plcMode === true` AND
- *   `plcSheetUrl` AND `plcId` AND `plcName` are all populated), build a
- *   `plc` sub-object and strip the legacy fields so downstream code only
- *   sees one shape.
- * - Partial-legacy docs (e.g. `plcMode: true` but missing one of `plcId`/
- *   `plcName`/`plcSheetUrl`, possible for assignments created before
- *   PR #1442 added `plcId`/`plcName`) pass through WITHOUT a `plc` field
- *   and with the legacy fields stripped — degraded state, treated as
- *   non-PLC mode rather than crashing. This matches the non-PLC path and
- *   is safe.
- *
- * Generic over the doc shape so it can be applied to both QuizAssignment
- * (returns `Omit<T, legacyKeys> & { plc?: PlcLinkage }`) and the inner
- * `assignmentSettings` shape on SharedQuizAssignment.
- */
-type LegacyPlcShape = {
-  plcMode?: boolean;
-  plcSheetUrl?: string;
-  plcId?: string;
-  plcName?: string;
-  plcMemberEmails?: string[];
-  plc?: PlcLinkage;
-};
-const LEGACY_PLC_KEYS = [
-  'plcMode',
-  'plcSheetUrl',
-  'plcId',
-  'plcName',
-  'plcMemberEmails',
-] as const;
-
-/**
- * Pre-sub-object shape for the assignment's sync linkage. Folded into
- * `sync: { groupId, syncedVersion }` by `migrateSyncLinkageShape`.
- * Both legacy fields are required-when-present (we never wrote one
- * without the other), so an only-one-set doc is treated as degraded
- * and the linkage is dropped on read.
- */
-type LegacySyncLinkageShape = {
-  syncGroupId?: string;
-  syncedVersion?: number;
-  sync?: QuizAssignmentSyncLinkage;
-};
-const HAND_RAISE_GATE_TIMEOUT_MS = 5000;
-
-/** True while a signed-in teacher's profile, org membership or permissions are still loading. */
-function isHandRaiseGatePending(
-  ctx:
-    | {
-        user?: unknown;
-        profileLoaded?: boolean;
-        roleResolved?: boolean;
-        featurePermissionsLoaded?: boolean;
-      }
-    | null
-    | undefined
-): boolean {
-  if (!ctx?.user) return false;
-  return (
-    ctx.profileLoaded === false ||
-    ctx.roleResolved === false ||
-    ctx.featurePermissionsLoaded === false
-  );
-}
-
 /** Server-only answer key `scoreQuizOnSubmitV1` grades with. */
 const scoreKeyRef = (userId: string, assignmentId: string) =>
   doc(
@@ -832,189 +791,6 @@ const scoreKeyRef = (userId: string, assignmentId: string) =>
     'key',
     SCORE_ON_SUBMIT_KEY_DOC
   );
-
-/** Flatten session-option toggles onto the session doc's mirror fields. */
-function sessionOptionsToSessionPatch(
-  o: QuizSessionOptions,
-  gates: {
-    timeLimitOn: boolean;
-    scoreOnSubmitOn: boolean;
-    stimulusQuotesOn: boolean;
-    pageProtectionsOn: boolean;
-    /** False for a Quiz assessment: game extras are written off. */
-    reviewGame: boolean;
-  }
-): Record<string, unknown> {
-  const patch: Record<string, unknown> = {};
-  if (o.tabWarningsEnabled !== undefined)
-    patch.tabWarningsEnabled = o.tabWarningsEnabled;
-  if (o.tabWarningThreshold !== undefined)
-    patch.tabWarningThreshold = o.tabWarningThreshold;
-  if (o.tabAwayLimitSeconds !== undefined)
-    patch.tabAwayLimitSeconds = o.tabAwayLimitSeconds;
-  if (o.tabAwayAutoSubmit !== undefined)
-    patch.tabAwayAutoSubmit = o.tabAwayAutoSubmit;
-  if (o.blockCopyPaste !== undefined) patch.blockCopyPaste = o.blockCopyPaste;
-  if (gates.pageProtectionsOn) {
-    if (o.blockCopyPaste !== undefined) patch.blockPrint = o.blockCopyPaste;
-    // Turning "Require fullscreen" off sends the key as undefined.
-    if ('focusLevel' in o)
-      patch.focusLevel = isFocusLevel(o.focusLevel)
-        ? o.focusLevel
-        : deleteField();
-  }
-  if (o.allowStimulusQuotes !== undefined && gates.stimulusQuotesOn)
-    patch.allowStimulusQuotes = o.allowStimulusQuotes;
-  if (o.showResultToStudent !== undefined)
-    patch.showResultToStudent = o.showResultToStudent;
-  if (o.showCorrectAnswerToStudent !== undefined)
-    patch.showCorrectAnswerToStudent = o.showCorrectAnswerToStudent;
-  if (o.showCorrectOnBoard !== undefined)
-    patch.showCorrectOnBoard = o.showCorrectOnBoard;
-  if (o.showLearningTargets !== undefined)
-    patch.showLearningTargets = o.showLearningTargets;
-  if (o.showExplanations !== undefined)
-    patch.showExplanations = o.showExplanations;
-  if (o.speedBonusEnabled !== undefined)
-    patch.speedBonusEnabled = gates.reviewGame && o.speedBonusEnabled;
-  if (o.streakBonusEnabled !== undefined)
-    patch.streakBonusEnabled = gates.reviewGame && o.streakBonusEnabled;
-  if (o.showPodiumBetweenQuestions !== undefined)
-    patch.showPodiumBetweenQuestions =
-      gates.reviewGame && o.showPodiumBetweenQuestions;
-  if (o.soundEffectsEnabled !== undefined)
-    patch.soundEffectsEnabled = gates.reviewGame && o.soundEffectsEnabled;
-  if (o.shuffleQuestions !== undefined)
-    patch.shuffleQuestions = o.shuffleQuestions;
-  if (o.shuffleAnswerOptions !== undefined)
-    patch.shuffleAnswerOptions = o.shuffleAnswerOptions;
-  if (o.readAloudAll !== undefined) patch.readAloudAll = o.readAloudAll;
-  if (o.showScoreOnSubmit !== undefined && gates.scoreOnSubmitOn)
-    patch.showScoreOnSubmit = o.showScoreOnSubmit;
-  if (o.timeLimitMinutes !== undefined && gates.timeLimitOn)
-    patch.timeLimitMinutes = clampQuizTimeLimitMinutes(o.timeLimitMinutes);
-  // `handRaiseEnabled` is deliberately NOT mirrored: it is resolved against the
-  // admin gate at create time only, so a later patch (e.g. a PLC sync) can't
-  // switch raise hand on inside a force-off building. Running sessions keep
-  // the value they were created with.
-  return patch;
-}
-
-const LEGACY_SYNC_KEYS = ['syncGroupId', 'syncedVersion'] as const;
-
-/**
- * Read-side mapper for `QuizAssignment.sync`. Mirrors
- * `migrateLegacyAssignmentShape` for the sync linkage: pre-sub-object
- * docs carried two flat optional fields; this folds them into the
- * canonical sub-object so consumers only ever see one shape.
- */
-function migrateSyncLinkageShape<T extends LegacySyncLinkageShape>(
-  data: T
-): Omit<T, (typeof LEGACY_SYNC_KEYS)[number]> & {
-  sync?: QuizAssignmentSyncLinkage;
-} {
-  const cleaned = { ...data };
-  for (const key of LEGACY_SYNC_KEYS) delete cleaned[key];
-  if (data.sync) {
-    if (
-      typeof data.sync.groupId === 'string' &&
-      data.sync.groupId.length > 0 &&
-      typeof data.sync.syncedVersion === 'number'
-    ) {
-      return cleaned;
-    }
-    // Malformed sub-object: drop and treat as unsynced.
-    delete (cleaned as { sync?: QuizAssignmentSyncLinkage }).sync;
-    return cleaned;
-  }
-  const { syncGroupId, syncedVersion } = data;
-  if (
-    typeof syncGroupId === 'string' &&
-    syncGroupId.length > 0 &&
-    typeof syncedVersion === 'number'
-  ) {
-    return { ...cleaned, sync: { groupId: syncGroupId, syncedVersion } };
-  }
-  return cleaned;
-}
-
-function isNonEmptyString(value: unknown): value is string {
-  return typeof value === 'string' && value.trim().length > 0;
-}
-
-/**
- * Sanitize the `classPeriodByClassId` map at the hook boundary: drop
- * empty/non-string keys or values, and (when an allowlist is provided)
- * drop entries whose key isn't in the session's `classIds` so the
- * session doc can't carry stale/mismatched targeting. Mirrors the
- * defensive filtering already applied to `rosterIds` / `classIds` /
- * `periodNames`.
- */
-function sanitizeClassPeriodByClassId(
-  input: Record<string, string> | undefined,
-  allowedClassIds?: readonly string[]
-): Record<string, string> {
-  if (!input) return {};
-  const allow = allowedClassIds ? new Set(allowedClassIds) : null;
-  return Object.fromEntries(
-    Object.entries(input).filter(
-      ([classId, classPeriod]) =>
-        isNonEmptyString(classId) &&
-        isNonEmptyString(classPeriod) &&
-        (allow === null || allow.has(classId))
-    )
-  );
-}
-
-// Validate an inbound `plc` sub-object before trusting it. The link needs
-// only `id` + `name`; `sheetUrl` is an optional export destination and
-// `memberEmails` defaults to `[]`. Returns a fresh object or `undefined`.
-function getValidPlcLinkage(
-  plc: PlcLinkage | undefined
-): PlcLinkage | undefined {
-  if (!plc) return undefined;
-  const { id, name, sheetUrl, memberEmails, autoGenerated } = plc;
-  if (!isNonEmptyString(id) || !isNonEmptyString(name)) return undefined;
-  const emails = Array.isArray(memberEmails)
-    ? memberEmails.filter((e): e is string => isNonEmptyString(e))
-    : [];
-  return {
-    id,
-    name,
-    memberEmails: emails,
-    ...(isNonEmptyString(sheetUrl) ? { sheetUrl } : {}),
-    ...(autoGenerated === true ? { autoGenerated: true } : {}),
-  };
-}
-
-function migrateLegacyAssignmentShape<T extends LegacyPlcShape>(
-  data: T
-): Omit<T, (typeof LEGACY_PLC_KEYS)[number]> & { plc?: PlcLinkage } {
-  const cleaned = { ...data };
-  for (const key of LEGACY_PLC_KEYS) delete cleaned[key];
-
-  // Already migrated: keep the nested object iff it passes validation.
-  if (data.plc) {
-    const valid = getValidPlcLinkage(data.plc);
-    return valid ? { ...cleaned, plc: valid } : cleaned;
-  }
-
-  // Legacy flat shape: `plcMode` + id + name suffice; a sheet URL is optional.
-  const { plcMode, plcSheetUrl, plcId, plcName, plcMemberEmails } = data;
-  if (plcMode === true && !!plcId && !!plcName) {
-    return {
-      ...cleaned,
-      plc: {
-        id: plcId,
-        name: plcName,
-        memberEmails: plcMemberEmails ?? [],
-        ...(plcSheetUrl ? { sheetUrl: plcSheetUrl } : {}),
-      },
-    };
-  }
-  // Degraded-state or non-PLC doc: pass through without `plc`.
-  return cleaned;
-}
 
 /** Unique 6-char join code: one nobody has claimed yet, since a code has one owner for good. */
 async function allocateJoinCode(): Promise<string> {
@@ -1031,49 +807,6 @@ async function allocateJoinCode(): Promise<string> {
   return candidate();
 }
 
-/** Per-quiz sidecars at publish, keyed by BCP-47 code. */
-export type QuizTranslationsByLocale = Record<string, QuizTranslation>;
-
-/**
- * Review AND staleness are both gated here, at publish (§4.3): a question is
- * projected for a locale only when the teacher reviewed it and the sidecar's
- * recorded hash still matches the live English body. `freshQuestionIdsByLocale`
- * is computed by the caller, which holds the quiz body and can await the hash.
- */
-export function selectQuestionTranslations(
-  questionId: string,
-  translations: QuizTranslationsByLocale | undefined,
-  freshQuestionIdsByLocale?: Record<string, ReadonlySet<string>>,
-  /** The English question, so a FIB entry missing its answer key falls back. */
-  question?: Pick<QuizQuestion, 'type' | 'text' | 'correctAnswer'>
-): Record<string, QuestionTranslation> | undefined {
-  if (!translations) return undefined;
-  const out: Record<string, QuestionTranslation> = {};
-  for (const [locale, translation] of Object.entries(translations)) {
-    const entry = translation.questions?.[questionId];
-    if (!entry) continue;
-    if (!translation.reviewedQuestionIds?.includes(questionId)) continue;
-    if (!freshQuestionIdsByLocale?.[locale]?.has(questionId)) continue;
-    if (question && fibTranslationIssue(question, entry)) continue;
-    out[locale] = entry;
-  }
-  return Object.keys(out).length > 0 ? out : undefined;
-}
-
-/** Teacher-only inputs `gradeResponseForPublish` needs beyond the response itself. */
-export interface ResponseGradingContext {
-  questionsById: Map<string, QuizQuestion>;
-  overridesByStudentUid: Record<string, StudentOverride>;
-  servedLanguageByStudentUid: Record<string, string>;
-  localizedFibAnswers: Record<string, Record<string, string[]>>;
-  /** Served locales graded with typo leniency. */
-  lenientFibLocales?: string[];
-  /** The session's sections; a choose-N section leaves unchosen questions out (E14). */
-  sections?: QuizSessionSection[];
-  /** Hybrid paper quiz: an unscanned written answer holds the score. */
-  paperWrittenQuestionIds?: string[];
-}
-
 /** The session's frozen sections, for publishing; absent on a quiz without them. */
 async function readSessionSections(
   assignmentId: string
@@ -1081,318 +814,6 @@ async function readSessionSections(
   const snap = await getDoc(doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId));
   const sections = (snap.data() as QuizSession | undefined)?.sections;
   return sections?.length ? sections : undefined;
-}
-
-export function buildResponseGradingContext(
-  quizData: QuizData,
-  assignmentData: Record<string, unknown> | undefined
-): ResponseGradingContext {
-  // Dedupe first-wins (matches session creation) — last-wins can grade against a duplicate's differing correctAnswer.
-  const questionsById = new Map<string, QuizQuestion>();
-  for (const q of dedupeQuestionsById(quizData.questions))
-    questionsById.set(q.id, q);
-  return {
-    questionsById,
-    overridesByStudentUid: (assignmentData?.overridesByStudentUid ??
-      {}) as Record<string, StudentOverride>,
-    servedLanguageByStudentUid: (assignmentData?.servedLanguageByStudentUid ??
-      {}) as Record<string, string>,
-    localizedFibAnswers: (assignmentData?.localizedFibAnswers ?? {}) as Record<
-      string,
-      Record<string, string[]>
-    >,
-    lenientFibLocales: Array.isArray(assignmentData?.lenientFibLocales)
-      ? (assignmentData.lenientFibLocales as unknown[]).filter(
-          (l): l is string => typeof l === 'string'
-        )
-      : undefined,
-    paperWrittenQuestionIds: Array.isArray(
-      assignmentData?.paperWrittenQuestionIds
-    )
-      ? (assignmentData.paperWrittenQuestionIds as unknown[]).filter(
-          (id): id is string => typeof id === 'string'
-        )
-      : undefined,
-  };
-}
-
-/** Every question's answer text, as published at the answers level. */
-export function buildRevealedAnswers(
-  quizData: QuizData
-): Record<string, string> {
-  const revealed: Record<string, string> = {};
-  // First-wins, matching buildResponseGradingContext — the revealed answer must match what the student was graded against.
-  for (const q of dedupeQuestionsById(quizData.questions))
-    revealed[q.id] = revealValueFor(q);
-  return revealed;
-}
-
-/** Scoring-guide example responses by question, published with the answer key; null when there are none. */
-export function buildRevealedRubricExamples(
-  quizData: QuizData
-): RevealedRubricExamples | null {
-  const out: RevealedRubricExamples = {};
-  for (const q of dedupeQuestionsById(quizData.questions)) {
-    if (!q.rubricSnapshot) continue;
-    // Modified-rubric criteria carry their own ids, so both share the question's map.
-    const examples = {
-      ...rubricExamplesByCriterion(q.rubricSnapshot),
-      ...(q.modifiedRubricSnapshot
-        ? rubricExamplesByCriterion(q.modifiedRubricSnapshot)
-        : {}),
-    };
-    if (Object.keys(examples).length > 0) out[q.id] = examples;
-  }
-  return Object.keys(out).length > 0 ? out : null;
-}
-
-/** One response graded for publishing; `score` and `points` are null while a slot awaits a teacher grade. */
-export interface PublishGrade {
-  score: number | null;
-  answers: QuizResponseAnswer[];
-  points?: QuizScorePoints | null;
-}
-
-/** Grades one response for publishing; `score` is null while a slot awaits a teacher grade. */
-export function gradeResponseForPublish(
-  data: QuizResponse,
-  ctx: ResponseGradingContext
-): PublishGrade {
-  const {
-    questionsById,
-    overridesByStudentUid,
-    servedLanguageByStudentUid,
-    localizedFibAnswers,
-  } = ctx;
-  const answers = Array.isArray(data.answers) ? data.answers : [];
-  // Prefer the response doc's own served-subset snapshot (written by
-  // the student app at answer time) over the live override map — the
-  // live map reflects CURRENT targeting, so removing a student's
-  // override after they submit would otherwise re-score their subset
-  // answers against the full question set. Absent snapshot AND absent
-  // override (or no subset on it) = the full quiz, unchanged.
-  const snapshotIds =
-    Array.isArray(data.servedQuestionIds) && data.servedQuestionIds.length > 0
-      ? data.servedQuestionIds
-      : undefined;
-  const subsetIds =
-    snapshotIds ?? overridesByStudentUid[data.studentUid]?.questionIds;
-  const baseServed =
-    Array.isArray(subsetIds) && subsetIds.length > 0
-      ? new Set(subsetIds)
-      : null;
-  // A question left out of a choose-N section is off this student's total (E14).
-  const notChosen = new Set(
-    notChosenQuestionIds(
-      {
-        answers,
-        servedQuestionIds: baseServed ? [...baseServed] : undefined,
-        status: data.status,
-        countedChoices: data.countedChoices,
-        completedAttempts: data.completedAttempts,
-      },
-      ctx.sections
-    )
-  );
-  const servedIds =
-    notChosen.size > 0
-      ? new Set(
-          [...(baseServed ?? questionsById.keys())].filter(
-            (id) => !notChosen.has(id)
-          )
-        )
-      : baseServed;
-  // Teacher-side truth only: never the client-asserted `response.locale`.
-  const servedLocale =
-    overridesByStudentUid[data.studentUid]?.language ??
-    servedLanguageByStudentUid[data.studentUid] ??
-    undefined;
-  let pointsEarned = 0;
-  let pointsMax = 0;
-  // Set when any answered slot is still owed a teacher grade (ungraded
-  // written response, or a rubric with criteria left unscored). Such a
-  // response gets its `answers` refreshed but NO published `score` —
-  // the ungraded slot counts as 0 here, so publishing now would show
-  // the student a grade the teacher hasn't finished awarding.
-  let awaitingGrade = false;
-  // Pick one representative answer per questionId — highest takeIndex
-  // wins, ties (equal or absent takeIndex, e.g. an arrayUnion race)
-  // broken by earliest answeredAt — so a duplicate answer can't
-  // inflate pointsEarned and pointsMax. Each answer is still graded
-  // for its `isCorrect` flag, but only the representative contributes
-  // to the totals — matching the dedup already applied in the
-  // unanswered loop below and mirroring the identical guard in
-  // `useVideoActivityAssignments.publishAssignmentScores` (#1728,
-  // #1787, #1803).
-  const representativeAnswers = selectRepresentativeAnswers(answers);
-  const gradedAnswers: QuizResponseAnswer[] = answers.map((a) => {
-    const q = questionsById.get(a.questionId);
-    if (!q) {
-      // Question deleted between submission and publish — we can't
-      // claim correctness any more. Strip any stale `isCorrect`
-      // from a prior publish so the response doesn't carry a
-      // value the canonical quiz no longer supports.
-      const { isCorrect: _stale, ...rest } = a;
-      void _stale;
-      return rest;
-    }
-    // Pull manual grades for written types so a teacher's stored
-    // grade survives the archive snapshot. Without this, archiving
-    // a quiz that contained essays would freeze them at 0 points
-    // and the archive would silently disagree with the live results
-    // view forever after.
-    const manualGrade =
-      isFreeResponseType(q.type) || q.type === 'FIB'
-        ? readSlotGrade(data.grading, q.id)
-        : undefined;
-    const result = applyMediaSlots(
-      q,
-      data,
-      gradeAnswer(
-        q,
-        a.answer,
-        manualGrade,
-        fibAcceptedAnswers(
-          localizedFibAnswers,
-          q.id,
-          servedLocale,
-          ctx.lenientFibLocales
-        ),
-        gradingPaperTranscript(q, data, a)
-      )
-    );
-    if (
-      representativeAnswers.get(a.questionId) !== a ||
-      (baseServed && !baseServed.has(a.questionId))
-    ) {
-      // Only the graded answer per served question gets a verdict, so extra entries can't probe the key.
-      const { isCorrect: _extra, ...rest } = a;
-      void _extra;
-      return rest;
-    }
-    if (!servedIds || servedIds.has(a.questionId)) {
-      pointsEarned += result.pointsEarned;
-      pointsMax += result.pointsMax;
-      // An ungraded extra answer in a choose-N section is not scored, so it can't hold the score.
-      if (result.state === 'awaiting-grade') awaitingGrade = true;
-    }
-    return { ...a, isCorrect: result.isCorrect };
-  });
-  // Count questions the student didn't answer toward the denominator
-  // so a blank response scores 0%, not undefined. Use a Set lookup
-  // (O(Q) total) rather than `answers.some(...)` per question (O(Q*A))
-  // — the inner `.some` would otherwise become a noticeable stall on
-  // PLC-shared assignments with hundreds of submissions × dozens of
-  // questions.
-  //
-  // Iterate questionsById (already deduped) rather than the raw
-  // quizData.questions array. A duplicate question id in the raw array
-  // (possible when a Drive export writes the same question twice via an
-  // arrayUnion-style race) would cause pointsMax to count the same
-  // question's points more than once, inflating the denominator and
-  // deflating every student's published score. Mirrors the identical
-  // fix in publishAssignmentScores for Video Activity (#1728, #1787).
-  const answeredQuestionIds = new Set<string>();
-  for (const a of answers) answeredQuestionIds.add(a.questionId);
-  for (const qId of ctx.paperWrittenQuestionIds ?? []) {
-    if (servedIds && !servedIds.has(qId)) continue;
-    if (
-      questionsById.has(qId) &&
-      isPaperWrittenSlotAwaiting(data, qId, ctx.paperWrittenQuestionIds)
-    )
-      awaitingGrade = true;
-  }
-  for (const [qId, q] of questionsById) {
-    if (servedIds && !servedIds.has(qId)) continue;
-    if (!answeredQuestionIds.has(qId)) {
-      pointsMax += q.points ?? 1;
-    }
-  }
-  const score =
-    pointsMax === 0 ? 0 : Math.round((pointsEarned / pointsMax) * 100);
-  if (awaitingGrade)
-    return { score: null, answers: gradedAnswers, points: null };
-  return {
-    score,
-    answers: gradedAnswers,
-    points: {
-      earned: pointsEarned,
-      possible: pointsMax,
-      attempt: data.completedAttempts ?? 0,
-    },
-  };
-}
-
-/** The score fields a publish writes; both clear while a slot awaits a grade. */
-export function publishScoreFields(graded: PublishGrade): {
-  score: number | ReturnType<typeof deleteField>;
-  scorePoints: QuizScorePoints | ReturnType<typeof deleteField>;
-} {
-  return {
-    score: graded.score ?? deleteField(),
-    scorePoints: graded.points ?? deleteField(),
-  };
-}
-
-/** True when a class publish must keep the key and verdicts off a response: an open attempt or a hidden student. */
-export function withholdsPublishedResults(
-  data: QuizResponse,
-  now: number
-): boolean {
-  return (
-    data.status !== 'completed' ||
-    activeResultsOverride(data.resultsOverride, now)?.mode === 'hidden'
-  );
-}
-
-/** One response's class-publish patch; the key lives on each response, never the session (D4). */
-export function classPublishPatch(
-  data: QuizResponse,
-  graded: PublishGrade,
-  opts: {
-    visibility: QuizScoreVisibility;
-    now: number;
-    answerKey: Record<string, string> | null;
-    rubricExamples: RevealedRubricExamples | null;
-    explanations: RevealedExplanations | null;
-  }
-): Record<string, unknown> {
-  const withhold = withholdsPublishedResults(data, opts.now);
-  const override = activeResultsOverride(data.resultsOverride, opts.now);
-  // Right/wrong stays off the student-readable doc unless the class or this student's own publish shows responses.
-  const keepVerdicts =
-    !withhold &&
-    (visibilityShowsResponses(opts.visibility) ||
-      (override?.mode === 'shown' &&
-        visibilityShowsResponses(override.visibility)));
-  return {
-    // `deleteField()` so a stale score can't linger once a slot awaits grading.
-    ...publishScoreFields(graded),
-    answers: keepVerdicts
-      ? graded.answers
-      : answersWithoutVerdicts(graded.answers),
-    revealedAnswers: (withhold ? null : opts.answerKey) ?? deleteField(),
-    revealedRubricExamples:
-      (withhold ? null : opts.rubricExamples) ?? deleteField(),
-    revealedExplanations:
-      (withhold ? null : opts.explanations) ?? deleteField(),
-  };
-}
-
-/** Hiding a student also pulls the key and right/wrong an earlier class publish wrote. */
-export function hiddenResultsPatch(
-  data: QuizResponse,
-  override: Record<string, unknown>
-): Record<string, unknown> {
-  return {
-    resultsOverride: override,
-    revealedAnswers: deleteField(),
-    revealedRubricExamples: deleteField(),
-    revealedExplanations: deleteField(),
-    ...(Array.isArray(data.answers)
-      ? { answers: answersWithoutVerdicts(data.answers) }
-      : {}),
-  };
 }
 
 const RESPONSE_BATCH_WRITES = 400;
@@ -1424,27 +845,6 @@ async function commitResponsePatches(
     }
     await chunkBatch.commit();
   }
-}
-
-/** True when a response holds a handwritten paper answer the worker or an edit can rewrite. */
-export function hasPaperWrittenAnswer(data: QuizResponse): boolean {
-  return (
-    Array.isArray(data.answers) &&
-    data.answers.some((a) => a?.paperTranscript !== undefined)
-  );
-}
-
-/** Handwritten paper answers still waiting on a transcript across a set of responses. */
-export function countPendingPaperTranscripts(
-  responses: QuizResponse[]
-): number {
-  let pending = 0;
-  for (const r of responses) {
-    if (!Array.isArray(r.answers)) continue;
-    for (const a of r.answers)
-      if (a?.paperTranscript === 'pending') pending += 1;
-  }
-  return pending;
 }
 
 const PAPER_TRANSACTION_CONCURRENCY = 10;
@@ -2099,40 +1499,48 @@ export const useQuizAssignments = (
         };
       }
 
-      const batch = writeBatch(db);
-      batch.set(
-        doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
-        // Teacher-side twin of the session marker, so a later sync knows
-        // whether to look for committed takes without reading the session.
-        sessionHasRecording
-          ? { ...assignment, mediaResponseEnabled: true }
-          : assignment
-      );
-      batch.set(doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId), sessionDoc);
-      // Written whenever the flag is on, so switching the setting on later has a key to grade with.
-      // Review games always need it: checkQuizGameAnswerV1 grades from it (plan D31).
-      if (scoreOnSubmitOn || mode === 'game') {
-        batch.set(scoreKeyRef(userId, assignmentId), {
-          questions: buildScoreOnSubmitKey(sessionQuestions),
-        });
-      }
-      if (sessionContent) {
+      // A batch can't be re-committed, so the class list retry rebuilds it.
+      const commitCreate = () => {
+        const batch = writeBatch(db);
         batch.set(
-          doc(
-            db,
-            QUIZ_SESSIONS_COLLECTION,
-            assignmentId,
-            QUIZ_CONTENT_COLLECTION,
-            QUIZ_CONTENT_DOC
-          ),
-          sessionContent
+          doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
+          // Teacher-side twin of the session marker, so a later sync knows
+          // whether to look for committed takes without reading the session.
+          sessionHasRecording
+            ? { ...assignment, mediaResponseEnabled: true }
+            : assignment
         );
-      }
-      // Same batch as the session: a session whose pointer never landed would be
-      // unjoinable by code.
-      addJoinCodeOwnerToBatch(batch, code, userId, now);
-      addJoinCodePointerToBatch(batch, code, assignmentId, userId, now);
-      await batch.commit();
+        batch.set(doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId), sessionDoc);
+        // Written whenever the flag is on, so switching the setting on later has a key to grade with.
+        // Review games always need it: checkQuizGameAnswerV1 grades from it (plan D31).
+        if (scoreOnSubmitOn || mode === 'game') {
+          batch.set(scoreKeyRef(userId, assignmentId), {
+            questions: buildScoreOnSubmitKey(sessionQuestions),
+          });
+        }
+        if (sessionContent) {
+          batch.set(
+            doc(
+              db,
+              QUIZ_SESSIONS_COLLECTION,
+              assignmentId,
+              QUIZ_CONTENT_COLLECTION,
+              QUIZ_CONTENT_DOC
+            ),
+            sessionContent
+          );
+        }
+        // Same batch as the session: a session whose pointer never landed would be
+        // unjoinable by code.
+        addJoinCodeOwnerToBatch(batch, code, userId, now);
+        addJoinCodePointerToBatch(batch, code, assignmentId, userId, now);
+        return batch.commit();
+      };
+      await withVerifiedClassesRetry(
+        userId,
+        targetClassIds.length > 0,
+        commitCreate
+      );
 
       // R1: synthesize up front, billed to the teacher; the student fallback
       // covers the assign-then-start race. Override-only flags added later go
@@ -2255,8 +1663,12 @@ export const useQuizAssignments = (
       // students should see the waiting room again, not the active-quiz UI
       // with no question loaded.
       const sessionRef = doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId);
-      const snap = await getDoc(sessionRef);
-      const session = snap.data() as QuizSession | undefined;
+      // Read in a transaction: getDoc can still return this tab's pre-reopen copy.
+      const session = await runTransaction(
+        db,
+        async (tx) =>
+          (await tx.get(sessionRef)).data() as QuizSession | undefined
+      );
       // A stale tab's Resume on an ended quiz does nothing.
       if (session && deriveRunState('quiz', session)?.phase === 'ended') {
         return;
@@ -2733,7 +2145,6 @@ export const useQuizAssignments = (
         classPeriodByClassId: cleanedClassPeriodByClassId,
       };
 
-      const batch = writeBatch(db);
       const assignmentRef = doc(
         db,
         'users',
@@ -2741,20 +2152,29 @@ export const useQuizAssignments = (
         QUIZ_ASSIGNMENTS_COLLECTION,
         assignmentId
       );
-      batchUpdateWithPaths(batch, assignmentRef, assignmentPatch, rowWrites);
-      batchUpdateWithPaths(
-        batch,
-        doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId),
-        sessionPatch,
-        rowWrites
-      );
+      const commitEdit = () => {
+        const batch = writeBatch(db);
+        batchUpdateWithPaths(batch, assignmentRef, assignmentPatch, rowWrites);
+        batchUpdateWithPaths(
+          batch,
+          doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId),
+          sessionPatch,
+          rowWrites
+        );
+        return batch.commit();
+      };
       await viewAsDirectSave(
         assignmentRef,
         [
           ...Object.keys(assignmentPatch),
           ...(rowWrites.length > 0 ? ['periodAccess'] : []),
         ],
-        () => batch.commit()
+        () =>
+          withVerifiedClassesRetry(
+            userId,
+            cleanedClassIds.length > 0,
+            commitEdit
+          )
       );
     },
     [userId]
