@@ -70,10 +70,11 @@ const createReviewQuiz = async (
       .fill('Explain how you know.');
   }
   await expect(editor.getByText('Saved', { exact: true })).toBeVisible();
+  // The toast comes with the first autosave and lasts 3s, so check it before closing.
+  await expectToast(page, 'Quiz created!');
   await expect(editor.getByText(/Not ready to use yet/)).toHaveCount(0);
   await editor.getByRole('button', { name: 'Close' }).last().click();
   await expect(editor).toBeHidden();
-  await expectToast(page, 'Quiz created!');
 };
 
 type SessionDoc = {

@@ -158,6 +158,8 @@ import {
   paperWrittenQuestionIds,
 } from '@/utils/paperWrittenHybrid';
 import {
+  PAPER_MAX_BOX_PAGES,
+  PAPER_MULTI_PAGE_FEATURE,
   paperBoxImageChoices,
   withPaperBoxSizes,
   withPaperBoxStyles,
@@ -3186,7 +3188,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
               : null;
           }}
           menu={(a) =>
-            buildArchiveActions(
+            buildArchiveActionsRaw(
               a,
               a.status === 'inactive' ? 'archive' : 'active'
             ).secondaries
@@ -3384,6 +3386,9 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                   count: writtenStepCount,
                   rows: writtenStepRows,
                   images: writtenStepImages,
+                  maxPages: canAccessFeature(PAPER_MULTI_PAGE_FEATURE)
+                    ? PAPER_MAX_BOX_PAGES
+                    : 1,
                 },
               }
             : {})}

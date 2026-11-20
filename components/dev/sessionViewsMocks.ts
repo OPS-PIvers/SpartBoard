@@ -1472,3 +1472,37 @@ export function makeBankDrawResponses(): QuizResponse[] {
     },
   ];
 }
+
+/** A vocab quiz: a word bank passage beside typed or drag blanks. */
+export function makeVocabQuizSession(blankType?: 'drag'): QuizSession {
+  const base = makeTimedQuizSession('active');
+  const [first, ...rest] = base.publicQuestions;
+  const words = ['protagonist', 'setting', 'conflict', 'resolution', 'theme'];
+  return {
+    ...base,
+    stimuli: [
+      {
+        id: 'dev-stim-wordbank',
+        type: 'word-bank',
+        url: '',
+        label: 'Word bank',
+        wordBankColumns: 2,
+        text: 'Actor-Observer Bias\nBelief Perseverance\nCognitive Dissonance\nDiscrimination\nDispositional Attribution\nDownward Social Comparison\n\nEthnocentrism\nExternal Locus of Control\nFundamental Attribution Error\nImplicit Attitudes\nIn-Group Bias\nInternal Locus of Control\n\nJust-World Phenomenon\nMere Exposure Effect\nOptimistic Explanatory Style\nOut-Group Homogeneity\nPessimistic Explanatory Style\nPrejudice\n\nRelative Deprivation\nSelf-Fulfilling Prophecy\nSelf-Serving Bias\nSituational Attribution\nStereotype\nUpward Social Comparison',
+      },
+    ],
+    publicQuestions: [
+      {
+        ...first,
+        type: 'FIB',
+        timeLimit: 0,
+        text: blankType
+          ? 'The ____ is the time and place where a story happens.'
+          : "Blaming a classmate's bad grade on laziness, while ignoring that they work nights, is an example of the ____.",
+        choices: undefined,
+        stimulusIds: blankType ? undefined : ['dev-stim-wordbank'],
+        ...(blankType ? { blankType, wordBank: words } : {}),
+      },
+      ...rest,
+    ],
+  };
+}

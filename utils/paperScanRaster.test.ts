@@ -7,6 +7,7 @@ import {
   encodeWrittenCrop,
   keptPageBlob,
   rasterizeScan,
+  stackGrayCrops,
   type PdfDocumentLike,
   type RasterDeps,
   type RasterSurface,
@@ -184,6 +185,18 @@ describe('handwriting crops', () => {
       width: Math.round(24 * scale),
       height: Math.round(14 * scale),
     });
+  });
+});
+
+describe('stackGrayCrops', () => {
+  it('stacks the pages of one answer top to bottom on white, as wide as the widest', () => {
+    const stacked = stackGrayCrops([
+      { width: 2, height: 1, data: Uint8Array.from([1, 2]) },
+      { width: 3, height: 2, data: Uint8Array.from([3, 4, 5, 6, 7, 8]) },
+    ]);
+    expect(stacked.width).toBe(3);
+    expect(stacked.height).toBe(3);
+    expect([...stacked.data]).toEqual([1, 2, 255, 3, 4, 5, 6, 7, 8]);
   });
 });
 

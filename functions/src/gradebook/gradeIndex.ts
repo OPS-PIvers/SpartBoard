@@ -86,7 +86,12 @@ export interface SessionContext {
   sessionId: string;
   session: Doc;
   meta: SessionMeta;
-  score: (studentUid: string, perStudent: Doc) => RowScore | null;
+  score: (
+    studentUid: string,
+    perStudent: Doc,
+    /** The per-student doc id (a quiz response key). */
+    docId?: string
+  ) => RowScore | null;
   /** Quiz sessions only: the key and per-student answer lookups. */
   quiz?: QuizContext;
 }
@@ -137,6 +142,11 @@ export async function loadSessionContext(
         asStrings(
           asRecord(asRecord(assignment.overridesByStudentUid)[uid]).questionIds
         ),
+      // Only a student-paced session shows the modified prompt.
+      modifiedStudent: (uid) =>
+        session.sessionMode === 'student' &&
+        asRecord(asRecord(assignment.overridesByStudentUid)[uid])
+          .modifiedQuestions === true,
       paperCopyBatchIds: new Set(asStrings(assignment.paperCopyBatchIds)),
     };
     const s = session;
@@ -145,7 +155,8 @@ export async function loadSessionContext(
       sessionId,
       session: s,
       meta: parseSessionMeta(kind, sessionId, s, assignment),
-      score: (_uid, response) => scoreQuizResponse(s, response, ctx),
+      score: (_uid, response, docId) =>
+        scoreQuizResponse(s, response, ctx, docId),
       quiz: ctx,
     };
   }
@@ -701,7 +712,7 @@ export async function applyDocWrite(
     const at = await wallSubmittedAt(db, w.sessionId, studentUid);
     score = at === null ? null : ctx.score(studentUid, { submittedAt: at });
   } else {
-    score = w.after ? ctx.score(studentUid, w.after) : null;
+    score = w.after ? ctx.score(studentUid, w.after, w.docId) : null;
   }
   if (!score) {
     await deleteRow(db, w.kind, w.sessionId, studentUid);
@@ -778,7 +789,7 @@ export async function recomputeSession(
           wallFirst.set(uid, Math.min(wallFirst.get(uid) ?? at, at));
           continue;
         }
-        const score = ctx.score(uid, data);
+        const score = ctx.score(uid, data, d.id);
         if (!score) continue;
         rows.push(await buildRow(db, ctx, uid, score, prevOf(uid), now));
       }

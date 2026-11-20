@@ -1,4 +1,8 @@
 import {
+  calcFormulaProblem,
+  calcModifiedProblem,
+} from '@/utils/quizCalcProblem';
+import {
   isFreeResponseType,
   type QuizBankSlot,
   type QuizQuestion,
@@ -53,6 +57,12 @@ export const quizIncompleteReason = (
     if (maProblem) return `Question ${i + 1}: ${maProblem}`;
     const blankProblem = blankTypeProblem(q);
     if (blankProblem) return `Question ${i + 1}: ${blankProblem}`;
+    const calcProblem =
+      q.type === 'FIB' && q.calc
+        ? (calcFormulaProblem(q.calc) ??
+          calcModifiedProblem(q.calc, q.modifiedText, q.text))
+        : null;
+    if (calcProblem) return `Question ${i + 1}: ${calcProblem}`;
   }
   return null;
 };
@@ -69,6 +79,12 @@ const questionKeyProblem = (questions: QuizQuestion[]): string | null => {
     if (maProblem) return `question ${i + 1}: ${maProblem}`;
     const blankProblem = blankTypeProblem(q);
     if (blankProblem) return `question ${i + 1}: ${blankProblem}`;
+    const calcProblem =
+      q.type === 'FIB' && q.calc
+        ? (calcFormulaProblem(q.calc) ??
+          calcModifiedProblem(q.calc, q.modifiedText, q.text))
+        : null;
+    if (calcProblem) return `question ${i + 1}: ${calcProblem}`;
   }
   return null;
 };

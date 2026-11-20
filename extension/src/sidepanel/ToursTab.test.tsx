@@ -161,6 +161,21 @@ describe('ToursTab', () => {
   });
 });
 
+describe('ToursTab search', () => {
+  it('clears the search', () => {
+    render(<Shell />);
+    const box = screen.getByRole('searchbox', { name: 'Search tours' });
+    fireEvent.change(box, { target: { value: 'zzz' } });
+    expect(
+      screen.queryByRole('button', { name: 'Start Post a grade' })
+    ).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Clear search' }));
+    expect(
+      screen.getByRole('button', { name: 'Start Post a grade' })
+    ).toBeTruthy();
+  });
+});
+
 describe('ManageToursButton', () => {
   it('opens the Web tours page for admins only', () => {
     const create = vi.fn(() => Promise.resolve({}));

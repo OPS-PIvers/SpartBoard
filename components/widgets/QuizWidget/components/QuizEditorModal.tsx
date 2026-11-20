@@ -73,6 +73,8 @@ export interface QuizEditorBankApi {
 interface QuizEditorModalProps {
   isOpen: boolean;
   quiz: QuizData | null;
+  /** Assignments an edit would re-score; shows a warning above the questions. */
+  rescoredAssignmentCount?: number;
   /** Omit to hide every question-bank affordance. */
   bankApi?: QuizEditorBankApi;
   onClose: () => void;
@@ -133,7 +135,8 @@ const stimuliEqual = (a: QuizStimulus[], b: QuizStimulus[]): boolean => {
       (sa.readAloudSource ?? '') !== (sb.readAloudSource ?? '') ||
       (sa.calculator ?? '') !== (sb.calculator ?? '') ||
       (sa.tabLabel ?? '') !== (sb.tabLabel ?? '') ||
-      (sa.placement ?? '') !== (sb.placement ?? '')
+      (sa.placement ?? '') !== (sb.placement ?? '') ||
+      (sa.wordBankColumns ?? 1) !== (sb.wordBankColumns ?? 1)
     ) {
       return false;
     }
@@ -272,6 +275,7 @@ const orderEqual = (a: QuizOrderEntry[], b: QuizOrderEntry[]): boolean =>
 
 export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
   hasScannedResponses = false,
+  rescoredAssignmentCount = 0,
   isOpen,
   quiz,
   bankApi,
@@ -659,12 +663,16 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
               onAddAnswerKey={
                 answerKeyFill && !isBank ? openKeyFill : undefined
               }
+              rescoredAssignmentCount={
+                isBank ? undefined : rescoredAssignmentCount
+              }
             />
           ) : activeTab === 'stimuli' ? (
             <StimulusManagerPanel
               state={editorState}
               readAloudAvailable={readAloudAvailable}
               calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
+              wordBankAvailable={canAccessFeature('quiz-word-bank')}
             />
           ) : (
             <>

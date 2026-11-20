@@ -498,9 +498,9 @@ export async function deleteWritingSessionData(
   db: Firestore,
   sessionId: string
 ): Promise<void> {
-  await db.recursiveDelete(
-    db.collection(WRITING_SESSIONS).doc(sessionId).collection(WRITING_RESPONSES)
-  );
+  const session = db.collection(WRITING_SESSIONS).doc(sessionId);
+  await db.recursiveDelete(session.collection(WRITING_RESPONSES));
+  await db.recursiveDelete(session.collection('peer_links'));
 }
 
 async function callerFrom(

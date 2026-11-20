@@ -776,3 +776,111 @@ describe('teacher records', () => {
     await assertFails(deleteDoc(doc(asTeacher(TEACHER), record)));
   });
 });
+
+describe('peer review notes', () => {
+  const NOTE = `${RESP}/peer/n1`;
+  const note = (o: Record<string, unknown> = {}) => ({
+    id: 'n1',
+    by: CLASSMATE,
+    kind: 'comment',
+    start: 0,
+    end: 3,
+    quote: 'The',
+    body: 'Nice',
+    status: 'open',
+    createdAt: 1,
+    ...o,
+  });
+  beforeEach(async () => {
+    await seed(NOTE, note());
+  });
+
+  it('the writer and the session teacher read notes; nobody else does', async () => {
+    await assertSucceeds(getDoc(doc(asStudent(STUDENT), NOTE)));
+    await assertSucceeds(
+      getDocs(collection(asStudent(STUDENT), `${RESP}/peer`))
+    );
+    await assertSucceeds(getDoc(doc(asTeacher(TEACHER), NOTE)));
+    await assertFails(getDoc(doc(asStudent(CLASSMATE), NOTE)));
+    await assertFails(getDoc(doc(asStudent(OUTSIDER), NOTE)));
+    await assertFails(getDoc(doc(asTeacher(OTHER_TEACHER), NOTE)));
+  });
+
+  it('no client creates or deletes a note; writingPeerReviewV1 does', async () => {
+    await assertFails(
+      setDoc(doc(asStudent(CLASSMATE), `${RESP}/peer/n2`), note({ id: 'n2' }))
+    );
+    await assertFails(
+      setDoc(doc(asStudent(STUDENT), `${RESP}/peer/n2`), note({ id: 'n2' }))
+    );
+    await assertFails(deleteDoc(doc(asStudent(STUDENT), NOTE)));
+    await assertFails(deleteDoc(doc(asStudent(CLASSMATE), NOTE)));
+    await assertFails(deleteDoc(doc(asTeacher(TEACHER), NOTE)));
+  });
+
+  it('the writer closes an open note and changes nothing else', async () => {
+    for (const status of ['accepted', 'rejected', 'resolved']) {
+      await seed(NOTE, note());
+      await assertSucceeds(
+        updateDoc(doc(asStudent(STUDENT), NOTE), { status, resolvedAt: 5 })
+      );
+    }
+    await seed(NOTE, note());
+    await assertFails(
+      updateDoc(doc(asStudent(STUDENT), NOTE), {
+        status: 'resolved',
+        resolvedAt: 5,
+        body: 'changed',
+      })
+    );
+    await assertFails(
+      updateDoc(doc(asStudent(STUDENT), NOTE), {
+        status: 'open',
+        resolvedAt: 5,
+      })
+    );
+    await assertFails(
+      updateDoc(doc(asStudent(STUDENT), NOTE), {
+        status: 'resolved',
+        resolvedAt: 'now',
+      })
+    );
+    await assertFails(
+      updateDoc(doc(asStudent(STUDENT), NOTE), { by: STUDENT })
+    );
+  });
+
+  it('a closed note never reopens, and the partner and teacher cannot close it', async () => {
+    await assertFails(
+      updateDoc(doc(asStudent(CLASSMATE), NOTE), {
+        status: 'resolved',
+        resolvedAt: 5,
+      })
+    );
+    await assertFails(
+      updateDoc(doc(asTeacher(TEACHER), NOTE), {
+        status: 'resolved',
+        resolvedAt: 5,
+      })
+    );
+    await seed(NOTE, note({ status: 'accepted', resolvedAt: 2 }));
+    await assertFails(
+      updateDoc(doc(asStudent(STUDENT), NOTE), {
+        status: 'rejected',
+        resolvedAt: 5,
+      })
+    );
+  });
+
+  it('peer links stay server-only', async () => {
+    await seed(`${SESSION}/peer_links/${STUDENT}`, { reviews: CLASSMATE });
+    await assertFails(
+      getDoc(doc(asStudent(STUDENT), `${SESSION}/peer_links/${STUDENT}`))
+    );
+    await assertFails(
+      setDoc(doc(asStudent(STUDENT), `${SESSION}/peer_links/${STUDENT}`), {
+        reviews: OUTSIDER,
+      })
+    );
+  });
+});

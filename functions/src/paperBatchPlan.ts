@@ -8,6 +8,7 @@
  */
 
 import type {
+  PaperBoxPages,
   PaperBoxSize,
   PaperBoxStyle,
   PaperGrid,
@@ -265,7 +266,7 @@ const questionChoiceCount = (question: PaperQuestion): number =>
 
 /** Mirrors `PAPER_BOX_LINES` / `PAPER_FULL_PAGE_LINES` in `utils/paperWritten.ts`. */
 const PAPER_BOX_LINES: Record<
-  Exclude<PaperBoxSize, 'full' | number>,
+  Exclude<PaperBoxSize, 'full' | PaperBoxPages | number>,
   number
 > = {
   S: 3,
@@ -275,16 +276,36 @@ const PAPER_BOX_LINES: Record<
 const PAPER_FULL_PAGE_LINES = 24;
 const PAPER_WORDS_PER_LINE = 10;
 
+const BOX_PAGES: Readonly<Record<PaperBoxPages, number>> = {
+  'pages-2': 2,
+  'pages-3': 3,
+  'pages-4': 4,
+};
+
+const isBoxPages = (value: unknown): value is PaperBoxPages =>
+  typeof value === 'string' && value in BOX_PAGES;
+
 const paperBoxLines = (size: PaperBoxSize): number => {
   if (typeof size === 'number') return size;
-  return size === 'full' ? PAPER_FULL_PAGE_LINES : PAPER_BOX_LINES[size];
+  if (size === 'full' || isBoxPages(size)) return PAPER_FULL_PAGE_LINES;
+  return PAPER_BOX_LINES[size];
+};
+
+/** Mirrors `paperBoxPages` in `utils/paperWritten.ts`. */
+const paperBoxPages = (size: PaperBoxSize): number => {
+  if (isBoxPages(size)) return BOX_PAGES[size];
+  return paperBoxLines(size) >= PAPER_FULL_PAGE_LINES ? 1 : 0;
 };
 
 /** Mirrors `isPaperBoxSize`; a number is a custom line count up to a page. */
 export const isPaperBoxSize = (value: unknown): value is PaperBoxSize =>
   typeof value === 'number'
     ? Number.isInteger(value) && value >= 1 && value <= PAPER_FULL_PAGE_LINES
-    : value === 'S' || value === 'M' || value === 'L' || value === 'full';
+    : value === 'S' ||
+      value === 'M' ||
+      value === 'L' ||
+      value === 'full' ||
+      isBoxPages(value);
 
 /** Mirrors `isPaperBoxStyle` in `utils/paperWritten.ts`. */
 export const isPaperBoxStyle = (value: unknown): value is PaperBoxStyle =>
@@ -545,6 +566,20 @@ function writtenBlock(
 const FULL_WIDTH = { x: WRITTEN_BOX_X_MM, w: WRITTEN_BOX_W_MM };
 const ONE_COLUMN = { x: WRITTEN_ONE_COLUMN_X_MM, w: WRITTEN_ONE_COLUMN_W_MM };
 
+/** Mirrors `continuationBlocks` in `utils/paperPageMap.ts`. */
+function continuationBlocks(entry: WrittenEntry): WrittenItem[] {
+  return Array.from({ length: paperBoxPages(entry.size) - 1 }, () => ({
+    ...writtenBlock(
+      entry,
+      GRID_TOP_MM,
+      PAPER_FULL_PAGE_LINES,
+      false,
+      FULL_WIDTH
+    ),
+    continued: true as const,
+  }));
+}
+
 const ownsPage = (size: PaperBoxSize, grid: PaperGrid): boolean =>
   paperBoxLines(size) >= PAPER_FULL_PAGE_LINES ||
   (grid === 1 && paperBoxLines(size) >= PAPER_BOX_LINES.L);
@@ -626,6 +661,7 @@ function planQuestionTextPages(
           FULL_WIDTH
         )
       );
+      for (const block of continuationBlocks(entry)) pages.push([block]);
       y = Number.POSITIVE_INFINITY;
       continue;
     }
@@ -692,6 +728,7 @@ export function planPaperPages(
     if (current().length > 0) newPage();
     const lines = Math.min(paperBoxLines(entry.size), PAPER_FULL_PAGE_LINES);
     current().push(writtenBlock(entry, GRID_TOP_MM, lines, stems, FULL_WIDTH));
+    for (const block of continuationBlocks(entry)) pages.push([block]);
     cursor = Number.POSITIVE_INFINITY;
   };
   const ensureRoom = (units: number): void => {

@@ -4,9 +4,8 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { EditorModalShell } from '@/components/common/EditorModalShell';
 
-/** The footer's Close; the header X carries the same accessible name. */
-const footerClose = () =>
-  screen.getAllByRole('button', { name: 'Close' }).slice(-1)[0];
+/** The header X, the only Close under autosave. */
+const closeButton = () => screen.getByRole('button', { name: 'Close' });
 
 const showConfirm = vi.fn().mockResolvedValue(true);
 
@@ -39,6 +38,21 @@ describe('EditorModalShell autosave', () => {
     render(<EditorModalShell {...baseProps} isDirty onSave={vi.fn()} />);
     expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
+  });
+
+  it('drops an empty footer and keeps only the header X', () => {
+    const { container } = render(
+      <EditorModalShell
+        {...baseProps}
+        isDirty={false}
+        hideSaveButton
+        onSave={vi.fn()}
+      />
+    );
+    expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument();
+    expect(
+      container.ownerDocument.querySelector('[data-modal-footer]')
+    ).toBeNull();
   });
 
   // The submit-mode Save is enabled even when incomplete, so without the
@@ -92,12 +106,16 @@ describe('EditorModalShell autosave', () => {
     const onSave = vi.fn((): Promise<void> => Promise.resolve());
     const { edit } = renderShell({ onSave });
     expect(screen.queryByRole('button', { name: 'Save' })).toBeNull();
-    expect(footerClose()).toBeInTheDocument();
+    expect(closeButton()).toBeInTheDocument();
 
     edit();
     expect(screen.getByText('Unsaved changes')).toBeInTheDocument();
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(screen.getByText('Saved')).toBeInTheDocument());
+    expect(
+      screen.getByText('Saved').closest('[data-modal-header]')
+    ).not.toBeNull();
+    expect(document.querySelector('[data-modal-footer]')).toBeNull();
   });
 
   // Nothing is waiting to be discarded once the editor saves as you go, so
@@ -108,7 +126,7 @@ describe('EditorModalShell autosave', () => {
     const { edit } = renderShell({ onSave, onClose, delayMs: 5000 });
 
     edit();
-    await userEvent.click(footerClose());
+    await userEvent.click(closeButton());
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
     expect(showConfirm).not.toHaveBeenCalled();
     // Closing flushes the write the quiet period had not reached yet.
@@ -127,12 +145,12 @@ describe('EditorModalShell autosave', () => {
     await waitFor(() =>
       expect(screen.getByText('Couldn\u2019t save')).toBeInTheDocument()
     );
-    await userEvent.click(footerClose());
+    await userEvent.click(closeButton());
     await waitFor(() => expect(showConfirm).toHaveBeenCalledTimes(1));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('retries a failed write from the footer', async () => {
+  it('retries a failed write from the header', async () => {
     const onSave = vi
       .fn<() => Promise<void>>()
       .mockRejectedValueOnce(new Error('offline'))

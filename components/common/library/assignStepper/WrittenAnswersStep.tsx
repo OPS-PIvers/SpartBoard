@@ -28,7 +28,9 @@ export const WrittenAnswersStep: React.FC<{
   rows?: readonly PaperWrittenBoxRow[];
   /** The quiz's images a custom image box can print. */
   images?: readonly PaperSheetStimulus[];
-}> = ({ value, onChange, count, rows = [], images = [] }) => {
+  /** Most pages one written answer can take. */
+  maxPages?: number;
+}> = ({ value, onChange, count, rows = [], images = [], maxPages = 1 }) => {
   const setStyle = (
     row: PaperWrittenBoxRow,
     style: PaperWrittenBoxRow['style']
@@ -74,6 +76,7 @@ export const WrittenAnswersStep: React.FC<{
                 }
                 ariaLabel={`Question ${row.label} box size`}
                 anchor={`assign-${row.label}`}
+                maxPages={maxPages}
               />
               <BoxStyleSelect
                 style={row.style}

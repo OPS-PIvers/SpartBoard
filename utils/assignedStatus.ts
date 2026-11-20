@@ -56,7 +56,7 @@ export interface AssignedInput {
   classes: readonly AssignedClassInput[];
   /** Assignment-level close mark: a single-line Close, a sub End or a paper import end (D24). */
   closedAt: number | null;
-  /** Move to Done by hand (D5); counts only while the assignment is ended. */
+  /** Move to Finished by hand (D5); counts only while the assignment is ended. */
   doneAt: number | null;
   /** Whole-assignment window, read only on a single-line assignment. */
   openAt: number | null;

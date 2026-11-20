@@ -162,6 +162,7 @@ const TYPE_BOUND_EXTRAS = [
   'enforceWordLimit',
   'noSpellCheck',
   'answerKeyboard',
+  'calc',
   'paperBoxSize',
   'paperBoxStyle',
   'paperBoxImage',

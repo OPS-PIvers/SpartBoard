@@ -7,6 +7,8 @@
  * useQuizSessionStudent — Student joins and submits answers.
  */
 
+import { calcAnswerAccepted, calcAttemptKey } from '@/utils/quizCalculated';
+import { fillCalcPublicQuestion } from '@/utils/quizCalcResponse';
 import { isAnswerKeyboard } from '@/config/studentKeyboards';
 import { alignedOrderingImages } from '@/utils/quizOrderingImages';
 import {
@@ -343,6 +345,11 @@ export function toPublicQuestion(
     isAnswerKeyboard(q.answerKeyboard)
   )
     base.answerKeyboard = q.answerKeyboard;
+  // Ranges only: each student works out their own numbers. The formula stays private.
+  if (q.type === 'FIB' && q.calc?.variables.length) {
+    base.calcVariables = q.calc.variables.map((v) => ({ ...v }));
+    base.calcSeed = q.calc.seed;
+  }
   if (q.type === 'MC') {
     const english = [q.correctAnswer, ...q.incorrectAnswers.filter(Boolean)];
     const permutation = randomPermutation(english.length);
@@ -763,6 +770,19 @@ export function gradeAnswer(
   }
 
   const state: GradeResult['state'] = attempted ? 'scored' : 'not-attempted';
+  // Random numbers: graded from this student's own numbers; a copy without them can't be graded.
+  if (question.type === 'FIB' && question.calc) {
+    const isCorrect =
+      attempted &&
+      !!question.calcValues &&
+      calcAnswerAccepted(question.calc, question.calcValues, studentAnswer);
+    return {
+      isCorrect,
+      pointsEarned: isCorrect ? max : 0,
+      pointsMax: max,
+      state,
+    };
+  }
   const correct = normalizeAnswer(question.correctAnswer);
   const given = normalizeAnswer(studentAnswer);
 
@@ -2220,15 +2240,31 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     boardNames && boardNames.sessionId === sessionIdState
       ? boardNames.names
       : null;
+  // Random numbers change with each attempt.
+  const myCalcKey = myResponse?._responseKey
+    ? calcAttemptKey(myResponse._responseKey, myResponse)
+    : undefined;
   const mergedSession = useMemo(() => {
-    const merged = mergeQuizSessionContent(session, content, readAloudPaths);
+    const content_ = mergeQuizSessionContent(session, content, readAloudPaths);
+    // Random numbers: this student's own numbers written into each prompt.
+    const merged =
+      content_ &&
+      myCalcKey &&
+      content_.publicQuestions?.some((q) => q.calcVariables?.length)
+        ? {
+            ...content_,
+            publicQuestions: content_.publicQuestions.map((q) =>
+              fillCalcPublicQuestion(q, myCalcKey)
+            ),
+          }
+        : content_;
     return merged?.liveLeaderboard && names
       ? {
           ...merged,
           liveLeaderboard: withLeaderboardNames(merged.liveLeaderboard, names),
         }
       : merged;
-  }, [session, content, readAloudPaths, names]);
+  }, [session, content, readAloudPaths, names, myCalcKey]);
 
   const lookupSession = useCallback(
     async (

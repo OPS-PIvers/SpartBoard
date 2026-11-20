@@ -11,6 +11,7 @@ import {
   periodLabel,
   periodSquare,
   upNextRows,
+  workAvailability,
 } from './studentLanding';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -225,6 +226,53 @@ describe('partitionLanding', () => {
     ]);
   });
 
+  it('puts open work above paused, not-open-yet and locked work, even with no due date', () => {
+    const access = (state: 'open' | 'paused' | 'closed') => ({
+      state,
+      openAt: null,
+      closeAt: null,
+      bellPeriodId: null,
+      verified: true,
+      label: 'P1',
+    });
+    const gate = (state: 'open' | 'paused' | 'closed') => ({
+      accessMode: 'assessment' as const,
+      periodAccess: { p1: access(state) },
+      periodKeys: ['p1'],
+    });
+    const notOpen = a({ sessionId: 'not-open', held: 'not-open' });
+    const paused = a({ sessionId: 'paused', dueAt: NOW + DAY, held: 'paused' });
+    const classPaused = a({
+      sessionId: 'class-paused',
+      periodGate: gate('paused'),
+    });
+    const upcoming = a({ sessionId: 'upcoming', openAt: NOW + DAY });
+    const live = a({ sessionId: 'live', periodGate: gate('open') });
+    const open = a({ sessionId: 'open', dueAt: NOW + 2 * DAY });
+    const p = partitionLanding(
+      [notOpen, paused, classPaused, upcoming, open, live],
+      {},
+      NOW,
+      'stu'
+    );
+    expect(p.work.map((r) => r.assignment.sessionId)).toEqual([
+      'live',
+      'open',
+      'paused',
+      'not-open',
+      'class-paused',
+      'upcoming',
+    ]);
+    expect(p.work.map((r) => workAvailability(r, NOW, 'stu'))).toEqual([
+      'live',
+      'open',
+      'locked',
+      'locked',
+      'locked',
+      'locked',
+    ]);
+  });
+
   it('moves closed work never turned in to Expired, out of Completed', () => {
     const old = a({ sessionId: 'old', dueAt: NOW - 9 * DAY });
     const recent = a({ sessionId: 'recent', dueAt: NOW - 2 * DAY });
@@ -292,6 +340,27 @@ describe('upNextRows', () => {
       'w1',
       'w2',
       'w3',
+    ]);
+  });
+  it('keeps the list order, so a locked row due today stays below open ones', () => {
+    const locked = {
+      assignment: a({
+        sessionId: 'locked',
+        dueAt: NOW + 60_000,
+        held: 'paused',
+      }),
+      state: 'open' as const,
+    };
+    const open = [1, 2, 3, 4].map((i) => ({
+      assignment: a({ sessionId: `o${i}`, dueAt: NOW + i * DAY }),
+      state: 'open' as const,
+    }));
+    const { shown } = upNextRows([...open, locked], NOW);
+    expect(shown.map((r) => r.assignment.sessionId)).toEqual([
+      'o1',
+      'o2',
+      'o3',
+      'locked',
     ]);
   });
 });

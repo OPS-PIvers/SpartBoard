@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { QuizData, QuizQuestion } from '@/types';
 import { gradeAnswer } from '@/hooks/useQuizSession';
+import { sampleCalcQuestion } from '@/utils/quizCalcResponse';
 import {
   encodeMultiAnswer,
   multiAnswerCorrectOptions,
@@ -65,7 +66,12 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [prevIndex, setPrevIndex] = useState(currentIndex);
 
-  const question = quiz.questions[currentIndex];
+  const rawQuestion = quiz.questions[currentIndex];
+  // Random-number questions preview with one sample student's numbers.
+  const question = useMemo(
+    () => (rawQuestion ? sampleCalcQuestion(rawQuestion) : rawQuestion),
+    [rawQuestion]
+  );
 
   const reset = useCallback(() => {
     setSelectedAnswer(null);

@@ -2202,6 +2202,8 @@ export interface RandomConfig {
    *  so they survive re-randomize (a fresh order doesn't erase what's
    *  already been completed). */
   doneNames?: string[];
+  /** This widget's own class; unset follows the board's active class (older widgets). */
+  rosterId?: string;
   /** Pool: the saved class group to draw from. Unset or null = whole class. */
   rosterPoolGroupId?: string | null;
   /** Lock: saved class groups kept together when building groups. */
@@ -4487,6 +4489,7 @@ export type QuizStimulusType =
   | 'youtube'
   | 'gdoc-embed'
   | 'text'
+  | 'word-bank'
   | 'calculator';
 
 /** Which Desmos calculator a `calculator` stimulus shows. */
@@ -4526,6 +4529,8 @@ export interface QuizStimulus {
   calculator?: QuizCalculatorKind;
   /** Student-visible tab name in the stimulus panel; unnamed tabs are numbered (M12). */
   tabLabel?: string;
+  /** word-bank only: how many columns students see; absent = 1. */
+  wordBankColumns?: 1 | 2 | 3;
   /** image only: beside the question or in it; absent = beside (M13). */
   placement?: QuizStimulusPlacement;
 }
@@ -4543,6 +4548,31 @@ export interface QuestionAudio {
   mimeType: string;
   /** Plays a student may start per attempt (first listen plus replays); absent = unlimited. */
   playLimit?: number;
+}
+
+/** One random number in a random-number question; students each get their own value. */
+export interface CalcVariable {
+  name: string;
+  min: number;
+  max: number;
+  decimals: number;
+}
+
+export type CalcTolerance =
+  { kind: 'relative'; percent: number } | { kind: 'absolute'; amount: number };
+
+/** FIB only: random numbers in the prompt as `{name}` and the formula that grades each student's answer. */
+export interface CalcSpec {
+  /** Random text set when the question is made; with each response key it fixes that student's numbers. */
+  seed: string;
+  variables: CalcVariable[];
+  formula: string;
+  tolerance: CalcTolerance;
+  /** Decimals the shown answer is rounded to; grading uses the unrounded value. */
+  roundTo?: number;
+  unit?: string;
+  /** Answer for students given a modified prompt with typed numbers instead of {name} links. */
+  modifiedAnswer?: string;
 }
 
 export interface QuizQuestion {
@@ -4634,6 +4664,10 @@ export interface QuizQuestion {
   noSpellCheck?: boolean;
   /** FIB and Free Response: the student keyboard. Absent = plain typing. */
   answerKeyboard?: AnswerKeyboard;
+  /** FIB only: random numbers; the formula replaces `correctAnswer` for grading. Never sent to students. */
+  calc?: CalcSpec;
+  /** Set only on a copy graded for one student: that student's numbers. Never saved. */
+  calcValues?: Record<string, number>;
   /** Free Response only. Size of the lined box on paper answer sheets. */
   paperBoxSize?: PaperBoxSize;
   /** Free Response only. What prints inside the paper answer box; absent = lines. */
@@ -5432,6 +5466,12 @@ export interface QuizPublicQuestion {
   noSpellCheck?: boolean;
   /** FIB and Free Response: the student keyboard. */
   answerKeyboard?: AnswerKeyboard;
+  /** Random-number FIB only: the numbers' ranges, so each student's values can be worked out. No formula. */
+  calcVariables?: CalcVariable[];
+  /** Random-number FIB only: the question's seed, so each student works out their own numbers. */
+  calcSeed?: string;
+  /** Client only: the question before this student's numbers were written in. */
+  calcUnfilled?: QuizPublicQuestion;
   /** Free Response only: max points the teacher can award. */
   points?: number;
   /**
@@ -6089,8 +6129,11 @@ export interface QuizResponseAnswer {
   paperTranscript?: PaperTranscriptState;
 }
 
-/** Size of a handwritten answer box on a paper sheet; S/M/L and a number are line counts, full is a page. */
-export type PaperBoxSize = 'S' | 'M' | 'L' | 'full' | number;
+/** Size of a handwritten answer box on a paper sheet; S/M/L and a number are line counts, full is a page, pages-N is N pages. */
+export type PaperBoxSize = 'S' | 'M' | 'L' | 'full' | PaperBoxPages | number;
+
+/** A written answer that runs over several whole pages. */
+export type PaperBoxPages = 'pages-2' | 'pages-3' | 'pages-4';
 
 /** What prints inside a handwritten answer box: rule lines, nothing, a 5 mm grid, or a grid with x and y axes. */
 export type PaperBoxStyle =
@@ -6694,6 +6737,8 @@ export type PaperPageItem =
       style?: PaperBoxStyle;
       /** Fill in the blank: one write-in line per blank. */
       blanks?: number;
+      /** A later page of a multi-page answer; its crop joins the first page's. */
+      continued?: true;
     };
 
 /** Positions of everything on one physical page; `page` is 1-based and absolute. */
@@ -7494,6 +7539,8 @@ export interface QuizAssignmentSettings {
    * special case. Absent on quizzes without banks.
    */
   resolvedDriveFileId?: string;
+  /** Drive copy of a quiz without bank slots, saved at assign so later edits don't re-score it. */
+  frozenDriveFileId?: string;
 }
 
 /**
@@ -7644,6 +7691,8 @@ export interface QuizAssignment
   targetMode?: 'class' | 'students';
   /** Only meaningful when `targetMode === 'students'`. */
   targetStudents?: StudentTargetRef[];
+  /** Classes narrowed to picked students, written by `setAssignmentTargetsV1`. */
+  studentTargetClassIds?: string[];
   /** Provenance of picked groups (display only); does not drive resolution. */
   targetGroupIds?: string[];
   /** Per-student accommodation overrides, keyed by `StudentTargetRef.sourcedId`/`email`. */
@@ -7661,7 +7710,7 @@ export interface QuizAssignment
   closeAt?: number | null;
   /** Teacher-only close mark for an assignment with no `periodAccess` (ASSIGNED_TAB D24). */
   closedAt?: number | null;
-  /** Set by Move to Done (ASSIGNED_TAB D5): Done while ended, whatever its grading. */
+  /** Set by Move to Finished (ASSIGNED_TAB D5): Done while ended, whatever its grading. */
   doneAt?: number | null;
   /** Last Resume or Assigned tab open of a single line (ASSIGNED_TAB D11). */
   openedAt?: number | null;
@@ -10338,7 +10387,7 @@ export interface FlashcardAssignment
   dueAt?: number | null;
   /** PLC this assignment's class-level results are shared with. */
   plcShare?: { plcId: string; sharedAt: number } | null;
-  /** Assigned tab: single-line Close mark (D24) and Move to Done mark (D5). */
+  /** Assigned tab: single-line Close mark (D24) and Move to Finished mark (D5). */
   closedAt?: number | null;
   doneAt?: number | null;
 }
@@ -10774,6 +10823,8 @@ export interface WritingAssignmentSession
   dueAtByClassId?: Record<string, number>;
   /** D16: grades published to students; the grade shows once returned or published, whichever is first. */
   scorePublishedAt?: number;
+  /** Peer review, while it runs or after it ended. */
+  peerReview?: WritingPeerReview | null;
   createdAt: number;
   updatedAt: number;
   endedAt?: number;
@@ -10812,9 +10863,11 @@ export interface WritingAssignmentRecord {
   overridesByStudentUid?: Record<string, StudentOverride>;
   targetSkippedCount?: number;
   removedStudentRefs?: StudentTargetRef[];
-  /** Assigned tab marks, written by `updateWritingSessionV1`: single-line Close (D24) and Move to Done (D5). */
+  /** Assigned tab marks, written by `updateWritingSessionV1`: single-line Close (D24) and Move to Finished (D5). */
   closedAt?: number | null;
   doneAt?: number | null;
+  /** Peer review groups, written by `setWritingPeerReviewV1`; each student reads the next one's writing. */
+  peerGroups?: { members: string[] }[];
 }
 
 /** The Writing record summary (D9), kept on the response and copied onto each frozen copy. */
@@ -10935,6 +10988,35 @@ export interface WritingDraft {
   grade?: WritingGrade;
   returnedAt?: number;
   returnKind?: 'return' | 'revision';
+}
+
+/** Peer review access: read the partner's writing, also comment on it, or also suggest edits. */
+export type WritingPeerAccess = 'view' | 'comment' | 'edit';
+
+/** On the session while peer review runs; who reads whom stays on each student's own pointer. */
+export interface WritingPeerReview {
+  access: WritingPeerAccess;
+  startedAt: number;
+  endedAt?: number | null;
+}
+
+/** `.../responses/{authorUid}/peer/{id}`: a partner's comment or suggested edit, offsets into the plain text. */
+export interface WritingPeerMark {
+  id: string;
+  /** The partner's student uid; names come from the reader's own roster or pointer, never this doc. */
+  by: string;
+  kind: 'comment' | 'edit';
+  start: number;
+  end: number;
+  /** The text the mark covered when made, to find it again after the writer keeps writing. */
+  quote: string;
+  /** Edit: the text to put in place of the quote; empty deletes it. */
+  insert?: string;
+  /** Comment: what the partner wrote. */
+  body?: string;
+  status: 'open' | 'accepted' | 'rejected' | 'resolved';
+  createdAt: number;
+  resolvedAt?: number;
 }
 
 // Union of all widget configs
@@ -11753,12 +11835,17 @@ export type GlobalFeature =
   | 'quiz-cross-out'
   /** Desmos calculator stimulus on quiz questions. */
   | 'quiz-calculator-stimulus'
+  | 'quiz-word-bank'
+  /** Quiz editor attaches stimuli in a list-and-preview dialog instead of an inline checklist. */
+  | 'quiz-stimulus-picker'
   /** Question editor metadata (stimuli, targets, DOK) as labeled fields like Type and Points. */
   | 'question-editor-fields'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
   | 'live-tour-editing-v2'
   /** Handwritten free-response boxes on paper answer sheets, transcribed for grading. */
   | 'paper-handwritten-responses'
+  /** Written answers that run over two to four whole pages. */
+  | 'paper-multi-page-answers'
   /** Device quiz whose written questions students answer on a printed sheet that is scanned back in. */
   | 'paper-written-hybrid'
   | 'paper-reword-sync'
@@ -11796,6 +11883,8 @@ export type GlobalFeature =
   | 'quiz-recap-all-options'
   /** Quiz assign stays open with a spinner until the save finishes, and shows a failed save inline. */
   | 'quiz-assign-waits-for-save'
+  /** Each quiz assignment keeps a copy of the questions it was given, so later edits never change its scores. */
+  | 'quiz-frozen-assignments'
   /** Rubric grading redesign: one-tap level buttons, expandable criteria, level order switch, full-rubric table. */
   | 'rubric-grading-v2'
   /** Quiz assign: a modification group can get a printed version, scanned back into the same results. */
@@ -11810,6 +11899,8 @@ export type GlobalFeature =
   | 'routine-guide'
   /** Class groups with a weekly schedule that pop a reminder on the open board. */
   | 'group-reminders'
+  /** Edit Class: groups open as pages that hold their accommodations; Accommodations lists every student. */
+  | 'class-groups-redesign'
   /** Group reminders: the Symbol step of the class group editor. */
   | 'group-symbols'
   /** Group reminders: the Schedule step and the reminders it pops on the board. */
@@ -11898,10 +11989,13 @@ export type GlobalFeature =
   | 'assign-due-date'
   /** Library and Assigned tabs with a status per class (docs/plans/ASSIGNED_TAB.md D19). */
   | 'assigned-tab'
+  /** Writing peer review: teachers pair students to read, comment on or suggest edits to each other's writing. */
+  | 'writing-peer-review'
   /** The sidebar Assignments hub; on for everyone until an admin narrows it. */
   | 'assignments-hub'
   /** Teachers record their voice for a quiz question prompt. */
   | 'quiz-question-audio'
+  | 'quiz-random-numbers'
   /** Print results with Settings and Students tabs and a Course > class > student picker. */
   | 'results-print-v2';
 

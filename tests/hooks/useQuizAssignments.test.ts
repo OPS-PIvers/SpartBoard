@@ -270,7 +270,7 @@ describe('useQuizAssignments - reopenAssignment', () => {
 
     const assignmentPatch = findAssignmentPatch();
     expect(assignmentPatch).toMatchObject({ status: 'paused' });
-    // A reopened quiz is no longer closed or moved to Done (ASSIGNED_TAB D24).
+    // A reopened quiz is no longer closed or moved to Finished (ASSIGNED_TAB D24).
     expect(assignmentPatch).toMatchObject({
       closedAt: DELETE_FIELD_SENTINEL,
       doneAt: DELETE_FIELD_SENTINEL,
@@ -3901,6 +3901,22 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
       });
     });
     expect(findSessionSet()).not.toHaveProperty('bankSlots');
+    expect(findAssignmentSet()).not.toHaveProperty('resolvedDriveFileId');
+  });
+
+  it('keeps the library file as the quiz and records the frozen copy beside it', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.createAssignment(QUIZ, {
+        sessionMode: 'student',
+        sessionOptions: {},
+        frozenDriveFileId: 'drive-frozen',
+      });
+    });
+    expect(findAssignmentSet()).toMatchObject({
+      quizDriveFileId: QUIZ.driveFileId,
+      frozenDriveFileId: 'drive-frozen',
+    });
     expect(findAssignmentSet()).not.toHaveProperty('resolvedDriveFileId');
   });
 

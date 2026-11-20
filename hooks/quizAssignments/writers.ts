@@ -62,7 +62,7 @@ export async function commitQuizLifecycle(
             ])
           )
         : {};
-    // A reopened or resumed quiz is no longer closed or moved to Done (ASSIGNED_TAB D24).
+    // A reopened or resumed quiz is no longer closed or moved to Finished (ASSIGNED_TAB D24).
     const clearMarks =
       event.type === 'reopen' || event.type === 'resume'
         ? { closedAt: deleteField(), doneAt: deleteField() }
@@ -155,7 +155,10 @@ const PAPER_TRANSACTION_CONCURRENCY = 10;
 /** D39: re-reads and re-grades each paper row in a transaction so a transcript landing mid-publish survives. */
 export async function commitPaperWrittenPatches(
   refs: ReturnType<typeof doc>[],
-  buildPatch: (data: QuizResponse) => Record<string, unknown> | null
+  buildPatch: (
+    data: QuizResponse,
+    responseKey: string
+  ) => Record<string, unknown> | null
 ): Promise<number> {
   let written = 0;
   for (let i = 0; i < refs.length; i += PAPER_TRANSACTION_CONCURRENCY) {
@@ -164,7 +167,7 @@ export async function commitPaperWrittenPatches(
         runTransaction(db, async (tx) => {
           const snap = await tx.get(ref);
           if (!snap.exists()) return false;
-          const patch = buildPatch(snap.data() as QuizResponse);
+          const patch = buildPatch(snap.data() as QuizResponse, snap.id);
           if (!patch) return false;
           tx.update(ref, patch);
           return true;

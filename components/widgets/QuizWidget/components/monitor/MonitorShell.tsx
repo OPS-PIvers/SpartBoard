@@ -283,6 +283,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
       overridesByStudentUid,
       overridesBySourcedId,
       servedLanguageByStudentUid,
+      sessionMode: session?.sessionMode,
     }),
     [
       localizedFibAnswers,
@@ -290,6 +291,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
       overridesByStudentUid,
       overridesBySourcedId,
       servedLanguageByStudentUid,
+      session?.sessionMode,
     ]
   );
 
@@ -1103,7 +1105,9 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     (session.showCorrectOnBoard ?? false) &&
     session.sessionMode !== 'student' &&
     !sessionEnded &&
-    !!currentQ;
+    !!currentQ &&
+    // A random-number answer differs per student, so it has no class reveal.
+    !currentQ.calc;
 
   // Live-game extras only; Quiz assessments have none, so their footer has no menu.
   const menuItems: {

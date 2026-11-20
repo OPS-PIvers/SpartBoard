@@ -32,8 +32,10 @@ interface PromptRichEditorProps {
   /** Widget type the toolbar's tour anchors are scoped to. */
   tourWidgetType?: SharedEditorTourType;
   ariaLabel?: string;
-  /** Extra controls at the end of the toolbar, like the record audio mic. */
-  toolbarEnd?: React.ReactNode;
+  /** Extra controls at the end of the toolbar, each set off by a divider. */
+  toolbarEnd?: React.ReactElement[];
+  /** A hairline row inside the box, under the text. */
+  footer?: React.ReactNode;
 }
 
 function selectionIn(editor: HTMLElement): Range | null {
@@ -124,6 +126,7 @@ export const PromptRichEditor: React.FC<PromptRichEditorProps> = ({
   tourWidgetType = 'quiz',
   ariaLabel = 'Question prompt',
   toolbarEnd,
+  footer,
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
   // The text the DOM shows now; a different value came from outside and is redrawn.
@@ -231,7 +234,7 @@ export const PromptRichEditor: React.FC<PromptRichEditorProps> = ({
       <div
         role="toolbar"
         aria-label="Prompt formatting"
-        className="flex items-center gap-0.5 border-b border-slate-200 px-1.5 py-0.5"
+        className="flex flex-wrap items-center gap-0.5 border-b border-slate-200 px-1.5 py-0.5"
       >
         {TOOLS.map((tool, i) => {
           const Icon = tool.icon;
@@ -262,12 +265,12 @@ export const PromptRichEditor: React.FC<PromptRichEditorProps> = ({
             </React.Fragment>
           );
         })}
-        {toolbarEnd && (
-          <>
+        {toolbarEnd?.map((control) => (
+          <React.Fragment key={control.key}>
             <span className="mx-1 h-4 w-px bg-slate-200" aria-hidden />
-            {toolbarEnd}
-          </>
-        )}
+            {control}
+          </React.Fragment>
+        ))}
       </div>
       <div className="relative">
         <div
@@ -298,6 +301,11 @@ export const PromptRichEditor: React.FC<PromptRichEditorProps> = ({
           </div>
         )}
       </div>
+      {footer && (
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-slate-200 px-3 py-1.5">
+          {footer}
+        </div>
+      )}
     </div>
   );
 };
