@@ -86,12 +86,12 @@ import { logError } from '@/utils/logError';
 import {
   QUIZ_SESSIONS_COLLECTION,
   useQuizSessionTeacher,
-  type QuizSessionOptions,
 } from '@/hooks/useQuizSession';
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
 import { useQuizReorder } from '@/hooks/useQuizReorder';
 import { useQuizDelete } from '@/hooks/useQuizDelete';
 import { useQuizPlcShare } from '@/hooks/useQuizPlcShare';
+import { useQuizLinkShare } from '@/hooks/useQuizLinkShare';
 import { useBusyIdSet } from '@/hooks/useBusyIdSet';
 import { useFolders } from '@/hooks/useFolders';
 import { useGooglePicker } from '@/hooks/useGooglePicker';
@@ -345,7 +345,6 @@ import { translateHiddenOptionIdsToText } from '@/utils/quizHiddenOptions';
 import type { StudentTargetRef } from '@/types';
 import { buildPeriodGate } from '@/utils/periodPlan';
 import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
-import { DEFAULT_TAB_AWAY_LIMIT_SECONDS } from '@/utils/tabAwayLimit';
 import { revealValueFor } from '@/utils/quizFibAlternates';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { syncedQuizContentFields } from '@/utils/syncedQuizContent';
@@ -366,48 +365,6 @@ const QuizStudentView = lazy(() =>
     default: m.QuizStudentView,
   }))
 );
-
-/**
- * Session-options shape used when minting a view-only Quiz share. Typed as
- * `Required<QuizSessionOptions>` so adding a new field to QuizSessionOptions
- * fails type-check here until a deliberate value is chosen — the previous
- * inline literal silently let new optional fields default to undefined.
- *
- * View-only shares disable every per-attempt feature (no leaderboard, no
- * tab warnings, no bonuses, no result reveal) — none of them have meaning
- * when there are no submissions to score or compare.
- */
-// Review's board size and the focus level never apply to a view-only share.
-const VIEW_ONLY_SESSION_OPTIONS: Required<
-  Omit<QuizSessionOptions, 'boardRankLimit' | 'focusLevel'>
-> = {
-  tabWarningsEnabled: false,
-  tabWarningThreshold: 'off',
-  // Tab warnings are off, so the away clock never runs.
-  tabAwayLimitSeconds: DEFAULT_TAB_AWAY_LIMIT_SECONDS,
-  tabAwayAutoSubmit: false,
-  readAloudAll: false,
-  blockCopyPaste: false,
-  blockPrint: false,
-  allowStimulusQuotes: false,
-  showResultToStudent: false,
-  showCorrectAnswerToStudent: false,
-  showCorrectOnBoard: false,
-  showLearningTargets: false,
-  showExplanations: false,
-  speedBonusEnabled: false,
-  streakBonusEnabled: false,
-  showPodiumBetweenQuestions: false,
-  soundEffectsEnabled: false,
-  // No live teacher present on a view-only share, so raising a hand goes nowhere.
-  handRaiseEnabled: false,
-  showScoreOnSubmit: false,
-  timeLimitMinutes: null,
-  // Shuffles are meaningless for view-only shares (no submissions, so no
-  // student-specific rendering happens).
-  shuffleQuestions: false,
-  shuffleAnswerOptions: false,
-};
 
 const QUIZZES_COLLECTION = 'quizzes';
 /** Matches `translateQuizV1`'s 300s ceiling. */
@@ -2386,6 +2343,16 @@ const TeacherQuizWidget: React.FC<{
     addToast,
     showConfirm,
     deleteQuiz,
+  });
+  const linkShare = useQuizLinkShare({
+    quizzes,
+    addToast,
+    shareQuiz,
+    loadBankContentsForQuiz,
+    loadQuiz,
+    createAssignment,
+    shareAssignment,
+    kindTag,
   });
 
   const openArchiveMonitor = async (a: QuizAssignment): Promise<boolean> => {
@@ -4621,63 +4588,11 @@ const TeacherQuizWidget: React.FC<{
             { pickItem: true }
           );
         }}
-        onShare={async (meta) => {
-          let url: string;
-          try {
-            url = await shareQuiz(meta, loadBankContentsForQuiz);
-          } catch (err) {
-            addToast(
-              err instanceof Error ? err.message : 'Share failed',
-              'error'
-            );
-            return;
-          }
-          try {
-            await navigator.clipboard.writeText(url);
-            addToast('Share link copied to clipboard!', 'success');
-          } catch {
-            addToast(`Share link: ${url}`, 'info');
-          }
-        }}
+        onShare={linkShare.onShare}
         onShareWithPlc={onShareWithPlc}
         onBulkShareWithPlc={onBulkShareWithPlc}
         onMergeQuizzes={handleMergeQuizzes}
-        onCreateViewOnlyShare={async (meta) => {
-          // View-only Quiz share — bypasses the AssignModal/picker/PLC flow
-          // entirely. Creates a minimal assignment with view-only mode so
-          // students can browse questions but can't submit; returns the
-          // student-facing URL for ViewOnlyShareModal to display.
-          const data = await loadQuiz(meta);
-          if (!data) {
-            throw new Error('Failed to load quiz data');
-          }
-          // View-only browsing shows the whole frozen pool; nothing is drawn.
-          let viewQuestions = data.questions;
-          let viewStimuli = data.stimuli;
-          if (quizHasBankSlots(data)) {
-            const contents = await loadBankContentsForQuiz(data);
-            const resolved = resolveQuizAssignment(data, contents);
-            viewQuestions = resolved.questions;
-            viewStimuli = resolved.stimuli;
-          }
-          const { code } = await createAssignment(
-            {
-              id: meta.id,
-              title: meta.title,
-              driveFileId: meta.driveFileId,
-              questions: viewQuestions,
-              ...(viewStimuli ? { stimuli: viewStimuli } : {}),
-              ...(data.language ? { language: data.language } : {}),
-            },
-            {
-              sessionMode: 'teacher',
-              sessionOptions: VIEW_ONLY_SESSION_OPTIONS,
-              attemptLimit: null,
-            },
-            { ...kindTag, initialStatus: 'paused', mode: 'view-only' }
-          );
-          return `${window.location.origin}/quiz?code=${encodeURIComponent(code)}`;
-        }}
+        onCreateViewOnlyShare={linkShare.onCreateViewOnlyShare}
         deleteDetail={(meta) => quizDeleteDetail(assignments, meta.id)}
         onDelete={quizDelete.onDelete}
         onDuplicate={(meta) =>
@@ -4944,37 +4859,7 @@ const TeacherQuizWidget: React.FC<{
                 })
             : undefined
         }
-        onArchiveShare={async (a) => {
-          const meta = quizzes.find((q) => q.id === a.quizId);
-          if (!meta) {
-            addToast(
-              'Quiz no longer in library — cannot share assignment.',
-              'error'
-            );
-            return;
-          }
-          try {
-            const data = await loadQuiz(meta);
-            if (!data) return;
-            const url = await shareAssignment(
-              a.id,
-              data,
-              loadBankContentsForQuiz,
-              meta.districtOrigin
-            );
-            try {
-              await navigator.clipboard.writeText(url);
-              addToast('Assignment share link copied!', 'success');
-            } catch {
-              addToast(`Assignment share link: ${url}`, 'info');
-            }
-          } catch (err) {
-            addToast(
-              err instanceof Error ? err.message : 'Share failed',
-              'error'
-            );
-          }
-        }}
+        onArchiveShare={linkShare.onArchiveShare}
         onArchivePublishScores={requestPublishScores}
         onArchivePublishMany={setBulkPublishing}
         onArchiveUnpublishScores={async (a) => {
