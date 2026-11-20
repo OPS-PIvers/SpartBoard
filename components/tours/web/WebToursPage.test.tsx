@@ -258,6 +258,7 @@ describe('WebToursPage', () => {
     expect(h.save.mock.calls[0][0]).toMatchObject({
       id: 'a',
       title: 'New name',
+      webGoal: 'newer edit',
     });
     expect(screen.queryByRole('textbox', { name: 'Tour name' })).toBeNull();
   });
