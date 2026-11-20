@@ -12,6 +12,7 @@ import {
   type PdfTextItem,
 } from './pdfReader';
 import { inlineImagesOnPage, picturesOnPage } from './pdfPictures';
+import { TESSERACT_PATHS } from '@/utils/selfHostedAssets';
 
 /** pdf.js viewport scale is relative to 72 dpi; 200 dpi is what OCR wants. */
 const OCR_SCALE = 200 / 72;
@@ -62,7 +63,7 @@ async function ocrPage(
       viewport,
     }).promise;
     const { default: Tesseract } = await import('tesseract.js');
-    const worker = await Tesseract.createWorker('eng');
+    const worker = await Tesseract.createWorker('eng', 1, TESSERACT_PATHS);
     try {
       // `blocks` is off by default; it carries the word boxes the layout needs (R3).
       const result = await worker.recognize(
