@@ -351,6 +351,14 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
   );
 
   const footer = useMemo(() => {
+    const footerEmpty =
+      !footerCloseShown &&
+      hideSaveButton &&
+      !autosaveOn &&
+      !footerEnd &&
+      !footerExtras &&
+      !incompleteNotice;
+    if (footerEmpty) return null;
     const closeButton = footerCloseShown && (
       <button
         onClick={() => void requestClose()}

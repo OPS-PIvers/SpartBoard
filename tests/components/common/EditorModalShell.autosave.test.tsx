@@ -40,6 +40,21 @@ describe('EditorModalShell autosave', () => {
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
   });
 
+  it('drops an empty footer and keeps only the header X', () => {
+    const { container } = render(
+      <EditorModalShell
+        {...baseProps}
+        isDirty={false}
+        hideSaveButton
+        onSave={vi.fn()}
+      />
+    );
+    expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument();
+    expect(
+      container.ownerDocument.querySelector('[data-modal-footer]')
+    ).toBeNull();
+  });
+
   // The submit-mode Save is enabled even when incomplete, so without the
   // notice a click just silently no-ops. The notice is the only feedback.
   it('shows what is missing in submit mode too', () => {
