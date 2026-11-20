@@ -3107,6 +3107,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           sortNameFor={printSortName}
           targetsFor={printTargets}
           gradeFn={printGradeFn}
+          modified={fibGrading}
           rubricFor={printRubric}
           drawOrder={!!session?.bankSlots?.length}
           periodOrder={printPeriodOrder}
@@ -4349,6 +4350,7 @@ const StudentDrilldownPanel: React.FC<{
           showExtraAnswers: true,
           rubricFor: (q) => rubricFor(response, q),
           drawOrder,
+          modified: fibGrading,
         }
       ),
     [questions, response, fibGrading, rubricFor, drawOrder]

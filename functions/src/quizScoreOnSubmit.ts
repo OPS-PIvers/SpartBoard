@@ -47,6 +47,8 @@ export interface ScoreContext {
   overrideQuestionIds?: string[];
   /** Accepted FIB answers by question id for the locale this student was served. */
   fibAnswersByQuestion: Record<string, FibExtras>;
+  /** The student gets the modified version; a typed-number answer on the key grades them. */
+  modified?: boolean;
 }
 
 const isId = (value: unknown): value is string =>
@@ -158,7 +160,8 @@ export function scoreAttempt(
     const result = gradeGroupAnswer(
       withCalcValues(
         q,
-        responseKey ? calcAttemptKey(responseKey, response) : undefined
+        responseKey ? calcAttemptKey(responseKey, response) : undefined,
+        ctx.modified === true
       ),
       typeof a.answer === 'string' ? a.answer : '',
       undefined,
@@ -271,6 +274,9 @@ export async function handleScoreQuizOnSubmit(
         .questionIds
     ),
     fibAnswersByQuestion: servedFibAnswers(assignment, callerUid),
+    modified:
+      asRecord(asRecord(assignment.overridesByStudentUid)[callerUid])
+        .modifiedQuestions === true,
   };
   return db.runTransaction(async (tx) => {
     const snap = await tx.get(responseRef);

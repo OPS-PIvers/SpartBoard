@@ -4569,6 +4569,8 @@ export interface CalcSpec {
   /** Decimals the shown answer is rounded to; grading uses the unrounded value. */
   roundTo?: number;
   unit?: string;
+  /** Answer for students given a modified prompt with typed numbers instead of {name} links. */
+  modifiedAnswer?: string;
 }
 
 export interface QuizQuestion {

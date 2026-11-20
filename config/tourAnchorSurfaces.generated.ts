@@ -598,6 +598,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'quiz-editor.calc-tolerance-kind': ['quiz.editor'],
     'quiz-editor.calc-round': ['quiz.editor'],
     'quiz-editor.calc-unit': ['quiz.editor'],
+    'quiz-editor.calc-modified-answer': ['quiz.editor'],
     'quiz-editor.prompt-equation': ['quiz.editor'],
     'quiz-editor.prompt-equation-cancel': ['quiz.editor'],
     'quiz-editor.prompt-equation-save': ['quiz.editor'],

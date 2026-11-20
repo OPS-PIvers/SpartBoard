@@ -62,7 +62,7 @@ export function makeQuizGradeFn(fibGrading?: FibGradingContext | null) {
         ? readSlotGrade(response.grading, question.id)
         : undefined;
     const base = gradeAnswer(
-      questionForResponse(question, response),
+      questionForResponse(question, response, fibGrading),
       studentAnswer,
       manualGrade,
       response ? fibAnswersForResponse(fibGrading, response, question.id) : [],

@@ -161,4 +161,56 @@ describe('random-number questions in the app', () => {
       })
     ).toBe(`${key}@1000#2`);
   });
+
+  describe('a modified version with typed numbers', () => {
+    const modQ: QuizQuestion = {
+      ...q,
+      modifiedText:
+        'A car goes 60 km in 2 hours. How fast does it go each hour?',
+      calc: { ...calc, modifiedAnswer: '30' },
+    };
+    const key = 'uid-mod';
+    const r = {
+      ...response(key),
+      studentUid: 'mod-student',
+      answers: [{ questionId: 'q1', answer: '30', answeredAt: 1 }],
+    } as unknown as QuizResponse;
+    const overrides = {
+      overridesByStudentUid: { 'mod-student': { modifiedQuestions: true } },
+    };
+
+    it('grades a modified student on the typed-number answer', () => {
+      expect(
+        gradeAnswer(questionForResponse(modQ, r, overrides), '30 km/h')
+          .isCorrect
+      ).toBe(true);
+      expect(gradeAnswer(questionForResponse(modQ, r), '30').isCorrect).toBe(
+        false
+      );
+    });
+
+    it('keeps random numbers when the modified version uses the number links', () => {
+      const linked = { ...modQ, modifiedText: 'Speed for {d} km in {t} h?' };
+      expect(questionForResponse(linked, r, overrides).calcValues).toEqual(
+        calcValuesFor(q, key)
+      );
+    });
+
+    it('publishes and shows the typed-number answer to that student', () => {
+      expect(
+        withCalcRevealed(
+          {},
+          [modQ],
+          key,
+          { status: 'completed', completedAttempts: 1 },
+          true
+        )
+      ).toEqual({ q1: '30.00 km/h' });
+      const [line] = computeStudentDrilldown([modQ], r, undefined, {
+        modified: overrides,
+      }).lines;
+      expect(line.correctAnswerText).toBe('30.00 km/h');
+      expect(line.text).toBe(modQ.modifiedText);
+    });
+  });
 });

@@ -1,6 +1,6 @@
 import {
   calcAttemptKey,
-  calcValuesFor,
+  calcModifiedNeedsAnswer,
   formatCalcAnswer,
   isCalcQuestion,
   withCalcValues,
@@ -130,17 +130,23 @@ export function withCalcRevealed(
   questions: Iterable<QuizQuestion>,
   responseKey: string,
   response: Pick<QuizResponse, 'status' | 'completedAttempts'> &
-    Partial<Pick<QuizResponse, 'joinedAt'>>
+    Partial<Pick<QuizResponse, 'joinedAt'>>,
+  /** The student gets the modified version of each question. */
+  modified = false
 ): Record<string, string> | null {
   if (!answerKey) return answerKey;
   const key = calcAttemptKey(responseKey, response);
   let out = answerKey;
   for (const q of questions) {
     if (!isCalcQuestion(q) || !q.calc) continue;
-    const values = calcValuesFor(q, key);
-    if (!values) continue;
+    const own = withCalcValues(
+      q,
+      key,
+      modified && calcModifiedNeedsAnswer(q.modifiedText, q.calc)
+    );
+    if (!own.calcValues || !own.calc) continue;
     if (out === answerKey) out = { ...answerKey };
-    out[q.id] = formatCalcAnswer(q.calc, values);
+    out[q.id] = formatCalcAnswer(own.calc, own.calcValues);
   }
   return out;
 }
@@ -269,7 +275,13 @@ export function gradeResponseForPublish(
       q,
       data,
       gradeAnswer(
-        withCalcValues(q, calcAttemptKey(responseKey, data)),
+        withCalcValues(
+          q,
+          calcAttemptKey(responseKey, data),
+          q.calc &&
+            calcModifiedNeedsAnswer(q.modifiedText, q.calc) &&
+            overridesByStudentUid[data.studentUid]?.modifiedQuestions === true
+        ),
         a.answer,
         manualGrade,
         fibAcceptedAnswers(

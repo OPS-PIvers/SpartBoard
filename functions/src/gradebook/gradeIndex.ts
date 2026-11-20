@@ -142,6 +142,9 @@ export async function loadSessionContext(
         asStrings(
           asRecord(asRecord(assignment.overridesByStudentUid)[uid]).questionIds
         ),
+      modifiedStudent: (uid) =>
+        asRecord(asRecord(assignment.overridesByStudentUid)[uid])
+          .modifiedQuestions === true,
       paperCopyBatchIds: new Set(asStrings(assignment.paperCopyBatchIds)),
     };
     const s = session;

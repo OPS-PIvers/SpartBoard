@@ -10922,6 +10922,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-editor.calc-modified-answer",
+    "label": "Modified answer field of a random-number question whose modified version has typed numbers",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ]
+  },
+  {
     "id": "quiz-editor.prompt-equation",
     "label": "Equation link on the question prompt in the Quiz editor",
     "scope": "widget type",

@@ -6,7 +6,6 @@ import { ALLOWED_ORIGINS } from './classlinkShared';
 import { loadSessionContext } from './gradebook/gradeIndex';
 import {
   calcAttemptKey,
-  calcValuesFor,
   formatCalcAnswer,
   withCalcValues,
 } from './quizCalculated';
@@ -194,6 +193,7 @@ export async function handleGetMyQuizAttempts(
     : null;
   const byId = new Map((ctx?.quiz?.questions ?? []).map((q) => [q.id, q]));
   const fib = ctx?.quiz?.fibAnswersByStudent(callerUid) ?? {};
+  const modified = ctx?.quiz?.modifiedStudent?.(callerUid) === true;
   const list = listSnap.data();
 
   const attempts = copies.map((c): MyAttempt => {
@@ -215,9 +215,9 @@ export async function handleGetMyQuizAttempts(
     const calcAnswers: Record<string, string> = {};
     if (visibility === 'score-responses-and-answers')
       for (const q of byId.values()) {
-        const values = q.calc ? calcValuesFor(q, attemptKey) : undefined;
-        if (q.calc && values)
-          calcAnswers[q.id] = formatCalcAnswer(q.calc, values);
+        const own = withCalcValues(q, attemptKey, modified);
+        if (own.calc && own.calcValues)
+          calcAnswers[q.id] = formatCalcAnswer(own.calc, own.calcValues);
       }
     const representative = representativeAnswers(parsed.answers);
     const served = parsed.servedQuestionIds?.length
@@ -232,7 +232,7 @@ export async function handleGetMyQuizAttempts(
       const g =
         q && judged
           ? gradeGroupAnswer(
-              withCalcValues(q, attemptKey),
+              withCalcValues(q, attemptKey, modified),
               a.answer,
               parsed.manualGrades?.[q.id],
               q.type === 'FIB' ? fib[q.id] : undefined,

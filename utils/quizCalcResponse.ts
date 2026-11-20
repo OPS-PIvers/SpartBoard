@@ -3,6 +3,7 @@ import type { QuizResponse } from '@/types';
 import { getResponseDocKey } from '@/hooks/quizSession/responseKeys';
 import {
   calcAttemptKey,
+  calcModifiedNeedsAnswer,
   calcSeed,
   drawCalcValues,
   fillCalcPrompt,
@@ -12,15 +13,51 @@ import {
   type CalcVariable,
 } from '@/utils/quizCalculated';
 
+/** Per-student overrides from the assignment doc; only "modified questions" matters here. */
+export interface ModifiedSource {
+  overridesByStudentUid?: Record<
+    string,
+    { modifiedQuestions?: boolean }
+  > | null;
+  overridesBySourcedId?: Record<string, { modifiedQuestions?: boolean }> | null;
+}
+
+/** True when the teacher gave this student the modified version of each question. */
+export function isModifiedStudent(
+  response: Pick<QuizResponse, 'studentUid'> & { sourcedId?: string },
+  source: ModifiedSource | null | undefined
+): boolean {
+  if (!source) return false;
+  if (source.overridesByStudentUid?.[response.studentUid]?.modifiedQuestions)
+    return true;
+  return response.sourcedId
+    ? source.overridesBySourcedId?.[response.sourcedId]?.modifiedQuestions ===
+        true
+    : false;
+}
+
 export function questionForResponse<
-  Q extends { id: string; type: string; calc?: CalcSpec },
+  Q extends {
+    id: string;
+    type: string;
+    calc?: CalcSpec;
+    modifiedText?: string;
+  },
 >(
   q: Q,
-  response: QuizResponse | undefined
+  response: QuizResponse | undefined,
+  modified?: ModifiedSource | null
 ): Q & { calcValues?: Record<string, number> } {
-  return response
-    ? withCalcValues(q, calcAttemptKey(getResponseDocKey(response), response))
-    : q;
+  if (!response) return q;
+  const fixed =
+    !!q.calc &&
+    calcModifiedNeedsAnswer(q.modifiedText, q.calc) &&
+    isModifiedStudent(response, modified);
+  return withCalcValues(
+    q,
+    calcAttemptKey(getResponseDocKey(response), response),
+    fixed
+  );
 }
 
 /** A student's public question with their own numbers written into its prompt; other questions unchanged. */

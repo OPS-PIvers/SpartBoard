@@ -2788,7 +2788,9 @@ export const useQuizAssignments = (
               answerKey,
               ctx.questionsById.values(),
               responseKey,
-              data
+              data,
+              ctx.overridesByStudentUid[data.studentUid]?.modifiedQuestions ===
+                true
             ),
             rubricExamples,
             explanations,
@@ -3017,7 +3019,9 @@ export const useQuizAssignments = (
                     revealedAnswers,
                     ctx.questionsById.values(),
                     responseKey,
-                    data
+                    data,
+                    ctx.overridesByStudentUid[data.studentUid]
+                      ?.modifiedQuestions === true
                   ),
                 }
               : {}),
@@ -3213,7 +3217,9 @@ export const useQuizAssignments = (
                   opts.answerKey,
                   ctx.questionsById.values(),
                   responseKey,
-                  cleared
+                  cleared,
+                  ctx.overridesByStudentUid[cleared.studentUid]
+                    ?.modifiedQuestions === true
                 ),
               }
             ),
