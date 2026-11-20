@@ -3904,6 +3904,22 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
     expect(findAssignmentSet()).not.toHaveProperty('resolvedDriveFileId');
   });
 
+  it('keeps the library file as the quiz and records the frozen copy beside it', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.createAssignment(QUIZ, {
+        sessionMode: 'student',
+        sessionOptions: {},
+        frozenDriveFileId: 'drive-frozen',
+      });
+    });
+    expect(findAssignmentSet()).toMatchObject({
+      quizDriveFileId: QUIZ.driveFileId,
+      frozenDriveFileId: 'drive-frozen',
+    });
+    expect(findAssignmentSet()).not.toHaveProperty('resolvedDriveFileId');
+  });
+
   // The `/quiz` route mounts no AuthProvider, so the media gate is decided
   // here and travels on the session doc as `mediaResponseEnabled`.
   function mediaWrapper(granted: boolean) {

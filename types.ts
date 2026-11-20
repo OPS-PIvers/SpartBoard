@@ -7539,6 +7539,8 @@ export interface QuizAssignmentSettings {
    * special case. Absent on quizzes without banks.
    */
   resolvedDriveFileId?: string;
+  /** Drive copy of a quiz without bank slots, saved at assign so later edits don't re-score it. */
+  frozenDriveFileId?: string;
 }
 
 /**
@@ -11881,6 +11883,8 @@ export type GlobalFeature =
   | 'quiz-recap-all-options'
   /** Quiz assign stays open with a spinner until the save finishes, and shows a failed save inline. */
   | 'quiz-assign-waits-for-save'
+  /** Each quiz assignment keeps a copy of the questions it was given, so later edits never change its scores. */
+  | 'quiz-frozen-assignments'
   /** Rubric grading redesign: one-tap level buttons, expandable criteria, level order switch, full-rubric table. */
   | 'rubric-grading-v2'
   /** Quiz assign: a modification group can get a printed version, scanned back into the same results. */
