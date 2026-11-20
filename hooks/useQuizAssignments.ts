@@ -183,6 +183,7 @@ import {
   classPublishPatch,
   gradeResponseForPublish,
   hiddenResultsPatch,
+  limitKeyToServed,
   publishScoreFields,
   selectQuestionTranslations,
   type QuizTranslationsByLocale,
@@ -2991,6 +2992,18 @@ export const useQuizAssignments = (
       );
       const buildStudentPatch = (data: QuizResponse) => {
         const graded = gradeResponseForPublish(data, ctx);
+        const answersForStudent = limitKeyToServed(
+          revealedAnswers ?? null,
+          graded.servedIds ?? null
+        );
+        const examplesForStudent = limitKeyToServed(
+          revealedRubricExamples,
+          graded.servedIds ?? null
+        );
+        const explanationsForStudent = limitKeyToServed(
+          revealedExplanations,
+          graded.servedIds ?? null
+        );
         return {
           ...publishScoreFields(graded),
           answers: keepVerdicts
@@ -3001,9 +3014,15 @@ export const useQuizAssignments = (
             visibility,
             publishedAt: now,
             expiresAt,
-            ...(revealedAnswers ? { revealedAnswers } : {}),
-            ...(revealedRubricExamples ? { revealedRubricExamples } : {}),
-            ...(revealedExplanations ? { revealedExplanations } : {}),
+            ...(answersForStudent
+              ? { revealedAnswers: answersForStudent }
+              : {}),
+            ...(examplesForStudent
+              ? { revealedRubricExamples: examplesForStudent }
+              : {}),
+            ...(explanationsForStudent
+              ? { revealedExplanations: explanationsForStudent }
+              : {}),
             ...(protection ? { protection } : {}),
           },
         };
