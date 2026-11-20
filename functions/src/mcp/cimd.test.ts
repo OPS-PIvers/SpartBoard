@@ -69,7 +69,12 @@ afterEach(() => vi.unstubAllGlobals());
 describe('isCimdClientId', () => {
   it('accepts only https documents on Claude hosts', () => {
     expect(isCimdClientId(CODE_ID)).toBe(true);
-    expect(isCimdClientId('https://claude.com/oauth/x')).toBe(true);
+    expect(
+      isCimdClientId('https://claude.ai/oauth/mcp-oauth-client-metadata')
+    ).toBe(true);
+    expect(isCimdClientId('https://claude.com/oauth/x')).toBe(false);
+    expect(isCimdClientId('https://claude.ai/public/artifacts/x')).toBe(false);
+    expect(isCimdClientId(`${CODE_ID}/x`)).toBe(false);
     expect(isCimdClientId('https://evil.example/oauth/x')).toBe(false);
     expect(isCimdClientId('https://claude.ai.evil.com/x')).toBe(false);
     expect(isCimdClientId('http://claude.ai/oauth/x')).toBe(false);
@@ -237,6 +242,39 @@ describe('CIMD behind the switch', () => {
     expect(
       await verifyAccessToken(db, out.json.access_token as string)
     ).toMatchObject({ uid: 't1', email: TEACHER });
+  });
+
+  it('keeps the code when the document fetch fails at the token step', async () => {
+    mockFetch(CODE_DOC);
+    const db = seed(true);
+    const verifier = randomBytes(32).toString('base64url');
+    const challenge = createHash('sha256').update(verifier).digest('base64url');
+    const redirectUri = 'http://localhost:51234/callback';
+    const approved = await authorize(
+      db,
+      { uid: 't1', token: { email: TEACHER, email_verified: true } },
+      {
+        clientId: CODE_ID,
+        redirectUri,
+        codeChallenge: challenge,
+        codeChallengeMethod: 'S256',
+        decision: 'approve',
+      }
+    );
+    if (approved.decision !== 'approve') throw new Error('expected approve');
+    const code = new URL(approved.redirectTo).searchParams.get('code') ?? '';
+    const body = {
+      grant_type: 'authorization_code',
+      code,
+      code_verifier: verifier,
+      client_id: CODE_ID,
+      redirect_uri: redirectUri,
+    };
+    resetCimdCache();
+    mockFetch({}, 503);
+    expect((await handleToken(db, body)).json.error).toBe('invalid_grant');
+    mockFetch(CODE_DOC);
+    expect((await handleToken(db, body)).status).toBe(200);
   });
 
   it('keeps exact redirect matching for registered (DCR) clients', async () => {

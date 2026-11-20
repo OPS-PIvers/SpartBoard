@@ -124,6 +124,20 @@ describe('viewAsTab', () => {
     vi.useRealTimers();
   });
 
+  it('opens the Share to PLC window over every collection the bank share batch writes', async () => {
+    vi.useFakeTimers();
+    window.history.replaceState({}, '', '/?viewAs=1');
+    const mod = await import('./viewAsTab');
+    const { VIEW_AS_WRITES } = await import('@/hooks/useViewAsOutward');
+    mod.updateViewAsTabState({ unlocked: true });
+    vi.advanceTimersByTime(30_001);
+    mod.openViewAsOutwardWindow(VIEW_AS_WRITES.sharePlc);
+    const batch = ['synced_bank_owners/g1', 'synced_question_banks/g1'];
+    expect(mod.viewAsBlocksRawWrite(batch)).toBe(false);
+    expect(mod.viewAsRawWriteNeedsAudit(batch)).toBe(false);
+    vi.useRealTimers();
+  });
+
   it('never blocks raw writes in an ordinary tab', async () => {
     const mod = await import('./viewAsTab');
     expect(mod.viewAsBlocksRawWrite(['users/u1'])).toBe(false);

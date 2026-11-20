@@ -262,7 +262,12 @@ export async function loadTestClassMembership(
   teacherEmail: string,
   testClassIds: readonly string[],
   names?: Map<string, TargetDirectoryName>
-): Promise<{ membership: Map<string, string>; authorized: boolean }> {
+): Promise<{
+  membership: Map<string, string>;
+  authorized: boolean;
+  /** Set when a test class doc could not be read, so an empty answer is not final. */
+  readFailed?: unknown;
+}> {
   const out = new Map<string, string>();
   if (testClassIds.length === 0) {
     return { membership: out, authorized: false };
@@ -278,12 +283,16 @@ export async function loadTestClassMembership(
     orgId
   );
   if (!authorized) return { membership: out, authorized: false };
+  let readFailed: unknown = undefined;
   const snaps = await Promise.all(
     testClassIds.map((id) =>
       db
         .doc(`organizations/${orgId}/testClasses/${id}`)
         .get()
-        .catch(() => null)
+        .catch((err: unknown) => {
+          readFailed ??= err;
+          return null;
+        })
     )
   );
   for (let i = 0; i < testClassIds.length; i++) {
@@ -305,7 +314,9 @@ export async function loadTestClassMembership(
       }
     }
   }
-  return { membership: out, authorized: true };
+  return readFailed === undefined
+    ? { membership: out, authorized: true }
+    : { membership: out, authorized: true, readFailed };
 }
 
 /** Every page of a OneRoster list; a full page at the page cap throws rather than return part of it. */
