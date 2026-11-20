@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type * as admin from './firebaseAdmin';
+import { FieldValue } from 'firebase-admin/firestore';
 
 vi.mock('./viewAsGuard', () => ({ assertViewAsAllowed: vi.fn() }));
 
@@ -102,6 +103,7 @@ describe('handleClaimPaperResponse', () => {
       { questionId: 'q2', paperScanId: 'scan-1' },
     ]);
     expect(after?.paperWrittenBatchId).toBe('batch-1');
+    expect(after?.lastWriteAt).toBeInstanceOf(FieldValue);
   });
 
   it('is idempotent for the device that already holds the row', async () => {
@@ -132,13 +134,41 @@ describe('handleClaimPaperResponse', () => {
     );
   });
 
-  it('refuses a row another device already claimed', async () => {
+  it('refuses a row another device already owns without spending the shared budgets', async () => {
     row({ studentUid: 'anon-other' });
     await expect(claim()).resolves.toEqual({
       claimed: false,
       reason: 'not-found',
     });
     expect(store.get(ROW_PATH)?.studentUid).toBe('anon-other');
+    expect(store.has(`pin_login_attempts/session__${SESSION}`)).toBe(false);
+    expect(store.has(`pin_login_attempts/${SESSION}__anon-1`)).toBe(false);
+  });
+
+  it('refuses a device-joined row with no scanned answers without counting a miss', async () => {
+    store.set(ROW_PATH, {
+      studentUid: 'anon-other',
+      pin: '1234',
+      classPeriod: 'Period 1',
+      status: 'in-progress',
+      answers: [],
+    });
+    await expect(claim()).resolves.toEqual({
+      claimed: false,
+      reason: 'not-found',
+    });
+    expect(store.has(`pin_login_attempts/session__${SESSION}`)).toBe(false);
+  });
+
+  it('counts a miss when no row exists at the key', async () => {
+    store.delete(ROW_PATH);
+    await expect(claim()).resolves.toEqual({
+      claimed: false,
+      reason: 'not-found',
+    });
+    expect(store.get(`pin_login_attempts/session__${SESSION}`)?.failures).toBe(
+      1
+    );
   });
 
   it('refuses a row with no scanned written answers', async () => {

@@ -178,7 +178,8 @@ export async function handleClaimPaperResponse(
       (periodNames.length === 0 ||
         periodNames.includes(String(row.classPeriod)));
     if (!claimable) {
-      recordPinLoginMiss(tx, refs, a, shared);
+      // Only a guess that finds nothing (or a retired PIN) is a miss; an owned row is an ordinary rejoin on another device.
+      if (row === null || isRetired) recordPinLoginMiss(tx, refs, a, shared);
       return {
         claimed: false,
         reason: limited ? 'rate-limited' : 'not-found',
@@ -196,6 +197,8 @@ export async function handleClaimPaperResponse(
     tx.update(responseRef, {
       studentUid: caller.uid,
       ...(classId && row.classId !== classId ? { classId } : {}),
+      // A device-owned row ages into the idle and end-of-run turn-ins like one the device created.
+      lastWriteAt: admin.firestore.FieldValue.serverTimestamp(),
     });
     return { claimed: true } as const;
   });
