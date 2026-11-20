@@ -22,7 +22,9 @@ import type {
 import {
   AssignedLeftOpenFlag,
   AssignedList,
+  AssignedReopenDialog,
   AssignedRow,
+  assignedMenu,
   useAssignedBulkOps,
   type ClassActionKind,
   mainActionLabel,
@@ -45,14 +47,7 @@ import { BELL_CLOSE_CUSHION_MS, type EpochWindow } from '@/utils/periodPlan';
 import { logError } from '@/utils/logError';
 import { isResponseAwaitingGrade } from '../utils/quizScoreboard';
 import { AssignedResponsesFixture } from './assignedResponsesFixture';
-import {
-  CheckCircle2,
-  Monitor,
-  Pause,
-  Play,
-  PowerOff,
-  RotateCcw,
-} from 'lucide-react';
+import { PowerOff } from 'lucide-react';
 
 /** What the row's main button does beyond the class actions. */
 export interface QuizAssignedHandlers {
@@ -63,7 +58,7 @@ export interface QuizAssignedHandlers {
   legacyPrimary: (
     a: QuizAssignment
   ) => { label: string; onClick: () => void } | null;
-  /** Today's overflow items for the row; class lifecycle items are dropped here. */
+  /** Today's flat overflow items; `assignedMenu` keeps what fits the row (R6). */
   menu: (a: QuizAssignment) => LibraryMenuAction[];
   monitorBadge?: (a: QuizAssignment) => { count: number; label: string } | null;
 }
@@ -86,13 +81,6 @@ interface QuizAssignedTabProps extends QuizAssignedHandlers {
 
 const TICK_MS = 30_000;
 const PIN_MS = 15 * 60_000;
-/** Today's overflow items the Assigned row replaces with per-class actions (D6, D16). */
-const REPLACED_MENU_IDS = new Set([
-  'deactivate',
-  'pause',
-  'reopen',
-  'reactivate',
-]);
 
 /** A row still being worked: anything not ended before the Assigned tab handled it (D20). */
 const wantsLiveData = (a: QuizAssignment) =>
@@ -210,6 +198,8 @@ export interface QuizAssignedRowModel {
   bells: Record<string, EpochWindow | null>;
   viewOnly: boolean;
   published: boolean;
+  /** Responses so far; null where the row has no listener. */
+  responseCount: number | null;
 }
 
 /** Quiz rows for any Assigned list: the widget tab and the Assignments hub (D18). */
@@ -291,6 +281,7 @@ export function useQuizAssignedRows(
           bells,
           viewOnly: a.mode === 'view-only',
           published: scoresShown(a.scoreVisibility),
+          responseCount: wantsLiveData(a) ? (responses?.length ?? null) : null,
         };
       }),
     [
@@ -536,74 +527,8 @@ export const QuizAssignedRowHost: React.FC<QuizAssignedRowHostProps> = ({
 
   // Paper quizzes are never opened online, so they get no class controls.
   const onPaper = !!a.paper;
-  const singleLine = status.singleLine || onPaper;
-  const singleLineItems: LibraryMenuAction[] = [];
-  if (status.singleLine && !viewOnly && !onPaper) {
-    const only = status.classes[0];
-    if (only?.status === 'open')
-      singleLineItems.push({
-        id: 'assigned-pause',
-        label: 'Pause',
-        icon: Pause,
-        onClick: () => onClassAction('pause', null),
-      });
-    if (only?.status === 'paused' && status.action.kind !== 'resume')
-      singleLineItems.push({
-        id: 'assigned-resume',
-        label: 'Resume',
-        icon: Play,
-        onClick: () => onClassAction('resume', null),
-      });
-  }
   const allClosed = status.classes.every((c) => c.status === 'closed');
-  if (singleLine) {
-    if (!allClosed)
-      singleLineItems.push({
-        id: 'assigned-close',
-        label: 'Close',
-        icon: PowerOff,
-        onClick: () =>
-          withUndo(
-            () => actions.closeAll(),
-            viewOnly ? 'Share closed.' : `${a.quizTitle} is closed.`
-          ),
-      });
-    else if ((status.bucket === 'active' || viewOnly) && !onPaper)
-      singleLineItems.push({
-        id: 'assigned-reopen',
-        label: 'Reopen',
-        icon: RotateCcw,
-        onClick: () => onClassAction('reopen', null),
-      });
-  }
-  const lifecycleItems: LibraryMenuAction[] = [];
-  if (!singleLine && !allClosed)
-    lifecycleItems.push({
-      id: 'assigned-close-all',
-      label: 'Close for all classes',
-      icon: PowerOff,
-      anchor: tourTypeAttr('library-shell.assigned-close-all', tourWidgetType),
-      onClick: () =>
-        withUndo(
-          () => actions.closeAll(),
-          `${a.quizTitle} is closed for all classes.`
-        ),
-    });
-  if (status.bucket === 'active' && !viewOnly)
-    lifecycleItems.push({
-      id: 'assigned-move-to-done',
-      label: 'Move to Finished',
-      icon: CheckCircle2,
-      anchor: tourTypeAttr(
-        'library-shell.assigned-move-to-done',
-        tourWidgetType
-      ),
-      onClick: () =>
-        withUndo(
-          () => actions.moveToDone(),
-          `${a.quizTitle} moved to Finished.`
-        ),
-    });
+  const [reopening, setReopening] = useState(false);
   useAssignedBulkOps({
     close: allClosed
       ? undefined
@@ -628,34 +553,46 @@ export const QuizAssignedRowHost: React.FC<QuizAssignedRowHostProps> = ({
         : undefined,
   });
   const built = menu(a);
-  const today = built.filter((m) => !REPLACED_MENU_IDS.has(m.id));
-  // Reopen for chosen students outlives the whole-assignment Reopen it sat under.
+  // The per-student reopen sits under today's Reopen; the chooser offers it (R7).
   const pickStudents = built
     .find((m) => m.id === 'reopen')
     ?.submenu?.find((m) => m.id === 'reopen-students');
-  if (pickStudents)
-    today.push({ ...pickStudents, label: 'Reopen for selected students' });
-  // D7: Monitor is always one menu row away, and opening it changes nothing.
-  if (!viewOnly && !today.some((m) => m.id === 'monitor'))
-    today.unshift({
-      id: 'monitor',
-      label: 'Monitor',
-      icon: Monitor,
-      anchor: tourTypeAttr('quiz-library.archive-monitor', 'quiz'),
-      onClick: () => onMonitor(a),
-    });
-  for (const item of [...singleLineItems, ...lifecycleItems])
-    item.disabled = busy;
-  const firstDestructive = today.findIndex((m) => m.destructive);
-  const menuActions =
-    firstDestructive < 0
-      ? [...singleLineItems, ...today, ...lifecycleItems]
-      : [
-          ...singleLineItems,
-          ...today.slice(0, firstDestructive),
-          ...lifecycleItems,
-          ...today.slice(firstDestructive),
-        ];
+  // A paper quiz has no class controls in its panel, so its Close stays in the menu.
+  const paperClose: LibraryMenuAction[] =
+    onPaper && status.singleLine && !allClosed
+      ? [
+          {
+            id: 'assigned-close',
+            label: 'Close',
+            icon: PowerOff,
+            disabled: busy,
+            onClick: () =>
+              withUndo(() => actions.closeAll(), `${a.quizTitle} is closed.`),
+          },
+        ]
+      : [];
+  const menuActions = assignedMenu({
+    status,
+    viewOnly,
+    items: [...paperClose, ...built],
+    published: row.published,
+    hasResponses: row.responseCount == null ? null : row.responseCount > 0,
+    onCloseAll: () =>
+      withUndo(
+        () => actions.closeAll(),
+        `${a.quizTitle} is closed for all classes.`
+      ),
+    onMoveToDone: () =>
+      withUndo(() => actions.moveToDone(), `${a.quizTitle} moved to Finished.`),
+    onReopen: onPaper
+      ? undefined
+      : viewOnly
+        ? () => onClassAction('reopen', null)
+        : () => setReopening(true),
+    reopenAnchor: tourTypeAttr('quiz-library.archive-reopen', 'quiz'),
+    tourWidgetType,
+    busy,
+  });
 
   // D16 and paper: the link or the scan is still the thing to do while it runs.
   const legacy = (viewOnly && !allClosed) || paper ? legacyPrimary(a) : null;
@@ -705,35 +642,46 @@ export const QuizAssignedRowHost: React.FC<QuizAssignedRowHostProps> = ({
   ];
 
   return (
-    <AssignedRow
-      title={a.quizTitle}
-      status={status}
-      nowMs={now}
-      mainLabel={mainLabel}
-      onMain={onMain}
-      mainBadgeCount={badge?.count}
-      mainBadgeAriaLabel={badge?.label}
-      detail={detail}
-      onResults={viewOnly ? undefined : () => onResults(a)}
-      canPause={!viewOnly}
-      onClassAction={onClassAction}
-      classControls={!onPaper}
-      mainTone={legacy ? 'monitor' : undefined}
-      bellLabel={(c) => {
-        const w = bells[c.key];
-        return w
-          ? `${fmtTime(w.openAt)} to ${fmtTime(w.closeAt - BELL_CLOSE_CUSHION_MS)}`
-          : null;
-      }}
-      footer={footer}
-      menuActions={menuActions}
-      busy={busy}
-      tourIndex={index}
-      tourWidgetType={tourWidgetType}
-      meta={meta}
-      selected={selected}
-      onSelect={onSelect}
-      selectAnchor={selectAnchor}
-    />
+    <>
+      {reopening && (
+        <AssignedReopenDialog
+          title={a.quizTitle}
+          status={status}
+          onPickStudents={pickStudents?.onClick}
+          onReopen={(key) => exec(() => actions.reopenClass(key))}
+          onClose={() => setReopening(false)}
+        />
+      )}
+      <AssignedRow
+        title={a.quizTitle}
+        status={status}
+        nowMs={now}
+        mainLabel={mainLabel}
+        onMain={onMain}
+        mainBadgeCount={badge?.count}
+        mainBadgeAriaLabel={badge?.label}
+        detail={detail}
+        onResults={viewOnly ? undefined : () => onResults(a)}
+        canPause={!viewOnly}
+        onClassAction={onClassAction}
+        classControls={!onPaper}
+        mainTone={legacy ? 'monitor' : undefined}
+        bellLabel={(c) => {
+          const w = bells[c.key];
+          return w
+            ? `${fmtTime(w.openAt)} to ${fmtTime(w.closeAt - BELL_CLOSE_CUSHION_MS)}`
+            : null;
+        }}
+        footer={footer}
+        menuActions={menuActions}
+        busy={busy}
+        tourIndex={index}
+        tourWidgetType={tourWidgetType}
+        meta={meta}
+        selected={selected}
+        onSelect={onSelect}
+        selectAnchor={selectAnchor}
+      />
+    </>
   );
 };

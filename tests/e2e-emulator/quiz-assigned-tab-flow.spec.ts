@@ -61,10 +61,7 @@ test('a teacher runs a quiz class by class from the Assigned tab', async ({
       panel.getByRole('button', { name: 'Choose class' })
     ).toBeVisible();
     expect(await rowMenuItems(page, library)).toEqual([
-      'Monitor',
-      'Results',
       'Settings',
-      'Share',
       'Assign to Google Classroom',
       'Close for all classes',
       'Move to Finished',
@@ -153,14 +150,21 @@ test('a teacher runs a quiz class by class from the Assigned tab', async ({
     await panel.getByRole('button', { name: 'Finished 1' }).click();
     await reads(`${QUIZ} Closed`);
     expect(await rowMenuItems(page, library)).toEqual([
-      'Monitor',
-      'Settings',
-      'Share',
-      'Publish scores',
-      'Reopen for selected students',
+      'Publish scores…',
+      'Reopen…',
       'Delete',
     ]);
-    await page.getByRole('menuitem', { name: 'Publish scores' }).click();
+    await page.getByRole('menuitem', { name: 'Reopen…' }).click();
+    const reopen = page.getByRole('dialog', { name: `Reopen ${QUIZ}` });
+    await expect(reopen.getByRole('radio')).toHaveText([
+      'Everyone in the class',
+      'Only chosen students',
+    ]);
+    await expect(reopen.getByRole('combobox', { name: 'Class' })).toBeVisible();
+    await reopen.getByRole('button', { name: 'Cancel' }).click();
+    await expect(reopen).toBeHidden();
+    await rowMenuItems(page, library);
+    await page.getByRole('menuitem', { name: 'Publish scores…' }).click();
     const publish = page.getByRole('dialog', {
       name: 'Publish scores to students',
     });

@@ -3186,7 +3186,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
               : null;
           }}
           menu={(a) =>
-            buildArchiveActions(
+            buildArchiveActionsRaw(
               a,
               a.status === 'inactive' ? 'archive' : 'active'
             ).secondaries

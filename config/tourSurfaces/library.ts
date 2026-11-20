@@ -17,6 +17,11 @@ export const SURFACES: TourSurfaceMap = {
       'library-shell.assigned-results': 'library-shell.assigned-classes',
       'library-shell.assigned-close-all': 'library-shell.archive-menu',
       'library-shell.assigned-move-to-done': 'library-shell.archive-menu',
+      'library-shell.assigned-reopen': 'library-shell.archive-menu',
+      'assigned-reopen.class': 'library-shell.assigned-reopen',
+      'assigned-reopen.who': 'library-shell.assigned-reopen',
+      'assigned-reopen.cancel': 'library-shell.assigned-reopen',
+      'assigned-reopen.confirm': 'library-shell.assigned-reopen',
       'library-shell.folder-menu-rename': 'library-shell.folder-menu',
       'library-shell.folder-menu-new-subfolder': 'library-shell.folder-menu',
       'library-shell.folder-menu-move-to-root': 'library-shell.folder-menu',
@@ -188,10 +193,6 @@ export const SURFACES: TourSurfaceMap = {
       'video-activity.preview-close':
         'library-shell.card-open:video-activity#row-1',
       'library-shell.archive-edit-classes':
-        'library-shell.archive-menu:video-activity#row-1',
-      'library-shell.assigned-close-all':
-        'library-shell.archive-menu:video-activity#row-1',
-      'library-shell.assigned-move-to-done':
         'library-shell.archive-menu:video-activity#row-1',
       'video-activity.preview-open-editor':
         'library-shell.card-open:video-activity#row-1',

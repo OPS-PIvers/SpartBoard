@@ -9,3 +9,8 @@ export {
   useAssignedBulkOps,
   type AssignedBulkOps,
 } from './assignedBulkContext';
+export { assignedMenu, type AssignedMenuOptions } from './assignedMenu';
+export {
+  AssignedReopenDialog,
+  type AssignedReopenDialogProps,
+} from './AssignedReopenDialog';

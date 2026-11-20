@@ -7,14 +7,7 @@ import {
   query,
   where,
 } from 'firebase/firestore';
-import {
-  BarChart3,
-  CheckCircle2,
-  Monitor,
-  PowerOff,
-  RotateCcw,
-  Trash2,
-} from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
@@ -22,13 +15,13 @@ import type { ClassRoster, WritingAssignmentRecord } from '@/types';
 import {
   AssignedLeftOpenFlag,
   AssignedList,
+  AssignedReopenDialog,
   AssignedRow,
+  assignedMenu,
   useAssignedBulkOps,
   type ClassActionKind,
   mainActionLabel,
 } from '@/components/common/library/assigned';
-import type { LibraryMenuAction } from '@/components/common/library/types';
-import { tourTypeAttr } from '@/config/tourAnchors';
 import { todaysBell } from '@/hooks/usePeriodAccess';
 import { usePeriodRunner } from '@/hooks/usePeriodRunner';
 import {
@@ -416,6 +409,9 @@ const WritingAssignedRowHost: React.FC<RowHostProps> = ({
       case 'pause':
         return void exec(() => actions.pauseClass(key));
       case 'close':
+        // A single-line Close is the whole assignment, so it offers Undo.
+        if (key == null)
+          return withUndo(() => actions.closeAll(), `${title} is closed.`);
         return void exec(() => actions.closeClass(key));
       case 'reopen':
         return void exec(() => actions.reopenClass(key));
@@ -436,47 +432,7 @@ const WritingAssignedRowHost: React.FC<RowHostProps> = ({
   };
 
   const allClosed = status.classes.every((c) => c.status === 'closed');
-  // Writing has no run-wide pause, so a single line offers Close and Reopen only.
-  const singleLineItems: LibraryMenuAction[] = [];
-  if (status.singleLine) {
-    if (!allClosed)
-      singleLineItems.push({
-        id: 'assigned-close',
-        label: 'Close',
-        icon: PowerOff,
-        onClick: () =>
-          withUndo(() => actions.closeAll(), `${title} is closed.`),
-      });
-    else if (status.bucket === 'active')
-      singleLineItems.push({
-        id: 'assigned-reopen',
-        label: 'Reopen',
-        icon: RotateCcw,
-        onClick: () => onClassAction('reopen', null),
-      });
-  }
-  const lifecycleItems: LibraryMenuAction[] = [];
-  if (!status.singleLine && !allClosed)
-    lifecycleItems.push({
-      id: 'assigned-close-all',
-      label: 'Close for all classes',
-      icon: PowerOff,
-      anchor: tourTypeAttr('library-shell.assigned-close-all', 'writing'),
-      onClick: () =>
-        withUndo(
-          () => actions.closeAll(),
-          `${title} is closed for all classes.`
-        ),
-    });
-  if (status.bucket === 'active')
-    lifecycleItems.push({
-      id: 'assigned-move-to-done',
-      label: 'Move to Finished',
-      icon: CheckCircle2,
-      anchor: tourTypeAttr('library-shell.assigned-move-to-done', 'writing'),
-      onClick: () =>
-        withUndo(() => actions.moveToDone(), `${title} moved to Finished.`),
-    });
+  const [reopening, setReopening] = useState(false);
   useAssignedBulkOps({
     close: allClosed
       ? undefined
@@ -494,32 +450,27 @@ const WritingAssignedRowHost: React.FC<RowHostProps> = ({
           }
         : undefined,
   });
-  for (const item of [...singleLineItems, ...lifecycleItems])
-    item.disabled = busy;
-  const menuActions: LibraryMenuAction[] = [
-    ...singleLineItems,
-    {
-      id: 'monitor',
-      label: 'Monitor',
-      icon: Monitor,
-      anchor: tourTypeAttr('writing.archive-monitor', 'writing'),
-      onClick: () => onMonitor(r),
-    },
-    {
-      id: 'results',
-      label: 'Results',
-      icon: BarChart3,
-      onClick: () => onResults(r),
-    },
-    ...lifecycleItems,
-    {
-      id: 'delete',
-      label: 'Delete',
-      icon: Trash2,
-      destructive: true,
-      onClick: () => onDelete(r),
-    },
-  ];
+  const menuActions = assignedMenu({
+    status,
+    viewOnly: false,
+    items: [
+      {
+        id: 'delete',
+        label: 'Delete',
+        icon: Trash2,
+        destructive: true,
+        onClick: () => onDelete(r),
+      },
+    ],
+    published: false,
+    onCloseAll: () =>
+      withUndo(() => actions.closeAll(), `${title} is closed for all classes.`),
+    onMoveToDone: () =>
+      withUndo(() => actions.moveToDone(), `${title} moved to Finished.`),
+    onReopen: () => setReopening(true),
+    tourWidgetType: 'writing',
+    busy,
+  });
 
   const onMain = () => {
     const { kind, classKey } = status.action;
@@ -543,25 +494,35 @@ const WritingAssignedRowHost: React.FC<RowHostProps> = ({
   ];
 
   return (
-    <AssignedRow
-      title={title}
-      status={status}
-      nowMs={now}
-      mainLabel={mainActionLabel(status.action, needsGrading)}
-      onMain={onMain}
-      onClassAction={onClassAction}
-      onResults={() => onResults(r)}
-      bellLabel={(c) => {
-        const w = bells[c.key];
-        return w
-          ? `${fmtTime(w.openAt)} to ${fmtTime(w.closeAt - BELL_CLOSE_CUSHION_MS)}`
-          : null;
-      }}
-      footer={footer}
-      menuActions={menuActions}
-      busy={busy}
-      tourIndex={index}
-      tourWidgetType="writing"
-    />
+    <>
+      {reopening && (
+        <AssignedReopenDialog
+          title={title}
+          status={status}
+          onReopen={(key) => exec(() => actions.reopenClass(key))}
+          onClose={() => setReopening(false)}
+        />
+      )}
+      <AssignedRow
+        title={title}
+        status={status}
+        nowMs={now}
+        mainLabel={mainActionLabel(status.action, needsGrading)}
+        onMain={onMain}
+        onClassAction={onClassAction}
+        onResults={() => onResults(r)}
+        bellLabel={(c) => {
+          const w = bells[c.key];
+          return w
+            ? `${fmtTime(w.openAt)} to ${fmtTime(w.closeAt - BELL_CLOSE_CUSHION_MS)}`
+            : null;
+        }}
+        footer={footer}
+        menuActions={menuActions}
+        busy={busy}
+        tourIndex={index}
+        tourWidgetType="writing"
+      />
+    </>
   );
 };

@@ -27316,42 +27316,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.archive-menu"
         ],
         "reveal": "library-shell.archive-menu"
-      },
-      {
-        "surface": "library.video-activity",
-        "kind": "widget",
-        "widget_type": "video-activity",
-        "path": [
-          "library-shell.archive-menu:video-activity#row-1"
-        ],
-        "reveal": "library-shell.archive-menu:video-activity#row-1",
-        "needs": [
-          "widget-on-stage"
-        ]
-      },
-      {
-        "surface": "quiz.face",
-        "kind": "widget",
-        "widget_type": "quiz",
-        "path": [
-          "library-shell.archive-menu:quiz#row-1"
-        ],
-        "reveal": "library-shell.archive-menu:quiz#row-1",
-        "needs": [
-          "widget-on-stage"
-        ]
-      },
-      {
-        "surface": "widgets.writing.face",
-        "kind": "widget",
-        "widget_type": "writing",
-        "path": [
-          "library-shell.archive-menu:writing#row-1"
-        ],
-        "reveal": "library-shell.archive-menu:writing#row-1",
-        "needs": [
-          "widget-on-stage"
-        ]
       }
     ]
   },
@@ -27363,13 +27327,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "persists": true,
     "routes": [
       {
-        "surface": "board.assignments-hub",
-        "kind": "modal",
+        "surface": "library.shell",
+        "kind": "shared",
         "path": [
-          "sidebar.open-menu",
-          "sidebar.assignments"
-        ]
-      },
+          "library-shell.archive-menu"
+        ],
+        "reveal": "library-shell.archive-menu"
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-reopen",
+    "label": "Reopen…, in an Assigned row menu",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
       {
         "surface": "library.shell",
         "kind": "shared",
@@ -27377,42 +27350,71 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.archive-menu"
         ],
         "reveal": "library-shell.archive-menu"
-      },
+      }
+    ]
+  },
+  {
+    "id": "assigned-reopen.class",
+    "label": "Class picker in the Reopen dialog of an Assigned row",
+    "scope": "board",
+    "panel": true,
+    "routes": [
       {
-        "surface": "library.video-activity",
-        "kind": "widget",
-        "widget_type": "video-activity",
+        "surface": "library.shell",
+        "kind": "shared",
         "path": [
-          "library-shell.archive-menu:video-activity#row-1"
+          "library-shell.assigned-reopen"
         ],
-        "reveal": "library-shell.archive-menu:video-activity#row-1",
-        "needs": [
-          "widget-on-stage"
-        ]
-      },
+        "reveal": "library-shell.assigned-reopen"
+      }
+    ]
+  },
+  {
+    "id": "assigned-reopen.who",
+    "label": "Everyone or only chosen students, in the Reopen dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
       {
-        "surface": "quiz.face",
-        "kind": "widget",
-        "widget_type": "quiz",
+        "surface": "library.shell",
+        "kind": "shared",
         "path": [
-          "library-shell.archive-menu:quiz#row-1"
+          "library-shell.assigned-reopen"
         ],
-        "reveal": "library-shell.archive-menu:quiz#row-1",
-        "needs": [
-          "widget-on-stage"
-        ]
-      },
+        "reveal": "library-shell.assigned-reopen"
+      }
+    ]
+  },
+  {
+    "id": "assigned-reopen.cancel",
+    "label": "Cancel button in the Reopen dialog of an Assigned row",
+    "scope": "board",
+    "panel": true,
+    "routes": [
       {
-        "surface": "widgets.writing.face",
-        "kind": "widget",
-        "widget_type": "writing",
+        "surface": "library.shell",
+        "kind": "shared",
         "path": [
-          "library-shell.archive-menu:writing#row-1"
+          "library-shell.assigned-reopen"
         ],
-        "reveal": "library-shell.archive-menu:writing#row-1",
-        "needs": [
-          "widget-on-stage"
-        ]
+        "reveal": "library-shell.assigned-reopen"
+      }
+    ]
+  },
+  {
+    "id": "assigned-reopen.confirm",
+    "label": "Reopen button in the Reopen dialog of an Assigned row",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": [
+          "library-shell.assigned-reopen"
+        ],
+        "reveal": "library-shell.assigned-reopen"
       }
     ]
   },
@@ -27422,27 +27424,65 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "row_wildcard": true,
-    "row_list": "assignment-rows"
+    "row_list": "assignment-rows",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": [
+          "library-shell.assigned-classes"
+        ],
+        "reveal": "library-shell.assigned-classes"
+      }
+    ]
   },
   {
     "id": "library-shell.assigned-search",
     "label": "Search box above the Assigned tab list",
-    "scope": "board"
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
   },
   {
     "id": "library-shell.assigned-filter-class",
     "label": "Class filter above the Assigned tab list",
-    "scope": "board"
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
   },
   {
     "id": "library-shell.assigned-filter-status",
     "label": "Status filter above the Assigned tab list",
-    "scope": "board"
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
   },
   {
     "id": "library-shell.assigned-filter-clear",
     "label": "Clear, beside the Assigned tab filters",
-    "scope": "board"
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
   },
   {
     "id": "library-shell.assigned-select",
@@ -65811,6 +65851,34 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "publish-scores.cancel",
     "label": "Cancel button in the publish scores dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.publish-scores",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "publish-scores.unpublish-confirm",
+    "label": "Unpublish button that confirms, in the publish scores dialog",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "sandboxed": true,
+    "routes": [
+      {
+        "surface": "library.publish-scores",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "publish-scores.unpublish-cancel",
+    "label": "Cancel beside the Unpublish confirm in the publish scores dialog",
     "scope": "board",
     "panel": true,
     "routes": [
