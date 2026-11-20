@@ -122,7 +122,7 @@ export const writeBatch = (db: firestore.Firestore): firestore.WriteBatch => {
   return batch;
 };
 
-export const runTransaction = (<T>(
+const guardedTransaction = <T>(
   db: firestore.Firestore,
   update: (tx: firestore.Transaction) => Promise<T>,
   options?: firestore.TransactionOptions
@@ -151,4 +151,55 @@ export const runTransaction = (<T>(
       }
       return result;
     });
+};
+
+interface TouchedDoc {
+  op: string;
+  path: string;
+}
+const TOUCHED_OPS = ['get', ...WRITERS];
+const CONTENDED_CODES = new Set(['failed-precondition', 'aborted']);
+
+// Notes which docs an attempt reads and writes, so a transaction that keeps failing can be named.
+function noteTouched(tx: firestore.Transaction, touched: TouchedDoc[]): void {
+  const target = tx as unknown as Record<string, unknown>;
+  for (const op of TOUCHED_OPS) {
+    const original = target[op];
+    if (typeof original !== 'function') continue;
+    target[op] = (ref: Ref, ...rest: unknown[]) => {
+      if (typeof ref?.path === 'string') touched.push({ op, path: ref.path });
+      return (original as (...args: unknown[]) => unknown).call(
+        tx,
+        ref,
+        ...rest
+      );
+    };
+  }
+}
+
+// Loaded lazily: the reporter imports '@/config/firebase', which imports this module.
+function reportContended(err: unknown, touched: TouchedDoc[]): void {
+  const code = (err as { code?: unknown } | null)?.code;
+  if (typeof code !== 'string' || !CONTENDED_CODES.has(code)) return;
+  const docs = [...touched];
+  void import('@/utils/transactionFailureReport')
+    .then(({ noteTransactionFailure }) => noteTransactionFailure(code, docs))
+    .catch(() => undefined);
+}
+
+export const runTransaction = (<T>(
+  db: firestore.Firestore,
+  update: (tx: firestore.Transaction) => Promise<T>,
+  options?: firestore.TransactionOptions
+): Promise<T> => {
+  const touched: TouchedDoc[] = [];
+  const traced = (tx: firestore.Transaction) => {
+    touched.length = 0;
+    noteTouched(tx, touched);
+    return update(tx);
+  };
+  return guardedTransaction(db, traced, options).catch((err: unknown) => {
+    reportContended(err, touched);
+    throw err;
+  });
 }) as typeof firestore.runTransaction;
