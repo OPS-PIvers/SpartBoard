@@ -177,7 +177,6 @@ export const WallLibraryModal: React.FC<WallLibraryModalProps> = ({
       }
       try {
         const sessionId = activityWallSessionId(uid, entry.id);
-        await clearWallSubmissions(sessionId);
         await onDelete(entry.id);
         await deleteDoc(doc(db, 'activity_wall_sessions', sessionId)).catch(
           () => {
