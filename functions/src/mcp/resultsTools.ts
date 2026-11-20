@@ -7,6 +7,7 @@ import { driveTokenFor, readDriveJson } from './drive';
 import { READ_ONLY, iso, run } from './toolKit';
 import { bucketScores } from '../plcAssessmentMath';
 import { readManifest, type ManifestQuestion } from '../miniAppGrading';
+import { calcAttemptKey } from '../quizCalculated';
 import type {
   AggregatePayload,
   CompletedResponse,
@@ -167,9 +168,10 @@ async function quizSessionSummary(
         teacherUid: ctx.uid,
         publicQuestions: asArray(s.publicQuestions),
         questionSnapshot: asArray(assignment.questionSnapshot),
-        responses: responses.map((d): CompletedResponse =>
-          recompute.parseCompletedResponse(d.data())
-        ),
+        responses: responses.map((d): CompletedResponse => ({
+          ...recompute.parseCompletedResponse(d.data()),
+          responseKey: calcAttemptKey(d.id, d.data()),
+        })),
         scorePublishedAt:
           typeof s.scorePublishedAt === 'number' ? s.scorePublishedAt : null,
         localizedFibAnswers: recompute.parseLocalizedFibAnswers(
@@ -199,10 +201,13 @@ async function quizKey(
 ): Promise<unknown[]> {
   const syncGroupId =
     typeof session.syncGroupId === 'string' ? session.syncGroupId : '';
+  // A frozen copy holds the questions the class was given.
   const fileId =
-    typeof assignment.quizDriveFileId === 'string'
-      ? assignment.quizDriveFileId
-      : '';
+    typeof assignment.frozenDriveFileId === 'string'
+      ? assignment.frozenDriveFileId
+      : typeof assignment.quizDriveFileId === 'string'
+        ? assignment.quizDriveFileId
+        : '';
   const cacheKey = syncGroupId ? `sync:${syncGroupId}` : `drive:${fileId}`;
   const hit = cache.get(cacheKey);
   if (hit) return hit;

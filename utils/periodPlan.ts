@@ -145,6 +145,14 @@ export function buildPeriodGate({
     : undefined;
 }
 
+/** A new quiz assignment's status: per-class gates or a later open time run by the clock, anything else waits for Start. */
+export const initialAssignStatus = (start: {
+  gated: boolean;
+  /** Scheduled to open after now, so it must open with no click. */
+  opensLater: boolean;
+}): 'active' | 'paused' =>
+  start.gated || start.opensLater ? 'active' : 'paused';
+
 /** Row writes for a class change on a per-period session: new classes get a row, unchecked ones lose theirs (null). */
 export function periodAccessClassEdits({
   periodAccess,

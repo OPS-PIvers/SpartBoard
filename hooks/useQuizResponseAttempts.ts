@@ -36,6 +36,8 @@ export function attemptAsResponse(
     ...live,
     ...asCompleted,
     status: 'completed',
+    // Its random numbers belong to this attempt, not the live one.
+    completedAttempts: copy.n,
     grading: copy.grading,
     score: copy.score ?? null,
     submittedAt: copy.submittedAt ?? null,
@@ -172,6 +174,8 @@ export interface MyQuizAttempt {
   answers?: { questionId: string; answer: string; isCorrect?: boolean }[];
   grading?: QuizResponse['grading'];
   servedQuestionIds?: string[];
+  /** Random-number answers from this attempt's own numbers, when answers are shown. */
+  calcAnswers?: Record<string, string>;
 }
 
 export type MyQuizAttemptsLoader = (req: {

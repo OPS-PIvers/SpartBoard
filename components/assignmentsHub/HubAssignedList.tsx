@@ -7,13 +7,8 @@ import {
   updateDoc,
   writeBatch,
 } from 'firebase/firestore';
-import { CheckCircle2, Pause, Play, PowerOff, RotateCcw } from 'lucide-react';
 import { db } from '@/config/firebase';
-import {
-  tourFieldAttr,
-  tourTypeAttr,
-  type TourAnchorAttrs,
-} from '@/config/tourAnchors';
+import { tourFieldAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import type {
@@ -27,11 +22,12 @@ import type {
 } from '@/types';
 import {
   AssignedList,
+  AssignedReopenDialog,
   AssignedRow,
+  assignedMenu,
   mainActionLabel,
   type ClassActionKind,
 } from '@/components/common/library/assigned';
-import type { LibraryMenuAction } from '@/components/common/library/types';
 import {
   QuizAssignedRowHost,
   useQuizAssignedRows,
@@ -503,6 +499,9 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
   return (
     <AssignedList<HubItem>
       items={items}
+      titleOf={(i) =>
+        'quiz' in i ? i.quiz.assignment.quizTitle : i.other.title
+      }
       loading={loading}
       emptyTitle="Nothing active"
       emptySub=""
@@ -545,7 +544,7 @@ export const HubAssignedList: React.FC<HubAssignedListProps> = ({
   );
 };
 
-/** Puts back what Move to Done changed, as the Quiz tab's Undo does (D10). */
+/** Puts back what Move to Finished changed, as the Quiz tab's Undo does (D10). */
 async function undoMoveToDone(
   prev: OtherRun,
   uid: string,
@@ -640,7 +639,7 @@ const OtherRowHost: React.FC<OtherRowHostProps> = ({
   const writingActions = useWritingClassActions(writing ?? null, rosters);
   const classActions = writing ? writingActions : sharedActions;
   const hasActions = !!writing || actions != null;
-  // Puts the row back as it was before a Close or Move to Done.
+  // Puts the row back as it was before a Close or Move to Finished.
   const undo = (prev: OtherRun, closeOnly: boolean): Promise<void> | void => {
     if (writing) return undoWritingClose(writing);
     if (closeOnly) return classActions.reopenClass(null).then(() => undefined);
@@ -666,77 +665,58 @@ const OtherRowHost: React.FC<OtherRowHostProps> = ({
       case 'pause':
         return void runBusy(() => classActions.pauseClass(key));
       case 'close':
+        if (key == null) return closeSingle();
         return void runBusy(() => classActions.closeClass(key));
       case 'reopen':
         return void runBusy(() => classActions.reopenClass(key));
     }
   };
 
-  const menuActions: LibraryMenuAction[] = [];
-  if (hasActions && status.singleLine) {
-    const only = status.classes[0];
-    if (only?.status === 'open' && actions?.lifecycle.pause)
-      menuActions.push({
-        id: 'assigned-pause',
-        label: 'Pause',
-        icon: Pause,
-        onClick: () => onClassAction('pause', null),
+  const [reopening, setReopening] = useState(false);
+  // A single-line Close is the whole assignment, so it offers Undo.
+  const closeSingle = () =>
+    void runBusy(async () => {
+      const prev = run;
+      await (writing ? classActions.closeAll() : classActions.closeClass(null));
+      addToast(`${title} is closed.`, 'success', {
+        label: 'Undo',
+        onClick: () => void exec(async () => undo(prev, true)),
       });
-    if (only?.status === 'paused' && status.action.kind !== 'resume')
-      menuActions.push({
-        id: 'assigned-resume',
-        label: 'Resume',
-        icon: Play,
-        onClick: () => onClassAction('resume', null),
-      });
-    if (only && only.status !== 'closed')
-      menuActions.push({
-        id: 'assigned-close',
-        label: 'Close',
-        icon: PowerOff,
-        onClick: () =>
-          void runBusy(async () => {
-            const prev = run;
-            await (writing
-              ? classActions.closeAll()
-              : classActions.closeClass(null));
-            addToast(`${title} is closed.`, 'success', {
-              label: 'Undo',
-              onClick: () => void exec(async () => undo(prev, true)),
-            });
-          }),
-      });
-    else if (only && status.bucket === 'active')
-      menuActions.push({
-        id: 'assigned-reopen',
-        label: 'Reopen',
-        icon: RotateCcw,
-        onClick: () => onClassAction('reopen', null),
-      });
-  }
-  // D5/D10: a row whose grading the hub can't count still has a way out of Active.
-  if (
-    hasActions &&
-    status.bucket === 'active' &&
-    status.line.kind !== 'view-only'
-  )
-    menuActions.push({
-      id: 'assigned-move-to-done',
-      label: 'Move to Done',
-      icon: CheckCircle2,
-      anchor: tourTypeAttr('library-shell.assigned-move-to-done', HUB),
-      onClick: () => {
-        const prev = run;
-        void runBusy(async () => {
-          await classActions.moveToDone();
-          addToast(`${title} moved to Done.`, 'success', {
-            label: 'Undo',
-            onClick: () => void exec(async () => undo(prev, false)),
-          });
-        });
-      },
     });
-  for (const item of menuActions) item.disabled = busy;
+  // Close for all classes or Move to Finished, with Undo.
+  const closeWithUndo = (moveToDone: boolean) => {
+    const prev = run;
+    void runBusy(async () => {
+      await (moveToDone ? classActions.moveToDone() : classActions.closeAll());
+      addToast(
+        moveToDone
+          ? `${title} moved to Finished.`
+          : `${title} is closed for all classes.`,
+        'success',
+        {
+          label: 'Undo',
+          onClick: () => void exec(async () => undo(prev, false)),
+        }
+      );
+    });
+  };
+  const viewOnly = status.line.kind === 'view-only';
+  // D5/D10: a row whose grading the hub can't count still has a way out of Active.
+  const menuActions = hasActions
+    ? assignedMenu({
+        status,
+        viewOnly,
+        items: [],
+        published: false,
+        onCloseAll: () => closeWithUndo(false),
+        onMoveToDone: () => closeWithUndo(true),
+        onReopen: viewOnly
+          ? () => onClassAction('reopen', null)
+          : () => setReopening(true),
+        tourWidgetType: HUB,
+        busy,
+      })
+    : [];
 
   const acts =
     HUB_MAIN_KINDS.includes(status.action.kind) &&
@@ -748,23 +728,34 @@ const OtherRowHost: React.FC<OtherRowHostProps> = ({
   };
 
   return (
-    <AssignedRow
-      title={title}
-      status={status}
-      nowMs={now}
-      mainLabel={acts ? mainActionLabel(status.action, null) : null}
-      onMain={onMain}
-      onClassAction={onClassAction}
-      classControls={hasActions}
-      meta={meta}
-      menuActions={menuActions}
-      busy={busy}
-      tourIndex={index}
-      tourWidgetType={HUB}
-      selected={selected}
-      onSelect={onSelect}
-      selectAnchor={selectAnchor}
-      hideCounts={miniAppByClass(row.kind, run)}
-    />
+    <>
+      {reopening && (
+        <AssignedReopenDialog
+          title={title}
+          status={status}
+          onReopen={(key) => runBusy(() => classActions.reopenClass(key))}
+          onClose={() => setReopening(false)}
+        />
+      )}
+      <AssignedRow
+        title={title}
+        status={status}
+        nowMs={now}
+        mainLabel={acts ? mainActionLabel(status.action, null) : null}
+        onMain={onMain}
+        onClassAction={onClassAction}
+        classControls={hasActions}
+        canPause={!!actions?.lifecycle.pause}
+        meta={meta}
+        menuActions={menuActions}
+        busy={busy}
+        tourIndex={index}
+        tourWidgetType={HUB}
+        selected={selected}
+        onSelect={onSelect}
+        selectAnchor={selectAnchor}
+        hideCounts={miniAppByClass(row.kind, run)}
+      />
+    </>
   );
 };

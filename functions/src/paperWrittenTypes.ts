@@ -33,6 +33,8 @@ export type PaperPageItem =
       style?: PaperBoxStyle;
       /** Fill in the blank: one write-in line per blank; mirrors root `types.ts`. */
       blanks?: number;
+      /** A later page of a multi-page answer; mirrors root `types.ts`. */
+      continued?: true;
     };
 
 export interface PaperPageMap {
@@ -43,7 +45,8 @@ export interface PaperPageMap {
   prompt?: string;
 }
 
-export type PaperBoxSize = 'S' | 'M' | 'L' | 'full' | number;
+export type PaperBoxSize = 'S' | 'M' | 'L' | 'full' | PaperBoxPages | number;
+export type PaperBoxPages = 'pages-2' | 'pages-3' | 'pages-4';
 export type PaperBoxStyle =
   'lines' | 'blank' | 'graph' | 'coordinate' | 'image';
 export type PaperTranscriptState = 'pending' | 'done' | 'blank' | 'image';

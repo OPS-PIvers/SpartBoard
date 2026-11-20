@@ -402,12 +402,6 @@ export const SURFACES: TourSurfaceMap = {
     files: ['components/widgets/Writing/'],
     widgetType: 'writing',
     needs: ['widget-on-stage'],
-    inner: {
-      'library-shell.assigned-close-all':
-        'library-shell.archive-menu:writing#row-1',
-      'library-shell.assigned-move-to-done':
-        'library-shell.archive-menu:writing#row-1',
-    },
   },
   'widgets.qr.face': {
     label: 'QR Code widget',
@@ -871,6 +865,16 @@ export const SURFACES: TourSurfaceMap = {
     parent: 'widgets.writing.face',
     widgetType: 'writing',
     needs: ['widget-on-stage', 'library-item', 'live-session'],
+  },
+  'widgets.writing.peer-review': {
+    label: 'Writing peer review setup',
+    kind: 'modal',
+    files: [
+      'components/widgets/Writing/components/peerReview/PeerPairingModal.tsx',
+    ],
+    opensWith: 'writing-monitor.peer-review:writing',
+    parent: 'widgets.writing.monitor',
+    widgetType: 'writing',
   },
   'widgets.writing.live-view': {
     label: 'Writing Live view of one student',

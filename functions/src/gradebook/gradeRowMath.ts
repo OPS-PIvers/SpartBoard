@@ -1,4 +1,5 @@
 // Pure builders for grade index rows, one per activity kind (docs/plans/GRADEBOOK.md D10, D11, D15, D25).
+import { calcAttemptKey, withCalcValues } from '../quizCalculated';
 import {
   gradeGroupAnswer,
   parsePublicQuestion,
@@ -299,6 +300,10 @@ export interface QuestionScoreInput {
   paperAttested?: boolean;
   /** Hybrid paper quiz: written questions answered on a printed sheet. */
   paperWrittenQuestionIds?: readonly string[];
+  /** The response doc id; fixes the student's random numbers. */
+  responseKey?: string;
+  /** The student gets the modified version; a typed-number answer on the key grades them. */
+  modified?: boolean;
 }
 
 export interface QuestionScore {
@@ -330,7 +335,7 @@ export function scoreQuestions(input: QuestionScoreInput): QuestionScore {
     if (!served.has(q.id) || notChosen.has(q.id)) continue;
     const answer = representative.get(q.id);
     const g = gradeGroupAnswer(
-      q,
+      withCalcValues(q, input.responseKey, input.modified === true),
       answer?.answer ?? '',
       input.manualGrades?.[q.id],
       q.type === 'FIB' ? input.fibAnswersByQuestion?.[q.id] : undefined,
@@ -430,6 +435,8 @@ export interface QuizContext {
   questions: GroupQuestion[];
   fibAnswersByStudent: (studentUid: string) => Record<string, FibExtras>;
   overrideQuestionIds: (studentUid: string) => string[];
+  /** The teacher gave this student the modified version of each question. */
+  modifiedStudent?: (studentUid: string) => boolean;
   /** Stacks printed for modification groups (`paper-printed-versions`). */
   paperCopyBatchIds?: ReadonlySet<string>;
 }
@@ -438,7 +445,8 @@ export interface QuizContext {
 export function scoreQuizResponse(
   session: Doc,
   response: Doc,
-  ctx: QuizContext
+  ctx: QuizContext,
+  responseKey?: string
 ): RowScore {
   const status = asString(response.status);
   const parsed = parseCompletedResponse(response);
@@ -459,6 +467,7 @@ export function scoreQuizResponse(
     servedQuestionIds: served,
     manualGrades: parsed.manualGrades,
     fibAnswersByQuestion: ctx.fibAnswersByStudent(studentUid),
+    modified: ctx.modifiedStudent?.(studentUid) === true,
     sectionsRaw: session.sections,
     countedChoices: parsed.countedChoices,
     paperWrittenQuestionIds: parsePaperWrittenQuestionIds(
@@ -467,6 +476,9 @@ export function scoreQuizResponse(
     paperAttested:
       asString(response.paperBatchId) !== '' ||
       asString(response.paperWrittenBatchId) !== '',
+    responseKey: responseKey
+      ? calcAttemptKey(responseKey, response)
+      : undefined,
   });
   const paperBatchId = asString(response.paperBatchId);
   const base = {

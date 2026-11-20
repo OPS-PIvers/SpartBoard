@@ -26,6 +26,7 @@ import {
   makeStimulusQuizSession,
   makeTimedQuizSession,
   makeTimedStudentResponse,
+  makeVocabQuizSession,
   makeWhiteboardQuizSession,
 } from './sessionViewsMocks';
 import { type StudentQuizStateKey } from './devViewStates';
@@ -216,54 +217,59 @@ export const StudentQuizDevView: React.FC<{ state: StudentQuizStateKey }> = ({
 }) => {
   const session = useMemo(
     () =>
-      state === 'sq-picture-only-mc'
-        ? makePictureOnlyQuizSession('MC')
-        : state === 'sq-picture-only-matching'
-          ? makePictureOnlyQuizSession('Matching')
-          : state === 'sq-picture-only-ordering'
-            ? makePictureOnlyQuizSession('Ordering')
-            : state === 'sq-ordering-list'
-              ? {
-                  ...makeOptionImagesQuizSession('Ordering'),
-                  orderingList: true,
-                }
-              : state === 'sq-images-ordering'
-                ? makeOptionImagesQuizSession('Ordering')
-                : state === 'sq-images-matching'
-                  ? makeOptionImagesQuizSession('Matching')
-                  : state === 'sq-images-mc'
-                    ? makeOptionImagesQuizSession('MC')
-                    : state === 'sq-stimuli' || state === 'sq-supports-stimuli'
-                      ? makeStimulusQuizSession()
-                      : state === 'sq-picture' || state === 'sq-pictures'
-                        ? makePictureStimulusQuizSession(
-                            state === 'sq-pictures'
-                          )
-                        : state === 'sq-calculator'
-                          ? makeCalculatorQuizSession()
-                          : state === 'sq-whiteboard'
-                            ? makeWhiteboardQuizSession()
-                            : state === 'sq-stop-part'
-                              ? makeStopQuizSession('active')
-                              : state === 'sq-cross-out'
-                                ? {
-                                    ...makeTimedQuizSession('active'),
-                                    allowCrossOut: true,
-                                  }
-                                : state === 'sq-fullscreen'
-                                  ? {
-                                      ...makeTimedQuizSession('active'),
-                                      tabAwayLimitSeconds: 30,
-                                      tabAwayAutoSubmit: true,
-                                    }
-                                  : state === 'sq-modified'
-                                    ? modifiedSession()
-                                    : state === 'sq-review-blank'
+      state === 'sq-vocab'
+        ? makeVocabQuizSession()
+        : state === 'sq-vocab-drag'
+          ? makeVocabQuizSession('drag')
+          : state === 'sq-picture-only-mc'
+            ? makePictureOnlyQuizSession('MC')
+            : state === 'sq-picture-only-matching'
+              ? makePictureOnlyQuizSession('Matching')
+              : state === 'sq-picture-only-ordering'
+                ? makePictureOnlyQuizSession('Ordering')
+                : state === 'sq-ordering-list'
+                  ? {
+                      ...makeOptionImagesQuizSession('Ordering'),
+                      orderingList: true,
+                    }
+                  : state === 'sq-images-ordering'
+                    ? makeOptionImagesQuizSession('Ordering')
+                    : state === 'sq-images-matching'
+                      ? makeOptionImagesQuizSession('Matching')
+                      : state === 'sq-images-mc'
+                        ? makeOptionImagesQuizSession('MC')
+                        : state === 'sq-stimuli' ||
+                            state === 'sq-supports-stimuli'
+                          ? makeStimulusQuizSession()
+                          : state === 'sq-picture' || state === 'sq-pictures'
+                            ? makePictureStimulusQuizSession(
+                                state === 'sq-pictures'
+                              )
+                            : state === 'sq-calculator'
+                              ? makeCalculatorQuizSession()
+                              : state === 'sq-whiteboard'
+                                ? makeWhiteboardQuizSession()
+                                : state === 'sq-stop-part'
+                                  ? makeStopQuizSession('active')
+                                  : state === 'sq-cross-out'
+                                    ? {
+                                        ...makeTimedQuizSession('active'),
+                                        allowCrossOut: true,
+                                      }
+                                    : state === 'sq-fullscreen'
                                       ? {
                                           ...makeTimedQuizSession('active'),
-                                          reviewStep: true,
+                                          tabAwayLimitSeconds: 30,
+                                          tabAwayAutoSubmit: true,
                                         }
-                                      : makeTimedQuizSession('active'),
+                                      : state === 'sq-modified'
+                                        ? modifiedSession()
+                                        : state === 'sq-review-blank'
+                                          ? {
+                                              ...makeTimedQuizSession('active'),
+                                              reviewStep: true,
+                                            }
+                                          : makeTimedQuizSession('active'),
     [state]
   );
   if (state === 'sq-recap-responses' || state === 'sq-recap-answers') {

@@ -41,6 +41,8 @@ interface RandomClassContextButtonProps {
    */
   poolGroupId?: string | null;
   onSelectPoolGroup?: (groupId: string | null) => void;
+  /** Sets this widget's class (and pool) without touching the board's active class. */
+  onSelectClass?: (rosterId: string, groupId: string | null) => void;
 }
 
 /**
@@ -63,9 +65,18 @@ export const RandomClassContextButton: React.FC<
   widgetId,
   poolGroupId = null,
   onSelectPoolGroup,
+  onSelectClass,
 }) => {
   const { t } = useTranslation();
-  const { rosters, activeRosterId, setActiveRoster } = useDashboard();
+  const { rosters, setActiveRoster } = useDashboard();
+  const pickClass = (rosterId: string, groupId: string | null) => {
+    if (onSelectClass) {
+      onSelectClass(rosterId, groupId);
+      return;
+    }
+    if (rosterId !== roster?.id) setActiveRoster(rosterId);
+    onSelectPoolGroup?.(groupId);
+  };
 
   const anchorRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -240,7 +251,9 @@ export const RandomClassContextButton: React.FC<
   const buttonClass =
     'relative flex items-center justify-center rounded-xl bg-white border border-slate-200 transition-colors';
   const buttonStyle: React.CSSProperties = {
-    padding: 'clamp(6px, 2cqmin, 14px)',
+    gap: 'clamp(6px, 1.5cqmin, 10px)',
+    padding:
+      'clamp(min(6px, 3cqmin), 1.5cqmin, 10px) clamp(min(10px, 5cqmin), 2.5cqmin, 18px)',
     minHeight: 'clamp(32px, 8cqmin, 48px)',
     minWidth: 'clamp(32px, 8cqmin, 48px)',
   };
@@ -266,6 +279,13 @@ export const RandomClassContextButton: React.FC<
           style={iconStyle}
         />
       )}
+      <span
+        className="hidden @min-[280px]:inline font-black uppercase text-brand-blue-primary tracking-widest whitespace-nowrap"
+        style={{ fontSize: 'clamp(min(13px, 10cqmin), 3.5cqmin, 18px)' }}
+        aria-hidden="true"
+      >
+        {t('widgets.random.classContext.label', { defaultValue: 'Classes' })}
+      </span>
       {canMarkAbsent && absentCount > 0 && (
         <span
           className="absolute font-black bg-red-500 text-white rounded-full leading-none tabular-nums shrink-0 pointer-events-none"
@@ -376,7 +396,7 @@ export const RandomClassContextButton: React.FC<
                 </div>
                 <div className="max-h-48 overflow-y-auto pb-1">
                   {rosters.map((r) => {
-                    const isActive = r.id === activeRosterId;
+                    const isActive = r.id === roster.id;
                     const isWholeClass =
                       isActive && (!groupSelectable || poolGroupId === null);
                     return (
@@ -387,10 +407,9 @@ export const RandomClassContextButton: React.FC<
                           {...tourTypeAttr('random.class-option', 'random')}
                           aria-checked={isWholeClass}
                           onClick={() => {
-                            if (!isActive) setActiveRoster(r.id);
                             // A group id belongs to one roster, so switching
                             // class has to drop it rather than carry it over.
-                            onSelectPoolGroup?.(null);
+                            pickClass(r.id, null);
                             closeMenu();
                           }}
                           className={`w-full flex items-center justify-between px-3 py-2 text-left transition-colors ${
@@ -426,8 +445,7 @@ export const RandomClassContextButton: React.FC<
                             }
                             selectedGroupId={isActive ? poolGroupId : null}
                             onSelect={(groupId) => {
-                              if (!isActive) setActiveRoster(r.id);
-                              onSelectPoolGroup?.(groupId);
+                              pickClass(r.id, groupId);
                               closeMenu();
                             }}
                           />

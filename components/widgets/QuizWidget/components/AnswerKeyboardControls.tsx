@@ -18,16 +18,19 @@ const linkCls = (on: boolean) =>
   }`;
 
 export const KeyboardLink: React.FC<{
-  on: boolean;
+  /** Omitted for one-shot inserts, which aren't toggles. */
+  on?: boolean;
   onClick: () => void;
   anchor: TourAnchorAttrs;
+  title?: string;
   children: React.ReactNode;
-}> = ({ on, onClick, anchor, children }) => (
+}> = ({ on, onClick, anchor, title, children }) => (
   <button
     type="button"
     aria-pressed={on}
     onClick={onClick}
-    className={linkCls(on)}
+    title={title}
+    className={linkCls(on ?? false)}
     {...anchor}
   >
     {children}

@@ -150,6 +150,23 @@ describe('collectShareRosterIds', () => {
     ]);
   });
 
+  it("includes a Group Maker's own class", () => {
+    const groupMaker = {
+      ...board('b', null),
+      widgets: [
+        {
+          id: 'w2',
+          type: 'random',
+          position: { x: 0, y: 0 },
+          config: { rosterId: 'r9' },
+        },
+      ],
+    } as unknown as Dashboard;
+    expect([...collectShareRosterIds([groupMaker], 'active-1')].sort()).toEqual(
+      ['active-1', 'r9']
+    );
+  });
+
   it('collects rosters remembered by the quiz and activity pickers', () => {
     const ids = collectShareRosterIds(
       [

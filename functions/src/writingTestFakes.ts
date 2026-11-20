@@ -33,10 +33,33 @@ export function fakeFirestore(store: Map<string, any>) {
     id: path.split('/').pop(),
     collection: (name: string) => col(`${path}/${name}`),
     get: async () => snap(path),
+    set: async (data: any) => store.set(path, apply({}, data)),
+    delete: async () => store.delete(path),
   });
   const col = (path: string): any => ({
     path,
     doc: (id: string) => ref(`${path}/${id}`),
+    get: async () => ({
+      docs: [...store.keys()]
+        .filter(
+          (k) =>
+            k.startsWith(`${path}/`) && !k.slice(path.length + 1).includes('/')
+        )
+        .map((k) => snap(k)),
+    }),
+    // One equality filter over the collection's direct children.
+    where: (field: string, _op: '==', value: unknown) => ({
+      get: async () => ({
+        docs: [...store.keys()]
+          .filter(
+            (k) =>
+              k.startsWith(`${path}/`) &&
+              !k.slice(path.length + 1).includes('/') &&
+              store.get(k)?.[field] === value
+          )
+          .map((k) => snap(k)),
+      }),
+    }),
   });
   const write = {
     set: (r: any, data: any, opts?: { merge?: boolean }) =>

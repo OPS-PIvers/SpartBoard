@@ -1394,6 +1394,7 @@
         "ariaLabel": "Anwesenheit öffnen – {{count}} heute als abwesend markiert"
       },
       "classContext": {
+        "label": "Klassen",
         "triggerAria": "Aktive Klasse: {{name}}",
         "triggerAriaWithAbsent_one": "Aktive Klasse: {{name}}. {{count}} Schüler/in heute als abwesend markiert.",
         "triggerAriaWithAbsent_other": "Aktive Klasse: {{name}}. {{count}} Schüler/innen heute als abwesend markiert.",
@@ -2228,7 +2229,8 @@
     "allPlaced": "Alle Wörter eingesetzt.",
     "picked": "{{word}} ausgewählt. Wähle eine Lücke.",
     "placed": "{{word}} in {{blank}} eingesetzt.",
-    "returned": "{{word}} zurück in die Wortliste gelegt."
+    "returned": "{{word}} zurück in die Wortliste gelegt.",
+    "tapToFill": "Tippe auf eine Auswahl, um sie zu deiner Antwort hinzuzufügen."
   },
   "quizLiveView": {
     "banner": "Deine Lehrkraft sieht sich dein Quiz an",
@@ -4880,27 +4882,6 @@
         "rebound": "Neu verknüpft",
         "needsHuman": "Braucht eine Person"
       }
-    },
-    "web": {
-      "title": "Web-Touren",
-      "intro": "Prüft echte Durchläufe von Touren auf anderen Websites.",
-      "empty": "Noch keine Web-Touren.",
-      "loadFailed": "Web-Touren konnten nicht geladen werden.",
-      "notPublished": "Nicht veröffentlicht",
-      "colPage": "Seite",
-      "state": {
-        "ok": "OK",
-        "weak": "Schwache Übereinstimmung",
-        "missed": "Nicht gefunden"
-      },
-      "reason": {
-        "missed": "Bild in {{misses}} von {{runs}} echten Durchläufen gezeigt",
-        "weak": "Nur über einen schwächeren Hinweis gefunden in {{weak}} von {{runs}} echten Durchläufen",
-        "weakScore": "Nah an einem anderen Steuerelement in {{weak}} von {{runs}} echten Durchläufen"
-      },
-      "copyLink": "Link kopieren",
-      "linkCopied": "Kopiert",
-      "copyLinkFor": "Link zu {{title}} kopieren"
     }
   },
   "tourPicker": {

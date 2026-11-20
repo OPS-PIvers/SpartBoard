@@ -59,6 +59,11 @@ import {
 } from '@/utils/writingMonitor';
 import { formatAwayDuration } from '@/utils/tabAwayLimit';
 import { studentTargetRefKey } from '@/utils/studentTargetRef';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '@/config/firebase';
+import { logError } from '@/utils/logError';
+import { peerStudentList, type PeerGroup } from '@/utils/writingPeerReview';
+import { PeerPairingModal } from '../peerReview/PeerPairingModal';
 
 // Lazy, as in the Quiz monitor: Live view's module carries the Quiz player.
 const WatchPanel = lazy(() =>
@@ -68,6 +73,16 @@ const WatchPanel = lazy(() =>
 );
 
 const TYPE = 'writing';
+const PEER_FEATURE = 'writing-peer-review';
+const PEER_ACCESS_WORD = {
+  view: 'View only',
+  comment: 'Comment only',
+  edit: 'Edit',
+} as const;
+const setPeerReview = httpsCallable<Record<string, unknown>, unknown>(
+  functions,
+  'setWritingPeerReviewV1'
+);
 const BUCKET_LABELS: Partial<Record<BucketKey, string>> = {
   done: 'Turned in',
 };
@@ -196,9 +211,75 @@ export const WritingMonitor: React.FC<{
           dueAt: typeof record.dueAt === 'number' ? record.dueAt : null,
         }
       : null;
+  // Peer review: the assigning teacher pairs students while the assignment runs.
+  const auth = useContext(AuthContext);
+  const canPeer =
+    auth?.canAccessFeature?.(PEER_FEATURE) === true &&
+    session?.status === 'active' &&
+    auth.user?.uid === session.teacherUid;
+  const [peerOpen, setPeerOpen] = useState(false);
+  const peerRunning =
+    !!session?.peerReview && session.peerReview.endedAt == null;
+  const peerStudents = useMemo(
+    () => peerStudentList(rosterUids, all.byStudentUid),
+    [rosterUids, all.byStudentUid]
+  );
+  const peerGroups = useMemo<PeerGroup[]>(
+    () => (record?.peerGroups ?? []).map((g) => g.members),
+    [record?.peerGroups]
+  );
+  const savePeer = async (
+    patch: Record<string, unknown>,
+    what: string
+  ): Promise<boolean> => {
+    try {
+      await setPeerReview({ sessionId, ...patch });
+      return true;
+    } catch (err) {
+      logError(`WritingMonitor.peerReview.${what}`, err);
+      return false;
+    }
+  };
+  const peerControl = canPeer ? (
+    <div
+      className="flex flex-wrap items-center"
+      style={{ gap: 'min(6px, 1.5cqmin)' }}
+    >
+      <ToggleChip
+        label={
+          peerRunning && session?.peerReview
+            ? `Peer review: ${PEER_ACCESS_WORD[session.peerReview.access]}`
+            : 'Peer review'
+        }
+        anchor={tourTypeAttr('writing-monitor.peer-review', TYPE)}
+        on={peerRunning}
+        onToggle={() => setPeerOpen(true)}
+      />
+      {peerOpen && session && (
+        <PeerPairingModal
+          isOpen
+          onClose={() => setPeerOpen(false)}
+          students={peerStudents}
+          initialGroups={peerGroups}
+          initialAccess={session.peerReview?.access ?? 'comment'}
+          running={peerRunning}
+          onSave={(groups, access) => {
+            // Groups in classes not shown right now stay as they are.
+            const shown = new Set(peerStudents.map((p) => p.uid));
+            const kept = peerGroups.filter((g) =>
+              g.every((u) => !shown.has(u))
+            );
+            return savePeer({ access, groups: [...kept, ...groups] }, 'save');
+          }}
+          onEnd={() => savePeer({ end: true }, 'end')}
+        />
+      )}
+    </div>
+  ) : null;
   return (
     <WritingMonitorView
       session={session}
+      peerControl={peerControl}
       periodBar={periodBar}
       showWordCounts={showWordCounts}
       onShowWordCounts={onShowWordCounts}
@@ -223,6 +304,8 @@ export const WritingMonitor: React.FC<{
 /** The monitor drawn from data, so the dev page can show it without Firestore. */
 export const WritingMonitorView: React.FC<{
   session: WritingAssignmentSession | null;
+  /** Peer review's button and setup, for the assigning teacher. */
+  peerControl?: React.ReactNode;
   /** Per-class access; null shows the plain class picker. */
   periodBar?: WritingPeriodBar | null;
   showWordCounts?: boolean;
@@ -254,6 +337,7 @@ export const WritingMonitorView: React.FC<{
   classId,
   onClassChange,
   onBack,
+  peerControl,
 }) => {
   const now = useServerNow(15_000);
   const [openBucket, setOpenBucket] = useState<BucketKey | null>(null);
@@ -370,6 +454,7 @@ export const WritingMonitorView: React.FC<{
             }
             labels={BUCKET_LABELS}
           />
+          {peerControl}
           {openBucket && onShowWordCounts && (
             <div
               className="flex flex-wrap items-center"

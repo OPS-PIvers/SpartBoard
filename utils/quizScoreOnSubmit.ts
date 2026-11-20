@@ -1,4 +1,5 @@
-import { isFreeResponseType, type QuizQuestion } from '@/types';
+import { calcModifiedNeedsAnswer } from '@/utils/quizCalculated';
+import { isFreeResponseType, type CalcSpec, type QuizQuestion } from '@/types';
 import { questionHasRecordingSlot } from '@/utils/mediaGrading';
 import { dedupeQuestionsById } from '@/utils/quizMaxPoints';
 
@@ -17,6 +18,8 @@ export interface ScoreOnSubmitKeyQuestion {
   allowPartialCredit?: boolean;
   /** A recording slot needs a teacher grade, so the server never scores it. */
   recording?: true;
+  /** Random-number FIB: the formula the server grades each student's numbers with. */
+  calc?: QuizQuestion['calc'];
 }
 
 /** True when this question needs a teacher grade; Review skips these (plan D19). */
@@ -51,6 +54,9 @@ export function buildScoreOnSubmitKey(
       : {}),
     ...(q.allowPartialCredit ? { allowPartialCredit: true } : {}),
     ...(questionHasRecordingSlot(q) ? { recording: true as const } : {}),
+    ...(q.type === 'FIB' && q.calc
+      ? { calc: calcForKey(q.calc, q.modifiedText, q.text) }
+      : {}),
   }));
 }
 
@@ -67,4 +73,16 @@ export function mergeScoreOnSubmitKey(
         : undefined;
     return (typeof id === 'string' ? fresh.get(id) : undefined) ?? entry;
   });
+}
+
+/** The key keeps the modified answer only while the modified prompt has typed numbers. */
+function calcForKey(
+  calc: CalcSpec,
+  modifiedText: string | undefined,
+  text: string
+): CalcSpec {
+  if (!calc.modifiedAnswer || calcModifiedNeedsAnswer(modifiedText, calc, text))
+    return calc;
+  const { modifiedAnswer: _unused, ...rest } = calc;
+  return rest;
 }

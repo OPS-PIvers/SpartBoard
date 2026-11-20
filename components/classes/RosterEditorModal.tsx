@@ -26,6 +26,8 @@ import {
 import type { BuildingBellPeriodOption } from '@/utils/bellSchedule';
 import { SplitClassFooter } from './SplitClassFooter';
 import { GroupRemindersPanel } from './GroupRemindersPanel';
+import { RosterGroupsPanel as RosterGroupsPagePanel } from './RosterGroupsPanel';
+import { RosterAccommodationsByStudent } from './RosterAccommodationsByStudent';
 import { ALL_GROUP_STEPS, type GroupEditorSteps } from '@/utils/groupReminders';
 import { Modal } from '@/components/common/Modal';
 import { AutosaveIndicator } from '@/components/common/EditorModalShell';
@@ -71,6 +73,8 @@ interface RosterEditorModalProps {
   groupReminderEmailsEnabled?: boolean;
   /** Host-resolved per-step gates for the group editor. */
   groupSteps?: GroupEditorSteps;
+  /** Groups as pages that hold their accommodations, and a per-student Accommodations tab. */
+  groupsRedesign?: boolean;
 }
 
 const bellKey = (b: RosterBellPeriod | null | undefined): string =>
@@ -94,6 +98,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
   groupRemindersEnabled = false,
   groupReminderEmailsEnabled = false,
   groupSteps = ALL_GROUP_STEPS,
+  groupsRedesign = false,
 }) => {
   const { t } = useTranslation();
   const {
@@ -333,6 +338,9 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
     onClose();
   };
 
+  const sharingChange = (sharing: boolean) =>
+    setSharesInFlight((n) => Math.max(0, n + (sharing ? 1 : -1)));
+
   const baseTitle = roster
     ? t('sidebar.classes.editClassTitle', { defaultValue: 'Edit Class' })
     : t('sidebar.classes.newClassTitle', { defaultValue: 'New Class' });
@@ -522,11 +530,33 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
             students={validStudents}
             onChange={setGroups}
           />
+        ) : activeTab === 'groups' && roster && groupsRedesign ? (
+          <RosterGroupsPagePanel
+            groups={groups}
+            students={validStudents}
+            onChange={setGroups}
+            overrides={defaultOverrides}
+            onOverridesChange={setDefaultOverrides}
+            readAloudAvailable={readAloudAvailable}
+            speechToTextAvailable={speechToTextAvailable}
+            onSharingChange={sharingChange}
+          />
         ) : activeTab === 'groups' && roster ? (
           <RosterGroupsPanel
             groups={groups}
             students={validStudents}
             onChange={setGroups}
+          />
+        ) : activeTab === 'accommodations' && roster && groupsRedesign ? (
+          <RosterAccommodationsByStudent
+            students={validStudents}
+            groups={groups}
+            overrides={defaultOverrides}
+            readAloudAvailable={readAloudAvailable}
+            speechToTextAvailable={speechToTextAvailable}
+            onChange={setDefaultOverrides}
+            onAddStudents={() => setActiveTab('students')}
+            onSharingChange={sharingChange}
           />
         ) : activeTab === 'accommodations' && roster ? (
           <RosterAccommodationsList
@@ -537,9 +567,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
             speechToTextAvailable={speechToTextAvailable}
             onChange={setDefaultOverrides}
             onAddStudents={() => setActiveTab('students')}
-            onSharingChange={(sharing) =>
-              setSharesInFlight((n) => Math.max(0, n + (sharing ? 1 : -1)))
-            }
+            onSharingChange={sharingChange}
           />
         ) : (
           <>

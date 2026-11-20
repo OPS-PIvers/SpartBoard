@@ -1,6 +1,5 @@
 import React from 'react';
 import type { DocumentData } from 'firebase/firestore';
-import { Monitor } from 'lucide-react';
 import type { ClassRoster, FlashcardAssignment } from '@/types';
 import type { LibraryMenuAction } from '@/components/common/library/types';
 import { RunAssignedTab } from '@/components/common/library/assigned/RunAssignedTab';
@@ -18,7 +17,7 @@ export interface FlashcardAssignedHandlers {
   onMonitor: (a: FlashcardAssignment) => void;
   onResults: (a: FlashcardAssignment) => void;
   onPublish: (a: FlashcardAssignment) => void;
-  /** The row's other menu items (Settings, Share, scores, Delete). */
+  /** The row's other menu items (Settings, scores, Delete). */
   menu: (a: FlashcardAssignment) => LibraryMenuAction[];
 }
 
@@ -74,16 +73,7 @@ export const FlashcardAssignedTab: React.FC<FlashcardAssignedTabProps> = ({
     onResults={onResults}
     onPublish={onPublish}
     fallbackPrimary={() => null}
-    // D7: Monitor is always one menu row away, and opening it changes nothing.
-    menu={(a) => [
-      {
-        id: 'monitor',
-        label: 'Monitor',
-        icon: Monitor,
-        onClick: () => onMonitor(a),
-      },
-      ...menu(a),
-    ]}
+    menu={menu}
     replacedMenuIds={[]}
     publishes={isCheck}
     submits={isCheck}

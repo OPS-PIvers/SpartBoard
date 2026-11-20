@@ -18,6 +18,8 @@ import type { EditorDictation } from '@/utils/speechToText/types';
 import type { UnsentWriting, WritingNotice } from '@/hooks/useWritingPiece';
 import type { WritingPageView } from '@/utils/writingStudentView';
 import { sanitizeQuizResponse } from '@/utils/security';
+import { SegmentedControl } from '@/components/common/SegmentedControl';
+import { PEER_STUDENT_STRINGS } from './peerReview/peerStrings';
 import { StudentPageShell } from '../StudentPageShell';
 
 export type WritingShellSession = Pick<
@@ -56,6 +58,21 @@ export interface WritingShellPiece {
   bindEditor: (el: HTMLElement | null) => void;
   /** The teacher's returned feedback; renders nothing until a copy is returned. */
   feedback?: React.ReactNode;
+}
+
+export type WritingPeerTab = 'mine' | 'feedback' | 'partner';
+
+/** Peer review tabs: my writing, notes partners left on it, and the partner I review. */
+export interface WritingShellPeer {
+  tab: WritingPeerTab;
+  onTab: (tab: WritingPeerTab) => void;
+  /** Open notes on my writing. */
+  feedbackCount: number;
+  showFeedback: boolean;
+  /** "Last, First" of the writing I review; null hides that tab. */
+  partnerName: string | null;
+  /** Shown in place of the editor on the other tabs; the editor stays mounted. */
+  panel: React.ReactNode;
 }
 
 /** Student-facing wording, listed in pr-b2-strings.md for review. */
@@ -278,7 +295,8 @@ export const WritingStudentShell: React.FC<{
   record?: React.ReactNode;
   /** Live view's banner and Nudge (D15), pinned to the top of the page. */
   liveNotice?: React.ReactNode;
-}> = ({ session, piece, onDone, record, liveNotice }) => {
+  peer?: WritingShellPeer;
+}> = ({ session, piece, onDone, record, liveNotice, peer }) => {
   const view: WritingPageView = piece?.view ?? {
     mode: 'not-started',
     status: null,
@@ -372,7 +390,41 @@ export const WritingStudentShell: React.FC<{
           )}
         </section>
 
-        {view.mode === 'not-started' && (
+        {peer && (peer.showFeedback || peer.partnerName) && (
+          <SegmentedControl
+            ariaLabel={PEER_STUDENT_STRINGS.tabsLabel}
+            value={peer.tab}
+            onChange={peer.onTab}
+            options={[
+              { value: 'mine', label: PEER_STUDENT_STRINGS.myWriting },
+              ...(peer.showFeedback
+                ? [
+                    {
+                      value: 'feedback' as const,
+                      label: PEER_STUDENT_STRINGS.fromPartner,
+                      badge:
+                        peer.feedbackCount > 0 ? (
+                          <span className="rounded-full bg-yellow-800 px-1.5 text-xs font-bold text-white">
+                            {peer.feedbackCount}
+                          </span>
+                        ) : undefined,
+                    },
+                  ]
+                : []),
+              ...(peer.partnerName
+                ? [
+                    {
+                      value: 'partner' as const,
+                      label: PEER_STUDENT_STRINGS.review(peer.partnerName),
+                    },
+                  ]
+                : []),
+            ]}
+          />
+        )}
+        {peer && peer.tab !== 'mine' && peer.panel}
+
+        {view.mode === 'not-started' && (!peer || peer.tab === 'mine') && (
           <div className="flex flex-col items-center gap-3 py-6 text-center">
             {session.timeLimitMinutes ? (
               <p className="text-sm text-slate-600">
@@ -471,9 +523,11 @@ export const WritingStudentShell: React.FC<{
         {showEditor && (
           <div
             className={
-              stimuli.length > 0
-                ? 'flex flex-col gap-5 lg:flex-row lg:items-start'
-                : undefined
+              peer && peer.tab !== 'mine'
+                ? 'hidden'
+                : stimuli.length > 0
+                  ? 'flex flex-col gap-5 lg:flex-row lg:items-start'
+                  : undefined
             }
           >
             {stimuli.length > 0 && (
