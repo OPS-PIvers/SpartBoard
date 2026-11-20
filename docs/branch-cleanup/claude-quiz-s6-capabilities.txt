@@ -1,0 +1,1 @@
+claude/quiz-s6-capabilities (useQuizCapabilities hook for Quiz widget top-level feature booleans, AB-311)
