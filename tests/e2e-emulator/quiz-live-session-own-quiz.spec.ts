@@ -229,6 +229,62 @@ const runLiveReview = async (
   });
 };
 
+const revealedValue = async (code: string, id: string): Promise<string> => {
+  const fields =
+    (await sessionForCode(code)).fields.revealedAnswers?.mapValue.fields ?? {};
+  return (
+    (fields[id] as { stringValue?: string } | undefined)?.stringValue ?? ''
+  );
+};
+
+// A session on a frozen copy must reveal the answer key as edited mid-session (AB-345).
+test('a live review on a trimmed copy reveals an answer key edited mid-session', async ({
+  page,
+}) => {
+  const library = await addReviewWidget(page);
+  const widget = page.locator('.widget').first();
+  await createReviewQuiz(page, library, LIVE, 'What is 2 + 2?', 'B', true);
+  await expect(library.getByRole('tabpanel').getByText('2 Qs')).toBeVisible();
+  await library
+    .getByRole('heading', { name: LIVE })
+    .locator('xpath=ancestor::*[.//button[normalize-space()="Start"]][1]')
+    .getByRole('button', { name: 'Start', exact: true })
+    .click();
+  const dialog = page.getByRole('dialog', { name: LIVE });
+  await dialog.getByRole('button', { name: 'Start', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await widget.getByRole('button', { name: 'Resume' }).click();
+  await expect(widget.getByText('Live', { exact: true })).toBeVisible();
+  const code = await readJoinCode(widget);
+  const session = await sessionForCode(code);
+  const sessionId = session.name.split('/').pop() ?? '';
+  const questionId =
+    session.fields.publicQuestions?.arrayValue.values?.[0]?.mapValue.fields.id
+      .stringValue ?? '';
+  expect(questionId).not.toBe('');
+  await widget.getByRole('button', { name: 'Start quiz session' }).click();
+  await expect(widget.getByText('What is 2 + 2?')).toBeVisible();
+
+  await test.step('change the answer key in the editor', async () => {
+    await widget.getByRole('button', { name: 'Back' }).click();
+    await library.getByRole('tab', { name: 'Library' }).click();
+    await library
+      .getByRole('heading', { name: LIVE })
+      .locator('xpath=ancestor::*[.//button[@aria-label="More actions"]][1]')
+      .getByRole('button', { name: 'More actions' })
+      .click();
+    await page.getByRole('menuitem', { name: 'Edit', exact: true }).click();
+    const editor = page.getByRole('dialog');
+    await editor.getByRole('radio', { name: 'Option C is correct' }).check();
+    await expect(editor.getByText('Saved', { exact: true })).toBeVisible();
+    await editor.getByRole('button', { name: 'Close' }).last().click();
+    await expect(editor).toBeHidden();
+  });
+
+  await moveToReview(sessionId);
+  await expect.poll(() => revealedValue(code, questionId)).toBe('5');
+});
+
 test('checking answers on another quiz leaves the live review on its own quiz', async ({
   page,
 }) => {

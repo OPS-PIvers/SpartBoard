@@ -1896,15 +1896,23 @@ const TeacherQuizWidget: React.FC<{
   ]);
 
   // Reveal and scoreboard sync use the session's own quiz (or frozen copy), never one being previewed or edited.
+  const liveSessionMeta = quizzes.find((q) => q.id === liveSession?.quizId);
+  const liveSessionAssignment = assignments.find(
+    (a) => a.id === liveSession?.assignmentId
+  );
   const liveQuizData = useLiveSessionQuiz(
     loadedQuizData,
     loadedQuizFileId,
     liveSession,
     liveSession
-      ? (assignmentFrozenFileId(
-          assignments.find((a) => a.id === liveSession.assignmentId)
-        ) ?? quizzes.find((q) => q.id === liveSession.quizId)?.driveFileId)
-      : undefined
+      ? (assignmentFrozenFileId(liveSessionAssignment) ??
+          liveSessionMeta?.driveFileId)
+      : undefined,
+    // After an editor save, so the frozen copy picks up the new answer keys.
+    () =>
+      liveSessionMeta && liveSessionAssignment
+        ? loadAnswerKeyQuizQuietly(liveSessionMeta, liveSessionAssignment)
+        : Promise.resolve(null)
   );
 
   // D9: a Quiz-kind session has no scoreboard sync, reveal or podium.

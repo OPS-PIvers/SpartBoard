@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { renderHook } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import { renderHook, waitFor } from '@testing-library/react';
 import type { QuizData } from '@/types';
 import { useLiveSessionQuiz } from './useLiveSessionQuiz';
 
@@ -25,12 +25,19 @@ type Props = {
   fileId: string | null;
   session: { id: string; quizId: string } | null;
   liveFileId: string | undefined;
+  reloadLive?: () => Promise<QuizData | null>;
 };
 
 const render = (initial: Props) =>
   renderHook(
     (p: Props) =>
-      useLiveSessionQuiz(p.loaded, p.fileId, p.session, p.liveFileId),
+      useLiveSessionQuiz(
+        p.loaded,
+        p.fileId,
+        p.session,
+        p.liveFileId,
+        p.reloadLive
+      ),
     { initialProps: initial }
   );
 
@@ -97,6 +104,60 @@ describe('useLiveSessionQuiz', () => {
       liveFileId: 'frozen-b',
     });
     expect(hook.result.current).toBe(frozen);
+  });
+
+  it('reveals with the edited answer key on a frozen-copy session', async () => {
+    const frozen = quiz('frozen-copy-id', 'b1');
+    const rekeyed: QuizData = {
+      ...frozen,
+      questions: [{ ...frozen.questions[0], correctAnswer: '3' }],
+    };
+    const reloadLive = vi.fn(() => Promise.resolve<QuizData | null>(rekeyed));
+    const base = { session, liveFileId: 'frozen-b', reloadLive };
+    const hook = render({ ...base, loaded: frozen, fileId: 'frozen-b' });
+    // Opening the library quiz in the editor is not an edit.
+    hook.rerender({ ...base, loaded: live, fileId: 'file-b' });
+    expect(hook.result.current).toBe(frozen);
+    expect(reloadLive).not.toHaveBeenCalled();
+    // An editor save hands back a new object for the same library file.
+    hook.rerender({ ...base, loaded: { ...live }, fileId: 'file-b' });
+    await waitFor(() => expect(hook.result.current).toBe(rekeyed));
+    expect(hook.result.current?.questions[0].correctAnswer).toBe('3');
+    expect(reloadLive).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the newest answer key when two saves land close together', async () => {
+    const frozen = quiz('frozen-copy-id', 'b1');
+    const first = { ...frozen };
+    const second = { ...frozen };
+    let finishFirst: (data: QuizData) => void = () => undefined;
+    const reloadLive = vi
+      .fn<() => Promise<QuizData | null>>()
+      .mockReturnValueOnce(
+        new Promise<QuizData>((resolve) => {
+          finishFirst = resolve;
+        })
+      )
+      .mockResolvedValueOnce(second);
+    const base = { session, liveFileId: 'frozen-b', reloadLive };
+    const hook = render({ ...base, loaded: frozen, fileId: 'frozen-b' });
+    hook.rerender({ ...base, loaded: live, fileId: 'file-b' });
+    hook.rerender({ ...base, loaded: { ...live }, fileId: 'file-b' });
+    hook.rerender({ ...base, loaded: { ...live }, fileId: 'file-b' });
+    await waitFor(() => expect(hook.result.current).toBe(second));
+    finishFirst(first);
+    await Promise.resolve();
+    expect(hook.result.current).toBe(second);
+  });
+
+  it('does not reload when the session grades the library file itself', () => {
+    const reloadLive = vi.fn(() => Promise.resolve<QuizData | null>(null));
+    const base = { session, liveFileId: 'file-b', reloadLive };
+    const hook = render({ ...base, loaded: live, fileId: 'file-b' });
+    const edited = { ...live };
+    hook.rerender({ ...base, loaded: edited, fileId: 'file-b' });
+    expect(hook.result.current).toBe(edited);
+    expect(reloadLive).not.toHaveBeenCalled();
   });
 
   it('drops the held quiz when a different session goes live', () => {
