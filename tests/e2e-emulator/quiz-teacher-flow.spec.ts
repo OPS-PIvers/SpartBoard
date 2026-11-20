@@ -71,6 +71,10 @@ test('a teacher assigns, runs, ends, reopens and deletes a quiz', async ({
     await row.getByRole('button', { name: 'Start', exact: true }).click();
     await expect(widget.getByText('Live', { exact: true })).toBeVisible();
     await expect(widget.getByText(QUIZ)).toBeVisible();
+    // A first start is not a resume, so no "Assignment resumed." toast.
+    await expect(
+      page.getByRole('status').filter({ hasText: 'Assignment resumed.' })
+    ).toHaveCount(0);
     const status = widget.getByRole('group', { name: 'Student status' });
     await expect(
       status.getByRole('button', { name: '0 Not started' })
