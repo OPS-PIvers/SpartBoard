@@ -12,16 +12,7 @@ import type { QuizSessionOptions } from '@/hooks/useQuizSession';
 import { quizHasBankSlots, resolveQuizAssignment } from '@/utils/questionBanks';
 import { DEFAULT_TAB_AWAY_LIMIT_SECONDS } from '@/utils/tabAwayLimit';
 
-/**
- * Session-options shape used when minting a view-only Quiz share. Typed as
- * `Required<QuizSessionOptions>` so adding a new field to QuizSessionOptions
- * fails type-check here until a deliberate value is chosen — the previous
- * inline literal silently let new optional fields default to undefined.
- *
- * View-only shares disable every per-attempt feature (no leaderboard, no
- * tab warnings, no bonuses, no result reveal) — none of them have meaning
- * when there are no submissions to score or compare.
- */
+// Every per-attempt option is off: a view-only share has no submissions.
 // Review's board size and the focus level never apply to a view-only share.
 const VIEW_ONLY_SESSION_OPTIONS: Required<
   Omit<QuizSessionOptions, 'boardRankLimit' | 'focusLevel'>
@@ -48,8 +39,7 @@ const VIEW_ONLY_SESSION_OPTIONS: Required<
   handRaiseEnabled: false,
   showScoreOnSubmit: false,
   timeLimitMinutes: null,
-  // Shuffles are meaningless for view-only shares (no submissions, so no
-  // student-specific rendering happens).
+  // No submissions, so nothing is rendered per student.
   shuffleQuestions: false,
   shuffleAnswerOptions: false,
 };
@@ -93,10 +83,7 @@ export const useQuizLinkShare = ({
   };
 
   const onCreateViewOnlyShare = async (meta: QuizMetadata) => {
-    // View-only Quiz share — bypasses the AssignModal/picker/PLC flow
-    // entirely. Creates a minimal assignment with view-only mode so
-    // students can browse questions but can't submit; returns the
-    // student-facing URL for ViewOnlyShareModal to display.
+    // Skips the assign flow: a minimal view-only assignment, returning its student URL.
     const data = await loadQuiz(meta);
     if (!data) {
       throw new Error('Failed to load quiz data');
