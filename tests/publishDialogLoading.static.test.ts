@@ -15,7 +15,7 @@ const publishBlock = (file: string, startMarker: string, endMarker: string) => {
 describe('Publish results dialog loads without the loading pane', () => {
   it('Quiz', () => {
     const block = publishBlock(
-      'components/widgets/QuizWidget/Widget.tsx',
+      'hooks/useQuizPublish.ts',
       'const publishQuizScoresFor = async (',
       'const saveLastProtection'
     );
