@@ -45,6 +45,8 @@ export const QUIZ_EDITOR_STATES = [
   'qe-sections',
   'qe-picture-only',
   'qe-stimuli',
+  'qe-random-numbers',
+  'qe-stimuli-many',
 ] as const;
 export type QuizEditorStateKey = (typeof QUIZ_EDITOR_STATES)[number];
 
@@ -80,6 +82,8 @@ export const STUDENT_QUIZ_STATES = [
   'sq-timed',
   'sq-last-minute',
   'sq-stimuli',
+  'sq-vocab',
+  'sq-vocab-drag',
   'sq-calculator',
   'sq-picture',
   'sq-pictures',

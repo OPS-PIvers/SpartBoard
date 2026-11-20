@@ -29,6 +29,7 @@ import {
   Library,
   Link2,
   ListChecks,
+  Hash,
   Mic,
   Music,
   Music2,
@@ -55,6 +56,7 @@ import {
   Quote,
   Strikethrough,
   Calculator,
+  ListPlus,
   Utensils,
   CloudSun,
   SquareChevronDown,
@@ -63,6 +65,8 @@ import {
   LogIn,
   Shapes,
   Settings2,
+  Users,
+  PanelLeft,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -646,6 +650,31 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Tap-to-fill word bank stimulus on quiz questions. Admin-only until Paul has tested it in prod.
+  'quiz-word-bank': {
+    label: 'Word bank stimulus',
+    icon: ListPlus,
+    description:
+      'Teachers add a word bank. Students tap a choice to fill a blank.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'students',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Stimulus attach dialog in the quiz question editor. Admin-only until Paul has tested it in prod.
+  'quiz-stimulus-picker': {
+    label: 'Stimulus picker dialog',
+    icon: PanelLeft,
+    description:
+      'Teachers attach stimuli in a dialog. The list is on the left and a preview is on the right.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Question editor metadata as labeled fields. Admin-only until Paul has tested it in prod.
   'question-editor-fields': {
     label: 'Question editor fields',
@@ -1053,6 +1082,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     category: 'students',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'class-groups-redesign': {
+    label: 'Class groups redesign',
+    icon: UsersRound,
+    description:
+      'Edit Class groups open as pages that hold their accommodations. Accommodations lists every student.',
+    stage: 'preview',
+    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -1743,6 +1783,19 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'quiz-random-numbers': {
+    label: 'Random-number questions',
+    icon: Hash,
+    description:
+      'Fill in the Blank questions with random numbers. Each student gets their own numbers.',
+    group: 'questions',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'quiz',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'results-print-v2': {
     label: 'Print results redesign',
     icon: Printer,
@@ -1758,6 +1811,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Assigned tab',
     icon: ClipboardList,
     description: 'Library and Assigned tabs. Each class has its own status.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'writing-peer-review': {
+    label: 'Writing peer review',
+    icon: Users,
+    description:
+      "Teachers pair students to read, comment on or suggest edits to each other's writing.",
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

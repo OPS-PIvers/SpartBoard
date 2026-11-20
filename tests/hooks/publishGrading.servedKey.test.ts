@@ -51,7 +51,7 @@ describe('answer key limited to served questions', () => {
     const ctx = buildResponseGradingContext(quiz, undefined);
     const patch = classPublishPatch(
       data,
-      gradeResponseForPublish(data, ctx),
+      gradeResponseForPublish(data, ctx, 'k'),
       opts
     );
     expect(patch.revealedAnswers).toEqual({ q0: 'a', q2: 'c' });
@@ -64,7 +64,7 @@ describe('answer key limited to served questions', () => {
     });
     const patch = classPublishPatch(
       data,
-      gradeResponseForPublish(data, ctx),
+      gradeResponseForPublish(data, ctx, 'k'),
       opts
     );
     expect(patch.revealedAnswers).toEqual({ q1: 'b' });
@@ -75,7 +75,7 @@ describe('answer key limited to served questions', () => {
     const ctx = buildResponseGradingContext(quiz, undefined);
     const patch = classPublishPatch(
       data,
-      gradeResponseForPublish(data, ctx),
+      gradeResponseForPublish(data, ctx, 'k'),
       opts
     );
     expect(patch.revealedAnswers).toEqual(opts.answerKey);
@@ -85,12 +85,13 @@ describe('answer key limited to served questions', () => {
     const data = response();
     const plain = gradeResponseForPublish(
       data,
-      buildResponseGradingContext(quiz, undefined)
+      buildResponseGradingContext(quiz, undefined),
+      'k'
     );
     const ctx = buildResponseGradingContext(quiz, {
       bankSlots: [{ id: 'slot' }],
     });
-    const graded = gradeResponseForPublish(data, ctx);
+    const graded = gradeResponseForPublish(data, ctx, 'k');
     expect(graded.score).toBe(plain.score);
     expect(classPublishPatch(data, graded, opts).revealedAnswers).toBe(
       '__delete__'
@@ -111,8 +112,9 @@ describe('answer key limited to served questions', () => {
     const ctx = buildResponseGradingContext(quiz, undefined);
     const fields = refreshedKeyFields(
       data,
-      gradeResponseForPublish(data, ctx),
-      quiz
+      gradeResponseForPublish(data, ctx, 'k'),
+      quiz,
+      'k'
     );
     expect(fields).toEqual({
       revealedAnswers: { q0: 'a', q1: 'b' },
@@ -124,7 +126,12 @@ describe('answer key limited to served questions', () => {
     const data = response();
     const ctx = buildResponseGradingContext(quiz, undefined);
     expect(
-      refreshedKeyFields(data, gradeResponseForPublish(data, ctx), quiz)
+      refreshedKeyFields(
+        data,
+        gradeResponseForPublish(data, ctx, 'k'),
+        quiz,
+        'k'
+      )
     ).toEqual({});
   });
 });

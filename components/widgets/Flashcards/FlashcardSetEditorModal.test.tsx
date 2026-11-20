@@ -97,11 +97,7 @@ const renderModal = (opts: {
 };
 
 const clickClose = () => {
-  const button = screen
-    .getAllByRole('button', { name: 'Close' })
-    .find((b) => b.textContent === 'Close');
-  if (!button) throw new Error('No footer Close button');
-  fireEvent.click(button);
+  fireEvent.click(screen.getByRole('button', { name: 'Close' }));
 };
 
 afterEach(() => {

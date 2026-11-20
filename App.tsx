@@ -463,6 +463,13 @@ const WritingDevHarness = import.meta.env.DEV
       }))
     )
   : null;
+const WritingPeerDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/WritingPeerDevHarness').then((module) => ({
+        default: module.WritingPeerDevHarness,
+      }))
+    )
+  : null;
 const WritingGraderDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/WritingGraderDevHarness').then((module) => ({
@@ -1137,6 +1144,15 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <WritingDevHarness />
+      </Suspense>
+    );
+  }
+
+  // Writing peer review setup and student views on fixtures; dev builds only.
+  if (WritingPeerDevHarness && pathname === '/writing-peer-dev') {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <WritingPeerDevHarness />
       </Suspense>
     );
   }

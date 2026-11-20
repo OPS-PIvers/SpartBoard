@@ -2023,7 +2023,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'editor.close': {
-    label: 'Close or Cancel button in an editor dialog footer',
+    label: 'Close button or footer Cancel button in an editor dialog',
     perWidgetType: true,
     panel: true,
     closes: 'own',
@@ -2695,6 +2695,62 @@ export const TOUR_ANCHORS = {
   },
   'quiz-editor.answer-accent-language': {
     label: 'Accent language row for an answer in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-number': {
+    label: 'Number link on the question prompt in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.calc-new-numbers': {
+    label: 'New numbers button on a random-number question in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.calc-from': {
+    label: 'From field of a random number in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.calc-to': {
+    label: 'To field of a random number in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.calc-decimals': {
+    label: 'Decimals field of a random number in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.calc-remove': {
+    label: 'Remove button of a random number in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.calc-formula': {
+    label: 'Formula answer of a random-number question in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.calc-tolerance': {
+    label: 'Accept within field of a random-number question in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.calc-tolerance-kind': {
+    label:
+      'Percent or plus-or-minus switch of a random-number question in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.calc-round': {
+    label: 'Round to field of a random-number question in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.calc-unit': {
+    label: 'Unit field of a random-number question in the Quiz editor',
     perWidgetType: true,
     panel: true,
   },
@@ -3909,6 +3965,11 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-stimuli.add-word-bank': {
+    label: 'Add a word bank in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-stimuli.add-passage': {
     label: 'Add a passage in the Quiz widget',
     perWidgetType: true,
@@ -3944,6 +4005,16 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'quiz-stimuli.picker-add': {
+    label: 'Add a stimulus row in the Quiz widget stimulus picker',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-stimuli.picker-close': {
+    label: 'Close button in the Quiz widget stimulus picker',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-stimuli.attach-toggle': {
     label: 'Attach section Stimuli disclosure in the Quiz widget',
     perWidgetType: true,
@@ -3977,6 +4048,16 @@ export const TOUR_ANCHORS = {
   },
   'quiz-stimuli.passage-text': {
     label: 'Passage textarea in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-stimuli.word-bank-columns': {
+    label: 'Word bank Columns in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-stimuli.word-bank-text': {
+    label: 'Word bank textarea in the Quiz widget',
     perField: true,
     panel: true,
   },
@@ -6196,6 +6277,56 @@ export const TOUR_ANCHORS = {
     label: 'Create groups button in the Split class form',
     panel: true,
   },
+  'roster-groups.back': {
+    label: 'All groups button at the top of a group page',
+    panel: true,
+  },
+  'roster-groups.name': {
+    label: 'Group name box on a group page',
+    panel: true,
+  },
+  'roster-groups.delete': {
+    label: 'Delete group button on a group page',
+    panel: true,
+    destructive: true,
+  },
+  'roster-groups.search': {
+    label: 'Search students box on a group page',
+    panel: true,
+  },
+  'roster-groups.select-all': {
+    label: 'Select all students button on a group page',
+    panel: true,
+  },
+  'roster-groups.clear': {
+    label: 'Clear students button on a group page',
+    panel: true,
+  },
+  'roster-groups.show-in-widgets': {
+    label: 'Show in widgets switch on a group page',
+    panel: true,
+  },
+  'roster-groups.done': {
+    label: 'Done button at the bottom of a group page',
+    panel: true,
+  },
+  'roster-accommodations.list': {
+    label: 'List of students on the Accommodations tab',
+    panel: true,
+  },
+  'roster-accommodations.edit': {
+    label: 'Edit button on a student row on the Accommodations tab',
+    perField: true,
+    panel: true,
+  },
+  'roster-accommodations.back': {
+    label: 'All students button at the top of a student accommodations page',
+    panel: true,
+  },
+  'roster-accommodations.done': {
+    label: 'Done button at the bottom of a student accommodations page',
+    panel: true,
+  },
   'group-wizard.steps': {
     label: 'Step list in the group editor',
     panel: true,
@@ -6758,14 +6889,14 @@ export const TOUR_ANCHORS = {
     rowList: 'assignment-rows',
   },
   'library-shell.assigned-classes': {
-    label: 'Classes button on an Assigned tab row; shows each class',
+    label: 'Details arrow on an Assigned tab row; shows each class',
     perField: true,
     rows: true,
     rowList: 'assignment-rows',
   },
   'library-shell.assigned-class-action': {
     label:
-      'Open, Pause, Resume, Close, Reopen or Monitor for one class in an expanded Assigned row',
+      'Open, Pause, Resume, Close or Reopen for one class in an expanded Assigned row',
     persists: true,
     perField: true,
     panel: true,
@@ -6773,7 +6904,7 @@ export const TOUR_ANCHORS = {
     keyHint: 'quiz#open-2 is Open for the second class in the open row',
   },
   'library-shell.assigned-done-section': {
-    label: 'Done section header on the Assigned tab',
+    label: 'Finished section header on the Assigned tab',
     perField: true,
   },
   'library-shell.assigned-left-open-close': {
@@ -6795,9 +6926,50 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'library-shell.assigned-move-to-done': {
-    label: 'Move to Done, in an Assigned row menu',
+    label: 'Move to Finished, in an Assigned row menu',
     persists: true,
     panel: true,
+  },
+  'library-shell.assigned-reopen': {
+    label: 'Reopen…, in an Assigned row menu',
+    persists: true,
+    panel: true,
+  },
+  'assigned-reopen.class': {
+    label: 'Class picker in the Reopen dialog of an Assigned row',
+    panel: true,
+  },
+  'assigned-reopen.who': {
+    label: 'Everyone or only chosen students, in the Reopen dialog',
+    panel: true,
+  },
+  'assigned-reopen.cancel': {
+    label: 'Cancel button in the Reopen dialog of an Assigned row',
+    panel: true,
+  },
+  'assigned-reopen.confirm': {
+    label: 'Reopen button in the Reopen dialog of an Assigned row',
+    panel: true,
+    persists: true,
+  },
+  'library-shell.assigned-results': {
+    label: 'Results in an expanded Assigned row',
+    perField: true,
+    panel: true,
+    rows: true,
+    rowList: 'assignment-rows',
+  },
+  'library-shell.assigned-search': {
+    label: 'Search box above the Assigned tab list',
+  },
+  'library-shell.assigned-filter-class': {
+    label: 'Class filter above the Assigned tab list',
+  },
+  'library-shell.assigned-filter-status': {
+    label: 'Status filter above the Assigned tab list',
+  },
+  'library-shell.assigned-filter-clear': {
+    label: 'Clear, beside the Assigned tab filters',
   },
   'library-shell.assigned-select': {
     label: 'Select on the Assigned tab; starts picking several assignments',
@@ -6814,7 +6986,8 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'library-shell.assigned-bulk-action': {
-    label: 'Close, Move to Done or Delete in the Assigned tab selection bar',
+    label:
+      'Close, Move to Finished or Delete in the Assigned tab selection bar',
     persists: true,
     destructive: true,
     perField: true,
@@ -15209,6 +15382,16 @@ export const TOUR_ANCHORS = {
     label: 'Cancel button in the publish scores dialog',
     panel: true,
   },
+  'publish-scores.unpublish-confirm': {
+    label: 'Unpublish button that confirms, in the publish scores dialog',
+    panel: true,
+    persists: true,
+    sandboxed: true,
+  },
+  'publish-scores.unpublish-cancel': {
+    label: 'Cancel beside the Unpublish confirm in the publish scores dialog',
+    panel: true,
+  },
   'publish-scores.confirm': {
     label: 'Publish or Update button in the publish scores dialog',
     panel: true,
@@ -18135,6 +18318,49 @@ export const TOUR_ANCHORS = {
   'writing-monitor.word-counts': {
     label: 'Word counts switch in the Writing monitor',
     perWidgetType: true,
+  },
+  'writing-monitor.peer-review': {
+    label: 'Peer review button in the Writing monitor',
+    perWidgetType: true,
+  },
+  'writing-peer.access': {
+    label: 'Partners can choice in the Writing peer review setup',
+    perWidgetType: true,
+    panel: true,
+  },
+  'writing-peer.pair-all': {
+    label: 'Pair everyone at random button in the Writing peer review setup',
+    perWidgetType: true,
+    panel: true,
+  },
+  'writing-peer.pair-rest': {
+    label: 'Pair the rest at random button in the Writing peer review setup',
+    perWidgetType: true,
+    panel: true,
+  },
+  'writing-peer.clear': {
+    label: 'Clear pairs button in the Writing peer review setup',
+    perWidgetType: true,
+    panel: true,
+  },
+  'writing-peer.partner': {
+    label: 'Partner box for one student in the Writing peer review setup',
+    perField: true,
+    panel: true,
+    rows: true,
+    rowList: 'writing-peer-partner',
+  },
+  'writing-peer.start': {
+    label: 'Start peer review or Save button in the Writing peer review setup',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'writing-peer.end': {
+    label: 'End peer review button in the Writing peer review setup',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
   },
   'writing-monitor.live-view': {
     label: 'Live view button on a student in the Writing monitor',

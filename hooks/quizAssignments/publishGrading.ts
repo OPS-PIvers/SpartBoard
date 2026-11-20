@@ -1,3 +1,10 @@
+import {
+  calcAttemptKey,
+  calcValuesFor,
+  formatCalcAnswer,
+  isCalcQuestion,
+  withCalcValues,
+} from '@/utils/quizCalculated';
 import { deleteField } from 'firebase/firestore';
 import type {
   QuestionTranslation,
@@ -118,8 +125,30 @@ export function buildRevealedAnswers(
   const revealed: Record<string, string> = {};
   // First-wins, matching buildResponseGradingContext — the revealed answer must match what the student was graded against.
   for (const q of dedupeQuestionsById(quizData.questions))
-    revealed[q.id] = revealValueFor(q);
+    // A random-number answer is added per student by `withCalcRevealed`.
+    if (!isCalcQuestion(q)) revealed[q.id] = revealValueFor(q);
   return revealed;
+}
+
+/** The published key for one student: each random-number question's answer from their own numbers. */
+export function withCalcRevealed(
+  answerKey: Record<string, string> | null,
+  questions: Iterable<QuizQuestion>,
+  responseKey: string,
+  response: Pick<QuizResponse, 'status' | 'completedAttempts'> &
+    Partial<Pick<QuizResponse, 'joinedAt'>>
+): Record<string, string> | null {
+  if (!answerKey) return answerKey;
+  const key = calcAttemptKey(responseKey, response);
+  let out = answerKey;
+  for (const q of questions) {
+    if (!isCalcQuestion(q) || !q.calc) continue;
+    const values = calcValuesFor(q, key);
+    if (!values) continue;
+    if (out === answerKey) out = { ...answerKey };
+    out[q.id] = formatCalcAnswer(q.calc, values);
+  }
+  return out;
 }
 
 /** Scoring-guide example responses by question, published with the answer key; null when there are none. */
@@ -209,7 +238,9 @@ export interface PublishGrade {
 /** Grades one response for publishing; `score` is null while a slot awaits a teacher grade. */
 export function gradeResponseForPublish(
   data: QuizResponse,
-  ctx: ResponseGradingContext
+  ctx: ResponseGradingContext,
+  /** The response doc id; fixes each student's random numbers. */
+  responseKey: string
 ): PublishGrade {
   const {
     questionsById,
@@ -270,7 +301,7 @@ export function gradeResponseForPublish(
       q,
       data,
       gradeAnswer(
-        q,
+        withCalcValues(q, calcAttemptKey(responseKey, data)),
         a.answer,
         manualGrade,
         fibAcceptedAnswers(
@@ -354,7 +385,8 @@ export function gradeResponseForPublish(
 export function refreshedKeyFields(
   data: QuizResponse,
   graded: PublishGrade,
-  quiz: QuizData
+  quiz: QuizData,
+  responseKey: string
 ): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   const override =
@@ -374,7 +406,13 @@ export function refreshedKeyFields(
     'revealedAnswers',
     data.revealedAnswers != null,
     override?.revealedAnswers != null,
-    () => buildRevealedAnswers(quiz)
+    () =>
+      withCalcRevealed(
+        buildRevealedAnswers(quiz),
+        dedupeQuestionsById(quiz.questions),
+        responseKey,
+        data
+      )
   );
   refresh(
     'revealedRubricExamples',

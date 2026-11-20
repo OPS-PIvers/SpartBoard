@@ -282,7 +282,7 @@ describe('bucket (D5, D16, D20)', () => {
     expect(s.action.kind).toBe('publish');
   });
 
-  it('Move to Done holds only while the assignment is ended', () => {
+  it('Move to Finished holds only while the assignment is ended', () => {
     const subs = { responses: [resp('c1', 'completed')], needsGrading: 1 };
     const moved = derive({ ...closed, status: 'inactive', doneAt: 99 }, subs);
     expect(moved).toMatchObject({ bucket: 'done', movedToDone: true });
@@ -323,7 +323,7 @@ describe('responses not loaded yet', () => {
     }
   });
 
-  it('still lets the D20 and Move to Done rules decide an ended row', () => {
+  it('still lets the D20 and Move to Finished rules decide an ended row', () => {
     const unknown = { responses: null, needsGrading: null };
     expect(derive({ status: 'inactive' }, unknown).bucket).toBe('done');
     expect(

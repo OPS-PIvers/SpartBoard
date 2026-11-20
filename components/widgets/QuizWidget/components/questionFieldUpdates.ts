@@ -97,6 +97,7 @@ export function questionTypeChangeUpdates(
     incorrectAnswers: nextType === 'MC' || nextType === 'MA' ? ['', ''] : [],
     alternateAnswers: undefined,
     blankAlternates: undefined,
+    calc: undefined,
     optionOrder: undefined,
     correctAnswer:
       nextType === 'FIB' && countTextBlanks(q.text) >= 2

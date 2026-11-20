@@ -7958,7 +7958,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "editor.close",
-    "label": "Close or Cancel button in an editor dialog footer",
+    "label": "Close button or footer Cancel button in an editor dialog",
     "scope": "widget type",
     "panel": true,
     "closes": "own",
@@ -10660,6 +10660,248 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-editor.answer-accent-language",
     "label": "Accent language row for an answer in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.prompt-number",
+    "label": "Number link on the question prompt in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.calc-new-numbers",
+    "label": "New numbers button on a random-number question in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.calc-from",
+    "label": "From field of a random number in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.calc-to",
+    "label": "To field of a random number in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.calc-decimals",
+    "label": "Decimals field of a random number in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.calc-remove",
+    "label": "Remove button of a random number in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.calc-formula",
+    "label": "Formula answer of a random-number question in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.calc-tolerance",
+    "label": "Accept within field of a random-number question in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.calc-tolerance-kind",
+    "label": "Percent or plus-or-minus switch of a random-number question in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.calc-round",
+    "label": "Round to field of a random-number question in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.calc-unit",
+    "label": "Unit field of a random-number question in the Quiz editor",
     "scope": "widget type",
     "panel": true,
     "keys": [
@@ -15613,6 +15855,30 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-stimuli.add-word-bank",
+    "label": "Add a word bank in the Quiz widget",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-editor.tab-stimuli:quiz"
+        ],
+        "reveal": "quiz-editor.tab-stimuli:quiz",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-stimuli.add-passage",
     "label": "Add a passage in the Quiz widget",
     "scope": "widget type",
@@ -15717,6 +15983,18 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "needs": [
           "widget-on-stage"
         ]
+      },
+      {
+        "surface": "quiz.editor.stimulus-picker",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-stimuli.attach-toggle:quiz"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -15756,6 +16034,64 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "quiz-stimuli.attach-toggle:quiz"
         ],
         "reveal": "quiz-stimuli.attach-toggle:quiz",
+        "needs": [
+          "widget-on-stage"
+        ]
+      },
+      {
+        "surface": "quiz.editor.stimulus-picker",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-stimuli.attach-toggle:quiz"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-stimuli.picker-add",
+    "label": "Add a stimulus row in the Quiz widget stimulus picker",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor.stimulus-picker",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-stimuli.attach-toggle:quiz"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-stimuli.picker-close",
+    "label": "Close button in the Quiz widget stimulus picker",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor.stimulus-picker",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-stimuli.attach-toggle:quiz"
+        ],
         "needs": [
           "widget-on-stage"
         ]
@@ -15897,6 +16233,48 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-stimuli.passage-text",
     "label": "Passage textarea in the Quiz widget",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-editor.tab-stimuli:quiz"
+        ],
+        "reveal": "quiz-editor.tab-stimuli:quiz",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-stimuli.word-bank-columns",
+    "label": "Word bank Columns in the Quiz widget",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-editor.tab-stimuli:quiz"
+        ],
+        "reveal": "quiz-editor.tab-stimuli:quiz",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-stimuli.word-bank-text",
+    "label": "Word bank textarea in the Quiz widget",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -24976,6 +25354,283 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "roster-groups.back",
+    "label": "All groups button at the top of a group page",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-groups",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-groups.name",
+    "label": "Group name box on a group page",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-groups",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-groups.delete",
+    "label": "Delete group button on a group page",
+    "scope": "board",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "board.roster-groups",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-groups.search",
+    "label": "Search students box on a group page",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-groups",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-groups.select-all",
+    "label": "Select all students button on a group page",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-groups",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-groups.clear",
+    "label": "Clear students button on a group page",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-groups",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-groups.show-in-widgets",
+    "label": "Show in widgets switch on a group page",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-groups",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-groups.done",
+    "label": "Done button at the bottom of a group page",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-groups",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-accommodations.list",
+    "label": "List of students on the Accommodations tab",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes"
+        ],
+        "opened_by": [
+          "classes.new-class",
+          "classes.new-class-empty"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-accommodations.edit",
+    "label": "Edit button on a student row on the Accommodations tab",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes"
+        ],
+        "opened_by": [
+          "classes.new-class",
+          "classes.new-class-empty"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-accommodations.back",
+    "label": "All students button at the top of a student accommodations page",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-accommodations.edit:roster-accommodations"
+        ],
+        "reveal": "roster-accommodations.edit:roster-accommodations",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-accommodations.done",
+    "label": "Done button at the bottom of a student accommodations page",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-accommodations.edit:roster-accommodations"
+        ],
+        "reveal": "roster-accommodations.edit:roster-accommodations",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
     "id": "group-wizard.steps",
     "label": "Step list in the group editor",
     "scope": "board",
@@ -27165,7 +27820,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "library-shell.assigned-classes",
-    "label": "Classes button on an Assigned tab row; shows each class",
+    "label": "Details arrow on an Assigned tab row; shows each class",
     "scope": "field",
     "row_wildcard": true,
     "row_list": "assignment-rows",
@@ -27179,7 +27834,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "library-shell.assigned-class-action",
-    "label": "Open, Pause, Resume, Close, Reopen or Monitor for one class in an expanded Assigned row",
+    "label": "Open, Pause, Resume, Close or Reopen for one class in an expanded Assigned row",
     "scope": "field",
     "panel": true,
     "persists": true,
@@ -27198,7 +27853,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "library-shell.assigned-done-section",
-    "label": "Done section header on the Assigned tab",
+    "label": "Finished section header on the Assigned tab",
     "scope": "field",
     "routes": [
       {
@@ -27250,60 +27905,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.archive-menu"
         ],
         "reveal": "library-shell.archive-menu"
-      },
-      {
-        "surface": "library.video-activity",
-        "kind": "widget",
-        "widget_type": "video-activity",
-        "path": [
-          "library-shell.archive-menu:video-activity#row-1"
-        ],
-        "reveal": "library-shell.archive-menu:video-activity#row-1",
-        "needs": [
-          "widget-on-stage"
-        ]
-      },
-      {
-        "surface": "quiz.face",
-        "kind": "widget",
-        "widget_type": "quiz",
-        "path": [
-          "library-shell.archive-menu:quiz#row-1"
-        ],
-        "reveal": "library-shell.archive-menu:quiz#row-1",
-        "needs": [
-          "widget-on-stage"
-        ]
-      },
-      {
-        "surface": "widgets.writing.face",
-        "kind": "widget",
-        "widget_type": "writing",
-        "path": [
-          "library-shell.archive-menu:writing#row-1"
-        ],
-        "reveal": "library-shell.archive-menu:writing#row-1",
-        "needs": [
-          "widget-on-stage"
-        ]
       }
     ]
   },
   {
     "id": "library-shell.assigned-move-to-done",
-    "label": "Move to Done, in an Assigned row menu",
+    "label": "Move to Finished, in an Assigned row menu",
     "scope": "board",
     "panel": true,
     "persists": true,
     "routes": [
-      {
-        "surface": "board.assignments-hub",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.assignments"
-        ]
-      },
       {
         "surface": "library.shell",
         "kind": "shared",
@@ -27311,42 +27922,154 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.archive-menu"
         ],
         "reveal": "library-shell.archive-menu"
-      },
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-reopen",
+    "label": "Reopen…, in an Assigned row menu",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
       {
-        "surface": "library.video-activity",
-        "kind": "widget",
-        "widget_type": "video-activity",
+        "surface": "library.shell",
+        "kind": "shared",
         "path": [
-          "library-shell.archive-menu:video-activity#row-1"
+          "library-shell.archive-menu"
         ],
-        "reveal": "library-shell.archive-menu:video-activity#row-1",
-        "needs": [
-          "widget-on-stage"
-        ]
-      },
+        "reveal": "library-shell.archive-menu"
+      }
+    ]
+  },
+  {
+    "id": "assigned-reopen.class",
+    "label": "Class picker in the Reopen dialog of an Assigned row",
+    "scope": "board",
+    "panel": true,
+    "routes": [
       {
-        "surface": "quiz.face",
-        "kind": "widget",
-        "widget_type": "quiz",
+        "surface": "library.shell",
+        "kind": "shared",
         "path": [
-          "library-shell.archive-menu:quiz#row-1"
+          "library-shell.assigned-reopen"
         ],
-        "reveal": "library-shell.archive-menu:quiz#row-1",
-        "needs": [
-          "widget-on-stage"
-        ]
-      },
+        "reveal": "library-shell.assigned-reopen"
+      }
+    ]
+  },
+  {
+    "id": "assigned-reopen.who",
+    "label": "Everyone or only chosen students, in the Reopen dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
       {
-        "surface": "widgets.writing.face",
-        "kind": "widget",
-        "widget_type": "writing",
+        "surface": "library.shell",
+        "kind": "shared",
         "path": [
-          "library-shell.archive-menu:writing#row-1"
+          "library-shell.assigned-reopen"
         ],
-        "reveal": "library-shell.archive-menu:writing#row-1",
-        "needs": [
-          "widget-on-stage"
-        ]
+        "reveal": "library-shell.assigned-reopen"
+      }
+    ]
+  },
+  {
+    "id": "assigned-reopen.cancel",
+    "label": "Cancel button in the Reopen dialog of an Assigned row",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": [
+          "library-shell.assigned-reopen"
+        ],
+        "reveal": "library-shell.assigned-reopen"
+      }
+    ]
+  },
+  {
+    "id": "assigned-reopen.confirm",
+    "label": "Reopen button in the Reopen dialog of an Assigned row",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": [
+          "library-shell.assigned-reopen"
+        ],
+        "reveal": "library-shell.assigned-reopen"
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-results",
+    "label": "Results in an expanded Assigned row",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "row_list": "assignment-rows",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": [
+          "library-shell.assigned-classes"
+        ],
+        "reveal": "library-shell.assigned-classes"
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-search",
+    "label": "Search box above the Assigned tab list",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-filter-class",
+    "label": "Class filter above the Assigned tab list",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-filter-status",
+    "label": "Status filter above the Assigned tab list",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-filter-clear",
+    "label": "Clear, beside the Assigned tab filters",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
       }
     ]
   },
@@ -27392,7 +28115,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "library-shell.assigned-bulk-action",
-    "label": "Close, Move to Done or Delete in the Assigned tab selection bar",
+    "label": "Close, Move to Finished or Delete in the Assigned tab selection bar",
     "scope": "field",
     "panel": true,
     "destructive": true,
@@ -65728,6 +66451,34 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "publish-scores.unpublish-confirm",
+    "label": "Unpublish button that confirms, in the publish scores dialog",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "sandboxed": true,
+    "routes": [
+      {
+        "surface": "library.publish-scores",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "publish-scores.unpublish-cancel",
+    "label": "Cancel beside the Unpublish confirm in the publish scores dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.publish-scores",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "publish-scores.confirm",
     "label": "Publish or Update button in the publish scores dialog",
     "scope": "board",
@@ -78010,6 +78761,184 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "writing",
         "path": [
           "library-shell.archive-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-monitor.peer-review",
+    "label": "Peer review button in the Writing monitor",
+    "scope": "widget type",
+    "routes": [
+      {
+        "surface": "widgets.writing.monitor",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-peer.access",
+    "label": "Partners can choice in the Writing peer review setup",
+    "scope": "widget type",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.peer-review",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-monitor.peer-review:writing"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-peer.pair-all",
+    "label": "Pair everyone at random button in the Writing peer review setup",
+    "scope": "widget type",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.peer-review",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-monitor.peer-review:writing"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-peer.pair-rest",
+    "label": "Pair the rest at random button in the Writing peer review setup",
+    "scope": "widget type",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.peer-review",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-monitor.peer-review:writing"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-peer.clear",
+    "label": "Clear pairs button in the Writing peer review setup",
+    "scope": "widget type",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.peer-review",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-monitor.peer-review:writing"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-peer.partner",
+    "label": "Partner box for one student in the Writing peer review setup",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "row_list": "writing-peer-partner",
+    "routes": [
+      {
+        "surface": "widgets.writing.peer-review",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-monitor.peer-review:writing"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-peer.start",
+    "label": "Start peer review or Save button in the Writing peer review setup",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.peer-review",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-monitor.peer-review:writing"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-peer.end",
+    "label": "End peer review button in the Writing peer review setup",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.peer-review",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-monitor.peer-review:writing"
         ],
         "needs": [
           "widget-on-stage",

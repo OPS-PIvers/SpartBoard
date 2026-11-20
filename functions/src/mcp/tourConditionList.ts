@@ -43,6 +43,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'assignment-modes',
   'assignments-hub',
   'blooms-ai',
+  'class-groups-redesign',
   'class-student-page',
   'claude-connector',
   'claude-connector-guided-learning',
@@ -128,14 +129,17 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'quiz-live-view-screenshot',
   'quiz-media-response',
   'quiz-question-audio',
+  'quiz-random-numbers',
   'quiz-read-aloud',
   'quiz-recap-all-options',
   'quiz-score-on-submit',
+  'quiz-stimulus-picker',
   'quiz-stimulus-quotes',
   'quiz-student-view',
   'quiz-time-limit',
   'quiz-translation',
   'quiz-whiteboard-response',
+  'quiz-word-bank',
   'remote-control',
   'results-print-v2',
   'roster-groups',
@@ -163,6 +167,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'web-tours',
   'webcam-ai',
   'whiteboard-pro',
+  'writing-peer-review',
 ];
 
 export const TOUR_CONDITION_RETIRED_FEATURES: readonly string[] = [

@@ -42,6 +42,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'student-gradebook',
   'quiz-time-limit',
   'group-reminders',
+  'class-groups-redesign',
   'share-content-safeguards',
   'guided-learning-ai',
   'routine-guide',
@@ -56,6 +57,8 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-cross-out',
   'quiz-blank-types',
   'quiz-calculator-stimulus',
+  'quiz-word-bank',
+  'quiz-stimulus-picker',
   'question-editor-fields',
   'lunch-count-redesign',
   'weather-details',
@@ -90,7 +93,9 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'assign-due-date',
   'course-agenda',
   'assigned-tab',
+  'writing-peer-review',
   'quiz-question-audio',
+  'quiz-random-numbers',
   'results-print-v2',
 ];
 
