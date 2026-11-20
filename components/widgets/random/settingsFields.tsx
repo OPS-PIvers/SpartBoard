@@ -201,7 +201,13 @@ function resultGroups(result: RandomConfig['lastResult']): RandomGroup[] {
 export const RandomSendToStationsField: React.FC<{
   ctx: CustomRenderCtx;
 }> = ({ ctx }) => {
-  const { activeDashboard, addToast, updateWidget } = useDashboard();
+  const {
+    activeDashboard,
+    activeRosterId,
+    addToast,
+    setActiveRoster,
+    updateWidget,
+  } = useDashboard();
   const { showConfirm } = useDialog();
   const { roster: widgetRoster } = useWidgetRoster(
     ctx.config as unknown as RandomConfig
@@ -245,6 +251,8 @@ export const RandomSendToStationsField: React.FC<{
     ) {
       const roster = widgetRoster;
       if (roster) {
+        // Stations shows the board's class, so bring it to this Group Maker's class.
+        if (roster.id !== activeRosterId) setActiveRoster(roster.id);
         rosterNameToId = new Map(
           roster.students.map((student) => [
             `${student.firstName} ${student.lastName}`.trim(),

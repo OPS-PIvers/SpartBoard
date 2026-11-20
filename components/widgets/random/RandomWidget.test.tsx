@@ -1182,6 +1182,43 @@ describe('RandomWidget — each widget keeps its own class', () => {
     expect(configWrites()).toContainEqual({ rosterId: 'rB' });
   });
 
+  it("keeps the draw when its class isn't one of this user's classes", () => {
+    const set = (rosters: unknown[]) =>
+      (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        ...mockDashboardContext,
+        rosters,
+        activeRosterId: 'rB',
+        setActiveRoster: vi.fn(),
+      });
+    set([]);
+    const widget = widgetWith({
+      rosterId: 'owner-class',
+      lastResult: groupsOfA,
+    });
+    const { rerender } = render(<RandomWidget widget={widget} />);
+    set([classA, classB]);
+    rerender(<RandomWidget widget={widget} />);
+    expect(configWrites().some((c) => c.lastResult === null)).toBe(false);
+  });
+
+  it("switches the viewer's own class on a view-only board", () => {
+    const setActiveRoster = vi.fn();
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      ...mockDashboardContext,
+      rosters: [classA, classB],
+      activeRosterId: 'rA',
+      isActiveBoardReadOnly: true,
+      setActiveRoster,
+    });
+    render(<RandomWidget widget={widgetWith({})} />);
+    fireEvent.click(
+      screen.getByRole('button', { name: /Active class: Class A/i })
+    );
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /Class B/i }));
+    expect(setActiveRoster).toHaveBeenCalledWith('rB');
+    expect(configWrites().some((c) => c.rosterId === 'rB')).toBe(false);
+  });
+
   it("picking a class sets this widget's class and clears its draw", () => {
     boardOn('rA');
     render(

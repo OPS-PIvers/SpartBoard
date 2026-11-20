@@ -162,6 +162,8 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     rosters,
     activeRosterId,
     activeDashboard,
+    isActiveBoardReadOnly,
+    setActiveRoster,
   } = useDashboard();
   const rosterGroupsEnabled = useRosterGroupsGate();
   const config = widget.config as RandomConfig;
@@ -333,6 +335,8 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   const widgetRosterId = randomRosterId(config, rosters, activeRosterId);
   const rosterPinned = typeof config.rosterId === 'string';
+  // The saved choice, not the resolved one: a class this user can't see (a collaborator, a copied board) must not wipe the draw.
+  const savedRosterId = config.rosterId ?? activeRosterId;
 
   // Track active roster to only clear when it actually changes
   const lastRosterRef = useRef<{
@@ -341,7 +345,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     pool: string | null;
     pinned: boolean;
   }>({
-    id: widgetRosterId,
+    id: savedRosterId,
     mode: rosterMode,
     pool: rosterPoolGroupId,
     pinned: rosterPinned,
@@ -363,11 +367,11 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     // Pinning an older widget to the class it already shows is not a class change.
     const justPinned = rosterPinned && !lastRosterRef.current.pinned;
     const changed =
-      (widgetRosterId !== lastRosterRef.current.id && !justPinned) ||
+      (savedRosterId !== lastRosterRef.current.id && !justPinned) ||
       rosterMode !== lastRosterRef.current.mode ||
       rosterPoolGroupId !== lastRosterRef.current.pool;
     lastRosterRef.current = {
-      id: widgetRosterId,
+      id: savedRosterId,
       mode: rosterMode,
       pool: rosterPoolGroupId,
       pinned: rosterPinned,
@@ -391,7 +395,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       }
     }
   }, [
-    widgetRosterId,
+    savedRosterId,
     rosterPinned,
     widget.id,
     updateWidget,
@@ -606,6 +610,11 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   // Picking a class here sets this widget's class only, never the board's.
   const handleSelectClass = (rosterId: string, groupId: string | null) => {
+    // A view-only board can't save widget config, so switch the viewer's own class instead.
+    if (isActiveBoardReadOnly) {
+      if (rosterId !== widgetRosterId) setActiveRoster(rosterId);
+      return;
+    }
     const update: Partial<RandomConfig> = {
       rosterId,
       rosterPoolGroupId: groupId,
