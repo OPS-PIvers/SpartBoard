@@ -122,6 +122,49 @@ describe('WeatherWidget', () => {
     expect(screen.getByText('It is hot!')).toBeInTheDocument();
   });
 
+  describe('feels-like drives ranges and clothing', () => {
+    const withFeels = (temp: number, feelsLike?: number): WidgetData => ({
+      ...baseWidget,
+      config: { ...baseWidget.config, temp, feelsLike },
+    });
+
+    it('picks the hot message when it feels hot but reads mild', () => {
+      render(<WeatherWidget widget={withFeels(72, 90)} />);
+      expect(screen.getByText('It is hot!')).toBeInTheDocument();
+    });
+
+    it('picks the freezing message and picture when it feels freezing but reads mild', () => {
+      render(<WeatherWidget widget={withFeels(72, 20)} />);
+      expect(screen.getByText('It is freezing!')).toBeInTheDocument();
+      expect(screen.getByRole('img')).toHaveAttribute(
+        'src',
+        expect.stringContaining('ice.png')
+      );
+    });
+
+    it('drops the hot message when it reads hot but feels mild', () => {
+      render(<WeatherWidget widget={withFeels(90, 72)} />);
+      expect(screen.queryByText('It is hot!')).not.toBeInTheDocument();
+    });
+
+    it.each([
+      [72, 38, /Heavy Coat/i],
+      [72, 50, /Light Jacket/i],
+      [30, 78, /Short Sleeves/i],
+    ])(
+      'recommends clothing for temp %s feeling like %s',
+      (temp, feelsLike, label) => {
+        render(<WeatherWidget widget={withFeels(temp, feelsLike)} />);
+        expect(screen.getByText(label)).toBeInTheDocument();
+      }
+    );
+
+    it('falls back to the actual temperature without a feels-like reading', () => {
+      render(<WeatherWidget widget={withFeels(90)} />);
+      expect(screen.getByText('It is hot!')).toBeInTheDocument();
+    });
+  });
+
   it('hides clothing container when hideClothing is true', () => {
     const widget: WidgetData = {
       ...baseWidget,
