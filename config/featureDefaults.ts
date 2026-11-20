@@ -64,6 +64,7 @@ import {
   LogIn,
   Shapes,
   Settings2,
+  Users,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -1783,6 +1784,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Assigned tab',
     icon: ClipboardList,
     description: 'Library and Assigned tabs. Each class has its own status.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'writing-peer-review': {
+    label: 'Writing peer review',
+    icon: Users,
+    description:
+      "Teachers pair students to read, comment on or suggest edits to each other's writing.",
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

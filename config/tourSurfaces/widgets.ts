@@ -866,6 +866,16 @@ export const SURFACES: TourSurfaceMap = {
     widgetType: 'writing',
     needs: ['widget-on-stage', 'library-item', 'live-session'],
   },
+  'widgets.writing.peer-review': {
+    label: 'Writing peer review setup',
+    kind: 'modal',
+    files: [
+      'components/widgets/Writing/components/peerReview/PeerPairingModal.tsx',
+    ],
+    opensWith: 'writing-monitor.peer-review:writing',
+    parent: 'widgets.writing.monitor',
+    widgetType: 'writing',
+  },
   'widgets.writing.live-view': {
     label: 'Writing Live view of one student',
     kind: 'panel',

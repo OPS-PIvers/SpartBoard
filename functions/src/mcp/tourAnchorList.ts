@@ -78459,6 +78459,184 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "writing-monitor.peer-review",
+    "label": "Peer review button in the Writing monitor",
+    "scope": "widget type",
+    "routes": [
+      {
+        "surface": "widgets.writing.monitor",
+        "kind": "panel",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-peer.access",
+    "label": "Partners can choice in the Writing peer review setup",
+    "scope": "widget type",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.peer-review",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-monitor.peer-review:writing"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-peer.pair-all",
+    "label": "Pair everyone at random button in the Writing peer review setup",
+    "scope": "widget type",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.peer-review",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-monitor.peer-review:writing"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-peer.pair-rest",
+    "label": "Pair the rest at random button in the Writing peer review setup",
+    "scope": "widget type",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.peer-review",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-monitor.peer-review:writing"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-peer.clear",
+    "label": "Clear pairs button in the Writing peer review setup",
+    "scope": "widget type",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.peer-review",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-monitor.peer-review:writing"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-peer.partner",
+    "label": "Partner box for one student in the Writing peer review setup",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "row_list": "writing-peer-partner",
+    "routes": [
+      {
+        "surface": "widgets.writing.peer-review",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-monitor.peer-review:writing"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-peer.start",
+    "label": "Start peer review or Save button in the Writing peer review setup",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.peer-review",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-monitor.peer-review:writing"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "writing-peer.end",
+    "label": "End peer review button in the Writing peer review setup",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.writing.peer-review",
+        "kind": "modal",
+        "widget_type": "writing",
+        "path": [
+          "library-shell.archive-primary-action:writing#row-1",
+          "writing-monitor.peer-review:writing"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
     "id": "writing-monitor.live-view",
     "label": "Live view button on a student in the Writing monitor",
     "scope": "field",

@@ -20,7 +20,15 @@ import { effectivePageProtections } from '@/utils/pageProtections';
 import { deriveWritingView, writingClosed } from '@/utils/writingStudentView';
 import { LiveViewNotice } from '@/components/quiz/LiveViewNotice';
 import { syncServerTime } from '@/utils/serverTime';
-import { WritingStudentShell } from './WritingStudentShell';
+import {
+  WritingStudentShell,
+  type WritingPeerTab,
+} from './WritingStudentShell';
+import { useWritingPeerReview } from '@/hooks/useWritingPeerReview';
+import {
+  PartnerFeedbackPanel,
+  PartnerReviewPanel,
+} from './peerReview/PeerReviewPanels';
 import { StudentWritingRecordButton } from './StudentWritingRecord';
 import { WritingReturnedFeedback } from './WritingReturnedFeedback';
 
@@ -142,6 +150,24 @@ const WritingPiecePage: React.FC<{
     [canDictate, dictateLanguage, onDictationInsert, paidAssignmentId]
   );
 
+  // Peer review: a tab for the partner I review and one for notes on my writing.
+  const [peerTab, setPeerTab] = useState<WritingPeerTab>('mine');
+  const peer = useWritingPeerReview({
+    sessionId: session.id,
+    studentUid,
+    peerReview: session.peerReview,
+    partnerOpen: peerTab === 'partner',
+  });
+  const openNotes = peer.notes.filter((n) => n.status === 'open').length;
+  const showFeedback = peer.notes.length > 0;
+  const partnerName = peer.reviews ? peer.reviews.name || null : null;
+  const shownTab: WritingPeerTab =
+    (peerTab === 'partner' && !partnerName) ||
+    (peerTab === 'feedback' && !showFeedback)
+      ? 'mine'
+      : peerTab;
+  const applyPeerEdit = piece.applyPeerEdit;
+
   const response = piece.response;
   const readOnlyHtml = response?.html ?? '';
   return (
@@ -149,6 +175,32 @@ const WritingPiecePage: React.FC<{
       <WritingStudentShell
         session={session}
         onDone={onDone}
+        peer={{
+          tab: shownTab,
+          onTab: setPeerTab,
+          feedbackCount: openNotes,
+          showFeedback,
+          partnerName,
+          panel:
+            shownTab === 'partner' ? (
+              <PartnerReviewPanel
+                partner={peer.partner}
+                failed={peer.partnerError}
+                access={peer.access}
+                onAdd={peer.addMark}
+                onDelete={peer.deleteMark}
+              />
+            ) : shownTab === 'feedback' ? (
+              <PartnerFeedbackPanel
+                html={writing ? piece.html : readOnlyHtml}
+                notes={peer.notes}
+                nameOf={peer.nameOf}
+                canAccept={writing && view.editable}
+                onAccept={applyPeerEdit}
+                onClose={peer.closeNote}
+              />
+            ) : null,
+        }}
         record={
           session.studentCanViewRecord === true && response ? (
             <StudentWritingRecordButton

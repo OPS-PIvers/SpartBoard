@@ -187,6 +187,10 @@ export {
   saveWritingFeedbackV1,
 } from './writingResponses';
 export { purgeWritingLogs } from './writingLogPurge';
+export {
+  setWritingPeerReviewV1,
+  writingPeerReviewV1,
+} from './writingPeerReview';
 
 // ── Flashcards Check submission (server-graded; docs/plans/shipped/FLASHCARDS.md §7) ─
 export {

@@ -235,6 +235,11 @@ export interface FreeResponseGraderProps {
     slot: ArtifactSlot;
     isAudio: boolean;
   }) => React.ReactNode;
+  /** Extra notes under the answer, such as Writing's partner comments. */
+  renderAnswerNotes?: (answer: {
+    responseKey: string;
+    questionId: string;
+  }) => React.ReactNode;
   /** Paper written answers: teacher-only transcription records keyed by `paperPrivateKey`. */
   paperPrivate?: ReadonlyMap<string, PaperPrivateAnswer>;
   /** Loads handwriting crops; paper answers show no crop when omitted. */
@@ -619,6 +624,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   onSaveRubric,
   initialTarget,
   renderNormingFlag,
+  renderAnswerNotes,
   paperPrivate,
   resolvePaperCrop,
   paperActions,
@@ -2717,6 +2723,14 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                 questionId: question.id,
                 slot: targetSlot(target),
                 isAudio: isMedia,
+              })}
+
+            {renderAnswerNotes &&
+              response &&
+              question &&
+              renderAnswerNotes({
+                responseKey: responseKeyOf(response),
+                questionId: question.id,
               })}
           </div>
         </section>

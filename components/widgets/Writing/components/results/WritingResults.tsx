@@ -80,6 +80,12 @@ export const WritingResults: React.FC<{
             )
           }
           onClose={() => setGrading(null)}
+          nameOf={(uid) => {
+            const n = pseudonyms.byStudentUid.get(uid);
+            return n
+              ? [n.familyName, n.givenName].filter(Boolean).join(', ')
+              : '';
+          }}
         />
       )}
     </>

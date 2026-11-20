@@ -18253,6 +18253,49 @@ export const TOUR_ANCHORS = {
     label: 'Word counts switch in the Writing monitor',
     perWidgetType: true,
   },
+  'writing-monitor.peer-review': {
+    label: 'Peer review button in the Writing monitor',
+    perWidgetType: true,
+  },
+  'writing-peer.access': {
+    label: 'Partners can choice in the Writing peer review setup',
+    perWidgetType: true,
+    panel: true,
+  },
+  'writing-peer.pair-all': {
+    label: 'Pair everyone at random button in the Writing peer review setup',
+    perWidgetType: true,
+    panel: true,
+  },
+  'writing-peer.pair-rest': {
+    label: 'Pair the rest at random button in the Writing peer review setup',
+    perWidgetType: true,
+    panel: true,
+  },
+  'writing-peer.clear': {
+    label: 'Clear pairs button in the Writing peer review setup',
+    perWidgetType: true,
+    panel: true,
+  },
+  'writing-peer.partner': {
+    label: 'Partner box for one student in the Writing peer review setup',
+    perField: true,
+    panel: true,
+    rows: true,
+    rowList: 'writing-peer-partner',
+  },
+  'writing-peer.start': {
+    label: 'Start peer review or Save button in the Writing peer review setup',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'writing-peer.end': {
+    label: 'End peer review button in the Writing peer review setup',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
   'writing-monitor.live-view': {
     label: 'Live view button on a student in the Writing monitor',
     perField: true,
