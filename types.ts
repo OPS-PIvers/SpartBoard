@@ -7664,7 +7664,7 @@ export interface QuizAssignment
   closeAt?: number | null;
   /** Teacher-only close mark for an assignment with no `periodAccess` (ASSIGNED_TAB D24). */
   closedAt?: number | null;
-  /** Set by Move to Done (ASSIGNED_TAB D5): Done while ended, whatever its grading. */
+  /** Set by Move to Finished (ASSIGNED_TAB D5): Done while ended, whatever its grading. */
   doneAt?: number | null;
   /** Last Resume or Assigned tab open of a single line (ASSIGNED_TAB D11). */
   openedAt?: number | null;
@@ -10341,7 +10341,7 @@ export interface FlashcardAssignment
   dueAt?: number | null;
   /** PLC this assignment's class-level results are shared with. */
   plcShare?: { plcId: string; sharedAt: number } | null;
-  /** Assigned tab: single-line Close mark (D24) and Move to Done mark (D5). */
+  /** Assigned tab: single-line Close mark (D24) and Move to Finished mark (D5). */
   closedAt?: number | null;
   doneAt?: number | null;
 }
@@ -10815,7 +10815,7 @@ export interface WritingAssignmentRecord {
   overridesByStudentUid?: Record<string, StudentOverride>;
   targetSkippedCount?: number;
   removedStudentRefs?: StudentTargetRef[];
-  /** Assigned tab marks, written by `updateWritingSessionV1`: single-line Close (D24) and Move to Done (D5). */
+  /** Assigned tab marks, written by `updateWritingSessionV1`: single-line Close (D24) and Move to Finished (D5). */
   closedAt?: number | null;
   doneAt?: number | null;
 }

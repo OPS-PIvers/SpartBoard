@@ -27231,7 +27231,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "library-shell.assigned-classes",
-    "label": "Classes button on an Assigned tab row; shows each class",
+    "label": "Details arrow on an Assigned tab row; shows each class",
     "scope": "field",
     "row_wildcard": true,
     "row_list": "assignment-rows",
@@ -27245,7 +27245,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "library-shell.assigned-class-action",
-    "label": "Open, Pause, Resume, Close, Reopen or Monitor for one class in an expanded Assigned row",
+    "label": "Open, Pause, Resume, Close or Reopen for one class in an expanded Assigned row",
     "scope": "field",
     "panel": true,
     "persists": true,
@@ -27264,7 +27264,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "library-shell.assigned-done-section",
-    "label": "Done section header on the Assigned tab",
+    "label": "Finished section header on the Assigned tab",
     "scope": "field",
     "routes": [
       {
@@ -27357,7 +27357,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "library-shell.assigned-move-to-done",
-    "label": "Move to Done, in an Assigned row menu",
+    "label": "Move to Finished, in an Assigned row menu",
     "scope": "board",
     "panel": true,
     "persists": true,
@@ -27417,6 +27417,34 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "library-shell.assigned-results",
+    "label": "Results in an expanded Assigned row",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "row_list": "assignment-rows"
+  },
+  {
+    "id": "library-shell.assigned-search",
+    "label": "Search box above the Assigned tab list",
+    "scope": "board"
+  },
+  {
+    "id": "library-shell.assigned-filter-class",
+    "label": "Class filter above the Assigned tab list",
+    "scope": "board"
+  },
+  {
+    "id": "library-shell.assigned-filter-status",
+    "label": "Status filter above the Assigned tab list",
+    "scope": "board"
+  },
+  {
+    "id": "library-shell.assigned-filter-clear",
+    "label": "Clear, beside the Assigned tab filters",
+    "scope": "board"
+  },
+  {
     "id": "library-shell.assigned-select",
     "label": "Select on the Assigned tab; starts picking several assignments",
     "scope": "board",
@@ -27458,7 +27486,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "library-shell.assigned-bulk-action",
-    "label": "Close, Move to Done or Delete in the Assigned tab selection bar",
+    "label": "Close, Move to Finished or Delete in the Assigned tab selection bar",
     "scope": "field",
     "panel": true,
     "destructive": true,

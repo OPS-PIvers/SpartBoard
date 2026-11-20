@@ -25,7 +25,6 @@ import {
   AssignedRow,
   useAssignedBulkOps,
   type ClassActionKind,
-  type LineSegment,
   mainActionLabel,
 } from '@/components/common/library/assigned';
 import type { LibraryMenuAction } from '@/components/common/library/types';
@@ -342,6 +341,7 @@ export const QuizAssignedTab: React.FC<QuizAssignedTabProps> = ({
   return (
     <AssignedList<QuizAssignedRowModel>
       items={rows}
+      titleOf={(r) => r.assignment.quizTitle}
       loading={loading}
       pinnedId={freshPin}
       emptyTitle={emptyTitle}
@@ -433,7 +433,7 @@ export interface QuizAssignedRowHostProps extends QuizAssignedHandlers {
   selectAnchor?: TourAnchorAttrs;
 }
 
-/** Puts back what Close for all classes or Move to Done changed (D10 Undo). */
+/** Puts back what Close for all classes or Move to Finished changed (D10 Undo). */
 async function undoClose(
   prev: QuizAssignment,
   uid: string,
@@ -505,6 +505,12 @@ export const QuizAssignedRowHost: React.FC<QuizAssignedRowHostProps> = ({
       case 'pause':
         return void exec(() => actions.pauseClass(key));
       case 'close':
+        // A single-line Close is the whole assignment, so it offers Undo.
+        if (key == null)
+          return withUndo(
+            () => actions.closeAll(),
+            viewOnly ? 'Share closed.' : `${a.quizTitle} is closed.`
+          );
         return void exec(() => actions.closeClass(key));
       case 'reopen':
         return void exec(() => actions.reopenClass(key));
@@ -586,14 +592,17 @@ export const QuizAssignedRowHost: React.FC<QuizAssignedRowHostProps> = ({
   if (status.bucket === 'active' && !viewOnly)
     lifecycleItems.push({
       id: 'assigned-move-to-done',
-      label: 'Move to Done',
+      label: 'Move to Finished',
       icon: CheckCircle2,
       anchor: tourTypeAttr(
         'library-shell.assigned-move-to-done',
         tourWidgetType
       ),
       onClick: () =>
-        withUndo(() => actions.moveToDone(), `${a.quizTitle} moved to Done.`),
+        withUndo(
+          () => actions.moveToDone(),
+          `${a.quizTitle} moved to Finished.`
+        ),
     });
   useAssignedBulkOps({
     close: allClosed
@@ -675,27 +684,22 @@ export const QuizAssignedRowHost: React.FC<QuizAssignedRowHostProps> = ({
   };
 
   const submitted = status.classes.reduce((n, c) => n + c.submitted, 0);
-  // Published rows skip the responses listener, so the line reads the doc.
+  // Published rows skip the responses listener, so the text reads the doc.
   const published = !!a.scoreVisibility && a.scoreVisibility !== 'none';
-  const lineOverride: LineSegment[] | undefined =
+  const detail: string | undefined =
     status.bucket === 'done' && published && !viewOnly
-      ? [{ text: 'Scores published', tone: 'plain' }]
+      ? 'Scores published'
       : paper
-        ? [
-            { text: 'On paper', tone: 'plain' },
-            ...(submitted > 0
-              ? [{ text: `${submitted} turned in`, tone: 'plain' as const }]
-              : []),
-          ]
+        ? submitted > 0
+          ? `On paper · ${submitted} turned in`
+          : 'On paper'
         : undefined;
 
   const endsAtBell = Object.values(a.periodAccess ?? {}).some(
     (r) => r.bellPeriodId != null
   );
   const footer = [
-    endsAtBell
-      ? 'Closes at the end of each class'
-      : 'Stays open until you close it',
+    endsAtBell ? 'Closes at the end of each class' : 'Closes manually',
     `Assigned ${new Date(a.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`,
     ...(a.code && a.status !== 'inactive' && !a.paper ? [a.code] : []),
   ];
@@ -709,7 +713,9 @@ export const QuizAssignedRowHost: React.FC<QuizAssignedRowHostProps> = ({
       onMain={onMain}
       mainBadgeCount={badge?.count}
       mainBadgeAriaLabel={badge?.label}
-      lineOverride={lineOverride}
+      detail={detail}
+      onResults={viewOnly ? undefined : () => onResults(a)}
+      canPause={!viewOnly}
       onClassAction={onClassAction}
       classControls={!onPaper}
       mainTone={legacy ? 'monitor' : undefined}
