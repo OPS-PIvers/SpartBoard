@@ -71,12 +71,15 @@ export function folderPath(
 ): LibraryFolder[] {
   const path: LibraryFolder[] = [];
   const seen = new Set<string>();
+  const top = new Set(index.childrenOf.get(null) ?? []);
   let cursor = folderId;
   while (cursor != null && !seen.has(cursor)) {
     seen.add(cursor);
     const folder = index.byId.get(cursor);
     if (!folder) break;
     path.unshift(folder);
+    // Hoisted cycle members sit at the top level, so stop there.
+    if (top.has(folder)) break;
     cursor = folder.parentId;
   }
   return path;

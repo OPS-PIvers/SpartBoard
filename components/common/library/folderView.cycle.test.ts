@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { LibraryFolder } from '@/types';
-import { buildFolderIndex, subtreeFolderIds } from './folderView';
+import { buildFolderIndex, folderPath, subtreeFolderIds } from './folderView';
 
 const folder = (
   id: string,
@@ -18,6 +18,12 @@ describe('buildFolderIndex parent cycles', () => {
     ]);
     expect(index.childrenOf.get(null)?.map((f) => f.id)).toEqual(['keep', 'a']);
     expect(subtreeFolderIds('a', index)).toEqual(new Set(['a', 'b', 'child']));
+    expect(folderPath('a', index).map((f) => f.id)).toEqual(['a']);
+    expect(folderPath('child', index).map((f) => f.id)).toEqual([
+      'a',
+      'b',
+      'child',
+    ]);
   });
 
   it('keeps a self-parented folder reachable', () => {
