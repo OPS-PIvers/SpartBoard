@@ -6,6 +6,7 @@
 // share bundled; the caller supplies only run settings, from a closed
 // allowlist. Rationale for not re-deriving the whole session: see the PR.
 
+import { parseCalcSpec } from './quizCalculated';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from './firebaseAdmin';
 import { randomUUID } from 'crypto';
@@ -244,6 +245,7 @@ const ANSWER_FIELDS = [
   'acceptableVariants',
   'alternateAnswers',
   'blankAlternates',
+  'calc',
   'rubric',
   'revealedAnswers',
   'localizedFibAnswers',
@@ -329,6 +331,7 @@ interface KeyQuestion {
   enforceWordLimit?: boolean;
   noSpellCheck?: boolean;
   answerKeyboard?: unknown;
+  calc?: unknown;
   stimulusIds?: string[];
   blankType?: unknown;
   blankChoices?: unknown;
@@ -554,6 +557,12 @@ export function publicQuestionFromKey(q: KeyQuestion): Record<string, unknown> {
     ANSWER_KEYBOARDS.has(q.answerKeyboard)
   )
     base.answerKeyboard = q.answerKeyboard;
+  // Mirrors toPublicQuestion: ranges and seed only, never the formula.
+  const calc = q.type === 'FIB' ? parseCalcSpec(q.calc) : undefined;
+  if (calc) {
+    base.calcVariables = calc.variables;
+    base.calcSeed = calc.seed;
+  }
   if (q.type === 'FIB') {
     // Mirrors useQuizSession toPublicQuestion: blankCount only for two or more blanks.
     const blanks = (q.correctAnswer ?? '').split(FIB_BLANK_SEP).length;

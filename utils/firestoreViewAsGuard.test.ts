@@ -41,6 +41,10 @@ vi.mock('firebase/firestore', () => ({
 }));
 
 vi.mock('@/utils/viewAsAudit', () => recorded);
+const failureReport = vi.hoisted(() => ({
+  noteTransactionFailure: vi.fn(),
+}));
+vi.mock('@/utils/transactionFailureReport', () => failureReport);
 
 vi.mock('@/utils/viewAsTab', () => ({
   isViewAsTab: true,
@@ -157,6 +161,27 @@ describe('firestoreViewAsGuard', () => {
       ],
       [{ op: 'set', path: 'a/3', data: { y: 2 } }],
     ]);
+  });
+
+  it('names the docs of a transaction that fails on contention, and no other failure', async () => {
+    const flush = () => new Promise((r) => setTimeout(r, 0));
+    guardState.audited = true;
+    const failWith = (code: string) =>
+      guard.runTransaction({} as never, (tx) => {
+        tx.set(ref('quiz_sessions/s1'), {});
+        return Promise.reject(Object.assign(new Error(code), { code }));
+      });
+    await expect(failWith('permission-denied')).rejects.toThrow();
+    await flush();
+    expect(failureReport.noteTransactionFailure).not.toHaveBeenCalled();
+
+    await expect(failWith('failed-precondition')).rejects.toThrow();
+    await flush();
+    expect(failureReport.noteTransactionFailure).toHaveBeenCalledWith(
+      'failed-precondition',
+      [{ op: 'set', path: 'quiz_sessions/s1' }]
+    );
+    expect(real.txSet).toHaveBeenCalledTimes(2);
   });
 
   it('re-exports the rest of the Firestore API', () => {

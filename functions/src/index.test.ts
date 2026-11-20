@@ -3870,6 +3870,7 @@ describe('index barrel — deployed export set', () => {
     'getAssignmentPseudonymV1',
     'getStudentClassDirectoryV1',
     'reportStudentLoadIssueV1',
+    'reportTransactionFailureV1',
     'getPseudonymsForAssignmentV1',
     'getGradebookRosterV1',
     'commitRosterPinIndexV1',
@@ -3908,6 +3909,8 @@ describe('index barrel — deployed export set', () => {
     'returnWritingForRevisionV1',
     'saveWritingFeedbackV1',
     'purgeWritingLogs',
+    'setWritingPeerReviewV1',
+    'writingPeerReviewV1',
     // Substitute shares
     'launchSubAssignmentV1',
     // Flashcards Check submission

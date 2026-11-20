@@ -101,10 +101,18 @@ export function keepTeacherAccepted(
 
 /** Per-student override maps from the teacher-owned assignment doc. */
 export interface ServedLocaleSource {
-  overridesByStudentUid?: Record<string, { language?: string }> | null;
-  overridesBySourcedId?: Record<string, { language?: string }> | null;
+  overridesByStudentUid?: Record<
+    string,
+    { language?: string; modifiedQuestions?: boolean }
+  > | null;
+  overridesBySourcedId?: Record<
+    string,
+    { language?: string; modifiedQuestions?: boolean }
+  > | null;
   /** Write-once served-language record the CF never clears; survives a de-target. */
   servedLanguageByStudentUid?: Record<string, string> | null;
+  /** Only a student-paced session shows the modified prompt. */
+  sessionMode?: string;
 }
 
 /**
@@ -153,6 +161,7 @@ export function fibGradingFromAssignment(
     overridesByStudentUid: assignment?.overridesByStudentUid ?? null,
     overridesBySourcedId: assignment?.overridesBySourcedId ?? null,
     servedLanguageByStudentUid: assignment?.servedLanguageByStudentUid ?? null,
+    sessionMode: assignment?.sessionMode,
   };
 }
 

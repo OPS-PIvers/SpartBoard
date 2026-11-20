@@ -32,6 +32,7 @@ describe('questionTypeChangeUpdates', () => {
       correctAnswer: '',
       incorrectAnswers: [],
       alternateAnswers: undefined,
+      calc: undefined,
     });
   });
 

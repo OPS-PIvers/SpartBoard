@@ -55,6 +55,7 @@ const EDIT_LABEL: Record<WritingEdit['kind'], string | null> = {
   sync: 'Appeared without typing',
   restored: 'Already here after a page reload',
   format: null,
+  peer: 'Accepted from a partner',
 };
 
 /** A Writing record's facts-only playback (D9): no stats or signs of its own, plus marks like each turn in. */
@@ -152,6 +153,7 @@ export const WritingPlayer: React.FC<{
       : 0;
   // Dictated text is a fact about an accommodation, so it never takes the amber of a paste.
   const dictatedNow = last?.kind === 'dictated';
+  const peerNow = last?.kind === 'peer';
   const next = atEnd ? undefined : edits[index];
   const nextSession = sessionAt.get(index);
   const inPause =
@@ -243,7 +245,15 @@ export const WritingPlayer: React.FC<{
         className={`${boxHeight} overflow-y-auto whitespace-pre-wrap break-words rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-900`}
       >
         {text.slice(0, caret - marked)}
-        <mark className={dictatedNow ? 'bg-slate-200' : 'bg-amber-200'}>
+        <mark
+          className={
+            dictatedNow
+              ? 'bg-slate-200'
+              : peerNow
+                ? 'bg-sky-100'
+                : 'bg-amber-200'
+          }
+        >
           {text.slice(caret - marked, caret)}
         </mark>
         <span
@@ -254,7 +264,7 @@ export const WritingPlayer: React.FC<{
       </div>
       <div className="flex h-6 items-center gap-2">
         <p
-          className={`text-xs font-semibold ${atEnd && facts?.endNote ? 'text-slate-700' : markAt.has(index) ? 'text-teal-800' : nextSession !== undefined ? 'text-brand-blue-primary' : dictatedNow ? 'text-slate-700' : 'text-amber-700'}`}
+          className={`text-xs font-semibold ${atEnd && facts?.endNote ? 'text-slate-700' : markAt.has(index) ? 'text-teal-800' : nextSession !== undefined ? 'text-brand-blue-primary' : dictatedNow ? 'text-slate-700' : peerNow ? 'text-sky-800' : 'text-amber-700'}`}
         >
           {note}
         </p>

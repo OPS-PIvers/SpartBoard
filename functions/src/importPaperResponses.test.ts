@@ -998,6 +998,33 @@ describe('handleImportPaperResponses, handwritten answers (layoutVersion 2)', ()
     ).rejects.toMatchObject({ message: /repeats a question/ });
   });
 
+  it('accepts a multi-page answer under any page it printed on', async () => {
+    const docs = v2Docs();
+    const batch = docs[`users/${UID}/paper_batches/${BATCH}`];
+    batch.pagesPerSheet = 3;
+    batch.pageMaps = [
+      ...(batch.pageMaps as Doc[]),
+      {
+        page: 3,
+        grid: 2,
+        items: [
+          { kind: 'written', questionId: 'q4', label: '4', continued: true },
+        ],
+      },
+    ];
+    const sheet3 = v2Sheet(1, {
+      written: [
+        { questionId: 'q2', page: 1, state: 'ink' },
+        { questionId: 'q4', page: 3, state: 'ink' },
+      ],
+    });
+    const { docs: after } = await callV2(docs, [sheet3]);
+    const q4 = (after[RESP].answers as Doc[]).find(
+      (a) => a.questionId === 'q4'
+    );
+    expect(q4).toBeDefined();
+  });
+
   const versionDocs = (): Record<string, Doc> => {
     const docs = v2Docs();
     docs[`quiz_sessions/${ASSIGNMENT}`] = {

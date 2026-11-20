@@ -16,6 +16,7 @@ import {
   parseCountedChoices,
 } from './quizSectionsChosen';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { calcAttemptKey, withCalcValues } from './quizCalculated';
 import {
   resolveServerResultsVisibility,
   visibilityIncludesResponses,
@@ -46,6 +47,8 @@ export interface ScoreContext {
   overrideQuestionIds?: string[];
   /** Accepted FIB answers by question id for the locale this student was served. */
   fibAnswersByQuestion: Record<string, FibExtras>;
+  /** The student gets the modified version; a typed-number answer on the key grades them. */
+  modified?: boolean;
 }
 
 const isId = (value: unknown): value is string =>
@@ -108,7 +111,9 @@ export function withoutVerdicts(
 /** Server twin of gradeResponseForPublish; null when any served question needs a teacher grade. */
 export function scoreAttempt(
   response: Record<string, unknown>,
-  ctx: ScoreContext
+  ctx: ScoreContext,
+  /** The response doc id; fixes the student's random numbers. */
+  responseKey?: string
 ): {
   score: number;
   answers: ScoreOnSubmitAnswer[];
@@ -138,6 +143,7 @@ export function scoreAttempt(
     const q = byId.get(id);
     // A served question missing from the key (stale key) can't be vouched for.
     if (!q || q.manual || q.correctAnswer === null) return null;
+    if (q.calc && !responseKey) return null;
   }
 
   const representative = representativeAnswers(answers);
@@ -152,7 +158,11 @@ export function scoreAttempt(
       return rest;
     }
     const result = gradeGroupAnswer(
-      q,
+      withCalcValues(
+        q,
+        responseKey ? calcAttemptKey(responseKey, response) : undefined,
+        ctx.modified === true
+      ),
       typeof a.answer === 'string' ? a.answer : '',
       undefined,
       q.type === 'FIB' ? ctx.fibAnswersByQuestion[q.id] : undefined
@@ -264,6 +274,11 @@ export async function handleScoreQuizOnSubmit(
         .questionIds
     ),
     fibAnswersByQuestion: servedFibAnswers(assignment, callerUid),
+    // Only a student-paced session shows the modified prompt.
+    modified:
+      session.sessionMode === 'student' &&
+      asRecord(asRecord(assignment.overridesByStudentUid)[callerUid])
+        .modifiedQuestions === true,
   };
   return db.runTransaction(async (tx) => {
     const snap = await tx.get(responseRef);
@@ -276,7 +291,7 @@ export async function handleScoreQuizOnSubmit(
     const stamped: unknown = data.scoredOnSubmitAttempt;
     if (typeof stamped === 'number' && attempt <= stamped)
       return { score: null };
-    const result = scoreAttempt(data, ctx);
+    const result = scoreAttempt(data, ctx, snap.id);
     if (!result) return { score: null };
     // Right/wrong stays off the student-readable doc unless their results show responses.
     const { visibility } = resolveServerResultsVisibility(

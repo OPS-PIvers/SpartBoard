@@ -81,8 +81,8 @@ export const StudentLandingV2: React.FC<StudentLandingV2Props> = ({
     [classes, scheduleFor]
   );
   const partition = useMemo(
-    () => partitionLanding(assignments, checks, nowMs),
-    [assignments, checks, nowMs]
+    () => partitionLanding(assignments, checks, nowMs, pseudonymUid),
+    [assignments, checks, nowMs, pseudonymUid]
   );
   const inSessionIds = useMemo(
     () => new Set(classIdsInSession(classes, scheduleFor, nowMs)),

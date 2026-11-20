@@ -1,6 +1,12 @@
 // Pure math for the PLC pooled-assessment aggregate (docs/plans/shipped/PLC_ASSESSMENT_DATA.md §5.3).
 // Local mirrors of the root `types.ts` shapes; functions cannot import across the repo root.
 
+import {
+  calcAnswerAccepted,
+  parseCalcSpec,
+  withCalcValues,
+  type CalcSpec,
+} from './quizCalculated';
 import { notChosenIds, type ChooseSection } from './quizSectionsChosen';
 import {
   fibExtrasParts,
@@ -69,6 +75,10 @@ export interface GroupQuestion {
   targets: QuestionTargetSnapshot[];
   /** Depth of Knowledge level 1-4 from the synced quiz or the assignment snapshot. */
   dok?: number;
+  /** Random-number FIB: graded by formula from each student's own numbers. */
+  calc?: CalcSpec;
+  /** Set only on a copy graded for one student (`withCalcValues`). */
+  calcValues?: Record<string, number>;
 }
 
 function parseDok(raw: unknown): number | undefined {
@@ -134,6 +144,8 @@ export interface CompletedResponse {
   manualGrades?: Record<string, ManualGrade>;
   /** Teacher picks of which answers count, by choose-N section id. */
   countedChoices?: Record<string, string[]>;
+  /** The response doc id; fixes the student's random numbers. */
+  responseKey?: string;
 }
 
 export interface SessionInput {
@@ -152,7 +164,10 @@ export interface SessionInput {
   /** Assignment-doc served locales graded with typo leniency. */
   lenientFibLocales?: string[];
   /** Assignment-doc per-student overrides; only the served `language` is used here. */
-  overridesByStudentUid?: Record<string, { language?: string }>;
+  overridesByStudentUid?: Record<
+    string,
+    { language?: string; modifiedQuestions?: boolean }
+  >;
   /** The session's sections; a choose-N section leaves unchosen questions out. */
   sections?: ChooseSection[];
   /** Hybrid paper quiz: written questions answered on a printed sheet. */
@@ -427,6 +442,9 @@ export function parseSyncedQuestion(raw: unknown): GroupQuestion | null {
       : {}),
     targets: parseTargets(r.targets),
     ...(parseDok(r.dok) ? { dok: parseDok(r.dok) } : {}),
+    ...(type === 'FIB' && parseCalcSpec(r.calc)
+      ? { calc: parseCalcSpec(r.calc) }
+      : {}),
   };
 }
 
@@ -783,6 +801,26 @@ export function gradeGroupAnswer(
       pointsEarned: awarded,
       pointsMax: max,
       state: partialRubric ? 'awaiting-grade' : 'scored',
+    };
+  }
+  // Random numbers: graded from this student's own numbers; a copy without them can't be graded.
+  if (question.type === 'FIB' && question.calc) {
+    if (!question.calcValues) {
+      return {
+        isCorrect: false,
+        pointsEarned: 0,
+        pointsMax: max,
+        state: 'no-key',
+      };
+    }
+    const isCorrect =
+      attempted &&
+      calcAnswerAccepted(question.calc, question.calcValues, studentAnswer);
+    return {
+      isCorrect,
+      pointsEarned: isCorrect ? max : 0,
+      pointsMax: max,
+      state: attempted ? 'scored' : 'not-attempted',
     };
   }
   if (question.correctAnswer === null) {
@@ -1179,8 +1217,20 @@ export function computeAssessmentAggregate(
           continue;
         }
         const a = representative.get(sessionQid);
+        // Numbers come from the question id the student was served.
+        const own = question.calc
+          ? withCalcValues(
+              { ...question, id: sessionQid },
+              r.responseKey,
+              session.overridesByStudentUid?.[r.studentUid]
+                ?.modifiedQuestions === true
+            )
+          : undefined;
+        const graded = own
+          ? { ...question, calc: own.calc, calcValues: own.calcValues }
+          : question;
         const grade = gradeGroupAnswer(
-          question,
+          graded,
           a?.answer ?? '',
           r.manualGrades?.[sessionQid],
           question.type === 'FIB'

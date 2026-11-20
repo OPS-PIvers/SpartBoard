@@ -256,6 +256,12 @@ describe('client/server page map parity (layoutVersion 2)', () => {
       box(64, 'S'),
     ],
     'written only': [box(1, 'M'), box(2, 'S'), box(3, 'full'), box(4, 'L')],
+    'multi-page answers': [
+      ...run(1, 3),
+      box(4, 'pages-3'),
+      box(5, 'S'),
+      box(6, 'pages-2'),
+    ],
   };
   const GRIDS: PaperGrid[] = [1, 2, 'questions'];
 

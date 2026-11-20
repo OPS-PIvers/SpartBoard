@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { AlertTriangle, Printer, X } from 'lucide-react';
+import type { ModifiedSource } from '@/utils/quizCalcResponse';
 import type {
   ClassRoster,
   PaperBatch,
@@ -85,6 +86,8 @@ export interface ResultsPrintModalProps {
   sortNameFor: (response: QuizResponse) => string;
   targetsFor: (response: QuizResponse) => StudentReportTarget[];
   gradeFn: QuestionGradeFn;
+  /** Assignment overrides; a modified student's random-number answer is their typed-number one. */
+  modified?: ModifiedSource | null;
   rubricFor: (
     response: QuizResponse,
     question: QuizQuestion
@@ -242,6 +245,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
   sortNameFor,
   targetsFor,
   gradeFn,
+  modified,
   rubricFor,
   drawOrder = false,
   periodOrder,
@@ -378,6 +382,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
         period: r.classPeriod ?? null,
         status: r.status,
         drilldown: computeStudentDrilldown(quiz.questions, r, gradeFn, {
+          modified,
           includeExplanations: true,
           showExtraAnswers: true,
           choiceOrder: batch
@@ -410,6 +415,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
     sortNameFor,
     quiz,
     gradeFn,
+    modified,
     rubricFor,
     drawOrder,
     targetsFor,
@@ -434,6 +440,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
                 lettered: false,
                 attempt: r.completedAttempts ?? undefined,
                 drilldown: computeStudentDrilldown(quiz.questions, r, gradeFn, {
+                  modified,
                   includeExplanations: true,
                   showExtraAnswers: true,
                   rubricFor: (q) => rubricFor(r, q),

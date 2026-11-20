@@ -27,7 +27,7 @@ import {
   type PaperQuizAnalysis,
 } from './paperSheetPlan';
 import { promptHeaderRows } from './paperPageMap';
-import { isPaperBoxSize, paperBoxLines } from './paperWritten';
+import { isPaperBoxSize, paperBoxRoom } from './paperWritten';
 import type { PaperPrintVersion, PaperPromptPage } from './paperSheetPrint';
 
 /** Most distinct versions one stack prints; past it the slots stay off paper. */
@@ -208,7 +208,7 @@ export function planPaperVersions(
   const sizeAt = (i: number): PaperBoxSize =>
     versions.reduce<PaperBoxSize>((size, v) => {
       const e = v.analysis.entries[i];
-      return e.kind === 'written' && paperBoxLines(e.size) > paperBoxLines(size)
+      return e.kind === 'written' && paperBoxRoom(e.size) > paperBoxRoom(size)
         ? e.size
         : size;
     }, 'S');

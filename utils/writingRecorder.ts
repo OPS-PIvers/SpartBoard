@@ -121,7 +121,7 @@ export class WritingRecorder {
     t: number,
     kind: Extract<
       WritingEditKind,
-      'typed' | 'pasted' | 'dictated' | 'restored'
+      'typed' | 'pasted' | 'dictated' | 'restored' | 'peer'
     >,
     wall: number
   ): void {

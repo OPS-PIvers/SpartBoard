@@ -218,7 +218,7 @@ function timedFlush(
   return flush.saveCount > saved ? flush : null;
 }
 
-async function loadStudentAccess(
+export async function loadStudentAccess(
   db: Firestore,
   caller: WritingCaller,
   sid: string

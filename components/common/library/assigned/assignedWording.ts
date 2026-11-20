@@ -5,16 +5,6 @@ import type {
   ClassStatus,
 } from '@/utils/assignedStatus';
 
-/** How a piece of the status line is coloured. */
-export type LineTone = 'open' | 'paused' | 'alert' | 'warn' | 'plain';
-
-export interface LineSegment {
-  text: string;
-  tone: LineTone;
-  /** Joins the previous segment with a space instead of " · ". */
-  glued?: boolean;
-}
-
 const plural = (n: number, one: string, many: string) =>
   `${n} ${n === 1 ? one : many}`;
 
@@ -34,95 +24,136 @@ const turnedIn = (submitted: number, total: number | null) =>
     ? `${submitted} of ${total} turned in`
     : `${submitted} turned in`;
 
-const forClass = (word: string, label: string | null) =>
-  label ? `${word} for ${label}` : word;
+/** The row's one status chip: where its classes stand, never grading or publishing. */
+export interface AccessBadge {
+  label: string;
+  tone: 'success' | 'warn' | 'info' | 'neutral';
+  dot?: boolean;
+}
 
-/** D14: the row's one plain status line, as coloured segments joined by " · ". */
-export function statusLineSegments(
+const BADGE_TONE: Record<ClassStatus, AccessBadge['tone']> = {
+  open: 'success',
+  paused: 'warn',
+  ready: 'info',
+  scheduled: 'info',
+  closed: 'neutral',
+};
+
+/** One class's chip, as the expanded row and a class filter show it. */
+export function classBadge(c: AssignedClass): AccessBadge {
+  return {
+    label: CLASS_STATUS_WORD[c.status],
+    tone: BADGE_TONE[c.status],
+    dot: c.status === 'open',
+  };
+}
+
+const named = (word: string, of: AssignedClass[], single: boolean) =>
+  single || of.length === 0
+    ? word
+    : of.length === 1
+      ? `${word} · ${of[0].label}`
+      : `${word} · ${of.length} classes`;
+
+/** Null on a Finished row, where every class is closed and a chip says nothing. */
+export function accessBadge(s: AssignedStatus): AccessBadge | null {
+  if (s.bucket === 'done') return null;
+  const by = (st: ClassStatus) => s.classes.filter((c) => c.status === st);
+  const open = by('open');
+  if (open.length > 0)
+    return {
+      label: named('Open', open, s.singleLine),
+      tone: 'success',
+      dot: true,
+    };
+  const paused = by('paused');
+  if (paused.length > 0)
+    return { label: named('Paused', paused, s.singleLine), tone: 'warn' };
+  if (by('ready').length > 0) return { label: 'Ready', tone: 'info' };
+  if (by('scheduled').length > 0) return { label: 'Scheduled', tone: 'info' };
+  return { label: 'Closed', tone: 'neutral' };
+}
+
+/** The grey text beside the chip: counts, what is waiting and when it opens. */
+export function detailText(
   s: AssignedStatus,
-  nowMs: number
-): LineSegment[] {
+  nowMs: number,
+  counts = true
+): string {
   const line = s.line;
-  const named = (c: AssignedClass) => (s.singleLine ? null : c.label);
+  const parts: string[] = [];
+  const toGo = (shown: number) => {
+    const left = s.classes.filter((c) => c.status !== 'closed').length - shown;
+    if (left > 0) parts.push(`${plural(left, 'class', 'classes')} to go`);
+  };
   switch (line.kind) {
     case 'open': {
-      // Every open class gets its own count, as in the prototype.
       const open = s.classes.filter((c) => c.status === 'open');
-      const shown = open.length > 0 ? open : [];
-      const openOnes = shown.length
-        ? shown.map((c) => [named(c), c.submitted, c.total] as const)
-        : ([[line.classLabel, line.submitted, line.total]] as const);
-      const segs: LineSegment[] = openOnes.flatMap(([label, n, total]) => [
-        { text: forClass('Open', label), tone: 'open' as const },
-        { text: turnedIn(n, total), tone: 'plain' as const, glued: true },
-      ]);
-      const paused = s.classes.filter((x) => x.status === 'paused');
-      for (const c of paused)
-        segs.push({ text: forClass('Paused', named(c)), tone: 'paused' });
-      const toGo = s.classes.filter((c) => c.status !== 'closed').length;
-      const left = toGo - openOnes.length - paused.length;
-      if (left > 0)
-        segs.push({
-          text: `${plural(left, 'class', 'classes')} to go`,
-          tone: 'plain',
-        });
-      return segs;
+      if (counts) {
+        const n = open.reduce((t, c) => t + c.submitted, 0);
+        const totals = open.map((c) => c.total);
+        const total = totals.every((t) => t != null)
+          ? totals.reduce<number>((t, x) => t + (x ?? 0), 0)
+          : null;
+        parts.push(
+          open.length > 0
+            ? turnedIn(n, total)
+            : turnedIn(line.submitted, line.total)
+        );
+      }
+      toGo(
+        Math.max(open.length, 1) +
+          s.classes.filter((c) => c.status === 'paused').length
+      );
+      break;
     }
-    case 'paused': {
-      const segs: LineSegment[] = s.classes
-        .filter((c) => c.status === 'paused')
-        .map((c) => ({ text: forClass('Paused', named(c)), tone: 'paused' }));
-      if (segs.length === 0)
-        segs.push({
-          text: forClass('Paused', line.classLabel),
-          tone: 'paused',
-        });
-      const left =
-        s.classes.filter((c) => c.status !== 'closed').length - segs.length;
-      if (left > 0)
-        segs.push({
-          text: `${plural(left, 'class', 'classes')} to go`,
-          tone: 'plain',
-        });
-      return segs;
-    }
+    case 'paused':
+      toGo(Math.max(s.classes.filter((c) => c.status === 'paused').length, 1));
+      break;
     case 'scheduled':
-      return [
-        { text: `Opens ${formatOpensAt(line.opensAt, nowMs)}`, tone: 'plain' },
-      ];
+      parts.push(`Opens ${formatOpensAt(line.opensAt, nowMs)}`);
+      break;
     case 'ready': {
       const total = line.readyCount + line.scheduledCount + line.closedCount;
-      if (s.singleLine) return [{ text: 'Ready', tone: 'plain' }];
-      if (line.closedCount > 0)
-        return [
-          {
-            text: `${line.closedCount} of ${plural(total, 'class', 'classes')} done`,
-            tone: 'plain',
-          },
-        ];
-      return [
-        {
-          text: `Ready for ${plural(line.readyCount + line.scheduledCount, 'class', 'classes')}`,
-          tone: 'plain',
-        },
-      ];
+      if (s.singleLine) break;
+      parts.push(
+        line.closedCount > 0
+          ? `${line.closedCount} of ${plural(total, 'class', 'classes')} closed`
+          : plural(total, 'class', 'classes')
+      );
+      break;
     }
     case 'needs-grading':
-      return [{ text: 'Needs grading', tone: 'alert' }];
+      parts.push(line.count > 0 ? `${line.count} to grade` : 'Needs grading');
+      break;
     case 'grading-unknown':
-      return [{ text: 'Closed', tone: 'plain' }];
+      break;
     case 'scores-unpublished':
-      return [{ text: 'Scores not published', tone: 'warn' }];
+      if (counts) parts.push(`${line.submitted} turned in`);
+      break;
     case 'view-only':
-      return [{ text: 'Shared, view only', tone: 'plain' }];
+      parts.push('View only');
+      break;
     case 'done':
-      return [
-        {
-          text: line.scoresPublished ? 'Scores published' : 'Closed',
-          tone: 'plain',
-        },
-      ];
+      parts.push(line.scoresPublished ? 'Scores published' : 'Closed');
+      break;
   }
+  if (line.kind !== 'needs-grading' && s.grading === 'needs-grading')
+    parts.push('Needs grading');
+  return parts.join(' · ');
+}
+
+/** One class's grey text, without its status word. */
+export function classDetailText(
+  c: AssignedClass,
+  nowMs: number,
+  bellLabel: string | null,
+  counts = true
+): string {
+  if (c.status === 'scheduled' && c.opensAt != null)
+    return `Opens ${formatOpensAt(c.opensAt, nowMs)}`;
+  if (c.status === 'ready') return bellLabel ?? '';
+  return counts ? turnedIn(c.submitted, c.total) : '';
 }
 
 /** D6/D8: the main button's label. */
@@ -132,7 +163,7 @@ export function mainActionLabel(
 ): string {
   switch (action.kind) {
     case 'open':
-      return forClass('Open', action.classLabel);
+      return action.classLabel ? `Open for ${action.classLabel}` : 'Open';
     case 'resume':
       return action.classLabel ? `Resume ${action.classLabel}` : 'Resume';
     case 'monitor':
@@ -156,21 +187,6 @@ export const CLASS_STATUS_WORD: Record<ClassStatus, string> = {
   closed: 'Closed',
 };
 
-/** The small line under a class name in the expanded row. */
-export function classDetail(
-  c: AssignedClass,
-  nowMs: number,
-  bellLabel: string | null,
-  /** False where the kind can't tell which class a response came from. */
-  counts = true
-): string {
-  const word = CLASS_STATUS_WORD[c.status];
-  if (c.status === 'scheduled' && c.opensAt != null)
-    return `${word} · opens ${formatOpensAt(c.opensAt, nowMs)}`;
-  if (c.status === 'ready') return bellLabel ? `${word} · ${bellLabel}` : word;
-  return counts ? `${word} · ${turnedIn(c.submitted, c.total)}` : word;
-}
-
 /** Per-class buttons in the expanded row (D6). */
 export type ClassActionKind =
   'open' | 'pause' | 'resume' | 'close' | 'reopen' | 'monitor';
@@ -178,7 +194,7 @@ export type ClassActionKind =
 export function classActions(status: ClassStatus): ClassActionKind[] {
   switch (status) {
     case 'open':
-      return ['pause', 'close', 'monitor'];
+      return ['pause', 'close'];
     case 'paused':
       return ['resume', 'close'];
     case 'closed':

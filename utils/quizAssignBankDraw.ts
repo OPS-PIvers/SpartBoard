@@ -1,4 +1,6 @@
 import type {
+  QuizAssignment,
+  QuizAssignmentSettings,
   QuizData,
   QuizQuestion,
   QuizSessionBankSlot,
@@ -172,7 +174,9 @@ export function applyCurrentAnswerKeys(
   let changed = false;
   const questions = (frozen.questions ?? []).map((q) => {
     const now = current.get(q.id);
-    if (!now || now.type !== q.type) return q;
+    // A reworded question is a different question, so its new key can't grade old answers.
+    if (!now || now.type !== q.type || norm(now.text) !== norm(q.text))
+      return q;
     const shape = presentedChoices(q);
     if (shape === null || shape !== presentedChoices(now)) return q;
     changed = true;
@@ -214,6 +218,29 @@ export async function withCurrentAnswerKeys(
     });
     return frozen;
   }
+}
+
+/** The Drive copy an assignment grades against, when it has one (bank draw or frozen at assign). */
+export function assignmentFrozenFileId(
+  assignment:
+    | Pick<QuizAssignmentSettings, 'resolvedDriveFileId' | 'frozenDriveFileId'>
+    | null
+    | undefined
+): string | undefined {
+  return assignment?.resolvedDriveFileId ?? assignment?.frozenDriveFileId;
+}
+
+/** Assignments of this quiz that still grade against the live quiz, so an edit re-scores them. */
+export function unfrozenAssignmentCount(
+  quizId: string,
+  assignments: readonly Pick<
+    QuizAssignment,
+    'quizId' | 'resolvedDriveFileId' | 'frozenDriveFileId' | 'sync'
+  >[]
+): number {
+  return assignments.filter(
+    (a) => a.quizId === quizId && !a.sync && !assignmentFrozenFileId(a)
+  ).length;
 }
 
 /** Loads the quiz an assignment grades against: its frozen copy with current keys, or the library quiz. */

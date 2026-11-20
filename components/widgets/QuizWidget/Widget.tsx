@@ -78,7 +78,9 @@ import {
   sampleQuizDraw,
 } from '@/utils/questionBanks';
 import {
+  assignmentFrozenFileId,
   loadAssignmentAnswerKeyQuiz,
+  unfrozenAssignmentCount,
   withCurrentAnswerKeys,
 } from '@/utils/quizAssignBankDraw';
 import { BankEditorModal } from './components/BankEditorModal';
@@ -323,7 +325,7 @@ import {
 import type { QuizStepperAssign } from './components/QuizManager';
 import { translateHiddenOptionIdsToText } from '@/utils/quizHiddenOptions';
 import type { StudentTargetRef } from '@/types';
-import { buildPeriodGate } from '@/utils/periodPlan';
+import { buildPeriodGate, initialAssignStatus } from '@/utils/periodPlan';
 import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
 import { revealValueFor } from '@/utils/quizFibAlternates';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
@@ -1257,6 +1259,7 @@ const TeacherQuizWidget: React.FC<{
   ): Promise<string> => {
     const behavior = getQuizBehavior(meta);
     const plc = pool ? buildPlcLinkage(pool.plc) : undefined;
+    const frozenDriveFileId = await freezeForAssign(data);
     const { id } = await createAssignment(
       {
         id: meta.id,
@@ -1279,6 +1282,7 @@ const TeacherQuizWidget: React.FC<{
           ? { periodName: periodNames[0], periodNames }
           : {}),
         ...(plc && pool ? { plc } : {}),
+        ...(frozenDriveFileId ? { frozenDriveFileId } : {}),
       },
       // No classIds and paused: never a live door for students.
       {
@@ -1468,13 +1472,31 @@ const TeacherQuizWidget: React.FC<{
     [loadBankContentsForQuiz, addToast]
   );
 
-  // Bank-draw assignments grade against their frozen Drive copy, under today's answer keys.
+  const freezeAssignments = canAccessFeature('quiz-frozen-assignments');
+  // A copy of the questions as assigned, so editing the quiz later can't re-score the assignment.
+  const freezeForAssign = useCallback(
+    async (data: QuizData): Promise<string | undefined> => {
+      if (!freezeAssignments || quizHasBankSlots(data)) return undefined;
+      try {
+        return await saveDriveSnapshot(data);
+      } catch (err) {
+        // Assigning still works; it grades against the live quiz as before.
+        logError('QuizWidget.assignment.freezeQuiz', err, { quizId: data.id });
+        return undefined;
+      }
+    },
+    [freezeAssignments, saveDriveSnapshot]
+  );
+
+  // Frozen assignments grade against their Drive copy, under today's answer keys.
   const loadAnswerKeyQuiz = useCallback(
     (
       meta: QuizMetadata,
-      assignment: Pick<QuizAssignment, 'resolvedDriveFileId'> | undefined
+      assignment:
+        | Pick<QuizAssignment, 'resolvedDriveFileId' | 'frozenDriveFileId'>
+        | undefined
     ): Promise<QuizData | null> => {
-      const frozenId = assignment?.resolvedDriveFileId;
+      const frozenId = assignmentFrozenFileId(assignment);
       if (!frozenId || frozenId === meta.driveFileId) return loadQuiz(meta);
       return loadQuiz({ ...meta, driveFileId: frozenId }, (frozen) =>
         withCurrentAnswerKeys(frozen, meta.driveFileId, {
@@ -1490,12 +1512,15 @@ const TeacherQuizWidget: React.FC<{
   const loadAnswerKeyQuizQuietly = useCallback(
     async (
       meta: QuizMetadata,
-      assignment: Pick<QuizAssignment, 'resolvedDriveFileId'>
+      assignment: Pick<
+        QuizAssignment,
+        'resolvedDriveFileId' | 'frozenDriveFileId'
+      >
     ): Promise<QuizData | null> => {
       try {
         return await loadAssignmentAnswerKeyQuiz(
           meta.driveFileId,
-          assignment.resolvedDriveFileId,
+          assignmentFrozenFileId(assignment),
           { loadQuizData, loadBankContentsForQuiz }
         );
       } catch (err) {
@@ -1593,8 +1618,8 @@ const TeacherQuizWidget: React.FC<{
             if (!ok) return;
           }
           for (const a of targets) {
-            // Bank-draw assignments grade against their frozen copy, under today's keys.
-            const frozenId = a.resolvedDriveFileId;
+            // Frozen assignments grade against their copy, under today's keys.
+            const frozenId = assignmentFrozenFileId(a);
             const quiz =
               !frozenId || frozenId === meta.driveFileId
                 ? after
@@ -1876,9 +1901,9 @@ const TeacherQuizWidget: React.FC<{
     loadedQuizFileId,
     liveSession,
     liveSession
-      ? (assignments.find((a) => a.id === liveSession.assignmentId)
-          ?.resolvedDriveFileId ??
-          quizzes.find((q) => q.id === liveSession.quizId)?.driveFileId)
+      ? (assignmentFrozenFileId(
+          assignments.find((a) => a.id === liveSession.assignmentId)
+        ) ?? quizzes.find((q) => q.id === liveSession.quizId)?.driveFileId)
       : undefined
   );
 
@@ -2311,7 +2336,8 @@ const TeacherQuizWidget: React.FC<{
     const upTo = autoRevealCount(liveSession, questions.length);
     for (let i = 0; i < upTo; i++) {
       const q = questions[i];
-      if (!liveSession.revealedAnswers?.[q.id]) {
+      // A random-number answer differs per student, so the class reveal skips it.
+      if (!liveSession.revealedAnswers?.[q.id] && !q.calc) {
         void revealAnswer(q.id, revealValueFor(q));
       }
     }
@@ -2736,9 +2762,9 @@ const TeacherQuizWidget: React.FC<{
       liveSession && liveSession.status !== 'ended'
         ? quizzes.find((q) => q.id === liveSession.quizId)
         : undefined;
-    const frozenId = assignments.find(
-      (a) => a.id === liveSession?.assignmentId
-    )?.resolvedDriveFileId;
+    const frozenId = assignmentFrozenFileId(
+      assignments.find((a) => a.id === liveSession?.assignmentId)
+    );
     const sameAsLive =
       !!liveMeta &&
       loadedQuizData?.id === liveMeta.id &&
@@ -3713,6 +3739,9 @@ const TeacherQuizWidget: React.FC<{
             assignDriveFileId = resolvedDriveFileId;
             sessionBankSlots = resolved.sessionSlots;
           }
+          const frozenDriveFileId = resolvedDriveFileId
+            ? undefined
+            : await freezeForAssign(data);
 
           // M17 C3 F1 — the B2 editor's structured option ids
           // (`{questionId}-correct` / `-incorrect-N`) must never reach a
@@ -4045,11 +4074,20 @@ const TeacherQuizWidget: React.FC<{
                 periodNames: plcOptions.periodNames,
                 plc: plcLinkage,
                 ...(resolvedDriveFileId ? { resolvedDriveFileId } : {}),
+                ...(frozenDriveFileId ? { frozenDriveFileId } : {}),
               },
               {
                 ...kindTag,
-                // A per-period session is gated by its periods, not a global pause.
-                initialStatus: sessionPeriodAccess ? 'active' : 'paused',
+                // A per-period session is gated by its periods, a later Scheduled start by its open time.
+                initialStatus: initialAssignStatus({
+                  gated: !!sessionPeriodAccess,
+                  opensLater:
+                    !!stepper &&
+                    !stepper.manualStart &&
+                    mode === 'student' &&
+                    rosterIds.length > 0 &&
+                    (resolvedTargeting.openAt ?? 0) > Date.now(),
+                }),
                 ...(sessionPeriodAccess
                   ? {
                       accessMode: periodGate?.accessMode,
@@ -4824,6 +4862,11 @@ const TeacherQuizWidget: React.FC<{
         hasScannedResponses={assignments.some(
           (a) => a.quizId === editingMeta?.id && a.hasPaperResponses
         )}
+        rescoredAssignmentCount={
+          freezeAssignments && editingMeta
+            ? unfrozenAssignmentCount(editingMeta.id, assignments)
+            : 0
+        }
         bankApi={bankApi}
         // A synced quiz publishes a new version to its PLC on every save, so
         // that path keeps an explicit Save.

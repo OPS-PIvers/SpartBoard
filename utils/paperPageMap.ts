@@ -15,6 +15,7 @@ import {
   PAPER_BOX_LINES,
   PAPER_FULL_PAGE_LINES,
   paperBoxLines,
+  paperBoxPages,
 } from './paperWritten';
 import {
   COLUMN_X_MM,
@@ -168,6 +169,22 @@ function promptBlock(
   return writtenBlock(entry, GRID_TOP_MM, lines, true, FULL_WIDTH, header);
 }
 
+/** The extra whole pages a multi-page box runs onto, after its first. */
+function continuationBlocks(
+  entry: Extract<PaperSheetEntry, { kind: 'written' }>
+): WrittenItem[] {
+  return Array.from({ length: paperBoxPages(entry.size) - 1 }, () => ({
+    ...writtenBlock(
+      entry,
+      GRID_TOP_MM,
+      PAPER_FULL_PAGE_LINES,
+      false,
+      FULL_WIDTH
+    ),
+    continued: true as const,
+  }));
+}
+
 /** Header rows a whole prompt needs at 11 pt, beside its figures when it has any. */
 export function promptHeaderRows(
   text: string,
@@ -252,6 +269,7 @@ export function planPaperPages(
     if (current().length > 0) newPage();
     const lines = Math.min(paperBoxLines(entry.size), PAPER_FULL_PAGE_LINES);
     current().push(writtenBlock(entry, GRID_TOP_MM, lines, stems, FULL_WIDTH));
+    for (const block of continuationBlocks(entry)) pages.push([block]);
     // Nothing shares a page with it; the next entry starts a fresh one.
     cursor = Number.POSITIVE_INFINITY;
   };
@@ -273,6 +291,7 @@ export function planPaperPages(
       if (prompt !== undefined) {
         if (current().length > 0) newPage();
         current().push(promptBlock(entry, prompt));
+        for (const block of continuationBlocks(entry)) pages.push([block]);
         cursor = Number.POSITIVE_INFINITY;
         continue;
       }
@@ -412,6 +431,7 @@ function planQuestionTextPages(
     if (prompt !== undefined) {
       if (current().length > 0) newPage();
       current().push(promptBlock(entry, prompt));
+      for (const block of continuationBlocks(entry)) pages.push([block]);
       y = Number.POSITIVE_INFINITY;
       continue;
     }
@@ -426,6 +446,7 @@ function planQuestionTextPages(
           FULL_WIDTH
         )
       );
+      for (const block of continuationBlocks(entry)) pages.push([block]);
       // Nothing shares a page with it; the next entry starts a fresh one.
       y = Number.POSITIVE_INFINITY;
       continue;

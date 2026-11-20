@@ -11,7 +11,7 @@ export const utf8Length = (s: string): number => encoder.encode(s).length;
 const END_MARK = '!';
 
 export type WritingEditKind =
-  'typed' | 'pasted' | 'dictated' | 'sync' | 'restored' | 'format';
+  'typed' | 'pasted' | 'dictated' | 'sync' | 'restored' | 'format' | 'peer';
 
 export interface WritingEdit {
   /** Ms since the edit before it. */
@@ -62,6 +62,7 @@ const KIND_MARK: Record<WritingEditKind, string> = {
   sync: 'S',
   restored: 'R',
   format: 'F',
+  peer: 'V',
 };
 const escapeText = (s: string) =>
   s.replace(
@@ -140,7 +141,9 @@ export function parseWritingLog(
               ? 'restored'
               : token[0] === 'F'
                 ? 'format'
-                : 'typed';
+                : token[0] === 'V'
+                  ? 'peer'
+                  : 'typed';
     const body = kind === 'typed' ? token : token.slice(1);
     const short = /^([0-9a-z]+):(.*)$/s.exec(body);
     const parts = short ? [short[1], '', '', short[2]] : body.split(',');
@@ -476,10 +479,16 @@ export function summarizeWriting(edits: WritingEdit[]): WritingSummary {
   };
   for (const e of edits) {
     const before = s.finalText;
-    if (e.kind === 'sync' || e.kind === 'restored' || e.kind === 'format') {
+    if (
+      e.kind === 'sync' ||
+      e.kind === 'restored' ||
+      e.kind === 'format' ||
+      e.kind === 'peer'
+    ) {
       closeBurst();
       s.finalText = applyEdit(before, e);
-      if (e.kind !== 'format')
+      // A partner's accepted edit is not the writer's own typing.
+      if (e.kind !== 'format' && e.kind !== 'peer')
         s[e.kind === 'sync' ? 'syncChars' : 'restoredChars'] += e.ins.length;
       continue;
     }

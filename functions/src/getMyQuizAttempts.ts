@@ -4,6 +4,11 @@ import * as admin from './firebaseAdmin';
 import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import { loadSessionContext } from './gradebook/gradeIndex';
+import {
+  calcAttemptKey,
+  formatCalcAnswer,
+  withCalcValues,
+} from './quizCalculated';
 import { gradeGroupAnswer, trustedPaperTranscript } from './plcAssessmentMath';
 import { parseCompletedResponse } from './recomputePlcAssessments';
 import { representativeAnswers } from './quizScoreOnSubmit';
@@ -40,6 +45,8 @@ export interface MyAttempt {
   answers?: MyAttemptAnswer[];
   grading?: Doc;
   servedQuestionIds?: string[];
+  /** Random-number answers from this attempt's own numbers, when answers are shown. */
+  calcAnswers?: Record<string, string>;
 }
 
 /** Auth token claims that limit which classes a student caller proved. */
@@ -125,6 +132,7 @@ export async function handleGetMyQuizAttempts(
   const data = asRecord(raw);
   if (!isId(data.sessionId) || !isId(data.responseKey))
     throw new HttpsError('invalid-argument', 'Missing quiz or response.');
+  const responseKey: string = data.responseKey;
   const sessionRef = deps.db.collection('quiz_sessions').doc(data.sessionId);
   const responseRef = sessionRef.collection('responses').doc(data.responseKey);
   const [sessionSnap, responseSnap] = await Promise.all([
@@ -185,6 +193,7 @@ export async function handleGetMyQuizAttempts(
     : null;
   const byId = new Map((ctx?.quiz?.questions ?? []).map((q) => [q.id, q]));
   const fib = ctx?.quiz?.fibAnswersByStudent(callerUid) ?? {};
+  const modified = ctx?.quiz?.modifiedStudent?.(callerUid) === true;
   const list = listSnap.data();
 
   const attempts = copies.map((c): MyAttempt => {
@@ -198,6 +207,18 @@ export async function handleGetMyQuizAttempts(
     };
     if (!withResponses) return base;
     const parsed = parseCompletedResponse(c);
+    const attemptKey = calcAttemptKey(responseKey, {
+      joinedAt: response.joinedAt,
+      status: 'completed',
+      completedAttempts: n,
+    });
+    const calcAnswers: Record<string, string> = {};
+    if (visibility === 'score-responses-and-answers')
+      for (const q of byId.values()) {
+        const own = withCalcValues(q, attemptKey, modified);
+        if (own.calc && own.calcValues)
+          calcAnswers[q.id] = formatCalcAnswer(own.calc, own.calcValues);
+      }
     const representative = representativeAnswers(parsed.answers);
     const served = parsed.servedQuestionIds?.length
       ? new Set(parsed.servedQuestionIds)
@@ -211,7 +232,7 @@ export async function handleGetMyQuizAttempts(
       const g =
         q && judged
           ? gradeGroupAnswer(
-              q,
+              withCalcValues(q, attemptKey, modified),
               a.answer,
               parsed.manualGrades?.[q.id],
               q.type === 'FIB' ? fib[q.id] : undefined,
@@ -237,6 +258,7 @@ export async function handleGetMyQuizAttempts(
       ...(parsed.servedQuestionIds
         ? { servedQuestionIds: parsed.servedQuestionIds }
         : {}),
+      ...(Object.keys(calcAnswers).length > 0 ? { calcAnswers } : {}),
     };
   });
   return { attempts };
