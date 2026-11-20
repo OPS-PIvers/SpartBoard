@@ -122,9 +122,10 @@ export function buildResponseGradingContext(
           (l): l is string => typeof l === 'string'
         )
       : undefined,
+    // The assignment doc never stores bankSlots; resolvedDriveFileId is written iff the session draws from banks.
     bankDraw:
-      Array.isArray(assignmentData?.bankSlots) &&
-      assignmentData.bankSlots.length > 0,
+      typeof assignmentData?.resolvedDriveFileId === 'string' &&
+      assignmentData.resolvedDriveFileId.length > 0,
     paperWrittenQuestionIds: Array.isArray(
       assignmentData?.paperWrittenQuestionIds
     )
@@ -274,9 +275,9 @@ export function gradeResponseForPublish(
   const answers = Array.isArray(data.answers) ? data.answers : [];
   const baseServed = baseServedQuestionIds(data, ctx);
   const servedIds = servedQuestionIdSet(data, ctx);
-  // A bank draw with no snapshot never saw the pool, so it keeps no key.
+  // The key covers every served question, unchosen choose-N ones included; a bank draw with no snapshot gets none.
   const keyServedIds =
-    ctx.bankDraw && !baseServed ? new Set<string>() : servedIds;
+    ctx.bankDraw && !baseServed ? new Set<string>() : baseServed;
   // Teacher-side truth only: never the client-asserted `response.locale`.
   const servedLocale =
     overridesByStudentUid[data.studentUid]?.language ??
@@ -410,7 +411,7 @@ export function gradeResponseForPublish(
   };
 }
 
-/** Rewrites a key already on a response after its counted set changed; keeps each key limited to what counts. */
+/** Rewrites a key already on a response after its counted set changed; keeps each key limited to what was served. */
 export function refreshedKeyFields(
   data: QuizResponse,
   graded: PublishGrade,

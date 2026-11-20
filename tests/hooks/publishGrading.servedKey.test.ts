@@ -88,13 +88,56 @@ describe('answer key limited to served questions', () => {
       buildResponseGradingContext(quiz, undefined),
       'k'
     );
+    // The teacher's assignment doc as createAssignment writes it: no bankSlots, only the resolved copy.
     const ctx = buildResponseGradingContext(quiz, {
-      bankSlots: [{ id: 'slot' }],
+      quizDriveFileId: 'resolved',
+      resolvedDriveFileId: 'resolved',
     });
     const graded = gradeResponseForPublish(data, ctx, 'k');
     expect(graded.score).toBe(plain.score);
     expect(classPublishPatch(data, graded, opts).revealedAnswers).toBe(
       '__delete__'
+    );
+  });
+
+  it('gives a quiz frozen at assign without banks the full key', () => {
+    const data = response();
+    const ctx = buildResponseGradingContext(quiz, {
+      frozenDriveFileId: 'frozen',
+    });
+    const patch = classPublishPatch(
+      data,
+      gradeResponseForPublish(data, ctx, 'k'),
+      opts
+    );
+    expect(patch.revealedAnswers).toEqual(opts.answerKey);
+  });
+
+  it('keeps the key for a served choose-N question that does not count, without scoring it', () => {
+    const data = response({
+      servedQuestionIds: ['q0', 'q1', 'q2'],
+      completedAttempts: 1,
+      answers: [
+        { questionId: 'q0', answer: 'a', answeredAt: 1 },
+        { questionId: 'q1', answer: 'b', answeredAt: 2 },
+        { questionId: 'q2', answer: 'c', answeredAt: 3 },
+      ],
+    });
+    const ctx = {
+      ...buildResponseGradingContext(quiz, undefined),
+      sections: [
+        {
+          id: 's1',
+          title: 'Pick one',
+          chooseCount: 1,
+          questionIds: ['q1', 'q2'],
+        },
+      ],
+    };
+    const graded = gradeResponseForPublish(data, ctx, 'k');
+    expect(graded.points).toEqual({ earned: 2, possible: 2, attempt: 1 });
+    expect(classPublishPatch(data, graded, opts).revealedAnswers).toEqual(
+      opts.answerKey
     );
   });
 
