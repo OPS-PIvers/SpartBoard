@@ -44,6 +44,7 @@ import {
   readAllowedWidgets,
   templateLayoutSystemPrompt,
 } from './boardTemplateLayout';
+import { safeErr } from './safeLog';
 
 interface AIData {
   type:
@@ -214,7 +215,7 @@ async function isExternalCaller(
   } catch (error) {
     console.warn(
       'Org resolution failed during AI quota check; treating caller as org.',
-      error
+      safeErr(error)
     );
     return false;
   }
@@ -574,7 +575,7 @@ async function enforceAiFeatureAccess(
     });
   } catch (error) {
     if (error instanceof HttpsError) throw error;
-    console.error(`[${featureId}] usage check error:`, error);
+    console.error(`[${featureId}] usage check error:`, safeErr(error));
     throw new HttpsError('internal', 'Failed to verify AI usage limits.');
   }
   return {
@@ -613,7 +614,7 @@ async function recordAiUsage(
     });
     return { docIds, id: randomUUID() };
   } catch (error) {
-    console.error(`[${featureId}] admin usage record failed:`, error);
+    console.error(`[${featureId}] admin usage record failed:`, safeErr(error));
     return { docIds: [] };
   }
 }
@@ -924,7 +925,7 @@ export const generateWithAI = onCall(
       if (error instanceof HttpsError) {
         throw error;
       }
-      console.error('Usage tracking error:', error);
+      console.error('Usage tracking error:', safeErr(error));
       throw new HttpsError('internal', 'Failed to verify AI usage limits.');
     }
 
@@ -1363,7 +1364,7 @@ Output JSON ONLY in this exact shape:
       // marker obvious and avoid colliding with any field Gemini returns.
       return { ...parsed, _modelConfigUsedFallback: geminiConfig.usedFallback };
     } catch (error: unknown) {
-      console.error('AI Generation Error Details:', error);
+      console.error('AI Generation Error Details:', safeErr(error));
 
       if (error instanceof HttpsError) throw error;
 
@@ -2063,7 +2064,7 @@ export const generateVideoActivity = onCall(
         _modelConfigUsedFallback: result.usedFallbackConfig,
       };
     } catch (error: unknown) {
-      console.error('[generateVideoActivity] Gemini error:', error);
+      console.error('[generateVideoActivity] Gemini error:', safeErr(error));
       if (error instanceof HttpsError) throw error;
       const detail = error instanceof Error ? error.message : 'unknown error';
       throw new HttpsError('internal', `AI generation failed: ${detail}`);
@@ -2303,7 +2304,7 @@ export const transcribeVideoWithGemini = onCall(
         });
       } catch (error) {
         if (error instanceof HttpsError) throw error;
-        console.error('Transcription usage check error:', error);
+        console.error('Transcription usage check error:', safeErr(error));
         throw new HttpsError(
           'internal',
           'Failed to verify audio transcription usage limits.'
@@ -2402,7 +2403,10 @@ export const transcribeVideoWithGemini = onCall(
         questions: validatedQuestions,
       };
     } catch (error: unknown) {
-      console.error('[transcribeVideoWithGemini] Gemini error:', error);
+      console.error(
+        '[transcribeVideoWithGemini] Gemini error:',
+        safeErr(error)
+      );
       if (error instanceof HttpsError) throw error;
       const detail = error instanceof Error ? error.message : 'unknown error';
       const msg = `AI generation failed: ${detail}`;
@@ -2678,7 +2682,7 @@ Writing:
       };
     } catch (error: unknown) {
       if (error instanceof HttpsError) throw error;
-      console.error('[generateGuidedLearning] Gemini error:', error);
+      console.error('[generateGuidedLearning] Gemini error:', safeErr(error));
       const detail = error instanceof Error ? error.message : 'unknown error';
       throw new HttpsError('internal', `AI generation failed: ${detail}`);
     }
@@ -2741,7 +2745,10 @@ export const draftGuidedLearningStepTextV1 = onCall(
       };
     } catch (error: unknown) {
       if (error instanceof HttpsError) throw error;
-      console.error('[draftGuidedLearningStepTextV1] Gemini error:', error);
+      console.error(
+        '[draftGuidedLearningStepTextV1] Gemini error:',
+        safeErr(error)
+      );
       const detail = error instanceof Error ? error.message : 'unknown error';
       throw new HttpsError('internal', `AI drafting failed: ${detail}`);
     }

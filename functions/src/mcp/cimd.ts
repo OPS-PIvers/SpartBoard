@@ -2,6 +2,7 @@
 import type * as admin from '../firebaseAdmin';
 import { isAllowedRedirectUri } from './config';
 import { CIMD_SETTINGS_PATH, isSwitchOn, resetSwitchCache } from './switches';
+import { safeErr } from '../safeLog';
 
 type Firestore = admin.firestore.Firestore;
 
@@ -116,7 +117,7 @@ export async function fetchCimdClient(
     docCache.set(clientId, { client, at: now });
     return client;
   } catch (err) {
-    console.warn('[cimd] fetch failed', { clientId, err });
+    console.warn('[cimd] fetch failed', { clientId, err: safeErr(err) });
     return null;
   }
 }

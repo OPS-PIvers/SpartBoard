@@ -4,6 +4,7 @@
 // header, or a response body (they hold student grades).
 
 import { randomBytes } from 'node:crypto';
+import { safeErr } from '../safeLog';
 
 export const SCHOOLOGY_API_ORIGIN = 'https://api.schoology.com';
 const API_BASE = `${SCHOOLOGY_API_ORIGIN}/v1`;
@@ -118,7 +119,10 @@ async function sgyFetch(
         redirect: 'manual',
       });
     } catch (err) {
-      console.warn(`[schoologyRest] ${currentMethod} failed (network):`, err);
+      console.warn(
+        `[schoologyRest] ${currentMethod} failed (network):`,
+        safeErr(err)
+      );
       throw new SchoologyRestError(`Schoology ${currentMethod} failed.`, 0);
     }
     if (res.status === 302 || res.status === 303) {

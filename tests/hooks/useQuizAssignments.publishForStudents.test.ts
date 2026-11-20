@@ -185,6 +185,29 @@ describe('useQuizAssignments — per-student results publishing', () => {
     ).toBe(false);
   });
 
+  it('limits the key to the questions the student was dealt', async () => {
+    responseDocs['pin-a'] = {
+      studentUid: 's1',
+      status: 'completed',
+      servedQuestionIds: ['q0'],
+      answers: [{ questionId: 'q0', answer: 'a', answeredAt: 1 }],
+    };
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.publishResultsForStudents(
+        ASSIGNMENT_ID,
+        quizData,
+        ['pin-a'],
+        'score-responses-and-answers',
+        5000
+      );
+    });
+    const patch = patchFor('pin-a') as {
+      resultsOverride: { revealedAnswers: Record<string, string> };
+    };
+    expect(patch.resultsOverride.revealedAnswers).toEqual({ q0: 'a' });
+  });
+
   it('leaves score unset while a written answer awaits a grade and omits the key below the answers level', async () => {
     responseDocs['pin-a'] = {
       studentUid: 's1',
@@ -407,5 +430,23 @@ describe('classPublishPatch', () => {
     expect(patch.revealedAnswers).toEqual({ q0: 'a' });
     expect(patch.answers).toEqual(graded.answers);
     expect(patch.score).toBe(100);
+  });
+
+  it('limits the key to the questions the student was served', () => {
+    const patch = classPublishPatch(
+      { studentUid: 's', status: 'completed' } as never,
+      { ...graded, servedIds: new Set(['q0']) },
+      { ...opts, answerKey: { q0: 'a', q9: 'undealt' } }
+    );
+    expect(patch.revealedAnswers).toEqual({ q0: 'a' });
+  });
+
+  it('drops the key when none of it was served to the student', () => {
+    const patch = classPublishPatch(
+      { studentUid: 's', status: 'completed' } as never,
+      { ...graded, servedIds: new Set(['q1']) },
+      opts
+    );
+    expect(patch.revealedAnswers).toBe(DELETE_FIELD_SENTINEL);
   });
 });

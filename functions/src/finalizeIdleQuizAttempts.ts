@@ -55,6 +55,7 @@ import {
 } from './quizSessionContent';
 import { buildQuizFinalizeUpdate, sessionQuestionIds } from './quizFinalize';
 import { withServerTurnIn } from './quizTurnIn';
+import { safeErr } from './safeLog';
 
 export { resolveUnrespondedQuestionIds } from './quizFinalize';
 
@@ -649,7 +650,7 @@ export async function runFinalizeIdleQuizAttempts(
       console.warn(
         '[finalizeIdleQuizAttempts] tx failed',
         docSnap.ref.path,
-        err
+        safeErr(err)
       );
     }
   }

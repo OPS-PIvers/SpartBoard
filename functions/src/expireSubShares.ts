@@ -40,6 +40,7 @@ import {
   GOOGLE_OAUTH_CLIENT_SECRET,
   GOOGLE_OAUTH_REFRESH_TOKEN_KEY,
 } from './secrets';
+import { safeErr } from './safeLog';
 
 // Mirrors SHARE_SUBCOLLECTIONS in utils/subShareContent.ts; functions/ is its
 // own package and cannot import from the app.
@@ -184,7 +185,10 @@ async function revokeShareGrants(
   let tokenP = ctx.tokens.get(hostUid);
   if (!tokenP) {
     tokenP = ctx.revoker.getAccessToken(hostUid).catch((err) => {
-      console.warn(`[expireSubShares] no Drive token for ${hostUid}:`, err);
+      console.warn(
+        `[expireSubShares] no Drive token for ${hostUid}:`,
+        safeErr(err)
+      );
       return TOKEN_ERROR;
     });
     ctx.tokens.set(hostUid, tokenP);
@@ -217,7 +221,7 @@ async function revokeShareGrants(
   } catch (err) {
     console.warn(
       `[expireSubShares] Drive revoke failed for share ${doc.id}:`,
-      err
+      safeErr(err)
     );
     return 'needs-host';
   }
@@ -333,7 +337,10 @@ async function sweepCollection(
                     grants.length
                   )
                   .catch((err) => {
-                    console.warn(`[expireSubShares] host email failed:`, err);
+                    console.warn(
+                      `[expireSubShares] host email failed:`,
+                      safeErr(err)
+                    );
                     return false;
                   })
               : false;
@@ -451,14 +458,14 @@ export async function runExpireSubShares(
   if (boardsResult.status === 'rejected') {
     console.error(
       '[expireSubShares] shared_boards sweep failed:',
-      boardsResult.reason
+      safeErr(boardsResult.reason)
     );
     failures.push(boardsResult.reason);
   }
   if (collectionsResult.status === 'rejected') {
     console.error(
       '[expireSubShares] shared_collections sweep failed:',
-      collectionsResult.reason
+      safeErr(collectionsResult.reason)
     );
     failures.push(collectionsResult.reason);
   }

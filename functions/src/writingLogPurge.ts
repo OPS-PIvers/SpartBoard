@@ -13,6 +13,7 @@ import {
   WRITING_RESPONSES,
   WRITING_SESSIONS,
 } from './writingResponses';
+import { safeErr } from './safeLog';
 
 type Data = Record<string, unknown>;
 
@@ -188,7 +189,7 @@ export async function runWritingLogPurge(
           if (res.status === 'fulfilled') purged += res.value ? 1 : 0;
           else {
             failed += 1;
-            logger.error('purgeWritingLogs response', res.reason);
+            logger.error('purgeWritingLogs response', safeErr(res.reason));
           }
         }
       }

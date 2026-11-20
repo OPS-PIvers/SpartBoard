@@ -33,6 +33,7 @@ import { ALLOWED_ORIGINS } from './classlinkShared';
 import './functionsInit';
 import { assertViewAsAllowed, LEGACY_PIN_TOKEN_GRACE_MS } from './viewAsGuard';
 import { resolveServerResultsVisibility } from './quizResultsVisibilityServer';
+import { safeErr } from './safeLog';
 
 type Firestore = admin.firestore.Firestore;
 
@@ -459,7 +460,7 @@ export async function resolveArtifactPlayback(
     console.error('[getQuizArtifactPlaybackUrl] Drive fetch failed', {
       sessionId,
       artifactId,
-      error,
+      error: safeErr(error),
     });
     throw new HttpsError('unavailable', 'Could not load this recording.');
   }

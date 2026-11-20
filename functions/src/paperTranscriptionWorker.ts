@@ -48,6 +48,7 @@ import {
   type PaperTranscriptionJobStatus,
 } from './paperWrittenTypes';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { safeErr } from './safeLog';
 
 /** Longer than the 300 s function timeout, so a live run never loses its lease. */
 export const JOB_LEASE_MS = 6 * 60 * 1000;
@@ -423,7 +424,11 @@ async function archiveBoxes(
         expectedStoragePath: box.storagePath,
       });
     } catch (error) {
-      console.error('[paperTranscriptionWorker] archive failed', jobId, error);
+      console.error(
+        '[paperTranscriptionWorker] archive failed',
+        jobId,
+        safeErr(error)
+      );
     }
   }
 }
@@ -447,7 +452,10 @@ export async function runPaperTranscriptionJob(
     if (!job.charged) return;
     await releasePaperPage(db, { uid, jobRef, nowMs: deps.now() }).catch(
       (releaseError) =>
-        console.error('[paperTranscriptionWorker] release failed', releaseError)
+        console.error(
+          '[paperTranscriptionWorker] release failed',
+          safeErr(releaseError)
+        )
     );
   };
 
@@ -550,10 +558,17 @@ export async function runPaperTranscriptionJob(
   try {
     transcript = await transcribePresentCrops(live, quota.modelTier, deps);
   } catch (error) {
-    console.error('[paperTranscriptionWorker] transcribe failed', jobId, error);
+    console.error(
+      '[paperTranscriptionWorker] transcribe failed',
+      jobId,
+      safeErr(error)
+    );
     await releasePaperPage(db, { uid, jobRef, nowMs: deps.now() }).catch(
       (releaseError) =>
-        console.error('[paperTranscriptionWorker] release failed', releaseError)
+        console.error(
+          '[paperTranscriptionWorker] release failed',
+          safeErr(releaseError)
+        )
     );
     await settleWithoutTranscript(
       db,
