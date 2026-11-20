@@ -123,6 +123,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'quiz-cross-out',
   'quiz-document-ai-reader',
   'quiz-document-import',
+  'quiz-frozen-assignments',
   'quiz-import-versions-plain',
   'quiz-live-view',
   'quiz-live-view-nudge',
