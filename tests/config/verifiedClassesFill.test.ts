@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeVerifiedClassesFillSettings } from '@/config/verifiedClassesFill';
+import {
+  normalizeClassTargetsEnforceSettings,
+  normalizeVerifiedClassesFillSettings,
+} from '@/config/verifiedClassesFill';
 import { ROLLOUT_SWITCHES } from '@/config/rolloutSwitches';
 
 describe('normalizeVerifiedClassesFillSettings', () => {
@@ -22,5 +25,27 @@ describe('normalizeVerifiedClassesFillSettings', () => {
     expect(
       ROLLOUT_SWITCHES.some((s) => s.docId === 'verified_classes_fill')
     ).toBe(true);
+  });
+});
+
+describe('normalizeClassTargetsEnforceSettings', () => {
+  it('reads only a literal true enforce field', () => {
+    expect(normalizeClassTargetsEnforceSettings(undefined).enabled).toBe(false);
+    expect(
+      normalizeClassTargetsEnforceSettings({ enabled: true }).enabled
+    ).toBe(false);
+    expect(
+      normalizeClassTargetsEnforceSettings({ enforce: 'true' }).enabled
+    ).toBe(false);
+    expect(
+      normalizeClassTargetsEnforceSettings({ enforce: true }).enabled
+    ).toBe(true);
+  });
+
+  it('is a super-admin toggle on the field the rules read', () => {
+    const sw = ROLLOUT_SWITCHES.find(
+      (s) => s.docId === 'verified_classes_fill' && s.field === 'enforce'
+    );
+    expect(sw?.superAdminOnly).toBe(true);
   });
 });

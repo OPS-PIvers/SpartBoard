@@ -45,6 +45,7 @@ import { viewAsDirectSave } from '@/utils/viewAsAudit';
 
 export const BANKS_COLLECTION = 'question_banks';
 export const SYNCED_BANKS_COLLECTION = 'synced_question_banks';
+export const SYNCED_BANK_OWNERS_COLLECTION = 'synced_bank_owners';
 
 export interface UseQuestionBanksResult {
   banks: QuestionBankMetadata[];
@@ -91,6 +92,18 @@ function bankMetaRef(uid: string, bankId: string) {
 
 function syncedBankRef(groupId: string) {
   return doc(db, SYNCED_BANKS_COLLECTION, groupId);
+}
+
+/** Id reservation the rules require in the same batch as a synced bank's create or delete. */
+export function syncedBankOwnerRef(groupId: string) {
+  return doc(db, SYNCED_BANK_OWNERS_COLLECTION, groupId);
+}
+
+async function deleteSyncedBank(groupId: string, uid: string): Promise<void> {
+  const batch = writeBatch(db);
+  batch.set(syncedBankOwnerRef(groupId), { ownerUid: uid, at: Date.now() });
+  batch.delete(syncedBankRef(groupId));
+  await batch.commit();
 }
 
 function plcHeadersQuery(plcId: string, groupId: string) {
@@ -190,7 +203,14 @@ export const useQuestionBanks = (
         createdAt: current?.createdAt ?? now,
         updatedAt: now,
       });
-      await setDoc(ref, payload);
+      if (current) {
+        await setDoc(ref, payload);
+      } else {
+        const batch = writeBatch(db);
+        batch.set(syncedBankOwnerRef(groupId), { ownerUid: uid, at: now });
+        batch.set(ref, payload);
+        await batch.commit();
+      }
       return payload;
     },
     []
@@ -278,7 +298,7 @@ export const useQuestionBanks = (
         await Promise.all(
           sync.plcIds.map((plcId) => deleteHeaders(plcId, sync.groupId))
         );
-        await deleteDoc(syncedBankRef(sync.groupId));
+        await deleteSyncedBank(sync.groupId, userId);
       }
       await deleteDoc(bankMetaRef(userId, meta.id));
     },
@@ -400,7 +420,7 @@ export const useQuestionBanks = (
           Date.now()
         );
       } else {
-        await deleteDoc(syncedBankRef(groupId));
+        await deleteSyncedBank(groupId, userId);
       }
       const next: QuestionBankMetadata = { ...current, updatedAt: Date.now() };
       delete next.sync;

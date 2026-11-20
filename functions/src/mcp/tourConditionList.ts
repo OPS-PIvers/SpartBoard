@@ -116,6 +116,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'question-editor-fields',
   'quick-sign-in',
   'quiz',
+  'quiz-assign-waits-for-save',
   'quiz-blank-types',
   'quiz-calculator-stimulus',
   'quiz-cross-out',
