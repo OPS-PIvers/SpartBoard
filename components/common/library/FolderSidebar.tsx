@@ -223,21 +223,11 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
   // Count descendants + direct items for the delete modal.
   const deleteImpact = useMemo(() => {
     if (!confirmDelete) return { itemCount: 0, subfolderCount: 0 };
-    const byParent = new Map<string | null, LibraryFolder[]>();
-    for (const f of folders) {
-      const bucket = byParent.get(f.parentId) ?? [];
-      bucket.push(f);
-      byParent.set(f.parentId, bucket);
-    }
-    let subfolderCount = 0;
-    const walk = (id: string): void => {
-      const kids = byParent.get(id) ?? [];
-      for (const k of kids) {
-        subfolderCount += 1;
-        walk(k.id);
-      }
-    };
-    walk(confirmDelete.id);
+    const subfolderCount = collectDescendantIds(
+      confirmDelete.id,
+      folders,
+      (f) => f.parentId
+    ).length;
     const itemCount = itemCounts?.[confirmDelete.id] ?? 0;
     return { itemCount, subfolderCount };
   }, [confirmDelete, folders, itemCounts]);

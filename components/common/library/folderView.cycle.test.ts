@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { LibraryFolder } from '@/types';
+import { collectDescendantIds } from '@/utils/folderTree';
 import { buildFolderIndex, folderPath, subtreeFolderIds } from './folderView';
 
 const folder = (
@@ -29,5 +30,18 @@ describe('buildFolderIndex parent cycles', () => {
   it('keeps a self-parented folder reachable', () => {
     const index = buildFolderIndex([folder('s', 's')]);
     expect(index.childrenOf.get(null)?.map((f) => f.id)).toEqual(['s']);
+  });
+});
+
+describe('collectDescendantIds on parent cycles', () => {
+  it('terminates with correct counts on an A<->B cycle and a self-parent', () => {
+    const f = [folder('a', 'b'), folder('b', 'a'), folder('c', 'b')];
+    expect(collectDescendantIds('a', f, (x) => x.parentId).sort()).toEqual([
+      'b',
+      'c',
+    ]);
+    expect(
+      collectDescendantIds('s', [folder('s', 's')], (x) => x.parentId)
+    ).toEqual([]);
   });
 });
