@@ -1,0 +1,1 @@
+claude/quiz-live-session-own-quiz (live quiz session reveals and scoreboard use the session's own quiz, AB-328)

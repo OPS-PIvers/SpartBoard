@@ -31,6 +31,7 @@ import {
 import { getAssignmentWidgetKind } from '@/utils/quizWidgetKind';
 import { isGameSession } from '@/utils/reviewResults';
 import { useReviewLaunch } from './useReviewLaunch';
+import { useLiveSessionQuiz } from './useLiveSessionQuiz';
 import { quizQuestionDedupeKey } from '@/utils/quizSearchText';
 import { quizAssignBlocker } from '@/utils/activityCompleteness';
 import { quizDeleteDetail } from '@/utils/quizDeleteDetail';
@@ -922,6 +923,10 @@ const TeacherQuizWidget: React.FC<{
 
   // Local state for views that need loaded data
   const [loadedQuizData, setLoadedQuizData] = useState<QuizData | null>(null);
+  const [loadedQuizSource, setLoadedQuizSource] = useState<{
+    data: QuizData;
+    fileId: string;
+  } | null>(null);
   const [studentView, setStudentView] = useState<
     | ((
         | { quiz: QuizData; behavior: QuizBehaviorSettings }
@@ -1420,6 +1425,7 @@ const TeacherQuizWidget: React.FC<{
         const loaded = await loadQuizData(meta.driveFileId);
         const data = refine ? await refine(loaded) : loaded;
         setLoadedQuizData(data);
+        setLoadedQuizSource({ data, fileId: meta.driveFileId });
         return data;
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Failed to load quiz';
@@ -1830,6 +1836,8 @@ const TeacherQuizWidget: React.FC<{
     if (
       !loadedQuizData &&
       !loadingQuizData &&
+      // A frozen copy is named on the assignment, so wait for the list before picking the file.
+      !assignmentsLoading &&
       quizzes.length > 0 &&
       liveSession &&
       liveSession.status !== 'ended'
@@ -1856,6 +1864,7 @@ const TeacherQuizWidget: React.FC<{
     liveSession,
     loadedQuizData,
     loadingQuizData,
+    assignmentsLoading,
     quizzes,
     assignments,
     bankSourcesLoading,
@@ -1864,6 +1873,18 @@ const TeacherQuizWidget: React.FC<{
     endQuizSession,
     setView,
   ]);
+
+  // Reveal and scoreboard sync use the session's own quiz (or frozen copy), never one being previewed or edited.
+  const liveQuizData = useLiveSessionQuiz(
+    loadedQuizData,
+    loadedQuizSource?.data === loadedQuizData ? loadedQuizSource.fileId : null,
+    liveSession,
+    liveSession
+      ? (assignments.find((a) => a.id === liveSession.assignmentId)
+          ?.resolvedDriveFileId ??
+          quizzes.find((q) => q.id === liveSession.quizId)?.driveFileId)
+      : undefined
+  );
 
   // D9: a Quiz-kind session has no scoreboard sync, reveal or podium.
   const liveAssessmentOnly =
@@ -1986,7 +2007,7 @@ const TeacherQuizWidget: React.FC<{
   );
 
   useEffect(() => {
-    if (!scoreboardSyncOn || !loadedQuizData || !liveSession) {
+    if (!scoreboardSyncOn || !liveQuizData || !liveSession) {
       // Reset fingerprint when disabled so re-enabling triggers an immediate sync
       prevResponsesJsonRef.current = '';
       return;
@@ -2043,7 +2064,7 @@ const TeacherQuizWidget: React.FC<{
           // scored correctly (not total quiz points). This gives meaningful live
           // feedback before quiz completion, unlike the final score which divides
           // by total points and would show low percentages for students mid-quiz.
-          const questions = loadedQuizData.questions;
+          const questions = liveQuizData.questions;
           const gamified = isGamificationActive(liveSession);
           // SSO `studentRole` rows have no `pin` — fall back to studentUid
           // for both the team id and the color hash, and pull names from
@@ -2097,7 +2118,7 @@ const TeacherQuizWidget: React.FC<{
           // what they've answered out of the entire quiz.
           newTeams = buildScoreboardTeams(
             allResponses,
-            loadedQuizData.questions,
+            liveQuizData.questions,
             displayMode,
             pinToName,
             liveSession,
@@ -2191,7 +2212,7 @@ const TeacherQuizWidget: React.FC<{
     config.periodNames,
     config.periodName,
     responses,
-    loadedQuizData,
+    liveQuizData,
     liveSession,
     rosters,
     updateWidget,
@@ -2281,7 +2302,7 @@ const TeacherQuizWidget: React.FC<{
   // regardless of the showCorrectOnBoard setting.
   // Also auto-reveals the CURRENT question when entering review phase.
   useEffect(() => {
-    if (!liveSession || !loadedQuizData) return;
+    if (!liveSession || !liveQuizData) return;
     if (liveSession.status !== 'active') return;
 
     const shouldReveal =
@@ -2289,7 +2310,7 @@ const TeacherQuizWidget: React.FC<{
       liveSession.questionPhase === 'reviewing';
     if (!shouldReveal) return;
 
-    const questions = loadedQuizData.questions;
+    const questions = liveQuizData.questions;
     // Reveal past questions + current question during review phase
     const upTo = autoRevealCount(liveSession, questions.length);
     for (let i = 0; i < upTo; i++) {
@@ -2304,7 +2325,7 @@ const TeacherQuizWidget: React.FC<{
     liveSession?.showResultToStudent,
     liveSession?.questionPhase,
     liveSession?.revealedAnswers,
-    loadedQuizData,
+    liveQuizData,
     revealAnswer,
     liveSession,
   ]);
