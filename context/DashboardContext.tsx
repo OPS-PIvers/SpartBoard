@@ -4462,7 +4462,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const refusedMirrorRef = useRef<Map<string, string>>(new Map());
   // Payload in flight per shareId: dedupe only; it becomes the merge baseline once accepted.
   const pendingMirrorRef = useRef<Map<string, string>>(new Map());
-  const liveMirrorShareIdsRef = useRef<Set<string>>(new Set());
+  const linkedMirrorShareIdsRef = useRef<Set<string>>(new Set());
   // Per-share ink present when we first subscribed — the fallback merge
   // baseline before this device has mirrored or received anything.
   const mountInkBaselineRef = useRef<Map<string, DrawableObject[]>>(new Map());
@@ -4497,8 +4497,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     // window elapses. Without this, a stale snapshot would land in the
     // shared doc after the user already stopped sharing.
     const liveShareIds = new Set<string>();
+    // Every share a board still links to, mirrored or not (viewer, ended, host-less): their refs hold the snapshot baseline.
+    const linkedShareIds = new Set<string>();
 
     dashboards.forEach((d) => {
+      if (d.linkedShareId) linkedShareIds.add(d.linkedShareId);
       // A board whose host isn't recorded yet publishes nothing until its first snapshot vouches for the share.
       if (!d.linkedShareId || d.linkedShareEnded || !d.linkedShareHostUid)
         return;
@@ -4561,7 +4564,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             refusedMirrorRef.current.delete(shareId);
             // Only an accepted write is the baseline, and not over a snapshot that landed meanwhile.
             if (
-              liveMirrorShareIdsRef.current.has(shareId) &&
+              linkedMirrorShareIdsRef.current.has(shareId) &&
               sharedSnapshotGenRef.current.get(shareId) === gen
             ) {
               lastMirroredRef.current.set(shareId, payload);
@@ -4569,7 +4572,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             // What we sent is the newest base until a snapshot says otherwise, so an undo before the echo stays.
             if (
               written &&
-              liveMirrorShareIdsRef.current.has(shareId) &&
+              linkedMirrorShareIdsRef.current.has(shareId) &&
               sharedSnapshotGenRef.current.get(shareId) === gen
             ) {
               sharedBaselineRef.current.set(
@@ -4600,10 +4603,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         mirrorTimersRef.current.delete(shareId);
       }
     }
-    liveMirrorShareIdsRef.current = liveShareIds;
+    linkedMirrorShareIdsRef.current = linkedShareIds;
     for (const ref of [lastMirroredRef, pendingMirrorRef, refusedMirrorRef]) {
       for (const shareId of ref.current.keys()) {
-        if (!liveShareIds.has(shareId)) ref.current.delete(shareId);
+        if (!linkedShareIds.has(shareId)) ref.current.delete(shareId);
       }
     }
     for (const shareId of sharedBaselineRef.current.keys()) {

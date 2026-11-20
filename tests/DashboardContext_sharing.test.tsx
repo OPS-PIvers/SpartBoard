@@ -1787,6 +1787,74 @@ describe('DashboardContext Sharing Logic', () => {
       });
     });
 
+    it('a viewer drops a stroke the host erased', async () => {
+      let subscribeCb: ((remote: Dashboard | null) => void) | null = null;
+      mockSubscribeToSharedBoard.mockImplementation(
+        (_id: string, cb: (remote: Dashboard | null) => void) => {
+          subscribeCb = cb;
+          return () => undefined;
+        }
+      );
+      const linked: Dashboard = {
+        id: 'view-board',
+        name: 'View Only Board',
+        background: 'bg-slate-800',
+        widgets: [],
+        createdAt: 1,
+        linkedShareId: 'share-vo',
+        linkedShareRole: 'viewer',
+        linkedShareHostUid: 'host-a',
+      };
+      initialDashboardsSeed = [linked];
+      let captured: Dashboard | undefined;
+      const Probe: React.FC = () => {
+        const { dashboards } = useDashboard();
+        useEffect(() => {
+          captured = dashboards.find((d) => d.id === 'view-board');
+        }, [dashboards]);
+        return <div />;
+      };
+      render(
+        <DashboardProvider>
+          <Probe />
+        </DashboardProvider>
+      );
+      await waitFor(() => expect(subscribeCb).not.toBeNull());
+
+      const overlay = (ids: string[]) => ({
+        objects: ids.map((id) => ({
+          id,
+          kind: 'path' as const,
+          z: 1,
+          points: [{ x: 5, y: 5 }],
+          color: '#f00',
+          width: 4,
+          authorUid: 'other-user',
+        })),
+        updatedAt: 99,
+      });
+      act(() => {
+        subscribeCb?.({
+          ...linked,
+          annotationOverlay: overlay(['host-stroke']),
+          updatedBy: 'other-user',
+        } as unknown as Dashboard);
+      });
+      await waitFor(() =>
+        expect(captured?.annotationOverlay?.objects).toHaveLength(1)
+      );
+      act(() => {
+        subscribeCb?.({
+          ...linked,
+          annotationOverlay: overlay([]),
+          updatedBy: 'other-user',
+        } as unknown as Dashboard);
+      });
+      await waitFor(() =>
+        expect(captured?.annotationOverlay?.objects ?? []).toHaveLength(0)
+      );
+    });
+
     it.each(['viewer', 'collaborator'] as const)(
       "a %s receives the host's Connections from the share",
       async (role) => {
