@@ -148,6 +148,7 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
         {onBack && (
           <button
             onClick={onBack}
+            aria-label="Back"
             {...tourTypeAttr('quiz-library.preview-back', 'quiz')}
             className="hover:bg-brand-blue-primary/10 rounded-lg transition-colors text-brand-blue-primary"
             style={{ padding: 'min(6px, 1.5cqmin)' }}
@@ -394,6 +395,8 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
             <button
               key={i}
               onClick={() => setCurrentIndex(i)}
+              aria-label={`Question ${i + 1}`}
+              aria-current={i === currentIndex ? 'step' : undefined}
               {...tourFieldAttr(
                 'quiz-library.preview-dot',
                 'quiz',

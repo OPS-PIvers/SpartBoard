@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Crown } from 'lucide-react';
 import { QuizLeaderboardEntry } from '@/types';
+import { prefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
 
 interface PresentPodiumProps {
   entries: QuizLeaderboardEntry[];
@@ -57,13 +58,6 @@ const SIZES = {
     gap: '2vw',
   },
 } as const;
-
-function prefersReducedMotion(): boolean {
-  return (
-    typeof window !== 'undefined' &&
-    !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-  );
-}
 
 const CountUp: React.FC<{ from: number; to: number; delayMs: number }> = ({
   from,

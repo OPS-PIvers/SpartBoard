@@ -113,6 +113,10 @@ describe('landingRowState', () => {
   });
 
   it('moves closed, unsubmitted work with a due date to missing and drops it without one', () => {
+    const started = a({ channel: 'ended', endedAt: NOW - DAY });
+    expect(landingRowState(started, checked(started, 'in-progress'), NOW)).toBe(
+      'missing'
+    );
     const due = a({
       channel: 'ended',
       endedAt: NOW - DAY,
@@ -221,7 +225,7 @@ describe('partitionLanding', () => {
     ]);
   });
 
-  it('puts closed Missing ahead of finished work, newest first', () => {
+  it('moves closed work never turned in to Expired, out of Completed', () => {
     const old = a({ sessionId: 'old', dueAt: NOW - 9 * DAY });
     const recent = a({ sessionId: 'recent', dueAt: NOW - 2 * DAY });
     const gone = a({
@@ -230,20 +234,48 @@ describe('partitionLanding', () => {
       endedAt: NOW - DAY,
       dueAt: NOW - 20 * DAY,
     });
+    const started = a({
+      sessionId: 'started',
+      channel: 'ended',
+      endedAt: NOW - 3 * DAY,
+    });
+    const late = a({
+      sessionId: 'late',
+      dueAt: NOW - DAY,
+      closeAt: NOW + DAY,
+    });
     const p = partitionLanding(
-      [old, recent, gone],
+      [old, recent, gone, started, late],
       {
         ...checked(old, 'turned-in'),
         ...checked(recent, 'turned-in'),
         ...checked(gone, 'not-started'),
+        ...checked(started, 'in-progress'),
+        ...checked(late, 'not-started'),
       },
       NOW
     );
     expect(p.done.map((r) => r.assignment.sessionId)).toEqual([
-      'gone',
       'recent',
       'old',
     ]);
+    expect(p.expired.map((r) => r.assignment.sessionId)).toEqual([
+      'started',
+      'gone',
+    ]);
+    expect(p.work.map((r) => r.assignment.sessionId)).toEqual(['late']);
+  });
+
+  it('keeps a printed copy waiting for its scan in Completed', () => {
+    const paper = a({
+      sessionId: 'paper',
+      dueAt: NOW - 2 * DAY,
+      endedAt: NOW - DAY,
+      override: { onPaper: true },
+    });
+    const p = partitionLanding([paper], checked(paper, 'in-progress'), NOW);
+    expect(p.done.map((r) => r.state)).toEqual(['closed']);
+    expect(p.expired).toEqual([]);
   });
 });
 
@@ -379,8 +411,8 @@ describe('completedItems', () => {
       dueAt: NOW - 2 * DAY,
     });
     const p = partitionLanding([missed], checked(missed, 'not-started'), NOW);
-    expect(completedItems(p.done).map((i) => [i.sessionId, i.missing])).toEqual(
-      [['m', true]]
-    );
+    expect(
+      completedItems(p.expired).map((i) => [i.sessionId, i.missing])
+    ).toEqual([['m', true]]);
   });
 });

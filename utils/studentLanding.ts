@@ -35,8 +35,10 @@ export interface LandingPartition {
   /** Assignments tab: Missing-still-open first, then by due date, then no due date (D15). */
   work: LandingRow[];
   resources: LandingRow[];
-  /** Completed tab: Missing (closed) first, then newest first (D18). */
+  /** Completed tab: turned in, plus printed copies waiting for their scan; newest first (D18). */
   done: LandingRow[];
+  /** Expired: not turned in and can no longer be turned in; newest first. */
+  expired: LandingRow[];
 }
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -76,7 +78,7 @@ export function landingRowState(
     if (onPaper) return turnIn === 'in-progress' ? 'closed' : null;
     const deadline = a.dueAt ?? a.closeAt;
     if (deadline !== undefined && nowMs > deadline) return 'missing';
-    return turnIn === 'in-progress' ? 'closed' : null;
+    return turnIn === 'in-progress' ? 'missing' : null;
   }
   if (a.live) return 'live';
   if (getWindowState(a, nowMs) === 'upcoming') return 'upcoming';
@@ -105,15 +107,21 @@ export function partitionLanding(
   checks: TurnInMap,
   nowMs: number
 ): LandingPartition {
-  const out: LandingPartition = { live: [], work: [], resources: [], done: [] };
+  const out: LandingPartition = {
+    live: [],
+    work: [],
+    resources: [],
+    done: [],
+    expired: [],
+  };
   for (const assignment of assignments) {
     const state = landingRowState(assignment, checks, nowMs);
     if (!state) continue;
     const row = { assignment, state };
     if (state === 'live') out.live.push(row);
     else if (state === 'resource') out.resources.push(row);
-    else if (state === 'turned-in' || state === 'missing' || state === 'closed')
-      out.done.push(row);
+    else if (state === 'missing') out.expired.push(row);
+    else if (state === 'turned-in' || state === 'closed') out.done.push(row);
     else out.work.push(row);
   }
   out.work.sort(
@@ -128,11 +136,10 @@ export function partitionLanding(
       closeKey(x.assignment) - closeKey(y.assignment) ||
       x.assignment.title.localeCompare(y.assignment.title)
   );
-  out.done.sort(
-    (x, y) =>
-      Number(y.state === 'missing') - Number(x.state === 'missing') ||
-      doneSortKey(y.assignment) - doneSortKey(x.assignment)
-  );
+  const newestFirst = (x: LandingRow, y: LandingRow) =>
+    doneSortKey(y.assignment) - doneSortKey(x.assignment);
+  out.done.sort(newestFirst);
+  out.expired.sort(newestFirst);
   return out;
 }
 
@@ -169,23 +176,23 @@ const sortKeyOf = (item: DoneItem): number =>
     ? doneSortKey(item.row.assignment)
     : (item.grade?.dueAt ?? item.grade?.updatedAt ?? 0);
 
-/** Completed tab rows, in the partition's order. */
-export function completedItems(done: readonly LandingRow[]): DoneItem[] {
-  return done.map((row) => itemFromRow(row));
+/** Completed or Expired tab rows, in the partition's order. */
+export function completedItems(rows: readonly LandingRow[]): DoneItem[] {
+  return rows.map((row) => itemFromRow(row));
 }
 
-/** D17, D18: done rows joined to their grades, plus grades whose session left the list; open work stays out. */
+/** D17, D18: done and expired rows joined to their grades, plus grades whose session left the list; open work stays out. */
 export function gradebookItems(
   p: LandingPartition,
   grades: readonly StudentGradeRow[]
 ): DoneItem[] {
   const bySession = new Map(grades.map((g) => [g.sessionId, g]));
   const listed = new Set(
-    [...p.live, ...p.work, ...p.resources, ...p.done].map(
+    [...p.live, ...p.work, ...p.resources, ...p.done, ...p.expired].map(
       (r) => r.assignment.sessionId
     )
   );
-  const items = p.done.map((row) =>
+  const items = [...p.done, ...p.expired].map((row) =>
     itemFromRow(row, bySession.get(row.assignment.sessionId))
   );
   for (const g of grades) {
@@ -219,6 +226,7 @@ export function partitionForClass(
     work: p.work.filter(inClass),
     resources: p.resources.filter(inClass),
     done: p.done.filter(inClass),
+    expired: p.expired.filter(inClass),
   };
 }
 

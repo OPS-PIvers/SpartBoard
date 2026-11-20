@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { collection, doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type {
+  Plc,
   PlcQuestionBankEntry,
   QuestionBankData,
   QuestionBankMetadata,
@@ -57,19 +58,20 @@ export function toBankContent(
   };
 }
 
-/** Canonical copy of a shared bank; throws when the owner deleted or unshared it, or when `expectedOwnerUid` is given and owns a different doc. */
-export async function loadSyncedBankContent(
-  syncGroupId: string,
-  expectedOwnerUid?: string
-): Promise<BankContent> {
+/** PLCs a slot's bank owner can be verified through: the bank's owner must be a member and the bank shared to it. */
+export type TrustedPlc = Pick<Plc, 'id' | 'memberUids'>;
+
+async function readSyncedBank(
+  syncGroupId: string
+): Promise<SyncedQuestionBank> {
   const snap = await getDoc(doc(db, SYNCED_BANKS_COLLECTION, syncGroupId));
   if (!snap.exists()) {
     throw new Error('This shared bank is no longer available.');
   }
-  const data = snap.data() as SyncedQuestionBank;
-  if (expectedOwnerUid && data.ownerUid !== expectedOwnerUid) {
-    throw new Error('This shared bank is no longer available.');
-  }
+  return snap.data() as SyncedQuestionBank;
+}
+
+function syncedBankContent(data: SyncedQuestionBank): BankContent {
   return {
     ...toBankContent(data),
     ...(data.ownerUid ? { syncOwnerUid: data.ownerUid } : {}),
@@ -77,15 +79,83 @@ export async function loadSyncedBankContent(
   };
 }
 
-/** Sharer a slot is pinned to; an unpinned slot on one of `userId`'s own banks is pinned to `userId`, else unpinned. */
+/** Owner of a synced bank when they are a member of one of `plcs` the bank is shared to, else null. */
+export function verifiedPlcOwner(
+  data: Pick<SyncedQuestionBank, 'ownerUid' | 'plcIds'>,
+  plcs: readonly TrustedPlc[]
+): string | null {
+  const owner = data.ownerUid;
+  if (!owner) return null;
+  const shared = data.plcIds ?? [];
+  return plcs.some((p) => shared.includes(p.id) && p.memberUids.includes(owner))
+    ? owner
+    : null;
+}
+
+/** Canonical copy of a shared bank; throws when the owner deleted or unshared it, or when `expectedOwnerUid` is given and owns a different doc. */
+export async function loadSyncedBankContent(
+  syncGroupId: string,
+  expectedOwnerUid?: string
+): Promise<BankContent> {
+  const data = await readSyncedBank(syncGroupId);
+  if (expectedOwnerUid && data.ownerUid !== expectedOwnerUid) {
+    throw new Error('This shared bank is no longer available.');
+  }
+  return syncedBankContent(data);
+}
+
+/** Sharer a slot is pinned to; an unpinned slot on one of `userId`'s own banks is pinned to `userId`, else null (no verified owner). */
 export function expectedSlotOwner(
   slot: Pick<QuizBankSlot, 'bankId' | 'syncOwnerUid'>,
   banks: readonly Pick<QuestionBankMetadata, 'id'>[],
   userId: string | undefined
-): string | undefined {
+): string | null {
   if (slot.syncOwnerUid) return slot.syncOwnerUid;
-  if (!userId) return undefined;
-  return banks.some((b) => b.id === slot.bankId) ? userId : undefined;
+  if (!userId) return null;
+  return banks.some((b) => b.id === slot.bankId) ? userId : null;
+}
+
+/** Shared slot content, refused unless its owner is pinned, the caller, a verified PLC teammate or a district item. */
+async function loadSlotSyncedBank(
+  slot: Pick<
+    QuizBankSlot,
+    'bankId' | 'syncGroupId' | 'syncOwnerUid' | 'districtItemId'
+  > & { syncGroupId: string },
+  banks: readonly Pick<QuestionBankMetadata, 'id'>[],
+  userId: string | undefined,
+  plcs: readonly TrustedPlc[]
+): Promise<BankContent> {
+  const owner = expectedSlotOwner(slot, banks, userId);
+  if (owner) return loadSyncedBankContent(slot.syncGroupId, owner);
+  const data = await readSyncedBank(slot.syncGroupId);
+  // Only site admins can mark a canonical with a district item, so that id verifies it.
+  const district =
+    !!slot.districtItemId && data.districtItemId === slot.districtItemId;
+  if (district || verifiedPlcOwner(data, plcs)) return syncedBankContent(data);
+  throw new Error('This shared bank slot has no verified owner.');
+}
+
+/** Pins a PLC quiz's unpinned shared slots to the bank's owner when they are a member and the bank is shared with that PLC. */
+export async function pinPlcBankSlots(
+  slots: readonly QuizBankSlot[],
+  plc: TrustedPlc
+): Promise<QuizBankSlot[]> {
+  return Promise.all(
+    slots.map(async (slot) => {
+      if (!slot.syncGroupId || slot.syncOwnerUid || slot.districtItemId)
+        return slot;
+      try {
+        const data = await readSyncedBank(slot.syncGroupId);
+        const owner = verifiedPlcOwner(data, [plc]);
+        if (owner) return { ...slot, syncOwnerUid: owner };
+      } catch (err) {
+        logError('useBankSources.pinPlcBankSlots', err, {
+          syncGroupId: slot.syncGroupId,
+        });
+      }
+      return slot;
+    })
+  );
 }
 
 /** One entry per random slot keyed by bankSlotKey(slot); a slot whose bank can't be loaded is absent. */
@@ -93,7 +163,8 @@ export async function loadBankContentsFor(
   quiz: Pick<QuizData, 'bankSlots'>,
   banks: readonly Pick<QuestionBankMetadata, 'id' | 'driveFileId'>[],
   loadBankData: (driveFileId: string) => Promise<QuestionBankData>,
-  userId?: string
+  userId?: string,
+  plcs: readonly TrustedPlc[] = []
 ): Promise<Map<string, BankContent>> {
   const out = new Map<string, BankContent>();
   const slotsByKey = new Map(
@@ -105,9 +176,11 @@ export async function loadBankContentsFor(
         if (slot.syncGroupId) {
           out.set(
             key,
-            await loadSyncedBankContent(
-              slot.syncGroupId,
-              expectedSlotOwner(slot, banks, userId)
+            await loadSlotSyncedBank(
+              { ...slot, syncGroupId: slot.syncGroupId },
+              banks,
+              userId,
+              plcs
             )
           );
           return;
@@ -211,8 +284,8 @@ export function useBankSources(
 
   const loadBankContentsForQuiz = useCallback(
     (quiz: Pick<QuizData, 'bankSlots'>) =>
-      loadBankContentsFor(quiz, banks, loadBankData, userId),
-    [banks, loadBankData, userId]
+      loadBankContentsFor(quiz, banks, loadBankData, userId, plcs),
+    [banks, loadBankData, userId, plcs]
   );
 
   return {

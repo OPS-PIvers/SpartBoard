@@ -188,6 +188,8 @@ interface SharedBoardItemGateProps<T> {
     onCopied: (copyId: string) => void
   ) => React.ReactNode;
   renderOwn: (widget: WidgetData, local?: SharedBoardLocal) => React.ReactNode;
+  /** In place of the viewer's own widget while the colleague's copy loads (true) or when there is none (false). */
+  renderUnavailable?: (loading: boolean) => React.ReactNode;
 }
 
 /**
@@ -204,6 +206,7 @@ export function SharedBoardItemGate<T>({
   libraryConfig,
   renderShared,
   renderOwn,
+  renderUnavailable,
 }: SharedBoardItemGateProps<T>): React.ReactElement {
   const shared = useSharedBoardItem<T>(kind, ownerUid, itemId);
   const [own, setOwn] = useState<{
@@ -237,6 +240,12 @@ export function SharedBoardItemGate<T>({
         }
       </LocalWidgetScope>
     );
+  }
+  if (
+    renderUnavailable &&
+    (shared.status === 'pending' || shared.status === 'none')
+  ) {
+    return <>{renderUnavailable(shared.status === 'pending')}</>;
   }
   if (shared.status !== 'foreign' || !shared.item || !itemId) {
     return <>{renderOwn(widget)}</>;

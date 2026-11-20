@@ -629,7 +629,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
           globalStyle={globalStyle}
           transparency={0.98}
           {...tourAttr('library.root')}
-          className={`w-full overflow-hidden flex flex-col p-0 shadow-2xl animate-in zoom-in-95 duration-300 select-none pointer-events-auto max-w-7xl h-full max-h-224`}
+          className={`w-full overflow-hidden flex flex-col p-0 shadow-2xl animate-in zoom-in-95 duration-200 select-none pointer-events-auto max-w-7xl h-full max-h-224`}
         >
           <div className="bg-white/50 px-6 py-4 border-b border-white/30 flex justify-between items-center shrink-0 backdrop-blur-xl">
             <div className="flex items-center gap-4">

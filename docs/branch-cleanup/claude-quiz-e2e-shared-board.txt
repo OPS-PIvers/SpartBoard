@@ -1,0 +1,1 @@
+claude/quiz-e2e-shared-board (Quiz browser pin: a quiz opened from a shared board, AB-311)

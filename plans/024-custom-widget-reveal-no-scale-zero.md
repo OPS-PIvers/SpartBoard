@@ -1,6 +1,6 @@
 # 024 — Custom Widget reveal: grow from 95% with a fade, not from nothing
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: 3dcc1cd
 - **Severity**: LOW
 - **Category**: Physicality & origin

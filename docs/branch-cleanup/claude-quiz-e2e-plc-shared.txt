@@ -1,0 +1,1 @@
+claude/quiz-e2e-plc-shared (Quiz PLC-shared assignment browser pin, AB-311)

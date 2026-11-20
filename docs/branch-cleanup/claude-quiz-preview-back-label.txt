@@ -1,0 +1,1 @@
+claude/quiz-preview-back-label (accessible names on Quiz preview back arrow and question dots, accessibility fix)
