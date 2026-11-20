@@ -91,6 +91,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@imgly/background-removal": "^1.7.0",
+    "@tesseract.js-data/eng": "1.0.0",
     "@use-gesture/react": "^10.3.1",
     "canvas-confetti": "^1.9.4",
     "dompurify": "^3.4.18",
@@ -113,6 +114,7 @@
     "react-leaflet": "^5.0.0",
     "recharts": "^3.11.0",
     "tesseract.js": "^7.0.0",
+    "tesseract.js-core": "7.0.0",
     "yjs": "^13.6.33"
   },
   "devDependencies": {

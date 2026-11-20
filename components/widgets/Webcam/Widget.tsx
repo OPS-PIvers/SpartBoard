@@ -43,6 +43,7 @@ import {
 } from './DocCamCompare';
 import { INK_COLORS, type InkTool, paintInk } from './docCamInk';
 import { DocCamQualityMenu } from './DocCamQualityMenu';
+import { TESSERACT_PATHS } from '@/utils/selfHostedAssets';
 import {
   type CameraControls,
   normalizeResolution,
@@ -523,7 +524,11 @@ export const WebcamWidget: React.FC<{
       } else {
         // Loaded on demand: tesseract.js is multi-megabyte and only the local OCR mode needs it.
         const { default: Tesseract } = await import('tesseract.js');
-        const result = await Tesseract.recognize(dataUrl, 'eng');
+        const result = await Tesseract.recognize(
+          dataUrl,
+          'eng',
+          TESSERACT_PATHS
+        );
         text = result.data.text;
       }
 

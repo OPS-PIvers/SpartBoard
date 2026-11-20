@@ -1,4 +1,5 @@
 import { WorkerMessage, TrimResult, FloodFillResult } from './imageWorker';
+import { IMGLY_BG_PUBLIC_PATH } from './selfHostedAssets';
 
 /**
  * Helper to run a task in a web worker
@@ -104,6 +105,7 @@ export const removeBackground = async (dataUrl: string): Promise<string> => {
     const { removeBackground: imglyRemoveBackground } =
       await import('@imgly/background-removal');
     const blob = await imglyRemoveBackground(dataUrl, {
+      publicPath: new URL(IMGLY_BG_PUBLIC_PATH, window.location.origin).href,
       // Typed by hand: imgly's Config type is written against zod 3, which the zod override replaces.
       progress: (key: string, current: number, total: number) => {
         if (current === total) {

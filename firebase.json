@@ -199,6 +199,10 @@
           {
             "key": "Cross-Origin-Opener-Policy",
             "value": "same-origin-allow-popups"
+          },
+          {
+            "key": "Content-Security-Policy",
+            "value": "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://accounts.google.com https://apis.google.com https://www.gstatic.com https://www.youtube.com https://s.ytimg.com https://sdk.scdn.co https://cdn.tailwindcss.com; worker-src 'self' blob:"
           }
         ]
       },
