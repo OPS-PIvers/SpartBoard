@@ -5170,3 +5170,9 @@ rather than "no data") is also still open.
   - Ready with minor notes: #6262 (the am/pm suffix check searches the whole string, so `"3 teams"` would parse as 3 AM; optional anchoring).
   - #6175 and #6170 insert at the same line of the AB-112 list, so whichever merges second will need a trivial conflict resolution.
 - Notes: GitHub access went through MCP, and diffs were reviewed inline. Nothing was changed, so I didn't run lint, type-check or tests locally.
+
+## 2026-11-20
+- PRs reviewed: #6434 docs(debugger): run 129 log; #6433 perf(functions): vet building-group backfill accounts concurrently; #6432 fix(admin): keep a widget marked unsaved when its modal save fails; #6431 fix(auth): flush debounced profile writes before sign-out; #6430 fix(library): hoist parent-cycle folders to the top level; #6429 fix(webcam): flush debounced document-camera zoom save on unmount; #6419 docs(unifier): run 152 — aligned
+- Comments processed: 5 total — 1 fixed, 4 were approvals with no change requested (no inline review threads on any PR)
+- Fixes pushed: #6430 + nightly/dashboard-2026-11-20 — `folderPath` stops at hoisted top-level cycle members so breadcrumbs match (e3c11b60)
+- Reviews posted: 7
