@@ -23,6 +23,13 @@ export interface StudentAccommodationSources {
 const same = (a: unknown, b: unknown) =>
   JSON.stringify(a) === JSON.stringify(b);
 
+/** What a group's members share; a group of one shares nothing, or that student's own settings would pass as the group's. */
+export const groupSharedOverride = (
+  overrides: Record<string, StudentOverride>,
+  memberIds: string[]
+): StudentOverride =>
+  memberIds.length < 2 ? {} : sharedStudentOverride(overrides, memberIds);
+
 export const groupAccommodations = (
   groups: RosterGroup[],
   sortedStudents: Student[],
@@ -35,7 +42,7 @@ export const groupAccommodations = (
     return {
       group,
       memberIds,
-      shared: sharedStudentOverride(overrides, memberIds),
+      shared: groupSharedOverride(overrides, memberIds),
     };
   });
 

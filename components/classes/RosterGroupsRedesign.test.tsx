@@ -138,6 +138,20 @@ describe('RosterGroupsPanel (redesign)', () => {
     expect(latestOverrides.c).toEqual({ readAloud: true });
   });
 
+  it('a group of one gives nothing, so its student keeps their settings to themselves', () => {
+    render(
+      <GroupsHost
+        initialGroups={[{ id: 'g', name: 'Readers', studentIds: ['c'] }]}
+        initialOverrides={{ c: { timeMultiplier: 2, readAloud: true } }}
+      />
+    );
+    fireEvent.click(screen.getAllByRole('button', { name: 'Edit' })[0]);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Abdi, Hamza' }));
+    expect(latestOverrides.a).toBeUndefined();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Abdi, Hamza' }));
+    expect(latestOverrides.c).toEqual({ timeMultiplier: 2, readAloud: true });
+  });
+
   it('deleting a group takes its settings off its members', () => {
     render(
       <GroupsHost

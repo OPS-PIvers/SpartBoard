@@ -12,6 +12,7 @@ import {
 import {
   applyGroupMembershipChange,
   groupAccommodations,
+  groupSharedOverride,
 } from '@/utils/rosterAccommodationSources';
 import { SplitClassFooter } from './SplitClassFooter';
 import { StandingAccommodationRules } from './StandingAccommodationRules';
@@ -59,7 +60,7 @@ const withMembership = (
     }));
   return applyGroupMembershipChange(
     cur,
-    sharedStudentOverride(cur, before),
+    groupSharedOverride(cur, before),
     added,
     removed
   );
@@ -190,7 +191,7 @@ const GroupRow: React.FC<{
   const { t } = useTranslation();
   const members = sorted.filter((s) => group.studentIds.includes(s.id));
   const accommodations = summarizeOverride(
-    sharedStudentOverride(
+    groupSharedOverride(
       overrides,
       members.map((s) => s.id)
     ),
