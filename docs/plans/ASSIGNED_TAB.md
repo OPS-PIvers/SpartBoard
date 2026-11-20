@@ -37,7 +37,7 @@ Assignment widgets have three tabs (Library, In Progress, and Completed or Archi
 - **D13. Active is sorted so anything Open is first**, then Paused, then Ready or Scheduled, then Closed and waiting on the teacher.
 - **D14. A row is a title, one status chip, grey text and one button.** Revised 2026-11-20 (see "Row redesign" below); the first build used one plain status line and a large coloured button.
 - **D15. An assignment with one class or code-only joining is a single line**: Open, Close, Reopen with no class name. Its panel shows one "All students" row.
-- **D16. View-only shares are rows in Assigned** with the line "Shared, view only". End share and Reactivate become Close and Reopen. With no scores to publish they are Finished as soon as they are closed.
+- **D16. View-only shares are rows in Assigned** with the grey text "View only". End share and Reactivate become Close and Reopen. With no scores to publish they are Finished as soon as they are closed.
 - **D17. After the Assign steps the teacher lands on Assigned** with the new row on top and every class Ready or Scheduled. Nothing opens until the teacher clicks or a schedule fires.
 - **D18. The list is built once and shown in two places**: each widget's Assigned tab (filtered to its kind) and the sidebar Assignments hub (all kinds).
 
