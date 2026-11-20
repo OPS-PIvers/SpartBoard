@@ -60,7 +60,6 @@ import {
   SquareChevronDown,
   CalendarClock,
   MessageSquare,
-  SlidersHorizontal,
   LogIn,
   Shapes,
   Settings2,
