@@ -41,10 +41,12 @@ describe('self-hosted OCR and background removal', () => {
     let seen = 0;
     for (const { file, text } of sources) {
       for (const m of text.matchAll(
-        /Tesseract\.(?:recognize|createWorker)\(([^)]*)\)/g
+        /(?:Tesseract\.recognize|\bcreateWorker)\(/g
       )) {
+        if (!text.includes('tesseract.js')) continue;
         seen += 1;
-        if (!m[1].includes('TESSERACT_PATHS')) bad.push(`${file}: ${m[0]}`);
+        const call = text.slice(m.index, m.index + 160);
+        if (!call.includes('TESSERACT_PATHS')) bad.push(`${file}: ${call}`);
       }
     }
     expect(seen).toBeGreaterThan(0);

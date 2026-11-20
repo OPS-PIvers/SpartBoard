@@ -82,15 +82,22 @@ async function imglyChunk(
     const buf = fs.readFileSync(cached);
     if (sha256(buf) === chunk.hash) return buf;
   }
-  const res = await fetch(
-    `${IMGLY_ORIGIN}/${manifest.version}/dist/${chunk.name}`
-  );
-  if (!res.ok) {
-    throw new Error(
-      `Background-removal chunk ${chunk.name}: HTTP ${res.status}`
-    );
+  const url = `${IMGLY_ORIGIN}/${manifest.version}/dist/${chunk.name}`;
+  let buf: Buffer | null = null;
+  for (let attempt = 1; !buf; attempt += 1) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(60_000) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      buf = Buffer.from(await res.arrayBuffer());
+    } catch (err) {
+      if (attempt >= 4) {
+        throw new Error(
+          `Background-removal chunk ${chunk.name}: ${String(err)}`
+        );
+      }
+      await new Promise((r) => setTimeout(r, attempt * 1000));
+    }
   }
-  const buf = Buffer.from(await res.arrayBuffer());
   if (sha256(buf) !== chunk.hash) {
     throw new Error(
       `Background-removal chunk ${chunk.name} failed its hash check`
@@ -107,13 +114,15 @@ export const selfHostedAssetsPlugin = (): Plugin => ({
     server.middlewares.use(async (req, res, next) => {
       const url = (req.url ?? '').split('?')[0].replace(/^\/+/, '');
       try {
-        const file = TESSERACT_FILES[url];
+        const file = Object.hasOwn(TESSERACT_FILES, url)
+          ? TESSERACT_FILES[url]
+          : null;
         if (file) {
           res.setHeader(
             'Content-Type',
             url.endsWith('.js') ? 'text/javascript' : 'application/gzip'
           );
-          fs.createReadStream(file).pipe(res);
+          fs.createReadStream(file).on('error', next).pipe(res);
           return;
         }
         if (!url.startsWith(IMGLY_PREFIX)) return next();
