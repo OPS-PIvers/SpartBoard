@@ -33,6 +33,7 @@ import { isGameSession } from '@/utils/reviewResults';
 import { useReviewLaunch } from './useReviewLaunch';
 import { quizQuestionDedupeKey } from '@/utils/quizSearchText';
 import { quizAssignBlocker } from '@/utils/activityCompleteness';
+import { quizDeleteDetail } from '@/utils/quizDeleteDetail';
 import {
   PAPER_HANDWRITING_AI_FEATURE,
   PAPER_HANDWRITTEN_FEATURE,
@@ -4823,32 +4824,21 @@ const TeacherQuizWidget: React.FC<{
           );
           return `${window.location.origin}/quiz?code=${encodeURIComponent(code)}`;
         }}
+        deleteDetail={(meta) => quizDeleteDetail(assignments, meta.id)}
         onDelete={async (meta) => {
           // Block deletion when active/paused assignments reference the quiz,
           // since the monitor + results views need the answer key from the
-          // library record. Archived (inactive) assignments trigger only a
-          // warning — the teacher has already chosen to end those sessions.
-          const related = assignments.filter((a) => a.quizId === meta.id);
-          const live = related.filter((a) => a.status !== 'inactive');
+          // library record. Archived (inactive) assignments only add a warning
+          // to the shared delete confirm (deleteDetail).
+          const live = assignments.filter(
+            (a) => a.quizId === meta.id && a.status !== 'inactive'
+          );
           if (live.length > 0) {
             addToast(
               `Cannot delete: ${live.length} active or paused assignment(s) still reference this quiz. Deactivate them first.`,
               'error'
             );
             return;
-          }
-          if (related.length > 0) {
-            const ok = await showConfirm(
-              `This quiz has ${related.length} archived assignment(s). ` +
-                `Deleting the quiz will prevent viewing their monitor and results. ` +
-                `Continue anyway?`,
-              {
-                title: 'Delete Quiz',
-                variant: 'warning',
-                confirmLabel: 'Delete Anyway',
-              }
-            );
-            if (!ok) return;
           }
           try {
             await deleteQuiz(meta.id, meta.driveFileId);
