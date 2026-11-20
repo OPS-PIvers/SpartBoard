@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   calcAnswerAccepted,
+  calcModifiedNeedsAnswer,
   calcSeed,
   drawCalcValues,
   evaluateFormula,
@@ -173,5 +174,14 @@ describe('rounding', () => {
     };
     expect(formatCalcAnswer(spec, { a: 10, b: 3 })).toBe('3.33');
     expect(calcAnswerAccepted(spec, { a: 10, b: 3 }, '3.33')).toBe(true);
+  });
+});
+
+describe('calcModifiedNeedsAnswer', () => {
+  it('is true only for a modified prompt with none of the number links', () => {
+    expect(calcModifiedNeedsAnswer('Goes 60 km in 2 h.', speed)).toBe(true);
+    expect(calcModifiedNeedsAnswer('Goes {d} km in 2 h.', speed)).toBe(false);
+    expect(calcModifiedNeedsAnswer('', speed)).toBe(false);
+    expect(calcModifiedNeedsAnswer(undefined, speed)).toBe(false);
   });
 });

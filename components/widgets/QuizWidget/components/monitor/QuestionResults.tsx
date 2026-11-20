@@ -230,7 +230,8 @@ export const QuestionDetail: React.FC<QuestionDetailProps> = ({
       return grades.find((g) => g.isCorrect) ?? grades[0];
     },
     isCalcQuestion(question)
-      ? (r, a) => gradeAnswer(questionForResponse(question, r), a).isCorrect
+      ? (r, a) =>
+          gradeAnswer(questionForResponse(question, r, fibGrading), a).isCorrect
       : undefined
   );
   const pictures = imageOnlyPictures(question);

@@ -114,7 +114,8 @@ describe('answer key limited to served questions', () => {
       data,
       gradeResponseForPublish(data, ctx, 'k'),
       quiz,
-      'k'
+      'k',
+      ctx
     );
     expect(fields).toEqual({
       revealedAnswers: { q0: 'a', q1: 'b' },
@@ -130,7 +131,8 @@ describe('answer key limited to served questions', () => {
         data,
         gradeResponseForPublish(data, ctx, 'k'),
         quiz,
-        'k'
+        'k',
+        ctx
       )
     ).toEqual({});
   });

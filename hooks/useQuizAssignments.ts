@@ -186,6 +186,7 @@ import {
   limitKeyToServed,
   publishScoreFields,
   selectQuestionTranslations,
+  servedModified,
   withCalcRevealed,
   type QuizTranslationsByLocale,
   type ResponseGradingContext,
@@ -2790,7 +2791,8 @@ export const useQuizAssignments = (
               answerKey,
               ctx.questionsById.values(),
               responseKey,
-              data
+              data,
+              servedModified(ctx, data.studentUid)
             ),
             rubricExamples,
             explanations,
@@ -3008,7 +3010,8 @@ export const useQuizAssignments = (
             revealedAnswers ?? null,
             ctx.questionsById.values(),
             responseKey,
-            data
+            data,
+            servedModified(ctx, data.studentUid)
           ),
           graded.servedIds
         );
@@ -3229,7 +3232,8 @@ export const useQuizAssignments = (
                   opts.answerKey,
                   ctx.questionsById.values(),
                   responseKey,
-                  cleared
+                  cleared,
+                  servedModified(ctx, cleared.studentUid)
                 ),
               }
             ),

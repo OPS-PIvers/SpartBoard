@@ -283,6 +283,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
       overridesByStudentUid,
       overridesBySourcedId,
       servedLanguageByStudentUid,
+      sessionMode: session?.sessionMode,
     }),
     [
       localizedFibAnswers,
@@ -290,6 +291,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
       overridesByStudentUid,
       overridesBySourcedId,
       servedLanguageByStudentUid,
+      session?.sessionMode,
     ]
   );
 

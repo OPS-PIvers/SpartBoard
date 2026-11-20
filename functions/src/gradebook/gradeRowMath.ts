@@ -302,6 +302,8 @@ export interface QuestionScoreInput {
   paperWrittenQuestionIds?: readonly string[];
   /** The response doc id; fixes the student's random numbers. */
   responseKey?: string;
+  /** The student gets the modified version; a typed-number answer on the key grades them. */
+  modified?: boolean;
 }
 
 export interface QuestionScore {
@@ -333,7 +335,7 @@ export function scoreQuestions(input: QuestionScoreInput): QuestionScore {
     if (!served.has(q.id) || notChosen.has(q.id)) continue;
     const answer = representative.get(q.id);
     const g = gradeGroupAnswer(
-      withCalcValues(q, input.responseKey),
+      withCalcValues(q, input.responseKey, input.modified === true),
       answer?.answer ?? '',
       input.manualGrades?.[q.id],
       q.type === 'FIB' ? input.fibAnswersByQuestion?.[q.id] : undefined,
@@ -433,6 +435,8 @@ export interface QuizContext {
   questions: GroupQuestion[];
   fibAnswersByStudent: (studentUid: string) => Record<string, FibExtras>;
   overrideQuestionIds: (studentUid: string) => string[];
+  /** The teacher gave this student the modified version of each question. */
+  modifiedStudent?: (studentUid: string) => boolean;
   /** Stacks printed for modification groups (`paper-printed-versions`). */
   paperCopyBatchIds?: ReadonlySet<string>;
 }
@@ -463,6 +467,7 @@ export function scoreQuizResponse(
     servedQuestionIds: served,
     manualGrades: parsed.manualGrades,
     fibAnswersByQuestion: ctx.fibAnswersByStudent(studentUid),
+    modified: ctx.modifiedStudent?.(studentUid) === true,
     sectionsRaw: session.sections,
     countedChoices: parsed.countedChoices,
     paperWrittenQuestionIds: parsePaperWrittenQuestionIds(

@@ -84,7 +84,7 @@ export async function saveCountedChoices(opts: {
       Object.assign(
         update,
         publishScoreFields(graded),
-        refreshedKeyFields(next, graded, opts.quiz, opts.responseKey)
+        refreshedKeyFields(next, graded, opts.quiz, opts.responseKey, ctx)
       );
       update.answers = hadVerdicts
         ? graded.answers
@@ -145,7 +145,7 @@ export async function applySectionCounts(opts: {
           const graded = gradeResponseForPublish(data, ctx, d.id);
           tx.update(d.ref, {
             ...publishScoreFields(graded),
-            ...refreshedKeyFields(data, graded, opts.quiz, d.id),
+            ...refreshedKeyFields(data, graded, opts.quiz, d.id, ctx),
           });
         })
       )
