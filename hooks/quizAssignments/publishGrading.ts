@@ -17,6 +17,7 @@ import { isFreeResponseType } from '@/types';
 import { rubricExamplesByCriterion } from '@/utils/rubricGuide';
 import { notChosenQuestionIds } from '@/utils/quizSections';
 import { dedupeQuestionsById } from '@/utils/quizMaxPoints';
+import { buildRevealedExplanations } from '@/utils/quizExplanations';
 import { fibAcceptedAnswers } from '@/utils/quizFibAnswers';
 import { fibTranslationIssue } from '@/utils/quizFibTranslation';
 import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
@@ -70,6 +71,8 @@ export interface ResponseGradingContext {
   sections?: QuizSessionSection[];
   /** Hybrid paper quiz: an unscanned written answer holds the score. */
   paperWrittenQuestionIds?: string[];
+  /** Bank-draw assignment: a response with no served-question snapshot gets no answer key. */
+  bankDraw?: boolean;
 }
 
 export function buildResponseGradingContext(
@@ -95,6 +98,9 @@ export function buildResponseGradingContext(
           (l): l is string => typeof l === 'string'
         )
       : undefined,
+    bankDraw:
+      Array.isArray(assignmentData?.bankSlots) &&
+      assignmentData.bankSlots.length > 0,
     paperWrittenQuestionIds: Array.isArray(
       assignmentData?.paperWrittenQuestionIds
     )
@@ -182,7 +188,7 @@ export function servedQuestionIdSet(
 /** Keeps only the entries for questions this student was served; null servedIds keeps all. */
 export function limitKeyToServed<T>(
   key: Record<string, T> | null,
-  servedIds: ReadonlySet<string> | null
+  servedIds: ReadonlySet<string> | null | undefined
 ): Record<string, T> | null {
   if (!key || !servedIds) return key;
   const out: Record<string, T> = {};
@@ -196,7 +202,7 @@ export interface PublishGrade {
   score: number | null;
   answers: QuizResponseAnswer[];
   points?: QuizScorePoints | null;
-  /** Questions that count for this student; null means the full quiz. */
+  /** Questions whose key this student may see; null means the full quiz. */
   servedIds?: ReadonlySet<string> | null;
 }
 
@@ -214,6 +220,9 @@ export function gradeResponseForPublish(
   const answers = Array.isArray(data.answers) ? data.answers : [];
   const baseServed = baseServedQuestionIds(data, ctx);
   const servedIds = servedQuestionIdSet(data, ctx);
+  // A bank draw with no snapshot never saw the pool, so it keeps no key.
+  const keyServedIds =
+    ctx.bankDraw && !baseServed ? new Set<string>() : servedIds;
   // Teacher-side truth only: never the client-asserted `response.locale`.
   const servedLocale =
     overridesByStudentUid[data.studentUid]?.language ??
@@ -323,7 +332,12 @@ export function gradeResponseForPublish(
   const score =
     pointsMax === 0 ? 0 : Math.round((pointsEarned / pointsMax) * 100);
   if (awaitingGrade)
-    return { score: null, answers: gradedAnswers, points: null, servedIds };
+    return {
+      score: null,
+      answers: gradedAnswers,
+      points: null,
+      servedIds: keyServedIds,
+    };
   return {
     score,
     answers: gradedAnswers,
@@ -332,8 +346,49 @@ export function gradeResponseForPublish(
       possible: pointsMax,
       attempt: data.completedAttempts ?? 0,
     },
-    servedIds,
+    servedIds: keyServedIds,
   };
+}
+
+/** Rewrites a key already on a response after its counted set changed; keeps each key limited to what counts. */
+export function refreshedKeyFields(
+  data: QuizResponse,
+  graded: PublishGrade,
+  quiz: QuizData
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  const override =
+    data.resultsOverride?.mode === 'shown' ? data.resultsOverride : undefined;
+  const refresh = <T>(
+    field: string,
+    held: boolean,
+    heldByOverride: boolean,
+    build: () => Record<string, T> | null
+  ): void => {
+    if (!held && !heldByOverride) return;
+    const next = limitKeyToServed(build(), graded.servedIds) ?? deleteField();
+    if (held) out[field] = next;
+    if (heldByOverride) out[`resultsOverride.${field}`] = next;
+  };
+  refresh(
+    'revealedAnswers',
+    data.revealedAnswers != null,
+    override?.revealedAnswers != null,
+    () => buildRevealedAnswers(quiz)
+  );
+  refresh(
+    'revealedRubricExamples',
+    data.revealedRubricExamples != null,
+    override?.revealedRubricExamples != null,
+    () => buildRevealedRubricExamples(quiz)
+  );
+  refresh(
+    'revealedExplanations',
+    data.revealedExplanations != null,
+    override?.revealedExplanations != null,
+    () => buildRevealedExplanations(quiz)
+  );
+  return out;
 }
 
 /** The score fields a publish writes; both clear while a slot awaits a grade. */

@@ -224,6 +224,7 @@ export {
   gradeResponseForPublish,
   hiddenResultsPatch,
   publishScoreFields,
+  refreshedKeyFields,
   selectQuestionTranslations,
   withholdsPublishedResults,
 } from './quizAssignments/publishGrading';
