@@ -236,8 +236,9 @@ describe('WebToursPage', () => {
     expect(steps).toHaveTextContent('Publish the tour first.');
   });
 
-  it('renames a tour in place; Escape cancels', async () => {
+  it('renames a tour in place from the stored draft; Escape cancels', async () => {
     h.save.mockResolvedValue(undefined);
+    h.load.mockResolvedValue(tour('a', 'Tour A', { webGoal: 'newer edit' }));
     render(<WebToursPage />);
     showDrafts([tour('a', 'Tour A')]);
     fireEvent.click(screen.getByRole('button', { name: 'Rename Tour A' }));

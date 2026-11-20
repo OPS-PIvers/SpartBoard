@@ -95,7 +95,9 @@ export const WebToursPage: React.FC = () => {
       return true;
     }
     try {
-      await saveWebTourDraft({ ...set, title });
+      // The stored draft, so an edit saved since the list loaded isn't overwritten.
+      const fresh = (await loadWebTourDraft(set.id)) ?? set;
+      await saveWebTourDraft({ ...fresh, title });
       return true;
     } catch (err) {
       logError('WebToursPage.rename', err, { setId: set.id });
