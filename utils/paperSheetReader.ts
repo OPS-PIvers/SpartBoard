@@ -693,6 +693,15 @@ export function cropWrittenBox(
   );
 }
 
+/** A white crop the size `cropWrittenBox` cuts for `boxMm`, standing in for a page that never arrived. */
+export function blankWrittenCrop(boxMm: RectMm): GrayCrop {
+  const margin = READER_THRESHOLDS.writtenCropMarginMm;
+  const scale = READER_THRESHOLDS.writtenCropDpi / 25.4;
+  const width = Math.max(1, Math.round((boxMm.w + margin * 2) * scale));
+  const height = Math.max(1, Math.round((boxMm.h + margin * 2) * scale));
+  return { width, height, data: new Uint8Array(width * height).fill(255) };
+}
+
 /** The whole sheet page, deskewed and upright, at `PAPER_KEPT_PAGE_DPI`: pixel = mm × 150 / 25.4 (K5, K16). */
 export function straightenPage(
   page: RasterPage,

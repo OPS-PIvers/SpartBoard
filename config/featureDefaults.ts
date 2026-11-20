@@ -722,6 +722,21 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Written answer boxes up to four pages long; a page count over 1 needs this.
+  'paper-multi-page-answers': {
+    label: 'Multi-page written answers',
+    icon: TextCursorInput,
+    description: 'Written answers on paper sheets can take up to four pages.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    modalLabel: 'Multi-page written answers',
+    group: 'questions',
+    requires: 'paper-handwritten-responses',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Handwritten answer boxes on paper sheets; AND-ed with the paper-answer-sheets gate.
   'paper-handwritten-responses': {
     label: 'Handwritten answers on paper sheets',

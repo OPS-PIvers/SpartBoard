@@ -7,18 +7,22 @@ import {
   PAPER_CUSTOM_MAX_LINES,
   PAPER_CUSTOM_MIN_LINES,
   paperBoxLines,
+  paperBoxPages,
+  paperBoxSizeForPages,
 } from '@/utils/paperWritten';
 
 const BOX_SIZE_OPTIONS = [
   { value: 'S', label: `Short answer (${PAPER_BOX_LINES.S} lines)` },
   { value: 'M', label: `1 paragraph (${PAPER_BOX_LINES.M} lines)` },
-  { value: 'full', label: '1 page' },
-  { value: 'custom', label: 'Custom' },
+  { value: 'full', label: 'Pages' },
+  { value: 'custom', label: 'Set lines' },
 ] as const;
 
-/** A box size as the menu shows it: a named size, or Custom for a line count (and the older Large). */
-const boxSizeOption = (size: PaperBoxSize): string =>
-  size === 'S' || size === 'M' || size === 'full' ? size : 'custom';
+/** A box size as the menu shows it: a named size, Pages for whole pages, or Set lines for a line count (and the older Large). */
+const boxSizeOption = (size: PaperBoxSize): string => {
+  if (size === 'S' || size === 'M') return size;
+  return size === 'full' || paperBoxPages(size) > 1 ? 'full' : 'custom';
+};
 
 const BOX_STYLE_OPTIONS: readonly { value: PaperBoxStyle; label: string }[] = [
   { value: 'lines', label: 'Lines' },
@@ -101,7 +105,9 @@ export const BoxSizeSelect: React.FC<{
   onChange: (size: PaperBoxSize) => void;
   ariaLabel: string;
   anchor: string;
-}> = ({ size, onChange, ariaLabel, anchor }) => {
+  /** Most pages a box can take; 1 hides the page count. */
+  maxPages?: number;
+}> = ({ size, onChange, ariaLabel, anchor, maxPages = 1 }) => {
   const option = boxSizeOption(size);
   return (
     <div className="flex shrink-0 items-center gap-2">
@@ -125,6 +131,30 @@ export const BoxSizeSelect: React.FC<{
           </option>
         ))}
       </select>
+      {option === 'full' && (maxPages > 1 || paperBoxPages(size) > 1) && (
+        <>
+          <input
+            type="number"
+            aria-label={`${ariaLabel}, pages`}
+            {...tourFieldAttr('quiz-print.written-box-pages', 'quiz', anchor)}
+            min={1}
+            max={Math.max(maxPages, paperBoxPages(size))}
+            value={paperBoxPages(size)}
+            onChange={(e) =>
+              onChange(
+                paperBoxSizeForPages(
+                  Math.min(
+                    Math.max(maxPages, paperBoxPages(size)),
+                    Number(e.target.value) || 1
+                  )
+                )
+              )
+            }
+            className="w-16 rounded-lg border border-slate-200 px-2 py-1 text-sm"
+          />
+          <span className="text-xs text-slate-500">pages</span>
+        </>
+      )}
       {option === 'custom' && (
         <>
           <input
