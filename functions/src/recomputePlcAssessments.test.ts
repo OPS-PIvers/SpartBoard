@@ -720,6 +720,36 @@ describe('runRecomputePlcAssessments failure cap', () => {
     expect(stub.has('plcs/plc-2/aggregates/older')).toBe(false);
   });
 
+  it('recomputes instead of parking when a new trigger re-marked it after the unfinished runs', async () => {
+    const stub = failing();
+    const claimed = NOW - 50_000;
+    stub.store.set(FAIL, {
+      attempts: RECOMPUTE_MAX_UNFINISHED,
+      lastMark: claimed,
+    });
+    stub.store.set('plcs/plc-2/assessments/older', {
+      id: 'older',
+      syncGroupId: 'grp-older',
+      dirtyAt: NOW - 10_000,
+    });
+    stub.hooks.beforeWrite = undefined;
+    await runRecomputePlcAssessments(stub.db as unknown as Db);
+    expect(stub.has('plcs/plc-2/aggregates/older')).toBe(true);
+  });
+
+  it('still parks when the mark is the one the unfinished runs already saw', async () => {
+    const stub = failing();
+    const mark = NOW - 50_000;
+    stub.store.set(FAIL, {
+      attempts: RECOMPUTE_MAX_UNFINISHED,
+      lastMark: mark,
+    });
+    stub.hooks.beforeWrite = undefined;
+    await runRecomputePlcAssessments(stub.db as unknown as Db);
+    expect(stub.get('plcs/plc-2/assessments/older')?.dirtyAt).toBeNull();
+    expect(stub.has('plcs/plc-2/aggregates/older')).toBe(false);
+  });
+
   it('clears the failure count after a successful recompute', async () => {
     const stub = failing(3);
     stub.hooks.beforeWrite = undefined;

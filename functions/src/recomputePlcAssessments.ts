@@ -588,7 +588,13 @@ async function recordAttempt(
   return db.runTransaction(async (tx) => {
     const [snap, failSnap] = await Promise.all([tx.get(ref), tx.get(failRef)]);
     const prior: unknown = failSnap.data()?.attempts;
-    const attempts = typeof prior === 'number' ? prior : 0;
+    const current: unknown = snap.data()?.dirtyAt;
+    // A positive mark other than the one the last attempt saw is a new trigger, so it restarts the count.
+    const fresh =
+      typeof current === 'number' &&
+      current > 0 &&
+      current !== failSnap.data()?.lastMark;
+    const attempts = !fresh && typeof prior === 'number' ? prior : 0;
     if (attempts >= RECOMPUTE_MAX_UNFINISHED) {
       tx.set(failRef, {
         plcId,
@@ -596,13 +602,17 @@ async function recordAttempt(
         count: RECOMPUTE_MAX_FAILURES,
         lastFailedAt: Date.now(),
       });
-      if (typeof snap.data()?.dirtyAt === 'number')
-        tx.update(ref, { dirtyAt: null });
+      if (typeof current === 'number') tx.update(ref, { dirtyAt: null });
       return true;
     }
     tx.set(
       failRef,
-      { plcId, assessmentId, attempts: attempts + 1 },
+      {
+        plcId,
+        assessmentId,
+        attempts: attempts + 1,
+        ...(typeof current === 'number' ? { lastMark: Math.abs(current) } : {}),
+      },
       { merge: true }
     );
     return false;

@@ -600,8 +600,7 @@ function isPartialRubricGrade(
  * response across whole-class grading loops.
  */
 export function hasSubmittedContent(studentAnswer: string): boolean {
-  // One linear pass (a bare `<` never swallows the rest of the answer; nested
-  // markup like `<<p>>` fully strips); a regex fixpoint loop is quadratic on `<<<…>>>`.
+  // One linear pass that strips nested tags; a regex fixpoint loop is quadratic on `<<<…>>>`.
   const input = studentAnswer ?? '';
   const out: string[] = [];
   const open: number[] = [];

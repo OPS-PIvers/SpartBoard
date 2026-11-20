@@ -45,7 +45,7 @@ function tokenize(src: string): Token[] {
     if (/\s/.test(c)) {
       i++;
     } else if (/[0-9.]/.test(c)) {
-      const m = /^(\d+\.?\d*|\.\d+)(e[+-]?\d+)?/i.exec(s.slice(i));
+      const m = /^(\d+(?:\.\d*)?|\.\d+)(e[+-]?\d+)?/i.exec(s.slice(i));
       if (!m) throw new Error('bad number');
       out.push({ k: 'num', v: Number(m[0]) });
       i += m[0].length;
@@ -284,8 +284,9 @@ export function parseStudentNumber(raw: string, unit?: string): number | null {
     }
   }
   s = s.replace(/(\d),(?=\d{3}\b)/g, '$1').replace(/\s+/g, '');
-  if (/^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i.test(s)) return Number(s);
-  const sci = /^([+-]?(?:\d+\.?\d*|\.\d+))[x*×·]10\^\(?([+-]?\d+)\)?$/i.exec(s);
+  if (/^[+-]?(\d+(?:\.\d*)?|\.\d+)(e[+-]?\d+)?$/i.test(s)) return Number(s);
+  const sci =
+    /^([+-]?(?:\d+(?:\.\d*)?|\.\d+))[x*×·]10\^\(?([+-]?\d+)\)?$/i.exec(s);
   if (sci) return Number(sci[1]) * 10 ** Number(sci[2]);
   const frac = /^([+-]?\d+)\/(\d+)$/.exec(s);
   if (frac && Number(frac[2]) !== 0) return Number(frac[1]) / Number(frac[2]);
