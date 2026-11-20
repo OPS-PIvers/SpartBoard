@@ -50,7 +50,10 @@ import { openConnectionEditor } from '@/context/connectionsUiStore';
 import { useConnectionWidgetTitle } from '@/hooks/useConnectionWidgetTitle';
 import { useInSubShare } from '@/hooks/useShareContent';
 import { SubShareQuizWidget } from './SubShareWidget';
-import { SharedBoardQuizView } from './SharedBoardQuizView';
+import {
+  SharedBoardQuizUnavailable,
+  SharedBoardQuizView,
+} from './SharedBoardQuizView';
 import {
   SharedBoardItemGate,
   type SharedBoardLocal,
@@ -2744,16 +2747,25 @@ const TeacherQuizWidget: React.FC<{
     );
   }
 
+  // Keeps the loaded quiz when the auto-load effect would only read the same file again for the live session.
+  const backToLibrary = () => {
+    const liveMeta =
+      liveSession && liveSession.status !== 'ended'
+        ? quizzes.find((q) => q.id === liveSession.quizId)
+        : undefined;
+    const frozenId = assignments.find(
+      (a) => a.id === liveSession?.assignmentId
+    )?.resolvedDriveFileId;
+    const sameAsLive =
+      !!liveMeta &&
+      loadedQuizData?.id === liveMeta.id &&
+      (!frozenId || frozenId === liveMeta.driveFileId);
+    if (!sameAsLive) setLoadedQuizData(null);
+    setView('manager');
+  };
+
   if (view === 'preview' && loadedQuizData) {
-    return (
-      <QuizPreview
-        quiz={loadedQuizData}
-        onBack={() => {
-          setLoadedQuizData(null);
-          setView('manager');
-        }}
-      />
-    );
+    return <QuizPreview quiz={loadedQuizData} onBack={backToLibrary} />;
   }
 
   const publishInProgressDialog = publishInProgressFor ? (
@@ -3166,10 +3178,7 @@ const TeacherQuizWidget: React.FC<{
           paperSheetsEnabled={paperSheets.enabled}
           responses={responses}
           config={config}
-          onBack={() => {
-            setLoadedQuizData(null);
-            setView('manager');
-          }}
+          onBack={backToLibrary}
           tabWarningsEnabled={liveSession?.tabWarningsEnabled ?? true}
           session={liveSession}
           paperCopyBatchIds={
@@ -5794,6 +5803,13 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) =>
       )}
       renderOwn={(own, local) => (
         <TeacherQuizWidget widget={own} local={local} />
+      )}
+      renderUnavailable={(loading) => (
+        <SharedBoardQuizUnavailable
+          loading={loading}
+          title={(widget.config as QuizConfig).selectedQuizTitle}
+          ownerUid={(widget.config as QuizConfig).selectedQuizOwnerUid}
+        />
       )}
     />
   );
