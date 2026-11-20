@@ -347,9 +347,70 @@ describe('useQuizDelete', () => {
       expect(calls).toEqual([
         'deleteQuiz:q1:drive-q1',
         'deleteQuiz:q2:drive-q2',
+        'getDocs',
+        'getDocs',
         'toast:success:Deleted 2 quizzes.',
       ]);
+      expect(mockWhere).toHaveBeenCalledWith('quizId', '==', 'q1');
+      expect(mockWhere).toHaveBeenCalledWith('quizId', '==', 'q2');
+    });
+
+    it('clears paper batches of each deleted quiz', async () => {
+      paperBatches(['b1']);
+      const { result } = renderHook(() => useQuizDelete(baseArgs()));
+
+      await result.current.onBulkDelete([meta('q1'), meta('q2')]);
+
+      expect(calls.filter((c) => c === 'batch.delete:b1')).toHaveLength(2);
+      expect(batchCommit).toHaveBeenCalledTimes(2);
+      expect(mockCollection).toHaveBeenCalledWith(
+        { __db: true },
+        'users',
+        'teacher-1',
+        'paper_batches'
+      );
+    });
+
+    it('skips paper batch cleanup with no signed-in user', async () => {
+      const { result } = renderHook(() =>
+        useQuizDelete(baseArgs({ user: null }))
+      );
+
+      await result.current.onBulkDelete([meta('q1')]);
+
       expect(mockGetDocs).not.toHaveBeenCalled();
+    });
+
+    it('cleans up only quizzes whose delete succeeded', async () => {
+      deleteQuiz.mockImplementation((id: string) =>
+        id === 'q2' ? Promise.reject(new Error('boom')) : Promise.resolve()
+      );
+      const { result } = renderHook(() => useQuizDelete(baseArgs()));
+
+      await result.current.onBulkDelete([meta('q1'), meta('q2'), meta('q3')]);
+
+      const cleaned = (mockWhere.mock.calls as string[][]).map((c) => c[2]);
+      expect(cleaned.sort()).toEqual(['q1', 'q3']);
+      expect(addToast.mock.calls).toEqual([
+        ['Deleted 2 quizzes.', 'success'],
+        ['1 quiz failed to delete.', 'error'],
+      ]);
+    });
+
+    it('still reports success when paper batch cleanup fails', async () => {
+      const cleanupErr = new Error('rules');
+      mockGetDocs.mockRejectedValue(cleanupErr);
+      const { result } = renderHook(() => useQuizDelete(baseArgs()));
+
+      await expect(
+        result.current.onBulkDelete([meta('q1'), meta('q2')])
+      ).resolves.toBe(true);
+
+      expect(consoleWarn).toHaveBeenCalledWith(
+        '[QuizWidget] paper batch cleanup:',
+        cleanupErr
+      );
+      expect(addToast.mock.calls).toEqual([['Deleted 2 quizzes.', 'success']]);
     });
 
     it('skips blocked quizzes, warns about archived ones, and deletes clean before archived', async () => {
@@ -389,6 +450,8 @@ describe('useQuizDelete', () => {
         'toast:error:Skipped 2 quizzes with active or paused assignments. Deactivate them first.',
         'deleteQuiz:q-clean:drive-q-clean',
         'deleteQuiz:q-arch:drive-q-arch',
+        'getDocs',
+        'getDocs',
         'toast:success:Deleted 2 quizzes.',
       ]);
     });

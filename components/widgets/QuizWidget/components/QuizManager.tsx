@@ -3044,40 +3044,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     );
   }
 
-  // ─── Loading/error shell content ──────────────────────────────────────────
-  if (loading && managerTab === 'library') {
-    return (
-      <LibraryShell
-        widgetLabel={shellLabel}
-        widgetType={variant}
-        clearsConnectionTab={clearsConnectionTab}
-        tab={managerTab}
-        onTabChange={(t) => onTabChange?.(t)}
-        counts={tabCounts}
-        tabLabels={tabLabels}
-        assignedLayout={assignedOn}
-        primaryAction={primaryAction}
-        toolbarSlot={toolbar}
-        filterSidebarSlot={folderSidebarSlot}
-      >
-        <div
-          className="flex flex-col items-center justify-center h-full text-brand-blue-primary"
-          style={{ gap: 'min(12px, 3cqmin)', padding: 'min(40px, 10cqmin) 0' }}
-        >
-          <Loader2
-            className="animate-spin"
-            style={{ width: 'min(32px, 8cqmin)', height: 'min(32px, 8cqmin)' }}
-          />
-          <span
-            className="font-medium"
-            style={{ fontSize: 'min(14px, 5.5cqmin)' }}
-          >
-            Loading quizzes…
-          </span>
-        </div>
-      </LibraryShell>
-    );
-  }
+  // Loading renders inside the same shell tree so an open New menu survives the load.
+  const libraryLoading = loading && managerTab === 'library';
 
   // ─── Ordered ids for LibraryDndContext (for overlay + reorder routing) ───
   const orderedIds = reorder.orderedItems.map(QUIZ_GET_ID);
@@ -3126,10 +3094,27 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       primaryAction={primaryAction}
       toolbarSlot={toolbar}
       filterSidebarSlot={folderSidebarSlot}
-      folderView={libraryView.folderView}
+      folderView={libraryLoading ? undefined : libraryView.folderView}
       folderViewMode={libraryView.state.viewMode}
     >
-      {managerTab === 'library' && (
+      {libraryLoading && (
+        <div
+          className="flex flex-col items-center justify-center h-full text-brand-blue-primary"
+          style={{ gap: 'min(12px, 3cqmin)', padding: 'min(40px, 10cqmin) 0' }}
+        >
+          <Loader2
+            className="animate-spin"
+            style={{ width: 'min(32px, 8cqmin)', height: 'min(32px, 8cqmin)' }}
+          />
+          <span
+            className="font-medium"
+            style={{ fontSize: 'min(14px, 5.5cqmin)' }}
+          >
+            Loading quizzes…
+          </span>
+        </div>
+      )}
+      {managerTab === 'library' && !libraryLoading && (
         <LibraryTabContent
           tourWidgetType={variant}
           error={error}
