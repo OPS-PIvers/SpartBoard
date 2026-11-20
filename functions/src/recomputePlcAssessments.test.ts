@@ -23,6 +23,7 @@ import {
   parseLocalizedFibAnswers,
   parseServedLanguages,
   RECOMPUTE_MAX_FAILURES,
+  RECOMPUTE_MAX_UNFINISHED,
   recomputeOnePlcAssessment,
   runRecomputePlcAssessments,
   syncedGroupEntitled,
@@ -567,7 +568,9 @@ describe('runRecomputePlcAssessments', () => {
     expect(stub.has('plcs/plc-1/aggregates/grp-1')).toBe(true);
     expect(stub.has('plcs/plc-2/aggregates/older')).toBe(true);
     expect(stub.has('plcs/plc-1/aggregates/clean')).toBe(false);
-    const order = stub.writes.filter((w) => w.op === 'set').map((w) => w.path);
+    const order = stub.writes
+      .filter((w) => w.op === 'set' && w.path.includes('/aggregates/'))
+      .map((w) => w.path);
     expect(order).toEqual([
       'plcs/plc-2/aggregates/older',
       'plcs/plc-1/aggregates/grp-1',
@@ -701,6 +704,20 @@ describe('runRecomputePlcAssessments failure cap', () => {
     expect(typeof stub.get('plcs/plc-2/assessments/older')?.dirtyAt).toBe(
       'number'
     );
+  });
+
+  it('parks an assessment whose earlier runs never finished', async () => {
+    const stub = failing();
+    stub.store.set(FAIL, { attempts: RECOMPUTE_MAX_UNFINISHED });
+    stub.store.set('plcs/plc-2/assessments/older', {
+      id: 'older',
+      syncGroupId: 'grp-older',
+      dirtyAt: -(NOW - 50_000),
+    });
+    stub.hooks.beforeWrite = undefined;
+    await runRecomputePlcAssessments(stub.db as unknown as Db);
+    expect(stub.get('plcs/plc-2/assessments/older')?.dirtyAt).toBeNull();
+    expect(stub.has('plcs/plc-2/aggregates/older')).toBe(false);
   });
 
   it('clears the failure count after a successful recompute', async () => {

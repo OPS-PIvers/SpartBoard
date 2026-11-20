@@ -581,6 +581,25 @@ describe('recomputeSession and the dirty queue', () => {
     expect(later?.retryAt).toBeLessThanOrEqual(Date.now() + 60 * 60_000);
   });
 
+  it('records the attempt before computing, so a killed run still backs the entry off', async () => {
+    const stub = seed({ 'quiz_sessions/qs1/responses/u1': completed() });
+    const db = stub.db as unknown as { collection: (n: string) => unknown };
+    const collection = db.collection.bind(db);
+    let midRun: Record<string, unknown> | undefined;
+    db.collection = (name: string) => {
+      if (name === 'users') {
+        midRun = stub.get('grade_index_sessions/quiz__qs1');
+        throw new Error('killed');
+      }
+      return collection(name);
+    };
+    const typed = stub.db as unknown as Db;
+    await markSessionDirty(typed, 'quiz', 'qs1', 1);
+    await drainDirtySessions(typed);
+    expect(midRun?.failures).toBe(1);
+    expect(midRun?.retryAt).toBeGreaterThan(Date.now());
+  });
+
   it('keeps an existing backoff when the session is marked dirty again', async () => {
     const stub = seed();
     const db = stub.db as unknown as Db;

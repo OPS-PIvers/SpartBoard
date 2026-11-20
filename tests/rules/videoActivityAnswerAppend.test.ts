@@ -150,6 +150,25 @@ describe('VA response student appends', () => {
     );
   });
 
+  it('denies an appended answer over 100,000 characters, allows one at the cap', async () => {
+    await seed({}, {});
+    const entry = (answer: string) => ({
+      questionId: 'q1',
+      answer,
+      answeredAt: 6000,
+    });
+    await assertFails(
+      updateDoc(doc(asStudent(), RESPONSE_PATH), {
+        answers: [entry('x'.repeat(100001))],
+      })
+    );
+    await assertSucceeds(
+      updateDoc(doc(asStudent(), RESPONSE_PATH), {
+        answers: [entry('x'.repeat(100000))],
+      })
+    );
+  });
+
   it('denies appending two entries in one write', async () => {
     await seed({}, {});
     await assertFails(

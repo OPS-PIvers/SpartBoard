@@ -593,14 +593,23 @@ function isPartialRubricGrade(
  * response across whole-class grading loops.
  */
 export function hasSubmittedContent(studentAnswer: string): boolean {
-  let stripped = studentAnswer ?? '';
-  // `[^<>]` (not `[^>]`) so a bare `<` in prose can't swallow the rest of the
-  // answer, looped to a fixpoint so nested markup like `<<p>>` fully strips.
-  let previous: string;
-  do {
-    previous = stripped;
-    stripped = stripped.replace(/<[^<>]*>/g, '');
-  } while (stripped !== previous);
+  // One linear pass (a bare `<` never swallows the rest of the answer; nested
+  // markup like `<<p>>` fully strips); a regex fixpoint loop is quadratic on `<<<…>>>`.
+  const input = studentAnswer ?? '';
+  const out: string[] = [];
+  const open: number[] = [];
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i];
+    if (ch === '<') {
+      open.push(out.length);
+      out.push(ch);
+    } else if (ch === '>' && open.length > 0) {
+      out.length = open.pop() as number;
+    } else {
+      out.push(ch);
+    }
+  }
+  const stripped = out.join('');
   return (
     stripped
       .replace(/&nbsp;/gi, ' ')

@@ -9,6 +9,7 @@ import {
   type ManualGrade,
   type QuestionTargetSnapshot,
   type RawAnswer,
+  capAnswer,
   paperAnswerOwed,
   trustedPaperTranscript,
 } from '../plcAssessmentMath';
@@ -550,7 +551,7 @@ export function scoreVideoResponse(
     )
     .map((a) => ({
       questionId: asString(a.questionId),
-      answer: asString(a.answer),
+      answer: capAnswer(asString(a.answer)),
       answeredAt: toMillis(a.answeredAt) ?? undefined,
     }));
   const completedAt = toMillis(response.completedAt);

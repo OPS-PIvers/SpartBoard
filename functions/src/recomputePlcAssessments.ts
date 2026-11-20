@@ -6,6 +6,7 @@ import * as admin from './firebaseAdmin';
 import './functionsInit';
 import {
   AGGREGATE_SCHEMA_VERSION,
+  capAnswer,
   computeAssessmentAggregate,
   parseTargets,
   resolveGroupQuestions,
@@ -42,7 +43,7 @@ function parseAnswer(raw: unknown): RawAnswer | null {
   if (questionId.length === 0) return null;
   return {
     questionId,
-    answer: asString(r.answer),
+    answer: capAnswer(asString(r.answer)),
     answeredAt: typeof r.answeredAt === 'number' ? r.answeredAt : undefined,
     status: r.status === 'draft' ? 'draft' : undefined,
     unresponded: r.unresponded ?? undefined,
@@ -557,6 +558,41 @@ async function requeueFailed(
   });
 }
 
+/** Unfinished attempts (a run killed mid-compute) after which an assessment is parked instead of retried first again. */
+export const RECOMPUTE_MAX_UNFINISHED = 3;
+
+/** Records an attempt before the compute; true when earlier attempts never finished and the assessment is parked instead. */
+async function recordAttempt(
+  db: Firestore,
+  plcId: string,
+  assessmentId: string
+): Promise<boolean> {
+  const ref = db.doc(`plcs/${plcId}/assessments/${assessmentId}`);
+  const failRef = failureRef(db, plcId, assessmentId);
+  return db.runTransaction(async (tx) => {
+    const [snap, failSnap] = await Promise.all([tx.get(ref), tx.get(failRef)]);
+    const prior: unknown = failSnap.data()?.attempts;
+    const attempts = typeof prior === 'number' ? prior : 0;
+    if (attempts >= RECOMPUTE_MAX_UNFINISHED) {
+      tx.set(failRef, {
+        plcId,
+        assessmentId,
+        count: RECOMPUTE_MAX_FAILURES,
+        lastFailedAt: Date.now(),
+      });
+      if (typeof snap.data()?.dirtyAt === 'number')
+        tx.update(ref, { dirtyAt: null });
+      return true;
+    }
+    tx.set(
+      failRef,
+      { plcId, assessmentId, attempts: attempts + 1 },
+      { merge: true }
+    );
+    return false;
+  });
+}
+
 /** Oldest-dirty-first pass over every PLC; per-item failures are logged and skipped. */
 export async function runRecomputePlcAssessments(
   db: Firestore,
@@ -577,6 +613,13 @@ export async function runRecomputePlcAssessments(
     const plcId = doc.ref.parent.parent?.id;
     if (!plcId) return;
     try {
+      if (await recordAttempt(db, plcId, doc.id)) {
+        logger.error('recomputePlcAssessments: parked after unfinished runs', {
+          plcId,
+          assessmentId: doc.id,
+        });
+        return;
+      }
       await recomputeOnePlcAssessment(db, plcId, doc.id);
       counts.recomputed++;
       await clearFailures(db, plcId, doc.id).catch(() => undefined);
