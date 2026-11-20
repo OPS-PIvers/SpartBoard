@@ -229,7 +229,7 @@ describe('RunAssignedTab', () => {
         status: 'inactive',
         doneAt: NOW - 500,
         periodAccess: { p1: row('P1', { closedAt: NOW - 1000 }) },
-      }),
+      } as Partial<MiniAppAssignment>),
     ]);
     await userEvent.click(screen.getByRole('button', { name: /^Finished/ }));
     expect(menuItems()).toEqual(['Publish scores…', 'Reopen…', 'Delete']);
