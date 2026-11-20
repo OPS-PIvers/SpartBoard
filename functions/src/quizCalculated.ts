@@ -362,10 +362,14 @@ export function isCalcQuestion(q: { type: string; calc?: CalcSpec }): boolean {
   return q.type === 'FIB' && !!q.calc && q.calc.variables.length > 0;
 }
 
-/** The key one attempt's numbers come from: the response key, plus the attempt number after the first. */
+/** The key one attempt's numbers come from: the response key, when it joined, and the attempt number after the first. */
 export function calcAttemptKey(
   responseKey: string,
-  response?: { status?: unknown; completedAttempts?: unknown } | null
+  response?: {
+    status?: unknown;
+    completedAttempts?: unknown;
+    joinedAt?: unknown;
+  } | null
 ): string {
   const done =
     typeof response?.completedAttempts === 'number'
@@ -373,7 +377,14 @@ export function calcAttemptKey(
       : 0;
   const attempt =
     response?.status === 'completed' ? Math.max(1, done) : done + 1;
-  return attempt > 1 ? `${responseKey}#${attempt}` : responseKey;
+  // A new assignment is a new join, so the same student gets new numbers.
+  const joined =
+    typeof response?.joinedAt === 'number' && Number.isFinite(response.joinedAt)
+      ? `@${response.joinedAt}`
+      : '';
+  return attempt > 1
+    ? `${responseKey}${joined}#${attempt}`
+    : `${responseKey}${joined}`;
 }
 
 /** One student's numbers for a question, from the question's seed and their response key. */

@@ -6610,6 +6610,7 @@ export const PublishedScoreReview: React.FC<{
   const pickedCalcKey =
     picked && liveResponse._responseKey
       ? calcAttemptKey(liveResponse._responseKey, {
+          joinedAt: liveResponse.joinedAt,
           status: 'completed',
           completedAttempts: picked.n,
         })
