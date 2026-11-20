@@ -647,17 +647,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'quiz-stimulus-preview': {
-    label: 'Stimulus preview in the question editor',
-    icon: Eye,
-    description:
-      'Teachers see a stimulus from the question it is attached to, without opening the Stimuli tab.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Question editor metadata as labeled fields. Admin-only until Paul has tested it in prod.
   'question-editor-fields': {
     label: 'Question editor fields',
