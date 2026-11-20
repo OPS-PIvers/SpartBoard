@@ -301,7 +301,6 @@ function fixtures(inClass: boolean): Fixture[] {
       kind: 'video-activity',
       title: 'The Silk Road',
       manualStart: 'open',
-      dueAt: at(1),
     },
     {
       id: 'h7',
@@ -502,7 +501,7 @@ export const StudentLandingSample: React.FC<StudentLandingSampleProps> = ({
     return { assignments: list.map((f) => toSummary(f, nowMs)), checks: map };
   }, [inClass, nowMs]);
   const partition = useMemo(
-    () => partitionLanding(assignments, checks, nowMs),
+    () => partitionLanding(assignments, checks, nowMs, 'dev-student'),
     [assignments, checks, nowMs]
   );
   const grades = useMemo<StudentGradesState | undefined>(

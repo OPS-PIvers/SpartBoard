@@ -19,7 +19,11 @@ import {
   nextScheduledOpen,
   studentCanEnter,
 } from '@/utils/periodAccess';
-import type { DoneItem, LandingRow } from '@/utils/studentLanding';
+import {
+  workAvailability,
+  type DoneItem,
+  type LandingRow,
+} from '@/utils/studentLanding';
 import {
   formatPoints,
   type StudentGradeRow,
@@ -245,15 +249,7 @@ export const WorkRow: React.FC<WorkRowProps> = ({
     : periodLocked
       ? periodLockLine(gate, nowMs)
       : null;
-  // A Manual start class the teacher has started (not a Let in now pass on a closed class).
-  const started =
-    !!gate &&
-    gate.accessMode === 'assessment' &&
-    (row.state === 'open' || row.state === 'in-progress') &&
-    gate.periodKeys.some((k) => {
-      const access = gate.periodAccess?.[k];
-      return !!access && effectivePeriodState(access, nowMs) === 'open';
-    });
+  const live = workAvailability(row, nowMs, pseudonymUid) === 'live';
   const body = (
     <>
       <KindIcon kind={a.kind} />
@@ -294,7 +290,7 @@ export const WorkRow: React.FC<WorkRowProps> = ({
   }
   // A class not started yet still opens, to the waiting screen where the teacher sees the student.
   return (
-    <OpenRow href={a.openHref} available={!locked} live={started && !locked}>
+    <OpenRow href={a.openHref} available={!locked} live={live}>
       {body}
     </OpenRow>
   );
