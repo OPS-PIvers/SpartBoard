@@ -1,0 +1,1 @@
+claude/quiz-scoreboard-sync-fix (AB-343: scoreboard sync never wrote after an unrelated session update)

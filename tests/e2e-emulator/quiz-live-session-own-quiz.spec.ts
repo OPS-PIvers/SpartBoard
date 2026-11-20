@@ -132,6 +132,55 @@ const moveToReview = async (sessionId: string): Promise<void> => {
   expect(res.ok).toBe(true);
 };
 
+// A student's answer, written straight to the emulator with rules bypassed.
+const writeResponse = async (
+  sessionId: string,
+  questionId: string,
+  answer: string
+): Promise<void> => {
+  const res = await fetch(`${DOCS}/quiz_sessions/${sessionId}/responses/s1`, {
+    method: 'PATCH',
+    headers: { ...OWNER, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      fields: {
+        studentUid: { stringValue: 's1' },
+        pin: { stringValue: '07' },
+        joinedAt: { integerValue: '1' },
+        status: { stringValue: 'in-progress' },
+        answers: {
+          arrayValue: {
+            values: [
+              {
+                mapValue: {
+                  fields: {
+                    questionId: { stringValue: questionId },
+                    answer: { stringValue: answer },
+                    answeredAt: { integerValue: '2' },
+                  },
+                },
+              },
+            ],
+          },
+        },
+      },
+    }),
+  });
+  expect(res.ok).toBe(true);
+};
+
+// A session write that changes nothing the scoreboard reads.
+const touchSession = async (sessionId: string, n: number): Promise<void> => {
+  const res = await fetch(
+    `${DOCS}/quiz_sessions/${sessionId}?updateMask.fieldPaths=e2eTouch`,
+    {
+      method: 'PATCH',
+      headers: { ...OWNER, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields: { e2eTouch: { integerValue: `${n}` } } }),
+    }
+  );
+  expect(res.ok).toBe(true);
+};
+
 const readJoinCode = async (widget: Locator): Promise<string> => {
   await widget.getByRole('button', { name: 'Join code' }).click();
   const code = widget.getByText(/^[A-Z0-9]{6}$/);
@@ -239,4 +288,58 @@ test('a live review on a trimmed copy reveals its own question while another qui
   page,
 }) => {
   await runLiveReview(page, true);
+});
+
+// A session update inside the sync's wait must not cancel the pending Scoreboard write (AB-343).
+test('a live review with scoreboard sync on shows its scores on a Scoreboard', async ({
+  page,
+}) => {
+  const library = await addReviewWidget(page);
+  const widget = page.locator('.widget').first();
+  const scoreboard = page.locator(
+    '.widget[data-tour-widget-type="scoreboard"]'
+  );
+  let sessionId = '';
+  let questionId = '';
+
+  await test.step('start a review with scoreboard sync on', async () => {
+    await createReviewQuiz(page, library, LIVE, 'What is 2 + 2?', 'B');
+    await library
+      .getByRole('heading', { name: LIVE })
+      .locator('xpath=ancestor::*[.//button[normalize-space()="Start"]][1]')
+      .getByRole('button', { name: 'Start', exact: true })
+      .click();
+    const dialog = page.getByRole('dialog', { name: LIVE });
+    await dialog.getByRole('button', { name: 'Start', exact: true }).click();
+    await expect(dialog).toBeHidden();
+    await widget.getByRole('button', { name: 'Resume' }).click();
+    await expect(widget.getByText('Live', { exact: true })).toBeVisible();
+    const session = await sessionForCode(await readJoinCode(widget));
+    sessionId = session.name.split('/').pop() ?? '';
+    questionId =
+      session.fields.publicQuestions?.arrayValue.values?.[0]?.mapValue.fields.id
+        .stringValue ?? '';
+    expect(questionId).not.toBe('');
+    await widget.getByRole('button', { name: 'Quiz settings' }).click();
+    await widget
+      .getByRole('switch', { name: 'Sync to scoreboard widget' })
+      .click();
+    await widget.getByRole('button', { name: 'Back' }).click();
+    await widget.getByRole('button', { name: 'Start quiz session' }).click();
+    await expect(widget.getByText('What is 2 + 2?')).toBeVisible();
+  });
+
+  await test.step('a student answers while the session keeps updating', async () => {
+    await writeResponse(sessionId, questionId, '4');
+    // The sync waits up to 2s after an answer; these land inside that wait.
+    for (let n = 1; n <= 4; n++) {
+      await page.waitForTimeout(400);
+      await touchSession(sessionId, n);
+    }
+  });
+
+  await test.step('the Scoreboard shows the student and their score', async () => {
+    await expect(scoreboard.getByText('LIVE', { exact: true })).toBeVisible();
+    await expect(scoreboard.getByText('PIN 07')).toBeVisible();
+  });
 });
