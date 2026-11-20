@@ -157,16 +157,22 @@ const ShareMenu: React.FC<{
   const [busy, setBusy] = useState(false);
   const menuId = useId();
   const box = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+
+  // Closing from the panel puts focus back on Share so keyboard users aren't dropped on the page.
+  const closeMenu = () => {
+    setOpen(false);
+    trigger.current?.focus();
+  };
 
   useEffect(() => {
     if (!open) return;
     const close = (e: MouseEvent | KeyboardEvent) => {
-      if (
-        e instanceof KeyboardEvent
-          ? e.key === 'Escape'
-          : !box.current?.contains(e.target as Node)
-      )
+      if (e instanceof KeyboardEvent) {
+        if (e.key !== 'Escape') return;
         setOpen(false);
+        trigger.current?.focus();
+      } else if (!box.current?.contains(e.target as Node)) setOpen(false);
     };
     document.addEventListener('mousedown', close);
     document.addEventListener('keydown', close);
@@ -187,7 +193,7 @@ const ShareMenu: React.FC<{
   };
 
   const tourUrl = async () => {
-    setOpen(false);
+    closeMenu();
     setBusy(true);
     const ok = await copyLink(set.id, set.title);
     setBusy(false);
@@ -212,7 +218,7 @@ const ShareMenu: React.FC<{
     );
 
   const stepsUrl = async () => {
-    setOpen(false);
+    closeMenu();
     if (publicLink.publicUrl) {
       stepsCopied(await copyText(publicLink.publicUrl));
       return;
@@ -220,21 +226,19 @@ const ShareMenu: React.FC<{
     publicLink.requestOn((url) => void copyText(url).then(stepsCopied));
   };
 
-  const stepsReason = !live
-    ? 'Publish the tour first.'
-    : !publicLink.publicUrl && !publicLink.canTurnOn
-      ? 'Only admins can make the steps public.'
-      : null;
+  const stepsReason = live ? null : 'Publish the tour first.';
+  const stepsDisabled =
+    !live || (!publicLink.publicUrl && !publicLink.canTurnOn);
 
   const item = `flex w-full flex-col items-start gap-0.5 rounded-md px-3 py-2 text-left hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 ${focusRing}`;
 
   return (
     <div ref={box} className="relative">
       <button
+        ref={trigger}
         type="button"
         onClick={() => setOpen((o) => !o)}
         disabled={busy}
-        aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
         aria-label={`Share ${title}`}
@@ -252,13 +256,12 @@ const ShareMenu: React.FC<{
       {open && (
         <div
           id={menuId}
-          role="menu"
+          role="group"
           aria-label={`Share ${title}`}
           className="absolute right-0 top-full z-20 mt-1 w-64 rounded-xl border border-slate-200 bg-white p-1 shadow-lg"
         >
           <button
             type="button"
-            role="menuitem"
             onClick={() => void tourUrl()}
             className={item}
             {...tourFieldAttr('web-tours.share-tour-url', 'web-tours', set.id)}
@@ -272,9 +275,8 @@ const ShareMenu: React.FC<{
           </button>
           <button
             type="button"
-            role="menuitem"
             onClick={() => void stepsUrl()}
-            disabled={!!stepsReason}
+            disabled={stepsDisabled}
             className={item}
             {...tourFieldAttr('web-tours.share-steps-url', 'web-tours', set.id)}
           >

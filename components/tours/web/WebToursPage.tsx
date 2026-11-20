@@ -95,8 +95,9 @@ export const WebToursPage: React.FC = () => {
       return true;
     }
     try {
-      // The stored draft, so an edit saved since the list loaded isn't overwritten.
-      const fresh = (await loadWebTourDraft(set.id)) ?? set;
+      // The stored draft, so an edit saved since the list loaded isn't overwritten; offline, the list copy.
+      const fresh = await loadWebTourDraft(set.id).catch(() => set);
+      if (!fresh) return true;
       await saveWebTourDraft({ ...fresh, title });
       return true;
     } catch (err) {
@@ -123,7 +124,9 @@ export const WebToursPage: React.FC = () => {
       .filter(
         (t) =>
           (q &&
-            !`${t.title} ${webTourSite(t) ?? ''}`.toLowerCase().includes(q)) ||
+            !`${t.title.trim() || 'Untitled web tour'} ${webTourSite(t) ?? ''}`
+              .toLowerCase()
+              .includes(q)) ||
           !matchesFilter(filter, facts[t.id])
       )
       .map((t) => t.id)

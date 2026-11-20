@@ -187,7 +187,7 @@ describe('WebToursPage', () => {
     showDrafts([tour('a', 'Tour A')]);
     fireEvent.click(screen.getByRole('button', { name: 'Share Tour A' }));
     await act(async () => {
-      fireEvent.click(screen.getByRole('menuitem', { name: /Tour URL/ }));
+      fireEvent.click(screen.getByRole('button', { name: /Tour URL/ }));
       await Promise.resolve();
     });
     expect(h.copy).toHaveBeenCalledWith('a', 'Tour A');
@@ -207,7 +207,7 @@ describe('WebToursPage', () => {
     showDrafts([tour('a', 'Tour A')]);
     fireEvent.click(screen.getByRole('button', { name: 'Share Tour A' }));
     await act(async () => {
-      fireEvent.click(screen.getByRole('menuitem', { name: /Steps URL/ }));
+      fireEvent.click(screen.getByRole('button', { name: /Steps URL/ }));
       await Promise.resolve();
     });
     expect(writeText).toHaveBeenCalledWith('https://x.test/tour-steps/tok');
@@ -218,7 +218,7 @@ describe('WebToursPage', () => {
     render(<WebToursPage />);
     showDrafts([tour('a', 'Tour A')]);
     fireEvent.click(screen.getByRole('button', { name: 'Share Tour A' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: /Steps URL/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Steps URL/ }));
     expect(h.requestOn).toHaveBeenCalledTimes(1);
     await act(async () => {
       h.requestOn.mock.calls[0][0]?.('https://x.test/tour-steps/new');
@@ -231,7 +231,7 @@ describe('WebToursPage', () => {
     render(<WebToursPage />);
     showDrafts([tour('a', 'Tour A')]);
     fireEvent.click(screen.getByRole('button', { name: 'Share Tour A' }));
-    const steps = screen.getByRole('menuitem', { name: /Steps URL/ });
+    const steps = screen.getByRole('button', { name: /Steps URL/ });
     expect(steps).toBeDisabled();
     expect(steps).toHaveTextContent('Publish the tour first.');
   });
