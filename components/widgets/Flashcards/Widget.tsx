@@ -21,6 +21,11 @@ import {
   type WidgetData,
 } from '@/types';
 import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
+import {
+  assignmentCount,
+  runBulkPublish,
+  sharedVisibility,
+} from '@/components/common/library/assigned/bulkPublish';
 import { flashcardClassVisibility } from '@/utils/flashcardResultsVisibility';
 import { logError } from '@/utils/logError';
 import { db, functions } from '@/config/firebase';
@@ -248,6 +253,9 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   const [assigningSet, setAssigningSet] = useState<FlashcardSet | null>(null);
   const [publishTarget, setPublishTarget] =
     useState<FlashcardAssignment | null>(null);
+  const [bulkPublishing, setBulkPublishing] = useState<
+    FlashcardAssignment[] | null
+  >(null);
   const [settingsTarget, setSettingsTarget] =
     useState<FlashcardAssignment | null>(null);
   const openResults = useMemo(
@@ -670,6 +678,20 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     );
   };
 
+  // Already confirmed; a PLC share that can't be stopped keeps its assignment.
+  const handleAssignmentDeleteMany = async (
+    list: FlashcardAssignment[]
+  ): Promise<number> => {
+    const results = await Promise.allSettled(
+      list.map(async (a) => {
+        if (a.plcShare && !(await plcSharing.stopSharingResults(a)))
+          throw new Error('PLC results could not be removed.');
+        await deleteAssignment(a.id);
+      })
+    );
+    return results.filter((r) => r.status === 'rejected').length;
+  };
+
   const showLibrary = (): void => {
     updateWidget(widget.id, {
       config: {
@@ -900,6 +922,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                 classLifecycle={assignedOn ? classLifecycle : undefined}
                 rosters={rosters}
                 onAssignmentPublishScores={setPublishTarget}
+                onAssignmentPublishMany={setBulkPublishing}
                 onAssignmentUnpublishScores={(a) =>
                   void handleUnpublishScores(a)
                 }
@@ -913,6 +936,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                 }
                 onError={(message) => addToast(message, 'error')}
                 onAssignmentDelete={(a) => void handleAssignmentDelete(a)}
+                onAssignmentDeleteMany={handleAssignmentDeleteMany}
                 onShareWithPlc={
                   plcSharing.enabled ? plcSharing.shareSet : undefined
                 }
@@ -988,6 +1012,41 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
             );
             setPublishTarget(null);
             if (protection) {
+              try {
+                await updateAppSettings({ lastResultsProtection: protection });
+              } catch (err) {
+                logError('Flashcards.updateAppSettings.lastProtection', err);
+              }
+            }
+          }}
+        />
+      )}
+
+      {bulkPublishing && (
+        <PublishScoresModal
+          assignmentTitle={assignmentCount(bulkPublishing.length)}
+          currentVisibility={flashcardClassVisibility(
+            sharedVisibility(bulkPublishing)
+          )}
+          showProtection
+          initialProtection={
+            appSettings?.lastResultsProtection ?? RESULTS_PROTECTION_DEFAULTS
+          }
+          onClose={() => setBulkPublishing(null)}
+          onConfirm={async (visibility, protection) => {
+            const ok = await runBulkPublish({
+              targets: bulkPublishing,
+              unpublish: visibility === 'none',
+              publishOne: async (t) => {
+                if (visibility === 'none') await unpublishScores(t.id);
+                else await publishScores(t.id, visibility, protection);
+                return true;
+              },
+              addToast,
+              logKey: 'Flashcards.bulkPublishScores',
+            });
+            setBulkPublishing(null);
+            if (ok > 0 && protection && visibility !== 'none') {
               try {
                 await updateAppSettings({ lastResultsProtection: protection });
               } catch (err) {

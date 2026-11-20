@@ -1,7 +1,7 @@
 # 012 — Make Dock popovers rise from their icon instead of sliding in sideways
 
-- **Status**: TODO
-- **Commit**: acb225c
+- **Status**: DONE
+- **Commit**: 9ac6534
 - **Severity**: HIGH
 - **Category**: Physicality & origin
 - **Estimated scope**: 3 files, 5 inline-style lines and 3 class strings

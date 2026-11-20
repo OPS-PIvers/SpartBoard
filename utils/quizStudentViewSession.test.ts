@@ -55,6 +55,22 @@ describe('buildStudentViewSession', () => {
     ]);
   });
 
+  it('drops a saved correct-answer reveal when right or wrong is off', () => {
+    const s = buildStudentViewSession(
+      QUIZ,
+      {
+        ...BEHAVIOR,
+        sessionOptions: {
+          ...BEHAVIOR.sessionOptions,
+          showResultToStudent: false,
+          showCorrectAnswerToStudent: true,
+        },
+      },
+      true
+    );
+    expect(s.showCorrectAnswerToStudent).toBe(false);
+  });
+
   it('leaves the away limit out without the tab-away-timer flag', () => {
     const s = buildStudentViewSession(QUIZ, BEHAVIOR, false);
     expect(s).not.toHaveProperty('tabAwayLimitSeconds');

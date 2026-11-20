@@ -14,6 +14,8 @@ import {
   type LineSegment,
   type LineTone,
 } from './assignedWording';
+import { AssignedCheckbox } from './AssignedBulk';
+import { useAssignedRowSelect } from './assignedBulkContext';
 
 export interface AssignedRowProps {
   title: string;
@@ -141,6 +143,7 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
   hideCounts = false,
 }) => {
   const [expanded, setExpanded] = useState(false);
+  const select = useAssignedRowSelect();
   const rowKey = `row-${tourIndex + 1}`;
   const done = status.bucket === 'done';
   const canExpand = classControls && !status.singleLine;
@@ -151,6 +154,7 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
     if (canExpand) setExpanded((v) => !v);
   };
   const pick = () => {
+    if (select) return select.toggle();
     onSelect?.();
     toggle();
   };
@@ -161,12 +165,24 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
 
   return (
     <div
-      className={`border-b border-slate-200/60 last:border-b-0 ${selected ? 'bg-brand-blue-lighter/40' : ''}`}
+      className={`border-b border-slate-200/60 last:border-b-0 ${selected || select?.selected ? 'bg-brand-blue-lighter/40' : ''}`}
       aria-current={selected || undefined}
       style={{ padding: 'min(10px, 2.2cqmin) min(6px, 1.4cqmin)' }}
       aria-busy={busy || undefined}
     >
       <div className="flex items-center" style={{ gap: 'min(10px, 2.2cqmin)' }}>
+        {select && (
+          <AssignedCheckbox
+            state={select.selected ? 'on' : 'off'}
+            onToggle={select.toggle}
+            label={`Select ${title}`}
+            anchor={tourFieldAttr(
+              'library-shell.assigned-select-row',
+              tourWidgetType,
+              rowKey
+            )}
+          />
+        )}
         <div
           className="flex shrink-0 items-center justify-center"
           style={{ width: 'min(8px, 2cqmin)' }}
@@ -181,7 +197,7 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
         </div>
         {/* no-tour-anchor: same toggle as the classes button beside the main action */}
         <div
-          className={`min-w-0 flex-1 ${canExpand || onSelect ? 'cursor-pointer' : ''}`}
+          className={`min-w-0 flex-1 ${canExpand || onSelect || select ? 'cursor-pointer' : ''}`}
           onClick={pick}
           {...(onSelect
             ? {
@@ -233,7 +249,7 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
             {meta}
           </div>
         </div>
-        {mainLabel && (
+        {mainLabel && !select && (
           <div className="relative shrink-0">
             <button
               type="button"
@@ -267,7 +283,7 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
             )}
           </div>
         )}
-        {canExpand ? (
+        {select ? null : canExpand ? (
           <button
             type="button"
             onClick={toggle}
@@ -295,7 +311,7 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
             style={{ width: 'min(30px, 8cqmin)' }}
           />
         )}
-        {menuActions.length > 0 ? (
+        {select ? null : menuActions.length > 0 ? (
           <OverflowMenu
             actions={menuActions}
             rowKey={rowKey}
@@ -311,7 +327,7 @@ export const AssignedRow: React.FC<AssignedRowProps> = ({
         )}
       </div>
 
-      {expanded && canExpand && (
+      {expanded && canExpand && !select && (
         <div
           className="rounded-xl bg-slate-100"
           style={{

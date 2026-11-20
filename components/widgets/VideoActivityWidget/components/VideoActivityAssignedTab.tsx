@@ -1,3 +1,4 @@
+import { scoresShown } from '@/utils/assignedStatus';
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import {
   collection,
@@ -22,6 +23,7 @@ import {
   AssignedLeftOpenFlag,
   AssignedList,
   AssignedRow,
+  useAssignedBulkOps,
   type ClassActionKind,
   type LineSegment,
   mainActionLabel,
@@ -94,6 +96,10 @@ interface VideoActivityAssignedTabProps extends VideoActivityAssignedHandlers {
   pinnedId?: string | null;
   emptyTitle: string;
   emptySub: string;
+  /** Deletes without asking; resolves to how many failed. Turns on bulk select. */
+  onBulkDelete?: (assignments: VideoActivityAssignment[]) => Promise<number>;
+  /** Opens the publish dialog once for the picked closed rows. */
+  onBulkPublish?: (assignments: VideoActivityAssignment[]) => void;
 }
 
 const TICK_MS = 30_000;
@@ -268,6 +274,8 @@ interface RowModel {
   bells: Record<string, EpochWindow | null>;
   /** A closed self-paced single line still holds answered, unfinished attempts. */
   owesTurnIn: boolean;
+  viewOnly: boolean;
+  published: boolean;
 }
 
 /** The Video Activity Assigned tab: one row per assignment, one status per class (ASSIGNED_TAB.md slice 5). */
@@ -281,6 +289,8 @@ export const VideoActivityAssignedTab: React.FC<
   pinnedId,
   emptyTitle,
   emptySub,
+  onBulkDelete,
+  onBulkPublish,
   ...handlers
 }) => {
   const { featurePermissions } = useAuth();
@@ -361,6 +371,8 @@ export const VideoActivityAssignedTab: React.FC<
           needsGrading,
           bells,
           owesTurnIn,
+          viewOnly: a.mode === 'view-only',
+          published: scoresShown(a.scoreVisibility),
         };
       }),
     [
@@ -392,6 +404,16 @@ export const VideoActivityAssignedTab: React.FC<
       emptyTitle={emptyTitle}
       emptySub={emptySub}
       tourWidgetType="video-activity"
+      bulk={
+        onBulkDelete
+          ? {
+              remove: (rs) => onBulkDelete(rs.map((r) => r.assignment)),
+              publish: onBulkPublish
+                ? (rs) => onBulkPublish(rs.map((r) => r.assignment))
+                : undefined,
+            }
+          : undefined
+      }
       renderLeftOpen={(row, cls, index, leaveOpen) => (
         <VideoActivityLeftOpenHost
           row={row}
@@ -664,6 +686,29 @@ const VideoActivityAssignedRowHost: React.FC<RowHostProps> = ({
           `${a.activityTitle} moved to Done.`
         ),
     });
+  const bulkUndo = (prev: VideoActivityAssignment) =>
+    live && prev.status !== 'inactive'
+      ? null
+      : async () => {
+          if (uid) await guarded(() => undoClose(prev, uid, lifecycle));
+        };
+  useAssignedBulkOps({
+    close: allClosed
+      ? undefined
+      : async () => {
+          const undo = bulkUndo(a);
+          await guarded(() => actions.closeAll());
+          return undo;
+        },
+    moveToDone:
+      status.bucket === 'active' && !viewOnly
+        ? async () => {
+            const undo = bulkUndo(a);
+            await guarded(() => actions.moveToDone());
+            return undo;
+          }
+        : undefined,
+  });
   const today = menu(a).filter((m) => !REPLACED_MENU_IDS.has(m.id));
   // D7: Monitor is always one menu row away, and opening it changes nothing.
   if (!viewOnly)

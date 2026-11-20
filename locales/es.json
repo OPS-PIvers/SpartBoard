@@ -2420,6 +2420,8 @@
       "yourAnswers": "Tus respuestas",
       "otherQuestions": "Otras preguntas",
       "yourAnswer": "Tu respuesta:",
+      "yourAnswerTag": "Tu respuesta",
+      "correctAnswerTag": "Respuesta correcta",
       "scoreOnly": "Tu maestro publicó tu puntuación. Las respuestas detalladas no se comparten en esta tarea."
     },
     "rubric": {
@@ -2645,11 +2647,6 @@
       "pausePlayback": "Pause your recording",
       "submitQuiz": "Submit quiz",
       "nextQuestion": "Next",
-      "submitBlockedTitle_one": "One question still needs a recording",
-      "submitBlockedTitle_other": "{{count}} questions still need a recording",
-      "submitBlockedBody_one": "The question stays incomplete and the assignment cannot be submitted. Go back and record an answer, then turn it in.",
-      "submitBlockedBody_other": "The questions stay incomplete and the assignment cannot be submitted. Go back and record an answer for each one, then turn it in.",
-      "submitBlockedJump": "Go to question {{number}}",
       "notSubmittedPending": "Aún no se ha entregado. Tu grabación se está enviando.",
       "notSubmittedFailed": "Tu grabación no se envió. Elige Intentar de nuevo.",
       "notSubmittedFailedFinal": "Tu grabación no se envió y no se puede enviar desde este dispositivo. Graba de nuevo para enviar una toma nueva.",

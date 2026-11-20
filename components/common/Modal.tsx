@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
 import {
   decrementOpenModalCount,
   incrementOpenModalCount,
@@ -11,7 +10,7 @@ import {
 import { acquireBodyScrollLock, releaseBodyScrollLock } from './bodyScrollLock';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { useBackdropDismiss } from '@/hooks/useBackdropDismiss';
-import { FullscreenToggleButton } from './FullscreenToggleButton';
+import { ModalHeader } from './ModalHeader';
 import {
   tourAttr,
   tourFieldAttr,
@@ -23,6 +22,8 @@ interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   title?: string;
+  /** Header colour for the default header (a widget's library accent); defaults to brand blue. */
+  accent?: string;
   customHeader?: React.ReactNode;
   children: React.ReactNode;
   footer?: React.ReactNode;
@@ -36,7 +37,7 @@ interface ModalProps {
   maxWidth?: string; // e.g. "max-w-md", "max-w-2xl"
   className?: string; // For additional styling on the content container
   contentClassName?: string; // For additional styling on the body/content wrapper
-  footerClassName?: string; // For additional styling on the footer wrapper
+  footerClassName?: string; // Padding/layout for the footer wrapper; its tint and hairline are fixed
   captureEscape?: boolean; // Whether to use capture phase for Escape key
   ariaLabel?: string;
   ariaLabelledby?: string;
@@ -59,6 +60,7 @@ export const Modal: React.FC<ModalProps> = ({
   isOpen,
   onClose,
   title,
+  accent,
   customHeader,
   children,
   footer,
@@ -67,7 +69,7 @@ export const Modal: React.FC<ModalProps> = ({
   maxWidth = 'max-w-md',
   className = '',
   contentClassName = footer ? 'px-6 pb-4' : 'px-6 pb-6',
-  footerClassName = 'p-6 pt-4 mt-auto shrink-0 border-t border-slate-100',
+  footerClassName = 'px-6 py-4',
   variant = 'default',
   captureEscape = false,
   ariaLabel,
@@ -171,29 +173,24 @@ export const Modal: React.FC<ModalProps> = ({
       >
         {variant === 'default' &&
           (customHeader ?? (
-            <div className="flex items-center justify-between p-6 pb-0 mb-4 shrink-0">
-              {title && (
-                <h3 className="font-black text-lg text-slate-800">{title}</h3>
-              )}
-              {showHeaderToggle && (
-                <span className="ml-auto">
-                  <FullscreenToggleButton
-                    fullscreen={isFullscreen}
-                    onToggle={() => setFullscreen(!isFullscreen)}
-                  />
-                </span>
-              )}
-              <button
-                onClick={onClose}
-                {...(tourScope
+            <ModalHeader
+              title={title}
+              accent={accent}
+              square={isFullscreen}
+              className="mb-4"
+              fullscreen={isFullscreen}
+              onFullscreenToggle={
+                showHeaderToggle
+                  ? () => setFullscreen(!isFullscreen)
+                  : undefined
+              }
+              onClose={onClose}
+              closeAttrs={
+                tourScope
                   ? tourFieldAttr(closeTourId, tourScope, 'close')
-                  : tourAttr(closeTourId))}
-                className={`p-1 hover:bg-slate-100 rounded-full text-slate-400 transition-colors ${showHeaderToggle ? '' : 'ml-auto'}`}
-                aria-label="Close"
-              >
-                <X size={20} />
-              </button>
-            </div>
+                  : tourAttr(closeTourId)
+              }
+            />
           ))}
 
         <div
@@ -202,7 +199,18 @@ export const Modal: React.FC<ModalProps> = ({
           {children}
         </div>
 
-        {footer && <div className={footerClassName}>{footer}</div>}
+        {footer && (
+          <div
+            data-modal-footer=""
+            className={
+              variant === 'default'
+                ? `shrink-0 bg-slate-50 border-t border-slate-200 ${isFullscreen ? '' : 'rounded-b-2xl'} ${footerClassName}`
+                : footerClassName
+            }
+          >
+            {footer}
+          </div>
+        )}
 
         {overlay}
       </div>

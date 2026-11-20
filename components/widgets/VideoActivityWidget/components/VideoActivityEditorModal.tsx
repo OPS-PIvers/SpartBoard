@@ -28,6 +28,7 @@ import type { TimelineHandle } from './Timeline';
 import { DEFAULT_VA_BEHAVIOR } from '@/utils/videoActivityBehavior';
 import { notesEqual } from '@/utils/videoActivityClip';
 import { ImportAttributionLine } from '@/components/import/ImportAttributionLine';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 
 interface VideoActivityEditorModalProps {
   isOpen: boolean;
@@ -286,6 +287,7 @@ export const VideoActivityEditorModal: React.FC<
 
   return (
     <EditorWorkspace
+      headerAccent={LIBRARY_HEADER_ACCENTS['video-activity']}
       tourScope="video-activity"
       saveAnchor={tourTypeAttr('editor.save', 'video-activity')}
       key={activity.id}

@@ -37,7 +37,7 @@ vi.mock('./studentIdentity', () => ({
     return h.taught;
   },
 }));
-vi.mock('./studentAssignmentTargets', () => ({
+vi.mock('./studentTargetDirectory', () => ({
   isTestClassAuthority: async () => h.authority,
 }));
 vi.mock('./viewAsGuard', () => ({ assertViewAsAllowed: async () => null }));

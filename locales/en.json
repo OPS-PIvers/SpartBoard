@@ -3675,6 +3675,8 @@
       "yourAnswers": "Your Answers",
       "otherQuestions": "Other questions",
       "yourAnswer": "Your answer:",
+      "yourAnswerTag": "Your answer",
+      "correctAnswerTag": "Correct answer",
       "scoreOnly": "Your teacher published your score. Detailed responses aren't shared for this assignment."
     },
     "rubric": {
@@ -3950,11 +3952,6 @@
       "pausePlayback": "Pause your recording",
       "submitQuiz": "Submit quiz",
       "nextQuestion": "Next",
-      "submitBlockedTitle_one": "One question still needs a recording",
-      "submitBlockedTitle_other": "{{count}} questions still need a recording",
-      "submitBlockedBody_one": "The question stays incomplete and the assignment cannot be submitted. Go back and record an answer, then turn it in.",
-      "submitBlockedBody_other": "The questions stay incomplete and the assignment cannot be submitted. Go back and record an answer for each one, then turn it in.",
-      "submitBlockedJump": "Go to question {{number}}",
       "notSubmittedPending": "Not submitted yet. Your recording is still sending.",
       "notSubmittedFailed": "Your recording didn't send. Choose Try again.",
       "notSubmittedFailedFinal": "Your recording didn't send and can't be sent from this device. Record again to send a new attempt.",

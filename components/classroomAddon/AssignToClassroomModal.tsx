@@ -311,17 +311,15 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
   ]);
 
   const customHeader = (
-    <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-200 shrink-0">
-      <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-brand-blue-primary/10 text-brand-blue-primary">
+    <div className="flex items-center gap-3 px-6 py-3.5 shrink-0 bg-brand-blue-primary text-white rounded-t-2xl">
+      <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-white/15 text-white">
         <GraduationCap size={20} />
       </span>
       <div className="min-w-0">
-        <p className="text-xxs font-bold text-brand-blue-primary/60 uppercase tracking-widest">
+        <p className="text-xxs font-bold text-white/80 uppercase tracking-widest">
           Assign to Google Classroom
         </p>
-        <h3 className="font-black text-base text-slate-800 truncate">
-          {title}
-        </h3>
+        <h3 className="font-black text-base text-white truncate">{title}</h3>
       </div>
     </div>
   );

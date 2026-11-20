@@ -13,7 +13,7 @@ import {
   type ClassLinkClass,
   type ClassLinkStudent,
 } from './classlinkShared';
-import { chunk } from './shared';
+import { chunk } from './utils/chunk';
 import {
   isOneRosterStaff,
   type OneRosterUserWithRole,

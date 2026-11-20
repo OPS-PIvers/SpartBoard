@@ -404,7 +404,7 @@ export const CourseImportScreen: React.FC<CourseImportScreenProps> = ({
         </p>
         <div className="h-2 overflow-hidden rounded-full bg-slate-200">
           <div
-            className="h-full bg-brand-blue-primary transition-all"
+            className="h-full bg-brand-blue-primary transition-[width]"
             style={{ width: `${pct}%` }}
           />
         </div>
@@ -492,7 +492,7 @@ export const CourseImportScreen: React.FC<CourseImportScreenProps> = ({
       onClose={close}
       customHeader={header}
       footer={footer}
-      footerClassName="shrink-0 border-t border-slate-200 rounded-b-2xl"
+      footerClassName=""
       maxWidth="max-w-2xl"
       className="font-sans"
       contentClassName="px-6 py-5 bg-white"

@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   changedWidgetTypes,
@@ -9,6 +8,7 @@ import {
 import type { WidgetFiles } from '@/scripts/widget-grader/widgetFiles';
 import { TOOLS } from '@/config/tools';
 import { FEATURE_DEFAULTS } from '@/config/featureDefaults';
+import { loadChangelog } from '@/scripts/changelogFragments';
 
 const widget = (type: string, folder: string | null, entry: string) => ({
   type,
@@ -71,8 +71,8 @@ describe('checkReleaseWidgetNotes', () => {
   });
 });
 
-describe('public/changelog.json widgetNotes', () => {
-  const file = JSON.parse(readFileSync('public/changelog.json', 'utf8')) as {
+describe('changelog widgetNotes, fragments included', () => {
+  const file = loadChangelog(process.cwd()) as unknown as {
     widgetNotes?: {
       id: string;
       widget: string;

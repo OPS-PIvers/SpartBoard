@@ -41,7 +41,10 @@ export function reconcileBankSlotsForPlcShare(
           unsharedBankTitles.push(own.title);
         return slot;
       }
-      if (slot.syncGroupId === sync.groupId && (slot.syncOwnerUid || !ownerUid))
+      if (
+        slot.syncGroupId === sync.groupId &&
+        (!ownerUid || slot.syncOwnerUid === ownerUid)
+      )
         return slot;
       changed = true;
       return {

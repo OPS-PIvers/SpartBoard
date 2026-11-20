@@ -154,6 +154,63 @@ function attemptsFixture(live: boolean) {
   return { session, response };
 }
 
+const RECAP_QUESTIONS = [
+  {
+    id: 'r1',
+    type: 'MC',
+    text: 'Which layer of Earth is the thinnest?',
+    choices: ['Mantle', 'Crust', 'Outer core', 'Inner core'],
+  },
+  {
+    id: 'r2',
+    type: 'MC',
+    text: 'What causes most earthquakes?',
+    choices: [
+      'Movement of tectonic plates',
+      'Changes in the weather',
+      'The pull of the Moon',
+      'Volcanic ash',
+    ],
+  },
+  {
+    id: 'r3',
+    type: 'MA',
+    text: 'Select all of the igneous rocks.',
+    choices: ['Granite', 'Sandstone', 'Basalt', 'Marble', 'Obsidian'],
+  },
+];
+const RECAP_KEY: Record<string, string> = {
+  r1: 'Crust',
+  r2: 'Movement of tectonic plates',
+  r3: 'Granite|Basalt|Obsidian',
+};
+function recapFixture() {
+  const session = {
+    id: 'session-recap',
+    quizTitle: 'Earth science check',
+    recapAllOptions: true,
+    sessionMode: 'student',
+    publicQuestions: RECAP_QUESTIONS,
+  } as unknown as QuizSession;
+  const response = {
+    _responseKey: 'student-1',
+    studentUid: 'student-1',
+    status: 'completed',
+    submittedAt: T,
+    score: 33,
+    answers: [
+      { questionId: 'r1', answer: 'Mantle', isCorrect: false },
+      {
+        questionId: 'r2',
+        answer: 'Movement of tectonic plates',
+        isCorrect: true,
+      },
+      { questionId: 'r3', answer: 'Granite|Marble', isCorrect: false },
+    ].map((a) => ({ ...a, answeredAt: T })),
+  } as unknown as QuizResponse & { _responseKey: string };
+  return { session, response };
+}
+
 export const StudentQuizDevView: React.FC<{ state: StudentQuizStateKey }> = ({
   state,
 }) => {
@@ -201,9 +258,30 @@ export const StudentQuizDevView: React.FC<{ state: StudentQuizStateKey }> = ({
                                     }
                                   : state === 'sq-modified'
                                     ? modifiedSession()
-                                    : makeTimedQuizSession('active'),
+                                    : state === 'sq-review-blank'
+                                      ? {
+                                          ...makeTimedQuizSession('active'),
+                                          reviewStep: true,
+                                        }
+                                      : makeTimedQuizSession('active'),
     [state]
   );
+  if (state === 'sq-recap-responses' || state === 'sq-recap-answers') {
+    const { session: s, response: r } = recapFixture();
+    const answers = state === 'sq-recap-answers';
+    return (
+      <PublishedScoreReview
+        key={state}
+        session={s}
+        myResponse={r}
+        visibility={
+          answers ? 'score-responses-and-answers' : 'score-and-responses'
+        }
+        revealedAnswers={answers ? RECAP_KEY : undefined}
+        pin=""
+      />
+    );
+  }
   if (state === 'sq-attempts' || state === 'sq-attempts-live') {
     const { session: s, response: r } = attemptsFixture(
       state === 'sq-attempts-live'
@@ -265,7 +343,12 @@ export const StudentQuizDevView: React.FC<{ state: StudentQuizStateKey }> = ({
       ? { ...timedResponse, unlocked: true, unlockKind: 'reopen' as const }
       : state === 'sq-unlocked'
         ? { ...timedResponse, unlocked: true }
-        : timedResponse;
+        : state === 'sq-review-blank'
+          ? {
+              ...timedResponse,
+              answers: [{ questionId: 'q2', answer: '1/2', answeredAt: 0 }],
+            }
+          : timedResponse;
   return (
     <div className="h-full overflow-y-auto">
       {state === 'sq-fullscreen' && (

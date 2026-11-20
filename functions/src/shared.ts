@@ -64,18 +64,3 @@ function isDeprecatedModelId(model: string): boolean {
     /-preview(?:-|$)/.test(model)
   );
 }
-
-/**
- * Splits an array into fixed-size chunks (last chunk may be short).
- * Used to bound fan-out parallelism — both for Firestore `in` queries
- * (10-item limit per query) and for external HTTP fan-outs (ClassLink,
- * etc.) where unbounded `Promise.all` can OOM the function instance or
- * hammer the upstream API.
- */
-export function chunk<T>(arr: readonly T[], size: number): T[][] {
-  const chunks: T[][] = [];
-  for (let i = 0; i < arr.length; i += size) {
-    chunks.push(arr.slice(i, i + size));
-  }
-  return chunks;
-}

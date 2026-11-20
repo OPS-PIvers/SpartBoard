@@ -175,7 +175,9 @@ export function buildStudentViewSession(
     reviewStep: true,
     ...focusSessionFields(focusSettingsFrom(behavior), tabAwayTimerOn),
     showResultToStudent: opts.showResultToStudent ?? false,
-    showCorrectAnswerToStudent: opts.showCorrectAnswerToStudent ?? false,
+    showCorrectAnswerToStudent:
+      (opts.showResultToStudent ?? false) &&
+      (opts.showCorrectAnswerToStudent ?? false),
     showCorrectOnBoard: false,
     showLearningTargets: opts.showLearningTargets ?? false,
     revealedAnswers: {},

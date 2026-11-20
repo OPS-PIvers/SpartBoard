@@ -100,6 +100,11 @@ import { MiniAppAssignmentMonitor } from './components/MiniAppAssignmentMonitor'
 import { MiniAppManager } from './components/MiniAppManager';
 import { AssignmentClassesModal } from '@/components/common/library/AssignmentClassesModal';
 import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
+import {
+  assignmentCount,
+  runBulkPublish,
+  sharedVisibility,
+} from '@/components/common/library/assigned/bulkPublish';
 import { SaveAsWidgetModal } from './components/SaveAsWidgetModal';
 import { useMiniAppSync } from './hooks/useMiniAppSync';
 import { useDialog } from '@/context/useDialog';
@@ -550,6 +555,9 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   } | null>(null);
   const [publishingScores, setPublishingScores] =
     useState<MiniAppAssignment | null>(null);
+  const [bulkPublishing, setBulkPublishing] = useState<
+    MiniAppAssignment[] | null
+  >(null);
 
   // Assign flow state
   const [assigningApp, setAssigningApp] = useState<MiniAppItem | null>(null);
@@ -671,11 +679,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       // Mode is locked org-wide by the admin and frozen onto the session at
       // creation. The session/assignment hooks derive `submissionsEnabled`
       // from `mode` so the two fields can never diverge.
-      // M17 E2 F1: mini-app is the one kind whose archive-row assignment id
-      // differs from the session id (Quiz/VA/GL share one UUID). Generate it
-      // up front so it can be written onto the session doc — the student app
-      // reads its pointer doc at this id, which `setAssignmentTargetsV1` also
-      // uses as the pointer key.
+      // One UUID for the archive row, the session doc and the pointer key, as Quiz/VA/GL do.
       const generatedAssignmentId = crypto.randomUUID();
       const periodGate = stepperPlan?.periodGate;
       const results =
@@ -2008,10 +2012,21 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               onArchiveEnd={(a) => void handleArchiveEnd(a)}
               onArchiveReactivate={(a) => void handleArchiveReactivate(a)}
               onArchiveDelete={(a) => void handleArchiveDelete(a)}
+              onArchiveDeleteMany={async (list) => {
+                const results = await Promise.allSettled(
+                  list.map((a) => deleteAssignment(a.id))
+                );
+                return results.filter((r) => r.status === 'rejected').length;
+              }}
               onArchiveEditClasses={setEditingClasses}
               onArchivePublishScores={
                 canAccessFeature('mini-app-results')
                   ? setPublishingScores
+                  : undefined
+              }
+              onArchivePublishMany={
+                canAccessFeature('mini-app-results')
+                  ? setBulkPublishing
                   : undefined
               }
               onArchiveMonitor={
@@ -2080,6 +2095,26 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                       'error'
                     );
                   }
+                }}
+              />
+            )}
+            {bulkPublishing && (
+              <PublishScoresModal
+                assignmentTitle={assignmentCount(bulkPublishing.length)}
+                currentVisibility={sharedVisibility(bulkPublishing)}
+                onClose={() => setBulkPublishing(null)}
+                onConfirm={async (visibility) => {
+                  await runBulkPublish({
+                    targets: bulkPublishing,
+                    unpublish: visibility === 'none',
+                    publishOne: async (t) => {
+                      await publishMiniAppScores(t.sessionId, visibility);
+                      return true;
+                    },
+                    addToast,
+                    logKey: 'MiniAppWidget.bulkPublishScores',
+                  });
+                  setBulkPublishing(null);
                 }}
               />
             )}

@@ -47,13 +47,17 @@ import { applyFinalScoresToEntries } from '@/utils/gradebook/finalScoreOverlay';
 import { quizLiveRaw } from '@/utils/gradebook/liveRawScores';
 import { useQuiz } from '@/hooks/useQuiz';
 import { useQuestionBanks } from '@/hooks/useQuestionBanks';
+import { usePlcs } from '@/hooks/usePlcs';
 import { loadBankContentsFor } from '@/hooks/useBankSources';
 import { withCurrentAnswerKeys } from '@/utils/quizAssignBankDraw';
 import {
   useQuizAssignments,
   countPendingPaperTranscripts,
 } from '@/hooks/useQuizAssignments';
-import type { FibGradingContext } from '@/utils/quizFibAnswers';
+import {
+  fibGradingFromAssignment,
+  type FibGradingContext,
+} from '@/utils/quizFibAnswers';
 import {
   useQuizSessionTeacher,
   getResponseDocKey,
@@ -211,15 +215,10 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
         : undefined,
     [assignments, sessionId]
   );
-  const fibGrading = useMemo<FibGradingContext>(() => {
-    return {
-      answers: assignment?.localizedFibAnswers ?? null,
-      overridesByStudentUid: assignment?.overridesByStudentUid ?? null,
-      overridesBySourcedId: assignment?.overridesBySourcedId ?? null,
-      servedLanguageByStudentUid:
-        assignment?.servedLanguageByStudentUid ?? null,
-    };
-  }, [assignment]);
+  const fibGrading = useMemo<FibGradingContext>(
+    () => fibGradingFromAssignment(assignment),
+    [assignment]
+  );
 
   // A leftover studentRole custom-token session in the partitioned iframe has a
   // uid but is not the teacher — only a Google session may resolve the session.
@@ -263,10 +262,12 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
   // session carries quizId; match it to the teacher's library for the Drive id.
   const [quizData, setQuizData] = useState<QuizData | null>(null);
   const resolvedDriveFileId = assignment?.resolvedDriveFileId;
-  const waitForBanks = !!resolvedDriveFileId && banksLoading;
+  const { plcs, loading: plcsLoading } = usePlcs({ enabled: !!user?.uid });
+  const waitForBanks =
+    !!resolvedDriveFileId && (banksLoading || (!!user?.uid && plcsLoading));
   // Read at load time so a bank list change doesn't re-download the quiz.
   const loadBankContents = useEffectEvent((quiz: Pick<QuizData, 'bankSlots'>) =>
-    loadBankContentsFor(quiz, banks, loadBankData, user?.uid)
+    loadBankContentsFor(quiz, banks, loadBankData, user?.uid, plcs)
   );
   useEffect(() => {
     const quizId = session?.quizId;

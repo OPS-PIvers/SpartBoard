@@ -161,14 +161,16 @@ describe('VideoFeedbackStep', () => {
       <VideoFeedbackStep value={make()} onChange={onChange} answerRows />
     );
     fireEvent.click(
-      screen.getByRole('switch', { name: 'Show right and wrong to students' })
+      screen.getByRole('switch', {
+        name: 'Show right or wrong after each answer',
+      })
     );
     const off = last(onChange);
     expect(off?.behavior.sessionOptions.showResultToStudent).toBe(false);
     if (!off) throw new Error('no change');
     rerender(<VideoFeedbackStep value={off} onChange={onChange} answerRows />);
     const reveal = screen.getByRole('switch', {
-      name: 'Reveal correct answer to students',
+      name: 'Show the correct answer when wrong',
     });
     expect(reveal).toBeDisabled();
     expect(reveal).toHaveAttribute('aria-checked', 'false');

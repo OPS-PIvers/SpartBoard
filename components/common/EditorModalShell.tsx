@@ -6,9 +6,9 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { AlertCircle, AlertTriangle, Check, Loader2, X } from 'lucide-react';
+import { AlertCircle, AlertTriangle, Check, Loader2 } from 'lucide-react';
 import { Modal } from './Modal';
-import { FullscreenToggleButton } from './FullscreenToggleButton';
+import { ModalHeader } from './ModalHeader';
 import { EditableHeaderTitle } from './EditableHeaderTitle';
 import { useDialog } from '@/context/useDialog';
 import { DashboardContext } from '@/context/DashboardContextValue';
@@ -134,7 +134,7 @@ interface EditorModalShellProps {
   tourScope?: string;
   /** Live-tour anchor for the Save button. */
   saveAnchor?: TourAnchorAttrs;
-  /** Header background (a library accent) with white text; omitted keeps the white header. */
+  /** Header colour (a widget's library accent); defaults to brand blue. */
   headerAccent?: string;
   children: React.ReactNode;
 }
@@ -292,19 +292,18 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
   // re-render them.
   const customHeader = useMemo(
     () => (
-      <div
-        className={`flex items-center justify-between gap-4 px-6 py-4 shrink-0 ${headerAccent ? 'text-white' : 'border-b border-slate-200'} ${isFullscreen ? '' : 'rounded-t-2xl'}`}
-        style={headerAccent ? { backgroundColor: headerAccent } : undefined}
-      >
-        <div className="flex flex-col min-w-0 flex-1">
-          {onTitleChange ? (
+      <ModalHeader
+        accent={headerAccent}
+        square={isFullscreen}
+        title={
+          onTitleChange ? (
             <EditableHeaderTitle
               id="editor-modal-shell-title"
               value={title}
               onChange={onTitleChange}
               placeholder={titlePlaceholder ?? 'Untitled'}
               ariaLabel="Title"
-              onAccent={!!headerAccent}
+              onAccent
               tourAttrs={
                 tourScope ? tourTypeAttr('editor.title', tourScope) : undefined
               }
@@ -312,39 +311,20 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
           ) : (
             <h3
               id="editor-modal-shell-title"
-              className={`font-black text-lg truncate ${headerAccent ? 'text-white' : 'text-slate-800'}`}
+              className="font-black text-lg text-white truncate"
             >
               {title}
             </h3>
-          )}
-          {subtitle !== undefined && subtitle !== null && (
-            <div
-              className={`text-xs mt-0.5 ${headerAccent ? 'text-white/80' : 'text-slate-500'}`}
-            >
-              {subtitle}
-            </div>
-          )}
-        </div>
-        {headerExtras && (
-          <div className="flex items-center gap-2 shrink-0">{headerExtras}</div>
-        )}
-        {allowFullscreen && (
-          <FullscreenToggleButton
-            fullscreen={isFullscreen}
-            onToggle={() => setFullscreen((v) => !v)}
-            onAccent={!!headerAccent}
-          />
-        )}
-        {!hideHeaderClose && (
-          <button
-            onClick={() => void requestClose()}
-            className={`p-1.5 rounded-full transition-colors shrink-0 ${headerAccent ? 'text-white/80 hover:bg-white/15 hover:text-white' : 'hover:bg-slate-100 text-slate-400'}`}
-            aria-label="Close"
-          >
-            <X size={20} />
-          </button>
-        )}
-      </div>
+          )
+        }
+        subtitle={subtitle}
+        actions={headerExtras}
+        fullscreen={isFullscreen}
+        onFullscreenToggle={
+          allowFullscreen ? () => setFullscreen((v) => !v) : undefined
+        }
+        onClose={hideHeaderClose ? undefined : () => void requestClose()}
+      />
     ),
     [
       hideHeaderClose,
@@ -372,9 +352,7 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
       </button>
     );
     return (
-      <div
-        className={`flex items-center justify-between gap-3 px-6 py-3 bg-white ${isFullscreen ? '' : 'rounded-b-2xl'}`}
-      >
+      <div className="flex items-center justify-between gap-3 px-6 py-3">
         <div className="flex items-center gap-2 min-w-0">
           {footerEnd && closeButton}
           {footerExtras}
@@ -427,7 +405,6 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
     incompleteNotice,
     tourScope,
     saveAnchor,
-    isFullscreen,
   ]);
 
   return (
@@ -436,7 +413,7 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
       onClose={() => void requestClose()}
       customHeader={customHeader}
       footer={footer}
-      footerClassName="shrink-0 border-t border-slate-200"
+      footerClassName=""
       maxWidth={maxWidth}
       className={className}
       contentClassName={bodyClassName}

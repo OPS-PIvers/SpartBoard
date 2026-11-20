@@ -5,3 +5,7 @@ export {
   AssignedLeftOpenFlag,
   type AssignedLeftOpenFlagProps,
 } from './AssignedLeftOpenFlag';
+export {
+  useAssignedBulkOps,
+  type AssignedBulkOps,
+} from './assignedBulkContext';

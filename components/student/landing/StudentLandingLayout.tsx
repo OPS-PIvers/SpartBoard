@@ -108,8 +108,9 @@ export const StudentLandingLayout: React.FC<StudentLandingLayoutProps> = ({
   );
   const doneCount = useMemo(() => {
     if (!classPartition) return 0;
-    if (!gradesEnabled || grades?.status !== 'ready')
-      return classPartition.done.length;
+    if (!gradesEnabled) return classPartition.done.length;
+    if (grades?.status !== 'ready')
+      return classPartition.done.length + classPartition.expired.length;
     return gradebookItems(classPartition, studentGradeRows(grades.data)).length;
   }, [classPartition, gradesEnabled, grades]);
 

@@ -1,7 +1,7 @@
 # 011 — Make the Dock expand and collapse fast, with no bounce
 
-- **Status**: TODO
-- **Commit**: acb225c
+- **Status**: DONE
+- **Commit**: 9ac6534
 - **Severity**: HIGH
 - **Category**: Easing & duration (also Cohesion, Performance, Accessibility)
 - **Estimated scope**: 1 file, 2 class strings

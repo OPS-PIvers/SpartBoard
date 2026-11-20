@@ -159,12 +159,14 @@ export function useMonitorData(
     [session.periodNames]
   );
   const [selectedPeriods, setSelectedPeriods] = useState<string[]>(() =>
-    periodNames.length > 1
-      ? openOnAllClasses
-        ? []
-        : [periodNames[0]]
-      : periodNames
+    periodNames.length > 0 && !openOnAllClasses ? [periodNames[0]] : []
   );
+  // A class added in Quiz settings widens a one-class filter to all classes.
+  const [prevPeriodCount, setPrevPeriodCount] = useState(periodNames.length);
+  if (prevPeriodCount !== periodNames.length) {
+    setPrevPeriodCount(periodNames.length);
+    if (prevPeriodCount === 1 && periodNames.length > 1) setSelectedPeriods([]);
+  }
 
   // 30s ticker drives the stuck heuristic and hand-raise ages.
   const [now, setNow] = useState(() => Date.now());

@@ -2420,6 +2420,8 @@
       "yourAnswers": "Deine Antworten",
       "otherQuestions": "Andere Fragen",
       "yourAnswer": "Deine Antwort:",
+      "yourAnswerTag": "Deine Antwort",
+      "correctAnswerTag": "Richtige Antwort",
       "scoreOnly": "Deine Lehrkraft hat deine Punktzahl veröffentlicht. Einzelne Antworten werden bei dieser Aufgabe nicht gezeigt."
     },
     "rubric": {
@@ -2645,11 +2647,6 @@
       "pausePlayback": "Pause your recording",
       "submitQuiz": "Submit quiz",
       "nextQuestion": "Next",
-      "submitBlockedTitle_one": "One question still needs a recording",
-      "submitBlockedTitle_other": "{{count}} questions still need a recording",
-      "submitBlockedBody_one": "The question stays incomplete and the assignment cannot be submitted. Go back and record an answer, then turn it in.",
-      "submitBlockedBody_other": "The questions stay incomplete and the assignment cannot be submitted. Go back and record an answer for each one, then turn it in.",
-      "submitBlockedJump": "Go to question {{number}}",
       "notSubmittedPending": "Noch nicht abgegeben. Deine Aufnahme wird noch gesendet.",
       "notSubmittedFailed": "Deine Aufnahme wurde nicht gesendet. Wähle Erneut versuchen.",
       "notSubmittedFailedFinal": "Deine Aufnahme wurde nicht gesendet und kann von diesem Gerät nicht gesendet werden. Nimm erneut auf, um eine neue Aufnahme zu senden.",

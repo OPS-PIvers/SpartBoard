@@ -399,3 +399,40 @@ export async function offerToolColumnRemoval(args: {
     );
   }
 }
+
+/** D6 for a bulk delete: asks once for every deleted session that had Schoology columns. */
+export async function offerToolColumnsRemoval(args: {
+  functions: Functions;
+  sessionIds: readonly string[];
+  showConfirm: (
+    message: string,
+    options?: { title?: string; confirmLabel?: string; cancelLabel?: string }
+  ) => Promise<boolean>;
+  addToast: (message: string, type: 'success' | 'error' | 'info') => void;
+}): Promise<void> {
+  if (args.sessionIds.length === 0) return;
+  if (args.sessionIds.length === 1) {
+    return offerToolColumnRemoval({ ...args, sessionId: args.sessionIds[0] });
+  }
+  const remove = await args.showConfirm(
+    'Also remove their columns from Schoology? Scores in those columns are deleted too.',
+    {
+      title: 'Schoology columns',
+      confirmLabel: 'Remove columns',
+      cancelLabel: 'Keep columns',
+    }
+  );
+  if (!remove) return;
+  const results = await Promise.allSettled(
+    args.sessionIds.map((id) => deleteToolColumns(args.functions, id))
+  );
+  const bad = results.some(
+    (r) => r.status === 'rejected' || r.value.failed > 0
+  );
+  args.addToast(
+    bad
+      ? "Some Schoology columns couldn't be removed. Delete them in Schoology."
+      : 'Removed the columns from Schoology.',
+    bad ? 'error' : 'success'
+  );
+}

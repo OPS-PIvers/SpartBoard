@@ -320,6 +320,7 @@ export const PlcQuizSessionContent: React.FC<PlcQuizSessionContentProps> = ({
       onDeleteResponse={removeStudent}
       onUnlockResultsForStudent={unlockResultsForStudent}
       localizedFibAnswers={assignment.localizedFibAnswers ?? null}
+      lenientFibLocales={assignment.lenientFibLocales ?? null}
       overridesByStudentUid={assignment.overridesByStudentUid ?? null}
       servedLanguageByStudentUid={assignment.servedLanguageByStudentUid ?? null}
       overridesBySourcedId={assignment.overridesBySourcedId ?? null}

@@ -5741,6 +5741,8 @@ export interface QuizSession
   allowStimulusQuotes?: boolean;
   /** Stamped only with the quiz-cross-out flag; absent = no cross-out buttons. */
   allowCrossOut?: boolean;
+  /** Stamped only with the quiz-recap-all-options flag; the published recap lists every choice. */
+  recapAllOptions?: boolean;
   /** Stamped only with the input-signals flag; with Focus mode on the student page records input counters. */
   inputSignals?: boolean;
   /** Stamped on every new assignment; Ordering shows one list to drag into order (absent on older sessions = slots and word bank). */
@@ -7510,10 +7512,12 @@ export interface QuizAssignment
   /** Owning widget, written on create. */
   widgetKind?: QuizWidgetKind;
   /**
-   * FIB answer keys translated at assign time, `{ [questionId]: { [locale]: string[] } }`.
+   * FIB answer keys translated at assign time, `{ [questionId]: { [locale]: string[] } }`; locale `*` holds answers a teacher accepted for everyone.
    * Teacher-owned only: the session doc is world-readable to students, so it never carries this.
    */
   localizedFibAnswers?: Record<string, Record<string, string[]>>;
+  /** Served locales whose FIB answers are graded with typo leniency (an EL student's translation, never the quiz's own language). */
+  lenientFibLocales?: string[];
   quizId: string;
   quizTitle: string;
   /** Drive file id of the source quiz so the monitor can hydrate after reload. */
@@ -11658,6 +11662,8 @@ export interface Toast {
     /** Keeps the toast until the teacher dismisses it or takes the action. */
     persist?: boolean;
   };
+  /** Set while the toast eases out, just before it is removed. */
+  leaving?: boolean;
 }
 
 export type WidgetCategory =
@@ -11788,6 +11794,10 @@ export type GlobalFeature =
   | 'drive-only-uploads'
   /** Quiz setting that shows students their score as soon as they submit. */
   | 'quiz-score-on-submit'
+  /** Published quiz results list every answer option, with the student's pick marked. */
+  | 'quiz-recap-all-options'
+  /** Quiz assign stays open with a spinner until the save finishes, and shows a failed save inline. */
+  | 'quiz-assign-waits-for-save'
   | 'modification-groups'
   /** Rubric grading redesign: one-tap level buttons, expandable criteria, level order switch, full-rubric table. */
   | 'rubric-grading-v2'
@@ -11900,7 +11910,9 @@ export type GlobalFeature =
   /** The sidebar Assignments hub; on for everyone until an admin narrows it. */
   | 'assignments-hub'
   /** Teachers record their voice for a quiz question prompt. */
-  | 'quiz-question-audio';
+  | 'quiz-question-audio'
+  /** Print results with Settings and Students tabs and a Course > class > student picker. */
+  | 'results-print-v2';
 
 /** Which paid dictation extras a student's page may use, from `getSpeechToTextAccessV1`. */
 export interface SpeechToTextSettings {

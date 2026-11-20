@@ -1,6 +1,7 @@
 // Real library managers on fixture data at /library-managers-dev (dev and auth-bypass builds only), for layout checks.
 
 import React, { useContext, useMemo, useState } from 'react';
+import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
 import {
   DashboardContext,
   type DashboardContextValue,
@@ -89,6 +90,7 @@ const COUNT = 24;
 const NOW = Date.UTC(2026, 8, 29);
 const noop = (): void => undefined;
 const asyncNoop = (): Promise<void> => Promise.resolve();
+const bulkNoop = (): Promise<number> => Promise.resolve(0);
 const range = <T,>(make: (i: number) => T): T[] =>
   Array.from({ length: COUNT }, (_, i) => make(i));
 
@@ -463,6 +465,7 @@ const QuizView: React.FC<{
     assigned ? 'active' : 'library'
   );
   const [reopening, setReopening] = useState(false);
+  const [bulkPub, setBulkPub] = useState(0);
   const [quizzes, setQuizzes] = useState(QUIZZES);
   const [banks, setBanks] = useState(BANKS);
   const moveBank = (bankId: string, folderId: string | null): Promise<void> => {
@@ -565,6 +568,9 @@ const QuizView: React.FC<{
               rosters: ASSIGNED_ROSTERS,
               assignments: ASSIGNED_FIXTURES,
               onLoadQuizData: loadAssignedQuiz,
+              onArchiveDeleteMany: bulkNoop,
+              onArchivePublishMany: (list: unknown[]) =>
+                setBulkPub(list.length),
               config: { ...QUIZ_CONFIG, activeAssignmentId: 'eco' },
               classLifecycle: {
                 pauseAssignment: asyncNoop,
@@ -575,6 +581,15 @@ const QuizView: React.FC<{
             }
           : {})}
       />
+      {bulkPub > 0 && (
+        <PublishScoresModal
+          assignmentTitle={`${bulkPub} assignments`}
+          currentVisibility={undefined}
+          showProtection
+          onClose={() => setBulkPub(0)}
+          onConfirm={() => setBulkPub(0)}
+        />
+      )}
       <ReopenStudentsDialog
         isOpen={reopening}
         title="Reopen for selected students"
@@ -651,6 +666,8 @@ const VideoActivityAssignedView: React.FC = () => (
       onArchivePauseResume={asyncNoop}
       onArchiveReactivate={asyncNoop}
       onArchiveDelete={asyncNoop}
+      onArchiveDeleteMany={bulkNoop}
+      onArchivePublishMany={() => undefined}
       classLifecycle={VA_LIFECYCLE}
     />
   </VaAssignedFixture.Provider>
@@ -700,6 +717,8 @@ const GuidedLearningManagerView: React.FC<{
           classLifecycle: NOOP_RUN_LIFECYCLE,
           rosters: ASSIGNED_ROSTERS,
           assignedFocusCounter: 1,
+          onAssignmentDeleteMany: bulkNoop,
+          onAssignmentPublishMany: () => undefined,
         }
       : {})}
     userId="mock-user-id"
@@ -827,7 +846,12 @@ const MiniAppView: React.FC<{ assigned?: boolean }> = ({
         globalLibrary={[]}
         assignments={assigned ? MA_ASSIGNED : MINI_APP_ASSIGNMENTS}
         {...(assigned
-          ? { classLifecycle: NOOP_RUN_LIFECYCLE, rosters: ASSIGNED_ROSTERS }
+          ? {
+              classLifecycle: NOOP_RUN_LIFECYCLE,
+              rosters: ASSIGNED_ROSTERS,
+              onArchiveDeleteMany: bulkNoop,
+              onArchivePublishMany: () => undefined,
+            }
           : {})}
         onCreate={noop}
         onEdit={noop}
@@ -1010,6 +1034,8 @@ const FlashcardsView: React.FC<{ assigned?: boolean }> = ({
           ? {
               rosters: ASSIGNED_ROSTERS,
               pinnedAssignmentId: 'new',
+              onAssignmentDeleteMany: bulkNoop,
+              onAssignmentPublishMany: () => undefined,
               classLifecycle: {
                 end: asyncNoop,
                 reopen: asyncNoop,
@@ -1117,6 +1143,7 @@ const WritingAssignedView: React.FC = () => {
           onMonitor={noop}
           onResults={noop}
           onDelete={noop}
+          onBulkDelete={bulkNoop}
         />
       </LibraryShell>
     </WritingAssignedFixture.Provider>

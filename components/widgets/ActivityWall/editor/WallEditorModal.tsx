@@ -26,6 +26,7 @@ import { ModerationAndAccess } from './ModerationAndAccess';
 import { LimitsAndEditing } from './LimitsAndEditing';
 import { EngagementSettings } from './EngagementSettings';
 import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 
 interface WallEditorModalProps {
   open: boolean;
@@ -292,6 +293,7 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
 
   return (
     <Modal
+      accent={LIBRARY_HEADER_ACCENTS['activity-wall']}
       isOpen
       onClose={requestClose}
       title={entry ? 'Edit wall' : 'New wall'}

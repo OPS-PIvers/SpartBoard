@@ -1,7 +1,7 @@
 # 010 — Add easing tokens and give every `animate-in` entrance a strong ease-out
 
-- **Status**: TODO
-- **Commit**: acb225c
+- **Status**: DONE
+- **Commit**: 9ac6534
 - **Severity**: HIGH
 - **Category**: Easing & duration (also Cohesion & tokens)
 - **Estimated scope**: 2 files, about 20 added lines

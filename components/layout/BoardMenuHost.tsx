@@ -403,7 +403,7 @@ export const BoardMenuHost: React.FC = () => {
       {pressAt && !blocked && (
         <div
           aria-hidden="true"
-          className="fixed z-popover pointer-events-none w-16 h-16 -ml-8 -mt-8 rounded-full border-4 border-brand-blue-primary/70 bg-white/30 shadow-lg animate-in fade-in zoom-in-50 duration-500 delay-200 fill-mode-both"
+          className="fixed z-popover pointer-events-none w-16 h-16 -ml-8 -mt-8 rounded-full border-4 border-brand-blue-primary/70 bg-white/30 shadow-lg animate-in fade-in zoom-in-50 duration-500 delay-200 ease-linear fill-mode-both"
           style={{ left: pressAt.x, top: pressAt.y }}
         />
       )}

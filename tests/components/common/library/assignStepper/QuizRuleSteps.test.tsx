@@ -169,8 +169,45 @@ describe('QuizFeedbackStep', () => {
   it('disables the correct-answer reveal until right and wrong is on', () => {
     render(<QuizFeedbackStep value={make()} onChange={vi.fn()} />);
     expect(
-      screen.getByRole('switch', { name: 'Reveal correct answer to students' })
+      screen.getByRole('switch', { name: 'Show the correct answer when wrong' })
     ).toBeDisabled();
+  });
+
+  it('never shows the reveal on while right and wrong is off', () => {
+    render(
+      <QuizFeedbackStep
+        value={make({
+          showResultToStudent: false,
+          showCorrectAnswerToStudent: true,
+        })}
+        onChange={vi.fn()}
+      />
+    );
+    const reveal = screen.getByRole('switch', {
+      name: 'Show the correct answer when wrong',
+    });
+    expect(reveal).toBeDisabled();
+    expect(reveal).toHaveAttribute('aria-checked', 'false');
+  });
+
+  it('turning right and wrong off also clears the reveal', () => {
+    const onChange = changeSpy();
+    render(
+      <QuizFeedbackStep
+        value={make({
+          showResultToStudent: true,
+          showCorrectAnswerToStudent: true,
+        })}
+        onChange={onChange}
+      />
+    );
+    fireEvent.click(
+      screen.getByRole('switch', {
+        name: 'Show right or wrong after each answer',
+      })
+    );
+    expect(lastOptions(onChange)?.showResultToStudent).toBe(false);
+    expect(lastOptions(onChange)?.showCorrectAnswerToStudent).toBe(false);
   });
 
   it('shows raise a hand and read aloud only when the host allows them', () => {

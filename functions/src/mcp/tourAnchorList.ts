@@ -5534,6 +5534,40 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-classes.course",
+    "label": "Course checkbox in the Assign dialog class list",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "assign#row-[1-9]\\d*",
+    "key_hint": "assign#row-1 for the first row",
+    "row_wildcard": true,
+    "row_list": "assign-classes",
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "assign-classes.course-expand",
+    "label": "Show the sections in a Course in the Assign dialog class list",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "assign#row-[1-9]\\d*",
+    "key_hint": "assign#row-1 for the first row",
+    "row_wildcard": true,
+    "row_list": "assign-classes",
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "assign-classes.select-all",
     "label": "Select all button in the Assign dialog class list",
     "scope": "board",
@@ -14427,6 +14461,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Show the key radios in the Quiz widget",
     "scope": "field",
     "panel": true,
+    "persists": true,
     "routes": [
       {
         "surface": "quiz.results.print",
@@ -14449,6 +14484,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Layout radios in the Quiz widget",
     "scope": "field",
     "panel": true,
+    "persists": true,
     "routes": [
       {
         "surface": "quiz.results.print",
@@ -14496,6 +14532,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Option toggles from TOGGLES map in the Quiz widget",
     "scope": "field",
     "panel": true,
+    "persists": true,
     "routes": [
       {
         "surface": "quiz.results.print",
@@ -14518,6 +14555,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Preset chips (radio group) in the Quiz widget",
     "scope": "field",
     "panel": true,
+    "persists": true,
     "routes": [
       {
         "surface": "quiz.results.print",
@@ -14566,6 +14604,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Report choice cards (radio group) in the Quiz widget",
     "scope": "field",
     "panel": true,
+    "persists": true,
     "routes": [
       {
         "surface": "quiz.results.print",
@@ -14649,6 +14688,159 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-results.print:quiz"
         ],
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-print.results-tab",
+    "label": "Settings and Students tabs in the Quiz print results",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.results.print",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-results.print:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-print.results-clear",
+    "label": "Clear the student picks in the Quiz print results",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.results.print",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-results.print:quiz",
+          "quiz-print.results-tab:quiz#students"
+        ],
+        "reveal": "quiz-print.results-tab:quiz#students",
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-print.results-course",
+    "label": "Course checkbox in the Quiz print results student list",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-print-results-groups",
+    "routes": [
+      {
+        "surface": "quiz.results.print",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-results.print:quiz",
+          "quiz-print.results-tab:quiz#students"
+        ],
+        "reveal": "quiz-print.results-tab:quiz#students",
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-print.results-course-expand",
+    "label": "Show the sections in a Course in the Quiz print results",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-print-results-groups",
+    "routes": [
+      {
+        "surface": "quiz.results.print",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-results.print:quiz",
+          "quiz-print.results-tab:quiz#students"
+        ],
+        "reveal": "quiz-print.results-tab:quiz#students",
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-print.results-section",
+    "label": "Class checkbox in the Quiz print results student list",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-print-results-groups",
+    "routes": [
+      {
+        "surface": "quiz.results.print",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-results.print:quiz",
+          "quiz-print.results-tab:quiz#students"
+        ],
+        "reveal": "quiz-print.results-tab:quiz#students",
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-print.results-section-expand",
+    "label": "Show the students in a class in the Quiz print results",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "row_list": "quiz-print-results-groups",
+    "routes": [
+      {
+        "surface": "quiz.results.print",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-results.print:quiz",
+          "quiz-print.results-tab:quiz#students"
+        ],
+        "reveal": "quiz-print.results-tab:quiz#students",
         "needs": [
           "library-item",
           "student-data",
@@ -17182,6 +17374,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "row_wildcard": true,
     "row_list": "quiz-results-counted-answers",
+    "routes": [
+      {
+        "surface": "quiz.student-answer-line",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-results.accept-answer",
+    "label": "Accept button beside a missed fill-in-the-blank answer in a student report in Quiz results, by question",
+    "scope": "field",
+    "persists": true,
     "routes": [
       {
         "surface": "quiz.student-answer-line",
@@ -27142,6 +27347,76 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "needs": [
           "widget-on-stage"
         ]
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-select",
+    "label": "Select on the Assigned tab; starts picking several assignments",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-select-row",
+    "label": "Checkbox on an Assigned row while picking several assignments",
+    "scope": "field",
+    "panel": true,
+    "row_wildcard": true,
+    "row_list": "assignment-rows",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-select-all",
+    "label": "Select all box in the Assigned tab selection bar",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-bulk-action",
+    "label": "Close, Move to Done or Delete in the Assigned tab selection bar",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "persists": true,
+    "key_pattern": "[a-z-]+#(close|move-to-done|publish|delete)",
+    "key_hint": "quiz#delete is Delete for the picked quizzes",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "library-shell.assigned-select-cancel",
+    "label": "Cancel in the Assigned tab selection bar",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
       }
     ]
   },

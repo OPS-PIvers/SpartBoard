@@ -221,7 +221,6 @@ import {
 } from '@/utils/takeRecoveryStore';
 import { commitActiveTake } from './recording/activeTake';
 import { ResponsePlaybackCard } from './recording/ResponsePlaybackCard';
-import { SubmitBlockedNotice } from './recording/SubmitBlockedNotice';
 import {
   selectPlaybackTake,
   selectWhiteboardTake,
@@ -256,6 +255,7 @@ import { CrossOutChoiceButton } from './CrossOutChoiceButton';
 import { AnswerImage, AnswerImageZoomButton } from './AnswerImage';
 import { pictureOnlyName } from './pictureOnlyName';
 import { AnswerPictureText } from './AnswerPictureText';
+import { RecapChoiceList } from './RecapChoiceList';
 import { publicImageOnlyPictures } from '@/utils/quizAnswerImages';
 import { hasSideBank } from './structuredLayout';
 import { OrderingListInput } from './OrderingListInput';
@@ -2150,7 +2150,6 @@ export const ActiveQuiz: React.FC<{
     tRef.current = t;
   }, [t]);
   const [showCheatWarning, setShowCheatWarning] = useState(false);
-  const [submitBlocked, setSubmitBlocked] = useState(false);
   // Review before submit: this tab's sessionStorage only, so teachers never see marks.
   const reviewStoreKey = reviewStateKey(
     session.id,
@@ -3228,8 +3227,6 @@ export const ActiveQuiz: React.FC<{
   const onCompleteRef = useRef(onComplete);
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   onCompleteRef.current = onComplete;
-  // Synced below once openRecordingQuestions is computed.
-  const openRecordingCountRef = useRef(0);
 
   // Side-effect: submit the answer when auto-submit is triggered.
   useEffect(() => {
@@ -3283,13 +3280,11 @@ export const ActiveQuiz: React.FC<{
             return;
           }
           if (!finishesQuiz) return;
-          // Same gate as handleSubmitAndAdvance: an open recording slot blocks completion.
-          if (openRecordingCountRef.current > 0) {
-            dispatchStep({ type: 'submitFailed' });
-            setSubmitBlocked(true);
-            return;
-          }
           try {
+            document.dispatchEvent(
+              new CustomEvent('spartboard:quiz:flush-written')
+            );
+            await commitActiveTake();
             await onCompleteRef.current();
           } catch (err) {
             console.error('[QuizStudentApp] onComplete failed:', err);
@@ -3784,9 +3779,7 @@ export const ActiveQuiz: React.FC<{
     }
   };
 
-  // RR-A2 sub-decision 1 — an open recording slot blocks the submit. A slot
-  // prep expiry closed, or one a dead microphone marked capture-unavailable,
-  // is resolved rather than open and never blocks (RR-07).
+  // An open recording slot counts as blank in the submit warning; one prep expiry closed or a dead mic marked is resolved (RR-07).
   // A recording question locked out of a choose-N section can't be answered, so it never blocks.
   const recordingServedIds =
     drawIds || override?.questionIds
@@ -3814,16 +3807,37 @@ export const ActiveQuiz: React.FC<{
       recordingQuestionEntries.map(({ q }) => q.id)
     )
   );
-  const openRecordingQuestions = recordingQuestionEntries
-    .filter(({ q }) => openRecordingIds.has(q.id))
-    .map(({ q, index }) => ({ id: q.id, index, text: q.text }));
-  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
-  openRecordingCountRef.current = openRecordingQuestions.length;
+  const openRecordingQuestions = recordingQuestionEntries.filter(({ q }) =>
+    openRecordingIds.has(q.id)
+  );
 
-  const jumpToOpenRecording = (index: number) => {
-    setSubmitBlocked(false);
-    if (isStudentPaced) setLocalIndex(index);
+  // Recording questions count by slot: a failed upload is open, a dead mic is resolved.
+  const blankCount = (part?: number) => {
+    const inPart = (index: number) =>
+      part == null || partOf(orderedPublicQuestions[index]) <= part;
+    const recordingIds = new Set(recordingQuestionEntries.map(({ q }) => q.id));
+    const typed = reviewCounts(
+      currentReviewRows().filter(
+        (row) => inPart(row.index) && !recordingIds.has(row.id)
+      )
+    ).unanswered;
+    const recording = openRecordingQuestions.filter(({ index }) =>
+      inPart(index)
+    ).length;
+    return typed + recording;
   };
+
+  // Blanks never block a submit; the student confirms and may go back instead.
+  const confirmSubmitWithBlanks = (blank: number) =>
+    showConfirm(
+      blank > 0
+        ? t('quizSubmit.confirmBlank', { count: blank })
+        : t('quizSubmit.confirmBody'),
+      {
+        title: t('quizSubmit.confirmTitle'),
+        confirmLabel: t('quizSubmit.confirmSubmit'),
+      }
+    );
 
   // Self-paced unified action: persist the answer, then advance (or complete
   // on the final question). Skips the per-question feedback banner — teachers
@@ -3892,21 +3906,11 @@ export const ActiveQuiz: React.FC<{
         setReturnToReview(false);
         setReviewOpen(true);
       } else if (isLast) {
-        if (openRecordingQuestions.length > 0) {
-          setSubmitBlocked(true);
-          return;
-        }
-        if (isStudentPaced && !isAttemptSubmitted(myResponse)) {
-          const blank = reviewCounts(currentReviewRows()).unanswered;
-          const ok = await showConfirm(
-            blank > 0
-              ? t('quizSubmit.confirmBlank', { count: blank })
-              : t('quizSubmit.confirmBody'),
-            {
-              title: t('quizSubmit.confirmTitle'),
-              confirmLabel: t('quizSubmit.confirmSubmit'),
-            }
-          );
+        if (
+          (isStudentPaced || openRecordingQuestions.length > 0) &&
+          !isAttemptSubmitted(myResponse)
+        ) {
+          const ok = await confirmSubmitWithBlanks(blankCount());
           if (!ok) return;
         }
         setSelectedAnswer(answer);
@@ -3937,19 +3941,15 @@ export const ActiveQuiz: React.FC<{
   // The last question of a part: confirm, then lock it and stop unless the next part is open.
   const finishPart = async (part: number) => {
     if (!onSubmitPart || !myResponse) return;
-    const blocking = openRecordingQuestions.filter(
-      ({ index }) => partOf(orderedPublicQuestions[index]) <= part
-    );
-    if (blocking.length > 0) {
-      setSubmitBlocked(true);
-      return;
-    }
+    const blank = blankCount(part);
     const ok = await showConfirm(
-      t(
-        'quizParts.confirmBody',
-        "You can't change your Part {{part}} answers after this.",
-        { part }
-      ),
+      blank > 0
+        ? t('quizSubmit.confirmBlank', { count: blank })
+        : t(
+            'quizParts.confirmBody',
+            "You can't change your Part {{part}} answers after this.",
+            { part }
+          ),
       {
         title: t('quizParts.confirmTitle', 'Submit Part {{part}}?', { part }),
         confirmLabel: t('quizParts.confirmSubmit', 'Submit Part {{part}}', {
@@ -4027,10 +4027,8 @@ export const ActiveQuiz: React.FC<{
       setReviewOpen(true);
       return;
     }
-    if (openRecordingQuestions.length > 0) {
-      setSubmitBlocked(true);
-      return;
-    }
+    const blank = blankCount();
+    if (blank > 0 && !(await confirmSubmitWithBlanks(blank))) return;
     setSaveError(null);
     try {
       await onComplete();
@@ -4057,10 +4055,13 @@ export const ActiveQuiz: React.FC<{
       await attemptTimeUpSubmit();
       return;
     }
-    if (openRecordingQuestions.length > 0) {
-      setReviewOpen(false);
-      setSubmitBlocked(true);
-      return;
+    const blank = blankCount();
+    if (blank > 0 && !isAttemptSubmitted(myResponse)) {
+      advancingRef.current = true;
+      const ok = await confirmSubmitWithBlanks(blank).finally(() => {
+        advancingRef.current = false;
+      });
+      if (!ok) return;
     }
     advancingRef.current = true;
     setSubmitting(true);
@@ -4504,7 +4505,7 @@ export const ActiveQuiz: React.FC<{
       {/* Progress bar */}
       <div className={`h-1 ${progressTrack}`}>
         <div
-          className={`h-full transition-all ${progressFill}`}
+          className={`h-full transition-[width] ${progressFill}`}
           style={{ width: `${progress}%` }}
         />
       </div>
@@ -5810,16 +5811,6 @@ export const ActiveQuiz: React.FC<{
             </>
           )}
 
-          {submitBlocked && openRecordingQuestions.length > 0 && (
-            <div className="mt-6">
-              <SubmitBlockedNotice
-                questions={openRecordingQuestions}
-                light={light}
-                onJump={jumpToOpenRecording}
-              />
-            </div>
-          )}
-
           {/* Raise hand (whiteboard questions show it beside Next to save height) */}
           {raiseHandButton && !handBesideNext && (
             <div className="mt-6 flex justify-center">{raiseHandButton}</div>
@@ -6604,6 +6595,7 @@ export const PublishedScoreReview: React.FC<{
     visibility === 'score-and-responses' ||
     visibility === 'score-responses-and-answers';
   const showAnswers = visibility === 'score-responses-and-answers';
+  const showChoiceList = session.recapAllOptions === true;
 
   const scorePercent =
     typeof myResponse.score === 'number' ? myResponse.score : null;
@@ -7164,6 +7156,25 @@ export const PublishedScoreReview: React.FC<{
                               light={light}
                               hideEmptyResponse={hasRecordedTake}
                               paper={paperReviewFor(ans, idx + 1)}
+                            />
+                          ) : showChoiceList &&
+                            (q.type === 'MC' || q.type === 'MA') &&
+                            (q.choices?.length ?? 0) > 0 ? (
+                            <RecapChoiceList
+                              question={recapQuestion}
+                              canonicalChoices={q.choices ?? []}
+                              hiddenChoices={
+                                session.sessionMode === 'student'
+                                  ? override?.hiddenOptionIdsByQuestion?.[q.id]
+                                  : undefined
+                              }
+                              studentAnswer={studentAnswer}
+                              verdict={ans?.isCorrect}
+                              correctAnswer={
+                                showAnswers ? correctAnswer : undefined
+                              }
+                              pictures={publicImageOnlyPictures(q)}
+                              light={light}
                             />
                           ) : (
                             <>

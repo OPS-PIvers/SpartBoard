@@ -1358,6 +1358,24 @@ export const TOUR_ANCHORS = {
     rows: true,
     rowList: 'assign-classes',
   },
+  'assign-classes.course': {
+    label: 'Course checkbox in the Assign dialog class list',
+    perField: true,
+    keyPattern: 'assign#row-[1-9]\\d*',
+    keyHint: 'assign#row-1 for the first row',
+    panel: true,
+    rows: true,
+    rowList: 'assign-classes',
+  },
+  'assign-classes.course-expand': {
+    label: 'Show the sections in a Course in the Assign dialog class list',
+    perField: true,
+    keyPattern: 'assign#row-[1-9]\\d*',
+    keyHint: 'assign#row-1 for the first row',
+    panel: true,
+    rows: true,
+    rowList: 'assign-classes',
+  },
   'assign-classes.select-all': {
     label: 'Select all button in the Assign dialog class list',
     panel: true,
@@ -3613,11 +3631,13 @@ export const TOUR_ANCHORS = {
     label: 'Show the key radios in the Quiz widget',
     perField: true,
     panel: true,
+    persists: true,
   },
   'quiz-print.results-layout': {
     label: 'Layout radios in the Quiz widget',
     perField: true,
     panel: true,
+    persists: true,
   },
   'quiz-print.results-more-options': {
     label: 'More print options disclosure in the Quiz widget',
@@ -3628,11 +3648,13 @@ export const TOUR_ANCHORS = {
     label: 'Option toggles from TOGGLES map in the Quiz widget',
     perField: true,
     panel: true,
+    persists: true,
   },
   'quiz-print.results-preset': {
     label: 'Preset chips (radio group) in the Quiz widget',
     perField: true,
     panel: true,
+    persists: true,
   },
   'quiz-print.results-print': {
     label: 'Print results Print in the Quiz widget',
@@ -3644,6 +3666,7 @@ export const TOUR_ANCHORS = {
     label: 'Report choice cards (radio group) in the Quiz widget',
     perField: true,
     panel: true,
+    persists: true,
   },
   'quiz-print.results-every-attempt': {
     label: 'Every attempt switch in the results print in the Quiz widget',
@@ -3661,6 +3684,44 @@ export const TOUR_ANCHORS = {
     panel: true,
     rows: true,
     rowList: 'quiz-print-results-student-select',
+  },
+  'quiz-print.results-tab': {
+    label: 'Settings and Students tabs in the Quiz print results',
+    perField: true,
+    panel: true,
+  },
+  'quiz-print.results-clear': {
+    label: 'Clear the student picks in the Quiz print results',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-print.results-course': {
+    label: 'Course checkbox in the Quiz print results student list',
+    perField: true,
+    panel: true,
+    rows: true,
+    rowList: 'quiz-print-results-groups',
+  },
+  'quiz-print.results-course-expand': {
+    label: 'Show the sections in a Course in the Quiz print results',
+    perField: true,
+    panel: true,
+    rows: true,
+    rowList: 'quiz-print-results-groups',
+  },
+  'quiz-print.results-section': {
+    label: 'Class checkbox in the Quiz print results student list',
+    perField: true,
+    panel: true,
+    rows: true,
+    rowList: 'quiz-print-results-groups',
+  },
+  'quiz-print.results-section-expand': {
+    label: 'Show the students in a class in the Quiz print results',
+    perField: true,
+    panel: true,
+    rows: true,
+    rowList: 'quiz-print-results-groups',
   },
   'quiz-print.results-written-mode': {
     label: 'Written answers mode radios in the Quiz widget',
@@ -4243,6 +4304,12 @@ export const TOUR_ANCHORS = {
     perField: true,
     rows: true,
     rowList: 'quiz-results-counted-answers',
+  },
+  'quiz-results.accept-answer': {
+    label:
+      'Accept button beside a missed fill-in-the-blank answer in a student report in Quiz results, by question',
+    perField: true,
+    persists: true,
   },
   'quiz-results.count-instead': {
     label:
@@ -6730,6 +6797,33 @@ export const TOUR_ANCHORS = {
   'library-shell.assigned-move-to-done': {
     label: 'Move to Done, in an Assigned row menu',
     persists: true,
+    panel: true,
+  },
+  'library-shell.assigned-select': {
+    label: 'Select on the Assigned tab; starts picking several assignments',
+  },
+  'library-shell.assigned-select-row': {
+    label: 'Checkbox on an Assigned row while picking several assignments',
+    perField: true,
+    panel: true,
+    rows: true,
+    rowList: 'assignment-rows',
+  },
+  'library-shell.assigned-select-all': {
+    label: 'Select all box in the Assigned tab selection bar',
+    panel: true,
+  },
+  'library-shell.assigned-bulk-action': {
+    label: 'Close, Move to Done or Delete in the Assigned tab selection bar',
+    persists: true,
+    destructive: true,
+    perField: true,
+    panel: true,
+    keyPattern: '[a-z-]+#(close|move-to-done|publish|delete)',
+    keyHint: 'quiz#delete is Delete for the picked quizzes',
+  },
+  'library-shell.assigned-select-cancel': {
+    label: 'Cancel in the Assigned tab selection bar',
     panel: true,
   },
   'widget-settings.calendar.remove-calendar': {

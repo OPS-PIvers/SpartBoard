@@ -2,7 +2,13 @@
 import { GoogleDriveService } from '@/utils/googleDriveService';
 import React, { useContext, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ClassRoster, Plc, QuizBehaviorSettings } from '@/types';
+import type {
+  ClassRoster,
+  Plc,
+  QuizBehaviorSettings,
+  StudentOverride,
+} from '@/types';
+import type { LucideIcon } from 'lucide-react';
 import type { AssignTargetingValue } from '@/utils/studentTargetRef';
 import type { QuizHandRaiseMode } from '@/utils/quizHandRaise';
 import type { AssignPeriodAccessContext } from '@/components/common/library/AssignPeriodAccessSection';
@@ -36,7 +42,7 @@ import { SharingStep } from '@/components/common/library/assignStepper/SharingSt
 import { WrittenAnswersStep } from '@/components/common/library/assignStepper/WrittenAnswersStep';
 import { HandRaiseRow } from '@/components/common/library/assignStepper/QuizFeedbackStep';
 import { formatWrittenAnswersValue } from '@/components/common/library/assignStepper/WrittenAnswersStep.format';
-import { Printer } from 'lucide-react';
+import { AlertCircle, Printer } from 'lucide-react';
 import { AuthContext } from '@/context/AuthContextValue';
 import { SPEECH_TO_TEXT_FEATURE } from '@/utils/speechToText/types';
 import { clampQuizTimeLimitMinutes } from '@/utils/quizTimeLimit';
@@ -48,6 +54,8 @@ import {
 } from '@/components/common/library/assignStepper/ModificationsView.helpers';
 import { ModificationGroupsStep } from '@/components/common/library/assignStepper/ModificationGroupsStep';
 import {
+  editedOverrides,
+  groupRulesOf,
   formatModificationGroupsValue,
   newModificationGroup,
   overridesFromGroups,
@@ -115,6 +123,28 @@ export interface QuizAssignStepperProps {
     /** What the Modifications step shows, so assign serves exactly that. */
     overridesByKey?: AssignTargetingValue['overridesByKey'];
   }) => void | Promise<void>;
+  /** A failed save, shown above the steps while the stepper stays open. */
+  error?: string | null;
+  /** Quiz settings on a launched assignment: same steps, opened on what was saved. */
+  edit?: QuizAssignStepperEdit;
+}
+
+export interface QuizAssignStepperEdit {
+  /** The assignment's saved per-student overrides; the step opens with them as groups. */
+  savedOverrides: Record<string, StudentOverride>;
+  /** Classes it went to; their students open on their saved rules, not the class presets. */
+  savedClassIds: readonly string[];
+  /** Languages the live session serves; any other is flagged, since nothing translates after assign. */
+  servedLocales: readonly string[];
+  /** Set when it went to picked students: only they can join a group. */
+  targetKeys?: ReadonlySet<string>;
+  inline?: boolean;
+  /** Settings' own When step: a launched assignment edits its window, not how it starts. */
+  when: Omit<AssignStepDef, 'id' | 'title'>;
+  /** PLC results sharing, which settings starts and stops right away. */
+  sharing?: Omit<AssignStepDef, 'id' | 'title'>;
+  submitIcon?: LucideIcon;
+  disabled?: boolean;
 }
 
 const SELECT_A_CLASS_FIRST = 'Select a class first';
@@ -140,6 +170,8 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   printedVersionsAvailable = false,
   onClose,
   onSubmit,
+  error,
+  edit,
 }) => {
   const { t } = useTranslation();
   const gates = useQuizRuleGates();
@@ -155,6 +187,12 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   const presetByKey = new Map(
     allRows.map((row) => [row.key, row.defaultOverride] as const)
   );
+  // Editing, a saved class's students open on what was saved; a newly checked class brings its presets.
+  const savedClass = new Set(edit?.savedClassIds ?? []);
+  const startingRule = (row: { key: string; rosterId: string }) =>
+    edit && (row.key in edit.savedOverrides || savedClass.has(row.rosterId))
+      ? groupRulesOf(edit.savedOverrides[row.key])
+      : presetByKey.get(row.key);
   // Students the step reaches for these classes; their class presets arrive as groups.
   const reachedRows = (next: AssignClassesValue) =>
     groupsOn && !staff
@@ -165,11 +203,15 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
           }),
           next,
           usable
-        ).map((row) => {
-          const { defaultOverride: _own, ...rest } = row;
-          const merged = presetByKey.get(row.key);
-          return merged ? { ...rest, defaultOverride: merged } : rest;
-        })
+        )
+          .filter((row) => !edit?.targetKeys || edit.targetKeys.has(row.key))
+          .map((row) => {
+            const { defaultOverride: _own, ...rest } = row;
+            const merged = startingRule(row);
+            return merged && Object.keys(merged).length > 0
+              ? { ...rest, defaultOverride: merged }
+              : rest;
+          })
       : [];
   const [seeded, setSeeded] = useState<ReadonlySet<string>>(
     () => new Set(reachedRows(classes).map((row) => row.key))
@@ -181,6 +223,8 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
       new Set()
     )
   );
+  // What the step opened with, so Save rewrites only the students whose rules changed.
+  const [openedWith] = useState(() => ({ groups, seeded }));
   const picked = staff
     ? []
     : usable.filter((r) => classes.classIds.includes(r.id));
@@ -189,19 +233,28 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   const ctx = { kind: 'work' as const, inPlc };
   const needsPlc = !!sharing && inPlc && sharingNeedsPlc(sharing.value, plcs);
   // Staff hides the Due row, so a due date can't hold Assign back.
-  const backwards = whenBackwards(
-    staff
-      ? {
-          ...when,
-          availability: { ...when.availability, manualDue: undefined },
-        }
-      : when,
-    picked,
-    periodAccess?.bellWindow
-  );
+  // Editing, settings checks its own window through `edit.disabled`.
+  const backwards =
+    !edit &&
+    whenBackwards(
+      staff
+        ? {
+            ...when,
+            availability: { ...when.availability, manualDue: undefined },
+          }
+        : when,
+      picked,
+      periodAccess?.bellWindow
+    );
 
   const groupRows = reachedRows(classes);
-  const keepFileIds = standingDriveFileIds(allRows);
+  // Supports already in use, by a class preset or the saved assignment, are never deleted here.
+  const keepFileIds = new Set([
+    ...standingDriveFileIds(allRows),
+    ...Object.values(edit?.savedOverrides ?? {}).flatMap((o) =>
+      (o.supports ?? []).flatMap((s) => (s.kind === 'drive' ? [s.fileId] : []))
+    ),
+  ]);
   const sessionMinutes = gates.timeLimitOn
     ? clampQuizTimeLimitMinutes(behavior.sessionOptions.timeLimitMinutes)
     : null;
@@ -258,12 +311,14 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
             value={classes}
             onChange={changeClasses}
           />
-          <StudentPickMenu
-            rosters={usable}
-            value={classes}
-            onChange={changeClasses}
-          />
-          {modifications && !groupsOn && picked.length > 0 && (
+          {!edit && (
+            <StudentPickMenu
+              rosters={usable}
+              value={classes}
+              onChange={changeClasses}
+            />
+          )}
+          {modifications && !groupsOn && !edit && picked.length > 0 && (
             <ModificationsLink
               rosters={usable}
               selectedRosterIds={classes.classIds}
@@ -274,7 +329,7 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
         </div>
       ),
     },
-    when: {
+    when: edit?.when ?? {
       value: formatWhenValue(when, {
         variant: 'when',
         rosterCount: picked.length,
@@ -318,6 +373,9 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
       : extrasShown
         ? 'Additional settings'
         : getAssignStepTitle('sharing', 'quiz', ctx);
+  const sharingTitle = edit
+    ? getAssignStepTitle('sharing', 'quiz', ctx)
+    : lastTitle;
   const handRaiseOn = behavior.sessionOptions.handRaiseEnabled === true;
   const onPaperWritten = written?.value.where === 'paper';
   const lastParts = [
@@ -335,7 +393,9 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   const lastValue =
     lastParts.join(', ') ||
     (written ? 'Written answers on the device' : 'Raise hand off');
-  if (extrasShown || inPlc) {
+  if (edit) {
+    if (edit.sharing) bodies.sharing = edit.sharing;
+  } else if (extrasShown || inPlc) {
     bodies.sharing = {
       value: lastValue,
       body: (
@@ -403,6 +463,7 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
           }
           printedAvailable={printedVersionsAvailable}
           keepFileIds={keepFileIds}
+          servedLocales={edit?.servedLocales}
         />
       ),
     };
@@ -415,7 +476,8 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   const steps: AssignStepDef[] = stepIds.map((id) => {
     const step = ruleSteps.get(id) ?? {
       id,
-      title: id === 'sharing' ? lastTitle : getAssignStepTitle(id, 'quiz', ctx),
+      title:
+        id === 'sharing' ? sharingTitle : getAssignStepTitle(id, 'quiz', ctx),
       ...bodies[id],
     };
     return id === 'classes' && audience
@@ -439,9 +501,23 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
         onClose();
       }}
       title={title}
+      topSwitch={
+        error ? (
+          <div
+            role="alert"
+            className="flex items-start gap-2 rounded-xl border border-brand-red-primary/30 bg-brand-red-lighter/40 px-3 py-2 text-sm font-medium text-brand-red-dark"
+          >
+            <AlertCircle
+              className="mt-0.5 h-4 w-4 shrink-0"
+              aria-hidden="true"
+            />
+            <span>{error}</span>
+          </div>
+        ) : undefined
+      }
       steps={steps}
       submitLabel={onPaper ? 'Assign and print' : submitLabel}
-      submitIcon={onPaper ? Printer : undefined}
+      submitIcon={onPaper ? Printer : edit?.submitIcon}
       altAction={
         onAssignOnPaper && !onPaper
           ? {
@@ -456,11 +532,22 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
         onSubmit({
           printedGroups,
           ...(groupsOn && !staff
-            ? { overridesByKey: groupOverrides(groups, seeded) }
+            ? {
+                overridesByKey: edit
+                  ? editedOverrides(
+                      edit.savedOverrides,
+                      groupOverrides(openedWith.groups, openedWith.seeded),
+                      groupOverrides(groups, seeded)
+                    )
+                  : groupOverrides(groups, seeded),
+              }
             : {}),
         })
       }
-      disabled={needsPlc || backwards || sharingCount > 0}
+      inline={edit?.inline}
+      disabled={
+        needsPlc || backwards || sharingCount > 0 || edit?.disabled === true
+      }
       disabledReason={
         needsPlc
           ? PICK_A_PLC

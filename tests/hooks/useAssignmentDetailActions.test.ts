@@ -16,6 +16,7 @@ vi.mock('@/hooks/useSetAssignmentTargets', () => ({
 
 const mockSet = vi.hoisted(() => vi.fn());
 const mockCommit = vi.hoisted(() => vi.fn());
+const mockUpdate = vi.hoisted(() => vi.fn());
 const mockDoc = vi.hoisted(() => vi.fn((...args: unknown[]) => args.join('/')));
 const mockArrayUnion = vi.hoisted(() =>
   vi.fn((...items: unknown[]) => ({ __arrayUnion: items }))
@@ -25,10 +26,28 @@ const mockDeleteField = vi.hoisted(() =>
 );
 vi.mock('firebase/firestore', () => ({
   doc: mockDoc,
-  writeBatch: () => ({ set: mockSet, commit: mockCommit }),
+  writeBatch: () => ({ set: mockSet, update: mockUpdate, commit: mockCommit }),
   arrayUnion: mockArrayUnion,
   deleteField: mockDeleteField,
+  FieldPath: class {
+    segments: string[];
+    constructor(...segments: string[]) {
+      this.segments = segments;
+    }
+  },
 }));
+
+/** Override writes from the batch update, keyed by override key. */
+const overridesWritten = (): Record<string, unknown> => {
+  const args = (mockUpdate.mock.calls[0] ?? []).slice(1) as unknown[];
+  const out: Record<string, unknown> = {};
+  for (let i = 0; i < args.length; i += 2) {
+    const { segments } = args[i] as { segments: string[] };
+    expect(segments[0]).toBe('overridesBySourcedId');
+    out[segments[1]] = args[i + 1];
+  }
+  return out;
+};
 vi.mock('@/config/firebase', () => ({ db: {} }));
 const mockUpdateWriting = vi.hoisted(() => vi.fn());
 const mockEndWriting = vi.hoisted(() => vi.fn());
@@ -66,6 +85,7 @@ describe('useAssignmentDetailActions', () => {
       skipped: [],
     });
     mockSet.mockReset();
+    mockUpdate.mockReset();
     mockCommit.mockReset().mockResolvedValue(undefined);
     mockDoc.mockClear();
   });
@@ -114,7 +134,7 @@ describe('useAssignmentDetailActions', () => {
     >;
     expect(call.remove).toEqual([]);
     const assignmentPatch = mockSet.mock.calls[0][1] as Record<string, unknown>;
-    expect(assignmentPatch['overridesBySourcedId.classlink:SID-1']).toEqual({
+    expect(overridesWritten()['classlink:SID-1']).toEqual({
       timeMultiplier: 1.5,
     });
     expect(assignmentPatch.removedStudentRefs).toBeUndefined();
@@ -251,9 +271,7 @@ describe('useAssignmentDetailActions', () => {
     // targeting/overrides are preserved verbatim, not cleared — written as the
     // same per-key dot-path field, not a whole-map replace.
     const expectedOverride = row.overridesBySourcedId?.['classlink:SID-1'];
-    expect(assignmentPatch['overridesBySourcedId.classlink:SID-1']).toEqual(
-      expectedOverride
-    );
+    expect(overridesWritten()['classlink:SID-1']).toEqual(expectedOverride);
   });
 
   it('writes overridesBySourcedId as per-key dot-paths, deleteField-ing a cleared key', async () => {
@@ -268,7 +286,7 @@ describe('useAssignmentDetailActions', () => {
     });
 
     const assignmentPatch = mockSet.mock.calls[0][1] as Record<string, unknown>;
-    expect(assignmentPatch['overridesBySourcedId.classlink:SID-1']).toEqual({
+    expect(overridesWritten()['classlink:SID-1']).toEqual({
       __deleteField: true,
     });
     // No whole-map replace field is written.
@@ -295,11 +313,10 @@ describe('useAssignmentDetailActions', () => {
       overridesByKey: { 'classlink:SID-1': { timeMultiplier: 1.5 } },
     });
 
-    const assignmentPatch = mockSet.mock.calls[0][1] as Record<string, unknown>;
-    expect(assignmentPatch['overridesBySourcedId.classlink:SID-1']).toEqual({
+    expect(overridesWritten()['classlink:SID-1']).toEqual({
       timeMultiplier: 1.5,
     });
-    expect(assignmentPatch['overridesBySourcedId.classlink:SID-2']).toEqual({
+    expect(overridesWritten()['classlink:SID-2']).toEqual({
       __deleteField: true,
     });
   });
@@ -432,6 +449,7 @@ describe('useAssignmentDetailActions: Writing rows go through the server', () =>
       skipped: [],
     });
     mockSet.mockReset();
+    mockUpdate.mockReset();
     mockCommit.mockReset().mockResolvedValue(undefined);
     mockUpdateWriting.mockReset().mockResolvedValue(undefined);
     mockEndWriting.mockReset().mockResolvedValue(undefined);

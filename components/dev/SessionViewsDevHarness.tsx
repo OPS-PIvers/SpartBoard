@@ -88,7 +88,12 @@ import {
   makeVaResponses,
   makeVaMultiClassSession,
   makeVaMultiClassResponses,
+  makeTranslatedFibQuizData,
+  makeTranslatedFibResponses,
+  TRANSLATED_FIB_ANSWERS,
+  TRANSLATED_FIB_OVERRIDES,
 } from './sessionViewsMocks';
+import { ANY_LOCALE, type LocalizedFibAnswers } from '@/utils/quizFibAnswers';
 import {
   AUDIO_CAPTURE_STATES,
   AUDIO_CAPTURE_DARK_STATES,
@@ -139,6 +144,37 @@ const HARNESS_RESULTS_ACTIONS = {
   publish: () => Promise.resolve({ responsesUpdated: 0, skipped: 0 }),
   hide: noop,
   clear: noop,
+};
+
+/** Quiz Results for Spanish-served students; Accept saves in memory. */
+const TranslatedFibResultsDev: React.FC = () => {
+  const [answers, setAnswers] = useState<LocalizedFibAnswers>(
+    TRANSLATED_FIB_ANSWERS
+  );
+  return (
+    <QuizResults
+      quiz={makeTranslatedFibQuizData()}
+      responses={makeTranslatedFibResponses()}
+      config={makeQuizConfig()}
+      session={makeQuizSession('ended')}
+      onBack={() => undefined}
+      onSubmitStudent={noop}
+      studentResultsActions={HARNESS_RESULTS_ACTIONS}
+      localizedFibAnswers={answers}
+      lenientFibLocales={['es']}
+      overridesByStudentUid={TRANSLATED_FIB_OVERRIDES}
+      fibAnswerAccepter={(questionId, answer) => {
+        setAnswers((map) => ({
+          ...map,
+          [questionId]: {
+            ...(map[questionId] ?? {}),
+            [ANY_LOCALE]: [...(map[questionId]?.[ANY_LOCALE] ?? []), answer],
+          },
+        }));
+        return Promise.resolve();
+      }}
+    />
+  );
 };
 
 /** Quiz Results with an over-answered choose-N section; picks save in memory. */
@@ -199,6 +235,9 @@ const QuizMonitorDev: React.FC<
           rosters={SAMPLE_ROSTERS}
           onClose={() => undefined}
           onSave={() => undefined}
+          loadEditContext={() =>
+            Promise.resolve({ quizData: makeQuizData(), servedLocales: [] })
+          }
         />
       }
     />
@@ -497,6 +536,10 @@ const SessionView: React.FC<{
         variant="review"
       />
     );
+  }
+
+  if (view === 'quiz-results' && state === 'translated-fib') {
+    return <TranslatedFibResultsDev />;
   }
 
   if (view === 'quiz-results' && state === 'choose-n') {

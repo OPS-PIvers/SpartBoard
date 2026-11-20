@@ -54,6 +54,7 @@ vi.mock('@/config/firebase', () => {
   return {
     isConfigured: false,
     isAuthBypass: false,
+    isEmulatorBackend: false,
     app,
     db,
     auth,

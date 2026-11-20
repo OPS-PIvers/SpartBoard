@@ -1,6 +1,7 @@
 // Accordion assign dialog: optional top switch, one open step, Assign always in the footer (docs/plans/shipped/ASSIGN_STEPPER.md D1).
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Loader2, Rocket } from 'lucide-react';
+import { ModalHeader } from '@/components/common/ModalHeader';
 import { Modal } from '@/components/common/Modal';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
 import { tourAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
@@ -148,29 +149,29 @@ export const AssignStepper: React.FC<AssignStepperProps> = ({
   }
 
   const header = (
-    <div className="flex items-center justify-between gap-4 px-6 py-4 border-b border-slate-200 shrink-0">
-      <div className="min-w-0">
-        <p className="text-xxs font-bold text-brand-blue-primary/60 uppercase tracking-widest">
-          Assign
-        </p>
+    <ModalHeader
+      eyebrow="Assign"
+      title={
         <h3
           id={titleId}
-          className="font-black text-lg text-slate-800 truncate"
+          className="font-black text-lg text-white truncate"
           title={title}
         >
           {title}
         </h3>
-      </div>
-      <button
-        {...tourAttr('assign-stepper.cancel')}
-        type="button"
-        onClick={onClose}
-        disabled={submitting}
-        className="text-sm font-bold text-slate-500 hover:text-slate-700 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        Cancel
-      </button>
-    </div>
+      }
+      actions={
+        <button
+          {...tourAttr('assign-stepper.cancel')}
+          type="button"
+          onClick={onClose}
+          disabled={submitting}
+          className="text-sm font-bold text-white/85 hover:text-white hover:bg-white/15 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Cancel
+        </button>
+      }
+    />
   );
 
   const submitButton = (
@@ -273,7 +274,7 @@ export const AssignStepper: React.FC<AssignStepperProps> = ({
       onClose={close}
       customHeader={header}
       footer={footer}
-      footerClassName="shrink-0 border-t border-slate-200 bg-white"
+      footerClassName=""
       maxWidth="max-w-xl"
       className="bg-white rounded-2xl shadow-2xl overflow-hidden"
       contentClassName="px-6 py-5"

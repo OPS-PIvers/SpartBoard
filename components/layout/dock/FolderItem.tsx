@@ -194,7 +194,7 @@ export const FolderItem = React.memo(
                           window.innerHeight - 12
                         )
                       ),
-                      transform: 'translateY(-50%)',
+                      translate: '0 -50%',
                       zIndex: Z_INDEX.popover,
                     }
                   : dockPosition === 'right'
@@ -208,18 +208,18 @@ export const FolderItem = React.memo(
                             window.innerHeight - 12
                           )
                         ),
-                        transform: 'translateY(-50%)',
+                        translate: '0 -50%',
                         zIndex: Z_INDEX.popover,
                       }
                     : {
                         position: 'fixed',
                         left: anchorRect.left + anchorRect.width / 2,
                         bottom: window.innerHeight - anchorRect.top + 12,
-                        transform: 'translateX(-50%)',
+                        translate: '-50% 0',
                         zIndex: Z_INDEX.popover,
                       }
               }
-              className={`w-64 p-4 animate-in duration-200 ${
+              className={`w-64 p-4 animate-in fade-in duration-200 ${
                 dockPosition === 'left'
                   ? 'slide-in-from-left-2'
                   : dockPosition === 'right'
@@ -327,7 +327,7 @@ export const FolderItem = React.memo(
             onPointerMove={longPress.onPointerMove}
             onPointerCancel={longPress.onPointerCancel}
             onClick={() => setShowPopover(true)}
-            className={`group flex flex-col items-center gap-1 min-w-[50px] transition-transform active:scale-90 relative ${
+            className={`group flex flex-col items-center gap-1 min-w-[50px] transition-transform duration-160 ease-out active:scale-95 relative ${
               isEditMode
                 ? 'cursor-grab active:cursor-grabbing touch-none'
                 : dockPosition === 'left' || dockPosition === 'right'

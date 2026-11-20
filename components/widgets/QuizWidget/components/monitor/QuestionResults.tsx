@@ -210,15 +210,23 @@ export const QuestionDetail: React.FC<QuestionDetailProps> = ({
   const { totalAnswered, rows } = buildDistribution(
     question,
     responses,
-    (q, a) =>
-      gradeAnswer(
-        q,
-        a,
-        undefined,
-        [...(localesByAnswer.get(a) ?? [])].flatMap((locale) =>
-          fibAcceptedAnswers(fibGrading?.answers, q.id, locale)
-        )
-      )
+    (q, a) => {
+      const grades = [undefined, ...(localesByAnswer.get(a) ?? [])].map(
+        (locale) =>
+          gradeAnswer(
+            q,
+            a,
+            undefined,
+            fibAcceptedAnswers(
+              fibGrading?.answers,
+              q.id,
+              locale,
+              fibGrading?.lenientLocales
+            )
+          )
+      );
+      return grades.find((g) => g.isCorrect) ?? grades[0];
+    }
   );
   const pictures = imageOnlyPictures(question);
   const hasDistribution =

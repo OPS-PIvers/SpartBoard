@@ -27,7 +27,7 @@ import { logError } from '@/utils/logError';
 import { canEditPlcContent, getPlcMemberEmail } from '@/utils/plc';
 import { quizServedQuestionCount } from '@/utils/questionBanks';
 import { resolveQuizAssignContent } from '@/utils/quizAssignBankDraw';
-import { useBankSources } from '@/hooks/useBankSources';
+import { pinPlcBankSlots, useBankSources } from '@/hooks/useBankSources';
 import { buildPlcLinkage } from '@/utils/plcLinkage';
 import { getQuizAssignPrefill, getQuizBehavior } from '@/utils/quizBehavior';
 import { useLastQuizAssignSettings } from '@/hooks/useLastQuizAssignSettings';
@@ -86,6 +86,17 @@ function formatDate(ms: number): string {
   } catch {
     return '';
   }
+}
+
+/** Canonical content fields with unpinned shared slots pinned to a verified PLC-member owner. */
+async function pinnedSyncedFields(
+  canonical: Parameters<typeof syncedQuizContentFields>[0],
+  plc: Pick<Plc, 'id' | 'memberUids'>
+): Promise<ReturnType<typeof syncedQuizContentFields>> {
+  const fields = syncedQuizContentFields(canonical);
+  if (!fields.bankSlots) return fields;
+  const bankSlots = await pinPlcBankSlots(fields.bankSlots, plc);
+  return { ...fields, bankSlots };
 }
 
 export function usePlcQuizActions(plc: Plc): PlcQuizActionsApi {
@@ -308,7 +319,7 @@ export function usePlcQuizActions(plc: Plc): PlcQuizActionsApi {
           id: crypto.randomUUID(),
           title: canonical.title,
           questions: canonical.questions,
-          ...syncedQuizContentFields(canonical),
+          ...(await pinnedSyncedFields(canonical, plc)),
           createdAt: now,
           updatedAt: now,
         };
@@ -386,7 +397,7 @@ export function usePlcQuizActions(plc: Plc): PlcQuizActionsApi {
       deleteQuiz,
       isDriveConnected,
       personalBySyncGroup,
-      plc.id,
+      plc,
       saveQuiz,
       t,
       user,
@@ -432,7 +443,7 @@ export function usePlcQuizActions(plc: Plc): PlcQuizActionsApi {
           id: crypto.randomUUID(),
           title: canonical.title,
           questions: canonical.questions,
-          ...syncedQuizContentFields(canonical),
+          ...(await pinnedSyncedFields(canonical, plc)),
           createdAt: now,
           updatedAt: now,
         };
@@ -627,7 +638,7 @@ export function usePlcQuizActions(plc: Plc): PlcQuizActionsApi {
             id: crypto.randomUUID(),
             title: canonical.title,
             questions: canonical.questions,
-            ...syncedQuizContentFields(canonical),
+            ...(await pinnedSyncedFields(canonical, plc)),
             createdAt: now,
             updatedAt: now,
           };
@@ -708,7 +719,7 @@ export function usePlcQuizActions(plc: Plc): PlcQuizActionsApi {
       isDriveConnected,
       loadQuizData,
       personalBySyncGroup,
-      plc.id,
+      plc,
       saveQuiz,
       t,
       user,

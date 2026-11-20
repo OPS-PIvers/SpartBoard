@@ -747,14 +747,14 @@ const ConfirmInner: React.FC<ConfirmProps> = ({
   const backdropProps = useBackdropDismiss(busy ? undefined : onCancel);
   return (
     <div
-      className="fixed inset-0 z-modal-deep flex items-center justify-center p-4 bg-[rgba(29,42,93,0.45)] animate-in fade-in duration-150"
+      className="fixed inset-0 z-modal-deep flex items-center justify-center p-4 bg-[rgba(29,42,93,0.45)] animate-in fade-in duration-200"
       {...backdropProps}
       role="dialog"
       aria-modal="true"
       aria-label={title}
     >
       <div
-        className="bg-white rounded-2xl shadow-[0_10px_15px_-3px_rgba(29,42,93,.12),0_4px_6px_-4px_rgba(29,42,93,.08)] w-full max-w-md animate-in zoom-in-95 duration-150"
+        className="bg-white rounded-2xl shadow-[0_10px_15px_-3px_rgba(29,42,93,.12),0_4px_6px_-4px_rgba(29,42,93,.08)] w-full max-w-md animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-6">
@@ -814,14 +814,14 @@ export const LocalModal: React.FC<{
     size === 'xl' ? 'max-w-4xl' : size === 'lg' ? 'max-w-2xl' : 'max-w-lg';
   return (
     <div
-      className="fixed inset-0 z-modal-nested flex items-center justify-center p-4 bg-[rgba(29,42,93,0.45)] animate-in fade-in duration-150"
+      className="fixed inset-0 z-modal-nested flex items-center justify-center p-4 bg-[rgba(29,42,93,0.45)] animate-in fade-in duration-200"
       {...backdropProps}
       role="dialog"
       aria-modal="true"
       aria-label={title}
     >
       <div
-        className={`bg-white rounded-2xl w-full ${widthClass} max-h-[92vh] flex flex-col shadow-[0_10px_15px_-3px_rgba(29,42,93,.12),0_4px_6px_-4px_rgba(29,42,93,.08)] animate-in zoom-in-95 duration-150`}
+        className={`bg-white rounded-2xl w-full ${widthClass} max-h-[92vh] flex flex-col shadow-[0_10px_15px_-3px_rgba(29,42,93,.12),0_4px_6px_-4px_rgba(29,42,93,.08)] animate-in zoom-in-95 duration-200`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start gap-3 px-6 py-5 border-b border-slate-100 shrink-0">

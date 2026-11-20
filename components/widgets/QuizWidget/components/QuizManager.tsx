@@ -401,7 +401,7 @@ interface QuizManagerProps {
     dueAtByRosterId?: Record<string, number>,
     /** Set only by the assign stepper: per-class student picks and Manual start. */
     stepper?: QuizStepperAssign
-  ) => void;
+  ) => void | Promise<void>;
   /**
    * Loads full quiz content (questions) for the assign modal's B2 override
    * editor (question subset / MC-option hider / rubric swap need question
@@ -432,6 +432,8 @@ interface QuizManagerProps {
   onCreateViewOnlyShare?: (quiz: QuizMetadata) => Promise<string>;
   onResults: (quiz: QuizMetadata) => void;
   onDelete: (quiz: QuizMetadata) => void | Promise<void>;
+  /** Extra consequence line for a quiz's one delete confirm. */
+  deleteDetail?: (quiz: QuizMetadata) => string | undefined;
   /**
    * Phase 5 — duplicate kebab item. Owns the actual `duplicateQuiz` call
    * (the widget already has the hook). When omitted, the Duplicate entry
@@ -572,6 +574,10 @@ interface QuizManagerProps {
   /** Reopens an ended per-class quiz for picked students only. */
   onArchiveReopenStudents?: (assignment: QuizAssignment) => void;
   onArchiveDelete?: (assignment: QuizAssignment) => void | Promise<void>;
+  /** Assigned tab bulk delete, already confirmed; resolves to how many failed. */
+  onArchiveDeleteMany?: (assignments: QuizAssignment[]) => Promise<number>;
+  /** Opens the publish dialog once for several closed assignments. */
+  onArchivePublishMany?: (assignments: QuizAssignment[]) => void;
   /** Signed-in teacher's display name; default `teacherName` on new assignments. */
   defaultTeacherName?: string;
   /**
@@ -851,6 +857,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   skippedTargetsByAssignmentId,
   onResults,
   onDelete,
+  deleteDetail,
   onDuplicate,
   isDuplicating,
   onBulkDelete,
@@ -905,6 +912,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onArchiveReopen,
   onArchiveReopenStudents,
   onArchiveDelete,
+  onArchiveDeleteMany,
+  onArchivePublishMany,
   defaultTeacherName,
   syncedGroups,
   onPullSyncedQuiz,
@@ -1090,6 +1099,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const [assignWritten, setAssignWritten] = useState<WrittenAnswersValue>(
     DEFAULT_WRITTEN_ANSWERS
   );
+  const assignWaitsForSave = canAccessFeature('quiz-assign-waits-for-save');
+  const [assignError, setAssignError] = useState<string | null>(null);
   const assignAudience = useAssignAudience();
   const assignToStaff = assignAudience.audience === 'staff';
   // Tracks the quiz id whose full content has been loaded/in-flight for the
@@ -1621,6 +1632,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         const ok = await confirmDelete({
           titles: [quiz.title],
           noun: LIBRARY_ITEM_NOUNS.quiz,
+          detail: deleteDetail?.(quiz),
         });
         if (ok) await onDelete(quiz);
       },
@@ -2313,6 +2325,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
 
   const resetAssign = (): void => {
     setAssignTarget(null);
+    setAssignError(null);
     setAssignBehavior(null);
     setAssignTargeting(EMPTY_ASSIGN_TARGETING_VALUE);
     setAssignQuizData(null);
@@ -2345,7 +2358,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const handleStepperAssign = (extra?: {
     printedGroups: PrintedGroupPick[];
     overridesByKey?: AssignTargetingValue['overridesByKey'];
-  }): void => {
+  }): void | Promise<void> => {
     if (!assignTarget) return;
     if (plcs.length > 0 && sharingNeedsPlc(assignOptions, plcs)) return;
     const behavior: QuizBehaviorSettings = {
@@ -2398,7 +2411,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         validRosterIds.includes(id)
       )
     );
-    onAssign(
+    if (assignWaitsForSave) setAssignError(null);
+    const saved = onAssign(
       assignTarget,
       behavior,
       plcOptions,
@@ -2427,8 +2441,23 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           : {}),
       }
     );
-    if (!assignToStaff) assignWhenState.remember(assignWhen);
-    resetAssign();
+    if (!assignWaitsForSave) {
+      if (!assignToStaff) assignWhenState.remember(assignWhen);
+      resetAssign();
+      return;
+    }
+    // Flag on: the stepper keeps its spinner until the save settles and stays open on failure.
+    return Promise.resolve(saved).then(
+      () => {
+        if (!assignToStaff) assignWhenState.remember(assignWhen);
+        resetAssign();
+      },
+      (err: unknown) => {
+        setAssignError(
+          err instanceof Error ? err.message : 'Failed to create assignment'
+        );
+      }
+    );
   };
 
   // ─── Drop-to-folder handler ───────────────────────────────────────────────
@@ -3015,40 +3044,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     );
   }
 
-  // ─── Loading/error shell content ──────────────────────────────────────────
-  if (loading && managerTab === 'library') {
-    return (
-      <LibraryShell
-        widgetLabel={shellLabel}
-        widgetType={variant}
-        clearsConnectionTab={clearsConnectionTab}
-        tab={managerTab}
-        onTabChange={(t) => onTabChange?.(t)}
-        counts={tabCounts}
-        tabLabels={tabLabels}
-        assignedLayout={assignedOn}
-        primaryAction={primaryAction}
-        toolbarSlot={toolbar}
-        filterSidebarSlot={folderSidebarSlot}
-      >
-        <div
-          className="flex flex-col items-center justify-center h-full text-brand-blue-primary"
-          style={{ gap: 'min(12px, 3cqmin)', padding: 'min(40px, 10cqmin) 0' }}
-        >
-          <Loader2
-            className="animate-spin"
-            style={{ width: 'min(32px, 8cqmin)', height: 'min(32px, 8cqmin)' }}
-          />
-          <span
-            className="font-medium"
-            style={{ fontSize: 'min(14px, 5.5cqmin)' }}
-          >
-            Loading quizzes…
-          </span>
-        </div>
-      </LibraryShell>
-    );
-  }
+  // Loading renders inside the same shell tree so an open New menu survives the load.
+  const libraryLoading = loading && managerTab === 'library';
 
   // ─── Ordered ids for LibraryDndContext (for overlay + reorder routing) ───
   const orderedIds = reorder.orderedItems.map(QUIZ_GET_ID);
@@ -3097,10 +3094,27 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       primaryAction={primaryAction}
       toolbarSlot={toolbar}
       filterSidebarSlot={folderSidebarSlot}
-      folderView={libraryView.folderView}
+      folderView={libraryLoading ? undefined : libraryView.folderView}
       folderViewMode={libraryView.state.viewMode}
     >
-      {managerTab === 'library' && (
+      {libraryLoading && (
+        <div
+          className="flex flex-col items-center justify-center h-full text-brand-blue-primary"
+          style={{ gap: 'min(12px, 3cqmin)', padding: 'min(40px, 10cqmin) 0' }}
+        >
+          <Loader2
+            className="animate-spin"
+            style={{ width: 'min(32px, 8cqmin)', height: 'min(32px, 8cqmin)' }}
+          />
+          <span
+            className="font-medium"
+            style={{ fontSize: 'min(14px, 5.5cqmin)' }}
+          >
+            Loading quizzes…
+          </span>
+        </div>
+      )}
+      {managerTab === 'library' && !libraryLoading && (
         <LibraryTabContent
           tourWidgetType={variant}
           error={error}
@@ -3150,6 +3164,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           rosters={rosters}
           lifecycle={classLifecycle}
           pinnedId={config.activeAssignmentId ?? null}
+          onBulkDelete={onArchiveDeleteMany}
+          onBulkPublish={onArchivePublishMany}
           emptyTitle="Nothing active"
           emptySub={
             isViewOnly
@@ -3388,6 +3404,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           }
           onClose={resetAssign}
           onSubmit={handleStepperAssign}
+          error={assignError}
         />
       )}
 

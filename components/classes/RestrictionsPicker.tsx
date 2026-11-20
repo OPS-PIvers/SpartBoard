@@ -70,6 +70,7 @@ export const RestrictionsPicker: React.FC<RestrictionsPickerProps> = ({
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="dialog"
+        title={label}
         className={`w-full flex items-center justify-between gap-1.5 px-2 py-1.5 text-xs font-bold rounded-md border transition-colors ${
           count > 0
             ? 'border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100'
@@ -78,7 +79,7 @@ export const RestrictionsPicker: React.FC<RestrictionsPickerProps> = ({
       >
         <span className="flex items-center gap-1.5 truncate">
           <UserX size={12} className="shrink-0" />
-          <span className="truncate">{label}</span>
+          <span className="truncate max-sm:sr-only">{label}</span>
         </span>
         <ChevronDown
           size={12}
@@ -98,7 +99,7 @@ export const RestrictionsPicker: React.FC<RestrictionsPickerProps> = ({
               setOpen(false);
             }
           }}
-          className="absolute top-full right-0 mt-1 w-72 max-h-80 flex flex-col z-popover rounded-2xl border border-slate-200 bg-white text-slate-800 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+          className="absolute top-full right-0 mt-1 w-72 max-h-80 flex flex-col z-popover rounded-2xl border border-slate-200 bg-white text-slate-800 shadow-xl overflow-hidden origin-top-right animate-in fade-in zoom-in-95 duration-200"
         >
           <div className="p-2 border-b border-slate-200 flex items-center gap-2">
             <Search size={14} className="text-slate-400 shrink-0" />

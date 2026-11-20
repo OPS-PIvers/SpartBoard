@@ -74,6 +74,11 @@ import {
   type AssignTargetingValue,
 } from '@/components/common/library';
 import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
+import {
+  assignmentCount,
+  runBulkPublish,
+  sharedVisibility,
+} from '@/components/common/library/assigned/bulkPublish';
 import { AssignmentClassesModal } from '@/components/common/library/AssignmentClassesModal';
 import { logError } from '@/utils/logError';
 import {
@@ -420,6 +425,9 @@ const TeacherGuidedLearningWidget: React.FC<{
   // Mirrors the QuizWidget / VideoActivityWidget pattern.
   const [publishingAssignment, setPublishingAssignment] =
     useState<GuidedLearningAssignment | null>(null);
+  const [bulkPublishing, setBulkPublishing] = useState<
+    GuidedLearningAssignment[] | null
+  >(null);
   const [editingClasses, setEditingClasses] =
     useState<GuidedLearningAssignment | null>(null);
   const [pickerValue, setPickerValue] = useState<AssignClassPickerValue>(() =>
@@ -1852,9 +1860,17 @@ const TeacherGuidedLearningWidget: React.FC<{
                   onAssignmentDelete={(a) => {
                     void handleAssignmentDelete(a);
                   }}
+                  onAssignmentDeleteMany={async (list) => {
+                    const results = await Promise.allSettled(
+                      list.map((a) => deleteAssignment(a.id))
+                    );
+                    return results.filter((r) => r.status === 'rejected')
+                      .length;
+                  }}
                   onAssignmentPublishScores={(a) => {
                     setPublishingAssignment(a);
                   }}
+                  onAssignmentPublishMany={setBulkPublishing}
                   onAssignmentUnpublishScores={async (a) => {
                     // One-click unpublish — `unpublishAssignmentScores`
                     // is a cheap two-write batch (no set lookup, no
@@ -2119,6 +2135,52 @@ const TeacherGuidedLearningWidget: React.FC<{
               addToast("Couldn't save classes.", 'error');
               throw err;
             }
+          }}
+        />
+      )}
+
+      {bulkPublishing && (
+        <PublishScoresModal
+          assignmentTitle={assignmentCount(bulkPublishing.length)}
+          currentVisibility={sharedVisibility(bulkPublishing)}
+          showProtection={gradebookOn}
+          initialProtection={
+            appSettings?.lastResultsProtection ?? RESULTS_PROTECTION_DEFAULTS
+          }
+          onClose={() => setBulkPublishing(null)}
+          onConfirm={async (visibility, protection) => {
+            await runBulkPublish({
+              targets: bulkPublishing,
+              unpublish: visibility === 'none',
+              publishOne: async (t) => {
+                if (visibility === 'none') {
+                  await unpublishAssignmentScores(t.id);
+                  return true;
+                }
+                const driveFileId = sets.find(
+                  (x) => x.id === t.setId
+                )?.driveFileId;
+                const building = buildingSets.find((x) => x.id === t.setId);
+                if (!driveFileId && !building)
+                  throw new Error('Set is no longer in the library.');
+                const data = await loadSetQuietly(
+                  t.setId,
+                  driveFileId,
+                  building
+                );
+                if (!data) return false;
+                await publishAssignmentScores(
+                  t.id,
+                  withFrozenAnswerKeys(data, t.answerKeys),
+                  visibility,
+                  protection
+                );
+                return true;
+              },
+              addToast,
+              logKey: 'GuidedLearningWidget.bulkPublishScores',
+            });
+            setBulkPublishing(null);
           }}
         />
       )}

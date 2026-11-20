@@ -30,6 +30,7 @@ import { useGuidedLearningEditorState } from './useGuidedLearningEditorState';
 import { GuidedLearningAIGenerator } from './GuidedLearningAIGenerator';
 import type { GuidedLearningSaveGuard } from '../utils/saveConflict';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 
 interface GuidedLearningEditorModalProps {
   isOpen: boolean;
@@ -167,8 +168,8 @@ export const GuidedLearningEditorModal: React.FC<
           aria-label={folderTooltip}
           aria-expanded={folderPickerOpen}
           aria-haspopup="dialog"
-          className={`inline-flex items-center justify-center rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 ${
-            folderId != null ? 'text-brand-blue-primary' : ''
+          className={`inline-flex items-center justify-center rounded-lg p-2 transition-colors hover:bg-white/15 hover:text-white ${
+            folderId != null ? 'text-white' : 'text-white/80'
           }`}
         >
           {folderId == null ? (
@@ -201,6 +202,7 @@ export const GuidedLearningEditorModal: React.FC<
   return (
     <>
       <EditorWorkspace
+        headerAccent={LIBRARY_HEADER_ACCENTS['guided-learning']}
         key={set.id}
         isOpen={isOpen}
         title={headerTitleValue}

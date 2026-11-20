@@ -177,6 +177,10 @@ export interface MiniAppManagerProps {
   /** Opens Publish scores for an ended submissions assignment; unset hides the item. */
   onArchivePublishScores?: (assignment: MiniAppAssignment) => void;
   onArchiveDelete: (assignment: MiniAppAssignment) => void;
+  /** Assigned tab bulk delete, already confirmed; resolves to how many failed. */
+  onArchiveDeleteMany?: (assignments: MiniAppAssignment[]) => Promise<number>;
+  /** Opens the publish dialog once for several closed assignments. */
+  onArchivePublishMany?: (assignments: MiniAppAssignment[]) => void;
   /** Optional — open the underlying app in the widget. */
   onArchiveOpenApp?: (assignment: MiniAppAssignment) => void;
   /** Opens the live monitor (Start, Pause, who has submitted); unset keeps Copy link as the row button. */
@@ -416,6 +420,8 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   onArchiveEditClasses,
   onArchivePublishScores,
   onArchiveDelete,
+  onArchiveDeleteMany,
+  onArchivePublishMany,
   onArchiveOpenApp,
   onArchiveMonitor,
   onArchiveResults,
@@ -1358,6 +1364,8 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
         }
         replacedMenuIds={['end', 'reactivate']}
         publishes={(a) => a.resultsVersion === 2}
+        onBulkDelete={onArchiveDeleteMany}
+        onBulkPublish={onArchivePublishMany}
       />
     );
   } else if (tab === 'active') {

@@ -53,6 +53,7 @@ import {
   QuizLanguagesContextPane,
   QuizLanguagesDetailPane,
 } from './QuizLanguagesPane';
+import { LIBRARY_HEADER_ACCENTS } from '@/components/common/library/libraryAccents';
 
 const EDITOR_TAB_ANCHORS = {
   questions: tourTypeAttr('quiz-editor.tab-questions', 'quiz'),
@@ -593,6 +594,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
 
   return (
     <EditorWorkspace
+      headerAccent={LIBRARY_HEADER_ACCENTS.quiz}
       key={quiz.id}
       isOpen={isOpen}
       title={title}

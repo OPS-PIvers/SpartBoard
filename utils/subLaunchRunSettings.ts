@@ -43,7 +43,9 @@ function quizRunSettings(
       tabWarningsEnabled: opts.tabWarningsEnabled ?? true,
       blockCopyPaste: opts.blockCopyPaste ?? false,
       showResultToStudent: opts.showResultToStudent ?? false,
-      showCorrectAnswerToStudent: opts.showCorrectAnswerToStudent ?? false,
+      showCorrectAnswerToStudent:
+        (opts.showResultToStudent ?? false) &&
+        (opts.showCorrectAnswerToStudent ?? false),
       showCorrectOnBoard: opts.showCorrectOnBoard ?? false,
       shuffleQuestions: opts.shuffleQuestions ?? false,
       shuffleAnswerOptions: opts.shuffleAnswerOptions ?? true,

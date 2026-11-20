@@ -1,3 +1,4 @@
+import { scoresShown } from '@/utils/assignedStatus';
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import {
   collection,
@@ -22,6 +23,7 @@ import {
   AssignedLeftOpenFlag,
   AssignedList,
   AssignedRow,
+  useAssignedBulkOps,
   type ClassActionKind,
   type LineSegment,
   mainActionLabel,
@@ -77,6 +79,10 @@ interface QuizAssignedTabProps extends QuizAssignedHandlers {
   pinnedId?: string | null;
   emptyTitle: string;
   emptySub: string;
+  /** Deletes without asking; resolves to how many failed. Turns on bulk select. */
+  onBulkDelete?: (assignments: QuizAssignment[]) => Promise<number>;
+  /** Opens the publish dialog once for the picked closed rows. */
+  onBulkPublish?: (assignments: QuizAssignment[]) => void;
 }
 
 const TICK_MS = 30_000;
@@ -203,6 +209,8 @@ export interface QuizAssignedRowModel {
   assignment: QuizAssignment;
   needsGrading: number | null;
   bells: Record<string, EpochWindow | null>;
+  viewOnly: boolean;
+  published: boolean;
 }
 
 /** Quiz rows for any Assigned list: the widget tab and the Assignments hub (D18). */
@@ -276,7 +284,15 @@ export function useQuizAssignedRows(
           }),
           now
         );
-        return { id: a.id, status, assignment: a, needsGrading, bells };
+        return {
+          id: a.id,
+          status,
+          assignment: a,
+          needsGrading,
+          bells,
+          viewOnly: a.mode === 'view-only',
+          published: scoresShown(a.scoreVisibility),
+        };
       }),
     [
       assignments,
@@ -301,6 +317,8 @@ export const QuizAssignedTab: React.FC<QuizAssignedTabProps> = ({
   pinnedId,
   emptyTitle,
   emptySub,
+  onBulkDelete,
+  onBulkPublish,
   ...handlers
 }) => {
   const { rows, now } = useQuizAssignedRows(
@@ -329,6 +347,16 @@ export const QuizAssignedTab: React.FC<QuizAssignedTabProps> = ({
       emptyTitle={emptyTitle}
       emptySub={emptySub}
       tourWidgetType="quiz"
+      bulk={
+        onBulkDelete
+          ? {
+              remove: (rows) => onBulkDelete(rows.map((r) => r.assignment)),
+              publish: onBulkPublish
+                ? (rows) => onBulkPublish(rows.map((r) => r.assignment))
+                : undefined,
+            }
+          : undefined
+      }
       renderLeftOpen={(row, cls, index, leaveOpen) =>
         row.assignment.paper ? null : (
           <QuizLeftOpenHost
@@ -567,6 +595,29 @@ export const QuizAssignedRowHost: React.FC<QuizAssignedRowHostProps> = ({
       onClick: () =>
         withUndo(() => actions.moveToDone(), `${a.quizTitle} moved to Done.`),
     });
+  useAssignedBulkOps({
+    close: allClosed
+      ? undefined
+      : async () => {
+          const prev = a;
+          const uid = user?.uid;
+          await actions.closeAll();
+          return async () => {
+            if (uid) await undoClose(prev, uid, lifecycle);
+          };
+        },
+    moveToDone:
+      status.bucket === 'active' && !viewOnly
+        ? async () => {
+            const prev = a;
+            const uid = user?.uid;
+            await actions.moveToDone();
+            return async () => {
+              if (uid) await undoClose(prev, uid, lifecycle);
+            };
+          }
+        : undefined,
+  });
   const built = menu(a);
   const today = built.filter((m) => !REPLACED_MENU_IDS.has(m.id));
   // Reopen for chosen students outlives the whole-assignment Reopen it sat under.

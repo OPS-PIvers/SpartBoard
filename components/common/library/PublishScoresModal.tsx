@@ -154,16 +154,14 @@ export const PublishScoresModal: React.FC<PublishScoresModalProps> = ({
       maxWidth="max-w-md"
       contentClassName=""
       customHeader={
-        <div className="flex items-start justify-between px-5 pt-5 pb-3 border-b border-slate-100">
+        <div className="flex items-start justify-between gap-3 px-5 py-3.5 bg-brand-blue-primary text-white rounded-t-2xl">
           <div className="flex items-start gap-3">
-            <div className="shrink-0 w-9 h-9 rounded-lg bg-brand-blue-lighter/40 text-brand-blue-primary flex items-center justify-center">
+            <div className="shrink-0 w-9 h-9 rounded-lg bg-white/15 text-white flex items-center justify-center">
               <Gauge className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900">
-                Publish scores
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5 truncate max-w-[20rem]">
+              <h2 className="text-base font-bold text-white">Publish scores</h2>
+              <p className="text-xs text-white/80 mt-0.5 truncate max-w-[20rem]">
                 {assignmentTitle}
               </p>
             </div>
@@ -174,7 +172,7 @@ export const PublishScoresModal: React.FC<PublishScoresModalProps> = ({
             disabled={submitting}
             aria-label="Close"
             {...tourAttr('publish-scores.close')}
-            className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors disabled:opacity-50"
+            className="shrink-0 rounded-lg p-1 text-white/80 hover:bg-white/15 hover:text-white transition-colors disabled:opacity-50"
           >
             <X className="w-5 h-5" />
           </button>
