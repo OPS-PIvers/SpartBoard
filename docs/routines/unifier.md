@@ -1,7 +1,7 @@
 # SpartBoard Unifier — Nightly Consistency Memory
 
-_Run count: 151_
-_Last run: 2026-11-19_
+_Run count: 152_
+_Last run: 2026-11-20_
 _Base branch: dev-paul_
 
 ---
@@ -580,6 +580,7 @@ Ordered roughly by severity. Pick the top OPEN item per dimension each night. On
 
 | Date | Branch | Dimension | Action | PR |
 | ---------- | ------------------------------------------------- | --------------------- | --- | --- |
+| 2026-11-20 | `claude/kind-johnson-lgng0g` | D1/D2/D3/D4/D5 | Aligned (run 152) — light probe of `c859a9fc..dev-paul` (231 commits, 615 non-test client files). Diff-scoped greps over added lines: no cross-directory `'../../'` imports, no `<Toast`/`common/Toast`, no `#2d3f89`/`#ad2122`/`#4356a0`, no new `Widget.tsx`/`Settings.tsx`; three added `text-xxs font-bold uppercase tracking-widest text-slate-400` labels are the existing D3-backlogged pattern, not unified. No subagents dispatched, no code shipped; `pnpm run validate` skipped (CLAUDE.md bars full validate; docs-only PR, CI gates it). | — |
 | 2026-11-19 | `claude/kind-johnson-64jqqf` | D1/D2/D3/D4/D5 | Aligned (run 151) — light probe of `c859a9fc..dev-paul` (68 commits, 480 non-test client files). Diff-scoped greps over added lines: no cross-directory `'../../'` imports, no `<Toast`/`common/Toast`, no `#2d3f89`/`#ad2122`/`#4356a0`; one new widget-adjacent file (`QuizWidget/components/RubricGradingSettings.tsx`, uses `role="radiogroup"`/`switch`, no hand-rolled SettingsLabel combo, own-widget scope). Existing `aria-pressed`/`role="group"` hits are pre-known toggle shapes (D3 backlog). No subagents dispatched, no code shipped; `pnpm run validate` skipped (CLAUDE.md bars full local runs; CI is the gate). | — |
 | 2026-11-18 | `claude/kind-johnson-owvr5o` | D1/D2/D3/D4/D5 | Aligned (run 150) — light probe of `c859a9fc..dev-paul` (119 commits, 135 non-test client files). Run 149's `FreeResponseGrader` `var(--spart-primary, #2d3f89)` change confirmed on dev-paul. Diff-scoped greps over added lines: no cross-directory `'../../'` imports, no `<Toast`/`common/Toast`, no `#2d3f89`/`#ad2122`/`#4356a0`, no new `Widget.tsx`/`Settings.tsx`; two added `text-xxs font-bold uppercase tracking-widest text-slate-400` section labels are the existing pattern already backlogged under D3, not unified. No unification attempted; `pnpm run validate` skipped (CLAUDE.md bars full validate; docs-only PR, CI gates it). | — |
 | 2026-11-17 | `nightly/unify-d2-brand-colors-2026-11-17` | D2 Brand Colors (+D1/D3/D4/D5 probe) | Shipped (run 149, mechanical) — `FreeResponseGrader.tsx` `BRAND_BLUE_HEADER` (inline `backgroundColor` via `EditorModalShell.headerAccent`) `'#2d3f89'` → `'var(--spart-primary, #2d3f89)'`; default render identical, 130 related suites pass. Probe of `24963c64..dev-paul`: `../../boardHelpers` in Projects board components is own-widget gray zone (D4-E3); new Agenda widget uses `ScaledEmptyState`; no `<Toast`; hand-rolled `text-xxs font-bold uppercase` hits are existing label patterns already backlogged under D3. | PR pending |
