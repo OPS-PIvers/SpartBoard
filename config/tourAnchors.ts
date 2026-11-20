@@ -6196,6 +6196,52 @@ export const TOUR_ANCHORS = {
     label: 'Create groups button in the Split class form',
     panel: true,
   },
+  'roster-groups.back': {
+    label: 'All groups button at the top of a group page',
+    panel: true,
+  },
+  'roster-groups.name': {
+    label: 'Group name box on a group page',
+    panel: true,
+  },
+  'roster-groups.delete': {
+    label: 'Delete group button on a group page',
+    panel: true,
+    destructive: true,
+  },
+  'roster-groups.search': {
+    label: 'Search students box on a group page',
+    panel: true,
+  },
+  'roster-groups.select-all': {
+    label: 'Select all students button on a group page',
+    panel: true,
+  },
+  'roster-groups.clear': {
+    label: 'Clear students button on a group page',
+    panel: true,
+  },
+  'roster-groups.done': {
+    label: 'Done button at the bottom of a group page',
+    panel: true,
+  },
+  'roster-accommodations.list': {
+    label: 'List of students on the Accommodations tab',
+    panel: true,
+  },
+  'roster-accommodations.edit': {
+    label: 'Edit button on a student row on the Accommodations tab',
+    perField: true,
+    panel: true,
+  },
+  'roster-accommodations.back': {
+    label: 'All students button at the top of a student accommodations page',
+    panel: true,
+  },
+  'roster-accommodations.done': {
+    label: 'Done button at the bottom of a student accommodations page',
+    panel: true,
+  },
   'group-wizard.steps': {
     label: 'Step list in the group editor',
     panel: true,

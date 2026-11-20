@@ -1057,6 +1057,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'class-groups-redesign': {
+    label: 'Class groups redesign',
+    icon: UsersRound,
+    description:
+      'Edit Class groups open as pages that hold their accommodations. Accommodations lists every student.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'group-reminders': {
     label: 'Group reminders',
     icon: BellRing,

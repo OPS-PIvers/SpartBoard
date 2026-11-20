@@ -42,6 +42,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'student-gradebook',
   'quiz-time-limit',
   'group-reminders',
+  'class-groups-redesign',
   'share-content-safeguards',
   'guided-learning-ai',
   'routine-guide',

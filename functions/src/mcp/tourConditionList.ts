@@ -43,6 +43,7 @@ export const TOUR_CONDITION_FEATURES: readonly string[] = [
   'assignment-modes',
   'assignments-hub',
   'blooms-ai',
+  'class-groups-redesign',
   'class-student-page',
   'claude-connector',
   'claude-connector-guided-learning',

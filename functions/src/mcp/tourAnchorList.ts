@@ -24976,6 +24976,260 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "roster-groups.back",
+    "label": "All groups button at the top of a group page",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-groups",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-groups.name",
+    "label": "Group name box on a group page",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-groups",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-groups.delete",
+    "label": "Delete group button on a group page",
+    "scope": "board",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "board.roster-groups",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-groups.search",
+    "label": "Search students box on a group page",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-groups",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-groups.select-all",
+    "label": "Select all students button on a group page",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-groups",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-groups.clear",
+    "label": "Clear students button on a group page",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-groups",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-groups.done",
+    "label": "Done button at the bottom of a group page",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-groups",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-editor.tab:roster-editor#groups",
+          "roster-groups.edit:roster-groups"
+        ],
+        "reveal": "roster-groups.edit:roster-groups",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-accommodations.list",
+    "label": "List of students on the Accommodations tab",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes"
+        ],
+        "opened_by": [
+          "classes.new-class",
+          "classes.new-class-empty"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-accommodations.edit",
+    "label": "Edit button on a student row on the Accommodations tab",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes"
+        ],
+        "opened_by": [
+          "classes.new-class",
+          "classes.new-class-empty"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-accommodations.back",
+    "label": "All students button at the top of a student accommodations page",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-accommodations.edit:roster-accommodations"
+        ],
+        "reveal": "roster-accommodations.edit:roster-accommodations",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-accommodations.done",
+    "label": "Done button at the bottom of a student accommodations page",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster:classes",
+          "roster-accommodations.edit:roster-accommodations"
+        ],
+        "reveal": "roster-accommodations.edit:roster-accommodations",
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
     "id": "group-wizard.steps",
     "label": "Step list in the group editor",
     "scope": "board",
