@@ -13,7 +13,7 @@ const BOX_SIZE_OPTIONS = [
   { value: 'S', label: `Short answer (${PAPER_BOX_LINES.S} lines)` },
   { value: 'M', label: `1 paragraph (${PAPER_BOX_LINES.M} lines)` },
   { value: 'full', label: '1 page' },
-  { value: 'custom', label: 'Custom' },
+  { value: 'custom', label: 'Set lines' },
 ] as const;
 
 /** A box size as the menu shows it: a named size, or Custom for a line count (and the older Large). */
