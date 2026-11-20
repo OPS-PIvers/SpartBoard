@@ -40,6 +40,7 @@
     "test:counts": "node scripts/checkTestCounts.mjs",
     "check:tour-anchors": "node scripts/checkTourAnchors.ts --base origin/dev-paul",
     "test:e2e": "playwright test",
+    "test:e2e:emulator": "firebase emulators:exec --only auth,firestore --project demo-spartboard-e2e -c tests/e2e-emulator/firebase.json \"playwright test -c playwright.emulator.config.ts\"",
     "test:rules": "firebase emulators:exec --only firestore,storage \"node scripts/runRulesTests.mjs\"",
     "test:perf": "vitest run --config vitest.perf.config.ts",
     "test:import-corpus": "vitest run --config vitest.corpus.config.ts",

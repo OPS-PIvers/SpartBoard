@@ -45,6 +45,7 @@ Each is explained in `CLAUDE.md`.
 - Specs live in `tests/e2e/`. The Playwright config starts the app with `VITE_AUTH_BYPASS=true`, so tests skip the login screen.
 - Disable animations in `beforeEach` by injecting `*, *::before, *::after { transition: none !important; animation: none !important; }` with `page.addStyleTag`.
 - For drag-and-drop (dnd-kit) you may need `.click({ force: true })` or explicit drag steps.
+- Specs that need saving to work live in `tests/e2e-emulator/` and run with `pnpm run test:e2e:emulator`, which starts the Auth and Firestore emulators (open rules, real widget). Auth bypass grants every flag there; `teacherFeatureOverrides()` switches off the ones a teacher lacks by default.
 
 ### Verified UI selectors
 

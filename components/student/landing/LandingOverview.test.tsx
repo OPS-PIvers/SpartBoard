@@ -44,6 +44,7 @@ const partition = (count: number): LandingPartition => ({
   work: [],
   resources: Array.from({ length: count }, (_, i) => resource(i + 1)),
   done: [],
+  expired: [],
 });
 
 const renderOverview = (count: number) =>

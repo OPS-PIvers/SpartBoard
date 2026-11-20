@@ -562,7 +562,7 @@ describe('shared_activity_walls/comments — schema lockdown', () => {
     id: COMMENT_ID,
     submissionId: SUBMISSION_ID,
     content: 'Looks great!',
-    participantLabel: 'Viewer',
+    participantLabel: 'Anonymous',
     authorUid: 'viewer-uid',
     createdAt: 1_500_000,
     ...overrides,

@@ -184,6 +184,7 @@ const signIn = (user: {
   uid: string;
   isAnonymous: boolean;
   studentRole?: boolean;
+  firstName?: string;
   displayName?: string | null;
 }) => {
   mockOnAuthStateChanged.mockImplementation(
@@ -193,7 +194,12 @@ const signIn = (user: {
         isAnonymous: user.isAnonymous,
         displayName: user.displayName ?? null,
         getIdTokenResult: () =>
-          Promise.resolve({ claims: { studentRole: user.studentRole } }),
+          Promise.resolve({
+            claims: {
+              studentRole: user.studentRole,
+              firstName: user.firstName,
+            },
+          }),
       });
       return () => undefined;
     }
@@ -277,7 +283,11 @@ describe('ActivityWallStudentApp', () => {
       const user = userEvent.setup();
       signIn({ uid: 'anon-1', isAnonymous: true });
       wireSnapshots(
-        buildSession({ identificationMode: 'name-pin', allowGuests: true })
+        buildSession({
+          identificationMode: 'name-pin',
+          allowGuests: true,
+          showNames: true,
+        })
       );
 
       render(<ActivityWallStudentApp />);
@@ -498,7 +508,7 @@ describe('ActivityWallStudentApp', () => {
             content: 'Ready to learn',
             authorUid: 'sso-1',
             isGuest: false,
-            participantLabel: 'Student',
+            participantLabel: 'Anonymous',
             status: 'approved',
           })
         );
@@ -508,6 +518,41 @@ describe('ActivityWallStudentApp', () => {
       });
       expect(screen.getByText('Posted!')).toBeInTheDocument();
     });
+
+    it.each([
+      {
+        showNames: false,
+        identificationMode: 'anonymous',
+        expected: 'Anonymous',
+      },
+      { showNames: false, identificationMode: 'name', expected: 'Anonymous' },
+      { showNames: true, identificationMode: 'name', expected: 'Riley' },
+    ] as const)(
+      'stamps $expected on a student post when showNames is $showNames ($identificationMode)',
+      async ({ showNames, identificationMode, expected }) => {
+        const user = userEvent.setup();
+        signIn({
+          uid: 'sso-1',
+          isAnonymous: false,
+          studentRole: true,
+          firstName: 'Riley',
+        });
+        wireSnapshots(buildSession({ showNames, identificationMode }));
+
+        render(<ActivityWallStudentApp />);
+
+        await openSheetViaButton(user);
+        await user.type(screen.getByLabelText(/your response/i), 'Hello');
+        submitSheet();
+
+        await waitFor(() => {
+          expect(mockSetDoc).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({ participantLabel: expected })
+          );
+        });
+      }
+    );
 
     it('prefills the sheet from an onAddAt placement and hides the column picker', async () => {
       const user = userEvent.setup();

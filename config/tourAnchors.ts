@@ -6819,7 +6819,7 @@ export const TOUR_ANCHORS = {
     destructive: true,
     perField: true,
     panel: true,
-    keyPattern: '[a-z-]+#(close|move-to-done|delete)',
+    keyPattern: '[a-z-]+#(close|move-to-done|publish|delete)',
     keyHint: 'quiz#delete is Delete for the picked quizzes',
   },
   'library-shell.assigned-select-cancel': {

@@ -453,6 +453,25 @@ service cloud.firestore {
                existing().get('classId', '') in tok().get('classIds', [])));
     }
 
+    // A session write may add only class ids on the writer's server-written verified_classes/{uid}.ids list.
+    function classTargets(d) {
+      let one = d.get('classId', null);
+      return (d.get('classIds', null) is list ? d.classIds : []).concat(one is string && one != '' ? [one] : []);
+    }
+    function classTargetsWriteOk() {
+      let t = classTargets(incoming());
+      let added = t.removeAll(classTargets(noDoc() ? {} : existing()));
+      return added.size() == 0 || onVerifiedList(added, t[0]);
+    }
+    function onVerifiedList(added, first) {
+      let vc = dbExists('verified_classes', authUid()) ? dbGet('verified_classes', authUid()).data : {};
+      let ids = vc.get('ids', []);
+      // Before enforce, an uncounted list or one unlisted LMS id (LTI launch) is not refused.
+      return ids.hasAll(added) || !(dbExists('admin_settings', 'verified_classes_fill') &&
+        dbGet('admin_settings', 'verified_classes_fill').data.get('enforce', false) == true) &&
+        (!(vc.get('classlinkAt', null) is number) || added.removeAll(ids).hasOnly([first]) && first.matches('^(schoology|classroom):.+'));
+    }
+
     // ---- Organization helpers (see docs/organization_wiring_implementation.md) ----
 
     // Super admins: an operator-org member doc with roleId == 'super_admin'.
@@ -1299,6 +1318,8 @@ service cloud.firestore {
     // and the extension's `delivery` subfield exposes SMTP response details.
     // /mail/{mailId}: no client access (default deny).
 
+    // /assignment_key_claims/{key}: verified pointer-key owner, Cloud Functions only (default deny).
+
     // Guided Learning
     match /users/{userId}/guided_learning/{setId} {
       allow read, write: if ownsUser(userId);
@@ -1970,11 +1991,15 @@ service cloud.firestore {
         'parentCommentId'
       ]);
     }
-    // A student token's first name, or 'Student', is the only label it may post under.
-    function wallLabelOk() {
+    // A name-hidden wall (showNames off, or unset on a non-name legacy mode) stores only a placeholder label.
+    function wallNamesHidden(s) {
+      return s.get('showNames', s.get('identificationMode', 'anonymous') in ['name', 'name-pin']) != true;
+    }
+    // Name-shown: a student token's first name or 'Student'. Name-hidden: a placeholder only.
+    function wallLabelOk(hidden) {
       let n = request.auth.token.get('firstName', null);
       let l = incoming().get('participantLabel', 'Student');
-      return n == null || l == n || l == 'Student';
+      return hidden ? l in ['Anonymous', 'Student', 'Guest'] : (n == null || l == n || l == 'Student');
     }
     function wallLikeKeysOk() {
       return newKeys().hasOnly([
@@ -2082,7 +2107,7 @@ service cloud.firestore {
           incoming().content.size() > 0 &&
           incoming().content.size() <= 2000 &&
           isStr('participantLabel') &&
-          wallLabelOk() &&
+          wallLabelOk(wallNamesHidden(dbGet('activity_wall_sessions', parentShare().sessionId).data)) &&
           myAuthorUid() &&
           isInt('createdAt');
         // Commenter can delete their own comment; share owner / admin can
@@ -2273,13 +2298,12 @@ service cloud.firestore {
         existing().get('ownerUid', '') == authUid() || isDistrictStaff() ||
         syncedBankPlcReader(existing().get('plcIds', [])) || isAdmin());
 
-      // synced_bank_owners (written by syncedBankOwnerRegistry) reserves a deleted id for its first owner.
+      // The id's synced_bank_owners reservation must name the caller after this write (same batch on first create).
       allow create: if staffSignedIn()
         && syncedBankKeysOk()
         && incoming().id == groupId
         && incoming().ownerUid == authUid()
-        && (!dbExists('synced_bank_owners', groupId)
-          || dbGet('synced_bank_owners', groupId).data.ownerUid == authUid())
+        && dbGetAfter('synced_bank_owners', groupId).data.ownerUid == authUid()
         && incoming().version == 1
         && isList('plcIds')
         && isList('questions')
@@ -2313,7 +2337,24 @@ service cloud.firestore {
       // fails assign-time resolution with a fix-it message. District banks are never deleted.
       allow delete: if signedIn()
         && myOldOwner()
-        && existing().get('districtItemId', '') == '';
+        && existing().get('districtItemId', '') == ''
+        && dbGetAfter('synced_bank_owners', groupId).data.ownerUid == authUid();
+    }
+
+    // Reserves a synced bank id for its first owner, written in the owner's create or delete batch.
+    // Also written by syncedBankOwnerRegistry; never readable, and the owner never moves.
+    match /synced_bank_owners/{groupId} {
+      allow create: if staffSignedIn()
+        && newKeys().hasOnly(['ownerUid', 'at'])
+        && incoming().ownerUid == authUid()
+        && isInt('at')
+        && (dbExists('synced_question_banks', groupId)
+          ? dbGet('synced_question_banks', groupId).data.ownerUid == authUid()
+          : dbGetAfter('synced_question_banks', groupId).data.ownerUid == authUid());
+      allow update: if staffSignedIn()
+        && myOldOwner()
+        && unchanged('ownerUid')
+        && newKeys().hasOnly(['ownerUid', 'at']);
     }
 
     // ---- District library (docs/plans/QUIZ_MCA_PRACTICE.md M26-M30) ----
@@ -4636,6 +4677,7 @@ service cloud.firestore {
         sessionCodeOk() &&
         !('ltiAttachment' in incoming()) &&
         subMonitorStampAbsent() &&
+        classTargetsWriteOk() &&
         (!('plcId' in incoming()) || plcLinkOk(incoming()));
       // Update: an unchanged or cleared plcId needs no PLC read; a new/changed
       // non-null plcId re-runs the membership gate.
@@ -4646,6 +4688,7 @@ service cloud.firestore {
         (!changed(['code']) || sessionCodeOk()) &&
         !changed(['ltiAttachment']) &&
         subMonitorStampUnchanged() &&
+        classTargetsWriteOk() &&
         (!changed(['status']) || incoming().status in ['waiting', 'active', 'paused', 'ended']) &&
         // An ended run may drop its answer reveals but never write them (security #1).
         (incoming().get('status', '') != 'ended' || !changed(['revealedAnswers']) ||
@@ -5044,8 +5087,8 @@ service cloud.firestore {
           (authUid() == existing().studentUid && changedOnly(['inputSignals']) && signalsOk(sessionData())) ||
           // The dictated marker comes alone too.
           (authUid() == existing().studentUid && changedOnly(['dictated']) && dictatedOk()) ||
-          // The teacher can update any field; another admin can't touch identity or the server-written archive, override and paper fields.
-          liveUid(sessionTeacherUid()) ||
+          // The teacher can update any field but the student identity the gradebook keys on; another admin also can't touch the server-written archive, override and paper fields.
+          (liveUid(sessionTeacherUid()) && !changed(['studentUid', 'classId'])) ||
           (isSiteAdmin() && !changed(['studentUid', 'artifactArchive', 'hasStuckArchive', 'resultsOverride', 'paperSeat', 'paperBatchId', 'paperWrittenBatchId', 'paperWrittenSeat', 'backTranslations', 'liveView']))
         );
         allow delete: if signedIn() &&
@@ -5601,6 +5644,7 @@ service cloud.firestore {
         sessionStaff() &&
         subMonitorStampAbsent() &&
         myNewTeacher() &&
+        classTargetsWriteOk() &&
         !('ltiAttachment' in incoming());
       // Teacher owners update their own session (renames, status, sync-pull, PLC
       // attach, score-publish, sharing fields); identity immutable. Looser
@@ -5610,6 +5654,7 @@ service cloud.firestore {
         myOldTeacher() &&
         sessionStaff() &&
         subMonitorStampUnchanged() &&
+        classTargetsWriteOk() &&
         sameId() &&
         unchanged('activityId') &&
         unchanged('teacherUid') &&
@@ -5730,8 +5775,8 @@ service cloud.firestore {
         // exclusive by intent — the teacher branch checks only
         // session owner, so a student falls through to the student branch.
         allow update: if signedIn() && (
-          // Teacher branch.
-          vaOwner(vaS()) ||
+          // Teacher branch; the student identity the gradebook keys on stays as the student wrote it.
+          (vaOwner(vaS()) && !changed(['studentUid', 'classId'])) ||
           // Student results-view counters; allowed after close like quiz's.
           (existing().studentUid == authUid() && vaGate() && resultsGuardWrite()) ||
           // Student branch — same invariants as before PR3.
@@ -5840,11 +5885,13 @@ service cloud.firestore {
       // Only authenticated (non-anonymous) teachers can create sessions they own
       allow create: if liveStaffSignedIn() &&
         sessionStaff() &&
-        myNewTeacher();
+        myNewTeacher() &&
+        classTargetsWriteOk();
       // Teachers can rename, end, re-window or re-period their own sessions
       allow update: if staffSignedIn() &&
         myOldTeacher() &&
         sessionStaff() &&
+        classTargetsWriteOk() &&
         changedOnly(['assignmentName', 'status', 'endedAt', 'periodAccess', 'studentAccess', 'workKind', 'openAt', 'closeAt', 'dueAt', 'classIds', 'rosterIds', 'removedClasses']) &&
         incoming().status in ['active', 'ended'];
 
@@ -6005,7 +6052,8 @@ service cloud.firestore {
       allow create: if liveStaffSignedIn() &&
         sessionStaff() &&
         subMonitorStampAbsent() &&
-        myNewTeacher();
+        myNewTeacher() &&
+        classTargetsWriteOk();
       // Owning teacher (or admin) may update (publishAssignmentScores mirrors
       // scoreVisibility + revealedAnswers onto the session so the student listener
       // can gate review without teacher-owned docs; mirrors Quiz sessions) and
@@ -6015,6 +6063,7 @@ service cloud.firestore {
         (myOldTeacher() || isSiteAdmin()) &&
         sessionStaff() &&
         subMonitorStampUnchanged() &&
+        classTargetsWriteOk() &&
         unchanged('teacherUid');
       allow delete: if signedIn() && !isStudentRoleUser() &&
         (myOldTeacher() || isSiteAdmin());
@@ -6403,7 +6452,7 @@ service cloud.firestore {
           isInt('submittedAt') &&
           incoming().status == (awSessionModerationEnabled() ? 'pending' : 'approved') &&
           awFieldTypesOk() &&
-          wallLabelOk() &&
+          wallLabelOk(wallNamesHidden(awSession())) &&
           // authorUid is an ownership claim on every session shape, not just padlet ones.
           (!('authorUid' in incoming()) ||
            (incoming().authorUid == authUid() &&
@@ -6601,7 +6650,7 @@ service cloud.firestore {
           incoming().content.size() <= 2000 &&
           isStr('participantLabel') &&
           incoming().participantLabel.size() <= 200 &&
-          wallLabelOk() &&
+          wallLabelOk(wallNamesHidden(awParentSession()) && !awIsOwner()) &&
           incoming().authorUid == authUid() &&
           isInt('createdAt');
         allow delete: if signedIn() &&
@@ -6913,6 +6962,7 @@ service cloud.firestore {
                     && sessionStaff()
                     && myNewTeacher()
                     && subMonitorStampAbsent()
+                    && classTargetsWriteOk()
                     && incoming().kind in ['check', 'study']
                     && incoming().status == 'active'
                     && isList('classIds')
@@ -6924,6 +6974,7 @@ service cloud.firestore {
                     && myOldTeacher()
                     && sessionStaff()
                     && subMonitorStampUnchanged()
+                    && classTargetsWriteOk()
                     && unchanged('teacherUid')
                     && unchanged('kind')
                     // Audience is fixed at create, so live joiners' progress writes keep passing.
@@ -7191,13 +7242,15 @@ service cloud.firestore {
                     && isList('approvalStepIds')
                     && isList('steps')
                     && incoming().steps.size() <= 32
-                    && isBool('acceptingUpdates');
+                    && isBool('acceptingUpdates')
+                    && classTargetsWriteOk();
       allow update: if liveStaffSignedIn()
                     && myOldTeacher()
                     && sessionStaff()
                     && unchanged('teacherUid')
                     && sameId()
                     && isList('classIds')
+                    && classTargetsWriteOk()
                     && isList('approvalStepIds')
                     && isList('steps')
                     && incoming().steps.size() <= 32;

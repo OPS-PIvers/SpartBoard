@@ -105,6 +105,17 @@ describe('assignWritingV1', () => {
       code: 'unauthenticated',
     });
   });
+
+  it('refuses a class missing from the teacher verified list and writes nothing', async () => {
+    store.set('verified_classes/t1', { ids: ['c1'], classlinkAt: 1 });
+    await expect(assign({ classIds: ['c1', 'c2'] })).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+    expect(store.has('writing_assignment_sessions/S1')).toBe(false);
+    await expect(assign({ classIds: ['c1'] })).resolves.toEqual({
+      sessionId: 'S1',
+    });
+  });
 });
 
 describe('sessionSettings', () => {

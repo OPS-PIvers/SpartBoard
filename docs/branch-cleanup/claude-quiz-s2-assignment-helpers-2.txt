@@ -1,0 +1,1 @@
+claude/quiz-s2-assignment-helpers-2 (legacy-shape helpers moved out of useQuizAssignments, AB-311)
