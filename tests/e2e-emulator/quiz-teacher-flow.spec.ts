@@ -160,7 +160,10 @@ test('a teacher assigns, runs, ends, reopens and deletes a quiz', async ({
 
   await test.step('reopen it', async () => {
     await page.getByRole('menuitem', { name: 'Reopen' }).click();
-    await expectToast(page, 'Reopened — click Start to accept submissions.');
+    await expectToast(
+      page,
+      "Reopened and paused. Students can't submit until you start it."
+    );
     await expect(row.getByText('No completed assignments')).toBeVisible();
     await library.getByRole('tab', { name: 'In Progress' }).click();
     await expect(row.getByText(QUIZ)).toBeVisible();
