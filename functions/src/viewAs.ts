@@ -10,6 +10,7 @@ import {
   readViewAsClaim,
   type ViewAsClaim,
 } from './viewAsGuard';
+import { safeErr } from './safeLog';
 
 type Firestore = admin.firestore.Firestore;
 
@@ -137,7 +138,7 @@ async function mint(uid: string, claim: ViewAsClaim): Promise<string> {
   try {
     return await admin.auth().createCustomToken(uid, { viewAs: claim });
   } catch (err) {
-    console.error('[viewAs] createCustomToken failed', err);
+    console.error('[viewAs] createCustomToken failed', safeErr(err));
     throw new HttpsError('internal', 'Could not open the account.');
   }
 }
@@ -439,6 +440,6 @@ async function endSession(
   await db
     .collection('admin_audit_log')
     .add(auditEntry('view_as_end', sid, session))
-    .catch((err) => console.error('[viewAs] end audit failed', err));
+    .catch((err) => console.error('[viewAs] end audit failed', safeErr(err)));
   return { ended: true };
 }

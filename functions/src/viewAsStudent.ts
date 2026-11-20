@@ -11,6 +11,7 @@ import {
   readSession,
 } from './viewAs';
 import { readViewAsClaim } from './viewAsGuard';
+import { safeErr } from './safeLog';
 
 type Firestore = admin.firestore.Firestore;
 
@@ -219,7 +220,7 @@ export const startViewAsStudentV1 = onCall(
         },
       });
     } catch (err) {
-      console.error('[viewAsStudent] createCustomToken failed', err);
+      console.error('[viewAsStudent] createCustomToken failed', safeErr(err));
       throw new HttpsError('internal', 'Could not open the student view.');
     }
 

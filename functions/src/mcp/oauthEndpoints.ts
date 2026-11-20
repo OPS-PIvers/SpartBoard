@@ -23,6 +23,7 @@ import {
   refreshGrant,
   revokeByRefreshToken,
 } from './grants';
+import { safeErr } from '../safeLog';
 
 export function protectedResourceMetadata() {
   return {
@@ -272,7 +273,7 @@ export const mcpOAuth = onRequest(
       }
       res.status(404).json({ error: 'not_found' });
     } catch (err) {
-      console.error('[mcpOAuth] failed', { path, err });
+      console.error('[mcpOAuth] failed', { path, err: safeErr(err) });
       sendOAuthError(res, 500, 'server_error', 'Something went wrong');
     }
   }

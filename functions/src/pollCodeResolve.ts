@@ -10,6 +10,7 @@ import { OPERATOR_ORG_ID } from './authz';
 import { isStaffMemberData } from './districtStaff';
 import { assertViewAsAllowed } from './viewAsGuard';
 import { pointerMembers } from './pollCodeMembers';
+import { safeErr } from './safeLog';
 
 type Firestore = admin.firestore.Firestore;
 type DocRef = admin.firestore.DocumentReference;
@@ -165,7 +166,7 @@ export async function refundSlot(
       }
     });
   } catch (err) {
-    logger.warn('[pollCode] slot refund failed', err);
+    logger.warn('[pollCode] slot refund failed', safeErr(err));
   }
 }
 
@@ -264,7 +265,7 @@ export async function resolvePollCode(
   try {
     return { sessionId, voterId: await recordJoin(db, sessionId, uid, now) };
   } catch (err) {
-    logger.warn('[resolvePollCodeV1] join write failed', err);
+    logger.warn('[resolvePollCodeV1] join write failed', safeErr(err));
     throw new HttpsError('unavailable', 'Could not join the poll.');
   }
 }
@@ -297,7 +298,7 @@ export async function mintPollCode(
       { merge: true }
     );
   } catch (err) {
-    logger.warn('[mintPollCodeV1] mint counter write failed', err);
+    logger.warn('[mintPollCodeV1] mint counter write failed', safeErr(err));
   }
   for (let attempt = 0; attempt < MINT_TRIES; attempt += 1) {
     let code = '';

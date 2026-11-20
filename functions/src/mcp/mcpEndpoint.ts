@@ -20,6 +20,7 @@ import {
   GOOGLE_OAUTH_CLIENT_SECRET,
   GOOGLE_OAUTH_REFRESH_TOKEN_KEY,
 } from '../secrets';
+import { safeErr } from '../safeLog';
 
 type Firestore = admin.firestore.Firestore;
 type Response = Parameters<Parameters<typeof onRequest>[0]>[1];
@@ -87,7 +88,7 @@ async function uploadTourPictures(
       res.status(403).json({ error: err.message });
       return;
     }
-    console.error('[mcpServer] tour pictures failed', err);
+    console.error('[mcpServer] tour pictures failed', safeErr(err));
     res.status(500).json({ error: 'The pictures could not be saved.' });
   }
 }
@@ -130,7 +131,7 @@ async function uploadChatPicture(
       res.status(403).json({ error: err.message });
       return;
     }
-    console.error('[mcpServer] picture upload failed', err);
+    console.error('[mcpServer] picture upload failed', safeErr(err));
     res.status(500).json({ error: 'The picture could not be saved.' });
   }
 }
@@ -278,7 +279,10 @@ export const mcpServer = onRequest(
       await server.connect(transport);
       await transport.handleRequest(req, res, req.body);
     } catch (err) {
-      console.error('[mcpServer] request failed', { uid: claims.uid, err });
+      console.error('[mcpServer] request failed', {
+        uid: claims.uid,
+        err: safeErr(err),
+      });
       if (!res.headersSent) {
         res.status(500).json({
           jsonrpc: '2.0',

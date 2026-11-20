@@ -46,6 +46,7 @@ import {
 } from './nrpsStore';
 import { assertViewAsAllowed } from '../viewAsGuard';
 import { isDistrictTeacher } from './teacherAuth';
+import { safeErr } from '../safeLog';
 
 /** The Firestore session collection a launch `kind` targets. */
 function sessionCollectionForKind(kind: LtiSessionKind): string {
@@ -266,7 +267,7 @@ export const ltiPushGradesForAssignmentV1 = onCall(
       // token endpoint down / key misconfig / scope denied). Log a greppable
       // line and surface a clean error instead of leaking the raw mint failure
       // — mirrors the NRPS resolver's token-mint handling.
-      console.error('[ltiPushGrades] AGS token mint failed:', err);
+      console.error('[ltiPushGrades] AGS token mint failed:', safeErr(err));
       throw new HttpsError(
         'internal',
         'Could not authorize the Schoology gradebook service.'
@@ -388,7 +389,10 @@ async function aliasBridgedUids(
       }
     });
   } catch (err) {
-    console.warn('[ltiResolveNames] bridged-uid alias lookup failed:', err);
+    console.warn(
+      '[ltiResolveNames] bridged-uid alias lookup failed:',
+      safeErr(err)
+    );
   }
 }
 
@@ -474,7 +478,7 @@ export const ltiResolveNamesForAssignmentV1 = onCall(
         scopes: [NRPS_SCOPE],
       });
     } catch (err) {
-      console.error('[ltiResolveNames] NRPS token mint failed:', err);
+      console.error('[ltiResolveNames] NRPS token mint failed:', safeErr(err));
       throw new HttpsError(
         'internal',
         'Could not authorize the roster service.'
@@ -519,7 +523,10 @@ export const ltiResolveNamesForAssignmentV1 = onCall(
         }
       } catch (err) {
         contextsFailed += 1;
-        console.warn(`[ltiResolveNames] context ${doc.id} fetch failed:`, err);
+        console.warn(
+          `[ltiResolveNames] context ${doc.id} fetch failed:`,
+          safeErr(err)
+        );
       }
     }
 

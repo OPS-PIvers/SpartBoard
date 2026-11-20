@@ -50,6 +50,7 @@ import {
   PIN_INDEX_MAX_ENTRIES,
   type CommitRosterPinIndexEntry,
 } from './studentIdentity';
+import { safeErr } from './safeLog';
 
 const DRIVE_API = 'https://www.googleapis.com/drive/v3';
 const DRIVE_UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3';
@@ -240,7 +241,10 @@ async function writeSyncCursor(
     );
   } catch (err) {
     // A lost cursor only means the next run starts from the top.
-    console.error('[classlinkRosterSync] could not save resume cursor:', err);
+    console.error(
+      '[classlinkRosterSync] could not save resume cursor:',
+      safeErr(err)
+    );
   }
 }
 
@@ -322,7 +326,7 @@ export async function runClassLinkRosterSync(
           summary.errors += 1;
           console.error(
             `[classlinkRosterSync] roster ${rosterSnap.ref.path} failed:`,
-            err
+            safeErr(err)
           );
         }
         lastDone = here;

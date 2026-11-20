@@ -62,9 +62,36 @@ describe('production deploy', () => {
     expect(yaml).toContain('exit "$(cat "$RUNNER_TEMP/carry-forward.exit")"');
   });
 
+  it('runs every job from main only and binds the prod secret to an environment', () => {
+    const jobs = yaml.slice(yaml.indexOf('\njobs:') + 1);
+    const blocks = jobs.split(/^ {2}(?=[a-z-]+:\n)/m).slice(1);
+    expect(blocks.length).toBeGreaterThan(0);
+    for (const block of blocks) {
+      const id = block.split(':')[0];
+      expect(block, id).toMatch(
+        /\n {4}if: .*github\.ref == 'refs\/heads\/main'/
+      );
+    }
+    expect(yaml).not.toContain("github.ref != 'refs/heads/main'");
+    expect(yaml).toContain('environment: production');
+  });
+
   it('never deploys after a failed or cancelled check', () => {
     expect(yaml).toContain(
-      "if: ${{ !failure() && !cancelled() && needs.build.result == 'success' }}"
+      "if: ${{ github.ref == 'refs/heads/main' && !failure() && !cancelled() && needs.build.result == 'success' }}"
     );
+  });
+});
+
+describe('lunch menu sync', () => {
+  const yaml = read('sync-lunch-menus.yml');
+  const [, prod = '', dev = ''] = yaml.split(/^ {2}sync-(?:prod|dev):$/m);
+
+  it('reads the prod secret only in a main-only job bound to the production environment', () => {
+    expect(prod).toContain("github.ref == 'refs/heads/main'");
+    expect(prod).toContain('environment: production');
+    expect(prod).toContain('secrets.FIREBASE_SERVICE_ACCOUNT');
+    expect(dev).not.toContain('FIREBASE_SERVICE_ACCOUNT');
+    expect(yaml.match(/FIREBASE_SERVICE_ACCOUNT/g)).toHaveLength(1);
   });
 });

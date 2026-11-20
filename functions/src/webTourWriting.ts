@@ -20,6 +20,7 @@ import {
 } from './mcp/webTourTools';
 import { isWebTour } from './mcp/webTours';
 import { isHardTextHit, webTourTextHits } from './mcp/webTourStudentData';
+import { safeErr } from './safeLog';
 
 type Firestore = admin.firestore.Firestore;
 type Token = { email?: string; email_verified?: boolean };
@@ -288,7 +289,7 @@ export async function runWebTourWriting(
     return { steps: parseWritingResponse(text, req) };
   } catch (error) {
     if (error instanceof HttpsError) throw error;
-    console.error('[writeWebTourTextV1] failed:', error);
+    console.error('[writeWebTourTextV1] failed:', safeErr(error));
     if (error instanceof AiUnavailableError)
       throw new HttpsError('failed-precondition', error.message);
     throw new HttpsError('internal', "Claude couldn't write these steps.");
