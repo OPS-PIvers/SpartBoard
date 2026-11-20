@@ -1394,6 +1394,7 @@
         "ariaLabel": "Abrir asistencia — {{count}} marcados ausentes hoy"
       },
       "classContext": {
+        "label": "Clases",
         "triggerAria": "Clase activa: {{name}}",
         "triggerAriaWithAbsent_one": "Clase activa: {{name}}. {{count}} estudiante marcado ausente hoy.",
         "triggerAriaWithAbsent_other": "Clase activa: {{name}}. {{count}} estudiantes marcados ausentes hoy.",

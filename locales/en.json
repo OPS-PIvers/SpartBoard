@@ -2642,6 +2642,7 @@
       "modeChipAriaWithCount_other": "Operation mode: {{mode}}. {{count}} students left.",
       "modeChipTitle": "Mode: {{mode}} — click to cycle",
       "classContext": {
+        "label": "Classes",
         "triggerAria": "Active class: {{name}}",
         "triggerAriaWithAbsent_one": "Active class: {{name}}. {{count}} student marked absent today.",
         "triggerAriaWithAbsent_other": "Active class: {{name}}. {{count}} students marked absent today.",

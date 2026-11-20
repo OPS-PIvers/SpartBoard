@@ -219,6 +219,60 @@ describe('RandomClassContextButton', () => {
     expect(setActiveRoster).toHaveBeenCalledWith('r2');
   });
 
+  it('shows a visible Classes label', () => {
+    const r1 = makeRoster('r1', 'Period 1');
+    mockUseDashboard([r1, makeRoster('r2', 'Period 2')], 'r1');
+    render(
+      <RandomClassContextButton
+        roster={r1}
+        rosterMode="class"
+        onOpenAbsentModal={noop}
+      />
+    );
+    expect(screen.getByText('Classes')).toBeInTheDocument();
+  });
+
+  it("checks the widget's own class, not the board's active class", () => {
+    const r1 = makeRoster('r1', 'Period 1');
+    const r2 = makeRoster('r2', 'Period 2');
+    mockUseDashboard([r1, r2], 'r2');
+    render(
+      <RandomClassContextButton
+        roster={r1}
+        rosterMode="class"
+        onOpenAbsentModal={noop}
+        onSelectClass={vi.fn()}
+      />
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /Active class: Period 1/i })
+    );
+    expect(
+      screen.getByRole('menuitemradio', { checked: true }).textContent
+    ).toMatch(/Period 1/);
+  });
+
+  it('sets only the widget class when onSelectClass is given', () => {
+    const r1 = makeRoster('r1', 'Period 1');
+    const r2 = makeRoster('r2', 'Period 2');
+    const setActiveRoster = mockUseDashboard([r1, r2], 'r1');
+    const onSelectClass = vi.fn();
+    render(
+      <RandomClassContextButton
+        roster={r1}
+        rosterMode="class"
+        onOpenAbsentModal={noop}
+        onSelectClass={onSelectClass}
+      />
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /Active class: Period 1/i })
+    );
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /Period 2/i }));
+    expect(onSelectClass).toHaveBeenCalledWith('r2', null);
+    expect(setActiveRoster).not.toHaveBeenCalled();
+  });
+
   it('opens the absent modal via the popover action', () => {
     const r = makeRoster('r1', 'Period 1');
     mockUseDashboard([r], 'r1');
