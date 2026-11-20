@@ -137,7 +137,17 @@ export const useQuizDelete = ({
     if (!ok) return false;
 
     const results = await Promise.allSettled(
-      deletable.map((meta) => deleteQuiz(meta.id, meta.driveFileId))
+      deletable.map(async (meta) => {
+        await deleteQuiz(meta.id, meta.driveFileId);
+        // Best-effort, as in onDelete: cleanup failure never fails the quiz delete.
+        if (user?.uid) {
+          await deletePaperBatchesForQuiz(user.uid, meta.id).catch(
+            (batchErr: unknown) => {
+              console.warn('[QuizWidget] paper batch cleanup:', batchErr);
+            }
+          );
+        }
+      })
     );
     const failed: string[] = [];
     results.forEach((result, idx) => {
