@@ -27422,27 +27422,65 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "row_wildcard": true,
-    "row_list": "assignment-rows"
+    "row_list": "assignment-rows",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": [
+          "library-shell.assigned-classes"
+        ],
+        "reveal": "library-shell.assigned-classes"
+      }
+    ]
   },
   {
     "id": "library-shell.assigned-search",
     "label": "Search box above the Assigned tab list",
-    "scope": "board"
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
   },
   {
     "id": "library-shell.assigned-filter-class",
     "label": "Class filter above the Assigned tab list",
-    "scope": "board"
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
   },
   {
     "id": "library-shell.assigned-filter-status",
     "label": "Status filter above the Assigned tab list",
-    "scope": "board"
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
   },
   {
     "id": "library-shell.assigned-filter-clear",
     "label": "Clear, beside the Assigned tab filters",
-    "scope": "board"
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
   },
   {
     "id": "library-shell.assigned-select",
