@@ -172,7 +172,7 @@ async function saveAttempt(
   // Review games and resource sessions are not graded attempts.
   if (!ctx) return 'skipped';
   const studentUid = typeof data.studentUid === 'string' ? data.studentUid : '';
-  const score = ctx.score(studentUid, data);
+  const score = ctx.score(studentUid, data, w.responseKey);
   const liveRef = responseRef(db, w.sessionId, w.responseKey);
   const copies = (
     await liveRef.collection(QUIZ_ATTEMPTS_SUBCOLLECTION).get()
@@ -360,13 +360,17 @@ export async function applyAttemptGradeWrite(
       const indexSnap = newSnap?.exists ? newSnap : legacySnap;
       const targetRef = newSnap?.exists ? indexRef : legacyRef;
       // A stored (published) score would mask the new grade.
-      const score = ctx.score(studentUid, {
-        ...fresh,
-        score: null,
-        status: 'completed',
-        // Score the copy as its own attempt so the teacher's pick for it still applies.
-        completedAttempts: w.n,
-      });
+      const score = ctx.score(
+        studentUid,
+        {
+          ...fresh,
+          score: null,
+          status: 'completed',
+          // Score the copy as its own attempt so the teacher's pick for it still applies.
+          completedAttempts: w.n,
+        },
+        w.responseKey
+      );
       if (!score) return false;
       const rescored = { ...score, attemptNumber: w.n };
       const now = Date.now();
