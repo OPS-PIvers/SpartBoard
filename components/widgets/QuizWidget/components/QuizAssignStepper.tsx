@@ -42,7 +42,7 @@ import { SharingStep } from '@/components/common/library/assignStepper/SharingSt
 import { WrittenAnswersStep } from '@/components/common/library/assignStepper/WrittenAnswersStep';
 import { HandRaiseRow } from '@/components/common/library/assignStepper/QuizFeedbackStep';
 import { formatWrittenAnswersValue } from '@/components/common/library/assignStepper/WrittenAnswersStep.format';
-import { Printer } from 'lucide-react';
+import { AlertCircle, Printer } from 'lucide-react';
 import { AuthContext } from '@/context/AuthContextValue';
 import { SPEECH_TO_TEXT_FEATURE } from '@/utils/speechToText/types';
 import { clampQuizTimeLimitMinutes } from '@/utils/quizTimeLimit';
@@ -123,6 +123,8 @@ export interface QuizAssignStepperProps {
     /** What the Modifications step shows, so assign serves exactly that. */
     overridesByKey?: AssignTargetingValue['overridesByKey'];
   }) => void | Promise<void>;
+  /** A failed save, shown above the steps while the stepper stays open. */
+  error?: string | null;
   /** Quiz settings on a launched assignment: same steps, opened on what was saved. */
   edit?: QuizAssignStepperEdit;
 }
@@ -168,6 +170,7 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   printedVersionsAvailable = false,
   onClose,
   onSubmit,
+  error,
   edit,
 }) => {
   const { t } = useTranslation();
@@ -498,6 +501,20 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
         onClose();
       }}
       title={title}
+      topSwitch={
+        error ? (
+          <div
+            role="alert"
+            className="flex items-start gap-2 rounded-xl border border-brand-red-primary/30 bg-brand-red-lighter/40 px-3 py-2 text-sm font-medium text-brand-red-dark"
+          >
+            <AlertCircle
+              className="mt-0.5 h-4 w-4 shrink-0"
+              aria-hidden="true"
+            />
+            <span>{error}</span>
+          </div>
+        ) : undefined
+      }
       steps={steps}
       submitLabel={onPaper ? 'Assign and print' : submitLabel}
       submitIcon={onPaper ? Printer : edit?.submitIcon}
