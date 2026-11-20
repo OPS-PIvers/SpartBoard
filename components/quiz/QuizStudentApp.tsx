@@ -3365,12 +3365,12 @@ export const ActiveQuiz: React.FC<{
   const wordLimitBlocked = writtenLimit?.blocked === true;
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   overLimitRevisitRef.current = submitted && wordLimitBlocked;
+  // The blank a word bank tap fills on a multi-blank question.
+  const lastBlankRef = useRef<{ qid: string; index: number } | null>(null);
   // Convenience cache writer for the editor / input onChange handlers.
   // Updates the cache for the current question; no-ops if there's no
   // current question (impossible in practice during render of an
   // answer slot, but keeps the type signature honest).
-  // The blank a word bank tap fills on a multi-blank question.
-  const lastBlankRef = useRef<{ qid: string; index: number } | null>(null);
   const setCacheForCurrent = (value: string): void => {
     if (!currentQid) return;
     // Mark the question touched so the seed-from-server block above stops
@@ -4273,6 +4273,8 @@ export const ActiveQuiz: React.FC<{
     !(submitted && !isStudentPaced)
       ? (choice: string) => {
           const last = lastBlankRef.current;
+          // The next tap fills the next empty blank unless a blank is focused again.
+          lastBlankRef.current = null;
           setCacheForCurrent(
             fillWordBankChoice(
               liveAnswer ?? '',

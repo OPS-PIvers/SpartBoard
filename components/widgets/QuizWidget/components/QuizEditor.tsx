@@ -1061,6 +1061,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           promptAccents={defaultAccents}
           promptMath
           promptFormat
+          toolbarTools={inPrompt}
           promptAudio={canAccessFeature('quiz-question-audio')}
           extras={
             inPrompt ? (
