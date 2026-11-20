@@ -5323,7 +5323,7 @@ const TeacherQuizWidget: React.FC<{
             addToast(
               isViewOnlyAssignment
                 ? 'Share reactivated.'
-                : 'Reopened — click Resume to accept submissions.',
+                : "Reopened and paused. Students can't submit until you start it.",
               'success'
             );
           } catch (err) {
