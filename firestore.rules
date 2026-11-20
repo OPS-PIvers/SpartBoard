@@ -5703,6 +5703,7 @@ service cloud.firestore {
         // An appended answer: no takeIndex, never one for a question the server recorded this attempt.
         function vaNewAnswerOk(a) {
           return !('takeIndex' in a) &&
+            (!(a.get('answer', '') is string) || a.get('answer', '').size() <= 100000) &&
             (existing().get('completedAt', null) == null || existing().get('unlocked', false) == true) &&
             existing().get('checkedAnswers', {}).get(a.get('questionId', ''), {}).get('attempt', -1) !=
               existing().get('completedAttempts', 0);

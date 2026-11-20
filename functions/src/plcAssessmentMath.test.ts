@@ -4,6 +4,9 @@ import {
   ALIGNMENT_WARNING,
   bucketScores,
   alignSessionQuestions,
+  MAX_ANSWER_CHARS,
+  capAnswer,
+  stripMarkupTags,
   computeAssessmentAggregate,
   gradeGroupAnswer,
   resolveGroupQuestions,
@@ -1326,5 +1329,28 @@ describe('bucketScores', () => {
 
   it('returns zeroed bands when nothing is scored', () => {
     expect(bucketScores([]).map((b) => b.count)).toEqual([0, 0, 0, 0]);
+  });
+});
+
+describe('stripMarkupTags and capAnswer on hostile input', () => {
+  it('strips a huge run of nested brackets in well under a second', () => {
+    const n = 500_000;
+    const start = Date.now();
+    expect(stripMarkupTags('<'.repeat(n) + '>'.repeat(n))).toBe('');
+    expect(Date.now() - start).toBeLessThan(1000);
+  });
+
+  it('strips nested and unbalanced markup like the fixpoint did', () => {
+    expect(stripMarkupTags('<<p>>')).toBe('');
+    expect(stripMarkupTags('<p>hi</p>')).toBe('hi');
+    expect(stripMarkupTags('<a>>')).toBe('>');
+    expect(stripMarkupTags('1 < 2 > 0')).toBe('1  0');
+  });
+
+  it('drops everything past the answer cap', () => {
+    expect(capAnswer('x'.repeat(MAX_ANSWER_CHARS + 5))).toHaveLength(
+      MAX_ANSWER_CHARS
+    );
+    expect(capAnswer('short')).toBe('short');
   });
 });

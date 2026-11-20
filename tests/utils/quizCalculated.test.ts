@@ -121,6 +121,15 @@ describe('parseStudentNumber', () => {
     expect(parseStudentNumber('87.4/2.3')).toBeNull();
     expect(parseStudentNumber('')).toBeNull();
   });
+
+  it('rejects a long digit run with a trailing letter in linear time', () => {
+    const start = performance.now();
+    expect(parseStudentNumber(`${'1'.repeat(40000)}a`)).toBeNull();
+    expect(parseStudentNumber(`${'1'.repeat(40000)}x10^a`)).toBeNull();
+    expect(performance.now() - start).toBeLessThan(200);
+    expect(parseStudentNumber('12.')).toBe(12);
+    expect(parseStudentNumber('.5e2')).toBe(50);
+  });
 });
 
 describe('calcAnswerAccepted', () => {
