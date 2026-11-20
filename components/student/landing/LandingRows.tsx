@@ -395,11 +395,16 @@ const FLAG_INK: Record<string, string> = {
 const extraFlags = (grade: StudentGradeRow | undefined) =>
   (grade?.flags ?? []).filter((f) => f.id !== 'missing' && f.id !== 'excused');
 
+/** Closed and never turned in: it can no longer be done, so it is not "Missing". */
+const NotSubmitted: React.FC = () => (
+  <span className="text-xs font-semibold text-slate-500">Not submitted</span>
+);
+
 function gradebookRight(item: DoneItem, isNew: boolean): React.ReactNode {
   if (item.missing) {
     return (
       <>
-        <span className="text-xs font-semibold text-rose-700">Missing</span>
+        <NotSubmitted />
         {item.grade?.status === 'scored' && (
           <span className="w-14 text-right text-sm font-semibold tabular-nums text-slate-400">
             {formatPoints(item.grade.points ?? 0)}
@@ -443,8 +448,7 @@ function completedRight(
   check: TurnInCheck | undefined,
   nowMs: number
 ): React.ReactNode {
-  if (item.missing)
-    return <span className="text-xs font-semibold text-rose-700">Missing</span>;
+  if (item.missing) return <NotSubmitted />;
   if (item.row?.state === 'closed')
     return <span className="text-xs text-slate-500">Not graded yet</span>;
   if (check?.lockedOut)
@@ -479,7 +483,7 @@ const missingMessage = (item: DoneItem, teachers: string): string => {
   return `${closed} before you turned it in. Talk to ${teachers || 'your teacher'} if you need it reopened.`;
 };
 
-/** D17, D18: a Completed or Gradebook row; every one opens the student's own work, or says why it is Missing. */
+/** D17, D18: a Completed or Gradebook row; every one opens the student's own work, or says why it was not submitted. */
 export const DoneRow: React.FC<DoneRowProps> = ({
   item,
   check,
