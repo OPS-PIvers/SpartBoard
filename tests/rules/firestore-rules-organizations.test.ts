@@ -342,6 +342,40 @@ describe('organizations — super admin writes (Phase 3)', () => {
     );
   });
 
+  it('super admin can create an org only with a well-formed Claude sign-in issuer', async () => {
+    await assertSucceeds(
+      setDoc(doc(asSuper(), 'organizations/issuer-ok'), {
+        id: 'issuer-ok',
+        name: 'Issuer OK',
+        claudeManagedAuth: { enabled: true, issuer: 'https://x.example' },
+      })
+    );
+    for (const [i, bad] of [
+      { enabled: true, issuer: 'http://x.example' },
+      { enabled: 'yes', issuer: 'https://x.example' },
+      { enabled: true, issuer: 'https://x.example', extra: 1 },
+      'https://x.example',
+      null,
+    ].entries()) {
+      await assertFails(
+        setDoc(doc(asSuper(), `organizations/issuer-bad-${i}`), {
+          id: `issuer-bad-${i}`,
+          name: 'Bad',
+          claudeManagedAuth: bad,
+        })
+      );
+    }
+  });
+
+  it('domain admin cannot create an org carrying a Claude sign-in issuer', async () => {
+    await assertFails(
+      setDoc(doc(asDomainAdmin(), 'organizations/nope-issuer'), {
+        name: 'Nope',
+        claudeManagedAuth: { enabled: true, issuer: 'https://x.example' },
+      })
+    );
+  });
+
   it('super admin can delete an org', async () => {
     await assertSucceeds(
       deleteDoc(doc(asSuper(), `organizations/${OTHER_ORG_ID}`))
