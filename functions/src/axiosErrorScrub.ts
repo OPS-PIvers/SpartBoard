@@ -12,6 +12,15 @@ type Scrubbable = {
   };
 };
 
+function isStream(v: unknown): v is { destroy: () => void } {
+  return (
+    typeof v === 'object' &&
+    v !== null &&
+    typeof (v as { pipe?: unknown }).pipe === 'function' &&
+    typeof (v as { destroy?: unknown }).destroy === 'function'
+  );
+}
+
 /** Drops the request config (auth headers, params, body) and raw request from an AxiosError so a rethrown error cannot leak them. */
 export function scrubAxiosError(err: unknown): void {
   if (typeof err !== 'object' || err === null) return;
@@ -23,7 +32,13 @@ export function scrubAxiosError(err: unknown): void {
   };
   e.request = undefined;
   if (e.response) {
-    const { status, statusText, headers, data } = e.response;
+    const { status, statusText, headers } = e.response;
+    let { data } = e.response;
+    // A stream body is the raw IncomingMessage, whose `req` still holds the request headers.
+    if (isStream(data)) {
+      data.destroy();
+      data = undefined;
+    }
     e.response = { status, statusText, headers, data };
   }
 }

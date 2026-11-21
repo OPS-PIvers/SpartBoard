@@ -10,6 +10,27 @@ const workflows = resolve(
 );
 const read = (name: string) => readFileSync(resolve(workflows, name), 'utf-8');
 
+/** Lists jobs in a prod workflow that could run off main or read the prod secret outside its environment. */
+function mainOnlyProblems(yaml: string): string[] {
+  const jobs = yaml.slice(yaml.indexOf('\njobs:') + 1);
+  const blocks = jobs.split(/^ {2}(?=[\w-]+:[ \t]*$)/m).slice(1);
+  if (blocks.length === 0) return ['no jobs found'];
+  const problems: string[] = [];
+  for (const block of blocks) {
+    const id = block.split(':')[0];
+    const guard = /\n {4}if: (.*)/.exec(block)?.[1] ?? '';
+    if (!/github\.ref == 'refs\/heads\/main'/.test(guard))
+      problems.push(`${id}: no main-only guard`);
+    else if (guard.includes('||'))
+      problems.push(`${id}: guard is bypassed with ||`);
+    if (id === 'deploy' && !/\n {4}environment: production[ \t]*$/m.test(block))
+      problems.push(`${id}: no environment: production`);
+  }
+  if (!blocks.some((b) => b.startsWith('deploy:')))
+    problems.push('deploy: job not found');
+  return problems;
+}
+
 describe('PR Validation as a required check', () => {
   const yaml = read('pr-validation.yml');
 
@@ -62,18 +83,32 @@ describe('production deploy', () => {
     expect(yaml).toContain('exit "$(cat "$RUNNER_TEMP/carry-forward.exit")"');
   });
 
-  it('runs every job from main only and binds the prod secret to an environment', () => {
-    const jobs = yaml.slice(yaml.indexOf('\njobs:') + 1);
-    const blocks = jobs.split(/^ {2}(?=[a-z-]+:\n)/m).slice(1);
-    expect(blocks.length).toBeGreaterThan(0);
-    for (const block of blocks) {
-      const id = block.split(':')[0];
-      expect(block, id).toMatch(
-        /\n {4}if: .*github\.ref == 'refs\/heads\/main'/
-      );
-    }
+  it('runs every job from main only and binds the prod secret to the deploy job', () => {
+    expect(mainOnlyProblems(yaml)).toEqual([]);
     expect(yaml).not.toContain("github.ref != 'refs/heads/main'");
-    expect(yaml).toContain('environment: production');
+  });
+
+  it('catches an unguarded job, a bypassed guard and a misplaced environment', () => {
+    const bad = [
+      'jobs:',
+      '  build:',
+      "    if: github.ref == 'refs/heads/main'",
+      '  job_2:',
+      '    runs-on: ubuntu-latest',
+      '  lint:',
+      "    if: github.ref == 'refs/heads/main' || true",
+      '  deploy:',
+      "    if: github.ref == 'refs/heads/main'",
+      '  other:',
+      "    if: github.ref == 'refs/heads/main'",
+      '    environment: production',
+      '',
+    ].join('\n');
+    expect(mainOnlyProblems(bad)).toEqual([
+      'job_2: no main-only guard',
+      'lint: guard is bypassed with ||',
+      'deploy: no environment: production',
+    ]);
   });
 
   it('never deploys after a failed or cancelled check', () => {
