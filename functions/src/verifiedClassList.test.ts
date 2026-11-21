@@ -227,6 +227,29 @@ describe('refusedClassTargets', () => {
     ]);
   });
 
+  it('treats newlines, carriage returns and line separators as the rule does', async () => {
+    const db = stubDb({ 'verified_classes/u': listed });
+    expect(await refusedClassTargets(db, 'u', ['schoology:1\n'])).toEqual([
+      'schoology:1\n',
+    ]);
+    expect(await refusedClassTargets(db, 'u', ['schoology:1\nx'])).toEqual([
+      'schoology:1\nx',
+    ]);
+    expect(await refusedClassTargets(db, 'u', ['schoology:1\r'])).toEqual([]);
+    expect(
+      await refusedClassTargets(db, 'u', ['classroom:\u2028', 'a'])
+    ).toEqual([]);
+    expect(await refusedClassTargets(db, 'u', ['schoology:\u2029x'])).toEqual(
+      []
+    );
+  });
+
+  it('refuses nothing before enforce when the list is missing or uncounted', async () => {
+    expect(await refusedClassTargets(stubDb({}), 'u', ['b', 'c'])).toEqual([]);
+    const uncounted = stubDb({ 'verified_classes/u': { ids: ['a'] } });
+    expect(await refusedClassTargets(uncounted, 'u', ['b'])).toEqual([]);
+  });
+
   it('refuses the unlisted LMS id once enforce is on', async () => {
     const db = stubDb({
       'verified_classes/u': listed,
