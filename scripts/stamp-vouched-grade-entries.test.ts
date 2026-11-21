@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   matchRows,
+  parseRecords,
   projectionKey,
+  retouchTargets,
   unstampedEntries,
 } from './stamp-vouched-grade-entries.mjs';
 
@@ -58,7 +60,10 @@ describe('matchRows', () => {
         'c1'
       )
     ).toEqual({
-      rowIds: ['quiz__a__u1', 'a__u1'],
+      touches: [
+        { sessionId: 'a', ownerUid: 't1', rowId: 'quiz__a__u1' },
+        { sessionId: 'a', ownerUid: 't1', rowId: 'a__u1' },
+      ],
       missing: [
         { sessionId: 'b', ownerUid: 't1' },
         { sessionId: 'c', ownerUid: 't1' },
@@ -75,5 +80,43 @@ describe('projectionKey', () => {
     });
     expect(projectionKey('users/t1/classes/c1')).toBeNull();
     expect(projectionKey('student_grades/u1/classes/c1/x/y')).toBeNull();
+  });
+});
+
+describe('retouch', () => {
+  const rec = (path: string, sessionId: string) => ({
+    path,
+    sessionId,
+    ownerUid: 't1',
+    rowId: `quiz__${sessionId}__u1`,
+  });
+
+  it('keeps only well-formed records', () => {
+    expect(
+      parseRecords([
+        rec('student_grades/u1/classes/c1', 'a'),
+        { ...rec('student_grades/u1/classes/c1', 'b'), rowId: 'x/y' },
+        { ...rec('users/t1/x/y', 'c') },
+        { path: 'student_grades/u1/classes/c1', sessionId: 'd' },
+        'junk',
+      ])
+    ).toEqual([rec('student_grades/u1/classes/c1', 'a')]);
+    expect(parseRecords({})).toEqual([]);
+  });
+
+  it('re-touches rows whose entry or whole doc is gone', () => {
+    const records = [
+      rec('student_grades/u1/classes/c1', 'kept'),
+      rec('student_grades/u1/classes/c1', 'dropped'),
+      rec('student_grades/u2/classes/c1', 'docGone'),
+    ];
+    const docs = new Map([
+      ['student_grades/u1/classes/c1', { entries: { kept: { pct: 80 } } }],
+    ]);
+    expect(
+      retouchTargets(records, docs).map(
+        (r: { sessionId: string }) => r.sessionId
+      )
+    ).toEqual(['dropped', 'docGone']);
   });
 });
